@@ -1,4 +1,4 @@
-# aclnnGroupedMatMulAlltoAllv
+# aclnnQuantGroupedMatMulAlltoAllv
 
 [📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mc2/grouped_mat_mul_allto_allv)
 
@@ -7,7 +7,7 @@
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
 | <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    ×     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
@@ -15,36 +15,48 @@
 
 ## 功能说明
 
-算子功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**。
+算子功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**，支持T-T[量化模式](../../../docs/zh/context/量化介绍.md)。
 
 - 计算公式：
+    - T-T量化场景：
+        - 路由专家：
 
-    - 路由专家：
+        $$
+        gmmY = gmmX @ gmmWeight * gmmXScale * gmmWeightScale \\
+        unpermuteOut = Unpermute(gmmY) \\
+        y = AlltoAllv(unpermuteOut)
+        $$
 
-    $$
-    gmmY = gmmX \times gmmWeight \\
-    unpermuteOut = Unpermute(gmmY) \\
-    y = AlltoAllv(unpermuteOut)
-    $$
+        - 共享专家：
 
-    - 共享专家：
-
-    $$
-    mmY = mmX \times mmWeight
-    $$
+        $$
+        mmY = mmX @  mmWeight * mmXScale * mmWeightScale
+        $$
 
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用`aclnnGroupedMatMulAlltoAllvGetWorkspaceSize`接口获取入参并根据计算流程计算所需workspace大小，再调用`aclnnGroupedMatMulAlltoAllv`接口执行计算。
+每个算子分为两段式接口，必须先调用`aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize`接口获取入参并根据计算流程计算所需workspace大小，再调用`aclnnQuantGroupedMatMulAlltoAllv`接口执行计算。
 
 ```cpp
-aclnnStatus aclnnGroupedMatMulAlltoAllvGetWorkspaceSize(
+aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor*   gmmX,
     const aclTensor*   gmmWeight,
+    const aclTensor*   gmmXScale,
+    const aclTensor*   gmmWeightScale,
     const aclTensor*   sendCountsTensorOptional,
     const aclTensor*   recvCountsTensorOptional,
-    const aclTensor*   mmXOptional,            
+    const aclTensor*   mmXOptional,
     const aclTensor*   mmWeightOptional,
+    const aclTensor*   mmXScaleOptional,
+    const aclTensor*   mmWeightScaleOptional,
+    const aclTensor*   commQuantScaleOptional,
+    int64_t            gmmXQuantMode,
+    int64_t            gmmWeightQuantMode,
+    int64_t            mmXQuantMode,
+    int64_t            mmWeightQuantMode,
+    int64_t            commQuantMode,
+    int64_t            commQuantDtypeOptional,
+    int64_t            groupSize, 
     const char*        group,
     int64_t            epWorldSize,
     const aclIntArray* sendCounts,
@@ -58,14 +70,14 @@ aclnnStatus aclnnGroupedMatMulAlltoAllvGetWorkspaceSize(
 ```
 
 ```cpp
-aclnnStatus aclnnGroupedMatMulAlltoAllv(
+aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     void*           workspace,
     uint64_t        workspaceSize,
     aclOpExecutor*  executor,
     aclrtStream     stream)
 ```
 
-## aclnnGroupedMatMulAlltoAllvGetWorkspaceSize
+## aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize
 
 - **参数说明**
 
@@ -89,14 +101,28 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <td>gmmX</td>
     <td>输入</td>
     <td>该输入作为GroupedMatMul计算的左矩阵，计算结果进行AlltoAllv通信，支持2维，shape为(A, H1)。</td>
-    <td>FLOAT16、BFLOAT16</td>
+    <td>HIFLOAT8</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>gmmWeight</td>
     <td>输入</td>
     <td>GroupedMatMul计算的右矩阵，数据类型与gmmX保持一致，支持3维，shape为(e, H1, N1)。</td>
-    <td>FLOAT16、BFLOAT16</td>
+    <td>HIFLOAT8</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>gmmXScale</td>
+    <td>输入</td>
+    <td>路由专家左矩阵的量化系数。</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>gmmWeightScale</td>
+    <td>输入</td>
+    <td>路由专家右矩阵的量化系数。</td>
+    <td>FLOAT32</td>
     <td>ND</td>
     </tr>
     <tr>
@@ -117,15 +143,78 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <td>mmXOptional</td>
     <td>输入</td>
     <td>可选输入，共享专家MatMul计算中的左矩阵，需与mmWeightOptional同时传入或同为nullptr，数据类型与gmmX保持一致，支持2维，shape为(BS, H2)。</td>
-    <td>FLOAT16、BFLOAT16</td>
+    <td>HIFLOAT8</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmWeightOptional</td>
     <td>输入</td>
     <td>可选输入，共享专家MatMul计算中的右矩阵，需与mmXOptional同时传入或同为nullptr，数据类型与gmmX保持一致，支持2维，shape为(H2, N2)。</td>
-    <td>FLOAT16、BFLOAT16</td>
+    <td>HIFLOAT8</td>
     <td>ND</td>
+    </tr>
+    <tr>
+    <td>mmXScaleOptional</td>
+    <td>输入</td>
+    <td>可选输入，共享专家MatMul计算中的左矩阵的量化系数。</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>mmWeightScaleOptional</td>
+    <td>输入</td>
+    <td>可选输入，共享专家MatMul计算中的右矩阵的量化系数。</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>commQuantScaleOptional</td>
+    <td>输入</td>
+    <td>可选输入，低比特通信的量化系数，预留参数，暂不支持低比特通信。</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>gmmXQuantMode</td>
+    <td>输入</td>
+    <td>路由专家左矩阵的量化方式。</td>
+    <td>INT64</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>gmmWeightQuantMode</td>
+    <td>输入</td>
+    <td>路由专家右矩阵的量化方式。</td>
+    <td>INT64</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>mmXQuantMode</td>
+    <td>输入</td>
+    <td>共享专家左矩阵的量化方式。</td>
+    <td>INT64</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>mmWeightQuantMode</td>
+    <td>输入</td>
+    <td>共享专家右矩阵的量化方式。</td>
+    <td>INT64</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>commQuantMode</td>
+    <td>输入</td>
+    <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示非量化。</td>
+    <td>INT64</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>commQuantDtypeOptional</td>
+    <td>输入</td>
+    <td>低比特通信的量化类型，预留参数，当前仅支持配置为-1，表示ACL_DT_UNDEFINED。</td>
+    <td>INT64</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>group</td>
@@ -137,7 +226,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
-    <td>ep通信域size：<br><term>Atlas A3系列产品</term>支持8、16、32、64、128；<br><term>Ascend 950PR/Ascend 950DT</term>支持2、4、8、16、32、64、128、256。</td>
+    <td>ep通信域size：支持2、4、8、16、32、64、128、256。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
@@ -172,14 +261,14 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <tr>
     <td>y</td>
     <td>输出</td>
-    <td>最终计算结果，数据类型与输入gmmX保持一致，支持2维，shape为(BSK, N1)。</td>
+    <td>最终通信结果，支持2维，shape为(BSK, N1)。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmYOptional</td>
     <td>输出</td>
-    <td>共享专家MatMul的输出，数据类型与mmXOptional保持一致，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
+    <td>共享专家MatMul的输出，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     </tr>
@@ -198,6 +287,16 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <td>ND</td>
     </tr>
     </tbody></table>
+
+  gmmXQuantMode、gmmWeightQuantMode、mmXQuantMode、mmWeightQuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
+  * 0: 非量化
+  * 1: pertensor
+  * 2: perchannel
+  * 3: pertoken
+  * 4: pergroup
+  * 5: perblock
+  * 6: mx量化
+  * 7: pertoken动态量化
 
 - **返回值**
 
@@ -220,17 +319,17 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <tr>
     <td>ACLNN_ERR_PARAM_NULLPTR</td>
     <td>161001</td>
-    <td>1. 传入参数要求是必选输入、输出或者必选属性，但实际传入了空指针。</td>
+    <td>输入和输出的必选参数Tensor是空指针。</td>
     </tr>
     <tr>
     <td>ACLNN_ERR_PARAM_INVALID</td>
     <td>161002</td>
-    <td>1. gmmX、gmmWeight、sendCountsTensorOptional、recvCountsTensorOptional、mmXOptional、mmWeightOptional、group、epWorldSize、sendCounts、recvCounts的数据类型、数据格式或者维度不在支持的范围内。</td>
+    <td>输入和输出的数据类型不在支持的范围内。</td>
     </tr>
     </tbody></table>
 
 
-## aclnnGroupedMatMulAlltoAllv
+## aclnnQuantGroupedMatMulAlltoAllv
 
 - **参数说明**
 
@@ -254,7 +353,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     <tr>
     <td>workspaceSize</td>
     <td>输入</td>
-    <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnGroupedMatMulAlltoAllvGetWorkspaceSize</code>获取。</td>
+    <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize</code>获取。</td>
     </tr>
     <tr>
     <td>executor</td>
@@ -275,7 +374,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnGroupedMatMulAlltoAllv默认确定性实现。
+  - aclnnQuantGroupedMatMulAlltoAllv默认确定性实现。
 
 - 参数说明里shape使用的变量：
   - BSK：本卡接收的token数，是recvCounts参数累加之和，取值范围(0, 52428800)。
@@ -289,15 +388,13 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
   - A：本卡发送的token数，是sendCounts参数累加之和。
   - ep通信域内所有卡的 A 参数的累加和等于所有卡上的 BSK 参数的累加和。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量在2MB以下可能存在性能劣化。
-
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
     ```Cpp
     #include <thread>
@@ -306,7 +403,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     #include <vector>
     #include "acl/acl.h"
     #include "hccl/hccl.h"
-    #include "aclnnop/aclnn_grouped_mat_mul_allto_allv.h"
+    #include "aclnnop/aclnn_quant_grouped_mat_mul_allto_allv.h"
 
     #define CHECK_RET(cond, return_expr) \
         do {                             \
@@ -384,9 +481,13 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
         std::vector<int64_t> gmmXShape = {A, H};
         std::vector<int64_t> gmmWShape = {e, H, N1};
+        std::vector<int64_t> gmmXScaleShape = {1};
+        std::vector<int64_t> gmmWScaleShape = {1};
         std::vector<int64_t> yShape = {BS * K, N1};
         std::vector<int64_t> mmXShape = {BS, H};
         std::vector<int64_t> mmWShape = {H, N2};
+        std::vector<int64_t> mmXScaleShape = {1};
+        std::vector<int64_t> mmWScaleShape = {1};
         std::vector<int64_t> mmYShape = {BS, N2};
 
         std::vector<int64_t> sendCountsShape = {EP_WORLD_SIZE * e};
@@ -397,21 +498,38 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
         void *gmmXDeviceAddr = nullptr;
         void *gmmWDeviceAddr = nullptr;
+        void *gmmXScaleDeviceAddr = nullptr;
+        void *gmmWScaleDeviceAddr = nullptr;
         void *yDeviceAddr = nullptr;
         void *mmXDeviceAddr = nullptr;
         void *mmWDeviceAddr = nullptr;
+        void *mmXScaleDeviceAddr = nullptr;
+        void *mmWScaleDeviceAddr = nullptr;
         void *mmYDeviceAddr = nullptr;
 
         aclTensor *gmmX = nullptr;
         aclTensor *gmmW = nullptr;
+        aclTensor *gmmXScale = nullptr;
+        aclTensor *gmmWScale = nullptr;
         aclTensor *y = nullptr;
 
         aclTensor *mmX = nullptr;
         aclTensor *mmW = nullptr;
+        aclTensor *mmXScale = nullptr;
+        aclTensor *mmWScale = nullptr;
         aclTensor *mmY = nullptr;
 
         aclTensor *sendCountsTensor = nullptr;
         aclTensor *recvCountsTensor = nullptr;
+        aclTensor *commQuantScaleOptional = nullptr;
+
+        int64_t gmmXQuantMode = 1;
+        int64_t gmmWQuantMode = 1;
+        int64_t mmXQuantMode = 1;
+        int64_t mmWQuantMode = 1;
+        int64_t commQuantMode = 0;
+        int64_t commQuantDtypeOptional = -1;
+        int64_t groupSize = 0;
 
         uint64_t workspaceSize = 0;
         aclOpExecutor *executor = nullptr;
@@ -419,29 +537,45 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
         long long gmmXShapeSize = GetShapeSize(gmmXShape);
         long long gmmWShapeSize = GetShapeSize(gmmWShape);
+        long long gmmXScaleShapeSize = GetShapeSize(gmmXScaleShape);
+        long long gmmWScaleShapeSize = GetShapeSize(gmmWScaleShape);
         long long yShapeSize = GetShapeSize(yShape);
 
         long long mmXShapeSize = GetShapeSize(mmXShape);
         long long mmWShapeSize = GetShapeSize(mmWShape);
+        long long mmXScaleShapeSize = GetShapeSize(mmXScaleShape);
+        long long mmWScaleShapeSize = GetShapeSize(mmWScaleShape);
         long long mmYShapeSize = GetShapeSize(mmYShape);
 
-        std::vector<uint16_t> gmmXHostData(gmmXShapeSize, (args.rankId + 1) * 1024);  // BF16, FP16
-        std::vector<uint16_t> gmmWHostData(gmmWShapeSize, (args.rankId + 1) * 512);
-        std::vector<uint16_t> yHostData(yShapeSize, 65535);
+        std::vector<uint8_t> gmmXHostData(gmmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
+        std::vector<uint8_t> gmmWHostData(gmmWShapeSize, (args.rankId + 1) * 512);
+        std::vector<float> gmmXScaleHostData(gmmXScaleShapeSize, 1);
+        std::vector<float> gmmWScaleHostData(gmmWScaleShapeSize, 1);
+        std::vector<int16_t> yHostData(yShapeSize, 65535);
 
-        std::vector<uint16_t> mmXHostData(mmXShapeSize, (args.rankId + 1) * 1024);  // BF16, FP16
-        std::vector<uint16_t> mmWHostData(mmWShapeSize, (args.rankId + 1) * 512);
-        std::vector<uint16_t> mmYHostData(mmYShapeSize, 0);
+        std::vector<uint8_t> mmXHostData(mmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
+        std::vector<uint8_t> mmWHostData(mmWShapeSize, (args.rankId + 1) * 512);
+        std::vector<float> mmXScaleHostData(mmXScaleShapeSize, 1);
+        std::vector<float> mmWScaleHostData(mmWScaleShapeSize, 1);
+        std::vector<int16_t> mmYHostData(mmYShapeSize, 0);
 
-        ret = CreateAclTensor(gmmXHostData, gmmXShape, &gmmXDeviceAddr, aclDataType::ACL_FLOAT16, &gmmX);
+        ret = CreateAclTensor(gmmXHostData, gmmXShape, &gmmXDeviceAddr, aclDataType::ACL_HIFLOAT8, &gmmX);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
-        ret = CreateAclTensor(gmmWHostData, gmmWShape, &gmmWDeviceAddr, aclDataType::ACL_FLOAT16, &gmmW);
+        ret = CreateAclTensor(gmmWHostData, gmmWShape, &gmmWDeviceAddr, aclDataType::ACL_HIFLOAT8, &gmmW);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(gmmXScaleHostData, gmmXScaleShape, &gmmXScaleDeviceAddr, aclDataType::ACL_FLOAT, &gmmXScale);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(gmmWScaleHostData, gmmWScaleShape, &gmmWScaleDeviceAddr, aclDataType::ACL_FLOAT, &gmmWScale);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
         ret = CreateAclTensor(yHostData, yShape, &yDeviceAddr, aclDataType::ACL_FLOAT16, &y);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
-        ret = CreateAclTensor(mmXHostData, mmXShape, &mmXDeviceAddr, aclDataType::ACL_FLOAT16, &mmX);
+        ret = CreateAclTensor(mmXHostData, mmXShape, &mmXDeviceAddr, aclDataType::ACL_HIFLOAT8, &mmX);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
-        ret = CreateAclTensor(mmWHostData, mmWShape, &mmWDeviceAddr, aclDataType::ACL_FLOAT16, &mmW);
+        ret = CreateAclTensor(mmWHostData, mmWShape, &mmWDeviceAddr, aclDataType::ACL_HIFLOAT8, &mmW);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(mmXScaleHostData, mmXScaleShape, &mmXScaleDeviceAddr, aclDataType::ACL_FLOAT, &mmXScale);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(mmWScaleHostData, mmWScaleShape, &mmWScaleDeviceAddr, aclDataType::ACL_FLOAT, &mmWScale);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
         ret = CreateAclTensor(mmYHostData, mmYShape, &mmYDeviceAddr, aclDataType::ACL_FLOAT16, &mmY);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -450,13 +584,25 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
         aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
 
         // 调用第一阶段接口
-        ret = aclnnGroupedMatMulAlltoAllvGetWorkspaceSize(
+        ret = aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
             gmmX,
             gmmW,
+            gmmXScale,
+            gmmWScale,
             sendCountsTensor,
             recvCountsTensor,
             mmX,
             mmW,
+            mmXScale,
+            mmWScale,
+            commQuantScaleOptional,
+            gmmXQuantMode,
+            gmmWQuantMode, 
+            mmXQuantMode,
+            mmWQuantMode, 
+            commQuantMode,
+            commQuantDtypeOptional,
+            groupSize,
             hcomName,
             EP_WORLD_SIZE,
             sendCounts,
@@ -468,7 +614,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
             &workspaceSize,
             &executor);
         CHECK_RET(
-            ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnGroupedMatMulAlltoAllvGetWorkspaceSize failed. ret = %d \n", ret);
+            ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize failed. ret = %d \n", ret);
             return ret);
 
         if (workspaceSize > 0) {
@@ -476,8 +622,8 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
             CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc workspace failed. ret = %d \n", ret); return ret);
         }
         // 调用第二阶段接口
-        ret = aclnnGroupedMatMulAlltoAllv(workspaceAddr, workspaceSize, executor, args.stream);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnGroupedMatMulAlltoAllv failed. ret = %d \n", ret);
+        ret = aclnnQuantGroupedMatMulAlltoAllv(workspaceAddr, workspaceSize, executor, args.stream);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantGroupedMatMulAlltoAllv failed. ret = %d \n", ret);
                 return ret);
         // （固定写法）同步等待任务执行结束
         ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000000);
@@ -494,6 +640,12 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
         if (gmmW != nullptr) {
             aclDestroyTensor(gmmW);
         }
+        if (gmmXScale != nullptr) {
+            aclDestroyTensor(gmmXScale);
+        }
+        if (gmmWScale != nullptr) {
+            aclDestroyTensor(gmmWScale);
+        }
         if (y != nullptr) {
             aclDestroyTensor(y);
         }
@@ -502,6 +654,12 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
         }
         if (mmW != nullptr) {
             aclDestroyTensor(mmW);
+        }
+        if (mmXScale != nullptr) {
+            aclDestroyTensor(mmXScale);
+        }
+        if (mmWScale != nullptr) {
+            aclDestroyTensor(mmWScale);
         }
         if (mmY != nullptr) {
             aclDestroyTensor(mmY);
@@ -512,6 +670,12 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
         if (gmmWDeviceAddr != nullptr) {
             aclrtFree(gmmWDeviceAddr);
         }
+        if (gmmXScaleDeviceAddr != nullptr) {
+            aclrtFree(gmmXScaleDeviceAddr);
+        }
+        if (gmmWScaleDeviceAddr != nullptr) {
+            aclrtFree(gmmWScaleDeviceAddr);
+        }
         if (yDeviceAddr != nullptr) {
             aclrtFree(yDeviceAddr);
         }
@@ -520,6 +684,12 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
         }
         if (mmWDeviceAddr != nullptr) {
             aclrtFree(mmWDeviceAddr);
+        }
+        if (mmXScaleDeviceAddr != nullptr) {
+            aclrtFree(mmXScaleDeviceAddr);
+        }
+        if (mmWScaleDeviceAddr != nullptr) {
+            aclrtFree(mmWScaleDeviceAddr);
         }
         if (mmYDeviceAddr != nullptr) {
             aclrtFree(mmYDeviceAddr);
