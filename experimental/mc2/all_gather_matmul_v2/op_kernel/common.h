@@ -69,13 +69,6 @@ struct MC2GmAddrs {
     GM_ADDR workspaceGM;
 };
 
-struct QuantGmAddrs
-{
-    GM_ADDR scale1GM;
-    GM_ADDR scale2GM;
-    GM_ADDR scaleGM;
-};
-
 enum Mc2CoreType
 {
     ON_CUBE_AND_VECTOR = 0,
