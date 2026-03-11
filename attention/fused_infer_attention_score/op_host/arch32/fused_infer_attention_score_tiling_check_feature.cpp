@@ -581,6 +581,19 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
             return ge::GRAPH_FAILED;
         }
     }
+    if (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION && kvLayout_ == FiaLayout::NZ &&
+        ropeMode_ == RopeMode::ROPE_COMBINE) {
+        constexpr uint32_t PA_NZ_COMBINE_QK_D = 192;
+        constexpr uint32_t PA_NZ_COMBINE_V_D = 128;
+        if (qkHeadDim_ != PA_NZ_COMBINE_QK_D && vHeadDim_ != PA_NZ_COMBINE_V_D) {
+            OP_LOGE(opName_,
+                    "In %s %s situation, when the dim of key&value is 5, expected Q/K head_dim=192 and V head_dim=128, "
+                    "but got value_head_dim=%u and query/key_head_dim=%u.",
+                    QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_,
+                    qkHeadDim_);
+            return ge::GRAPH_FAILED;
+        }
+    }
     return ge::GRAPH_SUCCESS;
 }
 
