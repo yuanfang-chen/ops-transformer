@@ -51,8 +51,12 @@ enum class ScenarioType {
 struct GMMFRWeightQuantInputParams {
     ge::DataType xDtype = ge::DT_INT8;
     ge::DataType wDtype = ge::DT_INT8;
+    ge::Format wFormat = ge::FORMAT_ND;
 
-    float shareInputWeight = 0.0;
+    bool xTrans = false;
+    bool wTrans = false;
+
+    float sharedInputWeight = 0.0;
     int64_t shareInputOffset = 0;
 
     int64_t mSize = -1;
@@ -60,6 +64,12 @@ struct GMMFRWeightQuantInputParams {
     int64_t nSize = -1;
     int64_t groupListType = -1;
     int64_t groupNum = -1;
+    int64_t outputBS = -1;
+    int64_t outputDtype = -1;
+
+    bool hasBias = false;
+    int64_t sharedInputLen = 0;
+    float residualScale = 0.0;
 };
 
 class TilingKeyConfigure {
@@ -158,8 +168,13 @@ class GMMFRWeightQuantTiling : public Ops::Transformer::OpTiling::TilingBaseClas
         const GroupedMatmulFinalizeRoutingCompileInfo* compileInfoPtr_;
         ScenarioType scenarioType_ = ScenarioType::NONE;
         std::vector<std::function<bool(gert::TilingContext *context)>> checkConditionFuncs_;
-        std::vector<std::function<void(gert::TilingContext *context, GMMFRWeightQuantInputParams& inputParams_)>> SetInputParamsFuncs_;
+        std::vector<std::function<void(gert::TilingContext *context, GMMFRWeightQuantInputParams& inputParams_)>> SetInputFuncs_;
         GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData tilingData_;
+
+        void RunSetInputFunc();
+        bool SetMxA8W4NzInputFunc();
+        bool SetMxA8W4NzConditionFunc();
+        bool RunCheckFunc();
     };
 } // namespace GroupedMatmulFinalizeRoutingArch35WeightQuantTiling
 } // namespace optiling
