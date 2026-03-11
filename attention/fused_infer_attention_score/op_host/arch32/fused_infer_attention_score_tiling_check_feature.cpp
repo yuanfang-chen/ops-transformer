@@ -436,6 +436,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureAxisInfo() const
 {
     constexpr uint32_t MAX_ACTUAL_SEQ_LEN_BYTE = 64U * 1024U;
     constexpr uint32_t MAX_B_SIZE = 256U;
+    constexpr uint32_t MAX_ND_MULTIPLY_RANGE = 65535;
 
     OP_CHECK_IF(actualSeqLengthsQSize_ > MAX_ACTUAL_SEQ_LEN_BYTE,
     OP_LOGE(opName_, "In %s situation, actual sequence length q should be smaller or equal to 64K, but got %u",
@@ -446,6 +447,22 @@ ge::graphStatus FiaTilingCheck::CheckFeatureAxisInfo() const
     OP_LOGE(opName_, "In %s situation, actual sequence length kv should be smaller or equal to 64K, but got %u",
         QuantModeToSerialString(quantMode_).c_str(), actualSeqLengthsKvSize_),
     return ge::GRAPH_FAILED);
+    
+    OP_CHECK_IF(n1Size_ * qkHeadDim_ > MAX_ND_MULTIPLY_RANGE,
+    OP_LOGE(opName_, "In %s situation, query n[%d] multiply query d[%d] must be in range[1,65535]",
+        QuantModeToSerialString(quantMode_).c_str(), n1Size_, qkHeadDim_),
+    return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(n2Size_ * qkHeadDim_ > MAX_ND_MULTIPLY_RANGE,
+    OP_LOGE(opName_, "In %s situation, key n[%d] multiply key d[%d] must be in range[1,65535]",
+        QuantModeToSerialString(quantMode_).c_str(), n2Size_, qkHeadDim_),
+    return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(n2Size_ * vHeadDim_ > MAX_ND_MULTIPLY_RANGE,
+    OP_LOGE(opName_, "In %s situation, value n[%d] multiply value d[%d] must be in range[1,65535]",
+        QuantModeToSerialString(quantMode_).c_str(), n2Size_, vHeadDim_),
+    return ge::GRAPH_FAILED);
+
 
     if (kvStorageMode_ == KvStorageMode::TENSOR_LIST) {
         OP_CHECK_IF(bSize_ > MAX_B_SIZE,
