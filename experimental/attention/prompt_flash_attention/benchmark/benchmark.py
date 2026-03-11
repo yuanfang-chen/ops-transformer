@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Global Definitions
 DEVICE = 'npu'
 DTYPE = torch.bfloat16
-INPUT_LAYOUT = "BNSD"  # [B, num_heads, seq_len, head_dim]
+INPUT_LAYOUT = "BNSD"  # [batch_size, num_heads, seq_len, head_dim]
 
 # Parameter sweeps (adjust as needed)
 B_VALS = [1]
@@ -282,7 +282,7 @@ def make_block_mask_per_head(
     device: str = "cpu",
 ) -> torch.Tensor:
     """
-    Builds a dense boolean mask [1, H, s_q, s_kv] from sparse block columns.
+    Builds a dense boolean mask [1, num_heads, s_q, s_kv] from sparse block columns.
 
     True  = masked
     False = allowed
@@ -387,40 +387,40 @@ def block_allclose_map(
     print_map: bool = False,
 ) -> torch.Tensor:
     """
-    Compare two 4D tensors [B, H, Y, X] in (block_h x block_w) blocks over the last two dims.
-    Returns a boolean tensor of shape [B, H, nby, nbx] where each entry indicates whether the
+    Compare two 4D tensors [dim0, dim1, dim2, dim3] in (block_h x block_w) blocks over the last two dims.
+    Returns a boolean tensor of shape [dim0, dim1, nby, nbx] where each entry indicates whether the
     entire block is allclose. Optionally prints a 0/1 block matrix per (batch, head).
 
     - First two dims: batch and head (iterated and printed as headers)
     - Last two dims: "drawn" dimensions (split into blocks)
 
-    Blocks at the edges can be smaller if Y or X is not divisible by block sizes.
+    Blocks at the edges can be smaller if dim2 or dim3 is not divisible by block sizes.
     """
     if out.shape != ref.shape:
         raise ValueError(f"Shape mismatch: out {tuple(out.shape)} vs ref {tuple(ref.shape)}")
     if out.ndim != 4:
-        raise ValueError(f"Expected 4D tensors [B, H, Y, X], got out.ndim={out.ndim}")
+        raise ValueError(f"Expected 4D tensors [dim0, dim1, dim2, dim3], got out.ndim={out.ndim}")
 
     if block_h <= 0 or block_w <= 0:
         raise ValueError("block_h and block_w must be positive integers")
 
-    B, H, Y, X = out.shape
-    nby = (Y + block_h - 1) // block_h
-    nbx = (X + block_w - 1) // block_w
+    dim0, dim1, dim2, dim3 = out.shape
+    nby = (dim2 + block_h - 1) // block_h
+    nbx = (dim3 + block_w - 1) // block_w
 
-    # Elementwise closeness map: [B, H, Y, X] boolean
+    # Elementwise closeness map: [dim0, dim1, dim2, dim3] boolean
     close = torch.isclose(out, ref, rtol=rtol, atol=atol)
 
-    # Blockwise result: [B, H, nby, nbx]
-    block_ok = close.new_empty((B, H, nby, nbx), dtype=torch.bool)
+    # Blockwise result: [dim0, dim1, nby, nbx]
+    block_ok = close.new_empty((dim0, dim1, nby, nbx), dtype=torch.bool)
 
-    for b, h, by, bx in itertools.product(range(B), range(H), range(nby), range(nbx)):
+    for b, h, by, bx in itertools.product(range(dim0), range(dim1), range(nby), range(nbx)):
         y0, x0 = by * block_h, bx * block_w
-        y1, x1 = min(y0 + block_h, Y), min(x0 + block_w, X)
+        y1, x1 = min(y0 + block_h, dim2), min(x0 + block_w, dim3)
         block_ok[b, h, by, bx] = close[b, h, y0:y1, x0:x1].all()
 
     if print_map:
-        for b, h in itertools.product(range(B), range(H)):
+        for b, h in itertools.product(range(dim0), range(dim1)):
             logger.info(f"batch={b}, head={h}")
             # Print as 0/1 grid
             grid = block_ok[b, h].to(dtype=torch.int32)
@@ -446,7 +446,7 @@ def ref_prompt_flash_attention_fp32(
     Assumes:
     - input_layout == "BNSD"
     - atten_mask (if provided) is bool broadcastable
-      to [B, H, s_q, s_kv], where True means "masked out".
+      to [batch_size, num_heads, s_q, s_kv], where True means "masked out".
     """
 
     # Convert to fp32 for computation
@@ -454,7 +454,7 @@ def ref_prompt_flash_attention_fp32(
     k_f = k.to(torch.float32)
     v_f = v.to(torch.float32)
 
-    # [B, H, s_q, D] x [B, H, D, s_kv] -> [B, H, s_q, s_kv]
+    # [batch_size, num_heads, s_q, head_dim] x [batch_size, num_heads, head_dim, s_kv] -> [batch_size, num_heads, s_q, s_kv]
     attn_scores = torch.matmul(q_f, k_f.transpose(-1, -2))
     attn_scores = attn_scores * scale_value
 
@@ -471,7 +471,7 @@ def ref_prompt_flash_attention_fp32(
     # Softmax in fp32
     attn_probs = torch.softmax(attn_scores, dim=-1)
 
-    # [B, H, s_q, s_kv] x [B, H, s_kv, D] -> [B, H, s_q, D]
+    # [batch_size, num_heads, s_q, s_kv] x [batch_size, num_heads, s_kv, head_dim] -> [batch_size, num_heads, s_q, head_dim]
     out = torch.matmul(attn_probs, v_f)
 
     # Cast back to original dtype for comparison
@@ -479,19 +479,19 @@ def ref_prompt_flash_attention_fp32(
 
 
 def gen_pfa_inputs(
-    B: int, H: int, s_q: int, s_kv: int, D: int,
+    batch_size: int, num_heads: int, s_q: int, s_kv: int, head_dim: int,
     device: str = "npu:0", dtype: torch.dtype = DTYPE
 ):
     """
     Generate random inputs for npu_prompt_flash_attention.
     """
-    q = torch.randn(B, H, s_q, D, dtype=dtype, device=device)
-    k = torch.randn(B, H, s_kv, D, dtype=dtype, device=device)
-    v = torch.randn(B, H, s_kv, D, dtype=dtype, device=device)
+    q = torch.randn(batch_size, num_heads, s_q, head_dim, dtype=dtype, device=device)
+    k = torch.randn(batch_size, num_heads, s_kv, head_dim, dtype=dtype, device=device)
+    v = torch.randn(batch_size, num_heads, s_kv, head_dim, dtype=dtype, device=device)
 
     # For now we assume all sequences are full-length
-    actseqlen = [s_q] * B
-    actseqlenkv = [s_kv] * B
+    actseqlen = [s_q] * batch_size
+    actseqlenkv = [s_kv] * batch_size
 
     return q, k, v, actseqlen, actseqlenkv
 
@@ -549,8 +549,10 @@ def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix, device
     else:
         if attention_matrix != "dense":
             raise ValueError(f"Attention matrix type {attention_matrix} is not implemented, for dense use 'dense'")
-
-    return atten_mask, npu_atten_mask, sabi_blocks, sm, scale, pre_tok, post_tok
+    
+    ret = (atten_mask, npu_atten_mask, sabi_blocks, sm, scale, pre_tok, post_tok)
+    
+    return ret
 
 
 def _run_timed(kernel_fn: Callable, input_sets: List, n_warmup: int, n_repeat: int):
@@ -601,6 +603,29 @@ def _fmt_or_na(value, width, spec=".2f"):
     return f"{value:{width}{spec}}"
 
 
+def _make_our_fn(sabi_blocks, h, scale, npu_atten_mask, sm, pre_tok, post_tok):
+    def fn(q, k, v, seq, seqkv):
+        return torch_pfa.npu_prompt_flash_attention(
+            q, k, v,
+            sabi_blocks=sabi_blocks, actual_seq_lengths=seq,
+            actual_seq_lengths_kv=seqkv, num_heads=h, num_key_value_heads=h,
+            input_layout=INPUT_LAYOUT, scale_value=scale,
+            atten_mask=npu_atten_mask, sparse_mode=sm,
+            pre_tokens=pre_tok, next_tokens=post_tok,
+        )
+    return fn
+
+
+def _make_ref_fn(h, scale, atten_mask, run_ref_sparsity_0):
+    def fn(q, k, v, seq, seqkv):
+        return ref_prompt_flash_attention_launcher(
+            TORCH_REFERENCE, q, k, v, head_num=h, scale=scale,
+            atten_mask=atten_mask, input_layout=INPUT_LAYOUT,
+            force_dense_sm=run_ref_sparsity_0,
+        )
+    return fn
+
+
 def benchmark_prompt_flash_attention():
     run_our = True          # npu_prompt_flash_attention
     run_ref = RUN_REFERENCE # PyTorch reference
@@ -634,32 +659,8 @@ def benchmark_prompt_flash_attention():
         # When sparsity=0, always run reference as a dense baseline for sanity check
         run_ref_sparsity_0 = sparsity == 0
 
-        # Bind per-iteration parameters into callables for reuse across correctness + timing
-        def our_fn(q, k, v, seq, seqkv):
-            return torch_pfa.npu_prompt_flash_attention(
-                q, k, v,
-                sabi_blocks=sabi_blocks,
-                actual_seq_lengths=seq,
-                actual_seq_lengths_kv=seqkv,
-                num_heads=h,
-                num_key_value_heads=h,
-                input_layout=INPUT_LAYOUT,
-                scale_value=scale,
-                atten_mask=npu_atten_mask,
-                sparse_mode=sm,
-                pre_tokens=pre_tok,
-                next_tokens=post_tok,
-            )
-
-        def ref_fn(q, k, v, seq, seqkv):
-            return ref_prompt_flash_attention_launcher(
-                TORCH_REFERENCE, q, k, v,
-                head_num=h,
-                scale=scale,
-                atten_mask=atten_mask,
-                input_layout=INPUT_LAYOUT,
-                force_dense_sm=run_ref_sparsity_0,
-            )
+        our_fn = _make_our_fn(sabi_blocks, h, scale, npu_atten_mask, sm, pre_tok, post_tok)
+        ref_fn = _make_ref_fn(h, scale, atten_mask, run_ref_sparsity_0)
 
         # Correctness: compare our output vs reference on shared inputs
         are_equal_ref = "N/A"

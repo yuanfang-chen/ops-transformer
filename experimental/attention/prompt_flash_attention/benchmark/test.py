@@ -6,7 +6,7 @@ Pytest file for testing torch_pfa.npu_prompt_flash_attention correctness
 Reuses functions from benchmark.py
 """
 
-import math
+import itertools
 import pytest
 import torch
 import torch_npu
@@ -28,25 +28,24 @@ H_VALS = [1, 2, 3, 4]
 S_VALS = [10_000, 20_000, 30_000]  # s_q = s_kv
 D_VALS = [128]   # head dimension
 SPARSITY_VALS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+SHAPES = list(itertools.product(B_VALS, H_VALS, S_VALS, D_VALS))
 
 
 @pytest.mark.parametrize("torch_ref", TORCH_REF_VALS)
 @pytest.mark.parametrize("a", A_VALS)
-@pytest.mark.parametrize("b", B_VALS)
-@pytest.mark.parametrize("h", H_VALS)
-@pytest.mark.parametrize("s_kv", S_VALS)
-@pytest.mark.parametrize("d", D_VALS)
+@pytest.mark.parametrize("shape", SHAPES, ids=lambda s: f"b{s[0]}-h{s[1]}-s{s[2]}-d{s[3]}")
 @pytest.mark.parametrize("sparsity", SPARSITY_VALS)
-def test_prompt_flash_attention_correctness(torch_ref, a, b, h, s_kv, d, sparsity):
+def test_prompt_flash_attention_correctness(torch_ref, a, shape, sparsity):
     """Test correctness of torch_pfa.npu_prompt_flash_attention vs reference implementation"""
-    
+    b, h, s_kv, d = shape
+
     # Set random seed for reproducible test inputs
     torch.manual_seed(SEED)
-    
+
     # Skip test if sparsity is not compatible with current configuration
     if a in ["blocks_optimized", "blocks_optimized_batched"] and sparsity > 0.9:
         pytest.skip("Skipping high sparsity for block optimized modes")
-    
+
     s_q = s_kv
     
     # Generate attention mask and parameters
