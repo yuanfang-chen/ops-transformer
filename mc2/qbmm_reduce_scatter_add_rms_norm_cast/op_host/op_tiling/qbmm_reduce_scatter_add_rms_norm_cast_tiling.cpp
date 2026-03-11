@@ -105,6 +105,13 @@ static void SetTilingData(gert::TilingContext *context, QbmmReduceScatterAddRmsN
     context->SetBlockDim(24);   // TODO:
     tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.aicNum = aicNum;
     tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.aivNum = aivNum;
+    ge::DataType gammaDtype = context->GetInputDesc(GAMMA_INDEX)->GetDataType();
+    if (gammaDtype == ge::DT_FLOAT) {
+        tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.isGammaBf16 = false;
+    } else if (gammaDtype == ge::DT_BF16) {
+        tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.isGammaBf16 = true;
+    }
+    OP_LOGD(nodeName, "gamma type is %s\n.", Ops::Base::ToString(gammaDtype).c_str());
 }
 
 /**

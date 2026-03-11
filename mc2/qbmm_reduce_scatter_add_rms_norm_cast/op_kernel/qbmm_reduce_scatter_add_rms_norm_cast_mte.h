@@ -38,8 +38,8 @@
 
 namespace QbmmReduceScatterAddRmsNormCastImpl {
 
-#define TemplateMC2TypeClass typename YType, typename ScaleType, typename Y1Type, typename Y2Type, typename XType, bool isNz
-#define TemplateMC2TypeFunc YType, ScaleType, Y1Type, Y2Type, XType, isNz
+#define TemplateMC2TypeClass typename YType, typename ScaleType, typename Y1Type, typename Y2Type, typename XType, typename GammaType, bool isNz
+#define TemplateMC2TypeFunc YType, ScaleType, Y1Type, Y2Type, XType, GammaType, isNz
 using namespace AscendC;
 using namespace AscendC;
 
@@ -122,6 +122,7 @@ protected:
     // addrmsnormcast
     TBuf<> tokenBuf_;
     TBuf<> gammaBuf_;
+    TBuf<> gammaFp32Buf_;
     TBuf<> rowTmpFloatBuf_;
     TBuf<> mulBuf_;
     TBuf<> resFp32Buf_;
@@ -140,7 +141,7 @@ protected:
     GlobalTensor<YType> xOutGM_;
     GlobalTensor<YType> y2OutGM_;
     GlobalTensor<float> y1OutGM_;
-    GlobalTensor<float> gammaGM_;
+    GlobalTensor<GammaType> gammaGM_;
     GlobalTensor<int32_t> mmOutGm_;
     GM_ADDR workspaceAddr_;
     GM_ADDR perTokenScaleAddr_;
@@ -186,6 +187,7 @@ protected:
 
     bool aTrans_;
     bool bTrans_;
+    bool isGammaBf16_;
     
     float armAvgFactor_;
     float epsilon_;
@@ -220,7 +222,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
     // init global buffer
     yGM_.SetGlobalBuffer((__gm__ YType*) y);
-    gammaGM_.SetGlobalBuffer((__gm__ float*) gamma);
+    gammaGM_.SetGlobalBuffer((__gm__ GammaType*) gamma);
     xOutGM_.SetGlobalBuffer((__gm__ YType*) xOut);
     x1GM_.SetGlobalBuffer((__gm__ int8_t*) x1);
     x2GM_.SetGlobalBuffer((__gm__ int8_t*) x2);
@@ -289,6 +291,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     baseM_ = singleTimeM_;
     baseN_ = singleTimeN_;
     baseK_ = singleCoreK_;
+    isGammaBf16_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.isGammaBf16;
 }
 
 template<TemplateMC2TypeClass>
@@ -572,9 +575,9 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     localWinTensor.SetGlobalBuffer((__gm__ YType*)GetWindAddrByRankId(rankId_));
 
     DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * 2), 0U, 0U, 0U};
-    DataCopyExtParams gammaCopyParams{1U, static_cast<uint32_t>(n_ * 4), 0U, 0U, 0U};
+    DataCopyExtParams gammaCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(GammaType)), 0U, 0U, 0U};
     const DataCopyPadExtParams<YType> copyPadXTypeParams{false, 0U, 0U, 0U};
-    const DataCopyPadExtParams<float> copyPadFloatParams{false, 0U, 0U, 0U};
+    const DataCopyPadExtParams<GammaType> copyPadFloatParams{false, 0U, 0U, 0U};
 
     for(uint32_t tileIdx = 0; tileIdx < rowNum; ++tileIdx) {
         Duplicate<float>(sumFp32Tensor, (float)0.0, BLOCK_LENGTH);
@@ -603,10 +606,17 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         DataCopyPad(xOutGM_[tokenIndex * n_], sumBufLocal, expandXCopyParams);
 
         // 执行AddRmsNorm--RmsNormCast，输出x最终结果的fp16搬出到y2，float32搬出到y1
-        LocalTensor<float> gammaLocal = gammaBuf_.Get<float>();
+        LocalTensor<GammaType> gammaLocal = gammaBuf_.Get<GammaType>();
         DataCopyPad(gammaLocal, gammaGM_, gammaCopyParams, copyPadFloatParams);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
-        AddRmsNormRmsNormCompute(tokenIndex, n_, sumFp32Tensor, mulBufLocal_, gammaLocal, expandXCopyParams);
+
+        if (isGammaBf16_) {
+            LocalTensor<float> gammaFp32Local = gammaFp32Buf_.Get<float>();
+            Cast(gammaFp32Local, gammaLocal, RoundMode::CAST_NONE, n_);
+        } else {
+            LocalTensor<float> gammaFp32Local = gammaLocal.template ReinterpretCast<float>();
+        }
+        AddRmsNormRmsNormCompute(tokenIndex, n_, sumFp32Tensor, mulBufLocal_, gammaFp32Local, expandXCopyParams);
     }
 }
 
@@ -678,25 +688,12 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
     for (uint32_t i = 0; i < mLoops; ++i) {
         // uint32_t singleM = singleTimeM_;
-        // CalcMAxisOffset(i, nLoops);
+        CalcMAxisOffset(mCoreIndex, nLoops);
         for (uint32_t j = 0; j < nLoops; ++j) {
             singleN_ = baseN_;
-            // CalcNAxisOffset(j);
-            mOffset_ = mCoreIndex * baseM_;
-            nOffset_ = nOffset_fix + j * baseN_;
-
-            uint64_t temp1 = nOffset_ / 32;
-            uint64_t temp2 = nOffset_ % 32;
-
-            offsetA_ = mCoreIndex * baseM_ * 2560;
-            offsetB_ = temp1 * 2560 * 32 + temp2;
-
-            offsetC_ = nOffset_fix + mCoreIndex * baseM_ * 5120 + j * baseN_;
-
+            CalcNAxisOffset(j);
             MMCompute(singleM_, singleN_);
-
             mm_.template GetTensorC<false>(mmOutGm_[offsetC_]);
-
             CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
         }
     }
@@ -745,24 +742,12 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
         for (uint32_t i = 0; i < mLoops; ++i) {
             // uint32_t singleM = singleTimeM_;
-            // CalcMAxisOffset(i, nLoops);
+            CalcMAxisOffset(mCoreIndex, nLoops);
             for (uint32_t j = 0; j < nLoops; ++j) {
                 // uint32_t singleN = singleTimeN_;
-                // CalcNAxisOffset(j);
+                CalcNAxisOffset(j);
                 uint32_t singleN = baseN_;
                 CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
-                // CalcNAxisOffset(j);
-                mOffset_ = mCoreIndex * baseM_;
-                nOffset_ = nOffset_fix + j * baseN_;
-
-                uint64_t temp1 = nOffset_ / 32;
-                uint64_t temp2 = nOffset_ % 32;
-
-                offsetA_ = mCoreIndex * baseM_ * 2560;
-                offsetB_ = temp1 * 2560 * 32 + temp2;
-
-                offsetC_ = nOffset_fix + mCoreIndex * baseM_ * 5120 + j * baseN_;
-                
                 DequantCompute(mmOutGm_, 0, 0, curAicM, baseN_, mOffset_, nOffset_);
             }
         }
@@ -781,6 +766,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         tpipe_->InitBuffer(reduceFp32Buf_, 256);
         tpipe_->InitBuffer(resFp32Buf_, BLOCK_LENGTH * 4);
         tpipe_->InitBuffer(gammaBuf_, BLOCK_LENGTH * 4);
+        tpipe_->InitBuffer(gammaFp32Buf_, BLOCK_LENGTH * 4);
         ReadRemoteDataAdd();
     }
 }
