@@ -17,7 +17,9 @@
 
 ## 功能说明
 
--  接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV4，本接口新增qStartIdxOptional、kvStartIdxOptional、pseType参数。
+-  接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
+
+    相比于FusedInferAttentionScoreV4，本接口新增qStartIdxOptional、kvStartIdxOptional、pseType参数。
 
     **说明：** 
 decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
@@ -115,16 +117,15 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
 
 - **参数说明：**
 
-    <div style="overflow-x: auto;">
-    <table style="undefined;table-layout: fixed; width: 1497px"><colgroup> 
-     <col style="width: 150px"> 
-     <col style="width: 120px"> 
-     <col style="width: 300px"> 
-     <col style="width: 330px"> 
-     <col style="width: 212px"> 
-     <col style="width: 100px">  
-     <col style="width: 140px">  
-     <col style="width: 145px">  
+    <table style="undefined;table-layout: fixed; width: 1625px"><colgroup>
+    <col style="width: 247px">
+    <col style="width: 132px">
+    <col style="width: 232px">
+    <col style="width: 293px">
+    <col style="width: 185px">
+    <col style="width: 119px">
+    <col style="width: 272px">
+    <col style="width: 145px">
      </colgroup>
     <thead>
     <tr>
@@ -327,36 +328,23 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     <tr>
         <td>antiquantScaleOptional</td>
         <td>输入</td>
-        <td>伪量化因子。</td>
-        <td>
-        <ul>
-            <li>不支持空Tensor。</li>
-            <li>支持per-tensor，per-channel，per-token。</li>
-            <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
-        </ul>
-        </td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>见<a href="#AntiQuant">伪量化参数 antiquantScale和antiquantOffset约束</a></td>
+        <td>伪量化因子</td>
+        <td>不支持</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
         <td>-</td>
     </tr>
     <tr>
         <td>antiquantOffsetOptional</td>
         <td>输入</td>
-        <td>伪量化偏移。</td>
-        <td>
-        <ul>
-            <li>不支持空Tensor。</li>
-            <li>支持per-tensor，per-channel，per-token。</li>
-            <li>使用时，数据类型与shape必须与antiquantScaleOptional保持一致。</li>
-            <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
-        </ul>
-        </td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>与antiquantScaleOptional保持一致</td>
+        <td>伪量化偏移</td>
+        <td>不支持</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
         <td>-</td>
     </tr> 
     <tr>
@@ -786,16 +774,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     <tr>
         <td>antiquantMode</td>
         <td>输入</td>
-        <td>伪量化的方式。</td>
-        <td>
-        <ul>
-            <li>传入0时表示为per-channel（per-channel包含per-tensor）。</li>
-            <li>传入1时表示per-token。</li>
-            <li>不特意指定时建议传入0。</li>
-            <li>传入0和1之外的其他值会执行异常。</li>
-        </ul>
-        </td>
-        <td>INT64</td>
+        <td>伪量化的方式</td>
+        <td>不支持</td>
+        <td>-</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -935,7 +917,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <td>-</td>
       </tr>
     </tbody></table>
-    </div>
 
 - **返回值：**
 
@@ -948,38 +929,38 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     <col style="width: 144px">
     <col style="width: 671px">
     </colgroup>
-        <thead>
-            <th>返回值</th>
-            <th>错误码</th>
-            <th>描述</th>
-        </thead>
-        <tbody>
-            <tr>
-                <td>ACLNN_ERR_PARAM_NULLPTR</td>
-                <td>161001</td>
-                <td>传入的query、key、value、attentionOut是空指针。</td>
-            </tr>
-            <tr>
-                <td>ACLNN_ERR_PARAM_INVALID</td>
-                <td>161002</td>
-                <td>query、key、value、pseShift、attenMaskOptional、attentionOut的数据类型和数据格式不在支持的范围内。</td>
-            </tr>
-            <tr>
-                <td>ACLNN_ERR_RUNTIME_ERROR</td>
-                <td>361001</td>
-                <td>API内存调用npu runtime的接口异常。</td>
-            </tr>
-        </tbody>
+    <thead>
+        <th>返回值</th>
+        <th>错误码</th>
+        <th>描述</th>
+    </thead>
+    <tbody>
+        <tr>
+            <td>ACLNN_ERR_PARAM_NULLPTR</td>
+            <td>161001</td>
+            <td>传入的query、key、value、attentionOut是空指针。</td>
+        </tr>
+        <tr>
+            <td>ACLNN_ERR_PARAM_INVALID</td>
+            <td>161002</td>
+            <td>query、key、value、pseShift、attenMaskOptional、attentionOut的数据类型和数据格式不在支持的范围内。</td>
+        </tr>
+        <tr>
+            <td>ACLNN_ERR_RUNTIME_ERROR</td>
+            <td>361001</td>
+            <td>API内存调用npu runtime的接口异常。</td>
+        </tr>
+    </tbody>
     </table>
 
 ## aclnnFusedInferAttentionScoreV5
 
 - **参数说明：**
 
-    <table style="undefined;table-layout: fixed; width: 900px"><colgroup>
-    <col style="width: 150px">
-    <col style="width: 100px">
-    <col style="width: 650px">
+    <table style="undefined;table-layout: fixed; width: 1151px"><colgroup>
+    <col style="width: 184px">
+    <col style="width: 134px">
+    <col style="width: 833px">
     </colgroup>
     <thead>
         <tr>
@@ -1275,12 +1256,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     </table>
 
 - <a id="actSeqLen"></a>ActualSeqLen
-    <table style="undefined;table-layout: fixed; width: 900px">
-        <colgroup>
-            <col style="width: 150px">
-            <col style="width: 100px">
-            <col style="width: 500px">
-            <col style="width: 150px">
+    <table style="undefined;table-layout: fixed; width: 1148px"><colgroup>
+    <col style="width: 195px">
+    <col style="width: 156px">
+    <col style="width: 608px">
+    <col style="width: 189px">
         </colgroup>
         <thead>
             <tr>
@@ -1318,52 +1298,25 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
 - <a id="AntiQuant"></a>伪量化参数约束
     <table style="undefined;table-layout: fixed;  width: 1380px">
         <colgroup>
-            <col style="width: 12px">
             <col style="width: 200px">
             <col style="width: 150px">
             <col style="width: 100px">
-            <col style="width: 150px">
+            <col style="width: 160px">
             <col style="width: 380px">
             <col style="width: 280px">
         </colgroup>
         <thead>
             <tr>
-                <th>分离/不分离</th>
                 <th>量化方式</th>
                 <th>KV数据类型</th>
                 <th>场景</th>
-                <th>antiquantMode/keyAntiquantMode和valueAntiquantMode</th>
-                <th>antiquantSacle/keyAntiquantScale和valueAntiquantScale</th>
-                <th>antiquantOffset/keyAntiquantOffset和valueAntiquantOffset</th>
+                <th>keyAntiquantMode和valueAntiquantMode</th>
+                <th>keyAntiquantScale和valueAntiquantScale</th>
+                <th>keyAntiquantOffset和valueAntiquantOffset</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td rowspan="2">不分离</td>
-                <td>per-channel（per-tensor）</td>
-                <td rowspan="2">仅支持kv_dtype为INT8</td>
-                <td rowspan="2">-</td>
-                <td>0</td>
-                <td>
-                    <ul>
-                        <li>per-channel模式：shape可支持(2, N, 1, D)，(2, N, D)，(2, H)，N为numKeyValueHeads。参数数据类型和query数据类型相同</li>
-                        <li>per-tensor模式,shape为(2)，数据类型和query数据类型相同</li>
-                    </ul>
-                </td>
-                <td rowspan="2">
-                    <ul>
-                        <li>非对称量化模式下， antiquantScale和antiquantOffset参数需同时存在。shape、数据类型和antiquantSacle保持一致</li>
-                        <li>对称量化模式下，antiquantOffset可以为空（即nullptr）</li>
-                    </ul>
-                </td>
-            </tr>
-            <tr>
-                <td>per-token</td>
-                <td>1</td>
-                <td>shape为(2, B, S), 数据类型固定为FLOAT32</td>
-            </tr>
-            <tr>
-                <td rowspan="11">分离</td>
                 <td rowspan="2">per-channel（per-tensor）</td>
                 <td rowspan="2">支持kv_dtype为INT8、INT4(INT32)、HIFLOAT8、FLOAT8_E4M3FN</td>
                 <td>Q_S>1</td>
@@ -1376,8 +1329,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 </td>
                 <td rowspan="10">
                     <ul>
-                        <li>非对称量化模式下， antiquantScale和antiquantOffset参数需同时存在。shape、数据类型和antiquantSacle保持一致</li>
-                        <li>对称量化模式下，antiquantOffset可以为空（即nullptr）</li>
                         <li>keyAntiquantOffset 和 valueAntiquantOffset要么都为空，要么都不为空</li>
                         <li>
                             keyAntiquantOffset 和 valueAntiquantOffset都不为空时：
@@ -1450,13 +1401,12 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>-</td>
                 <td>6</td>
                 <td>shape为(1, B, N, S, D/32)，数据类型固定为FLOAT8_E8M0</td>
-                <td>不支持带antiquantOffset</td>
             </tr>
             <tr>
                 <td colspan="8">
                     <ul>
-                        <li>当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准</li>
-                        <li>INT4（INT32）、FLOAT4_E2M1伪量化场景不支持后量化</li>
+                        <li>INT4(INT32)、FLOAT4_E2M1伪量化场景不支持后量化</li>
+                        <li>INT8伪量化场景下，当keyAntiquantMode=0且valueAntiquantMode=1时，query和output仅支持FP16</li>
                     </ul>
                 <td>
             <tr>
@@ -1544,13 +1494,13 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>pseShift</td>
             </tr>
             <tr>
-                <td>antiquantScale、antiquantOffset（keyAntiquantScale、keyAntiquantOffset、valueAntiquantScale、valueAntiquantOffset）
+                <td>keyAntiquantScale、keyAntiquantOffset、valueAntiquantScale、valueAntiquantOffset
                 </td>
                 <td>
                     <ul>
                         <li>伪量化per-token模式、伪量化per-token叠加per-head模式antiquantScale和antiquantOffset输入最后一维需要大于等于maxBlockNumPerSeq
                             * blockSize</li>
-                        <li>伪量化per-token-group模式，antiquantScale输入最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
+                        <li>伪量化per-token-group模式，keyAntiquantScale/valueAntiquantScale输入最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
                     </ul>
                 </td>
                 <td>-</td>
@@ -1726,10 +1676,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     </table>
 
 - <a id="prefix"></a>Prefix
-    <table style="undefined;table-layout: fixed; width: 700px">
-        <colgroup>
-            <col style="width: 200px">
-            <col style="width: 500px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 218px">
+    <col style="width: 932px">
         </colgroup>
         <thead>
             <tr>
@@ -1768,11 +1717,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td colspan="2">
-                    <table style="table-layout: fixed; width: 680px" border="1" cellpadding="6" cellspacing="0">
+                    <table style="table-layout: fixed; width: 1140px" border="1" cellpadding="6" cellspacing="0">
                         <colgroup>
-                            <col style="width: 140px">
-                            <col style="width: 360px">
-                            <col style="width: 180px">
+                            <col style="width: 218px">
+                            <col style="width: 700px">
+                            <col style="width: 222px">
                         </colgroup>
                         <thead style="font-size: 12px;">
                             <tr>
@@ -1978,78 +1927,79 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
 
 
 - qkv FP8 per-block全量化
-    <table style="undefined;table-layout: fixed; width: 800px">
-        <colgroup>
-            <col style="width: 300px">
-            <col style="width: 500px">
-        </colgroup>
-        <thead>
-            <tr>
-                <th>参数</th>
-                <th>备注</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>query/key/value</td>
-                <td>
-                    <ul>
-                        <li>数据类型支持FLOAT8_E4M3FN、HIFLOAT8</li>
-                        <li>D轴支持1-128</li>
-                    </ul>
-                </td>
-            </tr>
-            <tr>
-                <td>keyAntiquantScale/valueAntiquantScale</td>
-                <td>
-                    <ul>
-                        <li>数据类型固定为FLOAT32</li>
-                        <li>当inputLayout为NTD_TND时，shape为(K_N, floor(K_T,256)+B, ceil(D,256))，其他场景shape为(B, K_N, ceil(K_S,256),1)</li>
-                    </ul>
-                </td>
-            </tr>
-            <tr>
-                <td>dequantScaleQuery</td>
-                <td>
-                    <ul>
-                        <li>数据类型固定为FLOAT32</li>
-                        <li>当inputLayout为NTD_TND时，shape为(Q_N, floor(Q_T,128)+B, ceil(D,256))，其他场景shape为(B, Q_N, ceil(Q_S,128),1)</li>
-                    </ul>
-                </td>
-            </tr>
-            <tr>
-                <td>attentionOut</td>
-                <td>
-                    支持FLOAT16和BFLOAT16
-                </td>
-            </tr>
-            <tr>
-                <td>queryQuantMode、keyAntiquantMode和valueAntiquantMode</td>
-                <td>
-                    仅支持7
-                </td>
-            </tr>
-            <tr>
-                <td>inputLayout</td>
-                <td>
-                    支持BNSD、BSH、BSND、BNSD_BSND、NTD_TND
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2">
-                    <ul>
-                        <li> 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小(128,
-                            256)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN或HIFLOAT8类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale
-                        </li>
-                        <li>与不支持叠加任何高阶特性</li>
-                    </ul>
-                </td>
-            <tr>
-        </tbody>
+    <table style="undefined;table-layout: fixed; width: 1151px"><colgroup>
+    <col style="width: 330px">
+    <col style="width: 821px">
+    </colgroup>
+    <thead>
+        <tr>
+            <th>参数</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>query/key/value</td>
+            <td>
+                <ul>
+                    <li>数据类型支持FLOAT8_E4M3FN、HIFLOAT8</li>
+                    <li>D轴支持1-128</li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>keyAntiquantScale/valueAntiquantScale</td>
+            <td>
+                <ul>
+                    <li>数据类型固定为FLOAT32</li>
+                    <li>当inputLayout为NTD_TND时，shape为(K_N, floor(K_T,256)+B, ceil(D,256))，其他场景shape为(B, K_N, ceil(K_S,256),1)</li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>dequantScaleQuery</td>
+            <td>
+                <ul>
+                    <li>数据类型固定为FLOAT32</li>
+                    <li>当inputLayout为NTD_TND时，shape为(Q_N, floor(Q_T,128)+B, ceil(D,256))，其他场景shape为(B, Q_N, ceil(Q_S,128),1)</li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>attentionOut</td>
+            <td>
+                支持FLOAT16和BFLOAT16
+            </td>
+        </tr>
+        <tr>
+            <td>queryQuantMode、keyAntiquantMode和valueAntiquantMode</td>
+            <td>
+                仅支持7
+            </td>
+        </tr>
+        <tr>
+            <td>inputLayout</td>
+            <td>
+                支持BNSD、BSH、BSND、BNSD_BSND、NTD_TND
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <ul>
+                    <li> 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小(128,
+                        256)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN或HIFLOAT8类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale
+                    </li>
+                    <li>与不支持叠加任何高阶特性</li>
+                </ul>
+            </td>
+        <tr>
+    </tbody>
     </table>
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+
   ```c++
   #include <iostream>
   #include <vector>
