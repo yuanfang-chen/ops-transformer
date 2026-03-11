@@ -76,12 +76,12 @@ public:
         }
         if (hasX) {
             // X的大小是row_num, h
-            pipe->InitBuffer(xQue, DOUBLE_BUFFER, rowFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(xQue, DOUBLE_BUFFER, tilingData->hAligned * sizeof(T));
         }
         if (hasBiasAndExpertIdx) {
-            pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
-            pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
-            pipe->InitBuffer(vQue, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, tilingData->hAligned * sizeof(T));
+            pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, tilingData->hAligned * sizeof(T));
+            pipe->InitBuffer(vQue, DOUBLE_BUFFER, tilingData->hAligned * sizeof(T));
         }
     }
 
@@ -224,23 +224,18 @@ private:
                 }
             }
             // 判断专家类型，并进行拷贝相应函数
+            SetOffsetForExpertIdx(kOuterIdx, rowOuterIdx, rowInnerIdx, kInnerIdx);
             int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
-            if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                continue;
-            }
-            CopyIn(
-                expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
-                tilingData->h);
             if (hasX) {
-                if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
+                if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
+                    continue;
+                } else if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
                     // x = x[i]
                     int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
                                         rowOuterIdx * tilingData->rowFactor * tilingData->h +
                                         rowInnerIdx * tilingData->h;
-                    CopyIn(xGm[xGmOffset], xLocal, 1, tilingData->h); 
-                    AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
-                }
-                if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                    CopyIn(xGm[xGmOffset], expandedXLocal[validK * tilingData->hAligned], 1, tilingData->h); 
+                } else if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
                     // x = a1 * x[i] +  a2 * v
                     // 拷贝一整行
                     int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
@@ -256,12 +251,17 @@ private:
                     xLocal = xLocal * constExpertAlpha1Local;
                     xLocal = xLocal + vLocal;
                     AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
+                } else {
+                    CopyIn(
+                        expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
+                        tilingData->h);
                 }
+            } else {
+                CopyIn(
+                    expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
+                    tilingData->h);
             }
-
-
             if (hasBiasAndExpertIdx) {
-                SetOffsetForExpertIdx(kOuterIdx, rowOuterIdx, rowInnerIdx, kInnerIdx);
                 int64_t biasGmOffset = expertIdxGm.GetValue(expertIdxOffset) * tilingData->h;
                 CopyIn(biasGm[biasGmOffset], biasLocal[validK * tilingData->hAligned], 1, tilingData->h);
             }
