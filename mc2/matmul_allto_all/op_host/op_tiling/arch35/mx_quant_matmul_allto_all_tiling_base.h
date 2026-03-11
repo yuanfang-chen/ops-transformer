@@ -35,12 +35,6 @@ constexpr size_t X1_QUANTMODE_VALUES = 6;
 constexpr size_t X2_QUANTMODE_VALUES = 6;
 constexpr uint64_t MX_SCALE_OFFSET = 64;
 constexpr uint64_t EVEN_ALIGN = 2;
-constexpr uint64_t GROUP_M_OFFSET = 32;
-constexpr uint64_t GROUP_N_OFFSET = 16;
-constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
-constexpr uint64_t MX_GROUP_SIZE_K = 32;
-constexpr uint64_t MX_GROUP_SIZE_M = 1;
-constexpr uint64_t MX_GROUP_SIZE_N = 1;
 
 class MxQuantMatmulAllToAllTilingBase : public MatmulAllToAllTilingBase 
 {
@@ -64,8 +58,6 @@ protected:
     ge::graphStatus CheckMxQuantMatrixMulShapes(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckMxQuantScaleShapes(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckMxQuantInputShapesValid(const gert::TilingContext *context, const char *opName);
-    ge::graphStatus CheckQuantGroupSize(const gert::TilingContext *context, const char *opName);
-
     ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName,
                                              TilingContextInfo &contextInfo);
     
