@@ -4,7 +4,7 @@
 近年来，随着人工智能技术的快速发展，大模型在自然语言处理、计算机视觉、多模态交互等领域取得了显著突破。然而，模型的复杂度和规模呈指数级增长，对底层计算框架和硬件算力提出了更高的要求。
 传统的矩阵运算（如GEMM）和注意力机制实现方式在应对超大规模参数模型时，逐渐暴露出计算效率低、内存占用高、并行扩展性不足等问题，制约了模型训练和推理的实时性能及资源利用率。
 
-在此背景下，DeepSeek团队提出Mla算子需求，需要对算法和硬件进行协同优化，通过算子融合，减少算子调用和头开销时间，在保证模型精度的前提下，降低推理延迟、并减少硬件资源消耗，MlaPrologV2算子正是Mla算子前处理融合部分。
+在此背景下，DeepSeek 团队提出了 Mla 算子需求，希望通过算法与硬件协同优化、算子融合等手段，减少算子调用次数和额外开销时间，在保证模型精度的前提下降低推理时延并减少硬件资源消耗。MlaPrologV2 算子正是 Mla 前处理的融合部分。
 
 ## 实现原理
 
@@ -15,19 +15,19 @@
 
 按照Multi-Head Latent Attention定义的计算流程实现，整体计算流程如下：
 
-1. 输入序列x经过下采样$W^{DQ}$矩阵进行降秩变化，并进行归一化处理得到$c^Q$
+1. 输入序列$x$经过下采样矩阵$W^{DQ}$做降秩变换，并进行归一化处理，得到$c^Q$
 
-2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，对运算结果再进行split拆分，分别做Qn的归一化处理和Rope位置编码，最终得到Query和Query Rope
+2. 将$W^{UQ}$和$W^{QR}$矩阵拼接后，对$c^Q$执行升秩和映射计算；再对结果做 split 拆分，分别执行 Query 非位置编码分支的继续上采样计算和 RoPE 位置编码，最终得到 Query 和 Query Rope
 
-3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，对运算结果再进行split拆分，分别做Rope位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
+3. 将$W^{DKV}$和$W^{KR}$矩阵拼接后，对输入序列$x$执行降秩和映射计算；再对结果做 split 拆分，分别执行$C^{KV}$的归一化处理和 KR 分支的 RoPE 位置编码，最终得到 KR Cache 和 KV Cache
 
-4. 在输出Query量化的情况下，会对Query做Rowmax动态量化，最终得到量化后的Query和对应量化参数
+4. 当 `query` 输出为量化结果时，会对 Query 执行 RowMax 动态量化，最终得到量化后的 Query 以及对应的量化参数
 
 具体的计算公式，参见[完整计算公式](#完整计算公式)章节
 
 ## 数据切分设计
 
-由于硬件buffer大小是有限的，而计算的数据量又是巨大的，无法一次计算完，那么就需要进行tiling切分，shape不同会导致算子的切分轴不同，而算子的切分轴，会影响模板的功能及性能。需要考虑如下几个点：
+由于硬件 buffer 大小有限，而待计算的数据量较大，无法一次完成全部计算，因此需要进行 tiling 切分。不同 shape 会导致算子的切分轴不同，而切分轴又会直接影响模板的功能和性能。需要重点考虑如下几点：
 
 a. 将核心的数量用满，防止部分核闲置。
 
@@ -57,7 +57,7 @@ MlaPrologV2融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧�
 1、MatmulCq计算的时候，对Hcq进行了分核，单核没有计算一个完整的token，所以在RmsNormCq计算前，
 需要做AIC与AIV之间的同步控制（SYNC_MMCQ_NORMCQ）
 
-2、MatmulCkvKr计算的时候，也是对Hcq进行了分核，单核没有计算一个完整的token，所以在RmsNormCkv计算前，也
+2、MatmulCkvKr计算的时候，也是对 HeadSizeCkvKr 进行了分核，单核没有计算一个完整的 token，所以在 RmsNormCkv 计算前，也
 需要做AIC与AIV之间的同步控制（SYNC_MMCKVKR_NORMCKV）
 
 3、由于RmsNormCq按照行切分到不同核上，因此在做MatmulQcQr计算的时候，也需要AIV与AIC的同步控制（SYNC_NORMCQ_MMQCQR）
@@ -75,7 +75,7 @@ TilingKey为uint64类型，每个模板参数对应TilingKey中的一到数个�
 |0-3|CACHE_MODE|KVCache的存储格式|0-BNSD(预留)，1-PA_BSND，2-PA_NZ|
 |4-5|SCENARIO|输入场景|0-FP16(预留)，1-非量化场景，2-量化场景|
 |6-9|QUANT_MODE|量化场景|0-MMQcQr量化，1-MMQcQr量化+KVCache量化，2-MMcqCkvKr量化+MMQcQr量化，3-MMCqCkvkr量化+MMQcQr量化+KVCache量化|
-|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
+|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_GROUP_COMPUTE_OPTIONAL一同使用|0-关闭，1-开启|
 |11|ENABLE_GROUP_COMPUTE_OPTIONAL|量化的算力分组优化，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |12-13|EMPTY_TENSOR_MODE|空tensor场景，用于输入tensor维度为0的情况|0-无空tensor，1-KVCache为空和KRCache为空， 2-Query为空|
 
@@ -166,7 +166,7 @@ $$
 c^Q = x \cdot W^{DQ} \tag{1}
 $$ 
 
-本章节（以及后续章节）涉及的矩阵乘法模块使用AscendC Kernel API中Matmul高阶API实现。相关API使用可以参考官网[算子实现->矩阵编程（高阶API）](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/80RC3alpha003/devguide/opdevg/ascendcopdevg/atlas_ascendc_10_0041.html)开发指南。
+本章节（以及后续章节）涉及的矩阵乘法模块均使用 AscendC Kernel API 中的 Matmul 高阶 API 实现。相关 API 的使用方法可参考官网开发指南[算子实现->矩阵编程（高阶API）](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/80RC3alpha003/devguide/opdevg/ascendcopdevg/atlas_ascendc_10_0041.html)。
 
 ### RMSNormCq
 对压缩后的$Q$矩阵按行进行RMSNorm（均方根归一化）操作。RMSNorm操作需要传入两个超参$\gamma$和$\epsilon$，对应到接口文档中的$rmsnormGammaCq$和$rmsnormEpsilonCq$。
@@ -210,7 +210,7 @@ RMSNorm的计算参考公式（3）-（4）。
   $$
   x\_float≈round(x\_float/scale)∗scale
   $$
-  其中PostQuant对应的是$round(x\_float/scale)$，将数据里的每个值都进行scale缩放，然后计算四舍五入。乘scale参数对应着反量化操作。
+  其中 PostQuant 对应$round(x\_float/scale)$，即先使用 scale 对数据进行缩放，再执行四舍五入；乘以 scale 参数则对应反量化操作。
 
 当前包含两种量化方式：
 
@@ -218,7 +218,7 @@ RMSNorm的计算参考公式（3）-（4）。
     $$
     scale=max(abs(x\_float∗smooth\_scale))/127
     $$
-    smooth是指将数据变得“平滑”一些，容易对数据进行量化，如下图所示：
+    其中 smooth_scale 用于平滑输入分布，使数据更易于量化，如下图所示：
 
     ![smooth概念](../../../docs/zh/figures/smooth概念.png)
 
@@ -233,7 +233,7 @@ $$
 $$
 q^R = c_{norm}^Q \cdot W^{QR} \tag{10}
 $$
-同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的$weightDkvKr$参数。
+同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档中的$weightUqQr$参数。
 $$
 q^Cq^R = c_{norm}^Q \cdot [W^{UQ}|W^{QR}] = [c_{norm}^Q \cdot W^{UQ}|c_{norm}^Q \cdot W^{QR}] \tag{11}
 $$
@@ -265,7 +265,7 @@ $$
 
 其中，$f_{\{q,k\}}(x_m, m)$代表第$m$个token对应的词向量$x_m$集成了位置信息$m$之后的Query/Key向量，Query和Key向量计算公式一致。$d$为词向量的维度。
 
-公式(12)展开变形后可以得到公式（14）的形式，其中$\otimes$为逐位对应相乘的叉乘。
+公式(12)展开变形后可以得到公式（14）的形式，其中$\otimes$表示逐元素相乘。
 
 $$
 ROPE(x) = R_{\Theta,m}^{d} x = 
@@ -385,13 +385,13 @@ $$
 k^R = ROPE(k^R)
 $$
 ### MatmulQn
-对$q^C$矩阵乘上Key的上采样矩阵$W^{UK}$得到最终的Query矩阵$q^N$。
+对$q^C$矩阵乘上 Query 第二次上采样矩阵$W^{UK}$，得到最终的 Query 矩阵$q^N$。
 $$
 q^N = q^C \cdot W^{UK} \tag{16}
 $$
 
 ### KVCache
-在计算得到输入$x$对应的Key/Value结果后，将Key/Value的结果更新到KVCache的对应位置。当前引入cacheIndex来标识计算结果在KVCache中的存储位置。cacheIndex是一个2维的Tensor，shape为[B, S]，标识Query中每个Token的目标更新位置。当前KVCache主要支持非PA（Page Attention）场景、PA场景（ND格式存储和NZ格式存储）。
+在计算得到输入$x$对应的 Key/Value 结果后，会将结果更新到 KVCache 的对应位置。当前通过 `cacheIndex` 标识计算结果在 KVCache 中的存储位置：在 BS 非合轴场景下，`cacheIndex` 的 shape 为 `[B, S]`；在 BS 合轴场景下，shape 为 `[T]`。MlaPrologV2 当前仅支持 PA（Paged Attention）场景下的 `PA_BSND` 和 `PA_NZ` 两种 Cache 模式。
 
 PA场景
 - KVCache使用ND格式存储，其更新流程如图3所示。

@@ -4,7 +4,7 @@
 近年来，随着人工智能技术的快速发展，大模型在自然语言处理、计算机视觉、多模态交互等领域取得了显著突破。然而，模型的复杂度和规模呈指数级增长，对底层计算框架和硬件算力提出了更高的要求。
 传统的矩阵运算（如GEMM）和注意力机制实现方式在应对超大规模参数模型时，逐渐暴露出计算效率低、内存占用高、并行扩展性不足等问题，制约了模型训练和推理的实时性能及资源利用率。
 
-在此背景下，DeepSeek团队提出Mla算子需求，需要对算法和硬件进行协同优化，通过算子融合，减少算子调用和头开销时间，在保证模型精度的前提下，降低推理延迟、并减少硬件资源消耗，MlaProlog算子正是Mla算子前处理融合部分。
+在此背景下，DeepSeek团队提出了 Mla 算子的需求，需要对算法和硬件进行协同优化。通过算子融合，可以减少算子调用和调度开销，在保证模型精度的前提下，降低推理时延并减少硬件资源消耗；MlaProlog算子正是 Mla 算子前处理的融合部分。
 
 ## 实现原理
 
@@ -17,9 +17,9 @@
 
 1. 输入序列x经过下采样$W^{DQ}$矩阵进行降秩变换，并进行归一化处理得到$c^Q$
 
-2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，对运算结果再进行split拆分，分别做Qn的归一化处理和Rope位置编码，最终得到Query和Query Rope
+2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升维和映射计算；对运算结果再进行 split 拆分，分别用于生成 Query 和 Query Rope
 
-3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，对运算结果再进行split拆分，分别做Rope位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
+3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算；对运算结果再进行 split 拆分，分别执行 RoPE 位置编码和$C^{KV}$的归一化处理，最终得到 KR Cache 和 KV Cache
 
 具体的计算公式，参见[完整计算公式](#完整计算公式)章节
 
@@ -73,7 +73,7 @@ TilingKey为uint64类型，每个模板参数对应TilingKey中的一到数个�
 |0-3|CACHE_MODE|KVCache的存储格式|0-BNSD(预留)，1-PA_BSND，2-PA_NZ|
 |4-5|SCENARIO|输入场景|0-FP16(预留)，1-非量化场景，2-量化场景|
 |6-9|QUANT_MODE|量化场景|0-MMQcQr量化，1-MMQcQr量化+KVCache量化|
-|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
+|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_GROUP_COMPUTE_OPTIONAL一同使用|0-关闭，1-开启|
 |11|ENABLE_GROUP_COMPUTE_OPTIONAL|量化的算力分组优化，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |12-13|EMPTY_TENSOR_MODE|空tensor场景，用于输入tensor维度为0的情况|0-无空tensor，1-KVCache为空和KRCache为空， 2-Query为空|
 
@@ -241,7 +241,7 @@ $$
 $$
 q^R = c_{norm}^Q \cdot W^{QR} \tag{10}
 $$
-同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的$weightDkvKr$参数。
+同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档中的$weightUqQr$参数。
 $$
 q^Cq^R = c_{norm}^Q \cdot [W^{UQ}|W^{QR}] = [c_{norm}^Q \cdot W^{UQ}|c_{norm}^Q \cdot W^{QR}] \tag{11}
 $$
@@ -273,7 +273,7 @@ $$
 
 其中，$f_{\{q,k\}}(x_m, m)$代表第$m$个token对应的词向量$x_m$集成了位置信息$m$之后的Query/Key向量，Query和Key向量计算公式一致。$d$为词向量的维度。
 
-公式(12)展开变形后可以得到公式（14）的形式，其中$\otimes$为逐位对应相乘的叉乘。
+公式(12)展开变形后可以得到公式（14）的形式，其中$\otimes$表示逐元素对应相乘。
 
 $$
 ROPE(x) = R_{\Theta,m}^{d} x = 
@@ -399,7 +399,7 @@ q^N = q^C \cdot W^{UK} \tag{16}
 $$
 
 ### KVCache
-在计算得到输入$x$对应的Key/Value结果后，将Key/Value的结果更新到KVCache的对应位置。当前引入cacheIndex来标识计算结果在KVCache中的存储位置。cacheIndex是一个2维的Tensor，shape为[B, S]，标识Query中每个Token的目标更新位置。当前KVCache主要支持非PA（Page Attention）场景、PA场景（ND格式存储和NZ格式存储）。
+在计算得到输入$x$对应的 Key/Value 结果后，将其更新到 KVCache 的对应位置。当前通过 cacheIndex 标识计算结果在 KVCache 中的存储位置：BS 非合轴场景下，cacheIndex 的 shape 为 `[B, S]`；BS 合轴场景下，cacheIndex 的 shape 为 `[T]`。当前 `aclnnMlaProlog` 接口支持 `PA_BSND` 和 `PA_NZ` 两种 cacheMode。
 
 PA场景
 - KVCache使用ND格式存储，其更新流程如图3所示。
@@ -415,7 +415,7 @@ PA场景
 
 
 ### KRCache
-在计算得到输入$x$对应的KeyRope结果后，将KeyRope结果更新到KRCache的对应位置。当前引入cacheIndex来标识计算结果在KRCache中的存储位置。
+在计算得到输入$x$对应的 KeyRope 结果后，将其更新到 KRCache 的对应位置。当前同样通过 cacheIndex 来标识计算结果在 KRCache 中的存储位置。
 
 KRCache的更新逻辑同KVCache。
 

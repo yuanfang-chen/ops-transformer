@@ -15,13 +15,13 @@
 
 按照Multi-Head Latent Attention定义的计算流程实现，整体计算流程如下：
 
-1. 输入序列x经过下采样$W^{DQ}$矩阵进行降秩变化，并进行归一化处理得到$c^Q$
+1. 输入序列$x$经过下采样矩阵$W^{DQ}$进行降秩变换，再做RMSNorm并乘以Query尺度矫正因子$\alpha_q$，得到后续Query分支使用的$c^Q$
 
-2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，对运算结果再进行split拆分，分别做Qn的归一化处理和Rope位置编码，最终得到Query和Query Rope
+2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算；对运算结果再进行split拆分后，分别进入$q^N$分支和Rope位置编码分支，最终得到Query和Query Rope
 
-3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，对运算结果再进行split拆分，分别做Rope位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
+3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列$x$实现降秩和映射计算；对运算结果再进行split拆分后，一路做Rope位置编码得到$k^R$，另一路做RMSNorm并乘以Key尺度矫正因子$\alpha_{kv}$得到$c^{KV}$，最终分别写入KR Cache和KV Cache
 
-4. 在输出Query量化的情况下，会对Query做Rowmax动态量化，最终得到量化后的Query和对应量化参数DequantScaleQNope
+4. 当Query输出采用per-token-head量化时，会对Query做RowMax动态量化，最终得到量化后的Query和对应量化参数DequantScaleQNope；其他场景下该输出为空Tensor
 
 具体的计算公式，参见[完整计算公式](#完整计算公式)章节
 
@@ -72,10 +72,10 @@ MlaPrologV3融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧�
 TilingKey为uint64类型，每个模板参数对应TilingKey中的一到数个二进制位，具体实现如下：
 |二进制位|变量名|说明|参数列表|
 |-------|------|----|-------|
-|0-3|CACHE_MODE|KVCache的存储格式|0-BNSD(预留)，1-PA_BSND，2-PA_NZ|
+|0-3|CACHE_MODE|KVCache的存储格式|0-ND（对应BSND/TND），1-PA_BSND，2-PA_NZ，3-PA_BLK_BSND，4-PA_BLK_NZ|
 |4-5|SCENARIO|输入场景|0-FP16(预留)，1-非量化场景，2-量化场景|
-|6-9|QUANT_MODE|量化场景|0-非量化，1-MMQcQr量化，2-MMQcQr量化+KVcache量化，3-MMcqCkvKr量化+MMQcQr量化，4-MMCqCkvkr量化+MMQcQr量化+KVcache量化，5-MMQcQr量化+KVcache pertile量化，6-MMCqCkvkr量化+MMQcQr量化+KVcache pertile量化，7-Mxfp8量化+MMQcQr量化 8-Mxfp8量化+MMQcQr量化+KVcache量化|
-|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
+|6-9|QUANT_MODE|量化场景|0-非量化，1-MMQcQr量化，2-MMQcQr量化+KVcache量化，3-MMCqCkvKr量化+MMQcQr量化，4-MMCqCkvKr量化+MMQcQr量化+KVcache量化，5-MMQcQr量化+KVcache per-tile量化，6-MMCqCkvKr量化+MMQcQr量化+KVcache per-tile量化，7-Mxfp8量化+MMCqCkvKr量化+MMQcQr量化，8-Mxfp8量化+MMCqCkvKr量化+MMQcQr量化+KVcache量化，9-Mxfp8量化+MMCqCkvKr量化+MMQcQr量化+KVcache per-tile量化|
+|10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_GROUP_COMPUTE_OPTIONAL一同使用|0-关闭，1-开启|
 |11|ENABLE_GROUP_COMPUTE_OPTIONAL|量化的算力分组优化，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |12-13|EMPTY_TENSOR_MODE|空tensor场景，用于输入tensor维度为0的情况|0-无空tensor，1-KVCache为空和KRCache为空， 2-Query为空|
 |14-15|ACTUAL_SEQ_LEN_MODE|actualSeqLen使能场景|0-关闭 1-使能actualSeqLen|
@@ -161,9 +161,8 @@ $$
 c^{KV} = \alpha_{kv}\cdot\mathrm{RmsNorm}(x \cdot W^{DKV}) \tag{d}
 $$
 
-完整计算流程可以分解为以下的基本计算单元。
-注意，其中$\alpha_q$和$\alpha_{kv}$分别对应query和key的尺度矫正因子，由论文[Meituan](https://arxiv.org/abs/2509.01322)提出。
-$\alpha_q$和$\alpha_{kv}$分别对应接口文档的qcQrScale和kcScale。
+完整计算流程可以分解为以下基本计算单元。
+其中，$\alpha_q$和$\alpha_{kv}$分别对应Query和Key的尺度矫正因子，在接口文档中分别对应qcQrScale和kcScale。
 
 ### MatmulCq
 对输入$x$乘以Query下采样矩阵$W^{DQ}$进行下采样操作得到压缩后的Query矩阵$c^Q$。
@@ -174,7 +173,7 @@ $$
 本章节（以及后续章节）涉及的矩阵乘法模块使用AscendC Kernel API中Matmul高阶API实现。相关API使用可以参考官网[算子实现->矩阵编程（高阶API）](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/80RC3alpha003/devguide/opdevg/ascendcopdevg/atlas_ascendc_10_0041.html)开发指南。
 
 ### RMSNormCq
-对压缩后的$Q$矩阵按行进行RMSNorm（均方根归一化）操作。RMSNorm操作需要传入两个超参$\gamma$和$\epsilon$，对应到接口文档中的 rmsnormGammaCq 和 rmsnormEpsilonCq。
+对压缩后的$Q$矩阵按行进行RMSNorm（均方根归一化）操作。RMSNorm操作需要传入两个超参$\gamma$和$\epsilon$，对应接口文档中的rmsnormGammaCq和rmsnormEpsilonCq。V3中还会在RMSNorm之后乘以尺度矫正因子$\alpha_q$，该因子对应接口文档中的qcQrScale。
 $$
 c_{\mathrm{norm}}^Q = \mathrm{RmsNorm}(c^Q) \tag{2}
 $$
@@ -201,7 +200,7 @@ c^{KV}k^R = x \cdot [W^{DKV}|W^{KR}] = [x \cdot W^{DKV}|x \cdot W^{KR}] \tag{7}
 $$
 
 ### RMSNormCkv
-对压缩后的$KV$矩阵按行进行RMSNorm（均方根归一化）操作。RMSNorm操作需要传入两个超参$\gamma$和$\epsilon$，对应到接口文档中的rmsnormGammaCkv和rmsnormEpsilonCkv。
+对压缩后的$KV$矩阵按行进行RMSNorm（均方根归一化）操作。RMSNorm操作需要传入两个超参$\gamma$和$\epsilon$，对应接口文档中的rmsnormGammaCkv和rmsnormEpsilonCkv。V3中还会在RMSNorm之后乘以尺度矫正因子$\alpha_{kv}$，该因子对应接口文档中的kcScale。
 $$
 c_{\mathrm{norm}}^{KV} = \mathrm{RmsNorm}(c^{KV}) \tag{8}
 $$
@@ -238,7 +237,7 @@ $$
 $$
 q^R = c_{norm}^Q \cdot W^{QR} \tag{10}
 $$
-同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的$weightDkvKr$参数。
+同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的weightUqQr参数。
 $$
 q^Cq^R = c_{norm}^Q \cdot [W^{UQ}|W^{QR}] = [c_{norm}^Q \cdot W^{UQ}|c_{norm}^Q \cdot W^{QR}] \tag{11}
 $$
@@ -390,13 +389,13 @@ $$
 k^R = ROPE(k^R)
 $$
 ### MatmulQn
-对$q^C$矩阵乘上Key的上采样矩阵$W^{UK}$得到最终的Query矩阵$q^N$。
+对$q^C$矩阵乘上用于生成$q^N$的上采样矩阵$W^{UK}$，得到最终的Query矩阵$q^N$。
 $$
 q^N = q^C \cdot W^{UK} \tag{16}
 $$
 
 ### KVCache
-在计算得到输入$x$对应的Key/Value结果后，将Key/Value的结果更新到KVCache的对应位置。当前引入cacheIndex来标识计算结果在KVCache中的存储位置。cacheIndex是一个2维的Tensor，shape为[B, S]，标识Query中每个Token的目标更新位置。当前KVCache主要支持非PA（Page Attention）场景、PA场景（ND格式存储和NZ格式存储）。
+在计算得到输入$x$对应的Key/Value结果后，将Key/Value的结果更新到KVCache的对应位置。当前通过cacheIndex来标识计算结果在KVCache中的存储位置：当CacheMode为PA_BSND/PA_NZ时，cacheIndex的shape可以为[B, S]或[T]；当CacheMode为PA_BLK_BSND/PA_BLK_NZ时，cacheIndex的shape可以为[B, Ceil(S/BlockSize)]或[Sum(Ceil(S_i/BlockSize))]；当CacheMode为BSND/TND时，不使用cacheIndex。当前KVCache支持BSND、TND以及PA场景（ND格式存储和NZ格式存储）。
 
 PA场景
 - KVCache使用ND格式存储，其更新流程如图3所示。
