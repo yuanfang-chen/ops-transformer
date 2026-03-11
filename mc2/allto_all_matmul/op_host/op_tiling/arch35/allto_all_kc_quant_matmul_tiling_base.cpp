@@ -30,16 +30,16 @@ gert::StorageShape alltoallKcQuantStorageShape = gert::StorageShape();
  */
 bool AllToAllKcQuantMatmulTilingBase::IsCapable()
 {
-    int64_t x1QuantMode = 0;
-    int64_t x2QuantMode = 0;
+    int64_t x1QuantModeValue = 0;
+    int64_t x2QuantModeValue = 0;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_X1_QUANTMODE_INDEX)) {
-        x1QuantMode = *ptr;
+        x1QuantModeValue = *ptr;
     }
     if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_X2_QUANTMODE_INDEX)) {
-        x2QuantMode = *ptr;
+        x2QuantModeValue = *ptr;
     }
-    if (x1QuantMode == X1_QUANTMODE_VALUES && x2QuantMode == X2_QUANTMODE_VALUES) {
+    if (x1QuantModeValue == X1_QUANTMODE_VALUES && x2QuantModeValue == X2_QUANTMODE_VALUES) {
         OP_LOGI(opName_, "Start with AlltoAllKcQuantMatmul tiling.");
         return true;
     }
