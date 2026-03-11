@@ -16,6 +16,19 @@
 #include "acl/acl.h"
 #include "hccl_util.h"
 
+#include "securec.h"
+
+#include "op_mc2.h"
+#include "op_mc2_def.h"
+#include "aclnn_kernels/common/op_error_check.h"
+#include "opdev/common_types.h"
+#include "opdev/op_dfx.h"
+#include "opdev/op_executor.h"
+#include "opdev/make_op_executor.h"
+#include "opdev/op_log.h"
+#include "opdev/platform.h"
+#include "aclnn_kernels/contiguous.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,6 +42,13 @@ constexpr uint8_t MC2_DEBUG_ONLY_CUBE = 1;
 constexpr char DEBUG_MODE_ENV[] = "ASCEND_MC2_DEBUG_MODE";
 constexpr size_t DIM_LEN_ONE = 1;
 constexpr size_t DIM_LEN_TWO = 2;
+
+enum class NnopbaseHcclServerType : uint32_t {
+    NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
+    NNOPBASE_HCCL_SERVER_TYPE_MTE,
+    NNOPBASE_HCCL_SERVER_TYPE_CCU,
+    NNOPBASE_HCCL_SERVER_TYPE_END
+};
 
 struct NnopbaseDfxId {
     uint32_t id;
