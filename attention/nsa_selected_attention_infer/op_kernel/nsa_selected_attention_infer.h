@@ -25,6 +25,7 @@ using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 using AscendC::PipeBarrier;
 
+
 #define PRE_LOAD_NUM 4
 
 struct ExtraInfo {
