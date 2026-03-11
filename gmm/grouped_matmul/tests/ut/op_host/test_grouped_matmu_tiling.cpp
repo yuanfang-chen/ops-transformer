@@ -3087,7 +3087,6 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
 {
     size_t M = 256;
-    size_t Q = 256;
     size_t K = 2048;
     size_t N = 7168;
     size_t E = 4;
@@ -3126,7 +3125,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
+                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
         DT_INT4, // D_T_A
@@ -3145,7 +3144,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     //     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
     string expectTilingData =
         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {26669056}; // workspace
+    std::vector<size_t> expectWorkspaces = {23068672}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,230);
 }
 
