@@ -56,7 +56,7 @@ static ge::graphStatus GroupedMatmulFinalizeRoutingTilingFunc(gert::TilingContex
 
         if (GetSizeByDataType(xDType) != GetSizeByDataType(weightDtype)) {
             OP_LOGI(context->GetNodeName(), "Enter WeightQuant Tiling of A5");
-            std::vector<int32_t> tilingRegisterList = {GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT};
+            std::vector<int32_t> tilingRegisterList = {optiling::GroupedMatmulFinalizeRoutingArch35WeightQuantTiling::GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT};
             return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context, tilingRegisterList);
         }
         std::vector<int32_t> tilingRegisterList = {1};
