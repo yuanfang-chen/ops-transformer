@@ -21,7 +21,7 @@ using namespace ge;
 using namespace gert;
 
 // 参数范围
-const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16};
+const std::set<int32_t> SUPPORT_RANK_SIZE{2, 4, 8, 16};
 constexpr uint64_t K_MAX_VALUE = 65535UL;
 constexpr uint64_t MAX_INT32_VALUE = 2147483647UL;
 constexpr size_t MAX_GROUP_NAME_LEN = 127;
@@ -149,7 +149,7 @@ public:
     static ge::graphStatus CheckShapeInfo(const gert::TilingContext *context, const char *opName,
                                           const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckKcQuantShapeInfo(const gert::TilingContext *context, const char *opName,
-                                          const OpAttrIndexSchema &indexSchema);
+                                                 const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckTensorFormat(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus CheckNonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus CheckKcQuantTensorDataType(const gert::TilingContext *context, const char *opName);
