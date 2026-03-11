@@ -165,12 +165,12 @@ public:
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
         uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要numElemsAligned/128次循环处理
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有numElemsAligned/16个datablock
+        uint8_t dataBlockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有numElemsAligned/16个datablock
         uint8_t dataBlockStride = 1;
 
         // 举例，若numElemsAligned为1024，以128为单位分治求和，1024->512->256->128
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, dataBlockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
@@ -182,7 +182,7 @@ public:
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
-            blockNumPerRow);
+            dataBlockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
     }
     
@@ -282,17 +282,17 @@ public:
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
         uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要numElemsAligned/128次循环处理
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有numElemsAligned/16个datablock
+        uint8_t dataBlockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有numElemsAligned/16个datablock
         uint8_t dataBlockStride = 1;
 
         // 举例，若numElemsAligned为1024，以128为单位分治求最大值，1024->512->256->128
         uint32_t columnStrideIndex = 2;
         // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, dataBlockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
         columnStrideIndex *= 2;
         for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, dataBlockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
@@ -304,7 +304,7 @@ public:
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
-            blockNumPerRow,
+            dataBlockNumPerRow,
             AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
     }
