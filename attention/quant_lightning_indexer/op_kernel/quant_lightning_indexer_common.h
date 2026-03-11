@@ -92,6 +92,8 @@ struct ConstInfo {
     uint64_t batchSize = 0ULL;
     uint64_t gSize = 0ULL;
     uint64_t qHeadNum = 0ULL;
+    uint64_t blockStride = 0ULL;
+    uint64_t scaleStride = 0ULL;
     uint64_t kHeadNum;
     uint64_t headDim;
     uint64_t sparseCount;              // topK选取大小
