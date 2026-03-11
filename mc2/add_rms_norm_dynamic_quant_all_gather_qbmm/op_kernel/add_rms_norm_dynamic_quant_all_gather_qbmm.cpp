@@ -27,49 +27,49 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     REGISTER_TILING_DEFAULT(AddRmsNormDynamicQuantAllGatherQbmmTilingData);
     GET_TILING_DATA_MEMBER(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingInfo, tilingData, tilingGM);
     if (TILING_KEY_IS(10000)) { // CV硬同步+中间过程结果不输出+no smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, false, false, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10001)) { // CV硬同步+中间过程结果不输出+smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, false, false, true> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10010)) { // CV硬同步+中间过程结果全输出+no smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, false, true, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10011)) { // CV硬同步+中间过程结果全输出+smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, false, true, true> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10100)) { // CV软同步+中间过程结果不输出+no smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, true, false, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10101)) { // CV软同步+中间过程结果不输出+smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, true, false, true> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10110)) { // CV软同步+中间过程结果全输出+no smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, true, true, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(10111)) { // CV软同步+中间过程结果全输出+smoothScale
-        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, true, true, true> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);

@@ -169,7 +169,9 @@ static void SetBlockDim(gert::TilingContext *context, AddRmsNormDynamicQuantAllG
     uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
     numBlocks = ascendcPlatform.CalcTschBlockDim(aicNum, aicNum, aicNum);
     context->SetBlockDim(numBlocks);
-    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum = aicNum;   // CV 1:1
+    context->SetScheduleMode(1); // 设置为batch mode模式, 所有核同时启动
+    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aicNum = aicNum; 
+    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum = aicNum * 2;   // CV 1:2
 }
 
 /**
@@ -442,7 +444,7 @@ static ge::graphStatus SetAllGatherTiling(
     gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     AddRmsNormDynamicQuantAllGatherTilingData *tmpTilingData = &(tilingData->addRmsNormDynamicQuantAllGatherTilingData);
-    uint32_t sendCoreNumPerRank = tmpTilingData->aivNum / tmpTilingData->rankSize;
+    uint32_t sendCoreNumPerRank = tmpTilingData->aicNum / tmpTilingData->rankSize;
     tmpTilingData->sendCoreNumPerRank = sendCoreNumPerRank;
     tmpTilingData->mteBlockBytes = MTE_BLOCK_BYTES;
     tmpTilingData->mteTileK = tmpTilingData->Ka / MTE_BLOCK_BYTES;

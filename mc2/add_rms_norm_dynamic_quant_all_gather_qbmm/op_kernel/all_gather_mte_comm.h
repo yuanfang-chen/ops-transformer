@@ -55,11 +55,8 @@ public:
 
     __gm__ HcclOpResParam *hcclContext_;
     uint32_t aivId_{0};
+    uint32_t aicId_{0};
     uint64_t aivNum_{0};
-    uint32_t round_{0};
-    uint32_t tailBlockNums_{0};
-    uint32_t assignedBlockNums_{0};
-    uint64_t lastAivId_{0};
     uint64_t winDataSize_{0};
     uint32_t curDstId_{0};
     uint32_t sendCoreNumPerRank_{0};
@@ -89,12 +86,11 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint6
 {
     aivNum_ = aivNum;
     aivId_ = GetBlockIdx(); // 获取当前核Id
-    assignedBlockNums_ = aivId_ < tailBlockNums_ ? round_ + 1 : round_; // 当前核分配到的数据块数量，顺序分核，序号小的核多搬一轮
-    uint64_t blockIdx = aivId_ * round_ + (aivId_ < tailBlockNums_ ? aivId_ : tailBlockNums_); // 计算当前核分派到的首个数据块序列号
+    aicId_ = aivId_ / GetTaskRation();    // C V 1:2
     winDataSize_ = CeilAlignU64(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
     curRankId_ = hcclContext_->localUsrRankId;
     sendCoreNumPerRank_ = sendCoreNumPerRank;
-    curDstId_ = aivId_ / sendCoreNumPerRank_;
+    curDstId_ = aicId_ / sendCoreNumPerRank_;
 }
 
 template <AllGatherTemplateTypeClass>
@@ -120,7 +116,7 @@ template <AllGatherTemplateTypeClass>
 __aicore__ inline void MTECommunication<AllGatherTemplateType>::WriteStatusToWin()
 {
     // Win区大小为aivNum，此处计算核偏移，每个rank有sendCoreNumPerRank_个状态位
-    uint32_t curOffset = (aivId_ % sendCoreNumPerRank_ + curRankId_ * sendCoreNumPerRank_) * FLOAT_UB_ALIGN_NUM;
+    uint32_t curOffset = (aicId_ % sendCoreNumPerRank_ + curRankId_ * sendCoreNumPerRank_) * FLOAT_UB_ALIGN_NUM;
     // 写入状态到对端，每个核写一个状态，sendCoreNumPerRank_个核负责一个对端
     LocalTensor<float> statusTensor = writeStateBuf_.Get<float>();
     DataCopy<float>(statusTensor, stateResetTensor_, FLOAT_UB_ALIGN_NUM); // 先重置statusTensor数据，后面累加需要Tensor内全部数据，防止脏数据
@@ -148,7 +144,7 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
     GlobalTensor<float> selfStatusWinTensor;
     // 获取当前核所需读取状态位的头地址，状态按32B对齐
     selfStatusWinTensor.SetGlobalBuffer((__gm__ float*)(stateGM));
-    uint32_t offset = aivId_ * FLOAT_UB_ALIGN_NUM;
+    uint32_t offset = aicId_ * FLOAT_UB_ALIGN_NUM;
     LocalTensor<float> statusTensor = readStateBuf_.Get<float>();
     float flag = 0; // 用于计算状态和
     uint32_t statusCnt = FLOAT_UB_ALIGN_NUM; // 一次读一个，按32B对齐

@@ -37,7 +37,8 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t mteMSplitSize = 0; // all gather 单核负责行数向下取整
     uint32_t mteKSplitSize = 0; // all gather 单核负责列数（保证整除）
     uint32_t mteMSplitLargeBlockNum = 0;  // all gather M方向切分后大块的数目
-    uint32_t aivNum = 0;        
+    uint32_t aivNum = 0;
+    uint32_t aicNum = 0;
     uint32_t rankSize = 0;
     uint32_t sendCoreNumPerRank = 0;    // 负责一个对端的核数
     uint32_t cvStateRowNum = 0;         // CV状态区的行数

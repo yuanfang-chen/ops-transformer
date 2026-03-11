@@ -73,6 +73,7 @@ private:
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
     __aicore__ inline void DynamicQuant(int32_t offset, LocalTensor<float> &yTempTensor, LocalTensor<float> &xTempTensor);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
+    __aicore__ inline void AllGatherProcess();
     __aicore__ inline void CheckCvFlagReady(uint32_t mBlockIdx, uint32_t kBlockIdx, uint32_t targetCount);
     __aicore__ inline void CalcOffset(uint32_t nDimStartIdx, uint32_t mCoreIndx, uint32_t nCoreIndx);
     __aicore__ inline void MMCompute(uint32_t singleCoreM, uint32_t singleCoreN, uint32_t kBlockIdx);
@@ -137,6 +138,7 @@ private:
     uint32_t axisKa_{0};
     uint32_t axisN_{0};
     uint32_t aivNum_{0};
+    uint32_t aicNum_{0};
     uint32_t rankSize_{0};
     uint32_t tileK_{0};
     uint32_t sendCoreNumPerRank_{0};
@@ -163,6 +165,7 @@ private:
     uint32_t baseM_;
     uint32_t baseN_;
     uint32_t baseK_;
+    uint32_t kMteCoreK_;
 
     uint32_t ubCalcM_;
     uint32_t ubCalcN_;
@@ -277,7 +280,7 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     aivId_ = GetBlockIdx();
-    aicId_ = aivId_;    // CV核1:1
+    aicId_ = aivId_ / GetTaskRation();    // CV核1:2
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
 
@@ -285,6 +288,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
     axisN_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
     aivNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
+    aicNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aicNum;
     rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
     eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
     aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
@@ -296,8 +300,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     axisKaAlignSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignSize;
     axisKaAlignFloatSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignFloatSize;
     axisKaAlignInt8Size_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignInt8Size;
-
-    sendCoreNumPerRank_ = aivNum_ / rankSize_;
+    kMteCoreK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize;
 }
 
 template<TemplateMC2TypeClass>
@@ -586,7 +589,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 {
     blockIdx_ = GetBlockIdx();
     blockIdx_ /= GetTaskRation();
-    usedCoreNum_ = aivNum_;
+    usedCoreNum_ = aicNum_;
 
     m_ = tilingData->matmulTiling.M;
     n_ = tilingData->matmulTiling.N;
@@ -605,10 +608,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DequantInit()
 {
-    if (blockIdx_ >= usedCoreNum_ || GetSubBlockIdx() == 1) {
-        return;
-    }
-
     tpipe_->Reset();
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
@@ -733,6 +732,12 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     uint32_t gmUseN = n_ - nCoreIndx * singleCoreN_;
     uint32_t singleCoreNUpdate = gmUseN < singleCoreN_ ? gmUseN : singleCoreN_;
 
+    if (GetSubBlockIdx() == 0) {
+        for (uint32_t nDimLoopIdx = 0; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
+            CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
+        }
+        return;
+    }
     DequantInit();
     for (uint32_t nDimLoopIdx = 0; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
         if (nDimLoopIdx * nDimReal + nCoreIndx >= nDimNeed) {
@@ -746,6 +751,25 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::AllGatherProcess()
+{
+    if (GetSubBlockIdx() == 0) {
+        allGatherMte_.Init(tpipe_, tilingData_);
+        allGatherMte_.SetRemoteFlag();
+        allGatherMte_.WaitRemoteFlag();
+        allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
+    } else {
+        if constexpr (!isCVSync) {
+            uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
+            for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+                SyncAll<true>();
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+            }
+        }
+    }
+}
+
+template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Process()
 {
     if ASCEND_IS_AIV {
@@ -753,10 +777,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         SyncAll<true>();
         PipeBarrier<PIPE_MTE3>();
         tpipe_->Reset();
-        allGatherMte_.Init(tpipe_, tilingData_);
-        allGatherMte_.SetRemoteFlag();
-        allGatherMte_.WaitRemoteFlag();
-        allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
+        AllGatherProcess();
         DequantProcess();
     }
     

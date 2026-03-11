@@ -58,6 +58,7 @@ private:
     uint32_t totalBlockNums_{0};
     uint64_t M_{0};
     uint64_t K_{0};
+    uint32_t aicId_{0};
     uint32_t sendCoreNumPerRank_{0};
     uint32_t remoteRankId_{0};
     uint64_t tileK_{0};
@@ -144,13 +145,13 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
 
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
-
-    uint32_t modCoreIndex = mteComm_.aivId_ % sendCoreNumPerRank_;
+    aicId_ = mteComm_.aivId_ / GetTaskRation();
+    uint32_t modCoreIndex = aicId_ % sendCoreNumPerRank_;
     
     // 按k方向奇偶切分成两部分
     kDim_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitNum;
     mDim_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitNum;
-    remoteRankId_ = mteComm_.aivId_ / sendCoreNumPerRank_;
+    remoteRankId_ = aicId_ / sendCoreNumPerRank_;
     // task 先按 mDim 为3份调整，innerLoop 再做循环调整
     mBlockIdx_ = modCoreIndex % mDim_;
     kBlockIdx_ = modCoreIndex % kDim_;
@@ -275,7 +276,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
     allGatherXOutTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherOutDataGm);
 
     // scales 一次搬运完毕
-    if (mteComm_.aivId_ % sendCoreNumPerRank_ == 0) {
+    if (aicId_ % sendCoreNumPerRank_ == 0) {
         GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
         remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
         // TODO: 正确位置如下，调试完毕后需要修改回来
