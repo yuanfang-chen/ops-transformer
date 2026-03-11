@@ -596,10 +596,13 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
         xInQueue_.EnQue(xInTensor_);
         xInTensor_ = xInQueue_.DeQue<XType>();
         xOutTensor_ = xOutQueue_.AllocTensor<ExpandXOutType>();
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         if (QuantMode == UNQUANT && !Std::IsSame<ExpandXOutType, XType>::value) {
             Cast(floatLocalTemp_, xInTensor_, RoundMode::CAST_NONE, axisH_);
             Cast(xOutTensor_, floatLocalTemp_, RoundMode::CAST_ROUND, axisH_);
-        } else {
+        }
+#endif
+        else {
             quantInst_.QuantProcess(xOutTensor_, xInTensor_, expertIndex, scalesCount_, scalesGMTensor_); // 量化
         }
         xOutQueue_.EnQue(xOutTensor_);
