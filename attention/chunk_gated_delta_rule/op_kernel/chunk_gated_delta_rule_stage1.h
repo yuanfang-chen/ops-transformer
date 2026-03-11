@@ -132,8 +132,7 @@ public:
         buffOffset += chunkSize_ * maxLen  * sizeof(float);
         
         gTransBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);      // 16KB
-        // attnUbFloat = gTransBroadUbFloat;
-        inverseUbFloat = gTransBroadUbFloat[chunkSize_ * halfChunkSize_];
+        attnUbFloat = gTransBroadUbFloat;
         gCumExpBroadUbFloat = gTransBroadUbFloat;
         qPrimeUbFloat = gTransBroadUbFloat;
         buffOffset += chunkSize_ * maxLen * sizeof(float);
@@ -144,7 +143,7 @@ public:
         kUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_), buffOffset);      // 16KB
         buffOffset += halfChunkSize_ * dk_ * sizeof(float);
 
-        attnUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
+        inverseUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
