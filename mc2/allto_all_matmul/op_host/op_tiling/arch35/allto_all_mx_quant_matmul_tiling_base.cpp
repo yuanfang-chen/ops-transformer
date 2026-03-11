@@ -160,9 +160,6 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantTensorDataType(cons
         OP_TILING_CHECK((x1Dtype != x2Dtype),
                         OP_LOGE(opName, "The input x1 Dtype and x2 Dtype should be float4_e2m1 in mxfp4 quant mode, but x1 is %s, x2 is %s.",
                                 Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()), return ge::GRAPH_FAILED);
-        OP_TILING_CHECK((yDtype != ge::DT_FLOAT16 && yDtype != ge::DT_BF16),
-                    OP_LOGE(opName, "Output y Dtype should be float16/bfloat16 in mxfp4 quant mode, but y is %s.", Ops::Base::ToString(yDtype).c_str()),
-                    return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -404,7 +401,7 @@ ge::graphStatus AlltoAllMxQuantMatmulHelper::GetShapeAttrsInfo()
     inputParams_.hasBias = tilingArgs.isBias;
     inputParams_.aDtype = tilingArgs.geAType;
     inputParams_.bDtype = tilingArgs.geBType;
-    uint64_t yDType = *context_->GetAttrs()->GetAttrPointer<uint64_t>(ATTR_Y_DTYPE_INDEX);
+    int yDType = *context_->GetAttrs()->GetAttrPointer<uint64_t>(ATTR_Y_DTYPE_INDEX);
     auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
     auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
     OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
@@ -652,12 +649,12 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
     uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + 
-                             inferredInfo.biasLen + inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
+                             inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
-        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu",
-        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen);
+        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu",
+        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -672,6 +669,7 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
     // AlltoAllMatmul先进行通信，需要有对应的空间先存放结果，假设x1(m,k),假设原始rank上X1的第0维为M，这里的m就是M/ranksize,
     // m已经在前面获取输入参数的时候进行过处理
     if (isMxFp4_) {
+        // 由于k要求整除64，m*k必为偶数，可以整除2
         inferredInfo.commLen = mc2tiling::AlignUp(
         contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize / 2, alignAddrLen);
     } else {
@@ -681,10 +679,6 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
     // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，不需要申请这块
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
-    }
-    if (contextInfo.args_.isBias) {
-        inferredInfo.biasLen =
-            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
 
     inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.rankDim *
