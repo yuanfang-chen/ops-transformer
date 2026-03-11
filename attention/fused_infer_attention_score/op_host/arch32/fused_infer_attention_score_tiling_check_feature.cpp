@@ -566,6 +566,21 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
             QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, ropeHeadDim_),
         return ge::GRAPH_FAILED);
     }
+    if (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION && kvLayout_ == FiaLayout::NZ &&
+        ropeMode_ == RopeMode::NO_ROPE) {
+        const std::vector<std::int32_t> nzNoRopeDSupportList = {64, 128};
+        if (std::find(nzNoRopeDSupportList.begin(), nzNoRopeDSupportList.end(), qkHeadDim_) ==
+                nzNoRopeDSupportList.end() ||
+            std::find(nzNoRopeDSupportList.begin(), nzNoRopeDSupportList.end(), vHeadDim_) ==
+                nzNoRopeDSupportList.end()) {
+            OP_LOGE(opName_,
+                    "In %s %s situation, when the dim of key&value is 5, headDim of query|key|value should be 64 | "
+                    "128, but got valueHeadDim:%u, queryHeadDim and keyHeadDim:%u",
+                    QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_,
+                    qkHeadDim_);
+            return ge::GRAPH_FAILED;
+        }
+    }
     return ge::GRAPH_SUCCESS;
 }
 
