@@ -211,7 +211,7 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
             SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
         return tilingKey;
     }
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     bool isA2ARSAG = isStandardCard4P;
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_WEIGHT_QUANT_MM,                     \
@@ -273,7 +273,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::GetWorkspaceSize()
             OP_LOGD(opName_, "Empty tensor k is 0, set workspace size=%lu to context.", myWorkSpaceSize_);
         }
     } else {
-        if(mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum)){
+        if(mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)){
             OP_TILING_CHECK(
                 GetWorkspaceSizeInStandardCard4P() != ge::GRAPH_SUCCESS,
                 OP_LOGE(opName_, "get workspace size By GetWorkspaceSizeInStandardCard4P failed."),
@@ -456,7 +456,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char*
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 {
 
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     OP_TILING_CHECK(
         mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
         VECTOR_INNER_ERR_REPORT_TILING(

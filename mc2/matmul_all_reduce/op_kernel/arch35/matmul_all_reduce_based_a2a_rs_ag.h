@@ -17,8 +17,8 @@
 
 #include "matmul_all_reduce_base.h"
 namespace MatmulAllReduceImpl {
-using namespace AiVReduceSumImpl;
 using namespace GmUbGmCopyImpl;
+using namespace AiVReduceSumCastFp32Impl;
 constexpr uint32_t A2A_VSUM_AG_MAX_HANDLE_ID_NUM = 16;
 template <typename XType, typename YType, Mc2CoreType CoreType>
 class MatmulAllReduceBase<XType, YType, CoreType, true>
@@ -98,7 +98,7 @@ public:
             all2allRecvGM_[i] = all2allOutGM_ + alltoallIndexOffsetTile;
             allgatherSendGM_[i] = allgatherInGM_ + allgatherIndexOffsetTile / rankNum_;
             allgatherRecvGM_[i] = allgatherOutGM_ + allgatherIndexOffsetTile;
-            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
+            uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
 
             all2allHandleId_[i] = hccl_.AlltoAll<false>(
                 all2allSendGM_[i], all2allRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE);
@@ -112,21 +112,21 @@ public:
             all2allRecvGM_[index] = all2allOutGM_ + alltoallIndexOffsetTail;
             allgatherSendGM_[index] = allgatherInGM_ + allgatherIndexOffsetTail / rankNum_;
             allgatherRecvGM_[index] = allgatherOutGM_ + allgatherIndexOffsetTail;
-            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
+            uint64_t ceilDataCount = CeilDiv(tailInfo_.cOffset, rankNum_);
             
             all2allHandleId_[index] = hccl_.AlltoAll<false>(
                 all2allSendGM_[index], all2allRecvGM_[index], ceilDataCount, HCCL_DATA_TYPE);
         }
 
         for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++){
-            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
+            uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
             allgatherHandleId_[i] = hccl_.AllGather<false>(
                 allgatherSendGM_[i], allgatherRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE, 0, 1);
         }
 
         for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++){
             const uint64_t index = paramInTiling_->tileCnt + i;
-            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
+            uint64_t ceilDataCount = CeilDiv(tailInfo_.cOffset, rankNum_);
             allgatherHandleId_[index] = hccl_.AllGather<false>(
                 allgatherSendGM_[index], allgatherRecvGM_[index], ceilDataCount, HCCL_DATA_TYPE, 0, 1);
         }
@@ -182,7 +182,7 @@ protected:
             uint64_t aivNum = GetBlockNum() * GetTaskRation();
             for (int i = 0; i < paramInTiling_->tileCnt; i++){
                 tPipe_->Reset();
-                uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
+                uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
                 reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tileInfo_.cAddrOffset;
@@ -192,7 +192,7 @@ protected:
 
             for (int i = 0; i < paramInTiling_->tailCnt; i++){
                 tPipe_->Reset();
-                uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
+                uint64_t ceilDataCount = CeilDiv(tailInfo_.cOffset, rankNum_);
                 reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailInfo_.cAddrOffset;
