@@ -9,10 +9,9 @@
  */
 
 /* !
- * \file allto_allv_grouped_mat_mul_tiling.cc
+ * \file allto_allv_grouped_mat_mul_v2_quant_tiling.cpp
  * \brief
  */
-
 #include <string>
 #include <numeric>
 #include <climits>
@@ -26,9 +25,9 @@
 #include "tiling/mc2_tiling_utils.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "../allto_allv_grouped_mat_mul_tiling_base.h"
-#include "../../../op_kernel/allto_allv_grouped_mat_mul_tiling.h"
-#include "allto_allv_grouped_mat_mul_quant_tiling.h"
+#include "../allto_allv_grouped_mat_mul_v2_tiling_base.h"
+#include "../../../op_kernel/allto_allv_grouped_mat_mul_v2_tiling.h"
+#include "allto_allv_grouped_mat_mul_v2_quant_tiling.h"
 
 using namespace ge;
 using namespace AscendC;
@@ -479,5 +478,5 @@ ge::graphStatus AlltoAllvGmmQuantTiling::SetHcclTiling() const
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_OPS_TILING_TEMPLATE(AlltoAllvGroupedMatMul, AlltoAllvGmmQuantTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(AlltoAllvGroupedMatMulV2, AlltoAllvGmmQuantTiling, 1);
 } // namespace optiling
