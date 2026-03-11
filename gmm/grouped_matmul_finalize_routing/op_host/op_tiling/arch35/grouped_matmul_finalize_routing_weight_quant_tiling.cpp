@@ -43,7 +43,7 @@ bool GMMFRWeightQuantTiling::IsCapable()
 
 ge::graphStatus GMMFRWeightQuantTiling::GetPlatformInfo()
 {
-    auto compileInfoPtr = context->GetCompileInfo<GroupedMatmulFinalizeRoutingCompileInfo>();
+    auto compileInfoPtr = context_->GetCompileInfo<GroupedMatmulFinalizeRoutingCompileInfo>();
     OP_CHECK_IF(compileInfoPtr == nullptr,
             OPS_REPORT_CUBE_INNER_ERR("GroupedMatmulFinalizeRouting", "CompileInfo is null"),
             return ge::GRAPH_FAILED);
@@ -73,7 +73,7 @@ ge::graphStatus GMMFRWeightQuantTiling::DoOpTiling()
     tilingData_.hasBias = inputParams_.hasBias;
     tilingData_.coreNum = compileInfoPtr_->aicNum;
     tilingData_.groupNum = inputParams_.groupNum;
-    tilingData_.outputBs = inputParams_.outputBs;
+    tilingData_.outputBs = inputParams_.outputBS;
     tilingData_.sharedInputOffset = inputParams_.shareInputOffset;
     tilingData_.sharedInputLen = inputParams_.sharedInputLen;
     tilingData_.sharedInputWeight = inputParams_.sharedInputWeight;
@@ -89,7 +89,7 @@ ge::graphStatus GMMFRWeightQuantTiling::DoLibApiTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t GMMFRWeightQuantTiling::GetTilingKey() constexpr
+constexpr uint64_t GMMFRWeightQuantTiling::GetTilingKey()
 {
     return 0;
 }
