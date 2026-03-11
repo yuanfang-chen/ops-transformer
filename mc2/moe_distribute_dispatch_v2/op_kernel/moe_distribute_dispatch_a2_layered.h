@@ -199,6 +199,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR epRecvCountsOut, GM_ADDR expandScales,
     GM_ADDR workspaceGM, TPipe *pipe, GM_ADDR tilingGM, GM_ADDR contextGM0)
 {
+    aivId_ = GetBlockIdx();
+    uint32_t offset = aivId_ * UB_32B_ALIGN;
+    int64_t startTime = GetCurrentTimestampUs();
+
     tpipe_ = pipe;
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
 
@@ -223,7 +227,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     maxBs_ = globalBs_ / worldSize_;
     addrInfo_.Init(rankId_, maxBs_, worldSize_, axisH_, axisK_, localMoeExpertNum_, aivNum_);
     expertTokenNumsType_ = tilingData.moeDistributeDispatchInfo.expertTokenNumsType;
-    aivId_ = GetBlockIdx();
+    // aivId_ = GetBlockIdx();
     expertIdsCnt_ = axisBS_ * axisK_;
 
     //TokenStruct info init
@@ -293,7 +297,8 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
 
     needPerformanceInfo_ = performanceInfo != nullptr;
     if (unlikely(needPerformanceInfo_)) {
-        performanceInfoSize_ = worldSize_;
+        // performanceInfoSize_ = worldSize_;
+        performanceInfoSize_ = aivNum_ * UB_32B_ALIGN;
         performanceInfoI32GMTensor_.SetGlobalBuffer((__gm__ int32_t*)performanceInfo);
         tpipe_->InitBuffer(performanceInfoBuf_, performanceInfoSize_ * sizeof(int64_t));
         performanceInfoI32Tensor_ = performanceInfoBuf_.Get<int32_t>();
@@ -315,6 +320,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     // 每次调用magic++,用来区分不同轮次
     magicVal_ = addrInfo_.GetMagicValue();
     AscendC::PipeBarrier<PIPE_ALL>();
+    if (unlikely(needPerformanceInfo_)) {
+        RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+    }
 }
 
 template <TemplateMC2TypeA2layeredClass>
@@ -922,7 +930,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     GlobalTensor<uint64_t> flagIpcGt;
     flagIpcGt.SetGlobalBuffer((__gm__ uint64_t*)(addrInfo_.GetLocalIpcSyncFlagAddr(srcRankId)));
     PipeBarrier<PIPE_ALL>();
-    int64_t startTime = GetCurrentTimestampUs();
+    // int64_t startTime = GetCurrentTimestampUs();
     do {
         DataCopy(localWait, flagIpcGt, B64_PER_BLOCK);
         SyncFunc<AscendC::HardEvent::MTE2_S>();
@@ -932,10 +940,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             break;
         }
     } while (isSync);
-    // 本卡和本卡之间通信，在跨机部分已统计过，机内不需要统计
-    if (unlikely(needPerformanceInfo_ && (srcRankId != rankId_))) {
-        RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
-    }
+    // // 本卡和本卡之间通信，在跨机部分已统计过，机内不需要统计
+    // if (unlikely(needPerformanceInfo_ && (srcRankId != rankId_))) {
+    //     RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
+    // }
 }
 
 template <TemplateMC2TypeA2layeredClass>
@@ -1065,7 +1073,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
 
     Duplicate<int32_t>(tokenNumPerExp, 0, SERVER_RANK_SIZE * localMoeExpertNum_ * EXP_TOKEN_COUNT_FLAG_CNT);
     PipeBarrier<PIPE_ALL>();
-    int64_t startTime = GetCurrentTimestampUs();
+    // int64_t startTime = GetCurrentTimestampUs();
     uint32_t fromRankId = fromServerId * SERVER_RANK_SIZE + rankId_ % SERVER_RANK_SIZE;
     while (tokenStatus != FINISH_STATUS) {
         if (fromServerId == serverId_) {
@@ -1109,11 +1117,11 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
         }
         // 统计机间通信时间
         // 多个核处理同一个server只有第一个核记录时间，其他核不记录保持0，不影响最后的atomicAdd
-        if (unlikely(needPerformanceInfo_ && (logicAivId % coresPerServer == 0))) { 
-            auto curServerId = logicAivId / coresPerServer;
-            auto srcRankId = rankId_ % SERVER_RANK_SIZE + curServerId * SERVER_RANK_SIZE;
-            RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
-        }
+        // if (unlikely(needPerformanceInfo_ && (logicAivId % coresPerServer == 0))) { 
+        //     auto curServerId = logicAivId / coresPerServer;
+        //     auto srcRankId = rankId_ % SERVER_RANK_SIZE + curServerId * SERVER_RANK_SIZE;
+        //     RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
+        // }
         tokenIdx += 1;
         justExpInfo = (tokenIdx % coresPerServer != logicAivId % coresPerServer);
     }
@@ -1336,30 +1344,83 @@ template <TemplateMC2TypeA2layeredClass>
 __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFunc>::Process()
 {
     if ASCEND_IS_AIV { // 全aiv处理
+        uint32_t offset = aivId_ * UB_32B_ALIGN + 1;
+        int64_t startTime;
+        startTime = GetCurrentTimestampUs();
         ReorderTokens();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         if(aivId_ < serverNum){
             if(aivId_ != serverId_){
                 SendDataToServer(aivId_);
             }
+            if (unlikely(needPerformanceInfo_)) {
+                RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+            }
+            startTime = GetCurrentTimestampUs();
             CreateInnerReduceInfo(aivId_);
         } else if (aivId_ == serverNum) {
             CreateOuterReduceInfo();
+            offset++;
         } else {
             Win2Ipc();
+            offset++;
         }
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         SetIpcFlag(IPC_FLAG_STEP_1);
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         WaitIpcFlag(IPC_FLAG_STEP_1);
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         Ipc2Out();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         PipeBarrier<PIPE_ALL>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         CleanUp();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, offset++, startTime);
+        }
+        startTime = GetCurrentTimestampUs();
         CopyPerformanceInfo();
         hccl_.Finalize();
     }
