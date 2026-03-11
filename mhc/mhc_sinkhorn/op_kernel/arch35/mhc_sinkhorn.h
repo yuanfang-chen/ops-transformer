@@ -146,7 +146,6 @@ __aicore__ inline void MhcSinkhornSimd::CalcSoftmax(__local_mem__ float *inputAd
         MicroAPI::Adds(softmaxReg, softmaxReg, eps, maskReg);
 
         MicroAPI::DataCopyScatter(outputAddr, softmaxReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
-        MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
 
@@ -190,7 +189,6 @@ __aicore__ inline void MhcSinkhornSimd::CalcCol(__local_mem__ float *inputAddr, 
         MicroAPI::Div(resReg, gatherReg, sumReg, maskReg);
 
         MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
-        MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
 
@@ -233,7 +231,6 @@ __aicore__ inline void MhcSinkhornSimd::CalcRow(__local_mem__ float *inputAddr, 
         MicroAPI::Div(resReg, gatherReg, sumReg, maskReg);
 
         MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
-        MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
 
@@ -290,6 +287,10 @@ __aicore__ inline void MhcSinkhornSimd::Process()
             }
         }
         inputQue_.FreeTensor<float>(inputLocal);
+        __VEC_SCOPE__
+        {
+            MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
+        }
 
 
         for (uint16_t i = 0; i < repeatTimes; i++) {
@@ -299,6 +300,10 @@ __aicore__ inline void MhcSinkhornSimd::Process()
                 CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                         static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
             }
+        }
+        __VEC_SCOPE__
+        {
+            MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         }
 
 
@@ -310,6 +315,11 @@ __aicore__ inline void MhcSinkhornSimd::Process()
                     CalcRow(curInputAddrRow, curOutputAddrRow, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                             static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
+                __VEC_SCOPE__
+                {
+                    MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE,
+                                          AscendC::MicroAPI::MemType::VEC_LOAD>();
+                }
 
                 for (uint16_t j = 0; j < tilingData_.n; j++) {
                     auto curInputAddrCol = outputAddr + i * repeatSize + j;
@@ -318,6 +328,10 @@ __aicore__ inline void MhcSinkhornSimd::Process()
                             static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
             }
+            __VEC_SCOPE__
+            {
+                MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
+            }
         }
 
         outputQue_.EnQue<float>(outputLocal);
@@ -325,7 +339,7 @@ __aicore__ inline void MhcSinkhornSimd::Process()
 
         DataCopyPad(y_[inputOffset], outputLocal, dataCopyExtParams);
         outputQue_.FreeTensor<float>(outputLocal);
-    }  
+    }
 }
 } // namespace MhcSinkhorn
 
