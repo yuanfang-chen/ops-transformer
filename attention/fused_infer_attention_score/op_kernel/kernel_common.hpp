@@ -140,6 +140,12 @@ namespace KernelCommon {
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
     }
+
+    __aicore__ inline uint32_t GetQSBlockTileDecode(uint32_t qSeqlen)
+    {
+        uint32_t qSBlockTile = Q_TILE_CEIL < qSeqlen ? Q_TILE_CEIL : qSeqlen;
+        return qSBlockTile;
+    }
     __aicore__ inline uint32_t GetKSBlockTile(uint32_t kvSeqlen)
     {
         uint32_t kSBlockTile = MAX_KV_STACK_LEN;

@@ -219,7 +219,7 @@ namespace SplitFuse {
             }
             uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
             uint32_t curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile); // 8
-            uint32_t curQSBlockTile = GetQSBlockTile(qSeqlen);
+            uint32_t curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
             uint32_t curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
             uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
             uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads); // 2
@@ -254,7 +254,7 @@ namespace SplitFuse {
                     }
                     curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
                     curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile);
-                    curQSBlockTile = GetQSBlockTile(qSeqlen);
+                    curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
                     curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
                     curQSGBlockTile = curGBlockTile * curQSBlockTile;
                     curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads);

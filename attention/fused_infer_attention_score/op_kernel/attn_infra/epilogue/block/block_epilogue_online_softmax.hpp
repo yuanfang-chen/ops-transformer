@@ -1306,6 +1306,7 @@ public:
                     Arch::CrossCoreFlag qkReady,
                     Arch::CrossCoreFlag softmaxReady)
     {
+        Arch::CrossCoreWaitFlag(qkReady);
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
         uint32_t columnNumRound = NpuArch::Detail::Alignment::RoundUp(columnNum, BLOCK_SIZE);
@@ -1319,11 +1320,15 @@ public:
             : (subBlockIdx == 1U) ? (kvNBlockSize - kvNSplitSubBlock) : kvNSplitSubBlock;
 
         uint32_t qNSplitSubBlock = qNBlockSize / subBlockNum;
-        uint32_t qNThisSubBlock = (qNBlockSize == 1U) ? 0
-            : (subBlockIdx == 1U) ? (qNBlockSize - qNSplitSubBlock) : qNSplitSubBlock;
+        uint32_t qNThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? 0 
+                                : (subBlockIdx == 1U) ? (qNBlockSize - qNSplitSubBlock) 
+                                                    : qNSplitSubBlock)
+            : (kvNThisSubBlock * qNBlockSize);  
 
-        uint32_t rowSplitSubBlock = (kvNBlockSize == 1) ?
-            (qNSplitSubBlock * kvNBlockSize * qSBlockSize) : (qSBlockSize * qNBlockSize * kvNSplitSubBlock);
+        uint32_t rowSplitSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? (qSBlockSize / subBlockNum) : (qSBlockSize * qNSplitSubBlock)) :
+            (qSBlockSize * qNBlockSize * kvNSplitSubBlock);
         uint32_t rowActualThisSubBlock = (subBlockIdx == 1) ? (rowNum - rowSplitSubBlock) : rowSplitSubBlock;
         uint32_t rowOffsetThisSubBlock = subBlockIdx * rowSplitSubBlock;
         uint32_t maxRowNumPerLoop = MAX_UB_S_ELEM_NUM / columnNumRound;
@@ -1367,7 +1372,6 @@ public:
                 ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
                 SubCoreCompute<false>(
                     gOutputCurLoop,
-                    // gSink,
                     layoutOutputCurLoop,
                     rowOffsetCurLoop,
                     isFirstStackTile,
