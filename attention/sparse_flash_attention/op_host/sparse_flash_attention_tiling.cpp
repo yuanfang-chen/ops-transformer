@@ -189,6 +189,7 @@ std::string SFALayoutToSerialString(SFALayout layout)
     switch (layout) {
         case SFALayout::BSND: return "BSND";
         case SFALayout::TND: return "TND";
+        case SFALayout::PA_BSND: return "PA_BSND";
         case SFALayout::BNSG: return "BNSG";
         case SFALayout::NTG: return "NTG";
         default: return "UNKNOWN";
