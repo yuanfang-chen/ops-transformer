@@ -89,7 +89,7 @@ ge::graphStatus GMMFRWeightQuantTiling::DoLibApiTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-constexpr uint64_t GMMFRWeightQuantTiling::GetTilingKey()
+uint64_t GMMFRWeightQuantTiling::GetTilingKey() const
 {
     return 0;
 }
