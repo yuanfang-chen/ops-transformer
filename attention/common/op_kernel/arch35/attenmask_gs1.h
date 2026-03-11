@@ -177,7 +177,8 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
 }
 
-__aicore__ inline bool CheckIsSkipAttenMask(MaskInfo &info, bool isPre)
+template <typename T>
+__aicore__ inline bool CheckIsSkipAttenMask(LocalTensor<T> &attenMaskUb, MaskInfo &info, bool isPre)
 {
     if ((isPre && IsSkipAttentionmaskForPre(info)) || (!isPre && IsSkipAttentionmask(info))) {
         Duplicate(attenMaskUb, static_cast<T>(0U), info.gs1dealNum * Align(info.s2dealNum, 32U));
@@ -193,7 +194,7 @@ __aicore__ inline bool CheckIsSkipAttenMask(MaskInfo &info, bool isPre)
 template <typename T>
 __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
-    if (CheckIsSkipAttenMask(info, isPre)) {
+    if (CheckIsSkipAttenMask(attenMaskUb, info, isPre)) {
         return;
     }
     int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
@@ -242,7 +243,7 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
 template <typename T>
 __aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
-    if (CheckIsSkipAttenMask(info, isPre)) {
+    if (CheckIsSkipAttenMask(attenMaskUb, info, isPre)) {
         return;
     }
     uint32_t s1StartIdx = info.gs1StartIdx / info.gSize;
