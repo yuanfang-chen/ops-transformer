@@ -147,6 +147,7 @@ namespace {
     constexpr uint32_t RANK_NUM_PER_NODE_A2 = 8;
     constexpr uint32_t BLOCK_SIZE_A2 = 32;
     constexpr uint32_t MAX_K_VALUE_A2 = 16;
+    constexpr static uint32_t IPC_REDUCE_USED_CORE_NUM = 32U; // 拉起远端IPC和机内reduce需要的核数
     const char *K_INNER_DEBUG = "MoeDistributeCombineV2 Tiling Debug";
 
     enum class CommQuantMode : int32_t {
@@ -2030,7 +2031,16 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
+<<<<<<< Updated upstream
     uint32_t numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+=======
+    if (isLayered) {
+        uint32_t serverNum = info.epWorldSize / RANK_NUM_PER_NODE_A2;
+        OP_TILING_CHECK(numBlocks < IPC_REDUCE_USED_CORE_NUM + serverNum,
+            OP_LOGE(context->GetNodeName(), "AivNum %d is invalid, at least %d AivCores are required.", numBlocks, IPC_REDUCE_USED_CORE_NUM + serverNum),
+            return ge::GRAPH_FAILED);
+    }
+>>>>>>> Stashed changes
     context->SetBlockDim(numBlocks);
     uint32_t aicpuBlockDim = info.epWorldSize > RANK_NUM_PER_NODE_A2 ? mc2tiling::AICPU_NUM_BLOCKS_A2 : 1;
     context->SetAicpuBlockDim(aicpuBlockDim);
