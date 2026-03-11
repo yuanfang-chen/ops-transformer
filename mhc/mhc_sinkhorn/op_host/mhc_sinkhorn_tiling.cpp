@@ -78,7 +78,7 @@ ge::graphStatus MhcSinkhornTiling::GetShapeAttrsInfo()
     auto numItersPtr = attrs->GetAttrPointer<int64_t>(ATTR_NUM_ITERS_IDX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, numItersPtr);
     num_iters_ = static_cast<int64_t>(*numItersPtr);
-    OP_CHECK_IF((num_iters_ <= NUM_ONE || num_iters_ > NUM_ONE_HUNDRED), OP_LOGE(opName_, "num_iters_ must be greater than 0 and less than or equal to 100, but got %d .", num_iters_),
+    OP_CHECK_IF((num_iters_ < NUM_ONE || num_iters_ > NUM_ONE_HUNDRED), OP_LOGE(opName_, "num_iters_ must be greater than 0 and less than or equal to 100, but got %d .", num_iters_),
                 return ge::GRAPH_FAILED);
     auto outFlagPtr = attrs->GetAttrPointer<int64_t>(ATTR_OUT_FLAG_IDX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, outFlagPtr);
