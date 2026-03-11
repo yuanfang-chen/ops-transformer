@@ -65,12 +65,13 @@ protected:
         const DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tiling =
             (tailFlag ? &mc2TilingData_->tailmatmulTiling : &mc2TilingData_->tilematmulTiling);
         uint64_t pertokenOffset = 0UL;
-        uint64_t MX_GROUP_SIZE = 64UL;
+        uint32_t MX_GROUP_SIZE = 64U;
         uint64_t NUM_TWO = 2;
         if (isMXScene_) {
+            uint64_t matmulKa = static_cast<uint64_t>(tiling->matmulTiling.Ka);
             pertokenOffset =
                 sizeof(AscendC::fp8_e8m0_t) * tiling->matmulTiling.M *
-                CeilDiv(tiling->matmulTiling.Ka, MX_GROUP_SIZE) * NUM_TWO;
+                CeilDiv(matmulKa, MX_GROUP_SIZE) * NUM_TWO;
         } else {
             pertokenOffset = sizeof(float) * tiling->matmulTiling.M;
         }
