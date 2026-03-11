@@ -37,6 +37,7 @@ namespace ge {
 * @li activation_mode: An optional int. Activation function type: 0 (None), 1 (silu), 2 (swish). Default: 0.
 * @li pad_slot_id: An optional int. Slot ID used to skip padding batches. Default: -1.
 * @li run_mode: An optional int. Execution mode: 0 (prefill), 1 (decode). Default: 0.
+* @li residual_connection: An optional int. Execution mode: 0 (prefill), 1 (decode). Default: 0.
 
 * @par Outputs:
 * @li y: Output sequence tensor. Same shape and type as x.
@@ -54,6 +55,7 @@ REG_OP(CausalConv1d)
     .ATTR(activation_mode, Int, 0)
     .ATTR(pad_slot_id, Int, -1)
     .ATTR(run_mode, Int, 0)
+    .ATTR(residual_connection, Int, 0)
     .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16}))
     .OUTPUT(conv_states, TensorType({DT_BF16, DT_FLOAT16}))
     .OP_END_FACTORY_REG(CausalConv1d)
