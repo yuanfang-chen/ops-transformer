@@ -25,21 +25,18 @@ TILING_DATA_FIELD_DEF(uint32_t, batch);
 TILING_DATA_FIELD_DEF(uint32_t, numHeads);
 TILING_DATA_FIELD_DEF(uint32_t, kvHeads);
 TILING_DATA_FIELD_DEF(uint32_t, headDim);
-TILING_DATA_FIELD_DEF(uint32_t, blockSize);
-TILING_DATA_FIELD_DEF(uint32_t, maxNumBlocksPerBatch);
-TILING_DATA_FIELD_DEF(uint32_t, firstBatchTaskNum);
+
 TILING_DATA_FIELD_DEF(uint32_t, totalTaskNum);
 TILING_DATA_FIELD_DEF(uint32_t, maskType);
 TILING_DATA_FIELD_DEF(float, scaleValue);
 TILING_DATA_FIELD_DEF(uint32_t, totalQBlocks);       // T: 所有batch中Q方向切块的总数
-TILING_DATA_FIELD_DEF(uint32_t, firstQBlockNum);       // T: 所有batch中Q方向切块的总数
+     
 
 // 稀疏分块参数 (blockShapeOptional)
 TILING_DATA_FIELD_DEF(uint64_t, blockShapeX);  // block的x维度(Q方向)
 TILING_DATA_FIELD_DEF(uint64_t, blockShapeY);  // block的y维度(KV方向)
 
 // selectIdx相关参数
-TILING_DATA_FIELD_DEF(uint32_t, maxKvBlockNum);      // 最大KV块数量（selectIdx的最后一维）
 
 // Layout: 0=TND, 1=BNSD
 TILING_DATA_FIELD_DEF(uint32_t, inputLayout);
@@ -128,11 +125,9 @@ private:
     uint32_t maskType_ = 0;
     
     uint32_t totalQBlocks_ = 0;
-    uint32_t maxKvBlockNum_ = 0;
-    uint32_t firstQBlockNum_ = 0;
-    uint32_t firstBatchTaskNum_ = 0;
+    
     uint32_t totalTaskNum_ = 0;
-    uint32_t maxNumBlocksPerBatch_ = 0;
+
     const int64_t *qSeqLenList = nullptr;
     const int64_t *kvSeqLenList = nullptr;
     const int64_t *blockShapeList = nullptr;
@@ -147,7 +142,7 @@ private:
 
     InputLayout layout_ = InputLayout::TND;
     
-    uint32_t blockDim_ = 20;
+    uint32_t blockDim_ = 0;
     uint32_t aivNum_ = 0;
     uint32_t aicNum_ = 0;
     uint64_t ubSize_ = 0;

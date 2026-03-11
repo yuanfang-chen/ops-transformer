@@ -164,6 +164,23 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
                 return ge::GRAPH_FAILED;
             }
         }
+
+    maxQSeqlen_ = 0;
+    maxKvSeqlen_ = 0 ;
+    if (batch_ == 1) {
+        maxQSeqlen_ = totalTokensT_;
+        maxKvSeqlen_= static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(TND_DIM_T));
+    } else {
+        for (uint32_t i = 0; i < batch_; ++i) {
+            if (qSeqLenList[i]>maxQSeqlen_) {
+                maxQSeqlen_ = static_cast<uint32_t>(qSeqLenList[i]);
+            }
+            if (kvSeqLenList[i]>maxKvSeqlen_) {
+                maxKvSeqlen_ = static_cast<uint32_t>(kvSeqLenList[i]);
+            }
+        }
+    }
+
     } else if (layout_ == InputLayout::BNSD) {
         if (queryShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM ||
             kvShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM ||
@@ -226,20 +243,14 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
     uint32_t kvHeads = kvHeads_;
     uint32_t blockX = blockShapeX_;
     uint32_t coreNum = aicNum_;
-    uint32_t totalTasks = 0;
+
+    totalTaskNum_ = 0;
+    totalQBlocks_ = 0;
 
     const auto *queryShape = context->GetInputShape(QUERY_INDEX);
     const auto *kvShape = context->GetInputShape(KEY_INDEX);
     uint32_t totalQ = (layout_ == InputLayout::TND) ?  queryShape->GetOriginShape().GetDim(TND_DIM_T) : 0;
     uint32_t totalKv = (layout_ == InputLayout::TND) ?  kvShape->GetOriginShape().GetDim(TND_DIM_T) : 0;
-
-    if (layout_ == InputLayout::TND) {
-        maxKvBlockNum_=CeilDiv(totalKv,blockShapeY_);
-    } else {
-        maxKvBlockNum_=CeilDiv(maxKvSeqlen_,blockShapeY_);
-    }
-    maxNumBlocksPerBatch_ = maxKvBlockNum_ * numHeads_;
-    totalQBlocks_ = 0;
 
     std::vector<uint32_t> tasksInBatch(batch_);
     std::vector<uint64_t> qPrefixTokenSum(batch_ + 1, 0);
@@ -265,21 +276,17 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
 
         uint32_t qBlocks = GetQBlocks(qSeqlen, blockX);
         tasksInBatch[b] = qBlocks * numHeads;
-        totalTasks += tasksInBatch[b];
+        totalTaskNum_ += tasksInBatch[b];
 
-        uint32_t curQblockNum = CeilDiv(qSeqlen,blockX) * numHeads;
-        if (b = =0) {
-            firstBatchTaskNum_ = tasksInBatch[b];
-            firstQBlockNum_ = curQBlockNum;
-        }
+        uint32_t curQBlockNum = CeilDiv(qSeqlen,blockX) * numHeads;
         totalQBlocks_ += curQBlockNum;
 
         qPrefixTokenSum[b + 1] = qPrefixTokenSum[b] + qSeqlen;
         kvPrefixTokenSum[b + 1] = kvPrefixTokenSum[b] + kvSeqlen;
     }
 
-    taskNumPerCore_ = totalTasks / coreNum;
-    tailTaskNum_ = totalTasks % coreNum;
+    taskNumPerCore_ = totalTaskNum_/ coreNum;
+    tailTaskNum_ = totalTaskNum_ % coreNum;
     uint32_t currentGlobalTaskId = 0;
 
     for (uint32_t i=0; i < coreNum; i++) {
@@ -335,7 +342,7 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
         uint32_t taskLen = (i< tailTaskNum_) ? (taskNumPerCore_ + 1):taskNumPerCore_;
         currentGlobalTaskId += taskLen;
     }
-
+    blockDim_ = std::min(aicNum_, totalTaskNum_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -374,22 +381,14 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_numHeads(numHeads_);
     tilingData_->set_kvHeads(kvHeads_);
     tilingData_->set_headDim(headDim_);
-    tilingData_->set_maxNumBlocksPerBatch(maxNumBlocksPerBatch_);
-    tilingData_->set_firstBatchTaskNum(firstBatchTaskNum_);
     tilingData_->set_totalTaskNum(totalTaskNum_);
     tilingData_->set_maskType(maskType_);
-
     tilingData_->set_blockShapeX(blockShapeX_);
     tilingData_->set_blockShapeY(blockShapeY_);
-
-    tilingData_->set_firstQBlockNum(firstQBlockNum_);
     tilingData_->set_totalQBlocks(totalQBlocks_);
-    tilingData_->set_maxKvBlockNum(maxKvBlockNum_);
-
     tilingData_->set_inputLayout(static_cast<uint32_t>(layout_));
     tilingData_->set_maxQSeqlen(maxQSeqlen_);
     tilingData_->set_maxKvSeqlen(maxKvSeqlen_);
-
     tilingData_->set_basicQBlockSize(BASIC_BLOCK_SIZE);
     tilingData_->set_basicKVBlockSize(BASIC_BLOCK_SIZE);
     tilingData_->set_taskNumPerCore(taskNumPerCore_);
