@@ -15,8 +15,7 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "opdev/common_types.h"
-#include "aclnn_allto_allv_grouped_mat_mul.h"
-#include "allto_allv_grouped_mat_mul_checker.h"
+#include "allto_allv_grouped_mat_mul_v2_checker.h"
 
 namespace Mc2AlltoAllvGMMChecker {
 
