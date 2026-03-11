@@ -129,7 +129,6 @@ struct TileCastFp8ToFp16Dequant {
         uint64_t srcProcessOffset, dstProcessOffset;
         uint32_t loadLen = COMPUTE_LENGTH, storeLen, loadRepeat = 1, storeRepeat = 1;
         for (int ldx=0; ldx < totalLoops; ldx++) {
-
             // Dynamic compute length
             if (tileLenRoundFp8 > COMPUTE_LENGTH / 2) {
                 uint32_t fullTileRounds    = ldx / loopsPerTile;
