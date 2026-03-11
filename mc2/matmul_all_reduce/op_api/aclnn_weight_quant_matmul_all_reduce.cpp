@@ -9,34 +9,15 @@
  */
 
 #include "aclnn_weight_quant_matmul_all_reduce.h"
-#include "securec.h"
 
-#include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
-#include "aclnn_kernels/common/op_error_check.h"
-#include "opdev/common_types.h"
-#include "opdev/op_dfx.h"
-#include "opdev/op_executor.h"
-#include "opdev/make_op_executor.h"
-#include "opdev/op_log.h"
-#include "opdev/platform.h"
 #include "opdev/tensor_view_utils.h"
 #include "matmul_all_reduce_util.h"
-#include "aclnn_kernels/contiguous.h"
 
 using namespace op;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-enum class NnopbaseHcclServerType : uint32_t {
-    NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
-    NNOPBASE_HCCL_SERVER_TYPE_MTE,
-    NNOPBASE_HCCL_SERVER_TYPE_CCU,
-    NNOPBASE_HCCL_SERVER_TYPE_END
-};
 
 static constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
 
