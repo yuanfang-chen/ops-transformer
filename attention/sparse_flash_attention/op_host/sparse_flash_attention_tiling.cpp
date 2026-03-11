@@ -1025,6 +1025,7 @@ ge::graphStatus SFATilingCheck::CheckAttenOut()
 {
     if (ge::GRAPH_SUCCESS != CheckDTypeConsistency(opParamInfo_.attenOut.desc->GetDataType(),
         inputQType_, ATTEN_OUT_NAME) ||
+        ge::GRAPH_SUCCESS != CheckAttenOutShape() ||
         ge::GRAPH_SUCCESS != CheckSoftmaxMaxShape() ||
         ge::GRAPH_SUCCESS != CheckSoftmaxSumShape()) {
         return ge::GRAPH_FAILED;
