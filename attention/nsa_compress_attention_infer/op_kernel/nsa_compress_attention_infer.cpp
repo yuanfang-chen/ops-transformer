@@ -14,6 +14,10 @@
  */
 
 #include "kernel_operator.h"
+#include "nsa_compress_attention_infer_init.h"
+#include "nsa_compress_attention_infer_copy.h"
+#include "nsa_compress_attention_infer_compute.h"
+#include "nsa_compress_attention_infer_process.h"
 #include "nsa_compress_attention_infer.h"
 
 using namespace AscendC;
