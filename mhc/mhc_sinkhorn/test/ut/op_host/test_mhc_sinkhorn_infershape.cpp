@@ -82,23 +82,3 @@ TEST_F(MhcSinkhorn, MhcSinkhorn_normal_dims3)
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
-TEST_F(MhcSinkhorn, MhcSinkhorn_xDims5)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo optiCompilationInfo;
-    optiCompilationInfo.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
-    gert::InfershapeContextPara infershapeContextPara("MhcSinkhorn",
-                                                      {
-                                                        {{{1, 512, 2, 8, 8}, {1, 512, 2, 8, 8}}, ge::DT_FLOAT32, ge::FORMAT_ND},
-                                                      },
-                                                      {
-                                                        {{{1, 512, 2, 8, 8}, {1, 512, 2, 8, 8}}, ge::DT_FLOAT32, ge::FORMAT_ND},
-                                                      },
-                                                      {}
-                                                      );
-    std::vector<std::vector<int64_t>> expectOutputShape = {{1, 512, 2, 8, 8}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
-}

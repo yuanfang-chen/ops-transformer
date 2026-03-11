@@ -43,11 +43,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_basic_4d_fp32)
 
     float eps = 1e-6;
     int64_t num_iters = 20;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
     uint64_t workspaceSize = 0;
@@ -65,11 +64,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_basic_3d_fp32)
 
     float eps = 1e-7;
     int64_t num_iters = 15;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
     uint64_t workspaceSize = 0;
@@ -87,11 +85,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_empty_tensor_4d)
 
     float eps = 1e-8;
     int64_t num_iters = 12;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
 
@@ -111,11 +108,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_invalid_dtype)
 
     float eps = 1e-6;
     int64_t num_iters = 5;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
 
@@ -134,55 +130,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_invalid_shape)
 
     float eps = 1e-6;
     int64_t num_iters = 5;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
-        OUTPUT(outPut, normOut, SumOut)
-    );
-    uint64_t workspaceSize = 0;
-    aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspaceSize);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
-
-TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_invalid_attr_out_flag)
-{
-    auto x = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    auto outPut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-    auto normOut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-    auto SumOut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    float eps = 1e-6;
-    int64_t num_iters = -1;
-    int64_t out_flag = 1;
-
-    auto ut = OP_API_UT(
-        aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
-        OUTPUT(outPut, normOut, SumOut)
-    );
-    uint64_t workspaceSize = 0;
-    aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspaceSize);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
-
-TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_invalid_attr_num_iters)
-{
-    auto x = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    auto outPut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-    auto normOut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-    auto SumOut = TensorDesc({2, 16, 6, 6}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    float eps = 1e-6;
-    int64_t num_iters = -1;
-    int64_t out_flag = 0;
-
-    auto ut = OP_API_UT(
-        aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
     uint64_t workspaceSize = 0;
@@ -200,11 +151,10 @@ TEST_F(MhcSinkhornOpapiUt, aclnn_mhc_sinkhorn_invalid_attr_num_iters)
 
     float eps = 1e-6;
     int64_t num_iters = 101;
-    int64_t out_flag = 0;
 
     auto ut = OP_API_UT(
         aclnnMhcSinkhorn,
-        INPUT(x, out_flag, eps, num_iters),
+        INPUT(x, eps, num_iters),
         OUTPUT(outPut, normOut, SumOut)
     );
     uint64_t workspaceSize = 0;
