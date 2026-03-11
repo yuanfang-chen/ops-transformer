@@ -70,6 +70,10 @@ if (ENABLE_BUILT_IN)
   set(COMMON_LIB_INSTALL_DIR          ops_transformer/lib)
   set(VERSION_INFO_INSTALL_DIR        ops_transformer)
   set(IMPL_INSTALL_DIR                ops_transformer/built-in/op_impl/ai_core/tbe/impl/ops_transformer)
+else()
+ 	# custom pkg
+ 	set(ES_INC_INSTALL_DIR              packages/vendors/${VENDOR_NAME}_transformer/op_proto/es/include)
+ 	set(ES_LIB_INSTALL_DIR              packages/vendors/${VENDOR_NAME}_transformer/op_proto/es/lib/linux/${CMAKE_SYSTEM_PROCESSOR})
 endif()
 
 if (ENABLE_TEST)
@@ -128,22 +132,22 @@ set(OPAPI_INCLUDE
 if (NOT BUILD_OPEN_PROJECT)
   list(APPEND OPAPI_INCLUDE
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_proto/runtime
-    ${TOP_DIR}/ace/comop/inc/external
     ${TOP_DIR}/ops/ops-nn/matmul/common/op_host/op_api
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc/log/inner
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc/error
-    ${TOP_DIR}/ace/comop/inc/external
-    ${TOP_DIR}/ace/npuruntime/inc/external
     ${TOP_DIR}/ops-base/include/nnopbase
     ${TOP_DIR}/runtime/pkg_inc/aicpu_sched/common
     ${TOP_DIR}/asl/ops/cann/ops/mc2/communication_and_computation
     ${TOP_DIR}/runtime/include/external/acl/error_codes
+    ${TOP_DIR}/runtime/include/external
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling/runtime
     ${TOP_DIR}/asl/ops/cann/ops/built-in
     ${TOP_DIR}/ops-base/pkg_inc/op_common/op_host
     ${TOP_DIR}/ops-base/pkg_inc
     ${TOP_DIR}/ops-base/include
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
+    ${TOP_DIR}/hcomm/include
+    ${TOP_DIR}/hccl/include
   )
 else()
   list(APPEND OPAPI_INCLUDE ${OPBASE_INC_DIRS})
@@ -178,8 +182,6 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/abl/msprof/inc
     ${METADEF_INC_DIR}/../common/util
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc
-    ${TOP_DIR}/ace/comop/inc
-    ${TOP_DIR}/ace/comop/hccl/open_source/inc
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling/cube
     ${TOP_DIR}/ace/npuruntime/inc/external
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling
@@ -204,6 +206,8 @@ if (NOT BUILD_OPEN_PROJECT)
     ${METADEF_DIR}
     ${RUNTIME_INC_DIR}/runtime/platform/inc
     ${METADEF_DIR}/inc/external/ge
+    ${TOP_DIR}/hcomm/include
+    ${TOP_DIR}/hccl/include
   )
 endif()
 
@@ -229,8 +233,6 @@ if (NOT BUILD_OPEN_PROJECT)
   list(APPEND OP_PROTO_INCLUDE
     ${TOP_DIR}/abl/msprof/inc
     ${METADEF_INC_DIR}/../common/util
-    ${TOP_DIR}/ace/comop/inc
-    ${TOP_DIR}/ace/comop/hccl/open_source/inc
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling/cube
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc/log/inner
@@ -248,6 +250,8 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/ops-base/pkg_inc
     ${TOP_DIR}/ops-base/include
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
+    ${TOP_DIR}/hcomm/include
+    ${TOP_DIR}/hccl/include
   )
 endif()
 
@@ -259,10 +263,11 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/asl/ops/cann/ops/built-in/aicpu/impl/kernels/normalized/random
     ${TOP_DIR}/asl/ops/cann/ops/built-in/aicpu/context/inc
     ${TOP_DIR}/asl/ops/cann/ops/built-in/aicpu/context/common/*.h
-    ${TOP_DIR}/ace/comop/inc
     ${TOP_DIR}/ops-base/include
     ${TOP_DIR}/ops-base/pkg_inc
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
+    ${TOP_DIR}/hcomm/include
+    ${TOP_DIR}/hccl/include
   )
 endif()
 

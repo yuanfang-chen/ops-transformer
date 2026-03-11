@@ -12,8 +12,8 @@
 #include <new>
 #include <memory>
 #include <unordered_map>
-#include "aclnn_gmm_dsq_base.h"
-#include "aclnn_grouped_matmul_swiglu_quant_v2_utils.h"
+#include "gmm_dsq_base.h"
+#include "grouped_matmul_swiglu_quant_v2_utils.h"
 #include "grouped_matmul_swiglu_quant_v2.h"
 #include "aclnn_grouped_matmul_swiglu_quant_weight_nz_v2.h"
 #include "aclnn_grouped_matmul_swiglu_quant_v2.h"

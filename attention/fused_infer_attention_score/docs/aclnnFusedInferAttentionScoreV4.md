@@ -565,6 +565,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <ul>
             <li>仅支持非量化场景。</li>
             <li>仅支持V_D=128/64。</li>
+            <li>不支持pse/左padding/公共前缀/后量化。</li>
         </ul>
         </td>
         <td>BFLOAT16、FLOAT16</td>
@@ -633,7 +634,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <td>表示key/value的head个数</td>
         <td>
         <ul>
-            <li>需要满足numHeads整除numKeyValueHeads。</li>
+            <li>需要满足numHeads整除numKeyValueHeads，GQA非量化场景和Prefill MLA非量化场景下，numHeads与numKeyValueHeads的比值无限制; Decode MLA场景仅支持numHeads与numKeyValueHeads的比值为1、2、4、8、16、32、64、128。</li>
             <li>在BSND、TND、BNSD、NTD、BSND_BNSD、BNSD_BSND、NTD_TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。</li>
         </ul>
         </td>

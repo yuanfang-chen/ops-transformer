@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -117,6 +117,13 @@ namespace {
     constexpr uint32_t TP_WORLD_SIZE_TWO = 2;
     constexpr uint32_t VERSION_2 = 2;
     constexpr uint32_t HCOMMCNT_2 = 2;
+    constexpr uint32_t SIZE_OF_UNQUANT = 2;
+    constexpr uint32_t SIZE_OF_HALF = 2;
+    constexpr uint32_t SIZE_ALIGN_256 = 256;
+    constexpr uint32_t SPLIT_BLOCK_DATA_SIZE = 480U;
+    constexpr uint32_t SPLIT_BLOCK_SIZE = 512UL;
+    constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
+    constexpr uint32_t BUFFER_NUM = 2;
     constexpr int64_t MOE_EXPERT_MAX_NUM = 1024;
     constexpr int64_t MOE_EXPERT_MAX_NUM_LAYERED = 512;
     constexpr int64_t LOCAL_EXPERT_MAX_SIZE = 2048;
@@ -419,9 +426,7 @@ static bool CheckTensorDataTypeNonQuant(const gert::TilingContext *context,
     const char *nodeName, const bool isScales, DispatchV2Config &config)
 {
     auto xDesc = context->GetInputDesc(config.xIndex);
-    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
-    OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
     OP_TILING_CHECK((NON_QUANT_DTYPE.find(static_cast<ge::DataType>(xDesc->GetDataType())) == NON_QUANT_DTYPE.end()),
         OP_LOGE(nodeName, 
         "x datatype is invalid, datatype should be one of bf16/fp16/e5m2/e4m3fn/hif8, but is %s.",
@@ -437,7 +442,6 @@ static bool CheckTensorDataTypeNonQuant(const gert::TilingContext *context,
     // Hence the datatype of X must be e5m2/e4m3fn/hif8 when isScales is true
     if (isScales) {
         auto scalesDesc = context->GetOptionalInputDesc(config.scalesIndex);
-        OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
         OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
             return false);
@@ -462,7 +466,6 @@ static bool CheckTensorDataTypeStaticOrDynamic(
     const gert::TilingContext *context, const char *nodeName, bool isScales, DispatchV2Config &config)
 {
     auto xDesc = context->GetInputDesc(config.xIndex);
-    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
     OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
         return false);
@@ -488,10 +491,7 @@ static bool CheckTensorDataTypeMxfp8(
     const gert::TilingContext *context, const char *nodeName, DispatchV2Config &config)
 {
     auto xDesc = context->GetInputDesc(config.xIndex);
-    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
-    OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
-        return false);
     OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
         OP_LOGE(nodeName, "x datatype is invalid, datatype should be bf16 or float16, but is %s.",
         Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
@@ -578,7 +578,6 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
             OP_LOGE(nodeName, "CheckDistinctTensorDataType failed."), return false);
     } else {
         auto xDesc = context->GetInputDesc(config.xIndex);
-        OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
         OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
             OP_LOGE(nodeName, "x dataType is invalid, dataType should be bf16 or float16, but is %s.",
             Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
@@ -591,17 +590,13 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
                 OP_LOGE(nodeName, "dynamicScales dataType is invalid, dataType should be float, but is %s.",
                 Ops::Base::ToString(dynamicScalesDesc->GetDataType()).c_str()), return false);
         }
-
         if (isScales) {
             auto scalesDesc = context->GetOptionalInputDesc(config.scalesIndex);
-            OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
             OP_TILING_CHECK(scalesDesc->GetDataType() != ge::DT_FLOAT,
                 OP_LOGE(nodeName, "scales dataType is invalid, dataType should be float, but is %s.",
                 Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
         }
-
         auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
-        OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
         if (quantMode != static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
             OP_TILING_CHECK(expandXDesc->GetDataType() != ge::DT_INT8,
                 OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, but is %s.",
@@ -613,36 +608,29 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
                 return false);
         }
     }
-
     auto expertIdDesc = context->GetInputDesc(config.expertIdsIndex);
-    OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
     OP_TILING_CHECK(expertIdDesc->GetDataType() != ge::DT_INT32,
         OP_LOGE(nodeName, "expertId dataType is invalid, dataType should be int32, but is %s.",
         Ops::Base::ToString(expertIdDesc->GetDataType()).c_str()), return false);
 
     if (isActiveMask) {
         auto xActiveMaskDesc = context->GetOptionalInputDesc(config.xActiveMaskIndex);
-        OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName, "xActiveMaskDesc is null."), return false);
         OP_TILING_CHECK(xActiveMaskDesc->GetDataType() != ge::DT_BOOL, OP_LOGE(nodeName,
             "xActiveMask dataType is invalid, dataType should be bool, but is %s.",
             Ops::Base::ToString(xActiveMaskDesc->GetDataType()).c_str()), return false);
     }
-
     if (hasElasticInfo) {
         auto elasticInfoDesc = context->GetOptionalInputDesc(config.elasticInfoIndex);
-        OP_TILING_CHECK(elasticInfoDesc == nullptr, OP_LOGE(nodeName, "elasticInfoDesc is null."), return false);
         OP_TILING_CHECK(elasticInfoDesc->GetDataType() != ge::DT_INT32, OP_LOGE(nodeName,
             "elasticInfoDesc dataType is invalid, dataType should be int32, but is %s.",
             Ops::Base::ToString(elasticInfoDesc->GetDataType()).c_str()), return false);
     }
-
     if (isPerformance) {
         auto performanceInfoDesc = context->GetOptionalInputDesc(config.performanceInfoIndex);
         OP_TILING_CHECK(performanceInfoDesc->GetDataType() != ge::DT_INT64, OP_LOGE(nodeName,
             "performanceInfoDesc dataType is invalid, dataType should be int64, but is %s.",
             Ops::Base::ToString(performanceInfoDesc->GetDataType()).c_str()), return false);
     }
-
     OP_TILING_CHECK(!CheckCommomOutputTensorDataType(context, nodeName),
         OP_LOGE(nodeName, "CheckCommomOutputTensorDataType failed."), return false);
 
@@ -653,82 +641,57 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
 static bool CheckTensorFormat(const gert::TilingContext *context, const char *nodeName,
     const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo, const bool isPerformance, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(config.xIndex);
-    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
+    auto xDesc = context->GetInputDesc(config.xIndex); // nullptr前面已check过
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(xDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "x format is invalid."), return false);
-
     auto expertIdDesc = context->GetInputDesc(config.expertIdsIndex);
-    OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expertIdDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "expertId format is invalid."), return false);
-
     if (isScales) {
         auto scalesDesc = context->GetOptionalInputDesc(config.scalesIndex);
-        OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scalesDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "scales format is invalid."), return false);
     }
-
     if (isActiveMask) {
         auto xActiveMaskDesc = context->GetOptionalInputDesc(config.xActiveMaskIndex);
-        OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName, "xActiveMaskDesc is null."), return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(xActiveMaskDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "xActiveMask format is invalid."), return false);
     }
-
     if (hasElasticInfo) {
         auto elasticInfoDesc = context->GetOptionalInputDesc(config.elasticInfoIndex);
-        OP_TILING_CHECK(elasticInfoDesc == nullptr, OP_LOGE(nodeName, "elasticInfoDesc is null."), return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(elasticInfoDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "elasticInfo format is invalid."), return false);
     }
-
     if (isPerformance) {
         auto performanceInfoDesc = context->GetOptionalInputDesc(config.performanceInfoIndex);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(performanceInfoDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "performanceInfoDesc format is invalid."), return false);
     }
-
     auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
-    OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expandXDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "expandX format is invalid."), return false);
-
     if (quantMode >= static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
         auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
-        OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
-            return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(dynamicScalesDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "dynamicScales format is invalid."), return false);
     }
-
     auto assistInfoDesc = context->GetOutputDesc(OUTPUT_ASSIST_INFO_INDEX);
-    OP_TILING_CHECK(assistInfoDesc == nullptr, OP_LOGE(nodeName, "assistInfoDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(assistInfoDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "assistInfoForCombine format is invalid."), return false);
-
     auto expertTokenNumsDesc = context->GetOutputDesc(OUTPUT_EXPERT_TOKEN_NUMS_INDEX);
-    OP_TILING_CHECK(expertTokenNumsDesc == nullptr, OP_LOGE(nodeName, "expertTokenNumsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expertTokenNumsDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "expertTokenNums format is invalid."), return false);
-
     auto epRecvCountsDesc = context->GetOutputDesc(OUTPUT_EP_RECV_COUNTS_INDEX);
-    OP_TILING_CHECK(epRecvCountsDesc == nullptr, OP_LOGE(nodeName, "epRecvCountsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(epRecvCountsDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "epRecvCounts format is invalid."), return false);
-
     auto tpRecvCountsDesc = context->GetOutputDesc(OUTPUT_TP_RECV_COUNTS_INDEX);
-    OP_TILING_CHECK(tpRecvCountsDesc == nullptr, OP_LOGE(nodeName, "tpRecvCountsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(tpRecvCountsDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "tpRecvCounts format is invalid."), return false);
-
     return true;
 }
 
-static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetFullMeshV2,
-    bool &isLayered, DispatchV2Config &config)
+static ge::graphStatus CheckAttrPtrNullptr(const gert::TilingContext *context, const char *nodeName,
+    std::string &groupEp, DispatchV2Config &config)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "attrs is nullptr."), return ge::GRAPH_FAILED);
@@ -777,42 +740,36 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK(constExpertNumPtr == nullptr, OP_LOGE(nodeName, "constExpertNumPtr is null."),
         return ge::GRAPH_FAILED);
     
-    // 在使用前为isLayered赋值
-    isLayered = strcmp(commAlgPtr, "hierarchy") == 0;
+    return ge::GRAPH_SUCCESS;
+}
 
+static ge::graphStatus CheckCommAttrParams(const gert::TilingContext *context, const char *nodeName,
+    std::string &groupTp, bool &isSetFullMeshV2, bool &isLayered, DispatchV2Config &config,
+    MoeDistributeDispatchV2TilingData &tilingData)
+{
+    auto attrs = context->GetAttrs();
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(config.attrEpWorldSizeIndex);
+    auto tpWorldSizePtr = attrs->GetAttrPointer<int64_t>(config.attrTpWorldSizeIndex);
+    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(config.attrEpRankIdIndex);
+    auto tpRankIdPtr = attrs->GetAttrPointer<int64_t>(config.attrTpRankIdIndex);
+    auto expertShardPtr = attrs->GetAttrPointer<int64_t>(config.attrExpertSharedTypeIndex);
+    auto quantModePtr = attrs->GetAttrPointer<int64_t>(config.attrQuantModeIndex);
+    auto expertTokenNumsTypePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrExpertTokenNumsTypeIndex));
+    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(config.attrCommAlgIndex));
+
+    int64_t epWorldSize = *epWorldSizePtr;
+    isLayered = strcmp(commAlgPtr, "hierarchy") == 0; // isLayered赋值
     if (config.isMc2Context) {
         OP_TILING_CHECK((strcmp(commAlgPtr, "hierarchy") == 0),
             OP_LOGE(nodeName, "commAlgPtr %s doesn't support comm with context.", commAlgPtr),
             return ge::GRAPH_FAILED);
     }
-
-    // 判断是否满足uint32_t及其他限制
-    int64_t moeExpertNum = *moeExpertNumPtr;
-    int64_t epWorldSize = *epWorldSizePtr;
-    int64_t sharedExpertRankNum = *sharedExpertRankNumPtr;
-    int64_t zeroExpertNum = *zeroExpertNumPtr;
-    int64_t copyExpertNum = *copyExpertNumPtr;
-    int64_t constExpertNum = *constExpertNumPtr;
-    int64_t zeroComputeExpertNum = zeroExpertNum + copyExpertNum + constExpertNum;
-    OP_TILING_CHECK((zeroExpertNum < 0), OP_LOGE(nodeName,
-        "zeroExpertNum less than 0, zeroExpertNum is %ld.", zeroExpertNum), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((copyExpertNum < 0), OP_LOGE(nodeName,
-        "copyExpertNum less than 0, copyExpertNum is %ld.", copyExpertNum), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((constExpertNum < 0), OP_LOGE(nodeName,
-        "constExpertNum less than 0, constExpertNum is %ld.", constExpertNum), return ge::GRAPH_FAILED);
-    OP_LOGD(nodeName, "zeroExpertNum=%ld,copyExpertNum= %ld, constExpertNum=%ld", zeroExpertNum, copyExpertNum,
-        constExpertNum);
-    OP_TILING_CHECK(zeroComputeExpertNum + moeExpertNum > INT32_MAX,
-        OP_LOGE(nodeName,
-        "zeroExpertNum[%ld] + copyExpertNum[%ld] + constExpertNum[%ld] + moeExpertNum[%ld] exceed INT32_MAX.",
-         zeroExpertNum, copyExpertNum, constExpertNum, moeExpertNum), return ge::GRAPH_FAILED);
     int64_t maxEpworldsize = isLayered ? MAX_EP_WORLD_SIZE_LAYERED : MAX_EP_WORLD_SIZE;
     int64_t maxTpworldsize = isLayered ? MAX_TP_WORLD_SIZE_LAYERED : MAX_TP_WORLD_SIZE;
     OP_TILING_CHECK((epWorldSize < MIN_EP_WORLD_SIZE) || (epWorldSize > maxEpworldsize),
         OP_LOGE(nodeName, "epWorldSize is invalid, only support [%ld, %ld], but got epWorldSize=%ld.",
         MIN_EP_WORLD_SIZE, maxEpworldsize, epWorldSize), return ge::GRAPH_FAILED);
-    // 校验epWorldSize是否是16整数倍
-    OP_TILING_CHECK((isLayered && (epWorldSize % RANK_NUM_PER_NODE != 0)),
+    OP_TILING_CHECK((isLayered && (epWorldSize % RANK_NUM_PER_NODE != 0)),     // 校验epWorldSize是否是16整数倍
         OP_LOGE(nodeName, "epWorldSize should be %u Aligned, but got %ld.", RANK_NUM_PER_NODE, epWorldSize), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((*tpWorldSizePtr < 0) || (*tpWorldSizePtr > maxTpworldsize),
         OP_LOGE(nodeName, "tpWorldSize is invalid, only support [0, %ld], but got tpWorldSize=%ld.",
@@ -837,22 +794,6 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK(*expertShardPtr != 0,
         OP_LOGE(nodeName, "expertShardType is invalid, only support 0, but got expertShardType=%ld.",
         *expertShardPtr), return ge::GRAPH_FAILED);
-    if (isLayered) {
-        OP_TILING_CHECK((sharedExpertRankNum != 0),
-            OP_LOGE(nodeName, "sharedExpertNum is invalid in hierarchy mode, only support 0, but got sharedExpertNum=%ld, sharedExpertRankNum=%ld",
-            *sharedExpertNumPtr, sharedExpertRankNum), return ge::GRAPH_FAILED);
-    } else {
-        OP_TILING_CHECK((*sharedExpertNumPtr < 0) || (*sharedExpertNumPtr > MAX_SHARED_EXPERT_NUM),
-            OP_LOGE(nodeName, "sharedExpertNum is invalid, only support [0, %ld], but got sharedExpertNum=%ld.",
-            MAX_SHARED_EXPERT_NUM, *sharedExpertNumPtr), return ge::GRAPH_FAILED);
-        OP_TILING_CHECK((sharedExpertRankNum < 0) || (sharedExpertRankNum >= epWorldSize),
-            OP_LOGE(nodeName, "sharedExpertRankNum is invalid, only support [0, %ld), but got sharedExpertRankNum=%ld.",
-            epWorldSize, sharedExpertRankNum), return ge::GRAPH_FAILED);
-    }
-    int64_t moeExpertMaxNum = isLayered ? MOE_EXPERT_MAX_NUM_LAYERED : MOE_EXPERT_MAX_NUM;
-    OP_TILING_CHECK((moeExpertNum <= 0) || (moeExpertNum > moeExpertMaxNum),
-        OP_LOGE(nodeName, "moeExpertNum is invalid, only support (0, %ld], but got moeExpertNum=%ld.",
-        moeExpertMaxNum, moeExpertNum), return ge::GRAPH_FAILED);
     if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         OP_TILING_CHECK((*quantModePtr < static_cast<int64_t>(QuantModeA5::NON_QUANT)) ||
         (*quantModePtr > static_cast<int64_t>(QuantModeA5::MX_QUANT)),
@@ -869,31 +810,121 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         *expertTokenNumsTypePtr), return ge::GRAPH_FAILED);
     // A5 已作校验，这里只校验 A3
     if (mc2tiling::GetNpuArch(context) != NpuArch::DAV_3510) {
-        OP_TILING_CHECK((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) && (strcmp(commAlgPtr, "fullmesh_v2")  != 0) && (strcmp(commAlgPtr, "hierarchy") != 0),
-            OP_LOGE(nodeName, "Attr commAlg is invalid, current only support hierarchy, fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr), 
-            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) &&
+            (strcmp(commAlgPtr, "fullmesh_v2")  != 0) && (strcmp(commAlgPtr, "hierarchy") != 0)),
+            OP_LOGE(nodeName, "Attr commAlg is invalid, current only support hierarchy, fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", 
+            commAlgPtr), return ge::GRAPH_FAILED);
     }
     isSetFullMeshV2 = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
     OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetFullMeshV2 = %d\n", isSetFullMeshV2);
 
-    tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(epWorldSize);
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus CheckExpertAttrParams(const gert::TilingContext *context, const char *nodeName,
+    bool isLayered, DispatchV2Config &config, MoeDistributeDispatchV2TilingData &tilingData)
+{
+    auto attrs = context->GetAttrs();
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(config.attrEpWorldSizeIndex);
+    auto sharedExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrSharedExpertNumIndex));
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(config.attrSharedExpertRankNumIndex);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(config.attrMoeExpertNumIndex);
+    auto zeroExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrZeroExpertNumIndex));
+    auto copyExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrCopyExpertNumIndex));
+    auto constExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrConstExpertNumIndex));
+
+    int64_t moeExpertNum = *moeExpertNumPtr;
+    int64_t epWorldSize = *epWorldSizePtr;
+    int64_t sharedExpertRankNum = *sharedExpertRankNumPtr;
+    int64_t zeroExpertNum = *zeroExpertNumPtr;
+    int64_t copyExpertNum = *copyExpertNumPtr;
+    int64_t constExpertNum = *constExpertNumPtr;
+    int64_t zeroComputeExpertNum = zeroExpertNum + copyExpertNum + constExpertNum;
+    OP_TILING_CHECK((zeroExpertNum < 0), OP_LOGE(nodeName,
+        "zeroExpertNum less than 0, zeroExpertNum is %ld.", zeroExpertNum), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((copyExpertNum < 0), OP_LOGE(nodeName,
+        "copyExpertNum less than 0, copyExpertNum is %ld.", copyExpertNum), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((constExpertNum < 0), OP_LOGE(nodeName,
+        "constExpertNum less than 0, constExpertNum is %ld.", constExpertNum), return ge::GRAPH_FAILED);
+    OP_LOGD(nodeName, "zeroExpertNum=%ld,copyExpertNum= %ld, constExpertNum=%ld", zeroExpertNum, copyExpertNum,
+        constExpertNum);
+    OP_TILING_CHECK(zeroComputeExpertNum + moeExpertNum > INT32_MAX, OP_LOGE(nodeName,
+        "zeroExpertNum[%ld] + copyExpertNum[%ld] + constExpertNum[%ld] + moeExpertNum[%ld] exceed INT32_MAX.",
+         zeroExpertNum, copyExpertNum, constExpertNum, moeExpertNum), return ge::GRAPH_FAILED);
+    if (isLayered) {
+        OP_TILING_CHECK((sharedExpertRankNum != 0),
+            OP_LOGE(nodeName, "sharedExpertNum is invalid in hierarchy mode, only support 0, but got sharedExpertNum=%ld, sharedExpertRankNum=%ld",
+            *sharedExpertNumPtr, sharedExpertRankNum), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK((*sharedExpertNumPtr < 0) || (*sharedExpertNumPtr > MAX_SHARED_EXPERT_NUM),
+            OP_LOGE(nodeName, "sharedExpertNum is invalid, only support [0, %ld], but got sharedExpertNum=%ld.",
+            MAX_SHARED_EXPERT_NUM, *sharedExpertNumPtr), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((sharedExpertRankNum < 0) || (sharedExpertRankNum >= epWorldSize),
+            OP_LOGE(nodeName, "sharedExpertRankNum is invalid, only support [0, %ld), but got sharedExpertRankNum=%ld.",
+            epWorldSize, sharedExpertRankNum), return ge::GRAPH_FAILED);
+    }
+    int64_t moeExpertMaxNum = isLayered ? MOE_EXPERT_MAX_NUM_LAYERED : MOE_EXPERT_MAX_NUM;
+    OP_TILING_CHECK((moeExpertNum <= 0) || (moeExpertNum > moeExpertMaxNum),
+        OP_LOGE(nodeName, "moeExpertNum is invalid, only support (0, %ld], but got moeExpertNum=%ld.",
+        moeExpertMaxNum, moeExpertNum), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus SetAttrParams(const gert::TilingContext *context, const char *nodeName,
+    DispatchV2Config &config, MoeDistributeDispatchV2TilingData &tilingData)
+{
+    auto attrs = context->GetAttrs();
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(config.attrEpWorldSizeIndex);
+    auto sharedExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrSharedExpertNumIndex));
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(config.attrSharedExpertRankNumIndex);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(config.attrMoeExpertNumIndex);
+    auto zeroExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrZeroExpertNumIndex));
+    auto copyExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrCopyExpertNumIndex));
+    auto constExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrConstExpertNumIndex));
+    auto tpWorldSizePtr = attrs->GetAttrPointer<int64_t>(config.attrTpWorldSizeIndex);
+    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(config.attrEpRankIdIndex);
+    auto tpRankIdPtr = attrs->GetAttrPointer<int64_t>(config.attrTpRankIdIndex);
+    auto expertShardPtr = attrs->GetAttrPointer<int64_t>(config.attrExpertSharedTypeIndex);
+    auto quantModePtr = attrs->GetAttrPointer<int64_t>(config.attrQuantModeIndex);
+    auto expertTokenNumsTypePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrExpertTokenNumsTypeIndex));
+
+    int64_t zeroExpertNum = *zeroExpertNumPtr;
+    int64_t copyExpertNum = *copyExpertNumPtr;
+    int64_t constExpertNum = *constExpertNumPtr;
+    int64_t zeroComputeExpertNum = zeroExpertNum + copyExpertNum + constExpertNum;
+    tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(*epWorldSizePtr);
     tilingData.moeDistributeDispatchV2Info.tpWorldSize = static_cast<uint32_t>(*tpWorldSizePtr);
     tilingData.moeDistributeDispatchV2Info.epRankId = static_cast<uint32_t>(*epRankIdPtr);
     tilingData.moeDistributeDispatchV2Info.tpRankId = static_cast<uint32_t>(*tpRankIdPtr);
     tilingData.moeDistributeDispatchV2Info.expertShardType = static_cast<uint32_t>(*expertShardPtr);
-    tilingData.moeDistributeDispatchV2Info.sharedExpertNum = static_cast<uint32_t>(*sharedExpertNumPtr);
-    tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum = static_cast<uint32_t>(sharedExpertRankNum);
-    if (tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum == 0U) {
-        if (tilingData.moeDistributeDispatchV2Info.sharedExpertNum == 1U) {
-            tilingData.moeDistributeDispatchV2Info.sharedExpertNum = 0U;
-        }
-    }
-    tilingData.moeDistributeDispatchV2Info.moeExpertNum = static_cast<uint32_t>(moeExpertNum);
     tilingData.moeDistributeDispatchV2Info.quantMode = static_cast<uint32_t>(*quantModePtr);
     tilingData.moeDistributeDispatchV2Info.expertTokenNumsType = static_cast<uint32_t>(*expertTokenNumsTypePtr);
+    tilingData.moeDistributeDispatchV2Info.sharedExpertNum = static_cast<uint32_t>(*sharedExpertNumPtr);
+    tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum = static_cast<uint32_t>(*sharedExpertRankNumPtr);
+    tilingData.moeDistributeDispatchV2Info.moeExpertNum = static_cast<uint32_t>(*moeExpertNumPtr);
     tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum = static_cast<int32_t>(zeroComputeExpertNum);
+    if ((tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum == 0U) && (tilingData.moeDistributeDispatchV2Info.sharedExpertNum == 1U)) {
+        tilingData.moeDistributeDispatchV2Info.sharedExpertNum = 0U;
+    }
     OP_LOGD(nodeName, "MoeDistributeDispatchV2 zeroComputeExpertNum = %d\n",
         tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *context, const char *nodeName,
+    MoeDistributeDispatchV2TilingData &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetFullMeshV2,
+    bool &isLayered, DispatchV2Config &config)
+{
+    OP_TILING_CHECK(CheckAttrPtrNullptr(context, nodeName, groupEp, config) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "params check nulld failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckCommAttrParams(context, nodeName, groupTp, isSetFullMeshV2,
+        isLayered, config, tilingData) != ge::GRAPH_SUCCESS,OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckExpertAttrParams(context, nodeName, isLayered, config, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "params dataType is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(SetAttrParams(context, nodeName, config, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "set attr params failed."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -1279,10 +1310,57 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     return ge::GRAPH_SUCCESS;
 }
 
+//校验输入输出数据格式
+static bool CheckTensorPtrNullptr(const gert::TilingContext *context, const char *nodeName,
+    const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo, const bool isPerformance, DispatchV2Config &config)
+{
+    auto xDesc = context->GetInputDesc(config.xIndex);
+    auto expertIdDesc = context->GetInputDesc(config.expertIdsIndex);
+    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
+    OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
+    if (isScales) {
+        auto scalesDesc = context->GetOptionalInputDesc(config.scalesIndex);
+        OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
+    }
+    if (isActiveMask) {
+        auto xActiveMaskDesc = context->GetOptionalInputDesc(config.xActiveMaskIndex);
+        OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName, "xActiveMaskDesc is null."), return false);
+    }
+    if (hasElasticInfo) {
+        auto elasticInfoDesc = context->GetOptionalInputDesc(config.elasticInfoIndex);
+        OP_TILING_CHECK(elasticInfoDesc == nullptr, OP_LOGE(nodeName, "elasticInfoDesc is null."), return false);
+    }
+    if (isPerformance) {
+        auto performanceInfoDesc = context->GetOptionalInputDesc(config.performanceInfoIndex);
+        OP_TILING_CHECK(performanceInfoDesc == nullptr, OP_LOGE(nodeName, "performanceInfoDesc is null."), return false);
+    }
+
+    auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+    auto assistInfoDesc = context->GetOutputDesc(OUTPUT_ASSIST_INFO_INDEX);
+    auto expertTokenNumsDesc = context->GetOutputDesc(OUTPUT_EXPERT_TOKEN_NUMS_INDEX);
+    auto epRecvCountsDesc = context->GetOutputDesc(OUTPUT_EP_RECV_COUNTS_INDEX);
+    auto tpRecvCountsDesc = context->GetOutputDesc(OUTPUT_TP_RECV_COUNTS_INDEX);
+    OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
+    if (quantMode >= static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
+        auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
+        OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
+            return false);
+    }
+    OP_TILING_CHECK(assistInfoDesc == nullptr, OP_LOGE(nodeName, "assistInfoDesc is null."), return false);
+    OP_TILING_CHECK(expertTokenNumsDesc == nullptr, OP_LOGE(nodeName, "expertTokenNumsDesc is null."), return false);
+    OP_TILING_CHECK(epRecvCountsDesc == nullptr, OP_LOGE(nodeName, "epRecvCountsDesc is null."), return false);
+    OP_TILING_CHECK(tpRecvCountsDesc == nullptr, OP_LOGE(nodeName, "tpRecvCountsDesc is null."), return false);
+
+    return true;
+}
+
 static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *context, const char *nodeName,
     const bool isActiveMask, const bool isScales, const bool hasElasticInfo, const bool isPerformance, const uint32_t quantMode,
     const bool isLayered, DispatchV2Config &config)
 {
+    OP_TILING_CHECK(!CheckTensorPtrNullptr(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo, isPerformance,
+                                    config),
+        OP_LOGE(nodeName, "params check nulld failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo, isPerformance,
                                     isLayered, config),
         OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
@@ -1434,6 +1512,136 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     return ge::GRAPH_SUCCESS;
 }
 
+static uint32_t Ceil(uint32_t dividend, uint32_t divisor, const char *nodeName)
+{
+    if (divisor != 0){
+        return ((dividend + divisor - 1 ) / divisor) * divisor;
+    }
+    OP_LOGE(nodeName, "ceil divisor should not be 0");
+    return 0;
+}
+
+static uint32_t SendToMoeExpertUsedBuffer(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData, 
+    uint32_t expertIdsBufSize, uint32_t kSize, const char *nodeName)
+{
+    uint32_t UbForMoe = 0;
+    uint32_t moeExpertNum = tilingData.moeDistributeDispatchV2Info.moeExpertNum;
+    uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
+    uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
+    uint32_t totalExpertNum = sharedExpertRankNum + moeExpertNum;
+    uint32_t aivUsedCumSum = totalExpertNum / 32; // 单核处理32个专家cnt发送
+    aivUsedCumSum = (aivUsedCumSum == 0) ? 1 : aivUsedCumSum;
+    aivUsedCumSum = (aivUsedCumSum >= (aivNum / 2)) ? (aivNum / 2) : aivUsedCumSum;
+    uint32_t aivUsedAllToAll = aivNum - aivUsedCumSum;
+    uint32_t sharedUsedAivNum = 0;
+    if (sharedExpertRankNum != 0U) {
+        sharedUsedAivNum = (aivUsedAllToAll * sharedExpertNum) / (kSize + sharedExpertNum);
+        if (sharedUsedAivNum == 0) {
+            sharedUsedAivNum = 1;
+        }
+    }
+    uint32_t moeUsedAivNum = aivUsedAllToAll - sharedUsedAivNum; 
+    uint32_t maskSizePerExpert = Ceil((expertIdsBufSize / sizeof(int32_t)) / 8, UB_ALIGN, nodeName); // 8 is 1byte->8bit
+    uint32_t expertMaskBufSize = maskSizePerExpert * Ceil(moeExpertNum, moeUsedAivNum, nodeName) / moeUsedAivNum;
+    UbForMoe = UbForMoe + expertMaskBufSize; // expertMaskBuf
+    UbForMoe = UbForMoe + Ceil(moeExpertNum * sizeof(int32_t), UB_ALIGN, nodeName); // tokenNumToExpertBuf
+    return UbForMoe;
+}
+
+static uint32_t AllToAllBasicUsedBuffer(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
+    uint32_t quantMode, uint32_t &expertIdsBufSize, uint32_t hSize, uint32_t expertIdsCnt, uint32_t &hOutSizeAlign, const char *nodeName)
+{
+    uint32_t UbForBasic = 0;
+    uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
+    if (tilingData.moeDistributeDispatchV2Info.hasElasticInfo) {
+        uint32_t elasticInfoSize = (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSize) * sizeof(int32_t);
+        uint32_t elasticInfoSizeAlign = Ceil(elasticInfoSize, UB_ALIGN, nodeName);
+        UbForBasic = UbForBasic + elasticInfoSizeAlign; // elasticInfoBuf_
+    }
+
+    uint32_t sizeofX = 2U;
+    uint32_t hAlignSize = Ceil(hSize * sizeofX, UB_ALIGN, nodeName);
+    UbForBasic = UbForBasic + hAlignSize * BUFFER_NUM; //inQueue
+
+    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+    bool isScales = (scalesStorageShape != nullptr);
+    uint32_t hOutSize = (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) ? hSize * SIZE_OF_UNQUANT : hSize;
+    hOutSizeAlign = Ceil(hOutSize, UB_ALIGN, nodeName);
+    if ((quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) && isScales) {
+        uint32_t scaleInBytes = tilingData.moeDistributeDispatchV2Info.scalesCol *
+                    tilingData.moeDistributeDispatchV2Info.scalesTypeSize;
+        hOutSizeAlign += scaleInBytes;
+    } else if (quantMode == static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
+        hOutSizeAlign += sizeof(float);
+    }
+    uint32_t hScaleSizeAlign = Ceil(hOutSizeAlign, UB_ALIGN, nodeName);
+    uint32_t tokenQuantAlign = hScaleSizeAlign / sizeof(int32_t);
+    hOutSizeAlign = tokenQuantAlign * sizeof(int32_t) + UB_ALIGN;
+    uint32_t blockCntPerToken = Ceil(hOutSizeAlign, SPLIT_BLOCK_DATA_SIZE, nodeName) / SPLIT_BLOCK_DATA_SIZE;
+    uint32_t hCommuSize = blockCntPerToken * SPLIT_BLOCK_SIZE;
+    UbForBasic = UbForBasic + hCommuSize * BUFFER_NUM; // outBuf
+
+    expertIdsBufSize = Ceil(expertIdsCnt * sizeof(int32_t), SIZE_ALIGN_256, nodeName);
+    UbForBasic = UbForBasic + expertIdsBufSize; //expertIdsBuf_
+    return UbForBasic;
+}
+
+static ge::graphStatus CheckUBSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
+    const char *nodeName)
+{
+    uint32_t ubSize = UB_ALIGN; // dataStateBuf
+
+    uint32_t quantMode = tilingData.moeDistributeDispatchV2Info.quantMode;
+    uint32_t hSize = tilingData.moeDistributeDispatchV2Info.h;
+    uint32_t bsSize = tilingData.moeDistributeDispatchV2Info.bs;
+    uint32_t kSize = tilingData.moeDistributeDispatchV2Info.k;
+    uint32_t expertIdsCnt = bsSize * kSize;
+    uint32_t expertIdsBufSize = 0;
+    uint32_t hOutSizeAlign = 0;
+    ubSize = ubSize + AllToAllBasicUsedBuffer(context, tilingData, quantMode, expertIdsBufSize, hSize, expertIdsCnt, hOutSizeAlign, nodeName);
+
+    const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
+    bool isActiveMask = (xActiveMaskStorageShape != nullptr);
+    bool needMaskCalFlag = (isActiveMask || tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum != 0);
+    if (needMaskCalFlag) {
+        ubSize = ubSize + expertIdsBufSize; //gatherMaskTBuf_
+    }
+
+    uint32_t hFp32Size = Ceil(hSize * sizeof(float), UB_ALIGN, nodeName);
+    uint32_t bsKAlign256 = Ceil(expertIdsCnt * SIZE_OF_HALF, SIZE_ALIGN_256, nodeName);
+    uint32_t expertIdsSize = Ceil(expertIdsCnt * sizeof(int32_t), UB_ALIGN, nodeName);
+    uint32_t xActivateMaskSize = bsSize * Ceil(kSize * sizeof(bool), UB_ALIGN, nodeName) * SIZE_OF_HALF;
+    uint32_t maxSizeForUbBuffer = hFp32Size > expertIdsSize ? hFp32Size : expertIdsSize;
+    maxSizeForUbBuffer = maxSizeForUbBuffer > xActivateMaskSize ? maxSizeForUbBuffer : xActivateMaskSize;
+    maxSizeForUbBuffer = maxSizeForUbBuffer > bsKAlign256 ? maxSizeForUbBuffer : bsKAlign256;
+    tilingData.moeDistributeDispatchV2Info.maxSizeForUbBuffer = maxSizeForUbBuffer;
+    if (quantMode > static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
+        uint32_t hOutAlignUbSize = Ceil(hOutSizeAlign, UB_ALIGN, nodeName);
+        ubSize = ubSize + hOutAlignUbSize;
+        ubSize = ubSize + 2 * maxSizeForUbBuffer; //receiveDataCastFloatBuf smoothScalesBuf
+    } else if (needMaskCalFlag) {
+        ubSize = ubSize + 2 * maxSizeForUbBuffer;
+    }
+
+    if (tilingData.moeDistributeDispatchV2Info.isExpertMask || (tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum != 0)) {
+        uint32_t axisBSAlign = Ceil(bsSize * sizeof(int32_t), UB_ALIGN, nodeName);
+        ubSize = ubSize +  axisBSAlign; //validBsIndexTBuf_
+        uint32_t validBufferSize = expertIdsSize > xActivateMaskSize ? expertIdsSize : xActivateMaskSize;
+        ubSize = ubSize + validBufferSize;  //validExpertIndexBuf_
+    }
+
+    ubSize = ubSize + SendToMoeExpertUsedBuffer(context, tilingData, expertIdsBufSize, kSize, nodeName);
+    uint64_t ubRealSize = 0;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubRealSize);
+    OP_TILING_CHECK(ubSize > ubRealSize, OP_LOGE(nodeName,
+        "Current scenario is exceeds the size limit, BS = %u, H = %u, topK = %u, moeExpertNum = %u, aivNum available = %u, used UBsize = %u",
+        bsSize, hSize, kSize, tilingData.moeDistributeDispatchV2Info.moeExpertNum, ascendcPlatform.GetCoreNumAiv(), ubSize), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const char *nodeName)
 {
     size_t *workSpaces = context->GetWorkspaceSizes(1);
@@ -1523,6 +1731,12 @@ ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext 
     OP_TILING_CHECK(CheckTensorShape(context, nodeName, *tilingData, quantMode, isScales,
         isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum), isLayered, config) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check tensor shape failed."), return ge::GRAPH_FAILED);
+
+    // 校验UB大小
+    if (isSetFullMeshV2) {
+        OP_TILING_CHECK(CheckUBSize(context, *tilingData, nodeName) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Tiling check UB size failed."), return ge::GRAPH_FAILED);
+    }
 
     // 校验win区大小
     if (!config.isMc2Context) {
