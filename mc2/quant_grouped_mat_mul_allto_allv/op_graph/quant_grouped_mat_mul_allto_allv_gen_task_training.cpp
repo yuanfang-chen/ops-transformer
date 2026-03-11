@@ -29,7 +29,7 @@
 
 namespace ops {
 #ifdef BUILD_OPEN_PROJECT
-ge::Status GroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
+ge::Status QuantGroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
 {
     if (Mc2GenTaskOpsUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
         OPS_LOG_D(context->GetNodeName(), "Do A5 CCU CalcParamFunc");
@@ -39,7 +39,7 @@ ge::Status GroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *co
     return Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(context, "aicpu kfc server", "kfc_stream");
 }
 
-ge::Status GroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext *context,
+ge::Status QuantGroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext *context,
                                              std::vector<std::vector<uint8_t>> &tasks)
 {
     if (Mc2GenTaskOpsUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
@@ -51,11 +51,11 @@ ge::Status GroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext
 }
 
 // new ver
-IMPL_OP(GroupedMatMulAlltoAllvV2)
-    .CalcOpParam(GroupedMatMulAlltoAllvCalcParamFunc)
-    .GenerateTask(GroupedMatMulAlltoAllvGenTaskFunc);
+IMPL_OP(QuantGroupedMatMulAlltoAllv)
+    .CalcOpParam(QuantGroupedMatMulAlltoAllvCalcParamFunc)
+    .GenerateTask(QuantGroupedMatMulAlltoAllvGenTaskFunc);
 #else // mc2 gen task utils
-ge::Status GroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
+ge::Status QuantGroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
 {
     if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
         return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
@@ -65,7 +65,7 @@ ge::Status GroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *co
     return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, name, reuseKey);
 }
 
-ge::Status GroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext *context,
+ge::Status QuantGroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext *context,
                                              std::vector<std::vector<uint8_t>> &tasks)
 {
     if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
@@ -74,8 +74,8 @@ ge::Status GroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext
     return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskTraining::Mc2TrainingGenTaskCallback);
 }
 
-IMPL_OP_CT(GroupedMatMulAlltoAllvV2)
-    .CalcOpParam(GroupedMatMulAlltoAllvCalcParamFunc)
-    .GenerateTask(GroupedMatMulAlltoAllvGenTaskFunc);
+IMPL_OP_CT(QuantGroupedMatMulAlltoAllv)
+    .CalcOpParam(QuantGroupedMatMulAlltoAllvCalcParamFunc)
+    .GenerateTask(QuantGroupedMatMulAlltoAllvGenTaskFunc);
 #endif
 } // namespace ops
