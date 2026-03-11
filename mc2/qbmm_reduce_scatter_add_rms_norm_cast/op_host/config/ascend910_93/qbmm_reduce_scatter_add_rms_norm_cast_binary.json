@@ -2,1159 +2,7 @@
     "op_type": "QbmmReduceScatterAddRmsNormCast",
     "op_list": [
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_BF16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_BF16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_BF16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_BF16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_BF16_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_BF16_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_BF16_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_BF16_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_INT32_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_0",
             "inputs": [
                 {
                     "name": "x1",
@@ -1225,7 +73,7 @@
                 {
                     "name": "pertoken_scale",
                     "index": 6,
-                    "dtype": "bfloat16",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1298,7 +146,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_INT32_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_1",
             "inputs": [
                 {
                     "name": "x1",
@@ -1369,7 +217,7 @@
                 {
                     "name": "pertoken_scale",
                     "index": 6,
-                    "dtype": "bfloat16",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1442,7 +290,295 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_INT32_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_2",
+            "inputs": [
+                {
+                    "name": "x1",
+                    "index": 0,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x2",
+                    "index": 1,
+                    "dtype": "int8",
+                    "format": "FRACTAL_NZ",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y",
+                    "index": 2,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "gamma",
+                    "index": 3,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "scale",
+                    "index": 4,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "bias",
+                    "index": 5,
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "pertoken_scale",
+                    "index": 6,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "y1",
+                    "index": 0,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y2",
+                    "index": 1,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x",
+                    "index": 2,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "attrs": [
+                {
+                    "name": "group",
+                    "dtype": "string",
+                    "value": ""
+                },
+                {
+                    "name": "rank_size",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "transpose_x2",
+                    "dtype": "bool",
+                    "value": false
+                },
+                {
+                    "name": "dtype",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "epsilon",
+                    "dtype": "float",
+                    "value": 1e-6
+                }
+            ]
+        },
+        {
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_3",
+            "inputs": [
+                {
+                    "name": "x1",
+                    "index": 0,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x2",
+                    "index": 1,
+                    "dtype": "int8",
+                    "format": "FRACTAL_NZ",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y",
+                    "index": 2,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "gamma",
+                    "index": 3,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "scale",
+                    "index": 4,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "bias",
+                    "index": 5,
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "pertoken_scale",
+                    "index": 6,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "y1",
+                    "index": 0,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y2",
+                    "index": 1,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x",
+                    "index": 2,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "attrs": [
+                {
+                    "name": "group",
+                    "dtype": "string",
+                    "value": ""
+                },
+                {
+                    "name": "rank_size",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "transpose_x2",
+                    "dtype": "bool",
+                    "value": false
+                },
+                {
+                    "name": "dtype",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "epsilon",
+                    "dtype": "float",
+                    "value": 1e-6
+                }
+            ]
+        },
+        {
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_4",
             "inputs": [
                 {
                     "name": "x1",
@@ -1586,7 +722,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_INT32_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_5",
             "inputs": [
                 {
                     "name": "x1",
@@ -1730,295 +866,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_INT32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "int32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_INT32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "int32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_INT32_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_6",
             "inputs": [
                 {
                     "name": "x1",
@@ -2162,7 +1010,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_INT32_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_7",
             "inputs": [
                 {
                     "name": "x1",
@@ -2306,7 +1154,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_F16_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_8",
             "inputs": [
                 {
                     "name": "x1",
@@ -2344,7 +1192,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -2366,295 +1214,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_F16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_F16_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float16",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -2738,7 +1298,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_F16_ND",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_9",
             "inputs": [
                 {
                     "name": "x1",
@@ -2776,7 +1336,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -2787,7 +1347,7 @@
                 {
                     "name": "scale",
                     "index": 4,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -2798,7 +1358,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -2882,7 +1442,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_F16_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_10",
             "inputs": [
                 {
                     "name": "x1",
@@ -2920,7 +1480,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -2942,7 +1502,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -2953,7 +1513,7 @@
                 {
                     "name": "pertoken_scale",
                     "index": 6,
-                    "dtype": "bfloat16",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -3026,7 +1586,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_F16_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_11",
             "inputs": [
                 {
                     "name": "x1",
@@ -3064,7 +1624,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -3086,7 +1646,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -3097,7 +1657,7 @@
                 {
                     "name": "pertoken_scale",
                     "index": 6,
-                    "dtype": "bfloat16",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -3170,7 +1730,295 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_F16_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_12",
+            "inputs": [
+                {
+                    "name": "x1",
+                    "index": 0,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x2",
+                    "index": 1,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y",
+                    "index": 2,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "gamma",
+                    "index": 3,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "scale",
+                    "index": 4,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "bias",
+                    "index": 5,
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "pertoken_scale",
+                    "index": 6,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "y1",
+                    "index": 0,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y2",
+                    "index": 1,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x",
+                    "index": 2,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "attrs": [
+                {
+                    "name": "group",
+                    "dtype": "string",
+                    "value": ""
+                },
+                {
+                    "name": "rank_size",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "transpose_x2",
+                    "dtype": "bool",
+                    "value": false
+                },
+                {
+                    "name": "dtype",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "epsilon",
+                    "dtype": "float",
+                    "value": 1e-6
+                }
+            ]
+        },
+        {
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_13",
+            "inputs": [
+                {
+                    "name": "x1",
+                    "index": 0,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x2",
+                    "index": 1,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y",
+                    "index": 2,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "gamma",
+                    "index": 3,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "scale",
+                    "index": 4,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "bias",
+                    "index": 5,
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "pertoken_scale",
+                    "index": 6,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "y1",
+                    "index": 0,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "y2",
+                    "index": 1,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "x",
+                    "index": 2,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "attrs": [
+                {
+                    "name": "group",
+                    "dtype": "string",
+                    "value": ""
+                },
+                {
+                    "name": "rank_size",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "transpose_x2",
+                    "dtype": "bool",
+                    "value": false
+                },
+                {
+                    "name": "dtype",
+                    "dtype": "int",
+                    "value": 0
+                },
+                {
+                    "name": "epsilon",
+                    "dtype": "float",
+                    "value": 1e-6
+                }
+            ]
+        },
+        {
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_14",
             "inputs": [
                 {
                     "name": "x1",
@@ -3208,7 +2056,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -3230,7 +2078,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -3314,7 +2162,7 @@
             ]
         },
         {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_F16_NZ",
+            "bin_filename": "QbmmReduceScatterAddRmsNormCast_15",
             "inputs": [
                 {
                     "name": "x1",
@@ -3352,7 +2200,7 @@
                 {
                     "name": "gamma",
                     "index": 3,
-                    "dtype": "float32",
+                    "dtype": "bfloat16",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -3374,1159 +2222,7 @@
                 {
                     "name": "bias",
                     "index": 5,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_F32_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_F32_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_F32_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_F32_ND",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_BF16_F32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_BF16_F32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_BF16_F32_F32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "pertoken_scale",
-                    "index": 6,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "optional",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "y1",
-                    "index": 0,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y2",
-                    "index": 1,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x",
-                    "index": 2,
-                    "dtype": "bfloat16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                }
-            ],
-            "attrs": [
-                {
-                    "name": "group",
-                    "dtype": "string",
-                    "value": ""
-                },
-                {
-                    "name": "rank_size",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "transpose_x2",
-                    "dtype": "bool",
-                    "value": false
-                },
-                {
-                    "name": "dtype",
-                    "dtype": "int",
-                    "value": 0
-                },
-                {
-                    "name": "epsilon",
-                    "dtype": "float",
-                    "value": 1e-6
-                }
-            ]
-        },
-        {
-            "bin_filename": "QbmmReduceScatterAddRmsNormCast_F16_F32_F32_NZ",
-            "inputs": [
-                {
-                    "name": "x1",
-                    "index": 0,
-                    "dtype": "int8",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "x2",
-                    "index": 1,
-                    "dtype": "int8",
-                    "format": "FRACTAL_NZ",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "y",
-                    "index": 2,
-                    "dtype": "float16",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "gamma",
-                    "index": 3,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "scale",
-                    "index": 4,
-                    "dtype": "float32",
-                    "format": "ND",
-                    "paramType": "required",
-                    "shape": [
-                        -2
-                    ],
-                    "format_match_mode": "FormatAgnostic"
-                },
-                {
-                    "name": "bias",
-                    "index": 5,
-                    "dtype": "float32",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
