@@ -441,10 +441,10 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_usedVecCoreNum(blockDim_*2);
     tilingData_->set_qTotalSeqlen(totalTokensT_);
     tilingData_->set_kvTotalSeqlen(kvTotalSeqlen_);
-    tilingData_->set_kvTotalSeqlen(dqSize_);
-    tilingData_->set_kvTotalSeqlen(dkvSize_);
+    tilingData_->set_dqSize(dqSize_);
+    tilingData_->set_dkvSize(dkvSize_);
     tilingData_->set_postUbBaseSize(postUbBaseSize_);
-    tilingData_->set_postUbBaseSize(ubSize_ - sizeof(BlockSparseAttentionGradTilingData) - 2 * 1024);
+    tilingData_->set_ubSize(ubSize_ - sizeof(BlockSparseAttentionGradTilingData) - 2 * 1024);
     return ge::GRAPH_SUCCESS;
 }
 
