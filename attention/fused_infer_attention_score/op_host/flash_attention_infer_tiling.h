@@ -160,6 +160,7 @@ namespace optiling{
         void FillSplitCoreTilingData(FAInferTilingData &tilingdata);
         void FillWorkSpaceTilingData(FAInferTilingData &faTilingData);
         uint32_t GetQSBlockTile(int64_t kvSeqlen);
+        uint32_t GetQSBlockTileDecode(int64_t qSeqlen);
         uint32_t GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead);
         uint32_t GetKSBlockTile(int64_t kvSeqlen);
         uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize);
@@ -191,6 +192,13 @@ namespace optiling{
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
     }
+
+    uint32_t FAInferTiling::GetQSBlockTileDecode(int64_t qSeqlen)
+    {
+        uint32_t qSBlockTile = std::min(Q_TILE_CEIL, static_cast<uint32_t>(qSeqlen));
+        return qSBlockTile;
+    }
+
     uint32_t FAInferTiling::GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead)
     {
         uint32_t rowNumCeilPerQSGKvNTile = Q_TILE_CEIL;
@@ -623,7 +631,7 @@ namespace optiling{
             }
             uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
             uint32_t curGBlockNum = (groupSize + curGBlockTile - 1) / curGBlockTile;
-            uint32_t curQSBlockTile = GetQSBlockTile(qSeqlen);
+            uint32_t curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
             uint32_t curQSBlockNum = (qSeqlen + curQSBlockTile - 1) / curQSBlockTile;
             uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
             uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, faInfo_.kvHeads);
