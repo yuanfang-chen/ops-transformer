@@ -230,6 +230,7 @@ __aicore__ inline void SortAll(LocalTensor<float> &src, LocalTensor<float> &tmp,
             }
             AscendC::MrgSort<float>(dstTensor, srcList, params);
             i += 1;
+            AscendC::PipeBarrier<PIPE_V>();
             break;
         } else {
             params.repeatTimes = mrgGroups / MRG_BLOCK_4;

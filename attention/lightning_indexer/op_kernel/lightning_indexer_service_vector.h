@@ -383,6 +383,7 @@ __aicore__ inline void LIVector<LIT>::ProcessVec(const LICommon::RunInfo &info)
                     SortedBasicBlock_[innerS1Idx * BASE_TOPK * 2 + globalTopkUbCacheIdx * s2BaseSize_ * 2],
                     reduceOutBuff, sortIndiceUbInt.template ReinterpretCast<uint32_t>(), tmpSortBuf,
                     cuS2LenVecAlign / 32);
+                AscendC::PipeBarrier<PIPE_V>();
                 // 缓存4块512或者S2结束, 需要进行精排
                 if (globalTopkUbCacheIdx == 3 || isS2End || info.isAllLoopEnd) {
                     LocalTensor<float> tt = SortedBasicBlock_[innerS1Idx * BASE_TOPK * 2];
