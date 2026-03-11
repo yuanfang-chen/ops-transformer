@@ -355,8 +355,3 @@ protected:
 
     __aicore__ inline void ElewiseCompute(uint32_t loop, LocalTensor<T> &mmResUb, uint32_t dealRowCount, uint32_t columnCount);
 };
-
-#include "nsa_selected_attention_infer_init.h"
-#include "nsa_selected_attention_infer_copy.h"
-#include "nsa_selected_attention_infer_compute.h"
-#include "nsa_selected_attention_infer_impl.h"
