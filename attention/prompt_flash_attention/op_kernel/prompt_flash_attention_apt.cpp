@@ -22,7 +22,7 @@
 #include "arch35/prompt_flash_attention_template_tiling_key.h"
 #include "arch35/prompt_flash_attention_entry_regbase.h"
 
-template<uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope, 
+template<uint8_t qkoDtype, uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope, 
   bool isPa, bool isFd, bool emptyTensor, uint8_t PFAMask, uint8_t pFAMatMulType, bool enableKVPrefix>
 __global__ __aicore__ void prompt_flash_attention_FIAS(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
                                                              __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask,
@@ -39,7 +39,7 @@ __global__ __aicore__ void prompt_flash_attention_FIAS(__gm__ uint8_t* query, __
                                                              __gm__ uint8_t* workspace, __gm__ uint8_t* tiling) 
 {
     {
-        prompt_flash_attention_FIAS_regbase<inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, 
+        prompt_flash_attention_FIAS_regbase<qkoDtype, inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, 
             isPa, isFd, emptyTensor, PFAMask, pFAMatMulType, enableKVPrefix>(query, key, value, pseShift, attenMask, actualSeqLengths,
             actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2, antiquant_scale, antiquant_offset,
             blocktable, queryPaddingSize, kvPaddingSize, key_antiquant_scale, key_antiquant_offset, value_antiquant_scale, 
@@ -48,7 +48,7 @@ __global__ __aicore__ void prompt_flash_attention_FIAS(__gm__ uint8_t* query, __
     }    
 }
 
-template<uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope, 
+template<uint8_t qkoDtype, uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope, 
   bool isPa, bool isFd, bool emptyTensor, uint8_t PFAMask, uint8_t pFAMatMulType, bool enableKVPrefix>
 __global__ __aicore__ void prompt_flash_attention(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
                                                              __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask,
@@ -58,7 +58,7 @@ __global__ __aicore__ void prompt_flash_attention(__gm__ uint8_t* query, __gm__ 
                                                              __gm__ uint8_t* quant_offset2, __gm__ uint8_t* attentionOut,
                                                              __gm__ uint8_t* workspace, __gm__ uint8_t* tiling) 
 {
-    prompt_flash_attention_FIAS<inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, PFAMask, pFAMatMulType, enableKVPrefix>(
+    prompt_flash_attention_FIAS<qkoDtype, inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, PFAMask, pFAMatMulType, enableKVPrefix>(
                                 query, key, value, pseShift, attenMask, actualSeqLengths, actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
                                 quant_offset2, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                                 nullptr, nullptr, nullptr, attentionOut, nullptr, workspace, tiling);
