@@ -144,7 +144,7 @@ bool GMMFRWeightQuantTiling::InferScenario() {
         pertokenScaleDesc != nullptr ? pertokenScaleDesc->GetDataType() : ge::DT_INT8;
     auto xDtype = xDesc->GetDataType();
     auto wDtype = wDesc->GetDataType();
-    OP_LOGD(context->GetNodeName(), "Current xDtype: %s, wDtype: %s, scaleDtype: %s, perTokenScaleDtype: %s, wFormat: %s",
+    OP_LOGD(context_->GetNodeName(), "Current xDtype: %s, wDtype: %s, scaleDtype: %s, perTokenScaleDtype: %s, wFormat: %s",
         ge::TypeUtils::DataTypeToSerialString(xDtype).c_str(),
         ge::TypeUtils::DataTypeToSerialString(wDtype).c_str(),
         ge::TypeUtils::DataTypeToSerialString(scaleDtype).c_str(),
@@ -153,13 +153,13 @@ bool GMMFRWeightQuantTiling::InferScenario() {
     if (xDtype == ge::DT_FLOAT8_E4M3FN && wDtype == ge::DT_FLOAT4_E2M1 && wFormat == ge::FORMAT_FRACTAL_NZ && 
         scaleDtype == ge::DT_FLOAT8_E8M0 && perTokenScaleDtype == ge::DT_FLOAT8_E8M0) {
         scenarioType_ = ScenarioType::MX_A8W4_WEIGHT_NZ;
-        OP_LOGD(context->GetNodeName(), "Enable MX-A8W4-WEIGHT-NZ mode.");
+        OP_LOGD(context_->GetNodeName(), "Enable MX-A8W4-WEIGHT-NZ mode.");
         SetMxA8W4NzConditionFunc();
         SetMxA8W4NzInputFunc();
         return true;
     }
 
-    OP_LOGE(context->GetNodeName(), "Only support MX-A8W4-WEIGHT-NZ mode. current xDtype: %s, wDtype: %s, scaleDtype");
+    OP_LOGE(context_->GetNodeName(), "Only support MX-A8W4-WEIGHT-NZ mode. current xDtype: %s, wDtype: %s, scaleDtype");
     return false;
 }
 
