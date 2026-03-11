@@ -421,14 +421,17 @@ void MhcPostTilingBase::ComputeTiling()
 
     // Calculate bytes per tileD element
     // TQue bf16: 3 * 2 bytes (hOut:1, x:1, output:1)
-    // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
-    uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SINGLE_BUFFER_DEPTH * SIZE_OF_32BIT);
+    // TBuf f32:  5 * 4 bytes (hOutF32:1, hCombF32:1, hMulF32:1, xF32:1, outF32:1)
+    uint32_t bytesPerTileD = 3 * DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + 5 * SIZE_OF_32BIT;
     uint32_t maxTileD = UB_SIZE / bytesPerTileD;
+    // TQue bf16: (n+2) * 2 bytes (hOut:1, x:n, output:1)
+    // TBuf f32:  (n+4) * 4 bytes (hOutF32:1, hCombF32:1, hMulF32:1, xF32:n, outF32:1)
+    uint64_t fullyBytesPerTileD = (n_ + 2) * DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + (n_ + 4) * SIZE_OF_32BIT;
     dOuter_ = 1;
     dInner_ = d_;
     dTail_ = d_;
 
-    while (bsOuter_ * dOuter_ <= halfCoreNum || dInner_ >= maxTileD) {
+    while (bsOuter_ * dOuter_ <= halfCoreNum || dInner_ >= maxTileD || fullyBytesPerTileD * dInner_ >= UB_SIZE) {
         if (dInner_ <= ALIGN_SIZE_512B) {
             break;
         }
@@ -446,10 +449,12 @@ void MhcPostTilingBase::ComputeTiling()
     usedCoreNum_ = Ops::Base::CeilDiv(totalCount, normalCoreProcessNum_);
     tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
 
-    uint64_t fullyBytesPerTileD = (n_ + 2) * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
-    if (fullyBytesPerTileD * dInner_ <= UB_SIZE) {
+    if (fullyBytesPerTileD * dInner_ < UB_SIZE) {
         usePermanentX_ = 1;
     }
+
+    OP_LOGI(context_, "Tiling: bytesPerTileD=%u, maxTileD=%u, fullyBytesPerTileD=%lu", bytesPerTileD, maxTileD,
+            fullyBytesPerTileD);
 }
 
 ge::graphStatus MhcPostTilingBase::DoOpTiling()
