@@ -115,7 +115,7 @@ struct Args {
     aclrtStream stream;
   };
 
-int LaunchOneThreadAllGatherAdd(Args &args, TestData &testData)
+int LaunchOneThreadAllGatherAdd(Args &args, const TestData &testData)
 {
     int ret = aclrtSetDevice(args.rankId);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
@@ -343,14 +343,14 @@ int main(int argc, char *argv[])
                                       std::ref(args[rankId]), std::ref(testData)));
     }
 
-    int final_ret = 0;
+    int finalRet = 0;
     for (auto& future : futures) {
         int ret = future.get();
         if (ret != 0) {
-            final_ret = ret;
+            finalRet = ret;
         }
     }
 
     aclFinalize();
-    return final_ret;
+    return finalRet;
 }
