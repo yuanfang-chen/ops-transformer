@@ -101,9 +101,9 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv, dk), chunkSize);
-        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen / 2 * sizeof(float));
-        pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen / 2 * sizeof(float));
+        uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv / 2, dk / 2), chunkSize);
+        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen * sizeof(float));
+        pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen * sizeof(float));
         pipe_->InitBuffer(gOutQueue_, STAGEONE_BUFFER_NUM, chunkSize * sizeof(float));
 
         pipe_->InitBuffer(tmpBuff, UB_REST_BYTES);
@@ -123,7 +123,6 @@ public:
         betaUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize / 2), buffOffset);
         buffOffset += chunkSize / 2 * sizeof(float);
 
-        maxLen = AscendC::Std::max(AscendC::Std::max(dv / 2, dk / 2), chunkSize);
         gBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize * maxLen), buffOffset);
         gammaUbFloat = gBroadUbFloat;
         kUbFloat = gBroadUbFloat;
