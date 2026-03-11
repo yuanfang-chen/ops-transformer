@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git diff HEAD~1 HEAD --no-patch --stat)"
+    ]
+  }
+}
