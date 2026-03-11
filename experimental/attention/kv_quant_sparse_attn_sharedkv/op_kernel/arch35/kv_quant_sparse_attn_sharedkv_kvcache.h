@@ -212,7 +212,8 @@ __aicore__ inline int64_t ClipSInnerTokenCube(int64_t sInnerToken, int64_t minVa
 }
 
 TEMPLATE_INTF
-__aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo)
+__aicore__ inline bool ComputeS2LoopInfo(int64_t bnIndex, int64_t gS1Index, __gm__ int32_t *cuSeqlensQAddr,
+    GlobalTensor<int32_t>& oriTopkLengthGm, bool hasOriTopkLength, RunParamStr& runParam, const ConstInfo &constInfo)
 {
     if (runParam.actualS2Size == 0) {
         runParam.oriKvLoopEndIdx = 0;
@@ -227,7 +228,19 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo 
     runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
     if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
-        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx, constInfo.oriSparseBlockCount);
+        if (hasOriTopkLength) {
+            if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
+                uint64_t actualSeqQPrefixSum = cuSeqlensQAddr[bnIndex];
+                int64_t topkBS1Idx = actualSeqQPrefixSum + gS1Index;
+                runParam.oriSparseBlockCount = oriTopkLengthGm.GetValue(topkBS1Idx);
+            } else {
+                int64_t topkBS1Idx = bnIndex * constInfo.s1Size + gS1Index;
+                runParam.oriSparseBlockCount = oriTopkLengthGm.GetValue(topkBS1Idx);
+            }
+        } else {
+            runParam.oriSparseBlockCount = constInfo.oriSparseBlockCount;
+        }
+        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx, runParam.oriSparseBlockCount);
         runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
     } else {
         runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
@@ -259,6 +272,7 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr& runParam, RunInfo &
     runInfo.qSNumInOneBlock = runParam.qSNumInOneBlock;
     runInfo.oriKvLoopEndIdx = runParam.oriKvLoopEndIdx;
     runInfo.cmpKvLoopEndIdx = runParam.cmpKvLoopEndIdx;
+    runInfo.oriSparseBlockCount = runParam.oriSparseBlockCount;
 }
 
 #endif  // KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H

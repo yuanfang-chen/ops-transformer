@@ -115,7 +115,6 @@ private:
         ConstInfo &constInfo);
     __aicore__ inline void CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset, int64_t scaleOffset);
     /* VEC2_RES_T 表示bmm2ResUb当前的类型，VEC2_RES_T = Q_T那么不需要做Cast。另外，无效行场景当前默认需要做Cast */
-    using VEC2_RES_T = T;
     template <typename VEC2_RES_T>
     __aicore__ inline void Bmm2DataCopyOut(RunInfo &runInfo, ConstInfo &constInfo,
         LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize = 0);
@@ -152,6 +151,7 @@ private:
     TBuf<> stage2OutBuf;
     TEventID mte3ToVId[2]; // 存放MTE3_V的eventId, 2份表示可能存在pingpong
     TEventID vToMte3Id[2]; // 存放V_MTE3的eventId, 2份表示可能存在pingpong
+    TEventID mte2ToV;
     TBuf<> softmaxMaxBuf[2];
     TBuf<> softmaxSumBuf[2];
     TBuf<> softmaxExpBuf[2]; 
@@ -186,14 +186,18 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &tok
         topkBS1Idx += runInfo.boIdx * constInfo.s1Size * sparseBlockCount +
             runInfo.s1oIdx * sparseBlockCount; // B, S1, N2(1), K
     }
+    int64_t curSparseBlockCount = sparseBlockCount;
+    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
+        curSparseBlockCount = runInfo.oriSparseBlockCount;
+    }
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
-    if (unlikely(topkKIdx >= sparseBlockCount)) {
+    if (unlikely(topkKIdx >= curSparseBlockCount)) {
         token0Idx = -1;
     } else {
         token0Idx = sparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
     topkKIdx += 1;
-    if (unlikely((topkKIdx >= sparseBlockCount) || (s2IdxInBase >= sparseS2End))) {
+    if (unlikely((topkKIdx >= curSparseBlockCount) || (s2IdxInBase + 1 >= sparseS2End))) {
         token1Idx = -1;
     } else {
         token1Idx = sparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
@@ -623,23 +627,24 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CalSparseCalSize(const RunIn
     }
     if constexpr (IS_SPLIT_G) {
         uint32_t aicIdx = constInfo.aivIdx >> 1U;
-        uint32_t v0S2SizePerVec = static_cast<uint32_t>(runInfo.s2RealSize) >> 2U;
+        uint32_t v0S2SizeFirstCore = CeilDiv(runInfo.s2RealSize, 2);
+        uint32_t v0S2SizeSecondCore = runInfo.s2RealSize - v0S2SizeFirstCore;
         int32_t vecCnt = (aicIdx % 2U == 0) ? (GetSubBlockIdx() == 0 ? 0 : 1) : (GetSubBlockIdx() == 0 ? 2 : 3);
-        if (v0S2SizePerVec == 0) { // 表示s2RealSize < 4, 每个核计算1行
-            if (vecCnt < runInfo.s2RealSize) {
-                sparseS2Start = vecCnt;
-                sparseCalSize = 1;
-                
-            } else {
-                sparseCalSize = 0;
+        if (aicIdx % 2U == 0) {
+            if (GetSubBlockIdx() == 0) {
+                sparseCalSize = CeilDiv(v0S2SizeFirstCore, 2);
                 sparseS2Start = 0;
+            } else {
+                sparseCalSize = v0S2SizeFirstCore - CeilDiv(v0S2SizeFirstCore, 2);
+                sparseS2Start = CeilDiv(v0S2SizeFirstCore, 2);
             }
         } else {
-            sparseS2Start = vecCnt * v0S2SizePerVec;
-            if (vecCnt < 3) {
-                sparseCalSize = v0S2SizePerVec;
+            if (GetSubBlockIdx() == 0) {
+                sparseCalSize = CeilDiv(v0S2SizeSecondCore, 2);
+                sparseS2Start = v0S2SizeFirstCore;
             } else {
-                sparseCalSize = runInfo.s2RealSize - v0S2SizePerVec * 3;
+                sparseCalSize = v0S2SizeSecondCore - CeilDiv(v0S2SizeSecondCore, 2);
+                sparseS2Start = v0S2SizeFirstCore + CeilDiv(v0S2SizeSecondCore, 2);
             }
         }
         sparseS2End = sparseS2Start + sparseCalSize;
@@ -690,8 +695,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
         ProcessNotSparseKv(outputL1, v0ResGm, runInfo, constInfo);
     }
     if constexpr (IS_SPLIT_G) {
-        CrossCoreSetFlag<0, PIPE_MTE3>(4);
-        CrossCoreWaitFlag<0, PIPE_MTE3>(4);
+        CrossCoreSetFlag<0, PIPE_MTE3>(15);
+        CrossCoreWaitFlag<0, PIPE_MTE3>(15);
     }
     outputL1.SetCrossCore(); // 核间同步
     if constexpr (IS_SPLIT_G) {
@@ -788,7 +793,27 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     } else {
         if (runInfo.s2LoopCount == 0 && isSinks) {
             // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
-            int64_t sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
+            int64_t sinksOffset = 0;
+            if constexpr (!IS_SPLIT_G) {
+                sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
+            } else {
+                switch (constInfo.aivIdx % 4) {
+                    case 0:
+                        sinksOffset = 0;
+                        break;
+                    case 1:
+                        sinksOffset = 32;
+                        break;
+                    case 2:
+                        sinksOffset = 64;
+                        break;
+                    case 3:
+                        sinksOffset = 96;
+                        break;
+                    default:
+                        break;
+                }
+            }
             LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
             DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);
             DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
@@ -841,7 +866,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
         bmm2ResBuf.SetCrossCore();
         return;
     }
-    
+
     runInfo.vec2S1RealSize = runInfo.vec2S1BaseSize;
     runInfo.vec2MRealSize = runInfo.vec2MBaseSize;
     int64_t vec2CalcSize = runInfo.vec2MRealSize * dTemplateAlign64;
@@ -991,8 +1016,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitSinksBuffer(ConstInfo &c
     dataCopyParams.dstStride = 0U;
     DataCopyPadExtParams<T> padParams;
     DataCopyPad(sinksUb, this->sinksGm, dataCopyParams, padParams);
-    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
-    WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
+    SetFlag<AscendC::HardEvent::MTE2_V>(mte2ToV);
+    WaitFlag<AscendC::HardEvent::MTE2_V>(mte2ToV);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -1014,12 +1039,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
     tPipe->InitBuffer(stage2OutBuf, (s1BaseSize / CV_RATIO) * dTemplateAlign64 * sizeof(T));
 
     mte3ToVId[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE3_V>();
-    mte3ToVId[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE3_V>();
-
     vToMte3Id[0] = GetTPipePtr()->AllocEventID<HardEvent::V_MTE3>();
-    vToMte3Id[1] = GetTPipePtr()->AllocEventID<HardEvent::V_MTE3>();
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
-    SetFlag<HardEvent::MTE3_V>(mte3ToVId[1]);
+    mte2ToV = GetTPipePtr()->AllocEventID<HardEvent::MTE2_V>();
 
     if (this->isSinks) {
         InitSinksBuffer(constInfo);
@@ -1109,13 +1131,6 @@ public:
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo) {}
-    __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
-        Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
-        ConstInfo &constInfo) {}
-
-    using mm2ResPos = Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>;
-    __aicore__ inline void ProcessVec2(mm2ResPos &bmm2ResBuf, RunInfo &runInfo,
-        ConstInfo &constInfo) {}
 };
 }
 #endif // KV_QUANT_SPARSE_ATTN_SHAREDKV_SCFA_BLOCK_VECTOR_H

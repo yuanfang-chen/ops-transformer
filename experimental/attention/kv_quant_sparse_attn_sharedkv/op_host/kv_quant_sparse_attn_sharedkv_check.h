@@ -224,6 +224,8 @@ struct KvQuantSASParaInfo {
  	SASTilingOptionalParaInfo cuSeqLensCmpKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo seqUsedQ = {nullptr, nullptr};
     SASTilingOptionalParaInfo sequsedKv = {nullptr, nullptr};
+    SASTilingOptionalParaInfo oriTopkLength = {nullptr, nullptr};
+    SASTilingOptionalParaInfo cmpTopkLength = {nullptr, nullptr};
     SASTilingOptionalParaInfo sinks = {nullptr, nullptr};
     SASTilingOptionalParaInfo metadata = {nullptr, nullptr};
     SASTilingRequiredParaInfo attnOut = {nullptr, nullptr};
