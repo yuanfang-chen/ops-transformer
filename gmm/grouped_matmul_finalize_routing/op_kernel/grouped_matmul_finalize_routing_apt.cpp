@@ -13,6 +13,12 @@
  * \brief
  */
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+#if defined(ORIG_DTYPE_X) && defined(ORIG_DTYPE_WEIGHT)
+#if (ORIG_DTYPE_X == DT_FLOAT8_E4M3FN && (ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1T))
+    #define V310_GMM_ANTI_QUANT
+#endif
+#endif
+
 #include "kernel_utils.h"
 #include "kernel_tiling/kernel_tiling.h"
 #if ASC_DEVKIT_MAJOR >= 9
@@ -20,12 +26,20 @@
 #else
 #include "kernel_operator.h"
 #endif
+
+#if defined (V310_GMM_ANTI_QUANT)
+// 伪量化场景
+#include "arch35/wweight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
+#else
+// 全量化场景
 #include "lib/matmul_intf.h"
 #include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
 #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
     #include "arch35/grouped_matmul_finalize_routing.h"
 #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
     #include "arch35/grouped_matmul_finalize_routing_pertoken_dequant.h"
+#endif
+
 #endif
 
 template <int ATRANS, int BTRANS>
@@ -35,6 +49,10 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
                                 GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     TPipe pipe;
+    #if defined (V310_GMM_ANTI_QUANT)
+    // 伪量化场景
+    #else
+    // 全量化场景
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
     if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
@@ -58,6 +76,8 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }
+    #endif
+    
     #endif
 }
 #endif
