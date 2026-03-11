@@ -3,7 +3,7 @@
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
@@ -13,7 +13,7 @@
 #include "acl/acl.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
-#include "mc2/matmul_allto_all/op_api/checker.h"
+#include "mc2/matmul_allto_all/op_api/matmul_allto_all_util.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
@@ -72,13 +72,7 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x2 should not be null.");
         return false;
     }
-    if(op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B) {
-        if (biasOptional == nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input bias should not be null.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(x1QuantMode) != QuantModeType::DYN_PERTOKEN_QUANT && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         if (x1ScaleOptional == nullptr) {
         	OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
             	"The current scenario is not pertoken dynamic quantization, input x1ScaleOptional should not be null.");
@@ -145,18 +139,11 @@ static bool Check3DScaleShape(const aclTensor* x2, const aclTensor* x1Scale,
     OP_CHECK_WRONG_DIMENSION(x2Scale, THREE_DIMS, return false);
     auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
     auto x2ScaleNVal = transposeX2 ? x2Scale->GetViewShape().GetDim(0) : x2Scale->GetViewShape().GetDim(1);
-    auto x1ScaleKVal = x1Scale->GetViewShape().GetDim(1);
-    auto x2ScaleKVal = transposeX2 ? x2Scale->GetViewShape().GetDim(1) : x2Scale->GetViewShape().GetDim(0);
     auto x1ScaleLastDim = x1Scale->GetViewShape().GetDim(2);
     auto x2ScaleLastDim = x2Scale->GetViewShape().GetDim(2);
     if (x2ScaleNVal != nVal) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
         	"The n-axis of x2 and x2ScaleDim should be same, but x2's n-axis is: %ld and x2ScaleDim is: %ld.", nVal, x2ScaleNVal);
-        return false;
-    }
-    if (x1ScaleKVal != x2ScaleKVal) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-        	"The k-axis of x1scale and x2scale should be same, but x1scale's k-axis is: %ld and x2Scale's k-axis is: %ld.", x1ScaleKVal, x2ScaleKVal);
         return false;
     }
     if (x1ScaleLastDim != TWO) {
@@ -175,17 +162,19 @@ static bool Check3DScaleShape(const aclTensor* x2, const aclTensor* x1Scale,
 // 校验输入Scaleshape
 static bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale, const aclTensor* x2Scale,
                             int64_t x1QuantMode, int64_t x2QuantMode, bool transposeX2) {
-    bool ScaleShapeValid = false;
-    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
+    bool scaleShapeValid = true;
+    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT &&
+        static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
         OP_API_CHECK(!transposeX2, {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In the mx quantization scenario, x2 must be transposed.");
             return false;
         });
-        ScaleShapeValid = Check3DScaleShape(x2, x1Scale, x2Scale, transposeX2);
-    } else {
-        ScaleShapeValid = Check1DScaleShape(x2, x2Scale, transposeX2);
+        scaleShapeValid = Check3DScaleShape(x2, x1Scale, x2Scale, transposeX2);
+    } else if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::DYN_PERTOKEN_QUANT &&
+               static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
+        scaleShapeValid = Check1DScaleShape(x2, x2Scale, transposeX2);
     }
-    return ScaleShapeValid;
+    return scaleShapeValid;
 }
 
 // 根据API定义，列出allto_all_quant_matmul量化输入X1所能支持的所有dtype(A2)
@@ -293,9 +282,11 @@ static bool CheckDtypesValid(const aclTensor *x1, const aclTensor *x2, const acl
                              const aclTensor *output, const aclTensor *alltoAllOutOptional) {
     bool isAllDtypesValid = false;
     // 根据量化场景进入不同分支判断
-    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::DYN_PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
+    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::DYN_PERTOKEN_QUANT &&
+        static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
         isAllDtypesValid = CheckKCDynQuantDtypesValidA5(x1, x2, biasOptional, x1ScaleOptional, x2Scale, x1QuantDtype, output, alltoAllOutOptional);
-    } else if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
+    } else if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT &&
+               static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
         isAllDtypesValid = CheckMXQuantDtypesValidA5(x1, x2, biasOptional, x1ScaleOptional, x2Scale, output, alltoAllOutOptional);
     } else {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -426,8 +417,8 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     // 2. 检查空tensor
     CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查shape
-    CHECK_RET(CheckShapeAAMM(x1, x2, biasOptional, transposeX2, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        CHECK_RET(CheckShapeAAMM(x1, x2, biasOptional, transposeX2, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
         CHECK_RET(CheckScaleShape(x1, x2, x1ScaleOptional, x2Scale, x1QuantMode, x2QuantMode, transposeX2), ACLNN_ERR_PARAM_INVALID);
     }
     // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据芯片型号和api定义校验
@@ -514,24 +505,24 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
         return ACLNN_ERR_PARAM_INVALID;
     }
     if (notContiguous && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {    // 只有当非连续时，才会涉及到转连续等情况
-        transposeX2 = !transposeX2;
+        transposeX2 = true;
         // 把非连续x2转成连续
         transX2 = TransX2Tensor(x2);
         CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
         OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
             x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
     }
-    aclnnStatus retParam = CheckAndHandleParams(x1, transX2, biasOptional, x1ScaleOptional, x2Scale,
-        commScaleOptional, x1OffsetOptional, x2OffsetOptional, alltoAllAxesOptional, group,
-        x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype, groupSize,
-        transposeX1, transposeX2, output, alltoAllOutOptional);
-    CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     // 只在DAV_2201架构上对x1和x2进行int32到int4的转换预处理
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201 && executor != nullptr) {
         auto uniqueExecutor = CREATE_EXECUTOR();
         InputPreProcessInt4(x1, transX2, alltoAllOutOptional, uniqueExecutor.get());
         uniqueExecutor.ReleaseTo(executor);
     }
+    aclnnStatus retParam = CheckAndHandleParams(x1, transX2, biasOptional, x1ScaleOptional, x2Scale,
+        commScaleOptional, x1OffsetOptional, x2OffsetOptional, alltoAllAxesOptional, group,
+        x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype, groupSize,
+        transposeX1, transposeX2, output, alltoAllOutOptional);
+    CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = InnerAlltoAllQuantMatmulGetWorkspaceSize(
         x1, transX2, biasOptional, x1ScaleOptional, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype, groupSize,

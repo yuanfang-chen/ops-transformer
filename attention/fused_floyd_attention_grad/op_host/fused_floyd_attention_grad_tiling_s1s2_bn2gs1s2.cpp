@@ -17,7 +17,7 @@
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
-
+namespace FFAG {
 constexpr uint32_t INITIAL_S1_SPLIT_NUM = 128; // to avoid repeat max value 255
 constexpr uint32_t INITIAL_S2_SPLIT_NUM = 64;
 constexpr uint32_t MUL_CORE_SYNC_BUFFER = 16 * 1024;
@@ -750,6 +750,7 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::PostTiling()
                                            fBaseParams.coreNum),
                return ge::GRAPH_FAILED);
     context_->SetBlockDim(blockdim);
+    context_->SetScheduleMode(1);
 
     tilingData.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData.GetDataSize());
@@ -1011,5 +1012,5 @@ void FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DetermineMode()
 }
 
 REGISTER_OPS_TILING_TEMPLATE(FusedFloydAttentionGrad, FusedFloydAttentionGradTilingS1s2Bn2gs1s2, 16000);
-
+} // namespace FFAG
 } // namespace optiling

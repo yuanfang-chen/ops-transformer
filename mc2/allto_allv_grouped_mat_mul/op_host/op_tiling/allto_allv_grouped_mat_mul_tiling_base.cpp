@@ -165,7 +165,7 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckEpWorldSizeValue()
     std::vector<int64_t> epWorldSizeValueList;
     std::string epWorldSizeValueStr = "";
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
-        epWorldSizeValueList = { 2, 4, 8, 16, 32, 64 }; // epWorldSize value only support 2, 4, 8, 16, 32, 64
+        epWorldSizeValueList = { 2, 4, 8, 16, 32, 64, 128, 256 }; // epWorldSize value only support 2, 4, 8, 16, 32, 64, 128, 256
     } else {
         epWorldSizeValueList = { 8, 16, 32, 64, 128 }; // epWorldSize value only support 8, 16, 32, 64, 128
     }
@@ -529,7 +529,7 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckMmYShapeInfo()
         OP_LOGE(context_->GetNodeName(), "mmX, mmWeight and mmY should all be nullptr or all be not nullptr!");
         return ge::GRAPH_FAILED;
     }
-    if (context_->GetOutputShape(OUTPUT_MM_Y_INDEX) != nullptr) {
+    if (context_->GetOutputShape(OUTPUT_MM_Y_INDEX) != nullptr && outputMmYStorageShape->GetStorageShape().GetDimNum() != DIM_ZERO) {
         // check dim
         if (context_->GetOutputShape(OUTPUT_MM_Y_INDEX)->GetStorageShape().GetDimNum() != DIM_TWO) {
             OP_LOGE(context_->GetNodeName(), "The dim of mmY(BS, N2) should be 2, but got %lu!",

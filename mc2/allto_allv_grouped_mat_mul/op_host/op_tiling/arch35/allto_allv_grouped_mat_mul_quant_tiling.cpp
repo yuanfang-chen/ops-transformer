@@ -108,14 +108,14 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
         }
         maxMSize = std::max(mSize, maxMSize);
     }
-    if (mSize != 0) {
+    if (maxMSize != 0) {
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
         SetTilingArray(gmmQuantTilingData, maxMSize, n1_, h1_);
         SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
-    if (mSize != 0) {
+    if (bs_ != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
         SetTilingArray(mmQuantTilingData, bs_, n2_, h2_);
@@ -138,9 +138,16 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(context_->GetNodeName(), "can not get workspace."),
         return ge::GRAPH_FAILED);
+    
     uint64_t permuteOutSize = permuteOutFlag_ ? 0 : (a_ * h1_ * GetSizeByDataType(gmmXDataType_));
-    uint64_t groupListSize = sizeof(int64_t); // GMM计算所需的groupList GM空间大小
-    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize + groupListSize;
+    // 将 permuteOutSize 对齐到 512 字节
+    const uint64_t tensorListSize = 512;
+    if (permuteOutSize % tensorListSize != 0) {
+        permuteOutSize = (permuteOutSize + tensorListSize - 1) & ~(tensorListSize - 1);
+    }
+    uint64_t groupListSize = sizeof(int64_t) * e_; // GMM计算所需的groupList GM空间大小
+    // tensorListSize为kernel侧tensorlist开辟的空间
+    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize + groupListSize + tensorListSize;
     OP_LOGD(context_->GetNodeName(), "end GetWorkspaceSize.");
     return ge::GRAPH_SUCCESS;
 }

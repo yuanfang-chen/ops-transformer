@@ -20,7 +20,6 @@
 
 #include "prompt_flash_attention_template_tiling_key_enum.h"
 #include "ascendc/host_api/tiling/template_argument.h"
-#include "prompt_flash_attention_tiling_regbase.h"
 
 #ifndef ORIG_DTYPE_QUERY
 #define ORIG_DTYPE_QUERY (DT_FLOAT16)
@@ -1429,6 +1428,7 @@ ASCENDC_TPL_SEL(
     ),
 #endif
 
+// per-tensor int8 全量化使用老模板参数
 #if (ORIG_DTYPE_QUERY == DT_INT8 && ORIG_DTYPE_KEY == DT_INT8 && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16)
     ASCENDC_TPL_ARGS_SEL(
         ASCENDC_TPL_UINT_SEL(InOutLayoutType, ASCENDC_TPL_UI_LIST, InOutLayoutType_BNSD_BNSD, InOutLayoutType_BSH_BSH, InOutLayoutType_TND_TND, InOutLayoutType_NTD_NTD),
@@ -1463,7 +1463,6 @@ ASCENDC_TPL_SEL(
     ),
 #endif
 
-//全量化使用老模板参数
 #if (ORIG_DTYPE_QUERY == DT_FLOAT8_E4M3FN && ORIG_DTYPE_KEY == DT_FLOAT8_E4M3FN && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16)
      // fp8 per-block
     ASCENDC_TPL_ARGS_SEL(

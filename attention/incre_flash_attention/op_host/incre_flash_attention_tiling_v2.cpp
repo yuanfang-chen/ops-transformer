@@ -1695,28 +1695,6 @@ bool IFATilingV2::CheckSparseMode(bool isDefaultSparseMode, bool enableMask) {
       preToken_, nextToken_),
     return false);
 
-  if (!CheckBandMode(isBandMode)) {
-    return false;
-  }
-  return true;
-}
-
-bool IFATilingV2::CheckBandMode(bool isBandMode) {
-  if (!isBandMode) {
-    return true;
-  }
-  if (ifaContext_->actualSeqLengths.tensor != nullptr) {
-    const gert::Tensor* actSeqLen = ifaContext_->actualSeqLengths.tensor;
-    uint32_t actualLenKvDims = actSeqLen->GetShapeSize();
-    uint32_t actSeqLengthKvSize = std::min(actualLenKvDims, batchSize_);
-    for (uint32_t i = 0; i < actSeqLengthKvSize; ++i) {
-      int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
-      OP_CHECK_IF(nextToken_ <= -actSeqTmp,
-        OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "In SparseMode 4(band mode), nextToken must be greater than -actualSeqLengthsKv, but nextToken got %ld while actualSeqLengthsKv[%u] got %ld.", nextToken_, i, actSeqTmp),
-        return false);
-    }
-  }
   return true;
 }
 
@@ -2197,22 +2175,36 @@ ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2
 
   // per-tensor or per-channel verification
   uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(numHeads_) * static_cast<uint64_t>(headDim_);
+  std::string layoutString = ifaContext_->layOut;
+  bool isSupportedLayout = layoutString == "BSH" || layoutString == "BSND" || layoutString == "BNSD" || layoutString == "BNSD_BSND";
+
   if (quantScale2Dim == 1) {
-      if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
+      if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel && isSupportedLayout) {
         // per-channel quant scale/offset shape is [H].
         isPostQuantPerChnl_ = true;
       } else {
         OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
             OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+                "For post quant per-tensor, quantScale2/quantOffset2 only support [1], now is [%d]", quantScale2ShapeSize),
             return ge::GRAPH_FAILED);
       }
   } else {
-      OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
-          OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-              "for post quant per-channel, quant scale/offset dim multiply result only support qN * vD(%u * %u = %lu), now is (%ld).",
-              numHeads_ , headDim_ , quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
-          return ge::GRAPH_FAILED);
+      if (isSupportedLayout) {
+          OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
+                      OP_LOGE(ifaContext_->opName,
+                              "For post quant per-channel,  when layout is %s, quantScale2/quantOffset2 dim multiply "
+                              "result only support qN * vD(%u * %u = %lu), now is (%ld).",
+                              layoutString.c_str(), numHeads_, headDim_, quantScale2ShapeSizePerChannel,
+                              quantScale2ShapeSize),
+                      return ge::GRAPH_FAILED);
+      } else {
+          OP_CHECK_IF(qtScale2->GetStorageShape() != gert::Shape({numHeads_, headDim_}),
+                      OP_LOGE(ifaContext_->opName,
+                              "For post quant per-channel, when layout is %s, "
+                              "quantScale2/quantOffset2 expect shape is [%u, %u].",
+                              layoutString.c_str(), numHeads_, headDim_),
+                      return ge::GRAPH_FAILED);
+      }
       isPostQuantPerChnl_ = true;
   }
 
@@ -2255,16 +2247,9 @@ ge::graphStatus IFATilingV2::ProcessQuant2() {
           optiling::v2::GetPfaDataTypeStr(quantScale2Type).c_str(), optiling::v2::GetPfaDataTypeStr(quantOffset2Type).c_str()),
           return ge::GRAPH_FAILED);
 
-    size_t quantOffset2Dim = qtOffset2->GetStorageShape().GetDimNum();
-    OP_CHECK_IF(quantScale2Dim != quantOffset2Dim, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "quant_scale2 dim num(%ld) do not equal quant_offset2 dim num(%ld).",
-        quantScale2Dim, quantOffset2Dim),
-        return ge::GRAPH_FAILED);
-    int64_t quantOffset2ShapeSize = qtOffset2->GetShapeSize();
-    OP_CHECK_IF(quantScale2ShapeSize != quantOffset2ShapeSize, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "quant_scale2 dimension multiply result(%ld) do not equal quant_offset2 dimension multiply result(%ld).",
-        quantScale2ShapeSize, quantOffset2ShapeSize),
-        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(qtScale2->GetStorageShape() != qtOffset2->GetStorageShape(),
+                OP_LOGE(ifaContext_->opName, "quantScale2 and quantOffset2 should have same shape."),
+                return ge::GRAPH_FAILED);
   }
   OP_CHECK_IF(ProcessQuant2Attribute(qtScale2) != ge::GRAPH_SUCCESS,
       OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "post quant attribute process failed!"),
@@ -2647,6 +2632,16 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   auto valueAntiquantScaleDesc = ifaContext_->valueAntiquantScale.desc;
   auto valueAntiquantOffsetTensor = ifaContext_->valueAntiquantOffset.tensor;
   auto valueAntiquantOffsetDesc = ifaContext_->valueAntiquantOffset.desc;
+  auto queryRopeInputShape = ifaContext_->queryRopeInputShape;
+  auto keyRopeInputShape = ifaContext_->keyRopeInputShape;
+
+  OP_CHECK_IF((keyAntiquantScaleTensor == nullptr || valueAntiquantScaleTensor == nullptr),
+    OP_LOGE(ifaContext_->opName, "In antiquant scenario, keyAntiquantScale and valueAntiquantScale must exist."),
+      return ge::GRAPH_FAILED);
+  OP_CHECK_IF((*ifaContext_->antiquantMode != 0 || antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr),
+    OP_LOGE(ifaContext_->opName, "Antiquant scenario only supports key/value split mode, antiquantMode,"
+            "antiquantScale and antiquantOffset are not supported."),
+      return ge::GRAPH_FAILED);
   if (!antiQuantFlag_ && (antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr
     || keyAntiquantScaleTensor != nullptr || keyAntiquantOffsetTensor != nullptr
     || valueAntiquantScaleTensor != nullptr || valueAntiquantOffsetTensor != nullptr)) {
@@ -2658,7 +2653,9 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
     return ge::GRAPH_SUCCESS;
   }
   kvAntiParamSplitFlag_ = false;
-
+  OP_CHECK_IF(antiQuantFlag_ && (queryRopeInputShape != nullptr || keyRopeInputShape != nullptr),
+    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario."),
+      return ge::GRAPH_FAILED);
   OP_CHECK_IF((keyAntiquantScaleTensor != nullptr && valueAntiquantScaleTensor == nullptr),
     OP_LOGE(ifaContext_->opName, "ValueAntiquantScaleTensor is null, but keyAntiquantScaleTensor exists."),
       return ge::GRAPH_FAILED);
@@ -2712,6 +2709,35 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
       }
+    }
+    OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && inputLayout_ == IfaLayout::TND),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "the layout of input does not support TND."),
+                return ge::GRAPH_FAILED);
+    if (isPFAFlag_) {
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (inputQType_ != ge::DT_BF16 || outputType_ != ge::DT_BF16)),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "the data type of query and output only support BF16."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionKvLayoutType_ != KvCacheLayout::KV_CACHE_NZ && sOfQuery_ > 16),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "S of query should not be greater than 16."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && !batchContinuousFlag_),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "tensorlist is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (ifaContext_->queryPaddingSize.tensor || ifaContext_->kvPaddingSize.tensor)),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "leftpadding is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionFlag_),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "page attention is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT32),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode scenario, int4 and int32 data types are not supported for the key and value."),
+                return ge::GRAPH_FAILED);
     }
   } else {
     OP_CHECK_IF((antiquantScaleTensor !=nullptr && antiquantScaleDesc == nullptr),
@@ -4258,6 +4284,7 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_fromFused(1);   //伪量化模板没有用到，设置为默认值
   std::string layout(ifaContext_->layOut);
   inputParams.set_isBSNDOut(layout == "BNSD_BSND");
+  inputParams.set_transposeLayout(ifaContext_->transposeLayout);
   //关于合轴
   inputParams.set_isGqa(isGqa_);
   inputParams.set_isSoftMaxLseEnable(softmaxLseFlag_ );

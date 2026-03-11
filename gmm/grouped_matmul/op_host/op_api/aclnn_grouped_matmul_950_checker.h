@@ -12,7 +12,7 @@
 #define OP_API_INC_GROUPED_MATMUL_950_CHECKER_H
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/common/op_error_check.h"
-#include "aclnn_grouped_matmul_util.h"
+#include "grouped_matmul_util.h"
 
 namespace gmm {
 template<typename T>
@@ -35,7 +35,6 @@ private:
         size_t biasDimNum = 0;
     };
 
-    bool IsQuant(DataType &xDtype, DataType &weightDtype) const;
     aclnnStatus CheckGeneralQuantShape() const;
     aclnnStatus CheckQuantCasesFormat() const;
     aclnnStatus CheckWeightNzSpecialParams() const;
@@ -60,6 +59,9 @@ private:
     aclnnStatus CheckFp8Params(const DataType &scaleDtype) const;
     aclnnStatus CheckFp4Params(const DataType &scaleDtype) const;
     aclnnStatus CheckNonMxQuantTransposeStatus() const;
+    aclnnStatus CheckInputParamsForV3Version() const;
+    aclnnStatus CheckInputShapeForV3Version() const;
+    aclnnStatus CheckInputAndOutputDtypeForV3Version() const;
     bool CheckTensorListSizeForEachInput() const;
     bool IsSpecialMXCase(const T *tensorList) const;
     aclnnStatus CheckMxFp8TypeKCaseInputShape(const TensorDimInfo &dimInfo, size_t index) const;

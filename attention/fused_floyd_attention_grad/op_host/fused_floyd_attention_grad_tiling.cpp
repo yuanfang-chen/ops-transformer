@@ -18,6 +18,7 @@ using namespace AscendC;
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
+namespace FFAG {
 constexpr uint32_t OUTPUT_IDX_DQ = 0;
 constexpr uint32_t OUTPUT_IDX_DK1 = 1;
 constexpr uint32_t OUTPUT_IDX_DV1 = 2;
@@ -98,6 +99,7 @@ public:
         auto sliceNum =
             (dqNum < aivNum && dkNum < aivNum) ? std::max(dqNum, dkNum) : aivNum;
         context->SetBlockDim(CalculateTschBlockDim(sliceNum, aicNum, aivNum));
+        context->SetScheduleMode(1);
         size_t *workspaces = context->GetWorkspaceSizes(1);
         // workspace上预留100M
         workspaces[0] = 100 * 1024 * 1024;
@@ -215,4 +217,5 @@ IMPL_OP(FusedFloydAttentionGrad)
     .Tiling(TilingFusedFloydAttentionGrad)
     .TilingParse<FlashAttentionScoreGradCompileInfo>(TilingPrepareForFusedFloydAttentionGrad); // 向框架注册入口函数
 
+} // namespace FFAG
 } // namespace optiling
