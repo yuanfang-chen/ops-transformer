@@ -16,8 +16,7 @@
 #include "nsa_compress_attention_infer.h"
 
 #pragma once
-
-namespace NSA_COMPRESS_ATTENTION_INFER {
+using namespace NSA_COMPRESS_ATTENTION_INFER;
 
 #ifdef __DAV_C220_CUBE__
 
@@ -294,4 +293,3 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::PreProcessOffset(
 }
 
 #endif
-}
