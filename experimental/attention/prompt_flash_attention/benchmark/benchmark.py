@@ -12,11 +12,11 @@ Measures:
 import math
 import itertools
 import logging
+from typing import Callable, List
 
 import torch
 import torch_npu
 import torch_pfa
-from typing import Callable, List
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -454,7 +454,8 @@ def ref_prompt_flash_attention_fp32(
     k_f = k.to(torch.float32)
     v_f = v.to(torch.float32)
 
-    # [batch_size, num_heads, s_q, head_dim] x [batch_size, num_heads, head_dim, s_kv] -> [batch_size, num_heads, s_q, s_kv]
+    #    [batch_size, num_heads, s_q, head_dim] x [batch_size, num_heads, head_dim, s_kv]
+    # -> [batch_size, num_heads, s_q, s_kv]
     attn_scores = torch.matmul(q_f, k_f.transpose(-1, -2))
     attn_scores = attn_scores * scale_value
 
@@ -471,7 +472,8 @@ def ref_prompt_flash_attention_fp32(
     # Softmax in fp32
     attn_probs = torch.softmax(attn_scores, dim=-1)
 
-    # [batch_size, num_heads, s_q, s_kv] x [batch_size, num_heads, s_kv, head_dim] -> [batch_size, num_heads, s_q, head_dim]
+    #    [batch_size, num_heads, s_q, s_kv] x [batch_size, num_heads, s_kv, head_dim] 
+    # -> [batch_size, num_heads, s_q, head_dim]
     out = torch.matmul(attn_probs, v_f)
 
     # Cast back to original dtype for comparison
