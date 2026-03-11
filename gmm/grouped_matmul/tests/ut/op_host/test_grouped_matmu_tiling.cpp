@@ -3105,8 +3105,8 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     };
     gert::TilingContextPara tilingContextPara("GroupedMatmul", // op_name
                                                 { // input info
-                                                    {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
-                                                    {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},        //weight
+                                                    {{{M, K}, {M, K}}, ge::DT_INT4, ge::FORMAT_ND},              //x
+                                                    {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_FRACTAL_NZ},        //weight
                                                     {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
                                                     {{{E, K/Q, N}, {E, K/Q, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
@@ -3129,8 +3129,8 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64, 0, -1})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
-        DT_INT8, // D_T_A
-        DT_INT8, // D_T_B
+        DT_INT4, // D_T_A
+        DT_INT4, // D_T_B
         DT_FLOAT16, // D_T_Y
         0, // TRANS_A
         0, // TRANS_B
