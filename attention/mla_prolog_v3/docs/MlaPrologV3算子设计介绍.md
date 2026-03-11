@@ -15,25 +15,25 @@
 
 按照Multi-Head Latent Attention定义的计算流程实现，整体计算流程如下：
 
-1. 输入序列x经过下采样$W^{DQ}$矩阵进行降秩变化，并进行归一化处理得到$c^Q$
+1. 输入序列$x$经过下采样矩阵$W^{DQ}$做降秩变换，并进行 RmsNorm，得到$c^Q$；随后乘以 Query 的尺度矫正因子$\alpha_q$
 
-2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，对运算结果再进行split拆分，分别做Qn的归一化处理和Rope位置编码，最终得到Query和Query Rope
+2. 将$W^{UQ}$和$W^{QR}$矩阵拼接，实现对$c^Q$的升秩和映射计算，再对运算结果进行拆分：一路用于生成 Query，另一路用于执行 ROPE 位置编码，最终得到 Query 和 Query Rope
 
-3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，对运算结果再进行split拆分，分别做Rope位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
+3. 将$W^{DKV}$和$W^{KR}$矩阵拼接，对输入序列$x$做降秩和映射计算，再对运算结果进行拆分：一路用于生成$k^R$并执行 ROPE 位置编码，另一路用于生成$c^{KV}$并执行 RmsNorm，随后乘以 Key 的尺度矫正因子$\alpha_{kv}$，最终得到 KR Cache 和 KV Cache
 
-4. 在输出Query量化的情况下，会对Query做Rowmax动态量化，最终得到量化后的Query和对应量化参数DequantScaleQNope
+4. 当 `queryOut` 需要按 per-token-head 量化输出时，会对 Query 执行 RowMax 动态量化，最终得到量化后的 Query 和对应量化参数 `dequantScaleQNope`
 
 具体的计算公式，参见[完整计算公式](#完整计算公式)章节
 
 ## 数据切分设计
 
-由于硬件buffer大小是有限的，而计算的数据量又是巨大的，无法一次计算完，那么就需要进行tiling切分，shape不同会导致算子的切分轴不同，而算子的切分轴，会影响模板的功能及性能。需要考虑如下几个点：
+由于硬件 buffer 的大小有限，而计算数据量很大，无法一次完成计算，因此需要进行 tiling 切分。不同 shape 会导致算子的切分轴不同，而切分轴又会影响模板的功能和性能。需要重点考虑如下几点：
 
 a. 将核心的数量用满，防止部分核闲置。
 
 b. 每一个核心被分配的计算量相对均匀，避免出现某些核计算的数据量过大，其余核空闲的情况。
 
-c. AIC和AIV之间处理的数据量要符合其对应的算力，避免AIC或AIV出现长时间的空闲。 
+c. AIC 和 AIV 之间处理的数据量要符合各自的算力，避免 AIC 或 AIV 长时间空闲。
 
 MlaPrologV3算子有多个Matmul运算：
 
@@ -47,8 +47,7 @@ MlaPrologV3算子有多个Matmul运算：
 
 ## 流水设计
 
-MlaPrologV3融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧的计算存在依赖关系，因此需要进行CV流水设计，
-否则C侧和V侧很有可能是串行流水的效果，不能达到并行计算的目的，无法使得融合算子性能达到最优：
+MlaPrologV3 融合算子同时包含 Vector 计算和 Cube 计算，两侧计算存在依赖关系，因此需要进行 CV 流水设计；否则 C 侧与 V 侧很可能退化为串行执行，无法达到并行计算的目的，也无法使融合算子的性能达到最优：
 
 图2 流水控制图：
 
@@ -72,9 +71,9 @@ MlaPrologV3融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧�
 TilingKey为uint64类型，每个模板参数对应TilingKey中的一到数个二进制位，具体实现如下：
 |二进制位|变量名|说明|参数列表|
 |-------|------|----|-------|
-|0-3|CACHE_MODE|KVCache的存储格式|0-BNSD(预留)，1-PA_BSND，2-PA_NZ|
-|4-5|SCENARIO|输入场景|0-FP16(预留)，1-非量化场景，2-量化场景|
-|6-9|QUANT_MODE|量化场景|0-非量化，1-MMQcQr量化，2-MMQcQr量化+KVcache量化，3-MMcqCkvKr量化+MMQcQr量化，4-MMCqCkvkr量化+MMQcQr量化+KVcache量化，5-MMQcQr量化+KVcache pertile量化，6-MMCqCkvkr量化+MMQcQr量化+KVcache pertile量化，7-Mxfp8量化+MMQcQr量化 8-Mxfp8量化+MMQcQr量化+KVcache量化|
+|0-3|CACHE_MODE|KVCache的存储格式|0-BSND/TND，1-PA_BSND，2-PA_NZ，3-PA_BLK_BSND，4-PA_BLK_NZ|
+|4-5|SCENARIO|输入场景|0-空Tensor内部场景，1-非量化场景，2-量化场景|
+|6-9|QUANT_MODE|量化场景|0-非量化，1-部分量化+kvCache非量化，2-部分量化+kvCache per-channel量化，3-int8全量化+kvCache非量化，4-int8全量化+kvCache per-tensor量化，5-部分量化+kvCache per-tile量化，6-int8全量化+kvCache per-tile量化，7-mxfp8全量化+kvCache非量化，8-mxfp8全量化+kvCache per-tensor量化，9-mxfp8全量化+kvCache per-tile量化|
 |10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |11|ENABLE_GROUP_COMPUTE_OPTIONAL|量化的算力分组优化，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |12-13|EMPTY_TENSOR_MODE|空tensor场景，用于输入tensor维度为0的情况|0-无空tensor，1-KVCache为空和KRCache为空， 2-Query为空|
@@ -415,5 +414,3 @@ PA场景
 在计算得到输入$x$对应的KeyRope结果后，将KeyRope结果更新到KRCache的对应位置。当前引入cacheIndex来标识计算结果在KRCache中的存储位置。
 
 KRCache的更新逻辑同KVCache。
-
-

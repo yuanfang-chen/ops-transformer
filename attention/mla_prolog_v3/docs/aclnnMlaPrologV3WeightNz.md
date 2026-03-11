@@ -12,16 +12,17 @@
 
 ## 功能说明
 
--  **功能更新**：（相对于aclnnMlaPrologV2weightNz的差异）
-    -  新增Query与Key的尺度矫正因子，分别对应qcQrScale（$\alpha_q$）与kcScale（$\alpha_{kv}$）。
-    -  新增可选输入参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOutOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
-    -  调整cacheIndex参数的名称与位置，对应当前的cacheIndexOptional。
--  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路:
-    -  首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后，再乘以Query尺度矫正因子$\alpha_q$得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$。
-    -  第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后，乘以Key尺度矫正因子$\alpha_{kv}$传入Cache中得到$k^C$；
-    -  第四路是输入$x$乘以$W^{KR}$后经过旋转位置编码后传入另一个Cache中得到$k^R$；
-    -  第五路是输出$q^N$经过DynamicQuant后得到的量化参数。
-    -  权重参数WeightDq、WeightUqQr和WeightDkvKr需要以NZ格式传入
+-  **功能更新**：（相对于`aclnnMlaPrologV2WeightNz`的差异）
+    -  新增 Query 与 Key 的尺度矫正因子，分别对应 `qcQrScale`（$\alpha_q$）与 `kcScale`（$\alpha_{kv}$）。
+    -  新增可选输入参数（例如 `actualSeqLenOptional`、`kNopeClipAlphaOptional`、`weightQuantMode`、`kvCacheQuantMode`、`queryQuantMode`、`ckvkrRepoMode`、`quantScaleRepoMode`、`tileSize`、`queryNormOutOptional` 和 `dequantScaleQNormOutOptional` 等），并将 `cacheModeOptional` 由必选改为可选。
+    -  `queryNormFlag` 为内部属性，由 `queryNormOutOptional` 是否为空推导；当 `queryNormOutOptional` 非空时表示需要输出 `queryNormOutOptional`，量化场景下可选输出 `dequantScaleQNormOutOptional`。
+    -  调整 `cacheIndex` 参数的名称与位置，对应当前的 `cacheIndexOptional`。
+-  **接口功能**：推理场景下，用于完成 Multi-Head Latent Attention 前处理。主要计算流程包含四个主分支：
+    -  首先对输入$x$乘以$W^{DQ}$进行下采样并执行 RmsNorm，得到$c^Q$，随后乘以 Query 尺度矫正因子$\alpha_q$后分为两路；第一路依次乘以$W^{UQ}$和$W^{UK}$得到$q^N$，第二路乘以$W^{QR}$并执行旋转位置编码（ROPE）得到$q^R$。
+    -  第三路是输入$x$乘以$W^{DKV}$进行下采样并执行 RmsNorm，得到$c^{KV}$，随后乘以 Key 尺度矫正因子$\alpha_{kv}$并写入 Cache，得到$k^C$。
+    -  第四路是输入$x$乘以$W^{KR}$后执行旋转位置编码，再写入另一个 Cache，得到$k^R$。
+    -  当 `queryQuantMode = 1` 且 `kvCacheQuantMode = 1` 时，还会额外生成 `dequantScaleQNopeOutOptional`。
+    -  权重参数 `weightDq`、`weightUqQr` 和 `weightDkvKr` 需要以 NZ 格式传入。
 
 -  **计算公式**：
 
@@ -71,7 +72,7 @@
     k^R = \mathrm{Cache}(\mathrm{ROPE}(x \cdot W^{KR}))
     $$
 
-    Dequant Scale Query Nope 计算公式
+    Dequant Scale Query Nope 计算公式（仅在 Query 按 per-token-head 量化输出时生效）
 
     $$
     \mathrm{dequantScaleQNope} = {\mathrm{RowMax}(\mathrm{abs}(q^{N})) / 127}
@@ -147,7 +148,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | tokenX          | 输入      | 公式中用于计算Query和Key的输入tensor。    | - 支持B=0,S=0,T=0的空Tensor   | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | ND    | - BS合轴：(T,He) <br>- BS非合轴：(B,S,He)         |×   |
   | weightDq        | 输入      | 公式中用于计算Query的下采样权重矩阵$W^{DQ}$。<br>在不转置的情况下各个维度的表示：（k，n）| - 不支持空Tensor      | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | FRACTAL_NZ | (He,Hcq)                      |×   |
   | weightUqQr      | 输入      | 公式中用于计算Query的上采样权重矩阵$W^{UQ}$和位置编码权重矩阵$W^{QR}$。<br>在不转置的情况下各个维度的表示：（k，n） | - 不支持空Tensor  | BFLOAT16、INT8 | BFLOAT16、INT8、FLOAT8_E4M3FN| FRACTAL_NZ | (Hcq,N*(D+Dr))                |×   |
-  | weightUk        | 输入      | 公式中用于计算Key的上采样权重$W^{UK}$。           | - 不支持空Tensor     | BFLOAT16       | BFLOAT16 | ND         | (N,D,Hckv)                    |×   |
+  | weightUk        | 输入      | 公式中用于生成$q^N$的权重$W^{UK}$。           | - 不支持空Tensor     | BFLOAT16       | BFLOAT16 | ND         | (N,D,Hckv)                    |×   |
   | weightDkvKr     | 输入      | 公式中用于计算Key的下采样权重矩阵$W^{DKV}$和位置编码权重矩阵$W^{KR}$。<br>在不转置的情况下各个维度的表示：（k，n） | - 不支持空Tensor  | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN |  FRACTAL_NZ | (He,Hckv+Dr)                  |×   |
   | rmsnormGammaCq  | 输入      | 计算$c^Q$的RmsNorm公式中的$\gamma$参数。        | - 不支持空Tensor   | BFLOAT16       | BFLOAT16 | ND         | (Hcq)                         |×   |
   | rmsnormGammaCkv | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\gamma$参数。      | - 不支持空Tensor | BFLOAT16       | BFLOAT16 | ND         | (Hckv)                        |×   |
@@ -168,20 +169,19 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | rmsnormEpsilonCq           | 输入      | 计算$c^Q$的RmsNorm公式中的$\epsilon$参数。        | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型 | DOUBLE         | DOUBLE | -          | - |-   |
   | rmsnormEpsilonCkv          | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\epsilon$参数。   | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型   | DOUBLE         | DOUBLE | -          | -  |-   |
   | cacheModeOptional          | 输入      | 表示kvCache的模式。| - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - 可选值为："PA_BSND"、 "PA_NZ"、 "PA_BLK_BSND"、 "PA_BLK_NZ"、 "BSND"、 "TND" | CHAR*          | CHAR* | -          | - |-   |
-  | queryNormFlag     | 输入      | 表示是否输出queryNormOutOptional、dequantScaleQNormOutOptional。  | - false表示不输出，true表示输出，默认值为false | BOOL  | BOOL| -- | --    |-   |
-  | weightQuantMode     | 输入      | 表示weightDq、weightUqQr、weightUk、weightDkvKr的量化模式。  | - 0表示非量化，1表示weightUqQr量化，2表示weightDq、weightUqQr、weightDkvKr量化，3表示weightDq、weightUqQr、weightDkvKr mxfp8量化，默认值为0 | INT  | INT| -- | --    |-   |
-  | kvCacheQuantMode     | 输入      | 表示kvCache的量化模式。  | - 0表示非量化，1表示per-tensor量化，2表示per-channel量化，3-表示per-tile量化，默认值为0| INT64  | INT64| -- | --    |-   |
+  | weightQuantMode     | 输入      | 表示weightDq、weightUqQr、weightDkvKr的量化模式。  | - 0表示非量化，1表示仅weightUqQr量化，2表示weightDq、weightUqQr、weightDkvKr量化，3表示weightDq、weightUqQr、weightDkvKr的 mxfp8 量化，默认值为0 | INT  | INT| -- | --    |-   |
+  | kvCacheQuantMode     | 输入      | 表示kvCache的量化模式。  | - 0表示非量化，1表示per-tensor量化，2表示per-channel量化，3表示per-tile量化，默认值为0| INT64  | INT64| -- | --    |-   |
   | queryQuantMode     | 输入      | 表示query的量化模式。  | - 0表示非量化，1表示per-token-head量化，默认值为0| INT64  | INT64| -- | --    |-   |
   | ckvkrRepoMode     | 输入      | 表示kvCache和krCache的存储模式。  | - 0表示kvCache和krCache分别存储，1表示kvCache和krCache合并存储，默认值为0| INT64  | INT64 | -- | --    |-   |
   | quantScaleRepoMode     | 输入      | 表示量化scale的存储模式。  | - 0表示量化scale和数据分别存储，1表示量化scale和数据合并存储作为kvCacheRef输出，默认值为0| INT64  | INT64 | -- | --    |-   |
   | tileSize     | 输入      | 表示per-tile量化时每个tile的大小，仅在kvCacheQuantMode为3时有效。  | - 默认值为128 | INT64 | INT64 | -- | --    |-   |
   | qcQrScale     | 输入      |   表示Query的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | DOUBLE | -   | -  |- |
   | kcScale     | 输入      |   表示Key的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | DOUBLE | -    | -  |- |
-  | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$）。     | -  | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |×   |
+  | queryOut                   | 输出      | 公式中 Query 的输出 tensor（对应$q^N$）。     | - 当`weightQuantMode=2/3`且`kvCacheQuantMode=1`时，`queryQuantMode`必须为1；其他场景下`queryQuantMode`必须为0 | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |×   |
   | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$）。  | - | BFLOAT16       | BFLOAT16 | ND         | - BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)     |×   |
-  | dequantScaleQNopeOutOptional  | 输出           | 公式中Query输出的量化参数。  | -     | FLOAT      | FLOAT| ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |×   |
-  | queryNormOutOptional     | 输出      | 公式中tokenX做rmsNorm后的输出tensor（对应$c^Q$）。  |  | BFLOAT16、INT8  | BFLOAT16、INT8、FLOAT8_E4M3FN | ND | - BS合轴：(T,Hcq) <br> - BS非合轴：(B,S,Hcq)  |×   |
-  | dequantScaleQNormOutOptional     | 输出      | queryNormOutOptional的反量化参数。  | - weightQuantMode=0时，queryNormFlag=true仅有queryNormOutOptional输出，dequantScaleQNormOutOptional为nullptr | FLOAT  | FLOAT、FLOAT8_E8M0 | ND | - weightQuantMode=1/2：<br> 1. BS合轴：（T,1）<br> 2. BS非合轴：（B*S,1） <br> -weightQuantMode=3： <br>  1. BS合轴：(T, Hcq/32) <br>  2. BS非合轴：(B\*S, Hcq/32) |×   |
+  | dequantScaleQNopeOutOptional  | 输出           | 公式中 Query 输出的量化参数。  | - 仅在`weightQuantMode=2/3`且`kvCacheQuantMode=1`时需要传入；其他场景下应传空指针 | FLOAT      | FLOAT| ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |×   |
+  | queryNormOutOptional     | 输出      | 公式中 tokenX 做 RmsNorm 后的输出 tensor（对应$c^Q$）。  | - 非空时会推导内部属性`queryNormFlag=true`；为空时该输出关闭 | BFLOAT16、INT8  | BFLOAT16、INT8、FLOAT8_E4M3FN | ND | - BS合轴：(T,Hcq) <br> - BS非合轴：(B,S,Hcq)  |×   |
+  | dequantScaleQNormOutOptional     | 输出      | `queryNormOutOptional` 的反量化参数。  | - 当`queryNormOutOptional`为空时应传空指针 <br> - 当`weightQuantMode=0`时应传空指针 <br> - 当`weightQuantMode=1/2/3`且`queryNormOutOptional`非空时可选输出 | FLOAT  | FLOAT、FLOAT8_E8M0 | ND | - weightQuantMode=1/2：<br> 1. BS合轴：(T,1)<br> 2. BS非合轴：(B*S,1) <br> - weightQuantMode=3： <br>  1. BS合轴：(T, Hcq/32) <br>  2. BS非合轴：(B\*S, Hcq/32) |×   |
   | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。  | - 仅用于输出结果，无需输入配置 - 数据类型为uint64_t* | -              | -| -          | -                                  |-   |
   | executor                   | 输出      | 返回op执行器，包含算子计算流程。        | - 仅用于输出结果，无需输入配置 - 数据类型为aclOpExecutor**    | -              | -| -          | -                                  |-   |
 
@@ -242,10 +242,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
         - 当CacheMode为PA_BSND或PA_NZ时，cacheIndex的shape为(T)
         - 当CacheMode为PA_BLK_BSND或PA_BLK_NZ时，cacheIndex的shape为(Sum(Ceil(S_i/BlockSize)))，S_i为每个Batch中的S的长度
         - 当CacheMode为PA_BLK_BSND或PA_BLK_NZ时，actualSeqLenOptional需要传入，维度为(B)
-        - int8全量化场景下，dequantScaleXOptional的shape为(T, 1)；mxfp8全量化场景下，dequantScaleXOptional的shape为(T, He/32)
+        - int8全量化场景下，dequantScaleXOptional的shape为(T)；mxfp8全量化场景下，dequantScaleXOptional的shape为(T, He/32)
         - queryOut的shape为(T, N, Hckv)
         - queryRopeOut的shape为(T, N, Dr)
-        - int8全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(T, N, 1)，其他场景下为(1)
+        - 当`queryQuantMode=1`且`kvCacheQuantMode=1`时，dequantScaleQNopeOutOptional的shape为(T, N, 1)；其他场景下输出空Tensor，shape为(0)
     - 若tokenX的维度不采用BS合轴，即(B, S, He)
         - ropeSin和ropeCos的shape为(B, S, Dr)
         - 当CacheMode为PA_BSND或PA_NZ时，cacheIndex的shape为(B, S)
@@ -253,16 +253,18 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
         - int8全量化场景下，dequantScaleXOptional的shape为(B\*S, 1)；mxfp8全量化场景下，dequantScaleXOptional的shape为(B*S, He/32)
         - queryOut的shape为(B, S, N, Hckv)
         - queryRopeOut的shape为(B, S, N, Dr)
-        - int8全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)，其他场景下为(1)
+        - 当`queryQuantMode=1`且`kvCacheQuantMode=1`时，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)；其他场景下输出空Tensor，shape为(0)
     - B、S、T、Skv值允许一个或多个取0，即Shape与B、S、T、Skv值相关的入参允许传入空Tensor，其余入参不支持传入空Tensor。
         - 如果B、S、T取值为0，则queryOut、queryRopeOut输出空Tensor，kvCacheRef、krCacheRef不做更新。
         - 如果Skv取值为0，则queryOut、queryRopeOut、dequantScaleQNopeOutOptional正常计算，kvCacheRef、krCacheRef不做更新，即输出空Tensor。
     - 当CacheMode为BSND时
         - tokenX应不采用BS合轴，即维度为(B, S, He)
-        - kvCache的维度为(B,S,Nkv,Dr)
+        - kvCacheRef的维度为(B,S,Nkv,Dtile)
+        - krCacheRef的维度为(B,S,Nkv,Dr)
     - 当CacheMode为TND时
         - tokenX应采用BS合轴，即维度为(T, He)
-        - kvCache的维度为(T,Nkv,Dr)
+        - kvCacheRef的维度为(T,Nkv,Dtile)
+        - krCacheRef的维度为(T,Nkv,Dr)
     - 当ckvkrRepoMode=1时
         - krCache的维度应包含0，支持维度为(0)
 
@@ -271,7 +273,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   - per-tile量化模式下，ckvkrRepoMode和quantScaleRepoMode必须同时为1；其他量化模式以及非量化场景下，ckvkrRepoMode和quantScaleRepoMode必须同时为0。
   - per-tile量化模式下，CacheMode只支持PA_BSND, BSND和TND。
   - 当ckvkrRepoMode值为1时，krCache必须为空Tensor（即shape的乘积为0）。
-- aclnnMlaPrologV3WeightNz接口支持场景：A2、A3当前不支持mxfp8全量化场景，A5当前仅支持非量化场景、部分量化kvCache非量化、部分量化kvCache per-channel量化和mxfp8全量化场景
+- aclnnMlaPrologV3WeightNz接口支持场景：
+  - A2、A3支持：非量化、部分量化（kvCache非量化/per-channel/per-tile）以及 int8 全量化（kvCache非量化/per-tensor/per-tile）。
+  - Ascend 950PR/Ascend 950DT支持：非量化、部分量化（kvCache非量化/per-channel）以及 mxfp8 全量化（kvCache非量化/per-tensor/per-tile）。
+  - 下表给出各场景的输入输出组合；若某产品不支持该场景，则不可选择对应组合。
   <table style="table-layout: auto;" border="1">
     <tr>
       <th colspan="2">场景</th>
@@ -295,14 +300,14 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     <tr>
       <td>kvCache per-channel量化 </td>
       <td>
-          入参：weightUqQr传入per-token量化数据，kvCacheRef、krCacheRef传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleWUqQr、quantScaleCkv、quant_scale_ckr字段必须传入，smoothScalesCq字段可选传入 <br>
+          入参：weightUqQr传入per-token量化数据，kvCacheRef、krCacheRef传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleWUqQr、quantScaleCkv、quantScaleCkrOptional字段必须传入，smoothScalesCq字段可选传入 <br>
           出参：kvCacheRef、krCacheRef返回per-channel量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td>kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入 <br>
+          入参：weightUqQr传入per-token量化数据，kvCacheRef传入per-tile量化数据，其余入参皆为非量化数据。dequantScaleWUqQr字段必须传入，smoothScalesCq字段可选传入，kNopeClipAlphaOptional字段必须传入 <br>
           出参：kvCacheRef返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
@@ -324,7 +329,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     <tr>
       <td> kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入，kNopeClipAlphaOptional字段必须传入 <br>
           出参：kvCacheRef出参返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
@@ -332,21 +337,21 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td rowspan="3">mxfp8全量化</td>
       <td> kvCache非量化</td>
       <td>
-          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入mxfp8量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
           出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tensor量化 </td>
       <td>
-          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，kvCacheRef传入per-tensor量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr、quantScaleCkv字段必须传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入mxfp8量化数据，kvCacheRef传入per-tensor量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr、quantScaleCkv字段必须传入 <br>
           出参：queryOut返回per-token-head量化数据，kvCacheRef出参返回per-tensor量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入mxfp8量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
           出参：kvCacheRef出参返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
@@ -715,7 +720,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   </div>
 ## 调用示例
 
-A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+A2、A3内嵌示例代码如下，仅供参考；仓内独立样例文件`examples/test_aclnn_mla_prolog_v3_fqkvq.cpp`对应 Ascend 950PR/Ascend 950DT 的 mxfp8 全量化场景。具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
   ```Cpp
   #include <iostream>
@@ -907,7 +912,6 @@ A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[
       aclTensor* dequantScaleWDkvKr = nullptr;
       aclTensor* quantScaleCkv = nullptr;
       aclTensor* smoothScalesCq = nullptr;
-      bool queryNormFlag = false;
       int64_t weightQuantMode = 2;
       int64_t kvQuantMode = 1;
       int64_t queryQuantMode = 1;
@@ -1107,7 +1111,7 @@ A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[
   }
   ```
 
-A5示例代码如下，仅供参考。
+Ascend 950PR/Ascend 950DT（A5）示例代码如下，仅供参考。
 
   ```Cpp
 #include <iostream>
@@ -1295,7 +1299,6 @@ int main() {
     aclTensor* dequantScaleWUqQr = nullptr;
     aclTensor* dequantScaleWDkvKr = nullptr;
     aclTensor* quantScaleCkv = nullptr;
-    bool queryNormFlag = false;
     int64_t weightQuantMode = 3;
     int64_t kvQuantMode = 1;
     int64_t queryQuantMode = 1;
