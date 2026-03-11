@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef OP_API_INC_QUANT_GROUPED_MATMUL_ALL_TO_ALLV_
-#define OP_API_INC_QUANT_GROUPED_MATMUL_ALL_TO_ALLV_
+#ifndef OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
+#define OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
 
 #include <string>
 
@@ -21,7 +21,7 @@ extern "C" {
 
 /**
  * 算子功能：实现quant grouped matmul + alltoallv 融合计算
- * @brief aclnnGroupedMatMulAlltoAllv的第一段接口，根据具体的计算流程，计算workspace大小。
+ * @brief aclnnGroupedMatMulAlltoAllvV2的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
  * @param [in] gmmX: 计算输入，Tensor。该输入进行AllToAll通信，仅支持二维,
  * 数据格式支持ND，通信后结果作为GroupedMatMul计算的左矩阵    // GroupedMatMul计算的左矩阵输入
@@ -91,7 +91,7 @@ extern "C" {
  * A = sendCounts的累加和;
  * K = topK;
  */
-ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
+ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2GetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale, const aclTensor *gmmWeightScale,
     const aclTensor *gmmXOffsetOptional, const aclTensor *gmmWeightOffsetOptional,
     const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional,
@@ -104,19 +104,19 @@ ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *mmYOptional, uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
- * @brief aclnnQuantGroupedMatMulAlltoAllv的第二段接口，用于执行计算。
+ * @brief aclnnQuantGroupedMatMulAlltoAllvV2的第二段接口，用于执行计算。
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
  * @param [in] workspace_size: 在npu
- * device侧申请的workspace大小，由第一段接口aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize获取。
+ * device侧申请的workspace大小，由第一段接口aclnnQuantGroupedMatMulAlltoAllvV2GetWorkspaceSize获取。
  * @param [in] executor: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                        aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_
+#endif // OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
