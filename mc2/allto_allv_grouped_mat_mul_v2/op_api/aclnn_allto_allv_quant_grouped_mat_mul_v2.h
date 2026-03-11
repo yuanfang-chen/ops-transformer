@@ -82,7 +82,7 @@ extern "C" {
  * e表示单卡上的专家数量;
  * A = recvCounts的累加和;
  */
-__attribute__((visibility("default"))) aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
+__attribute__((visibility("default"))) aclnnStatus aclnnAlltoAllvQuantGroupedMatMulV2GetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale, const aclTensor *gmmWeightScale,
     const aclTensor *gmmXOffsetOptional, const aclTensor *gmmWeightOffsetOptional,
     const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional,
@@ -102,7 +102,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnAlltoAllvQuantGroupedMat
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-__attribute__((visibility("default"))) aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+__attribute__((visibility("default"))) aclnnStatus aclnnAlltoAllvQuantGroupedMatMulV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
     aclrtStream stream);
 
 #ifdef __cplusplus
