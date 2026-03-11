@@ -110,6 +110,7 @@ aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
     if (returnValues) {
         if (sparseValuesOut == nullptr) {
             OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sparseValuesOut cannot be nullptr.");
+            return ge::GRAPH_FAILED;
         }
     }
     auto sparseValuesOutHolder = TensorHolder(sparseValuesOut, queryAclDataType, std::string("sparseValuesOut"));
