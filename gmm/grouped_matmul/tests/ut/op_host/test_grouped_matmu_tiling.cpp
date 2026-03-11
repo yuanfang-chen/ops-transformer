@@ -3087,6 +3087,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
 {
     size_t M = 256;
+    size_t Q = 256;
     size_t K = 2048;
     size_t N = 7168;
     size_t E = 4;
@@ -3107,7 +3108,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
                                                     {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},        //weight
                                                     {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
-                                                    {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
+                                                    {{{E, K/Q, N}, {E, K/Q, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantScale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantOffset
