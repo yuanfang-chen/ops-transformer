@@ -58,15 +58,13 @@ private:
 
     GlobalTensor<float> hRes_;
     GlobalTensor<float> y_;
-    GlobalTensor<float> normOut_;
-    GlobalTensor<float> sumOut_;
     TPipe &pipe_;
     const MhcSinkhornTilingData &tilingData_;
     int64_t blockIdx_;
     int64_t loop_;
     int64_t tailLoopSize_;
-    TQue<QuePosition::VECOUT, DOUBLE_BUFFER> inputQue_;
-    TQue<QuePosition::VECOUT, DOUBLE_BUFFER> outputQue_;
+    TQue<QuePosition::VECIN, 1> inputQue_;
+    TQue<QuePosition::VECOUT, 1> outputQue_;
     TBuf<TPosition::VECCALC> maskBuffer_;
     TBuf<TPosition::VECCALC> maxBuffer_;
 };
@@ -77,8 +75,6 @@ __aicore__ inline void MhcSinkhornSimd::Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR n
     blockIdx_ = GetBlockIdx();
     hRes_.SetGlobalBuffer((__gm__ float *)(h_res));
     y_.SetGlobalBuffer((__gm__ float *)(y));
-    normOut_.SetGlobalBuffer((__gm__ float *)(norm_out));
-    sumOut_.SetGlobalBuffer((__gm__ float *)(sum_out));
     pipe_.InitBuffer(maskBuffer_, MASK_BUFFER_SIZE);
     pipe_.InitBuffer(maxBuffer_, MAX_BUFFER_SIZE);
     pipe_.InitBuffer(inputQue_, DOUBLE_BUFFER, tilingData_.tUbFactor * sizeof(float));
