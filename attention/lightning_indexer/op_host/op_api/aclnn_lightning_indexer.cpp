@@ -109,15 +109,9 @@ aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
     aclDataType queryAclDataType = ToAclDataType(queryDataType);
     if (returnValues) {
         if (sparseValuesOut == nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sparseValuesOut cannot be bullptr.");
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sparseValuesOut cannot be nullptr.");
         }
-    } 
-    // pta合并后，才可开放
-    // else {
-    //     if (sparseValuesOut != nullptr) {
-    //         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sparseValuesOut should be bullptr.");
-    //     }
-    // }
+    }
     auto sparseValuesOutHolder = TensorHolder(sparseValuesOut, queryAclDataType, std::string("sparseValuesOut"));
     if (sparseValuesOut == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor sparseValuesOut!");
