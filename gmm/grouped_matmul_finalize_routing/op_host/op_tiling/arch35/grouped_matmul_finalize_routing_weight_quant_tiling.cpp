@@ -19,7 +19,6 @@ using namespace optiling::GroupedMatmulFinalizeRoutingArch35WeightQuantTiling;
 using namespace GMMFinalizeRoutingArch35Tiling;
 
 namespace optiling {
-constexpr static int64_t GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT = 2;
 REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulFinalizeRouting, GMMFRWeightQuantTiling, GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT);
 
 enum DataSize GetSizeByDataType(ge::DataType dType) {

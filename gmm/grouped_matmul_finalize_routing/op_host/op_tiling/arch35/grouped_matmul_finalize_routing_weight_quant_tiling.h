@@ -38,6 +38,7 @@ using namespace Ops::Transformer::OpTiling;
 using namespace GMMFinalizeRoutingArch35Tiling;
 
 namespace GroupedMatmulFinalizeRoutingArch35WeightQuantTiling {
+constexpr static int64_t GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT = 2;
 namespace param_validator {
 enum class ParamType {
     INPUT_TENSOR,    // tensor类型参数
