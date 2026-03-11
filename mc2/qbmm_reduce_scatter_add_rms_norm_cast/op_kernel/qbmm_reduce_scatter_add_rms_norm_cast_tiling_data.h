@@ -33,6 +33,8 @@ struct QbmmReduceScatterAddRmsNormCastTilingInfo {
     uint32_t needUbBuffer;
     // TCubeTiling
     TCubeTiling matmulTiling;
+    // gamma type
+    bool isGammaBf16;
 };
 
 struct QbmmReduceScatterAddRmsNormCastTilingData {
