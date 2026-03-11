@@ -10,7 +10,7 @@
 
 /* !
  * \file fallback_grouped_mat_mul_allto_allv_v2.cpp
- * \brief fallback function of op GroupedMatMulAlltoAllvV2
+ * \brief fallback function of op QuantGroupedMatMulAlltoAllv
  */
 #include "mc2_log.h"
 #include "fallback/fallback.h"
@@ -146,5 +146,5 @@ static ge::graphStatus GroupedMatMulAlltoAllvExecuteFunc(gert::OpExecuteContext*
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP(GroupedMatMulAlltoAllvV2).OpExecuteFunc(GroupedMatMulAlltoAllvExecuteFunc);
+IMPL_OP(QuantGroupedMatMulAlltoAllv).OpExecuteFunc(GroupedMatMulAlltoAllvExecuteFunc);
 }  // namespace fallback
