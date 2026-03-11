@@ -640,7 +640,7 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     }
 
     gert::TilingContextPara tilingContextPara(
-        "GroupedMatMulAlltoAllv",
+        "GroupedMatMulAlltoAllvV2",
         {
             {{{param.gmmXShape[0], param.gmmXShape[1]},{param.gmmXShape[0], param.gmmXShape[1]}}, param.gmmXDataType, param.gmmXFormat},
             {{{param.gmmWeightShape[0], param.gmmWeightShape[1],param.gmmWeightShape[2]},{param.gmmWeightShape[0], param.gmmWeightShape[1],param.gmmWeightShape[2]}},

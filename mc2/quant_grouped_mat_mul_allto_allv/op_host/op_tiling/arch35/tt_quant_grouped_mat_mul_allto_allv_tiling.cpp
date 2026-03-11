@@ -9,13 +9,13 @@
  */
 
 /*!
- * \file quant_grouped_mat_mul_allto_allv_tiling.cpp
+ * \file tt_quant_grouped_mat_mul_allto_allv_tiling.cpp
  * \brief
  */
 
 #include "op_mc2.h"
 #include "mc2_log.h"
-#include "quant_grouped_mat_mul_allto_allv_tiling.h"
+#include "tt_quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_adapter.h"
 #include "tiling/mc2_tiling_utils.h"
 #include <tiling/tiling_api.h>
@@ -51,10 +51,10 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 {
     // base check required para
-    auto status = GmmAlltoAllvTilingBase::GetShapeAttrsInfo();
+    auto status = QuantGmmAlltoAllvTilingBase::GetShapeAttrsInfo();
     if (status != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -66,7 +66,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 }
 
 // not support param
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorNotSupport()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorNotSupport()
 {
     auto sendCountsTensorDesc = context_->GetOptionalInputDesc(SEND_COUNTS_TENSOR_OPTIONAL_INDEX);
     auto recvCountsTensorDesc = context_->GetOptionalInputDesc(RECV_COUNTS_TENSOR_OPTIONAL_INDEX);
@@ -99,7 +99,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTenso
 }
 
 // quant must support param
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorSupport()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorSupport()
 {
     auto gmmXScaleTensorDesc = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX);
     auto gmmWeightScaleTensorDesc = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
@@ -113,7 +113,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTenso
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorMM()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensorMM()
 {
     auto mmXTensorShape = context_->GetOptionalInputShape(MM_X_OPTIONAL_INDEX);
     auto mmWeightTensorShape = context_->GetOptionalInputShape(MM_WEIGHT_OPTIONAL_INDEX);
@@ -134,7 +134,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTenso
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensor()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTensor()
 {
     auto status = CheckOpInputSingleParamsTensorNotSupport();
     if (status != ge::GRAPH_SUCCESS) {
@@ -152,7 +152,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTenso
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
 {
     localParams_.gmmXDtype = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     localParams_.gmmWeightDtype = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType();
@@ -202,7 +202,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 {
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
@@ -257,7 +257,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
@@ -295,7 +295,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckFormat()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckFormat()
 {
     OP_LOGD(opName_, "start CheckFormat.");
     OP_TILING_CHECK(context_->GetInputDesc(GMM_X_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
@@ -344,7 +344,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckFormat()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParams()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParams()
 {
     auto status = CheckAndSetLocalParamsGmm();
     if (status != ge::GRAPH_SUCCESS) {
@@ -369,7 +369,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 {
     localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
     localParams_.gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
@@ -418,7 +418,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
 {
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
@@ -472,7 +472,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalParams()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalParams()
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
@@ -516,7 +516,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalP
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetSendRecvCountsAttr()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetSendRecvCountsAttr()
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     uint64_t expertNum = localParams_.ep * localParams_.epWorldSize;
@@ -558,7 +558,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetSendRecvCountsAttr
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckLocalParams()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckLocalParams()
 {
     OP_TILING_CHECK((localParams_.H1 == 0) || (localParams_.H1 >= MAX_H1_VALUE),
         OP_LOGE(opName_, "H1 should be less than %lu, but got %lu.", MAX_H1_VALUE, localParams_.H1),
@@ -590,7 +590,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckLocalParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationAndSetLocalParams()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationAndSetLocalParams()
 {
     auto status = CheckParamsRelationGmm();
     if (status != ge::GRAPH_SUCCESS) {
@@ -620,7 +620,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationAndSetLoca
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
 {
     fe::PlatFormInfos *platformInfo = context_->GetPlatformInfo();
     OP_TILING_CHECK(platformInfo == nullptr, OP_LOGE(opName_, "Fail to get platform info."), return ge::GRAPH_FAILED);
@@ -631,19 +631,19 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
     return ge::GRAPH_SUCCESS;
 };
 
-bool QuantGroupedMatmulAllToAllvTiling::IsCapable()
+bool TTQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
     OP_TILING_CHECK(mode == QUANT_PAIR_ERROR, OP_LOGE(opName_, "Fail to get attr quant mode."), return false);
     if (mode == QUANT_PAIR_TT) {
-        OP_LOGI(opName_, "QuantGroupedMatmulAllToAllvTiling TT mode capable.");
+        OP_LOGI(opName_, "TTQuantGroupedMatmulAllToAllvTiling TT mode capable.");
         return true;
     }
-    OP_LOGI(opName_, "Skip QuantGroupedMatmulAllToAllvTiling TT.");
+    OP_LOGI(opName_, "Skip TTQuantGroupedMatmulAllToAllvTiling TT.");
     return false;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
 {
     auto status = CheckOpInputSingleParamsTensor();
     if (status != ge::GRAPH_SUCCESS) {
@@ -661,7 +661,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 {
     auto gmmQTilingCommonInfoPtr = &localTilingData_.taskTilingInfo;
     gmmQTilingCommonInfoPtr->BSK = localParams_.BsK;
@@ -681,7 +681,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     constexpr uint64_t alignAddrLen = 512;
     auto gmmYDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
@@ -697,7 +697,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
 {
     // 设置公共信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
@@ -722,7 +722,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
 {
     uint32_t alltoAllvCmd = 8U;
     std::string alltoAllvConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
@@ -749,7 +749,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoOpTiling()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::DoOpTiling()
 {
     // 输入参数的校验:Attrs,Dtype,Shape等
     GE_ASSERT_GRAPH_SUCCESS(CheckAndSetInputOutputInfo());
@@ -833,7 +833,7 @@ void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, 
     OP_LOGI(opName_, "QuantGmmA2AvTiling TilingParams:\n%s", ss.str().c_str());
 }
 
-void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData)
+void TTQuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData)
 {
     PrintGmmA2avWorkspaceInfo(outTilingData.workspaceInfo, opName_);
     PrintTaskTilingInfo(outTilingData.taskTilingInfo, localParams_, opName_);
@@ -843,7 +843,7 @@ void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2av
     PrintGMMQuantTilingData(outTilingData.sharedGmmTiling, opName_);
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::PostTiling()
 {
     PrintQuantGmmA2avTilingData(localTilingData_);
     context_->SetBlockDim(localParams_.aicCoreNum);
@@ -867,7 +867,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
@@ -877,7 +877,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
+uint64_t TTQuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 {
     const uint64_t tilingKey = GET_TPL_TILING_KEY(localParams_.hasSharedMm, localParams_.isGmmWeightTrans,
         localParams_.isMmWeightTrans, localParams_.gmmQuantSuit, localParams_.mmQuantSuit);
@@ -888,6 +888,6 @@ uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 }
 
 // 注册tiling类
-REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllvV2, TTQuantGroupedMatmulAllToAllvTiling, 1);
 
 // }

@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef OP_API_INC_QUANT_GROUPED_MATMUL_ALL_TO_ALLV_
-#define OP_API_INC_QUANT_GROUPED_MATMUL_ALL_TO_ALLV_
+#ifndef OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
+#define OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
 
 #include <string>
 
@@ -119,4 +119,4 @@ ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_t
 }
 #endif
 
-#endif // OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_
+#endif // OP_API_INC_GROUPED_MATMUL_ALL_TO_ALLV_V2_
