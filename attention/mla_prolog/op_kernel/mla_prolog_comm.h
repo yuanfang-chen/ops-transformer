@@ -283,6 +283,40 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, C_M, ENABLE_DEQUANT_OPT,
     static constexpr uint32_t cvRatio = CV_RATIO; // 默认C:V 1:2
 };
 
+// 类模板特化，支持hif8全量化
+template <typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
+          EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
+struct MLAPType<hifloat8_t, hifloat8_t, C_T, C_M, ENABLE_DEQUANT_OPT,
+                ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {
+    using mmInputType = hifloat8_t;           // tokenX的类型与weight的类型一致
+    using mmQcQrInputType = hifloat8_t;
+    using mmQnInputType = bfloat16_t;         // matmul计算Qn的输入类型
+    using mmCqOutputType = float; // matmul计算Cq的输出类型
+    using mmCkvKrOutputType = float; // matmul计算CkvKr的输出类型
+    using mmQcQrOutputType = float; // matmul计算QcQr的输出类型
+    using mmQnOutputType = bfloat16_t;        // matmul计算Qn的输出类型
+    using rmsNormGammaType = bfloat16_t;      // gamma的输入类型
+    using rmsNormComputType = float;
+    using rmsNormCqOutputType = hifloat8_t;
+    using rmsNormCkvOutputType = C_T;
+    using ropeSinCosType = bfloat16_t;        // sin cos的输入类型
+    using ropeComputType = float;
+    using ropeOutputType = bfloat16_t;
+    using kvCacheType = C_T;           // kvcache的类型
+    using krCacheType = bfloat16_t;        // krcache的类型
+    using dequantScaleQNopeType = float;      // dequantScaleQNope的类型
+    using dequantScaleQNormType = float;      // dequantScaleQNormType的类型
+    using dequantScaleType = float;
+
+    static constexpr CACHE_MODE cacheMode = C_M;
+    static constexpr bool enableDequantOpt = ENABLE_DEQUANT_OPT;
+    static constexpr bool enableGroupComputeOpt = ENABLE_GROUP_COMPUTE_OPT;
+    static constexpr EMPTY_TENSOR_MODE emptyMode = EMPTY_MODE;
+    static constexpr ACTUAL_SEQ_MODE actualSeqMode = SEQ_MODE;
+    static constexpr bool isPertile = IS_PERTILE;
+    static constexpr uint32_t cvRatio = CV_RATIO; // 默认C:V 1:2
+};
+
 struct MMParams {
   uint32_t m;
   uint32_t n;

@@ -45,7 +45,9 @@ __simd_vf__ void DequantVFImpl (__ubuf__ O* yAddr, __ubuf__ T* xAddr, __ubuf__ C
         for (uint32_t i = 0; i < row; i++) {
             AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregInput, xAddr + colOffset + rowOffset);
             AscendC::MicroAPI::LoadAlign<C, AscendC::MicroAPI::LoadDist::DIST_BRC_B32>(vregScalePerToken, scalePerTokenAddr + scaleOffset);
-            AscendC::MicroAPI::Cast<float, T, castTraitInt32ToFp32>(vregInputFp32, vregInput, fullMask);
+            if constexpr (!std::is_same<T, float>::value) {
+                AscendC::MicroAPI::Cast<float, T, castTraitInt32ToFp32>(vregInputFp32, vregInput, fullMask);
+            }
             AscendC::MicroAPI::Mul(vregInputFp32, vregInputFp32, vregScalePerChannel, fullMask);
             AscendC::MicroAPI::Mul(vregInputFp32, vregInputFp32, vregScalePerToken, fullMask);
             AscendC::MicroAPI::StoreAlign<O, AscendC::MicroAPI::StoreDist::DIST_NORM_B32>(yAddr + colOffset + rowOffset, vregInputFp32, fullMask);
