@@ -165,7 +165,7 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
 
         SetVecMask(ROW_OPS_SPEC_MASK_16);
-        AscendC::WholeReduceSum<half, false>(
+        AscendC::WholeReduceSum<float, false>(
             rowsumUb,
             tvUbTensor[REDUCE_UB_SIZE],
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
@@ -337,7 +337,7 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
 
         SetVecMask(ROW_OPS_SPEC_MASK_16);
-        AscendC::WholeReduceMax<half, false>(
+        AscendC::WholeReduceMax<float, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
