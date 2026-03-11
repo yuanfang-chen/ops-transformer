@@ -1,6 +1,6 @@
 # PromptFlashAttention with block-sparsity support
 
-This kernel is a modifies of the PromptFlashAttentionV3, introduced as PromptFlashAttentionV4, by adding a new argument "sabi_tensor" to enable block sparse attention computation during prefill. We provide a torch interface to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabiTensor argument can be found in [docs/aclnnPromptFlashAttentionV4.md](docs/aclnnPromptFlashAttentionV4.md)
+This kernel is a modifies of the PromptFlashAttentionV3, introduced as PromptFlashAttentionV4, by adding a new argument "sabi_tensor" to enable block sparse attention computation during prefill. We provide a **torch interface** to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabiTensor argument can be found in [docs/aclnnPromptFlashAttentionV4.md](docs/aclnnPromptFlashAttentionV4.md)
 
 ## Quick test and benchmark in python:
 build the kernel as a custom experimental package, install it, then install our "torch_pfa" torch interface package
@@ -12,28 +12,28 @@ bash build.sh --make_clean --experimental -j96 --pkg --soc=ascend910b --ops=prom
 test and benchmark run times:
 ```shell
 cd experimental/attention/prompt_flash_attention/benchmark
-pytest test.py # correctness tests for sequence lengths 10k-20k 1-4 attention heads
+pytest test.py # correctness tests for sequence lengths 10k-30k 1-4 attention heads, compares our block-sparse PFA against npu_fusion_attention kernel and our own python implementation
 python benchmark.py # performance benchmarking - check the constant inputs shapes defined in the script
 ```
 
 The test should be all green, and the benchmark result on Ascend910B2 should be:
 ```shell
-============================================================================================================================================
+==========================================================================================
   DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'  ATTENTION_MATRIX='blocks_optimized_batched'
-============================================================================================================================================
-  H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]  Ref_BW_[TB/sec]  Our_BW_[TB/sec]
---------------------------------------------------------------------------------------------------------------------------------------------
-  3   1 118806 118806  128      0.00             yes          155943.42          169732.65            0.002            0.002
-  3   1 118806 118806  128      0.10             N/A                N/A          150703.21              N/A            0.002
-  3   1 118806 118806  128      0.20             N/A                N/A          134570.58              N/A            0.003
-  3   1 118806 118806  128      0.30             N/A                N/A          118403.67              N/A            0.003
-  3   1 118806 118806  128      0.40             N/A                N/A          102711.17              N/A            0.004
-  3   1 118806 118806  128      0.50             N/A                N/A           86022.60              N/A            0.004
-  3   1 118806 118806  128      0.60             N/A                N/A           70152.18              N/A            0.005
-  3   1 118806 118806  128      0.70             N/A                N/A           54201.78              N/A            0.007
-  3   1 118806 118806  128      0.80             N/A                N/A           38237.87              N/A            0.010
-  3   1 118806 118806  128      0.90             N/A                N/A           22129.09              N/A            0.016
-============================================================================================================================================
+==========================================================================================
+  H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]
+------------------------------------------------------------------------------------------
+  3   1 118806 118806  128      0.00             yes          155943.42          169732.65
+  3   1 118806 118806  128      0.10             N/A                N/A          150703.21
+  3   1 118806 118806  128      0.20             N/A                N/A          134570.58
+  3   1 118806 118806  128      0.30             N/A                N/A          118403.67
+  3   1 118806 118806  128      0.40             N/A                N/A          102711.17
+  3   1 118806 118806  128      0.50             N/A                N/A           86022.60
+  3   1 118806 118806  128      0.60             N/A                N/A           70152.18
+  3   1 118806 118806  128      0.70             N/A                N/A           54201.78
+  3   1 118806 118806  128      0.80             N/A                N/A           38237.87
+  3   1 118806 118806  128      0.90             N/A                N/A           22129.09
+==========================================================================================
 ```
 more explanation about benchmarking is [here](benchmark/README.md). 
 
@@ -58,7 +58,7 @@ out = torch_pfa.npu_prompt_flash_attention(
 ```
 
 ## Kernel integration plan
-if this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention
+If this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention. Its source code is based on attention/prompt_flash_attention taken from git commit a574b5d71faa7c360934a6c7d1b4aa85e1a49147
 
 ## 产品支持情况
 

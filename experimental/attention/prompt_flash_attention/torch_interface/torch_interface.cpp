@@ -45,7 +45,6 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
     }
     
     aclDataType dtype = get_acl_dtype(tensor);
-    // void* data_ptr = tensor.storage().data_ptr().get();
     void* data_ptr = tensor.data_ptr();
     
     return aclCreateTensor(shape.data(), shape.size(), dtype, strides.data(), 0, 
