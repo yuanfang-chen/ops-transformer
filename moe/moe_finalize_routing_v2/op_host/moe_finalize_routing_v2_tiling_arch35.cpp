@@ -131,13 +131,13 @@ protected:
     int64_t hAligned{0};
     int64_t dim0OfExpandedX{0};
     // 新增判断零专家、拷贝专家以及常量专家的范围
-    int64_t zeroExpertStart{0};
-    int64_t zeroExpertEnd{0};
-    int64_t copyExpertStart{0};
-    int64_t copyExpertEnd{0};
-    int64_t constantExpertStart{0};
-    int64_t constantExpertEnd{0};
-    int64_t constExpertRangeNum{0};
+    int64_t zeroExpertStart{-1};
+    int64_t zeroExpertEnd{-1};
+    int64_t copyExpertStart{-1};
+    int64_t copyExpertEnd{-1};
+    int64_t constantExpertStart{-1};
+    int64_t constantExpertEnd{-1};
+    int64_t constExpertRangeNum{-1};
     MoeFinalizeRoutingV2RegbaseTilingData* tilingData{nullptr};
 };
 
@@ -468,16 +468,18 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
 
     // 判断x的shape信息要与（ROW_NUM, H）一致
     auto xDesc = context_->GetOptionalInputDesc(X_IDX);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, xDesc);
-    auto xShape = context_->GetOptionalInputShape(X_IDX);
-    OP_CHECK_IF(
-        xDesc->GetDataType() != dtype,
-        OP_LOGE(context_->GetNodeName(), "dtype of x is invalid."),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        xShape->GetStorageShape() != bsh,
-        OP_LOGE(context_->GetNodeName(), "shape of x must be (bs,h)."),
-        return ge::GRAPH_FAILED);
+    if (xDesc) {
+        auto xShape = context_->GetOptionalInputShape(X_IDX);
+        OP_CHECK_IF(
+            xDesc->GetDataType() != dtype,
+            OP_LOGE(context_->GetNodeName(), "dtype of x is invalid."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            xShape->GetStorageShape() != bsh,
+            OP_LOGE(context_->GetNodeName(), "shape of x must be (bs,h)."),
+            return ge::GRAPH_FAILED);
+    }
+
 
     auto yDesc = context_->GetOutputDesc(0);
     OP_CHECK_NULL_WITH_CONTEXT(context_, yDesc);
@@ -510,39 +512,32 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
         return ge::GRAPH_FAILED);
 
     const auto *zeroPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_ZERO_EXPERT_RANGE);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, zeroPtr);
-    int64_t zeroLen = zeroPtr->GetSize();
-    OP_CHECK_IF(zeroLen != 2,
-                OP_LOGE(context_, "The list length of zero_expert_range should be 2, current is %ld.", zeroLen),
-                return ge::GRAPH_FAILED);
-    const int64_t *zeroList = reinterpret_cast<const int64_t *>(zeroPtr->GetData());
-    zeroExpertStart = zeroList[0];
-    zeroExpertEnd = zeroList[1];
-    OP_LOGD(context_, "Extracted input attrs zeroExpertStart = %ld, zeroExpertEnd = %ld.",
-        zeroExpertStart, zeroExpertEnd);
+    if (zeroPtr != nullptr && zeroPtr->GetSize() == 2) {
+        const int64_t *zeroList = reinterpret_cast<const int64_t *>(zeroPtr->GetData());
+        zeroExpertStart = zeroList[0];
+        zeroExpertEnd = zeroList[1];
+        OP_LOGD(context_, "Extracted input attrs zeroExpertStart = %ld, zeroExpertEnd = %ld.",
+            zeroExpertStart, zeroExpertEnd);
+    }
+
     const auto *copyPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_COPY_EXPERT_RANGE);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, copyPtr);
-    int64_t copyLen = copyPtr->GetSize();
-    OP_CHECK_IF(copyLen != 2,
-                OP_LOGE(context_, "The list length of copy_expert_range should be 2, current is %ld.", copyLen),
-                return ge::GRAPH_FAILED);
-    const int64_t *copyList = reinterpret_cast<const int64_t *>(copyPtr->GetData());
-    copyExpertStart = copyList[0];
-    copyExpertEnd = copyList[1];
-    OP_LOGD(context_, "Extracted input attrs copyExpertStart = %ld, copyExpertEnd = %ld.",
-        copyExpertStart, copyExpertEnd);
+    if (copyPtr != nullptr && copyPtr->GetSize() == 2) {
+        const int64_t *copyList = reinterpret_cast<const int64_t *>(copyPtr->GetData());
+        copyExpertStart = copyList[0];
+        copyExpertEnd = copyList[1];
+        OP_LOGD(context_, "Extracted input attrs copyExpertStart = %ld, copyExpertEnd = %ld.",
+            copyExpertStart, copyExpertEnd);
+    }
+
     const auto *constantPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_CONSTANT_EXPERT_RANGE);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, constantPtr);
-    int64_t conLen = constantPtr->GetSize();
-    OP_CHECK_IF(conLen != 2,
-                OP_LOGE(context_, "The list length of constant_expert_range should be 2, current is %ld.", conLen),
-                return ge::GRAPH_FAILED);
-    const int64_t *conList = reinterpret_cast<const int64_t *>(constantPtr->GetData());
-    constantExpertStart = conList[0];
-    constantExpertEnd = conList[1];
-    OP_LOGD(context_, "Extracted input attrs constantExpertStart = %ld, constantExpertEnd = %ld.",
-        constantExpertStart, constantExpertEnd);
-    
+    if (constantPtr != nullptr && constantPtr->GetSize() == 2) {
+        const int64_t *constList = reinterpret_cast<const int64_t *>(constantPtr->GetData());
+        constantExpertStart = constList[0];
+        constantExpertEnd = constList[1];
+        OP_LOGD(context_, "Extracted input attrs constantExpertStart = %ld, constantExpertEnd = %ld.",
+            constantExpertStart, constantExpertEnd);
+    }
+
     // 输入数据
     auto expandedXDesc = context_->GetInputDesc(EXPANDED_X_IDX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, expandedXDesc);
