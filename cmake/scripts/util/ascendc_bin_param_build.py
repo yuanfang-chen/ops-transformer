@@ -356,6 +356,7 @@ class BinParamBuilder(opdesc_parser.OpDesc):
         if not ci_mode_flag:
             check_result += f"""
 if [ $? -ne 0 ]; then
+    echo "${{res}}"
     on_failure 
     exit 1
 else
@@ -365,11 +366,12 @@ fi
         if ci_mode_flag:
             check_result += f"""
 if [ $? -ne 0 ]; then
-    echo "{self.op_intf} {bin_file}" >> failed_ops.log
+    echo "${{res}}"
+    echo "{{self.op_intf}} {{bin_file}}" >> failed_ops.log
     exit 1
 else
     echo "${{res}}"
-    echo "{self.op_intf} {bin_file}" >> success_ops.log
+    echo "{{self.op_intf}} {{bin_file}}" >> success_ops.log
 fi
 """
             check_result += const_var.CHK_CMD.format(res_file=bin_file + '.json')
@@ -380,15 +382,17 @@ fi
             check_result += const_var.CHK_CMD.format(res_file=bin_file + '.o')
         else:
             check_result += "if [ $? -eq 1 ]; then\n"
-            check_result += "    if echo \"${res}\" | \
-grep -q \"None of the given tiling keys are in the supported list\"; then\n"
+            check_result += "    if echo \"${res}\" | grep -q \"None of the given tiling keys are in the supported list\"; then\n"
             check_result += "        echo \"${res}\"\n"
             check_result += "    else\n"
             check_result += "        echo \"${res}\"\n"
             check_result += "        exit 1\n"
             check_result += "    fi\n"
+            check_result += "elif [ $? -ne 0 ]; then\n"
+            check_result += "    echo \"${res}\"\n"
+            check_result += "    exit 1\n"
             check_result += "else\n"
-            check_result += "echo \"${res}\"\n"
+            check_result += "    echo \"${res}\"\n"
             check_result += const_var.CHK_CMD.format(res_file=bin_file + '.json')
             check_result += const_var.CHK_CMD.format(res_file=bin_file + '.o')
             check_result += "fi\n"
