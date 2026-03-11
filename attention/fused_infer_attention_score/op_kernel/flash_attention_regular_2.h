@@ -226,11 +226,7 @@ namespace SplitFuse {
             uint32_t curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile); // 1
             uint32_t curTotalTaskNum = firstBatchTaskNum;
 
-            bool isLastStackTile = false;
-
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
-                isLastStackTile = false;
-
                 while (taskIdx >= curTotalTaskNum) {
                     ++curBatch;
                     preTotalTaskNum = curTotalTaskNum;
