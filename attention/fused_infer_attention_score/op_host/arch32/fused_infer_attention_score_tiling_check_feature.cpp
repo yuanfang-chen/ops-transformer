@@ -211,13 +211,6 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
         return ge::GRAPH_SUCCESS;
     }
     if (fiaInfo_.s1Size > 1) {
-        OP_CHECK_IF(
-            (fiaInfo_.sparseMode == SPARSE_MODE_BAND && (fiaInfo_.preToken < 0 || fiaInfo_.nextToken < 0)),
-            OPS_REPORT_VECTOR_INNER_ERR(
-                opName_,
-                "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
-                fiaInfo_.preToken, fiaInfo_.nextToken),
-            return ge::GRAPH_FAILED);
         bool checkPostQuantOffset =
             (fiaInfo_.outputType == ge::DT_INT8) &&
             (opParamInfo_.quantOffset2.tensor != nullptr && opParamInfo_.quantOffset2.desc != nullptr) &&
