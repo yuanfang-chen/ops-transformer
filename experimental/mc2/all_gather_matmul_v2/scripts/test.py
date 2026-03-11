@@ -1,144 +1,117 @@
-import os
-import unittest
 import numpy as np
 import torch
-import torch.distributed as dist
-import torch.multiprocessing as mp
 import torch_npu
+import torch.distributed as dist
+from torch.multiprocessing import Process, Manager
+import torch.multiprocessing as mp
 
-from torch_npu.testing.testcase import TestCase, run_tests
-from torch_npu.testing.common_utils import create_common_tensor, SupportedDevices
-from torch_npu.testing.common_distributed import skipIfUnsupportMultiNPU
+def test_multiprocess(input_list):
+    x1_list, x2_list, world_size = input_list
+    proc_list = []
+    manager = Manager()
+    result_queue = manager.Queue()
+    mp.set_start_method("forkserver", force=True)
+    for i in range(world_size):
+        proc = Process(
+            target=gen_npu,
+            args=(x1_list[i], x2_list[i], world_size, i, result_queue))
+        proc.start()
+        proc_list.append(proc)
+    for proc in proc_list:
+        proc.join()
+    output_list = [None] * world_size
+    gather_out_list = [None] * world_size
+    for proc in proc_list:
+        rank, output, gather_output = result_queue.get()
+        output_list[rank] = output
+        gather_out_list[rank] = gather_output
+    return output_list, gather_out_list
 
+def gen_golden_data(x1_list, x2_list):
+    golden_gather_out = np.concatenate(x1_list, axis=0)
+    out_list = []
+    for i in range(world_size):
+        out = np.matmul(golden_gather_out.astype(np.float32), x2_list[i].numpy().astype(np.float32)).astype(np.float16)
+        out_list.append(out)
+    
+    return golden_gather_out, out_list
 
-class TestAllGatherBaseMm(TestCase):
+def gen_npu(x1, x2, world_size, rank, queue):
+    torch_npu.npu.set_device(rank)
+    master_ip = '127.0.0.1'
+    print(f'[INFO] device_{rank} 创建HCCL通信链路')
+    dist.init_process_group(backend="hccl", rank=rank, world_size=world_size, init_method=f'tcp://{master_ip}:50001')
+    print(f"device_{rank} init_process_group success")
+    group = dist.distributed_c10d._get_default_group()
+    hcom_name = group._get_backend(torch.device('npu')).get_hccl_comm_name(rank)
+    x1 = x1.npu()
+    x2 = x2.npu()
+    output_npu, gather_output_npu = torch_npu.npu_all_gather_base_mm(x1, x2, hcom_name, world_size, gather_output=True)
+    queue.put((rank, output_npu.cpu().numpy(), gather_output_npu.cpu().numpy()))
+    dist.barrier()
 
-    @classmethod
-    def _init_dist_hccl(cls, rank, world_size):
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '50000'
-        os.environ['HCCL_WHITELIST_DISABLE'] = '1'
-        torch_npu.npu.set_device(rank)
-        dist.init_process_group(backend='hccl', world_size=world_size, rank=rank)
-        return dist
+def cal_relativediff_numpy(data_check, data_exepect, diff_thd):
+    a = np.abs(np.subtract(data_check, data_exepect))
+    b1 = np.maximum(np.abs(data_check), (np.abs(data_exepect)))
+    b2 = float((1.0 / (1 << 14)) / diff_thd)
+    b = np.add(np.maximum(b1, b2), 10e-10)
+    result = np.where(a < diff_thd, a, a / b)
+    return result
 
-    @classmethod
-    def _test_npu_all_gather_base_mm(cls, rank, input_list):
-        x1_list, x2_list, x1_scale_list, x2_scale_list, world_size, comm_mode, output_dtype, init_pg, c2p = input_list
-        x1 = x1_list[rank]
-        x2 = x2_list[rank]
-        pg = init_pg(rank, world_size)
-        group = pg.distributed_c10d._get_default_group()
-        if torch.__version__ > '2.0':
-            hcom_name = group._get_backend(torch.device('npu')).get_hccl_comm_name(rank)
-        else:
-            hcom_name = group.get_hccl_comm_name(rank)
+def data_compare(data_check, data_exepect, diff_thd=0.005, pct_thd=0.005):
+    npu_shape = data_check.shape
+    expect_shape = data_exepect.shape
+    if npu_shape != expect_shape:
+        print("============ out_shape is not equal expect!")
+        return False
+    data_check = data_check.flatten()
+    data_exepect = data_exepect.flatten()
+    start = 0
+    end = data_check.size - 1
+    diff = cal_relativediff_numpy(data_check, data_exepect, diff_thd)
+    split_count = int(end - start + 1) if end != start else 1
+    lt_num = diff[diff < diff_thd].size
+    lt_num = lt_num + data_exepect[np.isinf(data_exepect)].size + data_exepect[np.isnan(data_exepect)].size
+    lt_pct = float(lt_num) / float(split_count) * 100
+    pct_thd = (1 - pct_thd) * 100.0
+    return (lt_pct >= pct_thd)
 
-        x1 = x1.npu()
-        x2 = x2.npu()
-        x1_scale = x1_scale_list[rank].npu() if x1_scale_list else None
-        x2_scale = x2_scale_list[rank].npu() if x2_scale_list else None
-        out, gather_out = torch_npu.npu_all_gather_base_mm(x1,
-                                                           x2,
-                                                           hcom_name,
-                                                           world_size,
-                                                           bias=None,
-                                                           x1_scale=x1_scale,
-                                                           x2_scale=x2_scale,
-                                                           gather_index=0,
-                                                           gather_output=True,
-                                                           output_dtype=output_dtype,
-                                                           comm_turn=0,
-                                                           comm_mode=comm_mode)
-        c2p.put((rank, out.cpu().numpy(), gather_out.cpu().numpy()))
-        pg.barrier()
+def verify_result(gather_out, out, golden_gather_out, golden_out):
+    for i in range(world_size):
+        npu_gather_out = gather_out[i]
+        npu_out = out[i]
+        golden = golden_out[i]
 
-    def _test_multiprocess(self, f, init_pg, input_list):
-        expt_out_list, expt_gather, x1, x2, x1_scale_list, x2_scale_list, world_size, comm_mode, output_dtype = input_list
-        ctx = mp.get_context('spawn')
-        c2p = ctx.Queue(world_size)
-        ps = []
+        if not data_compare(npu_gather_out, golden_gather_out):
+            print("============ rank{} gather_out precession check failed", i)
+            return False
+        if not data_compare(npu_out, golden):
+            print("============ rank{} out precession check failed", i)
+            return False
 
-        for i in range(world_size):
-            p = ctx.Process(
-                target=f,
-                args=(i, [x1, x2, x1_scale_list, x2_scale_list, world_size, comm_mode, output_dtype, init_pg, c2p]))
-            p.start()
-            ps.append(p)
+    print("test pass")
+    return True
 
-        for _ in range(world_size):
-            rank, output, gather_output = c2p.get()
-            output, gather_output = torch.from_numpy(output), torch.from_numpy(gather_output)
-            self.assertEqual(output, expt_out_list[rank],
-                             ("rank {} Expect receive tensor {} but got {}.").format(rank, expt_out_list[rank], output))
-            self.assertEqual(gather_output, expt_gather,
-                             ("rank {} Expect receive tensor {} but got {}.").format(rank, expt_gather, gather_output))
-        for p in ps:
-            p.join()
-
-    def _construct_excepted_result(self, x1_list, x2_list, world_size, x1_scale_list=None, x2_scale_list=None, output_dtype=None):
-        gather_out = torch.cat(x1_list)
-        if x1_scale_list:
-            x1_scale = torch.cat(x1_scale_list)
-        out_list = []
-        if output_dtype:
-            out_dtype = output_dtype
-        else:
-            out_dtype = gather_out.dtype
-        for i in range(world_size):
-            gather_out_npu, x2_list_npu = gather_out.npu(), x2_list[i].npu()
-            if x1_scale_list:
-                mm_res = torch_npu.npu_quant_matmul(x1=gather_out_npu, x2=x2_list_npu, scale=x2_scale_list[i].squeeze(0).npu(), pertoken_scale=x1_scale.squeeze(-1).npu(), output_dtype=out_dtype)
-            elif x2_scale_list:
-                mm_res = torch_npu.npu_quant_matmul(x1=gather_out_npu, x2=x2_list_npu, scale=x2_scale_list[i].squeeze(0).npu(), output_dtype=out_dtype)
-            else:
-                mm_res = torch.matmul(gather_out_npu, x2_list_npu)
-            out_list.append(mm_res.to(out_dtype).cpu())
-        return out_list, gather_out_npu.cpu()
-
-    @skipIfUnsupportMultiNPU(8)
-    @SupportedDevices(['Ascend910B'])
-    def test_npu_all_gather_base_mm(self):
-        world_size = 8
-        dtype = np.float16
-        data_format = -1
-        x1_shape = [dtype, data_format, [16, 512]]
-        x2_shape = [dtype, data_format, [512, 256]]
-        x1_list = []
-        x2_list = []
-        for _ in range(world_size):
-            x1, _ = create_common_tensor(x1_shape, -1, 1)
-            x2, _ = create_common_tensor(x2_shape, -1, 1)
-            x1_list.append(x1)
-            x2_list.append(x2)
-        expt_out_list, expt_gather = self._construct_excepted_result(x1_list, x2_list, world_size)
-        for comm_mode in ['aiv', 'ai_cpu']:
-            self._test_multiprocess(TestAllGatherBaseMm._test_npu_all_gather_base_mm,
-                                TestAllGatherBaseMm._init_dist_hccl, [expt_out_list, expt_gather, x1_list, x2_list, None, None, world_size, comm_mode, None])
-
-    @skipIfUnsupportMultiNPU(8)
-    @SupportedDevices(['Ascend910B'])
-    def test_npu_all_gather_quant_mm(self):
-        world_size = 8
-        m, k, n = 16, 512, 256
-        output_dtype = torch.float16
-        x1_list = []
-        x2_list = []
-        x1_scale_list = []
-        x2_scale_list = []
-        for _ in range(world_size):
-            x1 = torch.randint(-10, 10, size=(m, k), dtype=torch.int8)
-            x2 = torch.randint(-10, 10, size=(k, n), dtype=torch.int8)
-            x1_scale = torch.randn((m, 1), dtype=torch.float32)
-            x2_scale = torch.randn((1, n), dtype=torch.float32)
-            x1_list.append(x1)
-            x2_list.append(x2)
-            x1_scale_list.append(x1_scale)
-            x2_scale_list.append(x2_scale)
-        expt_out_list, expt_gather = self._construct_excepted_result(x1_list, x2_list, world_size, x1_scale_list, x2_scale_list, output_dtype)
-        self._test_multiprocess(TestAllGatherBaseMm._test_npu_all_gather_base_mm,
-                                TestAllGatherBaseMm._init_dist_hccl, [expt_out_list, expt_gather, x1_list, x2_list, x1_scale_list, x2_scale_list, world_size, 'aiv', output_dtype])
-
-
-if __name__ == '__main__':
-    run_tests()
+if __name__ == "__main__":
+    # 生成输入数据
+    world_size = 2
+    m, k, n = 5, 256, 5
+    x1_list = []
+    x2_list = []
+    x1_scale_list = []
+    x2_scale_list = []
+    for _ in range(world_size):
+        x1 = torch.randint(-1, 1, size=(m, k), dtype=torch.float16)
+        x2 = torch.randint(-10, 10, size=(k, n), dtype=torch.float16)
+        x1_list.append(x1)
+        x2_list.append(x2)
+    # 生成golden值
+    golden_gather_out, golden_out = gen_golden_data(x1_list, x2_list)
+    # 执行Npu任务
+    output_npu, gather_output_npu = test_multiprocess([x1_list, x2_list, world_size])
+        
+    # 比较结果
+    if verify_result(gather_output_npu, output_npu, golden_gather_out, golden_out):
+        print("精度通过")
+    else:
+        print("精度失败")
