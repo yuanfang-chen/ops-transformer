@@ -214,12 +214,6 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
     std::string layout_key(opParamInfo_.layOutKey);
     std::string layout_query(opParamInfo_.layOutQuery);
 
-    OP_CHECK_IF(
-            ((std::string(opParamInfo_.layOutKey) != "PA_BSND")),
-            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND,"
-                        "but now layout_key is %s.", layout_key.c_str()),
-                        return ge::GRAPH_FAILED);
-
     if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B) ||
         (socVersion_ == platform_ascendc::SocVersion::ASCEND910_93)) {
         OP_CHECK_IF(!((*opParamInfo_.sparseCount > 0) && (*opParamInfo_.sparseCount <= SPARSE_LIMIT)),

@@ -169,6 +169,7 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
     //刷-1
     pipe->InitBuffer(outInvalidBuf_, topkCount_ * sizeof(int32_t));
     outInvalidLocal_ = outInvalidBuf_.Get<int32_t>();
+    Duplicate(kScaleUB_, float(0), 2 * s2BaseSize_);
 }
 
 template <typename QLIT>
@@ -343,7 +344,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
                     qScaleGm[weightGmOffset], qwDataCopyExtParams, padQScaleParams);
 
         //kScaleGm  -->  kScaleUB_
-        GetKeyScale(info, kScaleUB_, info.bIdx, curS2Idx, s2BaseSize_);
+        GetKeyScale(info, kScaleUB_, info.bIdx, curS2Idx, info.actualSingleProcessSInnerSize);
         SetFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
         WaitFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
         WaitFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + (info.loop % 2));
@@ -482,10 +483,12 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
             validS2Len = ((int32_t)i + cuRealAcSeq) / static_cast<int32_t>(constInfo_.cmpRatio);
         }
         if (validS2Len <= 0) {
+            WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
             Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>(), neg, topkCount_);
             SetFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
             WaitFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
             AscendC::DataCopyPad(indiceOutGm[info.indiceOutOffset + (curS1Idx + rowIdx) * topkCount_], indicesOutLocal_.ReinterpretCast<int32_t>(), copyOutParams);
+            SetFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
             continue;
         }
 
