@@ -55,8 +55,15 @@ void AlltoAllMM::EstimateKernelTime()
  */
 void AlltoAllMM::SetCommTimeFactor()
 {
-    // A5上的时间因子AlltoAll暂时定义为2
-    commPerf_.ChangeCommTimeFactorByDivision(TWO); // 2x time of factor
+    if (socVersion_ == SocVersion::SOC910_93) {
+ 	    OP_LOGD("AlltoAllMatmul, Current socVersion is SOC910_93.");
+ 	    double commFactor = COMM_TIME_FACTOR + inputRankDim_ / COMM_TIME_FACTOR;
+ 	    commPerf_.ChangeCommTimeFactorByDivision(commFactor);
+ 	} else {
+ 	    OP_LOGD("AlltoAllMatmul, Current socVersion is SOC950.");
+ 	    // A5上的时间因子AlltoAll暂时定义为2
+ 	    commPerf_.ChangeCommTimeFactorByDivision(TWO); // 2x time of factor
+ 	    }
 }
 
 /**
