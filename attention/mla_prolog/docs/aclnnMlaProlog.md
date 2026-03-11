@@ -1,18 +1,19 @@
 # aclnnMlaProlog
 
 **须知：该接口后续版本会废弃，请使用最新接口aclnnMlaPrologV3WeightNz。**
+**说明：`aclnnMlaProlog`和`aclnnMlaPrologGetWorkspaceSize`在Ascend 950上会返回`ACLNN_ERR_RUNTIME_ERROR`。**
 
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 
 ## 功能说明
 
--  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为四路，首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$；第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后传入Cache中得到$k^C$；第四路是输入$x$乘以$W^{KR}$后经过旋转位置编码后传入另一个Cache中得到$k^R$。
+-  **接口功能**：推理场景下，Multi-Head Latent Attention前处理的计算。主要计算过程分为四路：首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$，经过两次上采样后得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（RoPE）得到$q^R$；第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后写入Cache得到$k^C$；第四路是输入$x$乘以$W^{KR}$后经过旋转位置编码，再写入另一个Cache得到$k^R$。
 -  **计算公式**：
 
     RmsNorm公式
@@ -39,7 +40,7 @@
     q^N = q^C \cdot W^{UK}
     $$
 
-    对Query进行ROPE旋转位置编码
+    对Query进行RoPE旋转位置编码
 
     $$
     q^R = ROPE(c^Q \cdot W^{QR})
@@ -55,7 +56,7 @@
     k^C = Cache(c^{KV})
     $$
 
-    对Key进行ROPE旋转位置编码，并将结果存入cache
+    对Key进行RoPE旋转位置编码，并将结果存入Cache
 
     $$
     k^R = Cache(ROPE(x \cdot W^{KR}))
@@ -68,39 +69,39 @@
 
 ```cpp
 aclnnStatus aclnnMlaPrologGetWorkspaceSize(
-  const aclTensor *tokenX, 
-  const aclTensor *weightDq, 
-  const aclTensor *weightUqQr, 
-  const aclTensor *weightUk, 
-  const aclTensor *weightDkvKr, 
-  const aclTensor *rmsnormGammaCq, 
-  const aclTensor *rmsnormGammaCkv, 
-  const aclTensor *ropeSin, 
-  const aclTensor *ropeCos, 
-  const aclTensor *cacheIndex, 
-  aclTensor       *kvCacheRef, 
-  aclTensor       *krCacheRef, 
-  const aclTensor *dequantScaleXOptional, 
-  const aclTensor *dequantScaleWDqOptional, 
-  const aclTensor *dequantScaleWUqQrOptional, 
-  const aclTensor *dequantScaleWDkvKrOptional, 
-  const aclTensor *quantScaleCkvOptional, 
-  const aclTensor *quantScaleCkrOptional, 
-  const aclTensor *smoothScalesCqOptional, 
-  double           rmsnormEpsilonCq, 
-  double           rmsnormEpsilonCkv, 
-  char            *cacheModeOptional, 
-  const aclTensor *queryOut, 
-  const aclTensor *queryRopeOut, 
-  uint64_t        *workspaceSize, 
+  const aclTensor *tokenX,
+  const aclTensor *weightDq,
+  const aclTensor *weightUqQr,
+  const aclTensor *weightUk,
+  const aclTensor *weightDkvKr,
+  const aclTensor *rmsnormGammaCq,
+  const aclTensor *rmsnormGammaCkv,
+  const aclTensor *ropeSin,
+  const aclTensor *ropeCos,
+  const aclTensor *cacheIndex,
+  aclTensor       *kvCacheRef,
+  aclTensor       *krCacheRef,
+  const aclTensor *dequantScaleXOptional,
+  const aclTensor *dequantScaleWDqOptional,
+  const aclTensor *dequantScaleWUqQrOptional,
+  const aclTensor *dequantScaleWDkvKrOptional,
+  const aclTensor *quantScaleCkvOptional,
+  const aclTensor *quantScaleCkrOptional,
+  const aclTensor *smoothScalesCqOptional,
+  double           rmsnormEpsilonCq,
+  double           rmsnormEpsilonCkv,
+  char            *cacheModeOptional,
+  const aclTensor *queryOut,
+  const aclTensor *queryRopeOut,
+  uint64_t        *workspaceSize,
   aclOpExecutor  **executor)
 ```
 
 ``` cpp
 aclnnStatus aclnnMlaProlog(
-  void          *workspace, 
-  uint64_t       workspaceSize, 
-  aclOpExecutor *executor, 
+  void          *workspace,
+  uint64_t       workspaceSize,
+  aclOpExecutor *executor,
   aclrtStream    stream)
 ```
 
@@ -112,8 +113,8 @@ aclnnStatus aclnnMlaProlog(
     |----------------------------|-----------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|------------|---------------------------|-------------------------|
     | tokenX                     | 输入      | 公式中用于计算Query和Key的输入tensor。          | - 支持B=0,S=0,T=0的空Tensor                                                                                                              | BFLOAT16       | ND         | A2、A3输入维度：<br>- BS合轴：(T,He) <br>- BS非合轴：(B,S,He) | ×                       |
     | weightDq                   | 输入      | 公式中用于计算Query的下采样权重矩阵$W^{DQ}$      |  - 不支持空Tensor                                                                                                                         | BFLOAT16       | FRACTAL_NZ | (He,Hcq)             | ×                       |
-    | weightUqQr                 | 输入      | 公式中用于计算Query的上采样权重矩阵$W^{UQ}$和位置编码权重矩阵$W^{QR}$。 |  - 不支持空Tensor <br> dtype为INT8（量化场景）：<br> 1. 需为per-tensor量化输入 <br>2. 非量化输出时必传dequantScaleWUqQrOptional <br>3. 量化输出时必传dequantScaleWUqQrOptional、quantScaleCkvOptional、quantScaleCkrOptional <br>4. smoothScalesCqOptional可选传 <br> dtype为BFLOAT16（非量化场景）： <br>1. dequantScaleWUqQrOptional、quantScaleCkvOptional、quantScaleCkrOptional、smoothScalesCqOptional必须传空指针 | BFLOAT16、INT8 | FRACTAL_NZ | (Hcq,N*(D+Dr))       | ×                       |
-    | weightUk                   | 输入      | 公式中用于计算Key的上采样权重$W^{UK}$。           |  - 不支持空Tensor       | BFLOAT16       | ND         | (N,D,Hckv)           | ×                       |
+    | weightUqQr                 | 输入      | 公式中用于计算Query的上采样权重矩阵$W^{UQ}$和位置编码权重矩阵$W^{QR}$。 |  - 不支持空Tensor <br> dtype为INT8（量化场景）：<br> 1. 需配合dequantScaleWUqQrOptional做per-channel反量化 <br>2. kvCacheRef、krCacheRef均为非量化输出时，quantScaleCkvOptional、quantScaleCkrOptional必须传空指针 <br>3. kvCacheRef、krCacheRef存在量化输出时，需按场景传入对应量化参数 <br>4. smoothScalesCqOptional可选传 <br> dtype为BFLOAT16（非量化场景）：<br>1. dequantScaleWUqQrOptional、quantScaleCkvOptional、quantScaleCkrOptional、smoothScalesCqOptional必须传空指针 | BFLOAT16、INT8 | FRACTAL_NZ | (Hcq,N*(D+Dr))       | ×                       |
+    | weightUk                   | 输入      | 公式中用于生成$q^N$的上采样权重$W^{UK}$。           |  - 不支持空Tensor       | BFLOAT16       | ND         | (N,D,Hckv)           | ×                       |
     | weightDkvKr                | 输入      | 公式中用于计算Key的下采样权重矩阵$W^{DKV}$和位置编码权重矩阵$W^{KR}$。 |  - 不支持空Tensor                                        | BFLOAT16       | FRACTAL_NZ | (He,Hckv+Dr)         | ×                      |
     | rmsnormGammaCq             | 输入      | 计算$c^Q$的RmsNorm公式中的$\gamma$参数。          |  - 不支持空Tensor                                                  | BFLOAT16       | ND         | (Hcq)                | ×                       |
     | rmsnormGammaCkv            | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\gamma$参数。        |  - 不支持空Tensor                                                         | BFLOAT16       | ND         | (Hckv)               | ×                       |
@@ -122,17 +123,17 @@ aclnnStatus aclnnMlaProlog(
     | cacheIndex                 | 输入      | 用于存储kvCache和krCache的索引。                  |  - 支持B=0,S=0,T=0的空Tensor <br> 取值范围需在[0,BlockNum*BlockSize)内                                                                   | INT64          | ND         | A2、A3输入维度：<br>- BS合轴：(T) <br>- BS非合轴：(B,S)      | ×                       |
     | kvCacheRef                 | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。       |  - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0                                                                         | BFLOAT16、INT8 | ND         | (BlockNum,BlockSize,Nkv,Hckv) | ×                       |
     | krCacheRef                 | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$）。 | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0                                                                          | BFLOAT16、INT8 | ND         | (BlockNum,BlockSize,Nkv,Dr) | ×                       |
-    | dequantScaleXOptional      | 输入      | tokenX的反量化参数。  |  - 数据格式支持ND | FLOAT          | ND         | - BS合轴：(T) <br>- BS非合轴：(B*S,1)                          | ×                       |
-    | dequantScaleWDqOptional    | 输入      | weightDq的反量化参数。|  - 数据格式支持ND        | FLOAT          | ND         | (1,Hcq)                         | ×                       |
-    | dequantScaleWUqQrOptional  | 输入      | 用于MatmulQcQr矩阵乘后反量化操作的per-channel参数。 |  - 支持非空Tensor（仅INT8 dtype场景需传）                                                                                                 | FLOAT          | ND         | (1,N*(D+Dr))         | ×                       |
-    | dequantScaleWDkvKrOptional | 输入      | weightDkvKr的反量化参数。 |  - 数据格式支持ND | FLOAT          | ND         |  (1, Hckv+Dr)                        | ×                       |
-    | quantScaleCkvOptional      | 输入      | 用于对kvCache输出数据做量化操作的参数。            |  - 支持非空Tensor（仅INT8 dtype量化输出场景需传）                                                                                         | FLOAT          | ND         | (1,Hckv)             | ×                       |
-    | quantScaleCkrOptional      | 输入      | 用于对krCache输出数据做量化操作的参数。            |  - 支持非空Tensor（仅INT8 dtype量化输出场景需传）                                                                                         | FLOAT          | ND         | (1,Dr)               | ×                       |
-    | smoothScalesCqOptional     | 输入      | 用于对RmsNormCq输出做动态量化操作的参数。         |  - 支持非空Tensor（仅INT8 dtype场景可选传）                                                                                               | FLOAT          | ND         | (1,Hcq)              | ×                       |
+    | dequantScaleXOptional      | 输入      | tokenX的反量化参数。  |  - 仅int8全量化场景需传 <br> - 数据格式支持ND | FLOAT          | ND         | - BS合轴：(T,1) <br>- BS非合轴：(B*S,1)                          | ×                       |
+    | dequantScaleWDqOptional    | 输入      | weightDq的反量化参数。|  - 仅int8全量化场景需传 <br> - 数据格式支持ND        | FLOAT          | ND         | (1,Hcq)                         | ×                       |
+    | dequantScaleWUqQrOptional  | 输入      | 用于MatmulQcQr矩阵乘后反量化操作的per-channel参数。 |  - 仅weightUqQr为INT8时需传                                                                                                 | FLOAT          | ND         | (1,N*(D+Dr))         | ×                       |
+    | dequantScaleWDkvKrOptional | 输入      | weightDkvKr的反量化参数。 |  - 仅int8全量化场景需传 <br> - 数据格式支持ND | FLOAT          | ND         |  (1, Hckv+Dr)                        | ×                       |
+    | quantScaleCkvOptional      | 输入      | 用于对kvCache输出数据做量化操作的参数。            |  - 仅kvCacheRef为INT8输出场景需传                                                                                         | FLOAT          | ND         | (1,Hckv)             | ×                       |
+    | quantScaleCkrOptional      | 输入      | 用于对krCache输出数据做量化操作的参数。            |  - 仅krCacheRef为INT8输出场景需传                                                                                         | FLOAT          | ND         | (1,Dr)               | ×                       |
+    | smoothScalesCqOptional     | 输入      | 用于对RmsNormCq输出做动态量化操作的参数。         |  - 仅INT8量化场景可选传                                                                                               | FLOAT          | ND         | (1,Hcq)              | ×                       |
     | rmsnormEpsilonCq           | 输入      | 计算$c^Q$的RmsNorm公式中的$\epsilon$参数。                  |  - 用户未特意指定时，建议传入1e-05 <br> - 仅支持double类型                                                                                 | DOUBLE         | -          | -                         | -                       |
     | rmsnormEpsilonCkv          | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\epsilon$参数。                |  - 用户未特意指定时，建议传入1e-05 <br> - 仅支持double类型                                                                                 | DOUBLE         | -          | -                         | -                       |
     | cacheModeOptional          | 输入      | 表示kvCache的模式。                                        |  - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - A2、A3可选值为"PA_BSND"、"PA_NZ"                                          | CHAR*          | -          | -                         | -                       |
-    | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$）。             | -                                                                                                                        | BFLOAT16、INT8 | ND         |  A2、A3输入维度：<br>- BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv)  | ×                       |
+    | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$）。             | -                                                                                                                        | BFLOAT16 | ND         |  A2、A3输入维度：<br>- BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv)  | ×                       |
     | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$）。      | -                                                                                                                          | BFLOAT16       | ND         | A2、A3输入维度：<br>- BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)  | ×                       |
     | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。                                  | - 仅用于输出结果，无需输入配置 <br> - 数据类型为uint64_t*                                                                                 | -              | -          | -                         | -                       |
     | executor                   | 输出      | 返回op执行器，包含算子计算流程。                                      |  - 仅用于输出结果，无需输入配置 <br> - 数据类型为aclOpExecutor**                                                                           | -              | -          | -                         | -                       |
@@ -171,6 +172,7 @@ aclnnStatus aclnnMlaProlog(
 - 确定性计算：
   - aclnnMlaProlog默认确定性实现。
 具体说明如下
+- `aclnnMlaProlog`和`aclnnMlaPrologGetWorkspaceSize`在Ascend 950上会返回`ACLNN_ERR_RUNTIME_ERROR`。
 -  shape 格式字段含义说明
     | 字段名       | 英文全称/含义                  | 取值规则与说明                                                                 |
     |--------------|--------------------------------|------------------------------------------------------------------------------|
@@ -186,7 +188,8 @@ aclnnStatus aclnnMlaProlog(
     | BlockNum     | PagedAttention 场景下的块数    | 取值为计算 `B*Skv/BlockSize` 的结果后向上取整（Skv 表示 kv 的序列长度，允许取 0） |
     | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br>                                                          |
     | T            | BS 合轴后的大小                | A2、A3取值范围：0~1048576；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维  |
-- weight_dq，weight_uq_qr，weight_dkv_kr在不转置的情况下各个维度的表示：（k，n）。
+- weightDq、weightUqQr、weightDkvKr在不转置的情况下各个维度的表示为（k，n）。
+- 当前接口仅支持`cacheModeOptional`取值为`"PA_BSND"`或`"PA_NZ"`。
 - aclnnMlaProlog接口支持场景：A2、A3支持以下所有场景
   <table style="table-layout: auto;" border="1">
     <tr>
@@ -196,23 +199,38 @@ aclnnStatus aclnnMlaProlog(
     <tr>
       <td colspan="2">非量化</td>
       <td>
-          入参：所有入参皆为非量化数据 <br> 
-          出参：所有出参皆为非量化数据
+          入参：所有入参均为非量化数据 <br>
+          出参：所有出参均为非量化数据
       </td>
     </tr>
     <tr>
       <td rowspan="2">部分量化</td>
       <td>kv_cache非量化 </td>
       <td>
-          入参：weightUqQr传入pertoken量化数据，其余入参皆为非量化数据 <br> 
-          出参：所有出参返回非量化数据 
+          入参：weightUqQr传入INT8量化权重，并配合dequantScaleWUqQrOptional做per-channel反量化，其余入参均为非量化数据 <br>
+          出参：所有出参均返回非量化数据
       </td>
     </tr>
     <tr>
       <td>kv_cache量化 </td>
-      <td> 
-          入参：weightUqQr传入pertoken量化数据，kvCacheRef、krCacheRef传入perchannel量化数据，其余入参皆为非量化数据 <br> 
-          出参：kvCacheRef、krCacheRef返回perchannel量化数据，其余出参返回非量化数据 
+      <td>
+          入参：weightUqQr传入INT8量化权重并配合dequantScaleWUqQrOptional做per-channel反量化，kvCacheRef、krCacheRef传入per-channel量化数据，其余入参均为非量化数据 <br>
+          出参：kvCacheRef、krCacheRef返回per-channel量化数据，其余出参返回非量化数据
+      </td>
+    </tr>
+    <tr>
+      <td rowspan="2">int8全量化</td>
+      <td>kv_cache非量化</td>
+      <td>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入INT8量化权重并配合反量化参数使用，其余入参均为非量化数据 <br>
+          出参：所有出参均为非量化数据
+      </td>
+    </tr>
+    <tr>
+      <td>kv_cache量化</td>
+      <td>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入INT8量化权重并配合反量化参数使用，kvCacheRef传入per-tensor量化数据，krCacheRef保持非量化，其余入参均为非量化数据 <br>
+          出参：kvCacheRef返回per-tensor量化数据，其余出参返回非量化数据
       </td>
     </tr>
   </table>
@@ -224,12 +242,19 @@ aclnnStatus aclnnMlaProlog(
       <th rowspan="3">参数名</th>
       <th rowspan="2" colspan="2">非量化场景</th>
       <th colspan="4">部分量化场景</th>
+      <th colspan="4">int8全量化场景</th>
     </tr>
     <tr>
       <th colspan="2">kv_cache非量化</th>
       <th colspan="2">kv_cache量化</th>
+      <th colspan="2">kv_cache非量化</th>
+      <th colspan="2">kv_cache量化</th>
     </tr>
     <tr>
+      <th>dtype</th>
+      <th>shape</th>
+      <th>dtype</th>
+      <th>shape</th>
       <th>dtype</th>
       <th>shape</th>
       <th>dtype</th>
@@ -245,195 +270,270 @@ aclnnStatus aclnnMlaProlog(
       <td>· (B,S,He) <br> · (T, He)</td>
       <td>BFLOAT16</td>
       <td>· (B,S,He) <br> · (T, He)</td>
+      <td>INT8</td>
+      <td>· (B,S,He) <br> · (T, He)</td>
+      <td>INT8</td>
+      <td>· (B,S,He) <br> · (T, He)</td>
     </tr>
     <tr>
       <td>weightDq</td>
       <td>BFLOAT16</td>
-      <td> (He, Hcq)</td>
+      <td>(He, Hcq)</td>
       <td>BFLOAT16</td>
-      <td> (He, Hcq)</td>
+      <td>(He, Hcq)</td>
       <td>BFLOAT16</td>
-      <td> (He, Hcq)</td>
+      <td>(He, Hcq)</td>
+      <td>INT8</td>
+      <td>(He, Hcq)</td>
+      <td>INT8</td>
+      <td>(He, Hcq)</td>
     </tr>
     <tr>
       <td>weightUqQr</td>
       <td>BFLOAT16</td>
-      <td> (Hcq, N*(D+Dr))</td>
+      <td>(Hcq, N*(D+Dr))</td>
       <td>INT8</td>
-      <td> (Hcq, N*(D+Dr))</td>
+      <td>(Hcq, N*(D+Dr))</td>
       <td>INT8</td>
-      <td> (Hcq, N*(D+Dr))</td>
+      <td>(Hcq, N*(D+Dr))</td>
+      <td>INT8</td>
+      <td>(Hcq, N*(D+Dr))</td>
+      <td>INT8</td>
+      <td>(Hcq, N*(D+Dr))</td>
     </tr>
     <tr>
       <td>weightUk</td>
       <td>BFLOAT16</td>
-      <td> (N, D, Hckv)</td>
+      <td>(N, D, Hckv)</td>
       <td>BFLOAT16</td>
-      <td> (N, D, Hckv)</td>
+      <td>(N, D, Hckv)</td>
       <td>BFLOAT16</td>
-      <td> (N, D, Hckv)</td>
+      <td>(N, D, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(N, D, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(N, D, Hckv)</td>
     </tr>
     <tr>
       <td>weightDkvKr</td>
       <td>BFLOAT16</td>
-      <td> (He, Hckv+Dr)</td>
+      <td>(He, Hckv+Dr)</td>
       <td>BFLOAT16</td>
-      <td> (He, Hckv+Dr)</td>
+      <td>(He, Hckv+Dr)</td>
       <td>BFLOAT16</td>
-      <td> (He, Hckv+Dr)</td>
-    </tr>
-    <tr>
-      <td> rmsnormGammaCq </td>
-      <td>BFLOAT16</td>
-      <td> (Hcq)</td>
-      <td>BFLOAT16</td>
-      <td> (Hcq)</td>
-      <td>BFLOAT16</td>
-      <td> (Hcq)</td>
-    </tr>
-    <tr>
-      <td> rmsnormGammaCkv </td>
-      <td>BFLOAT16</td>
-      <td> (Hckv)</td>
-      <td>BFLOAT16</td>
-      <td> (Hckv)</td>
-      <td>BFLOAT16</td>
-      <td> (Hckv)</td>
-    </tr>
-    <tr>
-      <td> ropeSin </td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-    </tr>
-    <tr>
-      <td> ropeCos </td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-      <td>BFLOAT16</td>
-      <td> · (B,S,Dr) <br> · (T, Dr )</td>
-    </tr>
-    <tr>
-      <td> cacheIndex </td>
-      <td>INT64</td>
-      <td> · (B,S) <br> · (T)</td>
-      <td>INT64</td>
-      <td> · (B,S) <br> · (T)</td>
-      <td>INT64</td>
-      <td> · (B,S) <br> · (T)</td>
-    </tr>
-    <tr>
-      <td> kvCacheRef </td>
-      <td>BFLOAT16</td>
-      <td> (BlockNum, BlockSize, Nkv, Hckv)</td>
-      <td>BFLOAT16</td>
-      <td> (BlockNum, BlockSize, Nkv, Hckv)</td>
+      <td>(He, Hckv+Dr)</td>
       <td>INT8</td>
-      <td> (BlockNum, BlockSize, Nkv, Hckv)</td>
-    </tr>
-    <tr>
-      <td> krCacheRef </td>
-      <td>BFLOAT16</td>
-      <td> (BlockNum, BlockSize, Nkv, Dr)</td>
-      <td>BFLOAT16</td>
-      <td> (BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>(He, Hckv+Dr)</td>
       <td>INT8</td>
-      <td> (BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>(He, Hckv+Dr)</td>
     </tr>
     <tr>
-      <td> dequantScaleXOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-    </tr>
-    <tr>
-      <td> dequantScaleWDqOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-    </tr>
-    <tr>
-      <td> dequantScaleWUqQrOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>FLOAT</td>
-      <td> (1, N*(D+Dr)) </td>
-      <td>FLOAT</td>
-      <td> (1, N*(D+Dr)) </td>
-    </tr>
-    <tr>
-      <td> dequantScaleWDkvKrOptional </td>
-      <td> 无需赋值 </td>
-      <td> / </td>
-      <td> 无需赋值 </td>
-      <td> / </td>
-      <td> 无需赋值 </td>
-      <td> / </td>
-    </tr>
-    <tr>
-      <td> quantScaleCkvOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>FLOAT</td>
-      <td> (1, Hckv) </td>
-    </tr>
-    <tr>
-      <td> quantScaleCkrOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>FLOAT</td>
-      <td> (1, Dr) </td>
-    </tr>
-    <tr>
-      <td> smoothScalesCqOptional </td>
-      <td>无需赋值</td>
-      <td> / </td>
-      <td>FLOAT</td>
-      <td> (1, Hcq) </td>
-      <td>FLOAT</td>
-      <td> (1, Hcq) </td>
-    </tr>
-    <tr>
-      <td> queryOut </td>
+      <td>rmsnormGammaCq</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>(Hcq)</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>(Hcq)</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>(Hcq)</td>
+      <td>BFLOAT16</td>
+      <td>(Hcq)</td>
+      <td>BFLOAT16</td>
+      <td>(Hcq)</td>
     </tr>
     <tr>
-      <td> queryRopeOut </td>
+      <td>rmsnormGammaCkv</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>(Hckv)</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>(Hckv)</td>
       <td>BFLOAT16</td>
-      <td> · (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>(Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(Hckv)</td>
     </tr>
     <tr>
-      <td> dequantScaleQNopeOutOptional </td>
+      <td>ropeSin</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+    </tr>
+    <tr>
+      <td>ropeCos</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B,S,Dr) <br> · (T, Dr)</td>
+    </tr>
+    <tr>
+      <td>cacheIndex</td>
+      <td>INT64</td>
+      <td>· (B,S) <br> · (T)</td>
+      <td>INT64</td>
+      <td>· (B,S) <br> · (T)</td>
+      <td>INT64</td>
+      <td>· (B,S) <br> · (T)</td>
+      <td>INT64</td>
+      <td>· (B,S) <br> · (T)</td>
+      <td>INT64</td>
+      <td>· (B,S) <br> · (T)</td>
+    </tr>
+    <tr>
+      <td>kvCacheRef</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Hckv)</td>
+      <td>INT8</td>
+      <td>(BlockNum, BlockSize, Nkv, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Hckv)</td>
+      <td>INT8</td>
+      <td>(BlockNum, BlockSize, Nkv, Hckv)</td>
+    </tr>
+    <tr>
+      <td>krCacheRef</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>INT8</td>
+      <td>(BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>(BlockNum, BlockSize, Nkv, Dr)</td>
+    </tr>
+    <tr>
+      <td>dequantScaleXOptional</td>
       <td>无需赋值</td>
       <td>/</td>
       <td>无需赋值</td>
       <td>/</td>
       <td>无需赋值</td>
       <td>/</td>
+      <td>FLOAT</td>
+      <td>· (B*S, 1) <br> · (T, 1)</td>
+      <td>FLOAT</td>
+      <td>· (B*S, 1) <br> · (T, 1)</td>
+    </tr>
+    <tr>
+      <td>dequantScaleWDqOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+    </tr>
+    <tr>
+      <td>dequantScaleWUqQrOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, N*(D+Dr))</td>
+      <td>FLOAT</td>
+      <td>(1, N*(D+Dr))</td>
+      <td>FLOAT</td>
+      <td>(1, N*(D+Dr))</td>
+      <td>FLOAT</td>
+      <td>(1, N*(D+Dr))</td>
+    </tr>
+    <tr>
+      <td>dequantScaleWDkvKrOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Hckv+Dr)</td>
+      <td>FLOAT</td>
+      <td>(1, Hckv+Dr)</td>
+    </tr>
+    <tr>
+      <td>quantScaleCkvOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Hckv)</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Hckv)</td>
+    </tr>
+    <tr>
+      <td>quantScaleCkrOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Dr)</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>无需赋值</td>
+      <td>/</td>
+    </tr>
+    <tr>
+      <td>smoothScalesCqOptional</td>
+      <td>无需赋值</td>
+      <td>/</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+      <td>FLOAT</td>
+      <td>(1, Hcq)</td>
+    </tr>
+    <tr>
+      <td>queryOut</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Hckv) <br> · (T, N, Hckv)</td>
+    </tr>
+    <tr>
+      <td>queryRopeOut</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Dr) <br> · (T, N, Dr)</td>
+      <td>BFLOAT16</td>
+      <td>· (B, S, N, Dr) <br> · (T, N, Dr)</td>
     </tr>
   </table>
   </div>
@@ -450,19 +550,19 @@ aclnnStatus aclnnMlaProlog(
   #include <vector>
   #include "acl/acl.h"
   #include "aclnnop/aclnn_mla_prolog.h"
-  
+
   #define CHECK_RET(cond, return_expr) \
     do {                               \
       if (!(cond)) {                   \
         return_expr;                   \
       }                                \
     } while (0)
-  
+
   #define LOG_PRINT(message, ...)     \
     do {                              \
       printf(message, ##__VA_ARGS__); \
     } while (0)
-  
+
   int64_t GetShapeSize(const std::vector<int64_t>& shape) {
       int64_t shape_size = 1;
       for (auto i : shape) {
@@ -470,7 +570,7 @@ aclnnStatus aclnnMlaProlog(
       }
       return shape_size;
   }
-  
+
   int Init(int32_t deviceId, aclrtStream* stream) {
       // 固定写法，资源初始化
       auto ret = aclInit(nullptr);
@@ -481,7 +581,7 @@ aclnnStatus aclnnMlaProlog(
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateStream failed. ERROR: %d\n", ret); return ret);
       return 0;
   }
-  
+
   template <typename T>
   int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                       aclDataType dataType, aclTensor** tensor) {
@@ -500,7 +600,7 @@ aclnnStatus aclnnMlaProlog(
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
       return 0;
   }
-  
+
   template <typename T>
   int CreateAclTensorNZ(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                       aclDataType dataType, aclTensor** tensor) {
@@ -519,7 +619,7 @@ aclnnStatus aclnnMlaProlog(
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
       return 0;
   }
-  
+
   int TransToNZShape(std::vector<int64_t> &shapeND) {
       int64_t inputParam1 = shapeND[0];
       int64_t inputParam2 = shapeND[1];
@@ -532,7 +632,7 @@ aclnnStatus aclnnMlaProlog(
       shapeND.emplace_back(h0);
       return 0;
   }
-  
+
   int main() {
       // 1. 固定写法，device/stream初始化, 参考AscendCL对外接口列表
       // 根据实际device填写deviceId
@@ -559,7 +659,7 @@ aclnnStatus aclnnMlaProlog(
       double rmsnormEpsilonCq = 1e-5;
       double rmsnormEpsilonCkv = 1e-5;
       char cacheMode[] = "PA_BSND";
-  
+
       void* tokenXDeviceAddr = nullptr;
       void* weightDqDeviceAddr = nullptr;
       void* weightUqQrDeviceAddr = nullptr;
@@ -574,7 +674,7 @@ aclnnStatus aclnnMlaProlog(
       void* krCacheDeviceAddr = nullptr;
       void* queryDeviceAddr = nullptr;
       void* queryRopeDeviceAddr = nullptr;
-  
+
       void* tokenXHostAddr = nullptr;
       void* weightDqHostAddr = nullptr;
       void* weightUqQrHostAddr = nullptr;
@@ -589,7 +689,7 @@ aclnnStatus aclnnMlaProlog(
       void* krCacheHostAddr = nullptr;
       void* queryHostAddr = nullptr;
       void* queryRopeHostAddr = nullptr;
-  
+
       aclTensor* tokenX = nullptr;
       aclTensor* weightDq = nullptr;
       aclTensor* weightUqQr = nullptr;
@@ -604,7 +704,7 @@ aclnnStatus aclnnMlaProlog(
       aclTensor* krCache = nullptr;
       aclTensor* query = nullptr;
       aclTensor* queryRope = nullptr;
-  
+
       // 转换三个NZ格式变量的shape
       ret = TransToNZShape(weightDqShape);
       CHECK_RET(ret == 0, LOG_PRINT("trans NZ shape failed.\n"); return ret);
@@ -612,7 +712,7 @@ aclnnStatus aclnnMlaProlog(
       CHECK_RET(ret == 0, LOG_PRINT("trans NZ shape failed.\n"); return ret);
       ret = TransToNZShape(weightDkvKrShape);
       CHECK_RET(ret == 0, LOG_PRINT("trans NZ shape failed.\n"); return ret);
-  
+
       // 创建tokenX aclTensor
       ret = CreateAclTensorND(tokenXShape, &tokenXDeviceAddr, &tokenXHostAddr, aclDataType::ACL_BF16, &tokenX);
       CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -655,7 +755,7 @@ aclnnStatus aclnnMlaProlog(
       // 创建queryRope aclTensor
       ret = CreateAclTensorND(queryRopeShape, &queryRopeDeviceAddr, &queryRopeHostAddr, aclDataType::ACL_BF16, &queryRope);
       CHECK_RET(ret == ACL_SUCCESS, return ret);
-  
+
       // 3. 调用CANN算子库API，需要修改为具体的API
       uint64_t workspaceSize = 0;
       aclOpExecutor* executor = nullptr;
@@ -671,18 +771,18 @@ aclnnStatus aclnnMlaProlog(
       // 调用aclnnMlaProlog第二段接口
       ret = aclnnMlaProlog(workspaceAddr, workspaceSize, executor, stream);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnMlaProlog failed. ERROR: %d\n", ret); return ret);
-  
+
       // 4. 固定写法，同步等待任务执行结束
       ret = aclrtSynchronizeStream(stream);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
-  
+
       // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
       auto size = GetShapeSize(queryShape);
       std::vector<float> resultData(size, 0);
       ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), queryDeviceAddr, size * sizeof(float),
                         ACL_MEMCPY_DEVICE_TO_HOST);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
-  
+
       // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改
       aclDestroyTensor(tokenX);
       aclDestroyTensor(weightDq);
@@ -698,7 +798,7 @@ aclnnStatus aclnnMlaProlog(
       aclDestroyTensor(krCache);
       aclDestroyTensor(query);
       aclDestroyTensor(queryRope);
-  
+
       // 7. 释放device 资源
       aclrtFree(tokenXDeviceAddr);
       aclrtFree(weightDqDeviceAddr);
@@ -714,7 +814,7 @@ aclnnStatus aclnnMlaProlog(
       aclrtFree(krCacheDeviceAddr);
       aclrtFree(queryDeviceAddr);
       aclrtFree(queryRopeDeviceAddr);
-  
+
       // 8. 释放host 资源
       aclrtFree(tokenXHostAddr);
       aclrtFree(weightDqHostAddr);
@@ -730,17 +830,16 @@ aclnnStatus aclnnMlaProlog(
       aclrtFree(krCacheHostAddr);
       aclrtFree(queryHostAddr);
       aclrtFree(queryRopeHostAddr);
-  
+
       if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
       }
       aclrtDestroyStream(stream);
       aclrtResetDevice(deviceId);
       aclFinalize();
-  
+
       return 0;
   }
   ```
-
 
 

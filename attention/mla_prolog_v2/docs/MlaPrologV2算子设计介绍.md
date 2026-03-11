@@ -15,25 +15,25 @@
 
 按照Multi-Head Latent Attention定义的计算流程实现，整体计算流程如下：
 
-1. 输入序列x经过下采样$W^{DQ}$矩阵进行降秩变化，并进行归一化处理得到$c^Q$
+1. 输入序列x经过下采样矩阵$W^{DQ}$进行降秩变换，并进行归一化处理，得到$c^Q$
 
-2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，对运算结果再进行split拆分，分别做Qn的归一化处理和Rope位置编码，最终得到Query和Query Rope
+2. 将$W^{UQ}$和$W^{QR}$矩阵进行拼接，实现对$c^Q$的升秩和映射计算，再对运算结果进行拆分（split），分别执行Qn归一化处理和RoPE位置编码，最终得到Query和Query Rope
 
-3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，对运算结果再进行split拆分，分别做Rope位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
+3. 将$W^{DKV}$和$W^{KR}$矩阵进行拼接，对输入序列x实现降秩和映射计算，再对运算结果进行拆分（split），分别执行RoPE位置编码和$C^{KV}$的归一化处理，最终得到KR Cache和KV Cache
 
-4. 在输出Query量化的情况下，会对Query做Rowmax动态量化，最终得到量化后的Query和对应量化参数
+4. 在Query输出量化场景下，会对Query执行RowMax动态量化，最终得到量化后的Query和对应的量化参数
 
 具体的计算公式，参见[完整计算公式](#完整计算公式)章节
 
 ## 数据切分设计
 
-由于硬件buffer大小是有限的，而计算的数据量又是巨大的，无法一次计算完，那么就需要进行tiling切分，shape不同会导致算子的切分轴不同，而算子的切分轴，会影响模板的功能及性能。需要考虑如下几个点：
+由于硬件Buffer大小有限，而计算数据量较大，无法一次完成全部计算，因此需要进行tiling切分。不同shape会导致算子的切分轴不同，而切分轴又会影响模板的功能和性能。设计时主要考虑以下几点：
 
 a. 将核心的数量用满，防止部分核闲置。
 
 b. 每一个核心被分配的计算量相对均匀，避免出现某些核计算的数据量过大，其余核空闲的情况。
 
-c. AIC和AIV之间处理的数据量要符合其对应的算力，避免AIC或AIV出现长时间的空闲。 
+c. AIC 和 AIV 之间处理的数据量要与各自算力相匹配，避免 AIC 或 AIV 长时间空闲。
 
 MlaPrologV2算子有多个Matmul运算：
 
@@ -47,7 +47,7 @@ MlaPrologV2算子有多个Matmul运算：
 
 ## 流水设计
 
-MlaPrologV2融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧的计算存在依赖关系，因此需要进行CV流水设计，
+MlaPrologV2融合算子包含Vector计算和Cube计算，Vector侧和Cube侧的计算存在依赖关系，因此需要进行CV流水设计，
 否则C侧和V侧很有可能是串行流水的效果，不能达到并行计算的目的，无法使得融合算子性能达到最优：
 
 图2 流水控制图：
@@ -62,19 +62,19 @@ MlaPrologV2融合算子包含了Vector计算和Cube计算，Vector侧和Cube侧�
 
 3、由于RmsNormCq按照行切分到不同核上，因此在做MatmulQcQr计算的时候，也需要AIV与AIC的同步控制（SYNC_NORMCQ_MMQCQR）
 
-4、由于和RopeQr的分核策略不同，因此RopeQr计算前，也需要AIC和AIV之间的同步控制（SYNC_MMQCQR_ROPEQR）
+4、由于与RopeQr的分核策略不同，因此在RopeQr计算前，也需要AIC和AIV之间的同步控制（SYNC_MMQCQR_ROPEQR）
 
-5、由于MatmulQcQr和MatmulQn的分核策略不同，MatmulQn依赖于MatmulQcQr的输出 ,因此需要做Cube的全核同步（SYNC_ALL_CUBE）
+5、由于MatmulQcQr和MatmulQn的分核策略不同，且MatmulQn依赖MatmulQcQr的输出，因此需要做Cube全核同步（SYNC_ALL_CUBE）
 
-6、Vector核运算前，需要做Vector的全核同步（SYNC_ALL_VECTOR），确保数据流水搬运
+6、Vector核运算前，需要做Vector全核同步（SYNC_ALL_VECTOR），确保数据流水搬运。
 
 ## TilingKey划分
 TilingKey为uint64类型，每个模板参数对应TilingKey中的一到数个二进制位，具体实现如下：
 |二进制位|变量名|说明|参数列表|
 |-------|------|----|-------|
-|0-3|CACHE_MODE|KVCache的存储格式|0-BNSD(预留)，1-PA_BSND，2-PA_NZ|
-|4-5|SCENARIO|输入场景|0-FP16(预留)，1-非量化场景，2-量化场景|
-|6-9|QUANT_MODE|量化场景|0-MMQcQr量化，1-MMQcQr量化+KVCache量化，2-MMcqCkvKr量化+MMQcQr量化，3-MMCqCkvkr量化+MMQcQr量化+KVCache量化|
+|0-3|CACHE_MODE|KVCache的存储格式|0-ND（BSND/TND），1-PA_BSND，2-PA_NZ|
+|4-5|SCENARIO|输入场景|0-预留，1-非量化场景，2-量化场景|
+|6-9|QUANT_MODE|量化场景|0-非量化，1-部分量化+kvCache非量化，2-部分量化+kvCache per-channel量化，3-int8全量化+kvCache非量化，4-int8全量化+kvCache per-tensor量化|
 |10|ENABLE_DEQUANT_OPTIONAL|反量化使能，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |11|ENABLE_GROUP_COMPUTE_OPTIONAL|量化的算力分组优化，不能与ENABLE_DEQUANT_OPTIONAL一同使用|0-关闭，1-开启|
 |12-13|EMPTY_TENSOR_MODE|空tensor场景，用于输入tensor维度为0的情况|0-无空tensor，1-KVCache为空和KRCache为空， 2-Query为空|
@@ -96,7 +96,7 @@ void Process() {
             CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_MMCKVKR_NORMROPE_FLG);   //cube与vector同步
 
             CrossCoreWaitFlag(SYNC_MMCQ_NORMCQ_FLG);                     // MatmulQcQr依赖RmsNormCq的输出，需要插入CV核间同步
-      
+
             MatmulQcQr(weightUqQrOffset, qcQrResOffset);
             CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_MMQCQR_ROPEQR_FLG);      //cube与vector同步
 
@@ -104,10 +104,10 @@ void Process() {
             // 需要等所有cube核上的MatmulQcQr执行完后才能启动MatmulQn
             CrossCoreSetFlag<0x0, PIPE_FIX>(SYNC_ALL_CUBE_FLG);
             CrossCoreWaitFlag(SYNC_ALL_CUBE_FLG);
-      
+
             MatmulQn(qcOffset, weightUkOffset, qnResOffset, mmQnLoopTime);  // MatmulQn的结果直接输出到 queryOut, qnOffset需要按Batch轴偏移
         }
-    
+
         if ASCEND_IS_AIV {
             GetSinCos(tokenIndex);
 
@@ -164,7 +164,7 @@ $$
 对输入$x$乘以Query下采样矩阵$W^{DQ}$进行下采样操作得到压缩后的Query矩阵$c^Q$。
 $$
 c^Q = x \cdot W^{DQ} \tag{1}
-$$ 
+$$
 
 本章节（以及后续章节）涉及的矩阵乘法模块使用AscendC Kernel API中Matmul高阶API实现。相关API使用可以参考官网[算子实现->矩阵编程（高阶API）](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/80RC3alpha003/devguide/opdevg/ascendcopdevg/atlas_ascendc_10_0041.html)开发指南。
 
@@ -178,7 +178,7 @@ $$
 RMSNorm(x) = \gamma \cdot \frac{x_i}{RMS(x)}  \tag{3}
 $$
 $$
-RMS(x) = \sqrt{\frac{1}{N} \sum_{i=1}^{N} x_i^2 + \epsilon} \tag{4}  
+RMS(x) = \sqrt{\frac{1}{N} \sum_{i=1}^{N} x_i^2 + \epsilon} \tag{4}
 $$
 
 ### MatmulCkvKr
@@ -233,7 +233,7 @@ $$
 $$
 q^R = c_{norm}^Q \cdot W^{QR} \tag{10}
 $$
-同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的$weightDkvKr$参数。
+同样利用矩阵乘法的性质，$W^{UQ}$和$W^{QR}$矩阵可以横向拼接成一个矩阵$[W^{UQ}|W^{QR}]$来计算，该拼接矩阵对应接口文档的$weightUqQr$参数。
 $$
 q^Cq^R = c_{norm}^Q \cdot [W^{UQ}|W^{QR}] = [c_{norm}^Q \cdot W^{UQ}|c_{norm}^Q \cdot W^{QR}] \tag{11}
 $$
@@ -245,7 +245,7 @@ f_{\{q,k\}}(x_m, m) = R_{\Theta,m}^{d}W_{\{q,k\}}x_m \tag{12}
 $$
 
 $$
-R_{\Theta,m}^{d} = 
+R_{\Theta,m}^{d} =
 \left(
 \begin{matrix}
 \cos m\theta_1 & -\sin m\theta_1 & 0 & 0 & \cdots & 0 & 0 \\
@@ -268,7 +268,7 @@ $$
 公式(12)展开变形后可以得到公式（14）的形式，其中$\otimes$为逐位对应相乘的叉乘。
 
 $$
-ROPE(x) = R_{\Theta,m}^{d} x = 
+ROPE(x) = R_{\Theta,m}^{d} x =
 \left(
 \begin{matrix}
 x_0 \\
@@ -322,7 +322,7 @@ $$
 为了节省$cos$/$sin$的存储空间并简化内部的实现逻辑，考虑$q^R*k^R$矩阵乘最终要进行Reduce操作：同时调整行和列中元素的位置，不影响最后的累加结果。最终内部$ROPE$实现的计算调整成公式（15）的形式，对输入$x$按奇偶位置拆分成两部分，对应的$cos$和$sin$部分的输入是连续的。
 
 $$
-ROPE(x) = R_{\Theta,m}^{d} x = 
+ROPE(x) = R_{\Theta,m}^{d} x =
 \left(
 \begin{matrix}
 x_0 \\
@@ -410,5 +410,4 @@ PA场景
 在计算得到输入$x$对应的KeyRope结果后，将KeyRope结果更新到KRCache的对应位置。当前引入cacheIndex来标识计算结果在KRCache中的存储位置。
 
 KRCache的更新逻辑同KVCache。
-
 
