@@ -22,8 +22,6 @@ namespace optiling {
 using namespace GroupedMatmulFinalizeRoutingArch35TilingConstant;
 using namespace GmmConstant;
 
-REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulFinalizeRouting, GMMFRWeightQuantTiling, GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT);
-
 enum DataSize GetSizeByDataType(ge::DataType dType) {
     if (dType == ge::DT_FLOAT4_E2M1 || dType == ge::DT_FLOAT4_E1M2 || dType == ge::DT_INT4) {
         return B4_DATA_SIZE;
@@ -379,4 +377,6 @@ bool GMMFRWeightQuantTiling::SetMxA8W4NzInputFunc() {
     SetInputFuncs_.push_back(SetMxA8W4NzInput);
     return true;
 }
+
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulFinalizeRouting, GMMFRWeightQuantTiling, GMMFR_WEIGHT_QUANT_TILING_VEC_ANTIQUANT);
 } // namespace optiling
