@@ -692,12 +692,12 @@ QuantMode MatmulAlltoAllTilingUtil::GetQuantMode(const gert::TilingContext *cont
         return QuantMode::ERROR;
     }
     // 获取量化模式属性（默认为0，表示非量化）
-    int x1QuantMode = 0;
-    int x2QuantMode = 0;
-    if (const int *ptr = attrs->GetAttrPointer<int>(ATTR_X1_QUANTMODE_INDEX)) {
+    int64_t x1QuantMode = 0;
+    int64_t x2QuantMode = 0;
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_X1_QUANTMODE_INDEX)) {
         x1QuantMode = *ptr;
     }
-    if (const int *ptr = attrs->GetAttrPointer<int>(ATTR_X2_QUANTMODE_INDEX)) {
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_X2_QUANTMODE_INDEX)) {
         x2QuantMode = *ptr;
     }
     // 获取输入的x1,x2的数据类型
