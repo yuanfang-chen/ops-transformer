@@ -337,6 +337,11 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
         padSlotId_ = *(context_->GetAttrs()->GetInt(1));
     }
 
+    residualConnection_ = 0;
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(3) != nullptr) {
+        residualConnection_ = *(context_->GetAttrs()->GetInt(3));
+    }
+
     // 初始化有效 batch 范围（默认为全部 batch）
     validBatchStart_ = 0;
     validBatchCount_ = batch_;
@@ -862,6 +867,7 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.validSeqLen = validSeqLen_;
     tilingData_.xStride = dim_;
     tilingData_.cacheStride = dim_;
+    tilingData_.residualConnection = residualConnection_;
 
     // Save tiling data to buffer
     auto tilingDataSize = sizeof(CausalConv1dFnTilingData);
@@ -905,6 +911,7 @@ void CausalConv1dFnTiling::DumpTilingInfo()
     info << "tailBlockubTailFactorBS: " << tailBlockubTailFactorBS_ << std::endl;
     info << "tailBlockubFactorDim: " << tailBlockubFactorDim_ << std::endl;
     info << "tailBlockubTailFactorDim: " << tailBlockubTailFactorDim_ << std::endl;
+    info << "residualConnection: " << residualConnection_ << std::endl;
 
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }

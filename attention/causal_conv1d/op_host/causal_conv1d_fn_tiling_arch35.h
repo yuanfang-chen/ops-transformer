@@ -95,6 +95,7 @@ private:
     uint32_t validBatchCount_ = 0;
     uint64_t validSeqStart_ = 0;
     uint64_t validSeqLen_ = 0;
+    uint32_t residualConnection_ = 0;
 
     // 缓存的核间切分信息（用于避免重复计算）
     bool hasCachedSplitInfo_ = false;

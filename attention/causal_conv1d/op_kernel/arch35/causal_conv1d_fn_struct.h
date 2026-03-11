@@ -44,6 +44,7 @@ struct CausalConv1dFnTilingData {
     uint64_t validSeqLen;       // 有效序列的总长度
     uint64_t xStride;           // x 的 stride（即 dim）
     uint64_t cacheStride;       // convStates 的 stride（即 dim）
+    uint64_t residualConnection;// 是否做残差连接
 };
 
 #endif
