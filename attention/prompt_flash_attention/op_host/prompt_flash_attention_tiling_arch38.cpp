@@ -1491,18 +1491,17 @@ bool PromptFlashAttentionTilingArch38::CheckQuant(ContextParamsForPFATiling& con
             return false);
     }
 
-    OP_CHECK_IF(((contextKeyParams.inputDataType == ge::DT_INT8) && (contextKeyParams.outputDataType == ge::DT_FLOAT16) &&
+    OP_CHECK_IF(((contextKeyParams.outputDataType == ge::DT_FLOAT16) && (contextKeyParams.inputDataType == ge::DT_INT8) &&
         ((contextKeyParams.scale2Shape != nullptr) || (contextKeyParams.offset2Shape != nullptr))),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When query dtype is int8 and output dtype is fp16, quantScale2 and quantOffset2 should be null."),
         return false);
 
     // quant/dequant dtype check
-    if ((inputType == ge::DT_FLOAT16) && enablePostQuant) {
+    if (enablePostQuant && (inputType == ge::DT_FLOAT16)) {
         OP_CHECK_IF((deqScale1Shape != nullptr) || (quantScale1Shape != nullptr) || (deqScale2Shape != nullptr),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "When input dtype is fp16 and postQuant is enable, "
-                "dequantScale1, quantScale1 and dequantScale2 should be null."),
+                "When input dtype is fp16 and postQuant is enable, " "dequantScale1, quantScale1 and dequantScale2 should be null."),
             return false);
     }
 
