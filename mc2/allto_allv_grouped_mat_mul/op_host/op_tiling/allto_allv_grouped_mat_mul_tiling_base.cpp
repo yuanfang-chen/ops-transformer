@@ -167,7 +167,7 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckEpWorldSizeValue()
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
         epWorldSizeValueList = { 2, 4, 8, 16, 32, 64, 128, 256 }; // epWorldSize value only support 2, 4, 8, 16, 32, 64, 128, 256
     } else {
-        epWorldSizeValueList = { 8, 16, 32, 64, 128 }; // epWorldSize value only support 8, 16, 32, 64, 128
+        epWorldSizeValueList = { 2, 8, 16, 32, 64, 128, 256 }; // epWorldSize value only support 8, 16, 32, 64, 128
     }
     for (size_t i = 0; i < epWorldSizeValueList.size(); i++) {
         if (i != 0) {
