@@ -32,6 +32,7 @@
 #include "fused_infer_attention_score_tilingkey.h"
 #include "fused_infer_attention_score_v3.cpp"
 #include "flash_attention_interface.cpp"
+#include "fused_infer_attention_score_template_tiling_key.h"
 
 #define FullQuantTiling 15
 extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
