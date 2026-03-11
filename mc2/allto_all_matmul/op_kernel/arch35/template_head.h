@@ -15,6 +15,6 @@
 #ifndef TEMPLATE_HEAD_H
 #define TEMPLATE_HEAD_H
 
-#include "../../matmul_allto_all/mc2_templates/scheduler/pipeline_builder.h"
+#include "../../../matmul_allto_all/op_kernel/mc2_templates/scheduler/pipeline_builder.h"
 
 #endif

@@ -15,6 +15,6 @@
 #ifndef THREERD_HEAD_ARCH32_H
 #define THREERD_HEAD_ARCH32_H
 
-#include "../../3rd/mat_mul_v3/op_kernel/mat_mul_base_kernel.h"
+#include "../../../3rd/mat_mul_v3/op_kernel/mat_mul_base_kernel.h"
 
 #endif

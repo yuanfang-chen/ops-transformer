@@ -17,19 +17,8 @@
 #include "grouped_mat_mul_allto_allv_tiling.h"
 #include "grouped_mat_mul_allto_allv_tiling_key.h"
 #include "grouped_mat_mul_allto_allv.h"
-#if __CCE_AICORE__ == 310
-    #if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
-    #include "../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
-    #else
-    #include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
-    #endif
-#else
-    #if __has_include("../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
-    #include "../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
-    #else
-    #include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
-    #endif
-#endif
+#include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
+
 #if defined(CONST_TILING)
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     const outerType *outerPtr##var = (const outerType *)(tiling);                                       \

@@ -16,7 +16,7 @@
 #ifndef ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE
 #define ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE
 
-#include "../../matmul_allto_all/mc2_templates/scheduler/template/pipeline_context.h"
+#include "../../../matmul_allto_all/op_kernel/mc2_templates/scheduler/template/pipeline_context.h"
 
 // 流水线模板
 namespace MC2KernelTemplate {
