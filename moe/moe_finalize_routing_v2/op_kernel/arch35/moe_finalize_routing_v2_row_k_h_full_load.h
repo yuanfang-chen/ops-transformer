@@ -83,12 +83,12 @@ public:
         }
         if (hasX) {
             // X的大小是row_num, h
-            pipe->InitBuffer(xQue, DOUBLE_BUFFER, rowFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(xQue, DOUBLE_BUFFER, tilingData->h * sizeof(T));
         }
         if (hasBiasAndExpertIdx) {
-            pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
-            pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
-            pipe->InitBuffer(vQue, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, tilingData->h * sizeof(T));
+            pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, tilingData->h * sizeof(T));
+            pipe->InitBuffer(vQue, DOUBLE_BUFFER, tilingData->h * sizeof(T));
         }
     }
 
@@ -111,23 +111,11 @@ public:
         }
         if (hasX) {
             xLocal = xQue.AllocTensor<T>();
-            CopyIn(xGm, xLocal, 1, tilingData->row * tilingData->h);
-            xQue.EnQue(xLocal);
-            xLocal = xQue.DeQue<T>();    
         }
         if (hasConstExpert) {
             constExpertAlpha1Local = constExpertAlpha1Que.AllocTensor<T>();
             constExpertAlpha2Local = constExpertAlpha2Que.AllocTensor<T>();
             vLocal = vQue.AllocTensor<T>();
-            CopyIn(constExpertAlpha1Gm, constExpertAlpha1Local, 1, tilingData->constExpertRangeFactor * tilingData->h); 
-            CopyIn(constExpertAlpha2Gm, constExpertAlpha2Local, 1, tilingData->constExpertRangeFactor * tilingData->h); 
-            CopyIn(vGm, vLocal, 1, tilingData->constExpertRangeFactor * tilingData->h); 
-            constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
-            constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
-            constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
-            constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
-            vQue.EnQue(vLocal);
-            vLocal = vQue.DeQue<T>();
         }
         
         int64_t rowOuterLoop =
@@ -216,29 +204,9 @@ private:
                         continue;
                     }
                 }
+                SetExpertIdxOffset(rowOuterIdx, rowInnerIdx, kIdx);
                 int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
-                if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                    // 直接不计算
-                    continue;
-                }
-                if (hasX) {
-                    if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
-                        // x = x[i]
-                        AscendC::Copy(expandedXLocal[expandedRowIdxGmValue * tilingData->h], xLocal[rowInnerIdx * tilingData->h], tilingData->h);
-                    }
-                    if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
-                        // x = a1 * x[i] +  a2 * v
-                        // 不需要有偏移，用完就下一个循环覆盖掉就行
-                        int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * tilingData->h;
-                        vLocal = vLocal * constExpertAlpha2Local;
-                        xLocal = xLocal * constExpertAlpha1Local;
-                        xLocal = xLocal + vLocal;
-                        AscendC::Copy(expandedXLocal[expandedRowIdxGmValue * tilingData->h], xLocal[rowInnerIdx * tilingData->h], tilingData->h);
-                    }
-                }
-
                 if (hasBiasAndExpertIdx) {
-                    SetExpertIdxOffset(rowOuterIdx, rowInnerIdx, kIdx);
                     biasGmOffset = expertIdxGm.GetValue(expertIdxOffset) * tilingData->h;
                 }
                 if (hasScales) {
@@ -246,9 +214,56 @@ private:
                     scale = scalesLocal.GetValue(scaleOffset);
                 }
                 LocalTensor<T> innerBiasLocal = hasBiasAndExpertIdx ? biasLocal[biasGmOffset] : expandedXLocal;
-                ProcessExpandXBiasScale<T, S>(
-                    yLocal[rowInnerIdx * tilingData->h], expandedXLocal[expandedRowIdxGmValue * tilingData->h],
-                    innerBiasLocal, scale, tilingData->h, hasBiasAndExpertIdx, hasScales);
+                if (hasX) {
+                    if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
+                        // 直接不计算
+                        continue;
+                    }
+                    if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
+                        // x = x[i]
+                        int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
+                            rowOuterIdx * tilingData->rowFactor * tilingData->h + rowInnerIdx * tilingData->h;
+                        CopyIn(xGm[xGmOffset], xLocal, 1, tilingData->h);
+                        xQue.EnQue(xLocal);
+                        xLocal = xQue.DeQue<T>();
+                        ProcessExpandXBiasScale<T, S>(
+                            yLocal[rowInnerIdx * tilingData->h], xLocal,
+                            innerBiasLocal, scale, tilingData->h, hasBiasAndExpertIdx, hasScales);
+                    } else if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                        // x = a1 * x[i] +  a2 * v
+                        // 不需要有偏移，用完就下一个循环覆盖掉就行
+                        int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
+                            rowOuterIdx * tilingData->rowFactor * tilingData->h + rowInnerIdx * tilingData->h;
+                        CopyIn(xGm[xGmOffset], xLocal, 1, tilingData->h);
+
+                        int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * tilingData->h;
+                        CopyIn(constExpertAlpha1Gm[constExpertGmOffset], constExpertAlpha1Local, 1,  tilingData->h); 
+                        CopyIn(constExpertAlpha2Gm[constExpertGmOffset], constExpertAlpha2Local, 1, tilingData->h); 
+                        CopyIn(vGm[constExpertGmOffset], vLocal, 1, tilingData->h); 
+                        vLocal = vLocal * constExpertAlpha2Local;
+                        xLocal = xLocal * constExpertAlpha1Local;
+                        xLocal = xLocal + vLocal;
+                        constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
+                        constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
+                        constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
+                        constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
+                        vQue.EnQue(vLocal);
+                        vLocal = vQue.DeQue<T>();
+                        xQue.EnQue(xLocal);
+                        xLocal = xQue.DeQue<T>();
+                        ProcessExpandXBiasScale<T, S>(
+                            yLocal[rowInnerIdx * tilingData->h], xLocal,
+                            innerBiasLocal, scale, tilingData->h, hasBiasAndExpertIdx, hasScales);
+                    } else {
+                        ProcessExpandXBiasScale<T, S>(
+                            yLocal[rowInnerIdx * tilingData->h], expandedXLocal[expandedRowIdxGmValue * tilingData->h],
+                            innerBiasLocal, scale, tilingData->h, hasBiasAndExpertIdx, hasScales);
+                    }
+                } else {
+                    ProcessExpandXBiasScale<T, S>(
+                        yLocal[rowInnerIdx * tilingData->h], expandedXLocal[expandedRowIdxGmValue * tilingData->h],
+                        innerBiasLocal, scale, tilingData->h, hasBiasAndExpertIdx, hasScales);
+                }
             }
         }
         if constexpr (IsSameType<T, half>::value || IsSameType<T, bfloat16_t>::value) {

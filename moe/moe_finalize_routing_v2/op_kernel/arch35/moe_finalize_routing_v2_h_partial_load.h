@@ -69,10 +69,7 @@ public:
         if (hasX2) {
             pipe->InitBuffer(x2Que, DOUBLE_BUFFER, hFactorAlignedT * sizeof(T));
         }
-        if (hasX) {
-            // X的大小是row_num, h
-            pipe->InitBuffer(xQue, DOUBLE_BUFFER, hFactorAlignedT * sizeof(T));
-        }
+
         if (hasBiasAndExpertIdx) {
             pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, hFactorAlignedT * sizeof(T));
             pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, hFactorAlignedT * sizeof(T));
@@ -140,52 +137,57 @@ private:
                     continue;
                 }
             }
-
+            SetExpertIdxOffset(rowOuterIdx, kIdx);
             int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
-            if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                continue;
-            }
             expandedXLocal = expandedXQue.AllocTensor<T>();
-            CopyIn(
-                expandedXGm[expandedRowIdxGmValue * tilingData->h + hIdx * tilingData->hFactor], expandedXLocal, 1,
-                hFactor);
-            expandedXQue.EnQue(expandedXLocal);
             if (hasX) {
+                if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
+                    continue;
+                }
                 if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
                     // x = x[i]
                     int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
                                         rowOuterIdx * tilingData->h + hIdx * hFactor;
-                    CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
-                    AscendC::Copy(expandedXLocal, xLocal, hFactor);
-                }
-                if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                    CopyIn(xGm[xGmOffset], expandedXLocal, 1, hFactor); 
+                } else if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
                     // x = a1 * x[i] +  a2 * v
+                    constExpertAlpha1Local = constExpertAlpha1Que.AllocTensor<T>();
+                    constExpertAlpha2Local = constExpertAlpha2Que.AllocTensor<T>();
+                    vLocal = vQue.AllocTensor<T>();
+                    
                     int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
                                         rowOuterIdx * tilingData->h + hIdx * hFactor;
                     // 不需要有偏移，用完就下一个循环覆盖掉就行
-                    CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
+                    CopyIn(xGm[xGmOffset], expandedXLocal, 1, hFactor); 
                     int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * hFactor;
                     CopyIn(constExpertAlpha1Gm[constExpertGmOffset], constExpertAlpha1Local, 1, hFactor); 
                     CopyIn(constExpertAlpha2Gm[constExpertGmOffset], constExpertAlpha2Local, 1, hFactor); 
                     CopyIn(vGm[constExpertGmOffset], vLocal, 1, hFactor); 
                     vLocal = vLocal * constExpertAlpha2Local;
-                    xLocal = xLocal * constExpertAlpha1Local;
-                    xLocal = xLocal + vLocal;
-                    AscendC::Copy(expandedXLocal, xLocal, hFactor);
+                    expandedXLocal = expandedXLocal * constExpertAlpha1Local;
+                    expandedXLocal = expandedXLocal + vLocal;
+               
                     constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
                     constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
                     constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
                     constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
                     vQue.EnQue(vLocal);
                     vLocal = vQue.DeQue<T>();
-                }
-                
-                xQue.EnQue(xLocal);
-                xLocal = xQue.DeQue<T>();
+                    constExpertAlpha1Que.FreeTensor(constExpertAlpha1Local);
+                    constExpertAlpha2Que.FreeTensor(constExpertAlpha2Local);
+                    vQue.FreeTensor(vLocal);
+                } else {
+                    CopyIn(
+                        expandedXGm[expandedRowIdxGmValue * tilingData->h + hIdx * tilingData->hFactor], expandedXLocal, 1,
+                        hFactor);
+                } 
+            } else {
+                CopyIn(
+                    expandedXGm[expandedRowIdxGmValue * tilingData->h + hIdx * tilingData->hFactor], expandedXLocal, 1,
+                    hFactor);
             }
-
+            expandedXQue.EnQue(expandedXLocal);
             if (hasBiasAndExpertIdx) {
-                SetExpertIdxOffset(rowOuterIdx, kIdx);
                 int64_t biasGmOffset =
                     expertIdxGm.GetValue(expertIdxOffset) * tilingData->h + hIdx * tilingData->hFactor;
                 biasLocal = biasQue.AllocTensor<T>();
@@ -205,14 +207,6 @@ private:
             expandedXQue.FreeTensor(expandedXLocal);
             if (hasBiasAndExpertIdx) {
                 biasQue.FreeTensor(biasLocal);
-            }
-            if (hasX) {
-                xQue.FreeTensor(xLocal);
-            }
-            if (hasConstExpert) {
-                constExpertAlpha1Que.FreeTensor(constExpertAlpha1Local);
-                constExpertAlpha2Que.FreeTensor(constExpertAlpha2Local);
-                vQue.FreeTensor(vLocal);
             }
         }
         if constexpr (IsSameType<T, half>::value || IsSameType<T, bfloat16_t>::value) {
@@ -275,7 +269,6 @@ private:
     LocalTensor<T> x1Local;
     LocalTensor<T> x2Local;
     LocalTensor<T> biasLocal;
-    LocalTensor<T> xLocal;
     LocalTensor<T> constExpertAlpha1Local;
     LocalTensor<T> constExpertAlpha2Local;
     LocalTensor<T> vLocal;
@@ -286,7 +279,6 @@ private:
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> x1Que;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> x2Que;
 
-    TQue<QuePosition::VECIN, DOUBLE_BUFFER> xQue;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> constExpertAlpha1Que;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> constExpertAlpha2Que;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> vQue;
