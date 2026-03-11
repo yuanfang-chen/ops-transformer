@@ -513,15 +513,15 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadExtParams);
     inQueue.EnQue(xInTensor);
     xInTensor = inQueue.DeQue<XType>();
+    if (QuantMode > UNQUANT) {
+        quantInst_.QuantProcess(tempTensor_, xInTensor, quantExpertIdx, scalesCount_, scalesGMTensor_);
+    }
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
-    if (QuantMode == UNQUANT && !Std::IsSame<ExpandXOutType, XType>::value) {
+    else { // 非量化直转hifp8
         Cast(floatLocalTemp_, xInTensor, RoundMode::CAST_NONE, axisH_);
         Cast(tempTensor_, floatLocalTemp_, RoundMode::CAST_ROUND, axisH_);
     }
 #endif
-    else {
-        quantInst_.QuantProcess(tempTensor_, xInTensor, quantExpertIdx, scalesCount_, scalesGMTensor_);
-    }
     FillTriple(tempTensor_, srcTokenIndex, fillExpertIdx);
     inQueue.FreeTensor<XType>(xInTensor);
     SyncFunc<AscendC::HardEvent::S_V>();
