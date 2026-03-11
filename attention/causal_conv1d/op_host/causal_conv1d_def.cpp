@@ -75,6 +75,7 @@ public:
         this->Attr("activationMode").AttrType(OPTIONAL).Int(0);
         this->Attr("padSlotId").AttrType(OPTIONAL).Int(-1);
         this->Attr("runMode").AttrType(OPTIONAL).Int(0);
+        this->Attr("residualConnection").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig config_950;
         config_950.DynamicCompileStaticFlag(true)
