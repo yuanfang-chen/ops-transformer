@@ -532,6 +532,15 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     DataCopyPadExtParams<XType> copyPadExtParams{false, 0U, 0U, 0U};
     LocalTensor<XType> xInTensor = inQueue.AllocTensor<XType>();
     DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], expandXCopyParams_, copyPadExtParams);
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+    if constexpr (IsSmoothScaleExist) {
+        DataCopyParams scaleInParams = {1U, static_cast<uint16_t>(scaleInBytes_), 0U, 0U};
+        DataCopyPadParams padParams = {true, 0, 0, 0};
+        auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
+        DataCopyPad(xInTensor[axisH_].template ReinterpretCast<uint8_t>(), tmp[srcTokenIndex * scaleInBytes_],
+            scaleInParams, padParams);
+    }
+#endif
     inQueue.EnQue(xInTensor);
     xInTensor = inQueue.DeQue<XType>();
     FillTriple(xInTensor, srcTokenIndex, toExpertIndex);
