@@ -129,7 +129,7 @@ __aicore__ inline bool IsSkipAttentionmaskForPre(MaskInfo &info)
         return false;
     }
 
-    int64_t preToken = info.preToken + static_cast<uint64_t>(info.s1Size)-static_cast<uint64_t>(info.s2Size); // 统一以左上角为原点计算Token
+    int64_t preToken = info.preToken + static_cast<int64_t>(info.s1Size) - static_cast<int64_t>(info.s2Size); // 统一以左上角为原点计算Token
     int32_t s1EndIdx = info.layout == GS ? s1StartIdx + info.gs1dealNum : (info.gs1StartIdx + info.gs1dealNum) / info.gSize;
 
     if (static_cast<int64_t>(info.s2StartIdx) + preToken >= static_cast<int64_t>(s1EndIdx)) {
@@ -177,8 +177,7 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
 }
 
-template <typename T>
-__aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
+__aicore__ inline bool CheckIsSkipAttenMask(MaskInfo &info, bool isPre)
 {
     if ((isPre && IsSkipAttentionmaskForPre(info)) || (!isPre && IsSkipAttentionmask(info))) {
         Duplicate(attenMaskUb, static_cast<T>(0U), info.gs1dealNum * Align(info.s2dealNum, 32U));
@@ -186,6 +185,15 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
         SetFlag<HardEvent::MTE2_V>(enQueEvtID);
         WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
         PipeBarrier<PIPE_V>();
+        return true;
+    }
+    return false;
+}
+
+template <typename T>
+__aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
+{
+    if (CheckIsSkipAttenMask(info, isPre)) {
         return;
     }
     int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
@@ -234,12 +242,7 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
 template <typename T>
 __aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
-    if ((isPre && IsSkipAttentionmaskForPre(info)) || (!isPre && IsSkipAttentionmask(info))) {
-        Duplicate(attenMaskUb, static_cast<T>(0U), info.gs1dealNum * Align(info.s2dealNum, 32U));
-        event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-        SetFlag<HardEvent::MTE2_V>(enQueEvtID);
-        WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
-        PipeBarrier<PIPE_V>();
+    if (CheckIsSkipAttenMask(info, isPre)) {
         return;
     }
     uint32_t s1StartIdx = info.gs1StartIdx / info.gSize;
