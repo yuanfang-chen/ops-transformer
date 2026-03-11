@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file kv_quant_sparse_attn_sharedkv_kvcache.h
+ * \file kv_quant_sparse_flash_attention_pioneer_kvcache.h
  * \brief
  */
 #ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H
@@ -110,7 +110,7 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo 
     int32_t gs1LoopEndIdx = 0;
     // TODO
     if constexpr (1) { // tmplatemode先写死
-        gs1LoopEndIdx = runParam.actualS1Size; // 对于SCFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
+        gs1LoopEndIdx = runParam.actualS1Size; // 对于QSFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
     } else { // SWA/CFA
         // 不需要取topk, 每次计算gSize行, 循环qs次
         gs1LoopEndIdx = (runParam.actualS1Size + runParam.qSNumInOneBlock - 1) / runParam.qSNumInOneBlock;

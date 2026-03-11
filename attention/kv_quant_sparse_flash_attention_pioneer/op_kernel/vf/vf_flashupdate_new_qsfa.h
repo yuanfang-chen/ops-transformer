@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file vf_flashupdate_new_scfa.h
+ * \file vf_flashupdate_new_qsfa.h
  * \brief
  */
-#ifndef FLASH_UPDATE_NEW_INTERFACE_SCFA_H
-#define FLASH_UPDATE_NEW_INTERFACE_SCFA_H
+#ifndef FLASH_UPDATE_NEW_INTERFACE_QSFA_H
+#define FLASH_UPDATE_NEW_INTERFACE_QSFA_H
 
 #include "vf_basic_block_utils.h"
 #include "../util_regbase.h"
 #include "../kv_quant_sparse_flash_attention_pioneer_common.h"
 
-namespace SCFaVectorApi {
+namespace QSFaVectorApi {
 constexpr uint16_t REDUCE_SIZE = 1;
 /* **************************************************************************************************
  * FlashUpdate, fp32
@@ -165,4 +165,4 @@ __aicore__ inline void LastDivNew(const LocalTensor<T>& dstTensor, const LocalTe
 }
 } // namespace
 
-#endif // FLASH_UPDATE_NEW_INTERFACE_SCFA_H
+#endif // FLASH_UPDATE_NEW_INTERFACE_QSFA_H
