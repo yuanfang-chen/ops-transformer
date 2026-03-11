@@ -670,7 +670,7 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
     // m已经在前面获取输入参数的时候进行过处理
     if (isMxFp4_) {
         inferredInfo.commLen = mc2tiling::AlignUp(
-        Ops::Base::CeilDiv((contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize), 2), alignAddrLen);
+        Ops::Base::CeilDiv((contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize), DIM_TWO), alignAddrLen);
     } else {
         inferredInfo.commLen = mc2tiling::AlignUp(
         contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLen);
@@ -685,7 +685,7 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
      }
     inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.rankDim *
                                 Ops::Base::CeilDiv((contextInfo.args_.kValue / contextInfo.args_.rankDim),
-                                mxGroupSize) * 2, alignAddrLen);
+                                mxGroupSize) * DIM_TWO, alignAddrLen);
     inferredInfo.permuteScaleLen = inferredInfo.commScaleLen; 
 }
 
