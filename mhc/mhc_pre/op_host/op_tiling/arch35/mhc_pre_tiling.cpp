@@ -87,6 +87,16 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
         return ge::GRAPH_FAILED;
     }
 
+    if (N_ != 4 && N_ != 6 && N_ != 8) {
+        OP_LOGE(context_->GetNodeName(), "N must be 4/6/8, but got N=%u", N_);
+        return ge::GRAPH_FAILED;
+    }
+
+    if (D_ % 16 != 0) {
+        OP_LOGE(context_->GetNodeName(), "D must be 32 bytes aligned (element count mod 16 == 0 for BF16/FP16), but got D=%u", D_);
+        return ge::GRAPH_FAILED;
+    }
+
     matM_ = totalLength_;
     matN_ = phiTensor->GetStorageShape().GetDim(0);  // phi的第二个维度是nD
     chunkTSize_ = (((totalLength_ + 24 - 1) / 24) + 32 - 1) / 32 * 32;

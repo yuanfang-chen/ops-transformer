@@ -248,6 +248,18 @@ bool CheckInputOutShape(const MhcParamsBase &params)
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Invalid x tensor shape: n=%ld, d=%ld", n, d);
         return false;
     }
+
+    // N只支持4/6/8
+    if (n != 4 && n != 6 && n != 8) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "N must be 4/6/8, but got n=%ld", n);
+        return false;
+    }
+
+    // D只支持32字节对齐（对于BF16/FP16，即元素个数%16==0）
+    if (d % 16 != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "D must be 32 bytes aligned (element count mod 16 == 0 for BF16/FP16), but got d=%ld", d);
+        return false;
+    }
     
     int64_t n2_plus_2n = n * n + 2 * n;  // n^2 + 2n
     
