@@ -322,6 +322,11 @@ namespace BlockSparse {
             
             uint32_t coreIdx = AscendC::GetBlockIdx();
             uint32_t coreNum = AscendC::GetBlockNum();
+#ifdef __DAV_C220_VEC__
+            Mask2IdxAndCount(gBlockSparseMask, gSelectIdx, gSelectNumIdx);
+#endif
+            resource.pipe.Reset();
+            AscendC::SyncAll<false>(); 
 
 #ifdef __DAV_C220_CUBE__
             // Initialize hardware events for cube core
@@ -437,11 +442,6 @@ namespace BlockSparse {
             uint32_t curTotalTaskNum = firstBatchTaskNum;
             uint32_t curQXBlockNum = (qSeqlen + qBlockX - 1) / qBlockX; // CeilDiv
             uint32_t curTotalQBlockNum = firstQBlockNum;
-#ifdef __DAV_C220_VEC__
-            Mask2IdxAndCount(gBlockSparseMask, gSelectIdx, gSelectNumIdx);
-#endif
-            resource.pipe.Reset();
-            AscendC::SyncAll<false>(); 
 
             // Go through each task
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
