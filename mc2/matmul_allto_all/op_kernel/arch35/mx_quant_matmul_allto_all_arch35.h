@@ -56,6 +56,8 @@ private:
     GM_ADDR tempComputeOutGM_;
     GM_ADDR transOutGM_;
 
+    bool isMxFp4_ = false;
+
 private:
     __aicore__ inline void ProcessTile(uint32_t taskCnt);
     __aicore__ inline void ProcessTail(uint32_t taskCnt);
@@ -82,6 +84,10 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     workspaceGM_ = workspaceGM;
     tempComputeOutGM_ = workspaceGM;
     transOutGM_ = (GM_ADDR)(tempComputeOutGM_ + mc2Tiling_.mmResultLen);
+
+    if constexpr (IsSameType<DTYPE_X1, fp4x2_e2m1_t>::value) {
+        isMxFp4_ = true;
+    }
     // 初始化流水线
     pipeLine_->Init();
     pipeLine_->GetContext(&pipeLineContext_);
@@ -117,8 +123,13 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_;
     pipeLineContext_.computationContext->baseData.biasGM = bias_;
-    pipeLineContext_.computationContext->baseData.aOffset =
-        (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    if constexpr (isMxFp4_) {
+        pipeLineContext_.computationContext->baseData.aOffset =
+            (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1) / 2;
+    } else {
+        pipeLineContext_.computationContext->baseData.aOffset =
+            (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    }
     pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
     pipeLineContext_.computationContext->baseData.cOffset =
         (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
@@ -171,8 +182,13 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM =
         tempComputeOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->baseData.aOffset =
-        (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    if constexpr (isMxFp4_) {
+        pipeLineContext_.computationContext->baseData.aOffset =
+            (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1) / 2;
+    } else {
+        pipeLineContext_.computationContext->baseData.aOffset =
+            (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    }
     pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
     pipeLineContext_.computationContext->baseData.cOffset =
         (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
