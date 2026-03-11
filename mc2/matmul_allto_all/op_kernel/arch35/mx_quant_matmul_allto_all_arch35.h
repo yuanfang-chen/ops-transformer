@@ -123,7 +123,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_;
     pipeLineContext_.computationContext->baseData.biasGM = bias_;
-    if constexpr (isMxFp4_) {
+    if (isMxFp4_) {
         pipeLineContext_.computationContext->baseData.aOffset =
             (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1) / 2;
     } else {
@@ -182,7 +182,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM =
         tempComputeOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    if constexpr (isMxFp4_) {
+    if (isMxFp4_) {
         pipeLineContext_.computationContext->baseData.aOffset =
             (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1) / 2;
     } else {
