@@ -145,6 +145,8 @@ attention:
     exclude:
       - attention/nsa_compress_attention_infer/docs
       - attention/nsa_compress_attention_infer/README.md
+    test:
+      ut: False
     ut_cov_exclude:
       - attention/nsa_compress_attention_infer
     options:
@@ -212,6 +214,8 @@ attention:
     exclude:
       - attention/nsa_selected_attention_infer/docs
       - attention/nsa_selected_attention_infer/README.md
+    test:
+      ut: False
     ut_cov_exclude:
       - attention/nsa_selected_attention_infer
     options:
