@@ -9,13 +9,13 @@
 */
 
 /*!
- * \file allto_allv_grouped_mat_mul_quant_tiling.h
+ * \file allto_allv_grouped_mat_mul_v2_quant_tiling.h
  * \brief
  */
 #ifndef ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
 #define ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
 
-#include "../allto_allv_grouped_mat_mul_tiling_base.h"
+#include "../allto_allv_grouped_mat_mul_v2_tiling_base.h"
 
 namespace optiling {
 constexpr uint32_t DATA_SIZE_L0C = 4;

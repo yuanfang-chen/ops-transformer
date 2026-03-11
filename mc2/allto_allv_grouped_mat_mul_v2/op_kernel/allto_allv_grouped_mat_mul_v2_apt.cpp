@@ -9,7 +9,7 @@
   */
 
 /* !
- * \file allto_allv_grouped_mat_mul.cpp
+ * \file allto_allv_grouped_mat_mul_v2.cpp
  * \brief
  */
 #if ASC_DEVKIT_MAJOR >= 9
@@ -17,13 +17,9 @@
 #else
 #include "kernel_operator.h"
 #endif
-#include "allto_allv_grouped_mat_mul_tiling_key.h"
-#include "allto_allv_grouped_mat_mul_tiling.h"
-#if (ORIG_DTYPE_GMM_X == DT_BF16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
-#include "allto_allv_grouped_mat_mul_coarse_grained.h"
-#else
+#include "allto_allv_grouped_mat_mul_v2_tiling_key.h"
+#include "allto_allv_grouped_mat_mul_v2_tiling.h"
 #include "mc2_templates/mc2_templates.h"
-#endif
 
 
 using namespace AscendC;
@@ -57,7 +53,7 @@ using namespace Mc2GroupedMatmulTilingData;
     } while (0)
 
 template <int D_T_MM, bool TILINGKEY_MM, bool TILINGKEY_GMM_WEIGHT_TRANSPOSE, bool TILINGKEY_MM_WEIGHT_TRANSPOSE>
-__global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gmmweightGM,
+__global__ __aicore__ void allto_allv_grouped_mat_mul_v2(GM_ADDR gmmxGM, GM_ADDR gmmweightGM,
     GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM, GM_ADDR mmxOptionalGM,
     GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR gmmxOffsetGM,
     GM_ADDR gmmWOffsetGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR mmxOffsetGM, GM_ADDR mmWOffsetGM,
@@ -70,25 +66,6 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-#if (ORIG_DTYPE_GMM_X == DT_BF16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
-    REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
-    auto tiling = (__gm__ AlltoAllvGmmTilingData *)tilingGM;
-    __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclInitTiling));
-    __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->alltoAllvCcTiling));
-    GET_TILING_DATA(tilingData, tilingGM);
-    GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
-    if (D_T_MM == ADD_TPL_BP16) {
-        AlltoAllvGmmCoarseGrained<bfloat16_t, TILINGKEY_MM,
-            TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE> op;
-        INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
-        return;
-    }
-    if (D_T_MM == ADD_TPL_FP16) {
-        AlltoAllvGmmCoarseGrained<half, TILINGKEY_MM, TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE> op;
-        INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
-        return;
-    }
-#else
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
     using ComputeOpType = QuantGroupedMatmul<QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, DTYPE_GMM_X,
         DTYPE_GMM_WEIGHT, float, DTYPE_GMM_Y, CubeFormat::ND, false, TILINGKEY_GMM_WEIGHT_TRANSPOSE,
@@ -108,5 +85,4 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
         mmxScaleGM, mmWeightScaleGM, gmmyGM, mmyOptionalGM, permuteOutOptionalGM, userWorkspace, tilingGM,
         gmmArrayAddr_, mmArrayAddr_, &pipe, true);  // isA2avGmmFlag=true
     a2avGmmScheduler.Process();
-#endif
 }
