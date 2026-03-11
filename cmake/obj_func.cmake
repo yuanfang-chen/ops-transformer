@@ -571,8 +571,11 @@ function(add_opmaster_ct_gentask_modules)
       $<BUILD_INTERFACE:intf_pub_cxx17>
       $<$<BOOL:${alog_FOUND}>:$<BUILD_INTERFACE:alog_headers>>
       $<$<BOOL:${dlog_FOUND}>:$<BUILD_INTERFACE:dlog_headers>>
-      # $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:alog_headers>>
-      # $<$<NOT:$<BOOL:${BUILD_OPEN_PROJECT}>>:$<BUILD_INTERFACE:slog_headers>>
+      graph
+      graph_base
+      exe_graph
+      platform
+      runtime
     )
   endif()
 endfunction()
