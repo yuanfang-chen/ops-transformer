@@ -93,10 +93,6 @@ static bool CheckShape(const aclTensor *x, int64_t outFlag, const aclTensor *out
 {
     // 校验self的shape是否等于out的shape
     OP_CHECK_SHAPE_NOT_EQUAL(x, output, return false);
-    if (outFlag) {
-        OP_CHECK_SHAPE_NOT_EQUAL(x, normOut, return false);
-        OP_CHECK_SHAPE_NOT_EQUAL(x, sumOut, return false);
-    }
 
     // numIters在1~100范围内
     if (numIters <= MIN_NUMITERS || numIters > MAX_NUMITERS) {
