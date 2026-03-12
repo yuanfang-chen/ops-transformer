@@ -23,6 +23,11 @@ enum class GmmTrans {
 };
 namespace optiling {
 
+constexpr size_t ANTIQUANT_SCALE_DIM_NUM_MX = 4;                   // MX格式antiquantScale维度数
+constexpr size_t NDIM_INDEX_K_MX_TRANSPOSED = 2;                   // MX格式转置时k轴的倒数索引（倒数第2维）
+constexpr size_t NDIM_INDEX_K_MX_NOT_TRANSPOSED = 3;               // MX格式非转置时k轴的倒数索引（倒数第3维）
+constexpr int64_t MX_GROUP_FACTOR = 2;                             // MX格式groupNum计算因子
+
 static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_SUPPORT_MAP = {
     {ge::DT_FLOAT16, {ge::DT_FLOAT16}},
     {ge::DT_BF16, {ge::DT_BF16, ge::DT_FLOAT}}};
@@ -65,7 +70,7 @@ bool GroupedWeightQuantBatchMatmulTiling:: SetShapeList(const gert::TilingContex
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context) const
 {
     OP_CHECK_IF(
         numX_ >= GroupedMatmul::MAX_TENSOR_CONT,
@@ -869,7 +874,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTransposeStatus(const gert::Tilin
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context) const
 {
     // all M or N be zero, get true
     bool zeroM = true;
@@ -1045,10 +1050,10 @@ bool GroupedWeightQuantBatchMatmulTiling::SetAntiquantGroupSize(const gert::Tili
                     return false);
         // GMM伪量化场景支持K=groupSize
         groupSize_ = groupNum > 0 ? kSize_ / static_cast<uint64_t>(groupNum) : 0;
-    } else if (antiquantScaleDimNum == 4) {
-        // 2:antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
-        int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 2) * 2 :
-                                     antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) * 2;
+    } else if (antiquantScaleDimNum == ANTIQUANT_SCALE_DIM_NUM_MX) {
+        // antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
+        int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_TRANSPOSED) * MX_GROUP_FACTOR :
+                                     antiquantScaleShape.GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_NOT_TRANSPOSED) * MX_GROUP_FACTOR;
         OP_CHECK_IF(groupNum <= 0 || kSize_ % groupNum > 0,
                     OP_LOGE(context->GetNodeName(),
                             "Invalid groupNum[%ld], expect greater than 0 and divisible by kSize[%lu]", groupNum,

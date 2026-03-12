@@ -220,8 +220,8 @@ public:
 
 protected:
     bool SetShapeList(const gert::TilingContext *context);
-    bool CheckEmptyTensor(const gert::TilingContext *context);
-    bool CheckTensorListSize(const gert::TilingContext *context);
+    bool CheckEmptyTensor(const gert::TilingContext *context) const;
+    bool CheckTensorListSize(const gert::TilingContext *context) const;
     bool CheckTensorDtype(const gert::TilingContext *context, uint32_t attrIdx, size_t idx,
                           const ge::DataType &tensorDtype, const std::string &tensorType) const;
     bool IsNzFormat(const gert::TilingContext *context, uint32_t attrIdx, size_t idx) const;

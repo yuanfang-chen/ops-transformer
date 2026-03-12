@@ -28,6 +28,14 @@ const int64_t SHAPE_UNKNOWN_DIM_NUM = -2;
 const size_t ANTIQUANT_PARAM_DIM_NUM_PER_GROUP_SINGLE = 3;
 const size_t ANTIQUANT_PARAM_DIM_NUM_MX = 4;
 const size_t OPTIONAL_PARAM_DIM_NUM_DEFAULT_SINGLE = 2;
+const size_t NDIM_INDEX_N_TRANSPOSED = 2;  // n轴在转置时的倒数索引（倒数第2维）
+const size_t NDIM_INDEX_N_MX_TRANSPOSED = 3;  // MX格式转置时n轴的倒数索引（倒数第3维）
+const size_t NDIM_INDEX_N_MX_NOT_TRANSPOSED = 2;  // MX格式非转置时n轴的倒数索引（倒数第2维）
+const size_t NDIM_INDEX_K_MX_A8W4_TRANSPOSED = 2;     // MX A8W4格式转置时k轴的倒数索引（倒数第2维）
+const size_t NDIM_INDEX_K_MX_A8W4_NOT_TRANSPOSED = 3; // MX A8W4格式非转置时k轴的倒数索引（倒数第3维）
+const size_t NDIM_INDEX_K_NORMAL_TRANSPOSED = 1;      // 普通格式转置时k轴的倒数索引（倒数第1维）
+const size_t NDIM_INDEX_K_NORMAL_NOT_TRANSPOSED = 2;  // 普通格式非转置时k轴的倒数索引（倒数第2维）
+const int64_t MX_A8W4_GROUP_FACTOR = 2;               // MX A8W4格式groupNum计算因子（k/64维度需乘以2得到实际分组数）
 const int64_t B4_NUMS_IN_B32 = 8;
 const int64_t MX_GROUP_SIZE = 32;
 
@@ -91,7 +99,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::GetXAndWeightDimValue(const ger
 {
     OP_CHECK_IF(GetXandWeightDtype(context) != ge::GRAPH_SUCCESS,
                 OP_LOGE(context->GetNodeName(), "GetXandWeightDtype failed."), return ge::GRAPH_FAILED);
-                
+
     auto xShape = context->GetDynamicInputShape(GMM_INDEX_IN_X, 0);
     auto weightShape = context->GetDynamicInputShape(GMM_INDEX_IN_WEIGHT, 0);
     OP_CHECK_IF(!(IsNonEmpty(xShape) && IsNonEmpty(weightShape)),
@@ -260,7 +268,6 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckXWeightYGroupSizeMultiScen
 }
 
 ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorNDimMultiScenario(const gert::InferShapeContext *context,
-                                                                              const GMMInputParamsInfo &paramsInputInfo,
                                                                               const size_t wNDimIdx,
                                                                               const int64_t weightNDimValue,
                                                                               const size_t index) const
@@ -355,7 +362,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckCaseMultiScenario(const ge
                     xDimNum - 1, xKDimValue, i, weightKDimValue),
             return ge::GRAPH_FAILED);
         // 校验 antiquantScale bias antiquantOffset 每个tensor的中n轴的大小
-        OP_CHECK_IF(CheckTensorNDimMultiScenario(context, paramsInputInfo, wNDimIdx, weightNDimValue, i),
+        OP_CHECK_IF(CheckTensorNDimMultiScenario(context, wNDimIdx, weightNDimValue, i),
                     OP_LOGE(context->GetNodeName(), "CheckTensorNDimMultiScenario is failed."),
                     return ge::GRAPH_FAILED);
     }
@@ -493,10 +500,10 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeForTensorList(const g
         size_t tensorNDimIdx = tensorDimNum - 1;
         if (expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_PER_GROUP_SINGLE && gmmAttrs.transposeWeight) {
             // per_group量化weight转置时antiquant params同步转置，shape为(g, n, k/groupsize)，n轴的索引为-2
-            tensorNDimIdx = tensorDimNum - 2;
+            tensorNDimIdx = tensorDimNum - NDIM_INDEX_N_TRANSPOSED;
         } else if (expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_MX) {
-            tensorNDimIdx =
-                gmmAttrs.transposeWeight ? tensorDimNum - 3 : tensorDimNum - 2; // 静态图做两次inferShape，对应两个分支
+            tensorNDimIdx = gmmAttrs.transposeWeight ? tensorDimNum - NDIM_INDEX_N_MX_TRANSPOSED
+                                                     : tensorDimNum - NDIM_INDEX_N_MX_NOT_TRANSPOSED; // 静态图做两次inferShape，对应两个分支
         }
 
         OP_CHECK_IF(tensorShape->GetDim(tensorNDimIdx) != weightNDim_,
@@ -576,11 +583,11 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckGroupSize(const gert::Infe
     int64_t groupNum;
     if (IsMxA8W4NZ(xDtype_, weightDtype_)) {
         // antiquantScaleShape: (g,n,k/64,2) (g, k/64, n, 2) 静态图两次infershape，两个分支
-        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 2) * 2 :
-                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - 3) * 2;
+        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_A8W4_TRANSPOSED) * MX_A8W4_GROUP_FACTOR :
+                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_A8W4_NOT_TRANSPOSED) * MX_A8W4_GROUP_FACTOR;
     } else {
-        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 1) :
-                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - 2);
+        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - NDIM_INDEX_K_NORMAL_TRANSPOSED) :
+                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - NDIM_INDEX_K_NORMAL_NOT_TRANSPOSED);
     }
     OP_CHECK_IF(groupNum <= 0, OP_LOGE(context->GetNodeName(), "GroupNum must be greater than 0."),
                 return ge::GRAPH_FAILED);
