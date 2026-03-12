@@ -90,8 +90,8 @@ static constexpr uint32_t PARALLEL_NUM = 2;
 static constexpr uint32_t DEFAULT_CHUNK_SIZE = 64;
 static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
 
-#define PROCESS_HIN_IDX(nIdx, lenD, dIdx, eleNumPerVf) \
-    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + nIdx * lenD + dIdx * eleNumPerVf); \
+#define PROCESS_HIN_IDX(nIdx, lenD, dIdx, eleNumPerVf_) \
+    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + nIdx * lenD + dIdx * eleNumPerVf_); \
     MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask); \
     MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue##nIdx, mask); \
     MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
@@ -216,6 +216,7 @@ private:
     uint32_t cubeCount_ = 0;
     uint64_t mmCount_ = 0;
     uint64_t vec1Count_ = 0;
+    uint16_t eleNumPerVf__ = 0;
 };
 
 template <class T, class P>
@@ -269,6 +270,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitFromTilingData(const MhcPreTiling
     chunTSize_ = tiling_->chunkTSize;
     v1ChunkDSize_ = tiling_->v1ChunkDSize;
     hasGamma_ = (tiling_->hasGamma != 0);
+    eleNumPerVf__ = MhcPreUtils::GetVRegSize() / sizeof(P);
 }
 
 template <class T, class P>
@@ -471,11 +473,10 @@ template <bool hasGamma, bool isFirstND>
 __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn,
                                                             __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize)
 {
-    uint32_t eleNumPerVf = MhcPreUtils::GetVRegSize() / sizeof(P);
     // 计算两种数据类型经32B对齐后的Size
     uint32_t nSrcUbAligned = MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(T)));
     uint32_t nDstUbAligned = MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(P)));
-    uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf);
+    uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf_);
     __VEC_SCOPE__
     {
         MicroAPI::MaskReg mask = MicroAPI::CreateMask<P>();
@@ -495,18 +496,18 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
                 MicroAPI::RegTensor<P> tmpSumReg;
 
                 // 从UB搬运到Register，地址需要32B对齐，从GM搬运时保证
-                uint32_t xInOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
+                uint32_t xInOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf_;
                 MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xIn + xInOffset);
                 MicroAPI::MaskReg maskN4B32 = MicroAPI::UpdateMask<P>(elementNum);
                 MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, maskN4B32);
                 if constexpr (hasGamma) {
-                    MicroAPI::LoadAlign(gammaReg, gamma + vfBlockIdx * eleNumPerVf);
+                    MicroAPI::LoadAlign(gammaReg, gamma + vfBlockIdx * eleNumPerVf_);
                     MicroAPI::Mul(xMulReg, gammaReg, xFp32Reg, maskN4B32);
                 } else {
                     xMulReg = xFp32Reg;
                 }
                 // copy out x, 对齐搬出，这里可能要和Cube适配。
-                uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
+                uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf_;
                 MicroAPI::StoreAlign(xDst + dstUbOffset, xMulReg, maskN4B32);
 
                 MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN4B32);
@@ -523,9 +524,8 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean,
                                                                float normEps)
 {
-    uint32_t eleNumPerVf = MhcPreUtils::GetVRegSize() / sizeof(P);
     uint32_t nUbAligned = MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(P)));
-    uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf);
+    uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf_);
     __VEC_SCOPE__
     {
         uint32_t elementNum = nSize;
@@ -534,13 +534,13 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRm
             MicroAPI::MaskReg maskN4B32 = MicroAPI::UpdateMask<P>(elementNum);
             MicroAPI::RegTensor<P> invrmsReg, onesReg;
 
-            MicroAPI::LoadAlign(invrmsReg, invRms + vfBlockIdx * eleNumPerVf);
+            MicroAPI::LoadAlign(invrmsReg, invRms + vfBlockIdx * eleNumPerVf_);
             MicroAPI::Muls(invrmsReg, invrmsReg, scaleMean, maskN4B32);
             MicroAPI::Adds(invrmsReg, invrmsReg, normEps, maskN4B32);
             MicroAPI::Sqrt(invrmsReg, invrmsReg, maskN4B32);
             MicroAPI::Duplicate(onesReg, 1);
             MicroAPI::Div(invrmsReg, onesReg, invrmsReg, maskN4B32);
-            MicroAPI::StoreAlign(invRms + vfBlockIdx * eleNumPerVf, invrmsReg, maskN4B32);
+            MicroAPI::StoreAlign(invRms + vfBlockIdx * eleNumPerVf_, invrmsReg, maskN4B32);
         }
     }
 }
@@ -693,8 +693,7 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
-    uint16_t eleNumPerVf = 64;
-    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
     // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
     __VEC_SCOPE__
     {
@@ -712,13 +711,13 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf_);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
-            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg,
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf_, outB16Reg,
                                                                         mask);
         }
     }
@@ -728,8 +727,7 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
-    uint16_t eleNumPerVf = 64;
-    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
     // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
     __VEC_SCOPE__
     {
@@ -749,15 +747,15 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf_);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
-            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg,
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf_, outB16Reg,
                                                                         mask);
         }
     }
@@ -767,8 +765,7 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
-    uint16_t eleNumPerVf = 64;
-    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
     // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
     __VEC_SCOPE__
     {
@@ -790,17 +787,17 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(6, lenD, dIdx, eleNumPerVf);
-            PROCESS_HIN_IDX(7, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(6, lenD, dIdx, eleNumPerVf_);
+            PROCESS_HIN_IDX(7, lenD, dIdx, eleNumPerVf_);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
-            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf_, outB16Reg, mask);
         }
     }
 }
@@ -828,7 +825,6 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
     __ubuf__ P *hPostBuffPtr = (__ubuf__ P *)hPostBuff_.GetPhyAddr();
     __ubuf__ P *hResOutLocalPtr = (__ubuf__ P *)hResOutLocal.GetPhyAddr();
 
-    uint32_t eleNumPerVf = 256 / sizeof(P);
     __VEC_SCOPE__
     {
         MicroAPI::RegTensor<P> matmulResReg;
@@ -840,12 +836,12 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
         for (uint16_t tIdx = 0; tIdx < static_cast<uint16_t>(lenT); tIdx++) {
             MicroAPI::Load<P>(invRmsReg, invRmsPtr + singleCoreOffset + tIdx);
 
-            uint32_t loopCntPerN = (mnConfig_.n + eleNumPerVf - 1) / eleNumPerVf;
+            uint32_t loopCntPerN = (mnConfig_.n + eleNumPerVf_ - 1) / eleNumPerVf_;
             uint32_t curLen = mnConfig_.n;
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < (uint16_t)loopCntPerN; vfBlockIdx++) {
-                uint32_t maskOffset = tIdx * mnConfig_.n + vfBlockIdx * eleNumPerVf;
-                uint32_t alphaOffset = vfBlockIdx * eleNumPerVf;
-                uint32_t biasOffset = vfBlockIdx * eleNumPerVf;
+                uint32_t maskOffset = tIdx * mnConfig_.n + vfBlockIdx * eleNumPerVf_;
+                uint32_t alphaOffset = vfBlockIdx * eleNumPerVf_;
+                uint32_t biasOffset = vfBlockIdx * eleNumPerVf_;
                 MicroAPI::MaskReg curMask = MicroAPI::UpdateMask<P>(curLen);
 
                 // UB-> Reg
@@ -854,14 +850,14 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
                 MicroAPI::LoadAlign<P>(alphaInReg, alphaInPtr + alphaOffset);
 
                 // compute
-                // step1: inv_rms广播并相乘：invRmsReg * matmulResReg = [eleNumPerVf, 1] * [eleNumPerVf, n*n +2n]
+                // step1: inv_rms广播并相乘：invRmsReg * matmulResReg = [eleNumPerVf_, 1] * [eleNumPerVf_, n*n +2n]
                 MicroAPI::Duplicate(invRmsBroadReg, invRmsReg, curMask);
                 MicroAPI::Mul(matmulResReg, matmulResReg, invRmsBroadReg, curMask);
 
                 // step2: alpha相乘 (alpha已经广播为n*n +2n)
                 MicroAPI::Mul(matmulResReg, matmulResReg, alphaInReg, curMask);
 
-                // step3: 加bias:matmulResReg + bias = [eleNumPerVf, n*n + 2n] + [n*n + 2n]
+                // step3: 加bias:matmulResReg + bias = [eleNumPerVf_, n*n + 2n] + [n*n + 2n]
                 MicroAPI::Add(matmulResReg, matmulResReg, biasInReg, curMask);
 
                 // Reg->UB
@@ -896,8 +892,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uin
 {
     __ubuf__ P *hPreBuffAddr = (__ubuf__ P *)hPreBuff_.GetPhyAddr();
     uint32_t totalElem = lenT * N_;
-    uint32_t eleNumPerVf = 64;
-    uint16_t nLoopCnt = Ceil(totalElem, eleNumPerVf);
+    uint16_t nLoopCnt = Ceil(totalElem, eleNumPerVf_);
     uint32_t curElemCnt = totalElem;
     __VEC_SCOPE__
     {
@@ -906,7 +901,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uin
 
         for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
-            MicroAPI::LoadAlign(hPreReg, hPreBuffAddr + vfBlockIdx * eleNumPerVf); // UB -> Reg
+            MicroAPI::LoadAlign(hPreReg, hPreBuffAddr + vfBlockIdx * eleNumPerVf_); // UB -> Reg
             // 计算 sigmoid: 1 / (1 + e^(-x))
             MicroAPI::Neg(negReg, hPreReg, mask);                            // negReg = -hPreReg
             MicroAPI::Exp(expReg, negReg, mask);                             // expReg = e^(-hPreReg)
@@ -915,7 +910,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uin
             MicroAPI::Div<P, &divMode>(sigmoidReg, oneReg, addOneReg, mask); // sigmoidReg = 1 / addOneReg
 
             MicroAPI::Adds(resultReg, sigmoidReg, matrixInfo_.hcEps, mask); // resultReg = sigmoid + hcEps
-            MicroAPI::StoreAlign(hPreBuffAddr + vfBlockIdx * eleNumPerVf, resultReg, mask); // Reg -> UB
+            MicroAPI::StoreAlign(hPreBuffAddr + vfBlockIdx * eleNumPerVf_, resultReg, mask); // Reg -> UB
         }
     }
 
