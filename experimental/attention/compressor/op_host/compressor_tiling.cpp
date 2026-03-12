@@ -152,9 +152,11 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     baseParams_->reciprocalD = 1.0 / baseParams_->headDim;
     baseParams_->cgSize = (baseParams_->seqSize + baseParams_->cmpRatio - 1) / baseParams_->cmpRatio; // number of token after compress
     coff = static_cast<uint8_t>(*context_->coff);
+    baseParams_->stateCacheStrideDim0 = static_cast<uint64_t>(*context_->stateCacheStrideDim0);
     baseParams_->nSize = 2; // 2:每个核处理两个基本块后做全核同步
 
-    OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u", baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff);
+     OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u, stateCacheStrideDim0:%u", \
+ 	    baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff, baseParams_->stateCacheStrideDim0);
     
     return ge::GRAPH_SUCCESS;
 }
@@ -163,7 +165,9 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 {
     pageAttentionParams_->blockNum = context_->stateCache.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
     pageAttentionParams_->blockSize = context_->stateCache.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
-    pageAttentionParams_->maxBlockNumPerBatch = context_->stateBlockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
+    if (static_cast<uint8_t>(*context_->cacheMode) == static_cast<uint8_t>(CACHE_MODE::CONTINUOUS)) {
+        pageAttentionParams_->maxBlockNumPerBatch = context_->stateBlockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
+    }
 
     return ge::GRAPH_SUCCESS;
 }
@@ -326,7 +330,6 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
     uint8_t rotaryMode = static_cast<uint8_t>(*context_->rotaryMode);
     uint8_t templateId = static_cast<uint8_t>(context_->templateId);
     uint8_t cacheMode = static_cast<uint8_t>(*context_->cacheMode);
-    int64_t stateCacheStrideDim0 = static_cast<int64_t>(*context_->stateCacheStrideDim0);
     
     auto xDtype = context_->x.desc->GetDataType();
     if (xDtype == ge::DT_BF16) {
@@ -350,7 +353,7 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
         templateId
     );
 
-    OP_LOGI(context_->opName, "Compressor dtype:%hhu layout:%hhu  coff:%hhu rotary_mode:%hhu, cacheMode: %u, stateCacheStrideDim0: %d, template_id:%hhu", dtype, layout, coff, rotaryMode, cacheMode, stateCacheStrideDim0, templateId);
+    OP_LOGI(context_->opName, "Compressor dtype:%hhu layout:%hhu  coff:%hhu rotary_mode:%hhu, cacheMode: %u, template_id:%hhu", dtype, layout, coff, rotaryMode, cacheMode, templateId);
     OP_LOGI(context_->opName, "Compressor tilingKey:%lu", context_->tilingKey);
 
     return ge::GRAPH_SUCCESS;
@@ -760,9 +763,8 @@ ge::graphStatus CompressorTiling::CheckFeature() const
                 OP_LOGE(context_->opName, "hiddenSize should be whthin [1k, 10k] and be 512-aligned, but got %u",
                         baseParams_->hiddenSize),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(pageAttentionParams_->blockSize > MAX_BLOCK_SIZE || pageAttentionParams_->blockSize < MIN_BLOCK_SIZE ||
-                    pageAttentionParams_->blockSize % ALIGN_FACTOR_BLOCK_SIZE != 0,
-                OP_LOGE(context_->opName, "blockSize should be whthin [16, 1024] and be 16-aligned, but got %u",
+    OP_CHECK_IF(pageAttentionParams_->blockSize < MIN_BLOCK_SIZE,
+                OP_LOGE(context_->opName, "blockSize should not be less than 1, but got %u",
                         pageAttentionParams_->blockSize),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;

@@ -80,7 +80,7 @@ ge::graphStatus GetCompressorShapeDim(const gert::InferShapeContext* context, Co
     OPS_LOG_E_IF_NULL(context, wgateShape, return ge::GRAPH_FAILED)
 
     auto stateCacheShape = context->GetRequiredInputShape(STATE_CACHE_INPUT_INDEX);    // (block_num, block_size, 2 * coff * D) | (B, tokrn_size, 2 * coff * D)
-    OPS_LOG_E_IF_NULL(context, kvStateShape, return ge::GRAPH_FAILED)
+    OPS_LOG_E_IF_NULL(context, stateCacheShape, return ge::GRAPH_FAILED)
 
     auto apeShape = context->GetRequiredInputShape(APE_INPUT_INDEX);    // (r, coff * D)
     OPS_LOG_E_IF_NULL(context, apeShape, return ge::GRAPH_FAILED)
