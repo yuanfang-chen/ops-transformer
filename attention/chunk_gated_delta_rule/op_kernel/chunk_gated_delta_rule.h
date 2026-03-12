@@ -45,7 +45,7 @@ template <typename lowType, typename highType>
 class CGDR {
 public:
     __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
-        : stageOneOp_(mmFp32_, mmBf16_)
+        : stageOneOp_(mmFp32_)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -56,7 +56,6 @@ public:
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
             mmFp32_.Init(&tiling_->matmulTilingFp32, pipe_);
-            mmBf16_.Init(&tiling_->matmulTilingBf16, pipe_);
         }
     }
 
@@ -113,14 +112,14 @@ public:
         gCumExp_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength;
 
-        kCumDecay_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
+        kCumDecay_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         vInner_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
-        qPrime_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
+        qPrime_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         attnInter_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
@@ -288,9 +287,9 @@ private:
     GlobalTensor<int32_t> actualSeqLens_;
 
     GlobalTensor<highType> gCumExp_;      // (Nv, maxGroupLength)
-    GlobalTensor<lowType> kCumDecay_;     // (Nv, maxGroupLength, Dk)
+    GlobalTensor<highType> kCumDecay_;     // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> vInner_;       // (Nv, maxGroupLength, Dv)
-    GlobalTensor<lowType> qPrime_;        // (Nv, maxGroupLength, Dk)
+    GlobalTensor<highType> qPrime_;        // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> attnInter_;    // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> vNew_;         // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> kg_;           // (Nv, maxGroupLength, Dk)
@@ -304,7 +303,6 @@ private:
 
     // Matmul objects
     MT_FP32 mmFp32_;
-    MT_BF16 mmBf16_;
 
     MT1 mm1_;
     MT2 mm2_;
