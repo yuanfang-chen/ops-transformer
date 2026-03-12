@@ -78,7 +78,7 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 
 在容器内获取算子源代码。
 ```bash
-git clone https://gitcode.com/cann/ops-transformer.git
+git clone -b 8.5.0 https://gitcode.com/cann/ops-transformer.git
 cd ops-transformer
 ```
 
