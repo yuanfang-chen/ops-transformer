@@ -998,7 +998,7 @@ ge::graphStatus SFATilingCheck::CheckSoftmaxMaxShape()
         shapeParams.G = n1Size_/n2Size_;
         if (CompareShape(shapeParams, softmaxMaxShapeCmp_, softmaxMaxLayout_, SOFTMAX_MAX_NAME) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
-    }
+        }
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1010,7 +1010,6 @@ ge::graphStatus SFATilingCheck::CheckSoftmaxSumShape()
         shapeParams.B = bSize_;
         shapeParams.N = n2Size_;
         shapeParams.S = s1Size_;
-        shapeParams.D = vHeadDim_;
         shapeParams.T = qTSize_;
         shapeParams.G = n1Size_/n2Size_;
         if (CompareShape(shapeParams, softmaxSumShapeCmp_, softmaxSumLayout_, SOFTMAX_SUM_NAME) != ge::GRAPH_SUCCESS) {
