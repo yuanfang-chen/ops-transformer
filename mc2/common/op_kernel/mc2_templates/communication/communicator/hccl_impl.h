@@ -19,8 +19,6 @@
 #include "../primitives/hccl_primitives.h"
 
 namespace MC2KernelTemplate {
-using namespace AscendC;
-
 /**
  * AICSync:通信控制核，true代表cube核，false代表vector核
  * ServerType:通信控制方式，ccu/mte/aicpu等
@@ -30,16 +28,26 @@ using namespace AscendC;
  * SendCnt:每轮发送的次数
  * RecvCnt:每轮等待发送完毕的次数
  */
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 class HcclCommunication
 {
 public:
+    // 通信器构造方法
     __aicore__ inline HcclCommunication(TilingDataType* tiling) : tiling_(tiling){};
+    // 初始化通信器参数
     __aicore__ inline void Init();
+    // 提前准备通信任务，与Process方法配套使用，一次PrepareAll多次Process
     __aicore__ inline void PrepareAll(uint32_t taskCnt);
+    // 获取上下文指针
     __aicore__ inline ContextType* GetContextPtr();
+    // 执行一次通信任务，与PrepareAll方法配套使用
     __aicore__ inline void Process(uint32_t taskIndex);
+    // 执行一次通信任务，与Process方法配套使用
+    __aicore__ inline void ProcessWithPrepare(uint32_t taskIndex);
+    // 更新通信任务起始索引，与ProcessWithPrepare方法配套使用，多次ProcessWithPrepare一次AddIndex
+    __aicore__ inline void AddIndex(uint32_t taskCnt);    
+    // 释放通信器资源
     __aicore__ inline void End();
 
 private:
@@ -48,19 +56,19 @@ private:
         COMMUNICATION_SEND_ONE
     };
     TilingDataType* tiling_;
-    Hccl<ServerType> hccl_;
+    AscendC::Hccl<ServerType> hccl_;
     ContextType context_;
-    Primitive<Hccl<ServerType>> primitive_;
+    Primitive<AscendC::Hccl<ServerType>> primitive_;
     uint32_t startIndex_ = 0;
     uint32_t endIndex_ = 0;
     bool notifyFlag_ = false;
     Communicationtype communicationType_ = COMMUNICATION_WAIT_ONE;
-    static constexpr uint8_t MAX_HCCL_HANDLE_ = 63;//hccl只支持最多63个任务并行
+    static constexpr uint8_t MAX_HCCL_HANDLE_ = 63; //hccl只支持最多63个任务并行
     AscendC::HcclHandle hTasks_[MAX_HCCL_HANDLE_];
     bool taskSuccess_[MAX_HCCL_HANDLE_];
 };
 
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::Init()
 {
@@ -75,7 +83,7 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
         }
     }
 
-    hccl_.InitV2(GetHcclContext<0>(), &(tiling_->mc2InitTiling));
+    hccl_.InitV2(AscendC::GetHcclContext<0>(), &(tiling_->mc2InitTiling));
     hccl_.SetCcTilingV2(offsetof(TilingDataType, mc2CcTiling));
     if constexpr (SendCnt == 1U && RecvCnt == 0U) {
         communicationType_ = Communicationtype::COMMUNICATION_SEND_ONE;
@@ -88,7 +96,7 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     }
 }
 
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::PrepareAll(uint32_t taskCnt)
 {
@@ -99,9 +107,7 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     for (uint32_t i = 0; i < taskCnt; i++) {
         hTasks_[endIndex_ + i] = primitive_.Prepare(&hccl_, &context_, i);
     }
-    // 更新全局变量
-    startIndex_ = endIndex_;
-    endIndex_ += taskCnt;
+    AddIndex(taskCnt);
     // 如果是先通后算就全量启动通信
     if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
         for (uint32_t i = 0; i < taskCnt; i++) {
@@ -111,7 +117,7 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     }
 }
 
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline ContextType*
 HcclCommunication<AICSync, ServerType, ContextType, TilingDataType,Primitive, SendCnt, RecvCnt>::GetContextPtr()
@@ -119,7 +125,7 @@ HcclCommunication<AICSync, ServerType, ContextType, TilingDataType,Primitive, Se
     return &context_;
 }
 
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::Process(uint32_t taskIndex)
 {
@@ -136,12 +142,42 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     }
 }
 
-template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
+    template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::ProcessWithPrepare(uint32_t taskIndex)
+{
+    // 只有通信核参与通信
+    if (!notifyFlag_) {
+        return;
+    }
+    if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
+        AscendC::HcclHandle handleId = primitive_.SyncSend(&hccl_, &context_, taskIndex);
+        hccl_.Wait(handleId);
+    } else if (communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
+        hTasks_[endIndex_ + taskIndex] = primitive_.SyncSend(&hccl_, &context_, taskIndex);
+        taskSuccess_[endIndex_ + taskIndex] = false;
+    }
+}
+
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
+    template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::AddIndex(uint32_t taskCnt)
+{
+    // 只有通信核参与通信
+    if (!notifyFlag_) {
+        return;
+    }
+    // 更新全局变量
+    startIndex_ = endIndex_;
+    endIndex_ += taskCnt;
+}
+
+template <bool AICSync, AscendC::HcclServerType ServerType, typename ContextType, typename TilingDataType,
     template<typename> class Primitive, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, TilingDataType, Primitive, SendCnt, RecvCnt>::End()
 {
-    // 如果是先算后通就全量等待通信
-    if (notifyFlag_ && communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
+    // 全量等待通信结果
+    if (notifyFlag_) {
         for (uint32_t i = 0;i < endIndex_; ++i) {
             if (!taskSuccess_[i]) {
                 hccl_.Wait(hTasks_[i]);
@@ -154,6 +190,12 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
         hccl_.Finalize();
     }
 }
+
+#ifndef DEFINE_MC2_HCCL_FOR_COMMUNICATION
+#define DEFINE_MC2_HCCL_FOR_COMMUNICATION(AICSync, ServerType, HcclContextType, TilingDataType, Primitive, sendCntPerTask, recvCntPerTask, CommunicationType) \
+    using CommunicationType = MC2KernelTemplate::HcclCommunication<\
+        AICSync, ServerType, HcclContextType, TilingDataType, Primitive, sendCntPerTask, recvCntPerTask>
+#endif
 }; // namespace MC2KernelTemplate
 
 #endif
