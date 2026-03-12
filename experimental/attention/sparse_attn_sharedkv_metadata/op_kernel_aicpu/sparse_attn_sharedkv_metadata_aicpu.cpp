@@ -1101,8 +1101,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes)
             if (i >= splitRes.usedCoreNum) {
                 metaDataPtr->faMetadata[2 * i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
                 metaDataPtr->faMetadata[2 * i + 1][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
-                metaDataPtr->faMetadata[2 * i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核M基本块最大数量
-                metaDataPtr->faMetadata[2 * i + 1][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核M基本块最大数量
+                metaDataPtr->faMetadata[2 * i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核s2基本块最大数量
+                metaDataPtr->faMetadata[2 * i + 1][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核s2基本块最大数量
                 continue;
             }
             metaDataPtr->faMetadata[2 * i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
@@ -1126,7 +1126,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes)
             //
             metaDataPtr->faMetadata[2 * i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
             metaDataPtr->faMetadata[2 * i + 1][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
-            // 单核M基本块最大数量
+            // 单核s2基本块最大数量
             metaDataPtr->faMetadata[2 * i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum;
             metaDataPtr->faMetadata[2 * i + 1][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum;
         }
@@ -1134,7 +1134,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes)
         for (size_t i = 0; i < aicCoreNum_; ++i) {
             if (i >= splitRes.usedCoreNum) {
                 metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
-                metaDataPtr->faMetadata[i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核M基本块最大数量
+                metaDataPtr->faMetadata[i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum; // 单核s2基本块最大数量
                 continue;
             }
             metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
