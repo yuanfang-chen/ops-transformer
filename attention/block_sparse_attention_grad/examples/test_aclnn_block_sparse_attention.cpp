@@ -1,16 +1,16 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
- * \file test_aclnn_rain_fusion_attention.cpp
- * \brief RainFusionAttention 算子测试用例
+ * \file test_aclnn_block_sparse_attention_grad.cpp
+ * \brief BlockSparseAttentionGrad 算子测试用例 (BNSD Layout)
  */
 
 #include <iostream>
@@ -20,7 +20,8 @@
 #include <cstdint>
 #include "acl/acl.h"
 #include "aclnn/opdev/fp16_t.h"
-#include "aclnnop/aclnn_rain_fusion_attention.h"
+// 确保此处的头文件路径与你的工程实际路径一致
+#include "../op_host/op_api/aclnn_block_sparse_attention_grad.h"
 
 using namespace std;
 
@@ -106,227 +107,177 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
     return 0;
 }
 
-
 int main() {
-    // 1. （固定写法）device/stream初始化
+    // 1. device/stream初始化
     int32_t deviceId = 0;
     aclrtStream stream;
     auto ret = Init(deviceId, &stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Init acl failed. ERROR: %d\n", ret); return ret);
 
-    // 2. 设置参数
+    // 2. 设置核心参数 (以 BNSD Layout 为例，对应你的 Python 单测边界条件)
     int32_t batch = 1;
+    int32_t numHeads = 2;
+    int32_t numKvHeads = 2;
     int32_t qSeqlen = 128;
     int32_t kvSeqlen = 128;
-    int32_t numHeads = 1;
-    int32_t numKvHeads = 1;
-    int32_t headDim = 128;
-    int32_t blockShapeX = 128;
-    int32_t blockShapeY = 128;
+    int32_t headDim = 64;
+    int32_t blockShapeX = 64;
+    int32_t blockShapeY = 64;
+
+    // 块数量计算
+    int32_t ceilQ = (qSeqlen + blockShapeX - 1) / blockShapeX;
+    int32_t ceilKv = (kvSeqlen + blockShapeY - 1) / blockShapeY;
+
+    // 3. 构建张量 Shape
+    std::vector<int64_t> qShape = {batch, numHeads, qSeqlen, headDim};
+    std::vector<int64_t> kvShape = {batch, numKvHeads, kvSeqlen, headDim};
+    std::vector<int64_t> lseShape = {batch, numHeads, qSeqlen}; // LSE 通常没有尾部 1 维，防止 GE squeeze
+    std::vector<int64_t> maskShape = {batch, numHeads, ceilQ, ceilKv};
+
+    // 4. 分配并初始化 Host 数据
+    int64_t qSize = GetShapeSize(qShape);
+    int64_t kvSize = GetShapeSize(kvShape);
     
-    // 计算TND格式维度
-    int64_t totalQTokens = batch * qSeqlen;
-    int64_t totalKvTokens = batch * kvSeqlen;
-    int32_t qBlockNum = (qSeqlen + blockShapeX - 1) / blockShapeX;  // Q块的X维度数量
-    int32_t kvBlockNum = (kvSeqlen + blockShapeY - 1) / blockShapeY;  // KV块的Y维度数量
-    // totalQBlocks = qBlockNum * numHeads (每个Q块对应一个head)
-    int32_t totalQBlocks = qBlockNum * numHeads;
-    int32_t maxKvBlockNum = kvBlockNum;
+    std::vector<op::fp16_t> qData(qSize, 1.0f);
+    std::vector<op::fp16_t> kData(kvSize, 1.0f);
+    std::vector<op::fp16_t> vData(kvSize, 1.0f);
+    std::vector<op::fp16_t> doutData(qSize, 0.5f);
+    std::vector<op::fp16_t> outData(qSize, 0.5f);
     
+    // 注意：根据之前的约束，softmaxLse 必须是 FP32，mask 必须是 UINT8
+    std::vector<float> lseData(GetShapeSize(lseShape), 0.0f);
+    std::vector<uint8_t> maskData(GetShapeSize(maskShape), 1); // 全部置为有效块
+
+    // 创建所有的前向输入/输出 aclTensor
+    void *qAddr = nullptr, *kAddr = nullptr, *vAddr = nullptr;
+    void *doutAddr = nullptr, *outAddr = nullptr;
+    void *lseAddr = nullptr, *maskAddr = nullptr;
     
-    // 3. 创建Query tensor (TND format: [totalQTokens, numHeads, headDim])
-    void *queryDeviceAddr = nullptr;
-    std::vector<int64_t> queryShape = {totalQTokens, numHeads, headDim};
-    std::vector<op::fp16_t> queryHostData(totalQTokens * numHeads * headDim, 1.0f);
-    aclTensor *queryTensor = nullptr;
-    ret = CreateAclTensor(queryHostData, queryShape, &queryDeviceAddr, aclDataType::ACL_FLOAT16, &queryTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create query tensor\n"); return ret);
+    aclTensor *qTensor = nullptr, *kTensor = nullptr, *vTensor = nullptr;
+    aclTensor *doutTensor = nullptr, *outTensor = nullptr;
+    aclTensor *lseTensor = nullptr, *maskTensor = nullptr;
+
+    CreateAclTensor(qData, qShape, &qAddr, aclDataType::ACL_FLOAT16, &qTensor);
+    CreateAclTensor(kData, kvShape, &kAddr, aclDataType::ACL_FLOAT16, &kTensor);
+    CreateAclTensor(vData, kvShape, &vAddr, aclDataType::ACL_FLOAT16, &vTensor);
+    CreateAclTensor(doutData, qShape, &doutAddr, aclDataType::ACL_FLOAT16, &doutTensor);
+    CreateAclTensor(outData, qShape, &outAddr, aclDataType::ACL_FLOAT16, &outTensor);
     
-    // 4. 创建Key/Value tensor (TND format: [totalKvTokens, numKvHeads, headDim])
-    void *keyDeviceAddr = nullptr;
-    void *valueDeviceAddr = nullptr;
-    std::vector<int64_t> kvShape = {totalKvTokens, numKvHeads, headDim};
-    std::vector<op::fp16_t> keyHostData(totalKvTokens * numKvHeads * headDim, 1.0f);
-    std::vector<op::fp16_t> valueHostData(totalKvTokens * numKvHeads * headDim, 1.0f);
-    aclTensor *keyTensor = nullptr;
-    aclTensor *valueTensor = nullptr;
-    ret = CreateAclTensor(keyHostData, kvShape, &keyDeviceAddr, aclDataType::ACL_FLOAT16, &keyTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create key tensor\n"); return ret);
-    ret = CreateAclTensor(valueHostData, kvShape, &valueDeviceAddr, aclDataType::ACL_FLOAT16, &valueTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create value tensor\n"); return ret);
+    CreateAclTensor(lseData, lseShape, &lseAddr, aclDataType::ACL_FLOAT, &lseTensor);     // 严格使用 FP32
+    CreateAclTensor(maskData, maskShape, &maskAddr, aclDataType::ACL_UINT8, &maskTensor); // 严格使用 UINT8
+
+    // 5. 创建反向输出梯度 (dq, dk, dv)
+    std::vector<op::fp16_t> dqData(qSize, 0.0f);
+    std::vector<op::fp16_t> dkData(kvSize, 0.0f);
+    std::vector<op::fp16_t> dvData(kvSize, 0.0f);
     
-    // 5. 生成稀疏索引 selectIdx 和 selectNumIdx
-    // selectIdx: [totalQBlocks, numHeads, maxKvBlockNum] - 三维tensor
-    // selectNumIdx: [totalQBlocks, numHeads] - 二维tensor
-    // 稀疏率为1，即不做稀疏，每个Q块选择所有KV块
-    std::vector<int64_t> selectIdxHostData(totalQBlocks * numHeads * maxKvBlockNum, -1);
-    std::vector<int64_t> selectNumIdxHostData(totalQBlocks * numHeads, 0);
+    void *dqAddr = nullptr, *dkAddr = nullptr, *dvAddr = nullptr;
+    aclTensor *dqTensor = nullptr, *dkTensor = nullptr, *dvTensor = nullptr;
+
+    CreateAclTensor(dqData, qShape, &dqAddr, aclDataType::ACL_FLOAT16, &dqTensor);
+    CreateAclTensor(dkData, kvShape, &dkAddr, aclDataType::ACL_FLOAT16, &dkTensor);
+    CreateAclTensor(dvData, kvShape, &dvAddr, aclDataType::ACL_FLOAT16, &dvTensor);
+
+    // 6. 创建 aclIntArray 属性参数 (BlockShape & ActualSeqLengths)
+    std::vector<int64_t> blockShapeVec = {blockShapeX, blockShapeY};
+    aclIntArray *blockShapeArr = aclCreateIntArray(blockShapeVec.data(), blockShapeVec.size());
     
-    // 稀疏率为1：每个Q块选择所有KV块，直接给下标0到maxKvBlockNum-1
-    for (int32_t qb = 0; qb < totalQBlocks; ++qb) {
-        for (int32_t h = 0; h < numHeads; ++h) {
-            // selectNumIdx[qb, h] = maxKvBlockNum (每个Q块选择所有KV块)
-            selectNumIdxHostData[qb * numHeads + h] = static_cast<int64_t>(maxKvBlockNum);
-            
-            // selectIdx[qb, h, k] = k (直接给下标，从0到maxKvBlockNum-1)
-            int64_t baseIdx = static_cast<int64_t>((qb * numHeads + h) * maxKvBlockNum);
-            for (int32_t k = 0; k < maxKvBlockNum; ++k) {
-                selectIdxHostData[baseIdx + k] = static_cast<int64_t>(k);
-            }
-        }
-    }
-    
-    void *selectIdxDeviceAddr = nullptr;
-    void *selectNumIdxDeviceAddr = nullptr;
-    std::vector<int64_t> selectIdxShape = {totalQBlocks, numHeads, maxKvBlockNum};
-    std::vector<int64_t> selectNumIdxShape = {totalQBlocks, numHeads};
-    aclTensor *selectIdxTensor = nullptr;
-    aclTensor *selectNumIdxTensor = nullptr;
-    ret = CreateAclTensor(selectIdxHostData, selectIdxShape, &selectIdxDeviceAddr, aclDataType::ACL_INT64, &selectIdxTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create selectIdx tensor\n"); return ret);
-    ret = CreateAclTensor(selectNumIdxHostData, selectNumIdxShape, &selectNumIdxDeviceAddr, aclDataType::ACL_INT64, &selectNumIdxTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create selectNumIdx tensor\n"); return ret);
-    
-    // 6. 创建输出tensor
-    void *outputDeviceAddr = nullptr;
-    std::vector<int64_t> outputShape = {totalQTokens, numHeads, headDim};
-    int64_t outputElementCount = totalQTokens * numHeads * headDim;
-    std::vector<op::fp16_t> outputHostData(outputElementCount, 0.0f);
-    aclTensor *outputTensor = nullptr;
-    ret = CreateAclTensor(outputHostData, outputShape, &outputDeviceAddr, aclDataType::ACL_FLOAT16, &outputTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create output tensor\n"); return ret);
-    
-    // 7. 创建blockShape数组
-    std::vector<int64_t> blockShapeData = {blockShapeX, blockShapeY};
-    aclIntArray *blockShape = aclCreateIntArray(blockShapeData.data(), blockShapeData.size());
-    CHECK_RET(blockShape != nullptr, LOG_PRINT("Failed to create blockShape array\n"); return -1);
-    
-    // 8. 创建actualSeqLengths和actualSeqLengthsKv (必需参数)
-    std::vector<int64_t> actualSeqLengthsHost(batch, static_cast<int64_t>(qSeqlen));
-    std::vector<int64_t> actualSeqLengthsKvHost(batch, static_cast<int64_t>(kvSeqlen));
-    
-    void *actualSeqLengthsDevice = nullptr;
-    void *actualSeqLengthsKvDevice = nullptr;
-    size_t seqLengthsSize = batch * sizeof(int64_t);
-    
-    ret = aclrtMalloc(&actualSeqLengthsDevice, seqLengthsSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to allocate actualSeqLengths memory\n"); return ret);
-    ret = aclrtMalloc(&actualSeqLengthsKvDevice, seqLengthsSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to allocate actualSeqLengthsKv memory\n"); 
-              aclrtFree(actualSeqLengthsDevice); return ret);
-    
-    ret = aclrtMemcpy(actualSeqLengthsDevice, seqLengthsSize, actualSeqLengthsHost.data(), 
-                     seqLengthsSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to copy actualSeqLengths to device\n"); 
-              aclrtFree(actualSeqLengthsDevice); aclrtFree(actualSeqLengthsKvDevice); return ret);
-    ret = aclrtMemcpy(actualSeqLengthsKvDevice, seqLengthsSize, actualSeqLengthsKvHost.data(), 
-                     seqLengthsSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to copy actualSeqLengthsKv to device\n"); 
-              aclrtFree(actualSeqLengthsDevice); aclrtFree(actualSeqLengthsKvDevice); return ret);
-    
-    // aclCreateIntArray 期望的是 host 侧的数据指针，而不是 device 侧的数据
-    aclIntArray *actualSeqLengths = aclCreateIntArray(actualSeqLengthsHost.data(), batch);
-    aclIntArray *actualSeqLengthsKv = aclCreateIntArray(actualSeqLengthsKvHost.data(), batch);
-    CHECK_RET(actualSeqLengths != nullptr && actualSeqLengthsKv != nullptr, 
-              LOG_PRINT("Failed to create actualSeqLengths arrays\n"); 
-              if (actualSeqLengthsDevice) aclrtFree(actualSeqLengthsDevice);
-              if (actualSeqLengthsKvDevice) aclrtFree(actualSeqLengthsKvDevice); return -1);
-    
-    // 9. 准备字符串参数（确保缓冲区大小足够，包含null terminator）
-    const char* qLayoutStr = "TND";
-    const char* kvLayoutStr = "TND";
-    char qLayoutBuffer[16] = {0};
-    char kvLayoutBuffer[16] = {0};
-    strncpy(qLayoutBuffer, qLayoutStr, sizeof(qLayoutBuffer) - 1);
-    strncpy(kvLayoutBuffer, kvLayoutStr, sizeof(kvLayoutBuffer) - 1);
-    
-    // 10. 计算scaleValue
-    float scaleValue = 1.0f / std::sqrt(static_cast<float>(headDim));
-    
-    // 11. 调用第一段接口
+    std::vector<int64_t> qSeqLenVec(batch, static_cast<int64_t>(qSeqlen));
+    std::vector<int64_t> kvSeqLenVec(batch, static_cast<int64_t>(kvSeqlen));
+    aclIntArray *qSeqLenArr = aclCreateIntArray(qSeqLenVec.data(), batch);
+    aclIntArray *kvSeqLenArr = aclCreateIntArray(kvSeqLenVec.data(), batch);
+
+    // 7. 标量与字符串参数配置
+    char qLayoutBuffer[16] = "BNSD";
+    char kvLayoutBuffer[16] = "BNSD";
+    int64_t maskType = 0;
+    double scaleValue = 1.0 / std::sqrt(static_cast<double>(headDim));
+    // 强制规定滑动窗口极大值
+    int64_t preTokens = 2147483647; 
+    int64_t nextTokens = 2147483647;
+
+    // 8. 调用第一段接口: GetWorkspaceSize
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor = nullptr;
-    
-    ret = aclnnRainFusionAttentionGetWorkspaceSize(
-        queryTensor,           // query
-        keyTensor,             // key
-        valueTensor,           // value
-        selectIdxTensor,       // selectIdx
-        selectNumIdxTensor,    // selectNumIdx
-        blockShape,            // blockShape
-        nullptr,               // attenMaskOptional
-        actualSeqLengths,      // actualSeqLengthsOptional
-        actualSeqLengthsKv,    // actualSeqLengthsKvOptional
-        nullptr,               // blockTableOptional
-        qLayoutBuffer,         // qInputLayout
-        kvLayoutBuffer,        // kvInputLayout
-        numKvHeads,            // numKeyValueHeads
-        0,                     // maskType
-        scaleValue,            // scaleValue
-        0,                     // innerPrecise (1=fp16 softmax)
-        128,                   // blockSize
-        outputTensor,          // attentionOut
-        nullptr,               // softmaxLseOptional
-        &workspaceSize,        // workspaceSize (out)
-        &executor);            // executor (out)
-    
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnRainFusionAttentionGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+
+    LOG_PRINT("Calling aclnnBlockSparseAttentionGradGetWorkspaceSize...\n");
+    ret = aclnnBlockSparseAttentionGradGetWorkspaceSize(
+        doutTensor, 
+        qTensor, 
+        kTensor, 
+        vTensor, 
+        outTensor, 
+        lseTensor, 
+        maskTensor,                 // blockSparseMaskOptional
+        nullptr,                    // attenMaskOptional 必须为空
+        blockShapeArr, 
+        qSeqLenArr, 
+        kvSeqLenArr, 
+        qLayoutBuffer, 
+        kvLayoutBuffer, 
+        static_cast<int64_t>(numKvHeads), 
+        maskType, 
+        scaleValue, 
+        preTokens, 
+        nextTokens, 
+        dqTensor, 
+        dkTensor, 
+        dvTensor, 
+        &workspaceSize, 
+        &executor
+    );
+
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     CHECK_RET(executor != nullptr, LOG_PRINT("executor is null after GetWorkspaceSize\n"); return -1);
-    
-    // 12. 分配workspace
+    LOG_PRINT("Workspace size required: %lu bytes\n", workspaceSize);
+
+    // 9. 分配 workspace
     void* workspaceAddr = nullptr;
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
     }
-    
-    // 12. 调用第二段接口
-    ret = aclnnRainFusionAttention(workspaceAddr, workspaceSize, executor, stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnRainFusionAttention failed. ERROR: %d\n", ret); return ret);
-    
-    // 13. 同步等待任务执行结束
+
+    // 10. 调用第二段接口: 执行计算
+    LOG_PRINT("Calling aclnnBlockSparseAttentionGrad...\n");
+    ret = aclnnBlockSparseAttentionGrad(workspaceAddr, workspaceSize, executor, stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnBlockSparseAttentionGrad failed. ERROR: %d\n", ret); return ret);
+
+    // 11. 同步 Stream，等待任务执行结束
     ret = aclrtSynchronizeStream(stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
-    
-    // 14. 获取输出的值，将device侧内存上的结果拷贝至host侧
-    int64_t outputSize = GetShapeSize(outputShape);
-    std::vector<op::fp16_t> resultData(outputSize, 0);
-    ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(op::fp16_t), outputDeviceAddr,
-                     outputSize * sizeof(op::fp16_t), ACL_MEMCPY_DEVICE_TO_HOST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
-    
-    // 15. 打印部分结果
-    uint64_t printNum = 10;
-    LOG_PRINT("Output results (first %lu elements):\n", printNum);
-    for (uint64_t i = 0; i < printNum && i < resultData.size(); i++) {
-        LOG_PRINT("  index %lu: %f\n", i, static_cast<float>(resultData[i]));
+
+    // 12. 将结果拷贝回 Host 侧打印
+    ret = aclrtMemcpy(dqData.data(), qSize * sizeof(op::fp16_t), dqAddr, qSize * sizeof(op::fp16_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed.\n"); return ret);
+
+    LOG_PRINT("Execution Success! Output results (first 10 elements of dQ):\n");
+    for (uint64_t i = 0; i < 10 && i < dqData.size(); i++) {
+        LOG_PRINT("  dQ index %lu: %f\n", i, static_cast<float>(dqData[i]));
     }
-    
-    // 16. 释放资源
+
+    // 13. 释放所有资源
+    LOG_PRINT("Cleaning up resources...\n");
     if (workspaceAddr) aclrtFree(workspaceAddr);
-    if (queryDeviceAddr) aclrtFree(queryDeviceAddr);
-    if (keyDeviceAddr) aclrtFree(keyDeviceAddr);
-    if (valueDeviceAddr) aclrtFree(valueDeviceAddr);
-    if (outputDeviceAddr) aclrtFree(outputDeviceAddr);
-    if (selectIdxDeviceAddr) aclrtFree(selectIdxDeviceAddr);
-    if (selectNumIdxDeviceAddr) aclrtFree(selectNumIdxDeviceAddr);
-    if (actualSeqLengthsDevice) aclrtFree(actualSeqLengthsDevice);
-    if (actualSeqLengthsKvDevice) aclrtFree(actualSeqLengthsKvDevice);
     
-    if (queryTensor) aclDestroyTensor(queryTensor);
-    if (keyTensor) aclDestroyTensor(keyTensor);
-    if (valueTensor) aclDestroyTensor(valueTensor);
-    if (outputTensor) aclDestroyTensor(outputTensor);
-    if (selectIdxTensor) aclDestroyTensor(selectIdxTensor);
-    if (selectNumIdxTensor) aclDestroyTensor(selectNumIdxTensor);
-    if (blockShape) aclDestroyIntArray(blockShape);
-    if (actualSeqLengths) aclDestroyIntArray(actualSeqLengths);
-    if (actualSeqLengthsKv) aclDestroyIntArray(actualSeqLengthsKv);
+    aclrtFree(qAddr); aclrtFree(kAddr); aclrtFree(vAddr);
+    aclrtFree(doutAddr); aclrtFree(outAddr);
+    aclrtFree(lseAddr); aclrtFree(maskAddr);
+    aclrtFree(dqAddr); aclrtFree(dkAddr); aclrtFree(dvAddr);
+
+    aclDestroyTensor(qTensor); aclDestroyTensor(kTensor); aclDestroyTensor(vTensor);
+    aclDestroyTensor(doutTensor); aclDestroyTensor(outTensor);
+    aclDestroyTensor(lseTensor); aclDestroyTensor(maskTensor);
+    aclDestroyTensor(dqTensor); aclDestroyTensor(dkTensor); aclDestroyTensor(dvTensor);
     
+    aclDestroyIntArray(blockShapeArr);
+    aclDestroyIntArray(qSeqLenArr);
+    aclDestroyIntArray(kvSeqLenArr);
+
     aclrtDestroyStream(stream);
     aclrtResetDevice(deviceId);
     aclFinalize();
-    
-    LOG_PRINT("Test completed successfully!\n");
+
+    LOG_PRINT("BlockSparseAttentionGrad Test completed successfully!\n");
     return 0;
 }
