@@ -3125,7 +3125,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({256, 0, -1})},
+                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
         DT_INT4, // D_T_A
@@ -3138,7 +3138,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
         GROUPED_MATMUL_A8W4_KERNEL_TEMPLATE_NONE, // A8W4_KERNEL_TEMPLATE
         GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE, // A16W8_KERNEL_TEMPLATE
         GROUPED_MATMUL_AIV_AIC_RATIO_2, // AIV_AIC_RATIO
-        true //IS_ENABLE_FIXED_AXIS
+        false //IS_ENABLE_FIXED_AXIS
     ); // tilngkey
     // string expectTilingData =
     //     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
