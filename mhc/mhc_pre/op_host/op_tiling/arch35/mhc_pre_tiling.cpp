@@ -52,7 +52,7 @@ const constexpr uint32_t CHUNK_T_MAX = 128;
 const constexpr uint32_t V1_CHUNK_D_SIZE = 5120;
 const constexpr uint32_t CHUNK_T_CALC_FACTOR = 32;
 const constexpr uint32_t L0_B_SIZE = 8 * 1024;
-const constexpr uint32_t FLOAT_ELE_SIZE = 4;
+const constexpr uint32_t FLOAT_ELE_SIZE = 8;
 const constexpr uint32_t KERNEL_WIDTH = 8;
 
 const constexpr uint32_t DB_L0C = 2;
