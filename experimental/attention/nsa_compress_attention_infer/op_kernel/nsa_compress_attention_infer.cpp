@@ -40,6 +40,14 @@ nsa_compress_attention_infer(
         NsaCompressAttentionInfer<NCAIType<half, half, half, LAYOUT::BSND>> op;
         op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional, 
                 actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
+    } else if (TILING_KEY_IS(2)) {
+        NsaCompressAttentionInfer<NCAIType<half, half, half, LAYOUT::TND, true>> op;
+        op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional,
+                actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
+    } else if (TILING_KEY_IS(3)) {
+        NsaCompressAttentionInfer<NCAIType<half, half, half, LAYOUT::BSND, true>> op;
+        op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional,
+                actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
     }
 #endif
 #if (ORIG_DTYPE_QUERY == DT_BF16)
@@ -50,6 +58,14 @@ nsa_compress_attention_infer(
     } else if (TILING_KEY_IS(1)) {
         NsaCompressAttentionInfer<NCAIType<bfloat16_t, bfloat16_t, bfloat16_t, LAYOUT::BSND>> op;
         op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional, 
+                actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
+    } else if (TILING_KEY_IS(2)) {
+        NsaCompressAttentionInfer<NCAIType<bfloat16_t, bfloat16_t, bfloat16_t, LAYOUT::TND, true>> op;
+        op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional,
+                actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
+    } else if (TILING_KEY_IS(3)) {
+        NsaCompressAttentionInfer<NCAIType<bfloat16_t, bfloat16_t, bfloat16_t, LAYOUT::BSND, true>> op;
+        op.Run(query, key, value, blockTableOptional, actualQSeqLenOptional, actualCmpKvSeqLenOptional,
                 actualSelKvSeqLenOptional, output, topkIndicesOut, user, &tilingData);
     }
 #endif

@@ -184,6 +184,35 @@ ge::graphStatus NCAITiling::CheckAttenMask()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus NCAITiling::CheckImpScoreParam()
+{
+    uint32_t slcNum = selectSize_ / compStrideD_;
+    uint32_t cmpNum = compSizeL_ / compStrideD_;
+    if (slcNum + cmpNum > ALIGNED_32 || sMax_ < IMP_SCORE_PARAM_ROW) {
+        useImpScoreOpt_ = false;
+        return ge::GRAPH_SUCCESS;
+    }
+    OP_LOGI(ncaiContext_->opName, "Enable importance score calculation optimization.");
+    useImpScoreOpt_ = true;
+    impScoreParamHasPrefix_ = compSizeL_ != compStrideD_;
+    impScoreParamValidCol_ = IMP_SCORE_PARAM_ROW / slcNum;
+    uint32_t maxT = (sMax_ - 1) * compStrideD_ + compSizeL_;
+    impScoreResultCol_ = (maxT % selectSize_ == 0 ? maxT / selectSize_ : maxT / selectSize_ + 1);
+    auto maxReduceCol = (ubSize_ / sizeof(float) / (groupSize_ + 1)) / ALIGNED_8 * ALIGNED_8; // +1 for the result buf
+    if (impScoreResultCol_ <= maxReduceCol || impScoreResultCol_ % maxReduceCol == 0) {
+        impScoreReduceCol_ = impScoreReduceTailCol_ = impScoreResultCol_;
+    } else {
+        impScoreReduceCol_ = maxReduceCol;
+        impScoreReduceTailCol_ = impScoreResultCol_ % maxReduceCol;
+    }
+    impScoreReduceRound_ = (impScoreResultCol_ + maxReduceCol - 1) / maxReduceCol;
+    impScoreReduceColPad_ = (impScoreReduceCol_ + ALIGNED_8 - 1) / ALIGNED_8 * ALIGNED_8;
+    impScoreReduceTailColPad_ = (impScoreReduceTailCol_ + ALIGNED_8 - 1) / ALIGNED_8 * ALIGNED_8;
+    impScoreResultCol_ += impScoreParamHasPrefix_;
+    impScoreResultColPad_ = (impScoreResultCol_ + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus NCAITiling::ParamsPostCheck()
 {   
     groupSize_ = qHeadNum_ / kvHeadNum_;
@@ -261,6 +290,9 @@ ge::graphStatus NCAITiling::ProcessInput()
     if (CheckAttenMask() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    if (CheckImpScoreParam() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -303,6 +335,21 @@ ge::graphStatus NCAITiling::Split()
     return SplitBN();
 }
 
+void NCAITiling::FillImpScoreTilingData()
+{
+    tilingData_->baseParams.set_impScoreWorkSpaceSize(impScoreWorkSpaceSize_);
+    tilingData_->baseParams.set_impScoreResultEleNum(impScoreResultEleNum_);
+    tilingData_->baseParams.set_impScoreResultCol(impScoreResultCol_);
+    tilingData_->baseParams.set_impScoreResultColPad(impScoreResultColPad_);
+    tilingData_->baseParams.set_impScoreReduceRound(impScoreReduceRound_);
+    tilingData_->baseParams.set_impScoreReduceCol(impScoreReduceCol_);
+    tilingData_->baseParams.set_impScoreReduceColPad(impScoreReduceColPad_);
+    tilingData_->baseParams.set_impScoreReduceTailCol(impScoreReduceTailCol_);
+    tilingData_->baseParams.set_impScoreReduceTailColPad(impScoreReduceTailColPad_);
+    tilingData_->baseParams.set_impScoreParamValidCol(impScoreParamValidCol_);
+    tilingData_->baseParams.set_impScoreParamHasPrefix(impScoreParamHasPrefix_);
+}
+
 ge::graphStatus NCAITiling::FillTilingData()
 {
     tilingData_->baseParams.set_batchSize(batchSize_);
@@ -327,6 +374,8 @@ ge::graphStatus NCAITiling::FillTilingData()
     tilingData_->baseParams.set_mm2InWorkSpaceSize(mm2InWorkSpaceSize_);
     tilingData_->baseParams.set_scoreInWorkSpaceSize(scoreInWorkSpaceSize_);
     tilingData_->baseParams.set_topKInWorkSpaceSize(topKInWorkSpaceSize_);
+    
+    FillImpScoreTilingData();
 
     tilingData_->splitBNParams.set_coreNumUsed(coreNumUsed_);
     tilingData_->splitBNParams.set_kvHeadSplitSize(kvHeadSplitSize_);
@@ -370,7 +419,10 @@ ge::graphStatus NCAITiling::CalcWorkSpace()
     scoreInWorkSpaceSize_ = workSpaceElemNum_ * scoreInElemSize * blockDim_;
     topKInWorkSpaceSize_  = workSpaceElemNum_ * scoreInElemSize * blockDim_ / groupSize_;
 
-    workSpaceSize_ += mm1ResWorkSpaceSize_ + mm2InWorkSpaceSize_ + scoreInWorkSpaceSize_ + topKInWorkSpaceSize_;
+    impScoreResultEleNum_ = rowNumSp * impScoreResultColPad_;
+    impScoreWorkSpaceSize_ = impScoreResultEleNum_ * sizeof(float) * blockDim_;
+    workSpaceSize_ += mm1ResWorkSpaceSize_ + mm2InWorkSpaceSize_ + scoreInWorkSpaceSize_ + topKInWorkSpaceSize_ +
+                      impScoreWorkSpaceSize_ + (impScoreParamValidCol_ + 1) * IMP_SCORE_PARAM_ROW * sizeof(float);
     if (ncaiContext_->workSpaces) {
         ncaiContext_->workSpaces[0] = workSpaceSize_;
     }
@@ -440,6 +492,9 @@ ge::graphStatus NCAITiling::CalcTilingKey()
     uint32_t tilingKey = 0;
     if (strcmp(ncaiContext_->layOut, "BSND") == 0) {
         tilingKey = 1U;
+    }
+    if (useImpScoreOpt_) {
+        tilingKey += 1U << 1;
     }
     ncaiContext_->tilingKey = tilingKey;
     return ge::GRAPH_SUCCESS;
