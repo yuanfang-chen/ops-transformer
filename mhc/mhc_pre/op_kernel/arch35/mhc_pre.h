@@ -90,6 +90,12 @@ static constexpr uint32_t PARALLEL_NUM = 2;
 static constexpr uint32_t DEFAULT_CHUNK_SIZE = 64;
 static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
 
+#define PROCESS_HIN_IDX(nIdx, lenD, dIdx, eleNumPerVf) \
+    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + nIdx * lenD + dIdx * eleNumPerVf); \
+    MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask); \
+    MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue##nIdx, mask); \
+    MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+
 using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
 using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
@@ -706,33 +712,10 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            // nIdx = 0
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 0 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 1
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 1 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 2
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 2 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 3
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 3 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
             MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg,
@@ -766,49 +749,12 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            // nIdx = 0
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 0 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 1
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 1 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-
-            // nIdx = 2
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 2 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-
-            // nIdx = 3
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 3 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 4
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 4 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue4, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 5
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 5 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue5, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
             MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg,
@@ -844,65 +790,17 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T *xIn
             MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
             MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
 
-            // nIdx = 0
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 0 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 1
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 1 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 2
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 2 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 3
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 3 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 4
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 4 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue4, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 5
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 5 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue5, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 6
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 6 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue6, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-            // nIdx = 7
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg,
-                                                                        xInAddr + 7 * lenD + dIdx * eleNumPerVf);
-            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue7, mask);
-            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            PROCESS_HIN_IDX(0, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(1, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(2, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(3, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(4, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(5, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(6, lenD, dIdx, eleNumPerVf);
+            PROCESS_HIN_IDX(7, lenD, dIdx, eleNumPerVf);
 
             MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
-            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg,
-                                                                        mask);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
         }
     }
 }
