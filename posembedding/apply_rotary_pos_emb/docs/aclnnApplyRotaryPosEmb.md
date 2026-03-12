@@ -79,16 +79,16 @@ aclnnStatus aclnnApplyRotaryPosEmb(
 
 - **参数说明**
 
-  <table style="undefined;table-layout: fixed; width: 1557px">
+  <table style="undefined;table-layout: fixed; width: 1576px">
   <colgroup>
-    <col style="width: 100px">
-    <col style="width: 100px">
-    <col style="width: 250px">
-    <col style="width: 300px">
-    <col style="width: 180px">
-    <col style="width: 80px">
-    <col style="width: 100px">
-    <col style="width: 100px">
+    <col style="width: 157px">
+    <col style="width: 125px">
+    <col style="width: 282px">
+    <col style="width: 319px">
+    <col style="width: 196px">
+    <col style="width: 122px">
+    <col style="width: 230px">
+    <col style="width: 145px">
   </colgroup>
   <tr>
     <th align="center">参数名</th>
@@ -233,11 +233,11 @@ aclnnStatus aclnnApplyRotaryPosEmb(
 
 - **参数说明**
 
-  <table style="undefined;table-layout: fixed; width: 1557px">
+  <table style="undefined;table-layout: fixed; width: 1149px">
   <colgroup>
-    <col style="width: 100px">
-    <col style="width: 100px">
-    <col style="width: 600px">
+    <col style="width: 169px">
+    <col style="width: 125px">
+    <col style="width: 855px">
   </colgroup>
   <tr>
     <th align="center">参数名</th>
