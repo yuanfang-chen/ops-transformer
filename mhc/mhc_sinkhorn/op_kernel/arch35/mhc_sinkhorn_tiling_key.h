@@ -9,12 +9,12 @@
 */
 
 /*!
-* \file mhc_post_tiling_key.h
-* \brief mhc_post tiling key declare
+* \file mhc_sinkhorn_tiling_key.h
+* \brief mhc_sinkhorn tiling key declare
 */
 
-#ifndef __MHC_POST_TILING_KEY_H__
-#define __MHC_POST_TILING_KEY_H__
+#ifndef __MHC_SINKHORN_TILING_KEY_H__
+#define __MHC_SINKHORN_TILING_KEY_H__
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
