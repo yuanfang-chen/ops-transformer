@@ -16,11 +16,8 @@
 #ifndef MATMUL_ALLTO_ALL_ARCH35_H
 #define MATMUL_ALLTO_ALL_ARCH35_H
 
-#include "matmul_allto_all_tiling_data.h"
-
-namespace MatmulAlltoAllImpl
+namespace Mc2Kernel
 {
-using namespace AscendC;
 /**
  * SchedulerType: 流水线类的数据类型
  * SchedulerContextType: 流水线类使用的上下文的数据类型
@@ -41,7 +38,7 @@ private:
     SchedulerContextType pipeLineContext_;
     MatmulAlltoAllTilingDataType* tilingData_;
     // 数据控制
-    TPipe* tPipe_;
+    AscendC::TPipe* tPipe_;
     // 输入输出矩阵地址
     GM_ADDR x1_;
     GM_ADDR x2_;
@@ -171,6 +168,6 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 
     pipeLine_->Process(taskCnt);
 }
-}; // namespace MatmulAlltoAllImpl
+}; // namespace Mc2Kernel
 
 #endif

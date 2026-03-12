@@ -75,13 +75,14 @@ inline __aicore__ void MC2KCQuantMMWrapper<MMTilingType, MMType>::End() {}
 // 计算节点的上下文数据类型声明
 #ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_QUANT
 #define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_QUANT(ContextType) \
-    using ContextType = MC2MMContext<KCQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>
+    using ContextType = MC2KernelTemplate::MC2MMContext<\
+        MC2KernelTemplate::KCQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>
 #endif
 
 // 使用QuantBatchMatmulV3算子作为计算节点的计算实现，是否转置的参数通过算子的模板参数获取
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, MMDtypeX1, MMDtypeX2) \
-    using ComputationType = MC2KCQuantMMWrapper<\
+    using ComputationType = MC2KernelTemplate::MC2KCQuantMMWrapper<\
         DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams,\
         Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<MMDtypeX1, MMDtypeX2, float, float, float,\
             DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>\

@@ -16,14 +16,7 @@
 #ifndef ALLTO_ALL_KC_QUANT_MATMUL_ARCH35_H
 #define ALLTO_ALL_KC_QUANT_MATMUL_ARCH35_H
 
-#include "allto_all_matmul_tiling_data.h"
-
-#define KC_DYN_QUANT_FP8E5M2 35
-#define KC_DYN_QUANT_FP8E4M3 36
-
-namespace AlltoAllMatmulImpl {
-using namespace AscendC;
-
+namespace Mc2Kernel {
 template <typename SchedulerType, typename SchedulerContextType, typename AlltoAllMatmulTilingDataType>
 class AlltoAllKcQuantMatmulArch35 {
 public:
@@ -37,7 +30,7 @@ private:
     SchedulerType *pipeLine_;
     SchedulerContextType pipeLineContext_;
     AlltoAllMatmulTilingDataType *tilingData_;
-    TPipe *tPipe_;
+    AscendC::TPipe *tPipe_;
     GM_ADDR x1_;
     GM_ADDR x2_;
     GM_ADDR y_;
@@ -204,5 +197,5 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
 
     pipeLine_->Process(taskCnt);
 }
-} // namespace AlltoAllMatmulImpl
+} // namespace Mc2Kernel
 #endif

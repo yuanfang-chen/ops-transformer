@@ -16,11 +16,8 @@
 #ifndef ALLTO_ALL_MATMUL_ARCH35_H
 #define ALLTO_ALL_MATMUL_ARCH35_H
 
-#include "allto_all_matmul_tiling_data.h"
-
-namespace AlltoAllMatmulImpl
+namespace Mc2Kernel
 {
-using namespace AscendC;
 template <typename SchedulerType, typename SchedulerContextType, typename AlltoAllMatmulTilingDataType>
 class AlltoAllMatmulArch35
 {
@@ -35,7 +32,7 @@ private:
     SchedulerType* pipeLine_;
     SchedulerContextType pipeLineContext_;
     AlltoAllMatmulTilingDataType* tilingData_;
-    TPipe* tPipe_;
+    AscendC::TPipe* tPipe_;
     GM_ADDR x1_;
     GM_ADDR x2_;
     GM_ADDR y_;
