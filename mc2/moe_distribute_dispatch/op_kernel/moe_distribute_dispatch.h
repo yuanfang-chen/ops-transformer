@@ -911,10 +911,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     uint32_t preCount = statusFp32Tensor_.ReinterpretCast<int32_t>().GetValue(2);
     gatherCount_ = coreGatherCount;
     preCnt_ = preCount;
-
     GlobalTensor<int32_t> sendCountsGlobal;
     GlobalTensor<int32_t> tpGlobal;
- 
     // 搬运另一个tp域卡传来的epRcvCnt
     sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(sendCountsOutGM_));
     tpGlobal.SetGlobalBuffer((__gm__ int32_t*)(tpLocalStatusWindowGM_ + TP_STATE_SIZE));
@@ -926,7 +924,6 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     tpTmpTensor_ = xQueue_.DeQue<int32_t>();
     DataCopyPad(sendCountsGlobal[epWorldSize_ + startExpertId_], tpTmpTensor_, dataCopyParams);
     xQueue_.FreeTensor(tpTmpTensor_);
- 
     if (coreGatherCount == 0) {
         return;
     }

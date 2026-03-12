@@ -739,8 +739,49 @@ static ge::graphStatus MoeDistributeDispatchA3A5TilingFuncImpl(gert::TilingConte
     return ge::GRAPH_SUCCESS;
 }
 
-// a2函数
-static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(gert::TilingContext *context, MoeDistributeDispatchA2Info& info, const bool isLayered)
+static void MoeDistributeDispatchA2SetTiling(gert::TilingContext *context, 
+ 	MoeDistributeDispatchA2Info& info, const bool isLayered, const int32_t bs)
+{
+    auto attrs = context->GetAttrs();
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
+    auto quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_QUANT_MODE_INDEX);
+    auto globalBsPtr = attrs->GetAttrPointer<int64_t>(ATTR_GLOBAL_BS_INDEX);
+    auto expertTokenNumsTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_EXPERT_TOKEN_NUMS_TYPE_INDEX);
+    
+    info.epWorldSize = *epWorldSizePtr;
+    info.tpWorldSize = static_cast<uint32_t>(0);
+    info.epRankId = *epRankIdPtr;
+    info.tpRankId = static_cast<uint32_t>(0);
+    info.expertSharedType = static_cast<uint32_t>(0);
+    info.sharedExpertRankNum = static_cast<uint32_t>(0);
+    info.moeExpertNum = *moeExpertNumPtr;
+    info.quantMode = *quantModePtr;
+    info.maxMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2;
+
+    if (*globalBsPtr == 0) {
+        info.globalBs = *epWorldSizePtr * bs;
+    } else {
+        info.globalBs = *globalBsPtr;
+    }
+    info.expertTokenNumsType = *expertTokenNumsTypePtr;
+
+    OP_LOGD(K_INNER_DEBUG, "quantMode=%d", info.quantMode);
+    OP_LOGD(K_INNER_DEBUG, "globalBs=%d", info.globalBs);
+    OP_LOGD(K_INNER_DEBUG, "expertTokenNumsType=%d", info.expertTokenNumsType);
+    OP_LOGD(K_INNER_DEBUG, "expertSharedType=%d", info.expertSharedType);
+    OP_LOGD(K_INNER_DEBUG, "sharedExpertRankNum=%d", info.sharedExpertRankNum);
+    OP_LOGD(K_INNER_DEBUG, "moeExpertNum=%d", info.moeExpertNum);
+    OP_LOGD(K_INNER_DEBUG, "epWorldSize=%d", info.epWorldSize);
+    OP_LOGD(K_INNER_DEBUG, "tpWorldSize=%d", info.tpWorldSize);
+    OP_LOGD(K_INNER_DEBUG, "epRankId=%d", info.epRankId);
+    OP_LOGD(K_INNER_DEBUG, "tpRankId=%d", info.tpRankId);
+    OP_LOGD(K_INNER_DEBUG, "maxMoeExpertNum=%d", info.maxMoeExpertNum);
+}
+
+static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(gert::TilingContext *context, 
+    MoeDistributeDispatchA2Info& info, const bool isLayered)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(K_INNER_DEBUG, "attrs is null."), return ge::GRAPH_FAILED);
@@ -789,34 +830,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(gert::Tiling
     OP_TILING_CHECK(expertTokenNumsTypePtr == nullptr || *expertTokenNumsTypePtr < 0 || *expertTokenNumsTypePtr > 1,
         OP_LOGE(K_INNER_DEBUG, "expertTokenNumsType is invalid. Must be 0 or 1. "), return GRAPH_FAILED);
 
-    info.epWorldSize = *epWorldSizePtr;
-    info.tpWorldSize = static_cast<uint32_t>(0);
-    info.epRankId = *epRankIdPtr;
-    info.tpRankId = static_cast<uint32_t>(0);
-    info.expertSharedType = static_cast<uint32_t>(0);
-    info.sharedExpertRankNum = static_cast<uint32_t>(0);
-    info.moeExpertNum = *moeExpertNumPtr;
-    info.quantMode = *quantModePtr;
-    info.maxMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2;
-
-    if (*globalBsPtr == 0) {
-        info.globalBs = *epWorldSizePtr * bs;
-    } else {
-        info.globalBs = *globalBsPtr;
-    }
-    info.expertTokenNumsType = *expertTokenNumsTypePtr;
-
-    OP_LOGD(K_INNER_DEBUG, "quantMode=%d", info.quantMode);
-    OP_LOGD(K_INNER_DEBUG, "globalBs=%d", info.globalBs);
-    OP_LOGD(K_INNER_DEBUG, "expertTokenNumsType=%d", info.expertTokenNumsType);
-    OP_LOGD(K_INNER_DEBUG, "expertSharedType=%d", info.expertSharedType);
-    OP_LOGD(K_INNER_DEBUG, "sharedExpertRankNum=%d", info.sharedExpertRankNum);
-    OP_LOGD(K_INNER_DEBUG, "moeExpertNum=%d", info.moeExpertNum);
-    OP_LOGD(K_INNER_DEBUG, "epWorldSize=%d", info.epWorldSize);
-    OP_LOGD(K_INNER_DEBUG, "tpWorldSize=%d", info.tpWorldSize);
-    OP_LOGD(K_INNER_DEBUG, "epRankId=%d", info.epRankId);
-    OP_LOGD(K_INNER_DEBUG, "tpRankId=%d", info.tpRankId);
-    OP_LOGD(K_INNER_DEBUG, "maxMoeExpertNum=%d", info.maxMoeExpertNum);
+    MoeDistributeDispatchA2SetTiling(context, info, isLayered, bs);
 
     return ge::GRAPH_SUCCESS;
 }
