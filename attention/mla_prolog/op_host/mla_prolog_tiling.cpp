@@ -133,14 +133,6 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3Mxfp8() const
         } else {
             OP_LOGE(context_->opName, "When weightQuantMode == 0, kvQuantMode must be within {0}, actually is %d.", *(context_->kvQuantMode)); 
         }
-    } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::PARTIAL_QUANT)) {
-        if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
-                return QUANT_MODE::PARTIAL_QUANT_KV_NO_QUANT;
-        } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_CHANNEL)) {
-                return QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_CHANNEL;
-        } else {
-            OP_LOGE(context_->opName, "When weightQuantMode == 1, kvQuantMode must be within {0, 2}, actually is %d.", *(context_->kvQuantMode));
-        }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT;
@@ -576,6 +568,11 @@ ge::graphStatus MlaPrologTiling::GenTilingKey() const
     uint8_t cvMode = ASCENDC_TPL_MIX_AIC_1_2; // 默认cv 1:2模式
     if (aivNum_ == aicNum_) {
         cvMode = ASCENDC_TPL_MIX_AIC_1_1; // cv 1:1模式
+    }
+
+    if (cvMode == ASCENDC_TPL_MIX_AIC_1_1 && GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE(context_->opName, "CV1:1 mode is not support on Ascend 950PR/Ascend 950DT.");
+        return ge::GRAPH_FAILED;
     }
 
     if (cvMode == ASCENDC_TPL_MIX_AIC_1_1 &&
