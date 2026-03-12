@@ -76,9 +76,10 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 
 ### 1. 拉取ops-transformer仓库代码
 
-在容器内获取算子源代码。
+Docker或WebIDE环境默认提供最新商发版本源码，如需获取其他版本源码，可通过如下命令下载，\$\{tag\_version\}需替换为目标分支标签名，分支标签与CANN版本配套关系可参见[release仓库](https://gitcode.com/cann/release-management)。
+
 ```bash
-git clone https://gitcode.com/cann/ops-transformer.git
+git clone -b ${tag_version} https://gitcode.com/cann/ops-transformer.git
 cd ops-transformer
 ```
 
