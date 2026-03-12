@@ -194,7 +194,7 @@ static void CheckFormatValid(
     if (permutedTokenOutputGrad != nullptr) {
         op::Format format = permutedTokenOutputGrad->GetStorageFormat();
         if (IsPrivateFormat(format)) {
-            OP_LOGW("Format of permutedTokenOutputGrad gets [%s], this format mat lead to precision failure",
+            OP_LOGW("Format of permutedTokenOutputGrad gets [%s], this format may lead to precision failure",
                     op::ToString(format).GetString());
         }
     }
@@ -202,7 +202,7 @@ static void CheckFormatValid(
     if (permutedProbsOutputGradOptional != nullptr) {
         op::Format format = permutedProbsOutputGradOptional->GetStorageFormat();
         if (IsPrivateFormat(format)) {
-            OP_LOGW("Format of permutedProbsOutputGradOptional gets [%s], this format mat lead to precision failure",
+            OP_LOGW("Format of permutedProbsOutputGradOptional gets [%s], this format may lead to precision failure",
                     op::ToString(format).GetString());
         }
     }
@@ -210,7 +210,7 @@ static void CheckFormatValid(
     if (sortedIndices != nullptr) {
         op::Format format = sortedIndices->GetStorageFormat();
         if (IsPrivateFormat(format)) {
-            OP_LOGW("Format of sortedIndices gets [%s], this format mat lead to precision failure",
+            OP_LOGW("Format of sortedIndices gets [%s], this format may lead to precision failure",
                     op::ToString(format).GetString());
         }
     }
@@ -218,7 +218,7 @@ static void CheckFormatValid(
     if (routingMapOptional != nullptr) {
         op::Format format = routingMapOptional->GetStorageFormat();
         if (IsPrivateFormat(format)) {
-            OP_LOGW("Format of routingMapOptional gets [%s], this format mat lead to precision failure",
+            OP_LOGW("Format of routingMapOptional gets [%s], this format may lead to precision failure",
                     op::ToString(format).GetString());
         }
     }
