@@ -54,7 +54,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S1024_n4_D5120)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_post
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_res
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // inv_rms (optional)
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // mm_res (optional)
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_mix (optional)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}                       // h_pre (optional)
         },
         {
@@ -69,7 +69,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S1024_n4_D5120)
         {T, n},         // h_post: [T, n]
         {T, n, n},      // h_res: [T, n, n]
         {T},            // inv_rms: [T]
-        {T, nD},        // mm_res: [T, nD]
+        {T, nD},        // h_mix: [T, nD]
         {T, n}          // h_pre: [T, n]
     };
 
@@ -102,7 +102,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S2048_n4_D2560)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_post
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_res
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // inv_rms (optional)
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // mm_res (optional)
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_mix (optional)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}                       // h_pre (optional)
         },
         {
@@ -117,7 +117,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S2048_n4_D2560)
         {T, n},         // h_post: [T, n]
         {T, n, n},      // h_res: [T, n, n]
         {T},            // inv_rms: [T]
-        {T, nD},        // mm_res: [T, nD]
+        {T, nD},        // h_mix: [T, nD]
         {T, n}          // h_pre: [T, n]
     };
 
@@ -150,7 +150,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S4096_n4_D2560)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_post
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_res
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // inv_rms (optional)
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // mm_res (optional)
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                      // h_mix (optional)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}                       // h_pre (optional)
         },
         {
@@ -165,7 +165,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S4096_n4_D2560)
         {T, n},         // h_post: [T, n]
         {T, n, n},      // h_res: [T, n, n]
         {T},            // inv_rms: [T]
-        {T, nD},        // mm_res: [T, nD]
+        {T, nD},        // h_mix: [T, nD]
         {T, n}          // h_pre: [T, n]
     };
 
@@ -199,7 +199,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_Normal)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_post
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_res
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // inv_rms (optional)
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // mm_res (optional)
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_mix (optional)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}                         // h_pre (optional)
         },
         {
@@ -214,7 +214,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_Normal)
         {B, S, n},         // h_post: [B, S, n]
         {B, S, n, n},      // h_res: [B, S, n, n]
         {B, S},            // inv_rms: [B, S]
-        {B, S, nD},        // mm_res: [B, S, nD]
+        {B, S, nD},        // h_mix: [B, S, nD]
         {B, S, n}          // h_pre: [B, S, n]
     };
 
@@ -248,7 +248,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_DifferentBatch)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_post
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_res
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // inv_rms (optional)
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // mm_res (optional)
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        // h_mix (optional)
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}                         // h_pre (optional)
         },
         {
@@ -263,7 +263,7 @@ TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_DifferentBatch)
         {B, S, n},         // h_post: [B, S, n]
         {B, S, n, n},      // h_res: [B, S, n, n]
         {B, S},            // inv_rms: [B, S]
-        {B, S, nD},        // mm_res: [B, S, nD]
+        {B, S, nD},        // h_mix: [B, S, nD]
         {B, S, n}          // h_pre: [B, S, n]
     };
 
