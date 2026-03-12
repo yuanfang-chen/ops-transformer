@@ -3084,7 +3084,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 }
 
 // QUANT_A4W4优化
-TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_fixed_axis)
+TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
 {
     size_t M = 256;
     size_t K = 2048;
@@ -3144,7 +3144,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_fixed_axis)
     //     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
     string expectTilingData =
         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {29360128}; // workspace
+    std::vector<size_t> expectWorkspaces = {24117248}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,230);
 }
 
