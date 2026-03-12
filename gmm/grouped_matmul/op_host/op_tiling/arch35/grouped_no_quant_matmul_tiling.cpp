@@ -396,6 +396,12 @@ bool GroupedNoQuantMatmulTiling::GMMGetTensorShapeSplitK(const gert::TilingConte
     if (isSingleX_ && isSingleWeight_ && isSingleY_) { // splitK, s-s-s
         return SplitKSingleXSingleWeightSingleY(context, xShape, wShape);
     }
+    if (isSingleX_ && !isSingleWeight_ && !isSingleY_) {  // splitK, s-m-m
+      return SplitKSingleXSeparatedWeight(context, xShape, wShape);
+    }
+    if (!isSingleX_ && isSingleWeight_) {  // splitK, m-s-m/m-s-s
+      return SeparatedXSingleWeight(context, wShape);
+    }
     OP_LOGE(context->GetNodeName(),
             "GMM_tiling: not support groupType_=%d, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d", groupType_,
             isSingleWeight_, isSingleX_, isSingleY_);
@@ -468,7 +474,7 @@ bool GroupedNoQuantMatmulTiling::SeparatedXSeparatedWeight(const gert::TilingCon
     return true;
 }
 
-/** @brief split M : multi-single-multi(m-s-m), share the same function
+/** @brief split M : multi-single-multi(m-s-m), split K : multi-single-multi(m-s-m), share the same function
  */
 bool GroupedNoQuantMatmulTiling::SeparatedXSingleWeight(const gert::TilingContext *context, const gert::Shape wShape)
 {
@@ -512,6 +518,31 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSingleWeightSingleY(const gert::Ti
     k_ = static_cast<uint64_t>(k);
     kZero = kZero || (k == 0);
     return true;
+}
+
+/** @brief split K single-multi-multi(s-m-m)
+ */
+bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::TilingContext* context,
+                                                        const gert::Shape xShape, const gert::Shape wShape)
+{
+  int64_t m = xShape.GetDim(1);
+  int64_t k = xShape.GetDim(xKDim_);
+  for (uint32_t i = 0; i < MAX_TENSOR; i++) {
+    auto wTensor = context->GetDynamicInputTensor(INDEX_WEIGHT, i);
+    if (wTensor == nullptr) {
+        break;
+    }
+    auto wTensorShape = wTensor->GetOriginShape();
+
+    groupNum_ += 1U;
+    int64_t n = wTensorShape.GetDim(weightNDim_) * nzFactor_;
+    n_ = std::max(n_, static_cast<uint64_t>(n));
+  }
+  m_ = static_cast<uint64_t>(m);
+  k_ = static_cast<uint64_t>(k);
+  kZero = kZero || (k == 0);
+  groupType_ = NO_SPLIT;
+  return true;
 }
 
 void GroupedNoQuantMatmulTiling::PrintTilingResult(const gert::TilingContext *context)

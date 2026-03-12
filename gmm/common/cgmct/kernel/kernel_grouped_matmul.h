@@ -209,7 +209,7 @@ public:
         GetTensorShape(params.gmmParams.singleX == 0 ? groupIdx : 0, params.mmadParams.aGmAddr, xShape);
         GetTensorShape(params.gmmParams.singleWeight == 0 ? groupIdx : 0, params.mmadParams.bGmAddr, wShape);
         Get<M_VALUE>(problemShape_) = transA ? xShape[DIM_NUM - 1] : xShape[DIM_NUM - 2];
-        Get<K_VALUE>(problemShape_) = transA ? xShape[DIM_NUM - 2] : xShape[DIM_NUM - 1];
+        Get<K_VALUE>(problemShape_) = transB ? wShape[DIM_NUM - 1] : wShape[DIM_NUM - 2];
         Get<N_VALUE>(problemShape_) = transB ? wShape[DIM_NUM - 2] : wShape[DIM_NUM - 1];
         if (params.gmmParams.groupType == SPLIT_M) {
             Get<M_VALUE>(problemShape_) = splitValue;
