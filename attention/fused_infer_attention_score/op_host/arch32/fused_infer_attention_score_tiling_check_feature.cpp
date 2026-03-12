@@ -422,11 +422,18 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
             return ge::GRAPH_FAILED);
         }
     } else if (fiaInfo_.ropeMode == RopeMode::ROPE_COMBINE) {
-        if (std::find(combineRopeLayoutSupportList.begin(), combineRopeLayoutSupportList.end(), layout) != combineRopeLayoutSupportList.end()) {
-            OP_CHECK_IF(qkHeadDim_ != 192 || vHeadDim_ != 128, // 192: qkD need 192, 128: vD need 128 to determine specific input layout
-            OP_LOGE(opName_, "In %s %s situation, when input_layout is BSH, BSND, BNSD, BNSD_BSND, TND, NTD, BSH_BNSD, BSND_BNSD, NTD_TND, only query|key headDim = 192, value headDim = 128 are supported, but got query|key headDim: %u, value headDim: %u",
-                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), qkHeadDim_, vHeadDim_),
-            return ge::GRAPH_FAILED);
+        if (std::find(combineRopeLayoutSupportList.begin(), combineRopeLayoutSupportList.end(), layout) !=
+            combineRopeLayoutSupportList.end()) {
+            OP_CHECK_IF(qkHeadDim_ != 192 ||
+                            vHeadDim_ != 128, // 192: qkD need 192, 128: vD need 128 to determine specific input layout
+                        OP_LOGE(opName_,
+                                "In %s %s situation, when input_layout is BSH, BSND, BNSD, BNSD_BSND, TND, NTD, "
+                                "BSH_BNSD, BSND_BNSD, NTD_TND, and the headDim shared by query and key is not equal to "
+                                "that of value, only query|key headDim = 192, value headDim = 128 are supported, but "
+                                "got query|key headDim: %u, value headDim: %u",
+                                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(),
+                                qkHeadDim_, vHeadDim_),
+                        return ge::GRAPH_FAILED);
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -574,21 +581,9 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
             std::find(nzNoRopeDSupportList.begin(), nzNoRopeDSupportList.end(), vHeadDim_) ==
                 nzNoRopeDSupportList.end()) {
             OP_LOGE(opName_,
-                    "In %s %s situation, when the dim of key&value is 5, headDim of query|key|value should be 64 | "
+                    "In %s %s situation, when the dim of key&value is 5, and the headDim shared by query and key is "
+                    "equal to that of value. The headDim of query|key|value should be 64 | "
                     "128, but got valueHeadDim:%u, queryHeadDim and keyHeadDim:%u",
-                    QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_,
-                    qkHeadDim_);
-            return ge::GRAPH_FAILED;
-        }
-    }
-    if (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION && kvLayout_ == FiaLayout::NZ &&
-        ropeMode_ == RopeMode::ROPE_COMBINE) {
-        constexpr uint32_t PA_NZ_COMBINE_QK_D = 192;
-        constexpr uint32_t PA_NZ_COMBINE_V_D = 128;
-        if (qkHeadDim_ != PA_NZ_COMBINE_QK_D && vHeadDim_ != PA_NZ_COMBINE_V_D) {
-            OP_LOGE(opName_,
-                    "In %s %s situation, when the dim of key&value is 5, expected Q/K head_dim=192 and V head_dim=128, "
-                    "but got value_head_dim=%u and query/key_head_dim=%u.",
                     QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_,
                     qkHeadDim_);
             return ge::GRAPH_FAILED;
