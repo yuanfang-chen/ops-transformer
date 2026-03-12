@@ -406,8 +406,11 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
     __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr)
 {
     if constexpr (GmLayoutParams<Q_FORMAT>::CATEGORY == FormatCategory::GM_Q_OUT_BNGSD) {
+        GlobalTensor<uint64_t> actualSeqQLen;
+        actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)actualSeqQlenAddr);
         this->queryGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
             sharedParams->s1Size, sharedParams->dSize);
+        this->queryGm.offsetCalculator.actualSeqLensQParser.Init(actualSeqQLen, sharedParams->actualSeqLengthsSize, 0);
         if constexpr (hasRope) {
             this->queryRopeGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
                 sharedParams->s1Size, sharedParams->dSizeRope);
@@ -432,10 +435,14 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
         }
     }
     if constexpr (GmLayoutParams<KV_FORMAT>::CATEGORY == FormatCategory::GM_KV_BNSD) {
+        GlobalTensor<uint64_t> actualSeqKVLen;
+        actualSeqKVLen.SetGlobalBuffer((__gm__ uint64_t *)actualSeqKvlenAddr);
         this->keyGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
             sharedParams->dSize);
         this->valueGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
             sharedParams->dSizeV);
+        this->keyGm.offsetCalculator.actualSeqLensKVParser.Init(actualSeqKVLen, sharedParams->actualSeqLengthsKVSize, 0);
+        this->valueGm.offsetCalculator.actualSeqLensKVParser.Init(actualSeqKVLen, sharedParams->actualSeqLengthsKVSize, 0);
         if constexpr (enableKVPrefix) {
             this->keySharedPrefixGm.offsetCalculator.Init(1, sharedParams->n2Size, sharedParams->kvPrefixSize, sharedParams->dSize);
             this->valueSharedPrefixGm.offsetCalculator.Init(1, sharedParams->n2Size, sharedParams->kvPrefixSize, sharedParams->dSizeV);
