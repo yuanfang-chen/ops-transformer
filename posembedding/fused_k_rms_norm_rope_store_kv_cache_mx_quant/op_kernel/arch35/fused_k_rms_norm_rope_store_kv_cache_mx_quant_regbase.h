@@ -16,11 +16,56 @@
 #ifndef FUSED_K_RMS_NORM_ROPE_STORE_KV_CACHE_MX_QUANT_REGBASE_H_
 #define FUSED_K_RMS_NORM_ROPE_STORE_KV_CACHE_MX_QUANT_REGBASE_H_
 
+#include "kernel_operator.h"
+#include "platform.h"
+
 namespace FusedKRmsNormRopeStoreKvCacheMxQuant {
 using namespace AscendC;
 
+constexpr static uint32_t VL_FP32 = static_cast<int64_t>(platform::GetVRegSize()) / sizeof(float);
+
+constexpr static AscendC::MicroAPI::CastTrait CAST_B16_TO_B32 = {
+    AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::UNKNOWN, AscendC::MicroAPI::MaskMergeMode::ZEROING,
+    AscendC::RoundMode::UNKNOWN};
+
+constexpr static AscendC::MicroAPI::CastTrait CAST_FP32_TO_FP16 = {
+    AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT, AscendC::MicroAPI::MaskMergeMode::ZEROING,
+    AscendC::RoundMode::CAST_RINT};
+
+template <typename T>
+__aicore__ inline void LoadTensorForDtypeT(
+    __local_mem__ T* input, AscendC::MicroAPI::RegTensor<float>& dst, AscendC::MicroAPI::MaskReg& preg, uint32_t offset)
+{
+    if constexpr (IsSameType<T, half>::value) {
+        AscendC::MicroAPI::RegTensor<half> xFp16;
+        DataCopy<half, AscendC::MicroAPI::LoadDist::DIST_UNPACK_B16>(xFp16, ((__local_mem__ half*)(input) + (offset)));
+        Cast<float, half, CAST_B16_TO_B32>(dst, xFp16, preg);
+    } else if constexpr (IsSameType<T, bfloat16_t>::value) {
+        AscendC::MicroAPI::RegTensor<bfloat16_t> xBf16;
+        DataCopy<bfloat16_t, AscendC::MicroAPI::LoadDist::DIST_UNPACK_B16>(
+            xBf16, ((__local_mem__ bfloat16_t*)(input) + (offset)));
+        Cast<float, bfloat16_t, CAST_B16_TO_B32>(dst, xBf16, preg);
+    } else {
+        DataCopy(dst, ((__local_mem__ float*)(input) + (offset)));
+    }
+}
+
+template <typename T>
+__aicore__ inline void StoreTensorForDtypeTOut(
+    __local_mem__ T* dst, AscendC::MicroAPI::RegTensor<float>& src, AscendC::MicroAPI::MaskReg& preg, uint32_t offset)
+{
+    if constexpr (IsSameType<T, float>::value) {
+        DataCopy<T, AscendC::MicroAPI::StoreDist::DIST_NORM>(dst + offset, src, preg);
+    } else {
+        AscendC::MicroAPI::RegTensor<T> xB16;
+        Cast<T, float, CAST_FP32_TO_FP16>(xB16, src, preg);
+        DataCopy<T, AscendC::MicroAPI::StoreDist::DIST_PACK_B32>(dst + offset, xB16, preg);
+    }
+}
+
 constexpr static int64_t QUANT_BLOCK_SIZE = 32;
 constexpr static int64_t U8_BLOCK_ALIGN_NUM = 32;
+constexpr static int64_t CONST_TWO = 2;
 
 template <typename T_QKV>
 class FusedKRmsNormRopeStoreKvCacheMxQuantRegbase
@@ -92,6 +137,59 @@ public:
     __aicore__ inline void DoRmsNorm(const LocalTensor<float> &dstTensor, const LocalTensor<T> &srcTensor,
                                      const LocalTensor<float> &gammaTensor, const int64_t aSize, const int64_t rSize)
     {
+        if (aSize <= 0 || rSize <= 0) {
+            return;
+        }
+        if (rSize > CONST_TWO * VL_FP32) {
+            return;
+        }
+
+        float epsilon = tilingData_->epsilon;
+        float reciprocal = tilingData_->reciprocal;
+        int64_t stride = rSize;
+        uint16_t loopTimes = static_cast<uint16_t>(aSize);
+
+        __local_mem__ float* dst = (__local_mem__ float*)dstTensor.GetPhyAddr();
+        __local_mem__ T* x = (__local_mem__ T*)srcTensor.GetPhyAddr();
+        __local_mem__ T* x_1 = (__local_mem__ T*)srcTensor.GetPhyAddr() + VL_FP32;
+        __local_mem__ float* gamma = (__local_mem__ float*)gammaTensor.GetPhyAddr();
+        __local_mem__ float* gamma_1 = (__local_mem__ float*)gammaTensor.GetPhyAddr() + VL_FP32;
+
+        __VEC_SCOPE__
+        {
+            uint32_t count = static_cast<uint32_t>(rSize - VL_FP32);
+            AscendC::MicroAPI::RegTensor<float> reg0, reg1, reg0_1, reg1_1, reg2, reg2_1;
+            AscendC::MicroAPI::RegTensor<float> reg3, reg4, reg5, reg6, reg7, reg8, reg9;
+            AscendC::MicroAPI::MaskReg pMask = AscendC::MicroAPI::UpdateMask<float>(count);
+            AscendC::MicroAPI::MaskReg pFull =
+                AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
+
+            for (uint16_t i = 0; i < loopTimes; ++i) {
+                LoadTensorForDtypeT<T>(x, reg0, pFull, i * stride);
+                LoadTensorForDtypeT<T>(x_1, reg0_1, pMask, i * stride);
+                LoadTensorForDtypeT<float>(gamma, reg1, pFull, 0);
+                LoadTensorForDtypeT<float>(gamma_1, reg1_1, pMask, 0);
+
+                AscendC::MicroAPI::Mul(reg2, reg0, reg0, pFull);
+                AscendC::MicroAPI::Mul(reg2_1, reg0_1, reg0_1, pMask);
+                Add<float, AscendC::MicroAPI::MaskMergeMode::ZEROING>(reg2_1, reg2, reg2_1, pMask);
+                Copy<float, AscendC::MicroAPI::MaskMergeMode::MERGING>(reg2, reg2_1, pMask);
+                ReduceSum(reg2, reg2, pFull);
+
+                AscendC::MicroAPI::Muls(reg3, reg2, reciprocal, pFull);
+                AscendC::MicroAPI::Adds(reg4, reg3, epsilon, pFull);
+                AscendC::MicroAPI::Sqrt(reg5, reg4, pFull);
+                Duplicate(reg5, reg5, pFull);
+
+                AscendC::MicroAPI::Div(reg6, reg0, reg5, pFull);
+                AscendC::MicroAPI::Mul(reg7, reg1, reg6, pFull);
+                StoreTensorForDtypeTOut<float>(dst, reg7, pFull, i * stride);
+
+                AscendC::MicroAPI::Div(reg8, reg0_1, reg5, pMask);
+                AscendC::MicroAPI::Mul(reg9, reg1_1, reg8, pMask);
+                StoreTensorForDtypeTOut<float>(dst, reg9, pMask, i * stride + VL_FP32);
+            }
+        }
     }
 
     /*
