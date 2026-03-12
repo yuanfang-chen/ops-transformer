@@ -18,36 +18,6 @@
 #include "register/op_def_registry.h"
 
 namespace optiling {
-// mask 2 idx tile info
-BEGIN_TILING_DATA_DEF(BsaMask2IdxTiling)
-TILING_DATA_FIELD_DEF(uint32_t, xBlockNumAligned);
-TILING_DATA_FIELD_DEF(uint32_t, yBlockNumAligned);
-TILING_DATA_FIELD_DEF(uint32_t, avgRowPerSubCore);
-TILING_DATA_FIELD_DEF(uint32_t, preActiveSubCoreNum);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(BsaMask2IdxTilingOp, BsaMask2IdxTiling)
-// attention tile info
-BEGIN_TILING_DATA_DEF(BsaBaseTiling)
-TILING_DATA_FIELD_DEF(uint32_t, qBaseTile);
-TILING_DATA_FIELD_DEF(uint32_t, kvBaseTile);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(BsaBaseTilingOp, BsaBaseTiling)
-// matmul phase L1 tile info
-BEGIN_TILING_DATA_DEF(BsaMmPhaseL1Tiling)
-TILING_DATA_FIELD_DEF(uint32_t, mm1L1TileM);
-TILING_DATA_FIELD_DEF(uint32_t, mm1L1TileN);
-TILING_DATA_FIELD_DEF(uint32_t, mm1L1TileKLeft);
-TILING_DATA_FIELD_DEF(uint32_t, mm1L1TileKRight);
-TILING_DATA_FIELD_DEF(uint32_t, mm2L1TileM);
-TILING_DATA_FIELD_DEF(uint32_t, mm2L1TileN);
-TILING_DATA_FIELD_DEF(uint32_t, mm2L1TileKLeft);
-TILING_DATA_FIELD_DEF(uint32_t, mm2L1TileKRight);
-TILING_DATA_FIELD_DEF(uint32_t, qL1BufNum);
-TILING_DATA_FIELD_DEF(uint32_t, kL1BufNum);
-TILING_DATA_FIELD_DEF(uint32_t, vL1BufNum);
-TILING_DATA_FIELD_DEF(uint32_t, pL1BufNum);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(BsaMmPhaseL1TilingOp, BsaMmPhaseL1Tiling)
 // BlockSparseAttention Tiling数据定义
 BEGIN_TILING_DATA_DEF(BlockSparseAttentionTilingData)
 // 基础参数
@@ -98,10 +68,6 @@ TILING_DATA_FIELD_DEF(uint64_t, smOnlineOutSize);
 TILING_DATA_FIELD_DEF(uint64_t, mm2OutSize);
 TILING_DATA_FIELD_DEF(uint64_t, updateSize);
 TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize);
-
-TILING_DATA_FIELD_DEF_STRUCT(BsaMask2IdxTiling, BsaMask2IdxTileInfo);
-TILING_DATA_FIELD_DEF_STRUCT(BsaBaseTiling, BsaBaseTileInfo);
-TILING_DATA_FIELD_DEF_STRUCT(BsaMmPhaseL1Tiling, BsaMmPhaseL1TileInfo);
 
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(BlockSparseAttention, BlockSparseAttentionTilingData)
@@ -163,49 +129,7 @@ public:
 
 private:
     ge::graphStatus GetNpuInfo(gert::TilingContext *bsaContext);
-    ge::graphStatus ProcessInput(gert::TilingContext *bsaContext);
     ge::graphStatus ParseAttrs(gert::TilingContext *bsaContext);
-    ge::graphStatus CheckKvCacheLayout(gert::TilingContext *bsaContext);
-    ge::graphStatus CalculateTaskSplit(gert::TilingContext *bsaContext);
-    ge::graphStatus CalculateWorkSpace(gert::TilingContext *bsaContext);
-    ge::graphStatus FillTilingData(gert::TilingContext *bsaContext);
-    uint64_t GenerateTilingKey(gert::TilingContext *bsaContext);
-    
-    ge::graphStatus ParseQInputLayout(gert::TilingContext *bsaContext);
-    ge::graphStatus ParseKvInputLayout(gert::TilingContext *bsaContext);
-    ge::graphStatus ValidateTNDFormat(gert::TilingContext *bsaContext);
-    ge::graphStatus ValidateBNSDFormat(gert::TilingContext *bsaContext);
-
-    //新增校验blockSparseMask合法
-    ge::graphStatus ValidateBlockSparseMask(gert::TilingContext *bsaContext);
-
-    ge::graphStatus ProcessQueryShape(gert::TilingContext *bsaContext);
-    ge::graphStatus ProcessActualSeqLengths(gert::TilingContext *bsaContext);
-    ge::graphStatus ProcessBlockShape(gert::TilingContext *bsaContext);
-    ge::graphStatus ProcessSoftmaxLse(gert::TilingContext *bsaContext);
-    ge::graphStatus ValidateConfiguration(gert::TilingContext *bsaContext);
-    ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *bsaContext);
-    
-    ge::graphStatus ProcessQSeqLengths(gert::TilingContext *bsaContext, 
-                                       const gert::Tensor *actualSeqLengths);
-    ge::graphStatus ProcessKvSeqLengths(gert::TilingContext *bsaContext, 
-                                       const gert::Tensor *actualSeqLengthsKv);
-    ge::graphStatus ValidateBNSDQSeqlen(gert::TilingContext *bsaContext);
-    ge::graphStatus ValidateBNSDKvSeqlen(gert::TilingContext *bsaContext);
-    ge::graphStatus GetKvSeqlenFromShape(gert::TilingContext *bsaContext, uint32_t &kvSeqlen);
-    
-    bool CheckShouldUseUniformKvSeqlen(const gert::Tensor *actualSeqLengthsKv);
-    ge::graphStatus SetupUniformKvSeqlen(gert::TilingContext *bsaContext);
-    ge::graphStatus ProcessKvSeqLengthsBNSD(gert::TilingContext *bsaContext, 
-                                            const gert::Tensor *actualSeqLengthsKv);
-    ge::graphStatus ProcessKvSeqLengthsTND(gert::TilingContext *bsaContext, 
-                                           const gert::Tensor *actualSeqLengthsKv);
-    ge::graphStatus ProcessKvSeqLengthsWithArray(gert::TilingContext *bsaContext, 
-                                                  const gert::Tensor *actualSeqLengthsKv);
-    
-    void CalculateBatchTaskSplit(uint32_t batchIdx, int64_t qSeqlen, uint32_t groupSize,
-                                 uint32_t &curTaskNum, uint32_t &curQBlockNum);
-private:
     ge::graphStatus GetInputLayout(gert::TilingContext *bsaContext);
     ge::graphStatus ParseRequiredTensors(gert::TilingContext *bsaContext);
     ge::graphStatus ParseOptionalTensors(gert::TilingContext *bsaContext);
@@ -220,12 +144,15 @@ private:
     ge::graphStatus ParseSparsePattern(gert::TilingContext *bsaContext);
     ge::graphStatus ParseAttenMask(gert::TilingContext *bsaContext);
     ge::graphStatus ParseBlockTable(gert::TilingContext *bsaContext);
-    // 950 exclusive
-    uint32_t GetCurQSTileNum950(int64_t curQSeqlen);
-    void CalcBaseTileTilingParams950();
-    void CalcSplitCoreTilingParams950();
-    void CalcWorkspaceTilingParams950();
-    void CalcMatmulPhaseL1TileInfo950();
+    ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *bsaContext);
+    // 910 exclusive
+    ge::graphStatus CalculateTaskSplit(gert::TilingContext *bsaContext);
+    ge::graphStatus CalculateWorkSpace(gert::TilingContext *bsaContext);
+    // shared
+    void CalculateBatchTaskSplit(int64_t qSeqlen, uint32_t groupSize,
+        uint32_t &curTaskNum, uint32_t &curQBlockNum);
+    ge::graphStatus FillTilingData(gert::TilingContext *bsaContext);
+    uint64_t GenerateTilingKey(gert::TilingContext *bsaContext);
     
 private:
     uint32_t batch_ = 0;
@@ -279,30 +206,6 @@ private:
     uint32_t maxKvSeqlen_ = 0;  // BNSD格式KV的第三维（S维度）
     int64_t totalTokensT_ = 0;  // TND格式Q的第一维（T维度，总token数）
     int64_t totalTokensKv_ = 0;  // TND格式KV的第一维（T维度，总token数
-
-    // mask2idx tile info
-    uint32_t xBlockNumAligned_;
-    uint32_t yBlockNumAligned_;
-    uint32_t avgRowPerSubCore_;
-    uint32_t preActiveSubCoreNum_;
-    // base tile info
-    uint32_t qBaseTile_;
-    uint32_t kvBaseTile_;
-    // L1 tile info
-    // further splits the base tiles
-    uint32_t mm1L1TileM_;
-    uint32_t mm1L1TileN_;
-    uint32_t mm1L1TileKLeft_;
-    uint32_t mm1L1TileKRight_;
-    uint32_t mm2L1TileM_;
-    uint32_t mm2L1TileN_;
-    uint32_t mm2L1TileKLeft_;
-    uint32_t mm2L1TileKRight_;
-    uint32_t qL1BufNum_;
-    uint32_t kL1BufNum_;
-    uint32_t vL1BufNum_;
-    uint32_t pL1BufNum_;
-    
     ge::DataType dataType_ = ge::DT_FLOAT16;
 
     BlockSparseAttentionTilingData *tilingData_ = nullptr;
