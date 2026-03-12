@@ -1,14 +1,13 @@
-# KvQuantSparseFlashAttention
+# KvQuantSparseFlashAttentionPioneer
 
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
-|<term>Atlas A2 推理系列产品</term>   | √  |
-|<term>Atlas A3 推理系列产品</term>   | √  |
+|<term>Atlas A5 推理系列产品</term>   | √  |
 
 ## 功能说明
 
--   API功能：`kv_quant_sparse_flash_attention`在`sparse_flash_attention`的基础上支持了[Per-Token-Head-Tile-128量化]输入。随着大模型上下文长度的增加，Sparse Attention的重要性与日俱增，这一技术通过“只计算关键部分”大幅减少计算量，然而会引入大量的离散访存，造成数据搬运时间增加，进而影响整体性能。
+-   API功能：`kv_quant_sparse_flash_attention_pioneer`在`sparse_flash_attention`的基础上支持了[Per-Token-Head-Tile-128量化]输入。随着大模型上下文长度的增加，Sparse Attention的重要性与日俱增，这一技术通过“只计算关键部分”大幅减少计算量，然而会引入大量的离散访存，造成数据搬运时间增加，进而影响整体性能。
 
 -   计算公式：
 
@@ -17,12 +16,12 @@
     $$
 
     其中$\tilde{K},\tilde{V}$为基于某种选择算法（如`LightningIndexer`）得到的重要性较高的Key和Value，一般具有稀疏或分块稀疏的特征，$d_k$为$Q,\tilde{K}$每一个头的维度，$\text{Dequant}(\cdot,\cdot)$为反量化函数。
-本次公布的`kv_quant_sparse_flash_attention`是面向Sparse Attention的全新算子，针对离散访存进行了指令缩减及搬运聚合的细致优化。
+本次公布的`kv_quant_sparse_flash_attention_pioneer`是面向Sparse Attention的全新算子，针对离散访存进行了指令缩减及搬运聚合的细致优化。
 
 ## 函数原型
 
 ```
-torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices, scale_value, key_quant_mode, value_quant_mode, *, key_dequant_scale=None, value_dequant_scale=None, block_table=None, actual_seq_lengths_query=None, actual_seq_lengths_kv=None, sparse_block_size=1, layout_query="BSND", layout_kv="BSND", sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, attention_mode=0, quant_scale_repo_mode=1, tile_size=128, rope_head_dim=64) -> Tensor
+torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, scale_value, key_quant_mode, value_quant_mode, *, key_dequant_scale=None, value_dequant_scale=None, block_table=None, actual_seq_lengths_query=None, actual_seq_lengths_kv=None, sparse_block_size=1, layout_query="BSND", layout_kv="BSND", sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, attention_mode=0, quant_scale_repo_mode=1, tile_size=128, rope_head_dim=64) -> Tensor
 ```
 
 ## 参数说明
@@ -137,7 +136,7 @@ torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices,
     block_table = torch.tensor([range(b * s2 // block_size)], dtype=torch.int32).reshape(b, -1).npu()
 
     # 调用qsfa算子
-    out = torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices, 
+    out = torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
         scale_value=scale_value, sparse_block_size=sparse_block_size,
         actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
         layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,
@@ -215,7 +214,7 @@ torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices,
         def __init__(self):
             super().__init__()
         def forward(self):
-            return torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices, 
+            return torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
                 scale_value=scale_value, sparse_block_size=sparse_block_size,
                 actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
                 layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,
@@ -226,7 +225,7 @@ torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices,
             model = Model()
             model = torch.compile(model, backend=npu_backend, dynamic=False, fullgraph=True)
             graph_output = model()
-        single_op = torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices, 
+        single_op = torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
                 scale_value=scale_value, sparse_block_size=sparse_block_size,
                 actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
                 layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,

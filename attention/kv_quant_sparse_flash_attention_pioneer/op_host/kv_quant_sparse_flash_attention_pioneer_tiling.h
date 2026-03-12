@@ -308,9 +308,9 @@ struct QSFATilingInfo {
 };
 
 // ---------------算子Tiling类---------------
-class QSFAMlaTiling {
+class QSFAPMlaTiling {
 public:
-    explicit QSFAMlaTiling(gert::TilingContext *context) : context_(context) {}
+    explicit QSFAPMlaTiling(gert::TilingContext *context) : context_(context) {}
     ge::graphStatus DoOpTiling(QSFATilingInfo *sfaaInfo);
 
 private:
@@ -387,10 +387,10 @@ private:
 };
 
 // -----------算子Tiling入参信息解析及Check类---------------
-class QSFATilingCheck {
+class QSFAPTilingCheck {
 public:
-    explicit QSFATilingCheck(const QSFATilingInfo &sfaaInfo) : sfaaInfo_(sfaaInfo) {};
-    ~QSFATilingCheck() = default;
+    explicit QSFAPTilingCheck(const QSFATilingInfo &sfaaInfo) : sfaaInfo_(sfaaInfo) {};
+    ~QSFAPTilingCheck() = default;
     ge::graphStatus Process();
 private:
     void Init();

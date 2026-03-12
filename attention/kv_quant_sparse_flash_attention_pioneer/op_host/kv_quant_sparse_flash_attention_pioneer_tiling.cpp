@@ -181,20 +181,20 @@ std::string QSFALayoutToSerialString(QSFALayout layout)
     }
 }
 
-ge::graphStatus QSFAMlaTiling::SetBlockDim(uint32_t blockDim) const
+ge::graphStatus QSFAPMlaTiling::SetBlockDim(uint32_t blockDim) const
 {
     context_->SetBlockDim(blockDim);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAMlaTiling::SetTilingKey(uint64_t tilingKey) const
+ge::graphStatus QSFAPMlaTiling::SetTilingKey(uint64_t tilingKey) const
 {
     context_->SetTilingKey(tilingKey);
     context_->SetScheduleMode(1);     // 1: batchmode模式
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAMlaTiling::SetWorkspaceSize(uint64_t workspaceSize) const
+ge::graphStatus QSFAPMlaTiling::SetWorkspaceSize(uint64_t workspaceSize) const
 {
     OP_CHECK_IF(context_->GetWorkspaceSizes(1) == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "workSpaceSize got from ge is nullptr"),
@@ -204,7 +204,7 @@ ge::graphStatus QSFAMlaTiling::SetWorkspaceSize(uint64_t workspaceSize) const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAMlaTiling::SetTilingData(TilingDef &tilingData) const
+ge::graphStatus QSFAPMlaTiling::SetTilingData(TilingDef &tilingData) const
 {
     OP_CHECK_IF(context_->GetRawTilingData() == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "RawTilingData got from GE context is nullptr."),
@@ -216,7 +216,7 @@ ge::graphStatus QSFAMlaTiling::SetTilingData(TilingDef &tilingData) const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAMlaTiling::GetPlatformInfo()
+ge::graphStatus QSFAPMlaTiling::GetPlatformInfo()
 {
     OP_CHECK_IF(sfaaInfo_->platformInfo == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(sfaaInfo_->opName, "GetPlatformInfo is nullptr."), return ge::GRAPH_FAILED);
@@ -232,7 +232,7 @@ ge::graphStatus QSFAMlaTiling::GetPlatformInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFAMlaTiling::GenTilingKey()
+void QSFAPMlaTiling::GenTilingKey()
 {
     uint32_t layoutQuery = static_cast<uint32_t>(sfaaInfo_->qLayout);
     uint32_t layoutKV = static_cast<uint32_t>(sfaaInfo_->kvLayout);
@@ -242,7 +242,7 @@ void QSFAMlaTiling::GenTilingKey()
     OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu.", tilingKey_);
 }
 
-void QSFAMlaTiling::ZeroTensorProcess() const
+void QSFAPMlaTiling::ZeroTensorProcess() const
 {
     if (sfaaInfo_->s2Size == 0) {
         /*
@@ -254,7 +254,7 @@ void QSFAMlaTiling::ZeroTensorProcess() const
     }
 }
 
-void QSFAMlaTiling::InitParams()
+void QSFAPMlaTiling::InitParams()
 {
     perfMode_ = QSFAPerfMode::V_TEMPLATE_MODE;
     coreNum_ = aicNum_;
@@ -263,7 +263,7 @@ void QSFAMlaTiling::InitParams()
     ZeroTensorProcess();
 }
 
-void QSFAMlaTiling::CalcUbBmm()
+void QSFAPMlaTiling::CalcUbBmm()
 {
     uint32_t cubeMSize = sfaaInfo_->gSize * sfaaInfo_->s1Size;
     uint32_t maxMSize = mBaseSize_;
@@ -276,12 +276,12 @@ void QSFAMlaTiling::CalcUbBmm()
     qPreSizeMla_ = sfaaInfo_->gSize * (headDimAlign_ + 64U) * sfaaInfo_->s1Size;
 }
 
-void QSFAMlaTiling::CheckUbSpace()
+void QSFAPMlaTiling::CheckUbSpace()
 {
     CalcUbBmm();
 }
 
-void QSFAMlaTiling::CalcInnerSize(uint32_t s2Size)
+void QSFAPMlaTiling::CalcInnerSize(uint32_t s2Size)
 {
     sInnerSize_ = 512; // 512:s2默认切分大小
     // FlashDecode时，如果S2的计算量>=256(确保切分后不小于128)但又不足以分2次计算时，则修改sInnerSize_，均分为2份进行计算，确保Nbuffer=2
@@ -303,7 +303,7 @@ void QSFAMlaTiling::CalcInnerSize(uint32_t s2Size)
     CheckUbSpace();
 }
 
-void QSFAMlaTiling::SplitBalanced()
+void QSFAPMlaTiling::SplitBalanced()
 {
     CalcInnerSize(sfaaInfo_->s2Size);
 
@@ -316,12 +316,12 @@ void QSFAMlaTiling::SplitBalanced()
     usedCoreNum_ = aicNum_;
 }
 
-void QSFAMlaTiling::Split()
+void QSFAPMlaTiling::Split()
 {
     SplitBalanced();
 }
 
-void QSFAMlaTiling::FillTilingBaseParamsMla()
+void QSFAPMlaTiling::FillTilingBaseParamsMla()
 {
     tilingData_.baseParams.set_batchSize(sfaaInfo_->bSize);
     tilingData_.baseParams.set_seqSize(sfaaInfo_->s2Size);
@@ -340,7 +340,7 @@ void QSFAMlaTiling::FillTilingBaseParamsMla()
 }
 
 // for flash decode
-void QSFAMlaTiling::FillTilingSplitKVMla()
+void QSFAPMlaTiling::FillTilingSplitKVMla()
 {
     tilingData_.splitKVParams.set_s2(kvSplitPart_);
     // 2:每个核可能有头规约和尾规约，一共两份规约信息
@@ -354,18 +354,18 @@ void QSFAMlaTiling::FillTilingSplitKVMla()
     }
 }
 
-void QSFAMlaTiling::FillTilingSingleCoreParamsMla()
+void QSFAPMlaTiling::FillTilingSingleCoreParamsMla()
 {
     tilingData_.singleCoreParams.set_usedCoreNum(usedCoreNum_);
 }
 
-void QSFAMlaTiling::FillTilingSingleCoreTensorSizeMla()
+void QSFAPMlaTiling::FillTilingSingleCoreTensorSizeMla()
 {
     tilingData_.singleCoreTensorSize.set_mmResUbSize(mmResUbSize_);
     tilingData_.singleCoreTensorSize.set_bmm2ResUbSize(bmm2ResUbSize_);
 }
 
-void QSFAMlaTiling::FillTiling()
+void QSFAPMlaTiling::FillTiling()
 {
     FillTilingBaseParamsMla();
     FillTilingSplitKVMla();
@@ -373,12 +373,12 @@ void QSFAMlaTiling::FillTiling()
     FillTilingSingleCoreTensorSizeMla();
 }
 
-uint32_t QSFAMlaTiling::CalcBalanceFDParamNums(const uint32_t actCoreNum) const
+uint32_t QSFAPMlaTiling::CalcBalanceFDParamNums(const uint32_t actCoreNum) const
 {
     return actCoreNum * 2 * sfaaInfo_->n2Size * mBaseSize_; // 2:每个核可能有头规约和尾规约，一共两份规约信息
 }
 
-void QSFAMlaTiling::NormalCalcFDWorkSpace(const uint32_t actCoreNum)
+void QSFAPMlaTiling::NormalCalcFDWorkSpace(const uint32_t actCoreNum)
 {
     if (splitKVFlag_) {
         uint32_t accumOutSize = 0;
@@ -393,12 +393,12 @@ void QSFAMlaTiling::NormalCalcFDWorkSpace(const uint32_t actCoreNum)
     }
 }
 
-void QSFAMlaTiling::CalcFDWorkSpace(const uint32_t actCoreNum)
+void QSFAPMlaTiling::CalcFDWorkSpace(const uint32_t actCoreNum)
 {
     NormalCalcFDWorkSpace(actCoreNum);
 }
 
-void QSFAMlaTiling::GetWorkspaceSize()
+void QSFAPMlaTiling::GetWorkspaceSize()
 {
     uint32_t mmResElemSize = 4;         // 4:fp32
     uint32_t vec1ResElemSize = 2;       // 2:fp16/bf16
@@ -429,7 +429,7 @@ void QSFAMlaTiling::GetWorkspaceSize()
     CalcFDWorkSpace(actCoreNum);
 }
 
-void QSFAMlaTiling::CalcBlockDim()
+void QSFAPMlaTiling::CalcBlockDim()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(sfaaInfo_->platformInfo);
     auto aicNum = usedCoreNum_;
@@ -439,7 +439,7 @@ void QSFAMlaTiling::CalcBlockDim()
     OP_LOGI(sfaaInfo_->opName, "QSFA block dim: %u aiv Num: %u aic Num: %u.", blockDim_, aivNum, aicNum);
 }
 
-ge::graphStatus QSFAMlaTiling::DoOpTiling(QSFATilingInfo *sfaaInfo)
+ge::graphStatus QSFAPMlaTiling::DoOpTiling(QSFATilingInfo *sfaaInfo)
 {
     sfaaInfo_ = sfaaInfo;
     if (GetPlatformInfo() != ge::GRAPH_SUCCESS) {
@@ -470,12 +470,12 @@ ge::graphStatus TilingKvQuantSparseFlashAttentionPioneer(gert::TilingContext *co
         return ge::GRAPH_FAILED;
     }
 
-    QSFATilingCheck tilingChecker(sfaaInfo);
+    QSFAPTilingCheck tilingChecker(sfaaInfo);
     if (tilingChecker.Process() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
 
-    QSFAMlaTiling tiling(context);
+    QSFAPMlaTiling tiling(context);
     return tiling.DoOpTiling(&sfaaInfo);
 }
 
@@ -485,7 +485,7 @@ ge::graphStatus TilingPrepareForKvQuantSparseFlashAttentionPioneer(gert::TilingP
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::GetExpectedShape(gert::Shape &shapeExpected,
+ge::graphStatus QSFAPTilingCheck::GetExpectedShape(gert::Shape &shapeExpected,
     const QSFATilingShapeCompareParam &param, const QSFALayout &layout) const
 {
     if (layout == QSFALayout::BSND) {
@@ -501,7 +501,7 @@ ge::graphStatus QSFATilingCheck::GetExpectedShape(gert::Shape &shapeExpected,
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CompareShape(QSFATilingShapeCompareParam &param,
+ge::graphStatus QSFAPTilingCheck::CompareShape(QSFATilingShapeCompareParam &param,
     const gert::Shape &shape, const QSFALayout &layout, const std::string &name) const
 {
     gert::Shape shapeExpected;
@@ -528,7 +528,7 @@ ge::graphStatus QSFATilingCheck::CompareShape(QSFATilingShapeCompareParam &param
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFATilingCheck::LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList,
+void QSFAPTilingCheck::LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList,
     const ge::DataType &actualDtype, const std::string &name) const
 {
     std::ostringstream oss;
@@ -542,7 +542,7 @@ void QSFATilingCheck::LogErrorDtypeSupport(const std::vector<ge::DataType> &expe
         name.c_str(), oss.str().c_str(), QSFADataTypeToSerialString(actualDtype).c_str());
 }
 
-ge::graphStatus QSFATilingCheck::CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc,
+ge::graphStatus QSFAPTilingCheck::CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc,
     const std::string &name) const
 {
     if (desc != nullptr) {
@@ -560,7 +560,7 @@ ge::graphStatus QSFATilingCheck::CheckDtypeSupport(const gert::CompileTimeTensor
 }
 
 template <typename T>
-void QSFATilingCheck::LogErrorNumberSupport(const std::vector<T> &expectNumberList,
+void QSFAPTilingCheck::LogErrorNumberSupport(const std::vector<T> &expectNumberList,
     const T &actualValue, const std::string &name, const std::string subName) const
 {
     std::ostringstream oss;
@@ -576,13 +576,13 @@ void QSFATilingCheck::LogErrorNumberSupport(const std::vector<T> &expectNumberLi
 }
 
 template <typename T>
-void QSFATilingCheck::LogErrorDimNumSupport(const std::vector<T> &expectNumberList,
+void QSFAPTilingCheck::LogErrorDimNumSupport(const std::vector<T> &expectNumberList,
     const T &actualValue, const std::string &name) const
 {
     LogErrorNumberSupport(expectNumberList, actualValue, name, "dimension");
 }
 
-ge::graphStatus QSFATilingCheck::CheckDimNumInLayoutSupport(const QSFALayout &layout,
+ge::graphStatus QSFAPTilingCheck::CheckDimNumInLayoutSupport(const QSFALayout &layout,
     const gert::StorageShape *shape, const std::string &name) const
 {
     const auto& dimIt = QSFA_LAYOUT_DIM_MAP.find(layout);
@@ -594,7 +594,7 @@ ge::graphStatus QSFATilingCheck::CheckDimNumInLayoutSupport(const QSFALayout &la
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckDimNumSupport(const gert::StorageShape *shape,
+ge::graphStatus QSFAPTilingCheck::CheckDimNumSupport(const gert::StorageShape *shape,
     const std::vector<size_t> &expectDimNumList, const std::string &name) const
 {
     if (shape == nullptr) {
@@ -611,7 +611,7 @@ ge::graphStatus QSFATilingCheck::CheckDimNumSupport(const gert::StorageShape *sh
 }
 
 
-void QSFATilingCheck::LogErrorLayoutSupport(const std::vector<QSFALayout> &expectLayoutList,
+void QSFAPTilingCheck::LogErrorLayoutSupport(const std::vector<QSFALayout> &expectLayoutList,
     const QSFALayout &actualLayout, const std::string &name) const
 {
     std::ostringstream oss;
@@ -625,7 +625,7 @@ void QSFATilingCheck::LogErrorLayoutSupport(const std::vector<QSFALayout> &expec
         name.c_str(), oss.str().c_str(), QSFALayoutToSerialString(actualLayout).c_str());
 }
 
-ge::graphStatus QSFATilingCheck::CheckLayoutSupport(const QSFALayout &actualLayout, const std::string &name) const
+ge::graphStatus QSFAPTilingCheck::CheckLayoutSupport(const QSFALayout &actualLayout, const std::string &name) const
 {
     const auto& it = LAYOUT_SUPPORT_MAP.find(name);
     OP_CHECK_IF(it == LAYOUT_SUPPORT_MAP.end(),
@@ -640,7 +640,7 @@ ge::graphStatus QSFATilingCheck::CheckLayoutSupport(const QSFALayout &actualLayo
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaQuery() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaQuery() const
 {
     const std::vector<size_t> queryDimNumList = {DIM_NUM_THREE, DIM_NUM_FOUR};
     if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.query.desc, QUERY_NAME) ||
@@ -652,7 +652,7 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaQuery() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaKey() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaKey() const
 {
     const std::vector<size_t> keyDimNumList = {DIM_NUM_THREE, DIM_NUM_FOUR};
     if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.key.desc, KEY_NAME) ||
@@ -664,17 +664,17 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaKey() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaNumHeads() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaNumHeads() const
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaKvHeadNums() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaKvHeadNums() const
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaSparseMode() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaSparseMode() const
 {
     OP_CHECK_IF((*opParamInfo_.sparseMode != 3 && *opParamInfo_.sparseMode != 0),
         OP_LOGE(opName_, "sparseMode must == 0/3, but got: %ld.", *opParamInfo_.sparseMode),
@@ -682,7 +682,7 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaSparseMode() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaSparseBlockSize() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaSparseBlockSize() const
 {
     OP_CHECK_IF(((*opParamInfo_.sparseBlockSize <= 0 || *opParamInfo_.sparseBlockSize > 16) ||
         (static_cast<uint64_t>(*opParamInfo_.sparseBlockSize) & static_cast<uint64_t>(*opParamInfo_.sparseBlockSize - 1L)) != 0UL),
@@ -692,7 +692,7 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaSparseBlockSize() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSingleParaSparseIndices() const
+ge::graphStatus QSFAPTilingCheck::CheckSingleParaSparseIndices() const
 {
     if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.sparseIndices.desc, SPARSE_INDICES_NAME)) {
         return ge::GRAPH_FAILED;
@@ -700,7 +700,7 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaSparseIndices() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckSinglePara() const
+ge::graphStatus QSFAPTilingCheck::CheckSinglePara() const
 {
     if (ge::GRAPH_SUCCESS != CheckSingleParaQuery() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKey() ||
@@ -715,7 +715,7 @@ ge::graphStatus QSFATilingCheck::CheckSinglePara() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckDequantScaleNotExistence()
+ge::graphStatus QSFAPTilingCheck::CheckDequantScaleNotExistence()
 {
     if (quantScaleRepoMode_ == 1) {
         OP_CHECK_IF((opParamInfo_.keyDequantScale.tensor == nullptr || opParamInfo_.valueDequantScale.tensor == nullptr),
@@ -727,7 +727,7 @@ ge::graphStatus QSFATilingCheck::CheckDequantScaleNotExistence()
 }
 
 template <typename T>
-ge::graphStatus QSFATilingCheck::CheckAttrValueByMap(std::map<std::string, std::pair<const T *, T>> &attrMap) const
+ge::graphStatus QSFAPTilingCheck::CheckAttrValueByMap(std::map<std::string, std::pair<const T *, T>> &attrMap) const
 {
     for (auto const &kv : attrMap) {
         const std::string &name = kv.first;
@@ -753,7 +753,7 @@ ge::graphStatus QSFATilingCheck::CheckAttrValueByMap(std::map<std::string, std::
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckParaExistenceMlaAntiquant() const
+ge::graphStatus QSFAPTilingCheck::CheckParaExistenceMlaAntiquant() const
 {
     if (kvLayout_ == QSFALayout::BSND) {
         return ge::GRAPH_SUCCESS;
@@ -772,12 +772,12 @@ ge::graphStatus QSFATilingCheck::CheckParaExistenceMlaAntiquant() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckParaExistenceMla() const
+ge::graphStatus QSFAPTilingCheck::CheckParaExistenceMla() const
 {
     return CheckParaExistenceMlaAntiquant();
 }
 
-ge::graphStatus QSFATilingCheck::CheckParaExistence()
+ge::graphStatus QSFAPTilingCheck::CheckParaExistence()
 {
     if (ge::GRAPH_SUCCESS != CheckDequantScaleNotExistence()) {
         return ge::GRAPH_FAILED;
@@ -786,7 +786,7 @@ ge::graphStatus QSFATilingCheck::CheckParaExistence()
     return CheckParaExistenceMla();
 }
 
-ge::graphStatus QSFATilingCheck::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
+ge::graphStatus QSFAPTilingCheck::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
     const QSFALayout &layout, const std::string &name) const
 {
     if (tensor == nullptr) {
@@ -804,7 +804,7 @@ ge::graphStatus QSFATilingCheck::GetActualSeqLenSize(uint32_t &size, const gert:
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFATilingCheck::SetQSFAShapeCompare()
+void QSFAPTilingCheck::SetQSFAShapeCompare()
 {
     queryShapeCmp_ = opParamInfo_.query.shape->GetStorageShape();
     topkShapeCmp_ = opParamInfo_.sparseIndices.shape->GetStorageShape();
@@ -813,7 +813,7 @@ void QSFATilingCheck::SetQSFAShapeCompare()
     attenOutShapeCmp_ = opParamInfo_.attenOut.shape->GetStorageShape();
 }
 
-ge::graphStatus QSFATilingCheck::CheckBlockTable() const
+ge::graphStatus QSFAPTilingCheck::CheckBlockTable() const
 {
     if (kvStorageMode_ != KvStorageMode::PAGE_ATTENTION) {
         OP_CHECK_IF(opParamInfo_.blockTable.tensor != nullptr,
@@ -832,7 +832,7 @@ ge::graphStatus QSFATilingCheck::CheckBlockTable() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckDTypeConsistency(const ge::DataType &actualDtype,
+ge::graphStatus QSFAPTilingCheck::CheckDTypeConsistency(const ge::DataType &actualDtype,
     const ge::DataType &expectDtype, const std::string &name) const
 {
     if (actualDtype != expectDtype) {
@@ -844,7 +844,7 @@ ge::graphStatus QSFATilingCheck::CheckDTypeConsistency(const ge::DataType &actua
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckTopkShape()
+ge::graphStatus QSFAPTilingCheck::CheckTopkShape()
 {
     QSFATilingShapeCompareParam shapeParams;
     shapeParams.B = bSize_;
@@ -855,7 +855,7 @@ ge::graphStatus QSFATilingCheck::CheckTopkShape()
     return CompareShape(shapeParams, topkShapeCmp_, topkLayout_, SPARSE_INDICES_NAME);
 }
 
-ge::graphStatus QSFATilingCheck::CheckAttenOutShape()
+ge::graphStatus QSFAPTilingCheck::CheckAttenOutShape()
 {
     QSFATilingShapeCompareParam shapeParams;
     shapeParams.B = bSize_;
@@ -869,7 +869,7 @@ ge::graphStatus QSFATilingCheck::CheckAttenOutShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckAttenOut()
+ge::graphStatus QSFAPTilingCheck::CheckAttenOut()
 {
     if (ge::GRAPH_SUCCESS != CheckDTypeConsistency(opParamInfo_.attenOut.desc->GetDataType(),
         inputQType_, ATTEN_OUT_NAME) ||
@@ -879,7 +879,7 @@ ge::graphStatus QSFATilingCheck::CheckAttenOut()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckTopK()
+ge::graphStatus QSFAPTilingCheck::CheckTopK()
 {
     if (ge::GRAPH_SUCCESS != CheckTopkShape()) {
         return ge::GRAPH_FAILED;
@@ -887,7 +887,7 @@ ge::graphStatus QSFATilingCheck::CheckTopK()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckKVShapeForBatchContinuous()
+ge::graphStatus QSFAPTilingCheck::CheckKVShapeForBatchContinuous()
 {
     QSFATilingShapeCompareParam shapeParams;
     shapeParams.B = bSize_;
@@ -902,7 +902,7 @@ ge::graphStatus QSFATilingCheck::CheckKVShapeForBatchContinuous()
     return ge::GRAPH_SUCCESS;
 }
 
-uint32_t QSFATilingCheck::GetTypeSize(ge::DataType dtype) const
+uint32_t QSFAPTilingCheck::GetTypeSize(ge::DataType dtype) const
 {
     uint32_t typeSize = NUM_BYTES_FLOAT16;
     switch (dtype) {
@@ -918,7 +918,7 @@ uint32_t QSFATilingCheck::GetTypeSize(ge::DataType dtype) const
     return typeSize;
 }
 
-ge::graphStatus QSFATilingCheck::CheckKVShapeForPageAttention()
+ge::graphStatus QSFAPTilingCheck::CheckKVShapeForPageAttention()
 {
     int64_t blockNum = keyShapeCmp_.GetDim(0);
     QSFATilingShapeCompareParam shapeParams;
@@ -934,7 +934,7 @@ ge::graphStatus QSFATilingCheck::CheckKVShapeForPageAttention()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckKVShape()
+ge::graphStatus QSFAPTilingCheck::CheckKVShape()
 {
     if (kvStorageMode_ == KvStorageMode::BATCH_CONTINUOUS) {
         return CheckKVShapeForBatchContinuous();
@@ -948,7 +948,7 @@ ge::graphStatus QSFATilingCheck::CheckKVShape()
     return ge::GRAPH_FAILED;
 }
 
-ge::graphStatus QSFATilingCheck::CheckKV()
+ge::graphStatus QSFAPTilingCheck::CheckKV()
 {
     if (ge::GRAPH_SUCCESS != CheckDTypeConsistency(opParamInfo_.value.desc->GetDataType(),
         inputKvType_, VALUE_NAME)) {
@@ -957,7 +957,7 @@ ge::graphStatus QSFATilingCheck::CheckKV()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLensQ()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensQ()
 {
     if (ge::GRAPH_SUCCESS != CheckActualSeqLensQDType() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLensQShape()) {
@@ -966,7 +966,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLensQ()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLensQDType()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensQDType()
 {
     if (opParamInfo_.actualSeqLengthsQ.tensor == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -984,7 +984,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLensQDType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLensQShape()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensQShape()
 {
     if (opParamInfo_.actualSeqLengthsQ.tensor == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -1002,7 +1002,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLensQShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLens()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLens()
 {
     if (ge::GRAPH_SUCCESS != CheckActualSeqLensDType() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLensShape()) {
@@ -1011,7 +1011,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLens()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLensDType()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensDType()
 {
     if (opParamInfo_.actualSeqLengths.tensor == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -1029,7 +1029,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLensDType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckActualSeqLensShape()
+ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensShape()
 {
     if (opParamInfo_.actualSeqLengths.tensor == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -1047,7 +1047,7 @@ ge::graphStatus QSFATilingCheck::CheckActualSeqLensShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckMultiParaConsistency()
+ge::graphStatus QSFAPTilingCheck::CheckMultiParaConsistency()
 {
     SetQSFAShapeCompare();
     if (ge::GRAPH_SUCCESS != CheckKV() ||
@@ -1062,7 +1062,7 @@ ge::graphStatus QSFATilingCheck::CheckMultiParaConsistency()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantShape() const
 {
     OP_CHECK_IF(bSize_ <= 0,
         OP_LOGE(opName_, "batch_size should be greater than 0, but got %u", bSize_),
@@ -1107,7 +1107,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantLayout() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantLayout() const
 {
     const std::vector<std::string> layoutSupportList = {
         "BSND",
@@ -1120,7 +1120,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantLayout() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantDtype() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantDtype() const
 {
     OP_CHECK_IF(inputQType_ != ge::DT_BF16 && inputQType_ != ge::DT_FLOAT16,
         OP_LOGE(opName_, "query dtype only support %s and %s, but got %s",
@@ -1145,7 +1145,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantDtype() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantAttr() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantAttr() const
 {
     OP_CHECK_IF(attentionMode_ != 2, // 2:MLA-absorb
         OP_LOGE(opName_, "attention_mode should be 2(MLA-absorb), but got %d",
@@ -1190,7 +1190,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantAttr() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantPa() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantPa() const
 {
     if (kvStorageMode_ != KvStorageMode::PAGE_ATTENTION) {
         return ge::GRAPH_SUCCESS;
@@ -1212,7 +1212,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantPa() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquant() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquant() const
 {
     if (ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantAttr() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantShape() ||
@@ -1224,17 +1224,17 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquant() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeatureMla() const
+ge::graphStatus QSFAPTilingCheck::CheckFeatureMla() const
 {
     return CheckFeatureMlaAntiquant();
 }
 
-ge::graphStatus QSFATilingCheck::CheckFeature() const
+ge::graphStatus QSFAPTilingCheck::CheckFeature() const
 {
     return CheckFeatureMla();
 }
 
-void QSFATilingCheck::Init()
+void QSFAPTilingCheck::Init()
 {
     opName_ = sfaaInfo_.opName;
     platformInfo_ = sfaaInfo_.platformInfo;
@@ -1280,7 +1280,7 @@ void QSFATilingCheck::Init()
     l2CacheSize_ = sfaaInfo_.l2CacheSize;
 }
 
-ge::graphStatus QSFATilingCheck::Process()
+ge::graphStatus QSFAPTilingCheck::Process()
 {
     Init();
     if (CheckSinglePara() != ge::GRAPH_SUCCESS ||

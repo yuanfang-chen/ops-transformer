@@ -69,7 +69,6 @@ kv_quant_sparse_flash_attention_pioneer(__gm__ uint8_t *query, __gm__ uint8_t *k
                        __gm__ uint8_t *actualSeqLengthsKV, __gm__ uint8_t *key_sink, __gm__ uint8_t *value_sink, 
                        __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
-    PRINTF("rpy-----entry-----KvQuantSparseFlashAttentionPioneer------kernel\n");
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
 
     TPipe tPipe;
