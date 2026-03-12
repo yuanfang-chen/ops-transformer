@@ -39,23 +39,22 @@ struct MhcParamsBase {
     const aclTensor *phi = nullptr;
     const aclTensor *alpha = nullptr;
     const aclTensor *bias = nullptr;
-    const aclTensor *gamma = nullptr;
-    int64_t out_flag;
-    double norm_eps;
-    double hc_eps;
-    const aclTensor *out_hin = nullptr;
-    const aclTensor *out_h_post = nullptr;
-    const aclTensor *out_h_res = nullptr;
-    const aclTensor *out_inv_rms = nullptr;
-    const aclTensor *out_mm_res = nullptr;
-    const aclTensor *out_h_pre = nullptr;
+    const aclTensor *gammaOptional = nullptr;
+    float normEps;
+    float hcEps;
+    aclTensor *hIn = nullptr;
+    aclTensor *hPost = nullptr;
+    aclTensor *hRes = nullptr;
+    aclTensor *invRmsOptional = nullptr;
+    aclTensor *hMixOptional = nullptr;
+    aclTensor *hPreOptional = nullptr;
     
     // 用于存储转换后的连续tensor（在ConvertDataContiguous中使用）
     const aclTensor *x_contiguous = nullptr;
     const aclTensor *phi_contiguous = nullptr;
     const aclTensor *alpha_contiguous = nullptr;
     const aclTensor *bias_contiguous = nullptr;
-    const aclTensor *gamma_contiguous = nullptr;
+    const aclTensor *gammaOptional_contiguous = nullptr;
 };
 
 class MhcBuilder {
@@ -67,38 +66,37 @@ public:
         return obj;
     } 
 
-    MhcBuilder &SetInput(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma)
+    MhcBuilder &SetInput(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gammaOptional)
     {
         obj_.x = x;
         obj_.phi = phi;
         obj_.alpha = alpha;
         obj_.bias = bias;
-        obj_.gamma = gamma;
+        obj_.gammaOptional = gammaOptional;
         return *this;
     }
 
-    MhcBuilder &SetAttr(int64_t out_flag, double norm_eps, double hc_eps)
+    MhcBuilder &SetAttr(float normEps, float hcEps)
     {
-        obj_.out_flag = out_flag;
-        obj_.norm_eps = norm_eps;
-        obj_.hc_eps = hc_eps;
+        obj_.normEps = normEps;
+        obj_.hcEps = hcEps;
         return *this;
     }
 
-    MhcBuilder &SetOutput(const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res)
+    MhcBuilder &SetOutput(aclTensor *hIn, aclTensor *hPost, aclTensor *hRes)
     {
-        obj_.out_hin = out_hin;
-        obj_.out_h_post = out_h_post;
-        obj_.out_h_res = out_h_res;
+        obj_.hIn = hIn;
+        obj_.hPost = hPost;
+        obj_.hRes = hRes;
         return *this;
     }
 
-    MhcBuilder &SetOptionalOutput(const aclTensor *out_inv_rms, const aclTensor *out_mm_res,
-        const aclTensor *out_h_pre)
+    MhcBuilder &SetOptionalOutput(aclTensor *invRmsOptional, aclTensor *hMixOptional,
+        aclTensor *hPreOptional)
     {
-        obj_.out_inv_rms = out_inv_rms;
-        obj_.out_mm_res = out_mm_res;
-        obj_.out_h_pre = out_h_pre;
+        obj_.invRmsOptional = invRmsOptional;
+        obj_.hMixOptional = hMixOptional;
+        obj_.hPreOptional = hPreOptional;
 
         return *this;
     }
@@ -129,16 +127,16 @@ bool CheckNotNull(const MhcParamsBase &params)
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "bias tensor is nullptr");
         return false;
     }
-    if (params.out_hin == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "out_hin tensor is nullptr");
+    if (params.hIn == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hIn tensor is nullptr");
         return false;
     }
-    if (params.out_h_post == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "out_h_post tensor is nullptr");
+    if (params.hPost == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hPost tensor is nullptr");
         return false;
     }
-    if (params.out_h_res == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "out_h_res tensor is nullptr");
+    if (params.hRes == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hRes tensor is nullptr");
         return false;
     }
     return true;
@@ -201,10 +199,10 @@ bool CheckInputOutDims(const MhcParamsBase &params)
     }
 
     // gamma应该是2维: (n, D)
-    if (params.gamma != nullptr) {
-        auto gammaDimNum = params.gamma->GetViewShape().GetDimNum();
+    if (params.gammaOptional != nullptr) {
+        auto gammaDimNum = params.gammaOptional->GetViewShape().GetDimNum();
         if (gammaDimNum != DIM_NUM_2) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma tensor dim num must be 2, but got %zu", gammaDimNum);
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor dim num must be 2, but got %zu", gammaDimNum);
             return false;
         }
     }
@@ -278,14 +276,14 @@ bool CheckInputOutShape(const MhcParamsBase &params)
         return false;
     }
     // gamma的shape应该是(n, D)
-    if (params.gamma != nullptr) {
-        auto gammaShape = params.gamma->GetViewShape();
+    if (params.gammaOptional != nullptr) {
+        auto gammaShape = params.gammaOptional->GetViewShape();
         if (gammaShape.GetDim(0) != n) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma tensor first dim must be n=%ld, but got %ld", n, gammaShape.GetDim(0));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor first dim must be n=%ld, but got %ld", n, gammaShape.GetDim(0));
             return false;
         }
         if (gammaShape.GetDim(1) != d) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma tensor second dim must be D=%ld, but got %ld", d, gammaShape.GetDim(1));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor second dim must be D=%ld, but got %ld", d, gammaShape.GetDim(1));
             return false;
         }
     }
@@ -311,7 +309,7 @@ bool CheckDtypeValid_mhc(const MhcParamsBase &params)
         return false;
     }
     
-    // phi, gamma, alpha, bias都必须是FP32
+    // phi, gammaOptional, alpha, bias都必须是FP32
     if (params.phi->GetDataType() != DataType::DT_FLOAT) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor dtype must be FP32");
         return false;
@@ -324,9 +322,9 @@ bool CheckDtypeValid_mhc(const MhcParamsBase &params)
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor dtype must be FP32");
         return false;
     }
-    if (params.gamma != nullptr) {
-        if (params.gamma->GetDataType() != DataType::DT_FLOAT) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma tensor dtype must be FP32");
+    if (params.gammaOptional != nullptr) {
+        if (params.gammaOptional->GetDataType() != DataType::DT_FLOAT) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor dtype must be FP32");
             return false;
         }
     }
@@ -367,9 +365,9 @@ bool CheckFormat(const MhcParamsBase &params)
         return false;
     }
 
-    if (params.gamma != nullptr) {
-        if (IsPrivateFormat(params.gamma->GetViewFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma tensor format must be ND");
+    if (params.gammaOptional != nullptr) {
+        if (IsPrivateFormat(params.gammaOptional->GetViewFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor format must be ND");
             return false;
         }
     }
@@ -413,9 +411,9 @@ aclnnStatus ConvertDataContiguous(MhcParamsBase &params, aclOpExecutor *executor
     params.bias_contiguous = l0op::Contiguous(params.bias, executor);
     CHECK_RET(params.bias_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    if (params.gamma != nullptr) {
-        params.gamma_contiguous = l0op::Contiguous(params.gamma, executor);
-        CHECK_RET(params.gamma_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (params.gammaOptional != nullptr) {
+        params.gammaOptional_contiguous = l0op::Contiguous(params.gammaOptional, executor);
+        CHECK_RET(params.gammaOptional_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
     
     return ACLNN_SUCCESS;
@@ -429,56 +427,61 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
     ret = ConvertDataContiguous(params, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    // 使用转换后的连续tensor
     auto outParams = l0op::MhcPre(
-        params.x_contiguous, params.phi_contiguous, params.alpha_contiguous, params.bias_contiguous, params.gamma_contiguous,
-        params.out_flag, params.norm_eps, params.hc_eps, executor);
+        params.x_contiguous, params.phi_contiguous, params.alpha_contiguous, params.bias_contiguous, params.gammaOptional_contiguous,
+        params.normEps, params.hcEps, executor);
     CHECK_RET(outParams != std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), ACLNN_ERR_INNER_NULLPTR);
 
     auto out0 = std::get<0>(outParams);
-    auto ret0 = l0op::ViewCopy(out0, params.out_hin, executor);
+    auto ret0 = l0op::ViewCopy(out0, params.hIn, executor);
     CHECK_RET(ret0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     auto out1 = std::get<1>(outParams);
-    auto ret1 = l0op::ViewCopy(out1, params.out_h_post, executor);
+    auto ret1 = l0op::ViewCopy(out1, params.hPost, executor);
     CHECK_RET(ret1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     auto out2 = std::get<2>(outParams);
-    auto retView = l0op::ViewCopy(out2, params.out_h_res, executor);
+    auto retView = l0op::ViewCopy(out2, params.hRes, executor);
     CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    auto out3 = std::get<3>(outParams);
-    retView = l0op::ViewCopy(out3, params.out_inv_rms, executor);
-    CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (params.invRmsOptional != nullptr) {
+        auto out3 = std::get<3>(outParams);
+        retView = l0op::ViewCopy(out3, params.invRmsOptional, executor);
+        CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
 
-    auto out4 = std::get<4>(outParams);
-    retView = l0op::ViewCopy(out4, params.out_mm_res, executor);
-    CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (params.hMixOptional != nullptr) {
+        auto out4 = std::get<4>(outParams);
+        retView = l0op::ViewCopy(out4, params.hMixOptional, executor);
+        CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
 
-    auto out5 = std::get<5>(outParams);
-    retView = l0op::ViewCopy(out5, params.out_h_pre, executor);
-    CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (params.hPreOptional != nullptr) {
+        auto out5 = std::get<5>(outParams);
+        retView = l0op::ViewCopy(out5, params.hPreOptional, executor);
+        CHECK_RET(retView != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
 
     return ACLNN_SUCCESS;
 }
 
 aclnnStatus aclnnMhcPreGetWorkspaceSize(
-    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
-    int64_t out_flag, double norm_eps, double hc_eps,
-    const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
-    const aclTensor *out_inv_rms, const aclTensor *out_mm_res, const aclTensor *out_h_pre,
+    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gammaOptional,
+    float normEps, float hcEps,
+    aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
+    aclTensor *invRmsOptional, aclTensor *hMixOptional, aclTensor *hPreOptional,
     uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(aclnnMhcPre, DFX_IN(x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps),
-        DFX_OUT(out_hin, out_h_post, out_h_res, out_inv_rms, out_mm_res, out_h_pre));
+    L2_DFX_PHASE_1(aclnnMhcPre, DFX_IN(x, phi, alpha, bias, gammaOptional, normEps, hcEps),
+        DFX_OUT(hIn, hPost, hRes, invRmsOptional, hMixOptional, hPreOptional));
     auto uniqueExecutor = CREATE_EXECUTOR();
 
     MhcParamsBase params =
         MhcBuilder::Create()
-        .SetInput(x, phi, alpha, bias, gamma)
-        .SetAttr(out_flag, norm_eps, hc_eps)
-        .SetOutput(out_hin, out_h_post, out_h_res)
-        .SetOptionalOutput(out_inv_rms, out_mm_res, out_h_pre)
+        .SetInput(x, phi, alpha, bias, gammaOptional)
+        .SetAttr(normEps, hcEps)
+        .SetOutput(hIn, hPost, hRes)
+        .SetOptionalOutput(invRmsOptional, hMixOptional, hPreOptional)
         .Build();
 
     auto ret = mHCPreCommonProcess(params, uniqueExecutor.get());

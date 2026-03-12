@@ -24,10 +24,10 @@ OP_TYPE_REGISTER(MhcPre);
 
 const std::tuple<aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *>
 MhcPre(
-    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
-    int64_t out_flag, double norm_eps, double hc_eps, aclOpExecutor *executor)
+    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gammaOptional,
+    float normEps, float hcEps, aclOpExecutor *executor)
 {
-    L0_DFX(MhcPre, x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps);
+    L0_DFX(MhcPre, x, phi, alpha, bias, gammaOptional, normEps, hcEps);
 
     DataType outType = DataType::DT_FLOAT; // 输出类型
     Format format = Format::FORMAT_ND; // 输出分形
@@ -39,11 +39,11 @@ MhcPre(
     auto outMmRes = executor->AllocTensor(outType, format, format);
     auto outHpre = executor->AllocTensor(outType, format, format);
 
-    auto ret = INFER_SHAPE(MhcPre, OP_INPUT(x, phi, alpha, bias, gamma),
-        OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre), OP_ATTR(out_flag, norm_eps, hc_eps));
+    auto ret = INFER_SHAPE(MhcPre, OP_INPUT(x, phi, alpha, bias, gammaOptional),
+        OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre), OP_ATTR(normEps, hcEps));
     OP_CHECK_INFERSHAPE(ret != ACLNN_SUCCESS, return std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), "MhcPre InferShape failed.");
-    auto ret1 = ADD_TO_LAUNCHER_LIST_AICORE(MhcPre, OP_INPUT(x, phi, alpha, bias, gamma),
-        OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre),  OP_ATTR(out_flag, norm_eps, hc_eps));
+    auto ret1 = ADD_TO_LAUNCHER_LIST_AICORE(MhcPre, OP_INPUT(x, phi, alpha, bias, gammaOptional),
+        OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre),  OP_ATTR(normEps, hcEps));
     OP_CHECK_ADD_TO_LAUNCHER_LIST_AICORE(ret1 != ACLNN_SUCCESS, return std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr),
         "MhcPre ADD_TO_LAUNCHER_LIST_AICORE failed.");
         
