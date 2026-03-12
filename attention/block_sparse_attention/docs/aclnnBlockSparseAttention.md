@@ -159,7 +159,7 @@ aclnnStatus aclnnBlockSparseAttention(
           <li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算。</li>
         </ul>
       </td>
-      <td>BOOL</td>
+      <td>INT8</td>
       <td>ND</td>
       <td>4</td>
       <td>×</td>
@@ -169,7 +169,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的atten_mask。</td>
       <td>atten_mask会与稀疏pattern叠加产生作用。当前不支持，应传入nullptr。</td>
-      <td>BOOL</td>
+      <td>INT8</td>
       <td>ND</td>
       <td>2</td>
       <td>×</td>
@@ -188,7 +188,7 @@ aclnnStatus aclnnBlockSparseAttention(
         当配置此输入时：必须包含至少两个元素[blockShapeX, blockShapeY]
         <ul>
           <li>blockShapeX: Q方向块大小，值必须大于0。</li>
-          <li>blockShapeY: KV方向块大小，值必须大于0。</li>
+          <li>blockShapeY: KV方向块大小，值必须大于0且为128的倍数。</li>
         </ul>
       </td>
       <td>INT64</td>
@@ -497,7 +497,7 @@ aclnnStatus aclnnBlockSparseAttention(
 - qInputLayout当前仅支持"TND"和"BNSD"。
 - kvInputLayout当前仅支持"TND"和"BNSD"。
 - 输入query、key、value的数据类型必须一致，支持FLOAT16和BFLOAT16。
-- blockShapeOptional如果传入，则必须包含至少两个元素[blockShapeX, blockShapeY]，且值必须大于0。
+- blockShapeOptional如果传入，则必须包含至少两个元素[blockShapeX, blockShapeY]，且值必须大于0，blockShapeY必须为128的倍数。
 - blockSparseMaskOptional当前必须传入，且shape必须为[batch, headNum, ceilDiv(maxQS, blockShapeX), ceilDiv(maxKVS, blockShapeY)]。
 - attentionMaskOptional当前只支持传入nullptr。
 - actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
