@@ -58,8 +58,7 @@ protected:
     ge::graphStatus CheckInputDim();
     ge::graphStatus CheckInputDtype();
     ge::graphStatus CheckOutputParams();
-    ge::graphStatus CalculateCuSeqLenTiling();
-    ge::graphStatus CalculateDimTiling();
+    ge::graphStatus Calculate2DTiling();  // 二维切分的tiling计算
 
 private:
     // 辅助结构体：切cu_seq_len时的核间切分信息
@@ -85,43 +84,48 @@ private:
     // 输入参数信息
     uint64_t cuSeqLen_ = 0;
     uint64_t dim_ = 0;
-    uint32_t kernelWidth_ = 0;  // K
-    uint32_t batch_ = 0;
+    uint64_t kernelWidth_ = 0;  // K
+    uint64_t batch_ = 0;
     uint64_t xDtypeSize_ = 0;
 
     // padding相关信息
     int64_t padSlotId_ = -1;
-    uint32_t validBatchStart_ = 0;
-    uint32_t validBatchCount_ = 0;
+    uint64_t validBatchStart_ = 0;
+    uint64_t validBatchCount_ = 0;
     uint64_t validSeqStart_ = 0;
     uint64_t validSeqLen_ = 0;
-    uint32_t residualConnection_ = 0;
+    uint64_t residualConnection_ = 0;
 
-    // 缓存的核间切分信息（用于避免重复计算）
-    bool hasCachedSplitInfo_ = false;
-    CuSeqLenSplitInfo cachedSplitInfo_;
+    // ===== dim方向核间切分信息 =====
+    uint64_t dimCoreNum_ = 0;              // dim方向总核数
+    uint64_t dimRemainderCores_ = 0;       // 前多少个核是大核（分配base+1个128-块）
+    uint64_t dimBlockFactor_ = 0;          // 大核的dim大小（(base+1) * 128，前dimRemainderCores个核）
+    uint64_t dimBlockTailFactor_ = 0;      // 小核的dim大小（base * 128，后面的核）
 
-    // 分核信息
-    uint64_t blockIndex_ = 0;        // 切分轴: 0-cu_seq_len, 1-dim
-    uint64_t blockFactor_ = 0;       // 切分因子
-    uint64_t blockTailFactor_ = 0;   // 尾核切分因子
-    uint64_t realCoreNum_ = 0;       // 实际使用核数
+    // ===== BS方向核间切分信息 =====
+    uint64_t bsCoreNum_ = 0;               // BS方向切分核数
+    uint64_t bsRemainderCores_ = 0;        // BS方向前多少个核是大核（均分策略）
+    uint64_t bsBlockFactor_ = 0;           // BS方向大核处理的长度（含overlap，前bsRemainderCores个核）
+    uint64_t bsBlockTailFactor_ = 0;       // BS方向小核处理的长度（后面的核）
+
+    // ===== 核数信息 =====
+    uint64_t realCoreNum_ = 0;             // 实际使用核数（dimCoreNum × bsCoreNum）
 
     // 核内切分信息 - 整核
-    uint32_t loopNumBS_ = 0;         // BS方向循环次数
-    uint32_t loopNumDim_ = 0;        // Dim方向循环次数
-    uint32_t ubFactorBS_ = 0;        // BS方向单次循环载入大小
-    uint32_t ubTailFactorBS_ = 0;    // BS方向尾次循环载入大小
-    uint32_t ubFactorDim_ = 0;       // Dim方向单次循环载入大小
-    uint32_t ubTailFactorDim_ = 0;   // Dim方向尾次循环载入大小
+    uint64_t loopNumBS_ = 0;         // BS方向循环次数
+    uint64_t loopNumDim_ = 0;        // Dim方向循环次数
+    uint64_t ubFactorBS_ = 0;        // BS方向单次循环载入大小
+    uint64_t ubTailFactorBS_ = 0;    // BS方向尾次循环载入大小
+    uint64_t ubFactorDim_ = 0;       // Dim方向单次循环载入大小
+    uint64_t ubTailFactorDim_ = 0;   // Dim方向尾次循环载入大小
 
     // 核内切分信息 - 尾核
-    uint32_t tailBlockloopNumBS_ = 0;
-    uint32_t tailBlockloopNumDim_ = 0;
-    uint32_t tailBlockubFactorBS_ = 0;
-    uint32_t tailBlockubTailFactorBS_ = 0;
-    uint32_t tailBlockubFactorDim_ = 0;
-    uint32_t tailBlockubTailFactorDim_ = 0;
+    uint64_t tailBlockloopNumBS_ = 0;
+    uint64_t tailBlockloopNumDim_ = 0;
+    uint64_t tailBlockubFactorBS_ = 0;
+    uint64_t tailBlockubTailFactorBS_ = 0;
+    uint64_t tailBlockubFactorDim_ = 0;
+    uint64_t tailBlockubTailFactorDim_ = 0;
 
     gert::Shape xShape_;
     gert::Shape weightShape_;

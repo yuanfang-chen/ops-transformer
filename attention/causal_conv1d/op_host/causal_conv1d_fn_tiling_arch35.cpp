@@ -49,32 +49,12 @@ constexpr uint64_t BATCH_MIN = 1;
 constexpr uint64_t BATCH_MAX = 256;
 constexpr uint64_t KERNEL_WIDTH_MAX = 6;
 
-constexpr uint64_t ALIGN_BYTES = 256;
 constexpr uint64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per element (fp16/bf16)
 constexpr uint64_t SYSTEM_RESERVED_UB_SIZE = 8 * 1024;  // 8 KB system reserved UB space
-constexpr uint64_t MIN_CORE_NUM_FOR_DIM_SPLIT = 32;
-constexpr uint64_t MIN_DIM_PER_CORE = 256;
 constexpr uint64_t DOUBLE_BUFFER_NUM = 2;
 constexpr uint64_t TILING_KEY_FN_BF16 = 10000UL;
 constexpr uint64_t TILING_KEY_FN_FP16 = 10001UL;
 constexpr uint64_t SYS_WORKSPACE_SIZE = static_cast<uint64_t>(16 * 1024 * 1024);
-
-// 辅助函数：根据数据大小限制核数
-// 当数据占据 UB 的一半时，带宽利用率较好
-static uint64_t LimitCoreNumByDataSize(uint64_t originalCoreNum, uint64_t cuSeqLen, uint64_t dim,
-                                        uint64_t dtypeSize, uint64_t ubSize)
-{
-    // 计算输入 x 大小（字节）：cuSeqLen * dim * dtypeSize (2D input)
-    int64_t xSizeBytes = cuSeqLen * dim * dtypeSize;
-
-    // effectiveCoreNum = xSizeBytes / (ubSize / 2)
-    int64_t halfUbSize = ubSize / 2;
-    int64_t effectiveCoreNum = (xSizeBytes + halfUbSize - 1) / halfUbSize;
-    effectiveCoreNum = std::max(effectiveCoreNum, static_cast<int64_t>(1));
-
-    // 返回 min(effectiveCoreNum, originalCoreNum)
-    return std::min(static_cast<uint64_t>(effectiveCoreNum), originalCoreNum);
-}
 
 bool CausalConv1dFnTiling::IsCapable()
 {
@@ -306,7 +286,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
 
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_WEIGHT_INDEX));
     weightShape_ = context_->GetInputShape(INPUT_WEIGHT_INDEX)->GetOriginShape();
-    kernelWidth_ = static_cast<uint32_t>(weightShape_.GetDim(DIM_0));
+    kernelWidth_ = weightShape_.GetDim(DIM_0);
 
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_CACHE_STATES_INDEX));
     cacheStatesShape_ = context_->GetInputShape(INPUT_CACHE_STATES_INDEX)->GetOriginShape();
@@ -315,7 +295,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
     if (seqStartIndexStorageShape != nullptr) {
         seqStartIndexShape_ = seqStartIndexStorageShape->GetOriginShape();
-        batch_ = static_cast<uint32_t>(seqStartIndexShape_.GetDim(DIM_0) - 1);
+        batch_ = seqStartIndexShape_.GetDim(DIM_0) - 1;
     } else {
         // 没有提供 queryStartLoc，默认 batch = 1，处理全部序列
         batch_ = 1;
@@ -362,8 +342,8 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
             const int32_t* cacheIndices = cacheIndicesTensor->GetData<int32_t>();
 
             // 从前往后找第一个不等于 padSlotId 的位置
-            uint32_t validStart = batch_;  // 默认全是padding
-            for (uint32_t i = 0; i < batch_; i++) {
+            uint64_t validStart = batch_;  // 默认全是padding
+            for (uint64_t i = 0; i < batch_; i++) {
                 if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
                     validStart = i;
                     break;
@@ -371,10 +351,10 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
             }
 
             // 从后往前找最后一个不等于 padSlotId 的位置
-            uint32_t validEnd = 0;
-            for (int32_t i = static_cast<int32_t>(batch_) - 1; i >= 0; i--) {
+            uint64_t validEnd = 0;
+            for (int64_t i = static_cast<int64_t>(batch_) - 1; i >= 0; i--) {
                 if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
-                    validEnd = static_cast<uint32_t>(i);
+                    validEnd = static_cast<uint64_t>(i);
                     break;
                 }
             }
@@ -411,164 +391,98 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-// 辅助函数：计算切cu_seq_len时的核间切分信息（考虑因果卷积重叠）
+// 辅助函数：计算切cu_seq_len时的核间切分信息（均分多尾核策略）
 CausalConv1dFnTiling::CuSeqLenSplitInfo CausalConv1dFnTiling::CalculateCuSeqLenSplitInfo(
     uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const
 {
     CuSeqLenSplitInfo info;
 
-    // 带重叠的总载入长度
+    // 均分策略：将带重叠的总长度均分到所有核
+    // effectiveTotal = cuSeqLen + (coreNum - 1) * overlap
     info.effectiveTotal = cuSeqLen + (coreNum - 1) * bsOverlap;
 
-    // 单尾核策略：前 (coreNum-1) 个核统一载入 fullLen，最后一个核承担剩余
-    // 使用闭式公式计算，避免逐核遍历
-    uint64_t fullLen = Ops::Base::CeilDiv(info.effectiveTotal, coreNum);
+    // 向下取整的基础长度
+    info.baseLen = info.effectiveTotal / coreNum;
 
-    // 若 fullLen <= 重叠长度，除首核外新增有效输出为 0，直接退化为单核
-    if (coreNum == 1 || fullLen <= bsOverlap) {
-        info.baseLen = fullLen;
-        info.remainder = 0;
-        info.blockFactor = cuSeqLen;      // 单核时整核=尾核=全长
-        info.blockTailFactor = cuSeqLen;
-        info.realCoreNum = 1;
-        return info;
-    }
+    // 余数（需要多分配的块数）
+    info.remainder = info.effectiveTotal % coreNum;
 
-    // 计算需要的核数 t，使有效输出覆盖 cuSeqLen
-    // 有效输出 E(t) = fullLen + (t-1)*(fullLen - bsOverlap)
-    uint64_t netPerCore = fullLen - bsOverlap;
-    uint64_t t;
-    if (cuSeqLen <= fullLen) {
-        t = 1;
+    // 前 remainder 个核是大核，后面是小核
+    if (info.remainder > 0) {
+        info.blockFactor = info.baseLen + 1;      // 大核载入长度
+        info.blockTailFactor = info.baseLen;      // 小核载入长度
     } else {
-        t = 1 + Ops::Base::CeilDiv(cuSeqLen - fullLen, netPerCore);
-        if (t > coreNum) t = coreNum;
+        // 所有核均匀分配
+        info.blockFactor = info.baseLen;
+        info.blockTailFactor = info.baseLen;
     }
-
-    // 计算尾核载入长度
-    uint64_t tailLen;
-    if (t == 1) {
-        // 单核覆盖
-        tailLen = cuSeqLen;
-    } else {
-        // 前 (t-1) 核的有效输出
-        uint64_t ePrev = fullLen + (t - 2) * netPerCore;
-        // 尾核需要贡献的有效输出
-        uint64_t need = cuSeqLen - ePrev;
-        // 尾核计划载入 = 重叠 + 需要的有效输出
-        uint64_t plannedLast = bsOverlap + need;
-        // 不能超过整核载入长度
-        tailLen = (plannedLast < fullLen) ? plannedLast : fullLen;
-    }
-
-    info.baseLen = fullLen;     // 记录整核载入长度
-    info.remainder = 0;         // 不再使用余数分散策略
-    info.blockFactor = fullLen; // 整核长度
-    info.blockTailFactor = tailLen; // 尾核长度
-    info.realCoreNum = t;       // 实际使用核数
+    info.realCoreNum = coreNum;               // 所有核都使用
 
     return info;
 }
 
-// 计算切cu_seq_len时的tiling
-ge::graphStatus CausalConv1dFnTiling::CalculateCuSeqLenTiling()
+
+// 计算二维切分时的tiling（支持不均匀切分 + dim循环）
+ge::graphStatus CausalConv1dFnTiling::Calculate2DTiling()
 {
-    blockIndex_ = 0; // 切cu_seq_len
+    // 核内UB分配策略：
+    // 1. 优先保证BS方向能装下整核的数据（bsBlockFactor）
+    // 2. dim方向保证最小128（256 bytes对齐），尽量扩大但不超过核间分配的dim
+    // 3. dim方向可能需要循环加载
+
     uint64_t bsOverlap = kernelWidth_ - 1;
 
-    // 步骤1: 核间切分策略（均分带重叠的总长度）
-    //
-    // 核心思想：
-    // 1. 计算带重叠的总长度：effective_total = total_data + (num_cores - 1) * overlap
-    // 2. 均分这个总长度到所有核
-    // 3. 每个核的起始位置 = 前一个核的结束位置 - overlap
-    //
-    // 示例（total_data=13, overlap=2, num_cores=3）：
-    //   effective_total = 13 + (3-1)*2 = 17
-    //   base_len = 17/3 = 5, remainder = 17%3 = 2
-    //   核0: start=0, length=6(5+1), end=6
-    //   核1: start=4(6-2), length=6(5+1), end=10
-    //   核2: start=8(10-2), length=5, end=13(强制)
-    //
-    // 注意：使用 validBatchCount_ 而不是 batch_ 进行核间切分
-
-    // 检查是否已经在 DoOpTiling 中计算过
-    CuSeqLenSplitInfo splitInfo;
-    if (hasCachedSplitInfo_) {
-        // 使用缓存的结果
-        splitInfo = cachedSplitInfo_;
-    } else {
-        // 第一次计算，先限制核数，再用限制后的核数计算切分信息
-        uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
-        splitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, effectiveCoreNum);
-    }
-
-    // 使用计算结果
-    blockFactor_ = splitInfo.blockFactor;
-    blockTailFactor_ = static_cast<uint32_t>(splitInfo.blockTailFactor);
-    realCoreNum_ = splitInfo.realCoreNum;
-
-    // 步骤2: 核内UB切分参数
-    // 根据需求文档6节Buffer设计,计算UB使用
-    // 固定UB使用（真正不变的辅助tensor）：
-    // startLocInQueue: (batch + 1) * sizeof(int32), BUF_NUM=1
-    // indicesInQueue: batch * sizeof(int32), BUF_NUM=1
-    // hasInitialInQueue: batch * sizeof(int32), BUF_NUM=1
-    //
-    // 可变UB使用（取决于ubDim）：
-    // weightInQueue: kernelWidth * ubDim * xDtypeSize_, BUF_NUM=1
-    // cacheQueue: (kernelWidth-1) * ubDim * xDtypeSize_, BUF_NUM=1
-    // xQueue(y复用): ubBS * ubDim * xDtypeSize_, BUF_NUM=2
-
+    // 固定UB使用
     uint64_t startLocInQueueSize = (batch_ + 1) * sizeof(int32_t);
     uint64_t indicesInQueueSize = batch_ * sizeof(int32_t);
     uint64_t hasInitialInQueueSize = batch_ * sizeof(int32_t);
     uint64_t fixedUbSize = startLocInQueueSize + indicesInQueueSize + hasInitialInQueueSize;
 
-    // 每个核分到的最大BS（含重叠）
-    uint64_t coreBS = blockFactor_;
+    // ===== 计算整核（大核）的UB参数 =====
+    uint64_t coreDim = dimBlockFactor_;      // 核间分配的dim大小（大核）
+    uint64_t coreBS = bsBlockFactor_;        // 核间分配的BS大小（大核）
 
-    // weight 和 cache 每个 dim 元素的系数
+    // weight和cache每个dim元素的系数
     uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
 
-    // x 每个 dim 元素的系数（双 buffer，满 BS）
+    // x每个dim元素的系数（双buffer，满BS）
     uint64_t xCoeffPerDimFullBS = coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
 
-    // 总系数（每个 dim 元素）
+    // 总系数
     uint64_t totalCoeffPerDim = weightCacheCoeffPerDim + xCoeffPerDimFullBS;
 
-    // 计算可用 UB 和最大 ubDim
+    // 计算可用UB和最大ubDim
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
     int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
 
-    // 对齐到 DIM_ALIGN_ELEMENTS (256 bytes)
+    // 对齐到DIM_ALIGN_ELEMENTS (128)
     maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
 
-    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
-        // 能装下满 BS，尽量扩大 dim
-        ubFactorBS_ = static_cast<uint32_t>(coreBS);
-        ubFactorDim_ = static_cast<uint32_t>(std::min(static_cast<uint64_t>(maxUbDim), dim_));
+    if (maxUbDim >= static_cast<int64_t>(DIM_ALIGN_ELEMENTS)) {
+        // 能装下满BS，尽量扩大dim
+        ubFactorBS_ = coreBS;
+        ubFactorDim_ = std::min(static_cast<uint64_t>(maxUbDim), coreDim);
 
-        // 确保 ubFactorDim_ 对齐到 DIM_ALIGN_ELEMENTS
+        // 确保ubFactorDim_对齐到DIM_ALIGN_ELEMENTS
         ubFactorDim_ = (ubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
         if (ubFactorDim_ == 0) {
             ubFactorDim_ = DIM_ALIGN_ELEMENTS;
         }
     } else {
-        // 不能装下满 BS，使用最小 dim 并减少 BS
+        // 不能装下满BS，使用最小dim并减少BS
         ubFactorDim_ = DIM_ALIGN_ELEMENTS;
 
-        // weight 和 cache 占用空间（使用最小 dim）
+        // weight和cache占用空间（使用最小dim）
         uint64_t weightCacheSize = weightCacheCoeffPerDim * ubFactorDim_;
         int64_t availableForX = availableUbSize - weightCacheSize;
 
-        // x 每个 BS 的大小（双 buffer）
+        // x每个BS的大小（双buffer）
         uint64_t xSizePerBS = ubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
 
-        // 计算能装下多少 BS
+        // 计算能装下多少BS
         int64_t maxBS = availableForX / xSizePerBS;
-        ubFactorBS_ = static_cast<uint32_t>(std::max(maxBS, static_cast<int64_t>(1)));
-        ubFactorBS_ = std::min(static_cast<uint64_t>(ubFactorBS_), coreBS);
+        ubFactorBS_ = std::max(maxBS, static_cast<int64_t>(1));
+        ubFactorBS_ = std::min(ubFactorBS_, coreBS);
 
         if (ubFactorBS_ == 0) {
             OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling");
@@ -576,231 +490,180 @@ ge::graphStatus CausalConv1dFnTiling::CalculateCuSeqLenTiling()
         }
     }
 
-    // 步骤3: 计算整核和尾核的循环次数及最后一次循环载入大小
-    //
-    // 注意：blockFactor_ 和 blockTailFactor_ 表示每个核的处理长度（包含重叠部分）
-    // 这个长度是该核实际需要载入的数据量
+    // 计算dim方向的循环次数
+    if (coreDim <= ubFactorDim_) {
+        loopNumDim_ = 1;
+        ubTailFactorDim_ = ubFactorDim_;
+    } else {
+        loopNumDim_ = (coreDim + ubFactorDim_ - 1) / ubFactorDim_;
+        ubTailFactorDim_ = coreDim - (loopNumDim_ - 1) * ubFactorDim_;
+    }
 
-    // 计算整核需要多少次循环
+    // 计算BS方向的循环次数（考虑overlap）
     uint64_t coreLoopsNeeded;
-    if (blockFactor_ <= ubFactorBS_) {
+    if (bsBlockFactor_ <= ubFactorBS_) {
         coreLoopsNeeded = 1;
     } else {
-        uint64_t remaining = blockFactor_ - ubFactorBS_;
+        uint64_t remaining = bsBlockFactor_ - ubFactorBS_;
         uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, ubFactorBS_ - bsOverlap);
         coreLoopsNeeded = 1 + subsequentLoops;
     }
-    loopNumBS_ = static_cast<uint32_t>(coreLoopsNeeded);
+    loopNumBS_ = coreLoopsNeeded;
 
     // 计算整核最后一次循环载入大小
-    uint64_t coreLastLoopInput = blockFactor_ - (coreLoopsNeeded - 1) * (ubFactorBS_ - bsOverlap);
-    ubTailFactorBS_ = static_cast<uint32_t>(std::min(coreLastLoopInput, static_cast<uint64_t>(ubFactorBS_)));
+    uint64_t coreLastLoopInput = bsBlockFactor_ - (coreLoopsNeeded - 1) * (ubFactorBS_ - bsOverlap);
+    ubTailFactorBS_ = std::min(coreLastLoopInput, ubFactorBS_);
 
-    // 计算尾核需要多少次循环
+    // ===== 计算尾核（双重小核）的UB参数 =====
+    // 使用相同的逻辑，但基于尾核的dim和BS大小
+    uint64_t tailCoreDim = (dimRemainderCores_ > 0) ? dimBlockTailFactor_ : dimBlockFactor_;
+    uint64_t tailCoreBS = bsBlockTailFactor_;
+
+    // 重新计算尾核的UB参数
+    uint64_t tailXCoeffPerDimFullBS = tailCoreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
+    uint64_t tailTotalCoeffPerDim = weightCacheCoeffPerDim + tailXCoeffPerDimFullBS;
+    int64_t tailMaxUbDim = availableUbSize / tailTotalCoeffPerDim;
+    tailMaxUbDim = (tailMaxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+
+    if (tailMaxUbDim >= static_cast<int64_t>(DIM_ALIGN_ELEMENTS)) {
+        tailBlockubFactorBS_ = tailCoreBS;
+        tailBlockubFactorDim_ = std::min(static_cast<uint64_t>(tailMaxUbDim), tailCoreDim);
+        tailBlockubFactorDim_ = (tailBlockubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        if (tailBlockubFactorDim_ == 0) {
+            tailBlockubFactorDim_ = DIM_ALIGN_ELEMENTS;
+        }
+    } else {
+        tailBlockubFactorDim_ = DIM_ALIGN_ELEMENTS;
+        uint64_t weightCacheSize = weightCacheCoeffPerDim * tailBlockubFactorDim_;
+        int64_t availableForX = availableUbSize - weightCacheSize;
+        uint64_t xSizePerBS = tailBlockubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
+        int64_t maxBS = availableForX / xSizePerBS;
+        tailBlockubFactorBS_ = std::max(maxBS, static_cast<int64_t>(1));
+        tailBlockubFactorBS_ = std::min(tailBlockubFactorBS_, tailCoreBS);
+
+        if (tailBlockubFactorBS_ == 0) {
+            OP_LOGE(context_->GetNodeName(), "UB size is not enough for tail block tiling");
+            return ge::GRAPH_FAILED;
+        }
+    }
+
+    // 计算尾核dim方向的循环次数
+    if (tailCoreDim <= tailBlockubFactorDim_) {
+        tailBlockloopNumDim_ = 1;
+        tailBlockubTailFactorDim_ = tailBlockubFactorDim_;
+    } else {
+        tailBlockloopNumDim_ = (tailCoreDim + tailBlockubFactorDim_ - 1) / tailBlockubFactorDim_;
+        tailBlockubTailFactorDim_ = tailCoreDim - (tailBlockloopNumDim_ - 1) * tailBlockubFactorDim_;
+    }
+
+    // 计算尾核BS方向的循环次数
     uint64_t tailLoopsNeeded;
-    if (blockTailFactor_ <= ubFactorBS_) {
+    if (bsBlockTailFactor_ <= tailBlockubFactorBS_) {
         tailLoopsNeeded = 1;
     } else {
-        uint64_t remaining = blockTailFactor_ - ubFactorBS_;
-        uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, ubFactorBS_ - bsOverlap);
+        uint64_t remaining = bsBlockTailFactor_ - tailBlockubFactorBS_;
+        uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, tailBlockubFactorBS_ - bsOverlap);
         tailLoopsNeeded = 1 + subsequentLoops;
     }
-    tailBlockloopNumBS_ = static_cast<uint32_t>(tailLoopsNeeded);
+    tailBlockloopNumBS_ = tailLoopsNeeded;
 
-    // 计算尾核最后一次循环载入大小
-    uint64_t tailLastLoopInput = blockTailFactor_ - (tailLoopsNeeded - 1) * (ubFactorBS_ - bsOverlap);
-    tailBlockubTailFactorBS_ = static_cast<uint32_t>(std::min(tailLastLoopInput, static_cast<uint64_t>(ubFactorBS_)));
-
-    // 步骤4: Dim方向参数
-    loopNumDim_ = static_cast<uint32_t>(Ops::Base::CeilDiv(dim_, static_cast<uint64_t>(ubFactorDim_)));
-    ubTailFactorDim_ = static_cast<uint32_t>(dim_ - (loopNumDim_ - 1) * ubFactorDim_);
-
-    // 步骤5: 尾核其他参数
-    tailBlockubFactorBS_ = ubFactorBS_;
-    tailBlockloopNumDim_ = loopNumDim_;
-    tailBlockubFactorDim_ = ubFactorDim_;
-    tailBlockubTailFactorDim_ = ubTailFactorDim_;
-
-    return ge::GRAPH_SUCCESS;
-}
-
-// 计算切dim时的tiling
-ge::graphStatus CausalConv1dFnTiling::CalculateDimTiling()
-{
-    blockIndex_ = 1; // 切dim
-    uint64_t bsOverlap = kernelWidth_ - 1;
-
-    // 步骤1: 核间切分 - dim 维度均分到所有核
-    // 注意：dim 切分时，核间没有重叠（不像 cu_seq_len 有因果重叠）
-
-    // 先限制核数：根据数据大小计算有效核数
-    uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, cuSeqLen_, dim_, xDtypeSize_, ubSize_);
-
-    // 计算每个核分到的 dim 大小（向上取整）
-    uint64_t dim_per_core = Ops::Base::CeilDiv(dim_, effectiveCoreNum);
-
-    // 计算实际需要的核数（可能小于 effectiveCoreNum，如果 dim 不够分配给所有核）
-    realCoreNum_ = Ops::Base::CeilDiv(dim_, dim_per_core);
-
-    // blockFactor_: 整核处理的 dim 大小
-    blockFactor_ = dim_per_core;
-
-    // blockTailFactor_: 尾核处理的 dim 大小
-    blockTailFactor_ = dim_ - (realCoreNum_ - 1) * blockFactor_;
-
-    // 步骤2: 核内UB切分参数
-    // 根据需求文档6节Buffer设计,计算UB使用
-    // 固定UB使用（真正不变的辅助tensor）：
-    // startLocInQueue: (batch + 1) * sizeof(int32), BUF_NUM=1
-    // indicesInQueue: batch * sizeof(int32), BUF_NUM=1
-    // hasInitialInQueue: batch * sizeof(int32), BUF_NUM=1
-    //
-    // 可变UB使用（取决于ubDim）：
-    // weightInQueue: kernelWidth * ubDim * xDtypeSize_, BUF_NUM=1
-    // cacheQueue: (kernelWidth-1) * ubDim * xDtypeSize_, BUF_NUM=1
-    // xQueue(y复用): ubBS * ubDim * xDtypeSize_, BUF_NUM=2
-
-    uint64_t startLocInQueueSize = (batch_ + 1) * sizeof(int32_t);
-    uint64_t indicesInQueueSize = batch_ * sizeof(int32_t);
-    uint64_t hasInitialInQueueSize = batch_ * sizeof(int32_t);
-    uint64_t fixedUbSize = startLocInQueueSize + indicesInQueueSize + hasInitialInQueueSize;
-
-    // 每个核分到的 dim 大小
-    uint64_t coreDim = blockFactor_;
-    // 完整的 BS 长度
-    uint64_t coreBS = validSeqLen_;
-
-    // weight 和 cache 每个 dim 元素的系数
-    uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
-
-    // x 每个 dim 元素的系数（双 buffer，满 BS）
-    uint64_t xCoeffPerDimFullBS = coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-
-    // 总系数（每个 dim 元素）
-    uint64_t totalCoeffPerDim = weightCacheCoeffPerDim + xCoeffPerDimFullBS;
-
-    // 计算可用 UB 和最大 ubDim
-    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
-    int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
-
-    // 对齐到 DIM_ALIGN_ELEMENTS (256 bytes)
-    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
-
-    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
-        // 能装下满 BS，尽量扩大 dim
-        ubFactorBS_ = static_cast<uint32_t>(coreBS);
-        ubFactorDim_ = static_cast<uint32_t>(std::min(static_cast<uint64_t>(maxUbDim), coreDim));
-
-        // 确保 ubFactorDim_ 对齐到 DIM_ALIGN_ELEMENTS
-        ubFactorDim_ = (ubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
-        if (ubFactorDim_ == 0) {
-            ubFactorDim_ = DIM_ALIGN_ELEMENTS;
-        }
-    } else {
-        // 不能装下满 BS，使用最小 dim 并减少 BS
-        ubFactorDim_ = DIM_ALIGN_ELEMENTS;
-
-        // weight 和 cache 占用空间（使用最小 dim）
-        uint64_t weightCacheSize = weightCacheCoeffPerDim * ubFactorDim_;
-        int64_t availableForX = availableUbSize - weightCacheSize;
-
-        // x 每个 BS 的大小（双 buffer）
-        uint64_t xSizePerBS = ubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-
-        // 计算能装下多少 BS
-        int64_t maxBS = availableForX / xSizePerBS;
-        ubFactorBS_ = static_cast<uint32_t>(std::max(maxBS, static_cast<int64_t>(1)));
-        ubFactorBS_ = std::min(static_cast<uint64_t>(ubFactorBS_), coreBS);
-
-        if (ubFactorBS_ == 0) {
-            OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling in dim mode");
-            return ge::GRAPH_FAILED;
-        }
-
-        // 检查 ubFactorBS_ 是否大于重叠长度
-        if (ubFactorBS_ <= bsOverlap) {
-            OP_LOGE(context_->GetNodeName(),
-                    "ubFactorBS_=%u is too small in dim mode, must be > kernelWidth-1=%lu",
-                    ubFactorBS_, bsOverlap);
-            return ge::GRAPH_FAILED;
-        }
-    }
-
-    // 步骤3: 计算 BS 方向循环次数（考虑重叠）
-    // BS 方向有因果卷积重叠，需要按照 CalculateCuSeqLenTiling 的方式计算
-
-    uint64_t bsLoopsNeeded;
-    if (validSeqLen_ <= ubFactorBS_) {
-        // 一次循环就能处理完
-        bsLoopsNeeded = 1;
-        ubTailFactorBS_ = static_cast<uint32_t>(validSeqLen_);
-    } else {
-        // 计算需要多少次循环
-        uint64_t remaining = validSeqLen_ - ubFactorBS_;
-        uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, ubFactorBS_ - bsOverlap);
-        bsLoopsNeeded = 1 + subsequentLoops;
-
-        // 计算最后一次循环载入大小
-        uint64_t lastLoopInput = validSeqLen_ - (bsLoopsNeeded - 1) * (ubFactorBS_ - bsOverlap);
-        ubTailFactorBS_ = static_cast<uint32_t>(std::min(lastLoopInput, static_cast<uint64_t>(ubFactorBS_)));
-    }
-    loopNumBS_ = static_cast<uint32_t>(bsLoopsNeeded);
-
-    // 步骤4: 计算 Dim 方向循环次数（整核）
-    loopNumDim_ = static_cast<uint32_t>(Ops::Base::CeilDiv(blockFactor_, static_cast<uint64_t>(ubFactorDim_)));
-    ubTailFactorDim_ = static_cast<uint32_t>(blockFactor_ - (loopNumDim_ - 1) * ubFactorDim_);
-
-    // 步骤5: 计算尾核的 dim 方向循环次数
-    tailBlockloopNumDim_ = static_cast<uint32_t>(Ops::Base::CeilDiv(blockTailFactor_, static_cast<uint64_t>(ubFactorDim_)));
-    tailBlockubTailFactorDim_ = static_cast<uint32_t>(blockTailFactor_ - (tailBlockloopNumDim_ - 1) * ubFactorDim_);
-
-    // 步骤6: 尾核其他参数
-    tailBlockloopNumBS_ = loopNumBS_;
-    tailBlockubFactorBS_ = ubFactorBS_;
-    tailBlockubTailFactorBS_ = ubTailFactorBS_;
-    tailBlockubFactorDim_ = ubFactorDim_;
+    uint64_t tailLastLoopInput = bsBlockTailFactor_ - (tailLoopsNeeded - 1) * (tailBlockubFactorBS_ - bsOverlap);
+    tailBlockubTailFactorBS_ = std::min(tailLastLoopInput, tailBlockubFactorBS_);
 
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
 {
-    // 根据需求文档5.1节,决定是切cu_seq_len还是切dim
-    // 切dim的条件:
-    // 1. 内存容量约束: cu_seq_len * dim * xDtypeSize > ubSize / 2
-    // 2. 核数限制: 切cu_seq_len时开核数 < 32
-    // 3. 每个核处理的dim长度 > 256B
-    //
-    // 注意：使用 validSeqLen_ 而不是 cuSeqLen_ 进行判断
+    // 二维切分策略（不均匀切分）：先切dim（以128为粒度，允许不均匀分配），再切BS（考虑overlap）
+    // 目标：最大化核利用率，优先切dim方向
 
-    bool shouldSplitDim = false;
     uint64_t bsOverlap = kernelWidth_ - 1;
+    constexpr uint64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENTS;  // 128
 
-    // 条件1: 内存容量约束（使用有效序列长度）
-    uint64_t totalMemory = validSeqLen_ * dim_ * xDtypeSize_;
-    bool memoryCondition = (totalMemory > ubSize_ / 2);
-
-    // 条件2: 核数限制（考虑因果卷积重叠，使用有效序列长度）
-    // 计算并缓存切分信息，避免在 CalculateCuSeqLenTiling 中重复计算
-    // 先限制核数，再用限制后的核数计算切分信息
-    // uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
-    cachedSplitInfo_ = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, totalCoreNum_);
-    hasCachedSplitInfo_ = true;
-
-    uint64_t coreNumForCuSeqLen = cachedSplitInfo_.realCoreNum;
-    bool coreNumCondition = (coreNumForCuSeqLen < MIN_CORE_NUM_FOR_DIM_SPLIT);
-
-    // 条件3: 每个核处理的dim长度（使用受限后的核数）
-    uint64_t dimPerCore = Ops::Base::CeilDiv(dim_, totalCoreNum_);
-    bool dimPerCoreCondition = (dimPerCore * xDtypeSize_ > MIN_DIM_PER_CORE);
-
-    shouldSplitDim = memoryCondition && coreNumCondition && dimPerCoreCondition;
-
-    if (shouldSplitDim) {
-        return CalculateDimTiling();
-    } else {
-        return CalculateCuSeqLenTiling();
+    // 步骤1：计算dim方向可切的份数（N = dim / 128）
+    uint64_t N = dim_ / DIM_GRANULARITY;
+    if (N == 0) {
+        OP_LOGE(context_->GetNodeName(), "dim %lu is smaller than DIM_GRANULARITY %lu",
+                dim_, DIM_GRANULARITY);
+        return ge::GRAPH_FAILED;
     }
+
+    // 步骤2：贪心搜索最优(dimCoreNum, bsCoreNum)组合
+    // 优先尝试dim切分多的方案（从N向下遍历所有可能值，允许不均匀切分）
+
+    // 初始化为 dc=1 的情况（所有核给BS方向）
+    uint64_t bestDimCores = 1;
+    // BS方向的约束：n <= validSeqLen - overlap
+    uint64_t maxBSCores = (validSeqLen_ > bsOverlap) ? (validSeqLen_ - bsOverlap) : 1;
+    uint64_t initialBSRequest = std::min(totalCoreNum_, maxBSCores);
+    CuSeqLenSplitInfo bestBSSplitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, initialBSRequest);
+    uint64_t bestBSCores = bestBSSplitInfo.realCoreNum;
+    uint64_t bestUsed = 1 * bestBSCores;
+
+    // 从大到小遍历 [1, N] 的所有值（允许不均匀切分）
+    for (uint64_t dc = N; dc >= 1; --dc) {
+        // 计算每核分配的128-块数
+        uint64_t base = N / dc;
+        if (base == 0) continue;  // 跳过（每个核至少要1个128-块）
+
+        // 计算该dimCores下能分配的最大BS核数
+        uint64_t maxAllowedBSByCore = totalCoreNum_ / dc;
+        if (maxAllowedBSByCore == 0) continue;  // 跳过（dim切太多，没有剩余核给BS）
+
+        // BS方向的约束：n <= validSeqLen - overlap（保证每个核至少输出1个元素）
+        uint64_t maxAllowedBSBySeqLen = (validSeqLen_ > bsOverlap) ? (validSeqLen_ - bsOverlap) : 1;
+        uint64_t maxAllowedBS = std::min(maxAllowedBSByCore, maxAllowedBSBySeqLen);
+
+        // 考虑因果重叠，计算BS方向实际能用的核数
+        auto splitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, maxAllowedBS);
+        uint64_t actualBS = splitInfo.realCoreNum;
+
+        // 总使用核数
+        uint64_t usedCores = dc * actualBS;
+
+        // 更新最优解（优先核数多，核数相同优先dim切分多）
+        if (usedCores > bestUsed || (usedCores == bestUsed && dc > bestDimCores)) {
+            bestDimCores = dc;
+            bestBSCores = actualBS;
+            bestUsed = usedCores;
+            bestBSSplitInfo = splitInfo;  // 保存BS方向的切分信息
+        }
+
+        // 如果已经完美利用所有核，提前退出
+        if (bestUsed == totalCoreNum_) {
+            break;
+        }
+    }
+
+    // 步骤3：计算dim方向不均匀分配参数
+    uint64_t base = N / bestDimCores;          // 每个小核分到的128-块数
+    uint64_t remainder = N % bestDimCores;     // 需要多分配的块数（大核数量）
+
+    dimCoreNum_ = bestDimCores;
+    dimRemainderCores_ = remainder;
+
+    if (remainder > 0) {
+        // 有大核：前remainder个核是大核
+        dimBlockFactor_ = (base + 1) * DIM_GRANULARITY;     // 大核的dim大小
+        dimBlockTailFactor_ = base * DIM_GRANULARITY;       // 小核的dim大小
+    } else {
+        // 均匀分配：所有核大小相同
+        dimBlockFactor_ = base * DIM_GRANULARITY;
+        dimBlockTailFactor_ = base * DIM_GRANULARITY;
+    }
+
+    // 步骤4：保存BS方向分配结果
+    bsCoreNum_ = bestBSCores;
+    bsRemainderCores_ = bestBSSplitInfo.remainder;        // BS方向大核数量
+    bsBlockFactor_ = bestBSSplitInfo.blockFactor;         // BS方向大核长度
+    bsBlockTailFactor_ = bestBSSplitInfo.blockTailFactor; // BS方向小核长度
+
+    // 步骤5：核数信息
+    realCoreNum_ = bestUsed;
+
+    // 步骤6：计算二维切分下的UB参数
+    return Calculate2DTiling();
 }
 
 uint64_t CausalConv1dFnTiling::GetTilingKey() const
@@ -823,8 +686,6 @@ ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
 
     // 总 workspace 大小
     workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
-
-    // workspaceSize_ = SYS_WORKSPACE_SIZE;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -852,16 +713,29 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.ubTailFactorBS = ubTailFactorBS_;
     tilingData_.ubFactorDim = ubFactorDim_;
     tilingData_.ubTailFactorDim = ubTailFactorDim_;
-    tilingData_.blockFactor = blockFactor_;
-    tilingData_.blockIndex = blockIndex_;
-    tilingData_.blockTailFactor = blockTailFactor_;
     tilingData_.tailBlockloopNumBS = tailBlockloopNumBS_;
     tilingData_.tailBlockloopNumDim = tailBlockloopNumDim_;
     tilingData_.tailBlockubFactorBS = tailBlockubFactorBS_;
     tilingData_.tailBlockubTailFactorBS = tailBlockubTailFactorBS_;
     tilingData_.tailBlockubFactorDim = tailBlockubFactorDim_;
     tilingData_.tailBlockubTailFactorDim = tailBlockubTailFactorDim_;
+
+    // dim方向核间切分信息
+    tilingData_.dimCoreNum = dimCoreNum_;
+    tilingData_.dimRemainderCores = dimRemainderCores_;
+    tilingData_.dimBlockFactor = dimBlockFactor_;
+    tilingData_.dimBlockTailFactor = dimBlockTailFactor_;
+
+    // BS方向核间切分信息
+    tilingData_.bsCoreNum = bsCoreNum_;
+    tilingData_.bsRemainderCores = bsRemainderCores_;
+    tilingData_.bsBlockFactor = bsBlockFactor_;
+    tilingData_.bsBlockTailFactor = bsBlockTailFactor_;
+
+    // 核数信息
     tilingData_.realCoreNum = realCoreNum_;
+
+    // 其他参数
     tilingData_.kernelWidth = kernelWidth_;
     tilingData_.cuSeqLen = cuSeqLen_;
     tilingData_.dim = dim_;
@@ -900,10 +774,23 @@ void CausalConv1dFnTiling::DumpTilingInfo()
     info << "validBatchCount: " << validBatchCount_ << std::endl;
     info << "validSeqStart: " << validSeqStart_ << std::endl;
     info << "validSeqLen: " << validSeqLen_ << std::endl;
-    info << "blockIndex: " << blockIndex_ << std::endl;
-    info << "blockFactor: " << blockFactor_ << std::endl;
-    info << "blockTailFactor: " << blockTailFactor_ << std::endl;
+
+    // dim方向核间切分信息
+    info << "dimCoreNum: " << dimCoreNum_ << std::endl;
+    info << "dimRemainderCores: " << dimRemainderCores_ << std::endl;
+    info << "dimBlockFactor: " << dimBlockFactor_ << std::endl;
+    info << "dimBlockTailFactor: " << dimBlockTailFactor_ << std::endl;
+
+    // BS方向核间切分信息
+    info << "bsCoreNum: " << bsCoreNum_ << std::endl;
+    info << "bsRemainderCores: " << bsRemainderCores_ << std::endl;
+    info << "bsBlockFactor: " << bsBlockFactor_ << std::endl;
+    info << "bsBlockTailFactor: " << bsBlockTailFactor_ << std::endl;
+
+    // 核数信息
     info << "realCoreNum: " << realCoreNum_ << std::endl;
+
+    // 核内切分参数
     info << "loopNumBS: " << loopNumBS_ << std::endl;
     info << "loopNumDim: " << loopNumDim_ << std::endl;
     info << "ubFactorBS: " << ubFactorBS_ << std::endl;
