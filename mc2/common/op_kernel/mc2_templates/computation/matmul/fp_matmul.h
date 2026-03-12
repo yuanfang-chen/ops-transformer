@@ -79,13 +79,13 @@ inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::End()
 // 计算节点的上下文数据类型声明
 #ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP
 #define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP(ContextType) \
-    using ContextType = MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>
+    using ContextType = MC2KernelTemplate::MC2MMContext<MC2KernelTemplate::FpMMAdditionalData, Mc2MatMulV3TilingData>
 #endif
 
 // 使用matmulv3算子作为计算节点的计算实现，是否转置的参数通过算子的模板参数获取
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(ComputationType) \
-    using ComputationType = MC2FpMMWrapper<\
+    using ComputationType = MC2KernelTemplate::MC2FpMMWrapper<\
         Mc2MatMulV3TilingData,\
         Mc2MatmulV3Advanced::Mc2MatmulAswKernel<\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\
@@ -98,12 +98,12 @@ inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::End()
 
 #ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_A3_FP
 #define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_A3_FP(ContextType) \
-    using ContextType = MC2MMContext<FpMMAdditionalData, Mc2MatmulV3TilingData>
+    using ContextType = MC2KernelTemplate::MC2MMContext<MC2KernelTemplate::FpMMAdditionalData, Mc2MatmulV3TilingData>
 #endif
 
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_A3_FP
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_A3_FP(ComputationType) \
-    using ComputationType = MC2FpMMWrapper<\
+    using ComputationType = MC2KernelTemplate::MC2FpMMWrapper<\
         Mc2MatmulV3TilingData,\
         Mc2MatmulBaseKernel<\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\

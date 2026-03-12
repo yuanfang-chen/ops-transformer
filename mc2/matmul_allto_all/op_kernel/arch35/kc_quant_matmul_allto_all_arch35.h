@@ -16,11 +16,8 @@
 #ifndef QUANT_MATMUL_ALLTO_ALL_ARCH35_H
 #define QUANT_MATMUL_ALLTO_ALL_ARCH35_H
 
-#include "matmul_allto_all_tiling_data.h"
-
-namespace MatmulAlltoAllImpl
+namespace Mc2Kernel
 {
-using namespace AscendC;
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
 class KcQuantMatmulAlltoAllArch35
 {
@@ -28,14 +25,14 @@ public:
     __aicore__ inline KcQuantMatmulAlltoAllArch35(SchedulerType* pipeLine) : pipeLine_(pipeLine){};
     __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR x2_offset, 
                                 GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData,
-                                TPipe* tPipe);
+                                AscendC::TPipe* tPipe);
     __aicore__ inline void Process();
 
 private:
     SchedulerType* pipeLine_;
     SchedulerContextType pipeLineContext_;
     MatmulAlltoAllTilingDataType* tilingData_;
-    TPipe* tPipe_;
+    AscendC::TPipe* tPipe_;
     GM_ADDR x1_;
     GM_ADDR x2_;
     GM_ADDR y_;
@@ -54,8 +51,9 @@ private:
 
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y,
-    GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR x2_offset, GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData,TPipe* tPipe)
+__aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Init(
+    GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR x2_offset,
+    GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData, AscendC::TPipe* tPipe)
 {   
     // 获取tilingdata数据
     tilingData_ = tilingData;
@@ -179,5 +177,5 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     
     pipeLine_->Process(taskCnt);
 }
-}; // namespace MatmulAlltoAllImpl
+}; // namespace Mc2Kernel
 #endif
