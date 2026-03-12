@@ -31,13 +31,6 @@ def _make_case(**overrides):
     case["query_quant_mode"] = query_quant_mode
     case["ckvkr_repo_mode"] = ckvkr_repo_mode
     case["quant_scale_repo_mode"] = quant_scale_repo_mode
-
-    if int(case.get("query_norm_flag", 0)) == 1:
-        case["qc_qr_scale"] = 1.1
-        case["kc_scale"] = 1.1
-    else:
-        case["qc_qr_scale"] = 1.0
-        case["kc_scale"] = 1.0
     return case
 
 
@@ -83,8 +76,40 @@ def test_validate_positive_case_mirrors_pertile_repo_and_cache_rules():
     assert not gen_st_cases.validate_positive_case(invalid_non_pertile_repo)
 
 
+def test_validate_positive_case_rejects_cpu_only_full_quant_modes():
+    assert not gen_st_cases.validate_positive_case(_make_case(weight_quant_mode=4, kv_quant_mode=0))
+    assert not gen_st_cases.validate_positive_case(_make_case(weight_quant_mode=5, kv_quant_mode=0))
+
+
+def test_query_norm_flag_does_not_drive_scale_fields():
+    case = _make_case(query_norm_flag=1)
+    assert case["qc_qr_scale"] == 1.0
+    assert case["kc_scale"] == 1.0
+
+    scaled_case = _make_case(query_norm_flag=0, qc_qr_scale=1.1, kc_scale=1.1)
+    assert scaled_case["qc_qr_scale"] == 1.1
+    assert scaled_case["kc_scale"] == 1.1
+
+
 def test_default_generation_retains_multi_step_loop_coverage(tmp_path: Path):
     factor_space = gen_st_cases._normalize_factor_space(gen_st_cases.DEFAULT_FACTOR_SPACE)
+    factor_space.update(
+        {
+            "batch_size": [1, 9],
+            "He": [1024],
+            "q_head_num": [1],
+            "q_seq": [1, 16],
+            "block_size": [16],
+            "cache_mode": ["BSND", "PA_BLK_BSND"],
+            "bs_fused_flag": [0, 1],
+            "weight_quant_mode": [0],
+            "kv_quant_mode": [0],
+            "smooth_scales_cq_flag": [0],
+            "query_norm_flag": [0],
+            "qc_qr_scale": [1.0, 1.1],
+            "kc_scale": [1.0, 1.1],
+        }
+    )
     hw = gen_st_cases.HardwareProfile()
     candidates = gen_st_cases.enumerate_positive_candidates(factor_space, hw)
     universe = set()
@@ -93,6 +118,8 @@ def test_default_generation_retains_multi_step_loop_coverage(tmp_path: Path):
     selected = gen_st_cases.deterministic_set_cover(candidates, universe)
 
     assert any("vector:multi_step_loop:1" in case.tags for case in selected)
+    assert any("post:qc_qr_scale_enable:1" in case.tags for case in selected)
+    assert any("post:kc_scale_enable:1" in case.tags for case in selected)
 
     output_testcases = tmp_path / "testcases.py"
     output_report = tmp_path / "st_case_coverage_report.md"

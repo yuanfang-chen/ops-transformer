@@ -37,7 +37,7 @@ def _build_param_combinations():
         values = [params[name] for name in PARAM_NAMES]
         for combo in itertools.product(*values):
             param_dict = dict(zip(PARAM_NAMES, combo))
-            valid, _ = prologv3_generalized.validate_quant_cache_combo(
+            valid, _ = prologv3_generalized.validate_weight_nz_npu_combo(
                 param_dict["cache_mode"],
                 param_dict["weight_quant_mode"],
                 param_dict["kv_quant_mode"],
@@ -133,7 +133,7 @@ def build_fuzz_param_cases(case_count=20, seed=3):
         if len(cases) >= case_count:
             break
         param_dict = {name: rng.choice(FUZZ_PARAM_SPACE[name]) for name in PARAM_NAMES}
-        valid, _ = prologv3_generalized.validate_quant_cache_combo(
+        valid, _ = prologv3_generalized.validate_weight_nz_npu_combo(
             param_dict["cache_mode"],
             param_dict["weight_quant_mode"],
             param_dict["kv_quant_mode"],

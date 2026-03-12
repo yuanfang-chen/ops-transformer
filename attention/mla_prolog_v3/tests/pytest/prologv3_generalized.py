@@ -24,6 +24,11 @@ import copy
 import numpy as np
 import random
 from typing import Dict, Optional, Tuple
+from weight_nz_scenario_rules import (
+    WEIGHT_NZ_NPU_SUPPORTED_WEIGHT_MODES,
+    get_weight_nz_optional_input_policy,
+    validate_weight_nz_npu_combo as validate_weight_nz_npu_combo_static,
+)
 
 COLOR_YELLOW = "\033[33m"
 YELLOW_RESET = "\033[0m"
@@ -1265,6 +1270,29 @@ def validate_quant_cache_combo(cache_mode,
     return True, ""
 
 
+def validate_weight_nz_npu_combo(cache_mode,
+                                 weight_quant_mode,
+                                 kv_quant_mode,
+                                 query_quant_mode,
+                                 ckvkr_repo_mode,
+                                 quant_scale_repo_mode):
+    is_valid, reason = validate_weight_nz_npu_combo_static(
+        cache_mode,
+        weight_quant_mode,
+        kv_quant_mode,
+        query_quant_mode,
+        ckvkr_repo_mode,
+        quant_scale_repo_mode,
+    )
+    if not is_valid:
+        return False, reason
+
+    if int(weight_quant_mode) == WEIGHT_QUANT_MODE_MXFP8_FULL and not is_mxfp8_runtime_supported():
+        return False, "mxfp8 full quant needs float8 support on Ascend 950"
+
+    return True, ""
+
+
 def _rand_tensor(shape, dtype, generator):
     if dtype == torch.int8:
         return torch.randint(-128, 128, shape, dtype=torch.int8, generator=generator)
@@ -1564,12 +1592,24 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
     quant_scale_repo_mode, smooth_scales_cq_flag, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
 
     if validate_quant_combo:
-        is_valid, reason = validate_quant_cache_combo(cache_mode,
-                                                      weight_quant_mode,
-                                                      kv_quant_mode,
-                                                      query_quant_mode,
-                                                      ckvkr_repo_mode,
-                                                      quant_scale_repo_mode)
+        if runtime_device == "npu":
+            is_valid, reason = validate_weight_nz_npu_combo(
+                cache_mode,
+                weight_quant_mode,
+                kv_quant_mode,
+                query_quant_mode,
+                ckvkr_repo_mode,
+                quant_scale_repo_mode,
+            )
+        else:
+            is_valid, reason = validate_quant_cache_combo(
+                cache_mode,
+                weight_quant_mode,
+                kv_quant_mode,
+                query_quant_mode,
+                ckvkr_repo_mode,
+                quant_scale_repo_mode,
+            )
         if not is_valid:
             pytest.skip(f"skip invalid quant/cache combo: {reason}")
 
@@ -1643,6 +1683,11 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
     else:
         kr_cache_dtype = torch.bfloat16
 
+    named_params = _params_to_named_dict(params)
+    runtime_weight_nz_policy = None
+    if weight_quant_mode in WEIGHT_NZ_NPU_SUPPORTED_WEIGHT_MODES:
+        runtime_weight_nz_policy = get_weight_nz_optional_input_policy(named_params)
+
     token_shape = (T, He) if t_flag else (B, S1, He)
     rope_shape = (T, Dr) if t_flag else (B, S1, Dr)
 
@@ -1684,6 +1729,8 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
     else:
         kr_cache = _move_tensor_to_runtime_device(_rand_tensor(kr_cache_shape, kr_cache_dtype, generator), runtime_device)
     cache_index = _move_tensor_to_runtime_device(cache_index, runtime_device)
+    if runtime_weight_nz_policy is not None and not runtime_weight_nz_policy["actual_seq_len"]:
+        actual_seq_len = None
     if actual_seq_len is not None:
         actual_seq_len = _move_tensor_to_runtime_device(actual_seq_len, runtime_device)
 
@@ -1696,7 +1743,66 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
     smooth_scale_cq = None
     k_nope_clip_alpha = None
 
-    if weight_quant_mode == 1:
+    if runtime_weight_nz_policy is not None:
+        if runtime_weight_nz_policy["dequant_scale_x"]:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                if fp8_e8m0_dtype is None:
+                    pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
+                deq_scale_x = _move_tensor_to_runtime_device(
+                    torch.ones((T, He // 32), dtype=fp8_e8m0_dtype),
+                    runtime_device,
+                )
+            else:
+                deq_scale_x = _move_tensor_to_runtime_device(_rand_scale((T, 1), generator), runtime_device)
+        if runtime_weight_nz_policy["dequant_scale_w_dq"]:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                if fp8_e8m0_dtype is None:
+                    pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
+                deq_scale_w_dq = _move_tensor_to_runtime_device(
+                    torch.ones((Hcq, He // 32), dtype=fp8_e8m0_dtype),
+                    runtime_device,
+                )
+            else:
+                deq_scale_w_dq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
+        if runtime_weight_nz_policy["dequant_scale_w_uq_qr"]:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                if fp8_e8m0_dtype is None:
+                    pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
+                deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
+                    torch.ones((N1 * (D + Dr), Hcq // 32), dtype=fp8_e8m0_dtype),
+                    runtime_device,
+                )
+            else:
+                deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
+                    _rand_scale((1, N1 * (D + Dr)), generator),
+                    runtime_device,
+                )
+        if runtime_weight_nz_policy["dequant_scale_w_dkv_kr"]:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                if fp8_e8m0_dtype is None:
+                    pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
+                deq_scale_w_dkv_kr = _move_tensor_to_runtime_device(
+                    torch.ones((Hckv + Dr, He // 32), dtype=fp8_e8m0_dtype),
+                    runtime_device,
+                )
+            else:
+                deq_scale_w_dkv_kr = _move_tensor_to_runtime_device(
+                    _rand_scale((1, Hckv + Dr), generator),
+                    runtime_device,
+                )
+        if runtime_weight_nz_policy["quant_scale_ckv"]:
+            quant_scale_shape = (1, Hckv) if kv_quant_mode == 2 else (1,)
+            quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale(quant_scale_shape, generator), runtime_device)
+        if runtime_weight_nz_policy["quant_scale_ckr"]:
+            quant_scale_ckr = _move_tensor_to_runtime_device(_rand_scale((1, Dr), generator), runtime_device)
+        if runtime_weight_nz_policy["smooth_scales_cq"]:
+            smooth_scale_cq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
+        if runtime_weight_nz_policy["k_nope_clip_alpha"]:
+            k_nope_clip_alpha = _move_tensor_to_runtime_device(
+                _rand_scale((1,), generator, min_val=0.9, max_val=1.1),
+                runtime_device,
+            )
+    elif weight_quant_mode == 1:
         deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
             _rand_scale((1, N1 * (D + Dr)), generator), runtime_device
         )
@@ -1735,17 +1841,6 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
             runtime_device,
         )
 
-    if kv_quant_mode == 1:
-        quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale((1,), generator), runtime_device)
-    elif kv_quant_mode == 2:
-        quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale((1, Hckv), generator), runtime_device)
-        quant_scale_ckr = _move_tensor_to_runtime_device(_rand_scale((1, Dr), generator), runtime_device)
-    elif kv_quant_mode == 3:
-        k_nope_clip_alpha = _move_tensor_to_runtime_device(
-            _rand_scale((1,), generator, min_val=0.9, max_val=1.1),
-            runtime_device,
-        )
-
     runtime_inputs = {
         "token_x": token_x,
         "w_dq": w_dq,
@@ -1772,11 +1867,11 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
 
     return {
         "params": params,
-        "named_params": _params_to_named_dict(params),
+        "named_params": named_params,
         "seed": seed,
         "runtime_device": runtime_device,
         "runtime_inputs": runtime_inputs,
-        "op_attrs": _build_op_attrs(_params_to_named_dict(params)),
+        "op_attrs": _build_op_attrs(named_params),
     }
 
 

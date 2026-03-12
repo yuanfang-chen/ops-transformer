@@ -28,6 +28,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from weight_nz_scenario_rules import (
+    derive_weight_nz_query_repo_modes,
+    validate_weight_nz_npu_combo,
+)
 
 
 PARAM_NAMES: List[str] = [
@@ -84,6 +88,8 @@ DEFAULT_FACTOR_SPACE: Dict[str, List[object]] = {
     "kv_quant_mode": [0, 1, 2, 3],
     "smooth_scales_cq_flag": [0, 1],
     "query_norm_flag": [0, 1],
+    "qc_qr_scale": [1.0, 1.1],
+    "kc_scale": [1.0, 1.1],
 }
 
 
@@ -134,6 +140,8 @@ MODEL_FACTOR_NAMES: Tuple[str, ...] = (
     "kv_quant_mode",
     "smooth_scales_cq_flag",
     "query_norm_flag",
+    "qc_qr_scale",
+    "kc_scale",
 )
 
 
@@ -268,6 +276,22 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
         expected_error_substrings=["query", "expected", "error"],
     ),
     _negative_case(
+        "invalid_mxfp8_pertile_nonnull_k_nope_clip_alpha",
+        kind="input_override",
+        param_updates={
+            "weight_quant_mode": 3,
+            "kv_quant_mode": 3,
+            "cache_mode": "TND",
+            "bs_fused_flag": 1,
+            "query_quant_mode": 0,
+            "ckvkr_repo_mode": 1,
+            "quant_scale_repo_mode": 1,
+            "smooth_scales_cq_flag": 0,
+        },
+        input_overrides={"k_nope_clip_alpha": {"shape": [1], "dtype": "torch.float32"}},
+        expected_error_substrings=["knope", "null", "error"],
+    ),
+    _negative_case(
         "invalid_tnd_token_x_rank",
         kind="input_override",
         param_updates={"batch_size": 2, "q_seq": 4, "cache_mode": "TND", "bs_fused_flag": 1},
@@ -392,14 +416,10 @@ def quant_mode(weight_quant_mode: int, kv_quant_mode: int) -> Optional[int]:
 
 
 def derive_query_repo_modes(weight_quant_mode: int, kv_quant_mode: int) -> Tuple[int, int, int]:
-    if kv_quant_mode == 3:
-        ckvkr_repo_mode = 1
-        quant_scale_repo_mode = 1
-    else:
-        ckvkr_repo_mode = 0
-        quant_scale_repo_mode = 0
-    query_quant_mode = 1 if (weight_quant_mode in (2, 3) and kv_quant_mode == 1) else 0
-    return query_quant_mode, ckvkr_repo_mode, quant_scale_repo_mode
+    derived = derive_weight_nz_query_repo_modes(weight_quant_mode, kv_quant_mode)
+    if derived is None:
+        return 0, 0, 0
+    return derived
 
 
 def validate_positive_case(case: Dict[str, object]) -> bool:
@@ -407,13 +427,9 @@ def validate_positive_case(case: Dict[str, object]) -> bool:
     kv_quant_mode = int(case["kv_quant_mode"])
     cache_mode = str(case["cache_mode"])
     bs_fused_flag = int(case["bs_fused_flag"])
-    query_norm_flag = int(case.get("query_norm_flag", 0))
-    query_norm_flag = int(case.get("query_norm_flag", 0))
-    query_norm_flag = int(case.get("query_norm_flag", 0))
     query_quant_mode = int(case["query_quant_mode"])
     ckvkr_repo_mode = int(case["ckvkr_repo_mode"])
     quant_scale_repo_mode = int(case["quant_scale_repo_mode"])
-    tile_size = int(case["tile_size"])
 
     qm = quant_mode(weight_quant_mode, kv_quant_mode)
     if qm is None:
@@ -438,22 +454,18 @@ def validate_positive_case(case: Dict[str, object]) -> bool:
         return False
     if int(case["block_size"]) < 16 or int(case["block_size"]) > 1024 or int(case["block_size"]) % 16 != 0:
         return False
-
-    if kv_quant_mode == 3:
-        if cache_mode in {"PA_NZ", "PA_BLK_BSND", "PA_BLK_NZ"}:
-            return False
-        if ckvkr_repo_mode != 1 or quant_scale_repo_mode != 1:
-            return False
-        if tile_size != 128:
-            return False
-    else:
-        if ckvkr_repo_mode != 0 or quant_scale_repo_mode != 0:
-            return False
-
-    expect_query_quant_mode = 1 if (weight_quant_mode in (2, 3) and kv_quant_mode == 1) else 0
-    if query_quant_mode != expect_query_quant_mode:
+    if int(case["tile_size"]) != 128:
         return False
-    return True
+
+    is_valid, _ = validate_weight_nz_npu_combo(
+        cache_mode,
+        weight_quant_mode,
+        kv_quant_mode,
+        query_quant_mode,
+        ckvkr_repo_mode,
+        quant_scale_repo_mode,
+    )
+    return is_valid
 
 
 def build_case_tags(case: Dict[str, object], hw: HardwareProfile) -> Set[str]:
@@ -607,45 +619,98 @@ def build_case_tags(case: Dict[str, object], hw: HardwareProfile) -> Set[str]:
 
 def enumerate_positive_candidates(factor_space: Dict[str, Sequence[object]], hw: HardwareProfile) -> List[CaseWithCoverage]:
     candidates: List[CaseWithCoverage] = []
-    keys = [
-        "batch_size",
-        "He",
-        "q_head_num",
-        "q_seq",
-        "block_size",
-        "cache_mode",
-        "bs_fused_flag",
-        "weight_quant_mode",
-        "kv_quant_mode",
-        "smooth_scales_cq_flag",
-        "query_norm_flag",
-    ]
-    index = 0
-    for values in itertools.product(*(factor_space[k] for k in keys)):
-        base = dict(FIXED_FIELDS)
-        base.update(dict(zip(keys, values)))
-
-        query_quant_mode, ckvkr_repo_mode, quant_scale_repo_mode = derive_query_repo_modes(
-            int(base["weight_quant_mode"]), int(base["kv_quant_mode"])
-        )
-        base["query_quant_mode"] = query_quant_mode
-        base["ckvkr_repo_mode"] = ckvkr_repo_mode
-        base["quant_scale_repo_mode"] = quant_scale_repo_mode
-        if int(base.get("query_norm_flag", 0)) == 1:
-            base["qc_qr_scale"] = 1.1
-            base["kc_scale"] = 1.1
-        else:
-            base["qc_qr_scale"] = 1.0
-            base["kc_scale"] = 1.0
-
-        if not validate_positive_case(base):
+    cache_bs_pairs = []
+    for cache_mode, bs_fused_flag in itertools.product(factor_space["cache_mode"], factor_space["bs_fused_flag"]):
+        if cache_mode == "TND" and bs_fused_flag != 1:
             continue
-        tags = build_case_tags(base, hw)
-        candidates.append(CaseWithCoverage(name=f"candidate_{index:04d}", params=base, tags=tags))
-        index += 1
+        if cache_mode == "BSND" and bs_fused_flag != 0:
+            continue
+        cache_bs_pairs.append((cache_mode, bs_fused_flag))
 
-    candidates.sort(key=lambda c: c.sort_key)
-    return candidates
+    quant_scenarios = []
+    for weight_quant_mode, kv_quant_mode in itertools.product(
+        factor_space["weight_quant_mode"],
+        factor_space["kv_quant_mode"],
+    ):
+        derived = derive_query_repo_modes(int(weight_quant_mode), int(kv_quant_mode))
+        if derived is None:
+            continue
+        query_quant_mode, ckvkr_repo_mode, quant_scale_repo_mode = derived
+        quant_scenarios.append(
+            (weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, quant_scale_repo_mode)
+        )
+
+    index = 0
+    for batch_size, He, q_head_num, q_seq, block_size, smooth_scales_cq_flag, query_norm_flag in itertools.product(
+        factor_space["batch_size"],
+        factor_space["He"],
+        factor_space["q_head_num"],
+        factor_space["q_seq"],
+        factor_space["block_size"],
+        factor_space["smooth_scales_cq_flag"],
+        factor_space["query_norm_flag"],
+    ):
+        for cache_mode, bs_fused_flag in cache_bs_pairs:
+            for weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, quant_scale_repo_mode in quant_scenarios:
+                base = dict(FIXED_FIELDS)
+                base.update(
+                    {
+                        "batch_size": batch_size,
+                        "He": He,
+                        "q_head_num": q_head_num,
+                        "q_seq": q_seq,
+                        "block_size": block_size,
+                        "cache_mode": cache_mode,
+                        "bs_fused_flag": bs_fused_flag,
+                        "weight_quant_mode": weight_quant_mode,
+                        "kv_quant_mode": kv_quant_mode,
+                        "query_quant_mode": query_quant_mode,
+                        "ckvkr_repo_mode": ckvkr_repo_mode,
+                        "quant_scale_repo_mode": quant_scale_repo_mode,
+                        "smooth_scales_cq_flag": smooth_scales_cq_flag,
+                        "query_norm_flag": query_norm_flag,
+                    }
+                )
+
+                if not validate_positive_case(base):
+                    continue
+                tags = build_case_tags(base, hw)
+                candidates.append(CaseWithCoverage(name=f"candidate_{index:04d}", params=base, tags=tags))
+                index += 1
+
+    qc_qr_scale_values = [float(value) for value in factor_space.get("qc_qr_scale", [FIXED_FIELDS["qc_qr_scale"]])]
+    kc_scale_values = [float(value) for value in factor_space.get("kc_scale", [FIXED_FIELDS["kc_scale"]])]
+    non_default_qc_qr_scale = next((value for value in qc_qr_scale_values if abs(value - 1.0) > 1e-6), None)
+    non_default_kc_scale = next((value for value in kc_scale_values if abs(value - 1.0) > 1e-6), None)
+    if non_default_qc_qr_scale is not None or non_default_kc_scale is not None:
+        scale_case = dict(FIXED_FIELDS)
+        scale_case.update(
+            {
+                "batch_size": factor_space["batch_size"][0],
+                "He": factor_space["He"][0],
+                "q_head_num": factor_space["q_head_num"][0],
+                "q_seq": factor_space["q_seq"][0],
+                "block_size": factor_space["block_size"][0],
+                "cache_mode": cache_bs_pairs[0][0],
+                "bs_fused_flag": cache_bs_pairs[0][1],
+                "weight_quant_mode": quant_scenarios[0][0],
+                "kv_quant_mode": quant_scenarios[0][1],
+                "query_quant_mode": quant_scenarios[0][2],
+                "ckvkr_repo_mode": quant_scenarios[0][3],
+                "quant_scale_repo_mode": quant_scenarios[0][4],
+                "smooth_scales_cq_flag": factor_space["smooth_scales_cq_flag"][0],
+                "query_norm_flag": factor_space["query_norm_flag"][0],
+            }
+        )
+        if non_default_qc_qr_scale is not None:
+            scale_case["qc_qr_scale"] = non_default_qc_qr_scale
+        if non_default_kc_scale is not None:
+            scale_case["kc_scale"] = non_default_kc_scale
+        if validate_positive_case(scale_case):
+            tags = build_case_tags(scale_case, hw)
+            candidates.append(CaseWithCoverage(name=f"candidate_{index:04d}", params=scale_case, tags=tags))
+
+    return _dedupe_candidates_by_tags(candidates)
 
 
 def deterministic_set_cover(candidates: Sequence[CaseWithCoverage], universe: Set[str]) -> List[CaseWithCoverage]:
@@ -691,6 +756,24 @@ def deterministic_set_cover(candidates: Sequence[CaseWithCoverage], universe: Se
                 changed = True
                 break
     return selected
+
+
+def _dedupe_candidates_by_tags(candidates: Sequence[CaseWithCoverage]) -> List[CaseWithCoverage]:
+    best_by_tags: Dict[frozenset[str], CaseWithCoverage] = {}
+    for candidate in candidates:
+        tag_key = frozenset(candidate.tags)
+        best = best_by_tags.get(tag_key)
+        if best is None:
+            best_by_tags[tag_key] = candidate
+            continue
+        if candidate.runtime_cost < best.runtime_cost:
+            best_by_tags[tag_key] = candidate
+            continue
+        if candidate.runtime_cost == best.runtime_cost and candidate.sort_key < best.sort_key:
+            best_by_tags[tag_key] = candidate
+    deduped = list(best_by_tags.values())
+    deduped.sort(key=lambda c: c.sort_key)
+    return deduped
 
 
 def _python_literal(value: object) -> str:
@@ -990,10 +1073,10 @@ def _merge_fuzz_space(factor_space: Dict[str, Sequence[object]]) -> Dict[str, Li
             qm = quant_mode(int(weight_mode), int(kv_mode))
             if qm is None:
                 continue
-            query_mode, ckvkr_mode, quant_scale_mode = derive_query_repo_modes(int(weight_mode), int(kv_mode))
-            derived_modes.add(query_mode)
-            derived_ckvkr_modes.add(ckvkr_mode)
-            derived_quant_scale_modes.add(quant_scale_mode)
+        query_mode, ckvkr_mode, quant_scale_mode = derive_query_repo_modes(int(weight_mode), int(kv_mode))
+        derived_modes.add(query_mode)
+        derived_ckvkr_modes.add(ckvkr_mode)
+        derived_quant_scale_modes.add(quant_scale_mode)
 
     if derived_modes:
         fuzz["query_quant_mode"] = sorted(derived_modes)
@@ -1083,12 +1166,6 @@ def enumerate_feature_relative_candidates(
         base["query_quant_mode"] = query_quant_mode
         base["ckvkr_repo_mode"] = ckvkr_repo_mode
         base["quant_scale_repo_mode"] = quant_scale_repo_mode
-        if int(base.get("query_norm_flag", 0)) == 1:
-            base["qc_qr_scale"] = 1.1
-            base["kc_scale"] = 1.1
-        else:
-            base["qc_qr_scale"] = 1.0
-            base["kc_scale"] = 1.0
 
         if not validate_positive_case(base):
             continue
@@ -1096,8 +1173,7 @@ def enumerate_feature_relative_candidates(
         candidates.append(CaseWithCoverage(name=f"feature_candidate_{index:04d}", params=base, tags=tags))
         index += 1
 
-    candidates.sort(key=lambda c: c.sort_key)
-    return candidates
+    return _dedupe_candidates_by_tags(candidates)
 
 
 def generate_feature_relative_cases(
