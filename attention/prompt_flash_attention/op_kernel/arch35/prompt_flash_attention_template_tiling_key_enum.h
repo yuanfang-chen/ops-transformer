@@ -23,7 +23,7 @@
 #define ASCENDC_TPL_7_BW 7
 
 #if (__CCE_AICORE__ == 310)
-#define PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, ...) \
+#define PARSE_PARAMS_AntiQuant(qkoDtype, inOutLayoutType, config, pseMode, ...) \
     constexpr LayOutTypeEnum inputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutTypeValue[inOutLayoutType][0]); \
     constexpr LayOutTypeEnum outputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutTypeValue[inOutLayoutType][1]); \
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \
@@ -31,7 +31,7 @@
     constexpr DTemplateType dTemplateType = static_cast<DTemplateType>(ConfigValue[config].d); \
     constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv)
 
-#define PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, ...) \
+#define PARSE_PARAMS_NoQuant(qkoDtype, inOutLayoutType, config, pseMode, ...) \
     constexpr LayOutTypeEnum inputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutTypeValue[inOutLayoutType][0]); \
     constexpr LayOutTypeEnum outputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutTypeValue[inOutLayoutType][1]); \
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \
@@ -39,7 +39,7 @@
     constexpr DTemplateType dTemplateType = static_cast<DTemplateType>(ConfigValue[config].d); \
     constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv)
 
-#define PARSE_PARAMS_FullQuant(inOutLayoutType, config, pseMode, ...) \
+#define PARSE_PARAMS_FullQuant(qkoDtype, inOutLayoutType, config, pseMode, ...) \
     constexpr LayOutTypeEnum inputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutPFATypeValue[inOutLayoutType][0]); \
     constexpr LayOutTypeEnum outputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutPFATypeValue[inOutLayoutType][1]); \
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \

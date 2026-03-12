@@ -257,7 +257,7 @@ protected:
     void GetQueryDimAndOutDim(const gert::StorageShape* queryShape, const gert::StorageShape* outShape,
         const std::string &layoutStr, int64_t &tmpqueryDim, int64_t &outDim, uint32_t i) const;
 
-    void UpdateTilingKeyQkoDtype(ge::DataType inputDataType, ge::DataType kDataType, ge::DataType outputDataType);
+    void UpdateTilingKeyQkoDtype(ContextParamsForPFATiling& contextKeyParams);
     void UpdateTilingKeyLayoutType();
     void UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData);
     void UpdateTilingKeyPseMode();
