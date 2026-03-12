@@ -537,7 +537,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         DataCopyParams scaleInParams = {1U, static_cast<uint16_t>(scaleInBytes_), 0U, 0U};
         DataCopyPadParams padParams = {true, 0, 0, 0};
         auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
-        DataCopyPad(xInTensor[(Ceil(axisH_, UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>(),
+        DataCopyPad(xInTensor[Align32(axisH_)].template ReinterpretCast<uint8_t>(),
             tmp[srcTokenIndex * scaleInBytes_], scaleInParams, padParams);
     }
 #endif
