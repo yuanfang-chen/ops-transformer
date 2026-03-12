@@ -110,7 +110,7 @@ aclnnStatus aclnnBlockSparseAttention(
         <td>支持的shape为：
         <ul><li>TND: [totalQTokens, headNum, headDim]。</li>
         <li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul>
-        </td>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3/4</td>
@@ -119,22 +119,29 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>key</td>
       <td>输入</td>
-      <td>公式中的key。</td>
-      <td>-</td>
+      <td>Device侧的aclTensor，公式中的query。</td>
+        <td>支持的shape为：
+        <ul><li>TND: [totalKTokens, numKeyValueHeads, headDim]。</li>
+        <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
-      <td>3</td>
-      <td>√</td>
+      <td>3/4</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>value</td>
       <td>输入</td>
-      <td>公式中的value。</td>
-      <td>-</td>
+      <td>Device侧的aclTensor，公式中的value。</td>
+      <td>Device侧的aclTensor，公式中的query。</td>
+        <td>支持的shape为：
+        <ul><li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li>
+        <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
-      <td>3</td>
-      <td>√</td>
+      <td>3/4</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>blockSparseMaskOptional</td>
