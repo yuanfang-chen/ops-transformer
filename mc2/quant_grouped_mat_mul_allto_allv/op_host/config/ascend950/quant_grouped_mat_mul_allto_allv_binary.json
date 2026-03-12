@@ -1,5 +1,5 @@
 {
-  "op_type": "GroupedMatMulAlltoAllvV2",
+  "op_type": "QuantGroupedMatMulAlltoAllv",
   "op_list": [
     {
       "bin_filename": "GroupedMatMulAlltoAllv_ND_ND_FP16_FP16_INT64",

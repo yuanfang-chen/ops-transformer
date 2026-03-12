@@ -870,6 +870,6 @@ uint64_t TTQuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 }
 
 // 注册tiling类
-REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllvV2, TTQuantGroupedMatmulAllToAllvTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(QuantGroupedMatMulAlltoAllv, TTQuantGroupedMatmulAllToAllvTiling, 1);
 
 // }
