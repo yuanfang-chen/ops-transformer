@@ -312,7 +312,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>blockSize</td>
       <td>输入</td>
       <td>Host侧的int64_t，PagedAttention的block大小。</td>
-      <td>用于PagedAttention场景，当前不支持pagedAttention功能，因此只支持传0。</td>
+      <td>用于PagedAttention场景，当前不支持PagedAttention功能。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -807,6 +807,5 @@ int main() {
     LOG_PRINT("Test completed successfully!\n");
     return 0;
 }
-
 ```
 
