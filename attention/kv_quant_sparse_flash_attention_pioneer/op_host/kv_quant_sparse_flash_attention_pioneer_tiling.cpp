@@ -136,7 +136,7 @@ static std::string QSFADataTypeToSerialString(ge::DataType type)
     }
 }
 
-string QSFATensorDesc2String(const gert::StorageShape *shape, const gert::CompileTimeTensorDesc *tensor)
+string QSFAPTensorDesc2String(const gert::StorageShape *shape, const gert::CompileTimeTensorDesc *tensor)
 {
     if (shape == nullptr || tensor == nullptr) {
         return "nil ";
@@ -156,22 +156,22 @@ string QSFATensorDesc2String(const gert::StorageShape *shape, const gert::Compil
     return oss.str();
 }
 
-string QSFADebugTilingContext(const gert::TilingContext *context)
+string QSFAPDebugTilingContext(const gert::TilingContext *context)
 {
     std::ostringstream oss;
     for (size_t i = 0; i < context->GetComputeNodeInfo()->GetInputsNum(); ++i) {
         oss << "input" << i << ": ";
-        oss << QSFATensorDesc2String(context->GetInputShape(i), context->GetInputDesc(i));
+        oss << QSFAPTensorDesc2String(context->GetInputShape(i), context->GetInputDesc(i));
     }
 
     for (size_t i = 0; i < context->GetComputeNodeInfo()->GetOutputsNum(); ++i) {
         oss << "output" << i << ": ";
-        oss << QSFATensorDesc2String(context->GetOutputShape(i), context->GetOutputDesc(i));
+        oss << QSFAPTensorDesc2String(context->GetOutputShape(i), context->GetOutputDesc(i));
     }
     return oss.str();
 }
 
-std::string QSFALayoutToSerialString(QSFALayout layout)
+std::string QSFAPLayoutToSerialString(QSFALayout layout)
 {
     switch (layout) {
         case QSFALayout::BSND: return "BSND";
@@ -495,7 +495,7 @@ ge::graphStatus QSFAPTilingCheck::GetExpectedShape(gert::Shape &shapeExpected,
     } else if (layout == QSFALayout::PA_BSND) {
         shapeExpected = gert::Shape({param.Bn, param.Bs, param.N, param.D});
     } else {
-        OP_LOGE(opName_, "layout %s is unsupported", QSFALayoutToSerialString(layout).c_str());
+        OP_LOGE(opName_, "layout %s is unsupported", QSFAPLayoutToSerialString(layout).c_str());
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -519,7 +519,7 @@ ge::graphStatus QSFAPTilingCheck::CompareShape(QSFATilingShapeCompareParam &para
     for (size_t i = 0; i < shape.GetDimNum(); i++) {
         if (shape.GetDim(i) != shapeExpected.GetDim(i)) {
             OP_LOGE(opName_, "%s layout is %s, shape is %s, expected shape is %s.",
-                name.c_str(), QSFALayoutToSerialString(layout).c_str(),
+                name.c_str(), QSFAPLayoutToSerialString(layout).c_str(),
                 GetShapeStr(shape).c_str(), GetShapeStr(shapeExpected).c_str());
             return ge::GRAPH_FAILED;
         }
@@ -588,7 +588,7 @@ ge::graphStatus QSFAPTilingCheck::CheckDimNumInLayoutSupport(const QSFALayout &l
     const auto& dimIt = QSFA_LAYOUT_DIM_MAP.find(layout);
     OP_CHECK_IF(shape->GetStorageShape().GetDimNum() != dimIt->second,
         OP_LOGE(opName_, "When layout is %s, %s dimension should be %zu, but it's %zu",
-            QSFALayoutToSerialString(layout).c_str(), name.c_str(), dimIt->second,
+            QSFAPLayoutToSerialString(layout).c_str(), name.c_str(), dimIt->second,
             shape->GetStorageShape().GetDimNum()),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -616,13 +616,13 @@ void QSFAPTilingCheck::LogErrorLayoutSupport(const std::vector<QSFALayout> &expe
 {
     std::ostringstream oss;
     for (size_t i = 0; i < expectLayoutList.size(); ++i) {
-        oss << QSFALayoutToSerialString(expectLayoutList[i]);
+        oss << QSFAPLayoutToSerialString(expectLayoutList[i]);
         if (i < expectLayoutList.size() - 1) {
             oss << ", ";
         }
     }
     OP_LOGE(opName_, "Tensor %s only supports layout %s, but got %s",
-        name.c_str(), oss.str().c_str(), QSFALayoutToSerialString(actualLayout).c_str());
+        name.c_str(), oss.str().c_str(), QSFAPLayoutToSerialString(actualLayout).c_str());
 }
 
 ge::graphStatus QSFAPTilingCheck::CheckLayoutSupport(const QSFALayout &actualLayout, const std::string &name) const
@@ -791,7 +791,7 @@ ge::graphStatus QSFAPTilingCheck::GetActualSeqLenSize(uint32_t &size, const gert
 {
     if (tensor == nullptr) {
         OP_LOGE(opName_, "when layout of query is %s, %s must be provided.",
-            QSFALayoutToSerialString(layout).c_str(), name.c_str());
+            QSFAPLayoutToSerialString(layout).c_str(), name.c_str());
         return ge::GRAPH_FAILED;
     }
     int64_t shapeSize = tensor->GetShapeSize();
@@ -818,7 +818,7 @@ ge::graphStatus QSFAPTilingCheck::CheckBlockTable() const
     if (kvStorageMode_ != KvStorageMode::PAGE_ATTENTION) {
         OP_CHECK_IF(opParamInfo_.blockTable.tensor != nullptr,
             OP_LOGE(opName_, "when the layout_kv is %s, %s should be null",
-                QSFALayoutToSerialString(kvLayout_).c_str(), BLOCK_TABLE_NAME.c_str()),
+                QSFAPLayoutToSerialString(kvLayout_).c_str(), BLOCK_TABLE_NAME.c_str()),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
@@ -1382,7 +1382,7 @@ ge::graphStatus QSFAPInfoParser::GetActualSeqLenSize(uint32_t &size, const gert:
 {
     if ((tensor == nullptr)) {
         OP_LOGE(opName_, "when layout of query is %s, %s must be provided.",
-            QSFALayoutToSerialString(layout).c_str(), name.c_str());
+            QSFAPLayoutToSerialString(layout).c_str(), name.c_str());
         return ge::GRAPH_FAILED;
     }
     int64_t shapeSize = tensor->GetShapeSize();
@@ -1619,7 +1619,7 @@ ge::graphStatus QSFAPInfoParser::GetMaxBlockNumPerBatch()
 {
     if (opParamInfo_.blockTable.tensor == nullptr) {
         OP_LOGE(opName_, "the layout_kv is %s, blockTable must be provided.",
-            QSFALayoutToSerialString(kvLayout_).c_str());
+            QSFAPLayoutToSerialString(kvLayout_).c_str());
         return ge::GRAPH_FAILED;
     }
     uint32_t dimNum = opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum();

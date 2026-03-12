@@ -233,9 +233,9 @@ std::string QSFAShape2String(const T &shape)
 
 static std::string GetShapeStr(gert::Shape shape);
 static std::string QSFADataTypeToSerialString(ge::DataType type);
-std::string QSFATensorDesc2String(const gert::StorageShape *shape, const gert::CompileTimeTensorDesc *tensor);
-std::string QSFADebugTilingContext(const gert::TilingContext *context);
-std::string QSFALayoutToSerialString(QSFALayout layout);
+std::string QSFAPTensorDesc2String(const gert::StorageShape *shape, const gert::CompileTimeTensorDesc *tensor);
+std::string QSFAPDebugTilingContext(const gert::TilingContext *context);
+std::string QSFAPLayoutToSerialString(QSFALayout layout);
 
 // -----------算子Tiling入参信息类---------------
 struct QSFATilingInfo {
