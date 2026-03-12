@@ -3931,7 +3931,7 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionInitSoftmaxLseOutputSplit
 }
 
 using DataTypeTriple = std::tuple<ge::DataType, ge::DataType, ge::DataType>;
-static const std::unordered_map<DataTypeTriple, int> QkoDtypeMap = {
+static const std::unordered_map<DataTypeTriple, int> qkoDtypeMap = {
     {{ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16}, QFLOAT16_KINT8_OFLOAT16},
     {{ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}, QFLOAT16_KINT4_OFLOAT16},
     {{ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QFLOAT16_KHIFLOAT8_OFLOAT16},
@@ -3956,7 +3956,7 @@ static const std::unordered_map<DataTypeTriple, int> QkoDtypeMap = {
     {{ge::DT_BF16, ge::DT_BF16, ge::DT_INT8}, QBF16_KBF16_OINT8},
     {{ge::DT_BF16, ge::DT_BF16, ge::DT_HIFLOAT8}, QBF16_KBF16_OHIFLOAT8},
     {{ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT8_E4M3FN}, QBF16_KBF16_OFLOAT8_E4M3FN},
-    {{ge::DT_INT8, ge::DT_DT_INT8, ge::DT_FLOAT16}, QINT8_KINT8_OFLOAT16},
+    {{ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT16}, QINT8_KINT8_OFLOAT16},
     {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OFLOAT16},
     {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OBF16},
     {{ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QHIFLOAT8_KHIFLOAT8_OFLOAT16},
@@ -3966,12 +3966,12 @@ static const std::unordered_map<DataTypeTriple, int> QkoDtypeMap = {
 void PromptFlashAttentionTilingV2::UpdateTilingKeyQkoDtype(ge::DataType inputDataType, ge::DataType kDataType, ge::DataType outputDataType) 
 {
     DataTypeTriple key = std::make_tuple(inputDataType, kDataType, outputDataType);
-    auto it = kQkoDtypeMap.find(key);
+    auto it = qkoDtypeMap.find(key);
 
-    if (it != kQkoDtypeMap.end()) {
+    if (it != qkoDtypeMap.end()) {
         qkoDtype = it->second;
     } else {
-        qkoDtype = -1; // 或使用默认枚举值
+        qkoDtype = QFLOAT16_KINT8_OFLOAT16; // 默认传入0
         OP_LOGE(contextKeyParams.opName, "query key ouput datatype check failed!");
     }
 }
