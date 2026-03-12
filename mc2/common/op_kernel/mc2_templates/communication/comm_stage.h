@@ -9,20 +9,13 @@
  */
 
 /*!
- * \file pipeline_builder.h
+ * \file comm_stage.h
  * \brief
  */
 
-#ifndef MC2_PIPELINE_BUILDER_H
-#define MC2_PIPELINE_BUILDER_H
+#ifndef MC2_COMM_STAGE_H
+#define MC2_COMM_STAGE_H
 
-#include "../communication/comm_stage.h"
-#include "../computation/compute_stage.h"
-#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3510
-#include "../quantization/quantize_stage.h"
-#endif
-#include "./template/pipeline_template_comm_trans_compute.h"
-#include "./template/pipeline_template_compute_trans_comm.h"
-#include "./template/pipeline_template_comm_trans_quantize_compute.h"
+#include "./communicator/hccl_impl.h"
 
-#endif
+#endif // MC2_COMM_STAGE_H
