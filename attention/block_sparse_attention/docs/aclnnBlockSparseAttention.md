@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- **接口功能**：BlockSparseAttention稀疏注意力计算，支持灵活的块级稀疏模式，通过selectIdx指定每个Q块选择的KV块，实现高效的稀疏注意力计算。
+- **接口功能**：BlockSparseAttention稀疏注意力计算，支持灵活的块级稀疏模式，通过BlockSparseMask指定每个Q块选择的KV块，实现高效的稀疏注意力计算。
 
 - **计算公式**：稀疏块大小：$blockShapeX \times blockShapeY$，selectIdx指定稀疏模式
 
@@ -61,8 +61,8 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
   int64_t            preTokens,
   int64_t            nextTokens,
   int64_t            softmaxLseFlag,
-  aclTensor         *attentionOut,
-  aclTensor         *softmaxLseOptional,
+  const aclTensor         *attentionOut,
+  const aclTensor         *softmaxLseOptional,
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
 ```
@@ -72,7 +72,7 @@ aclnnStatus aclnnBlockSparseAttention(
   void             *workspace,
   uint64_t          workspaceSize,
   aclOpExecutor    *executor,
-  aclrtStream stream)
+  const aclrtStream stream)
 ```
 
 ## aclnnBlockSparseAttentionGetWorkspaceSize
@@ -106,12 +106,13 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>query</td>
       <td>输入</td>
-      <td>公式中的query。</td>
-      <td>-</td>
+      <td>Device侧的aclTensor，公式中的query。</td>
+        <td><ul><li>TND: [totalQTokens, headNum, headDim]。</li>
+        <li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
-      <td>3</td>
-      <td>√</td>
+      <td>3/4</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>key</td>
