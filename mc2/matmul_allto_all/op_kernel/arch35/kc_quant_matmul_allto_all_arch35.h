@@ -16,11 +16,8 @@
 #ifndef QUANT_MATMUL_ALLTO_ALL_ARCH35_H
 #define QUANT_MATMUL_ALLTO_ALL_ARCH35_H
 
-#include "matmul_allto_all_tiling_data.h"
-
-namespace MatmulAlltoAllImpl
+namespace Mc2Kernel
 {
-using namespace AscendC;
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
 class KcQuantMatmulAlltoAllArch35
 {
@@ -179,5 +176,5 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     
     pipeLine_->Process(taskCnt);
 }
-}; // namespace MatmulAlltoAllImpl
+}; // namespace Mc2Kernel
 #endif
