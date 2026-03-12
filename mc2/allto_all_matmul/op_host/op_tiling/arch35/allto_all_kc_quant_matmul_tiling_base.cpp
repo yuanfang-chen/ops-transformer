@@ -90,7 +90,7 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
     }
 
     OP_TILING_CHECK(aDTypeNum != FP8_E5M2_VALUES && aDTypeNum != FP8_E4M3_VALUES,
-    OP_LOGE(opName, "aDTypeNum %d is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
+    OP_LOGE(opName, "aDTypeNum %ld is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
     return ge::GRAPH_FAILED);
     contextInfo.x1KcDynQuantDTypeVal = aDTypeNum;
 
