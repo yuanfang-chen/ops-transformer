@@ -37,7 +37,7 @@ using namespace arch35FIA;
 // CheckSinglePara
 ge::graphStatus SoftmaxLSEChecker::CheckSingleDtype(const FiaTilingInfo &fiaInfo)
 {
-    // SoftmaxLse only supports outputting FP32
+    // SoftmaxLse only supports output FP32
     if (fiaInfo.softmaxLseFlag) {
         OP_CHECK_IF(ge::GRAPH_SUCCESS != CheckDtypeSupport(fiaInfo.opParamInfo.lseOut.desc, SOFTMAX_LSE_NAME),
                     OP_LOGE(fiaInfo.opName, "SoftmaxLse only support dtype FP32, but got %s",

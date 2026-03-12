@@ -111,60 +111,12 @@ ge::graphStatus MaskChecker::CheckQKVDDifferent(const FiaTilingInfo &fiaInfo)
 }
 
 // CheckMultiPara
-ge::graphStatus MaskChecker::CheckNoMaskPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
-{
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK) && (fiaInfo.nextToken < 0) &&
-                    ((fiaInfo.nextToken * (-1)) >= static_cast<int32_t>(fiaInfo.s1Size)),
-                OP_LOGE(fiaInfo.opName,
-                        "NextTokens absolute value should be smaller than length of query, nextTokens = %ld, "
-                        "length of query = %u.",
-                        fiaInfo.nextToken, fiaInfo.s1Size),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK) && (fiaInfo.preToken < 0) &&
-                    ((fiaInfo.preToken * (-1)) >=
-                     (static_cast<int32_t>(fiaInfo.s2Size) + static_cast<int32_t>(fiaInfo.systemPrefixLen))),
-                OP_LOGE(fiaInfo.opName,
-                        "PreToken absolute value should be smaller than length of key and value "
-                        "(length of key and value + length of prefix when enable prefix), "
-                        "preTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = %ld",
-                        fiaInfo.preToken, fiaInfo.s2Size, fiaInfo.systemPrefixLen),
-                return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus MaskChecker::CheckBandPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
-{
-    ge::DataType outputType = fiaInfo.opParamInfo.attenOut.desc->GetDataType();
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_BAND) && (fiaInfo.preToken < 0) &&
-                    ((fiaInfo.preToken * (-1)) >= static_cast<int32_t>(fiaInfo.s1Size)),
-                OP_LOGE(fiaInfo.opName,
-                        "PreTokens absolute value should be smaller than length of query in band mode, preTokens = "
-                        "%ld, length of query = %u.",
-                        fiaInfo.preToken, fiaInfo.s1Size),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_BAND) && (fiaInfo.nextToken < 0) &&
-                    ((fiaInfo.nextToken * (-1)) >=
-                     (static_cast<int32_t>(fiaInfo.s2Size) + static_cast<int32_t>(fiaInfo.systemPrefixLen))),
-                OP_LOGE(fiaInfo.opName,
-                        "NextToken absolute value should be smaller than length of key and value in band mode"
-                        "(length of key and value + length of prefix when enable prefix), "
-                        "NextTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = %ld",
-                        fiaInfo.nextToken, fiaInfo.s2Size, fiaInfo.systemPrefixLen),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        (fiaInfo.sparseMode == SPARSE_MODE_BAND && outputType == ge::DT_INT8 &&
-         ((fiaInfo.preToken < 0) || fiaInfo.nextToken < 0)),
-        OP_LOGE(fiaInfo.opName,
-                "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
-                fiaInfo.preToken, fiaInfo.nextToken),
-        return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
-}
 
 ge::graphStatus MaskChecker::CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
 {
     // In PFA mode, the values of pretoken and nexttoken must ensure the mask range remains valid.
     isIFAFlag = (enableAntiQuant_) && (fiaInfo.s1Size == 1);
+    ge::DataType outputType = fiaInfo.opParamInfo.attenOut.desc->GetDataType();
     if (isIFAFlag) {
         return ge::GRAPH_SUCCESS;
     }
@@ -176,11 +128,14 @@ ge::graphStatus MaskChecker::CheckPretokenAndNexttoken(const FiaTilingInfo &fiaI
                         "Nexttoken line should be higher than pretoken line, preTokens = %ld, nextTokens = %ld.",
                         fiaInfo.preToken, fiaInfo.nextToken),
                 return ge::GRAPH_FAILED);
-    // Check the specific conditions that pretoken and nexttoken must satisfy under the sparse mode.
-    if (ge::GRAPH_SUCCESS != CheckNoMaskPretokenAndNexttoken(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckBandPretokenAndNexttoken(fiaInfo)) {
-        return ge::GRAPH_FAILED;
-    }
+    // Check the specific conditions that pretoken and nexttoken must satisfy under the band mode.
+    OP_CHECK_IF(
+        (fiaInfo.sparseMode == SPARSE_MODE_BAND && outputType == ge::DT_INT8 &&
+         ((fiaInfo.preToken < 0) || fiaInfo.nextToken < 0)),
+        OP_LOGE(fiaInfo.opName,
+                "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
+                fiaInfo.preToken, fiaInfo.nextToken),
+        return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
