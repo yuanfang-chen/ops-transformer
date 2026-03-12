@@ -143,7 +143,7 @@ bool GMMFRWeightQuantTiling::InferScenario() {
         wFormat = ge::FORMAT_FRACTAL_NZ;
     }
 
-    auto scaleDesc = context_->GetInputDesc(SCALE_INDEX);
+    auto scaleDesc = context_->GetOptionalInputDesc(SCALE_INDEX);
     auto scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : ge::DT_INT8;
     auto pertokenScaleDesc = context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX);
     auto perTokenScaleDtype =
@@ -188,21 +188,22 @@ bool CheckMxA8W4NzInputPtr(gert::TilingContext *contex) {
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input scaleStorageShape is nullptr."),
                 return false);
 
-    auto pertokenScaleDesc = contex->GetInputDesc(PERTOKEN_SCALE_INDEX);
+    // pertoken_scale is optional - use GetOptionalInputDesc
+    auto pertokenScaleDesc = contex->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX);
     OP_CHECK_IF(pertokenScaleDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input pertokenScaleDesc is nullptr."), return false);
-    auto pertokenScaleStorageShape = contex->GetInputShape(PERTOKEN_SCALE_INDEX);
+    auto pertokenScaleStorageShape = contex->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
     OP_CHECK_IF(pertokenScaleStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."),
                 return false);
 
-    // Add: group_list must not be nullptr
-    auto groupListDesc = contex->GetInputDesc(GROUPLIST_INDEX);
+    // Add: group_list must not be nullptr (optional input - use GetOptional API)
+    auto groupListDesc = contex->GetOptionalInputDesc(GROUPLIST_INDEX);
     OP_CHECK_IF(groupListDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input groupListDesc is nullptr."),
                 return false);
-    auto groupListStorageShape = contex->GetInputShape(GROUPLIST_INDEX);
+    auto groupListStorageShape = contex->GetOptionalInputShape(GROUPLIST_INDEX);
     OP_CHECK_IF(groupListStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input groupListStorageShape is nullptr."),
                 return false);
 
-    // Add: row_index must not be nullptr
+    // Add: row_index must not be nullptr (required for 91095 - use GetInput API)
     auto rowIndexDesc = contex->GetInputDesc(ROW_INDEX_INDEX);
     OP_CHECK_IF(rowIndexDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input rowIndexDesc is nullptr."),
                 return false);
@@ -261,7 +262,7 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
     auto scaleDimNum = scaleShape.GetDimNum();
 
-    auto pertokenScaleStorageShape = contex->GetInputShape(PERTOKEN_SCALE_INDEX);
+    auto pertokenScaleStorageShape = contex->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
     const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
     auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
 
@@ -285,8 +286,8 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
                 OP_LOGE(contex->GetNodeName(), "K dimension mismatch: x has K=%ld, w has K=%ld", kSize, kFromW),
                 return false);
 
-    // 3. Validate E matches group_list shape
-    auto groupListStorageShape = contex->GetInputShape(GROUPLIST_INDEX);
+    // 3. Validate E matches group_list shape (group_list is optional)
+    auto groupListStorageShape = contex->GetOptionalInputShape(GROUPLIST_INDEX);
     const gert::Shape &groupListShape = groupListStorageShape->GetOriginShape();
     OP_CHECK_IF(eFromW != groupListShape.GetDim(0),
                 OP_LOGE(contex->GetNodeName(), "E mismatch: w has E=%ld, group_list has %ld",
@@ -320,23 +321,30 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
                     return false);
     }
 
-    // 6. Validate bias shape [E, N] if not nullptr (2D)
+    // 6. Validate bias shape [E, N] if not nullptr and not empty (2D)
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
     if (biasDesc != nullptr) {
+        // Try GetInputShape first (for provided inputs including empty shapes)
         auto biasStorageShape = contex->GetInputShape(BIAS_INDEX);
-        const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
-        OP_CHECK_IF(biasShape.GetDimNum() != DIM_NUM_BIAS,
-                    OP_LOGE(contex->GetNodeName(), "The dimension of bias must be %u, actual is %zu",
-                            DIM_NUM_BIAS, biasShape.GetDimNum()),
-                    return false);
-        OP_CHECK_IF(biasShape.GetDim(0) != eFromW,
-                    OP_LOGE(contex->GetNodeName(), "bias shape[0]=%ld must equal E=%ld",
-                            biasShape.GetDim(0), eFromW),
-                    return false);
-        OP_CHECK_IF(biasShape.GetDim(1) != nSize,
-                    OP_LOGE(contex->GetNodeName(), "bias shape[1]=%ld must equal N=%ld",
-                            biasShape.GetDim(1), nSize),
-                    return false);
+        // Skip validation if bias shape is null - treat as optional
+        if (biasStorageShape != nullptr) {
+            const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
+            // Only validate if shape has dimensions (non-empty)
+            if (biasShape.GetDimNum() > 0) {
+                OP_CHECK_IF(biasShape.GetDimNum() != DIM_NUM_BIAS,
+                            OP_LOGE(contex->GetNodeName(), "The dimension of bias must be %u, actual is %zu",
+                                    DIM_NUM_BIAS, biasShape.GetDimNum()),
+                            return false);
+                OP_CHECK_IF(biasShape.GetDim(0) != eFromW,
+                            OP_LOGE(contex->GetNodeName(), "bias shape[0]=%ld must equal E=%ld",
+                                    biasShape.GetDim(0), eFromW),
+                            return false);
+                OP_CHECK_IF(biasShape.GetDim(1) != nSize,
+                            OP_LOGE(contex->GetNodeName(), "bias shape[1]=%ld must equal N=%ld",
+                                    biasShape.GetDim(1), nSize),
+                            return false);
+            }
+        }
     }
 
     // Calculate CeilDiv(K, 32) for scale/pertoken_scale validation
@@ -395,9 +403,9 @@ bool CheckMxA8W4AttrWithInput(gert::TilingContext *contex) {
         OP_LOGE(contex->GetNodeName(), "Attr outputBS should be >=0."),
         return false);
 
-    auto sharedInputDesc = contex->GetInputDesc(SHARE_INPUT_INDEX);
+    auto sharedInputDesc = contex->GetOptionalInputDesc(SHARE_INPUT_INDEX);
     if (sharedInputDesc != nullptr) {
-        auto sharedInputStorageShape = contex->GetInputShape(SHARE_INPUT_INDEX);
+        auto sharedInputStorageShape = contex->GetOptionalInputShape(SHARE_INPUT_INDEX);
         OP_CHECK_IF(sharedInputStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input sharedInputStorageShape should not be nullptr."),
                     return false);
 
@@ -493,8 +501,21 @@ bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
     inputParams.nSize = wShape.GetDim(wDimNum - LAST_SECOND_DIM_INDEX);
     inputParams.groupNum = wShape.GetDim(0);
 
-    auto biasDesc = contex->GetInputDesc(BIAS_INDEX);
-    inputParams.hasBias = (biasDesc != nullptr);
+    auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
+    if (biasDesc != nullptr) {
+        // Try GetInputShape first (for provided inputs including empty shapes)
+        auto biasStorageShape = contex->GetInputShape(BIAS_INDEX);
+        // Check if shape is valid and not empty
+        if (biasStorageShape != nullptr) {
+            const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
+            // Consider bias present only if shape is not empty (0 dimensions)
+            inputParams.hasBias = (biasShape.GetDimNum() > 0);
+        } else {
+            inputParams.hasBias = false;
+        }
+    } else {
+        inputParams.hasBias = false;
+    }
     
     auto sharedInputDesc = contex->GetInputDesc(SHARE_INPUT_INDEX);
     if (sharedInputDesc != nullptr) {
