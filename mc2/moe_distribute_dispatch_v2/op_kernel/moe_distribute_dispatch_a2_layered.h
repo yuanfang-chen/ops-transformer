@@ -953,14 +953,14 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     readStatusTensor.SetGlobalBuffer((__gm__ uint64_t*)(addrInfo_.GetLocalRecvBuffFlagAddr(srcRankId)));
     uint64_t TokenOffset = tokenIdx * tokenStructLen_;
     uint64_t nextTokenOffset = (tokenIdx + 1) * tokenStructLen_;
-    uint32_t copySize = FLAG_SIZE / sizeof(uint64_t);
-    DataCopy(statusTensor[0], readStatusTensor, copySize);
-    DataCopy(statusTensor[FLAG_SIZE], TokenFlagGtU64[(TokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)], copySize);
-    DataCopy(statusTensor[FLAG_SIZE * 2], TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)], copySize);
+    uint32_t copyNum = FLAG_SIZE / sizeof(uint64_t);
+    DataCopy(statusTensor, readStatusTensor, copyNum);
+    DataCopy(statusTensor[copyNum], TokenFlagGtU64[(TokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)], copyNum);
+    DataCopy(statusTensor[copyNum * 2U], TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)], copyNum);
     SyncFunc<AscendC::HardEvent::MTE2_S>();
     uint64_t endFlagValue = statusTensor.GetValue(0);
-    uint64_t tokenFlagValue = statusTensor.GetValue(FLAG_SIZE);
-    uint64_t nextTokenFlagValue = statusTensor.GetValue(FLAG_SIZE * 2);
+    uint64_t tokenFlagValue = statusTensor.GetValue(copyNum);
+    uint64_t nextTokenFlagValue = statusTensor.GetValue(copyNum * 2U);
 
     //等到发送结束信号，没等到token结束信号，则返回结束等待状态
     if (nextTokenFlagValue == SHOULD_SEND_FLAG_VALUE + magicVal_) {
