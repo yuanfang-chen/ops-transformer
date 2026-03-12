@@ -130,6 +130,8 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const int WEIGHT_QUANT_MODE_PARTIAL_QUANT = 1;
     const int WEIGHT_QUANT_MODE_FULL_QUANT = 2;
     const int WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT = 3;
+    const int WEIGHT_QUANT_MODE_FULL_QUANT_FP8 = 4;
+    const int WEIGHT_QUANT_MODE_FULL_QUANT_HIF8 = 5;
     const int KV_CACHE_QUANT_MODE_NO_QUANT = 0;
     const int KV_CACHE_QUANT_MODE_PER_TENSOR = 1;
     const int KV_CACHE_QUANT_MODE_PER_CHANNEL = 2;
@@ -138,8 +140,10 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     auto dequantScaleQNopeHolder = TensorHolder(dequantScaleQNopeOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNopeOut"));
     aclDataType queryNormDataType = weightQuantMode == WEIGHT_QUANT_MODE_NO_QUANT ? aclDataType::ACL_BF16 : aclDataType::ACL_INT8;
     aclDataType dequantScaleQNormDataType = weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT ? aclDataType::ACL_FLOAT8_E8M0 : aclDataType::ACL_FLOAT;
-    if (weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT) {
+    if (weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8) {
         queryNormDataType = aclDataType::ACL_FLOAT8_E4M3FN;
+    } eles if (weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8) {
+        queryNormDataType = aclDataType::ACL_HIFLOAT8;
     }
     auto queryNormHolder = TensorHolder(queryNormOutOptional, queryNormDataType, std::string("queryNormOut"));
     auto dequantScaleQNormHolder = TensorHolder(dequantScaleQNormOutOptional, dequantScaleQNormDataType, std::string("dequantScaleQNormOut"));
@@ -156,7 +160,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
         return ge::GRAPH_FAILED;
     }
     // weightQuantMode == 2:全量化场景, weightQuantMode == 3:mxfp8全量化场景, kvCacheQuantMode == 1:KV_PER_TENSOR量化场景
-    dequantScaleQNopeHolder.CheckTensorConditionalNotNull((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT) && kvCacheQuantMode == KV_CACHE_QUANT_MODE_PER_TENSOR); 
+    dequantScaleQNopeHolder.CheckTensorConditionalNotNull((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8 || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8) && kvCacheQuantMode == KV_CACHE_QUANT_MODE_PER_TENSOR); 
     bool queryNormFlag = queryNormHolder.IsTensorNotNull();
     // weightQuantMode != 0:量化场景
     dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != WEIGHT_QUANT_MODE_NO_QUANT && queryNormFlag);
