@@ -20,7 +20,6 @@
 #include <cstdint>
 #include "acl/acl.h"
 #include "aclnn/opdev/fp16_t.h"
-// 确保此处的头文件路径与你的工程实际路径一致
 #include "../op_host/op_api/aclnn_block_sparse_attention_grad.h"
 
 using namespace std;
