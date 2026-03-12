@@ -19,7 +19,7 @@
 #include "aclnn_kernels/cast.h"
 #include "opdev/common_types.h"
 #include "causal_conv1d.h"
-#include "aclnn_causal_conv1d.h"
+#include "aclnn_causal_conv1d_add.h"
 
 using namespace op;
 
@@ -91,28 +91,25 @@ aclnnStatus CausalConv1dCommonProcess(const aclTensor *x, const aclTensor *weigh
 
 } // namespace
 
-ACLNN_API aclnnStatus aclnnCausalConv1dGetWorkspaceSize(const aclTensor *x, const aclTensor *weight,
-                                                        aclTensor *convStates, const aclTensor *queryStartLoc,
-                                                        const aclTensor *cacheIndices,
-                                                        const aclTensor *initialStateMode, const aclTensor *bias,
-                                                        const aclTensor *numAcceptedTokens, int64_t activationMode,
-                                                        int64_t padSlotId, int64_t runMode, const aclTensor *y,
-                                                        uint64_t *workspaceSize, aclOpExecutor **executor)
+ACLNN_API aclnnStatus aclnnCausalConv1dAddGetWorkspaceSize(
+    const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
+    const aclTensor *cacheIndices, const aclTensor *initialStateMode, const aclTensor *bias,
+    const aclTensor *numAcceptedTokens, int64_t activationMode, int64_t padSlotId, int64_t runMode,
+    int64_t residualConnection, const aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(
-        aclnnCausalConv1d,
+        aclnnCausalConv1dAdd,
         DFX_IN(x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedTokens),
         DFX_OUT(y, convStates));
-    int64_t residualConnection = 0;
     return CausalConv1dCommonProcess(x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias,
                                      numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
                                      workspaceSize, executor);
 }
 
-ACLNN_API aclnnStatus aclnnCausalConv1d(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                        aclrtStream stream)
+ACLNN_API aclnnStatus aclnnCausalConv1dAdd(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                           aclrtStream stream)
 {
-    L2_DFX_PHASE_2(aclnnCausalConv1d);
+    L2_DFX_PHASE_2(aclnnCausalConv1dAdd);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
