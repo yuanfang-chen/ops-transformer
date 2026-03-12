@@ -386,21 +386,19 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     doorBellInfo |= (uint64_t)(qp_ctx_entry->sl) << 48UL; // [48:50] DB_SL = qp.sl
 
     __gm__ uint64_t* doorBellAddr = (__gm__ uint64_t* )(qp_ctx_entry->dbAddr);
-    PipeBarrier<PIPE_ALL>();
 
     ubLocal.SetValue(0, doorBellInfo);
     AscendC::GlobalTensor<uint64_t> DBGlobalTensor;
     DBGlobalTensor.SetGlobalBuffer(doorBellAddr);
     AscendC::DataCopyExtParams copyParams{1, 1 * sizeof(uint64_t), 0, 0, 0};
-    PipeBarrier<PIPE_ALL>();
-    AscendC::DataCopyPad(DBGlobalTensor, ubLocal, copyParams);
-    PipeBarrier<PIPE_ALL>();
 
     ubLocalHead.SetValue(0, (uint32_t)curHead);
     AscendC::GlobalTensor<uint32_t> HeadGlobalTensor;
     HeadGlobalTensor.SetGlobalBuffer((__gm__ uint32_t*)curHardwareHead);
     AscendC::DataCopyExtParams copyParamsHead{1, 1 * sizeof(uint32_t), 0, 0, 0};
-    PipeBarrier<PIPE_ALL>();
+
+    SyncFunc<AscendC::HardEvent::S_MTE3>(); // 确保ubLocal和ubLocalHead写入完成
+    AscendC::DataCopyPad(DBGlobalTensor, ubLocal, copyParams);
     AscendC::DataCopyPad(HeadGlobalTensor, ubLocalHead, copyParamsHead);
     PipeBarrier<PIPE_ALL>();
 }
@@ -867,7 +865,7 @@ SendDataToServer(uint32_t destServerId)
     LocalTensor<uint64_t> sendTokenInfoLocalTensor =
         tBuf.GetWithOffset<uint64_t>((axisBS_ * FLAG_SIZE)/sizeof(uint64_t), 0);
     DataCopy(sendTokenInfoLocalTensor, tokenAddrFlagStructGlobalU64Tensor_, (axisBS_ * FLAG_SIZE)/sizeof(uint64_t));
-    PipeBarrier<PIPE_ALL>();
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
 
     for (uint32_t tokenIdx = 0; tokenIdx < axisBS_; ++tokenIdx) {
         uint64_t destServerInfo = sendTokenInfoLocalTensor(tokenIdx * FLAG_SIZE / sizeof(uint64_t));
@@ -875,7 +873,6 @@ SendDataToServer(uint32_t destServerId)
             uint64_t srcRdmaAddr = (uint64_t)(srcRdmaAddrBase + (tokenStructLen_ * tokenIdx * 1UL));
             AIVRDMAPostSend((GM_ADDR)srcRdmaAddr, (GM_ADDR)dstRdmaAddr, dstRankId, tokenStructLen_, qp_info_);
             dstRdmaAddr += tokenStructLen_;
-            PipeBarrier<PIPE_ALL>();
         }
     }
 
@@ -1108,7 +1105,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     }
     //数据发送结束，填写tokenNum到对端Ipc，每轮填写coresPerServer个，总共要填写 SERVER_RANK_SIZE * localMoeExpertNum_个
     uint32_t batchNum = (SERVER_RANK_SIZE * localMoeExpertNum_ + coresPerServer - 1) / coresPerServer;
-    SyncFunc<AscendC::HardEvent::S_MTE3>();
+    SyncFunc<AscendC::HardEvent::S_MTE3>(); // 拷贝到Ipc TokenCnt前保证tokenNumPerExp修改完成
     for (uint32_t batch = 0; batch < batchNum; batch++) {
         uint32_t targetExpId = expStartId + batch * coresPerServer + logicAivId % coresPerServer;
         uint32_t targetRankId = GetExpRank(targetExpId);
