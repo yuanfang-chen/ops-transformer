@@ -52,7 +52,7 @@ public:
     static constexpr uint32_t MTE1_M_EVENT = EVENT_ID2;
 
     static constexpr uint32_t L0C_EVENT0 = EVENT_ID3;
-    static constexpr uint32_t LOC_EVENT1 = EVENT_ID4;
+    static constexpr uint32_t L0C_EVENT1 = EVENT_ID4;
 
     static constexpr uint64_t M_BASIC_BLOCK = 256;
     static constexpr uint64_t D_BASIC_BLOCK = 128;

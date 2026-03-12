@@ -163,8 +163,8 @@ __aicore__ inline void LIVector<LIT>::InitBuffers(TPipe *pipe)
     // ws清零 [needFd, s2AcSeq, s2Start, s2End, isS2End, bn2idx, s1Idx, ......]
     LocalTensor<float> tmpBuff = outQueue_.AllocTensor<float>();
     Duplicate(tmpBuff.template ReinterpretCast<int32_t>(), -1, 2 * (s1BaseSize_ / 2) * paramNum_ * 2);
-    outQueue.EnQue<float>(tmpBuff);
-    tmpBuff = outQueue.DeQue<float>();
+    outQueue_.EnQue<float>(tmpBuff);
+    tmpBuff = outQueue_.DeQue<float>();
     int64_t wsInfoOffset = (blockId_ / 2) * s1BaseSize_ * 2 * paramNum_ +      // 2个AIV共同地址偏移
                            (blockId_ % 2) * (s1BaseSize_ / 2) * 2 * paramNum_; // 每个AIV的地址偏移，S1方向
     DataCopyPad(vec1ParamGm[wsInfoOffset], tmpBuff.template ReinterpretCast<int64_t>(),
