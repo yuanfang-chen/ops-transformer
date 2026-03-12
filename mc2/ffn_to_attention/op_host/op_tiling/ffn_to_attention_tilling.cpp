@@ -105,7 +105,7 @@ static bool CheckAndSetAttrs(gert::TilingContext* context, const char *nodeName,
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "GetAttrs returned nullptr!"), return false);
  
     auto groupPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
-    auto worldSizePtr = attrs->GetAttrPointer<int>(ATTR_WORLD_SIZE_INDEX);
+    auto worldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_WORLD_SIZE_INDEX);
     auto tokenInfoTableDimNum = attrs->GetListInt(ATTR_TOKEN_INFO_TABLE_SHAPE_INDEX)->GetSize();
     auto tokenInfoTableShape = attrs->GetListInt(ATTR_TOKEN_INFO_TABLE_SHAPE_INDEX)->GetData();
     auto tokenDataDimNum = attrs->GetListInt(ATTR_TOKEN_DATA_SHAPE)->GetSize();
@@ -199,7 +199,7 @@ static bool CheckInputDim0Dim1(gert::TilingContext* context, const char *nodeNam
 static bool CheckInputDim(gert::TilingContext* context, const char *nodeName, FFNToAttentionTilingData &tilingData)
 {   
     auto attrs = context->GetAttrs();
-    auto worldSizePtr = attrs->GetAttrPointer<int>(ATTR_WORLD_SIZE_INDEX);
+    auto worldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_WORLD_SIZE_INDEX);
     int64_t worldSize = *worldSizePtr;
     const gert::StorageShape *xShape = context->GetInputShape(INPUT_X_INDEX);
     const gert::StorageShape *sessionIdsShape = context->GetInputShape(INPUT_SESSION_IDS_INDEX);

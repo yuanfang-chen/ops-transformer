@@ -159,7 +159,7 @@ static graphStatus InferMAxisShape(gert::InferShapeContext* context)
 {
     const gert::RuntimeAttrs* attrs = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int32_t* splitItem = attrs->GetAttrPointer<int32_t>(INDEX_ATTR_SPLIT_ITEM);
+    const int32_t* splitItem = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_SPLIT_ITEM);
     OP_CHECK_NULL_WITH_CONTEXT(context, splitItem);
     OPS_CHECK(
         CheckSplitItemGmmAr(*splitItem) != GRAPH_SUCCESS,
@@ -250,7 +250,7 @@ static graphStatus InferDataTypeGroupedMatMulAllReduce(gert::InferDataTypeContex
 
     const gert::RuntimeAttrs* attrs = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int32_t* splitItem = attrs->GetAttrPointer<int32_t>(INDEX_ATTR_SPLIT_ITEM);
+    const int64_t* splitItem = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_SPLIT_ITEM);
     if (nullptr == splitItem) {
         return GRAPH_FAILED;
     }

@@ -312,8 +312,8 @@ ge::graphStatus MatmulAlltoAllTiling910B::CheckAndSetAttrsInfo(MatmulAlltoAllInf
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
 
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
-    const int *x1_quant_mode = attrs->GetAttrPointer<int>(ATTR_X1_QUANTMODE_INDEX);
-    const int *x2_quant_mode = attrs->GetAttrPointer<int>(ATTR_X2_QUANTMODE_INDEX);
+    const int *x1_quant_mode = attrs->GetAttrPointer<int64_t>(ATTR_X1_QUANTMODE_INDEX);
+    const int *x2_quant_mode = attrs->GetAttrPointer<int64_t>(ATTR_X2_QUANTMODE_INDEX);
     // 判断为空或者空字符串
     OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The input attr group is null pointer."),
                     return ge::GRAPH_FAILED);

@@ -89,7 +89,7 @@ static ge::graphStatus GetRankSize(gert::InferShapeContext* context, QuantAllRed
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
 
     // 通过attr获取卡数
-    const int *rankSize = attrs->GetAttrPointer<int>(WORLD_SIZE_INDEX);
+    const int64_t *rankSize = attrs->GetAttrPointer<int64_t>(WORLD_SIZE_INDEX);
     OP_LOGE_IF(rankSize == nullptr, ge::GRAPH_FAILED, context->GetNodeName(), "Get rank_size failed in quant_all_reduce");
     OP_TILING_CHECK(std::find(SUPPORT_RANK_SIZE.begin(), SUPPORT_RANK_SIZE.end(), *rankSize) >= SUPPORT_RANK_SIZE.end(),
                     OP_LOGE(INNER_DEBUG, "Rank size must be in %s, but the actual value is %ld",

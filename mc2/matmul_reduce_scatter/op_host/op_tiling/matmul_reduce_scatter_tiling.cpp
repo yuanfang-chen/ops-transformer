@@ -696,7 +696,7 @@ static ge::graphStatus MatmulReduceScatterTilingFunc(gert::TilingContext* contex
     auto reduce_op = context->GetAttrs()->GetAttrPointer<char>(index++);
     auto is_trans_a = context->GetAttrs()->GetAttrPointer<bool>(index++);
     auto is_trans_b = context->GetAttrs()->GetAttrPointer<bool>(index++);
-    auto comm_turn_ptr = context->GetAttrs()->GetAttrPointer<int>(index++);
+    auto comm_turn_ptr = context->GetAttrs()->GetAttrPointer<int64_t>(index++);
     
     OP_TILING_CHECK(is_trans_b == nullptr,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
