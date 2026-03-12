@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 #include <cstring>
 #include <string>
 #include "graph/types.h"
@@ -30,6 +30,36 @@ extern "C" {
 #endif
 
 namespace {
+
+// 新增：打印aclTensor存储形状的工具函数
+void PrintAclTensorStorageShape(const char* tensorName, const aclTensor* tensor) {
+    if (tensor == nullptr) {
+        printf("Tensor [%s] is nullptr", tensorName);
+        return;
+    }
+
+    int64_t* storageDims = nullptr;
+    uint64_t storageDimsNum = 0;
+    aclnnStatus ret = aclGetStorageShape(tensor, &storageDims, &storageDimsNum);
+    
+
+    // 打印形状信息
+    std::string dimStr = "[";
+    for (uint64_t i = 0; i < storageDimsNum; ++i) {
+        if (i > 0) {
+            dimStr += ", ";
+        }
+        dimStr += std::to_string(storageDims[i]);
+    }
+    dimStr += "]";
+    
+    printf("Tensor [%s] - Storage Shape: %s", 
+            tensorName, dimStr.c_str());
+    
+    // 手动释放storageDims内存
+    delete[] storageDims;
+    storageDims = nullptr;
+}
 
 extern aclnnStatus aclnnInnerMlaPrologV3GetWorkspaceSize(
     const aclTensor *tokenX, const aclTensor *weightDq, const aclTensor *weightUqQr, const aclTensor *weightUk, const aclTensor *weightDkvKr,
@@ -59,6 +89,8 @@ public:
                 shape.data(), shape.size(), static_cast<void *>(&addr));
             output = inner_;
         }
+        // 新增：打印创建的Tensor信息
+        PrintAclTensorStorageShape(name_.c_str(), inner_);
     }
 
     ~TensorHolder() {
@@ -135,6 +167,23 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const int KV_CACHE_QUANT_MODE_PER_CHANNEL = 2;
     const int KV_CACHE_QUANT_MODE_PER_TILE = 3;
 
+    // 新增：打印关键输入Tensor的存储形状
+    PrintAclTensorStorageShape("tokenX", tokenX);
+    PrintAclTensorStorageShape("weightDq", weightDq);
+    PrintAclTensorStorageShape("weightUqQr", weightUqQr);
+    PrintAclTensorStorageShape("weightUk", weightUk);
+    PrintAclTensorStorageShape("weightDkvKr", weightDkvKr);
+    PrintAclTensorStorageShape("rmsnormGammaCq", rmsnormGammaCq);
+    PrintAclTensorStorageShape("rmsnormGammaCkv", rmsnormGammaCkv);
+    PrintAclTensorStorageShape("ropeSin", ropeSin);
+    PrintAclTensorStorageShape("ropeCos", ropeCos);
+    PrintAclTensorStorageShape("kvCacheRef", kvCacheRef);
+    PrintAclTensorStorageShape("krCacheRef", krCacheRef);
+    
+    // 可选Tensor打印（按需添加）
+    PrintAclTensorStorageShape("cacheIndexOptional", cacheIndexOptional);
+    PrintAclTensorStorageShape("dequantScaleXOptional", dequantScaleXOptional);
+
     auto dequantScaleQNopeHolder = TensorHolder(dequantScaleQNopeOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNopeOut"));
     aclDataType queryNormDataType = weightQuantMode == WEIGHT_QUANT_MODE_NO_QUANT ? aclDataType::ACL_BF16 : aclDataType::ACL_INT8;
     aclDataType dequantScaleQNormDataType = weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT ? aclDataType::ACL_FLOAT8_E8M0 : aclDataType::ACL_FLOAT;
@@ -143,6 +192,14 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     }
     auto queryNormHolder = TensorHolder(queryNormOutOptional, queryNormDataType, std::string("queryNormOut"));
     auto dequantScaleQNormHolder = TensorHolder(dequantScaleQNormOutOptional, dequantScaleQNormDataType, std::string("dequantScaleQNormOut"));
+    
+    // 新增：打印输出Tensor的存储形状
+    PrintAclTensorStorageShape("queryOut", queryOut);
+    PrintAclTensorStorageShape("queryRopeOut", queryRopeOut);
+    PrintAclTensorStorageShape("dequantScaleQNopeOutOptional", dequantScaleQNopeOutOptional);
+    PrintAclTensorStorageShape("queryNormOutOptional", queryNormOutOptional);
+    PrintAclTensorStorageShape("dequantScaleQNormOutOptional", dequantScaleQNormOutOptional);
+
     if (dequantScaleQNopeOutOptional == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor dequantScaleQNopeOu!");
         return ge::GRAPH_FAILED;
@@ -160,6 +217,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     bool queryNormFlag = queryNormHolder.IsTensorNotNull();
     // weightQuantMode != 0:量化场景
     dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != WEIGHT_QUANT_MODE_NO_QUANT && queryNormFlag);
+    
     return aclnnInnerMlaPrologV3GetWorkspaceSize(
         tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin, ropeCos, kvCacheRef, krCacheRef,
         cacheIndexOptional, dequantScaleXOptional, dequantScaleWDqOptional, dequantScaleWUqQrOptional,
