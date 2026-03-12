@@ -20,7 +20,7 @@
 - **计算公式**：稀疏块大小：$blockShapeX \times blockShapeY$，selectIdx指定稀疏模式
 
   $$
-  attentionOut = Softmax(scale \cdot query \cdot key^T + atten\_mask) \cdot value
+  attentionOut = Softmax(scale \cdot query \cdot key^T + atten\_mask) \cdot value_s
   $$
 
   BlockSparseAttention输入query、key、value的数据排布格式支持从多种维度排布解读，可通过qInputLayout和kvInputLayout传入。
