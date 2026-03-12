@@ -441,7 +441,6 @@ void QSFAMlaTiling::CalcBlockDim()
 
 ge::graphStatus QSFAMlaTiling::DoOpTiling(QSFATilingInfo *sfaaInfo)
 {
-    printf("rpy-----enter----DoOpTiling");
     sfaaInfo_ = sfaaInfo;
     if (GetPlatformInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
@@ -465,7 +464,6 @@ ge::graphStatus QSFAMlaTiling::DoOpTiling(QSFATilingInfo *sfaaInfo)
 
 ge::graphStatus TilingKvQuantSparseFlashAttentionPioneer(gert::TilingContext *context)
 {
-    printf("rpy-----enter------TilingKvQuantSparseFlashAttentionPioneer\n");
     QSFATilingInfo sfaaInfo;
     QSFAInfoParser sfaaInfoParser(context);
     if (sfaaInfoParser.Parse(sfaaInfo) != ge::GRAPH_SUCCESS) {
@@ -1284,7 +1282,6 @@ void QSFATilingCheck::Init()
 
 ge::graphStatus QSFATilingCheck::Process()
 {
-    printf("rpy-----enter----tiling-----Process\n");
     Init();
     if (CheckSinglePara() != ge::GRAPH_SUCCESS ||
         CheckParaExistence() != ge::GRAPH_SUCCESS ||
