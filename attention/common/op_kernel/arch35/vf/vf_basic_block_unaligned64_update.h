@@ -31,7 +31,7 @@ __simd_vf__ void ProcessVec1UpdateImpl64VF(
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const float dScale, 
     uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16, 
     const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, const float deSCaleKValue = 1.0f)
+    const T minValue, const float deSCaleKValue = 1.0f, const bool hasSink = false, const float sinkValue = 0)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel;
@@ -156,7 +156,11 @@ __simd_vf__ void ProcessVec1UpdateImpl64VF(
             Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
                 vreg_input_max, vreg_input_x, preg_ori_src_n);
         }
-
+        if (unlikely(hasSink)) {
+            RegTensor<float> vreg_sink_input;
+            Duplicate(vreg_sink_input, sinkValue);
+            Max(vreg_input_max, vreg_input_max, vreg_sink_input, preg_ori_src_n);
+        }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)tmpMaxUb), vreg_input_max, ureg_max, 1);
     }
@@ -268,7 +272,8 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const LocalTensor<T>& pScaleTensor, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f)
+    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const bool hasSink = false,
+    const float sinkValue = 0)
 {
     const uint32_t nPadding = (s2BaseSize + blockBytesU8 - 1) / blockBytesU8 * blockBytesU8;
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
@@ -299,7 +304,7 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
     ProcessVec1UpdateImpl64VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant>(
         expUb, pseUb, maxUb, srcUb, expMaxUb, inMaxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, qScaleUb, pScaleUb, indexesUb, maskUb, dropMaskUb, 
         nPadding, blockStride, repeatStride, dScale, pltOriginalN, divValue, pltSrcN, pltSrcN16, m, pseStride, slopes, posShift, 
-        scale, dScaleQK, minValue, deSCaleKValue);
+        scale, dScaleQK, minValue, deSCaleKValue, hasSink, sinkValue);
 }
 } // namespace
 
