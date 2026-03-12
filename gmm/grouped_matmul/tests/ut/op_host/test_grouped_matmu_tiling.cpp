@@ -3106,9 +3106,9 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     gert::TilingContextPara tilingContextPara("GroupedMatmul", // op_name
                                                 { // input info
                                                     {{{M, K}, {M, K}}, ge::DT_INT4, ge::FORMAT_ND},              //x
-                                                    {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_FRACTAL_NZ},        //weight
+                                                    {{{E, K, N}, {E, K/64, N/16, 16, 64}}, ge::DT_INT4, ge::FORMAT_FRACTAL_NZ},        //weight
                                                     {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
-                                                    {{{E, K/Q, N}, {E, K/Q, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
+                                                    {{{E, N}, {E, N}}, ge::DT_UINT64, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantScale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantOffset
