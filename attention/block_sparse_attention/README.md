@@ -161,7 +161,7 @@ KV方向: ceil(1024/128)=8块 [0, 1, 2, 3, 4, 5, 6, 7]
 6. attentionMaskOptional当前只支持传入nullptr。
 7. maskType当前只支持输入0，表示不加mask。
 8. actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
-9. 当前不支持page attention，blockTableOptional当前只支持传入nullptr，blockSize当前只支持输入0。。
+9. 当前不支持PagedAttention，blockTableOptional当前只支持传入nullptr。
 10. query输入为BFLOAT16时，innerPrecise只能配置为0。
 
 ## 编译说明

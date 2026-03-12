@@ -501,12 +501,11 @@ aclnnStatus aclnnBlockSparseAttention(
 - blockSparseMaskOptional当前必须传入，且shape必须为[batch, headNum, ceilDiv(maxQS, blockShapeX), ceilDiv(maxKVS, blockShapeY)]。
 - attentionMaskOptional当前只支持传入nullptr。
 - actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
-- blockTableOptional当前只支持传入nullptr，表示不开启paged attention特性。
+- blockTableOptional当前只支持传入nullptr，表示不开启PagedAttention特性。
 - innerPrecise必须为0（float32 softmax）或1（fp16 softmax），query输入为BFLOAT16时，只能配置为0。
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
 - 输入query的headNum为N1，输入key和value的headNum为N2，则N1 >= N2 && N1 % N2 == 0。
 - maskType当前只支持输入0，表示不加mask。
-- blockSize当前只支持输入0。
 
 
 ## 调用示例
