@@ -51,9 +51,6 @@ public:
     static constexpr uint32_t MTE2_MTE1_EVENT = EVENT_ID2;
     static constexpr uint32_t MTE1_M_EVENT = EVENT_ID2;
 
-    static constexpr uint32_t L0C_EVENT0 = EVENT_ID3;
-    static constexpr uint32_t L0C_EVENT1 = EVENT_ID4;
-
     static constexpr uint64_t M_BASIC_BLOCK = 256;
     static constexpr uint64_t D_BASIC_BLOCK = 128;
     static constexpr uint64_t S2_BASIC_BLOCK = 256;
@@ -178,7 +175,6 @@ __aicore__ inline void LIMatmul<LIT>::ComputeMm1(const LICommon::RunInfo &runInf
                 uint64_t s2L0RealSize =
                     s2L1Offset + S2_BASIC_BLOCK_L0 > s2L1RealSize ? s2L1RealSize - s2L1Offset : S2_BASIC_BLOCK_L0;
                 for (uint64_t s1gL1Offset = 0; s1gL1Offset < s1gL1RealSize; s1gL1Offset += M_BASIC_BLOCK_L0) {
-                    WaitFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0BufIdx_ % L0_BUF_NUM);
                     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + l0BufIdx_ % L0_BUF_NUM);
                     uint64_t s1gL0RealSize =
                         s1gL1Offset + M_BASIC_BLOCK_L0 > s1gL1RealSize ? s1gL1RealSize - s1gL1Offset : M_BASIC_BLOCK_L0;
@@ -192,10 +188,7 @@ __aicore__ inline void LIMatmul<LIT>::ComputeMm1(const LICommon::RunInfo &runInf
 
                     SetFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + l0BufIdx_ % L0_BUF_NUM);
 
-                    SetFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0BufIdx_ % L0_BUF_NUM);
-                    WaitFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0BufIdx_ % L0_BUF_NUM);
                     Fixp(s1gGmOffset + s1gL1Offset, s2GmOffset + s2L1Offset, s1gL0RealSize, s2L0RealSize, runInfo);
-                    SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0BufIdx_ % L0_BUF_NUM);
                     l0BufIdx_++;
                 }
             }
@@ -408,9 +401,6 @@ __aicore__ inline void LIMatmul<LIT>::AllocEventID()
 
     SetFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 0);
     SetFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 1);
-
-    SetFlag<HardEvent::FIX_M>(L0C_EVENT0);
-    SetFlag<HardEvent::FIX_M>(L0C_EVENT1);
 }
 
 template <typename LIT>
@@ -426,9 +416,6 @@ __aicore__ inline void LIMatmul<LIT>::FreeEventID()
 
     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 0);
     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 1);
-
-    WaitFlag<HardEvent::FIX_M>(L0C_EVENT0);
-    WaitFlag<HardEvent::FIX_M>(L0C_EVENT1);
 }
 } // namespace LIKernel
 #endif
