@@ -617,8 +617,8 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         if constexpr (IsSmoothScaleExist) {
             auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
-            DataCopyPad(xTmpTensor_[axisH_].template ReinterpretCast<uint8_t>(), tmp[tokenIndex * scaleInBytes_],
-                scaleInParams, padParams);
+            DataCopyPad(xTmpTensor_[(Ceil(axisH_, UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>(),
+                tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
         }
 #endif
         xQueue_.EnQue(xTmpTensor_);
