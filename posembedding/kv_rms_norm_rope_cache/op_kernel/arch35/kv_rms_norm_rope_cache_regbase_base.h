@@ -338,7 +338,7 @@ __aicore__ inline void KvRmsNormRopeCacheRegbase<T_KV, T_K_CACHE, T_V_CACHE>::Rm
     if (rSize <= 0) {
         return;
     }
-    if (rSize > CONST_TWO * VL_FP32) {
+    if (rSize > CONST_TWO * VL_FP32) {  // VL_FP32 > 2 * 64
         return;
     }
 
@@ -374,38 +374,39 @@ __aicore__ inline void KvRmsNormRopeCacheRegbase<T_KV, T_K_CACHE, T_V_CACHE>::Rm
     } else {
         __local_mem__ float* dst = (__local_mem__ float*)dstTensor.GetPhyAddr();
         __local_mem__ T_KV* x = (__local_mem__ T_KV*)xTensor.GetPhyAddr();
-        __local_mem__ T_KV* x_1 = (__local_mem__ T_KV*)xTensor.GetPhyAddr() + VL_FP32;
+        __local_mem__ T_KV* x_1 = (__local_mem__ T_KV*)xTensor.GetPhyAddr() + VL_FP32;  //第二段输入x地址，偏移VL_FP32
         __local_mem__ T_KV* gamma = (__local_mem__ T_KV*)grammaTensor.GetPhyAddr();
-        __local_mem__ T_KV* gamma_1 = (__local_mem__ T_KV*)grammaTensor.GetPhyAddr() + VL_FP32;
+        __local_mem__ T_KV* gamma_1 = (__local_mem__ T_KV*)grammaTensor.GetPhyAddr() + VL_FP32;  //第二段gamma参数
         __VEC_SCOPE__
         {
-            uint32_t count = static_cast<uint32_t>(rSize - VL_FP32);
+            uint32_t count = static_cast<uint32_t>(rSize - VL_FP32);  //第二段的有效数量，超出 VL_FP32 的部分
             AscendC::MicroAPI::RegTensor<float> reg0, reg1, reg0_1, reg1_1, reg2, reg2_1;
             AscendC::MicroAPI::RegTensor<float> reg3, reg4, reg5, reg6, reg7, reg8, reg9;
-            AscendC::MicroAPI::RegTensor<T_V_CACHE> regqunat12, regqunat12_1;
-            AscendC::MicroAPI::RegTensor<T_KV> reg12, reg12_1;
-            AscendC::MicroAPI::MaskReg pMask = AscendC::MicroAPI::UpdateMask<float>(count);
+            //没有用到
+            // AscendC::MicroAPI::RegTensor<T_V_CACHE> regqunat12, regqunat12_1;  
+            // AscendC::MicroAPI::RegTensor<T_KV> reg12, reg12_1;
+            AscendC::MicroAPI::MaskReg pMask = AscendC::MicroAPI::UpdateMask<float>(count);  //剩余不完整块的掩码
             AscendC::MicroAPI::MaskReg pFull =
-                AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
-            AscendC::MicroAPI::MaskReg maskOri;
-            // 行循环
+            AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>(); //完整向量长度的全1掩码
+            // AscendC::MicroAPI::MaskReg maskOri;  //没有用到
+            // 行循环，共aSize行
             for (uint16_t i = 0; i < loopTimes; ++i) {
-                LoadTensorForDtypeT<T_KV>(x, reg0, pFull, i * stride);
-                LoadTensorForDtypeT<T_KV>(x_1, reg0_1, pMask, i * stride);
+                LoadTensorForDtypeT<T_KV>(x, reg0, pFull, i * stride);       //加载第一段数据
+                LoadTensorForDtypeT<T_KV>(x_1, reg0_1, pMask, i * stride);   //加载第二段数据
                 LoadTensorForDtypeT<T_KV>(gamma, reg1, pFull, 0);
                 LoadTensorForDtypeT<T_KV>(gamma_1, reg1_1, pMask, 0);
-                AscendC::MicroAPI::Mul(reg2, reg0, reg0, pFull);
+                AscendC::MicroAPI::Mul(reg2, reg0, reg0, pFull);             //对第一段计算平方
                 AscendC::MicroAPI::Mul(reg2_1, reg0_1, reg0_1, pMask);
-                Add<float, AscendC::MicroAPI::MaskMergeMode::ZEROING>(reg2_1, reg2, reg2_1, pMask);
+                Add<float, AscendC::MicroAPI::MaskMergeMode::ZEROING>(reg2_1, reg2, reg2_1, pMask);  //把一二段加起来，用0填充剩余位
                 Copy<float, AscendC::MicroAPI::MaskMergeMode::MERGING>(reg2, reg2_1, pMask);
-                ReduceSum(reg2, reg2, pFull);
+                ReduceSum(reg2, reg2, pFull);   //对完整的向量进行reducesum操作，得到总平方和
 
                 // Calc: xSum = xSum * reciprocal
                 // Calc: xSum = xSum + epsilon
                 // Calc: xSum = sqrt(xSum)
-                AscendC::MicroAPI::Muls(reg3, reg2, reciprocal, pFull);
+                AscendC::MicroAPI::Muls(reg3, reg2, reciprocal, pFull);   //这里的reciprocal在tiling阶段计算的 1/n
                 AscendC::MicroAPI::Adds(reg4, reg3, epsilon, pFull);
-                AscendC::MicroAPI::Sqrt(reg5, reg4, pFull);
+                AscendC::MicroAPI::Sqrt(reg5, reg4, pFull);   //开根号
                 Duplicate(reg5, reg5, pFull);
                 // 因为输入分为两段，所以这里也要分为两段
                 AscendC::MicroAPI::Div(reg6, reg0, reg5, pFull);
