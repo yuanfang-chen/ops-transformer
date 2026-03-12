@@ -76,7 +76,7 @@ TEST_F(MhcPreTiling, Ut_Check_Case01_B1_S1_n4_d1_BF16)
             {{{B, S, n}, {B, S, n}}, ge::DT_FLOAT, ge::FORMAT_ND},            // h_post
             {{{B, S, n, n}, {B, S, n, n}}, ge::DT_FLOAT, ge::FORMAT_ND},      // h_res
             {{{B, S}, {B, S}}, ge::DT_FLOAT, ge::FORMAT_ND},                  // inv_rms (optional)
-            {{{B, S, phi_dim1}, {B, S, phi_dim1}}, ge::DT_FLOAT, ge::FORMAT_ND},  // mm_res (optional)
+            {{{B, S, phi_dim1}, {B, S, phi_dim1}}, ge::DT_FLOAT, ge::FORMAT_ND},  // h_mix (optional)
             {{{B, S, n}, {B, S, n}}, ge::DT_FLOAT, ge::FORMAT_ND}             // h_pre (optional)
         },
         {

@@ -42,7 +42,7 @@ struct InitParams {
     GM_ADDR h_post;
     GM_ADDR h_res;
     GM_ADDR inv_rms;
-    GM_ADDR mm_res;
+    GM_ADDR h_mix;
     GM_ADDR h_pre;
     GM_ADDR workspace;
     TPipe *tPipeIn;
@@ -155,7 +155,7 @@ private:
     GlobalTensor<P> hPostGm_;  // 输出 h_post
     GlobalTensor<P> hResGm_;   // 输出 h_res
     GlobalTensor<P> invRmsGm_;   // 输出 h_res
-    GlobalTensor<P> mmResGm_;   // 输出 h_res
+    GlobalTensor<P> hMixGm_;   // 输出 h_res
     GlobalTensor<P> hPreGm_;   // 输出 h_res
     GlobalTensor<P> xFloatGm_;
 
@@ -262,10 +262,10 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     curSingleT_ = chunTSize_;
 
     if (outFlag_) {
-        mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.mm_res));
+        hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_mix));
     }
     else {
-        mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + mnConfig_.singleCoreM * mnConfig_.singleCoreK * parallNum_ * sizeof(P) * coreNum_));
+        hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + mnConfig_.singleCoreM * mnConfig_.singleCoreK * parallNum_ * sizeof(P) * coreNum_));
     }
 
     // 3. 申请UB
@@ -417,7 +417,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess(uint32_t offsetNd, uint32_
     mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK);           // SingleCoreMNK
     mm.SetTensorA(xFloatGm_[xOffset]);
     mm.SetTensorB(phiGm_[offsetNd], true);
-    mm.IterateAll(mmResGm_[outOffset], offsetNd == 0 ? 0 : 1);
+    mm.IterateAll(hMixGm_[outOffset], offsetNd == 0 ? 0 : 1);
     mm.End();
     cubeCount_++;
 }
@@ -1160,7 +1160,7 @@ __aicore__ inline void MhcPreKernel<T, P>::HMixCopyIn(uint64_t offset, uint64_t 
     copyParams.dstStride = uint32_t(0);                                                   // 相邻块的间隔
     DataCopyPadExtParams<P> copyPadParams{true, 0, 0, 0};
 
-    DataCopyPad(hMixLocal, mmResGm_[offset], copyParams, copyPadParams);
+    DataCopyPad(hMixLocal, hMixGm_[offset], copyParams, copyPadParams);
 
     // TODO
     xInQueue_.EnQue(hMixLocal);
