@@ -55,8 +55,8 @@ constexpr uint64_t MB_SIZE = 1024UL * 1024UL;
 constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8U;
 const char *A_INNER_DEBUG_BARRIER = "DistributeBarrier Tiling Debug";
 
-const int MIN_WORLD_SIZE = 2;
-const int MAX_WORLD_SIZE = 384;
+const uint32_t MIN_WORLD_SIZE = 2;
+const uint32_t MAX_WORLD_SIZE = 384;
 
 static void PrintTilingDataInfo(DistributeBarrierTilingData &tilingData) {
   OPS_LOG_D(A_INNER_DEBUG_BARRIER, "worldSize is %u.",
@@ -117,7 +117,7 @@ static bool CheckAndSetAttrs(const gert::TilingContext *context, DistributeBarri
   OP_TILING_CHECK(attrs == nullptr, OPS_LOG_E(A_INNER_DEBUG_BARRIER, "GetAttrs returned nullptr!"), return false);
 
   auto groupPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
-  auto worldSizePtr = attrs->GetAttrPointer<int>(ATTR_WORLD_SIZE_INDEX);
+  auto worldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_WORLD_SIZE_INDEX);
 
   // 当前仅对必选属性进行校空
   OP_TILING_CHECK(groupPtr == nullptr,
@@ -141,7 +141,7 @@ static bool CheckAndSetAttrs(const gert::TilingContext *context, DistributeBarri
                     return false);
   }
   if (isInputElasticInfo) {     
-    OP_TILING_CHECK(CheckElasticInfo(context, *worldSizePtr) == false,
+    OP_TILING_CHECK(CheckElasticInfo(context, static_cast<uint32_t>(*worldSizePtr)) == false,
                     OPS_LOG_E(A_INNER_DEBUG_BARRIER, "elasticInfo is invalid!"),
                     return false);
   }
