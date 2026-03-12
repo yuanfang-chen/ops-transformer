@@ -170,21 +170,21 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
             }
         }
 
-    maxQSeqlen_ = 0;
-    maxKvSeqlen_ = 0 ;
-    if (batch_ == 1) {
-        maxQSeqlen_ = totalTokensT_;
-        maxKvSeqlen_= static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(TND_DIM_T));
-    } else {
-        for (uint32_t i = 0; i < batch_; ++i) {
-            if (qSeqLenList[i]>maxQSeqlen_) {
-                maxQSeqlen_ = static_cast<uint32_t>(qSeqLenList[i]);
-            }
-            if (kvSeqLenList[i]>maxKvSeqlen_) {
-                maxKvSeqlen_ = static_cast<uint32_t>(kvSeqLenList[i]);
+        maxQSeqlen_ = 0;
+        maxKvSeqlen_ = 0 ;
+        if (batch_ == 1) {
+            maxQSeqlen_ = totalTokensT_;
+            maxKvSeqlen_= static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(TND_DIM_T));
+        } else {
+            for (uint32_t i = 0; i < batch_; ++i) {
+                if (qSeqLenList[i]>maxQSeqlen_) {
+                    maxQSeqlen_ = static_cast<uint32_t>(qSeqLenList[i]);
+                }
+                if (kvSeqLenList[i]>maxKvSeqlen_) {
+                    maxKvSeqlen_ = static_cast<uint32_t>(kvSeqLenList[i]);
+                }
             }
         }
-    }
 
     } else if (layout_ == InputLayout::BNSD) {
         if (queryShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM ||
