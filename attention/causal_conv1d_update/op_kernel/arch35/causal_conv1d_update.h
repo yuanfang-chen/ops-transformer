@@ -149,6 +149,7 @@ private:
     int64_t xInputMode_;     // 输入模式：0=3D, 1=2D
     int32_t xStride_;
     int32_t cacheStride_;
+    int32_t isResidualConnection_;
 
     // ========== 运行时计算参数 ==========
     int32_t blockIdx_;           // 当前核的索引
@@ -197,6 +198,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     xInputMode_ = tilingData->xInputMode;
     xStride_ = tilingData->xStride;
     cacheStride_ = tilingData->cacheStride;
+    isResidualConnection_ = tilingData->isResidualConnection;
 
     // === 4. 计算当前核在二维grid中的索引 ===
     blockIdx_ = GetBlockIdx();
@@ -420,7 +422,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             uint8_t xSLen = static_cast<uint8_t>(j + 1);
             LocalTensor<T> xSlice = xLocal[xInnerOffset];
             LocalTensor<T> stateSlice = convStatesLocal[(acceptToken-1+j)*dimSizeInLoop_];
-            Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSizeInLoop_);
+            Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSizeInLoop_, isResidualConnection_);
         }
         InsertSync(HardEvent::V_MTE3);
         cacheQueue.EnQue<T>(convStatesLocal);
@@ -433,13 +435,11 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         DataCopyPad(yGm[yOffset], convStatesLocal[(acceptToken-1) *dimSizeInLoop_], yGMParams);
 
         // 情况B：序列位置 j ∈ [K-1, curSeqLen-1]，只使用x数据
-        uint16_t blockCount = curSeqLen - kernelSize_+1;
-        if((curSeqLen - kernelSize_+1) > 0) {
-            for (int32_t j = 0; j < blockCount; j++) {
-                uint8_t xSLen = static_cast<uint8_t>(kernelSize_);
-                LocalTensor<T> InLocal = xLocal[xInnerOffset + j*dimSizeInLoop_];
-                Conv1dNoNeedState(InLocal, weightLocal, InLocal, xSLen, static_cast<uint32_t>(dimSizeInLoop_));
-            }
+        int16_t blockCount = curSeqLen - kernelSize_+1;
+        if((blockCount) > 0) {
+            uint8_t xSLen = static_cast<uint8_t>(blockCount);
+            LocalTensor<T> InLocal = xLocal[xInnerOffset];
+            Conv1dNoNeedState(InLocal, weightLocal, InLocal, xSLen, static_cast<uint32_t>(dimSizeInLoop_), isResidualConnection_);
             InsertSync(HardEvent::V_MTE3);  
             DataCopyParams xToCacheCopyParams2;
             xToCacheCopyParams2.blockCount = blockCount;
