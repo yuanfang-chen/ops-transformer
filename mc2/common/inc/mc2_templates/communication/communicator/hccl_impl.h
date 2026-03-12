@@ -55,8 +55,8 @@ private:
     uint32_t endIndex_ = 0;
     bool notifyFlag_ = false;
     Communicationtype communicationType_ = COMMUNICATION_WAIT_ONE;
-    static constexpr uint8_t MAX_HCCL_HANDLE_ = 16;
-    AscendC::HcclHandle hTasks_[MAX_HCCL_HANDLE_]; //hccl只支持最多16个任务并行
+    static constexpr uint8_t MAX_HCCL_HANDLE_ = 63; //hccl只支持最多63个任务并行
+    AscendC::HcclHandle hTasks_[MAX_HCCL_HANDLE_];
     bool taskSuccess_[MAX_HCCL_HANDLE_];
 };
 
@@ -154,6 +154,11 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
         hccl_.Finalize();
     }
 }
+
+#ifndef DEFINE_MC2_HCCL_FOR_COMMUNICATION
+#define DEFINE_MC2_HCCL_FOR_COMMUNICATION(AICSync, ServerType, HcclContextType, TilingDataType, Primitive, sendCntPerTask, recvCntPerTask, CommunicationType) \
+    using CommunicationType = HcclCommunication<AICSync, ServerType, HcclContextType, TilingDataType, Primitive, sendCntPerTask, recvCntPerTask>
+#endif
 }; // namespace MC2KernelTemplate
 
 #endif

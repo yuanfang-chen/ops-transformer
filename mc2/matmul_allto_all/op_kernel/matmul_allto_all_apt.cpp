@@ -20,8 +20,8 @@
 #include "kernel_operator.h"
 #endif
 #include "common.h"
-#include "./arch35/template_head.h"
 #include "./arch35/matmul_allto_all_arch35.h"
+#include "./arch35/matmul_allto_all_pipeline.h"
 #if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
 #include "./arch32/matmul_allto_all_tiling_data_910_93.h"
 #include "./arch32/matmul_allto_all_tiling_key_910_93.h"
@@ -47,8 +47,8 @@ using namespace MatmulAlltoAllImpl;
         DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_AICPU, MC2AlltoAllContext,\
             MatmulAlltoAllTilingDataA3, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
         CommunicationType commImplName(&tilingData);  \
-        using SchedulerContextType = PipelineContext<ComputationContextType>;  \
-        using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
+        using SchedulerContextType = MatmulAlltoAllPipelineContext<ComputationContextType>;  \
+        using SchedulerType = MatmulAlltoAllPipeLine<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
         SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
         MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataA3> op(&SchedulerImpl); \
         op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
@@ -67,8 +67,8 @@ using namespace MatmulAlltoAllImpl;
         DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
             MatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
         CommunicationType commImplName(&tilingData);  \
-        using SchedulerContextType = PipelineContext<ComputationContextType>;  \
-        using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
+        using SchedulerContextType = MatmulAlltoAllPipelineContext<ComputationContextType>;  \
+        using SchedulerType = MatmulAlltoAllPipeLine<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
         SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
         MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingData> op(&SchedulerImpl); \
         op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
@@ -110,8 +110,8 @@ using namespace MatmulAlltoAllImpl;
             DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
                 QuantMatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
             CommunicationType commImplName(&tilingData); \
-            using SchedulerContextType = PipelineContext<ComputationContextType>; \
-            using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>; \
+            using SchedulerContextType = MatmulAlltoAllPipelineContext<ComputationContextType>; \
+            using SchedulerType = MatmulAlltoAllPipeLine<ComputationType, TransposeType, CommunicationType, SchedulerContextType, true>; \
             SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName); \
             KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl); \
             op.Init(x1, x2, bias, y, x1Scale, x2Scale, x2Offset, workspaceGM, &tilingData, &pipe); \
@@ -126,8 +126,8 @@ using namespace MatmulAlltoAllImpl;
             DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
                 QuantMatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
             CommunicationType commImplName(&tilingData); \
-            using SchedulerContextType = PipelineContext<ComputationContextType>; \
-            using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>; \
+            using SchedulerContextType = MatmulAlltoAllPipelineContext<ComputationContextType>; \
+            using SchedulerType = MatmulAlltoAllPipeLine<ComputationType, TransposeType, CommunicationType, SchedulerContextType>; \
             SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName); \
             MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl); \
             op.Init(x1, x2, bias, y, x1Scale, x2Scale, workspaceGM, &tilingData, &pipe); \

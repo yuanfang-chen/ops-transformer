@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,22 +9,34 @@
  */
 
 /*!
- * \file pipeline_template_comm_trans_compute.h
+ * \file allto_all_matmul_pipeline.h
  * \brief
  */
 
-#ifndef MC2_PIPELINE_TEMPLATE_COMM_TRANS_COMPUTE_H
-#define MC2_PIPELINE_TEMPLATE_COMM_TRANS_COMPUTE_H
+#ifndef ALLTO_ALL_MATMUL_PIPELINE_H
+#define ALLTO_ALL_MATMUL_PIPELINE_H
 
-#include "pipeline_context.h"
+#include "../../common/inc/mc2_templates/scheduler/pipeline_builder.h"
 
 // 流水线模板
-namespace MC2KernelTemplate {
+namespace AlltoAllMatmulImpl {
+using MC2KernelTemplate::MC2TransposeContext;
+using MC2KernelTemplate::MC2AlltoAllContext;
+template <typename ComputationContextType>
+struct AlltoAllMmPipelineContext {
+    // computation
+    ComputationContextType* computationContext;
+    // transpose
+    MC2TransposeContext* transposeContext;
+    // communication
+    MC2AlltoAllContext* communicationContext;
+};
+
 //通信转置计算模板
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
-class MC2KernelPipelineCommTransComputeTemplate {
+class AlltoAllMatmulPipeLine {
 public:
-    __aicore__ inline MC2KernelPipelineCommTransComputeTemplate(CommunicationType* commStage, TransposeType* transStage, ComputationType* computeStage) : commStage_(commStage), transStage_(transStage), computeStage_(computeStage){};
+    __aicore__ inline AlltoAllMatmulPipeLine(CommunicationType* commStage, TransposeType* transStage, ComputationType* computeStage) : commStage_(commStage), transStage_(transStage), computeStage_(computeStage){};
 
     __aicore__ inline void Init();
 
@@ -41,14 +53,14 @@ private:
 };
 
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::Init()
+__aicore__ inline void AlltoAllMatmulPipeLine<CommunicationType, TransposeType, ComputationType, ContextType>::Init()
 {
     commStage_->Init();
     computeStage_->Init();
 }
 
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::GetContext(ContextType* context)
+__aicore__ inline void AlltoAllMatmulPipeLine<CommunicationType, TransposeType, ComputationType, ContextType>::GetContext(ContextType* context)
 {
     context->communicationContext = commStage_->GetContextPtr();
     context->transposeContext = transStage_->GetContextPtr();
@@ -56,7 +68,7 @@ __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationTy
 }
 
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::Process(uint32_t taskCnt)
+__aicore__ inline void AlltoAllMatmulPipeLine<CommunicationType, TransposeType, ComputationType, ContextType>::Process(uint32_t taskCnt)
 {
     commStage_->PrepareAll(taskCnt);
     uint32_t index;
@@ -77,7 +89,7 @@ __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationTy
 }
 
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::End()
+__aicore__ inline void AlltoAllMatmulPipeLine<CommunicationType, TransposeType, ComputationType, ContextType>::End()
 {
     commStage_->End();
     computeStage_->End();

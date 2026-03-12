@@ -36,6 +36,12 @@ struct MC2PertokenDQuantContext {
 
 template <typename quantInputDataType, typename quantOutputDataType>
 class Fp8DynamicQuantPertoken {
+public:
+    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe){};
+    __aicore__ inline MC2PertokenDQuantContext* GetContextPtr();
+    __aicore__ inline void Init(){};
+    __aicore__ inline void Process(uint32_t taskIndex);
+
 protected:
     static constexpr uint32_t ALIGN_NUM = 8;
     static constexpr uint32_t TWO_FACTOR = 2;
@@ -118,29 +124,14 @@ protected:
     bool isTransOut_ = false;
 
     __aicore__ inline void SetMaxValue();
-
     __aicore__ inline void ProcessOneTokenRegBase();
-
     __aicore__ inline void CalculateMaxRegBase(__local_mem__ quantInputDataType *xAddr, __local_mem__ float *maxAddr);
-
     __aicore__ inline void CalculateScale(__local_mem__ float *scaleAddr, float maxValue);
-
     __aicore__ inline void DoQuantRegBase(__local_mem__ quantInputDataType *xAddr,
                                           __local_mem__ quantOutputDataType *yAddr, uint64_t dataCount, float scale);
-
     __aicore__ inline void Init(GM_ADDR quantInputAddr, GM_ADDR quantOutputAddr, GM_ADDR quantOutputScaleAddr, GM_ADDR transposeDstAddr);
-
     __aicore__ inline void Process();
-
     __aicore__ inline void Destroy();
-
-
-public:
-    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe){};
-
-    __aicore__ inline MC2PertokenDQuantContext* GetContextPtr();
-
-    __aicore__ inline void Process(uint32_t taskIndex);
 };
 
 template <typename quantInputDataType, typename quantOutputDataType>
@@ -474,5 +465,10 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
     }
 }
 
+// fp8DynamicQuant的动态实现
+#ifndef DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN
+#define DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(QuantInputDataType, QuantOutputDataType, DynamicQuantType)\
+    using DynamicQuantType = Fp8DynamicQuantPertoken<QuantInputDataType, QuantOutputDataType>
+#endif
 } // namespace MC2KernelTemplate
 #endif
