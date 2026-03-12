@@ -31,12 +31,8 @@ namespace ge {
 * @li mm_weight: A matrix Tensor of shape [H2, N2]. The data type of elements supports float16, bfloat16 or hifloat8 and should match that of mm_x; the format supports ND.
 * @li gmm_x_scale: A matrix Tensor. The type support float32. The format supports ND.
 * @li gmm_weight_scale: A matrix Tensor. The type support float32. The format supports ND.
-* @li gmm_x_offset: A matrix Tensor. The type support float32. The format supports ND.
-* @li gmm_weight_offset: A matrix Tensor. The type support float32. The format supports ND.
 * @li mm_x_scale: A matrix Tensor. The type support float32. The format supports ND.
 * @li mm_weight_scale: A matrix Tensor. The type support float32. The format supports ND.
-* @li mm_x_offset: A matrix Tensor. The type support float32. The format supports ND.
-* @li mm_weight_offset: A matrix Tensor. The type support float32. The format supports ND.
 *
 * @par Attributes:
 * @li group: A required String identifying the expert group of ranks.
@@ -75,12 +71,8 @@ REG_OP(AlltoAllvQuantGroupedMatMul)
       .OPTIONAL_INPUT(mm_weight, TensorType({DT_FLOAT16, DT_BF16, DT_HIFLOAT8}))
       .OPTIONAL_INPUT(gmm_x_scale, TensorType({DT_FLOAT}))
       .OPTIONAL_INPUT(gmm_weight_scale, TensorType({DT_FLOAT}))
-      .OPTIONAL_INPUT(gmm_x_offset, TensorType({DT_FLOAT}))
-      .OPTIONAL_INPUT(gmm_weight_offset, TensorType({DT_FLOAT}))
       .OPTIONAL_INPUT(mm_x_scale, TensorType({DT_FLOAT}))
       .OPTIONAL_INPUT(mm_weight_scale, TensorType({DT_FLOAT}))
-      .OPTIONAL_INPUT(mm_x_offset, TensorType({DT_FLOAT}))
-      .OPTIONAL_INPUT(mm_weight_offset, TensorType({DT_FLOAT}))
       .OUTPUT(gmm_y, TensorType({DT_FLOAT16, DT_BF16}))
       .OUTPUT(mm_y, TensorType({DT_FLOAT16, DT_BF16}))
       .OUTPUT(permute_out, TensorType({DT_FLOAT16, DT_BF16, DT_HIFLOAT8}))

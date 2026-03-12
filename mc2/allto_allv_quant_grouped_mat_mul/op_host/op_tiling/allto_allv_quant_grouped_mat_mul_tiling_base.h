@@ -34,12 +34,8 @@ constexpr uint32_t MM_X_INDEX = 4U;
 constexpr uint32_t MM_WEIGHT_INDEX = 5U;
 constexpr uint32_t GMM_X_SCALE_INDEX = 6U;
 constexpr uint32_t GMM_WEIGHT_SCALE_INDEX = 7U;
-constexpr uint32_t GMM_X_OFFSET = 8U;
-constexpr uint32_t GMM_WEIGHT_OFFSET = 9U;
-constexpr uint32_t MM_X_SCALE_INDEX = 10U;
-constexpr uint32_t MM_WEIGHT_SCALE_INDEX = 11U;
-constexpr uint32_t MM_X_OFFSET = 12U;
-constexpr uint32_t MM_WEIGHT_OFFSET = 13U;
+constexpr uint32_t MM_X_SCALE_INDEX = 8U;
+constexpr uint32_t MM_WEIGHT_SCALE_INDEX = 9U;
 // output
 constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0U;
 constexpr uint32_t OUTPUT_MM_Y_INDEX = 1U;
