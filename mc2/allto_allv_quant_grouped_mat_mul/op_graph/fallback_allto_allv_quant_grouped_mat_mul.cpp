@@ -17,30 +17,24 @@
 #include "mc2_log.h"
 
 namespace fallback {
-enum class AlltoAllvQuantGroupedMatMulAttrIdx : size_t {
-    K_GROUP,
-    K_EP_WORLD_SIZE,
-    K_SEND_COUNTS,
-    K_RECV_COUNTS,
-    K_TRANS_GMM_WEIGHT,
-    K_TRANS_MM_WEIGHT,
-    K_PERMUTE_OUT_FLAG
-};
+constexpr size_t ATTR_K_GROUP = 0;
+constexpr size_t ATTR_K_EP_WORLD_SIZE = 1;
+constexpr size_t ATTR_K_SEND_COUNTS = 2;
+constexpr size_t ATTR_K_RECV_COUNTS = 3;
+constexpr size_t ATTR_K_TRANS_GMM_WEIGHT = 4;
+constexpr size_t ATTR_K_TRANS_MM_WEIGHT = 5;
+constexpr size_t ATTR_K_PERMUTE_OUT_FLAG = 6;
 
-enum class AlltoAllvQuantGroupedMatMulInputIdx : size_t {
-    K_GMM_X,
-    K_GMM_WEIGHT,
-    K_SEND_COUNTS_TENSOR,
-    K_RECV_COUNTS_TENSOR,
-    K_MM_X,
-    K_MM_WEIGHT
-};
+constexpr size_t INPUT_K_GMM_X = 0;
+constexpr size_t INPUT_K_GMM_WEIGHT = 1;
+constexpr size_t INPUT_K_SEND_COUNTS_TENSOR = 2;
+constexpr size_t INPUT_K_RECV_COUNTS_TENSOR = 3;
+constexpr size_t INPUT_K_MM_X = 4;
+constexpr size_t INPUT_K_MM_WEIGHT = 5;
 
-enum class AlltoAllvQuantGroupedMatMulOutputIdx : size_t {
-    K_GMM_Y,
-    K_MM_Y,
-    K_PERMUTE_OUT
-};
+constexpr size_t OUTPUT_K_GMM_Y = 0;
+constexpr size_t OUTPUT_K_MM_Y = 1;
+constexpr size_t OUTPUT_K_PERMUTE_OUT = 2;
 
 // 输入参数和属性的校验
 static ge::graphStatus CheckInputsAndAttrs(const gert::Tensor *gmmX, const gert::Tensor *gmmWeight, const char *group,
@@ -107,27 +101,27 @@ static ge::graphStatus AlltoAllvQuantGroupedMatMulExecuteFunc(gert::OpExecuteCon
     OPS_LOG_D("AlltoAllvQuantGroupedMatMulFallback", "Start AlltoAllvQuantGroupedMatMulFallback.");
     OPS_ERR_IF(host_api_ctx == nullptr, OP_LOGE("AlltoAllvQuantGroupedMatMulFallback", "host_api_ctx is null"),
         return ge::GRAPH_FAILED);
-    const gert::Tensor *gmmX = host_api_ctx->GetInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_X);
-    const gert::Tensor *gmmWeight = host_api_ctx->GetInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_WEIGHT);
+    const gert::Tensor *gmmX = host_api_ctx->GetInputTensor(INPUT_K_GMM_X);
+    const gert::Tensor *gmmWeight = host_api_ctx->GetInputTensor(INPUT_K_GMM_WEIGHT);
     const gert::Tensor *sendCountsTensor =
-        host_api_ctx->GetOptionalInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_SEND_COUNTS_TENSOR);
+        host_api_ctx->GetOptionalInputTensor(INPUT_K_SEND_COUNTS_TENSOR);
     const gert::Tensor *recvCountsTensor =
-        host_api_ctx->GetOptionalInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_RECV_COUNTS_TENSOR);
-    const gert::Tensor *mmX = host_api_ctx->GetOptionalInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_X);
+        host_api_ctx->GetOptionalInputTensor(INPUT_K_RECV_COUNTS_TENSOR);
+    const gert::Tensor *mmX = host_api_ctx->GetOptionalInputTensor(INPUT_K_MM_X);
     const gert::Tensor *mmWeight =
-        host_api_ctx->GetOptionalInputTensor(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_WEIGHT);
+        host_api_ctx->GetOptionalInputTensor(INPUT_K_MM_WEIGHT);
     const gert::RuntimeAttrs *attrs = host_api_ctx->GetAttrs();
     OPS_ERR_IF(attrs == nullptr, OP_LOGE("AlltoAllvQuantGroupedMatMulFallback", "attrs is null"),
         return ge::GRAPH_FAILED);
-    const char *group = attrs->GetStr(AlltoAllvQuantGroupedMatMulAttrIdx::K_GROUP);
-    const int64_t *epWorldSize = attrs->GetInt(AlltoAllvQuantGroupedMatMulAttrIdx::K_EP_WORLD_SIZE);
+    const char *group = attrs->GetStr(ATTR_K_GROUP);
+    const int64_t *epWorldSize = attrs->GetInt(ATTR_K_EP_WORLD_SIZE);
     const gert::TypedContinuousVector<int64_t> *sendCounts =
-        attrs->GetListInt(AlltoAllvQuantGroupedMatMulAttrIdx::K_SEND_COUNTS);
+        attrs->GetListInt(ATTR_K_SEND_COUNTS);
     const gert::TypedContinuousVector<int64_t> *recvCounts =
-        attrs->GetListInt(AlltoAllvQuantGroupedMatMulAttrIdx::K_RECV_COUNTS);
-    const bool *transGmmWeight = attrs->GetBool(AlltoAllvQuantGroupedMatMulAttrIdx::K_TRANS_GMM_WEIGHT);
-    const bool *transMmWeight = attrs->GetBool(AlltoAllvQuantGroupedMatMulAttrIdx::K_TRANS_MM_WEIGHT);
-    const bool *permuteOutFlag = attrs->GetBool(AlltoAllvQuantGroupedMatMulAttrIdx::K_PERMUTE_OUT_FLAG);
+        attrs->GetListInt(ATTR_K_RECV_COUNTS);
+    const bool *transGmmWeight = attrs->GetBool(ATTR_K_TRANS_GMM_WEIGHT);
+    const bool *transMmWeight = attrs->GetBool(ATTR_K_TRANS_MM_WEIGHT);
+    const bool *permuteOutFlag = attrs->GetBool(ATTR_K_PERMUTE_OUT_FLAG);
     if (CheckInputsAndAttrs(gmmX, gmmWeight, group, epWorldSize, transGmmWeight) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -137,9 +131,9 @@ static ge::graphStatus AlltoAllvQuantGroupedMatMulExecuteFunc(gert::OpExecuteCon
         ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    auto gmmY = host_api_ctx->GetOutputTensor(AlltoAllvQuantGroupedMatMulOutputIdx::K_GMM_Y);
-    auto mmY = host_api_ctx->GetOutputTensor(AlltoAllvQuantGroupedMatMulOutputIdx::K_MM_Y);
-    auto permuteOut = host_api_ctx->GetOutputTensor(AlltoAllvQuantGroupedMatMulOutputIdx::K_PERMUTE_OUT);
+    auto gmmY = host_api_ctx->GetOutputTensor(OUTPUT_K_GMM_Y);
+    auto mmY = host_api_ctx->GetOutputTensor(OUTPUT_K_MM_Y);
+    auto permuteOut = host_api_ctx->GetOutputTensor(OUTPUT_K_PERMUTE_OUT);
     if (CheckOutputTensors(gmmY, mmY, permuteOut) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
