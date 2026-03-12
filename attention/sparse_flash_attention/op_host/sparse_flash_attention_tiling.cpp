@@ -63,9 +63,9 @@ const std::map<std::string, std::vector<SFALayout>> LAYOUT_SUPPORT_MAP = {
     {QUERY_NAME,             {SFALayout::BSND, SFALayout::TND}},
     {KEY_NAME,               {SFALayout::BSND, SFALayout::TND, SFALayout::PA_BSND}},
     {VALUE_NAME,             {SFALayout::BSND, SFALayout::TND, SFALayout::PA_BSND}},
-    {ATTEN_OUT_NAME,           {SFALayout::BSND, SFALayout::TND}},
-    {SOFTMAX_MAX_NAME,         {SFALayout::BNSG, SFALayout::NTG}},
-    {SOFTMAX_SUM_NAME,         {SFALayout::BNSG, SFALayout::NTG}},
+    {ATTEN_OUT_NAME,         {SFALayout::BSND, SFALayout::TND}},
+    {SOFTMAX_MAX_NAME,       {SFALayout::BNSG, SFALayout::NTG}},
+    {SOFTMAX_SUM_NAME,       {SFALayout::BNSG, SFALayout::NTG}},
 };
 
 const std::map<ge::DataType, std::string> DATATYPE_TO_STRING_MAP = {
