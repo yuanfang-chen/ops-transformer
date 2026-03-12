@@ -20,29 +20,38 @@
 #include "./infer_flash_attention_comm.h"
 #include "./infer_flash_attention_kvcache.h"
 #include "./infer_flash_attention_sparse.h"
+#include "./flash_attention_noquant_block_vec_flashdecode_VF.h"
 
 namespace BaseApi {
-template <typename CubeBlockType, typename VecBlockType>
-class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>, CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-    using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
+    using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>, CubeBlockType, VecBlockType>;
     /* =====================UB变量==================== */
     __aicore__ inline void InitUniqueConstInfo();
     __aicore__ inline void InitUniqueRunInfo(const RunParamStr<isInfer> &runParam, 
         RunInfo<isInfer> &runInfo);
     __aicore__ inline void Process();
     __aicore__ inline void ProcessMainLoop();
+    __aicore__ inline void FlashDecode();
+    /* =====================GM变量========================== */
+    GlobalTensor<uint64_t> actualSeqLengthsGmQ;
+    GlobalTensor<uint64_t> actualSeqLengthsGm;
 
 private:
+    FdBlockType fdService;
+    static constexpr int64_t fdPrefetchLen = 2;
+
+
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndex, int64_t gS1Index,
                                                     RunParamStr<isInfer> &runParam);
 };
 
-template <typename CubeBlockType, typename VecBlockType>
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueConstInfo()
 {
     if constexpr (isFd) {
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
@@ -87,17 +96,17 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstIn
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, runInfo);
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ProcessMainLoop()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ProcessMainLoop()
 {
     int32_t actualCoreNums = this->sharedParams.coreNum;
     if constexpr (isFd) {
@@ -257,8 +266,8 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::Process()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
@@ -267,16 +276,79 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
     ProcessMainLoop();
     if constexpr (isFd) {
         if ASCEND_IS_AIV {
-            SyncAll();
-            this->vecBlock.InitFDBuffers(this->constInfo);
-            this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+            // SyncAll();
+            // this->vecBlock.InitFDBuffers(this->constInfo);
+            // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+            FlashDecode();
         }
     }
 }
 
+template <typename CubeBlockType, typename VecBlockType,typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::FlashDecode()
+{
+    SyncAll();
+    // this->vecBlock.InitFDBuffers(this->constInfo);
+    // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+    this->constInfo.bSize = this->sharedParams.bSize;
+    fdService.InitParams(this->constInfo);
+    if (this->constInfo.actualSeqLenSize != 0) {
+        actualSeqLengthsGmQ.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr, this->constInfo.actualSeqLenSize);
+    }
+    if (this->constInfo.actualSeqLenKVSize != 0) {
+        actualSeqLengthsGm.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqKvlenAddr, this->constInfo.actualSeqLenKVSize);
+    }
+    fdService.InitGlobalTensor(this->vecBlock.softmaxFDMaxGm, this->vecBlock.softmaxFDSumGm, this->vecBlock.accumOutGm, this->vecBlock.attentionOutGm, 
+                                this->actualSeqLengthsGmQ, this->actualSeqLengthsGm);
+    // fdService.InitSoftmaxLseGm(softmaxLseGm);
+    fdService.InitBuffers(this->pipe);
+    AscendC::ICachePreLoad(fdPrefetchLen);
+
+    #ifdef ASCENDC_CPU_DEBUG
+        const uint32_t *fdBN2Idx = this->tilingData->outerSplitParams.fdRes.fdBN2Idx;
+        const uint32_t *fdMIdx = this->tilingData->outerSplitParams.fdRes.fdMIdx;
+        const uint32_t *fdS2SplitNum = this->tilingData->outerSplitParams.fdRes.fdS2SplitNum;
+        const uint32_t *fdBalanceMSplitNum = this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum;
+        const uint32_t *fdBalanceMTailSize = this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize;
+        const uint32_t *fdBalanceEndIdx1 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1;
+        const uint32_t *fdBalanceEndIdx2 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2;
+    #else
+        uint32_t fdBN2Idx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBN2Idx)];
+        uint32_t fdMIdx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdMIdx)];
+        uint32_t fdS2SplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum)];
+        uint32_t fdBalanceMSplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum)];
+        uint32_t fdBalanceMTailSize[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize)];
+        uint32_t fdBalanceEndIdx1[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1)];
+        uint32_t fdBalanceEndIdx2[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2)];
+        copy_data_align64((uint8_t *)fdBN2Idx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBN2Idx),
+                    sizeof(fdBN2Idx));
+        copy_data_align64((uint8_t *)fdMIdx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdMIdx),
+                    sizeof(fdMIdx));
+        copy_data_align64((uint8_t *)fdS2SplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum),
+                    sizeof(fdS2SplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMSplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum),
+                    sizeof(fdBalanceMSplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMTailSize,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize),
+                    sizeof(fdBalanceMTailSize));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx1, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1),
+                    sizeof(fdBalanceEndIdx1));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx2,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2),
+                    sizeof(fdBalanceEndIdx2));
+    #endif
+
+    FDparams fdParams = {fdBN2Idx, fdMIdx, fdS2SplitNum, fdBalanceMSplitNum, fdBalanceMTailSize, fdBalanceEndIdx1, fdBalanceEndIdx2,
+            this->tilingData->outerSplitParams.fdRes.fdUsedVecNum,this->tilingData->outerSplitParams.fdRes.fdBalanceMBaseSize};
+    fdService.AllocEventID();
+    fdService.InitDecodeParams();
+    fdService.FlashDecode(fdParams);
+    fdService.FreeEventID();
+}
+
 // =========================================== private functions ===========================================
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr<isInfer> &runParam)
 {
     constexpr uint64_t fp8QBlockSize = 128U; // 128 is SOuterSize
