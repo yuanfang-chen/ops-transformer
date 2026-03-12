@@ -20,10 +20,8 @@ which bisheng
 
 #### 2.1 添加环境变量
 ```bash
-# 配置CANN包环境变量，此为默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
+# 配置CANN包环境变量，此为默认路径安装，以root用户为例（非root用户，将/usr/local替换为${ASCEND_HOME_PATH}）
 source /usr/local/Ascend/cann/set_env.sh
-   
-# 配置 环境变量
 ```
 #### 2.2 编译自定义算子
 在ops-transformer目录下，执行以下自定义算子编译命令。
@@ -35,7 +33,7 @@ bash build.sh --pkg --soc=ascend950 --ops="allgathermatmul" --experimental
 ```
 cd build_out
 chmod +x *.run
-./*.run
+./*.run --install-path=/usr/local/Ascend/cann
 ```
 
 #### 2.4 执行测试脚本
@@ -55,6 +53,9 @@ AllGatherMatmul算子实现了AllGather通信和Matmul矩阵乘法的融合。�
 gather_out = AllGather(a)
 c = gather_out ∗ b
 ```
+MC<sup>2</sup>通算融合算子的性能收益主要来自于通信、计算的并行执行，即将输入数据切分为多个子块，子块的计算和通信任务形成两条流水线，通过两条流水线上任务的并行执行，实现流水掩盖，从而提升算子性能。如下图所示，相比于先做AllGather通信、后Matmul计算的场景，AllGatherMatmul算子通过将通信输入的矩阵切分为多块，前一块数据的Matmul计算和后一块数据的通信可以并行执行，从而达到计算和通信时间相互掩盖的目的。
+
+![all_gather_matmul_demo_1](./images/image-1.jpg)
 
 ### 传统实现分析
 ```cpp
@@ -73,18 +74,20 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::P
     }
 }
 ```
-
 **问题诊断**：
 - AllGather通信启动前，本卡数据已准备好计算，此时计算单元闲置
 - Matmul计算远端数据时，如果单次通信数据量较少则Cube核未完全利用
 
-### local块提前启动-优化实现
+### 优化实现1-local块提前启动
 AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在通信启动前，可以先将本卡数据提前加载并启动计算，从而掩盖通信任务下发带来的额外开销，进一步释放性能。
 
-### 非连续转连续-优化实现
-AllGatherMatmul算子的大致通信流程如下：
+![all_gather_matmul_demo_1](./images/image-1.jpg)
 
-当算子进行多轮通算融合时，从其他卡收取需要进行Matmul计算的数据时，如果单次AllGather通信收取的数据所需处理核数少于Cube核总数，会导致Cube核未跑满、利用率低。通过非连续转连续优化，将单次AllGather通信收取数据后Unified Buffer中剩余存储空间继续加载其他卡GatherOut数据，再启动Matmul，从而使Cube核全载处理。
+### 优化实现2-非连续转连续
+
+当算子进行多轮通算融合，从其他卡收取需要进行Matmul计算的数据时，如果单次AllGather通信收取的数据所需处理核数少于Cube核总数，会导致Cube核未跑满、利用率低。通过非连续转连续优化，将单次AllGather通信收取数据后Unified Buffer中剩余存储空间继续加载其他卡GatherOut数据，再启动Matmul，从而使Cube核全载处理。优化后的通信及计算流程如下图所示：
+
+![all_gather_matmul_demo_3](./images/image-3.jpg)
 
 **优化亮点**：
 1. 针对单次数据量不足导致CUBE核未跑满的问题，通过优化数据调度策略，实现CUBE高效利用。

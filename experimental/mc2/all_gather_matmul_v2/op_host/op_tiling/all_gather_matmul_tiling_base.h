@@ -21,9 +21,8 @@
 #include "tiling_base/tiling_base.h"
 #include "tiling/mc2_tiling_struct.h"
 #include "tiling/matmul_formulaic_tiling.h"
-#include "mat_mul_v3/op_host/op_tiling/matmul_v3_tiling.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "../../op_kernel/arch35/all_gather_matmul_tiling_arch35.h"
+#include "../../op_kernel/all_gather_matmul_tiling_arch35.h"
 
 using Ops::Transformer::OpTiling::TilingBaseClass;
 namespace optiling
