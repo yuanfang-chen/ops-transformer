@@ -29,6 +29,7 @@ SEED = 42
 DEVICE = "npu:0"
 DTYPE = torch.bfloat16
 INPUT_LAYOUT = 'BNSD'
+torch.npu.set_device(DEVICE)
 
 # Sweeped test parameters
 TORCH_REF_VALS = [True, False]  # True=our custom reference model; False = torch_npu official kernel
