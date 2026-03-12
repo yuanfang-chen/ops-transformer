@@ -44,11 +44,12 @@ public:
     constexpr static uint32_t STATE_OFFSET = 512; // 状态空间偏移地址
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
+    constexpr static uint32_t PERFORMANCE_NUM = 16U;
     constexpr static uint32_t B64_PER_BLOCK = UB_32B_ALIGN / sizeof(int64_t); // 4
     constexpr static uint32_t BITS32_PER_BLOCK = UB_32B_ALIGN / sizeof(int32_t); // 8
     constexpr static uint32_t BITS16_PER_BLOCK = UB_32B_ALIGN / sizeof(int16_t); // 16
     constexpr static uint32_t EXP_TOKEN_COUNT_FLAG_CNT = UB_32B_ALIGN / sizeof(int32_t); // 8
-    constexpr static uint32_t TBUF_SIZE = 190 * 1024;
+    constexpr static uint32_t TBUF_SIZE = 180 * 1024;
     constexpr static uint32_t IPC_BUFF_ALIGN = 512;
     constexpr static int32_t  IPC_FLAG_STEP_1 = 0x0d0d0d0d;
     constexpr static uint32_t TBUF_TEMP_OFFSET = 8 * 1024;
@@ -200,7 +201,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     GM_ADDR workspaceGM, TPipe *pipe, GM_ADDR tilingGM, GM_ADDR contextGM0)
 {
     aivId_ = GetBlockIdx();
-    uint32_t offset = aivId_ * UB_32B_ALIGN;
+    uint32_t offset = aivId_ * PERFORMANCE_NUM;
     int64_t startTime = GetCurrentTimestampUs();
 
     tpipe_ = pipe;
@@ -298,7 +299,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     needPerformanceInfo_ = performanceInfo != nullptr;
     if (unlikely(needPerformanceInfo_)) {
         // performanceInfoSize_ = worldSize_;
-        performanceInfoSize_ = aivNum_ * UB_32B_ALIGN;
+        performanceInfoSize_ = aivNum_ * PERFORMANCE_NUM;
         performanceInfoI32GMTensor_.SetGlobalBuffer((__gm__ int32_t*)performanceInfo);
         tpipe_->InitBuffer(performanceInfoBuf_, performanceInfoSize_ * sizeof(int64_t));
         performanceInfoI32Tensor_ = performanceInfoBuf_.Get<int32_t>();
@@ -1344,7 +1345,7 @@ template <TemplateMC2TypeA2layeredClass>
 __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFunc>::Process()
 {
     if ASCEND_IS_AIV { // 全aiv处理
-        uint32_t offset = aivId_ * UB_32B_ALIGN + 1;
+        uint32_t offset = aivId_ * PERFORMANCE_NUM + 1;
         int64_t startTime;
         startTime = GetCurrentTimestampUs();
         ReorderTokens();
