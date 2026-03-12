@@ -17,15 +17,28 @@
 
 #include "util_regbase.h"
 #include "kv_quant_sparse_flash_attention_pioneer_common.h"
-#include "../../common/op_kernel/buffers_policy.h"
-#include "../../common/op_kernel/buffer_manager.h"
-#include "../../common/op_kernel/buffer.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 
 #include "vf/vf_mul_sel_softmaxflashv2_cast_nz_qsfa.h"
 #include "vf/vf_flashupdate_new_qsfa.h"
+
+#if __has_include("../../common/op_kernel/buffers_policy.h")
+#include "../../common/op_kernel/buffers_policy.h"
+#else
+#include "../common/buffers_policy.h"
+#endif
+#if __has_include("../../common/op_kernel/buffer_manager.h")
+#include "../../common/op_kernel/buffer_manager.h"
+#else
+#include "../common/buffer_manager.h"
+#endif
+#if __has_include("../../common/op_kernel/buffer.h")
+#include "../../common/op_kernel/buffer.h"
+#else
+#include "../common/buffer.h"
+#endif
 
 using namespace AscendC;
 using namespace QSFaVectorApi;
