@@ -116,7 +116,6 @@ private:
     __aicore__ inline void SoftmaxInitBuffer();
     __aicore__ inline void InitCubeVecSharedParams(CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
     __aicore__ inline void GetExtremeValue(T &negativeScalar);
-    __aicore__ inline void InitSinksBuffer(ConstInfo &constInfo);
 
     TPipe *tPipe;
     const KvQuantSparseFlashAttentionPioneerTilingDataMla *__restrict tilingData;
@@ -125,12 +124,10 @@ private:
     GlobalTensor<KV_T> keyGm;
     GlobalTensor<int32_t> SparseIndicesGm;
     GlobalTensor<int32_t> blockTableGm;
-    // GlobalTensor<T> sinksGm;
     GlobalTensor<int32_t> cuSeqlensQGm;
     GlobalTensor<int32_t> actualSeqLengthsKVGm;
 
     TBuf<> commonTBuf; // common的复用空间
-    TBuf<> sinksBuf;
     TQue<QuePosition::VECOUT, 1> stage1OutQue[2]; // 2份表示可能存在pingpong
     TQue<QuePosition::VECIN, 2> stage0InQue; // for v0 input, 2份表示可能存在pingpong
     TQue<QuePosition::VECOUT, 2> stage0OutQue; // for v0 output, 2份表示可能存在pingpong
@@ -143,7 +140,7 @@ private:
     TBuf<> dequantScaleBuff;
 
     T negativeFloatScalar;
-    // bool isSinks = false;
+
     uint32_t maxBlockNumPerBatch;
     uint32_t blockSize;
 };
@@ -348,8 +345,6 @@ __simd_vf__ void AntiquantVFImplFp8D448(__ubuf__ int8_t* ubSrcAddr, __ubuf__ Q_T
 
             MicroAPI::LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_BRC_B32>(
                 (MicroAPI::RegTensor<float>&)vScale0, ubScaleSrcAddrTemp, combineDim / 4);
-            // MicroAPI::LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_BRC_B32>(
-            //     (MicroAPI::RegTensor<float>&)vScale1, ubScaleSrcAddrTemp, combineDim - 1);
 
             MicroAPI::Cast<float, KV_T, castTraitFp8_1>(vCastFp32Res0, vKvData0, fp32MaskAll);
             MicroAPI::Cast<float, KV_T, castTraitFp8_1>(vCastFp32Res1, vKvData1, fp32MaskAll);
@@ -384,7 +379,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 {
     // srcTensor是nope(512) + nope(64) + scale + pad, dstTensor是nope(512) + rope(64)
     LocalTensor<float> floatScale = dequantScaleBuff.Get<float>();
-    // CastScale<Q_T, KV_T>(floatScale, srcTensor, dealRow);
     AntiquantVFFp8D448<Q_T, KV_T>(antiKvTensorAsB16, srcTensor, floatScale, dealRow);
 
     // LocalTensor<Q_T> kRopeUb = srcTensor.template ReinterpretCast<Q_T>();
@@ -399,9 +393,9 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
             1, // dst repeat stride
             21 // src repeat stride, 640 / 32   // 640 -> 672 : 20 -> 21
         });
-    event_t idTest = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_S>()); // TODO
-    SetFlag<HardEvent::V_S>(idTest);
-    WaitFlag<HardEvent::V_S>(idTest);
+    event_t eventIdV2S = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_S>());
+    SetFlag<HardEvent::V_S>(eventIdV2S);
+    WaitFlag<HardEvent::V_S>(eventIdV2S);
 }
 
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
@@ -505,10 +499,7 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
-    // DumpTensor(mmRes, 777, 25 * 128);
-
-    // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
-    if (runInfo.s2LoopCount == 0) { //sink 丢失首token信息，sink会增加首token信息，维度是n1
+    if (runInfo.s2LoopCount == 0) {
         if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, QSFaVectorApi::OriginNRange::EQ_128_QSFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -523,13 +514,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
         }
     } else {
-        // if (runInfo.s2LoopCount == 0 && isSinks) {  
-        //     // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
-        //     int64_t sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
-        //     LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
-        //     DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);  //初始化maxUb
-        //     DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
-        // }
         if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, QSFaVectorApi::OriginNRange::EQ_128_QSFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -557,15 +541,12 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
             stage1CastTensor, {s2BaseSize / 16, (uint16_t)runInfo.halfMRealSize,
             (uint16_t)(vec1Srcstride - runInfo.halfMRealSize),
             (uint16_t)(runInfo.mRealSize - runInfo.halfMRealSize)});
-    } //todo
+    }
 
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
 
     outputBuf.SetCrossCore();
     // ======================================================
-    // if (runInfo.s2LoopCount != 0 || (runInfo.s2LoopCount == 0 && isSinks)) {
-    //     QSFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
-    // }
     if (runInfo.s2LoopCount != 0) {
         QSFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
     }
@@ -683,11 +664,6 @@ __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable
     keyGm.SetGlobalBuffer((__gm__ KV_T *)(key));
     blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
     SparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
-
-    // if (sinks != nullptr) {
-    //     sinksGm.SetGlobalBuffer((__gm__ T *)sinks);
-    //     this->isSinks = true;
-    // }
 }
 
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::SoftmaxInitBuffer()
@@ -701,21 +677,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     tPipe->InitBuffer(softmaxExpBuf[1], softmaxBufSize);
 }
 
-TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitSinksBuffer(ConstInfo &constInfo)
-{
-    LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
-    const uint32_t maxN = constInfo.gSize; // N最大支持128, sink shape是[N]
-    DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = 1U;
-    dataCopyParams.blockLen = maxN * sizeof(T);
-    dataCopyParams.srcStride = 0U;
-    dataCopyParams.dstStride = 0U;
-    DataCopyPadExtParams<T> padParams;
-    DataCopyPad(sinksUb, this->sinksGm, dataCopyParams, padParams);
-    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
-    WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
-}
-
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo)
 {
     // ub buffer
@@ -724,7 +685,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     SoftmaxInitBuffer();
 
     tPipe->InitBuffer(commonTBuf, 512); // commonTBuf内存申请512B
-    tPipe->InitBuffer(sinksBuf, 512); // sinksBuf内存申请512B
 
     tPipe->InitBuffer(stage0InQue, 2, dVTemplateTypeInput * 16 * sizeof(KV_T)); // V0阶段每次处理16个seq, 开2 buffer
     tPipe->InitBuffer(stage0OutQue, 2, dVTemplateType * (16 + 1) * sizeof(Q_T)); // kv输入D轴640, V0阶段每次处理16个seq, 开2 buffer
@@ -740,16 +700,11 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     vToMte3Id[1] = GetTPipePtr()->AllocEventID<HardEvent::V_MTE3>();
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[1]);
-
-    // if (this->isSinks) {
-    //     InitSinksBuffer(constInfo);
-    // }
 }
 
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx)
 {
-    // TODO参数整改
     auto &sparseAttnSharedkvBaseParams = this->tilingData->baseParams;
     sharedParams.bSize = sparseAttnSharedkvBaseParams.batchSize;
     sharedParams.n2Size = 1;

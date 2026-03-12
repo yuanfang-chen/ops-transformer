@@ -85,7 +85,6 @@ private:
 
     // mm2左矩阵P
     BufferManager<BufferType::L1> l1BufferManager;
-    // BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1PBuffers;
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1RightBuffers;
     CVSharedParams sharedParams;
     /* GM信息 */
@@ -127,11 +126,6 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
         this->tilingData = tiling;
     }
 
-    // if (metadata == nullptr) {
-    //     return;
-    // }
-    // this->metadataGm.SetGlobalBuffer((__gm__ uint32_t *)metadata);
-
     constInfo.s1BaseSize = 64;
     constInfo.s2BaseSize = 128;
 
@@ -141,7 +135,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
+        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
@@ -177,7 +171,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     for (uint32_t bIdx = 0; bIdx < constInfo.bSize; bIdx++) {
         uint32_t actBatchS1 = GetBalanceActualSeqLengths(actualSeqLengthsQGm, bIdx); //不切S2，只关注S1
         if (actBatchS1 < constInfo.s1Size) {
-            constInfo.needInit = true; //TODO
+            constInfo.needInit = true;
         }
         totalBaseNum += actBatchS1*actBatchS2;
     }
@@ -310,12 +304,8 @@ KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitMMResBuf()
     uint32_t mm2LeftSize = constInfo.s1BaseSize * constInfo.s2BaseSize * sizeof(Q_T);
     uint32_t mm1RightSize = constInfo.s2BaseSize * 576 * sizeof(Q_T);
     l1BufferManager.Init(pipe, 524288); // 512 * 1024
-    // 保存p结果的L1内存必须放在第一个L1 policy上，保证和vec申请的地址相同
-    // l1PBuffers.Init(l1BufferManager, mm2LeftSize);
     l1RightBuffers.Init(l1BufferManager, mm1RightSize);
     if ASCEND_IS_AIC {
-        // l1PBuffers.Get().SetCrossCore();
-        // l1PBuffers.Get().SetCrossCore();
         l1RightBuffers.Get().SetCrossCore();
         l1RightBuffers.Get().SetCrossCore();
         l1RightBuffers.Get().SetCrossCore();
@@ -348,7 +338,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
+        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
     }
     constInfo.n2Size = sharedParams.n2Size;

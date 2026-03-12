@@ -33,8 +33,7 @@ __aicore__ inline void CalculateQueryOffset(RunParamStr& runParam,
     if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
         runParam.qBOffset = (bIdx == 0) ? 0 : actualSeqQlenAddr[bIdx - 1] * constInfo.gSize * 576;
     } else {
-        // runParam.qBOffset = bIdx * constInfo.s1Size * constInfo.n2GD + 
-        //                     runParam.queryLeftPaddingSize * constInfo.dSize;
+        runParam.qBOffset = bIdx * constInfo.s1Size * constInfo.n2GD;
     }
 }
 
@@ -107,14 +106,8 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo 
         }
     }
 
-    int32_t gs1LoopEndIdx = 0;
-    // TODO
-    if constexpr (1) { // tmplatemode先写死
-        gs1LoopEndIdx = runParam.actualS1Size; // 对于QSFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
-    } else { // SWA/CFA
-        // 不需要取topk, 每次计算gSize行, 循环qs次
-        gs1LoopEndIdx = (runParam.actualS1Size + runParam.qSNumInOneBlock - 1) / runParam.qSNumInOneBlock;
-    }
+    int32_t gs1LoopEndIdx = runParam.actualS1Size; // 对于QSFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
+
     // 不是最后一个bn, 赋值souterBlockNum
     if (!lastBN) {
         runParam.gs1LoopEndIdx = gs1LoopEndIdx;

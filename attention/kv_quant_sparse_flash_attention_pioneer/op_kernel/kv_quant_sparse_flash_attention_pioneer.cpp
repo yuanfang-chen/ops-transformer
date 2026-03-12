@@ -20,17 +20,6 @@
 
 using namespace AscendC;
 
-// #define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                         \
-//     do {                                                                                          \
-//         templateClass<QSFAType<__VA_ARGS__>> op;                                                  \
-//         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tiling_data_in, tiling);                     \
-//         const tilingdataClass *__restrict tiling_data = &tiling_data_in;                          \
-//         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,               \
-//             actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                            \
-// 	    attentionOut, user, tiling_data, tiling, &tPipe);                                         \
-//         op.Process();                                                                             \
-//     } while (0)
-
 #if defined(__DAV_C310_CUBE__)
 #define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                                 \
     do {                                                                                                  \
