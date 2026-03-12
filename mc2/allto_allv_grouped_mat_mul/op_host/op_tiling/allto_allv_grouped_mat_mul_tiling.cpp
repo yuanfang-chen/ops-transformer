@@ -508,6 +508,10 @@ ge::graphStatus AlltoAllvGmmTiling::CheckShapeSize(const gert::TilingContext* co
             OP_LOGE(A_INNER_DEBUG, "N2 should be in (0, 65536), but got %lu!", N2);
             return ge::GRAPH_FAILED;
         }
+        if (BS == 0) {
+            OP_LOGE(A_INNER_DEBUG, "BS can not be zero, but got %lu!", BS);
+            return ge::GRAPH_FAILED;
+        }
         uint64_t topK = BSK / BS;
         if (topK < NUM_TWO || topK > NUM_EIGHT) {
             OP_LOGE(A_INNER_DEBUG, "topK should be in [2, 8], but got %lu!", topK);

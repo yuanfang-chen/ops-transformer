@@ -32,18 +32,19 @@ using namespace ge;
 using namespace AscendC;
 using namespace Ops::Transformer::OpTiling;
 namespace optiling {
-static ge::graphStatus AlltoAllvGmmTilingFunc(gert::TilingContext* context)
-{
-    return TilingRegistry::GetInstance().DoTilingImpl(context);
-}
-
 struct AlltoAllvGmmCompileInfo {
 };
+
 static ge::graphStatus TilingParseForAlltoAllvGmm(gert::TilingParseContext* context)
 {
     auto compileInfo = context->GetCompiledInfo<AlltoAllvGmmCompileInfo>();
     OPS_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
     return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus AlltoAllvGmmTilingFunc(gert::TilingContext* context)
+{
+    return TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
 IMPL_OP_OPTILING(AlltoAllvQuantGroupedMatMul)
