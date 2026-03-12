@@ -450,7 +450,21 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
 
 uint64_t BSAGradTiling::GenerateTilingKey()
 {
-    return 0;
+    uint64_t tilingKey = 0;
+    if (dataType_ == ge::DT_FLOAT16) {
+        if (layout_ == InputLayout::TND) {
+            tilingKey = 0;
+        } else {
+            tilingKey = 1;
+        }
+    } else if (dataType_ == ge::DT_BF16) {
+        if (layout_ == InputLayout::TND) {
+            tilingKey = 10;
+        } else {
+            tilingKey = 11;
+        }
+    }
+    return tilingKey;
 }
 
 ge::graphStatus BSAGradTiling::GetBSAGradTiling(gert::TilingContext *context,

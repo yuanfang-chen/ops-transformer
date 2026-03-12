@@ -45,5 +45,17 @@ extern "C" __global__ __aicore__ void block_sparse_attention_grad(__gm__ uint8_t
         BSA::BlockSparseAttentionGradInfer<half, 0>(
             dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
             actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
+    } else if (TILING_KEY_IS(1)) {
+        BSA::BlockSparseAttentionGradInfer<half, 1>(
+            dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
+            actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
+    } else if (TILING_KEY_IS(10)) {
+        BSA::BlockSparseAttentionGradInfer<bfloat16_t, 0>(
+            dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
+            actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
+    } else if (TILING_KEY_IS(11)) {
+        BSA::BlockSparseAttentionGradInfer<bfloat16_t, 1>(
+            dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
+            actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
     }
 }
