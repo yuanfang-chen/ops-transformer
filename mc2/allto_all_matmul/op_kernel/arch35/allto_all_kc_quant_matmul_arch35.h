@@ -16,28 +16,21 @@
 #ifndef ALLTO_ALL_KC_QUANT_MATMUL_ARCH35_H
 #define ALLTO_ALL_KC_QUANT_MATMUL_ARCH35_H
 
-#include "allto_all_matmul_tiling_data.h"
-
-#define KC_DYN_QUANT_FP8E5M2 35
-#define KC_DYN_QUANT_FP8E4M3 36
-
-namespace AlltoAllMatmulImpl {
-using namespace AscendC;
-
+namespace Mc2Kernel {
 template <typename SchedulerType, typename SchedulerContextType, typename AlltoAllMatmulTilingDataType>
 class AlltoAllKcQuantMatmulArch35 {
 public:
     __aicore__ inline AlltoAllKcQuantMatmulArch35(SchedulerType *pipeLine) : pipeLine_(pipeLine){};
     __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, GM_ADDR all2all_out,
                                 GM_ADDR smooth_scale, GM_ADDR x2_scale, GM_ADDR x2_offset, GM_ADDR workspaceGM,
-                                AlltoAllMatmulTilingDataType *tilingData, TPipe *tPipe);
+                                AlltoAllMatmulTilingDataType *tilingData, AscendC::TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
     SchedulerType *pipeLine_;
     SchedulerContextType pipeLineContext_;
     AlltoAllMatmulTilingDataType *tilingData_;
-    TPipe *tPipe_;
+    AscendC::TPipe *tPipe_;
     GM_ADDR x1_;
     GM_ADDR x2_;
     GM_ADDR y_;
@@ -60,7 +53,7 @@ template <typename SchedulerType, typename SchedulerContextType, typename AlltoA
 __aicore__ inline void
 AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingDataType>::Init(
     GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, GM_ADDR all2all_out, GM_ADDR smooth_scale, GM_ADDR x2_scale,
-    GM_ADDR x2_offset, GM_ADDR workspaceGM, AlltoAllMatmulTilingDataType *tilingData, TPipe *tPipe)
+    GM_ADDR x2_offset, GM_ADDR workspaceGM, AlltoAllMatmulTilingDataType *tilingData, AscendC::TPipe *tPipe)
 {
     // 获取tilingdata数据
     tilingData_ = tilingData;
@@ -204,5 +197,5 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
 
     pipeLine_->Process(taskCnt);
 }
-} // namespace AlltoAllMatmulImpl
+} // namespace Mc2Kernel
 #endif
