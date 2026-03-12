@@ -1,6 +1,7 @@
 import torch
 import torch_npu
 import numpy as np
+import torch.nn.functional as F
 # import pytest
 
 def verify_result(output, golden, tol = 1e-3):
@@ -12,74 +13,62 @@ def verify_result(output, golden, tol = 1e-3):
 
     for index in range(min(len(different_element_indexes), 10)):
         real_index = different_element_indexes[index]
-        golden_data = golden[real_index]
-        output_data = output[real_index]
+        golden_data = golden[real_index].detach().numpy()
+        output_data = output[real_index].detach().numpy()
 
         print(
-            "data index %06d, expected: %-.9f, actual: %-.9f, rdiff: %-.6d" % (real_index.item(), golden_data.item(), output_data.item(),
-            abs(output_data - golden_data) / golden_data)
+            "data index %06d, expected: %-.9f, actual: %-.9f, rdiff: %-.6f" % (real_index.item(), golden_data.item(), output_data.item(),
+            abs(output_data - golden_data) / (abs(golden_data) + 1e-6))
         )
     error_ratio = float(different_element_indexes.size(0)) / float(golden.size(0))
-    print("error ratio: %.6f, tolerance: %.6f" % (error_ratio, tol))
+    print("error ratio: %.6f %%, tolerance: %.4f" % (error_ratio * 100.0, tol))
     return error_ratio <= 1e-4
 
 def mhc_pre_golden_TND(
     x: torch.Tensor, phi: torch.Tensor, alpha: torch.Tensor, bias: torch.Tensor, gamma: torch.Tensor = None,
     norm_eps: float = 1e-6, hc_eps: float = 1e-6):
-    T ,N, D = x.shape
+    T, N, D = x.shape
     ND = N * D
-
-    phi = phi.transpose(-1, -2)
-
-    alpha_pre = alpha[0]
-    alpha_post = alpha[1]
-    alpha_res = alpha[2]
-
-    bias_pre = bias[0 : N]
-    bias_post = bias[N : 2 * N]
-    bias_res = bias[2 * N : 2 * N + N * N].view(N, N)
+    x = x.reshape(T, ND).float()
+    inv_rms = torch.rsqrt(x.square().mean(-1, keepdim=True) + norm_eps)
 
     if gamma is not None:
-        x_rs = x * gamma
-    x_rs = x_rs.reshape(T, ND).float()
-    inv_rms = torch.rsqrt(x_rs.square().mean(-1, keepdim=True) + norm_eps)
+        gamma = gamma.reshape(N * D)
+        h_mix = F.linear((x * gamma), phi.float())
+        weight = h_mix * inv_rms
+    else:
+        h_mix = F.linear(x, phi.float())
+        weight = h_mix * inv_rms
+    
+    h_pre, h_post, h_res = weight.split([N, N, N * N], dim=-1)
+    h_res = h_res.unflatten(-1, (N, N))
+    h_pre = F.sigmoid(h_pre * alpha[0] + bias[:N].unsqueeze(0).unsqueeze(0)) + hc_eps
+    h_post = 2 * F.sigmoid(h_post * alpha[1] + bias[N:2 * N].unsqueeze(0).unsqueeze(0))
+    h_res = h_res * alpha[2] + bias[2 * N:].view(N, N).unsqueeze(0).unsqueeze(0)
+    
+    y = torch.sum(h_pre.unsqueeze(-1) * x.unflatten(dim=-1, sizes=(N, -1)), dim=2)
 
-    H_mix = torch.matmul(x_rs, phi.float())
-    H_mix_tmp = H_mix * inv_rms
+    return y.bfloat16(), h_post, h_res, inv_rms, h_mix, h_pre
+    
 
-    H_pre_1, H_post_1, H_res_1 = torch.split(H_mix_tmp, [N, N, N * N], dim=-1)
-    H_res_2 = H_res_1.reshape(T, N, N)
-
-    H_pre_2 = alpha_pre * H_pre_1 + bias_pre
-    H_pre = torch.sigmoid(H_pre_2) + hc_eps
-
-    H_post_2 = alpha_post * H_post_1 + bias_post
-    H_post = 2.0 * torch.sigmoid(H_post_2)
-
-    H_comb_before = alpha_res * H_res_2 + bias_res
-    h_in_fp = (H_pre.unsqueeze(-1) * x.float()).sum(dim=1)
-    h_in = h_in_fp.to(torch.bfloat16)
-
-    return h_in, H_post, H_comb_before, inv_rms, H_mix, H_pre
-
-# @pytest.mark.resources(device="npu:910B", npus_per_node=1)
+# @pytest.mark.resources(device="npu:950", npus_per_node=1)
 def test_mhc_pre_case():
     T=1024
-    n=8
-    D=5120
-    x = torch.randn(T, n, D, dtype=torch.bfloat16)
-    phi = torch.randn(n * n + 2 * n, n * D, dtype=torch.float32)
-    alpha = torch.tensor([1.0, 1.0, 1.0], dtype=torch.float32)
+    n=4
+    D=2560
+    x = torch.randn(T, n, D, dtype=torch.bfloat16).npu()
+    phi = torch.randn(n * n + 2 * n, n * D, dtype=torch.float32).npu()
+    alpha = torch.tensor([0.5, 0.5, 0.5], dtype=torch.float32).npu()
+    gamma = torch.randn(n, D, dtype=torch.float32).npu()
     bias_pre = torch.full((n,), 0.01, dtype=torch.float32)
     bias_post = torch.full((n,), 0.01, dtype=torch.float32)
     bias_res = torch.full((n, n), 0.01, dtype=torch.float32)
-    bias = torch.cat([bias_pre, bias_post, bias_res.reshape(-1)], dim=0)
-    gamma = torch.randn(n, D, dtype=torch.float32)
+    bias = torch.cat([bias_pre, bias_post, bias_res.reshape(-1)], dim=0).npu()
 
-    out_doc = torch_npu.npu_mhc_pre(x.npu(), phi.npu(), alpha.npu(), bias.npu(), gamma=gamma.npu(), out_flag = 1)
-    out_golden = mhc_pre_golden_TND(x, phi, alpha, bias, gamma=gamma)
+    out_doc = torch_npu.npu_mhc_pre(x, phi, alpha, bias, gamma=gamma, out_flag = 1)
+    out_golden = mhc_pre_golden_TND(x.cpu(), phi.cpu(), alpha.cpu(), bias.cpu(), gamma=gamma.cpu())
 
-    names = ["h_in", "h_post", "h_comb_before", "inv_rms", "h_mix", "h_pre"]
+    names = ["h_in", "h_post", "h_res", "inv_rms", "h_mix", "h_pre"]
     res = True
     for name, a, b in zip(names, out_doc, out_golden):
         print(f"{name=}")
