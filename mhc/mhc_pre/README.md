@@ -39,9 +39,9 @@ $$
 | phi | 输入 | mHC的参数矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | ($n^2+2n, nD$) | √ |
 | alpha | 输入 | mHC的缩放参数 | 必选参数，不能为空Tensor | FLOAT32 | - | (3) | - |
 | bias | 输入 | mHC的bias参数 | 必选参数，不能为空Tensor | FLOAT32 | - | ($n^2+2n$) | - |
-| gammaOptional | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
-| normEps | 可选输入 | RmsNorm的防除零参数，建议值：1e-6 | 可选参数 | FLOAT32 | - | - | - |
-| hcEps | 可选输入 | $H_{pre}$的sigmoid后的eps参数，建议值：1e-6 | 可选参数 | FLOAT32 | - | - | - |
+ | gammaOptional | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
+ | normEps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
+ | hcEps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
 | hIn | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
 | hPost | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
 | hRes | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
