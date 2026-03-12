@@ -80,10 +80,10 @@ const std::map<std::pair<QuantModeA5, ge::DataType>, RealModeA5> QUANT_MODE_MAP 
     {{QuantModeA5::PERTOKEN_DYNAMIC_QUANT, ge::DT_FLOAT8_E4M3FN}, RealModeA5::PERTOKEN_SCALES},
     {{QuantModeA5::PERGROUP_DYNAMIC_QUANT, ge::DT_FLOAT8_E5M2}, RealModeA5::PERGROUP_SCALES},
     {{QuantModeA5::PERGROUP_DYNAMIC_QUANT, ge::DT_FLOAT8_E4M3FN}, RealModeA5::PERGROUP_SCALES},
-    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT8_E5M2}, RealModeA5::MX_QUANT},
-    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT8_E4M3FN}, RealModeA5::MX_QUANT},
-    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT4_E2M1}, RealModeA5::MX_QUANT},
-    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT4_E1M2}, RealModeA5::MX_QUANT}
+    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT8_E5M2}, RealModeA5::MX_SCALES},
+    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT8_E4M3FN}, RealModeA5::MX_SCALES},
+    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT4_E2M1}, RealModeA5::MX_SCALES},
+    {{QuantModeA5::MX_QUANT, ge::DT_FLOAT4_E1M2}, RealModeA5::MX_SCALES}
 };
 
 // Supported x datatype in nonquant mode, the same as expandX
