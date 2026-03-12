@@ -29,7 +29,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * dropMaskUb, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t nPadding, 
     uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16, const float dScale, 
     const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, const float deSCaleKValue = 1.0f)
+    const T minValue, const float deSCaleKValue = 1.0f, const bool hasSink = false, const uint32_t sinkValue = 0)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel;
@@ -44,6 +44,8 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     RegTensor<float> vreg_zero;
     RegTensor<float> vreg_rowmax_p;
     RegTensor<float> vreg_scale_qk;
+    RegTensor<float> vreg_sink_input;
+    RegTensor<float> vreg_sink_exp;
     // bfloat16_t
     RegTensor<bfloat16_t> vreg_exp_even_bf16;
     RegTensor<bfloat16_t> vreg_exp_bf16;
@@ -77,6 +79,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     MaskReg preg3;
     MaskReg preg4;
 
+    Duplicate(vreg_sink_input, sinkValue);
     if constexpr (hasAtten == 1) {
         Duplicate(vreg_min, minValue);
         if constexpr (isMlaSgd) {
@@ -154,7 +157,12 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
     }
     StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+        ((__ubuf__ T *&)maxUb), ureg_max, 0);
+    if (hasSink) {
+        Max(vreg_input_max, vreg_input_max, vreg_sink_input, preg_all);
+        StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)maxUb), ureg_max, 0);
+    }
     if constexpr (hasDrop == 1) {
         Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vreg_zero, 0.0f, preg_all);
     }
@@ -169,6 +177,11 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
         // x_sum = sum(x_exp, axis=-1, keepdims=True)
         Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
             vreg_exp_sum, vreg_exp, preg_ori_src_n);
+        if (hasSink) {
+            ExpSub(vreg_sink_exp, vreg_sink_input, vreg_max_brc, preg_ori_src_n);
+            Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+                vreg_exp_sum, vreg_sink_exp, preg_ori_src_n);
+        }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
         if constexpr (isMlaFullQuant) {
@@ -249,7 +262,8 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f)
+    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f,
+    const bool hasSink = false, const uint32_t sinkValue = 0)
 {
     __ubuf__ T2 * expUb = (__ubuf__ T2*)dstTensor.GetPhyAddr();
     __ubuf__ pseShiftType * pseUb = (__ubuf__ pseShiftType*)pseTensor.GetPhyAddr();
@@ -278,7 +292,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
 
     ProcessVec1NoUpdateImpl64VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant>(
         expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, dropMaskUb, blockStride, repeatStride, 
-        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue);
+        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue, hasSink, sinkValue);
 }
 } // namespace
 
