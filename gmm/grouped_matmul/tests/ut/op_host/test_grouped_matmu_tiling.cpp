@@ -3089,7 +3089,6 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     size_t M = 256;
     size_t K = 7168;
     size_t N = 4096;
-    size_t Q = 256;
     size_t E = 4;
     optiling::GMMCompileInfo compileInfo = {
         24,//aicNum
@@ -3126,7 +3125,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64})},
+                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
         DT_INT4, // D_T_A
