@@ -1,420 +1,438 @@
 # aclnnMhcSinkhorn
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mhc/mhc_sinkhorn)
-
 ## 产品支持情况
 
-|产品             |  是否支持  |
-|:-------------------------|:----------:|
-|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
-|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     ×    |
-|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     ×    |
-|  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
-|  <term>Atlas 推理系列产品</term>    |     ×    |
-|  <term>Atlas 训练系列产品</term>    |     ×    |
+|产品      | 是否支持 |
+|:----------------------------|:-----------:|
+|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|    ×     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|    ×     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
+|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
-- 算子功能：aclnnMhcSinkhorn是mHC架构的核心算子接口，通过Sinkhorn-Knopp迭代算法将mHC层初始混合矩阵投影到双随机矩阵流形（Birkhoff多胞形），生成满足行和、列和均为1的h_res变换矩阵，为aclnnMhcPost算子提供关键输入，稳定深度网络信号传播、解决梯度消失/爆炸问题。
+- 接口功能：对mHC架构中的$\mathbf{H}'_{\text{res}}$矩阵执行Sinkhorn迭代归一化变换，最终得到双随机矩阵$\mathbf{H}_{\text{res}}$；支持输出迭代过程中的中间归一化结果（norm_out）和求和结果（sum_out），用于反向梯度计算。
 
-- 核心迭代公式：
+## 计算公式
 
-  $$
-  \begin{align}
-  M^{(k+1)} &= M^{(k)} \oslash (1_n \cdot (M^{(k)})^T 1_n) \\
-  M^{(k+2)} &= M^{(k+1)} \oslash ((M^{(k+1)} 1_n) \cdot 1_n^T) \\
-  h_{res} &= M^{(k+2)}
-  \end{align}
-  $$
-  其中：$M$ 为初始混合矩阵，$\oslash$ 为元素级除法，$1_n$ 为n维全1向量，$k$ 为迭代次数，迭代至矩阵行/列和与1的误差小于收敛阈值时停止。
+Sinkhorn变换共执行$\mathbf{num\_iters}$次迭代，迭代过程中生成中间归一化结果$\mathbf{norm\_out}[k]$和求和结果$\mathbf{sum\_out}[k]$，最终输出最后一次迭代的$\mathbf{norm\_out}$作为变换结果。
+
+第一次迭代（初始化）：
+
+$$
+\begin{aligned}
+    \mathbf{norm\_out}[0] &= \text{softmax}(\mathbf{x}, \dim=-1) + \epsilon, \\
+    \mathbf{sum\_out}[1] &= \sum_{\dim=-2,\text{keepdim}=\text{True}} \mathbf{norm\_out}[0] + \epsilon, \\
+    \mathbf{norm\_out}[1] &= \frac{\mathbf{norm\_out}[0]}{\mathbf{sum\_out}[1]}, \\
+\end{aligned}
+$$
+
+第$i$次迭代（$i = 1, 2, \dots, \mathbf({num\_iters}-1)$）：
+
+$$
+\begin{aligned}
+    \mathbf{sum\_out}[2i] &= \sum_{\dim=-1,\text{keepdim}=\text{True}} \mathbf{norm\_out}[2i-1] + \epsilon, \\
+    \mathbf{norm\_out}[2i] &= \frac{\mathbf{norm\_out}[2i-1]}{\mathbf{sum\_out}[2i]}, \\
+    \mathbf{sum\_out}[2i+1] &= \sum_{\dim=-2,\text{keepdim}=\text{True}} \mathbf{norm\_out}[2i] + \epsilon, \\
+    \mathbf{norm\_out}[2i+1] &= \frac{\mathbf{norm\_out}[2i]}{\mathbf{sum\_out}[2i+1]}, \\
+\end{aligned}
+$$
+
+### 最终输出
+
+$$
+\text{output} = \mathbf{norm\_out}[2 \times \mathbf{num\_iters} - 1]
+$$
+
+---
+
+### 🔍 符号说明
+
+| 符号 | 含义 |
+|------|------|
+| $\mathbf{x}$ | 输入张量（mHC层的$\mathbf{H}'_{\text{res}}$矩阵） |
+| $\epsilon$ | 防除零参数（对应入参`eps`） |
+| $\text{softmax}(\cdot, \dim=-1)$ | 在最后一维执行softmax归一化 |
+| $\sum_{\dim=d,\text{keepdim}=\text{True}}$ | 在指定维度$d$上求和并保持维度 |
+| $\mathbf{norm\_out}[k]$ | 第$k$步归一化中间结果 |
+| $\mathbf{sum\_out}[k]$ | 第$k$步求和中间结果 |
+| $\mathbf{num\_iters}$ | 迭代次数（入参） |
 
 ## 函数原型
 
-算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnMhcSinkhornGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnMhcSinkhorn"接口执行计算。
+算子采用两段式接口调用：需先调用`aclnnMhcSinkhornGetWorkspaceSize`获取计算所需的Device侧内存大小，再调用`aclnnMhcSinkhorn`执行实际计算。
 
 ```c++
 aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(
-    const aclTensor  *initMatrix,
-    int32_t          maxIter,
-    float            epsilon,
-    aclTensor        *hRes,
-    uint64_t         *workspaceSize,
-    aclOpExecutor    **executor)
+    const aclTensor *x,
+    float eps,
+    int64_t numIters,
+    aclTensor *output,
+    aclTensor *normOut,
+    aclTensor *sumOut,
+    uint64_t *workspaceSize,
+    aclOpExecutor **executor)
 ```
 
 ```c++
 aclnnStatus aclnnMhcSinkhorn(
-    void           *workspace,
-    uint64_t        workspaceSize,
-    aclOpExecutor  *executor,
-    aclrtStream     stream)
+    void *workspace,
+    uint64_t workspaceSize,
+    aclOpExecutor *executor,
+    aclrtStream stream)
 ```
 
-aclnnMhcSinkhornGetWorkspaceSize
- 	 
- 	 参数说明：
- 	 
- 	 <table style="undefined;table-layout: fixed; width: 1400px"><colgroup>
-    <col style="width: 145px">
-    <col style="width: 90px">
-    <col style="width: 441px">
-    <col style="width: 158px">
-    <col style="width: 186px">
-    <col style="width: 80px">
-    <col style="width: 155px">
-    <col style="width: 145px">
-    </colgroup>
-      <thead>
-          <tr>
-              <th>参数名</th>
-              <th>输入/输出</th>
-              <th>描述</th>
-              <th>使用说明</th>
-              <th>数据类型</th>
-              <th>数据格式</th>
-              <th>维度(shape)</th>
-              <th>非连续Tensor</th>
-          </tr>
-      </thead>
-      <tbody>
-          <tr>
-              <td>initMatrix</td>
-              <td>输入</td>
-              <td>待变换的mHC层初始混合矩阵，为超连接原始矩阵。</td>
-              <td>需为非负矩阵</td>
-              <td>FLOAT32</td>
-              <td>ND</td>
-              <td>[B,S,N,N]、[T,N,N]</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>maxIter</td>
-              <td>输入</td>
-              <td>Sinkhorn-Knopp迭代最大次数，控制迭代收敛过程。</td>
-              <td>建议取值50~200</td>
-              <td>INT32</td>
-              <td>标量</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-          <tr>
-              <td>epsilon</td>
-              <td>输入</td>
-              <td>收敛阈值，矩阵行/列和与1的误差小于该值时停止迭代。</td>
-              <td>建议取值1e-6~1e-4</td>
-              <td>FLOAT32</td>
-              <td>标量</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-          <tr>
-              <td>hRes</td>
-              <td>输出</td>
-              <td>经Sinkhorn变换后的双随机矩阵，作为aclnnMhcPost算子的hRes输入。</td>
-              <td>维度与initMatrix保持一致</td>
-              <td>FLOAT32</td>
-              <td>ND</td>
-              <td>[B,S,N,N]、[T,N,N]</td>
-              <td>-</td>
-          </tr>
-          <tr>
-              <td>workspaceSize</td>
-              <td>输出</td>
-              <td>返回需要在Device侧申请的workspace大小。</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-          <tr>
-              <td>executor</td>
-              <td>输出</td>
-              <td>返回op执行器，包含了算子计算流程。</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-      </tbody>
-  </table>
- 	 
- 	 返回值：
- 	 
- 	 返回 aclnnStatus 状态码，具体参见aclnn 返回码。
- 	 
- 	 第一段接口完成入参校验，出现以下场景时报错：
- 	 
- 	 <table style="undefined;table-layout: fixed;width: 1000px"><colgroup>
-    <col style="width: 300px">
-    <col style="width: 150px">
-    <col style="width: 550px">
-    </colgroup>
-      <thead>
-          <th>返回值</th>
-          <th>错误码</th>
-          <th>描述</th>
-      </thead>
-      <tbody>
-          <tr>
-              <td>ACLNN_ERR_PARAM_NULLPTR</td>
-              <td>161001</td>
-              <td>initMatrix、hRes存在空指针。</td>
-          </tr>
-          <tr>
-              <td rowspan="4">ACLNN_ERR_PARAM_INVALID</td>
-              <td rowspan="4">161002</td>
-              <td>initMatrix、hRes的数据类型不在支持的范围内。</td>
-          </tr>
-            <tr>
-              <td>initMatrix的shape维度不在支持的范围内（需为二维N×N矩阵）。</td>
-          </tr>
-          <tr>
-              <td>initMatrix为负矩阵，不满足非负约束。</td>
-          </tr>
-          <tr>
-              <td>maxIter≤0或epsilon≤0，迭代参数不合法。</td>
-          </tr>
-      </tbody>
-  </table>
- 	 
- 	 aclnnMhcSinkhorn
- 	 
- 	 参数说明：
- 	 
- 	 <table style="undefined;table-layout: fixed; width: 598px"><colgroup>
-    <col style="width: 144px">
-    <col style="width: 125px">
-    <col style="width: 700px">
-    </colgroup>
-      <thead>
-          <tr>
-              <th>参数名</th>
-              <th>输入/输出</th>
-              <th>描述</th>
-          </tr>
-      </thead>
-      <tbody>
-          <tr>
-              <td>workspace</td>
-              <td>输入</td>
-              <td>在Device侧申请的workspace内存地址。</td>
-          </tr>
-          <tr>
-              <td>workspaceSize</td>
-              <td>输入</td>
-              <td>在Device侧申请的workspace大小，由第一段接口aclnnMhcSinkhornGetWorkspaceSize获取。</td>
-          </tr>
-          <tr>
-              <td>executor</td>
-              <td>输入</td>
-              <td>op执行器，包含了算子计算流程。</td>
-          </tr>
-          <tr>
-              <td>stream</td>
-              <td>输入</td>
-              <td>指定执行任务的AscendCL stream流。</td>
-          </tr>
-      </tbody>
-  </table>
- 	 
- 	 返回值：
- 	 
- 	 返回 aclnnStatus 状态码，具体参见aclnn 返回码。
- 	 
- 	 约束说明
- 	 
- 	 aclnnMhcSinkhorn 默认确定性实现。
- 	 
- 	 输入 initMatrix 需为二维非负矩阵（N×N），确保迭代后可形成双随机矩阵。
- 	 
- 	 maxIter 建议取值范围 1~100，epsilon 建议取值范围 1e-6~1e-4，平衡收敛效果与计算效率。
+## aclnnMhcSinkhornGetWorkspaceSize
 
+### 参数说明
+
+| 参数名 | 输入/输出 | 描述 | 使用说明 | 数据类型 | 数据格式 | 维度(shape) | 非连续Tensor |
+|:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
+| x | 输入 | 待计算数据，mHC层的$\mathbf{H}'_{\text{res}}$矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | (B,S,n,n)、(T,n,n) | √ |
+| eps | 输入 | 归一化防除零参数 | 建议值：1e-6 | FLOAT32 | - | - | - |
+| numIters| 输入 | 迭代次数 | 建议值：20；范围：1~100 | INT64 | - | - | - |
+| output | 输出 | MhcSinkhorn变换最终结果（双随机矩阵$\mathbf{H}_{\text{res}}$） | 必选输出，维度与输入x一致 | FLOAT32 | ND | (B,S,n,n)、(T,n,n) | √ |
+| normOut| 输出 | 迭代过程中的归一化中间结果 | 可选输出 | FLOAT32 | ND | [2\*num_iters,n,n,B,S]、[2\*num_iters,n,n,T] | √ |
+| sumOut| 输出 | 迭代过程中的求和中间结果 | 可选输出 | FLOAT32 | ND | [2\*num_iters,n,B,S]、[2\*num_iters,n,T] | √ |
+| workspaceSize | 输出 | 计算所需的Device侧workspace内存大小（字节） | 由算子内部计算得出，用于后续申请内存 | UINT64 | - | - | - |
+| executor | 输出 | 算子执行器，包含计算流程和参数信息 | 需传递给第二段接口使用 | aclOpExecutor* | - | - | - |
+
+### 返回值
+
+返回`aclnnStatus`状态码，第一段接口主要完成入参校验，异常场景如下：
+
+| 返回值 | 错误码 | 描述 |
+|:--- |:--- |:--- |
+| ACLNN_ERR_PARAM_NULLPTR | 161001 | 必选参数（x/output）或输出参数（workspaceSize/executor）为空指针。 |
+| ACLNN_ERR_PARAM_INVALID | 161002 | 1. x的数据类型/格式非FLOAT32/ND；2. numIters超出1~100范围；3. n值非4/6/8；4. outFlag非0。 |
+| ACLNN_ERR_RUNTIME_ERROR | 361001 | 调用NPU Runtime接口申请内存/创建Tensor失败。 |
+
+## aclnnMhcSinkhorn
+
+### 参数说明
+
+| 参数名 | 输入/输出 | 描述 |
+|:--- |:--- |:--- |
+| workspace | 输入 | Device侧申请的workspace内存地址，需与第一段接口返回的workspaceSize匹配。 |
+| workspaceSize | 输入 | Device侧workspace内存大小，由`aclnnMhcSinkhornGetWorkspaceSize`接口返回。 |
+| executor | 输入 | 算子执行器，由第一段接口创建，包含计算流程和参数信息。 |
+| stream | 输入 | 指定执行计算任务的Stream，需提前创建并绑定Device。 |
+
+### 返回值
+
+返回`aclnnStatus`状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+## 约束说明
+
+### 确定性计算
+
+- aclnnMhcSinkhorn默认采用确定性实现，相同输入多次调用结果一致。
+
+### 公共约束
+
+1. 输入约束：
+   - 输入Tensor `x` 为空，报错`ACLNN_ERR_PARAM_NULLPTR`；
+   - 所有输入/输出Tensor的数据格式仅支持`ACL_FORMAT_ND`；
+   - 仅支持`FLOAT32`数据类型，不支持其他精度（如FLOAT16/DOUBLE）。
+   - 输入-inf/inf/nan/，输出nan/nan/nan。
+2. 内存约束：
+   - Workspace内存需在Device侧申请，且大小需严格匹配第一段接口返回值；
+
+### 规格约束
+
+| 规格项 | 规格 | 规格说明 |
+|:--- |:--- |:--- |
+| numIters | 1~100 | 迭代次数超出该范围会返回参数无效错误。 |
+| n | 4、6、8 | 输入Tensor最后两维的大小（矩阵维度）仅支持这三个值。 |
+| 维度数 | 3/4 | 输入x支持3维(T,n,n)或4维(B,S,n,n)，其他维度数不支持。 |
 
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+以下为C++调用示例，需结合AscendCL环境编译运行，具体流程参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
 #include <iostream>
 #include <vector>
-#include <cmath>
-#include <cstring>
 #include "acl/acl.h"
 #include "aclnnop/aclnn_mhc_sinkhorn.h"
-#include "securec.h"
 
-using namespace std;
+#define CHECK_RET(cond, return_expr) \
+  do {                               \
+    if (!(cond)) {                   \
+      return_expr;                   \
+    }                                \
+  } while (0)
 
-namespace {
+#define LOG_PRINT(message, ...)     \
+  do {                              \
+    printf(message, ##__VA_ARGS__); \
+  } while (0)
 
-#define CHECK_RET(cond) ((cond) ? true :(false))
-
-#define LOG_PRINT(message, ...)                                                                                        \
-    do {                                                                                                               \
-        printf(message, ##__VA_ARGS__);                                                                                \
-    } while (0)
-
-int64_t GetShapeSize(const std::vector<int64_t> &shape) {
-    int64_t shapeSize = 1;
-    for (auto i : shape) {
-        shapeSize *= i;
-    }
-    return shapeSize;
+// 计算Tensor形状对应的总元素数
+int64_t GetShapeSize(const std::vector<int64_t>& shape) {
+  int64_t size = 1;
+  for (int64_t dim : shape) {
+    size *= dim;
+  }
+  return size;
 }
 
-int Init(int32_t deviceId, aclrtStream *stream) {
-    // Fixed writing method, AscendCL initialization.
-    auto ret = aclInit(nullptr);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclInit failed. ERROR: %d\n", ret);
-        return ret;
-    }
-    ret = aclrtSetDevice(deviceId);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclrtSetDevice failed. ERROR: %d\n", ret);
-        return ret;
-    }
-    ret = aclrtCreateStream(stream);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclrtCreateStream failed. ERROR: %d\n", ret);
-        return ret;
-    }
-    return 0;
+// 将Device侧Tensor数据拷贝到Host侧并打印
+void PrintTensorData(const std::vector<int64_t>& shape, void* device_addr) {
+  int64_t size = GetShapeSize(shape);
+  std::vector<float> host_data(size, 0.0f);
+
+  // Device -> Host 数据拷贝
+  aclError ret = aclrtMemcpy(
+      host_data.data(), size * sizeof(float),
+      device_addr, size * sizeof(float),
+      ACL_MEMCPY_DEVICE_TO_HOST
+  );
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Memcpy device to host failed, error: %d\n", ret); 
+            return);
+
+  // 打印前10个元素（示例）
+  LOG_PRINT("Tensor data (first 10 elements): ");
+  for (int i = 0; i < std::min((int64_t)10, size); ++i) {
+    LOG_PRINT("%f ", host_data[i]);
+  }
+  LOG_PRINT("\n");
 }
 
-template <typename T>
-int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
-                    aclDataType dataType, aclTensor **tensor) {
-    auto size = GetShapeSize(shape) * sizeof(T);
-    // Call aclrtMalloc to request device side memory.
-    auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret);
-        return ret;
-    }
-    // Call aclrtMemcpy to copy host side data to device side memory.
-    ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret);
-        return ret;
-    }
+// 初始化AscendCL环境（Device/Context/Stream）
+int InitAcl(int32_t device_id, aclrtContext& context, aclrtStream& stream) {
+  // 1. 初始化ACL
+  aclError ret = aclInit(nullptr);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclInit failed, error: %d\n", ret); 
+            return -1);
 
-    // Calculate the strides of continuous tensors.
-    std::vector<int64_t> strides(shape.size(), 1);
-    for (int64_t i = shape.size() - 2; i >= 0; i--) {
-        strides[i] = shape[i + 1] * strides[i + 1];
-    }
+  // 2. 设置Device
+  ret = aclrtSetDevice(device_id);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSetDevice failed, error: %d\n", ret); 
+            return -1);
 
-    // Call the aclCreateTensor interface to create aclTensor.
-    *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
-                              shape.data(), shape.size(), *deviceAddr);
-    return 0;
+  // 3. 创建Context
+  ret = aclrtCreateContext(&context, device_id);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtCreateContext failed, error: %d\n", ret); 
+            return -1);
+
+  // 4. 设置当前Context
+  ret = aclrtSetCurrentContext(context);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSetCurrentContext failed, error: %d\n", ret); 
+            return -1);
+
+  // 5. 创建Stream
+  ret = aclrtCreateStream(&stream);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtCreateStream failed, error: %d\n", ret); 
+            return -1);
+
+  return 0;
 }
 
-} // namespace
+// 创建Device侧aclTensor（含数据拷贝）
+int CreateAclTensor(
+    const std::vector<float>& host_data,
+    const std::vector<int64_t>& shape,
+    void*& device_addr,
+    aclTensor*& tensor) {
+  // 1. 计算内存大小
+  int64_t size = GetShapeSize(shape) * sizeof(float);
+
+  // 2. 申请Device侧内存
+  aclError ret = aclrtMalloc(&device_addr, size, ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtMalloc failed, error: %d\n", ret); 
+            return -1);
+
+  // 3. Host -> Device 数据拷贝
+  ret = aclrtMemcpy(
+      device_addr, size,
+      host_data.data(), size,
+      ACL_MEMCPY_HOST_TO_DEVICE
+  );
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtMemcpy failed, error: %d\n", ret); 
+            return -1);
+
+  // 4. 计算Tensor的strides（连续Tensor）
+  std::vector<int64_t> strides(shape.size(), 1);
+  for (int64_t i = shape.size() - 2; i >= 0; --i) {
+    strides[i] = strides[i + 1] * shape[i + 1];
+  }
+
+  // 5. 创建aclTensor
+  tensor = aclCreateTensor(
+      shape.data(), shape.size(),
+      ACL_FLOAT, strides.data(), 0,
+      ACL_FORMAT_ND, shape.data(), shape.size(),
+      device_addr
+  );
+  CHECK_RET(tensor != nullptr, 
+            LOG_PRINT("aclCreateTensor failed\n"); 
+            return -1);
+
+  return 0;
+}
 
 int main() {
-    // 1. (Fixed writing method)  device/stream initialization. Refer to AscendCL's list of external interfaces.
-    // Fill in the deviceId based on your actual device.
-    int32_t deviceId = 0;
-    aclrtStream stream;
-    auto ret = Init(deviceId, &stream);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("Init acl failed. ERROR: %d\n", ret);
-        return ret;
-    }
+  // ========== 1. 初始化环境 ==========
+  int32_t device_id = 0;  // 根据实际Device ID调整
+  aclrtContext context = nullptr;
+  aclrtStream stream = nullptr;
 
-    // 2. To construct input and output, it is necessary to customize the construction according to the API interface.
-    // Example: BSNxN format (B, S, N, N)
-    std::vector<int64_t> initMatrixShape = {1, 1024, 4, 4};   // BSNxN
-    std::vector<int64_t> hResShape = {1, 1024, 4, 4};         // BSNxN
-    int32_t maxIter = 100;                                     // 迭代最大次数
-    float epsilon = 1e-6f;                                     // 收敛阈值
+  int ret = InitAcl(device_id, context, stream);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("InitAcl failed, error: %d\n", ret); 
+            return -1);
 
-    void *initMatrixDeviceAddr = nullptr;
-    void *hResDeviceAddr = nullptr;
+  // ========== 2. 构造输入/输出参数 ==========
+  // 输入x的形状：B=1, S=1024, n=4 → (1024,4,4)（合并B*S为T=1024）
+  std::vector<int64_t> x_shape = {1024, 4, 4};
+  int64_t x_size = GetShapeSize(x_shape);
+  std::vector<float> x_host_data(x_size, 1.0f);  // 初始化输入数据为1.0
 
-    aclTensor *initMatrixTensor = nullptr;
-    aclTensor *hResTensor = nullptr;
+  // 输出output的形状与x一致
+  std::vector<int64_t> output_shape = x_shape;
+  void* output_device_addr = nullptr;
+  aclTensor* output_tensor = nullptr;
 
-    int64_t initMatrixShapeSize = GetShapeSize(initMatrixShape);
-    int64_t hResShapeSize = GetShapeSize(hResShape);
+  // 可选输出：norm_out（out_flag=1时有效）
+  std::vector<int64_t> norm_out_shape = {40, 4, 4, 1024};  // 2*20=40, n=4, T=1024
+  void* norm_out_device_addr = nullptr;
+  aclTensor* norm_out_tensor = nullptr;
 
-    // 构造非负初始混合矩阵（取值0.1~1.0）
-    std::vector<float> initMatrixHostData(initMatrixShapeSize, 0.5f);
-    std::vector<float> hResHostData(hResShapeSize, 0.0f);
+  // 可选输出：sum_out（out_flag=1时有效）
+  std::vector<int64_t> sum_out_shape = {40, 4, 1024};  // 2*20=40, n=4, T=1024
+  void* sum_out_device_addr = nullptr;
+  aclTensor* sum_out_tensor = nullptr;
 
-    // Create initMatrix aclTensor.
-    ret = CreateAclTensor(initMatrixHostData, initMatrixShape, &initMatrixDeviceAddr, aclDataType::ACL_FLOAT, &initMatrixTensor);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        return ret;
-    }
-    // Create hRes aclTensor.
-    ret = CreateAclTensor(hResHostData, hResShape, &hResDeviceAddr, aclDataType::ACL_FLOAT, &hResTensor);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        return ret;
-    }
+  // 输入x的Device Tensor
+  void* x_device_addr = nullptr;
+  aclTensor* x_tensor = nullptr;
+  ret = CreateAclTensor(x_host_data, x_shape, x_device_addr, x_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create x_tensor failed\n"); 
+            return -1);
 
-    // 3. Call CANN operator library API.
-    uint64_t workspaceSize = 0;
-    aclOpExecutor *executor;
-    // Call the first interface.
-    ret = aclnnMhcSinkhornGetWorkspaceSize(
-        initMatrixTensor, maxIter, epsilon, hResTensor,
-        &workspaceSize, &executor);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnMhcSinkhornGetWorkspaceSize failed. ERROR: %d\n", ret);
-        return ret;
-    }
-    // Apply for device memory based on the workspaceSize calculated from the first interface paragraph.
-    void *workspaceAddr = nullptr;
-    if (workspaceSize > 0U) {
-        ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        if (!CHECK_RET(ret == ACL_SUCCESS)) {
-            LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret);
-            return ret;
-        }
-    }
-    // Call the second interface.
-    ret = aclnnMhcSinkhorn(workspaceAddr, workspaceSize, executor, stream);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnMhcSinkhorn failed. ERROR: %d\n", ret);
-        return ret;
-    }
+  // 输出output的Device Tensor（仅申请内存，无初始数据）
+  ret = aclrtMalloc(&output_device_addr, GetShapeSize(output_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output failed, error: %d\n", ret); 
+            return -1);
+  output_tensor = aclCreateTensor(
+      output_shape.data(), output_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_shape.data(), output_shape.size(),
+      output_device_addr
+  );
 
-    // 4. (Fixed writing method) Synchronize and wait for task execution to end.
-    ret = aclrtSynchronizeStream(stream);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret);
-        return ret;
-    }
+  // 可选输出norm_out/sum_out的Tensor（out_flag=1）
+  ret = aclrtMalloc(&norm_out_device_addr, GetShapeSize(norm_out_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc norm_out failed, error: %d\n", ret); 
+            return -1);
+  norm_out_tensor = aclCreateTensor(
+      norm_out_shape.data(), norm_out_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      norm_out_shape.data(), norm_out_shape.size(),
+      norm_out_device_addr
+  );
 
-    // 5. Retrieve the output value, copy the result from the device side memory to the host side.
-    auto size = GetShapeSize(hResShape);
-    std::vector<float> resultData(size, 0.0f);
-    ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), hResDeviceAddr,
-                      size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret);
-        return ret;
-    }
+  ret = aclrtMalloc(&sum_out_device_addr, GetShapeSize(sum_out_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc sum_out failed, error: %d\n", ret); 
+            return -1);
+  sum_out_tensor = aclCreateTensor(
+      sum_out_shape.data(), sum_out_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      sum_out_shape.data(), sum_out_shape.size(),
+      sum_out_device_addr
+  );
 
-    // 验证输出矩阵是否为双随机矩阵（行和/列和接近1）
-    LOG_PRINT("hRes matrix first row sum: %f\n", resultData[0] + resultData[1] + resultData[2] + resultData[3]);
+  // MhcSinkhorn算子参数
+  float eps = 1e-6f;       // 防除零参数
+  int64_t num_iters = 20;  // 迭代次数
 
-    // 6. Release resources.
-    aclDestroyTensor(initMatrixTensor);
-    aclDestroyTensor(hResTensor);
-    aclrtFree(initMatrixDeviceAddr);
-    aclrtFree(hResDeviceAddr);
-    if (workspaceSize > 0U) {
-        aclrtFree(workspaceAddr);
-    }
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(deviceId);
-    aclFinalize();
-    return 0;
+  // ========== 3. 调用第一段接口：获取Workspace大小 ==========
+  uint64_t workspace_size = 0;
+  aclOpExecutor* executor = nullptr;
+
+  aclnnStatus aclnn_ret = aclnnMhcSinkhornGetWorkspaceSize(
+      x_tensor,
+      eps,
+      num_iters,
+      output_tensor,
+      norm_out_tensor,
+      sum_out_tensor,
+      &workspace_size,
+      &executor
+  );
+  CHECK_RET(aclnn_ret == ACL_SUCCESS, 
+            LOG_PRINT("aclnnMhcSinkhornGetWorkspaceSize failed, error: %d\n", aclnn_ret); 
+            return -1);
+
+  // ========== 4. 申请Workspace内存 ==========
+  void* workspace_addr = nullptr;
+  if (workspace_size > 0) {
+    ret = aclrtMalloc(&workspace_addr, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    CHECK_RET(ret == ACL_SUCCESS, 
+              LOG_PRINT("aclrtMalloc workspace failed, error: %d\n", ret); 
+              return -1);
+  }
+
+  // ========== 5. 调用第二段接口：执行MhcSinkhorn计算 ==========
+  aclnn_ret = aclnnMhcSinkhorn(
+      workspace_addr,
+      workspace_size,
+      executor,
+      stream
+  );
+  CHECK_RET(aclnn_ret == ACL_SUCCESS, 
+            LOG_PRINT("aclnnMhcSinkhorn failed, error: %d\n", aclnn_ret); 
+            return -1);
+
+  // ========== 6. 同步Stream并打印结果 ==========
+  ret = aclrtSynchronizeStream(stream);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSynchronizeStream failed, error: %d\n", ret); 
+            return -1);
+
+  LOG_PRINT("MhcSinkhorn compute success!\n");
+  LOG_PRINT("Output tensor data: ");
+  PrintTensorData(output_shape, output_device_addr);
+
+  // ========== 7. 释放资源 ==========
+  // 销毁Tensor
+  aclDestroyTensor(x_tensor);
+  aclDestroyTensor(output_tensor);
+  aclDestroyTensor(norm_out_tensor);
+  aclDestroyTensor(sum_out_tensor);
+
+  // 释放Device内存
+  aclrtFree(x_device_addr);
+  aclrtFree(output_device_addr);
+  aclrtFree(norm_out_device_addr);
+  aclrtFree(sum_out_device_addr);
+  if (workspace_size > 0) {
+    aclrtFree(workspace_addr);
+  }
+
+  // 销毁Stream/Context，重置Device
+  aclrtDestroyStream(stream);
+  aclrtDestroyContext(context);
+  aclrtResetDevice(device_id);
+  aclFinalize();
+
+  LOG_PRINT("All resources released successfully!\n");
+  return 0;
 }
 ```

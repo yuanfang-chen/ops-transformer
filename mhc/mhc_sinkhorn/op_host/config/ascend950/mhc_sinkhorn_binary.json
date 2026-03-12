@@ -56,7 +56,7 @@
           {
             "name": "num_iters",
             "dtype": "int",
-            "value": null
+            "value": 20
           },
           {
             "name": "out_flag",

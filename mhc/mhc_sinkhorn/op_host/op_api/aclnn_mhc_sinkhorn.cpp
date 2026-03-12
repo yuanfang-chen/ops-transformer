@@ -22,7 +22,6 @@ extern "C" {
 #endif
 
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
-static const std::vector<int64_t> VALID_N_VALUES = {4, 6, 8};
 
 static constexpr size_t DIM_ONE = 1;
 static constexpr size_t DIM_TWO = 2;
