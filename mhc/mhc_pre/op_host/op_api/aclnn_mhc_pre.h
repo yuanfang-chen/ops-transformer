@@ -26,24 +26,24 @@ extern "C" {
  * @param [in] phi: 输入tensor，shape为[n^2+2n, nD]，数据类型支持：FP32。
  * @param [in] alpha: 输入tensor，shape为[3]，数据类型支持：FP32。
  * @param [in] bias: 输入tensor，shape为[n^2+2n]，数据类型支持：FP32。
- * @param [in] gamma: 可选输入tensor，shape为[n, D]，数据类型支持：FP32。
- * @param [in] norm_eps: 归一化epsilon参数。
- * @param [in] hc_eps: hyper connection epsilon参数。
- * @param [out] out_hin: 输出tensor，shape为[B,S,D]或[T,D]，数据类型：BF16/FP16。
- * @param [out] out_h_post: 输出tensor，shape为[B,S,N]或[T,N]，数据类型：FP32。
- * @param [out] out_h_res: 输出tensor，shape为[B,S,N,N]或[T,N,N]，数据类型：FP32。
- * @param [out] out_inv_rms: 输出tensor，shape为[B,S]或[T]，数据类型：FP32。
- * @param [out] out_mm_res: 输出tensor，shape为[B,S,N^2+2N]或[T,N^2+2N]，数据类型：FP32。
- * @param [out] out_h_pre: 输出tensor，shape为[B,S,N]或[T,N]，数据类型：FP32。
+ * @param [in] gammaOptional: 可选输入tensor，shape为[n, D]，数据类型支持：FP32。
+ * @param [in] normEps: 归一化epsilon参数。
+ * @param [in] hcEps: hyper connection epsilon参数。
+ * @param [out] hIn: 输出tensor，shape为[B,S,D]或[T,D]，数据类型：BF16/FP16。
+ * @param [out] hPost: 输出tensor，shape为[B,S,N]或[T,N]，数据类型：FP32。
+ * @param [out] hRes: 输出tensor，shape为[B,S,N,N]或[T,N,N]，数据类型：FP32。
+ * @param [out] invRmsOptional: 可选输出tensor，shape为[B,S]或[T]，数据类型：FP32。
+ * @param [out] hMixOptional: 可选输出tensor，shape为[B,S,N^2+2N]或[T,N^2+2N]，数据类型：FP32。
+ * @param [out] hPreOptional: 可选输出tensor，shape为[B,S,N]或[T,N]，数据类型：FP32。
  * @param [out] workspaceSize: 返回需要在npu device侧申请的workspace大小。
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
  */
 ACLNN_API aclnnStatus aclnnMhcPreGetWorkspaceSize(
-    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
-    int64_t out_flag, double norm_eps, double hc_eps,
-    const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
-    const aclTensor *out_inv_rms, const aclTensor *out_mm_res, const aclTensor *out_h_pre,
+    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gammaOptional,
+    float normEps, float hcEps,
+    aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
+    aclTensor *invRmsOptional, aclTensor *hMixOptional, aclTensor *hPreOptional,
     uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
