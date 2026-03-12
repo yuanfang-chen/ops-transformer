@@ -26,7 +26,7 @@
 #include "../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
 #include "../op_kernel/arch35/prompt_flash_attention_tiling_regbase.h"
 #include "../../common/op_host/fia_tiling_base.h"
-#include "./split_core_tiling_arch35.h"
+#include "split_core_tiling_arch35.h"
 
 namespace optiling {
 namespace v2 {
@@ -245,6 +245,10 @@ protected:
         std::vector<int64_t>& actualSeqLengthsKV, PromptFlashAttentionTilingData& tilingData);
     ge::graphStatus ComputeTilingKey(ContextParamsForPFATiling& contextKeyParams,
         uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData);
+    ge::graphStatus CreateSplitInput(const ContextParamsForPFATiling& contextKeyParams,
+ 	  	PromptFlashAttentionTilingData& tilingData, optiling_35::BaseInfo &baseInfo, optiling_35::SplitParam &splitParam); 
+    void SetSplitOutput(PromptFlashAttentionTilingData& tilingData, const optiling_35::FAMetaData &res);
+ 	bool IsSplitCoreBalance(ContextParamsForPFATiling& contextKeyParams);
     void SetAttenMaskCompressMode();
     void SetLayoutType();
     void PFATilingDataconvert(PromptFlashAttentionTilingData& tilingData);
@@ -284,6 +288,7 @@ public:
     uint8_t PFAMask = 0;
     uint8_t pFAMatMulType = 0;
     bool enableKVPrefix = false;
+    bool enableSplitCoreBalance = false;
   
 protected:
     ContextParamsForPFATiling* contextKeyParamsPtr = nullptr;
@@ -383,7 +388,9 @@ protected:
     uint8_t attenMaskShapeType = 0; // 0: (B,N2,G,S1,S2), 1: (B,1,1,S1,S2), 2: (1,1,1,S1,S2)
     uint8_t sparseType = 0;
     int64_t pseType = 0;
-    FlashAttentionScoreSimplifiedTilingData faTilingAdapter;
+    FlashAttentionScoreSimplifiedTilingData *faTilingAdapter;
+    FlashAttentionScoreSimplifiedTilingData faTiling;
+    FusedInferAttentionScoreTilingData fiaTiling;
 };
 } // namespace v2
 } // namespace optiling
