@@ -15,10 +15,16 @@
 
 #ifndef MC2_MATMUL_BASE_H
 #define MC2_MATMUL_BASE_H
+
 #if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
-#include "../../../arch32/3rd_head_arch32.h"
+#include "../../../../../3rd/mat_mul_v3/op_kernel/mat_mul_base_kernel.h"
 #else
-#include "../../../arch35/3rd_head_arch35.h"
+#if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
+#include "../../../../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
+#else
+#include "../../../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_online_dynamic.h"
+#include "../../../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_cube_on_the_fly.h"
+#endif
 #endif
 
 namespace MC2KernelTemplate {

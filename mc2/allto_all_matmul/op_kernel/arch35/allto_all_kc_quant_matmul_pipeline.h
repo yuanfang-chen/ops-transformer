@@ -9,23 +9,36 @@
  */
 
 /*!
- * \file pipeline_template_comm_trans_compute.h
+ * \file allto_all_kc_quant_matmul_pipeline.h
  * \brief
  */
 
-#ifndef MC2_PIPELINE_TEMPLATE_COMM_TRANS_QUANTIZE_COMPUTE_H
-#define MC2_PIPELINE_TEMPLATE_COMM_TRANS_QUANTIZE_COMPUTE_H
+#ifndef ALLTO_ALL_KC_QUANT_MATMUL_H
+#define ALLTO_ALL_KC_QUANT_MATMUL_H
 
-#include "pipeline_context.h"
+#include "../../common/inc/mc2_templates/scheduler/pipeline_builder.h"
 
 // 流水线模板
-namespace MC2KernelTemplate {
+namespace AlltoAllMatmulImpl {
+using MC2KernelTemplate::MC2AlltoAllContext;
+using MC2KernelTemplate::MC2PertokenDQuantContext;
+// 后续可以按节点拆成对应的上下文复用
+template <typename ComputationContextType>
+struct AlltoAllKCQmmPipelineContext {
+    // computation
+    ComputationContextType* computationContext;
+    // communication
+    MC2AlltoAllContext* communicationContext;
+    // quantization
+    MC2PertokenDQuantContext* quantizationContext;
+};
+
 // 通信转置计算模板
 template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-class MC2KernelPipelineCommTransQuantComputeTemplate {
+class AlltoAllKCQuantMatmulPipeLine {
 public:
-    __aicore__ inline MC2KernelPipelineCommTransQuantComputeTemplate(CommunicationType *commStage,
+    __aicore__ inline AlltoAllKCQuantMatmulPipeLine(CommunicationType *commStage,
                                                                      TransposeAndQuantizeType *transAndQuantStage,
                                                                      ComputationType *computeStage)
         : commStage_(commStage), transAndQuantStage_(transAndQuantStage), computeStage_(computeStage){};
@@ -42,12 +55,11 @@ private:
     CommunicationType *commStage_;              // 通信节点
     TransposeAndQuantizeType *transAndQuantStage_;      // 进行动态量化的节点
     ComputationType *computeStage_;             // 矩阵乘的计算节点
-    ContextType *context_;                      // 相关上下文
 };
 
 template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType,
+__aicore__ inline void AlltoAllKCQuantMatmulPipeLine<CommunicationType, TransposeAndQuantizeType,
                                                                       ComputationType, ContextType>::Init()
 {
     commStage_->Init();
@@ -56,8 +68,7 @@ __aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<Communicat
 
 template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType, ComputationType,
+__aicore__ inline void AlltoAllKCQuantMatmulPipeLine<CommunicationType, TransposeAndQuantizeType, ComputationType,
                                                ContextType>::GetContext(ContextType* context)
 {
     context->communicationContext = commStage_->GetContextPtr();
@@ -67,8 +78,7 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQu
 
 template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType, ComputationType,
+__aicore__ inline void AlltoAllKCQuantMatmulPipeLine<CommunicationType, TransposeAndQuantizeType, ComputationType,
                                                ContextType>::Process(uint32_t taskCnt)
 {
     commStage_->PrepareAll(taskCnt);
@@ -87,7 +97,7 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQu
 
 template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType,
+__aicore__ inline void AlltoAllKCQuantMatmulPipeLine<CommunicationType, TransposeAndQuantizeType,
                                                                       ComputationType, ContextType>::End()
 {
     commStage_->End();
