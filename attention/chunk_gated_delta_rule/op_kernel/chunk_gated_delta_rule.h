@@ -45,7 +45,7 @@ template <typename lowType, typename highType>
 class CGDR {
 public:
     __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
-        : stageOneOp_(mmFp32_, mmBf16_)
+        : stageOneOp_(mmFp32_)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -56,7 +56,6 @@ public:
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
             mmFp32_.Init(&tiling_->matmulTilingFp32, pipe_);
-            mmBf16_.Init(&tiling_->matmulTilingBf16, pipe_);
         }
     }
 
@@ -271,7 +270,6 @@ private:
 
     // Matmul objects
     MT_FP32 mmFp32_;
-    MT_BF16 mmBf16_;
 
     MT1 mm1_;
     MT2 mm2_;
