@@ -22,7 +22,7 @@ using namespace ge;
 namespace ops {
 
 namespace {
-enum QuantMode {
+enum class QuantMode : int64_t {
     QUANT_MODE_NO_QUANT = 0,
     QUANT_MODE_STATIC = 1,
     QUANT_MODE_PERTOKEN = 2,
@@ -39,6 +39,7 @@ static constexpr int64_t ASSIST_INFO_NUM_PER_A = 128;
 static constexpr int64_t PER_GROUP_SIZE = 128;
 static constexpr int64_t MX_QUANT_SIZE = 32;
 static constexpr int64_t NUM_EVEN = 2;
+static constexpr int64_t SENDCOUNT_MEMORY_SIZE = 2;
 
 static constexpr size_t DISPATCH_INPUT_X_INDEX = 0;
 static constexpr size_t DISPATCH_INPUT_EXPERT_IDS_INDEX = 1;
@@ -93,11 +94,11 @@ static bool IsTargetNpuArchInfershape(const char *nodeName, const std::set<std::
 
 static void InferShapeDynamicScalesA5(gert::Shape *dynamicScalesShape, int64_t quantMode, int64_t a, int64_t h)
 {
-    if (quantMode == QuantMode::QUANT_MODE_PERGROUP) {
+    if (static_cast<QuantMode>(quantMode) == QuantMode::QUANT_MODE_PERGROUP) {
         dynamicScalesShape->SetDimNum(DIM_TWO);
         dynamicScalesShape->SetDim(0U, a);
         dynamicScalesShape->SetDim(1U, (h + PER_GROUP_SIZE - 1) / PER_GROUP_SIZE);
-    } else if (quantMode == QuantMode::QUANT_MODE_MX) {
+    } else if (static_cast<QuantMode>(quantMode) == QuantMode::QUANT_MODE_MX) {
         dynamicScalesShape->SetDimNum(DIM_TWO);
         dynamicScalesShape->SetDim(0U, a);
         dynamicScalesShape->SetDim(1U, ((h + MX_QUANT_SIZE - 1) / MX_QUANT_SIZE + 1) / NUM_EVEN * NUM_EVEN);
@@ -110,7 +111,7 @@ static void InferShapeDynamicScalesA5(gert::Shape *dynamicScalesShape, int64_t q
 static ge::DataType InferDataTypeDynamicScales(int64_t quantMode)
 {
     ge::DataType dynamicScalesDtype = ge::DT_FLOAT;
-    if (quantMode == QuantMode::QUANT_MODE_MX) {
+    if (static_cast<QuantMode>(quantMode) == QuantMode::QUANT_MODE_MX) {
         dynamicScalesDtype = ge::DT_FLOAT8_E8M0;
     }
     return dynamicScalesDtype;
@@ -278,7 +279,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
         if (*tpWorldSize == DIM_TWO)  {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum * (*tpWorldSize));
         } else if (expertScalesShape != nullptr) {
-            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * 2 * k * (*epWorldSize) / RANK_NUM_PER_NODE);
+            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * SENDCOUNT_MEMORY_SIZE * k * (*epWorldSize) / RANK_NUM_PER_NODE);
         } else {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum);
         }
@@ -302,21 +303,22 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus CheckQuantMode(gert::InferDataTypeContext *context, const int64_t *quantMode, int64_t yDtype)
+static ge::graphStatus CheckQuantMode(const gert::InferDataTypeContext *context, const int64_t *quantMode, int64_t yDtype)
 {
-    if (*quantMode == QuantMode::QUANT_MODE_STATIC) {
+    if (static_cast<QuantMode>(*quantMode) == QuantMode::QUANT_MODE_STATIC) {
         OP_CHECK_IF((yDtype != static_cast<int64_t>(ge::DT_INT8)) &&
                     (yDtype != static_cast<int64_t>(ge::DT_HIFLOAT8)),
         OP_LOGE(context->GetNodeName(), "when quantmode is static quant, ydtype must be int8 or hifloat8"),
         return ge::GRAPH_FAILED);
-    } else if (*quantMode == QuantMode::QUANT_MODE_PERTOKEN) {
+    } else if (static_cast<QuantMode>(*quantMode) == QuantMode::QUANT_MODE_PERTOKEN) {
         OP_CHECK_IF((yDtype != static_cast<int64_t>(ge::DT_INT8)) &&
                     (yDtype != static_cast<int64_t>(ge::DT_FLOAT8_E4M3FN)) &&
                     (yDtype != static_cast<int64_t>(ge::DT_FLOAT8_E5M2)),
         OP_LOGE(context->GetNodeName(), "when quantmode is dynamic quant, ydtype must be int8 or "
                 "float8_e4m3fn or float8_e5m2"),
         return ge::GRAPH_FAILED);
-    } else if ((*quantMode == QuantMode::QUANT_MODE_PERGROUP) || (*quantMode == QuantMode::QUANT_MODE_MX)) {
+    } else if ((static_cast<QuantMode>(*quantMode) == QuantMode::QUANT_MODE_PERGROUP) ||
+                (static_cast<QuantMode>(*quantMode) == QuantMode::QUANT_MODE_MX)) {
         OP_CHECK_IF((yDtype != static_cast<int64_t>(ge::DT_FLOAT8_E4M3FN)) &&
                     (yDtype != static_cast<int64_t>(ge::DT_FLOAT8_E5M2)),
         OP_LOGE(context->GetNodeName(), "when quantmode is pergoup or mxfp8 quant, "
@@ -343,7 +345,7 @@ static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeC
     bool quantFlag = (scalesType != ge::DT_UNDEFINED) ? true : false;
     OP_LOGD(context->GetNodeName(), "quantFlag id %d.", quantFlag);
     ge::DataType expandXDtype = ge::DT_INT8;
-    if (!quantFlag && (*quantMode == QuantMode::QUANT_MODE_NO_QUANT)) {
+    if (!quantFlag && (static_cast<QuantMode>(*quantMode) == QuantMode::QUANT_MODE_NO_QUANT)) {
         expandXDtype = xDtype;
     } else if ((yDtypePtr != nullptr) && (*yDtypePtr != ge::DT_UNDEFINED)) {
         int64_t yDtype = *yDtypePtr;

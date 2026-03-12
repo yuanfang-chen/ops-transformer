@@ -159,7 +159,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context) {
 }
 
 static ge::graphStatus SetHcommCfg([[maybe_unused]] gert::TilingContext *context,
-                        DistributeBarrierTilingData *tiling,
+                        const DistributeBarrierTilingData *tiling,
                         const std::string group) {
   OPS_LOG_D(A_INNER_DEBUG_BARRIER, "distributeBarrier group = %s",
             group.c_str());
