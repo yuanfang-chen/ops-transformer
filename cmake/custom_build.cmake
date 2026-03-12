@@ -711,8 +711,8 @@ target_link_libraries(
 target_link_libraries(
     cust_opmaster
     PUBLIC ${OPHOST_NAME}_tiling_obj
-    PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
-    PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
+    PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:${OPHOST_NAME}_opmaster_ct_gentask_obj>
+    PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:${COMMON_NAME}_obj>
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
 )
 
