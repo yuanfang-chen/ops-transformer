@@ -74,14 +74,16 @@ inline __aicore__ void MC2MXQuantMMWrapper<MMTilingType, MMType>::End() {}
 // 计算节点的上下文数据类型声明
 #ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_MX_QUANT
 #define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_MX_QUANT(ContextType) \
-    using ContextType = MC2MMContext<MXQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>
+    using ContextType = MC2KernelTemplate::MC2MMContext<\
+        MC2KernelTemplate::MXQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>
 #endif
 // 使用MatMulASWKernel算子作为计算节点的计算实现
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType) \
-    using ComputationType = MC2MXQuantMMWrapper<\
+    using ComputationType = MC2KernelTemplate::MC2MXQuantMMWrapper<\
         DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams,\
-        MatMulASWKernel<DTYPE_X1, DTYPE_X2, AscendC::fp8_e8m0_t, float, DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE>>
+        AscendC::MatMulASWKernel<DTYPE_X1, DTYPE_X2, AscendC::fp8_e8m0_t, float, DTYPE_Y,\
+            CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE>>
 #endif
 }; // namespace MC2KernelTemplate
 #endif
