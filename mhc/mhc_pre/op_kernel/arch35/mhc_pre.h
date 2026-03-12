@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef __mhc_pre_KERNEL_H_
-#define __mhc_pre_KERNEL_H_
+#ifndef MHC_PRE_KERNEL_H_
+#define MHC_PRE_KERNEL_H_
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -50,11 +50,11 @@ struct InitParams {
 };
 
 struct MatrixInfo {
-    uint32_t totalLength = 0;  // 总长度 (batch * sequence 或 T)
-    uint32_t nD = 0;           // n * D
-    uint32_t fusionSize = 0;   // phi的第二维
-    float normEps = 0.0f;      // 归一化epsilon
-    float hcEps = 0.0f;        // hyper connection epsilon
+    uint32_t totalLength = 0;
+    uint32_t nD = 0;
+    uint32_t fusionSize = 0;
+    float normEps = 0.0f;
+    float hcEps = 0.0f;
 };
 
 struct VectorOffsetParams {
@@ -65,39 +65,32 @@ struct VectorOffsetParams {
 };
 
 struct MNConfig {
-    uint64_t m = 0;  
-    uint64_t n = 0;  
-    uint64_t k = 0;  
-    uint64_t baseM = 0;  
-    uint64_t baseN = 0;           
-    uint64_t baseK = 0;      
-    uint64_t curbaseM = 0;      
-    uint64_t curBaseN = 0;      
-    uint64_t curBaseK = 0;      
+    uint64_t m = 0;
+    uint64_t n = 0;
+    uint64_t k = 0;
     uint64_t singleCoreM;
     uint64_t singleCoreN;
     uint64_t singleCoreK;
     uint64_t curSingleCoreM;
     uint64_t curSingleCoreN;
-    uint64_t curSingleCoreK;      
+    uint64_t curSingleCoreK;
 };
 
-// ========== 编译时常量 ==========
-// 分块大小常量
-static constexpr uint32_t V0_BASE_T = 16;      // 分块大小，暂定设置
-static constexpr uint64_t V1_BASE_T = 16;      // T维度分块大小 TODO
-static constexpr uint64_t V1_BASE_D = 32;      // D维度分块大小
-static constexpr uint32_t ND_LENGTH = 256;       // nD维度分块长度
+static constexpr uint32_t V0_BASE_T = 16;
+static constexpr uint64_t V1_BASE_T = 16;
+static constexpr uint64_t V1_BASE_D = 32;
+static constexpr uint32_t ND_LENGTH = 256;
 
-// 同步标志常量
-static constexpr uint64_t SYNC_V2C = 0x1;     // Vector→Cube同步标志
-static constexpr uint64_t SYNC_C2V = 0x2;      // Cube→Vector同步标志
-static constexpr uint64_t SYNC_C2V1 = 0x3;    // Cube→Vector同步标志1
+static constexpr uint64_t SYNC_V2C = 0x1;
+static constexpr uint64_t SYNC_C2V = 0x2;
+static constexpr uint64_t SYNC_C2V1 = 0x3;
 
-// 其他常量
-static constexpr uint32_t parallNum_ = 2;     // 并行数量
+static constexpr uint32_t PARALLEL_NUM = 2;
 
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>; // TPosition::TSCM
+static constexpr uint32_t DEFAULT_CHUNK_SIZE = 64;
+static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
+
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>; 
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
 using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
@@ -107,7 +100,14 @@ class MhcPreKernel {
 public:
     __aicore__ inline MhcPreKernel(MT &matmul) : mm(matmul) {}
     __aicore__ inline void Init(InitParams initParams);
+    __aicore__ inline void BindGlobalTensors(InitParams initParams);
+    __aicore__ inline void InitFromTilingData(const MhcPreTilingData *tilingData);
+    __aicore__ inline void InitMNConfig();
+    __aicore__ inline void InitHMixBuffer(InitParams initParams);
+    __aicore__ inline void InitPipeAndCoreIdx(TPipe *pipe);
     __aicore__ inline void Process();
+    __aicore__ inline void ProcessSingleBlock(uint64_t curblock, uint32_t tBlockNum);
+    __aicore__ inline void ProcessNdLoop(uint64_t outOffset);
     __aicore__ inline void AICProcess(uint32_t offsetNd, uint32_t outOffset);
     __aicore__ inline void InitUbBuffers();
     __aicore__ inline void VectorComputeOffset();
@@ -146,42 +146,35 @@ private:
     bool outFlag_;
     bool hasGamma_;
 
-    GlobalTensor<T> xGm_;      // 输入 x
-    GlobalTensor<P> phiGm_;    // 输入 phi
-    GlobalTensor<P> alphaGm_;  // 输入 alpha
-    GlobalTensor<P> biasGm_;   // 输入 bias
-    GlobalTensor<P> gammaGm_;   // 输入 gamma
-    GlobalTensor<T> hinGm_;    // 输出 hin
-    GlobalTensor<P> hPostGm_;  // 输出 h_post
-    GlobalTensor<P> hResGm_;   // 输出 h_res
-    GlobalTensor<P> invRmsGm_;   // 输出 h_res
-    GlobalTensor<P> hMixGm_;   // 输出 h_res
-    GlobalTensor<P> hPreGm_;   // 输出 h_res
+    GlobalTensor<T> xGm_;
+    GlobalTensor<P> phiGm_;
+    GlobalTensor<P> alphaGm_;
+    GlobalTensor<P> biasGm_;
+    GlobalTensor<P> gammaGm_;
+    GlobalTensor<T> hinGm_;
+    GlobalTensor<P> hPostGm_;
+    GlobalTensor<P> hResGm_;
+    GlobalTensor<P> invRmsGm_;
+    GlobalTensor<P> hMixGm_;
+    GlobalTensor<P> hPreGm_;
     GlobalTensor<P> xFloatGm_;
 
-    // TODO: 使用LocalTensor构造函数和同步指令
     TQue<QuePosition::VECIN, 1> xInQueue_;
-    TQue<QuePosition::VECIN, 1> biasQueue_;
     TQue<QuePosition::VECIN, 1> gammaInQueue_;
     TQue<QuePosition::VECOUT, 1> invRmsOutQueue_;
     TQue<QuePosition::VECOUT, 1> outQueue_;
     TQue<QuePosition::VECIN, 1> biasInQue_;
-
-    // TQue<TPosition::TSCM, 1> L1AInQue_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;
     TBuf<TPosition::VECCALC> alphaBuf_;
 
     LocalTensor<P> inputBuff_;
     LocalTensor<P> hPreBuff_;
-    LocalTensor<P> hPreBrcb_;
     LocalTensor<P> hPostBuff_;
     LocalTensor<P> hResBuff_;
-    LocalTensor<uint8_t> brcbBuff_;
 
     LocalTensor<P> alphaInUb_;
     LocalTensor<P> biasInUb_;
-    LocalTensor<P> broadCastTmpUb_;
     LocalTensor<P> matmulRes_;
 
     LocalTensor<T> xLocal_;
@@ -192,21 +185,18 @@ private:
     LocalTensor<uint32_t> postOffsetBuf_;
     LocalTensor<uint32_t> resOffsetBuf_;
 
-    LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
-
     TPipe *pipe_;
     MatrixInfo matrixInfo_;
     VectorOffsetParams vectorOffset_;
 
     const MhcPreTilingData *tiling_;
     
-    // 运行时状态变量
-    uint32_t chunTSize_ = 64;
-    uint32_t v1ChunkDSize_ = 5120;
-    uint32_t curSingleT_ = 64;  // 当前块的实际大小（可能小于singleM_，如果是最后一个块）
+    uint32_t chunTSize_ = DEFAULT_CHUNK_SIZE;
+    uint32_t v1ChunkDSize_ = DEFAULT_V1_CHUNK_D_SIZE;
+    uint32_t curSingleT_ = DEFAULT_CHUNK_SIZE;
     uint32_t coreIdx_ = 0;
     uint32_t subBlockIdx_ = 0;
-    float scaleMean_ = 0.0f; // 1/nD
+    float scaleMean_ = 0.0f;
     uint64_t globalOffsetM_ = 0;
     uint32_t vectorCount_ = 0;
     uint32_t cubeCount_ = 0;
@@ -217,7 +207,18 @@ private:
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
 {
-    // 1. 绑定GlobalTensor
+    BindGlobalTensors(initParams);
+    InitFromTilingData(initParams.tilingData);
+    InitMNConfig();
+    InitHMixBuffer(initParams);
+    InitPipeAndCoreIdx(initParams.tPipeIn);
+    InitUbBuffers();
+    SyncAll<false>();
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::BindGlobalTensors(InitParams initParams)
+{
     xGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.x));
     phiGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.phi));
     alphaGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.alpha));
@@ -226,17 +227,17 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     hinGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.hin));
     hPostGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_post));
     hResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_res));
-
     invRmsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.inv_rms));
-    hPreGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_pre)); 
-
+    hPreGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_pre));
     xFloatGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace));
+}
 
-    // 2. 获取TilingData进行初始化
-    tiling_ = initParams.tilingData;
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitFromTilingData(const MhcPreTilingData *tilingData)
+{
+    tiling_ = tilingData;
     matrixInfo_.totalLength = tiling_->totalLength;
     matrixInfo_.nD = tiling_->nD;
-
     N_ = tiling_->N;
     D_ = tiling_->D;
     matrixInfo_.fusionSize = tiling_->fusionSize;
@@ -249,7 +250,11 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     chunTSize_ = tiling_->chunkTSize;
     v1ChunkDSize_ = tiling_->v1ChunkDSize;
     hasGamma_ = (tiling_->hasGamma != 0);
+}
 
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitMNConfig()
+{
     mnConfig_.m = matrixInfo_.totalLength;
     mnConfig_.n = matrixInfo_.fusionSize;
     mnConfig_.k = matrixInfo_.nD;
@@ -260,22 +265,25 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     mnConfig_.curSingleCoreN = mnConfig_.singleCoreN;
     mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
     curSingleT_ = chunTSize_;
+}
 
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitHMixBuffer(InitParams initParams)
+{
     if (outFlag_) {
         hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_mix));
+    } else {
+        hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace +
+            mnConfig_.singleCoreM * mnConfig_.singleCoreK * PARALLEL_NUM * sizeof(P) * coreNum_));
     }
-    else {
-        hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + mnConfig_.singleCoreM * mnConfig_.singleCoreK * parallNum_ * sizeof(P) * coreNum_));
-    }
+}
 
-    // 3. 申请UB
-    pipe_ = initParams.tPipeIn;
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitPipeAndCoreIdx(TPipe *pipe)
+{
+    pipe_ = pipe;
     coreIdx_ = GetBlockIdx();
     subBlockIdx_ = GetSubBlockIdx();
-
-    InitUbBuffers();
-    
-    SyncAll<false>();
 }
 
 template <class T, class P>
@@ -285,18 +293,18 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
         return;
     }
 
-    pipe_->InitBuffer(xInQueue_, 2, 80 * 1024); // 2 * 80KB
-    pipe_->InitBuffer(outQueue_, 2, 20 * 1024); // 2 * 20KB
-    pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P)); // 1KB
+    pipe_->InitBuffer(xInQueue_, 2, 80 * 1024);
+    pipe_->InitBuffer(outQueue_, 2, 20 * 1024);
+    pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P));
 
     if (hasGamma_) {
-        pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P)); // 1KB
+        pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P));
     }
-    
-    pipe_->InitBuffer(tmpBuff_, 40 * 1024); // 40KB
 
-    pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P)); // 1KB
-    pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P)); // 1KB
+    pipe_->InitBuffer(tmpBuff_, 40 * 1024);
+
+    pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P));
+    pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P));
     alphaInUb_ = alphaBuf_.Get<P>();
 
     preOffsetBuf_ = tmpBuff_.GetWithOffset<uint32_t>(uint32_t(mnConfig_.n * V1_BASE_T), 0);
@@ -311,8 +319,6 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
     
     hPostBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
-    // hResBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
-    // buffOffset += V1_BASE_T * N_ * sizeof(P);
 }
 
 template <class T, class P>
@@ -323,61 +329,67 @@ __aicore__ inline void MhcPreKernel<T, P>::Process()
         coreIdx_ = GetBlockIdx() / 2;
         AIVPreLoad();
     }
-    
+
     for (uint64_t curblock = coreIdx_; curblock < tBlockNum; curblock += coreNum_) {
-        globalOffsetM_ = curblock * chunTSize_;
-        curSingleT_= chunTSize_;
-        if (curblock == tBlockNum - 1) { // 尾块处理
-            mnConfig_.curSingleCoreM = totalLength_ - globalOffsetM_; 
-            curSingleT_= matrixInfo_.totalLength - curblock * chunTSize_;
-        }
-        if ASCEND_IS_AIV {
-            VectorComputeOffset();
-        }
-
-        uint64_t outOffset = 0;
-        if ASCEND_IS_AIC {
-            if (outFlag_) {
-                outOffset = globalOffsetM_ * mnConfig_.n;
-            } else {
-                outOffset = mnConfig_.singleCoreM * mnConfig_.singleCoreN * ((mmCount_ % 2) * coreNum_ + coreIdx_);
-            }
-            mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
-        }
-
-        // V0 -> C0
-        for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
-            // V0 Process
-            if ASCEND_IS_AIV {
-                uint32_t curNdLen = MhcPreUtils::Min(ND_LENGTH, matrixInfo_.nD - offsetNd);
-                if (vectorCount_ >= 2) {
-                    AscendC::CrossCoreWaitFlag(SYNC_C2V);
-                }
-                V0Proluge(curNdLen, offsetNd);
-                CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C);
-                vectorCount_++;
-            }
-
-            // C0 Process
-            if ASCEND_IS_AIC {
-                AscendC::CrossCoreWaitFlag(SYNC_V2C);
-                AICProcess(offsetNd, outOffset);
-                CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V);
-            }
-        }
-        mmCount_++;
-        CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V1);
-        
-        if ASCEND_IS_AIV {
-            V0PostProcess(curblock, tBlockNum);
-            // V1 Process
-            AIV1Process(curblock, tBlockNum);
-            vec1Count_ ++;
-        }
+        ProcessSingleBlock(curblock, tBlockNum);
     }
+
     if ASCEND_IS_AIV {
         invRmsOutQueue_.FreeTensor(invRmsUb_);
         biasInQue_.FreeTensor(biasInUb_);
+    }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::ProcessSingleBlock(uint64_t curblock, uint32_t tBlockNum)
+{
+    globalOffsetM_ = curblock * chunTSize_;
+    curSingleT_ = chunTSize_;
+    if (curblock == tBlockNum - 1) {
+        mnConfig_.curSingleCoreM = totalLength_ - globalOffsetM_;
+        curSingleT_ = matrixInfo_.totalLength - curblock * chunTSize_;
+    }
+    if ASCEND_IS_AIV {
+        VectorComputeOffset();
+    }
+
+    uint64_t outOffset = 0;
+    if ASCEND_IS_AIC {
+        outOffset = outFlag_ ? globalOffsetM_ * mnConfig_.n :
+            mnConfig_.singleCoreM * mnConfig_.singleCoreN * ((mmCount_ % 2) * coreNum_ + coreIdx_);
+        mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
+    }
+
+    ProcessNdLoop(outOffset);
+    mmCount_++;
+    CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V1);
+
+    if ASCEND_IS_AIV) {
+        V0PostProcess(curblock, tBlockNum);
+        AIV1Process(curblock, tBlockNum);
+        vec1Count_++;
+    }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::ProcessNdLoop(uint64_t outOffset)
+{
+    for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
+        if ASCEND_IS_AIV {
+            uint32_t curNdLen = MhcPreUtils::Min(ND_LENGTH, matrixInfo_.nD - offsetNd);
+            if (vectorCount_ >= 2) {
+                AscendC::CrossCoreWaitFlag(SYNC_C2V);
+            }
+            V0Proluge(curNdLen, offsetNd);
+            CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C);
+            vectorCount_++;
+        }
+
+        if ASCEND_IS_AIC {
+            AscendC::CrossCoreWaitFlag(SYNC_V2C);
+            AICProcess(offsetNd, outOffset);
+            CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V);
+        }
     }
 }
 
@@ -412,10 +424,10 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess(uint32_t offsetNd, uint32_
         mnConfig_.curSingleCoreK = mnConfig_.k - offsetNd;
     }
 
-    uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % parallNum_) * coreNum_);
+    uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % PARALLEL_NUM) * coreNum_);
 
-    mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK, mnConfig_.k); // MNK
-    mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK);           // SingleCoreMNK
+    mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK, mnConfig_.k);
+    mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK);
     mm.SetTensorA(xFloatGm_[xOffset]);
     mm.SetTensorB(phiGm_[offsetNd], true);
     mm.IterateAll(hMixGm_[outOffset], offsetNd == 0 ? 0 : 1);
@@ -426,7 +438,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess(uint32_t offsetNd, uint32_
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::VectorComputeOffset()
 {
-    uint64_t aliginSingleM = Ceil(curSingleT_ / 2, 8) * 8; // 32Byte对齐
+    uint64_t aliginSingleM = Ceil(curSingleT_ / 2, 8) * 8;
     vectorOffset_.singleCoreM = aliginSingleM <  curSingleT_ ? aliginSingleM : curSingleT_;
     if (subBlockIdx_ == 0) {
         vectorOffset_.offsetMStart = 0;
@@ -452,7 +464,7 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
     {
         MicroAPI::MaskReg mask = MicroAPI::CreateMask<P>();
         for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
-            uint32_t elementNum = nSize; // 每次update会减去VL_T
+            uint32_t elementNum = nSize;
             MicroAPI::RegTensor<P> sumReg;
             if constexpr (isFirstND) {
                 MicroAPI::Duplicate(sumReg, 0);
@@ -470,11 +482,8 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
                 uint32_t xInOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
                 // TODO: DataCopy换成LoadAlign和StoreAlign
                 MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xIn + xInOffset);
-                // cast b16 -> fp32
                 MicroAPI::MaskReg maskN4B32 = MicroAPI::UpdateMask<P>(elementNum);
                 MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, maskN4B32);
-                // castX * gamma
-                // regbase内判断都用constexpr
                 if constexpr (hasGamma) { 
                     MicroAPI::LoadAlign(gammaReg, gamma + vfBlockIdx * eleNumPerVf);
                     MicroAPI::Mul(xMulReg, gammaReg, xFp32Reg, maskN4B32);
@@ -485,15 +494,12 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
                 MicroAPI::StoreAlign(xDst + dstUbOffset, xMulReg, maskN4B32);
 
-                // xFp32 * xFp32
                 MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN4B32);
 
-                // reducesum, 累加到sumReg第一个元素上
                 MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, xSquaReg, maskN4B32);
                 MicroAPI::Add(sumReg, sumReg, tmpSumReg, maskN4B32);
             }
-            
-            // 搬出地址不32B对齐
+
             MicroAPI::Store(invRmsDst + mIdx, sumReg, 1);
         }
     }
@@ -541,36 +547,36 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Proluge(uint32_t curNdLen, uint32_t
         xLocal_ = xInQueue_.DeQue<T>();
 
         uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
-        LocalTensor<P> aL1Ub = outQueue_.AllocTensor<P>(); // aL1_; //[aL1Offset]; // FIX
+        LocalTensor<P> aL1Tensor = outQueue_.AllocTensor<P>();
+        xLocal_ = xInQueue_.AllocTensor<T>();
+        DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
+        xLocal_ = xInQueue_.DeQue<T>();
 
         if (hasGamma_) {
-            // copy gamma
             gammaUb_ = gammaInQueue_.AllocTensor<P>();
             DataCopyGamma(curNdLen, offsetNd);
             gammaUb_ = gammaInQueue_.DeQue<P>();
 
             if (offsetNd == 0) {
-                VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Tensor.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
             } else {
-                VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Tensor.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
             }
-            // PipeBarrier<PIPE_V>();
             gammaInQueue_.FreeTensor(gammaUb_);
         } else {
             if (offsetNd == 0) {
-                VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Tensor.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
             } else {
-                VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Tensor.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
             }
         }
 
-        // TODO: DEBUG FOR C0
-        outQueue_.EnQue<P>(aL1Ub);
-        aL1Ub = outQueue_.DeQue<P>();
-        DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
+        outQueue_.EnQue<P>(aL1Tensor);
+        aL1Tensor = outQueue_.DeQue<P>();
+        DataCopyOutToWorkSpace(aL1Tensor, curMLen, curNdLen, offsetM, offsetNd);
 
         xInQueue_.FreeTensor(xLocal_);
-        outQueue_.FreeTensor(aL1Ub);
+        outQueue_.FreeTensor(aL1Tensor);
     }
 }
 
@@ -589,7 +595,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64
     if (curBlock == tBlockNum - 1) {
         curSingleT_= matrixInfo_.totalLength - curBlock * chunTSize_;
     }
-    VectorComputeOffset(); // 计算0核和1核的偏移
+    VectorComputeOffset();
     if (vectorOffset_.singleCoreM <= 0) {
         return;
     }
@@ -598,10 +604,10 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64
     uint64_t lenD = 0;
     uint64_t singleCoreOffset = 0;
     for (int offsetT = vectorOffset_.offsetMStart; offsetT < vectorOffset_.offsetMEnd; offsetT += V1_BASE_T) {
-        lenT = V1_BASE_T < vectorOffset_.offsetMEnd - offsetT ? V1_BASE_T : vectorOffset_.offsetMEnd - offsetT; // 最大16
-        lenD = v1ChunkDSize_; // 5120
+        lenT = V1_BASE_T < vectorOffset_.offsetMEnd - offsetT ? V1_BASE_T : vectorOffset_.offsetMEnd - offsetT;
+        lenD = v1ChunkDSize_;
         // H 切分
-        AIV1Prologue(offsetT, lenT, singleCoreOffset); // gather 切分出 hpost、hpre、hres
+        AIV1Prologue(offsetT, lenT, singleCoreOffset);
 
         AIV1ProcessHPost(offsetT, lenT);
         
@@ -615,7 +621,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>:: AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
 {
-    auto hInDealBuf = inputBuff_; // 最大80K
+    auto hInDealBuf = inputBuff_;
     // PipeBarrier<PIPE_ALL>();
     // x[t,n,d] hpre[t,n] -> h_in[t,d]
     for (uint32_t tIdx = 0; tIdx < lenT; tIdx++) { 
@@ -662,7 +668,7 @@ __aicore__ inline void MhcPreKernel<T, P>:: AIV1ProcessHIn(uint64_t offsetT, uin
             hinOut = outQueue_.DeQue<T>();
             // copyout
             DataCopyExtParams copyParams;
-            copyParams.blockCount = 1; // 行数
+            copyParams.blockCount = 1;
             copyParams.blockLen = uint32_t(lenD * sizeof(T));
             copyParams.srcStride = 0;
             copyParams.dstStride = 0;
@@ -913,7 +919,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
         HMixOffset = mnConfig_.singleCoreM * mnConfig_.singleCoreN * ((vec1Count_ % 2) * coreNum_ + coreIdx_) + offsetT * mnConfig_.n;
     }
     HMixCopyIn(HMixOffset, lenT);
-    matmulRes_ = xInQueue_.DeQue<P>(); // TODO
+    matmulRes_ = xInQueue_.DeQue<P>();
     
     __ubuf__ P* matmulPtr = (__ubuf__ P*)matmulRes_.GetPhyAddr();
     __ubuf__ P* invRmsPtr = (__ubuf__ P*)invRmsUb_.GetPhyAddr();
@@ -923,7 +929,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
     __ubuf__ P* hPostBuffPtr = (__ubuf__ P*)hPostBuff_.GetPhyAddr();
     __ubuf__ P* hResOutLocalPtr = (__ubuf__ P*)hResOutLocal.GetPhyAddr();
 
-    uint32_t eleNumPerVf = 256 / sizeof(P); // TODO：待提出替换为全局变量
+    uint32_t eleNumPerVf = 256 / sizeof(P);
     __VEC_SCOPE__
     {
         MicroAPI::RegTensor<P> matmulResReg;
@@ -1187,19 +1193,14 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen,
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
 {
-    // outQueue_.EnQue<P>(xFp32Ub_);
-    // xFp32Ub_ = outQueue_.DeQue<P>();
-
     DataCopyParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
     copyParams.blockLen = uint32_t(curNdLen * sizeof(P));
     copyParams.srcStride = uint32_t(0);
     copyParams.dstStride = uint32_t(0);
 
-    uint64_t offset = chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % parallNum_) * coreNum_) + offsetM * curNdLen;
+    uint64_t offset = chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % PARALLEL_NUM) * coreNum_) + offsetM * curNdLen;
     DataCopyPad(xFloatGm_[offset], x, copyParams);
-    // uint64_t offset = offsetM * curNdLen;
-    // DataCopy(aL1_[offset], x, copyParams);
 }
 
 } // namespace MhcPre
