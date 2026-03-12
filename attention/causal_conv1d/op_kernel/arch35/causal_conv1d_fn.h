@@ -72,15 +72,9 @@ public:
     __aicore__ inline void Process();
 
 private:
-    // 主计算：按 BS 切分场景的双层循环
-    __aicore__ inline void ProcessMainComputeBS(
-        uint64_t bsStart,
-        uint32_t loopNumBS,   uint32_t ubFactorBS,   uint32_t ubTailFactorBS,
-        uint32_t loopNumDim,  uint32_t ubFactorDim,  uint32_t ubTailFactorDim);
-
-    // 主计算：按 Dim 切分场景
-    __aicore__ inline void ProcessMainComputeDim(
-        uint64_t dimStart,
+    // 主计算：二维切分场景（同时切 BS 和 Dim）
+    __aicore__ inline void ProcessMainCompute(
+        uint64_t bsStart, uint64_t dimStart,
         uint32_t loopNumBS,   uint32_t ubFactorBS,   uint32_t ubTailFactorBS,
         uint32_t loopNumDim,  uint32_t ubFactorDim,  uint32_t ubTailFactorDim);
 
@@ -151,25 +145,41 @@ private:
     uint32_t dim_;
     uint32_t kernelWidth_;       // K
     uint32_t batchSize_;
-    uint64_t blockFactor_;
-    uint64_t blockIndex_;
+
+    // 核内切分参数（主核）
     uint32_t loopNumBS_;
     uint32_t loopNumDim_;
     uint32_t ubFactorBS_;
     uint32_t ubTailFactorBS_;
     uint32_t ubFactorDim_;
     uint32_t ubTailFactorDim_;
+
+    // 核内切分参数（尾核）
     uint32_t tailBlockloopNumBS_;
     uint32_t tailBlockloopNumDim_;
     uint32_t tailBlockubFactorBS_;
     uint32_t tailBlockubTailFactorBS_;
     uint32_t tailBlockubFactorDim_;
     uint32_t tailBlockubTailFactorDim_;
+
+    // dim 方向核间切分
+    uint32_t dimCoreNum_;            // dim 方向总核数
+    uint32_t dimRemainderCores_;     // dim 方向前多少个核是主核
+    uint32_t dimBlockFactor_;        // dim 方向主核处理的大小
+    uint32_t dimBlockTailFactor_;    // dim 方向尾核处理的大小
+
+    // BS 方向核间切分
+    uint32_t bsCoreNum_;             // BS 方向总核数
+    uint32_t bsRemainderCores_;      // BS 方向前多少个核是主核
+    uint32_t bsBlockFactor_;         // BS 方向主核处理的长度（含 overlap）
+    uint32_t bsBlockTailFactor_;     // BS 方向尾核处理的长度
+
     uint32_t realCoreNum_;
 
     // stride（跨 sequence 的步长）
     uint32_t xStride_;           // x 的行 stride（>= dim_）
     uint32_t cacheStride_;       // cacheStates 的行 stride（>= dim_）
+    uint32_t residualConnection_; // 是否加残差：0-不需要，1-需要
 
     // 有效 batch 范围（tiling 已过滤掉头尾的无效 batch）
     uint32_t validBatchStart_;   // 有效 batch 的起始索引
@@ -178,8 +188,12 @@ private:
     uint32_t validSeqStart_;     // 有效序列在 x 中的起始位置
     uint32_t validSeqLen_;       // 有效序列的总长度
 
-    // 运行时辅助
-    bool     isTailBlock_;
+    // 运行时辅助：当前核的二维索引
+    uint32_t bsIdx_;             // BS 方向的核索引
+    uint32_t dimIdx_;            // Dim 方向的核索引
+    bool     isBsTailCore_;      // BS 方向是否为尾核（idx >= bsRemainderCores）
+    bool     isDimTailCore_;     // Dim 方向是否为尾核（idx >= dimRemainderCores）
+    bool     initialStateModeNull_;  // initialStateMode 是否为空指针（None），为空时按 hasInitState=2 处理
     uint32_t maxUbBS_;     // max(ubFactorBS, ubTailFactorBS, tail variants)
     uint32_t maxUbDim_;    // max(ubFactorDim, ubTailFactorDim, tail variants)
 
@@ -251,25 +265,41 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     dim_                       = tiling->dim;
     kernelWidth_               = tiling->kernelWidth;
     batchSize_                 = tiling->batch;
-    blockFactor_               = tiling->blockFactor;
-    blockIndex_                = tiling->blockIndex;
+
+    // 核内切分参数（主核）
     loopNumBS_                 = tiling->loopNumBS;
     loopNumDim_                = tiling->loopNumDim;
     ubFactorBS_                = tiling->ubFactorBS;
     ubTailFactorBS_            = tiling->ubTailFactorBS;
     ubFactorDim_               = tiling->ubFactorDim;
     ubTailFactorDim_           = tiling->ubTailFactorDim;
+
+    // 核内切分参数（尾核）
     tailBlockloopNumBS_        = tiling->tailBlockloopNumBS;
     tailBlockloopNumDim_       = tiling->tailBlockloopNumDim;
     tailBlockubFactorBS_       = tiling->tailBlockubFactorBS;
     tailBlockubTailFactorBS_   = tiling->tailBlockubTailFactorBS;
     tailBlockubFactorDim_      = tiling->tailBlockubFactorDim;
     tailBlockubTailFactorDim_  = tiling->tailBlockubTailFactorDim;
+
+    // dim 方向核间切分
+    dimCoreNum_                = tiling->dimCoreNum;
+    dimRemainderCores_         = tiling->dimRemainderCores;
+    dimBlockFactor_            = tiling->dimBlockFactor;
+    dimBlockTailFactor_        = tiling->dimBlockTailFactor;
+
+    // BS 方向核间切分
+    bsCoreNum_                 = tiling->bsCoreNum;
+    bsRemainderCores_          = tiling->bsRemainderCores;
+    bsBlockFactor_             = tiling->bsBlockFactor;
+    bsBlockTailFactor_         = tiling->bsBlockTailFactor;
+
     realCoreNum_               = tiling->realCoreNum;
 
     // stride（x 和 cacheStates 非连续存储）
     xStride_                   = tiling->xStride;
     cacheStride_               = tiling->cacheStride;
+    residualConnection_        = tiling->residualConnection;
 
     // 有效 batch 范围
     validBatchStart_           = tiling->validBatchStart;
@@ -278,8 +308,16 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     validSeqStart_             = tiling->validSeqStart;
     validSeqLen_               = tiling->validSeqLen;
 
+    // 计算当前核的二维索引
     uint32_t blockIdx = GetBlockIdx();
-    isTailBlock_ = (blockIdx == realCoreNum_ - 1);
+    bsIdx_  = blockIdx / dimCoreNum_;     // BS 方向的核索引
+    dimIdx_ = blockIdx % dimCoreNum_;     // Dim 方向的核索引
+
+    // 判断当前核在两个方向是主核还是尾核
+    isBsTailCore_  = (bsIdx_  >= bsRemainderCores_);
+    isDimTailCore_ = (dimIdx_ >= dimRemainderCores_);
+
+    initialStateModeNull_ = (initialStateMode == nullptr);  // 检查是否为空指针
 
     // 计算各方向上实际的最大 UB 因子（用于 buffer 分配）
     maxUbBS_ = ubFactorBS_;
@@ -300,12 +338,15 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     cacheStatesGM_.SetGlobalBuffer((__gm__ T*)convStates);
     cacheIndicesGM_.SetGlobalBuffer((__gm__ int32_t*)cacheIndices, batchSize_);
     seqStartIndexGM_.SetGlobalBuffer((__gm__ int32_t*)queryStartLoc, batchSize_ + 1);
-    hasInitialStateGM_.SetGlobalBuffer((__gm__ int32_t*)initialStateMode, batchSize_);
+    if (!initialStateModeNull_) {
+        hasInitialStateGM_.SetGlobalBuffer((__gm__ int32_t*)initialStateMode, batchSize_);
+    }
     yGM_.SetGlobalBuffer((__gm__ T*)y, cuSeqLen_ * dim_);
     if (workspace != nullptr) {
         GM_ADDR userWS = GetUserWorkspace(workspace);
         if (userWS != nullptr) {
-            workspaceGM_.SetGlobalBuffer((__gm__ T*)userWS);
+            // workspace 按 bsIdx 分配，每个 bsIdx 对应 (K-1) * dim_ 的空间
+            workspaceGM_.SetGlobalBuffer((__gm__ T*)userWS, bsCoreNum_ * (kernelWidth_ - 1) * dim_);
         }
     }
 
@@ -326,20 +367,6 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     pipe_.InitBuffer(indicesInQueue_,  1,           indicesBytes);
     pipe_.InitBuffer(hasInitInQueue_,  1,           hasInitBytes);
     pipe_.InitBuffer(xQueue_,          BUFFER_NUM,  xBufBytes);
-
-    // Debug: 打印所有初始化后的成员变量   
-    //PRINTF("[Init] blockIdx=%u, cuSeqLen=%u, dim=%u, kernelWidth=%u, batchSize=%u, blockFactor=%lu, blockIndex=%lu, "
-        //    "loopNumBS=%u, loopNumDim=%u, ubFactorBS=%u, ubTailFactorBS=%u, ubFactorDim=%u, ubTailFactorDim=%u, "
-        //    "tailBlockloopNumBS=%u, tailBlockloopNumDim=%u, tailBlockubFactorBS=%u, tailBlockubTailFactorBS=%u, "
-        //    "tailBlockubFactorDim=%u, tailBlockubTailFactorDim=%u, realCoreNum=%u, xStride=%u, cacheStride=%u, "
-        //    "validBatchStart=%u, validBatchCount=%u, validBatchEnd=%u, validSeqStart=%u, validSeqLen=%u, "
-        //    "isTailBlock=%d, maxUbBS=%u, maxUbDim=%u\n",
-        //    GetBlockIdx(), cuSeqLen_, dim_, kernelWidth_, batchSize_, blockFactor_, blockIndex_,
-        //    loopNumBS_, loopNumDim_, ubFactorBS_, ubTailFactorBS_, ubFactorDim_, ubTailFactorDim_,
-        //    tailBlockloopNumBS_, tailBlockloopNumDim_, tailBlockubFactorBS_, tailBlockubTailFactorBS_,
-        //    tailBlockubFactorDim_, tailBlockubTailFactorDim_, realCoreNum_, xStride_, cacheStride_,
-        //    validBatchStart_, validBatchCount_, validBatchEnd_, validSeqStart_, validSeqLen_,
-        //    (int)isTailBlock_, maxUbBS_, maxUbDim_);
 }
 
 // ============================================================================
@@ -367,11 +394,18 @@ __aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
         cacheIdxLocal_ = indicesInQueue_.DeQue<int32_t>();
     }
     // hasInitialState (initialStateMode)
+    // 如果 initialStateMode 为空（None），则填充 2（按 hasInitState=2 的逻辑处理）
     {
         LocalTensor<int32_t> tmp = hasInitInQueue_.AllocTensor<int32_t>();
-        DataCopyExtParams cpParams{1, static_cast<uint16_t>(batchSize_ * sizeof(int32_t)), 0, 0, 0};
-        DataCopyPadExtParams<int32_t> padParams{false, 0, 0, 0};
-        DataCopyPad(tmp, hasInitialStateGM_[0], cpParams, padParams);
+        if (initialStateModeNull_) {
+            // initialStateMode 为 None，填充 2
+            Duplicate(tmp, (int32_t)2, batchSize_);
+        } else {
+            // 从 GM 加载
+            DataCopyExtParams cpParams{1, static_cast<uint16_t>(batchSize_ * sizeof(int32_t)), 0, 0, 0};
+            DataCopyPadExtParams<int32_t> padParams{false, 0, 0, 0};
+            DataCopyPad(tmp, hasInitialStateGM_[0], cpParams, padParams);
+        }
         hasInitInQueue_.EnQue(tmp);
         hasInitLocal_ = hasInitInQueue_.DeQue<int32_t>();
     }
@@ -463,8 +497,8 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
     uint32_t i = iStart;
     while (i < N) {
         // 确保上一轮迭代的所有操作完成
-        PipeBarrier<PIPE_ALL>();
-        PipeBarrier<PIPE_ALL>();
+        // PipeBarrier<PIPE_ALL>();
+        // PipeBarrier<PIPE_ALL>();
 
         int32_t hasInitState = hasInitLocal_.GetValue(curBatchIdx);
         int64_t cIdx = cacheIdxLocal_.GetValue(curBatchIdx);
@@ -571,7 +605,6 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
         WriteCacheShortBatch(cacheLocal, xLocal, i, dimSize, dimBlocks, dimStart,
                              cacheSkipBlocks, curBatchLen, cIdx, curBatchIdx);
     }
-
     // 卷积计算（hasInitState == 2 时跳过）
     if (hasInitState != 2) {
         //PRINTF("[ProcessTokensNeedCache] Conv loop: step=%u tokens\n", step);
@@ -582,25 +615,30 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
             //PRINTF("[ProcessTokensNeedCache] Conv j=%u, seqPos=%u, stateSLen=%u, xSLen=%u, xSlice offset=%u, stateSlice offset=%u\n",j, seqPos, stateSLen, xSLen, i * dimSize, seqPos * dimSize);
             LocalTensor<T> xSlice = xLocal[i * dimSize];
             LocalTensor<T> stateSlice = cacheLocal[seqPos * dimSize];
-            Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSize);
+            Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSize, residualConnection_);
             // 每次 VF 计算后同步，确保写入完成
         }
         PipeBarrier<PIPE_ALL>();
+        // 写回 y
+        uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
+        //PRINTF("[ProcessTokensNeedCache] y DataCopy: blockCount=%u, blockLen=%u, dstStride=%u, yGmOffset=%lu, cacheLocalOffset=%u\n",step, dimBlocks * ALIGN_BYTES, ySkipBlocks * ALIGN_BYTES, yGmOffset, curSequenceIdx * dimSize);
+        DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                            0, ySkipBlocks * ALIGN_BYTES, 0};
+        DataCopyPad(yGM_[yGmOffset],
+                    cacheLocal[curSequenceIdx * dimSize], ycp);
     } else {
-        //PRINTF("[ProcessTokensNeedCache] Skipping conv (hasInitState==2)\n");
+        // hasInitState == 2，跳过卷积
+        if (residualConnection_ == 1) {
+            // 需要残差连接，直接把 x 搬到 yGM（y = x）
+            uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
+            DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                                  0, ySkipBlocks * ALIGN_BYTES, 0};
+            DataCopyPad(yGM_[yGmOffset], xLocal[i * dimSize], ycp);
+        }
+        // 如果 residualConnection_ == 0，cacheLocal 已填充 0，后面搬到 yGM 就是 0
     }
-
-    // 写回 y
-    uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
-    //PRINTF("[ProcessTokensNeedCache] y DataCopy: blockCount=%u, blockLen=%u, dstStride=%u, yGmOffset=%lu, cacheLocalOffset=%u\n",step, dimBlocks * ALIGN_BYTES, ySkipBlocks * ALIGN_BYTES, yGmOffset, curSequenceIdx * dimSize);
-    DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                          0, ySkipBlocks * ALIGN_BYTES, 0};
-    DataCopyPad(yGM_[yGmOffset],
-                cacheLocal[curSequenceIdx * dimSize], ycp);
-
     // 等待 MTE3 写 GM 完成
     PipeBarrier<PIPE_ALL>();
-
     //PRINTF("[ProcessTokensNeedCache] EXIT: returning step=%u\n", step);
     cacheQueue_.FreeTensor(cacheLocal);
     return step;
@@ -641,15 +679,19 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
 
     // 卷积计算
     //PRINTF("[ProcessTokensNoCache] Conv loop: step=%u tokens\n", step);
-    for (uint32_t j = 0; j < step; j++) {
-        uint32_t tokenIdx = i + j;
-        uint32_t xStartIdx = tokenIdx - (K - 1);  // 卷积窗口起始位置
-        //PRINTF("[ProcessTokensNoCache] Conv j=%u, tokenIdx=%u, xStartIdx=%u, xSlice offset=%u, ySlice offset=%u\n",j, tokenIdx, xStartIdx, xStartIdx * dimSize, tokenIdx * dimSize);
-        LocalTensor<T> xSlice = xLocal[xStartIdx * dimSize];  // 输入：卷积窗口起始
-        LocalTensor<T> ySlice = xLocal[xStartIdx * dimSize];   // 输出：当前 token 位置
-        Conv1dNoNeedState(xSlice, weightLocal, ySlice, K, dimSize);
-        // 每次 VF 计算后同步，确保写入完成
-    }
+    // for (uint32_t j = 0; j < step; j++) {
+    //     uint32_t tokenIdx = i + j;
+    //     uint32_t xStartIdx = tokenIdx - (K - 1);  // 卷积窗口起始位置
+    //     //PRINTF("[ProcessTokensNoCache] Conv j=%u, tokenIdx=%u, xStartIdx=%u, xSlice offset=%u, ySlice offset=%u\n",j, tokenIdx, xStartIdx, xStartIdx * dimSize, tokenIdx * dimSize);
+    //     LocalTensor<T> xSlice = xLocal[xStartIdx * dimSize];  // 输入：卷积窗口起始
+    //     LocalTensor<T> ySlice = xLocal[xStartIdx * dimSize];   // 输出：当前 token 位置
+    //     Conv1dNoNeedState(xSlice, weightLocal, ySlice, K, dimSize);
+    //     // 每次 VF 计算后同步，确保写入完成
+    // }
+    uint32_t xStartIdx = i - (K - 1);
+    LocalTensor<T> xSlice = xLocal[xStartIdx * dimSize];  // 输入：卷积窗口起始
+    LocalTensor<T> ySlice = xLocal[xStartIdx * dimSize];   // 输出：当前 token 位置
+    Conv1dNoNeedState(xSlice, weightLocal, ySlice, step, dimSize, residualConnection_);
     PipeBarrier<PIPE_ALL>();
 
     // 写回 y
@@ -684,12 +726,11 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
 
     // 等待 cacheLocal 数据就绪（可能由 Duplicate 填充）
     PipeBarrier<PIPE_ALL>();
-
     if (needWriteWorkspace) {
-        uint32_t blockIdx = GetBlockIdx();
-        uint64_t wsOffset = (uint64_t)blockIdx * (K - 1) * dim_ + dimStart;
+        // workspace 按 bsIdx_ 分配，加上 dimStart 偏移
+        uint64_t wsOffset = (uint64_t)bsIdx_ * (K - 1) * dim_ + dimStart;
         // workspace 每行 dim_ 个元素，当前只写 dimSize 个，dstStride 跳过剩余部分
-        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T);
 
         if (cacheRowsToKeep > 0) {
             DataCopyExtParams wcp{static_cast<uint16_t>(cacheRowsToKeep),
@@ -738,12 +779,11 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
     uint32_t rowsToCopy = K - 1;
 
     bool needWriteWorkspace = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
-
     if (needWriteWorkspace) {
-        uint32_t blockIdx = GetBlockIdx();
-        uint64_t wsOffset = (uint64_t)blockIdx * (K - 1) * dim_ + dimStart;
+        // workspace 按 bsIdx_ 分配，加上 dimStart 偏移
+        uint64_t wsOffset = (uint64_t)bsIdx_ * (K - 1) * dim_ + dimStart;
         // workspace 每行 dim_ 个元素，当前只写 dimSize 个，dstStride 跳过剩余部分
-        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T);
         DataCopyExtParams wcp{static_cast<uint16_t>(rowsToCopy),
                               static_cast<uint16_t>(dimBlocks * ALIGN_BYTES), 0, wsDstSkip, 0};
         DataCopyPad(workspaceGM_[wsOffset], xLocal[lastK1Start * dimSize], wcp);
@@ -760,11 +800,13 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
 }
 
 // ============================================================================
-// ProcessMainComputeBS：blockIndex == 0，按 BS 轴切分
+// ProcessMainCompute：统一的二维切分计算逻辑
+// bsStart: 当前核在 BS 方向的起始位置（相对于有效序列）
+// dimStart: 当前核在 Dim 方向的起始位置
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
-    uint64_t bsStart,
+__aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
+    uint64_t bsStart, uint64_t dimStart,
     uint32_t loopNumBS,  uint32_t ubFactorBS,  uint32_t ubTailFactorBS,
     uint32_t loopNumDim, uint32_t ubFactorDim, uint32_t ubTailFactorDim)
 {
@@ -782,15 +824,14 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
     // -------------------------------------------------------------------------
     firstBatchIdx_   = curBatchIdx;
     firstBatchCIdx_  = cacheIdxLocal_.GetValue(curBatchIdx);
-    // 判断第一个 batch 是否完整：globalBsStart == batch 的起始位置
+    // 判断第一个 batch 是否完整：bsIdx_ == 0 时肯定完整，否则检查 globalBsStart == batch 起始位置
     uint64_t firstBatchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
-    firstBatchComplete_   = (globalBsStart == firstBatchStart);
+    firstBatchComplete_   = (bsIdx_ == 0) || (globalBsStart == firstBatchStart);
     firstBatchWrittenToWS_ = false;
 
-    // iStart：只有核 0 的第一个 BS 循环从 0 开始，其余从 K-1 开始
-    // 提前计算，避免循环内重复判断
-    bool isFirstCore = (bsStart == 0);
-    uint32_t iStart = isFirstCore ? 0 : (K - 1);
+    // iStart：只有 bsIdx_ == 0 的核的第一个 BS 循环从 0 开始，其余从 K-1 开始
+    bool isBsFirstCore = (bsIdx_ == 0);
+    uint32_t iStart = isBsFirstCore ? 0 : (K - 1);
 
     uint64_t curBsOff = 0;  // 相对于 bsStart 的偏移
 
@@ -811,7 +852,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
         uint64_t batchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
         uint32_t curSequenceIdx = (uint32_t)(actualStart - batchStart);
 
-        uint32_t dimOff = 0;
+        uint32_t dimOff = (uint32_t)dimStart;
         uint32_t batchIdxForDim = curBatchIdx;
         uint32_t seqIdxForDim = curSequenceIdx;
         for (uint32_t dimLoop = 0; dimLoop < loopNumDim; dimLoop++) {
@@ -819,8 +860,6 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
             // dim 循环处理同一块 BS 数据的不同 dim 切片，每次传入相同的初始 batch 状态
             batchIdxForDim = curBatchIdx;
             seqIdxForDim = curSequenceIdx;
-            // Debug: 打印每次 ProcessUBBlock 调用参数
-            //PRINTF("[ProcessMainComputeBS] bsLoop=%u, dimLoop=%u, ProcessUBBlock params: bsStart=%u, bsSize=%u, dimStart=%u, dimSize=%u, iStart=%u, curBatchIdx=%u, curSequenceIdx=%u\n",bsLoop, dimLoop, (uint32_t)curBsStart, curBS, dimOff, curDim, iStart, batchIdxForDim, seqIdxForDim);
             ProcessUBBlock((uint32_t)curBsStart, curBS, dimOff, curDim, iStart, batchIdxForDim, seqIdxForDim);
             dimOff += curDim;
         }
@@ -835,73 +874,12 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
 }
 
 // ============================================================================
-// ProcessMainComputeDim：blockIndex == 1，按 Dim 轴切分
-// ============================================================================
-template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeDim(
-    uint64_t dimStart,
-    uint32_t loopNumBS,  uint32_t ubFactorBS,  uint32_t ubTailFactorBS,
-    uint32_t loopNumDim, uint32_t ubFactorDim, uint32_t ubTailFactorDim)
-{
-    // 当切 Dim 时，每个核处理全部 BS（0..validSeqLen_-1），但只处理分配到的 Dim 切片
-    // BS 从 0 开始（对应有效序列的起始），初始 batch 索引为 validBatchStart_
-    uint32_t curBatchIdx = validBatchStart_;
-    uint32_t K = kernelWidth_;
-
-    // -------------------------------------------------------------------------
-    // 初始化第一个 batch 的跟踪信息
-    // 切 Dim 轴时，所有核都从 BS=0 开始，第一个 batch 始终是完整的
-    // -------------------------------------------------------------------------
-    firstBatchIdx_   = validBatchStart_;
-    firstBatchCIdx_  = cacheIdxLocal_.GetValue(firstBatchIdx_);
-    firstBatchComplete_   = true;  // BS=0 == seqStartLocal_[validBatchStart_]，第一个 batch 始终完整
-    firstBatchWrittenToWS_ = false;
-
-    // iStart：第一个 BS 循环从 0 开始，其余从 K-1 开始
-    uint32_t iStart = 0;
-
-    uint32_t bsOff = 0;
-    for (uint32_t bsLoop = 0; bsLoop < loopNumBS; bsLoop++) {
-        uint32_t curBS = (bsLoop == loopNumBS - 1) ? ubTailFactorBS : ubFactorBS;
-
-        // 计算实际开始处理的全局位置（非重叠部分的第一个 token）
-        uint64_t actualStart = (uint64_t)bsOff + iStart + validSeqStart_;
-
-        // 更新 curBatchIdx 到 actualStart 所在的 batch（大多数情况下不执行，因为上一轮已更新）
-        while (curBatchIdx + 1 < validBatchEnd_ &&
-               actualStart >= (uint64_t)seqStartLocal_.GetValue(curBatchIdx + 1)) {
-            curBatchIdx++;
-        }
-
-        // 计算 curSequenceIdx（基于实际开始位置，使用全局位置计算）
-        uint64_t batchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
-        uint32_t curSequenceIdx = (uint32_t)(actualStart - batchStart);
-
-        uint32_t dimOff = (uint32_t)dimStart;
-        uint32_t batchIdxForDim = curBatchIdx;
-        uint32_t seqIdxForDim = curSequenceIdx;
-        for (uint32_t dimLoop = 0; dimLoop < loopNumDim; dimLoop++) {
-            uint32_t curDim = (dimLoop == loopNumDim - 1) ? ubTailFactorDim : ubFactorDim;
-            // dim 循环处理同一块 BS 数据的不同 dim 切片
-            batchIdxForDim = curBatchIdx;
-            seqIdxForDim = curSequenceIdx;
-            ProcessUBBlock(bsOff, curBS, dimOff, curDim, iStart, batchIdxForDim, seqIdxForDim);
-            dimOff += curDim;
-        }
-        // dim 循环结束后，从最后一次 ProcessUBBlock 获取更新后的 curBatchIdx
-        curBatchIdx = batchIdxForDim;
-
-        bsOff += curBS;
-        // 第一次循环后，iStart 始终为 K-1
-        iStart = K - 1;
-    }
-}
-
-// ============================================================================
 // WriteCacheFromWorkspace：SyncAll 后，从 workspace 回写 cacheStates
 //
-// 新设计：每个核最多只写一个 batch 的 cache 到 workspace（第一个不完整的 batch）
-// 同步后，每个核只需要处理自己写的那份数据
+// 新设计（二维切分）：
+// - workspace 按 bsIdx_ 分配，每个 bsIdx_ 对应 (K-1) 行，每行 dim_ 个元素
+// - 同一个 bsIdx_ 的不同 dimIdx_ 核写同一个 workspace 区域的不同 dim 切片
+// - 每个核只回写自己负责的 dim 切片
 // ============================================================================
 template <typename T>
 __aicore__ inline void CausalConv1dFn<T>::WriteCacheFromWorkspace()
@@ -911,26 +889,38 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheFromWorkspace()
         return;
     }
 
-    uint32_t blockIdx = GetBlockIdx();
     uint32_t K        = kernelWidth_;
     uint32_t rows     = K - 1;
-    // 每行实际数据的字节数（dim 维度是连续的）
-    uint32_t rowBytes = dim_ * sizeof(T);
-    uint32_t rowBlocks = rowBytes / ALIGN_BYTES;
-    // cacheStates 的行间跳过块数（workspace 连续，不需要 skip）
-    uint32_t cacheSkip = (cacheStride_ - dim_) * sizeof(T) / ALIGN_BYTES;
 
-    // workspace 按 blockIdx 索引
-    uint64_t wsOff = (uint64_t)blockIdx * rows * dim_;
+    // 计算当前核负责的 dim 范围
+    uint32_t dimStart, dimSize;
+    if (dimIdx_ < dimRemainderCores_) {
+        dimStart = dimIdx_ * dimBlockFactor_;
+        dimSize  = dimBlockFactor_;
+    } else {
+        dimStart = dimRemainderCores_ * dimBlockFactor_ + (dimIdx_ - dimRemainderCores_) * dimBlockTailFactor_;
+        dimSize  = dimBlockTailFactor_;
+    }
+
+    // 每行实际数据的字节数
+    uint32_t rowBytes = dimSize * sizeof(T);
+    uint32_t rowBlocks = rowBytes / ALIGN_BYTES;
+    // cacheStates 的行间跳过块数
+    uint32_t cacheSkip = (cacheStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+    // workspace 的行间跳过块数（workspace 每行 dim_ 个元素，只取 dimSize 个）
+    uint32_t wsSkip = (dim_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+
+    // workspace 按 bsIdx_ 索引，加上 dimStart 偏移
+    uint64_t wsOff = (uint64_t)bsIdx_ * rows * dim_ + dimStart;
     // cacheStates 使用 firstBatchCIdx_
-    uint64_t csOff = (uint64_t)firstBatchCIdx_ * rows * cacheStride_;
+    uint64_t csOff = (uint64_t)firstBatchCIdx_ * rows * cacheStride_ + dimStart;
 
     // 直接 GM→GM 搬运（通过 UB 中转）
     LocalTensor<T> tmpBuf = xQueue_.AllocTensor<T>();
     {
         DataCopyExtParams cp{static_cast<uint16_t>(rows),
                              static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
-                             0, 0, 0};  // workspace 连续，UB 连续
+                             wsSkip * ALIGN_BYTES, 0, 0};  // workspace 非连续（srcStride），UB 连续
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         DataCopyPad(tmpBuf, workspaceGM_[wsOff], cp, padParams);
     }
@@ -939,11 +929,10 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheFromWorkspace()
 
     // 等待 MTE2 搬运完成，确保 tmpBuf 数据就绪
     PipeBarrier<PIPE_ALL>();
-
     {
         DataCopyExtParams cp{static_cast<uint16_t>(rows),
                              static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
-                             0, cacheSkip, 0};  // UB 连续，cacheStates 非连续
+                             0, cacheSkip * ALIGN_BYTES, 0};  // UB 连续，cacheStates 非连续
         DataCopyPad(cacheStatesGM_[csOff], tmpBuf, cp);
     }
 
@@ -967,55 +956,53 @@ __aicore__ inline void CausalConv1dFn<T>::Process()
     // 1. 一次性加载元数据
     LoadMetaData();
 
-    // 2. 按切分轴分派计算
-    if (blockIndex_ == 0) {
-        // 切 BS 轴：BS 方向有主尾核之分，Dim 方向不切分（每核处理完整 dim）
-        // 核间有重叠：每核加载 blockFactor_ 个 token，有效输出 blockFactor_ - (K-1) 个
-        uint32_t K = kernelWidth_;
-        uint64_t effectiveStep = blockFactor_ - (K - 1);
-        uint64_t bsStart = (uint64_t)blockIdx * effectiveStep;
-
-        uint32_t loopBS  = isTailBlock_ ? tailBlockloopNumBS_        : loopNumBS_;
-        uint32_t factBS  = isTailBlock_ ? tailBlockubFactorBS_       : ubFactorBS_;
-        uint32_t tailBS  = isTailBlock_ ? tailBlockubTailFactorBS_   : ubTailFactorBS_;
-        // Dim 方向不切分，所有核处理完整 dim
-        uint32_t loopDim = loopNumDim_;
-        uint32_t factDim = ubFactorDim_;
-        uint32_t tailDim = ubTailFactorDim_;
-
-        // Debug: 打印 ProcessMainComputeBS 调用参数
-        //PRINTF("[Process] blockIdx=%u, blockIndex=0, calling ProcessMainComputeBS: bsStart=%lu, loopBS=%u, factBS=%u, tailBS=%u, loopDim=%u, factDim=%u, tailDim=%u\n",blockIdx, bsStart, loopBS, factBS, tailBS, loopDim, factDim, tailDim);
-
-        ProcessMainComputeBS(bsStart, loopBS, factBS, tailBS, loopDim, factDim, tailDim);
+    // 2. 计算当前核在 BS 方向的起始位置和处理长度
+    uint32_t K = kernelWidth_;
+    uint64_t bsStart;
+    if (bsIdx_ < bsRemainderCores_) {
+        // 主核：前 bsRemainderCores_ 个核
+        // 有效步长 = bsBlockFactor_ - (K-1)
+        uint64_t effectiveStep = bsBlockFactor_ - (K - 1);
+        bsStart = (uint64_t)bsIdx_ * effectiveStep;
     } else {
-        // 切 Dim 轴：BS 方向不切分，Dim 方向有主尾核之分
-        uint64_t dimStart = (uint64_t)blockIdx * blockFactor_;
-
-        // BS 方向不切分，所有核处理全部 BS
-        uint32_t loopBS  = loopNumBS_;
-        uint32_t factBS  = ubFactorBS_;
-        uint32_t tailBS  = ubTailFactorBS_;
-        // Dim 方向有主尾核之分
-        uint32_t loopDim = isTailBlock_ ? tailBlockloopNumDim_       : loopNumDim_;
-        uint32_t factDim = isTailBlock_ ? tailBlockubFactorDim_      : ubFactorDim_;
-        uint32_t tailDim = isTailBlock_ ? tailBlockubTailFactorDim_  : ubTailFactorDim_;
-
-        ProcessMainComputeDim(dimStart, loopBS, factBS, tailBS, loopDim, factDim, tailDim);
+        // 尾核：后面的核
+        // 前面主核贡献的总有效长度
+        uint64_t effectiveStepMain = bsBlockFactor_ - (K - 1);
+        uint64_t effectiveStepTail = bsBlockTailFactor_ - (K - 1);
+        bsStart = (uint64_t)bsRemainderCores_ * effectiveStepMain +
+                  (uint64_t)(bsIdx_ - bsRemainderCores_) * effectiveStepTail;
     }
 
-    // 3. 全核同步（保证所有核完成计算、workspace 写入完毕后再更新 cacheStates）
+    // 3. 计算当前核在 Dim 方向的起始位置
+    uint64_t dimStart;
+    if (dimIdx_ < dimRemainderCores_) {
+        // 主核
+        dimStart = (uint64_t)dimIdx_ * dimBlockFactor_;
+    } else {
+        // 尾核
+        dimStart = (uint64_t)dimRemainderCores_ * dimBlockFactor_ +
+                   (uint64_t)(dimIdx_ - dimRemainderCores_) * dimBlockTailFactor_;
+    }
+
+    // 4. 选择核内切分参数
+    // BS 方向：主核（bsIdx_ < bsRemainderCores_）用主核参数，尾核用尾核参数
+    uint32_t loopBS  = isBsTailCore_  ? tailBlockloopNumBS_        : loopNumBS_;
+    uint32_t factBS  = isBsTailCore_  ? tailBlockubFactorBS_       : ubFactorBS_;
+    uint32_t tailBS  = isBsTailCore_  ? tailBlockubTailFactorBS_   : ubTailFactorBS_;
+
+    // Dim 方向：主核（dimIdx_ < dimRemainderCores_）用主核参数，尾核用尾核参数
+    uint32_t loopDim = isDimTailCore_ ? tailBlockloopNumDim_       : loopNumDim_;
+    uint32_t factDim = isDimTailCore_ ? tailBlockubFactorDim_      : ubFactorDim_;
+    uint32_t tailDim = isDimTailCore_ ? tailBlockubTailFactorDim_  : ubTailFactorDim_;
+
+    // 5. 调用统一的计算逻辑
+    ProcessMainCompute(bsStart, dimStart, loopBS, factBS, tailBS, loopDim, factDim, tailDim);
+
+    // 6. 全核同步（保证所有核完成计算、workspace 写入完毕后再更新 cacheStates）
     SyncAll();
 
-    // 4. 从 workspace 回写 cache state
+    // 7. 从 workspace 回写 cache state
     WriteCacheFromWorkspace();
-    // if(blockIdx == realCoreNum_ - 1){
-    //     for(uint32_t i = 0; i < 8; i++) {
-    //         for(uint32_t j = 0; j < 256; j++){
-    //             uint32_t index = i * 256 + j;
-    //             //PRINTF("y[%u][%u] = %f", i, j, yGM_(index));
-    //         }
-    //     }
-    // }
 }
 
 } // namespace CausalConv1dFnNs
