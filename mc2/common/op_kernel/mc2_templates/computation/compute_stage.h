@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,12 +9,19 @@
  */
 
 /*!
- * \file 3rd_head_arch32.h
- * \brief 3rd引用
+ * \file compute_stage.h
+ * \brief
  */
-#ifndef THREERD_HEAD_ARCH32_H
-#define THREERD_HEAD_ARCH32_H
 
-#include "../../3rd/mat_mul_v3/op_kernel/mat_mul_base_kernel.h"
+#ifndef MC2_COMPUTE_STAGE_H
+#define MC2_COMPUTE_STAGE_H
 
+#if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
+#include "./matmul/fp_matmul.h"
+#else
+#include "./matmul/quant_matmul.h"
+#include "./matmul/mx_quant_matmul.h"
 #endif
+#include "./math/mc2_vec_transpose.h"
+
+#endif // MC2_COMPUTE_STAGE_H
