@@ -19,8 +19,6 @@
 #include "lib/hccl/hccl.h"
 
 namespace MC2KernelTemplate {
-using namespace AscendC;
-
 struct MC2AlltoAllContext {
     uint32_t taskCnt;
     GM_ADDR sendBuffer;
@@ -50,7 +48,6 @@ public:
             context->strideCount, context->repeat);
     }
 };
-
 
 };
 #endif

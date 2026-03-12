@@ -16,10 +16,7 @@
 #ifndef ALLTO_ALL_MX_QUANT_MATMUL_ARCH35_H
 #define ALLTO_ALL_MX_QUANT_MATMUL_ARCH35_H
 
-#include "allto_all_matmul_tiling_data.h"
-
-namespace AlltoAllMatmulImpl {
-
+namespace Mc2Kernel {
 template <typename T1, typename T2>
 __aicore__ inline T1 CeilDiv(T1 a, T2 b)
 {
@@ -253,6 +250,6 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLine_->Process(taskCnt);
 }
 
-} // namespace AlltoAllMatmulImpl
+} // namespace Mc2Kernel
 
 #endif
