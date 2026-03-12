@@ -44,20 +44,21 @@ public:
     __aicore__ inline SparseAttnSharedkvScfa() {};
 
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
-        __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
-        __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength,
-        __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
+        __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
+        __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv,
+        __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
         __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
         const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
 private:
     __aicore__ inline void ProcessMainLoop();
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
+        __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-        __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
-        const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
+        __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *sinks,
+        __gm__ uint8_t *workspace, const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
-    __aicore__ inline void InitMMResBuf();
+    __aicore__ inline void InitMMResBuf(__gm__ uint8_t *workspace);
     __aicore__ inline void ComputeConstexpr();
     __aicore__ inline void SetRunInfo(RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount,
                                       int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
@@ -87,6 +88,10 @@ private:
     __gm__ int32_t *cuSeqlensQAddr = nullptr;
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
+    GlobalTensor<int32_t> oriTopkLengthGm;
+    bool hasOriTopkLength = false;
+    /* workspace 空间 */
+    BuffersPolicy3buff<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> v0ResGmBuffers;
     /* 核Index信息 */
     int32_t aicIdx;
 
@@ -100,7 +105,7 @@ private:
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init(
-    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
+    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *oriSparseIndices,
     __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
     __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength,
     __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
@@ -137,7 +142,7 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
     /* cube侧不依赖sharedParams的scalar前置 */
-    InitMMResBuf();
+    InitMMResBuf(workspace);
     if ASCEND_IS_AIC {
         cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query);
         /* wait kfc message */
@@ -150,16 +155,17 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init
         }
     }
     this->ComputeConstexpr();
-    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedQ, sequsedKv, sinks,
-        workspace, tiling, tPipe); // gm设置
+    this->InitGlobalBuffer(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable,
+        cuSeqlensQ, sequsedQ, sequsedKv, oriTopkLength, sinks, workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitGlobalBuffer(
-    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-    __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-    __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
+    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *oriSparseIndices,
+    __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
+    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv,
+    __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
     const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
     if (cuSeqlensQ != nullptr) {
@@ -171,13 +177,19 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init
     if (sequsedQ != nullptr) {
         actualSeqQlenAddr = (__gm__ int32_t *)sequsedQ;
     }
+    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
+        if (oriTopkLength != nullptr) {
+            oriTopkLengthGm.SetGlobalBuffer((__gm__ int32_t *)oriTopkLength);
+            hasOriTopkLength = true;
+        }
+    }
 
-    vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
+    vecBlock.InitGlobalBuffer(oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
     cubeBlock.InitCubeInput(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, cuSeqlensQ, constInfo);
 }
 
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitMMResBuf()
+__aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitMMResBuf(__gm__ uint8_t *workspace)
 {
     uint32_t mm1ResultSize = constInfo.s1BaseSize / CV_RATIO * constInfo.s2BaseSize * sizeof(T);
     uint32_t mm2ResultSize = constInfo.s1BaseSize / CV_RATIO * 512 * sizeof(T);
@@ -204,8 +216,19 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init
         bmm1Buffers.Get().SetCrossCore();
         bmm1Buffers.Get().SetCrossCore();
     }
+    if constexpr (IS_SPLIT_G) {
+        uint32_t v0ResSize = constInfo.s2BaseSize * 512U * sizeof(Q_T);
+        int64_t totalOffset = v0ResSize * 3 * (aicIdx >> 1U);
+        gmBufferManager.Init(workspace + totalOffset);
+        v0ResGmBuffers.Init(gmBufferManager, v0ResSize);
+        if ASCEND_IS_AIC {
+            v0ResGmBuffers.Get().SetCrossCore();
+            v0ResGmBuffers.Get().SetCrossCore();
+            v0ResGmBuffers.Get().SetCrossCore();
+        }
+    }
 }
- 
+
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitLocalBuffer()
 {
@@ -230,11 +253,14 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Comp
     constInfo.dSizeRope = sharedParams.dSizeRope;
     constInfo.dSizeNope = constInfo.dSize - constInfo.dSizeRope;
     constInfo.tileSize = sharedParams.tileSize;
-    constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
+    constInfo.oriSparseBlockCount = sharedParams.oriSparseBlockCount;
+    constInfo.cmpSparseBlockCount = sharedParams.cmpSparseBlockCount;
     constInfo.sparseBlockSize = 1;
     constInfo.cmpRatio = sharedParams.cmpRatio;
     constInfo.oriWinLeft = sharedParams.oriWinLeft;
     constInfo.oriWinRight = sharedParams.oriWinRight;
+    constInfo.oriMaskMode = sharedParams.oriMaskMode;
+    constInfo.cmpMaskMode = sharedParams.cmpMaskMode;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
@@ -301,7 +327,19 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::ProcessMainLoop()
 {
     uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
+    int64_t maxS2LoopCnt = 0;
+    if constexpr (IS_SPLIT_G) {
+        maxS2LoopCnt = static_cast<int64_t>(metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_MAX_NUM, false)));
+    }
     if (hasLoad == 0) {
+        if ASCEND_IS_AIV {
+            if constexpr (IS_SPLIT_G) {
+                for (int64_t loopCnt = 0; loopCnt < maxS2LoopCnt; loopCnt++) {
+                    CrossCoreSetFlag<0, PIPE_MTE3>(15);
+                    CrossCoreWaitFlag<0, PIPE_MTE3>(15);
+                }
+            }
+        }
         return;
     }
 
@@ -353,53 +391,100 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Proc
                 bool s1NoNeedCalc = ComputeParamS1<TEMPLATE_INTF_ARGS>(
                     runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr);
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(bnIdx, gS1Index, this->cuSeqlensQAddr, oriTopkLengthGm,
+                        hasOriTopkLength, runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
                 }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
+                if constexpr (IS_SPLIT_G) {
+                    maxS2LoopCnt -= (s2LoopLimit + 1);
+                }
             } else {
                 s2LoopLimit = 0;
             }
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
-                if (notLastTwoLoop) {
-                    RunInfo &runInfo0 = runInfo[taskId % 3];
-                    this->SetRunInfo(runInfo0, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
-                }
-                if (taskId > 0 && notLast) {
-                    RunInfo &runInfo1 = runInfo[(taskId + 2) % 3];
-                    if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get((taskId + 2) % 3), runInfo1,
-                            this->constInfo);
+                if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE && IS_SPLIT_G) {
+                    if (notLastTwoLoop) {
+                        RunInfo &runInfo1 = runInfo[taskId % 3];
+                        this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), v0ResGmBuffers.Get(),
+                                runInfo1, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), v0ResGmBuffers.Get(),
+                                runInfo1, this->constInfo, 0);
+                        }
                     } else {
-                        this->vecBlock.ProcessVec1(this->l1PBuffers.Get(), this->bmm1Buffers.Get(), runInfo1,
-                            this->constInfo);
+                        if ASCEND_IS_AIV {
+                            if constexpr (IS_SPLIT_G) {
+                                if (maxS2LoopCnt > 0) {
+                                    maxS2LoopCnt--;
+                                    CrossCoreSetFlag<0, PIPE_MTE3>(15);
+                                    CrossCoreWaitFlag<0, PIPE_MTE3>(15);
+                                }
+                            }
+                        }
                     }
-                }
-                if (notLastTwoLoop) {
-                    RunInfo &runInfo0 = runInfo[taskId % 3];
-                    if ASCEND_IS_AIC {
-                        this->cubeBlock.MergeKv(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 0);
-                    } else {
-                        this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 32);
+                    if (taskId > 0 && notLast) {
+                        auto &runInfo2 = runInfo[(taskId + 2) % 3];
+                        if ASCEND_IS_AIV {
+                            this->vecBlock.ProcessVec1(this->l1PBuffers.Get(), this->bmm1Buffers.Get(), runInfo2,
+                                this->constInfo);
+                        } else {
+                            RunInfo &runInfo2 = runInfo[(taskId + 2) % 3];
+                            this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, this->l1RightBuffers.GetReused(), runInfo2,
+                                this->constInfo);
+                        }
                     }
-                }
-                if (taskId > 1) {
-                    RunInfo &runInfo2 = runInfo[(taskId + 1) % 3];
-                    if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, this->l1RightBuffers.Get((taskId + 1) % 3),
-                            runInfo2, this->constInfo);
-                    } else {
-                        this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo2, this->constInfo);
+                    if (taskId > 1) {
+                        if ASCEND_IS_AIV {
+                            RunInfo &runInfo3 = runInfo[(taskId + 1) % 3];
+                            this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
+                        }
                     }
-                }
-                if (notLastTwoLoop) {
-                    RunInfo &runInfo0 = runInfo[taskId % 3];
-                    if ASCEND_IS_AIC {
-                        this->cubeBlock.MergeKv(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 16);
-                    } else {
-                        this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 80);
+                } else if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
+                    if (notLastTwoLoop) {
+                        RunInfo &runInfo0 = runInfo[taskId % 3];
+                        this->SetRunInfo(runInfo0, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
+                    }
+                    if (taskId > 0 && notLast) {
+                        RunInfo &runInfo1 = runInfo[(taskId + 2) % 3];
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get((taskId + 2) % 3),
+                                v0ResGmBuffers.Get(), runInfo1, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec1(this->l1PBuffers.Get(), this->bmm1Buffers.Get(), runInfo1,
+                                this->constInfo);
+                        }
+                    }
+                    if (notLastTwoLoop) {
+                        RunInfo &runInfo0 = runInfo[taskId % 3];
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.MergeKv(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 0);
+                        } else {
+                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(taskId % 3), v0ResGmBuffers.Get(),
+                                runInfo0, this->constInfo, 32);
+                        }
+                    }
+                    if (taskId > 1) {
+                        RunInfo &runInfo2 = runInfo[(taskId + 1) % 3];
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers,
+                                this->l1RightBuffers.Get((taskId + 1) % 3), runInfo2, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo2, this->constInfo);
+                        }
+                    }
+                    if (notLastTwoLoop) {
+                        RunInfo &runInfo0 = runInfo[taskId % 3];
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.MergeKv(this->l1RightBuffers.Get(taskId % 3), runInfo0, this->constInfo, 16);
+                        } else {
+                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(taskId % 3), v0ResGmBuffers.GetReused(),
+                                runInfo0, this->constInfo, 80);
+                        }
                     }
                 }
                 ++taskId;
@@ -407,6 +492,14 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Proc
             ++multiCoreInnerIdx;
         }
         gS1StartIdx = 0;
+    }
+    if ASCEND_IS_AIV {
+        if constexpr (IS_SPLIT_G) {
+            for (int64_t loopCnt = 0; loopCnt < maxS2LoopCnt; loopCnt++) {
+                CrossCoreSetFlag<0, PIPE_MTE3>(15);
+                CrossCoreWaitFlag<0, PIPE_MTE3>(15);
+            }
+        }
     }
 }
 
@@ -416,7 +509,11 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Comp
 {
     // GS1合轴, 不切G, 只切S1
     runParam.s1oIdx = gS1Index * runParam.qSNumInOneBlock;
-    runParam.goIdx = 0;
+    if constexpr (IS_SPLIT_G) {
+        runParam.goIdx = (aicIdx % 2 == 0) ? 0 : 64;
+    } else {
+        runParam.goIdx = 0;
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType>

@@ -44,15 +44,16 @@ public:
     __aicore__ inline SparseAttnSharedkvSwa() {};
 
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
-        __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
-        __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv,
+        __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
+        __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv,
         __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
         __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
         const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
 private:
     __aicore__ inline void ProcessMainLoop();
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
+        __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
         __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
         const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
@@ -101,7 +102,7 @@ private:
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::Init(
-    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
+    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *oriSparseIndices,
     __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
     __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength,
     __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
@@ -151,17 +152,17 @@ __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::Init(
         }
     }
     this->ComputeConstexpr();
-    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedQ, sequsedKv, sinks,
-        workspace, tiling, tPipe); // gm设置
+    this->InitGlobalBuffer(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable,
+        cuSeqlensQ, sequsedQ, sequsedKv, sinks, workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::InitGlobalBuffer(
-    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-    __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-    __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
-    const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
+    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *oriSparseIndices,
+    __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
+    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks,
+    __gm__ uint8_t *workspace, const SparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
     if (cuSeqlensQ != nullptr) {
         cuSeqlensQAddr = (__gm__ int32_t *)cuSeqlensQ;
@@ -173,7 +174,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::InitG
         actualSeqQlenAddr = (__gm__ int32_t *)sequsedQ;
     }
 
-    vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
+    vecBlock.InitGlobalBuffer(oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
     cubeBlock.InitCubeInput(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, cuSeqlensQ, constInfo);
 }
 
@@ -228,11 +229,14 @@ __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::Compu
     constInfo.dSizeRope = sharedParams.dSizeRope;
     constInfo.dSizeNope = constInfo.dSize - constInfo.dSizeRope;
     constInfo.tileSize = sharedParams.tileSize;
-    constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
+    constInfo.oriSparseBlockCount = sharedParams.oriSparseBlockCount;
+    constInfo.cmpSparseBlockCount = sharedParams.cmpSparseBlockCount;
     constInfo.sparseBlockSize = 1;
     constInfo.cmpRatio = sharedParams.cmpRatio;
     constInfo.oriWinLeft = sharedParams.oriWinLeft;
     constInfo.oriWinRight = sharedParams.oriWinRight;
+    constInfo.oriMaskMode = sharedParams.oriMaskMode;
+    constInfo.cmpMaskMode = sharedParams.cmpMaskMode;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
@@ -350,8 +354,10 @@ __aicore__ inline void SparseAttnSharedkvSwa<CubeBlockType, VecBlockType>::Proce
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
                 bool s1NoNeedCalc = ComputeParamS1<TEMPLATE_INTF_ARGS>(
                     runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr);
+                GlobalTensor<int32_t> tmpTensor;
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(bnIdx, gS1Index, this->cuSeqlensQAddr, tmpTensor,
+                        false, runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;

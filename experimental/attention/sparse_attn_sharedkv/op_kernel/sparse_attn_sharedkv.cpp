@@ -31,32 +31,32 @@ using namespace SASKernel;
 
 #if (__CCE_AICORE__ == 310)
 #if defined(__DAV_C310_CUBE__)
-#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                              \
-    do {                                                                                              \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                   \
-            SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
-            SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                                \
-        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,      \
-                seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata, attentionOut,     \
-                user, nullptr, &tPipe);                                                               \
-        op.Process();                                                                                 \
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                               \
+    do {                                                                                               \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
+            SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type;  \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                     \
+            SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;    \
+        templateClass<CubeBlockType, VecBlockType> op;                                                 \
+        op.Init(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable, \
+                cuSeqlensQ, seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata,        \
+                attentionOut, user, nullptr, &tPipe);                                                  \
+        op.Process();                                                                                  \
     } while (0)
 #else
-#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                              \
-    do {                                                                                              \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                   \
-            SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
-            SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                                \
-        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                           \
-        const tilingdataClass *__restrict tilingData = &tilingDataIn;                                 \
-        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,      \
-                seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata, attentionOut,     \
-                user, tilingData, &tPipe);                                                            \
-        op.Process();                                                                                 \
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                               \
+    do {                                                                                               \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
+            SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type;  \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                     \
+            SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;    \
+        templateClass<CubeBlockType, VecBlockType> op;                                                 \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                            \
+        const tilingdataClass *__restrict tilingData = &tilingDataIn;                                  \
+        op.Init(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable, \
+                cuSeqlensQ, seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata,        \
+                attentionOut, user, tilingData, &tPipe);                                               \
+        op.Process();                                                                                  \
     } while (0)
 #endif
 #else
@@ -71,7 +71,7 @@ using namespace SASKernel;
     } while (0)
 #endif
 
-template <int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
+template <int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE, int SPLIT_G>
 __global__ __aicore__ void
 sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
                      __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
@@ -86,14 +86,14 @@ sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_
     TPipe tPipe;
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
     #if (__CCE_AICORE__ == 310)
-        if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE) {
+        if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE || TEMPLATE_MODE == ORI_SCFA_TEMPLATE || SPLIT_G == 1) {
             SAS_OP_IMPL(SASKernel::SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, bfloat16_t,
                 bfloat16_t, float, bfloat16_t, FLASH_DECODE, true, static_cast<SAS_LAYOUT>(LAYOUT_T),
-                static_cast<SAS_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE));
+                static_cast<SAS_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE), SPLIT_G);
         } else {
             SAS_OP_IMPL(SASKernel::SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, bfloat16_t,
                 bfloat16_t, float, bfloat16_t, FLASH_DECODE, true, static_cast<SAS_LAYOUT>(LAYOUT_T),
-                static_cast<SAS_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE));
+                static_cast<SAS_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE), false);
         }
     #else
         if constexpr (ORIG_DTYPE_Q == DT_FLOAT16 && ORIG_DTYPE_ORI_KV == DT_FLOAT16 && ORIG_DTYPE_ATTN_OUT == DT_FLOAT16) {

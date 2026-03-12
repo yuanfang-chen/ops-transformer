@@ -43,7 +43,7 @@ def load_excel_test_cases(excel_file_path: str, sheetname: str):
 
         # 定义必需的列名
         required_columns = [
-            "layout_q", "layout_kv", "q_type", "ori_kv_type", "cmp_kv_type", "B", "S1", "S2", "N1", "N2", "D", "K",
+            "layout_q", "layout_kv", "q_type", "ori_kv_type", "cmp_kv_type", "B", "S1", "S2", "N1", "N2", "D", "K1", "K",
             "block_size1", "block_size2", "softmax_scale", "cmp_ratio",
             "ori_mask_mode", "cmp_mask_mode", "ori_win_left", "ori_win_right", "testcase_name"
         ]
@@ -79,6 +79,7 @@ def save_result(result, fulfill_percent, params, result_path='./result/sas_resul
         "N1": params[8],
         "N2": params[9],
         "D": params[10],
+        "K1": None if len(params) < 31 else params[30],
         "K": params[11],
         "block_num1": params[12],
         "block_num2": params[13],
@@ -96,6 +97,7 @@ def save_result(result, fulfill_percent, params, result_path='./result/sas_resul
         "q_datarange": None if len(params) == 25 else params[26],
         "ori_kv_datarange": None if len(params) == 25 else params[27],
         "cmp_kv_datarange": None if len(params) == 25 else params[28],
+        "ori_kv_topk_mode": None if len(params) < 32 else params[31],
         "result": result,
         "fulfill_percent": fulfill_percent,
     }
