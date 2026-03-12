@@ -171,7 +171,7 @@ enum class FiaTemplateId : uint32_t {
 enum class FiaFullQuantMode : uint32_t{
     NO_FULL_QUANT = 0,
     PER_TENSOR_FULL_QUANT = 1,
-    PER_BLOCK_FULL_QUANT =2,
+    PER_BLOCK_FULL_QUANT = 2,
 };
 
 std::string LayoutToSerialString(FiaLayout layout);
@@ -359,7 +359,7 @@ public:
     RopeMode ropeMode = RopeMode::NO_ROPE;
     MlaMode mlaMode = MlaMode::NO_MLA;
     FiaQuantMode quantMode = FiaQuantMode::NO_QUANT;
-    FiaFullQuantMode fullQuantMode =FiaFullQuantMode::NO_FULL_QUANT;
+    FiaFullQuantMode fullQuantMode = FiaFullQuantMode::NO_FULL_QUANT;
 
     // Layout
     FiaLayout qLayout = FiaLayout::BSND;
