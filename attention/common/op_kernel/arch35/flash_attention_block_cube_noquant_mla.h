@@ -89,7 +89,6 @@ private:
     // L0C
     BuffersPolicyDB<BufferType::L0C> mmL0CBuffers;
 
-    // 相关变量
     static constexpr uint64_t kvHeadNum = 1ULL;
     static constexpr uint64_t headDim = 512ULL;
     static constexpr uint64_t headDimRope = 64ULL;
@@ -333,13 +332,13 @@ __aicore__ inline int64_t FABlockCubeNoquantMla<TEMPLATE_ARGS>::GetQueryRopeOffs
         n2OffsetRope = runInfo.n2oIdx * constInfo.gDR;
         gOffsetRope = runInfo.goIdx * constInfo.dSizeRope;
     }  else {
-        if (layout == LayOutTypeEnum::LAYOUT_BSH) {
+        if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
             // BSH/BSNGD
             bOffsetRope = runInfo.boIdx * constInfo.n2GS1DR;
             s1OffsetRope = runInfo.s1oIdx * constInfo.s1BaseDR;
             n2OffsetRope = runInfo.n2oIdx * constInfo.gDR;
             gOffsetRope = runInfo.goIdx * constInfo.dSizeRope;
-        } else if (layout == LayOutTypeEnum::LAYOUT_BNSD) {
+        } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
             // bnsd
             bOffsetRope = runInfo.boIdx * constInfo.n2GS1DR;
             n2OffsetRope = runInfo.n2oIdx * constInfo.gS1DR;
