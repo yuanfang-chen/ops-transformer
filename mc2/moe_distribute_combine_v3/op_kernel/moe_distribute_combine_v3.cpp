@@ -14,11 +14,11 @@
  */
 #include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#if __has_include("../../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
-#include "../../moe_distribute_combine_v2/moe_distribute_combine_v2.h"
-#include "../../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
-#include "../../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling_key.h"
-#include "../../moe_distribute_combine_v2/moe_distribute_combine_tiling.h"
+#if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
+#include "../moe_distribute_combine_v2/moe_distribute_combine_v2.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling_key.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_tiling.h"
 #else
 #include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2.h"
 #include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
@@ -78,5 +78,5 @@ __global__ __aicore__ void moe_distribute_combine_v3(GM_ADDR mc2Context, GM_ADDR
         elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
     }
 #endif
-} 
+}
 }

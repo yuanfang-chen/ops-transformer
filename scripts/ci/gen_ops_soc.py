@@ -64,9 +64,14 @@ def grouped(gen_path, soc, group_size):
 
     all_rows = []
     added_op_levels = set()
+    special_task = ""
     for op_name, count in op_counts.items():
         op_name_real = op_name
         if soc == 'ascend950' and op_name.endswith('_apt'):
+            op_name_real = op_name.replace('_apt', '')
+        if op_name == 'allto_all_matmul_apt' and op_name.endswith('_apt'):
+            op_name_real = op_name.replace('_apt', '')
+        if op_name == 'matmul_allto_all_apt' and op_name.endswith('_apt'):
             op_name_real = op_name.replace('_apt', '')
         if op_name_real in black_list:
             continue
@@ -76,10 +81,13 @@ def grouped(gen_path, soc, group_size):
                     continue
                 else:
                     added_op_levels.add(op_name_real)
-                    row_string = f"{op_name_real}"
+                    special_task = special_task + str(op_name_real) + ","
             else:
                 row_string = f"{op_name_real},{count}-{i}"
-            all_rows.append(row_string)
+                all_rows.append(row_string)
+    if len(special_task) != 0:
+        special_task = special_task[:-1]
+        all_rows.append(special_task)
 
     for idx, row in enumerate(all_rows):
         result[idx % group_size].append(row)

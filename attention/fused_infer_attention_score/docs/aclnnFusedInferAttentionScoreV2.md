@@ -15,7 +15,9 @@
 
 ## 功能说明
 
-- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScore，本接口新增keyAntiquantScaleOptional、keyAntiquantOffsetOptional、valueAntiquantScaleOptional、 valueAntiquantOffsetOptional、keySharedPrefixOptional、valueSharedPrefixOptional、actualSharedPrefixLenOptional、keyAntiquantMode和valueAntiquantMode参数。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
+
+  相比于FusedInferAttentionScore，本接口新增keyAntiquantScaleOptional、keyAntiquantOffsetOptional、valueAntiquantScaleOptional、 valueAntiquantOffsetOptional、keySharedPrefixOptional、valueSharedPrefixOptional、actualSharedPrefixLenOptional、keyAntiquantMode和valueAntiquantMode参数。
 
   **说明：** 
   decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
@@ -99,16 +101,15 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
 
 - **参数说明**
 
-    <div style="overflow-x: auto;">
-    <table style="undefined;table-layout: fixed; width: 1497px"><colgroup> 
-     <col style="width: 150px"> 
-     <col style="width: 120px"> 
-     <col style="width: 300px"> 
-     <col style="width: 330px"> 
-     <col style="width: 212px"> 
-     <col style="width: 100px">  
-     <col style="width: 140px">  
-     <col style="width: 145px">  
+    <table style="undefined;table-layout: fixed; width: 1589px"><colgroup>
+    <col style="width: 269px">
+    <col style="width: 132px">
+    <col style="width: 252px">
+    <col style="width: 341px">
+    <col style="width: 185px">
+    <col style="width: 119px">
+    <col style="width: 146px">
+    <col style="width: 145px">
      </colgroup>
     <thead>
       <tr>
@@ -271,7 +272,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
         <td><ul><li>不支持空Tensor。</li>
         <li>支持per-tensor，per-channel，per-token。 </li>
             <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+            <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>1-4</td>
@@ -285,7 +287,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
         <li>支持per-tensor，per-channel，per-token。 </li>
             <li>使用时，shape必须与antiquantScaleOptional保持一致。</li>
             <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+            <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>1-4</td>
@@ -517,7 +520,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
           <td><ul><li>传入0时表示为per-channel（per-channel包含per-tensor）。</li>
               <li>传入1时表示per-token。</li>
               <li>不特意指定时建议传入0。</li>
-              <li>Q_S等于1时，传入0和1之外的其他值会执行异常。Q_S大于等于2时该参数无效。</li></ul></td>
+              <li>Q_S等于1时，传入0和1之外的其他值会执行异常。Q_S大于等于2时该参数无效。</li>
+              <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -601,7 +605,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
         <td>-</td>
       </tr>
     </tbody></table>
-    </div>
 
 - **返回值**
 

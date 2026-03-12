@@ -849,8 +849,7 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     return true;
 }
 
-bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo,
-    PromptFlashAttentionTilingData& tilingData) 
+bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData) 
 {
     const int32_t nQ = *contextKeyParams.headsNumber;
     const int32_t nKV = *contextKeyParams.numKeyValueHeads;
@@ -955,29 +954,28 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
+    const gert::StorageShape* quantScale2Shape = contextKeyParams.scale2Shape;
     const ge::DataType inputParamsType = contextKeyParams.inputDataType;
 
+    OP_CHECK_IF((quantScale2Shape != nullptr), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Postquant is not supported in per-tensor quant scenario."), return false);
     OP_CHECK_IF((inputParamsType != ge::DT_INT8), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "InputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
-            GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
-        return false);
+            GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()), return false);
     std::string layoutStr(contextKeyParams.layout);
     const std::vector<std::string> unsupportedLayoutList = {"BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "BSH_BNSD",
         "BSND_BNSD", "TND", "NTD", "NTD_TND", "TND_NTD"};
     OP_CHECK_IF(std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), layoutStr) != unsupportedLayoutList.end(),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "%s is not supported in per-tensor quant scenario.", layoutStr.c_str()),
-        return false);
+            "%s is not supported in per-tensor quant scenario.", layoutStr.c_str()), return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "DeqScale1, quantScale1 or deqScale2 is nullptr in per-tensor quant scenario."),
-        return false);
+            "DeqScale1, quantScale1 or deqScale2 is nullptr in per-tensor quant scenario."), return false);
     OP_CHECK_IF((deqScale1Shape != nullptr && deqScale1Shape->GetStorageShape().GetShapeSize() == 0) ||
                 (quantScale1Shape != nullptr && quantScale1Shape->GetStorageShape().GetShapeSize() == 0) ||
                 (deqScale2Shape != nullptr && deqScale2Shape->GetStorageShape().GetShapeSize() == 0),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "DeqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."),
-        return false);
+            "DeqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."), return false);
     OP_CHECK_IF(enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "Rope is not supported in per-tensor quant scenario."), return false);
     OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
@@ -1034,6 +1032,13 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     constexpr uint32_t fp8QBlockSize = 128U; // 128 is SOuterSize
     constexpr uint32_t fp8KVBlockSize = 256U; // 256 is SInnerSize
     std::string layoutStr(contextKeyParams.layout);
+    if (enablePseShift) {
+        OP_CHECK_IF(*contextKeyParams.pseType == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Pse is not supported in per-block quant scenario!"), return false);
+    }
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "AlibiPse is not supported in per-block quant scenario!"),
+        return false);
     // When PA and tensorlist are enable, they may affect the shape parsing of query, key and value,
     OP_CHECK_IF(enablePA, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "PA is not supported in per-block quant scenario!"),
@@ -1101,10 +1106,6 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
         OP_CHECK_IF((innerPrecise == MSD_HIGH_PERFORMANCE_EXPEND_NUM) || (innerPrecise == MSD_HIGH_PRECISION_EXPEND_NUM),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "innerPrecise [%d] is currently not supported.(Value 2 or 3 is not supported).", innerPrecise), return false);
-        if (enablePseShift) {
-            OP_CHECK_IF(*contextKeyParams.pseType == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Pse is not supported in per-block quant scenario!"), return false);
-        }
     } else {
         OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1678,7 +1679,7 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
         return false;
     }
 
-    if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) {
+    if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) { // 256U, 64: d > 256 must be multiple of 64 for memory alignment
         return false;
     }
 
@@ -1825,7 +1826,7 @@ bool PromptFlashAttentionTilingV2::CheckQueryAndKey(ContextParamsForPFATiling& c
     PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, PromptFlashAttentionTilingData& tilingData) 
 {
     // check numhead ratio
-    if (!SetAndCheckHeadNumRatio(contextKeyParams, queryShapeInfo, tilingData)) {
+    if (!SetAndCheckHeadNumRatio(contextKeyParams, tilingData)) {
         return false;
     }
 
@@ -1844,18 +1845,22 @@ bool PromptFlashAttentionTilingV2::CheckQueryAndKey(ContextParamsForPFATiling& c
 
 bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const 
 {
-    constexpr uint32_t maxQuerySeqLenInIfaMla = 16U; // ifa mla场景qS最大支持16
-    OP_CHECK_IF((queryShapeInfo.s > maxQuerySeqLenInIfaMla || queryShapeInfo.s < 1),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
-            "in range of [1, %u] when enable ifa mla", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
-        return false);
     if (enableIFAMLAFullQuant) {
+        constexpr uint32_t maxQuerySeqLenInIfaMla = 16U; // ifa mla场景qS最大支持16
+        OP_CHECK_IF((queryShapeInfo.s > maxQuerySeqLenInIfaMla || queryShapeInfo.s < 1),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
+                "in range of [1, %u] when enable ifa mla fullquant", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
+            return false);
         static const std::set<uint32_t> supportNumHeadInIfaMla = {32U, 64U, 128U}; // ifa mla场景qN支持范围
         OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
                 "{32, 64, 128} when enable ifa mla fullquant", queryShapeInfo.n),
             return false);
     } else {
+        OP_CHECK_IF((queryShapeInfo.s < 1),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
+                "larger than 0 when enable ifa mla", queryShapeInfo.s),
+            return false);
         static const std::set<uint32_t> supportNumHeadInIfaMla = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U}; // ifa mla场景qN支持范围
         OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
@@ -1933,7 +1938,7 @@ bool PromptFlashAttentionTilingV2::CheckLayout(ContextParamsForPFATiling& contex
 }
 
 bool PromptFlashAttentionTilingV2::CheckQuant(ContextParamsForPFATiling& contextKeyParams,
-    PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, const PFAShapeInfo& valueShapeInfo) 
+    PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, const PFAShapeInfo& valueShapeInfo) const
 {
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
@@ -2304,9 +2309,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
 
     std::string layoutStr(contextKeyParams.layout);
     if (enableActSeqLen) {   // check the length of actual_seq_lengthsQ, whether is 1 or batch size
-        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND),
+        OP_CHECK_IF(enableIFAMLAFullQuant && (inputLayout != InputLayout::TND),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND/TND_NTD scenarios, only supported when layout is TND/TND_NTD!", layoutStr.c_str()),
+                "The layout is %s, Actual_seq_lengths cannot be configured in MLA Fullquant and non-TND/TND_NTD scenarios, only supported when layout is TND/TND_NTD!", layoutStr.c_str()),
             return false);
         OP_CHECK_IF((actSeqLenDims < queryShapeInfo.b) && (actSeqLenDims > actSeqLenDimsQMin),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -2443,7 +2448,7 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant mla",
                 *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT),
             return false);
-        }else if (queryShapeInfo.d == 64 || queryShapeInfo.d == 128){
+        }else if (queryShapeInfo.d == 64 || queryShapeInfo.d == 128){ // 64, 128: Typical hidden dimensions per head in transformer models
             OP_CHECK_IF((*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant with d[%d] is 64/128",
@@ -2464,7 +2469,6 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
                 return false);
             }
         }
-        
     }
 
     if (isMaxWorkspace) {
@@ -3725,7 +3729,7 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
 }
 
 int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(int64_t actualSeqLength, int64_t actualSeqLengthKV,
-    uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) 
+    uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) const
 {
     if (!isAttenMaskUsed) {
         int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
@@ -4671,7 +4675,7 @@ bool PromptFlashAttentionTilingV2::IsFlashDecode(ContextParamsForPFATiling& cont
         OP_LOGD(contextKeyParams.opName, "Flash decode dplit key/value.");
         return true;
     }
-    if (gSize > NLIMIT / 2) {
+    if (gSize > NLIMIT / 2) { // 2: gsize threshold
         return false;
     }
 
