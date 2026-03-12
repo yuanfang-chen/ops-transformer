@@ -29,7 +29,7 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Input("blockSparseMask")
-            .ParamType(REQUIRED)//必选
+            .ParamType(OPTIONAL)//必选
             .DataType({ge::DT_INT8, ge::DT_INT8})
             .FormatList({ge::FORMAT_ND});
         this->Input("attenMask")
@@ -37,7 +37,7 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Input("blockShape")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .FormatList({ge::FORMAT_ND}); 
         this->Input("actualSeqLengths")
@@ -74,6 +74,7 @@ public:
 
         this->AICore().AddConfig("ascend910b");
         this->AICore().AddConfig("ascend910_93");
+        this->AICore().AddConfig("ascend950");
     }
 };
 
