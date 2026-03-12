@@ -363,9 +363,9 @@ namespace BSA {
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
                             curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
                             if (inputLayout == 0) {
-                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * kvHeads * headDim;
+                                curInfo.kvOffset += (kvBlockOffset + kvBlockBasicOffset) * kvHeads * headDim;
                             } else {
-                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * headDim;
+                                curInfo.kvOffset += (kvBlockOffset + kvBlockBasicOffset) * headDim;
                             }
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
                             LayoutB1 layoutB1(curInfo.curCalKVSize, headDim);
@@ -395,7 +395,7 @@ namespace BSA {
                         }
                         kvBlockBasicOffset += basicKVBlockSize;
                     }
-                    kvBlockOffset += kvBlockNum;
+                    kvBlockOffset += blockShapeY;
                 }
 
                 if (i != taskLength - 1) {
