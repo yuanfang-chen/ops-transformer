@@ -30,6 +30,13 @@ const constexpr uint32_t ALPHA_INDEX = 2;
 const constexpr uint32_t BIAS_INDEX = 3;
 const constexpr uint32_t GAMMA_INDEX = 4;
 
+const constexpr uint32_t H_IN_INDEX = 0;
+const constexpr uint32_t H_POST_INDEX = 1;
+const constexpr uint32_t H_RES_INDEX = 2;
+const constexpr uint32_t INV_RMS_INDEX = 3;
+const constexpr uint32_t H_MIX_INDEX = 4;
+const constexpr uint32_t H_PRE_INDEX = 5;
+
 const constexpr int64_t INDEX_B_BSND = 0;
 const constexpr int64_t INDEX_S_BSND = 1;
 const constexpr int64_t INDEX_N_BSND = 2;
@@ -138,25 +145,33 @@ ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
     blockDim_ = ascendcPlatform.GetCoreNumAic();
 
     auto attrs = context_->GetAttrs();
-    auto outFlagPtr = attrs->GetAttrPointer<uint32_t>(0);
-    if (outFlagPtr != nullptr) {
-        outFlag_ = static_cast<uint32_t>(*outFlagPtr);
-    } else {
-        outFlag_ = 0U;
+    auto invRmsDesc = context_->GetOutputDesc(INV_RMS_INDEX);
+    auto hMixDesc = context_->GetOutputDesc(H_MIX_INDEX);
+    auto hPreDesc = context_->GetOutputDesc(H_PRE_INDEX);
+    
+    outFlag_ = 0;
+    if (invRmsDesc != nullptr) {
+        outFlag_ |= 1;
+    }
+    if (hMixDesc != nullptr) {
+        outFlag_ |= 2;
+    }
+    if (hPreDesc != nullptr) {
+        outFlag_ |= 4;
     }
  
-    auto normEpsPtr = attrs->GetAttrPointer<double>(1);
+    auto normEpsPtr = attrs->GetAttrPointer<float>(1);
     if (normEpsPtr != nullptr) {
-        normEps_ = static_cast<float>(*normEpsPtr);
+        normEps_ = *normEpsPtr;
     } else {
-        normEps_ = 1e-6;
+        normEps_ = 1e-6f;
     }
 
-    auto hcEpsPtr = attrs->GetAttrPointer<double>(2);
+    auto hcEpsPtr = attrs->GetAttrPointer<float>(2);
     if (hcEpsPtr != nullptr) {
-        hcEps_ = static_cast<float>(*hcEpsPtr);
+        hcEps_ = *hcEpsPtr;
     } else {
-        hcEps_ = 1e-6;
+        hcEps_ = 1e-6f;
     }
 
     return ge::GRAPH_SUCCESS;

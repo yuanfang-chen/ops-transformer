@@ -21,7 +21,7 @@ using namespace MhcPre;
 
 extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR alpha,
                                                                GM_ADDR bias, GM_ADDR gamma, GM_ADDR hin, GM_ADDR h_post, GM_ADDR h_res,
-                                                               GM_ADDR inv_rms, GM_ADDR mm_res, GM_ADDR h_pre,
+                                                               GM_ADDR inv_rms, GM_ADDR h_mix, GM_ADDR h_pre,
                                                                GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     GET_TILING_DATA(tilingData, tilingGM);
@@ -29,7 +29,7 @@ extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR al
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-    InitParams initParams{x, phi, alpha, bias, gamma, hin, h_post, h_res, inv_rms, mm_res, h_pre, user, &pipe, &tilingData};
+    InitParams initParams{x, phi, alpha, bias, gamma, hin, h_post, h_res, inv_rms, h_mix, h_pre, user, &pipe, &tilingData};
     if (TILING_KEY_IS(0UL)) {
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
