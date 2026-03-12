@@ -110,6 +110,7 @@ public:
     __aicore__ inline void Process();
     __aicore__ inline void ProcessSingleBlock(uint64_t curblock, uint32_t tBlockNum);
     __aicore__ inline void ProcessNdLoop(uint64_t outOffset);
+    __aicore__ inline void InitBlockParams(uint64_t curblock, uint32_t tBlockNum);
     __aicore__ inline void AICProcess(uint32_t offsetNd, uint32_t outOffset);
     __aicore__ inline void InitUbBuffers();
     __aicore__ inline void VectorComputeOffset();
@@ -340,15 +341,7 @@ __aicore__ inline void MhcPreKernel<T, P>::Process()
     uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
 
     for (uint64_t curblock = coreIdx_; curblock < tBlockNum; curblock += coreNum_) {
-        globalOffsetM_ = curblock * chunTSize_;
-        curSingleT_ = chunTSize_;
-        if (curblock == tBlockNum - 1) { // 尾块处理
-            mnConfig_.curSingleCoreM = totalLength_ - globalOffsetM_;
-            curSingleT_ = matrixInfo_.totalLength - curblock * chunTSize_;
-        }
-        if ASCEND_IS_AIV {
-            VectorComputeOffset();
-        }
+        InitBlockParams(curblock, tBlockNum);
 
         uint64_t outOffset = 0;
         if ASCEND_IS_AIC {
@@ -419,6 +412,21 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1GetHSliceOffset()
         }
     }
 }
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitBlockParams(uint64_t curblock, uint32_t tBlockNum)
+{
+    globalOffsetM_ = curblock * chunTSize_;
+    curSingleT_ = chunTSize_;
+    if (curblock == tBlockNum - 1) {
+        mnConfig_.curSingleCoreM = totalLength_ - globalOffsetM_;
+        curSingleT_ = matrixInfo_.totalLength - curblock * chunTSize_;
+    }
+    if ASCEND_IS_AIV {
+        VectorComputeOffset();
+    }
+}
+
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::AICProcess(uint32_t offsetNd, uint32_t outOffset)
 {
