@@ -13,19 +13,33 @@
  * \brief
  */
 
-#ifndef ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE
-#define ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE
+#ifndef ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE_H
+#define ALLTO_ALL_MX_QUANT_MATMUL_PIPELINE_H
 
-#include "../../matmul_allto_all/mc2_templates/scheduler/template/pipeline_context.h"
+#include "../../common/inc/mc2_templates/scheduler/pipeline_builder.h"
 
 // 流水线模板
-namespace MC2KernelTemplate {
+namespace AlltoAllMatmulImpl {
+using MC2KernelTemplate::MC2TransposeContext;
+using MC2KernelTemplate::MC2AlltoAllContext;
+template <typename ComputationContextType>
+struct AlltoAllMXQmmPipelineContext {
+    // computation
+    ComputationContextType* computationContext;
+    // transpose
+    MC2TransposeContext* transposeContext;
+    // scaleTranspose
+    MC2TransposeContext* scaleTransposeContext;
+    // communication
+    MC2AlltoAllContext* communicationContext;
+};
+
 // 通信转置计算模板
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-class AlltoAllMxQuantMatmulPipeLine {
+class AlltoAllMXQuantMatmulPipeLine {
 public:
-    __aicore__ inline AlltoAllMxQuantMatmulPipeLine(CommunicationType* commStage, 
+    __aicore__ inline AlltoAllMXQuantMatmulPipeLine(CommunicationType* commStage, 
                                                     TransposeType* transStage,
                                                     ScaleTransposeType* scaleTransStage, 
                                                     ComputationType* computeStage) 
@@ -51,7 +65,7 @@ private:
 
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-__aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, TransposeType,
+__aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, TransposeType,
                                                      ScaleTransposeType, ComputationType,
                                                      ContextType>::Init()
 {   
@@ -61,7 +75,7 @@ __aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, Transpos
 
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-__aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, TransposeType,
+__aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, TransposeType,
                                                      ScaleTransposeType, ComputationType,
                                                      ContextType>::GetContext(ContextType* context)
 {
@@ -73,7 +87,7 @@ __aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, Transpos
 
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-__aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, TransposeType,
+__aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, TransposeType,
                                                      ScaleTransposeType, ComputationType,
                                                      ContextType>::Process(uint32_t taskCnt)
 {
@@ -84,9 +98,12 @@ __aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, Transpos
             commStage_->Process(index);
             AscendC::SyncAll<true>();
             transStage_->Process(index);
+            CrossCoreSetFlag<0, PIPE_MTE3>(8);
+            CrossCoreWaitFlag(8);
+            CrossCoreSetFlag<2, PIPE_MTE3>(9);
         }
-        AscendC::SyncAll<false>();
         if ASCEND_IS_AIC {
+            CrossCoreWaitFlag(9);
             computeStage_->Process(index);
         }
     }
@@ -94,7 +111,7 @@ __aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, Transpos
 
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-__aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, TransposeType,
+__aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, TransposeType,
                                                      ScaleTransposeType, ComputationType,
                                                      ContextType>::ProcessScale()
 {
@@ -108,7 +125,7 @@ __aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, Transpos
 
 template <typename CommunicationType, typename TransposeType, typename ScaleTransposeType, 
           typename ComputationType, typename ContextType>
-__aicore__ inline void AlltoAllMxQuantMatmulPipeLine<CommunicationType, TransposeType,
+__aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, TransposeType,
                                                      ScaleTransposeType, ComputationType,
                                                      ContextType>::End()
 {
