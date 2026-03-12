@@ -99,7 +99,7 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
         return ParseTndFormat(xTensor);
     }
 
-    OP_LOGE(context_->GetNodeName(), "xDims[%u] is invalid", xDims);
+    OP_LOGE(context_->GetNodeName(), "X dims[%u] is invalid", xDims);
     return ge::GRAPH_FAILED;
 }
 
@@ -137,7 +137,7 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
     auto phiDims = phiTensor->GetStorageShape().GetDimNum();
 
     if (phiDims < 2) {
-        OP_LOGE(context_->GetNodeName(), "phiDims [%u] is invalid", phiDims);
+        OP_LOGE(context_->GetNodeName(), "Phi dims[%u] is invalid", phiDims);
         return ge::GRAPH_FAILED;
     }
 
@@ -170,7 +170,7 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 
     uint64_t phiSecondDim = phiTensor->GetStorageShape().GetDim(1);
     if (phiSecondDim != matK_) {
-        OP_LOGE(context_->GetNodeName(), "phi[1]=%u and matK_=%u (nD) shape is not compatible", phiSecondDim, matK_);
+        OP_LOGE(context_->GetNodeName(), "Phi[1]=%u and matK_=%u (nD) shape are not compatible", phiSecondDim, matK_);
         return ge::GRAPH_FAILED;
     }
 
@@ -180,7 +180,7 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
 {
     if (GetInputShape() != ge::GRAPH_SUCCESS) {
-        OP_LOGE(context_->GetNodeName(), "get input shape failed");
+        OP_LOGE(context_->GetNodeName(), "Get input shape failed");
         return ge::GRAPH_FAILED;
     }
 
@@ -201,7 +201,7 @@ ge::graphStatus MhcPreBaseTiling::InitPlatformMemory()
 
     auto platformInfo = context_->GetPlatformInfo();
     if (platformInfo == nullptr) {
-        OP_LOGE(context_->GetNodeName(), "get platform info failed");
+        OP_LOGE(context_->GetNodeName(), "Get platform info failed");
         return ge::GRAPH_FAILED;
     }
 
@@ -301,7 +301,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     mm_.SetShape(matM_, matN_, matK_);
     mm_.SetOrgShape(matM_, matN_, matK_);
     if (mm_.GetTiling(tilingData_.matmulTiling) == -1) {
-        OP_LOGE(context_->GetNodeName(), "LowerTriangularInverseBaseTiling Get Tiling Failed!, batch, m: %lu, %lu",
+        OP_LOGE(context_->GetNodeName(), "MhcPre Tiling get tiling failed, batch: %lu, m: %lu",
                 totalLength_, matM_);
         return ge::GRAPH_FAILED;
     }
@@ -318,7 +318,7 @@ ge::graphStatus MhcPreBaseTiling::DoOpTiling()
 {
     auto inputXDesc = context_->GetInputDesc(0);
     if (inputXDesc == nullptr) {
-        OP_LOGE(context_->GetNodeName(), "invalid input pointer: x");
+        OP_LOGE(context_->GetNodeName(), "Invalid input pointer: x");
         return ge::GRAPH_FAILED;
     }
 
@@ -362,7 +362,7 @@ ge::graphStatus MhcPreBaseTiling::PostTiling()
 {
     OP_CHECK_IF(
         tilingData_.GetDataSize() % sizeof(uint64_t) != 0,
-        OP_LOGE(context_->GetNodeName(), "tiling data size[%zu] is not aligned to 8", tilingData_.GetDataSize()),
+        OP_LOGE(context_->GetNodeName(), "Tiling data size[%zu] is not aligned to 8", tilingData_.GetDataSize()),
         return ge::GRAPH_FAILED);
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetRawTilingData());
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
@@ -371,7 +371,7 @@ ge::graphStatus MhcPreBaseTiling::PostTiling()
     context_->SetScheduleMode(SCHEDULE_MODE);
 
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "workspaces is null"),
+    OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "Workspaces is null"),
                 return ge::GRAPH_FAILED);
 
     workspaces[0] = workspaceSize_;
@@ -380,7 +380,7 @@ ge::graphStatus MhcPreBaseTiling::PostTiling()
 
 static ge::graphStatus TilingFunc4mHCPre(gert::TilingContext *context)
 {
-    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[mHCPostTilingTilingFunc]", " context is null"),
+    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[mHCPreTilingTilingFunc]", "Context is null"),
                 return ge::GRAPH_FAILED);
 
     return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
@@ -389,14 +389,14 @@ static ge::graphStatus TilingFunc4mHCPre(gert::TilingContext *context)
 
 static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
 {
-    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[TilingPrepare4mHC]", "context is null"),
+    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[TilingPrepare4mHC]", "Context is null"),
                 return ge::GRAPH_FAILED);
     fe::PlatFormInfos *platformInfo = context->GetPlatformInfo();
-    OP_CHECK_IF(platformInfo == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
+    OP_CHECK_IF(platformInfo == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "PlatformInfoPtr is null"),
                 return ge::GRAPH_FAILED);
 
     auto compileInfoPtr = context->GetCompiledInfo<MhcPreCompileInfo>();
-    OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "compileInfoPtr is null"),
+    OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "CompileInfoPtr is null"),
                 return ge::GRAPH_FAILED);
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
@@ -411,7 +411,7 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfoPtr->l0BSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfoPtr->l0CSize);
 
-    OP_LOGI(context->GetNodeName(), "parse compile info success l1Size:%lu, l2Size:%lu, coreNum:%lu",
+    OP_LOGI(context->GetNodeName(), "Parse compile info success, l1Size:%lu, l2Size:%lu, coreNum:%lu",
             compileInfoPtr->l1Size, compileInfoPtr->l2Size, compileInfoPtr->aicNum);
     return ge::GRAPH_SUCCESS;
 }
