@@ -219,6 +219,9 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
     if (unlikely(runInfo.halfS1RealSize == 0)) {
         return;
     }
+    if (constInfo.learnableSinkFlag) {
+        SinkSubExpAddVF<float>(sumUb, maxUb, constInfo.sinkValue, runInfo.halfS1RealSize);
+    }
     int64_t bOffset;
     int64_t n2Offset;
     int64_t gOffset;
