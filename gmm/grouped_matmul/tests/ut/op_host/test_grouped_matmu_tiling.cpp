@@ -3084,11 +3084,11 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 }
 
 // QUANT_A4W4优化
-TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
+TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_fixed_axis)
 {
     size_t M = 256;
-    size_t K = 7168;
-    size_t N = 4096;
+    size_t K = 2048;
+    size_t N = 7168;
     size_t E = 4;
     optiling::GMMCompileInfo compileInfo = {
         24,//aicNum
@@ -3104,10 +3104,10 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     };
     gert::TilingContextPara tilingContextPara("GroupedMatmul", // op_name
                                                 { // input info
-                                                    {{{M, K}, {M, K}}, ge::DT_INT4, ge::FORMAT_ND},              //x
-                                                    {{{E, K, N}, {E, K/64, N/16, 16, 64}}, ge::DT_INT4, ge::FORMAT_FRACTAL_NZ},        //weight
+                                                    {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
+                                                    {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},        //weight
                                                     {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
-                                                    {{{E, N}, {E, N}}, ge::DT_UINT64, ge::FORMAT_ND},                //scale
+                                                    {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantScale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantOffset
@@ -3125,11 +3125,11 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
                                                     {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64,0,-1})},
+                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64, 0, -1})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
-        DT_INT4, // D_T_A
-        DT_INT4, // D_T_B
+        DT_INT8, // D_T_A
+        DT_INT8, // D_T_B
         DT_FLOAT16, // D_T_Y
         0, // TRANS_A
         0, // TRANS_B
@@ -3144,7 +3144,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     //     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
     string expectTilingData =
         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {23068672}; // workspace
+    std::vector<size_t> expectWorkspaces = {26669056}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,230);
 }
 
