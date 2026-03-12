@@ -29,8 +29,8 @@ MhcPre(
 {
     L0_DFX(MhcPre, x, phi, alpha, bias, gammaOptional, normEps, hcEps);
 
-    DataType outType = DataType::DT_FLOAT; // 输出类型
-    Format format = Format::FORMAT_ND; // 输出分形
+    DataType outType = DataType::DT_FLOAT;
+    Format format = Format::FORMAT_ND;
     auto outHin = executor->AllocTensor(x->GetDataType(), format, format);
     auto outHpost = executor->AllocTensor(outType, format, format);
     auto outHres = executor->AllocTensor(outType, format, format);

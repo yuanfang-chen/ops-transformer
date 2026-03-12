@@ -34,6 +34,22 @@ extern "C" {
 
 namespace {
 
+constexpr size_t DIM_NUM_1 = 1UL;
+constexpr size_t DIM_NUM_2 = 2UL;
+constexpr size_t DIM_NUM_3 = 3UL;
+constexpr size_t DIM_NUM_4 = 4UL;
+
+constexpr int64_t N_VALID_VALUES[] = {4, 6, 8};
+constexpr int64_t D_ALIGNMENT = 16;
+constexpr int64_t ALPHA_DIM_SIZE = 3;
+constexpr int64_t PHI_DIM_OFFSET = 2;
+
+bool CheckAlphaShape(const aclTensor *alphaTensor);
+bool ValidateNDParams(int64_t n, int64_t d);
+bool CheckPhiShape(const aclTensor *phiTensor, int64_t n2Plus2n, int64_t nD);
+bool CheckBiasShape(const aclTensor *biasTensor, int64_t n2Plus2n);
+bool CheckGammaShape(const aclTensor *gammaOptional, int64_t n, int64_t d);
+
 struct MhcParamsBase {
     const aclTensor *x = nullptr;
     const aclTensor *phi = nullptr;
@@ -112,31 +128,31 @@ private:
 bool CheckNotNull(const MhcParamsBase &params)
 {
     if (params.x == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "x tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "X tensor is nullptr");
         return false;
     }
     if (params.phi == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "phi tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Phi tensor is nullptr");
         return false;
     }
     if (params.alpha == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "alpha tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Alpha tensor is nullptr");
         return false;
     }
     if (params.bias == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "bias tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Bias tensor is nullptr");
         return false;
     }
     if (params.hIn == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hIn tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "HIn tensor is nullptr");
         return false;
     }
     if (params.hPost == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hPost tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "HPost tensor is nullptr");
         return false;
     }
     if (params.hRes == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "hRes tensor is nullptr");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "HRes tensor is nullptr");
         return false;
     }
     return true;
@@ -145,19 +161,19 @@ bool CheckNotNull(const MhcParamsBase &params)
 bool CheckEmptyTensor(const MhcParamsBase &params)
 {
     if (params.x->IsEmpty()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x tensor is empty");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "X tensor is empty");
         return false;
     }
     if (params.phi->IsEmpty()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor is empty");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor is empty");
         return false;
     }
     if (params.alpha->IsEmpty()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "alpha tensor is empty");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Alpha tensor is empty");
         return false;
     }
     if (params.bias->IsEmpty()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor is empty");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Bias tensor is empty");
         return false;
     }
     return true;
@@ -165,44 +181,34 @@ bool CheckEmptyTensor(const MhcParamsBase &params)
 
 bool CheckInputOutDims(const MhcParamsBase &params)
 {
-    constexpr size_t DIM_NUM_1 = 1UL;
-    constexpr size_t DIM_NUM_2 = 2UL;
-    constexpr size_t DIM_NUM_3 = 3UL;
-    constexpr size_t DIM_NUM_4 = 4UL;
-    
-    // x可以是3维或4维
     auto xDimNum = params.x->GetViewShape().GetDimNum();
     if (xDimNum != DIM_NUM_3 && xDimNum != DIM_NUM_4) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x tensor dim num must be 3 or 4, but got %zu", xDimNum);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "X tensor dim num must be 3 or 4, but got %zu", xDimNum);
         return false;
     }
-    
-    // phi应该是2维: (n^2+2n, nD)
+
     auto phiDimNum = params.phi->GetViewShape().GetDimNum();
     if (phiDimNum != DIM_NUM_2) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor dim num must be 2, but got %zu", phiDimNum);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor dim num must be 2, but got %zu", phiDimNum);
         return false;
     }
 
-    // alpha应该是1维: (3)
     auto alphaDimNum = params.alpha->GetViewShape().GetDimNum();
     if (alphaDimNum != DIM_NUM_1) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "alpha tensor dim num must be 1, but got %zu", alphaDimNum);
-        return false;
-    }
-    
-    // bias应该是1维: (n^2+2n)
-    auto biasDimNum = params.bias->GetViewShape().GetDimNum();
-    if (biasDimNum != DIM_NUM_1) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor dim num must be 1, but got %zu", biasDimNum);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Alpha tensor dim num must be 1, but got %zu", alphaDimNum);
         return false;
     }
 
-    // gamma应该是2维: (n, D)
+    auto biasDimNum = params.bias->GetViewShape().GetDimNum();
+    if (biasDimNum != DIM_NUM_1) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Bias tensor dim num must be 1, but got %zu", biasDimNum);
+        return false;
+    }
+
     if (params.gammaOptional != nullptr) {
         auto gammaDimNum = params.gammaOptional->GetViewShape().GetDimNum();
         if (gammaDimNum != DIM_NUM_2) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor dim num must be 2, but got %zu", gammaDimNum);
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GammaOptional tensor dim num must be 2, but got %zu", gammaDimNum);
             return false;
         }
     }
@@ -213,89 +219,128 @@ bool CheckInputOutDims(const MhcParamsBase &params)
 bool CheckInputOutShape(const MhcParamsBase &params)
 {
     auto xShape = params.x->GetViewShape();
-    auto phiShape = params.phi->GetViewShape();
-    auto alphaShape = params.alpha->GetViewShape();
-    auto biasShape = params.bias->GetViewShape();
 
+    if (!CheckAlphaShape(params.alpha)) {
+        return false;
+    }
+
+    int64_t n = 0;
+    int64_t d = 0;
+    int64_t nD = 0;
     auto xDimNum = xShape.GetDimNum();
-    
-    // alpha的shape必须是(3)
-    if (alphaShape.GetDim(0) != 3) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "alpha tensor shape must be (3), but got (%ld)", alphaShape.GetDim(0));
-        return false;
-    }
-    
-    // 从x的shape推导n和D
-    int64_t n = 0;  // numsResidual
-    int64_t d = 0;  // dimen
-    int64_t nD = 0; // n * D
-    
-    if (xDimNum == 4) {
-        // BSND格式: (B, S, N, D)
-        n = xShape.GetDim(2);  // N维度
-        d = xShape.GetDim(3);  // D维度
+
+    if (xDimNum == DIM_NUM_4) {
+        n = xShape.GetDim(2);
+        d = xShape.GetDim(3);
         nD = n * d;
-    } else if (xDimNum == 3) {
-        // TND格式: (T, N, D)
-        n = xShape.GetDim(1);  // N维度
-        d = xShape.GetDim(2);  // D维度
+    } else if (xDimNum == DIM_NUM_3) {
+        n = xShape.GetDim(1);
+        d = xShape.GetDim(2);
         nD = n * d;
     }
-    
-    if (n <= 0 || d <= 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Invalid x tensor shape: n=%ld, d=%ld", n, d);
+
+    if (!ValidateNDParams(n, d)) {
         return false;
     }
 
-    // N只支持4/6/8
-    if (n != 4 && n != 6 && n != 8) {
+    int64_t n2Plus2n = n * n + 2 * n;
+
+    if (!CheckPhiShape(params.phi, n2Plus2n, nD)) {
+        return false;
+    }
+
+    if (!CheckBiasShape(params.bias, n2Plus2n)) {
+        return false;
+    }
+
+    if (!CheckGammaShape(params.gammaOptional, n, d)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool CheckAlphaShape(const aclTensor *alphaTensor)
+{
+    auto alphaShape = alphaTensor->GetViewShape();
+    if (alphaShape.GetDim(0) != ALPHA_DIM_SIZE) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Alpha tensor shape must be (3), but got (%ld)", alphaShape.GetDim(0));
+        return false;
+    }
+    return true;
+}
+
+bool ValidateNDParams(int64_t n, int64_t d)
+{
+    if (n <= 0 || d <= 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Invalid X tensor shape: n=%ld, d=%ld", n, d);
+        return false;
+    }
+
+    bool isValidN = false;
+    for (size_t i = 0; i < sizeof(N_VALID_VALUES) / sizeof(N_VALID_VALUES[0]); ++i) {
+        if (n == N_VALID_VALUES[i]) {
+            isValidN = true;
+            break;
+        }
+    }
+    if (!isValidN) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "N must be 4/6/8, but got n=%ld", n);
         return false;
     }
 
-    // D只支持32字节对齐（对于BF16/FP16，即元素个数%16==0）
-    if (d % 16 != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "D must be 32 bytes aligned (element count mod 16 == 0 for BF16/FP16), but got d=%ld", d);
+    if (d % D_ALIGNMENT != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "D must be 32 bytes aligned, but got d=%ld", d);
         return false;
     }
-    
-    int64_t n2_plus_2n = n * n + 2 * n;  // n^2 + 2n
-    
-    // phi的shape应该是(n^2+2n, nD)
-    if (phiShape.GetDim(0) != n2_plus_2n) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor first dim must be n^2+2n=%ld, but got %ld", n2_plus_2n, phiShape.GetDim(0));
+
+    return true;
+}
+
+bool CheckPhiShape(const aclTensor *phiTensor, int64_t n2Plus2n, int64_t nD)
+{
+    auto phiShape = phiTensor->GetViewShape();
+    if (phiShape.GetDim(0) != n2Plus2n) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor first dim must be n^2+2n=%ld, but got %ld", n2Plus2n, phiShape.GetDim(0));
         return false;
     }
     if (phiShape.GetDim(1) != nD) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor second dim must be nD=%ld, but got %ld", nD, phiShape.GetDim(1));
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor second dim must be nD=%ld, but got %ld", nD, phiShape.GetDim(1));
         return false;
     }
-    // bias的shape应该是(n^2+2n)
-    if (biasShape.GetDim(0) != n2_plus_2n) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor dim must be n^2+2n=%ld, but got %ld", n2_plus_2n, biasShape.GetDim(0));
+    return true;
+}
+
+bool CheckBiasShape(const aclTensor *biasTensor, int64_t n2Plus2n)
+{
+    auto biasShape = biasTensor->GetViewShape();
+    if (biasShape.GetDim(0) != n2Plus2n) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Bias tensor dim must be n^2+2n=%ld, but got %ld", n2Plus2n, biasShape.GetDim(0));
         return false;
     }
-    // gamma的shape应该是(n, D)
-    if (params.gammaOptional != nullptr) {
-        auto gammaShape = params.gammaOptional->GetViewShape();
+    return true;
+}
+
+bool CheckGammaShape(const aclTensor *gammaOptional, int64_t n, int64_t d)
+{
+    if (gammaOptional != nullptr) {
+        auto gammaShape = gammaOptional->GetViewShape();
         if (gammaShape.GetDim(0) != n) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor first dim must be n=%ld, but got %ld", n, gammaShape.GetDim(0));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GammaOptional tensor first dim must be n=%ld, but got %ld", n, gammaShape.GetDim(0));
             return false;
         }
         if (gammaShape.GetDim(1) != d) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor second dim must be D=%ld, but got %ld", d, gammaShape.GetDim(1));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GammaOptional tensor second dim must be D=%ld, but got %ld", d, gammaShape.GetDim(1));
             return false;
         }
     }
-    
     return true;
 }
 
 bool CheckDtypeValid_mhc(const MhcParamsBase &params)
 {
-    // x支持BF16或FP16
     const std::initializer_list<DataType> X_SUPPORT_DTYPE_LIST = {DataType::DT_BF16, DataType::DT_FLOAT16};
-    
+
     auto xDtype = params.x->GetDataType();
     bool xDtypeValid = false;
     for (const auto &dtype : X_SUPPORT_DTYPE_LIST) {
@@ -305,30 +350,29 @@ bool CheckDtypeValid_mhc(const MhcParamsBase &params)
         }
     }
     if (!xDtypeValid) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x tensor dtype must be BF16 or FP16");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "X tensor dtype must be BF16 or FP16");
         return false;
     }
-    
-    // phi, gammaOptional, alpha, bias都必须是FP32
+
     if (params.phi->GetDataType() != DataType::DT_FLOAT) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor dtype must be FP32");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor dtype must be FP32");
         return false;
     }
     if (params.alpha->GetDataType() != DataType::DT_FLOAT) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "alpha tensor dtype must be FP32");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Alpha tensor dtype must be FP32");
         return false;
     }
     if (params.bias->GetDataType() != DataType::DT_FLOAT) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor dtype must be FP32");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Bias tensor dtype must be FP32");
         return false;
     }
     if (params.gammaOptional != nullptr) {
         if (params.gammaOptional->GetDataType() != DataType::DT_FLOAT) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor dtype must be FP32");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GammaOptional tensor dtype must be FP32");
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -344,30 +388,29 @@ static bool IsPrivateFormat(ge::Format format)
 
 bool CheckFormat(const MhcParamsBase &params)
 {
-    // 检查所有输入tensor的format必须是ND格式
     if (IsPrivateFormat(params.x->GetViewFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x tensor format must be ND");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "X tensor format must be ND");
         return false;
     }
-    
+
     if (IsPrivateFormat(params.phi->GetViewFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "phi tensor format must be ND");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Phi tensor format must be ND");
         return false;
     }
 
     if (IsPrivateFormat(params.alpha->GetViewFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "alpha tensor format must be ND");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Alpha tensor format must be ND");
         return false;
     }
-    
+
     if (IsPrivateFormat(params.bias->GetViewFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "bias tensor format must be ND");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Bias tensor format must be ND");
         return false;
     }
 
     if (params.gammaOptional != nullptr) {
         if (IsPrivateFormat(params.gammaOptional->GetViewFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gammaOptional tensor format must be ND");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GammaOptional tensor format must be ND");
             return false;
         }
     }
