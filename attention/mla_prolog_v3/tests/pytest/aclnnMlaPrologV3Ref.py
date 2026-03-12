@@ -191,6 +191,44 @@ def scatter_pa_nz(cache, inputs, index, data_size=16):
 import math
 import numpy as np
 
+def _parse_pa_blk_seq_layout(seq_len, B, input_rows=None):
+    if isinstance(seq_len, (int, np.integer)):
+        S1 = int(seq_len)
+        if input_rows is not None:
+            assert input_rows == B * S1, \
+                f"BSND: input_.shape[0] 必须等于 B*S1={B*S1}，而现在是 {input_rows}"
+        seq_list = np.full((B,), S1, dtype=np.int64)
+        start_list = np.arange(B, dtype=np.int64) * S1
+        return B, seq_list, start_list
+
+    seq_arr = np.asarray(seq_len).reshape(-1)
+    B = int(seq_arr.shape[0])
+    if B == 0:
+        return B, np.empty((0,), dtype=np.int64), np.empty((0,), dtype=np.int64)
+
+    is_prefix_sum = B == 1 or np.all(seq_arr[1:] >= seq_arr[:-1])
+    if is_prefix_sum:
+        seq_list = np.empty(B, dtype=np.int64)
+        seq_list[0] = int(seq_arr[0])
+        if B > 1:
+            seq_list[1:] = np.diff(seq_arr).astype(np.int64)
+        start_list = np.empty(B, dtype=np.int64)
+        start_list[0] = 0
+        if B > 1:
+            start_list[1:] = seq_arr[:-1].astype(np.int64)
+    else:
+        seq_list = seq_arr.astype(np.int64)
+        start_list = np.zeros(B, dtype=np.int64)
+        if B > 1:
+            start_list[1:] = np.cumsum(seq_list[:-1])
+
+    if input_rows is not None:
+        total_rows = int(np.sum(seq_list))
+        assert input_rows == total_rows, \
+            f"TND: input_.shape[0] 必须等于 total tokens={total_rows}，而现在是 {input_rows}"
+    return B, seq_list, start_list
+
+
 def scatter_pa_blk_bsnd(cache: np.ndarray,
                         input_: np.ndarray,
                         index: np.ndarray,
@@ -210,38 +248,18 @@ def scatter_pa_blk_bsnd(cache: np.ndarray,
 
     # -------- 解析 BSND / TND --------
     if isinstance(seq_len, (int, np.integer)):
-        # BSND：每个 batch 的长度相同
+        B, seq_list, start_list = _parse_pa_blk_seq_layout(seq_len, B, input_rows=input_.shape[0])
         S1 = int(seq_len)
-        assert input_.shape[0] == B * S1, f"BSND: input_.shape[0] 必须等于 B*S1={B*S1}"
         pages_per_b = math.ceil(S1 / blk_size)
-        # index 为扁平一维，长度应为 B * pages_per_b
-        assert index.ndim == 1 and index.shape[0] == B * pages_per_b, \
-            f"BSND: index 长度应为 B*ceil(S1/blk)={B*pages_per_b}，而现在是 {index.shape[0]}"
-        seq_list  = np.full((B,), S1, dtype=np.int64)
-        start_list = np.arange(B, dtype=np.int64) * S1
-    else:
-        # TND：长度表或前缀和
-        seq_arr = np.asarray(seq_len).reshape(-1)
-        B = int(seq_arr.shape[0])
-
-        # 兼容两种输入：长度表 或 前缀和（常见形式：prefix = [len0, len0+len1, ...]）
-        if B >= 2 and seq_arr[0] >= 0:
-            # 按前缀和解析（更鲁棒）
-            seq_list = np.empty(B, dtype=np.int64)
-            seq_list[0] = int(seq_arr[0])
-            if B > 1:
-                seq_list[1:] = np.diff(seq_arr).astype(np.int64)
-            start_list = np.empty(B, dtype=np.int64)
-            start_list[0] = 0
-            if B > 1:
-                start_list[1:] = seq_arr[:-1].astype(np.int64)
+        if index.ndim == 2:
+            assert index.shape == (B, pages_per_b), \
+                f"BSND: index shape 应为 ({B}, {pages_per_b})，而现在是 {tuple(index.shape)}"
+            index = index.reshape(-1)
         else:
-            # 视为长度表
-            seq_list  = seq_arr.astype(np.int64)
-            start_list = np.zeros(B, dtype=np.int64)
-            if B > 1:
-                start_list[1:] = np.cumsum(seq_list[:-1])
-
+            assert index.ndim == 1 and index.shape[0] == B * pages_per_b, \
+                f"BSND: index 长度应为 B*ceil(S1/blk)={B*pages_per_b}，而现在是 {index.shape[0]}"
+    else:
+        B, seq_list, start_list = _parse_pa_blk_seq_layout(seq_len, B, input_rows=input_.shape[0])
         # TND: index 是扁平一维，长度应为 sum_b ceil(seq[b]/blk_size)
         expected_len = int(np.sum((seq_list + blk_size - 1) // blk_size))
         assert index.ndim == 1 and index.shape[0] == expected_len, \
@@ -309,78 +327,73 @@ def scatter_pa_blk_nz(cache: np.ndarray,
         cache: 原位写入并返回
     """
     # ------------ 基本检查 ------------
-    assert cache.ndim == 4, f"cache shape must be 4D, got {cache.shape}"
+    assert cache.ndim == 4, "cache 必须是 (num_pa_blocks, blk_size, N, H)"
     assert input_.ndim == 2, f"input shape must be 2D, got {input_.shape}"
-    assert index.ndim == 2, f"index shape must be 2D, got {index.shape}"
-
     num_pa_blocks, blk_size, N, H_pad = cache.shape
     H = input_.shape[1]
 
     # ------------ 解析 BSND/TND 的序列长度与起始偏移 ------------
     if isinstance(seq_len, (int, np.integer)):
-        # BSND
+        B, seq_list, start_list = _parse_pa_blk_seq_layout(seq_len, B, input_rows=input_.shape[0])
+        assert index.ndim in (1, 2), f"BSND: index shape must be 1D/2D, got {index.shape}"
         S1 = int(seq_len)
-        assert input_.shape[0] == B * S1, \
-            f"input first dim({input_.shape[0]}) must be B*S1({B*S1}) for BSND"
-        # 每个 batch 的长度与起始偏移
-        seq_list = np.full((B,), S1, dtype=np.int64)
-        start_list = np.arange(B, dtype=np.int64) * S1
-        # index 页数检查
         expected_pages = math.ceil(S1 / blk_size)
-        assert index.shape[1] == expected_pages, \
-            f"index second dim({index.shape[1]}) must be ceil(S1/blk_size)({expected_pages})"
+        if index.ndim == 2:
+            assert index.shape == (B, expected_pages), \
+                f"BSND: index shape 应为 ({B}, {expected_pages})，而现在是 {tuple(index.shape)}"
+            page_index = index
+        else:
+            assert index.shape[0] == B * expected_pages, \
+                f"BSND: index 长度应为 {B * expected_pages}，而现在是 {index.shape[0]}"
+            page_index = index.reshape(B, expected_pages)
     else:
-        # TND：seq_len 为 ndarray，是前缀和数组
-        seq_arr = np.asarray(seq_len).reshape(-1)
-        B = int(seq_len.shape[0])
-        total_T = int(seq_arr[-1])
-        # 转换为 per-batch 长度
-        seq_list = np.empty(B, dtype=np.int64)
-        seq_list[0] = int(seq_arr[0])
-        if B > 1:
-            seq_list[1:] = np.diff(seq_arr).astype(np.int64)
-        start_list = np.empty(B, dtype=np.int64)
-        start_list[0] = 0
-        if B > 1:
-            start_list[1:] = seq_arr[:-1].astype(np.int64)
-        assert input_.shape[0] == total_T, \
-            f"input first dim({input_.shape[0]}) must equal total tokens({total_T}) for TND"
-
-        # 对 index 第二维做“足够大”检查（通常对齐到 max_seq）
-        max_s1 = int(np.max(seq_list))
-        need_pages = math.ceil(max_s1 / blk_size)
-        assert index.shape[1] >= need_pages, \
-            f"index second dim({index.shape[1]}) must be >= ceil(max_seq/blk_size)({need_pages}) for TND"
+        B, seq_list, start_list = _parse_pa_blk_seq_layout(seq_len, B, input_rows=input_.shape[0])
+        expected_len = int(np.sum((seq_list + blk_size - 1) // blk_size))
+        assert index.ndim == 1 and index.shape[0] == expected_len, \
+            f"TND: index 长度应为 {expected_len}，而现在是 {index.shape[0]}"
+        page_index = None
 
     # ------------ 按 batch / token 写入 ------------
     data_num = math.ceil(H / data_size)   # 有效列块数（最后一块可能不满 data_size）
+    flat_page_ptr = 0
 
     for b in range(B):
         len_b = int(seq_list[b])
-        inp_start = int(start_list[b])
-        # 对每个 token（该 batch 内的相对下标 t）
-        for t in range(len_b):
-            page_id = t // blk_size
-            tok_off_in_page = t - page_id * blk_size  # 避免二次除法
-            pa_blk_id = int(index[b, page_id])  # 单位：行
+        base_in = int(start_list[b])
+        if len_b <= 0:
+            continue
 
-            inp_row = inp_start + t
+        pages_b = (len_b + blk_size - 1) // blk_size
+        for p in range(pages_b):
+            if page_index is not None:
+                pa_blk_id = int(page_index[b, p])
+            else:
+                pa_blk_id = int(index[flat_page_ptr])
+                flat_page_ptr += 1
 
-            # 列块循环（NZ 映射规则）
-            for data_idx in range(data_num):
-                data_index_in_block = data_idx * blk_size + tok_off_in_page
-                block_size_index = data_index_in_block // data_num
-                h_start = (data_index_in_block % data_num) * data_size
-                h_end = h_start + data_size
+            assert 0 <= pa_blk_id < num_pa_blocks, \
+                f"pa_blk_id={pa_blk_id} 越界 (num_pa_blocks={num_pa_blocks})"
 
-                # 处理最后一个分块可能越界 H 的情况（只写有效列）
-                in_h_start = data_idx * data_size
-                in_h_end = min(in_h_start + data_size, H)
-                out_h_end = h_start + (in_h_end - in_h_start)
+            token_begin_in_b = p * blk_size
+            tokens_in_page = min(blk_size, len_b - token_begin_in_b)
+            for r in range(tokens_in_page):
+                inp_row = int(base_in + token_begin_in_b + r)
+                for data_idx in range(data_num):
+                    data_index_in_block = data_idx * blk_size + r
+                    block_size_index = data_index_in_block // data_num
+                    h_start = (data_index_in_block % data_num) * data_size
+                    h_end = h_start + data_size
 
-                for n in range(N):
-                    cache[pa_blk_id, block_size_index, n, h_start:out_h_end] = \
-                        input_[inp_row, in_h_start:in_h_end]
+                    in_h_start = data_idx * data_size
+                    in_h_end = min(in_h_start + data_size, H)
+                    out_h_end = h_start + (in_h_end - in_h_start)
+
+                    cache[pa_blk_id, block_size_index, :, h_start:out_h_end] = \
+                        input_[inp_row, in_h_start:in_h_end][None, :]
+
+    if page_index is None:
+        assert flat_page_ptr == index.shape[0], \
+            f"TND: index 被消费 {flat_page_ptr} 项，但长度为 {index.shape[0]}"
 
     return cache
 
@@ -1732,7 +1745,7 @@ def cal_mlaprolog(mla_param):
 
 
     if mla_param['cache_mode'] == "PA_BLK_NZ":
-        kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res, index_table, seq_len, scatter_size)
+        kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res, index_table, seq_len, B, scatter_size)
     elif mla_param['cache_mode'] == "PA_BLK_BSND":
         kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res, index_table, seq_len, B)
     elif mla_param['cache_mode'] == "PA_NZ":
@@ -1790,7 +1803,7 @@ def cal_mlaprolog(mla_param):
         print(
             f"[INFO]scatter2 start. rotary2_res{splitd2_res2_shape}:{tuple(rotary2_res.shape)}|{rotary2_res.dtype} kr_cache{out4_info}:{tuple(kr_cache.shape)}|{kr_cache.dtype} scatter_size:{scatter_size}")
         if mla_param['cache_mode'] == "PA_BLK_NZ":
-            kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_res, index_table, seq_len, scatter_size)
+            kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_res, index_table, seq_len, B, scatter_size)
         elif mla_param['cache_mode'] == "PA_BLK_BSND":
             kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_res, index_table, seq_len, B)
         elif mla_param['cache_mode'] == "PA_NZ":

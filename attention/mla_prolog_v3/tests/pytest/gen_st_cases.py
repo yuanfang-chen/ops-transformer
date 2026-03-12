@@ -296,6 +296,13 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
         expected_error_substrings=["cacheindex", "dim", "error"],
     ),
     _negative_case(
+        "invalid_pa_blk_nz_cache_index_rank",
+        kind="input_override",
+        param_updates={"batch_size": 9, "q_seq": 16, "cache_mode": "PA_BLK_NZ", "bs_fused_flag": 1},
+        input_overrides={"cache_index": {"shape": [9, 1]}},
+        expected_error_substrings=["cacheindex", "dim", "error"],
+    ),
+    _negative_case(
         "invalid_combined_repo_nonempty_kr_cache",
         kind="input_override",
         param_updates={

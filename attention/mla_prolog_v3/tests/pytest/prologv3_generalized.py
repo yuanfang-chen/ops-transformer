@@ -427,28 +427,51 @@ def scatter_pa_blk_bsnd(cache, input_, index, seq_len, B):
     assert cache.ndim == 4, "cache must be (num_pa_blocks, blk_size, N, H)"
     num_pa_blocks, blk_size, N, H = cache.shape
 
+    def _parse_seq_layout(seq_len_value, batch_size, input_rows=None):
+        if isinstance(seq_len_value, (int, np.integer)):
+            S1 = int(seq_len_value)
+            if input_rows is not None:
+                assert input_rows == batch_size * S1
+            seq_list_local = np.full((batch_size,), S1, dtype=np.int64)
+            start_list_local = np.arange(batch_size, dtype=np.int64) * S1
+            return batch_size, seq_list_local, start_list_local
+
+        seq_arr = np.asarray(seq_len_value).reshape(-1)
+        batch_size = int(seq_arr.shape[0])
+        if batch_size == 0:
+            return batch_size, np.empty((0,), dtype=np.int64), np.empty((0,), dtype=np.int64)
+
+        is_prefix_sum = batch_size == 1 or np.all(seq_arr[1:] >= seq_arr[:-1])
+        if is_prefix_sum:
+            seq_list_local = np.empty(batch_size, dtype=np.int64)
+            seq_list_local[0] = int(seq_arr[0])
+            if batch_size > 1:
+                seq_list_local[1:] = np.diff(seq_arr).astype(np.int64)
+            start_list_local = np.empty(batch_size, dtype=np.int64)
+            start_list_local[0] = 0
+            if batch_size > 1:
+                start_list_local[1:] = seq_arr[:-1].astype(np.int64)
+        else:
+            seq_list_local = seq_arr.astype(np.int64)
+            start_list_local = np.zeros(batch_size, dtype=np.int64)
+            if batch_size > 1:
+                start_list_local[1:] = np.cumsum(seq_list_local[:-1])
+
+        if input_rows is not None:
+            assert input_rows == int(np.sum(seq_list_local))
+        return batch_size, seq_list_local, start_list_local
+
     if isinstance(seq_len, (int, np.integer)):
+        B, seq_list, start_list = _parse_seq_layout(seq_len, B, input_rows=input_.shape[0])
         S1 = int(seq_len)
-        assert input_.shape[0] == B * S1
         pages_per_b = math.ceil(S1 / blk_size)
         if index.ndim == 2:
             assert index.shape[0] == B and index.shape[1] == pages_per_b
             index = index.reshape(-1)
         else:
             assert index.ndim == 1 and index.shape[0] == B * pages_per_b
-        seq_list = np.full((B,), S1, dtype=np.int64)
-        start_list = np.arange(B, dtype=np.int64) * S1
     else:
-        seq_arr = np.asarray(seq_len).reshape(-1)
-        B = int(seq_arr.shape[0])
-        seq_list = np.empty(B, dtype=np.int64)
-        seq_list[0] = int(seq_arr[0])
-        if B > 1:
-            seq_list[1:] = np.diff(seq_arr).astype(np.int64)
-        start_list = np.empty(B, dtype=np.int64)
-        start_list[0] = 0
-        if B > 1:
-            start_list[1:] = seq_arr[:-1].astype(np.int64)
+        B, seq_list, start_list = _parse_seq_layout(seq_len, B, input_rows=input_.shape[0])
         expected_len = int(np.sum((seq_list + blk_size - 1) // blk_size))
         assert index.ndim == 1 and index.shape[0] == expected_len
 
@@ -477,53 +500,90 @@ def scatter_pa_blk_nz(cache, input_, index, seq_len, B, data_size=16):
     """Scatter for PA_BLK_NZ cache mode."""
     assert cache.ndim == 4
     assert input_.ndim == 2
-    assert index.ndim == 2
     num_pa_blocks, blk_size, N, H_pad = cache.shape
     H = input_.shape[1]
 
+    def _parse_seq_layout(seq_len_value, batch_size, input_rows=None):
+        if isinstance(seq_len_value, (int, np.integer)):
+            S1 = int(seq_len_value)
+            if input_rows is not None:
+                assert input_rows == batch_size * S1
+            seq_list_local = np.full((batch_size,), S1, dtype=np.int64)
+            start_list_local = np.arange(batch_size, dtype=np.int64) * S1
+            return batch_size, seq_list_local, start_list_local
+
+        seq_arr = np.asarray(seq_len_value).reshape(-1)
+        batch_size = int(seq_arr.shape[0])
+        if batch_size == 0:
+            return batch_size, np.empty((0,), dtype=np.int64), np.empty((0,), dtype=np.int64)
+
+        is_prefix_sum = batch_size == 1 or np.all(seq_arr[1:] >= seq_arr[:-1])
+        if is_prefix_sum:
+            seq_list_local = np.empty(batch_size, dtype=np.int64)
+            seq_list_local[0] = int(seq_arr[0])
+            if batch_size > 1:
+                seq_list_local[1:] = np.diff(seq_arr).astype(np.int64)
+            start_list_local = np.empty(batch_size, dtype=np.int64)
+            start_list_local[0] = 0
+            if batch_size > 1:
+                start_list_local[1:] = seq_arr[:-1].astype(np.int64)
+        else:
+            seq_list_local = seq_arr.astype(np.int64)
+            start_list_local = np.zeros(batch_size, dtype=np.int64)
+            if batch_size > 1:
+                start_list_local[1:] = np.cumsum(seq_list_local[:-1])
+
+        if input_rows is not None:
+            assert input_rows == int(np.sum(seq_list_local))
+        return batch_size, seq_list_local, start_list_local
+
     if isinstance(seq_len, (int, np.integer)):
+        B, seq_list, start_list = _parse_seq_layout(seq_len, B, input_rows=input_.shape[0])
+        assert index.ndim in (1, 2)
         S1 = int(seq_len)
-        assert input_.shape[0] == B * S1
-        seq_list = np.full((B,), S1, dtype=np.int64)
-        start_list = np.arange(B, dtype=np.int64) * S1
         expected_pages = math.ceil(S1 / blk_size)
-        assert index.shape[1] == expected_pages
+        if index.ndim == 2:
+            assert index.shape == (B, expected_pages)
+            page_index = index
+        else:
+            assert index.shape[0] == B * expected_pages
+            page_index = index.reshape(B, expected_pages)
     else:
-        seq_arr = np.asarray(seq_len).reshape(-1)
-        B = int(seq_len.shape[0])
-        total_T = int(seq_arr[-1])
-        seq_list = np.empty(B, dtype=np.int64)
-        seq_list[0] = int(seq_arr[0])
-        if B > 1:
-            seq_list[1:] = np.diff(seq_arr).astype(np.int64)
-        start_list = np.empty(B, dtype=np.int64)
-        start_list[0] = 0
-        if B > 1:
-            start_list[1:] = seq_arr[:-1].astype(np.int64)
-        assert input_.shape[0] == total_T
-        max_s1 = int(np.max(seq_list))
-        need_pages = math.ceil(max_s1 / blk_size)
-        assert index.shape[1] >= need_pages
+        B, seq_list, start_list = _parse_seq_layout(seq_len, B, input_rows=input_.shape[0])
+        expected_len = int(np.sum((seq_list + blk_size - 1) // blk_size))
+        assert index.ndim == 1 and index.shape[0] == expected_len
+        page_index = None
 
     data_num = math.ceil(H / data_size)
+    flat_page_ptr = 0
     for b in range(B):
         len_b = int(seq_list[b])
-        inp_start = int(start_list[b])
-        for t in range(len_b):
-            page_id = t // blk_size
-            tok_off_in_page = t - page_id * blk_size
-            pa_blk_id = int(index[b, page_id])
-            inp_row = inp_start + t
-            for data_idx in range(data_num):
-                data_index_in_block = data_idx * blk_size + tok_off_in_page
-                block_size_index = data_index_in_block // data_num
-                h_start = (data_index_in_block % data_num) * data_size
-                in_h_start = data_idx * data_size
-                in_h_end = min(in_h_start + data_size, H)
-                out_h_end = h_start + (in_h_end - in_h_start)
-                for n in range(N):
-                    cache[pa_blk_id, block_size_index, n, h_start:out_h_end] = \
-                        input_[inp_row, in_h_start:in_h_end]
+        base_in = int(start_list[b])
+        if len_b <= 0:
+            continue
+        pages_b = (len_b + blk_size - 1) // blk_size
+        for p in range(pages_b):
+            if page_index is not None:
+                pa_blk_id = int(page_index[b, p])
+            else:
+                pa_blk_id = int(index[flat_page_ptr])
+                flat_page_ptr += 1
+            assert 0 <= pa_blk_id < num_pa_blocks
+            token_begin_in_b = p * blk_size
+            tokens_in_page = min(blk_size, len_b - token_begin_in_b)
+            for r in range(tokens_in_page):
+                inp_row = int(base_in + token_begin_in_b + r)
+                for data_idx in range(data_num):
+                    data_index_in_block = data_idx * blk_size + r
+                    block_size_index = data_index_in_block // data_num
+                    h_start = (data_index_in_block % data_num) * data_size
+                    in_h_start = data_idx * data_size
+                    in_h_end = min(in_h_start + data_size, H)
+                    out_h_end = h_start + (in_h_end - in_h_start)
+                    cache[pa_blk_id, block_size_index, :, h_start:out_h_end] = \
+                        input_[inp_row, in_h_start:in_h_end][None, :]
+    if page_index is None:
+        assert flat_page_ptr == index.shape[0]
     return cache
 
 
@@ -683,6 +743,9 @@ class GeneralizedPrologV3:
         token_x = token_x.reshape(T, He)
         sin = sin.reshape(T, Dr)
         cos = cos.reshape(T, Dr)
+        seq_len = S1 if not t_flag else actual_seq_len
+        if cache_mode in ("PA_BLK_NZ", "PA_BLK_BSND") and t_flag and seq_len is None:
+            raise ValueError("actual_seq_len is null for PA_BLK fused cache mode")
         if cache_mode in ("PA_BLK_NZ", "PA_BLK_BSND"):
             # Keep original index rank for block modes.
             index_table = index_table
@@ -1044,9 +1107,9 @@ class GeneralizedPrologV3:
                  f" kv_cache:{tuple(kv_cache.shape)}|{kv_cache.dtype}")
 
         if cache_mode == "PA_BLK_NZ":
-            kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res_scatter, index_table, S1, B, kv_scatter_size)
+            kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res_scatter, index_table, seq_len, B, kv_scatter_size)
         elif cache_mode == "PA_BLK_BSND":
-            kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res_scatter, index_table, S1, B)
+            kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res_scatter, index_table, seq_len, B)
         elif cache_mode == "PA_NZ":
             kv_cache = scatter_pa_nz(kv_cache, norm2_res_scatter, index_table.reshape(T), kv_scatter_size)
         elif cache_mode == "PA_BSND":
@@ -1095,9 +1158,9 @@ class GeneralizedPrologV3:
                      f" kr_cache:{tuple(kr_cache.shape)}|{kr_cache.dtype}")
 
             if cache_mode == "PA_BLK_NZ":
-                kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_scatter, index_table, S1, B, kr_scatter_size)
+                kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_scatter, index_table, seq_len, B, kr_scatter_size)
             elif cache_mode == "PA_BLK_BSND":
-                kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_scatter, index_table, S1, B)
+                kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_scatter, index_table, seq_len, B)
             elif cache_mode == "PA_NZ":
                 kr_cache = scatter_pa_nz(kr_cache, rotary2_scatter, index_table.reshape(T), kr_scatter_size)
             elif cache_mode == "PA_BSND":
