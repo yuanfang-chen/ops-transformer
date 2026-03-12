@@ -24,12 +24,9 @@ H^{post}_l &= \alpha^{post}_{l} ·(\vec{x^{'}_{l}}\varphi^{post}_{l}) + b^{post}
 H^{res}_l &= \alpha^{res}_{l} ·(\vec{x^{'}_{l}}\varphi^{res}_{l}) + b^{res}_{l}\\
 H^{pre}_l &= \sigma (H^{pre}_{l})\\
 H^{post}_l &= 2\sigma (H^{post}_{l})\\
-H^{res}_l &= \text{Sinkhorn-Knopp} (H^{res}_{l})\\
 h_{in} &=\vec{x^{'}_{l}}H^{pre}_l
 \end{aligned}
 $$
-
-ps: `Sinkhorn-Knopp`过程在aclnnMhcSinkhorn接口实现
 
 ---
 
@@ -42,16 +39,15 @@ ps: `Sinkhorn-Knopp`过程在aclnnMhcSinkhorn接口实现
 | phi | 输入 | mHC的参数矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | ($n^2+2n, nD$) | √ |
 | alpha | 输入 | mHC的缩放参数 | 必选参数，不能为空Tensor | FLOAT32 | - | (3) | - |
 | bias | 输入 | mHC的bias参数 | 必选参数，不能为空Tensor | FLOAT32 | - | ($n^2+2n$) | - |
-| gamma | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
-| normEps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
-| hcEps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
-| outFlag | 可选输入 | 表示是否输出h_mix/inv_rms/h_pre，默认为0表示不输出，为1表示全输出 | 可选参数 | INT64 | - | - | - |
+| gammaOptional | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
+| normEps | 可选输入 | RmsNorm的防除零参数，建议值：1e-6 | 可选参数 | FLOAT32 | - | - | - |
+| hcEps | 可选输入 | $H_{pre}$的sigmoid后的eps参数，建议值：1e-6 | 可选参数 | FLOAT32 | - | - | - |
 | hIn | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
 | hPost | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
 | hRes | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
-| invRms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
-| hMix | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
-| hPre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
+| invRmsOptional | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
+| hMixOptional | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
+| hPreOptional | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
 
 
 

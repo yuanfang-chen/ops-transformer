@@ -448,16 +448,15 @@ int main() {
   ret = CreateAclTensorFloat32Output(output_h_pre_shape, output_h_pre_device_addr, output_h_pre_tensor);
   CHECK_RET(ret == 0, LOG_PRINT("Create output_h_pre_tensor failed\n"); return -1);
 
-  double norm_eps = 1e-6;
-  double hc_eps = 1e-6;
-  int64_t out_flag = 1;
+  double normEps = 1e-6;
+  double hcEps = 1e-6;
 
   uint64_t workspace_size = 0;
   aclOpExecutor* executor = nullptr;
   
   aclnnStatus aclnn_ret = aclnnMhcPreGetWorkspaceSize(
     x_tensor, phi_tensor, alpha_tensor, bias_tensor, gamma_tensor,
-    out_flag, norm_eps, hc_eps,
+    normEps, hcEps,
     output_hin_tensor, output_h_post_tensor, output_h_res_tensor,
     output_inv_rms_tensor, output_h_mix_tensor, output_h_pre_tensor,
     &workspace_size, &executor);
