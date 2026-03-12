@@ -29,6 +29,7 @@ constexpr uint32_t DIM_NUM_LOGIT = 1;
 constexpr uint32_t DIM_NUM_ROW_INDEX = 1;
 constexpr uint32_t MX_BLOCK_SIZE = 32;
 constexpr int64_t MX_INNER_DIM = 2;
+constexpr uint32_t DIM_NUM_WEIGHT_NZ = 5;  // FRACTAL_NZ format: [E, K/32, N/16, 16, 32]
 
 enum DataSize GetSizeByDataType(ge::DataType dType) {
     if (dType == ge::DT_FLOAT4_E2M1 || dType == ge::DT_FLOAT4_E1M2 || dType == ge::DT_INT4) {
@@ -139,10 +140,8 @@ bool GMMFRWeightQuantTiling::InferScenario() {
     OP_CHECK_IF(wDesc == nullptr, OP_LOGE(context_->GetNodeName(), "Input wDesc is nullptr."), return false);
 
     auto wFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
-    if (wFormat == ge::FORMAT_FRACTAL_NZ_C0_16 || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32 ||
-        wFormat == ge::FORMAT_FRACTAL_NZ_C0_4 || wFormat == ge::FORMAT_FRACTAL_NZ_C0_2) {
-        wFormat = ge::FORMAT_FRACTAL_NZ;
-    }
+    // GetPrimaryFormat returns the format value masked with 0xFF
+    // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
 
     auto scaleDesc = context_->GetOptionalInputDesc(SCALE_INDEX);
     auto scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : ge::DT_INT8;
@@ -156,8 +155,9 @@ bool GMMFRWeightQuantTiling::InferScenario() {
         ge::TypeUtils::DataTypeToSerialString(wDtype).c_str(),
         ge::TypeUtils::DataTypeToSerialString(scaleDtype).c_str(),
         ge::TypeUtils::DataTypeToSerialString(perTokenScaleDtype).c_str(),
-        wFormat == ge::FORMAT_FRACTAL_NZ ? "FRACTAL_NZ" : "ND");
-    if (xDtype == ge::DT_FLOAT8_E4M3FN && wDtype == ge::DT_FLOAT4_E2M1 && wFormat == ge::FORMAT_FRACTAL_NZ && 
+        (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) ? "FRACTAL_NZ" : "ND");
+    if (xDtype == ge::DT_FLOAT8_E4M3FN && wDtype == ge::DT_FLOAT4_E2M1 && 
+        (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) && 
         scaleDtype == ge::DT_FLOAT8_E8M0 && perTokenScaleDtype == ge::DT_FLOAT8_E8M0) {
         scenarioType_ = ScenarioType::MX_A8W4_WEIGHT_NZ;
         OP_LOGD(context_->GetNodeName(), "Enable MX-A8W4-WEIGHT-NZ mode.");
@@ -267,6 +267,13 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
     auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
 
+    // Get w format to determine validation rules
+    auto wDesc = contex->GetInputDesc(W_INDEX);
+    OP_CHECK_IF(wDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input wDesc is nullptr."), return false);
+    auto wFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
+    // GetPrimaryFormat returns the format value masked with 0xFF
+    // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
+
     // 1. Validate x shape is [M, K] (2D)
     OP_CHECK_IF(xDimNum != DIM_NUM_X,
                 OP_LOGE(contex->GetNodeName(), "The dimension of x must be %u, actual is %zu", DIM_NUM_X, xDimNum),
@@ -274,13 +281,34 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     int64_t mSize = xShape.GetDim(0);
     int64_t kSize = xShape.GetDim(1);
 
-    // 2. Validate w shape is [E, N, K] (3D)
-    OP_CHECK_IF(wDimNum != DIM_NUM_WEIGHT,
-                OP_LOGE(contex->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wDimNum),
-                return false);
+    // 2. Validate w shape
+    // For FRACTAL_NZ format: OriginalShape is [E, CeilDiv(K,32), CeilDiv(N,16), 16, 32] (5D)
+    // StorageShape is [E, N, K] (3D)
+    if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
+        OP_CHECK_IF(wDimNum != DIM_NUM_WEIGHT_NZ,
+                    OP_LOGE(contex->GetNodeName(), "The dimension of w (FRACTAL_NZ) must be %u, actual is %zu", 
+                            DIM_NUM_WEIGHT_NZ, wDimNum),
+                    return false);
+    } else {
+        OP_CHECK_IF(wDimNum != DIM_NUM_WEIGHT,
+                    OP_LOGE(contex->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wDimNum),
+                    return false);
+    }
+    
+    // For FRACTAL_NZ: Get N and K from StorageShape [E, N, K]
+    // For ND: Get N and K from OriginShape [E, N, K]
     int64_t eFromW = wShape.GetDim(0);
-    int64_t nSize = wShape.GetDim(1);
-    int64_t kFromW = wShape.GetDim(2);
+    int64_t nSize;
+    int64_t kFromW;
+    if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
+        // StorageShape is 3D: [E, N, K]
+        const gert::Shape &wStorageShapeActual = wStorageShape->GetStorageShape();
+        nSize = wStorageShapeActual.GetDim(1);
+        kFromW = wStorageShapeActual.GetDim(2);
+    } else {
+        nSize = wShape.GetDim(1);
+        kFromW = wShape.GetDim(2);
+    }
 
     // Validate K consistency between x and w
     OP_CHECK_IF(kSize != kFromW,
@@ -498,8 +526,20 @@ bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input wStorageShape is nullptr."), return false);
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
 
-    uint32_t wDimNum = static_cast<uint32_t>(wShape.GetDimNum());
-    inputParams.nSize = wShape.GetDim(wDimNum - LAST_SECOND_DIM_INDEX);
+    // For FRACTAL_NZ: nSize should come from StorageShape [E, N, K]
+    // For ND: nSize comes from OriginalShape [E, N, K]
+    auto wFormat = inputParams.wFormat;
+    // GetPrimaryFormat returns the format value masked with 0xFF
+    // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
+    
+    if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
+        // StorageShape is 3D: [E, N, K], get N from dim 1
+        const gert::Shape &wStorageShapeActual = wStorageShape->GetStorageShape();
+        inputParams.nSize = wStorageShapeActual.GetDim(1);
+    } else {
+        uint32_t wDimNum = static_cast<uint32_t>(wShape.GetDimNum());
+        inputParams.nSize = wShape.GetDim(wDimNum - LAST_SECOND_DIM_INDEX);
+    }
     inputParams.groupNum = wShape.GetDim(0);
 
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);

@@ -82,7 +82,7 @@ static gert::TilingContextPara CreateMXA8W4TilingContext(
     optiling::GroupedMatmulFinalizeRoutingCompileInfo* compileInfo = &DEFAULT_COMPILE_INFO)
 {
     gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, n, k}};
+    gert::StorageShape wShape = {{e, (k + 31) / 32, (n + 15) / 16, 16, 32}, {e, n, k}};
     gert::StorageShape scaleShape = {{e, n, (k + 31) / 32, 2}, {e, n, (k + 31) / 32, 2}};
     gert::StorageShape biasShape = {{e, n}, {e, n}};  // Valid bias shape
     gert::StorageShape pertokenScaleShape = {{m, (k + 31) / 32, 2}, {m, (k + 31) / 32, 2}};
@@ -128,7 +128,7 @@ static gert::TilingContextPara CreateMXA8W4TilingContext(
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNormalCase)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
@@ -180,7 +180,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNormalCa
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullScale)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{}, {}};  // Empty/null scale
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -223,7 +223,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullScal
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullPertokenScale)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{}, {}};  // Empty/null pertoken_scale
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -266,7 +266,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullPert
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullRowIndex)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -309,7 +309,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullRowI
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullGroupList)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{}, {}};  // Empty/null group_list
@@ -420,7 +420,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzTranspos
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongXShape)
 {
     gert::StorageShape xShape = {{M, K, 1}, {M, K, 1}};  // Wrong: 3D instead of 2D
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -506,7 +506,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongWSh
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEMismatch)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};  // E = 16
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};  // E = 16
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{8}, {8}};  // Wrong: E = 8, should be 16
@@ -549,7 +549,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEMismatc
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzKMismatch)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};  // K = 2048
-    gert::StorageShape wShape = {{E, N, 1024}, {E, N, 1024}};  // Wrong: K = 1024
+    gert::StorageShape wShape = {{E, (1024 + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, 1024}};  // Wrong: K = 1024
     gert::StorageShape scaleShape = {{E, N, (1024 + 31) / 32, 2}, {E, N, (1024 + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (1024 + 31) / 32, 2}, {M, (1024 + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -596,7 +596,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzKMismatc
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWithBias)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
@@ -644,7 +644,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWithBias
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzDefaultOutputBs)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
@@ -698,7 +698,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzSmallDim
     int bs = 64;
 
     gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, n, k}};
+    gert::StorageShape wShape = {{e, (k + 31) / 32, (n + 15) / 16, 16, 32}, {e, n, k}};
     gert::StorageShape scaleShape = {{e, n, (k + 31) / 32, 2}, {e, n, (k + 31) / 32, 2}};
     gert::StorageShape biasShape = {{e, n}, {e, n}};  // Valid bias shape
     gert::StorageShape pertokenScaleShape = {{m, (k + 31) / 32, 2}, {m, (k + 31) / 32, 2}};
@@ -754,7 +754,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzSmallDim
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEmptyBias)
 {
     gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, N, K}};
+    gert::StorageShape wShape = {{E, (K + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, K}};
     gert::StorageShape scaleShape = {{E, N, (K + 31) / 32, 2}, {E, N, (K + 31) / 32, 2}};
     gert::StorageShape pertokenScaleShape = {{M, (K + 31) / 32, 2}, {M, (K + 31) / 32, 2}};
     gert::StorageShape groupListShape = {{E}, {E}};
@@ -805,7 +805,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroNul
     int bs = 64;
 
     gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, n, k}};  // E = 0
+    gert::StorageShape wShape = {{e, (k + 31) / 32, (n + 15) / 16, 16, 32}, {e, n, k}};  // E = 0
     gert::StorageShape scaleShape = {{e, n, (k + 31) / 32, 2}, {e, n, (k + 31) / 32, 2}};
     gert::StorageShape biasShape = {{e, n}, {e, n}};  // E = 0
     gert::StorageShape pertokenScaleShape = {{m, (k + 31) / 32, 2}, {m, (k + 31) / 32, 2}};
@@ -856,7 +856,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroWit
     int bs = 64;
 
     gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, n, k}};  // E = 0
+    gert::StorageShape wShape = {{e, (k + 31) / 32, (n + 15) / 16, 16, 32}, {e, n, k}};  // E = 0
     gert::StorageShape scaleShape = {{e, n, (k + 31) / 32, 2}, {e, n, (k + 31) / 32, 2}};
     gert::StorageShape biasShape = {{e, n}, {e, n}};  // E = 0
     gert::StorageShape pertokenScaleShape = {{m, (k + 31) / 32, 2}, {m, (k + 31) / 32, 2}};
