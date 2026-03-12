@@ -48,7 +48,8 @@ using namespace regbaseutil;
         REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling);                                                   \
         using CubeBlockType = FABlockCubeNoquantMla<__VA_ARGS__>;                                                   \
         using VecBlockType = BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>;                                                     \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                  \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengths,                                               \
                 actualSeqLengthsKV, blocktable, postQuantScale, postQuantOffset, queryRope, keyRope, softmaxLse, attentionOut,                           \
                 user, tilingData, &tPipe);                                                                              \
@@ -151,7 +152,8 @@ using namespace regbaseutil;
         TPipe tPipe;                                                                                                                    \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                                      \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
             actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, nullptr, &tPipe);            \
@@ -224,7 +226,8 @@ using namespace regbaseutil;
         TPipe tPipe;                                                                                                                    \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                                \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
             actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \

@@ -26,6 +26,7 @@
 #include "../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
 #include "../op_kernel/arch35/prompt_flash_attention_tiling_regbase.h"
 #include "../../common/op_host/fia_tiling_base.h"
+#include "./split_core_tiling_arch35.h"
 
 namespace optiling {
 namespace v2 {
