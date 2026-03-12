@@ -493,42 +493,34 @@ ge::graphStatus SystemPrefixChecker::CheckFeatureAntiquant(const FiaTilingInfo &
 // multipara
 ge::graphStatus SystemPrefixChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin SystemPrefixChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckSharedPrefixDim(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckSharedPrefixDataType(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckSharedPrefixShape(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckActualSharedPrefixLenData(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End SystemPrefixChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus SystemPrefixChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin SystemPrefixChecker::CheckParaExistence!");
     if (ge::GRAPH_SUCCESS != CheckSharedPrefixExistence(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End SystemPrefixChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus SystemPrefixChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin SystemPrefixChecker::CheckFeature!");
     if (ge::GRAPH_SUCCESS != CheckUnSupportFeature(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckFeatureAntiquant(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End SystemPrefixChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus SystemPrefixChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin SystemPrefixChecker::CheckMultiPara!");
-    OP_LOGI(fiaInfo.opName, "End SystemPrefixChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

@@ -206,7 +206,6 @@ ge::graphStatus PostQuantChecker::CheckMultiParaShape(const FiaTilingInfo &fiaIn
 
 ge::graphStatus PostQuantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PostQuantChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckSingleDtype(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -217,14 +216,11 @@ ge::graphStatus PostQuantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PostQuantChecker::CheckSinglePara!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PostQuantChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PostQuantChecker::CheckParaExistence!");
     if (ge::GRAPH_SUCCESS != CheckExistenceQuantScale2(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -235,14 +231,11 @@ ge::graphStatus PostQuantChecker::CheckParaExistence(const FiaTilingInfo &fiaInf
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PostQuantChecker::CheckParaExistence!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PostQuantChecker::CheckFeature!");
     if (enableNonQuant_) {
         if (ge::GRAPH_SUCCESS != CheckFeatureOutput(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeaturePrefix(fiaInfo)) {
             return ge::GRAPH_FAILED;
@@ -254,14 +247,11 @@ ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
     }
-    OP_LOGI(fiaInfo.opName, "End PostQuantChecker::CheckFeature!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PostQuantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PostQuantChecker::CheckMultiPara!");
     if (ge::GRAPH_SUCCESS != CheckMultiParaQuantOffset2(fiaInfo) || ge::GRAPH_SUCCESS != CheckMultiParaDtype(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckMultiParaShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
@@ -273,8 +263,6 @@ ge::graphStatus PostQuantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PostQuantChecker::CheckMultiPara!");
-
     return ge::GRAPH_SUCCESS;
 }
 

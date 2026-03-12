@@ -150,8 +150,6 @@ ge::graphStatus LearnableSinkChecker::CheckAxisSupport(const FiaTilingInfo &fiaI
 
 ge::graphStatus LearnableSinkChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LearnableSinkChecker::CheckSinglePara!");
-
     if (ge::GRAPH_SUCCESS != CheckSinkDtypeSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -162,14 +160,11 @@ ge::graphStatus LearnableSinkChecker::CheckSinglePara(const FiaTilingInfo &fiaIn
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End LearnableSinkChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LearnableSinkChecker::CheckParaExistence!");
-
     if (ge::GRAPH_SUCCESS != CheckFeatureExistence(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -181,13 +176,11 @@ ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fi
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End LearnableSinkChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LearnableSinkChecker::CheckFeature!");
     if (ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -199,14 +192,11 @@ ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End LearnableSinkChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LearnableSinkChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LearnableSinkChecker::CheckMultiPara!");
-
     if (ge::GRAPH_SUCCESS != CheckSinkShapeSupport(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckAxisSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
@@ -219,7 +209,6 @@ ge::graphStatus LearnableSinkChecker::CheckMultiPara(const FiaTilingInfo &fiaInf
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End LearnableSinkChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

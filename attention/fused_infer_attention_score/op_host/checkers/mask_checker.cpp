@@ -271,7 +271,6 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus MaskChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckDtypeAndFormat(fiaInfo) || ge::GRAPH_SUCCESS != CheckSparseMode(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -282,14 +281,11 @@ ge::graphStatus MaskChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckSinglePara!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckParaExistence!");
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {
@@ -297,13 +293,11 @@ ge::graphStatus MaskChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckFeature!");
     if (enableNonQuant_) {
         if (ge::GRAPH_SUCCESS != CheckNoQuantIFAMLA(fiaInfo) || ge::GRAPH_SUCCESS != CheckQKVDDifferent(fiaInfo)) {
             return ge::GRAPH_FAILED;
@@ -315,13 +309,11 @@ ge::graphStatus MaskChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckMultiPara!");
     if (ge::GRAPH_SUCCESS != CheckPretokenAndNexttoken(fiaInfo) || ge::GRAPH_SUCCESS != CheckDimAndShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -332,7 +324,6 @@ ge::graphStatus MaskChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

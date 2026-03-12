@@ -2091,8 +2091,6 @@ ge::graphStatus DequantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
     }
-    OP_LOGI(fiaInfo.opName, "End DequantChecker::CheckSinglePara!");
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -2111,15 +2109,11 @@ ge::graphStatus DequantChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
     }
-    OP_LOGI(fiaInfo.opName, "End DequantChecker::CheckParaExistence!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus DequantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin DequantChecker::CheckFeature!");
-
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {
@@ -2133,15 +2127,11 @@ ge::graphStatus DequantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
     }
-    OP_LOGI(fiaInfo.opName, "End DequantChecker::CheckFeature!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus DequantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin DequantChecker::CheckMultiPara!");
-
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {
@@ -2156,8 +2146,6 @@ ge::graphStatus DequantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
     }
-    OP_LOGI(fiaInfo.opName, "End DequantChecker::CheckMultiPara!");
-
     return ge::GRAPH_SUCCESS;
 }
 

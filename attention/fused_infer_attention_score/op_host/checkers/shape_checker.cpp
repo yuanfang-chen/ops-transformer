@@ -971,12 +971,6 @@ bool ShapeChecker::CheckTransposeLayoutCrossover(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus ShapeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin ShapeChecker::CheckSinglePara!");
-
-    OP_LOGI(fiaInfo.opName, "b size is %d \n", fiaInfo.bSize);
-    OP_LOGI(fiaInfo.opName, "n1 size is %d \n", fiaInfo.n1Size);
-    OP_LOGI(fiaInfo.opName, "n2 size is %d \n", fiaInfo.n2Size);
-
     if (enableNonQuant_) {
         if (CheckNonQuantDataType(fiaInfo) != ge::GRAPH_SUCCESS ||
             CheckInputFormat(fiaInfo) != ge::GRAPH_SUCCESS ||
@@ -988,14 +982,11 @@ ge::graphStatus ShapeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End ShapeChecker::CheckSinglePara!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus ShapeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin ShapeChecker::CheckParaExistence!");
     if (CheckParaExistenceImpl(fiaInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -1007,15 +998,11 @@ ge::graphStatus ShapeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End ShapeChecker::CheckParaExistence!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus ShapeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin ShapeChecker::CheckFeature!");
-
     if (enableNonQuant_) {
         if (fiaInfo.pageAttentionFlag) {
             if (CheckPAKeyValue(fiaInfo) != ge::GRAPH_SUCCESS) { // PA场景
@@ -1042,15 +1029,11 @@ ge::graphStatus ShapeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End ShapeChecker::CheckFeature!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus ShapeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin ShapeChecker::CheckMultiPara!");
-
     if (enableNonQuant_) {
         if (CheckMultiDtype(fiaInfo) != ge::GRAPH_SUCCESS ||
             CheckAxis(fiaInfo) != ge::GRAPH_SUCCESS ||
@@ -1067,8 +1050,6 @@ ge::graphStatus ShapeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End ShapeChecker::CheckMultiPara!");
-
     return ge::GRAPH_SUCCESS;
 }
 

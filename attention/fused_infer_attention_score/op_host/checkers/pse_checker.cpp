@@ -296,42 +296,34 @@ ge::graphStatus PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus PSEChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PSEChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckPseType(fiaInfo) || ge::GRAPH_SUCCESS != CheckPseShiftDataType(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckPseShiftShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End PSEChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PSEChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PSEChecker::CheckParaExistence!");
     if (ge::GRAPH_SUCCESS != CheckPseShiftExistence(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End PSEChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PSEChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PSEChecker::CheckFeature!");
     if (ge::GRAPH_SUCCESS != CheckFeaturePA(fiaInfo) || ge::GRAPH_SUCCESS != CheckerFeatureCrossover(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "End PSEChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PSEChecker::CheckMultiPara!");
     if (ge::GRAPH_SUCCESS != CheckAlibiStartIdx(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGI(fiaInfo.opName, "Begin PSEChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

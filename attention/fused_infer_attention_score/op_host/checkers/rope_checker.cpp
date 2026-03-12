@@ -366,8 +366,6 @@ ge::graphStatus RopeChecker::CheckAxisSupport(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus RopeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin RopeChecker::CheckSinglePara!");
-
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {
@@ -375,14 +373,11 @@ ge::graphStatus RopeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End RopeChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus RopeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin RopeChecker::CheckParaExistence!");
-
     if (ge::GRAPH_SUCCESS != CheckRopeExistence(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckFeatureExistence(fiaInfo)) {
         return ge::GRAPH_FAILED;
@@ -395,14 +390,11 @@ ge::graphStatus RopeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End RopeChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus RopeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin RopeChecker::CheckFeature!");
-
     if (ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo)) {
             return ge::GRAPH_FAILED;
     }
@@ -417,14 +409,11 @@ ge::graphStatus RopeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
         };
     }
     
-    OP_LOGI(fiaInfo.opName, "End RopeChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus RopeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin RopeChecker::CheckMultiPara!");
-
     if (fiaInfo.ropeMode != RopeMode::ROPE_SPLIT) {
         return ge::GRAPH_SUCCESS;
     }
@@ -442,8 +431,6 @@ ge::graphStatus RopeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End RopeChecker::CheckMultiPara!");
-
     return ge::GRAPH_SUCCESS;
 }
 

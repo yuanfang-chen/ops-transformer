@@ -444,8 +444,6 @@ ge::graphStatus PagedAttentionChecker::CheckPADimNum(const FiaTilingInfo &fiaInf
 
 ge::graphStatus PagedAttentionChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PagedAttentionChecker::CheckSinglePara!");
-
     if (!fiaInfo.pageAttentionFlag) {
         return ge::GRAPH_SUCCESS;
     }
@@ -462,14 +460,11 @@ ge::graphStatus PagedAttentionChecker::CheckSinglePara(const FiaTilingInfo &fiaI
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PagedAttentionChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PagedAttentionChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PagedAttentionChecker::CheckParaExistence!");
-
     if (!fiaInfo.pageAttentionFlag) {
         return ge::GRAPH_SUCCESS;
     }
@@ -487,14 +482,11 @@ ge::graphStatus PagedAttentionChecker::CheckParaExistence(const FiaTilingInfo &f
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PagedAttentionChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PagedAttentionChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PagedAttentionChecker::CheckFeature!");
-
     if (!fiaInfo.pageAttentionFlag) {
         return ge::GRAPH_SUCCESS;
     }
@@ -509,14 +501,11 @@ ge::graphStatus PagedAttentionChecker::CheckFeature(const FiaTilingInfo &fiaInfo
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PagedAttentionChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus PagedAttentionChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin PagedAttentionChecker::CheckMultiPara!");
-
     if (!fiaInfo.pageAttentionFlag) {
         return ge::GRAPH_SUCCESS;
     }
@@ -534,7 +523,6 @@ ge::graphStatus PagedAttentionChecker::CheckMultiPara(const FiaTilingInfo &fiaIn
     } else if (enableAntiQuant_) {
         ;
     }
-    OP_LOGI(fiaInfo.opName, "End PagedAttentionChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 } // namespace optiling
