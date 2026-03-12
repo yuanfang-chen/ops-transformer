@@ -114,6 +114,9 @@ private:
     ge::graphStatus CalculateTaskSplit(gert::TilingContext *context);
     ge::graphStatus CalculateWorkSpace(gert::TilingContext *context);
     ge::graphStatus FillTilingData(gert::TilingContext *context);
+
+    ge::graphStatus CalculatePostUbBaseSize(gert::TilingContext *context);
+    ge::graphStatus CalculateSoftmaxGradTiling(gert::TilingContext *context);
     
     uint64_t GenerateTilingKey();
 
