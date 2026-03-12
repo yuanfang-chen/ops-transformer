@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "all_gather_matmul_tiling_v2.h"
+#include "all_gather_matmul_tiling.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
@@ -42,7 +42,7 @@ ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* contex
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(AllGatherMatmulV2)
+IMPL_OP_OPTILING(AllGatherMatmul)
     .Tiling(AllGatherMatmulTilingV2Func)
     .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2);
 }  // namespace optiling

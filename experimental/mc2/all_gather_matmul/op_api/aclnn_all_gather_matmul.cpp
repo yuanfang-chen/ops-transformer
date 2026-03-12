@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_all_gather_matmul_v2.h"
+#include "aclnn_all_gather_matmul.h"
 #include "securec.h"
 #include "acl/acl.h"
 #include "op_mc2.h"

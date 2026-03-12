@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file all_gather_matmul_tiling_v2.cpp
+ * \file all_gather_matmul_tiling.cpp
  * \brief
  */
 #include <queue>
@@ -31,7 +31,7 @@
 #include "register/op_def_registry.h"
 #include "mc2_log.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "all_gather_matmul_tiling_v2.h"
+#include "all_gather_matmul_tiling.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -41,13 +41,8 @@ namespace optiling
 {
 bool AllGatherMatmulTilingV2::IsCapable()
 {
-    if ((npuArch_ == NpuArch::DAV_3510) && inputIsBf16Fp16_) {
-        OP_LOGI(opName_, "Start with AllGatherMatmulTilingV2 tiling.");
-        return true;
-    }
-
-    OP_LOGI(opName_, "Skip AllGatherMatmulTilingV2 tiling when inutDatatype is not fp16 or bf16.");
-    return false;
+    OP_LOGI(opName_, "Start with AllGatherMatmulTilingV2 tiling.");
+    return true;
 }
 
 ge::graphStatus AllGatherMatmulTilingV2::SetRawTilingData()
@@ -174,6 +169,6 @@ AllGatherMatmulTilingV2::AllGatherMatmulTilingV2(gert::TilingContext* context)
 {
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmulV2, AllGatherMatmulTilingV2, \
+REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmul, AllGatherMatmulTilingV2, \
                                    static_cast<int32_t>(NpuArch::DAV_3510), 0);
 }  // namespace optiling

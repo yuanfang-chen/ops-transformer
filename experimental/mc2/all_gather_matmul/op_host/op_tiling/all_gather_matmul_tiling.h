@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file all_gather_matmul_tiling_v2.h
+ * \file all_gather_matmul_tiling.h
  * \brief
  */
 
-#ifndef __ALL_GATHER_MATMUL_TILING_V2__
-#define __ALL_GATHER_MATMUL_TILING_V2__
+#ifndef __ALL_GATHER_MATMUL_TILING__
+#define __ALL_GATHER_MATMUL_TILING__
 
 #pragma once
 #include "all_gather_matmul_tiling_base.h"

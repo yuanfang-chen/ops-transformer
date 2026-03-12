@@ -9,15 +9,15 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_def.cpp
+ * \file all_gather_matmul_def.cpp
  * \brief
  */
 #include "register/op_def_registry.h"
 
 namespace ops {
-class AllGatherMatmulV2 : public OpDef {
+class AllGatherMatmul : public OpDef {
  public:
-  explicit AllGatherMatmulV2(const char *name) : OpDef(name) {
+  explicit AllGatherMatmul(const char *name) : OpDef(name) {
     this->Input("x1")
         .ParamType(REQUIRED)
         .DataType({ge::DT_FLOAT16})
@@ -81,11 +81,11 @@ class AllGatherMatmulV2 : public OpDef {
         .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
         .ExtendCfgInfo("jitCompile.flag", "static_false")  // 动态shape,复用二进制,后续图支持后修改
         .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
-        .ExtendCfgInfo("opFile.value", "all_gather_matmul_v2_apt");
+        .ExtendCfgInfo("opFile.value", "all_gather_matmul_apt");
     this->AICore().AddConfig("ascend950", aicore_config);
     this->MC2().HcclGroup("group");
   }
 };
 
-OP_ADD(AllGatherMatmulV2);
+OP_ADD(AllGatherMatmul);
 }  // namespace ops
