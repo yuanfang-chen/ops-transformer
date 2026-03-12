@@ -3087,8 +3087,8 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
 {
     size_t M = 256;
-    size_t K = 2048;
-    size_t N = 7168;
+    size_t K = 7168;
+    size_t N = 4096;
     size_t E = 4;
     optiling::GMMCompileInfo compileInfo = {
         24,//aicNum
