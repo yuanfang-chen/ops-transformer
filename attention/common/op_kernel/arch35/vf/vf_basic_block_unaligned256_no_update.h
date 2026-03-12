@@ -31,7 +31,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN1, 
     const uint32_t oriTailN2, const uint32_t tailN1, const uint32_t tailN2, uint32_t pltOriTailN1, uint32_t pltOriTailN2, 
     uint32_t pltTailN1, uint32_t pltTailN2, float divValue, const uint16_t m, const uint32_t pseStride, 
-    const float slopes, const float posShift, const T scale, const T minValue)
+    const float slopes, const float posShift, const T scale, const T minValue, const bool hasSink = false, const float sinkValue = 0)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel1;
@@ -240,6 +240,11 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
             Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
                 vreg_input_max, vreg_max_tmp3, preg_all);
         }
+        if (unlikely(hasSink)) {
+            RegTensor<float> vreg_sink_input;
+            Duplicate(vreg_sink_input, sinkValue);
+            Max(vreg_input_max, vreg_input_max, vreg_sink_input, preg_all);
+        }
         StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
     }
@@ -336,7 +341,8 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl256(
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor,
     const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN,
-    const uint32_t pseStride, const float slopes, const float posShift, const T scale, const T minValue, float keepProb)
+    const uint32_t pseStride, const float slopes, const float posShift, const T scale, const T minValue, float keepProb,
+    const bool hasSink = false, const float sinkValue = 0)
 {
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (65*16*2/32)，单位block, low 16bits: repeatStride (1)
@@ -371,7 +377,7 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl256(
     ProcessVec1NoUpdateGeneralImpl256VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(
         expUb1, expUb2, pseUb, expSumUb, maxUb, maxUbStart, srcUb, maskUb1, maskUb2, maskUb3, maskUb4, dropMaskUb1, 
         dropMaskUb2, nPadding, blockStride, repeatStride, oriTailN1, oriTailN2, tailN1, tailN2, pltOriTailN1, 
-        pltOriTailN2, pltTailN1, pltTailN2, divValue, m, pseStride, slopes, posShift, scale, minValue);
+        pltOriTailN2, pltTailN1, pltTailN2, divValue, m, pseStride, slopes, posShift, scale, minValue, hasSink, sinkValue);
 }
 } // namespace
 
