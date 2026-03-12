@@ -153,35 +153,40 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>可选输入（当前版本为必选）
         <ul>
           <li>shape为[batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]。</li>
-          <li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）</li>
-          <li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算</li>
+          <li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）。</li>
+          <li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算。</li>
         </ul>
       </td>
       <td>BOOL</td>
       <td>ND</td>
-      <td>2</td>
-      <td>√</td>
+      <td>4</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>attenMaskOptional</td>
       <td>输入</td>
-      <td>公式中的atten_mask。</td>
-      <td>当前不支持，传入nullptr。</td>
+      <td>Device侧的aclTensor，公式中的atten_mask。</td>
+      <td>atten_mask会与稀疏pattern叠加产生作用。当前不支持，应传入nullptr。</td>
       <td>BOOL</td>
       <td>ND</td>
       <td>2</td>
-      <td>√</td>
+      <td>×</td>
     </tr>
     <tr>
     <tr>
       <td>blockShape</td>
       <td>输入</td>
-      <td>稀疏块形状数组。</td>
+      <td>Host侧的aclIntArray，稀疏块形状数组。</td>
       <td>
+        与blockSparseMaskOptional配合使用：
         <ul>
-          <li>必须包含至少两个元素[blockShapeX, blockShapeY]。</li>
-          <li>blockShapeX：Q方向块大小。</li>
-          <li>blockShapeY：KV方向块大小。</li>
+          <li>当配置了blockSparseMaskOptional时：如配置此输入，算子会从中获取稀疏块尺寸；如不配置此输入，算子将默认稀疏块尺寸为[128,128]。</li>
+          <li>当未配置blockSparseMaskOptional时：无论此项如何配置，算子均将忽略。</li>
+        </ul>
+        当配置此输入时：必须包含至少两个元素[blockShapeX, blockShapeY]
+        <ul>
+          <li>blockShapeX: Q方向块大小，值必须大于0。</li>
+          <li>blockShapeY: KV方向块大小，值必须大于0。</li>
         </ul>
       </td>
       <td>INT64</td>
