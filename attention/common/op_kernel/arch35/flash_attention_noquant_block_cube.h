@@ -406,7 +406,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
     __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr)
 {
     if constexpr (GmLayoutParams<Q_FORMAT>::CATEGORY == FormatCategory::GM_Q_OUT_BNGSD) {
-
         this->queryGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
             sharedParams->s1Size, sharedParams->dSize);
         if constexpr(isInfer) {
