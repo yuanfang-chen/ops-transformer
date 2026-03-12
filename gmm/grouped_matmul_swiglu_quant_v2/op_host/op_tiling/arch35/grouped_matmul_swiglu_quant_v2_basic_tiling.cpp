@@ -295,11 +295,11 @@ bool GroupedMatmulSwigluQuantV2Tiling950::AnalyzeInputs()
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
     auto wStorageShape = context_->GetDynamicInputShape(WEIGHT_INDEX, 0);
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "wStorageShape is nullptr."), return false);
-    const gert::Shape &wShape = wStorageShape->GetStorageShape();
+    const gert::Shape &wShape = wStorageShape->GetOriginShape();
     auto scaleStorageShape = context_->GetDynamicInputShape(SCALE_INDEX, 0);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "scaleStorageShape is nullptr."),
                 return false);
-    const gert::Shape &wScaleShape = scaleStorageShape->GetStorageShape();
+    const gert::Shape &wScaleShape = scaleStorageShape->GetOriginShape();
     auto scaleDimNum = wScaleShape.GetDimNum();
     OP_CHECK_IF(
         scaleDimNum != MX_WEIGHT_SCALE_DIM,
@@ -430,22 +430,10 @@ void GroupedMatmulSwigluQuantV2Tiling950::PrintQuantParams()
         << ", quant_dtype = " << static_cast<int32_t>(params.get_quantDtype());
     OP_LOGD(inputParams_.opName, "%s", oss.str().c_str());
 }
+
 uint64_t GroupedMatmulSwigluQuantV2Tiling950::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transB), static_cast<uint64_t>(inputParams_.transA),
-                              static_cast<uint64_t>(inputParams_.kernelType));
-}
-
-void GroupedMatmulSwigluQuantV2Tiling950::SetKernelType()
-{
-    inputParams_.kernelType = 0UL;
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        return;
-    }
-    if (inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE &&
-        inputParams_.aQuantMode == optiling::QuantMode::PERTOKEN_MODE) {
-        inputParams_.kernelType = 1UL;
-    }
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transB), static_cast<uint64_t>(inputParams_.transA));
 }
 
 bool GroupedMatmulSwigluQuantV2Tiling950::IsB8(ge::DataType dtype)
