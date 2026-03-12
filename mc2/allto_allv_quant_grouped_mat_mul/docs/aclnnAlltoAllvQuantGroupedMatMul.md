@@ -43,16 +43,12 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
     const aclTensor*   gmmWeight,
     const aclTensor*   gmmXScale,
     const aclTensor*   gmmWeightScale,
-    const aclTensor*   gmmXOffsetOptional,
-    const aclTensor*   gmmWeightOffsetOptional,
     const aclTensor*   sendCountsTensorOptional,
     const aclTensor*   recvCountsTensorOptional,
     const aclTensor*   mmXOptional,
     const aclTensor*   mmWeightOptional,
     const aclTensor*   mmXScaleOptional,
     const aclTensor*   mmWeightScaleOptional,
-    const aclTensor*   mmXOffsetOptional,
-    const aclTensor*   mmWeightOffsetOptional,
     int64_t            gmmXQuantMode,
     int64_t            gmmWeightQuantMode,
     int64_t            mmXQuantMode,
@@ -129,20 +125,6 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <td>ND</td>
     </tr>
     <tr>
-    <td>gmmXOffsetOptional</td>
-    <td>输入</td>
-    <td>预留参数，当前版本仅支持传nullptr。</td>
-    <td>-</td>
-    <td>-</td>
-    </tr>
-    <tr>
-    <td>gmmWeightOffsetOptional</td>
-    <td>输入</td>
-    <td>预留参数，当前版本仅支持传nullptr。</td>
-    <td>-</td>
-    <td>-</td>
-    </tr>
-    <tr>
     <td>sendCountsTensorOptional</td>
     <td>输入</td>
     <td>预留参数，当前版本仅支持传nullptr。</td>
@@ -183,20 +165,6 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <td>mmWeight的量化系数，当mmWeightQuantMode==1时必填，1维，shape为(1)。</td>
     <td>FLOAT32</td>
     <td>ND</td>
-    </tr>
-    <tr>
-    <td>mmXOffsetOptional</td>
-    <td>输入</td>
-    <td>当前版本不支持，传nullptr。</td>
-    <td>-</td>
-    <td>-</td>
-    </tr>
-    <tr>
-    <td>mmWeightOffsetOptional</td>
-    <td>输入</td>
-    <td>当前版本不支持，传nullptr。</td>
-    <td>-</td>
-    <td>-</td>
     </tr>
     <tr>
     <td>gmmXQuantMode</td>
@@ -601,16 +569,12 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
         gmmW,
         gmmXScale,
         gmmWScale,
-        nullptr, // gmmXOffsetOptional
-        nullptr, // gmmWeightOffsetOptional
         nullptr, // sendCountsTensorOptional
         nullptr, // recvCountsTensorOptional
         mmX,
         mmW,
         mmXScale,
         mmWScale,
-        nullptr, // mmXOffsetOptional
-        nullptr, // mmWeightOffsetOptional
         1, // gmmXQuantMode
         1, // gmmWeightQuantMode
         1, // mmXQuantMode

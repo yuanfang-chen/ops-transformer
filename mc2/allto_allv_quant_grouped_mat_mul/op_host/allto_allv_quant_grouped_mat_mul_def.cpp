@@ -146,38 +146,6 @@ public:
             })
             .AutoContiguous();
 
-        this->Input("gmm_x_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
-        this->Input("gmm_weight_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
         this->Input("mm_x_scale")
             .ParamType(OPTIONAL)
             .DataType({
@@ -209,39 +177,7 @@ public:
                 ge::FORMAT_ND, ge::FORMAT_ND
             })
             .AutoContiguous();
-        
-        this->Input("mm_x_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
 
-        this->Input("mm_weight_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
         this->Output("gmm_y")
             .ParamType(REQUIRED)
             .DataType({
@@ -433,38 +369,6 @@ public:
             })
             .AutoContiguous();
 
-        aicore_config_950.Input("gmm_x_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
-       aicore_config_950.Input("gmm_weight_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
        aicore_config_950.Input("mm_x_scale")
             .ParamType(OPTIONAL)
             .DataType({
@@ -482,38 +386,6 @@ public:
             .AutoContiguous();
 
         aicore_config_950.Input("mm_weight_scale")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-        
-        aicore_config_950.Input("mm_x_offset")
-            .ParamType(OPTIONAL)
-            .DataType({
-                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                ge::DT_FLOAT, ge::DT_FLOAT,
-            })
-            .Format({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .UnknownShapeFormat({
-                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-                ge::FORMAT_ND, ge::FORMAT_ND
-            })
-            .AutoContiguous();
-
-        aicore_config_950.Input("mm_weight_offset")
             .ParamType(OPTIONAL)
             .DataType({
                 ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
