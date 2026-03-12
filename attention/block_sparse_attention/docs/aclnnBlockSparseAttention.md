@@ -230,18 +230,18 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>blockTableOptional</td>
       <td>输入</td>
-      <td>Block表用于PagedAttention。</td>
+      <td>Device侧的aclTensor，Block表用于PagedAttention。</td>
       <td>当前不支持，传入nullptr。</td>
       <td>INT32</td>
       <td>ND</td>
       <td>2</td>
-      <td>√</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>qInputLayout</td>
       <td>输入</td>
-      <td>代表输入query的数据排布格式。</td>
-      <td>当前仅支持"TND"和"BNSD"。</td>
+      <td>Host侧的string，代表输入query的数据排布格式。</td>
+      <td>当前仅支持"TND"和"BNSD"，qInputLayout与kvInputLayout需要保持一致。</td>
       <td>String</td>
       <td>-</td>
       <td>-</td>
@@ -250,8 +250,8 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>kvInputLayout</td>
       <td>输入</td>
-      <td>代表输入key、value的数据排布格式。</td>
-      <td>当前仅支持"TND"和"BNSD"。</td>
+      <td>Host侧的string，代表输入key、value的数据排布格式。</td>
+      <td>当前仅支持"TND"和"BNSD"，qInputLayout与kvInputLayout需要保持一致。</td>
       <td>String</td>
       <td>-</td>
       <td>-</td>
@@ -260,7 +260,7 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>numKeyValueHeads</td>
       <td>输入</td>
-      <td>代表key/value的head个数。</td>
+      <td>Host侧的int64_t，代表key/value的head个数。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -270,8 +270,13 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>maskType</td>
       <td>输入</td>
-      <td>Mask类型。</td>
-      <td>0表示无mask，其他值表示不同的mask类型。</td>
+      <td>Host侧的int64_t，表示attention计算中的掩码类型。</td>
+      <td>
+        当前只支持传0
+        <ul>
+          <li>0：代表不加mask场景</li>
+        </ul>
+      </td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -280,7 +285,7 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>scaleValue</td>
       <td>输入</td>
-      <td>公式中的scale，代表缩放系数。</td>
+      <td>Host侧的double，公式中的scale，代表缩放系数。</td>
       <td>一般设置为D^-0.5。</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -290,8 +295,14 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>innerPrecise</td>
       <td>输入</td>
-      <td>Softmax精度控制。</td>
-      <td>0表示float32 softmax，1表示fp16 softmax。</td>
+      <td>Host侧的int64_t，Softmax计算采取的精度级别。</td>
+      <td>
+        当前只支持传0或1
+        <ul>
+          <li>0：表示高精度softmax计算，中间值采取fp32数据类型，适合追求计算精度的场景使用。</li>
+          <li>1：表示低精度softmax计算，中间值采取fp16数据类型，性能更好，适合追求极致性能的场景使用。</li>
+        </ul>
+      </td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -300,8 +311,8 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>blockSize</td>
       <td>输入</td>
-      <td>PagedAttention的block大小。</td>
-      <td>用于PagedAttention场景，如不使用可传0。</td>
+      <td>Host侧的int64_t，PagedAttention的block大小。</td>
+      <td>用于PagedAttention场景，当前不支持pagedAttention功能，因此只支持传0。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -310,8 +321,8 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>preTokens</td>
       <td>输入</td>
-      <td>预留接口</td>
-      <td>预留接口</td>
+      <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向前包含多少个token。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -320,8 +331,8 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>nextTokens</td>
       <td>输入</td>
-      <td>预留接口</td>
-      <td>预留接口</td>
+      <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向后包含多少个token。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -330,8 +341,14 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>softmaxLseFlag</td>
       <td>输入</td>
-      <td>是否开启LSE输出</td>
-      <td>用于LSE输出，1表示输出，0表示不输出，默认为0</td>
+      <td>Host侧的int64_t，是否使能softmaxLse输出的标志位。</td>
+      <td>
+        当前只支持传0或1
+        <ul>
+          <li>0：表示不输出softmaxLse。</li>
+          <li>1：表示输出softmaxLse，相比不输出softmaxLse可能存在性能损失。</li>
+        </ul>
+      </td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -340,21 +357,27 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>attentionOut</td>
       <td>输出</td>
-      <td>公式中的attentionOut。</td>
+      <td>Device侧的aclTensor，公式中的attentionOut。</td>
       <td>数据类型和shape与query保持一致。</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
-      <td>3</td>
+      <td>3/4</td>
       <td>√</td>
     </tr>
     <tr>
       <td>softmaxLseOptional</td>
       <td>输出</td>
-      <td>Softmax计算的log-sum-exp中间结果。</td>
-      <td>当softmaxLseFlag为1时，表示输出softmaxLse。</td>
+      <td>Device侧的aclTensor，Softmax计算的log-sum-exp中间结果。</td>
+      <td>
+        支持的shape随着query的shape改变：
+        <ul>
+          <li>query为"TND": [totalQTokens, headNum, 1]。</li>
+          <li>query为"BNSD": [batch, headNum, maxQSeqLength, 1]。</li>
+        </ul>
+      </td>
       <td>FLOAT</td>
       <td>ND</td>
-      <td>3</td>
+      <td>3/4</td>
       <td>√</td>
     </tr>
     <tr>
