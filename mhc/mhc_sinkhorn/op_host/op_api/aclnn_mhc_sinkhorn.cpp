@@ -69,18 +69,18 @@ static bool CheckFormat(const aclTensor *x, int64_t outFlag, const aclTensor *ou
 {
     // 输入输出的格式需要一致
     if (x->GetStorageFormat() != output->GetStorageFormat()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. x [%s], output [%s].",
                 ToString(x->GetStorageFormat()).GetString(), ToString(output->GetStorageFormat()).GetString());
         return false;
     }
     if (outFlag) {
         if (x->GetStorageFormat() != normOut->GetStorageFormat()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. x [%s], normOut [%s].",
                     ToString(x->GetStorageFormat()).GetString(), ToString(normOut->GetStorageFormat()).GetString());
             return false;
         }
-        if (x->GetStorageFormat() != output->GetStorageFormat()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+        if (x->GetStorageFormat() != sumOut->GetStorageFormat()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. x [%s], sumOut [%s].",
                     ToString(x->GetStorageFormat()).GetString(), ToString(sumOut->GetStorageFormat()).GetString());
             return false;
         }
