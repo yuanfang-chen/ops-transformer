@@ -121,7 +121,7 @@ if (ret == ACLNN_SUCCESS) {
 ```
 ## 稀疏模式说明
 
-### BlockSparseMask稀疏表
+### BlockSparseMask稀疏pattern
 
 BlockSparseAttention使用blockSparseMask稀疏pattern,不需要selectIdx索引格式和传统的sBlockIdx计算:
 
