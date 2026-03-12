@@ -44,6 +44,12 @@ constexpr int64_t D_ALIGNMENT = 16;
 constexpr int64_t ALPHA_DIM_SIZE = 3;
 constexpr int64_t PHI_DIM_OFFSET = 2;
 
+bool CheckAlphaShape(const aclTensor *alphaTensor);
+bool ValidateNDParams(int64_t n, int64_t d);
+bool CheckPhiShape(const aclTensor *phiTensor, int64_t n2Plus2n, int64_t nD);
+bool CheckBiasShape(const aclTensor *biasTensor, int64_t n2Plus2n);
+bool CheckGammaShape(const aclTensor *gammaOptional, int64_t n, int64_t d);
+
 struct MhcParamsBase {
     const aclTensor *x = nullptr;
     const aclTensor *phi = nullptr;
