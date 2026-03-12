@@ -61,8 +61,8 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
   int64_t            preTokens,
   int64_t            nextTokens,
   int64_t            softmaxLseFlag,
-  const aclTensor         *attentionOut,
-  const aclTensor         *softmaxLseOptional,
+  const aclTensor    *attentionOut,
+  const aclTensor    *softmaxLseOptional,
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
 ```
@@ -107,8 +107,10 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>query</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的query。</td>
-        <td><ul><li>TND: [totalQTokens, headNum, headDim]。</li>
-        <li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
+        <td>支持的shape为：
+        <ul><li>TND: [totalQTokens, headNum, headDim]。</li>
+        <li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul>
+        </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3/4</td>
