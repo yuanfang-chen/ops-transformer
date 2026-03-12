@@ -93,14 +93,15 @@ static graphStatus CheckDimsOptional(const gert::InferShapeContext* context, con
         result = ge::GRAPH_FAILED;
     }
 
-    auto k1 = mmXShape->GetDim(DIM_1);
-    auto k2 = mmWeightShape->GetDim(DIM_0);
+    auto h1 = mmXShape->GetDim(DIM_1);
+    auto h2 = mmWeightShape->GetDim(DIM_0);
     if (transMmWeight) {
-        k2 = mmWeightShape->GetDim(DIM_1);
+        h2 = mmWeightShape->GetDim(DIM_1);
     }
-    if (k1 != k2) {
+    if (h1 != h2) {
+        OP_LOGW(context->GetNodeName(), "Dim of x and dim of mmWeight do not match. H1=%lu, H2=%lu", h1, h2);
         VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(),
-                                            "Dim of x and dim of mmWeight do not match for MatMul");
+                                            "Dim of x and dim of mmWeight do not match for MatMul.");
         result = ge::GRAPH_FAILED;
     }
     return result;
