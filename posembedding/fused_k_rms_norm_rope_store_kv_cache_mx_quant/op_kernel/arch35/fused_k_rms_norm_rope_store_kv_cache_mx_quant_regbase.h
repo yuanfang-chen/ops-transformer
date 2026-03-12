@@ -200,11 +200,82 @@ public:
     T1支持float和bfloat16_t
     T2仅支持bfloat16_t
     */
-    template <typename T1, T2>
+    template <typename T1, typename T2>
     __aicore__ inline void DoRope(const LocalTensor<T2> &dstTensor, const LocalTensor<T1> &srcTensor,
                                   const LocalTensor<T2> &cosTensor, const LocalTensor<T2> &sinTensor,
                                   const int64_t seqSize, const int64_t nSize, const int64_t dSize)
     {
+        if (seqSize <= 0 || nSize <= 0 || dSize <= 0) {
+            return;
+        }
+
+        __local_mem__ T1* srcUb = (__local_mem__ T1*)srcTensor.GetPhyAddr();
+        __local_mem__ T2* cosUb = (__local_mem__ T2*)cosTensor.GetPhyAddr();
+        __local_mem__ T2* sinUb = (__local_mem__ T2*)sinTensor.GetPhyAddr();
+        __local_mem__ T2* dstUb = (__local_mem__ T2*)dstTensor.GetPhyAddr();
+
+        uint32_t dHalfSize = dSize / CONST_TWO;
+        uint16_t dLoopCount = (dHalfSize + VL_FP32 - 1) / VL_FP32;
+        uint32_t dHalfOffset = dSize / CONST_TWO;
+
+        __VEC_SCOPE__
+        {
+            AscendC::MicroAPI::RegTensor<float> inPart1Reg;
+            AscendC::MicroAPI::RegTensor<float> inPart2Reg;
+            AscendC::MicroAPI::RegTensor<float> cosPart1Reg;
+            AscendC::MicroAPI::RegTensor<float> cosPart2Reg;
+            AscendC::MicroAPI::RegTensor<float> sinPart1Reg;
+            AscendC::MicroAPI::RegTensor<float> sinPart2Reg;
+            AscendC::MicroAPI::MaskReg pregLoop;
+
+            __local_mem__ T1* currSrcUb;
+            __local_mem__ T2* currDstUb;
+            __local_mem__ T2* currCosUb;
+            __local_mem__ T2* currSinUb;
+
+            for (int64_t sIdx = 0; sIdx < seqSize; sIdx++) {
+                // 对每个序列位置sIdx，cos和sin只需要加载一次
+                currCosUb = cosUb + sIdx * dSize;
+                currSinUb = sinUb + sIdx * dSize;
+
+                for (int64_t nIdx = 0; nIdx < nSize; nIdx++) {
+                    // src需要对每个nIdx都加载
+                    currSrcUb = srcUb + (sIdx * nSize + nIdx) * dSize;
+                    currDstUb = dstUb + (sIdx * nSize + nIdx) * dSize;
+
+                    uint32_t count = dHalfSize;
+                    for (uint16_t i = 0; i < dLoopCount; i++) {
+                        // 1. 更新掩码（处理尾部数据）
+                        pregLoop = AscendC::MicroAPI::UpdateMask<float>(count);
+                        
+                        // 2. 加载数据到寄存器
+                        LoadTensorForDtypeT<T1>(currSrcUb, inPart1Reg, pregLoop, i * VL_FP32);               // in[0:D/2]
+                        LoadTensorForDtypeT<T1>(currSrcUb, inPart2Reg, pregLoop, i * VL_FP32 + dHalfOffset); // in[D/2:D]
+                        
+                        LoadTensorForDtypeT<T2>(currCosUb, cosPart1Reg, pregLoop, i * VL_FP32);               // cos[0:D/2]
+                        LoadTensorForDtypeT<T2>(currCosUb, cosPart2Reg, pregLoop, i * VL_FP32 + dHalfOffset); // cos[D/2:D]
+                        
+                        LoadTensorForDtypeT<T2>(currSinUb, sinPart1Reg, pregLoop, i * VL_FP32);               // sin[0:D/2]
+                        LoadTensorForDtypeT<T2>(currSinUb, sinPart2Reg, pregLoop, i * VL_FP32 + dHalfOffset); // sin[D/2:D]
+                        
+                        // 3. RoPE计算
+                        // out[0:D/2] = in[0:D/2] * cos[0:D/2] - in[D/2:D] * sin[0:D/2]
+                        Mul(cosPart1Reg, inPart1Reg, cosPart1Reg, pregLoop);  // temp1 = in[0:D/2] * cos[0:D/2]
+                        Mul(sinPart1Reg, inPart2Reg, sinPart1Reg, pregLoop);  // temp2 = in[D/2:D] * sin[0:D/2]
+                        Sub(cosPart1Reg, cosPart1Reg, sinPart1Reg, pregLoop); // out[0:D/2] = temp1 - temp2
+                        
+                        // out[D/2:D] = in[D/2:D] * cos[D/2:D] + in[0:D/2] * sin[D/2:D]
+                        Mul(cosPart2Reg, inPart2Reg, cosPart2Reg, pregLoop);  // temp3 = in[D/2:D] * cos[D/2:D]
+                        Mul(sinPart2Reg, sinPart2Reg, inPart1Reg, pregLoop);  // temp4 = sin[D/2:D] * in[0:D/2]
+                        Add(cosPart2Reg, cosPart2Reg, sinPart2Reg, pregLoop); // out[D/2:D] = temp3 + temp4
+                        
+                        // 4. 存储结果
+                        StoreTensorForDtypeTOut<T2>(currDstUb, cosPart1Reg, pregLoop, i * VL_FP32);               // 存储前半部分
+                        StoreTensorForDtypeTOut<T2>(currDstUb, cosPart2Reg, pregLoop, i * VL_FP32 + dHalfOffset); // 存储后半部分
+                    }
+                }
+            }
+        }
     }
 
     /*
