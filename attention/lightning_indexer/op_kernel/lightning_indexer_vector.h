@@ -170,7 +170,6 @@ __aicore__ inline void InitSortOutBuf(const LocalTensor<float> &src, int64_t ele
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>(), INVALID_INDEX, mask0, VEC_REPEAT_MAX, 1,
                            B32_VEC_REPEAT_STRIDE);
-        AscendC::PipeBarrier<PIPE_V>();
     }
     if (forRemain > 0) {
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>()[forLoop * VEC_REPEAT_MAX * B32_VEC_ELM_NUM], NEG_INF,
@@ -178,8 +177,8 @@ __aicore__ inline void InitSortOutBuf(const LocalTensor<float> &src, int64_t ele
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>()[forLoop * VEC_REPEAT_MAX * B32_VEC_ELM_NUM],
                            INVALID_INDEX, mask0, forRemain, 1, B32_VEC_REPEAT_STRIDE);
-        AscendC::PipeBarrier<PIPE_V>();
     }
+    AscendC::PipeBarrier<PIPE_V>();
 }
 
 
