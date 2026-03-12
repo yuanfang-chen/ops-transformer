@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file nsa_compress_attention_infer_proto.cpp
+ * \file nsa_compress_attention_infer_infershape.cpp
  * \brief
  */
 
@@ -52,7 +52,7 @@ static ge::graphStatus InferShapeNsaCompressAttentionInfer(gert::InferShapeConte
     auto selectBlockCount = *selectBlockCountPtr;
     std::string layOutStr = std::string(layOutPtr);
     if (layOutStr != "TND" && layOutStr != "BSND") {
-        OP_LOGE(context, "The layout should be TND and BSND, but got %s.", layOutStr.c_str());
+        OP_LOGE(context, "The layout should be TND or BSND, but got %s.", layOutStr.c_str());
         return GRAPH_FAILED;
     }
 

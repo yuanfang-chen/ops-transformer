@@ -324,7 +324,7 @@ ge::graphStatus NCAITiling::SplitBN()
         totalQSplitNum += qSeqLenSplitNum;
     }
     processNum_ = kvHeadSplitNum_ * totalQSplitNum;
-    processPerBatch_ = kvHeadSplitNum_; // 调测使用，需要删掉
+    processPerBatch_ = kvHeadSplitNum_;
     coreNumUsed_ = std::max(std::min(aicNum_, processNum_), ONE);
     ncaiContext_->blockDim = coreNumUsed_;
     return ge::GRAPH_SUCCESS;
@@ -592,7 +592,8 @@ ge::graphStatus NCAITiling::GetMaxMinSeqlen()
         sMax_ = SEQLEN_LIMIT;
         sMin_ = SEQLEN_LIMIT;
     }
-    else{const int64_t *actualLenData = ncaiContext_->actualCmpKvSeqLengths.tensor->GetData<int64_t>();
+    else{
+        const int64_t *actualLenData = ncaiContext_->actualCmpKvSeqLengths.tensor->GetData<int64_t>();
         sMin_ = static_cast<uint32_t>(actualLenData[0]);
         for (uint32_t i = 0; i < batchSize_; i++) {
             int64_t actLen = actualLenData[i];
