@@ -348,8 +348,7 @@ ge::graphStatus LIInfoParser::CheckShapeDim()
                 weightsShapeDim),
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.valuesOut.shape->GetStorageShape().GetShapeSize() != 0 && !(*opParamInfo_.returnValue),
-                OP_LOGE(opName_, "when returnValue is false, valuesOut must be null.",
-                    qExpectShapeDim, valuesOutShapeDim),
+                OP_LOGE(opName_, "when returnValue is false, valuesOut must be null."),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
