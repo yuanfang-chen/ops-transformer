@@ -17,8 +17,8 @@
 #define ALL_GATHER_MATMUL_FP16_BF16_H
 
 #include "lib/hccl/hccl.h"
-#include "../matmul/mc2_mat_mul_asw_kernel.h"
-#include "../matmul/mc2_mat_mul_asw_block.h"
+#include "matmul_dependency/mc2_mat_mul_asw_kernel.h"
+#include "matmul_dependency/mc2_mat_mul_asw_block.h"
 #include "all_gather_matmul_tiling_arch35.h"
 
 namespace AllGatherMatmulImpl
