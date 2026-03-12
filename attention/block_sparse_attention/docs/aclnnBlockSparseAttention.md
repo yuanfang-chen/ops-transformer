@@ -61,8 +61,8 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
   int64_t            preTokens,
   int64_t            nextTokens,
   int64_t            softmaxLseFlag,
-  const aclTensor    *attentionOut,
-  const aclTensor    *softmaxLseOptional,
+  const aclTensor   *attentionOut,
+  const aclTensor   *softmaxLseOptional,
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
 ```
@@ -107,7 +107,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>query</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的query。</td>
-        <td>支持的shape为：
+      <td>支持的shape为：
         <ul><li>TND: [totalQTokens, headNum, headDim]。</li>
         <li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul>
       </td>
@@ -119,10 +119,12 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>key</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的query。</td>
-        <td>支持的shape为：
-        <ul><li>TND: [totalKTokens, numKeyValueHeads, headDim]。</li>
-        <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul>
+      <td>Device侧的aclTensor，公式中的key。</td>
+      <td>支持的shape为：
+        <ul>
+          <li>TND: [totalKTokens, numKeyValueHeads, headDim]。</li>
+          <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li>
+        </ul>
       </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -133,10 +135,11 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>value</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的value。</td>
-      <td>Device侧的aclTensor，公式中的query。</td>
-        <td>支持的shape为：
-        <ul><li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li>
-        <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul>
+      <td>支持的shape为：
+        <ul>
+          <li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li>
+          <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li>
+        </ul>
       </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -146,8 +149,14 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>blockSparseMaskOptional</td>
       <td>输入</td>
-      <td>公式中的atten_mask。</td>
-      <td>当前不支持，传入nullptr。</td>
+      <td>Device侧的aclTensor，表示实际的稀疏pattern。</td>
+      <td>可选输入（当前版本为必选）
+        <ul>
+          <li>shape为[batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]。</li>
+          <li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）</li>
+          <li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算</li>
+        </ul>
+      </td>
       <td>BOOL</td>
       <td>ND</td>
       <td>2</td>
