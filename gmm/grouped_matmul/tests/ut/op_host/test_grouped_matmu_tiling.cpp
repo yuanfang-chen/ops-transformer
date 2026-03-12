@@ -3144,7 +3144,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_optimize)
     //     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
     string expectTilingData =
         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {24117248}; // workspace
+    std::vector<size_t> expectWorkspaces = {23068672}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,230);
 }
 
