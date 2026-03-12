@@ -106,20 +106,21 @@ namespace optiling {
         tilingData_.maxGroupLength = p * tilingData_.aiCoreNum * tilingData_.chunkSize;
         
         tilingData_.interWorkspaceSz = 0;
-        int64_t sizeLow = ge::GetSizeByDataType(ge::DT_BF16);
         int64_t sizeHigh = ge::GetSizeByDataType(ge::DT_FLOAT);
         int64_t nv = tilingData_.nv;
         int64_t dv = tilingData_.dv;
         int64_t dk = tilingData_.dk;
         int64_t s = tilingData_.maxGroupLength;
+        int64_t b = tilingData_.b;
         tilingData_.interWorkspaceSz += sizeHigh * nv * s;  // gCumExp
-        tilingData_.interWorkspaceSz += sizeLow * nv * s * dk;  // kCumDecay
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kCumDecay
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // vInner
-        tilingData_.interWorkspaceSz += sizeLow * nv * s * dk;  // qPrime
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // qPrime
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // attnInter
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // vNew
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kg
-        tilingData_.interWorkspaceSz += sizeHigh * nv * s * tilingData_.chunkSize;  // qkt
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * c;   // qkt
+        tilingData_.interWorkspaceSz += sizeHigh * b * nv * dv * dk;    // highState
 
         tilingData_.stageWorkspaceSz = sizeHigh * c * (2 * c + 3 * dk + dv);  // stage1临时变量
         tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;

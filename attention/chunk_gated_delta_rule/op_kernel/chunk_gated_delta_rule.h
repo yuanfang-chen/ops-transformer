@@ -113,14 +113,14 @@ public:
         gCumExp_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength;
 
-        kCumDecay_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
+        kCumDecay_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         vInner_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
-        qPrime_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
+        qPrime_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         attnInter_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
@@ -133,6 +133,9 @@ public:
 
         qkt_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->chunkSize;
+
+        highState_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
+        offset += sizeof(highType) * tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
 
         stageOneMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize;
@@ -148,6 +151,7 @@ public:
 
     __aicore__ inline void Process()
     {
+        initHighState();
         int64_t seqStart = 0;
         int64_t seqEnd = 0;
         ChunkGroup cg;
@@ -156,8 +160,7 @@ public:
             int32_t length = actualSeqLens_.GetValue(bid);
             seqStart = seqEnd;
             seqEnd = seqStart + (int64_t)length;
-            GlobalTensor<lowType> curInitState = initState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
-            GlobalTensor<lowType> curFinalState = finalState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
+            GlobalTensor<highType> curState = highState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
             for (int64_t pos = seqStart; pos < seqEnd; pos += tiling_->maxGroupLength) {
                 // set chunk group
                 cg.startPos = pos;
@@ -167,23 +170,21 @@ public:
                     cg.length = tiling_->maxGroupLength;
                 }
                 // compute this chunk group
-                stage1(cg);
+                RunStage1(cg);
                 SyncAll<false>();
 
-                if (pos > seqStart) {
-                    curInitState = curFinalState;
-                }
-                stage2(cg, curInitState, curFinalState);
+                RunStage2(cg, curState);
                 SyncAll<false>();
 
-                stage3(cg, seqStart);
+                RunStage3(cg, seqStart);
                 SyncAll<false>();
             }
         }
+        SetFinalState();
     }
 
 private:
-    __aicore__ inline void stage1(const ChunkGroup& cg)
+    __aicore__ inline void RunStage1(const ChunkGroup& cg)
     {
         // todo: stage1, release ub resource after computing
         GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
@@ -194,7 +195,7 @@ private:
     }
     
 
-    __aicore__ inline void stage2(ChunkGroup& cg, GlobalTensor<lowType> curInitState, GlobalTensor<lowType> curFinalState)
+    __aicore__ inline void RunStage2(ChunkGroup& cg, GlobalTensor<highType> state)
     {
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
@@ -202,8 +203,8 @@ private:
             mm2_.Init(&tiling_->matmulTilingBf16, pipe_);
         }
         Stage2 stageTwoOp;
-        StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, curInitState, kg_,
-                                          curFinalState, attnInter_, vNew_,
+        StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
+                                          state, attnInter_, vNew_,
                                           &mm1_, &mm2_, pipe_, &cg,
                                           tiling_->maxGroupLength, tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
         stageTwoOp_.Init(&initStageTwoParams, tiling_->aiCoreNum);
@@ -211,7 +212,7 @@ private:
         pipe_->Reset();
     }
 
-    __aicore__ inline void stage3(ChunkGroup& cg, int seqStart)
+    __aicore__ inline void RunStage3(ChunkGroup& cg, int seqStart)
     {
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
@@ -228,50 +229,15 @@ private:
         pipe_->Reset();
     }
 
-    // __aicore__ inline void stage1Dump(const ChunkGroup& cg)
-    // {
-    //     if (GetBlockIdx() == 23)
-    //     {
-    //         // Dump stage1 outputs for debugging: print first 10 and last 10 values
-    //     int64_t nvLen = cg.length * tiling_->nv;
+    __aicore__ inline void initHighState()
+    {
+        // todo: 用initState_的值初始化highState_
+    }
 
-    //     // gCumExp_: (Nv, maxGroupLength) - highType
-    //     AscendC::printf("======================================================gCumExp_ first 10:");
-    //     AscendC::DumpTensor(gCumExp_[0], 1001, 10);
-    //     AscendC::DumpTensor(gCumExp_[nvLen - 10], 1002, 10);
-
-    //     // kCumDecay_: (Nv, maxGroupLength, Dk) - lowType
-    //     int64_t kCumDecayLen = cg.length * tiling_->nv * tiling_->dk;
-    //     AscendC::printf("======================================================kCumDecay_ first 10:");
-    //     AscendC::DumpTensor(kCumDecay_[0], 2001, 10);
-    //     AscendC::printf("kCumDecay_ last 10:");
-    //     AscendC::DumpTensor(kCumDecay_[kCumDecayLen - 10], 2002, 10);
-
-    //     // vInner_: (Nv, maxGroupLength, Dv) - highType
-    //     int64_t vInnerLen = cg.length * tiling_->nv * tiling_->dv;
-    //     AscendC::printf("======================================================vInner_ first 10:");
-    //     AscendC::DumpTensor(vInner_[0], 3001, 10);
-    //     AscendC::DumpTensor(vInner_[vInnerLen - 10], 3002, 10);
-
-    //     // qPrime_: (Nv, maxGroupLength, Dk) - lowType
-    //     int64_t qPrimeLen = cg.length * tiling_->nv * tiling_->dk;
-    //     AscendC::printf("======================================================qPrime_ first 10:");
-    //     AscendC::DumpTensor(qPrime_[0], 4001, 10);
-    //     AscendC::DumpTensor(qPrime_[qPrimeLen - 10], 4002, 10);
-
-    //     // kg_: (Nv, maxGroupLength, Dk) - highType
-    //     int64_t kgLen = cg.length * tiling_->nv * tiling_->dk;
-    //     AscendC::printf("======================================================kg_ first 10:");
-    //     AscendC::DumpTensor(kg_[0], 5001, 10);
-    //     AscendC::DumpTensor(kg_[kgLen - 10], 5002, 10);
-
-    //     // qkt_: (Nv, maxGroupLength, C) - highType
-    //     int64_t qktLen = cg.length * tiling_->nv * tiling_->chunkSize;
-    //     AscendC::printf("======================================================qkt_ first 10:");
-    //     AscendC::DumpTensor(qkt_[0], 6001, 10);
-    //     AscendC::DumpTensor(qkt_[qktLen - 10], 6002, 10);
-    //     }
-    // }
+    __aicore__ inline void SetFinalState()
+    {
+        // todo: 将highState_的值搬运到initState_
+    }
 
 private:
     TPipe *pipe_;
@@ -288,13 +254,14 @@ private:
     GlobalTensor<int32_t> actualSeqLens_;
 
     GlobalTensor<highType> gCumExp_;      // (Nv, maxGroupLength)
-    GlobalTensor<lowType> kCumDecay_;     // (Nv, maxGroupLength, Dk)
+    GlobalTensor<highType> kCumDecay_;     // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> vInner_;       // (Nv, maxGroupLength, Dv)
-    GlobalTensor<lowType> qPrime_;        // (Nv, maxGroupLength, Dk)
+    GlobalTensor<highType> qPrime_;        // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> attnInter_;    // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> vNew_;         // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> kg_;           // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> qkt_;          // (Nv, maxGroupLength, C)
+    GlobalTensor<highType> highState_;
     // mask矩阵
     GlobalTensor<highType> stageOneMask_;          // (Nv, maxGroupLength, C)
     GlobalTensor<highType> stageThreeMask_;          // (Nv, maxGroupLength, C)
