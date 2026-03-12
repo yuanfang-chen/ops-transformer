@@ -12,7 +12,9 @@
  * \file fused_infer_attention_score_template_tiling_key.h
  * \brief
  */
- 
+
+// TODO，ASCENDC_TPL_TILING_STRUCT_SEL非量化tilingData需要修改为FusedInferAttentionScoreTilingData
+
 #ifndef FUSED_INFER_ATTENTION_TEMPLATE_TILING_KEY_H_
 #define FUSED_INFER_ATTENTION_TEMPLATE_TILING_KEY_H_
 

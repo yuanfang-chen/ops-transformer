@@ -318,6 +318,15 @@ void PromptFlashAttentionTilingV2::SetEmptyTensor(ContextParamsForPFATiling& con
     workspace[0] = sysWorkspaceSize;
 }
 
+bool PromptFlashAttentionTilingV2::IsSplitCoreBalance(ContextParamsForPFATiling& contextKeyParams)
+{
+    bool hasCrossoverAttr = enablePseShift || enableAlibiPse || enablePFARope || enablePerblockQuant ||
+        enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
+        enableIFAMLAFullQuant || enableIFAMLA || enablePFAMLA || contextKeyParams.isSoftMaxLseEnable;
+
+    return !hasCrossoverAttr;
+}
+
 bool PromptFlashAttentionTilingV2::CheckIODataType(ContextParamsForPFATiling& contextKeyParams) 
 {
     outputType = contextKeyParams.outputDataType;
@@ -1762,6 +1771,13 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     if(queryShapeInfo.d != valueShapeInfo.d && !enablePFAMLA){
         isQKVDDifferent = true;
     }
+
+    enableSplitCoreBalance = CheckSplitCoreBalance(contextKeyParams);
+    if (enableSplitCoreBalance) {
+        OP_LOGI(contextKeyParams.opName, "Split core balance enable.");
+        this->faTilingAdapter = &this->fiaTiling;
+    }
+
     OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query data type must be float16 or bf16 when query and key headdim is not equal to value headdim."),
         return false);
@@ -4225,6 +4241,11 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
         // 3 for WorkspaceSize calculation
         curWorkspaceSize = static_cast<size_t>((bmm2Bytes + vec2Bytes) * 3 *
             coreNum) + sysWorkspaceSize + accumOutSize + logSumExpSize;
+        if (enableSplitCoreBalance) {
+            uint32_t faTmpAttenGmSize = s1BasicBlock * dSize * 4;
+            uint32_t fatmpReslseGmSize = s1BasicBlock * 8 * 4;
+            curWorkspaceSize += (faTmpAttenGmSize + fatmpReslseGmSize) * coreNum;
+        }
     }
     if (enablePA) {
         // 2 bmm, db, ensure alignment of each structure 64B, dcci cacheline needs
@@ -4395,6 +4416,79 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
         faRunFlag_ = false;
     }
     return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus PromptFlashAttentionTilingV2::CreateSplitInput(const ContextParamsForPFATiling& contextKeyParams,
+    PromptFlashAttentionTilingData& tilingData, optiling_35::BaseInfo &baseInfo, optiling_35::SplitParam &splitParam)
+{
+    baseInfo.bSize = tilingData.promptAttentionBaseParams.get_batchSize();
+    baseInfo.n2Size = tilingData.promptAttentionBaseParams.get_headNumSize();
+    baseInfo.gSize = gSize;
+    baseInfo.s1Size = tilingData.promptAttentionBaseParams.get_seqSize();
+    baseInfo.s2Size = tilingData.promptAttentionBaseParams.get_seqInnerSize();
+    baseInfo.actualLenQDims = tilingData.promptAttentionBaseParams.get_actualSeqLengthsSize();
+    baseInfo.actualLenKvDims = tilingData.promptAttentionBaseParams.get_actualSeqLengthsKVSize();
+    baseInfo.preToken = tilingData.promptAttentionBaseParams.get_preTokens();
+    baseInfo.nextToken = tilingData.promptAttentionBaseParams.get_nextTokens();
+    baseInfo.isS1G = inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND || inputLayout == InputLayout::TND;
+    baseInfo.sparseMode = tilingData.promptAttentionBaseParams.get_sparseMode();
+    baseInfo.attenMaskFlag = enableMask;
+
+    if (inputLayout == InputLayout::TND) {
+        baseInfo.isAccumSeqS1 = true;
+        baseInfo.isAccumSeqS2 = !enablePA;
+    } else {
+        baseInfo.isAccumSeqS1 = false;
+        baseInfo.isAccumSeqS2 = false;
+    }
+    const gert::Tensor* actSeqLenData = contextKeyParams.actualSequenceLengthQ;
+    const gert::Tensor* actSeqLenDataKV = contextKeyParams.actualSequenceLengthKV;
+    if (actSeqLenData != nullptr) {
+        baseInfo.actualSeqS1Size.reserve(baseInfo.bSize);
+        const int64_t *s1Ptr = actSeqLenData->GetData<int64_t>();
+        for (uint32_t i = 0; i < baseInfo.bSize; i++) {
+            baseInfo.actualSeqS1Size.emplace_back(s1Ptr[i]);
+        }
+    }
+    if (actSeqLenDataKV != nullptr) {
+        baseInfo.actualSeqS2Size.reserve(baseInfo.bSize);
+        const int64_t *s2Ptr = actSeqLenDataKV->GetData<int64_t>();
+        for (uint32_t i = 0; i < baseInfo.bSize; i++) {
+            baseInfo.actualSeqS1Size.emplace_back(s2Ptr[i]);
+        }
+    }
+    if (isKVHasPrefix) {
+        baseInfo.actualSeqPrefixSize = tilingData.promptAttentionBaseParams.get_prefixSeqInnerSize();
+    }
+    PromptAttentionSingleCoreParams *singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
+    splitParam.mBaseSize = splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE ? singleCoreParams->get_singleProcessSOuterSize() * CV_RATIO :
+        singleCoreParams->get_singleProcessSOuterSize();
+    splitParam.s2BaseSize = singleCoreParams->get_singleProcessSInnerSize();
+    splitParam.gS1BaseSizeOfFd = 8;
+    splitParam.streamK = true;
+}
+
+void PromptFlashAttentionTilingV2::SetSplitOutput(PromptFlashAttentionTilingData& tilingData, const optiling_35::FAMetaData &res)
+{
+    FusedInferAttentionScoreTilingData *fiaTiling = (FusedInferAttentionScoreTilingData *)faTilingAdapter;
+    fiaTiling->outerSplitParams.usedCoreNum = res.usedCoreNum;
+    fiaTiling->outerSplitParams.fdRes.fdNum = res.fdRes.fdNum;
+    fiaTiling->outerSplitParams.fdRes.fdBalanceMBaseSize = 8;
+    fiaTiling->outerSplitParams.fdRes.fdUsedVecNum = res.fdRes.fdUsedVecNum;
+    for (uint32_t i = 0; i < res.usedCoreNum; i++) {
+        fiaTiling->outerSplitParams.bN2End[i] = res.bN2End[i];
+        fiaTiling->outerSplitParams.mEnd[i] = res.mEnd[i];
+        fiaTiling->outerSplitParams.s2End[i] = res.s2End[i];
+        fiaTiling->outerSplitParams.fdRes.fdBN2Idx[i] = res.fdRes.fdBN2Idx[i];
+        fiaTiling->outerSplitParams.fdRes.fdMIdx[i] = res.fdRes.fdMIdx[i];
+        fiaTiling->outerSplitParams.headFdDataIdx[i] = res.headFdDataIdx[i];
+        fiaTiling->outerSplitParams.fdRes.fdBalanceMSplitNum[i] = res.fdRes.fdBalanceMSplitNum[i];
+        fiaTiling->outerSplitParams.fdRes.fdBalanceMTailSize[i] = res.fdRes.fdBalanceMTailSize[i];
+    }
+    for (uint32_t i = 0; i < res.usedCoreNum * 2; i++) {
+        fiaTiling->outerSplitParams.fdRes.fdBalanceEndIdx1[i] =  res.fdRes.fdBalanceEndIdx1[i];
+        fiaTiling->outerSplitParams.fdRes.fdBalanceEndIdx2[i] =  res.fdRes.fdBalanceEndIdx2[i];
+    }
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::CheckTensorInvalid(const ContextParamsForPFATiling& contextKeyParams) const 
@@ -4709,29 +4803,38 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
     PromptFlashAttentionTilingData& tilingData) 
 {
     // Compute tiling data.
-    if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
-        bool isAttenMaskUsed = (contextKeyParams.attentionMaskShape != nullptr);
-        PromptFlashAttentionSplitNBSeq(tilingData, actualSeqLengths, actualSeqLengthsKV, isAttenMaskUsed);
-    }
+    if (enableSplitCoreBalance) {
+        optiling_35::BaseInfo baseInfo {};
+        optiling_35::SplitParam splitParam {};
+        optiling_35::FAMetaData result{aicNum, aivNum / aicNum};
+        CreateSplitInput(contextKeyParams, tilingData, baseInfo, splitParam);
+        optiling_35::SplitCore(aicNum, baseInfo, splitParam, result);
+        SetSplitOutput(tilingData, result);
+    } else {
+        if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
+            bool isAttenMaskUsed = (contextKeyParams.attentionMaskShape != nullptr);
+            PromptFlashAttentionSplitNBSeq(tilingData, actualSeqLengths, actualSeqLengthsKV, isAttenMaskUsed);
+        }
 
-    if (needInit == 1) {
-        PromptFlashAttentionInitOutputSplit(contextKeyParams.outputShape->GetStorageShape().GetShapeSize(), tilingData);
-    }
+        if (needInit == 1) {
+            PromptFlashAttentionInitOutputSplit(contextKeyParams.outputShape->GetStorageShape().GetShapeSize(), tilingData);
+        }
 
-    if (contextKeyParams.isSoftMaxLseEnable) {
-        PromptFlashAttentionInitSoftmaxLseOutputSplit(contextKeyParams.lseoutputShape->GetStorageShape().GetShapeSize(),
-            tilingData);
-    }
+        if (contextKeyParams.isSoftMaxLseEnable) {
+            PromptFlashAttentionInitSoftmaxLseOutputSplit(contextKeyParams.lseoutputShape->GetStorageShape().GetShapeSize(),
+                tilingData);
+        }
 
-    if (enableIFA && !enablePFAMerge) {
-        PromptAttentionSingleCoreParams* singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
-        uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
-        uint64_t batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
-        uint64_t headNumKVSize = tilingData.promptAttentionBaseParams.get_headNumSize(); // IFA kv N
-        uint64_t bng = batchSize * headNumKVSize * (gSize + sOuterSize - 1) / sOuterSize;
-        if (IsFlashDecode(contextKeyParams, bng)) {
-            enableFlashDecode = true;
-            return SplitBNS(tilingData, bng);
+        if (enableIFA && !enablePFAMerge) {
+            PromptAttentionSingleCoreParams* singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
+            uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
+            uint64_t batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
+            uint64_t headNumKVSize = tilingData.promptAttentionBaseParams.get_headNumSize(); // IFA kv N
+            uint64_t bng = batchSize * headNumKVSize * (gSize + sOuterSize - 1) / sOuterSize;
+            if (IsFlashDecode(contextKeyParams, bng)) {
+                enableFlashDecode = true;
+                return SplitBNS(tilingData, bng);
+            }
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -5176,12 +5279,21 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttention
         PFATilingDataconvert(tilingData);
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
         OP_LOGI(contextParamsForPFATiling.opName, "Tiling Data context GetCapacity: %lu.", cap);
-        FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
-        if (tiling == nullptr) {
-            OP_LOGE(contextParamsForPFATiling.opName, "tiling get is nullptr");
-            return ge::GRAPH_FAILED;
+        if (enableSplitCoreBalance) {
+            FusedInferAttentionScoreTilingData* tiling = context_->GetTilingData<FusedInferAttentionScoreTilingData>();
+            if (tiling == nullptr) {
+                OP_LOGE(contextParamsForPFATiling.opName, "tiling get is nullptr");
+                return ge::GRAPH_FAILED;
+            }
+            *tiling = fiaTiling;
+        } else {
+            FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
+            if (tiling == nullptr) {
+                OP_LOGE(contextParamsForPFATiling.opName, "tiling get is nullptr");
+                return ge::GRAPH_FAILED;
+            }
+            *tiling = faTiling;
         }
-        *tiling = faTilingAdapter;
     } else {
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
         OP_LOGI(contextParamsForPFATiling.opName, "TilingData context GetCapacity: %lu, faRunFlag_ is %d", cap, faRunFlag_);

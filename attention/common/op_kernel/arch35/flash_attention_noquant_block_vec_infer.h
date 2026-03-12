@@ -214,8 +214,20 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedP
     /* 多核切分偏移计算 */
     sharedParams.multiCoreInnerOffset = multiCoreParamsRegbase.sparseStartIdx[aicIdx];
     sharedParams.multiCoreInnerLimit = multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1];
-    sharedParams.bnStartIdx = multiCoreParamsRegbase.bnStartIdx[aicIdx];
-    sharedParams.bnEndIdx = multiCoreParamsRegbase.bnStartIdx[aicIdx + 1];
+
+    if (aicIdx == 0) {
+        sharedParams.bN2StartIdx = 0;
+        sharedParams.gS1StartIdx = 0;
+        sharedParams.s2StartIdx = 0;
+    } else {
+        sharedParams.bN2StartIdx = multiCoreParamsRegbase.bN2End[aicIdx - 1];
+        sharedParams.gS1StartIdx = multiCoreParamsRegbase.mEnd[aicIdx - 1];
+        sharedParams.s2StartIdx = multiCoreParamsRegbase.s2End[aicIdx - 1];
+    }
+    sharedParams.bN2EndIdx = multiCoreParamsRegbase.bN2End[aicIdx];
+    sharedParams.gS1EndIdx = multiCoreParamsRegbase.mEnd[aicIdx];
+    sharedParams.s2EndIdx = multiCoreParamsRegbase.s2End[aicIdx];
+
     sharedParams.needInit = this->tilingData->initOutputParams.needInit;
 
     if ASCEND_IS_AIV {

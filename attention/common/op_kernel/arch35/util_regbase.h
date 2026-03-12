@@ -484,6 +484,13 @@ struct CVSharedParams<true, false> {
     uint32_t bnStartIdx;
     uint32_t bnEndIdx;
 
+    int32_t bN2StartIdx;
+    int32_t bN2EndIdx;
+    int32_t gS1StartIdx;
+    int32_t gS1EndIdx;
+    int32_t s2StartIdx;
+    int32_t s2EndIdx;
+
     uint32_t queryRightPaddingSize;
     uint32_t kvRightPaddingSize;
 
@@ -514,8 +521,12 @@ struct CVSharedParams<true, true> {
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;
 
-    uint32_t bnStartIdx;
-    uint32_t bnEndIdx;
+    int32_t bN2StartIdx;
+    int32_t bN2EndIdx;
+    int32_t gS1StartIdx;
+    int32_t gS1EndIdx;
+    int32_t s2StartIdx;
+    int32_t s2EndIdx;
 
     uint32_t queryRightPaddingSize;
     uint32_t kvRightPaddingSize;
