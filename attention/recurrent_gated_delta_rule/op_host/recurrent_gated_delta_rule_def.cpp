@@ -90,6 +90,15 @@ public:
             .ExtendCfgInfo("softsync.flag", "true");
         this->AICore().AddConfig("ascend910b", aicConfig);
         this->AICore().AddConfig("ascend910_93", aicConfig);
+
+        OpAICoreConfig config_950;
+        config_950.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
+            .ExtendCfgInfo("softsync.flag", "true");
+        this->AICore().AddConfig("ascend950", config_950);
     }
 };
 
