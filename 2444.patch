@@ -1,0 +1,225 @@
+From bc1d30bb064a314a92ebcf31591298d7aebdc952 Mon Sep 17 00:00:00 2001
+From: Hu1L1 <chenshujian5@huawei.com>
+Date: Mon, 9 Mar 2026 16:24:32 +0800
+Subject: [PATCH] =?UTF-8?q?[GMM]=E9=83=A8=E5=88=86=E5=A4=B4=E6=96=87?=
+ =?UTF-8?q?=E4=BB=B6=E5=91=BD=E5=90=8D=E9=94=99=E8=AF=AF=EF=BC=8C=E4=B8=8D?=
+ =?UTF-8?q?=E5=BA=94=E8=AF=A5=E5=87=BA=E7=8E=B0aclnn=E5=89=8D=E7=BC=80?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp  | 4 ++--
+ ...atmul_950_checker.cpp => grouped_matmul_950_checker.cpp} | 2 +-
+ ...ed_matmul_950_checker.h => grouped_matmul_950_checker.h} | 0
+ ...clnn_grouped_matmul_util.cpp => grouped_matmul_util.cpp} | 0
+ ...cker.cpp => grouped_matmul_weight_quant_950_checker.cpp} | 2 +-
+ ..._checker.h => grouped_matmul_weight_quant_950_checker.h} | 0
+ .../op_api/aclnn_grouped_matmul_finalize_routing.cpp        | 4 ++--
+ ...ecker.h => grouped_matmul_finalize_routing_MX_checker.h} | 3 +--
+ ..._util.h => quant_grouped_matmul_finalize_routing_util.h} | 0
+ .../op_host/op_api/aclnn_grouped_matmul_swiglu_quant_v2.cpp | 2 +-
+ .../op_host/op_api/{aclnn_gmm_dsq_base.h => gmm_dsq_base.h} | 0
+ .../op_api/aclnn_quant_grouped_matmul_inplace_add.cpp       | 6 +++---
+ ...cpp => quant_grouped_matmul_inplace_add_950_checker.cpp} | 2 +-
+ ...ker.h => quant_grouped_matmul_inplace_add_950_checker.h} | 2 +-
+ ...e_add_util.h => quant_grouped_matmul_inplace_add_util.h} | 0
+ gmm/quant_grouped_matmul_inplace_add/tests/CMakeLists.txt   | 4 ++--
+ 16 files changed, 15 insertions(+), 16 deletions(-)
+ rename gmm/grouped_matmul/op_host/op_api/{aclnn_grouped_matmul_950_checker.cpp => grouped_matmul_950_checker.cpp} (99%)
+ rename gmm/grouped_matmul/op_host/op_api/{aclnn_grouped_matmul_950_checker.h => grouped_matmul_950_checker.h} (100%)
+ rename gmm/grouped_matmul/op_host/op_api/{aclnn_grouped_matmul_util.cpp => grouped_matmul_util.cpp} (100%)
+ rename gmm/grouped_matmul/op_host/op_api/{aclnn_grouped_matmul_weight_quant_950_checker.cpp => grouped_matmul_weight_quant_950_checker.cpp} (99%)
+ rename gmm/grouped_matmul/op_host/op_api/{aclnn_grouped_matmul_weight_quant_950_checker.h => grouped_matmul_weight_quant_950_checker.h} (100%)
+ rename gmm/grouped_matmul_finalize_routing/op_host/op_api/{aclnn_grouped_matmul_finalize_routing_MX_checker.h => grouped_matmul_finalize_routing_MX_checker.h} (99%)
+ rename gmm/grouped_matmul_finalize_routing/op_host/op_api/{aclnn_quant_grouped_matmul_finalize_routing_util.h => quant_grouped_matmul_finalize_routing_util.h} (100%)
+ rename gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/{aclnn_gmm_dsq_base.h => gmm_dsq_base.h} (100%)
+ rename gmm/quant_grouped_matmul_inplace_add/op_host/op_api/{aclnn_quant_grouped_matmul_inplace_add_950_checker.cpp => quant_grouped_matmul_inplace_add_950_checker.cpp} (99%)
+ rename gmm/quant_grouped_matmul_inplace_add/op_host/op_api/{aclnn_quant_grouped_matmul_inplace_add_950_checker.h => quant_grouped_matmul_inplace_add_950_checker.h} (97%)
+ rename gmm/quant_grouped_matmul_inplace_add/op_host/op_api/{aclnn_quant_grouped_matmul_inplace_add_util.h => quant_grouped_matmul_inplace_add_util.h} (100%)
+
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp b/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp
+index f70c79a55..e25ae0f79 100644
+--- a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp
++++ b/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp
+@@ -36,8 +36,8 @@
+ #include "opdev/make_op_executor.h"
+ 
+ #include "grouped_matmul_util.h"
+-#include "aclnn_grouped_matmul_950_checker.h"
+-#include "aclnn_grouped_matmul_weight_quant_950_checker.h"
++#include "grouped_matmul_950_checker.h"
++#include "grouped_matmul_weight_quant_950_checker.h"
+ #include "grouped_matmul_no_quant_950_checker.h"
+ 
+ using namespace op;
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.cpp b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_950_checker.cpp
+similarity index 99%
+rename from gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.cpp
+rename to gmm/grouped_matmul/op_host/op_api/grouped_matmul_950_checker.cpp
+index 95c9c8cf5..a7800049e 100644
+--- a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.cpp
++++ b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_950_checker.cpp
+@@ -8,7 +8,7 @@
+  * See LICENSE in the root of the software repository for the full text of the License.
+  */
+ 
+-#include "aclnn_grouped_matmul_950_checker.h"
++#include "grouped_matmul_950_checker.h"
+ 
+ using namespace gmm;
+ 
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.h b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h
+similarity index 100%
+rename from gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.h
+rename to gmm/grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_util.cpp b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_util.cpp
+similarity index 100%
+rename from gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_util.cpp
+rename to gmm/grouped_matmul/op_host/op_api/grouped_matmul_util.cpp
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_weight_quant_950_checker.cpp b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_weight_quant_950_checker.cpp
+similarity index 99%
+rename from gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_weight_quant_950_checker.cpp
+rename to gmm/grouped_matmul/op_host/op_api/grouped_matmul_weight_quant_950_checker.cpp
+index 66ea7d683..44caf2dd5 100644
+--- a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_weight_quant_950_checker.cpp
++++ b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_weight_quant_950_checker.cpp
+@@ -8,7 +8,7 @@
+  * See LICENSE in the root of the software repository for the full text of the License.
+  */
+ 
+-#include "aclnn_grouped_matmul_weight_quant_950_checker.h"
++#include "grouped_matmul_weight_quant_950_checker.h"
+ 
+ using namespace gmm;
+ 
+diff --git a/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_weight_quant_950_checker.h b/gmm/grouped_matmul/op_host/op_api/grouped_matmul_weight_quant_950_checker.h
+similarity index 100%
+rename from gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_weight_quant_950_checker.h
+rename to gmm/grouped_matmul/op_host/op_api/grouped_matmul_weight_quant_950_checker.h
+diff --git a/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing.cpp b/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing.cpp
+index 10bc74143..b604a71dc 100644
+--- a/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing.cpp
++++ b/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing.cpp
+@@ -26,8 +26,8 @@
+ #include "aclnn_kernels/transpose.h"
+ #include "aclnn_kernels/contiguous.h"
+ #include "aclnn_kernels/reshape.h"
+-#include "aclnn_grouped_matmul_finalize_routing_MX_checker.h"
+-#include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.h"
++#include "grouped_matmul_finalize_routing_MX_checker.h"
++#include "../../../grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h"
+ 
+ using namespace op;
+ using namespace GmmFinalizeRouting;
+diff --git a/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing_MX_checker.h b/gmm/grouped_matmul_finalize_routing/op_host/op_api/grouped_matmul_finalize_routing_MX_checker.h
+similarity index 99%
+rename from gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing_MX_checker.h
+rename to gmm/grouped_matmul_finalize_routing/op_host/op_api/grouped_matmul_finalize_routing_MX_checker.h
+index 9222989c0..7d8a9e19c 100644
+--- a/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_grouped_matmul_finalize_routing_MX_checker.h
++++ b/gmm/grouped_matmul_finalize_routing/op_host/op_api/grouped_matmul_finalize_routing_MX_checker.h
+@@ -12,9 +12,8 @@
+ #define OP_API_INC_QUANT_GROUPED_MATMUL_FINALIZE_ROUTING_950_CHECKER_H
+ #include "opdev/format_utils.h"
+ #include "aclnn_kernels/common/op_error_check.h"
+-#include "aclnn_quant_grouped_matmul_finalize_routing_util.h"
++#include "quant_grouped_matmul_finalize_routing_util.h"
+ #include "../../../grouped_matmul/op_host/op_api/grouped_matmul_util.h"
+-#include "aclnn_quant_grouped_matmul_finalize_routing_util.h"
+ #include "util/math_util.h"
+ 
+ using namespace GmmFinalizeRouting;
+diff --git a/gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_quant_grouped_matmul_finalize_routing_util.h b/gmm/grouped_matmul_finalize_routing/op_host/op_api/quant_grouped_matmul_finalize_routing_util.h
+similarity index 100%
+rename from gmm/grouped_matmul_finalize_routing/op_host/op_api/aclnn_quant_grouped_matmul_finalize_routing_util.h
+rename to gmm/grouped_matmul_finalize_routing/op_host/op_api/quant_grouped_matmul_finalize_routing_util.h
+diff --git a/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_grouped_matmul_swiglu_quant_v2.cpp b/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_grouped_matmul_swiglu_quant_v2.cpp
+index d63e05847..bebcbdbf6 100644
+--- a/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_grouped_matmul_swiglu_quant_v2.cpp
++++ b/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_grouped_matmul_swiglu_quant_v2.cpp
+@@ -12,7 +12,7 @@
+ #include <new>
+ #include <memory>
+ #include <unordered_map>
+-#include "aclnn_gmm_dsq_base.h"
++#include "gmm_dsq_base.h"
+ #include "grouped_matmul_swiglu_quant_v2_utils.h"
+ #include "grouped_matmul_swiglu_quant_v2.h"
+ #include "aclnn_grouped_matmul_swiglu_quant_weight_nz_v2.h"
+diff --git a/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_gmm_dsq_base.h b/gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/gmm_dsq_base.h
+similarity index 100%
+rename from gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/aclnn_gmm_dsq_base.h
+rename to gmm/grouped_matmul_swiglu_quant_v2/op_host/op_api/gmm_dsq_base.h
+diff --git a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add.cpp b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add.cpp
+index 5ea79ebd4..83b3d0385 100644
+--- a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add.cpp
++++ b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add.cpp
+@@ -29,10 +29,10 @@
+ #include "opdev/make_op_executor.h"
+ 
+ #include "../../../grouped_matmul/op_host/op_api/grouped_matmul_util.h"
+-#include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.h"
+-#include "aclnn_quant_grouped_matmul_inplace_add_util.h"
++#include "../../../grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h"
++#include "quant_grouped_matmul_inplace_add_util.h"
+ #include "quant_grouped_matmul_inplace_add.h"
+-#include "aclnn_quant_grouped_matmul_inplace_add_950_checker.h"
++#include "quant_grouped_matmul_inplace_add_950_checker.h"
+ 
+ using namespace op;
+ 
+diff --git a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.cpp b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.cpp
+similarity index 99%
+rename from gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.cpp
+rename to gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.cpp
+index beb723640..55a93ad60 100644
+--- a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.cpp
++++ b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.cpp
+@@ -8,7 +8,7 @@
+  * See LICENSE in the root of the software repository for the full text of the License.
+  */
+ 
+-#include "aclnn_quant_grouped_matmul_inplace_add_950_checker.h"
++#include "quant_grouped_matmul_inplace_add_950_checker.h"
+ 
+ using namespace QGmmInPlaceAdd;
+ 
+diff --git a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.h b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.h
+similarity index 97%
+rename from gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.h
+rename to gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.h
+index f8bd98fd1..f21decac0 100644
+--- a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_950_checker.h
++++ b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_950_checker.h
+@@ -12,7 +12,7 @@
+ #define OP_API_INC_QUANT_GROUPED_MATMUL_INPLACE_ADD_950_CHECKER_H
+ #include "opdev/format_utils.h"
+ #include "aclnn_kernels/common/op_error_check.h"
+-#include "aclnn_quant_grouped_matmul_inplace_add_util.h"
++#include "quant_grouped_matmul_inplace_add_util.h"
+ #include "../../../grouped_matmul/op_host/op_api/grouped_matmul_util.h"
+ 
+ namespace QGmmInPlaceAdd {
+diff --git a/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_util.h b/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_util.h
+similarity index 100%
+rename from gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add_util.h
+rename to gmm/quant_grouped_matmul_inplace_add/op_host/op_api/quant_grouped_matmul_inplace_add_util.h
+diff --git a/gmm/quant_grouped_matmul_inplace_add/tests/CMakeLists.txt b/gmm/quant_grouped_matmul_inplace_add/tests/CMakeLists.txt
+index 965433e60..e76e38abb 100644
+--- a/gmm/quant_grouped_matmul_inplace_add/tests/CMakeLists.txt
++++ b/gmm/quant_grouped_matmul_inplace_add/tests/CMakeLists.txt
+@@ -25,8 +25,8 @@ set(_QGMMIA_KernelTilingDataDefH
+ )
+ 
+ set(_QGMMIA_OpApiSourcesExt
+-        ${CMAKE_SOURCE_DIR}/src/transformer/gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul_util.cpp
+-        ${CMAKE_SOURCE_DIR}/src/transformer/gmm/grouped_matmul/op_host/op_api/arch35/aclnn_grouped_matmul_950_checker.cpp
++        ${CMAKE_SOURCE_DIR}/src/transformer/gmm/grouped_matmul/op_host/op_api/grouped_matmul_util.cpp
++        ${CMAKE_SOURCE_DIR}/src/transformer/gmm/grouped_matmul/op_host/op_api/arch35/grouped_matmul_950_checker.cpp
+         ${CMAKE_SOURCE_DIR}/src/transformer/gmm/quant_grouped_matmul_inplace_add/op_host/op_api/aclnn_quant_grouped_matmul_inplace_add.cpp
+ )
+ 
+-- 
+GitCode
+
