@@ -437,7 +437,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
         }
     }
     if constexpr (GmLayoutParams<KV_FORMAT>::CATEGORY == FormatCategory::GM_KV_BNSD) {
-
         this->keyGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
             sharedParams->dSize);
         this->valueGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
