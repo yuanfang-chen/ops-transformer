@@ -240,7 +240,7 @@ SCFABlockVec<TEMPLATE_ARGS>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t st
 {
     // 当前仅支持COMBINE模式
     uint32_t combineDim = dCombineBytes / sizeof(KV_T);
-    uint32_t combineDimAlign = CeilAlign(dCombineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(dVTemplateTypeInput, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     if (keyOffset < 0) {
         return;
     }

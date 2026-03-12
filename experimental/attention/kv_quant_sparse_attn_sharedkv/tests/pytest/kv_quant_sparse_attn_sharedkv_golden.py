@@ -80,7 +80,7 @@ class GeneralizedSFAQuant:
                     if i_S1 in milestones:
                         current_pct = (i_S1 / cur_act_q) * 100
                         print(f"      进度：{current_pct:.1f}% | 步数：{i_S1:>{len(str(cur_act_q))}}/{cur_act_q}")
-                    if i_S1 < cur_act_q - cur_ori_act_kv:  # 根据 win_kv 判断行无效
+                    if self.ori_mask_mode != 0 and i_S1 < cur_act_q - cur_ori_act_kv:  # 根据 ori_kv 判断行无效
                         attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = torch.zeros([G, self.D], dtype=torch.float)
                         continue
 

@@ -326,7 +326,19 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::ProcessMainLoop()
 {
     uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
+    int64_t maxS2LoopCnt = 0;
+    if constexpr (IS_SPLIT_G) {
+        maxS2LoopCnt = static_cast<int64_t>(metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_MAX_NUM, false)));
+    }
     if (hasLoad == 0) {
+        if ASCEND_IS_AIV {
+            if constexpr (IS_SPLIT_G) {
+                for (int64_t loopCnt = 0; loopCnt < maxS2LoopCnt; loopCnt++) {
+                    CrossCoreSetFlag<0, PIPE_MTE3>(15);
+                    CrossCoreWaitFlag<0, PIPE_MTE3>(15);
+                }
+            }
+        }
         return;
     }
 
@@ -337,10 +349,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     uint32_t bN2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_END_INDEX, false));
     uint32_t nextGs1Idx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_END_INDEX, false));
     uint32_t s2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_END_INDEX, false));
-    int64_t maxS2LoopCnt = 0;
-    if constexpr (IS_SPLIT_G) {
-        maxS2LoopCnt = static_cast<int64_t>(metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_MAX_NUM, false)));
-    }
     uint32_t s2LoopLimit = 0;
 
     if (nextGs1Idx != 0) {
@@ -404,6 +412,16 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
                             runInfo1, this->constInfo);
                     } else {
                         this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), v0ResGmBuffers.Get(), runInfo1, this->constInfo);
+                    }
+                } else {
+                    if ASCEND_IS_AIV {
+                        if constexpr (IS_SPLIT_G) {
+                            if (maxS2LoopCnt > 0) {
+                                maxS2LoopCnt--;
+                                CrossCoreSetFlag<0, PIPE_MTE3>(15);
+                                CrossCoreWaitFlag<0, PIPE_MTE3>(15);
+                            }
+                        }
                     }
                 }
                 if (taskId > 0 && notLast) {
