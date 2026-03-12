@@ -63,35 +63,89 @@ MC<sup>2</sup>通算融合算子的性能收益主要来自于通信、计算的
 __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::Process()
 {
     if ASCEND_IS_AIC {
-        // 先发出通信
+        // Step 1: 启动AllGather通信（收取远端数据）
         StartNotify();
 
-        // 计算本卡、远端数据
+        // Step 2: 计算本卡、远端数据
         InnerProcess();
 
-        // 结束通信
+        // Step 3: 结束通信
         EndNotify();
     }
 }
 ```
 **问题诊断**：
-- AllGather通信启动前，本卡数据已准备好计算，此时计算单元闲置
-- Matmul计算远端数据时，如果单次通信数据量较少则Cube核未完全利用
+- **通信前计算单元空闲**。AllGather通信首次启动前，本卡数据已准备好计算，此时计算单元闲置
+- **单次通信数据量不足导致CUBE核利用率低**。Matmul计算远端数据时，如果单次通信数据量较少则Cube核未完全利用
 
 ### 优化实现1-local块提前启动
-AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在通信启动前，可以先将本卡数据提前加载并启动计算，从而掩盖通信任务下发带来的额外开销，进一步释放性能。
+AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在通信启动前，可以**提前启动本卡本地数据的计算任务**，从而掩盖通信任务下发带来的额外开销，进一步释放性能。优化前与优化后的通信及计算执行流程对比如下图所示：
 
-![all_gather_matmul_demo_1](./images/image-1.jpg)
+![all_gather_matmul_demo_2](./images/image-2.jpg)
+
+```cpp
+// all_gather_matmul_fp16_bf16.h 关键代码
+template <typename AType, typename BType, typename BiasType, typename CType>
+__aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::InnerProcessLocalMM()
+{
+    auto&& tiling = tilingData_->mc2MmV3LocalTilingData;
+    if (GetBlockIdx() >= tiling.tCubeTiling.usedCoreNum) {
+        return;
+    }
+
+    auto&& cfg = tilingData_->param;
+    auto aLocalGM = aGM_;
+    auto cLocalGM = cGM_;
+
+    using C_T = typename CType::T;
+    cLocalGM += (uint64_t)rankId_ * (uint64_t)cfg.rankM * (uint64_t)tiling.tCubeTiling.N * sizeof(C_T);
+
+    if (cfg.rankN != 0) {
+        Mc2MatmulV3Advanced::Mc2MatmulAswKernel<AType, BType, CType, BiasType> mmv3;
+        mmv3.Init(aLocalGM, bGM_, cLocalGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr());
+        mmv3.Process();
+        mmv3.End();
+    }
+}
+```
 
 ### 优化实现2-非连续转连续
 
-当算子进行多轮通算融合，从其他卡收取需要进行Matmul计算的数据时，如果单次AllGather通信收取的数据所需处理核数少于Cube核总数，会导致Cube核未跑满、利用率低。通过非连续转连续优化，将单次AllGather通信收取数据后Unified Buffer中剩余存储空间继续加载其他卡GatherOut数据，再启动Matmul，从而使Cube核全载处理。优化后的通信及计算流程如下图所示：
+当算子进行多轮通算融合时，如果单次AllGather通信不足，会导致Cube核未跑满、利用率低。通过非连续转连续优化，将单次AllGather通信收取数据后剩余存储空间继续加载其他卡GatherOut数据，再启动Matmul，从而实现Cube核的全载运行。优化前与优化后的通信及计算执行流程对比如下图所示：
 
 ![all_gather_matmul_demo_3](./images/image-3.jpg)
 
+```cpp
+// all_gather_matmul_fp16_bf16.h 关键代码
+template <typename AType, typename BType, typename BiasType, typename CType>
+__aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::MatmulKernelComputeGather(
+    GM_ADDR aGM, GM_ADDR cGM, Mc2MatMulV3TilingData& tiling, uint32_t count, bool isLast, bool isTail)
+{
+    auto&& cfg = tilingData_->param;
+    cfg.rankID = rankId_;
+    uint32_t shift = isTail ? cfg.tileCnt : 0;
+    if ((GetBlockIdx() >= tiling.tCubeTiling.usedCoreNum) || (cfg.rankN == 0)) {
+        for (uint32_t i = 0; i < count; i++) {
+            hccl_.Wait(hHandles_[i + shift]);
+        }
+        return;
+    }
+
+    MC2MatmulV3::MC2MatmulAswKernelDerive<AType, BType, CType, BiasType, MC2MatmulV3::MC2MatmulAswBlockDerive> mmv3;
+    mmv3.Init(aGM, bGM_, cGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, true);
+    for (uint32_t i = 0; i < count; i++) {
+        hccl_.Wait(hHandles_[i + shift]);
+        mmv3.UpdateSlice(i, isTail);
+        mmv3.Process(isLast && (i == (count - 1)));
+    }
+    mmv3.End();
+}
+```
+
+
 **优化亮点**：
 1. 针对单次数据量不足导致CUBE核未跑满的问题，通过优化数据调度策略，实现CUBE高效利用。
-2. 将分散、非连续的数据块融合为连续数据流，最大化利用Unified Buffer剩余空间。
+2. 将分散、非连续的数据块融合为连续数据流，最大化利用剩余空间。
 
 ## 支持架构
 NPU ARCH 3510

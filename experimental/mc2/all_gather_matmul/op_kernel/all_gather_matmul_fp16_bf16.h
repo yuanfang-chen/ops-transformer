@@ -248,9 +248,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::M
     uint32_t shift = isTail ? cfg.tileCnt : 0;
     if ((GetBlockIdx() >= tiling.tCubeTiling.usedCoreNum) || (cfg.rankN == 0)) {
         for (uint32_t i = 0; i < count; i++) {
-            if (debugMode_ != MC2_DEBUG_ONLY_CUBE) {
-                hccl_.Wait(hHandles_[i + shift]);
-            }
+            hccl_.Wait(hHandles_[i + shift]);
         }
         return;
     }
@@ -258,9 +256,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::M
     MC2MatmulV3::MC2MatmulAswKernelDerive<AType, BType, CType, BiasType, MC2MatmulV3::MC2MatmulAswBlockDerive> mmv3;
     mmv3.Init(aGM, bGM_, cGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, true);
     for (uint32_t i = 0; i < count; i++) {
-        if (debugMode_ != MC2_DEBUG_ONLY_CUBE) {
-            hccl_.Wait(hHandles_[i + shift]);
-        }
+        hccl_.Wait(hHandles_[i + shift]);
         mmv3.UpdateSlice(i, isTail);
         mmv3.Process(isLast && (i == (count - 1)));
     }
