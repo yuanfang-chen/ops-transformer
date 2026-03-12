@@ -534,21 +534,27 @@ public:
         uint32_t rowOffset)
     {
         // *** ll = rowsum(ls32)
-        if (columnNum == 512U) {
-            RowsumSPECTILE512(lsUbTensor[sUbOffset],
-                llUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        } else {
-            RowsumTAILTILE(lsUbTensor[sUbOffset],
-                llUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        }
+        // if (columnNum == 512U) {
+        //     RowsumSPECTILE512(lsUbTensor[sUbOffset],
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else {
+        //     RowsumTAILTILE(lsUbTensor[sUbOffset],
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // }
+        RowsumTAILTILE(lsUbTensor[sUbOffset],
+            llUbTensor[rowOffset],
+            tvUbTensor,
+            rowNumCurLoopRound,
+            columnNum,
+            columnNumRound);
     }
 
     __aicore__ inline
