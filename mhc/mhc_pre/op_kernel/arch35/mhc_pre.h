@@ -372,6 +372,7 @@ __aicore__ inline void MhcPreKernel<T, P>::Process()
             V0PostProcess(curblock, tBlockNum);
             // V1 Process
             AIV1Process(curblock, tBlockNum);
+            vec1Count_ ++;
         }
     }
     if ASCEND_IS_AIV {
