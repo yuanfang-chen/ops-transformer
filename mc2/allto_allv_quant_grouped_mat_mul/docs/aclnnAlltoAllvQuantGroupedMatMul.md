@@ -1,4 +1,4 @@
-# aclnnQuantAlltoAllvGroupedMatMul
+# aclnnAlltoAllvQuantGroupedMatMul
 
 ## 产品支持情况
 
@@ -16,29 +16,26 @@
 - **算子功能**：完成路由专家AlltoAllv、量化GroupedMatMul融合并实现与共享专家量化MatMul并行融合，**先通信后计算**。
 
 - **计算公式**：
-  - 路由专家：
-
+假设通信域中的总卡数为epWorldSize，每张卡上通信后路由专家个数为e，每张卡分组矩阵乘只负责本卡专家的计算。对于每张卡的计算公式如下：
+  - 本卡共享专家分组矩阵乘计算
     ```
-    permuteOut = AlltoAllv(gmmX)
-    quantedPermuteOut = Quant(permuteOut, gmmXScale)
-    quantedGmmWeight = Quant(gmmWeight, gmmWeightScale)
-    gmmY = quantedAllToAllvOut @ quantedGmmWeight
+    mm_y=(mm_x × mm_x_scale) @ (mm_weight × mm_weight_scale)
     ```
-
-  - 共享专家：
-
+  - Alltoallv通信和permute
     ```
-    quantedMmX = Quant(mmX, mmXScale)
-    quantedMmWeight = Quant(mmWeight, mmWeightScale)
-    mmY = quantedMmX @ quantedMmWeight
+    permute_out=Alltoallv(gmm_x)
+    ```
+  - 本卡路由专家按专家维度分组矩阵乘计算
+    ```
+    gmm_y=(permute_out × hmm_x_scale) @ (gmm_weight × gmm_weight_scale)
     ```
 
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用`aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize`接口获取入参并根据计算流程计算所需workspace大小，再调用`aclnnQuantAlltoAllvGroupedMatMul`接口执行计算。
+每个算子分为两段式接口，必须先调用`aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize`接口获取入参并根据计算流程计算所需workspace大小，再调用`aclnnAlltoAllvQuantGroupedMatMul`接口执行计算。
 
 ```cpp
-aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
+aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     const aclTensor*   gmmX,
     const aclTensor*   gmmWeight,
     const aclTensor*   gmmXScale,
@@ -69,14 +66,14 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
 ```
 
 ```cpp
-aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
+aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     void*          workspace,
     uint64_t       workspaceSize,
     aclOpExecutor* executor,
     aclrtStream    stream)
 ```
 
-## aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize
+## aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize
 
 - **参数说明**
 
@@ -325,7 +322,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     </tr>
     </tbody></table>
 
-## aclnnQuantAlltoAllvGroupedMatMul
+## aclnnAlltoAllvQuantGroupedMatMul
 
 - **参数说明**
 
@@ -349,7 +346,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <tr>
     <td>workspaceSize</td>
     <td>输入</td>
-    <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize</code>获取。</td>
+    <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize</code>获取。</td>
     </tr>
     <tr>
     <td>executor</td>
@@ -370,7 +367,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
 ## 约束说明
 
 - 确定性计算：
-  - `aclnnQuantAlltoAllvGroupedMatMul`默认确定性实现。
+  - `aclnnAlltoAllvQuantGroupedMatMul`默认确定性实现。
 
 - 参数说明里shape使用的变量：
   - BSK：本卡发送的token数，是sendCounts参数累加之和，取值范围(0, 52428800)。
@@ -399,7 +396,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
 #include <vector>
 #include "acl/acl.h"
 #include "hccl/hccl.h"
-#include "aclnnop/aclnn_quant_allto_allv_quant_grouped_mat_mul.h"
+#include "aclnnop/aclnn_allto_allv_quant_grouped_mat_mul.h"
 
 #define CHECK_RET(cond, return_expr) \
     do {                             \
@@ -455,7 +452,7 @@ struct Args {
 };
 
 // shape 基本信息
-constexpr int64_t EP_WORLD_SIZE = 8;
+constexpr int64_t EP_WORLD_SIZE = 2;
 constexpr int64_t BS = 4096;
 constexpr int64_t K = 2;
 constexpr int64_t H = 7168;
@@ -464,7 +461,7 @@ constexpr int64_t N1 = 4096;
 constexpr int64_t N2 = 4096;
 constexpr int64_t A = BS * K;
 
-int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
+int LaunchOneThreadAlltoAllvQuantGroupedMatMul(Args &args)
 {
     int ret = aclrtSetCurrentContext(args.context);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret: %d\n", ret); return ret);
@@ -507,6 +504,7 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
     aclTensor *gmmWScale = nullptr;
     aclTensor *mmXScale = nullptr;
     aclTensor *mmWScale = nullptr;
+    int64_t groupSize = 0;
 
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor = nullptr;
@@ -552,20 +550,20 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(permuteHostData, permuteShape, &permuteDeviceAddr, ACL_HIFLOAT8, &permute);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(gmmXScaleHostData, scaleShape, &gmmXScaleDeviceAddr, ACL_FLOAT32, &gmmXScale);
+    ret = CreateAclTensor(gmmXScaleHostData, scaleShape, &gmmXScaleDeviceAddr, ACL_FLOAT, &gmmXScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(gmmWScaleHostData, scaleShape, &gmmWScaleDeviceAddr, ACL_FLOAT32, &gmmWScale);
+    ret = CreateAclTensor(gmmWScaleHostData, scaleShape, &gmmWScaleDeviceAddr, ACL_FLOAT, &gmmWScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(mmXScaleHostData, scaleShape, &mmXScaleDeviceAddr, ACL_FLOAT32, &mmXScale);
+    ret = CreateAclTensor(mmXScaleHostData, scaleShape, &mmXScaleDeviceAddr, ACL_FLOAT, &mmXScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(mmWScaleHostData, scaleShape, &mmWScaleDeviceAddr, ACL_FLOAT32, &mmWScale);
+    ret = CreateAclTensor(mmWScaleHostData, scaleShape, &mmWScaleDeviceAddr, ACL_FLOAT, &mmWScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
 
     // 调用第一阶段接口
-    ret = aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX,
+    ret = aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(gmmX,
         gmmW,
         gmmXScale,
         gmmWScale,
@@ -585,6 +583,7 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
         recvCounts,
         false, // transGmmWeight
         false, // transMmWeight
+        groupSize,
         true,  // permuteOutFlag
         gmmY,
         mmY,
@@ -592,7 +591,7 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
         &workspaceSize,
         &executor);
     CHECK_RET(
-        ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize failed. ret = %d \n", ret);
+        ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize failed. ret = %d \n", ret);
         return ret);
 
     if (workspaceSize > 0) {
@@ -601,8 +600,8 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
     }
 
     // 调用第二阶段接口
-    ret = aclnnQuantAlltoAllvGroupedMatMul(workspaceAddr, workspaceSize, executor, args.stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantAlltoAllvGroupedMatMul failed. ret = %d \n", ret);
+    ret = aclnnAlltoAllvQuantGroupedMatMul(workspaceAddr, workspaceSize, executor, args.stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnAlltoAllvQuantGroupedMatMul failed. ret = %d \n", ret);
             return ret);
     
     // 同步等待任务执行结束
@@ -680,7 +679,7 @@ int main(int argc, char *argv[])
         args[rankId].hcclComm = comms[rankId];
         args[rankId].stream = stream[rankId];
         args[rankId].context = context[rankId];
-        threads[rankId].reset(new std::thread(&LaunchOneThreadQuantAlltoAllvGmm, std::ref(args[rankId])));
+        threads[rankId].reset(new std::thread(&LaunchOneThreadAlltoAllvQuantGroupedMatMul, std::ref(args[rankId])));
     }
     
     for (uint32_t rankId = 0; rankId < WORLD_SIZE; rankId++) {
