@@ -32,14 +32,13 @@ TEST_F(BlockSparseAttentionGradInferShapeTest, infershape_bnsd_layout)
     gert::InfershapeContextPara infershapeContextPara(
         "BlockSparseAttentionGrad",
         {
-            // 严丝合缝对应你的 INPUT 列表 (11 个)
             // 0: dout [B, N, S, D]
             {{{b, n, s, d}, {b, n, s, d}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // 1: query [B, N, S, D]  <--- 你的代码取了这个
+            // 1: query [B, N, S, D]  
             {{{b, n, s, d}, {b, n, s, d}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // 2: key [B, N_kv, S_kv, D] <--- 你的代码取了这个
+            // 2: key [B, N_kv, S_kv, D] 
             {{{b, n_kv, s_kv, d}, {b, n_kv, s_kv, d}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // 3: value [B, N_kv, S_kv, D] <--- 你的代码取了这个
+            // 3: value [B, N_kv, S_kv, D] 
             {{{b, n_kv, s_kv, d}, {b, n_kv, s_kv, d}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // 4: attentionOut (REQUIRED)
             {{{b, n, s, d}, {b, n, s, d}}, ge::DT_FLOAT16, ge::FORMAT_ND},

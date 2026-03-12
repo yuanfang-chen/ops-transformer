@@ -35,7 +35,6 @@ TEST_F(BlockSparseAttentionGradTilingTest, tiling_bnsd_case0)
     int64_t ceilQ = (s + blockX - 1) / blockX;
     int64_t ceilKv = (s_kv + blockY - 1) / blockY;
 
-    // 🔥 关键修复 1：构造真实的 Host 侧张量数据，防止 GetData() 读到 0 导致除零异常
     int64_t blockShapeData[2] = {blockX, blockY};
     int64_t actualSeqData[1] = {s};
     int64_t actualSeqKvData[1] = {s_kv};
@@ -79,6 +78,5 @@ TEST_F(BlockSparseAttentionGradTilingTest, tiling_bnsd_case0)
 
     uint64_t expectTilingKey = 0UL;
     
-    // 执行！Tiling 代码里的 printf 会将任务切分情况完美打在终端上
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
