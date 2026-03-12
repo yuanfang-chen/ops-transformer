@@ -165,6 +165,9 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, float eps, int6
 
     int64_t outFlag = 1;
     if (normOut == nullptr || sumOut == nullptr) {
+        Shape emptyShape({});
+        normOut = (uniqueExecutor.get())->AllocTensor(emptyShape, x->GetDataType(), Format::FORMAT_ND);
+        sumOut = (uniqueExecutor.get())->AllocTensor(emptyShape, x->GetDataType(), Format::FORMAT_ND);
         outFlag = 0;
     }
 

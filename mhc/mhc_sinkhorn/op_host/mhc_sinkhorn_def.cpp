@@ -33,13 +33,13 @@ public:
            .UnknownShapeFormat({ge::FORMAT_ND})
            .AutoContiguous();
         this->Output("norm_out")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT})
            .Format({ge::FORMAT_ND})
            .UnknownShapeFormat({ge::FORMAT_ND})
            .AutoContiguous();
         this->Output("sum_out")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT})
            .Format({ge::FORMAT_ND})
            .UnknownShapeFormat({ge::FORMAT_ND})

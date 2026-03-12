@@ -31,7 +31,7 @@
             "index": 1,
             "dtype": "float32",
             "format": "ND",
-            "paramType": "optional",
+            "paramType": "required",
             "shape": [
               -2
             ]
@@ -41,7 +41,7 @@
             "index": 2,
             "dtype": "float32",
             "format": "ND",
-            "paramType": "optional",
+            "paramType": "required",
             "shape": [
               -2
             ]
