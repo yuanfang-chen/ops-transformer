@@ -436,88 +436,58 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     }
 
     // 确定核内切分起点
-    int64_t gS1StartIdx = 0;
-    int64_t gS1EndIdx = 1;
-    uint32_t bnStartIdx = 0;
-    uint32_t bnEndIdx = 1;
-    int64_t s2LoopStart = 0;
-    int64_t s2LoopLimit = 0;
+    int32_t bN2StartIdx = this->sharedParams.bN2StartIdx;
+    int32_t bN2EndIdx = this->sharedParams.bN2EndIdx;
+    int32_t gS1StartIdx = this->sharedParams.gS1StartIdx;
+    int32_t gS1EndIdx = this->sharedParams.gS1EndIdx;
+    int32_t s2StartIdx = this->sharedParams.s2StartIdx;
+    int32_t s2EndIdx = this->sharedParams.s2EndIdx;
 
-    if constexpr (!isFd) {
-        bnStartIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx];
-        gS1StartIdx = this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx];
-        if (likely((this->tilingData->multiCoreParamsRegbase.coreNum - 1) > aicIdx)) {
-            bnEndIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx + 1];
-            // 下一个核从0开始gs1循环，当前核bn不需要多计算一个，否则需要多计算一个bn
-            if (this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1] != 0) {
-                bnEndIdx++;
-            }
-        } else {
-            bnEndIdx = this->tilingData->inputParamsRegbase.bSize * constInfo.n2Size;
-        }
-    }
     int64_t taskId = 0;
-    bool isLastBmm1 = false;
     RunInfo<isInfer> runInfo[NUM_4];
     RunParamStr<isInfer> runParam;
 
-    if constexpr (isFd) {
-        runParam.boIdx = aicIdx / (constInfo.n2Size * constInfo.splitKVNum);
-        runParam.n2oIdx = (aicIdx / constInfo.splitKVNum) % constInfo.n2Size;
-        bnStartIdx = runParam.boIdx * constInfo.n2Size + runParam.n2oIdx;
-        bnEndIdx = bnStartIdx + 1;
-    }
+    int64_t multiCoreInnerIdx = 0;      // TODO，确认这个变量
+    for (uint32_t bnIdx = bN2StartIdx; bnIdx <= bN2EndIdx; bnIdx++) {
+        bool lastBN = IsLastBN(bnIdx, bN2EndIdx);
+        runParam.boIdx = bnIdx / constInfo.n2Size;
+        runParam.n2oIdx = bnIdx % constInfo.n2Size;
 
-    int64_t multiCoreInnerIdx = 0;
-    for (uint32_t bnIdx = bnStartIdx; bnIdx < bnEndIdx; bnIdx++) {
-        bool lastBN = IsLastBN(bnIdx, bnEndIdx);
-        if constexpr (!isFd) {
-            runParam.boIdx = bnIdx / constInfo.n2Size;
-            runParam.n2oIdx = bnIdx % constInfo.n2Size;
-        }
         ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo,
             keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
         ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, lastBN,
             this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
-        if constexpr (isFd) {
-            if (constInfo.sInnerLoopSize * (aicIdx % constInfo.splitKVNum) > runParam.actualSeqLengthKVPerBatch) {
-                runParam.actualSInnerLoopSize = 0;
-            } else {
-                int64_t tailSInnerLoopSize =
-                    runParam.actualSeqLengthKVPerBatch - constInfo.sInnerLoopSize * (aicIdx % constInfo.splitKVNum);
-                runParam.actualSInnerLoopSize =
-                    tailSInnerLoopSize > constInfo.sInnerLoopSize ? constInfo.sInnerLoopSize : tailSInnerLoopSize;
-            }
-            runParam.s1LoopTimes = 1; // GQA支持后解决
-        }
 
-        gS1EndIdx = runParam.s1LoopTimes;
-        for (int64_t gS1Index = gS1StartIdx; gS1Index <runParam.s1LoopTimes; gS1Index++) {
-            s2LoopLimit = 0;
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(runParam.s1LoopTimes - 1, 0);
+        for (int64_t gS1Index = gS1StartIdx; gS1Index <= tempGS1End; gS1Index++) {
+            bool lastGS1 = (gS1Index == tempGS1End);
+
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
             bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
                 gS1Index, actualSeqQlenAddr, this->pseInfo);
             bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo);
-            bool lastLoopThisCore = lastBN && (gS1Index == runParam.s1LoopTimes - 1);
             bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam,
                 actualSeqQlenAddr);
-            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastLoopThisCore) || lastBnNoNeedCalc) {
+            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastGS1) || lastBnNoNeedCalc) {
                 continue;
             }
-            // s2轴循环计数，支持sparse和非sparse场景
-            s2LoopLimit = runParam.s2LoopEndIdx - 1;
-            if (lastLoopThisCore) {
-                isLastBmm1 = true;
-                s2LoopLimit += PRELOAD_N;
+
+            int32_t tempS2End, extraLoopTimes;
+            if unlikely(lastBN && lastGS1) {
+                tempS2End = s2EndIdx
+                extraLoopTimes = PRELOAD_N;
+            } else {
+                tempS2End = runParam.s2LoopEndIdx;
+                extraLoopTimes = 0;
             }
-            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
+
+            for (int64_t s2LoopCount = s2StartIdx; s2LoopCount < tempS2End + extraLoopTimes; s2LoopCount++) {
                 if (s2LoopCount < runParam.s2LoopEndIdx) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, runParam.s2LoopEndIdx - 1,
+                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, tempS2End - 1,
                         multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, isLastBmm1 &&
-                            (s2LoopCount == (runParam.s2LoopEndIdx - 1)), constInfo);
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, false, constInfo);     // TODO，后续删除
                     }
                     if ASCEND_IS_AIV {
                         this->vecBlock.ProcessVec1(this->mm12Bmm2AL1Buffers.Get(), this->bmm1Buffers.Get(), runInfo1,
@@ -535,6 +505,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
                 }
                 taskId++;
             }
+            s2StartIdx = 0;
         }
         gS1StartIdx = 0;
     }
@@ -730,20 +701,24 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline bool FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx)
 {
-    if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
-        return bnStartIdx == bnEndIdx - 1;
-    }
-    // TND
-    if (bnStartIdx != bnEndIdx - 1) {
-        for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
-            uint32_t boIdx = bnIdx / constInfo.n2Size;
-            uint32_t boStart = bnStartIdx / constInfo.n2Size;
-            if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return bnStartIdx == bnEndIdx;
+
+
+    // if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
+    //     return bnStartIdx == bnEndIdx - 1;
+    // }
+    // // TODO：下面这个逻辑是在干嘛
+    // // TND
+    // if (bnStartIdx != bnEndIdx - 1) {
+    //     for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
+    //         uint32_t boIdx = bnIdx / constInfo.n2Size;
+    //         uint32_t boStart = bnStartIdx / constInfo.n2Size;
+    //         if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
+    //             return false;
+    //         }
+    //     }
+    // }
+    // return true;
 }
 
 #endif
