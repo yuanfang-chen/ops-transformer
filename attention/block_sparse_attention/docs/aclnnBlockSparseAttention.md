@@ -47,7 +47,7 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
   const aclTensor   *value,
   const aclTensor   *blockSparseMaskOptional,
   const aclTensor   *attenMaskOptional,
-  const aclIntArray *blockShape,
+  const aclIntArray *blockShapeOptional,
   const aclIntArray *actualSeqLengthsOptional,
   const aclIntArray *actualSeqLengthsKvOptional,
   const aclTensor   *blockTableOptional,
@@ -176,7 +176,7 @@ aclnnStatus aclnnBlockSparseAttention(
     </tr>
     <tr>
     <tr>
-      <td>blockShape</td>
+      <td>blockShapeOptional</td>
       <td>输入</td>
       <td>Host侧的aclIntArray，稀疏块形状数组。</td>
       <td>
@@ -322,7 +322,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>preTokens</td>
       <td>输入</td>
       <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向前包含多少个token。</td>
-      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -332,7 +332,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>nextTokens</td>
       <td>输入</td>
       <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向后包含多少个token。</td>
-      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -480,14 +480,14 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>stream</td>
       <td>输入</td>
-      <td>指定执行任务的Stream。</td>
+      <td>指定执行任务的AscendCL stream流。</td>
     </tr>
   </tbody>
   </table>
 
 - **返回值**
 
-
+返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
@@ -497,13 +497,16 @@ aclnnStatus aclnnBlockSparseAttention(
 - qInputLayout当前仅支持"TND"和"BNSD"。
 - kvInputLayout当前仅支持"TND"和"BNSD"。
 - 输入query、key、value的数据类型必须一致，支持FLOAT16和BFLOAT16。
-- blockShape必须包含至少两个元素[blockShapeX, blockShapeY]，且值必须大于0。
+- blockShapeOptional如果传入，则必须包含至少两个元素[blockShapeX, blockShapeY]，且值必须大于0。
+- blockSparseMaskOptional当前必须传入，且shape必须为[batch, headNum, ceilDiv(maxQS, blockShapeX), ceilDiv(maxKVS, blockShapeY)]。
+- attentionMaskOptional当前只支持传入nullptr。
+- actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
+- blockTableOptional当前只支持传入nullptr，表示不开启paged attention特性。
 - innerPrecise必须为0（float32 softmax）或1（fp16 softmax），query输入为BFLOAT16时，只能配置为0。
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
-- qSeqlen在qInputLayout为“TND”和"BNSD"时必选；kvSeqlen在kvInputLayout为“TND”和"BNSD"时必选。
-- 稀疏块索引必须在有效范围内，无效位置用-1填充。
 - 输入query的headNum为N1，输入key和value的headNum为N2，则N1 >= N2 && N1 % N2 == 0。
-- 设G = N1 / N2，G需要满足以下约束：G < 128 && 128 % G == 0。
+- maskType当前只支持输入0，表示不加mask。
+- blockSize当前只支持输入0。
 
 
 ## 调用示例
@@ -567,7 +570,7 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
             return -1;
         }
     }
-
+    
     auto size = GetShapeSize(shape) * sizeof(T);
     
     // 检查hostData大小是否匹配
@@ -582,6 +585,7 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
     auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
     
+    // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
     ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); 
               aclrtFree(*deviceAddr); *deviceAddr = nullptr; return ret);
@@ -594,6 +598,7 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
         }
     }
 
+    // 调用aclCreateTensor接口创建aclTensor
     *tensor = nullptr;
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
                                 shape.data(), shape.size(), *deviceAddr);
@@ -626,7 +631,7 @@ int main() {
     int32_t qBlockNum = (qSeqlen + blockShapeX - 1) / blockShapeX;  // Q块的X维度数量
     int32_t kvBlockNum = (kvSeqlen + blockShapeY - 1) / blockShapeY;  // KV块的Y维度数量
     // totalQBlocks = qBlockNum * numHeads (每个Q块对应一个head)
-    int32_t totalQBlocks = qBlockNum * batch;
+    int32_t totalQBlocks = qBlockNum * numHeads;
     int32_t maxKvBlockNum = kvBlockNum;
     
     
@@ -651,37 +656,14 @@ int main() {
     ret = CreateAclTensor(valueHostData, kvShape, &valueDeviceAddr, aclDataType::ACL_FLOAT16, &valueTensor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create value tensor\n"); return ret);
     
-    // 5. 生成稀疏索引 selectIdx 和 selectNumIdx
-    // selectIdx: [totalQBlocks, numHeads, maxKvBlockNum] - 三维tensor
-    // selectNumIdx: [totalQBlocks, numHeads] - 二维tensor
-    // 稀疏率为1，即不做稀疏，每个Q块选择所有KV块
-    std::vector<int64_t> selectIdxHostData(totalQBlocks * numHeads * maxKvBlockNum, -1);
-    std::vector<int64_t> selectNumIdxHostData(totalQBlocks * numHeads, 0);
-    
-    // 稀疏率为1：每个Q块选择所有KV块，直接给下标0到maxKvBlockNum-1
-    for (int32_t qb = 0; qb < totalQBlocks; ++qb) {
-        for (int32_t h = 0; h < numHeads; ++h) {
-            // selectNumIdx[qb, h] = maxKvBlockNum (每个Q块选择所有KV块)
-            selectNumIdxHostData[qb * numHeads + h] = static_cast<int64_t>(maxKvBlockNum);
-            
-            // selectIdx[qb, h, k] = k (直接给下标，从0到maxKvBlockNum-1)
-            int64_t baseIdx = static_cast<int64_t>((qb * numHeads + h) * maxKvBlockNum);
-            for (int32_t k = 0; k < maxKvBlockNum; ++k) {
-                selectIdxHostData[baseIdx + k] = static_cast<int64_t>(k);
-            }
-        }
-    }
-    
-    void *selectIdxDeviceAddr = nullptr;
-    void *selectNumIdxDeviceAddr = nullptr;
-    std::vector<int64_t> selectIdxShape = {totalQBlocks, numHeads, maxKvBlockNum};
-    std::vector<int64_t> selectNumIdxShape = {totalQBlocks, numHeads};
-    aclTensor *selectIdxTensor = nullptr;
-    aclTensor *selectNumIdxTensor = nullptr;
-    ret = CreateAclTensor(selectIdxHostData, selectIdxShape, &selectIdxDeviceAddr, aclDataType::ACL_INT64, &selectIdxTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create selectIdx tensor\n"); return ret);
-    ret = CreateAclTensor(selectNumIdxHostData, selectNumIdxShape, &selectNumIdxDeviceAddr, aclDataType::ACL_INT64, &selectNumIdxTensor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create selectNumIdx tensor\n"); return ret);
+    // 5. 创建blockSparseMask tensor ([batch, numHeads, qBlockNum, kvBlockNum])
+    std::vector<int8_t> blockSparseMaskHostData(totalQBlocks * numHeads, 0);
+    blockSparseMaskHostData[0] = static_cast<int8_t>(1);
+    void *blockSparseMaskDeviceAddr = nullptr;
+    std::vector<int64_t> blockSparseMaskShape = {batch, numHeads, qBlockNum, kvBlockNum};
+    aclTensor *blockSparseMaskTensor = nullptr;
+    ret = CreateAclTensor(blockSparseMaskHostData, blockSparseMaskShape, &blockSparseMaskDeviceAddr, aclDataType::ACL_INT8, &blockSparseMaskTensor);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create block sparse mask tensor\n"); return ret);
     
     // 6. 创建输出tensor
     void *outputDeviceAddr = nullptr;
@@ -747,10 +729,9 @@ int main() {
         queryTensor,           // query
         keyTensor,             // key
         valueTensor,           // value
-        selectIdxTensor,       // selectIdx
-        selectNumIdxTensor,    // selectNumIdx
-        blockShape,            // blockShape
+        blockSparseMaskTensor, // blockSparseMask
         nullptr,               // attenMaskOptional
+        blockShape,            // blockShape
         actualSeqLengths,      // actualSeqLengthsOptional
         actualSeqLengthsKv,    // actualSeqLengthsKvOptional
         nullptr,               // blockTableOptional
@@ -761,6 +742,9 @@ int main() {
         scaleValue,            // scaleValue
         0,                     // innerPrecise (1=fp16 softmax)
         128,                   // blockSize
+        2147483647,            // preTokens
+        2147483647,            // nextTokens
+        0,                     // softmaxLseFlag
         outputTensor,          // attentionOut
         nullptr,               // softmaxLseOptional
         &workspaceSize,        // workspaceSize (out)
@@ -804,8 +788,7 @@ int main() {
     if (keyDeviceAddr) aclrtFree(keyDeviceAddr);
     if (valueDeviceAddr) aclrtFree(valueDeviceAddr);
     if (outputDeviceAddr) aclrtFree(outputDeviceAddr);
-    if (selectIdxDeviceAddr) aclrtFree(selectIdxDeviceAddr);
-    if (selectNumIdxDeviceAddr) aclrtFree(selectNumIdxDeviceAddr);
+    if (blockSparseMaskDeviceAddr) aclrtFree(blockSparseMaskDeviceAddr);
     if (actualSeqLengthsDevice) aclrtFree(actualSeqLengthsDevice);
     if (actualSeqLengthsKvDevice) aclrtFree(actualSeqLengthsKvDevice);
     
@@ -813,8 +796,7 @@ int main() {
     if (keyTensor) aclDestroyTensor(keyTensor);
     if (valueTensor) aclDestroyTensor(valueTensor);
     if (outputTensor) aclDestroyTensor(outputTensor);
-    if (selectIdxTensor) aclDestroyTensor(selectIdxTensor);
-    if (selectNumIdxTensor) aclDestroyTensor(selectNumIdxTensor);
+    if (blockSparseMaskTensor) aclDestroyTensor(blockSparseMaskTensor);
     if (blockShape) aclDestroyIntArray(blockShape);
     if (actualSeqLengths) aclDestroyIntArray(actualSeqLengths);
     if (actualSeqLengthsKv) aclDestroyIntArray(actualSeqLengthsKv);

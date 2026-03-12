@@ -2,7 +2,7 @@
 
 ## 概述
 
-BlockSparseAttention是一个基于CATLASS模板库实现的高性能稀疏注意力算子,支持灵活的块级稀疏模式。该算子从catlass的32_sparse_attention_infer示例迁移而来,针对ops-transformer-dev框架进行了适配。
+BlockSparseAttention是一个基于CATLASS模板库实现的高性能稀疏注意力算子,支持灵活的块级稀疏模式。
 
 ## 功能特性
 
@@ -19,22 +19,22 @@ BlockSparseAttention是一个基于CATLASS模板库实现的高性能稀疏注�
 
 ```cpp
 aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
-    const aclTensor *query,                    // Query输入 [B, S, H] or [T, N, D] or [B, N, S, D]
-    const aclTensor *key,                      // Key输入 (TND or BNSD格式)
-    const aclTensor *value,                    // Value输入 (TND or BNSD格式)
+    const aclTensor *query,                    // Query输入
+    const aclTensor *key,                      // Key输入
+    const aclTensor *value,                    // Value输入
     const aclTensor *blockSparseMask,          // 稀疏Mask
-    const aclTensor *attenMask,                // Attention mask (可选)
-    const aclIntArray *blockShape,             // Attention mask (可选)
-    const aclIntArray *actualSeqLengths,       // 实际Q序列长度 (可选)
-    const aclIntArray *actualSeqLengthsKv,     // 实际KV序列长度 (可选)
-    const aclTensor *blockTable,               // Block表 (可选,用于PagedAttention)
-    const aclTensor *selectIdx,                // 稀疏块索引 [T, headNum, maxKvBlockNum]
-    const aclTensor *selectNumIdx,             // 每个Q块的KV块数量 [T, headNum]
-    const char *qInputLayout,                  // Q输入布局: "BSH", "TND", "BNSD"
-    const char *kvInputLayout,                 // KV输入布局: "TND", "BNSD"
+    const aclTensor *attenMask,                // Attention mask (当前不支持)
+    const aclIntArray *blockShape,             // 稀疏块形状数组
+    const aclIntArray *actualSeqLengths,       // 实际Q序列长度 (TND格式时必选)
+    const aclIntArray *actualSeqLengthsKv,     // 实际KV序列长度 (TND格式时必选)
+    const aclTensor *blockTable,               // Block表 (用于PagedAttention，当前不支持)
+    const char *qInputLayout,                  // Query的数据排布格式 (TND/BNSD)
+    const char *kvInputLayout,                 // Key/Value的数据排布格式 (TND/BNSD)
     int64_t numKeyValueHeads,                  // KV头数
     int64_t maskType,                          // Mask类型
     double scaleValue,                         // 缩放因子
+    int64_t innerPrecise,                      // Softmax计算采取的精度级别
+    int64_t blockSize,                         // Block大小 (用于PagedAttention，当前不支持)
     int64_t preTokens,                         // 滑窗参数
     int64_t nextTokens,                        // 滑窗参数
     int64_t softmaxLseFlag,                    // 是否输出LSE
@@ -59,12 +59,16 @@ aclnnStatus aclnnBlockSparseAttention(
 ### 输入参数
 
 - **query**: Query tensor,支持以下布局
-  - BSH: [batch, seqlen, num_heads * head_dim]
   - TND: [total_tokens, num_heads, head_dim]
+  - BNSD: [batch, num_heads, seqlen, head_dim]
 
-- **key/value**: KV cache tensor,仅支持TND布局
+- **key**: Key tensor,支持以下布局
   - TND: [total_kv_tokens, num_kv_heads, head_dim]
-  - 注：BNSD格式暂不支持，如需使用请转换为TND格式
+  - BNSD: [batch, num_kv_heads, kv_seqlen, head_dim]
+
+- **value**: Value tensor,支持以下布局
+  - TND: [total_kv_tokens, num_kv_heads, head_dim]
+  - BNSD: [batch, num_kv_heads, kv_seqlen, head_dim]
 
 - **selectIdx**: 稀疏块索引数组 [T, headNum, maxKvBlockNum]
   - T: 所有batch中Q方向切块的总数

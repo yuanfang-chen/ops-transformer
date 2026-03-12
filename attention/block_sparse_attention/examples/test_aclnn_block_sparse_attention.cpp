@@ -155,13 +155,13 @@ int main() {
     ret = CreateAclTensor(valueHostData, kvShape, &valueDeviceAddr, aclDataType::ACL_FLOAT16, &valueTensor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create value tensor\n"); return ret);
     
-    std::vector<int8_t> blockSparseMaskData(totalQBlocks * numHeads, 0);
-    blockSparseMaskData[0] = static_cast<int8_t>(1);
-    
+    // 5. 创建blockSparseMask tensor ([batch, numHeads, qBlockNum, kvBlockNum])
+    std::vector<int8_t> blockSparseMaskHostData(totalQBlocks * numHeads, 0);
+    blockSparseMaskHostData[0] = static_cast<int8_t>(1);
     void *blockSparseMaskDeviceAddr = nullptr;
-    std::vector<int64_t> blockSparseMaskShape = {1, 1, 1, 1};
+    std::vector<int64_t> blockSparseMaskShape = {batch, numHeads, qBlockNum, kvBlockNum};
     aclTensor *blockSparseMaskTensor = nullptr;
-    ret = CreateAclTensor(blockSparseMaskData, blockSparseMaskShape, &blockSparseMaskDeviceAddr, aclDataType::ACL_INT8, &blockSparseMaskTensor);
+    ret = CreateAclTensor(blockSparseMaskHostData, blockSparseMaskShape, &blockSparseMaskDeviceAddr, aclDataType::ACL_INT8, &blockSparseMaskTensor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Failed to create block sparse mask tensor\n"); return ret);
     
     // 6. 创建输出tensor
@@ -241,9 +241,9 @@ int main() {
         scaleValue,            // scaleValue
         0,                     // innerPrecise (1=fp16 softmax)
         128,                   // blockSize
-        0,
-        0,
-        0,
+        2147483647,            // preTokens
+        2147483647,            // nextTokens
+        0,                     // softmaxLseFlag
         outputTensor,          // attentionOut
         nullptr,               // softmaxLseOptional
         &workspaceSize,        // workspaceSize (out)
@@ -287,7 +287,7 @@ int main() {
     if (keyDeviceAddr) aclrtFree(keyDeviceAddr);
     if (valueDeviceAddr) aclrtFree(valueDeviceAddr);
     if (outputDeviceAddr) aclrtFree(outputDeviceAddr);
-    if (blockSparseMasDevicekAddr) aclrtFree(blockSparseMasDevicekAddr);
+    if (blockSparseMaskDeviceAddr) aclrtFree(blockSparseMaskDeviceAddr);
     if (actualSeqLengthsDevice) aclrtFree(actualSeqLengthsDevice);
     if (actualSeqLengthsKvDevice) aclrtFree(actualSeqLengthsKvDevice);
     
