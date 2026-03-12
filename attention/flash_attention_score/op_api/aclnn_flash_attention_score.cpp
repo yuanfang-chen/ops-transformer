@@ -43,7 +43,6 @@ static const int64_t HEAD_DIM_64 = 64;
 static const int64_t HEAD_DIM_72 = 72;
 static const int64_t HEAD_DIM_80 = 80;
 static const int64_t HEAD_DIM_88 = 88;
-static const int64_t HEAD_DIM_128 = 88;
 static const int64_t TND_UNPAD_MAX_S2 = 1024;
 static const int64_t TND_UNPAD_MAX_S1_SUM = 160 * 1024;
 static const int64_t TND_UNPAD_MAX_DDIM = 96;
@@ -567,7 +566,7 @@ static aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key, c
 
     // 硬件亲和dim适配
     if ((shapeInfo.axes.d != shapeInfo.axes.dv) &&
-        (shapeInfo.axes.d == HEAD_DIM_128 || shapeInfo.axes.d == HEAD_DIM_64 || shapeInfo.axes.d == HEAD_DIM_80)) {
+        (shapeInfo.axes.d == HEAD_DIM_88 || shapeInfo.axes.d == HEAD_DIM_64 || shapeInfo.axes.d == HEAD_DIM_80)) {
         shapeInfo.needPad = true;
         shapeInfo.padNumv = shapeInfo.padNum + shapeInfo.axes.d - shapeInfo.axes.dv;
     }
