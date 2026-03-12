@@ -99,6 +99,10 @@ __aicore__ inline void ComputeMaxExp(__ubuf__ T* srcAddr, __ubuf__ uint16_t* max
                     scaleMask1);
                 MicroAPI::And(vdExpSelect1, (MicroAPI::RegTensor<uint16_t>&)vdExp1, invalidMaskFP16,
                     scaleMask1);
+                MicroAPI::Compare<uint16_t, CMPMODE::NE>(
+                    invalidDataMask0, vdExpSelect0, invalidMaskFP16, scaleMask1);
+                MicroAPI::Compare<uint16_t, CMPMODE::NE>(
+                    invalidDataMask1, vdExpSelect1, invalidMaskFP16, scaleMask1);   
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp0BF16, vdExp0, scaleMask1);
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp1BF16, vdExp1, scaleMask1);
                 MicroAPI::And(vdExpExtract0, (MicroAPI::RegTensor<uint16_t>&)vdExp0BF16, expMaskBF16,
@@ -131,11 +135,11 @@ __aicore__ inline void ComputeScale(__ubuf__ uint16_t* maxExpAddr, __ubuf__ uint
     uint32_t vlForHalfNumber = GetVRegSizeDispatch() / sizeof(uint16_t);
     uint16_t loopNumScale = Ceil(totalScaleInUB, vlForHalfNumber);
     uint16_t maxExponent;
-    if constexpr (std::is_same<T, fp8_e4m3fn_t>::value) {
+    if constexpr (Std::IsSame<T, fp8_e4m3fn_t>::value) {
         maxExponent = FP8_E4M3_MAX_EXP;
-    } else if constexpr (std::is_same<T, fp8_e5m2_t>::value) {
+    } else if constexpr (Std::IsSame<T, fp8_e5m2_t>::value) {
         maxExponent = FP8_E5M2_MAX_EXP;
-    } else if constexpr (std::is_same<T, fp4x2_e2m1_t>::value) {
+    } else if constexpr (Std::IsSame<T, fp4x2_e2m1_t>::value) {
         maxExponent = FP4_E2M1_BF16_MAX_EXP;
     } else {
         maxExponent = FP4_E1M2_BF16_MAX_EXP;
@@ -299,7 +303,7 @@ __aicore__ inline void ComputeFp8Data(__ubuf__ T* srcAddr, __ubuf__ uint16_t* ha
     }
 }
 
-template <typename T,typename U>
+template <typename T, typename U>
 __aicore__ inline void FP16Convert(
     MicroAPI::RegTensor<half>& output, MicroAPI::RegTensor<half>& input, MicroAPI::MaskReg& mask)
 {
@@ -312,7 +316,7 @@ __aicore__ inline void FP16Convert(
         MicroAPI::MaskReg specialMask;
         MicroAPI::MaskReg nonzeroMask;
         uint16_t specialValue = SPECIAL_VALUE_E1M2;
-        if constexpr (std::is_same<T, fp4x2_e2m1_t>::value) {
+        if constexpr (Std::IsSame<U, fp4x2_e2m1_t>::value) {
             specialValue = SPECIAL_VALUE_E2M1;
         }
         MicroAPI::Duplicate(specialValueTensor, specialValue);
@@ -360,7 +364,7 @@ __aicore__ inline void ComputeFp4Data(__ubuf__ T* srcAddr, __ubuf__ uint16_t* ha
                 MicroAPI::LoadDist::DIST_DINTLV_B16>(vdExp0, vdExp1, srcAddr, vlForHalfNumber * DIGIT_TWO);
             MicroAPI::DataCopy<uint16_t, MicroAPI::PostLiteral::POST_MODE_UPDATE,
                 MicroAPI::LoadDist::DIST_E2B_B16>(halfScaleForMul, halfScaleLocalAddr, elementAfterReduce);
-            if constexpr (std::is_same<T, half>::value) {
+            if constexpr (Std::IsSame<T, half>::value) {
                 if constexpr (roundMode == RoundMode::CAST_RINT) {
                     FP16Convert<T, U>(vdExp0, vdExp0, dataMask1);
                     FP16Convert<T, U>(vdExp1, vdExp1, dataMask1);
