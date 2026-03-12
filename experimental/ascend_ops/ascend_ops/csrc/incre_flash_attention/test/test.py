@@ -51,8 +51,8 @@ value_cache_npu = torch.randn(block_num, kv_head_num, head_dim // 32, block_size
 print_tensor_shape(value_cache_npu, "value_cache_npu")
 
 # Sequence Lengths
-q_len = [q_seq] * batch_size
-qkv_len = [kv_seq_length] * batch_size
+q_len = torch.tensor([q_seq] * batch_size, dtype=torch.int64).npu()
+qkv_len = torch.tensor([kv_seq_length] * batch_size, dtype=torch.int64).npu()
 
 # ✅ 修复：打印前 5 个长度值
 print(f"{'q_len':15} | length: {len(q_len):2d} | values: {q_len[:5]}...")

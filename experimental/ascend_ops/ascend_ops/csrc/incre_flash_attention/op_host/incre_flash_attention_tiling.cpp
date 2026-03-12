@@ -15,18 +15,10 @@
 #include <iostream>
 #include <numeric>
 #include "incre_flash_attention_tiling_base.h"
-#include "incre_flash_attention_tiling_impl_test.h"
+#include "incre_flash_attention_tiling_impl.h"
 #include "log/log.h"
-// #include "log/error_code.h"
-// #include "err/ops_err.h"
-// #include "register/op_def_registry.h"
-// #include "tiling_base/tiling_templates_registry.h"
-// #include "../../common/op_host/fia_tiling_templates_registry.h"
-// #include "../op_kernel/incre_flash_attention_tilingkey.h"
 #include "../op_kernel/incre_flash_attention_tilingdata.h"
 
-// using namespace ge;
-// using namespace AscendC;
 using std::pair;
 namespace optiling {
 
@@ -220,21 +212,21 @@ bool IFATiling::CheckQuantizationFlags(int32_t sparseMode) const {
 }
 
 bool IFATiling::CheckActualSeqLengths(int64_t expectedActualSeqLength) const {
-    const at::IntArrayRef& actualSeqKv = ifaContext_->actualSeqLengths.data;
-    if (actualSeqKv.empty())
-        return false;
+    // const at::IntArrayRef& actualSeqKv = ifaContext_->actualSeqLengths.data;
+    // if (actualSeqKv.empty())
+    //     return false;
 
-    for (uint32_t bIdx = 0U; bIdx < batchSize_; ++bIdx) {
-        int64_t s2 = (actualLenDims_ == 1U) ? actualSeqKv[0] : actualSeqKv[bIdx];
+    // for (uint32_t bIdx = 0U; bIdx < batchSize_; ++bIdx) {
+    //     int64_t s2 = (actualLenDims_ == 1U) ? actualSeqKv[0] : actualSeqKv[bIdx];
 
-        if (expectedActualSeqLength >= 0) {
-            if (s2 < SEQ_LEN_MIN_V2 || s2 > SEQ_LEN_MAX_V2)
-                return false;
-        } else {
-            if (s2 < SEQ_LEN_MIN || s2 > SEQ_LEN_MAX)
-                return false;
-        }
-    }
+    //     if (expectedActualSeqLength >= 0) {
+    //         if (s2 < SEQ_LEN_MIN_V2 || s2 > SEQ_LEN_MAX_V2)
+    //             return false;
+    //     } else {
+    //         if (s2 < SEQ_LEN_MIN || s2 > SEQ_LEN_MAX)
+    //             return false;
+    //     }
+    // }
 
     return true;
 }
@@ -563,12 +555,12 @@ custom::graphStatus IFATiling::QKVPreProcess4TND(const std::string layout)
                    OP_LOGE(ifaContext_->opName, "%s query T should <= 1M", layout.c_str()), return custom::graphStatus::GRAPH_FAILED);
     } else {
         // actualSeqLengths非空校验
-        OP_CHECK_IF((!ifaContext_->actualSeqLengthsQ.hasValue) || (ifaContext_->actualSeqLengthsQ.data.empty()),
-            OP_LOGE(ifaContext_->opName, "%s the query's actual sequence lengths should not be null!", layout.c_str()),
-            return custom::graphStatus::GRAPH_FAILED);
-        OP_CHECK_IF((!ifaContext_->actualSeqLengths.hasValue) || (ifaContext_->actualSeqLengths.data.empty()),
-            OP_LOGE(ifaContext_->opName, "%s the key/value's actual sequence lengths should not be null!", layout.c_str()),
-            return custom::graphStatus::GRAPH_FAILED);
+        // OP_CHECK_IF((!ifaContext_->actualSeqLengthsQ.hasValue) || (ifaContext_->actualSeqLengthsQ.data.empty()),
+        //     OP_LOGE(ifaContext_->opName, "%s the query's actual sequence lengths should not be null!", layout.c_str()),
+        //     return custom::graphStatus::GRAPH_FAILED);
+        // OP_CHECK_IF((!ifaContext_->actualSeqLengths.hasValue) || (ifaContext_->actualSeqLengths.data.empty()),
+        //     OP_LOGE(ifaContext_->opName, "%s the key/value's actual sequence lengths should not be null!", layout.c_str()),
+        //     return custom::graphStatus::GRAPH_FAILED);
 
         actualLenQDims_ = ifaContext_->actualSeqLengthsQ.GetShapeSize();
         actualLenDims_ = ifaContext_->actualSeqLengths.GetShapeSize();
@@ -586,31 +578,31 @@ custom::graphStatus IFATiling::QKVPreProcess4TND(const std::string layout)
         OP_CHECK_IF((tSeqSize_ > 1024U * 1024U / qTypeSize), // T不大于1M
                    OP_LOGE(ifaContext_->opName, "%s query T should <= 1M", layout.c_str()), return custom::graphStatus::GRAPH_FAILED);
 
-        const at::IntArrayRef& actualSeqQTnd = ifaContext_->actualSeqLengthsQ.data;
-        const at::IntArrayRef& actualSeqKVTnd = ifaContext_->actualSeqLengths.data;
-        std::vector<int64_t> actualSeqQ(actualLenQDims_);
-        int64_t tmpQSeqSize = 0;
+        // const at::IntArrayRef& actualSeqQTnd = ifaContext_->actualSeqLengthsQ.data;
+        // const at::IntArrayRef& actualSeqKVTnd = ifaContext_->actualSeqLengths.data;
+        // std::vector<int64_t> actualSeqQ(actualLenQDims_);
+        // int64_t tmpQSeqSize = 0;
 
-        for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
-            actualSeqQ[b] = (b <= 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
-            OP_CHECK_IF((actualSeqQ[b] < 0) || (actualSeqQ[b] > 16), // 16 MTP最大QS
-                       OP_LOGE(ifaContext_->opName, "%s QS(%ld) of batch(%d) computed by the query's actual sequence lengths should be in range [0, 16].", layout.c_str(), actualSeqQ[b], b),
-                       return custom::graphStatus::GRAPH_FAILED);
-            tmpQSeqSize = std::max(tmpQSeqSize, actualSeqQ[b]);
-        }
+        // for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
+        //     actualSeqQ[b] = (b <= 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
+        //     OP_CHECK_IF((actualSeqQ[b] < 0) || (actualSeqQ[b] > 16), // 16 MTP最大QS
+        //                OP_LOGE(ifaContext_->opName, "%s QS(%ld) of batch(%d) computed by the query's actual sequence lengths should be in range [0, 16].", layout.c_str(), actualSeqQ[b], b),
+        //                return custom::graphStatus::GRAPH_FAILED);
+        //     tmpQSeqSize = std::max(tmpQSeqSize, actualSeqQ[b]);
+        // }
 
-        OP_CHECK_IF((tSeqSize_ != actualSeqQTnd[actualLenQDims_ - 1]),
-            OP_LOGE(ifaContext_->opName, "%s T(%u) should be equal to the last element of the query's actual sequence lengths(%ld).", layout.c_str(), tSeqSize_, actualSeqQTnd[actualLenQDims_ - 1]),
-            return custom::graphStatus::GRAPH_FAILED);
+        // OP_CHECK_IF((tSeqSize_ != actualSeqQTnd[actualLenQDims_ - 1]),
+        //     OP_LOGE(ifaContext_->opName, "%s T(%u) should be equal to the last element of the query's actual sequence lengths(%ld).", layout.c_str(), tSeqSize_, actualSeqQTnd[actualLenQDims_ - 1]),
+        //     return custom::graphStatus::GRAPH_FAILED);
 
-        if (!pageAttentionFlag_) {
-            OP_CHECK_IF((tKVSeqSize != actualSeqKVTnd[actualLenDims_ - 1]),
-                OP_LOGE(ifaContext_->opName, "%s T(%u) should be equal to the last element of the key/value's actual sequence lengths(%ld).", layout.c_str(), tKVSeqSize, actualSeqKVTnd[actualLenDims_ - 1]),
-                return custom::graphStatus::GRAPH_FAILED);
-        }
+        // if (!pageAttentionFlag_) {
+        //     OP_CHECK_IF((tKVSeqSize != actualSeqKVTnd[actualLenDims_ - 1]),
+        //         OP_LOGE(ifaContext_->opName, "%s T(%u) should be equal to the last element of the key/value's actual sequence lengths(%ld).", layout.c_str(), tKVSeqSize, actualSeqKVTnd[actualLenDims_ - 1]),
+        //         return custom::graphStatus::GRAPH_FAILED);
+        // }
 
-        qSeqSize_ = static_cast<uint32_t>(tmpQSeqSize);
-        OP_LOGI(ifaContext_->opName, "TND MAX actualSeqQ:%u", qSeqSize_);
+        // qSeqSize_ = static_cast<uint32_t>(tmpQSeqSize);
+        // OP_LOGI(ifaContext_->opName, "TND MAX actualSeqQ:%u", qSeqSize_);
     }
     return custom::graphStatus::GRAPH_SUCCESS;
 }
@@ -1013,44 +1005,44 @@ custom::graphStatus IFATiling::CheckActualSeqLens()
 
 custom::graphStatus IFATiling::ParseActualSeqLens()
 {
-    const at::IntArrayRef& actualLenData = ifaContext_->actualSeqLengths.data;
-    if (!actualLenData.empty()) {
-        OP_LOGD(ifaContext_->opName, "the data for the actual sequence lengths of key/value is not nullptr");
-        uint32_t loop = ((actualLenDims_ == 1U) && (kvListSeqLens_.size() == 1U)) ? 1U : batchSize_;
-        for (uint32_t i = 0U; i < loop; i++) {
-            int64_t actLen = (actualLenDims_ == 1U) ? actualLenData[0] : actualLenData[i];
-            OP_CHECK_IF(
-                actLen < 0, // actualSeqLengths必须大于0
-                OP_LOGE(ifaContext_->opName,
-                          "the value of the key/value's actual sequence lengths[%u] must be greater than or equal to 0, but it is %ld", i,
-                          actLen),
-                return custom::graphStatus::GRAPH_FAILED);
-            OP_LOGI(ifaContext_->opName, "The vlaue of the key/value's actual sequence lengths[%u] is %ld.", i, actLen);
-            if (!pageAttentionFlag_) {
-                uint32_t seqSize = (kvListSeqLens_.size() == 1) ? kvListSeqLens_[0] : kvListSeqLens_[i];
-                OP_CHECK_IF(static_cast<uint32_t>(actLen) > seqSize,
-                    OP_LOGE(ifaContext_->opName,
-                        "the key/value's actual sequence lengths[%u](%ld) cannot be greater than seq_length(%u) in input key.",
-                        i, actLen, seqSize),
-                    return custom::graphStatus::GRAPH_FAILED);
-            }
-            maxActualseq_ =
-                maxActualseq_ < static_cast<uint32_t>(actLen) ? static_cast<uint32_t>(actLen) : maxActualseq_;
-            if (actLen == 0) {
-                hasZeroActualseq_ = true;
-            }
-            if (actualLenData[i] != actualLenData[0]) {
-                isSameActualseq_ = false;
-            }
-        }
-    } else {
+    // const at::IntArrayRef& actualLenData = ifaContext_->actualSeqLengths.data;
+    // if (!actualLenData.empty()) {
+    //     OP_LOGD(ifaContext_->opName, "the data for the actual sequence lengths of key/value is not nullptr");
+    //     uint32_t loop = ((actualLenDims_ == 1U) && (kvListSeqLens_.size() == 1U)) ? 1U : batchSize_;
+    //     for (uint32_t i = 0U; i < loop; i++) {
+    //         int64_t actLen = (actualLenDims_ == 1U) ? actualLenData[0] : actualLenData[i];
+    //         OP_CHECK_IF(
+    //             actLen < 0, // actualSeqLengths必须大于0
+    //             OP_LOGE(ifaContext_->opName,
+    //                       "the value of the key/value's actual sequence lengths[%u] must be greater than or equal to 0, but it is %ld", i,
+    //                       actLen),
+    //             return custom::graphStatus::GRAPH_FAILED);
+    //         OP_LOGI(ifaContext_->opName, "The vlaue of the key/value's actual sequence lengths[%u] is %ld.", i, actLen);
+    //         if (!pageAttentionFlag_) {
+    //             uint32_t seqSize = (kvListSeqLens_.size() == 1) ? kvListSeqLens_[0] : kvListSeqLens_[i];
+    //             OP_CHECK_IF(static_cast<uint32_t>(actLen) > seqSize,
+    //                 OP_LOGE(ifaContext_->opName,
+    //                     "the key/value's actual sequence lengths[%u](%ld) cannot be greater than seq_length(%u) in input key.",
+    //                     i, actLen, seqSize),
+    //                 return custom::graphStatus::GRAPH_FAILED);
+    //         }
+    //         maxActualseq_ =
+    //             maxActualseq_ < static_cast<uint32_t>(actLen) ? static_cast<uint32_t>(actLen) : maxActualseq_;
+    //         if (actLen == 0) {
+    //             hasZeroActualseq_ = true;
+    //         }
+    //         if (actualLenData[i] != actualLenData[0]) {
+    //             isSameActualseq_ = false;
+    //         }
+    //     }
+    // } else {
         OP_LOGD(ifaContext_->opName, "data of the key/value's actual sequence lengths is nullptr");
         // pa场景必须带actual_seq_lens
         if (pageAttentionFlag_ && (!isWorkspace_)) {
             OP_LOGW(ifaContext_->opName, "data of the key/value's actual sequence lengths can not be nullptr in pageAttention scene");
         }
         maxActualseq_ = sMax_;
-    }
+    // }
     return custom::graphStatus::GRAPH_SUCCESS;
 }
 
@@ -1847,50 +1839,50 @@ custom::graphStatus IFATiling::ProcessSharedPrefixLen()
     }
 
     maxActualPrefixLen_ = sMaxPrefix_;
-    auto actulLenShape = ifaContext_->actualSharedPrefixLen.data;
+    auto actulLenShape = ifaContext_->actualSharedPrefixLen.shape;
 
     OP_CHECK_IF(
         (actulLenShape.size() != 1U || actulLenShape[0] != 1U),
         OP_LOGE(ifaContext_->opName, "actual shared prefix shape[%lu] must be 1", actulLenShape.size()),
         return custom::graphStatus::GRAPH_FAILED);
 
-    actualLenDimsPrefix_ = 1U;
-    const at::IntArrayRef& actualLenData = ifaContext_->actualSharedPrefixLen.data;
-    if (!actualLenData.empty()) {
-        OP_CHECK_IF(actualLenData[0] < 0,
-                   OP_LOGE(ifaContext_->opName, "actual prefix len[%ld] should be >= 0.", actualLenData[0]),
-                   return custom::graphStatus::GRAPH_FAILED);
-        maxActualPrefixLen_ = static_cast<uint32_t>(actualLenData[0]);
-        OP_CHECK_IF(maxActualPrefixLen_ > sMaxPrefix_,
-                   OP_LOGE(ifaContext_->opName, "actual prefix len[%u] should not be larger than S[%u] of prefix tensor",
-                             maxActualPrefixLen_, sMaxPrefix_),
-                   return custom::graphStatus::GRAPH_FAILED);
-    }
+    // actualLenDimsPrefix_ = 1U;
+    // const at::IntArrayRef& actualLenData = ifaContext_->actualSharedPrefixLen.data;
+    // if (!actualLenData.empty()) {
+    //     OP_CHECK_IF(actualLenData[0] < 0,
+    //                OP_LOGE(ifaContext_->opName, "actual prefix len[%ld] should be >= 0.", actualLenData[0]),
+    //                return custom::graphStatus::GRAPH_FAILED);
+    //     maxActualPrefixLen_ = static_cast<uint32_t>(actualLenData[0]);
+    //     OP_CHECK_IF(maxActualPrefixLen_ > sMaxPrefix_,
+    //                OP_LOGE(ifaContext_->opName, "actual prefix len[%u] should not be larger than S[%u] of prefix tensor",
+    //                          maxActualPrefixLen_, sMaxPrefix_),
+    //                return custom::graphStatus::GRAPH_FAILED);
+    // }
     
-    uint32_t totalS = maxActualPrefixLen_ + maxActualseq_;
-    if (pseShiftFlag_) { // 存在pse时才校验
-        OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > pseShiftS1_),
-                   OP_LOGE(ifaContext_->opName, "total kv S Size (with shared prefix)[%u] bigger than pseShift size[%u]",
-                             totalS, pseShiftS1_),
-                   return custom::graphStatus::GRAPH_FAILED);
-    }
+    // uint32_t totalS = maxActualPrefixLen_ + maxActualseq_;
+    // if (pseShiftFlag_) { // 存在pse时才校验
+    //     OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > pseShiftS1_),
+    //                OP_LOGE(ifaContext_->opName, "total kv S Size (with shared prefix)[%u] bigger than pseShift size[%u]",
+    //                          totalS, pseShiftS1_),
+    //                return custom::graphStatus::GRAPH_FAILED);
+    // }
 
-    if (attenMaskFlag_) { // 存在attenMask时才校验
-        OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > attenMaskSize_),
-                   OP_LOGE(ifaContext_->opName,
-                             "total kv S Size (with shared prefix)[%u] bigger than attenMask size[%u]", totalS,
-                             attenMaskSize_),
-                   return custom::graphStatus::GRAPH_FAILED);
-    }
+    // if (attenMaskFlag_) { // 存在attenMask时才校验
+    //     OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > attenMaskSize_),
+    //                OP_LOGE(ifaContext_->opName,
+    //                          "total kv S Size (with shared prefix)[%u] bigger than attenMask size[%u]", totalS,
+    //                          attenMaskSize_),
+    //                return custom::graphStatus::GRAPH_FAILED);
+    // }
 
-    if (antiquantMode_ == PER_TOKEN_MODE) {
-        uint32_t perTokenSize = GetAntiquantSeqLength();
-        OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > perTokenSize),
-                   OP_LOGE(ifaContext_->opName,
-                             "total kv S Size (with shared prefix)[%u] bigger than antiquant perToken size[%u]", totalS,
-                             perTokenSize),
-                   return custom::graphStatus::GRAPH_FAILED);
-    }
+    // if (antiquantMode_ == PER_TOKEN_MODE) {
+    //     uint32_t perTokenSize = GetAntiquantSeqLength();
+    //     OP_CHECK_IF((!(sysPrefixFlag_ && actualLenData.empty()) && totalS > perTokenSize),
+    //                OP_LOGE(ifaContext_->opName,
+    //                          "total kv S Size (with shared prefix)[%u] bigger than antiquant perToken size[%u]", totalS,
+    //                          perTokenSize),
+    //                return custom::graphStatus::GRAPH_FAILED);
+    // }
 
     return custom::graphStatus::GRAPH_SUCCESS;
 }
@@ -1958,21 +1950,21 @@ void IFATiling::GetActualSeqInfo(const at::IntArrayRef& actualSeqKv, ActualSeqIn
     uint32_t bSize = batchSize_;
     if (inputLayout_ == IfaLayout::TND) {
         // TND格式，actual_seq_q定义为累积长度，这里做转化再分核
-        const at::IntArrayRef& actualSeqQTnd = ifaContext_->actualSeqLengthsQ.data;
-        actualSeqInfo.actualSeqQ[0] = actualSeqQTnd[0];
-        for (int b = 1; b < static_cast<int>(bSize); b++) {
-            actualSeqInfo.actualSeqQ[b] = actualSeqQTnd[b] - actualSeqQTnd[b - 1];
-            if (actualLenDims_ != 1U) {
-                actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
-            }
-        }
+        // const at::IntArrayRef& actualSeqQTnd = ifaContext_->actualSeqLengthsQ.data;
+        // actualSeqInfo.actualSeqQ[0] = actualSeqQTnd[0];
+        // for (int b = 1; b < static_cast<int>(bSize); b++) {
+        //     actualSeqInfo.actualSeqQ[b] = actualSeqQTnd[b] - actualSeqQTnd[b - 1];
+        //     if (actualLenDims_ != 1U) {
+        //         actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
+        //     }
+        // }
     } else {
-        for (int b = 0; b < static_cast<int>(bSize); b++) {
-            actualSeqInfo.actualSeqQ[b] = qSeqSize_; // 需要检查
-            if (actualLenDims_ != 1U) {
-                actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
-            }
-        }
+        // for (int b = 0; b < static_cast<int>(bSize); b++) {
+        //     actualSeqInfo.actualSeqQ[b] = qSeqSize_; // 需要检查
+        //     if (actualLenDims_ != 1U) {
+        //         actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
+        //     }
+        // }
     }
 }
 
@@ -2238,64 +2230,64 @@ void IFATiling::SplitBalancedForEachHead(
 
 custom::graphStatus IFATiling::SplitBalanced()
 {
-    CalcInnerSize(seqSize_);
+    // CalcInnerSize(seqSize_);
 
-    uint32_t s1gBasicSize = FIA_BALANCE_SG_BASIC_SIZE;
-    uint32_t bSize = batchSize_;
-    uint32_t gSize = nNumOfQInOneGroup_;
-    uint32_t n2Size = numKvHeads_;
-    s1SplitSize_ = s1gBasicSize / gSize; // QS的切分
-    uint32_t souter = s1SplitSize_;
+    // uint32_t s1gBasicSize = FIA_BALANCE_SG_BASIC_SIZE;
+    // uint32_t bSize = batchSize_;
+    // uint32_t gSize = nNumOfQInOneGroup_;
+    // uint32_t n2Size = numKvHeads_;
+    // s1SplitSize_ = s1gBasicSize / gSize; // QS的切分
+    // uint32_t souter = s1SplitSize_;
 
-    // 负载均衡场景G轴不切
-    groupSplitSize_ = nNumOfQInOneGroup_;
-    gOuter_ = (nNumOfQInOneGroup_ + groupSplitSize_ - 1U) / groupSplitSize_;
+    // // 负载均衡场景G轴不切
+    // groupSplitSize_ = nNumOfQInOneGroup_;
+    // gOuter_ = (nNumOfQInOneGroup_ + groupSplitSize_ - 1U) / groupSplitSize_;
 
-    const at::IntArrayRef& actualSeqKv = ifaContext_->actualSeqLengths.data;
-    ActualSeqInfo actualSeqInfo(bSize, actualSeqKv[0]);
-    GetActualSeqInfo(actualSeqKv, actualSeqInfo);
+    // const at::IntArrayRef& actualSeqKv = ifaContext_->actualSeqLengths.data;
+    // ActualSeqInfo actualSeqInfo(bSize, actualSeqKv[0]);
+    // GetActualSeqInfo(actualSeqKv, actualSeqInfo);
 
-    OP_LOGI(ifaContext_->opName, "bSize:%u, gSize:%u, n2Size:%u, souter:%u\n", bSize, gSize, n2Size, souter);
-    // 分核主流程
-    // 计算线段总长度和平均长度
-    SeqTilingInfo seqTilingInfo(bSize);
-    GetSeqTilingInfo(actualSeqKv, actualSeqInfo, seqTilingInfo);
+    // OP_LOGI(ifaContext_->opName, "bSize:%u, gSize:%u, n2Size:%u, souter:%u\n", bSize, gSize, n2Size, souter);
+    // // 分核主流程
+    // // 计算线段总长度和平均长度
+    // SeqTilingInfo seqTilingInfo(bSize);
+    // GetSeqTilingInfo(actualSeqKv, actualSeqInfo, seqTilingInfo);
 
-    // 启动分核
-    BalancedSplitTilingInfo tilingInfo(coreNum_);
-    for (uint32_t bIdx = 0U; bIdx < bSize; bIdx++) {
-        uint32_t s1 = actualSeqInfo.actualSeqQ[bIdx];
-        int64_t s2 = actualLenDims_== 1U? actualSeqKv[0] : actualSeqKv[bIdx]; // 线段长度
-        OP_LOGI(ifaContext_->opName, "bIdx:%u, s1:%u, s2:%ld\n", bIdx, s1, s2);
-        for (uint32_t nIdx = 0U; nIdx < n2Size; nIdx++) {
-            SplitBalancedForEachHead(bIdx, seqTilingInfo, tilingInfo);
-        }
-    }
-    if (tilingInfo.needUpdate) {
-        // 更新最后一个核的End分核信息
-        FillBalancedSplitCoreInfo(TilingIndexes(seqTilingInfo.lastValidBIdx,
-                                                seqTilingInfo.s1OuterNum[seqTilingInfo.lastValidBIdx] - 1U,
-                                                seqTilingInfo.s2OuterNum[seqTilingInfo.lastValidBIdx] - 1U),
-                                  tilingInfo);
-    }
-    uint32_t lastValidBMoreIdx = seqTilingInfo.lastValidBIdx + 1U;
-    if (IsKvZeroBatchSplit(tilingInfo.needUpdate, lastValidBMoreIdx, bSize, seqTilingInfo.s1OuterNum, seqTilingInfo.s2OuterNum)) {
-        FillBalancedSplitCoreInfo(TilingIndexes(lastValidBMoreIdx, 0U, 0U), tilingInfo);
-    }
+    // // 启动分核
+    // BalancedSplitTilingInfo tilingInfo(coreNum_);
+    // for (uint32_t bIdx = 0U; bIdx < bSize; bIdx++) {
+    //     uint32_t s1 = actualSeqInfo.actualSeqQ[bIdx];
+    //     int64_t s2 = actualLenDims_== 1U? actualSeqKv[0] : actualSeqKv[bIdx]; // 线段长度
+    //     OP_LOGI(ifaContext_->opName, "bIdx:%u, s1:%u, s2:%ld\n", bIdx, s1, s2);
+    //     for (uint32_t nIdx = 0U; nIdx < n2Size; nIdx++) {
+    //         SplitBalancedForEachHead(bIdx, seqTilingInfo, tilingInfo);
+    //     }
+    // }
+    // if (tilingInfo.needUpdate) {
+    //     // 更新最后一个核的End分核信息
+    //     FillBalancedSplitCoreInfo(TilingIndexes(seqTilingInfo.lastValidBIdx,
+    //                                             seqTilingInfo.s1OuterNum[seqTilingInfo.lastValidBIdx] - 1U,
+    //                                             seqTilingInfo.s2OuterNum[seqTilingInfo.lastValidBIdx] - 1U),
+    //                               tilingInfo);
+    // }
+    // uint32_t lastValidBMoreIdx = seqTilingInfo.lastValidBIdx + 1U;
+    // if (IsKvZeroBatchSplit(tilingInfo.needUpdate, lastValidBMoreIdx, bSize, seqTilingInfo.s1OuterNum, seqTilingInfo.s2OuterNum)) {
+    //     FillBalancedSplitCoreInfo(TilingIndexes(lastValidBMoreIdx, 0U, 0U), tilingInfo);
+    // }
 
-    usedCoreNum_ = tilingInfo.currCoreIdx;
-    // tilingDataMla_.tndSplitCoreParams.set_tndFDCoreArrLen(tilingInfo.tndFDCoreArrLen);
-    OP_LOGI(ifaContext_->opName, "usedCoreNum_:%u", usedCoreNum_);
-    OP_LOGI(ifaContext_->opName, "tnd FD Core Array Length:%u", tilingInfo.tndFDCoreArrLen);
-    OP_LOGI(ifaContext_->opName, "max Kv Split Part:%u", tilingInfo.maxKvSplitPart);
-    OP_LOGI(ifaContext_->opName, "avgerage S2 Length:%lu", seqTilingInfo.avgS2Length);
-    OP_LOGI(ifaContext_->opName, "sInnerSize_:%u", sInnerSize_);
+    // usedCoreNum_ = tilingInfo.currCoreIdx;
+    // // tilingDataMla_.tndSplitCoreParams.set_tndFDCoreArrLen(tilingInfo.tndFDCoreArrLen);
+    // OP_LOGI(ifaContext_->opName, "usedCoreNum_:%u", usedCoreNum_);
+    // OP_LOGI(ifaContext_->opName, "tnd FD Core Array Length:%u", tilingInfo.tndFDCoreArrLen);
+    // OP_LOGI(ifaContext_->opName, "max Kv Split Part:%u", tilingInfo.maxKvSplitPart);
+    // OP_LOGI(ifaContext_->opName, "avgerage S2 Length:%lu", seqTilingInfo.avgS2Length);
+    // OP_LOGI(ifaContext_->opName, "sInnerSize_:%u", sInnerSize_);
 
-    if (IsFlashDecode(coreNum_, perfMode_)) {
-        splitKVFlag_ = true;
-        kvSplit_++;
-        kvSplitPart_ = tilingInfo.maxKvSplitPart;
-    }
+    // if (IsFlashDecode(coreNum_, perfMode_)) {
+    //     splitKVFlag_ = true;
+    //     kvSplit_++;
+    //     kvSplitPart_ = tilingInfo.maxKvSplitPart;
+    // }
 
     return custom::graphStatus::GRAPH_SUCCESS;
 }
@@ -2357,15 +2349,15 @@ custom::graphStatus IFATiling::SplitBN()
         return SplitBN_V0();
     }
 
-    std::vector<int64_t> validArray;
-    if (actualLenDims_ > 0U) {
-        const at::IntArrayRef& actualLenData = ifaContext_->actualSeqLengths.data;
-        validArray = InitSparseValidArray(actualLenData.data());
-    } else {
-        validArray = InitSparseValidArray(&kvListSeqLens_[0]);
-    }
+    // std::vector<int64_t> validArray;
+    // if (actualLenDims_ > 0U) {
+    //     const at::IntArrayRef& actualLenData = ifaContext_->actualSeqLengths.data;
+    //     validArray = InitSparseValidArray(actualLenData.data());
+    // } else {
+    //     validArray = InitSparseValidArray(&kvListSeqLens_[0]);
+    // }
 
-    SetSparseStartIdx(validArray, bn, coreNum_, startIdxEachCore_, CeilDivision(bn, coreNum_));
+    // SetSparseStartIdx(validArray, bn, coreNum_, startIdxEachCore_, CeilDivision(bn, coreNum_));
 
     usedCoreNum_ = coreNum_;
     return custom::graphStatus::GRAPH_SUCCESS;
@@ -3314,8 +3306,8 @@ custom::graphStatus IFATiling::RunBigKernelTiling(IFAContext &context,
     if (this->tilingData_ == nullptr){
         OP_LOGI(ifaContext_->opName, " tiling data is nullptr.");
     }
-    this->isWorkspace_ = isWorkspace;
-
+    // this->isWorkspace_ = isWorkspace;
+    this->isWorkspace_ = true;
     // if ((this->ifaContext_->actualSeqLengths.tensor && !this->ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()) ||
     //    (this->ifaContext_->actualSeqLengthsQ.tensor && !this->ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>())) {
     //     this->isWorkspace_ = true;
@@ -3401,19 +3393,19 @@ uint32_t IFATiling::GetTotalQBlockNum() const
     if (socVersion_ == IfaSocVersion::SOC_ASCEND_310P) {
         return batchSize_ * numHeads_;
     } else if (ifaContext_->actualSeqLengthsQ.hasValue) {
-        const at::IntArrayRef& actualLenDataQ = ifaContext_->actualSeqLengthsQ.data;
-        uint32_t totalQblockSum = 0;
-        uint32_t curSeqLenQ = 0;
-        uint32_t preSeqLenQ = 0;
-        for (int bIdx = 0; bIdx < static_cast<int>(actualLenQDims_); bIdx++) {
-            // actualLenDataQ里的值单调递增
-            curSeqLenQ = static_cast<uint32_t>(actualLenDataQ[bIdx]);
-            uint32_t tmpBlkNum = static_cast<uint32_t>(curSeqLenQ - preSeqLenQ + seqStepQ_ - 1) / seqStepQ_;
-            totalQblockSum += static_cast<uint32_t>(tmpBlkNum);
-            preSeqLenQ = curSeqLenQ;
-        }
+        // const at::IntArrayRef& actualLenDataQ = ifaContext_->actualSeqLengthsQ.data;
+        // uint32_t totalQblockSum = 0;
+        // uint32_t curSeqLenQ = 0;
+        // uint32_t preSeqLenQ = 0;
+        // for (int bIdx = 0; bIdx < static_cast<int>(actualLenQDims_); bIdx++) {
+        //     // actualLenDataQ里的值单调递增
+        //     curSeqLenQ = static_cast<uint32_t>(actualLenDataQ[bIdx]);
+        //     uint32_t tmpBlkNum = static_cast<uint32_t>(curSeqLenQ - preSeqLenQ + seqStepQ_ - 1) / seqStepQ_;
+        //     totalQblockSum += static_cast<uint32_t>(tmpBlkNum);
+        //     preSeqLenQ = curSeqLenQ;
+        // }
 
-        return totalQblockSum;
+        // return totalQblockSum;
     }
 
     return batchSize_ * numHeads_;

@@ -14,13 +14,9 @@
  */
 
 #include <numeric>
-// #include <graph/utils/type_utils.h>
-#include "incre_flash_attention_tiling_impl_test.h"
+#include "incre_flash_attention_tiling_impl.h"
 #include "incre_flash_attention_tiling_base.h"
 #include "log/log.h"
-// #include "log/error_code.h"
-// #include "err/ops_err.h"
-// #include "register/op_def_registry.h"
 
 namespace optiling {
 

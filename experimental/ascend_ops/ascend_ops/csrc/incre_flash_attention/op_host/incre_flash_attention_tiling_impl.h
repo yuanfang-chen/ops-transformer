@@ -18,19 +18,13 @@
 #include <queue>
 #include <map>
 #include <string>
-// #include "register/tilingdata_base.h"
-// #include "tiling/tiling_api.h"
-// #include "exe_graph/runtime/tiling_context.h"
-// #include "register/op_def_registry.h"
-// #include "incre_flash_attention_tiling_mla.h"
-// #include "incre_flash_attention_tiling_context.h"
 #include <ATen/Operators.h>
 #include "incre_flash_attention_tiling_base.h"
 #include "incre_flash_attention_tiling_struct.h"
 #include "../op_kernel/incre_flash_attention_tilingdata.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "tiling/tiling_api.h"
-// #include "../../common/op_host/fia_tiling_base.h"
+
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else
@@ -79,15 +73,6 @@ struct OptionalTensorParaInfo {
     }
 };
 
-struct OptionalArrayParaInfo {
-    bool hasValue = false;
-    at::IntArrayRef data;
-    at::ScalarType dType = at::ScalarType::Long;
-
-    int64_t GetShapeSize() const {
-        return hasValue ? static_cast<int64_t>(data.size()) : 0;
-    }
-};
 
 struct IFAContext {
     const char* opName = nullptr;
@@ -96,8 +81,8 @@ struct IFAContext {
     RequiredParaInfo value;
     OptionalTensorParaInfo pseShift;
     OptionalTensorParaInfo attenMask;
-    OptionalArrayParaInfo actualSeqLengthsQ;
-    OptionalArrayParaInfo actualSeqLengths;
+    OptionalTensorParaInfo actualSeqLengthsQ;
+    OptionalTensorParaInfo actualSeqLengths;
     OptionalTensorParaInfo deqScale1;
     OptionalTensorParaInfo quantScale1;
     OptionalTensorParaInfo deqScale2;
@@ -114,7 +99,7 @@ struct IFAContext {
     OptionalTensorParaInfo valueAntiquantOffset;
     OptionalTensorParaInfo keySharedPrefix;
     OptionalTensorParaInfo valueSharedPrefix;
-    OptionalArrayParaInfo actualSharedPrefixLen;
+    OptionalTensorParaInfo actualSharedPrefixLen;
     OptionalTensorParaInfo queryRope;
     OptionalTensorParaInfo keyRope;
     OptionalTensorParaInfo keyRopeAntiquantScale;

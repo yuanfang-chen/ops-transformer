@@ -55,8 +55,8 @@ blockTable = torch.arange(batch_size * max_block_num_prebatch, dtype=torch.int32
 k_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
 v_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
 
-actualSeqLengthqs = [q_seq] * batch_size  # [1, 1, 1, 1]
-actualSeqLengthkvs = [kv_seq_length] * batch_size  # [1024, 1024, 1024, 1024]
+actualSeqLengthqs = torch.tensor([q_seq] * batch_size, dtype=torch.int64).npu()
+actualSeqLengthkvs = torch.tensor([kv_seq_length] * batch_size, dtype=torch.int64).npu()
 
 key_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
 value_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
