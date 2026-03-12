@@ -14,7 +14,7 @@
  */
 #ifndef AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_
-
+#include "../op_kernel/incre_flash_attention_tilingdata.h"
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else
@@ -22,136 +22,104 @@
 #endif
 namespace optiling {
 struct RequiredParaInfo {
-    const gert::CompileTimeTensorDesc *desc;
-    const gert::StorageShape *shape;
+    void* data = nullptr;
+    at::IntArrayRef shape;
+    at::ScalarType dType = at::ScalarType::Float;
+
+    int64_t GetShapeSize() const {
+        if (shape.empty()) {
+            return 0;
+        }
+        int64_t n = 1;
+        for (auto d : shape) {
+            n *= d;
+        }
+        return n;
+    }
 };
 
-struct OptionalParaInfo {
-    const gert::CompileTimeTensorDesc *desc;
-    const gert::Tensor *tensor;
+struct OptionalTensorParaInfo {
+    bool hasValue = false;                         // optional 是否有值
+    void* data = nullptr;                          // 无值时为 nullptr
+    at::IntArrayRef shape;                         // 无值时通常为空
+    at::ScalarType dType = at::ScalarType::Float; // 无值时保留默认类型
+
+    int64_t GetShapeSize() const {
+        if (!hasValue || shape.empty()) {
+            return 0;
+        }
+        int64_t n = 1;
+        for (auto d : shape) {
+            n *= d;
+        }
+        return n;
+    }
 };
 
-struct IncreFlashAttentionContext {
-    const char *opName = nullptr;
-    fe::PlatFormInfos *platformInfo = nullptr;
-    RequiredParaInfo query = {nullptr, nullptr};
-    RequiredParaInfo key = {nullptr, nullptr};
-    RequiredParaInfo value = {nullptr, nullptr};
-    OptionalParaInfo pseShift = {nullptr, nullptr};
-    OptionalParaInfo attenMask = {nullptr, nullptr};
-    OptionalParaInfo actualSeqLengthsQ = {nullptr, nullptr};
-    OptionalParaInfo actualSeqLengths = {nullptr, nullptr};
-    OptionalParaInfo deqScale1 = {nullptr, nullptr};
-    OptionalParaInfo quantScale1 = {nullptr, nullptr};
-    OptionalParaInfo deqScale2 = {nullptr, nullptr};
-    OptionalParaInfo quantScale2 = {nullptr, nullptr};
-    OptionalParaInfo quantOffset2 = {nullptr, nullptr};
-    OptionalParaInfo antiquantScale = {nullptr, nullptr};
-    OptionalParaInfo antiquantOffset = {nullptr, nullptr};
-    OptionalParaInfo blockTable = {nullptr, nullptr};
-    OptionalParaInfo queryPaddingSize = {nullptr, nullptr};
-    OptionalParaInfo kvPaddingSize = {nullptr, nullptr};
-    OptionalParaInfo keyAntiquantScale = {nullptr, nullptr};
-    OptionalParaInfo keyAntiquantOffset = {nullptr, nullptr};
-    OptionalParaInfo valueAntiquantScale = {nullptr, nullptr};
-    OptionalParaInfo valueAntiquantOffset = {nullptr, nullptr};
-    OptionalParaInfo keySharedPrefix = {nullptr, nullptr};
-    OptionalParaInfo valueSharedPrefix = {nullptr, nullptr};
-    OptionalParaInfo actualSharedPrefixLen = {nullptr, nullptr};
-    OptionalParaInfo queryRope = {nullptr, nullptr};
-    OptionalParaInfo keyRope = {nullptr, nullptr};
-    OptionalParaInfo keyRopeAntiquantScale = {nullptr, nullptr};
-    OptionalParaInfo dequantScaleQuery = {nullptr, nullptr};
-    OptionalParaInfo qStartIdx = {nullptr, nullptr};
-    OptionalParaInfo kvStartIdx = {nullptr, nullptr};
 
-    RequiredParaInfo attenOut = {nullptr, nullptr};
-    RequiredParaInfo lseOut = {nullptr, nullptr};
+struct IFAContext {
+    const char* opName = nullptr;
+    RequiredParaInfo query;
+    RequiredParaInfo key;
+    RequiredParaInfo value;
+    OptionalTensorParaInfo pseShift;
+    OptionalTensorParaInfo attenMask;
+    OptionalTensorParaInfo actualSeqLengthsQ;
+    OptionalTensorParaInfo actualSeqLengths;
+    OptionalTensorParaInfo deqScale1;
+    OptionalTensorParaInfo quantScale1;
+    OptionalTensorParaInfo deqScale2;
+    OptionalTensorParaInfo quantScale2;
+    OptionalTensorParaInfo quantOffset2;
+    OptionalTensorParaInfo antiquantScale;
+    OptionalTensorParaInfo antiquantOffset;
+    OptionalTensorParaInfo blockTable;
+    OptionalTensorParaInfo queryPaddingSize;
+    OptionalTensorParaInfo kvPaddingSize;
+    OptionalTensorParaInfo keyAntiquantScale;
+    OptionalTensorParaInfo keyAntiquantOffset;
+    OptionalTensorParaInfo valueAntiquantScale;
+    OptionalTensorParaInfo valueAntiquantOffset;
+    OptionalTensorParaInfo keySharedPrefix;
+    OptionalTensorParaInfo valueSharedPrefix;
+    OptionalTensorParaInfo actualSharedPrefixLen;
+    OptionalTensorParaInfo queryRope;
+    OptionalTensorParaInfo keyRope;
+    OptionalTensorParaInfo keyRopeAntiquantScale;
+    OptionalTensorParaInfo dequantScaleQuery;
+    OptionalTensorParaInfo qStartIdx;
+    OptionalTensorParaInfo kvStartIdx;
 
-    const uint32_t *numHeads = nullptr;
-    const int64_t *preToken = nullptr;
-    const int64_t *nextToken = nullptr;
-    const float *scaleValue = nullptr;
-    const uint32_t *kvHeadNums = nullptr;
-    const char *layOut = nullptr;
-    const uint32_t *blockSize = nullptr;
-    const uint32_t *innerPrecise = nullptr;
-    const int64_t *antiquantMode = nullptr;
-    const bool *softmaxLseFlag = nullptr;
-    const int64_t *keyAntiquantMode = nullptr;
-    const int64_t *valueAntiquantMode = nullptr;
-    const uint32_t *sparseMode = nullptr;
-    const int64_t *queryQuantMode = nullptr;
-    const int64_t *pseType = nullptr;
-    const int64_t *windowSize = nullptr;
+    RequiredParaInfo attenOut;
+    RequiredParaInfo lseOut;
 
-    size_t *workSpaces = nullptr;
-    std::vector<gert::StorageShape *> kCache = {nullptr};
-    std::vector<gert::StorageShape *> vCache = {nullptr};
+    uint32_t numHeads;
+    int64_t preToken ;
+    int64_t nextToken;
+    float scaleValue;
+    uint32_t kvHeadNums;
+    const char* layOut;
+    uint32_t blockSize;
+    uint32_t innerPrecise;
+    int64_t antiquantMode;
+    bool softmaxLseFlag;
+    int64_t keyAntiquantMode;
+    int64_t valueAntiquantMode;
+    uint32_t sparseMode;
+    int64_t queryQuantMode;
+    int64_t pseType;
+    int64_t windowSize;
+
+    size_t workSpaceSize = 0;
+    std::vector<at::IntArrayRef*> kCache = {nullptr};
+    std::vector<at::IntArrayRef*> vCache = {nullptr};
     uint64_t tilingKey = 0;
     uint32_t numBlocks = 0;
+    IncreFlashAttentionTilingDataV2 tilingData;
+    uint8_t fdFlag;
+    uint8_t layoutVal;
+    uint8_t antiquantMode_;
 };
-
-// struct IFAContext {
-//     const char *opName = nullptr;
-//     at::Tensor query;
-    // at::Tensor key;
-    // at::Tensor value;
-    // c10::optional<at::Tensor> pseShift;
-    // c10::optional<at::Tensor> attenMask;
-    // c10::optional<at::Tensor> actualSeqLengthsQ;
-    // c10::optional<at::Tensor> actualSeqLengths;
-    // c10::optional<at::Tensor> deqScale1;
-    // c10::optional<at::Tensor> quantScale1;
-    // c10::optional<at::Tensor> deqScale2;
-    // c10::optional<at::Tensor> quantScale2;
-    // c10::optional<at::Tensor> quantOffset2;
-    // c10::optional<at::Tensor> antiquantScale;
-    // c10::optional<at::Tensor> antiquantOffset;
-    // c10::optional<at::Tensor> blockTable;
-    // c10::optional<at::Tensor> queryPaddingSize;
-    // c10::optional<at::Tensor> kvPaddingSize;
-    // c10::optional<at::Tensor> keyAntiquantScale;
-    // c10::optional<at::Tensor> keyAntiquantOffset;
-    // c10::optional<at::Tensor> valueAntiquantScale ;
-    // c10::optional<at::Tensor> valueAntiquantOffset;
-    // c10::optional<at::Tensor> keySharedPrefix;
-    // c10::optional<at::Tensor> valueSharedPrefix;
-    // c10::optional<at::Tensor> actualSharedPrefixLen;
-    // c10::optional<at::Tensor> queryRope;
-    // c10::optional<at::Tensor> keyRope;
-    // c10::optional<at::Tensor> keyRopeAntiquantScale;
-    // c10::optional<at::Tensor> dequantScaleQuery;
-    // c10::optional<at::Tensor> qStartIdx;
-    // c10::optional<at::Tensor> kvStartIdx;
-
-    // // at::Tensor attenOut;
-    // // at::Tensor lseOut;
-
-    // uint32_t numHeads;
-    // int64_t preToken;
-    // int64_t nextToken;
-    // float scaleValue;
-    // uint32_t kvHeadNums;
-    // char layOut;
-    // uint32_t blockSize;
-    // uint32_t innerPrecise;
-    // int64_t antiquantMode;
-    // bool softmaxLseFlag;
-    // int64_t keyAntiquantMode;
-    // int64_t valueAntiquantMode;
-    // uint32_t sparseMode;
-    // int64_t queryQuantMode;
-    // int64_t pseType;
-    // int64_t windowSize;
-
-    // size_t workSpaceSize;
-    // // std::vector<gert::StorageShape *> kCache = {nullptr};
-    // // std::vector<gert::StorageShape *> vCache = {nullptr};
-    // IncreFlashAttentionTilingDataV2 ifaTilingData;
-    // uint64_t tilingKey = 0;
-    // uint32_t numBlocks = 0;
-// };
 
 } // namespace optiling
 #endif // AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_

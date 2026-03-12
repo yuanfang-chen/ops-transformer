@@ -10,14 +10,111 @@
  */
 
 #include <iostream>
+#include <vector>
 #include <torch/library.h>
 #include <ATen/Operators.h>
 #include "torch_npu/csrc/framework/utils/OpPreparation.h"
 #include "torch_npu/csrc/framework/OpCommand.h"
-#include "op_host/incre_flash_attention_tiling_impl_test.h"
+#include "op_host/incre_flash_attention_tiling_impl.h"
 #include "op_kernel/incre_flash_attention_arch32.h"
 namespace custom {
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
+void print(const optiling::IncreFlashAttentionTilingData& data) {
+    std::cout << "=== IncreFlashAttentionTilingData Debug Output ===\n";
+
+    // Base Params
+    std::cout << "\n--- Base Parameters ---\n";
+    std::cout << "batchSize: " << data.baseParams.get_batchSize() << "\n";
+    std::cout << "seqSize: " << data.baseParams.get_seqSize() << "\n";
+    std::cout << "qSeqSize: " << data.baseParams.get_qSeqSize() << "\n";
+    std::cout << "headSize: " << data.baseParams.get_headSize() << "\n";
+    std::cout << "headSizeV: " << data.baseParams.get_headSizeV() << "\n";
+    std::cout << "blockSize: " << data.baseParams.get_blockSize() << "\n";
+    std::cout << "maxBlockNumPerBatch: " << data.baseParams.get_maxBlockNumPerBatch() << "\n";
+    std::cout << "maxBlockNumPerSeq: " << data.baseParams.get_maxBlockNumPerSeq() << "\n";
+    std::cout << "scaleValue: " << std::fixed << std::setprecision(6) << data.baseParams.get_scaleValue() << "\n";
+    std::cout << "kvHeadNum: " << data.baseParams.get_kvHeadNum() << "\n";
+    std::cout << "headNumRatio: " << data.baseParams.get_headNumRatio() << "\n";
+    std::cout << "qHeadNum: " << data.baseParams.get_qHeadNum() << "\n";
+    std::cout << "nNumOfQInOneGroup: " << data.baseParams.get_nNumOfQInOneGroup() << "\n";
+    std::cout << "batchContinuousFlag: " << data.baseParams.get_batchContinuousFlag() << "\n";
+    std::cout << "pseShiftFlag: " << data.baseParams.get_pseShiftFlag() << "\n";
+    std::cout << "pseShiftB: " << data.baseParams.get_pseShiftB() << "\n";
+    std::cout << "pseShiftS: " << data.baseParams.get_pseShiftS() << "\n";
+    std::cout << "pseShiftS0: " << data.baseParams.get_pseShiftS0() << "\n";
+    std::cout << "selectWithByteMaskTmpMinSize: " << data.baseParams.get_selectWithByteMaskTmpMinSize() << "\n";
+    std::cout << "actualLenQDims: " << data.baseParams.get_actualLenQDims() << "\n";
+    std::cout << "actualLenDims: " << data.baseParams.get_actualLenDims() << "\n";
+    std::cout << "qPaddingFlag: " << data.baseParams.get_qPaddingFlag() << "\n";
+    std::cout << "kvPaddingFlag: " << data.baseParams.get_kvPaddingFlag() << "\n";
+    std::cout << "msdIterNum: " << data.baseParams.get_msdIterNum() << "\n";
+    std::cout << "l2CacheOffFlag: " << data.baseParams.get_l2CacheOffFlag() << "\n";
+    std::cout << "antiquantPerTensorFlag: " << data.baseParams.get_antiquantPerTensorFlag() << "\n";
+    std::cout << "antiquantPerHeadFlag: " << data.baseParams.get_antiquantPerHeadFlag() << "\n";
+    std::cout << "antiquantParamsInPagedAttentionFlag: " << data.baseParams.get_antiquantParamsInPagedAttentionFlag() << "\n";
+    std::cout << "attenMaskFlag: " << data.baseParams.get_attenMaskFlag() << "\n";
+    std::cout << "attenMaskBatch: " << data.baseParams.get_attenMaskBatch() << "\n";
+    std::cout << "attenMaskQSize: " << data.baseParams.get_attenMaskQSize() << "\n";
+    std::cout << "attenMaskSize: " << data.baseParams.get_attenMaskSize() << "\n";
+    std::cout << "softmaxLseFlag: " << data.baseParams.get_softmaxLseFlag() << "\n";
+    std::cout << "totalBlockNum: " << data.baseParams.get_totalBlockNum() << "\n";
+    std::cout << "paKvShapeType: " << data.baseParams.get_paKvShapeType() << "\n";
+    std::cout << "antiqSeqSize: " << data.baseParams.get_antiqSeqSize() << "\n";
+    std::cout << "preToken: " << data.baseParams.get_preToken() << "\n";
+    std::cout << "nextToken: " << data.baseParams.get_nextToken() << "\n";
+    std::cout << "isRowInvalid: " << data.baseParams.get_isRowInvalid() << "\n";
+    std::cout << "sparseMode: " << data.baseParams.get_sparseMode() << "\n";
+    std::cout << "slidingFlag: " << data.baseParams.get_slidingFlag() << "\n";
+    std::cout << "windowSize: " << data.baseParams.get_windowSize() << "\n";
+
+    // Split KV Params
+    std::cout << "\n--- Split KV Parameters ---\n";
+    std::cout << "s2: " << data.splitKVParams.get_s2() << "\n";
+    std::cout << "sInnerLoopSize: " << data.splitKVParams.get_sInnerLoopSize() << "\n";
+    std::cout << "accumOutSize: " << data.splitKVParams.get_accumOutSize() << "\n";
+    std::cout << "logSumExpSize: " << data.splitKVParams.get_logSumExpSize() << "\n";
+
+    // Core Params
+    std::cout << "\n--- Core Parameters ---\n";
+    std::cout << "coreSidxEnd (first 5): ";
+    for (int i = 0; i < 50; ++i) {
+        std::cout << data.increFlashAttentionCoreParams.coreSidxEnd[i] << " ";
+    }
+    std::cout << "\n";
+
+    // Single Core Params
+    std::cout << "\n--- Single Core Parameters ---\n";
+    std::cout << "sInnerLoopTimes: " << data.increFlashAttentionSingleCoreParams.get_sInnerLoopTimes() << "\n";
+    std::cout << "singleProcessSInnerSize: " << data.increFlashAttentionSingleCoreParams.get_singleProcessSInnerSize() << "\n";
+    std::cout << "singleProcessSInnerSizeTail: " << data.increFlashAttentionSingleCoreParams.get_singleProcessSInnerSizeTail() << "\n";
+    std::cout << "usedCoreNum: " << data.increFlashAttentionSingleCoreParams.get_usedCoreNum() << "\n";
+    std::cout << "formerCoreNum: " << data.increFlashAttentionSingleCoreParams.get_formerCoreNum() << "\n";
+    std::cout << "blockSplitBn2Range: " << data.increFlashAttentionSingleCoreParams.get_blockSplitBn2Range() << "\n";
+    std::cout << "tailSplitedBatchRange: " << data.increFlashAttentionSingleCoreParams.get_tailSplitedBatchRange() << "\n";
+    std::cout << "groupSplitSize: " << data.increFlashAttentionSingleCoreParams.get_groupSplitSize() << "\n";
+    std::cout << "s1SplitSize: " << data.increFlashAttentionSingleCoreParams.get_s1SplitSize() << "\n";
+
+    // Tensor Size
+    std::cout << "\n--- Single Core Tensor Size ---\n";
+    std::cout << "mmResUbSize: " << data.increFlashAttentionSingleCoreTensorSize.get_mmResUbSize() << "\n";
+    std::cout << "bmm2ResUbSize: " << data.increFlashAttentionSingleCoreTensorSize.get_bmm2ResUbSize() << "\n";
+
+    // Output Params
+    std::cout << "\n--- Output Parameters ---\n";
+    std::cout << "isPerChnOut: " << data.outputParams.get_isPerChnOut() << "\n";
+    std::cout << "isOutQuantTypeBf16: " << data.outputParams.get_isOutQuantTypeBf16() << "\n";
+    std::cout << "singleCoreSize: " << data.outputParams.get_singleCoreSize() << "\n";
+    std::cout << "singleCoreLseSize: " << data.outputParams.get_singleCoreLseSize() << "\n";
+    std::cout << "totalOutputSize: " << data.outputParams.get_totalOutputSize() << "\n";
+    std::cout << "totalLseOutputSize: " << data.outputParams.get_totalLseOutputSize() << "\n";
+    std::cout << "needInit: " << data.outputParams.get_needInit() << "\n";
+    std::cout << "isBSNDOut: " << data.outputParams.get_isBSNDOut() << "\n";
+
+    std::cout << "\n=== End of Debug Output ===\n";
+}
 #define LAUNCH_INCRE_FA(FD, LAYOUT, ANTIQ)                                                                 \
     incre_flash_attention<FD, LAYOUT, ANTIQ><<<blockDim, nullptr, aclstream>>>(                            \
         (GM_ADDR)(query.data_ptr()),                                                                       \
@@ -25,8 +122,8 @@ namespace custom {
         (GM_ADDR)(value.data_ptr()),                                                                       \
         (GM_ADDR)(pse_shift.has_value() ? pse_shift->data_ptr() : nullptr),                                \
         (GM_ADDR)(atten_mask.has_value() ? atten_mask->data_ptr() : nullptr),                              \
-        (GM_ADDR)(actualSeqLengthsQTensor.defined() ? actualSeqLengthsQTensor.data_ptr() : nullptr),       \
-        (GM_ADDR)(actualSeqLengthsTensor.defined() ? actualSeqLengthsTensor.data_ptr() : nullptr),         \
+        (GM_ADDR)(actual_seq_qlen.has_value() ? actual_seq_qlen->data_ptr() : nullptr),                     \
+        (GM_ADDR)(actual_seq_kvlen.has_value() ? actual_seq_kvlen->data_ptr() : nullptr),                   \
         (GM_ADDR)(nullptr),  /* deqScale1 */                                                               \
         (GM_ADDR)(nullptr),  /* quantScale1 */                                                             \
         (GM_ADDR)(nullptr),  /* deqScale2 */                                                               \
@@ -48,175 +145,12 @@ namespace custom {
         (GM_ADDR)(key_rope.has_value() ? key_rope->data_ptr() : nullptr),                                  \
         (GM_ADDR)(dequant_scale_key_rope.has_value() ? dequant_scale_key_rope->data_ptr() : nullptr),      \
         (GM_ADDR)(dequant_scale_query.has_value() ? dequant_scale_query->data_ptr() : nullptr),            \
+        (GM_ADDR)(metadata.has_value() ? metadata->data_ptr() : nullptr),            \
         (GM_ADDR)(output.data_ptr()),                                                                      \
         (GM_ADDR)(softmax_lse.data_ptr()),                                                                 \
         (GM_ADDR)(workspaceTensor.data_ptr()),                                                             \
         tilingData)
 
-
-#include <iomanip>
-// 打印一个 uint32_t 值
-void printField(const std::string &name, uint32_t value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << value << "\n";
-}
-
-// 打印一个 int32_t 值
-void printField(const std::string &name, int32_t value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << value << "\n";
-}
-
-// 打印一个 float 值
-void printField(const std::string &name, float value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << std::fixed << std::setprecision(6) << value << "\n";
-}
-
-// 打印一个 int64_t 值
-void printField(const std::string &name, int64_t value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << value << "\n";
-}
-
-// 打印一个 uint64_t 值
-void printField(const std::string &name, uint64_t value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << value << "\n";
-}
-
-// 打印一个 bool 值
-void printField(const std::string &name, bool value)
-{
-    std::cout << std::setw(30) << std::left << name << " = " << (value ? "true" : "false") << "\n";
-}
-
-// 打印 IncreFlashAttentionBaseParams
-void printBaseParams(const std::string &prefix, optiling::IncreFlashAttentionBaseParams &params)
-{
-    printField(prefix + "batchSize", params.get_batchSize());
-    printField(prefix + "seqSize", params.get_seqSize());
-    printField(prefix + "qSeqSize", params.get_qSeqSize());
-    printField(prefix + "headSize", params.get_headSize());
-    printField(prefix + "headSizeV", params.get_headSizeV());
-    printField(prefix + "blockSize", params.get_blockSize());
-    printField(prefix + "maxBlockNumPerBatch", params.get_maxBlockNumPerBatch());
-    printField(prefix + "maxBlockNumPerSeq", params.get_maxBlockNumPerSeq());
-    printField(prefix + "scaleValue", params.get_scaleValue());
-    printField(prefix + "kvHeadNum", params.get_kvHeadNum());
-    printField(prefix + "headNumRatio", params.get_headNumRatio());
-    printField(prefix + "qHeadNum", params.get_qHeadNum());
-    printField(prefix + "nNumOfQInOneGroup", params.get_nNumOfQInOneGroup());
-    printField(prefix + "batchContinuousFlag", params.get_batchContinuousFlag());
-    printField(prefix + "pseShiftFlag", params.get_pseShiftFlag());
-    printField(prefix + "pseShiftB", params.get_pseShiftB());
-    printField(prefix + "pseShiftS", params.get_pseShiftS());
-    printField(prefix + "pseShiftS0", params.get_pseShiftS0());
-    printField(prefix + "selectWithByteMaskTmpMinSize", params.get_selectWithByteMaskTmpMinSize());
-    printField(prefix + "actualLenQDims", params.get_actualLenQDims());
-    printField(prefix + "actualLenDims", params.get_actualLenDims());
-    printField(prefix + "qPaddingFlag", params.get_qPaddingFlag());
-    printField(prefix + "kvPaddingFlag", params.get_kvPaddingFlag());
-    printField(prefix + "msdIterNum", params.get_msdIterNum());
-    printField(prefix + "l2CacheOffFlag", params.get_l2CacheOffFlag());
-    printField(prefix + "antiquantPerTensorFlag", params.get_antiquantPerTensorFlag());
-    printField(prefix + "antiquantPerHeadFlag", params.get_antiquantPerHeadFlag());
-    printField(prefix + "antiquantParamsInPagedAttentionFlag", params.get_antiquantParamsInPagedAttentionFlag());
-    printField(prefix + "attenMaskFlag", params.get_attenMaskFlag());
-    printField(prefix + "attenMaskBatch", params.get_attenMaskBatch());
-    printField(prefix + "attenMaskQSize", params.get_attenMaskQSize());
-    printField(prefix + "attenMaskSize", params.get_attenMaskSize());
-    printField(prefix + "softmaxLseFlag", params.get_softmaxLseFlag());
-    printField(prefix + "totalBlockNum", params.get_totalBlockNum());
-    printField(prefix + "paKvShapeType", params.get_paKvShapeType());
-    printField(prefix + "antiqSeqSize", params.get_antiqSeqSize());
-    printField(prefix + "preToken", params.get_preToken());
-    printField(prefix + "nextToken", params.get_nextToken());
-    printField(prefix + "isRowInvalid", params.get_isRowInvalid());
-    printField(prefix + "sparseMode", params.get_sparseMode());
-    printField(prefix + "slidingFlag", params.get_slidingFlag());
-    printField(prefix + "windowSize", params.get_windowSize());
-}
-
-// 打印 IncreFlashAttentionSplitKVParams
-void printSplitKVParams(const std::string &prefix, optiling::IncreFlashAttentionSplitKVParams &params)
-{
-    printField(prefix + "s2", params.get_s2());
-    printField(prefix + "sInnerLoopSize", params.get_sInnerLoopSize());
-    printField(prefix + "accumOutSize", params.get_accumOutSize());
-    printField(prefix + "logSumExpSize", params.get_logSumExpSize());
-}
-
-// 打印 IncreFlashAttentionCoreParams
-void printCoreParams(const std::string &prefix, optiling::IncreFlashAttentionCoreParams &params)
-{
-    const uint32_t *idxEnd = params.get_coreSidxEnd();
-    const uint32_t *idxEndRegbase = params.get_coreSidxEndRegbase();
-    const uint32_t *sposStartRegbase = params.get_coreSposStartRegbase();
-
-    for (int i = 0; i < 50; ++i) {
-        printField(prefix + "coreSidxEnd[" + std::to_string(i) + "]", idxEnd[i]);
-    }
-    for (int i = 0; i < 66; ++i) {
-        printField(prefix + "coreSidxEndRegbase[" + std::to_string(i) + "]", idxEndRegbase[i]);
-        printField(prefix + "coreSposStartRegbase[" + std::to_string(i) + "]", sposStartRegbase[i]);
-    }
-}
-
-// 打印 IncreFlashAttentionSingleCoreParams
-void printSingleCoreParams(const std::string &prefix, optiling::IncreFlashAttentionSingleCoreParams &params)
-{
-    printField(prefix + "sInnerLoopTimes", params.get_sInnerLoopTimes());
-    printField(prefix + "singleProcessSInnerSize", params.get_singleProcessSInnerSize());
-    printField(prefix + "singleProcessSInnerSizeTail", params.get_singleProcessSInnerSizeTail());
-    printField(prefix + "usedCoreNum", params.get_usedCoreNum());
-    printField(prefix + "formerCoreNum", params.get_formerCoreNum());
-    printField(prefix + "blockSplitBn2Range", params.get_blockSplitBn2Range());
-    printField(prefix + "tailSplitedBatchRange", params.get_tailSplitedBatchRange());
-    printField(prefix + "groupSplitSize", params.get_groupSplitSize());
-    printField(prefix + "s1SplitSize", params.get_s1SplitSize());
-}
-
-// 打印 IncreFlashAttentionSingleCoreTensorSize
-void printTensorSize(const std::string &prefix, optiling::IncreFlashAttentionSingleCoreTensorSize &params)
-{
-    printField(prefix + "mmResUbSize", params.get_mmResUbSize());
-    printField(prefix + "bmm2ResUbSize", params.get_bmm2ResUbSize());
-}
-
-// 打印 IncreFlashAttentionInitOutputParams
-void printOutputParams(const std::string &prefix, optiling::IncreFlashAttentionInitOutputParams &params)
-{
-    printField(prefix + "isPerChnOut", params.get_isPerChnOut());
-    printField(prefix + "isOutQuantTypeBf16", params.get_isOutQuantTypeBf16());
-    printField(prefix + "singleCoreSize", params.get_singleCoreSize());
-    printField(prefix + "singleCoreLseSize", params.get_singleCoreLseSize());
-    printField(prefix + "totalOutputSize", params.get_totalOutputSize());
-    printField(prefix + "totalLseOutputSize", params.get_totalLseOutputSize());
-    printField(prefix + "needInit", params.get_needInit());
-    printField(prefix + "isBSNDOut", params.get_isBSNDOut());
-}
-
-// 打印 IncreFlashAttentionTilingDataV2
-void printTilingData(optiling::IncreFlashAttentionTilingDataV2 &tilingData)
-{
-    std::cout << "\n🔍 Printing tilingData (IncreFlashAttentionTilingDataV2)\n";
-    std::cout << "============================================================\n";
-
-    // 打印 base Params
-    printBaseParams("baseParams.", tilingData.tilingBase.baseParams);
-    printSplitKVParams("splitKVParams.", tilingData.tilingBase.splitKVParams);
-    printCoreParams("increFlashAttentionCoreParams.", tilingData.tilingBase.increFlashAttentionCoreParams);
-    printSingleCoreParams("increFlashAttentionSingleCoreParams.",
-                          tilingData.tilingBase.increFlashAttentionSingleCoreParams);
-    printTensorSize("increFlashAttentionSingleCoreTensorSize.",
-                    tilingData.tilingBase.increFlashAttentionSingleCoreTensorSize);
-    printOutputParams("outputParams.", tilingData.tilingBase.outputParams);
-
-    // 若你启用了 tilingPrefix，也可打印
-    // printPrefixParams("tilingPrefix.", tilingData.tilingPrefix);
-    std::cout << "============================================================\n";
-}
 const static int FLASH_THRESHOLD = 512;
 const static int64_t PFA_SPARSE_HIGH_PRECISION_NO_MASK = 10;
 const static int64_t PFA_SPARSE_HIGH_PRECISION_BAND = 14;
@@ -396,20 +330,11 @@ OptionalTensorParaInfo ToOptionalTensorParaInfo(const c10::optional<at::Tensor> 
     return info;
 }
 
-OptionalArrayParaInfo ToOptionalArrayParaInfo(const c10::OptionalIntArrayRef &optArr)
-{
-    OptionalArrayParaInfo info;
-    info.hasValue = optArr.has_value();
-    info.data = info.hasValue ? at::IntArrayRef(*optArr) : at::IntArrayRef(); // nullopt 时为空
-    info.dType = at::ScalarType::Long;
-    return info;
-}
-
 void ConvertContextToParamsIFA(
     IFAContext &ifaContext, const at::Tensor &query, const at::Tensor &key, const at::Tensor &value,
     const c10::optional<at::Tensor> &query_rope, const c10::optional<at::Tensor> &key_rope,
     const c10::optional<at::Tensor> &pse_shift, const c10::optional<at::Tensor> &atten_mask,
-    const c10::OptionalIntArrayRef &actual_seq_qlen, const c10::OptionalIntArrayRef &actual_seq_kvlen,
+    const c10::optional<at::Tensor> &actual_seq_qlen, const c10::optional<at::Tensor> &actual_seq_kvlen,
     const c10::optional<at::Tensor> &block_table, const c10::optional<at::Tensor> &dequant_scale_query,
     const c10::optional<at::Tensor> &dequant_scale_key, const c10::optional<at::Tensor> &dequant_offset_key,
     const c10::optional<at::Tensor> &dequant_scale_value, const c10::optional<at::Tensor> &dequant_offset_value,
@@ -433,8 +358,8 @@ void ConvertContextToParamsIFA(
     // optional input
     ifaContext.pseShift = ToOptionalTensorParaInfo(pse_shift);                           //
     ifaContext.attenMask = ToOptionalTensorParaInfo(atten_mask);                         //
-    ifaContext.actualSeqLengthsQ = ToOptionalArrayParaInfo(actual_seq_qlen);             //
-    ifaContext.actualSeqLengths = ToOptionalArrayParaInfo(actual_seq_kvlen);             //
+    ifaContext.actualSeqLengthsQ = ToOptionalTensorParaInfo(actual_seq_qlen);             //
+    ifaContext.actualSeqLengths = ToOptionalTensorParaInfo(actual_seq_kvlen);             //
     ifaContext.deqScale1 = ToOptionalTensorParaInfo(c10::nullopt);                       //
     ifaContext.quantScale1 = ToOptionalTensorParaInfo(c10::nullopt);                     //
     ifaContext.deqScale2 = ToOptionalTensorParaInfo(c10::nullopt);                       //
@@ -451,7 +376,7 @@ void ConvertContextToParamsIFA(
     ifaContext.valueAntiquantOffset = ToOptionalTensorParaInfo(dequant_offset_value);    //
     ifaContext.keySharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);                 //
     ifaContext.valueSharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);               //
-    ifaContext.actualSharedPrefixLen = ToOptionalArrayParaInfo(c10::nullopt);            //?
+    ifaContext.actualSharedPrefixLen = ToOptionalTensorParaInfo(c10::nullopt);            //?
     ifaContext.queryRope = ToOptionalTensorParaInfo(query_rope);                         //
     ifaContext.keyRope = ToOptionalTensorParaInfo(key_rope);                             //
     ifaContext.keyRopeAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_key_rope); //
@@ -491,12 +416,13 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     const at::Tensor &query, const at::Tensor &key, const at::Tensor &value,
     const c10::optional<at::Tensor> &query_rope, const c10::optional<at::Tensor> &key_rope,
     const c10::optional<at::Tensor> &pse_shift, const c10::optional<at::Tensor> &atten_mask,
-    c10::OptionalIntArrayRef actual_seq_qlen, c10::OptionalIntArrayRef actual_seq_kvlen,
+    const c10::optional<at::Tensor> &actual_seq_qlen, const c10::optional<at::Tensor> &actual_seq_kvlen,
     const c10::optional<at::Tensor> &block_table, const c10::optional<at::Tensor> &dequant_scale_query,
     const c10::optional<at::Tensor> &dequant_scale_key, const c10::optional<at::Tensor> &dequant_offset_key,
     const c10::optional<at::Tensor> &dequant_scale_value, const c10::optional<at::Tensor> &dequant_offset_value,
     const c10::optional<at::Tensor> &dequant_scale_key_rope, const c10::optional<at::Tensor> &quant_scale_out,
-    const c10::optional<at::Tensor> &quant_offset_out, const c10::optional<at::Tensor> &learnable_sink,
+    const c10::optional<at::Tensor> &quant_offset_out, const c10::optional<at::Tensor> &learnable_sink, 
+    const c10::optional<at::Tensor> &metadata,
     int64_t num_query_heads, int64_t num_key_value_heads, double softmax_scale, int64_t pre_tokens, int64_t next_tokens,
     c10::string_view input_layout, int64_t sparse_mode, int64_t block_size, int64_t query_quant_mode,
     int64_t key_quant_mode, int64_t value_quant_mode, int64_t inner_precise, bool return_softmax_lse,
@@ -530,11 +456,9 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
         key_dtype, value_dtype, query_rope_dtype, key_rope_dtype, key_shared_prefix_dtype, value_shared_prefix_dtype,
         dequant_scale_query_dtype, dequant_scale_key_dtype, dequant_scale_value_dtype, dequant_scale_key_rope_dtype,
         output, softmax_lse);
-
+    printf("covert params end\n");
     IFATiling ifaTiling;
     ifaTiling.DoSubOpTiling(ifaContext);
-    //-------------------------------------------------
-    printTilingData(ifaContext.tilingData);
     // stream
     int devidx = query.device().index();
     c10_npu::NPUStream stream = c10_npu::getCurrentNPUStream(devidx);
@@ -544,7 +468,6 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
         at::empty({static_cast<long>(ifaContext.workSpaceSize)}, at::TensorOptions().dtype(at::kByte).device(query.options().device()));
     // tilingdata
     optiling::IncreFlashAttentionTilingData &tilingData = ifaContext.tilingData.tilingBase;
-    uint16_t tilingDataSize = sizeof(optiling::IncreFlashAttentionTilingData);
 
     uint8_t fdFlag = ifaContext.fdFlag;
     uint8_t layoutVal = ifaContext.layoutVal;
@@ -552,19 +475,7 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     // blockdim
     uint32_t blockDim = tilingData.increFlashAttentionSingleCoreParams.get_usedCoreNum();
     printf("blockDim set to :%d\n", blockDim);
-    // at::Tensor actualSeqLengthsTensor; // kv
-    // if (actual_seq_kvlen.has_value() && !actual_seq_kvlen->empty()) {
-    //     auto cpu = at::tensor(*actual_seq_kvlen, at::TensorOptions().dtype(at::kLong));
-    //     actualSeqLengthsTensor = cpu.to(query.device()).contiguous();
-    // }
-    at::Tensor actualSeqLengthsTensor = at::full({18}, 8192, at::TensorOptions().dtype(at::kLong).device(query.device())).contiguous();
-
-    at::Tensor actualSeqLengthsQTensor; // q
-    // if (actual_seq_qlen.has_value() && !actual_seq_qlen->empty()) {
-    //     auto cpu = at::tensor(*actual_seq_qlen, at::TensorOptions().dtype(at::kLong));
-    //     actualSeqLengthsQTensor = cpu.to(query.device()).contiguous();
-    // }
-
+    print(tilingData);
     auto aclCal = [&]() -> int {
         if (fdFlag == 0 && layoutVal == 0 && antiquantMode == 0) {
             LAUNCH_INCRE_FA(0, 0, 0);
@@ -599,12 +510,13 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_meta(
     const at::Tensor &query, const at::Tensor &key, const at::Tensor &value,
     const c10::optional<at::Tensor> &query_rope, const c10::optional<at::Tensor> &key_rope,
     const c10::optional<at::Tensor> &pse_shift, const c10::optional<at::Tensor> &atten_mask,
-    c10::OptionalIntArrayRef actual_seq_qlen, c10::OptionalIntArrayRef actual_seq_kvlen,
+    const c10::optional<at::Tensor> & actual_seq_qlen, const c10::optional<at::Tensor> & actual_seq_kvlen,
     const c10::optional<at::Tensor> &block_table, const c10::optional<at::Tensor> &dequant_scale_query,
     const c10::optional<at::Tensor> &dequant_scale_key, const c10::optional<at::Tensor> &dequant_offset_key,
     const c10::optional<at::Tensor> &dequant_scale_value, const c10::optional<at::Tensor> &dequant_offset_value,
     const c10::optional<at::Tensor> &dequant_scale_key_rope, const c10::optional<at::Tensor> &quant_scale_out,
     const c10::optional<at::Tensor> &quant_offset_out, const c10::optional<at::Tensor> &learnable_sink,
+    const c10::optional<at::Tensor> &metadata,
     int64_t num_query_heads, int64_t num_key_value_heads, double softmax_scale, int64_t pre_tokens, int64_t next_tokens,
     c10::string_view input_layout, int64_t sparse_mode, int64_t block_size, int64_t query_quant_mode,
     int64_t key_quant_mode, int64_t value_quant_mode, int64_t inner_precise, bool return_softmax_lse,

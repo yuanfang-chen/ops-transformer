@@ -102,7 +102,8 @@ public:
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
                                 __gm__ uint8_t *pseShift, __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ,
                                 __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *blockTable,
-                                __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
+                                __gm__ uint8_t *kvPaddingSize, const IncreFlashAttentionMetaData *__restrict metadata,
+                                __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
                                 __gm__ uint8_t *workspace, const optiling::IncreFlashAttentionTilingData *__restrict tiling,
                                 TPipe *tPipe, bool isPrefix = false);
     __aicore__ inline void InitQuant(__gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1, __gm__ uint8_t *deqScale2,
@@ -154,6 +155,7 @@ public:
 
 protected:
     const optiling::IncreFlashAttentionTilingData *__restrict tilingData = nullptr;
+    const IncreFlashAttentionMetaData *__restrict metaData_ = nullptr;
     TPipe *pipe = nullptr;
 
     GlobalTensor<Q_T> queryGm;
@@ -173,8 +175,8 @@ protected:
     GlobalTensor<ANTIQ_PARAMS_T> keyAntiqScaleGm;
     GlobalTensor<ANTIQ_PARAMS_T> valueAntiqOffsetGm;
     GlobalTensor<ANTIQ_PARAMS_T> valueAntiqScaleGm;
-    GlobalTensor<uint64_t> actualSeqLengthsGm;
-    GlobalTensor<uint64_t> actualSeqLengthsGmQ;
+    GlobalTensor<int64_t> actualSeqLengthsGm;
+    GlobalTensor<int64_t> actualSeqLengthsGmQ;
     // out quant
     GlobalTensor<float> quantScale2Gm;
     GlobalTensor<float> quantOffset2Gm;
@@ -425,6 +427,9 @@ protected:
     uint64_t combineLseOffset = 0ULL;
     uint64_t combineAccumOutOffset = 0ULL;
 
+    uint32_t accumOutSize = 0U;
+    uint32_t logSumExpSize = 0U;
+
     uint64_t curActualSeqLen = 0ULL;
     uint64_t curActualSeqLenQ = 0ULL;
     uint32_t beforeBlockSplitBn2Nums = 0U;
@@ -604,13 +609,31 @@ protected:
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitTilingData()
 {
-    singleProcessSInnerSize = tilingData->increFlashAttentionSingleCoreParams.singleProcessSInnerSize;
-    sInnerLoopTimes = tilingData->increFlashAttentionSingleCoreParams.sInnerLoopTimes;
-    singleProcessSInnerSizeTail = tilingData->increFlashAttentionSingleCoreParams.singleProcessSInnerSizeTail;
-    usedCoreNum = tilingData->increFlashAttentionSingleCoreParams.usedCoreNum;
-    formerCoreNum = tilingData->increFlashAttentionSingleCoreParams.formerCoreNum;
-    splitKVNum = tilingData->splitKVParams.s2;
-    sInnerLoopSize = tilingData->splitKVParams.sInnerLoopSize;
+    if (metaData_ != nullptr) {
+        singleProcessSInnerSize = metaData_->singleProcessSInnerSize;
+        sInnerLoopTimes = metaData_->sInnerLoopTimes;
+        singleProcessSInnerSizeTail = metaData_->singleProcessSInnerSizeTail;
+        usedCoreNum = metaData_->usedCoreNum;
+        formerCoreNum = metaData_->formerCoreNum;
+        splitKVNum = metaData_->s2;
+        sInnerLoopSize = metaData_->sInnerLoopSize;
+        gSizeSub = metaData_->groupSplitSize; //切块大小Gi
+        s1SizeSub = metaData_->s1SplitSize; //切块大小Si
+        accumOutSize = metaData_->accumOutSize;
+        logSumExpSize = metaData_->logSumExpSize;
+    } else {
+        singleProcessSInnerSize = tilingData->increFlashAttentionSingleCoreParams.singleProcessSInnerSize;
+        sInnerLoopTimes = tilingData->increFlashAttentionSingleCoreParams.sInnerLoopTimes;
+        singleProcessSInnerSizeTail = tilingData->increFlashAttentionSingleCoreParams.singleProcessSInnerSizeTail;
+        usedCoreNum = tilingData->increFlashAttentionSingleCoreParams.usedCoreNum;
+        formerCoreNum = tilingData->increFlashAttentionSingleCoreParams.formerCoreNum;
+        splitKVNum = tilingData->splitKVParams.s2;
+        sInnerLoopSize = tilingData->splitKVParams.sInnerLoopSize;
+        gSizeSub = tilingData->increFlashAttentionSingleCoreParams.groupSplitSize; //切块大小Gi
+        s1SizeSub = tilingData->increFlashAttentionSingleCoreParams.s1SplitSize; //切块大小Si
+        accumOutSize = tilingData->splitKVParams.accumOutSize;
+        logSumExpSize = tilingData->splitKVParams.logSumExpSize;
+    }
 
     vec1ResUbSize = mmResUbSize * msdIterNum;
     mmResUbSize = tilingData->increFlashAttentionSingleCoreTensorSize.mmResUbSize;
@@ -631,10 +654,8 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
 
     headDimAlign = Align(headDim, BYTE_BLOCK);
 
-    gSizeSub = tilingData->increFlashAttentionSingleCoreParams.groupSplitSize; //切块大小Gi
     gOuter = (gSize + gSizeSub - 1) / gSizeSub;
     gSizeTail = gSize - (gOuter - 1) * gSizeSub;
-    s1SizeSub = tilingData->increFlashAttentionSingleCoreParams.s1SplitSize; //切块大小Si
     s1Outer = (qSeqSize + s1SizeSub - 1) / s1SizeSub;
     s1SizeTail = qSeqSize - (s1Outer - 1) * s1SizeSub;
 
@@ -662,67 +683,71 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
 
-    //  printf("🔥 打印所有 tiling 变量（模拟 InitTilingData 完成）\n");
-    // printf("-------------------------------------------------------------\n");
+     printf("🔥 打印所有 tiling 变量（模拟 InitTilingData 完成）\n");
+    printf("-------------------------------------------------------------\n");
 
-    // printf("singleProcessSInnerSize = %d\n", singleProcessSInnerSize);
-    // printf("sInnerLoopTimes = %d\n", sInnerLoopTimes);
-    // printf("singleProcessSInnerSizeTail = %d\n", singleProcessSInnerSizeTail);
-    // printf("usedCoreNum = %d\n", usedCoreNum);
-    // printf("formerCoreNum = %d\n", formerCoreNum);
-    // printf("splitKVNum = %d\n", splitKVNum);
-    // printf("sInnerLoopSize = %d\n", sInnerLoopSize);
+    printf("singleProcessSInnerSize = %d\n", singleProcessSInnerSize);
+    printf("sInnerLoopTimes = %d\n", sInnerLoopTimes);
+    printf("singleProcessSInnerSizeTail = %d\n", singleProcessSInnerSizeTail);
+    printf("usedCoreNum = %d\n", usedCoreNum);
+    printf("formerCoreNum = %d\n", formerCoreNum);
+    printf("splitKVNum = %d\n", splitKVNum);
+    printf("sInnerLoopSize = %d\n", sInnerLoopSize);
 
-    // printf("mmResUbSize = %d\n", mmResUbSize);
-    // printf("bmm2ResUbSize = %d\n", bmm2ResUbSize);
-    // printf("headDimAlign = %d\n", headDimAlign);
+    printf("mmResUbSize = %d\n", mmResUbSize);
+    printf("bmm2ResUbSize = %d\n", bmm2ResUbSize);
+    printf("headDimAlign = %d\n", headDimAlign);
 
-    // printf("batchSize = %d\n", batchSize);
-    // printf("kvHeadNum = %d\n", kvHeadNum);
-    // printf("qHeadNum = %d\n", qHeadNum);
-    // printf("gSize = %d\n", gSize);
-    // printf("qSeqSize = %d\n", qSeqSize);
-    // printf("kvSeqSize = %d\n", kvSeqSize);
-    // printf("headDim = %d\n", headDim);
-    // printf("batchContinuous = %d\n", batchContinuous);
-    // printf("msdIterNum = %d\n", msdIterNum);
-    // printf("antiquantPerTensorFlag = %d\n", antiquantPerTensorFlag);
-    // printf("antiquantPerHeadFlag = %d\n", antiquantPerHeadFlag);
-    // printf("antiquantParamsInPagedAttentionFlag = %d\n", antiquantParamsInPagedAttentionFlag);
+    printf("batchSize = %d\n", batchSize);
+    printf("kvHeadNum = %d\n", kvHeadNum);
+    printf("qHeadNum = %d\n", qHeadNum);
+    printf("gSize = %d\n", gSize);
+    printf("qSeqSize = %d\n", qSeqSize);
+    printf("kvSeqSize = %d\n", kvSeqSize);
+    printf("headDim = %d\n", headDim);
+    printf("batchContinuous = %d\n", batchContinuous);
+    printf("msdIterNum = %d\n", msdIterNum);
+    printf("antiquantPerTensorFlag = %d\n", antiquantPerTensorFlag);
+    printf("antiquantPerHeadFlag = %d\n", antiquantPerHeadFlag);
+    printf("antiquantParamsInPagedAttentionFlag = %d\n", antiquantParamsInPagedAttentionFlag);
 
-    // printf("gSizeSub = %d\n", gSizeSub);
-    // printf("gOuter = %d\n", gOuter);
-    // printf("gSizeTail = %d\n", gSizeTail);
-    // printf("s1SizeSub = %d\n", s1SizeSub);
-    // printf("s1Outer = %d\n", s1Outer);
-    // printf("s1SizeTail = %d\n", s1SizeTail);
+    printf("gSizeSub = %d\n", gSizeSub);
+    printf("gOuter = %d\n", gOuter);
+    printf("gSizeTail = %d\n", gSizeTail);
+    printf("s1SizeSub = %d\n", s1SizeSub);
+    printf("s1Outer = %d\n", s1Outer);
+    printf("s1SizeTail = %d\n", s1SizeTail);
 
-    // printf("attenMaskFlag = %s\n", attenMaskFlag ? "true" : "false");
-    // printf("attenMaskSize = %d\n", attenMaskSize);
-    // printf("selectWithByteMaskTmpMinSize = %d\n", selectWithByteMaskTmpMinSize);
-    // printf("antiqSeqSize = %d\n", antiqSeqSize);
+    printf("attenMaskFlag = %s\n", attenMaskFlag ? "true" : "false");
+    printf("attenMaskSize = %d\n", attenMaskSize);
+    printf("selectWithByteMaskTmpMinSize = %d\n", selectWithByteMaskTmpMinSize);
+    printf("antiqSeqSize = %d\n", antiqSeqSize);
 
-    // printf("pseShiftFlag = %s\n", pseShiftFlag ? "true" : "false");
-    // if (pseShiftFlag) {
-    //     printf("pseShiftB = %d\n", pseShiftB);
-    //     printf("pseShiftS = %d\n", pseShiftS);
-    // }
+    printf("pseShiftFlag = %s\n", pseShiftFlag ? "true" : "false");
+    if (pseShiftFlag) {
+        printf("pseShiftB = %d\n", pseShiftB);
+        printf("pseShiftS = %d\n", pseShiftS);
+    }
 
-    // printf("kvPaddingFlag = %d\n", kvPaddingFlag);
-    // printf("isPerChnU8Out = %s\n", isPerChnU8Out ? "true" : "false");
-    // printf("isOutQuantTypeBf16 = %s\n", isOutQuantTypeBf16 ? "true" : "false");
-    // printf("softmaxLseFlag = %s\n", softmaxLseFlag ? "true" : "false");
-    // printf("maxBlockNumPerBatch = %d\n", maxBlockNumPerBatch);
-    // printf("kvCacheBlockSize = %d\n", kvCacheBlockSize);
-    // printf("l2CacheOffFlag = %d\n", tilingData->baseParams.l2CacheOffFlag);
-    // printf("scaleValue = %f\n", tilingData->baseParams.scaleValue);
-    // uint32_t coreSidxEnd[50];
-    // copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
-    //                   sizeof(coreSidxEnd));
-    // for (int i = 0; i < 50; i++) {
-    //     printf("coreSidxEnd[%d] : %d\n", i, coreSidxEnd[i]);
-    // }
-    // printf("✅ 所有变量已打印完成！\n");
+    printf("kvPaddingFlag = %d\n", kvPaddingFlag);
+    printf("isPerChnU8Out = %s\n", isPerChnU8Out ? "true" : "false");
+    printf("isOutQuantTypeBf16 = %s\n", isOutQuantTypeBf16 ? "true" : "false");
+    printf("softmaxLseFlag = %s\n", softmaxLseFlag ? "true" : "false");
+    printf("maxBlockNumPerBatch = %d\n", maxBlockNumPerBatch);
+    printf("kvCacheBlockSize = %d\n", kvCacheBlockSize);
+    printf("l2CacheOffFlag = %d\n", tilingData->baseParams.l2CacheOffFlag);
+    printf("scaleValue = %f\n", tilingData->baseParams.scaleValue);
+    uint32_t coreSidxEnd[50];
+    if (metaData_ != nullptr) {
+        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(metaData_->coreSidxEnd), sizeof(coreSidxEnd));
+    } else {
+        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
+                            sizeof(coreSidxEnd));
+    }
+    for (int i = 0; i < 50; i++) {
+        printf("coreSidxEnd[%d] : %d\n", i, coreSidxEnd[i]);
+    }
+    printf("✅ 所有变量已打印完成！\n");
 
 }
 
@@ -787,10 +812,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitActualSeqLen
     actualLenQDims = tilingData->baseParams.actualLenQDims;
     actualLenDims = tilingData->baseParams.actualLenDims;
     if (actualLenQDims != 0) {
-        actualSeqLengthsGmQ.SetGlobalBuffer((__gm__ uint64_t *)actualSeqLengthsQ, actualLenQDims);
+        actualSeqLengthsGmQ.SetGlobalBuffer((__gm__ int64_t *)actualSeqLengthsQ, actualLenQDims);
     }
     if (actualLenDims != 0) {
-        actualSeqLengthsGm.SetGlobalBuffer((__gm__ uint64_t *)actualSeqLengths, actualLenDims);
+        actualSeqLengthsGm.SetGlobalBuffer((__gm__ int64_t *)actualSeqLengths, actualLenDims);
     }
 }
 
@@ -971,7 +996,8 @@ template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
     __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
-    __gm__ uint8_t *blockTable, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *attentionOut,
+    __gm__ uint8_t *blockTable, __gm__ uint8_t *kvPaddingSize, 
+    const IncreFlashAttentionMetaData *__restrict metaData, __gm__ uint8_t *attentionOut,
     __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, const optiling::IncreFlashAttentionTilingData *__restrict tiling,
     TPipe *tPipe, bool isPrefix)
 {
@@ -989,6 +1015,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     }
     // init tiling data
     tilingData = tiling;
+    metaData_ = metaData;
     InitTilingData();
     // 初始化计算参数
     if constexpr (FLASH_DECODE) {
@@ -1097,10 +1124,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
 
     if constexpr (FLASH_DECODE) {
         accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        offset = offset + tilingData->splitKVParams.accumOutSize * sizeof(float);
+        offset = offset + accumOutSize * sizeof(float);
         lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->splitKVParams.logSumExpSize / 2);
-        offset = offset + tilingData->splitKVParams.logSumExpSize * sizeof(float);
+        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + logSumExpSize / 2);
+        offset = offset + logSumExpSize * sizeof(float);
     }
 
     if (softmaxLseFlag) {
@@ -1262,8 +1289,12 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
     const uint32_t *coreSidxEnd = tilingData->increFlashAttentionCoreParams.coreSidxEnd;
 #else
     uint32_t coreSidxEnd[50];
-    copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
-                      sizeof(coreSidxEnd));
+    if (metaData_ != nullptr) {
+        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(metaData_->coreSidxEnd), sizeof(coreSidxEnd));
+    } else {
+        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
+                            sizeof(coreSidxEnd));
+    }
 #endif
     bn2LoopTimes = coreSidxEnd[aiCoreIdx + 1] - coreSidxEnd[aiCoreIdx];
     beforeBlockSplitBn2Nums = coreSidxEnd[aiCoreIdx];

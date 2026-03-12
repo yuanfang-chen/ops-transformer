@@ -240,6 +240,24 @@ struct IFAType {
     static constexpr bool isBalance = BALANCE;
 };
 
+constexpr uint32_t MAX_CORE_NUM = 50;
+struct IncreFlashAttentionMetaData {
+    uint32_t sInnerLoopTimes = 0U;
+    uint32_t singleProcessSInnerSize = 0U;
+    uint32_t singleProcessSInnerSizeTail = 0U;
+    uint32_t usedCoreNum = 0U;
+    uint32_t formerCoreNum = 0U;
+    uint32_t blockSplitBn2Range = 0U;
+    uint32_t tailSplitedBatchRange = 0U;
+    uint32_t groupSplitSize = 0U;
+    uint32_t s1SplitSize = 0U;
+    uint32_t s2 = 0U;
+    uint32_t sInnerLoopSize = 0U;
+    uint32_t accumOutSize = 0U;
+    uint32_t logSumExpSize = 0U;
+    uint32_t coreSidxEnd[MAX_CORE_NUM];
+};
+
 constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float);
 constexpr uint32_t FP32_REPEAT_ELEMENT_NUM = REPEAT_BLOCK_BYTE / sizeof(float);
 

@@ -1,112 +1,161 @@
-import torch
-import torch_npu
-import torch.nn as nn
-from torch_npu.dynamo.torchair.configs.compiler_config import CompilerConfig
-import torchair as tng
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 
+import os
 import time
 import numpy as np
-import os
+
+import torch
+import torch.nn as nn
+import torch_npu
+import torchair as tng
+import torchair._contrib.custom_torch_ops
+from torchair.configs.compiler_config import CompilerConfig
+
 import ascend_ops
 
-# import logging
-# import torch
-# torch._dynamo.reset()
-# torch._dynamo.config.verbose = True
-# torch._dynamo.config.suppress_errors = False
-# # 新版日志接口
-# torch._logging.set_logs(dynamo=logging.DEBUG)
 
-class Network(nn.Module):
+class ModelOrigin(nn.Module):
     def __init__(self):
-        super(Network, self).__init__()
+        super().__init__()
 
-    def forward(self, param: dict):
-        # for k,v in param.items():
-        #     if isinstance(v, torch.Tensor):
-        #         print(k, v.device, v.dtype, tuple(v.shape), type(v))
-        #     else:
-        #         print(k, type(v), v)
-        # return torch.ops.npu.npu_fused_infer_attention_score_v2(**param)
-        return torch.ops.custom.npu_fused_infer_attention_score(**param)
+    def forward(
+        self,
+        query,
+        key,
+        value,
+        actual_seq_kvlen,
+        block_table,
+        dequant_scale_key,
+        dequant_scale_value,
+    ):
+        return torch.ops.custom.npu_fused_infer_attention_score(
+            query=query,
+            key=key,
+            value=value,
+            actual_seq_kvlen=actual_seq_kvlen,
+            input_layout="BNSD",
+            softmax_scale=1.0 / (query.size(-1) ** 0.5),
+            block_size=128,
+            block_table=block_table,
+            num_query_heads=64,
+            num_key_value_heads=1,
+            sparse_mode=0,
+            inner_precise=1,
+            dequant_scale_key=dequant_scale_key,
+            dequant_scale_value=dequant_scale_value,
+            key_quant_mode=0,
+            value_quant_mode=0,
+        )
 
-os.environ["ENABLE_ACLNN"] = "false"  
-torch._dynamo.reset()      
-npu_mode = Network().npu()
-config = CompilerConfig()   
-config.debug.aclgraph.disable_reinplace_inplaceable_ops_pass = True
-config.mode = "reduce-overhead"
-# config.experimental_config.tiling_schedule_optimize = True                                                         
-npu_backend = tng.get_npu_backend(compiler_config=config)       
 
-npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=True)
+if __name__ == "__main__":
+    # -----------------------------
+    # 环境设置
+    # -----------------------------
+    os.environ["ENABLE_ACLNN"] = "false"
 
-batch_size = 18
-q_head_num = 64
-kv_head_num = 1
-q_seq = 1
-head_dim = 128
-kv_seq_length = 8192
-q_tensor = torch.randn(batch_size, q_head_num, q_seq, head_dim).to(dtype=torch.bfloat16).npu()
-block_size = 128
-block_num = batch_size * (kv_seq_length // block_size + 1)
-max_block_num_prebatch = kv_seq_length // block_size + 1
-blockTable = torch.arange(batch_size * max_block_num_prebatch, dtype=torch.int32).view(batch_size, max_block_num_prebatch).npu()
-#kv NZ
-k_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
-v_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
+    torch._dynamo.reset()
 
-actualSeqLengthqs = [q_seq] * batch_size  # [1, 1, 1, 1]
-actualSeqLengthkvs = [kv_seq_length] * batch_size  # [1024, 1024, 1024, 1024]
+    torch_npu.npu.set_device("npu:0")   # 按需改成你的卡号，例如 npu:7
+    torch_npu.npu.set_op_timeout_ms(1000)
 
-key_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
-value_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
+    # -----------------------------
+    # 编译配置
+    # -----------------------------
+    config = CompilerConfig()
+    config.debug.aclgraph.disable_reinplace_inplaceable_ops_pass = True
+    config.mode = "reduce-overhead"
+    config.experimental_config.aclgraph._aclnn_static_shape_kernel = True
+    config.experimental_config.aclgraph._super_kernel_optimize = True
+    # 如有需要可指定 build 目录
+    # config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "/your_path/aclgraph_sk/tmp"
 
-scaleValue = 1 / (head_dim**0.5)
-m_tensor = ~torch.tril(torch.ones(2048, 2048, dtype=torch.bool)).unsqueeze(0).unsqueeze(0).npu()
+    npu_backend = tng.get_npu_backend(compiler_config=config)
 
-# if q_tensor is not None:
-#     torch._dynamo.mark_static(q_tensor)
-# if k_tensor is not None:
-#     torch._dynamo.mark_static(k_tensor)
-# if v_tensor is not None:
-#     torch._dynamo.mark_static(v_tensor)
-# if m_tensor is not None:
-#     torch._dynamo.mark_static(m_tensor)
-# if blockTable is not None:
-#     torch._dynamo.mark_static(blockTable)
-# if key_antiquant_scale is not None:
-#     torch._dynamo.mark_static(key_antiquant_scale)
-# if value_antiquant_scale is not None:
-#     torch._dynamo.mark_static(value_antiquant_scale)
-# if actualSeqLengthqs is not None:
-#     torch._dynamo.mark_static(actualSeqLengthqs)
-# if actualSeqLengthkvs is not None:
-#     torch._dynamo.mark_static(actualSeqLengthkvs)
+    # -----------------------------
+    # 固定随机种子
+    # -----------------------------
+    seed = 1236
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
-param = dict(
-        query = q_tensor,
-        key = k_tensor,
-        value = v_tensor,
-        # atten_mask = mask_fa,
-        # actual_seq_qlen = actualSeqLengthqs,
-        actual_seq_kvlen = actualSeqLengthkvs,
-        input_layout = "BNSD",
-        softmax_scale = scaleValue,
-        block_size = block_size,
-        block_table = blockTable,
-        num_query_heads  = q_head_num,
-        num_key_value_heads = kv_head_num,
-        sparse_mode=0,
-        inner_precise=1,
-        dequant_scale_key = key_antiquant_scale,
-        dequant_scale_value = value_antiquant_scale, 
-        key_quant_mode = 0,
-        value_quant_mode = 0  
+    # -----------------------------
+    # 构造输入
+    # -----------------------------
+    batch_size = 18
+    q_head_num = 64
+    kv_head_num = 1
+    q_seq = 1
+    head_dim = 128
+    kv_seq_length = 8192
+    block_size = 128
+
+    # query: [B, N, S, D] -> BNSD
+    q_tensor = torch.randn(
+        batch_size, q_head_num, q_seq, head_dim,
+        dtype=torch.bfloat16
+    ).npu()
+
+    max_block_num_prebatch = kv_seq_length // block_size + 1
+    block_num = batch_size * max_block_num_prebatch
+
+    block_table = torch.arange(
+        batch_size * max_block_num_prebatch,
+        dtype=torch.int32
+    ).view(batch_size, max_block_num_prebatch).npu()
+
+    # key/value 为 NZ 格式布局对应的 shape
+    k_tensor = torch.randn(
+        block_num, kv_head_num, head_dim // 32, block_size, 32,
+        dtype=torch.int8
+    ).npu()
+
+    v_tensor = torch.randn(
+        block_num, kv_head_num, head_dim // 32, block_size, 32,
+        dtype=torch.int8
+    ).npu()
+
+    actual_seq_kvlen = [kv_seq_length] * batch_size
+
+    dequant_scale_key = torch.randn(
+        kv_head_num, 1, head_dim,
+        dtype=torch.bfloat16
+    ).npu()
+
+    dequant_scale_value = torch.randn(
+        kv_head_num, 1, head_dim,
+        dtype=torch.bfloat16
+    ).npu()
+
+    # -----------------------------
+    # 编译模型
+    # -----------------------------
+    print("----------------------- compile & run -----------------------------")
+
+    model = ModelOrigin().npu()
+    model = torch.compile(
+        model,
+        backend=npu_backend,
+        fullgraph=True,
+        dynamic=True   # 如果你的 shape 固定，也可以改成 False
     )
-    
-with tng.scope.super_kernel("sp2", ""):
-    output, softmaxlse = npu_mode(param)
-    print("res : []")
-    print(output)
 
+    # -----------------------------
+    # 执行
+    # -----------------------------
+    output, softmaxlse = model(
+        q_tensor,
+        k_tensor,
+        v_tensor,
+        actual_seq_kvlen,
+        block_table,
+        dequant_scale_key,
+        dequant_scale_value,
+    )
+
+    print("----------------------- result -----------------------------")
+    print("output:")
+    print(output)
+    print("softmaxlse:")
+    print(softmaxlse)

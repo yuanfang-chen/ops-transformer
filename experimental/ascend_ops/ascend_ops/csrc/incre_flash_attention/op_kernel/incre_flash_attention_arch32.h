@@ -14,15 +14,38 @@
  */
 #include "incre_flash_attention_preload_dd.h"
 
+template <class T>
+__inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __gm__ uint8_t *p_metadata, T *metadata)
+{
+    constexpr uint64_t all_bytes = sizeof(T);
+#if defined(ASCENDC_CPU_DEBUG) || defined(__DAV_C220_CUBE__) || defined(__DAV_C310_CUBE__) || defined(__DAV_310R6_CUBE__) || defined(__GET_CODE_CHANNEL__)
+    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t *)p_metadata, all_bytes);
+#else
+    __ubuf__ uint8_t *metadata_in_ub = (__ubuf__ uint8_t *)get_imm(0);
+    constexpr uint32_t len_burst = (all_bytes + 31) / 32;
+    copy_gm_to_ubuf(((__ubuf__ uint8_t *)metadata_in_ub), p_metadata, 0, 1,len_burst, 0, 0);
+    set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
+    copy_data_align64((uint8_t*)metadata, (__ubuf__ uint8_t *)metadata_in_ub, all_bytes);
+#endif
+
+}
+
 #define INVOKE_IFA_NO_KFC_DD_OP_IMPL(templateClass, ...)                                                               \
     do {                                                                                                               \
         templateClass<IFAType<__VA_ARGS__>> op;                                                                        \
-        const optiling::IncreFlashAttentionTilingData *__restrict tiling_data = &tiling;                                 \
+        const optiling::IncreFlashAttentionTilingData *__restrict tiling_data = &tiling;                               \
+        const IncreFlashAttentionMetaData *__restrict meta_data = nullptr;                                             \
+        IncreFlashAttentionMetaData metaDataTmp;                                                                       \
+        if (metaData != nullptr) {                                                                                     \
+            InitMetaData<IncreFlashAttentionMetaData>(metaData, &metaDataTmp);                                         \
+            meta_data = &metaDataTmp;                                                                                  \
+        }                                                                                                              \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable, kvPaddingSize,\
-                attentionOut, softmaxLse, user, tiling_data, &tPipe);                                          \
+                meta_data, attentionOut, softmaxLse, user, tiling_data, &tPipe);                                       \
         op.InitQuant(deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,    \
-                     keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, user);          \
-        op.Process();                                                                                                  \            
+                     keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, user);          \ 
+        op.Process();                                                                                                  \
     } while (0)
 
 
@@ -37,10 +60,11 @@ __global__ __mix__(1, 2) void incre_flash_attention(
     __gm__ uint8_t *keyAntiquantOffset, __gm__ uint8_t *valueAntiquantScale, __gm__ uint8_t *valueAntiquantOffset,
     __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen,
     __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *keyRopeAntiquantScale,
-    __gm__ uint8_t *dequantScaleQuery, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
+    __gm__ uint8_t *dequantScaleQuery, __gm__ uint8_t *metaData, 
+    __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *workspace, optiling::IncreFlashAttentionTilingData tiling)
 {
-    printf("WW FA ENTRY SUCCESSFUL!!!\n");
+    printf("WWw FA ENTRY SUCCESSFUL!!!\n");
     TPipe tPipe;
     __gm__ uint8_t *user = workspace; 
 

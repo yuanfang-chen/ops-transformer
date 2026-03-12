@@ -17,7 +17,6 @@
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_TILINGDATA_H_
 
 #include <cstdint>
-// #include "kernel_tiling/kernel_tiling.h"
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else
@@ -382,15 +381,12 @@ public:
 };
 
 class IncreFlashAttentionTilingData {
-public:
-    // TCubeTiling bmm1TilingData; 
-    // TCubeTiling bmm2TilingData;     
+public:    
     IncreFlashAttentionBaseParams baseParams; 
     IncreFlashAttentionSplitKVParams splitKVParams;             
     IncreFlashAttentionCoreParams increFlashAttentionCoreParams;                      
     IncreFlashAttentionSingleCoreParams increFlashAttentionSingleCoreParams;               
-    IncreFlashAttentionSingleCoreTensorSize increFlashAttentionSingleCoreTensorSize;          
-    // SoftMaxTiling softmaxFlashTilingData;       
+    IncreFlashAttentionSingleCoreTensorSize increFlashAttentionSingleCoreTensorSize;               
     IncreFlashAttentionInitOutputParams outputParams;                                    
 };
 
@@ -439,44 +435,8 @@ public:
 
 class IncreFlashAttentionTilingDataV2 {
 public:
-    // IncreFlashAttentionTilingData tilingBase1;
-    IncreFlashAttentionTilingData tilingBase; 
-    // IncreFlashAttentionTilingDataPrefix tilingPrefix;                                      
+    IncreFlashAttentionTilingData tilingBase;                                      
 };
-
-// class vv {
-// public:
-//     // TCubeTiling bmm1TilingData; 
-//     // TCubeTiling bmm2TilingData;     
-//     IncreFlashAttentionBaseParams baseParams; 
-//     IncreFlashAttentionSplitKVParams splitKVParams;             
-//     IncreFlashAttentionCoreParams increFlashAttentionCoreParams;                      
-//     IncreFlashAttentionSingleCoreParams increFlashAttentionSingleCoreParams;               
-//     IncreFlashAttentionSingleCoreTensorSize increFlashAttentionSingleCoreTensorSize;          
-//     // SoftMaxTiling softmaxFlashTilingData;       
-//     IncreFlashAttentionInitOutputParams outputParams;                                      
-// };
-
-// class cc {
-// public:
-//     uint64_t prefixAttenOutOffset;     
-//     uint64_t userPromptAttenOutOffset; 
-//     uint64_t tmpLseOffset;             
-//     uint64_t prefixLen;                      
-//     uint32_t formerCoreNum;               
-//     uint32_t blockSplitBn2Range;          
-//     uint32_t tailSplitedBatchRange;       
-//     uint32_t usedCoreNum;                  
-//     uint32_t batchSizeQ;
-//     // vv v;                      
-// };
-// class aaa {
-// public:
-//     // cc c;
-//     vv v;                                 
-    
-//     // int64_t a[300];
-// };
 
 class IncreFlashAttentionTilingAtbDataV2 {
 public:

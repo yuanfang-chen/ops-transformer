@@ -18,19 +18,14 @@
 #include <queue>
 #include <map>
 #include <string>
-// #include "register/tilingdata_base.h"
-// #include "tiling/tiling_api.h"
-// #include "exe_graph/runtime/tiling_context.h"
-// #include "register/op_def_registry.h"
-// #include "incre_flash_attention_tiling_mla.h"
-// #include "incre_flash_attention_tiling_context.h"
 #include <ATen/Operators.h>
 #include "incre_flash_attention_tiling_base.h"
 #include "incre_flash_attention_tiling_struct.h"
+#include "incre_flash_attention_tiling_context.h"
 #include "../op_kernel/incre_flash_attention_tilingdata.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "tiling/tiling_api.h"
-// #include "../../common/op_host/fia_tiling_base.h"
+
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else
@@ -44,114 +39,6 @@ namespace custom {
 }
 
 namespace optiling {
-struct RequiredParaInfo {
-    void* data = nullptr;
-    at::IntArrayRef shape;
-    at::ScalarType dType = at::ScalarType::Float;
-
-    int64_t GetShapeSize() const {
-        if (shape.empty()) {
-            return 0;
-        }
-        int64_t n = 1;
-        for (auto d : shape) {
-            n *= d;
-        }
-        return n;
-    }
-};
-
-struct OptionalTensorParaInfo {
-    bool hasValue = false;                         // optional 是否有值
-    void* data = nullptr;                          // 无值时为 nullptr
-    at::IntArrayRef shape;                         // 无值时通常为空
-    at::ScalarType dType = at::ScalarType::Float; // 无值时保留默认类型
-
-    int64_t GetShapeSize() const {
-        if (!hasValue || shape.empty()) {
-            return 0;
-        }
-        int64_t n = 1;
-        for (auto d : shape) {
-            n *= d;
-        }
-        return n;
-    }
-};
-
-struct OptionalArrayParaInfo {
-    bool hasValue = false;
-    at::IntArrayRef data;
-    at::ScalarType dType = at::ScalarType::Long;
-
-    int64_t GetShapeSize() const {
-        return hasValue ? static_cast<int64_t>(data.size()) : 0;
-    }
-};
-
-struct IFAContext {
-    const char* opName = nullptr;
-    RequiredParaInfo query;
-    RequiredParaInfo key;
-    RequiredParaInfo value;
-    OptionalTensorParaInfo pseShift;
-    OptionalTensorParaInfo attenMask;
-    OptionalArrayParaInfo actualSeqLengthsQ;
-    OptionalArrayParaInfo actualSeqLengths;
-    OptionalTensorParaInfo deqScale1;
-    OptionalTensorParaInfo quantScale1;
-    OptionalTensorParaInfo deqScale2;
-    OptionalTensorParaInfo quantScale2;
-    OptionalTensorParaInfo quantOffset2;
-    OptionalTensorParaInfo antiquantScale;
-    OptionalTensorParaInfo antiquantOffset;
-    OptionalTensorParaInfo blockTable;
-    OptionalTensorParaInfo queryPaddingSize;
-    OptionalTensorParaInfo kvPaddingSize;
-    OptionalTensorParaInfo keyAntiquantScale;
-    OptionalTensorParaInfo keyAntiquantOffset;
-    OptionalTensorParaInfo valueAntiquantScale;
-    OptionalTensorParaInfo valueAntiquantOffset;
-    OptionalTensorParaInfo keySharedPrefix;
-    OptionalTensorParaInfo valueSharedPrefix;
-    OptionalArrayParaInfo actualSharedPrefixLen;
-    OptionalTensorParaInfo queryRope;
-    OptionalTensorParaInfo keyRope;
-    OptionalTensorParaInfo keyRopeAntiquantScale;
-    OptionalTensorParaInfo dequantScaleQuery;
-    OptionalTensorParaInfo qStartIdx;
-    OptionalTensorParaInfo kvStartIdx;
-
-    RequiredParaInfo attenOut;
-    RequiredParaInfo lseOut;
-
-    uint32_t numHeads;
-    int64_t preToken ;
-    int64_t nextToken;
-    float scaleValue;
-    uint32_t kvHeadNums;
-    const char* layOut;
-    uint32_t blockSize;
-    uint32_t innerPrecise;
-    int64_t antiquantMode;
-    bool softmaxLseFlag;
-    int64_t keyAntiquantMode;
-    int64_t valueAntiquantMode;
-    uint32_t sparseMode;
-    int64_t queryQuantMode;
-    int64_t pseType;
-    int64_t windowSize;
-
-    size_t workSpaceSize = 0;
-    std::vector<at::IntArrayRef*> kCache = {nullptr};
-    std::vector<at::IntArrayRef*> vCache = {nullptr};
-    uint64_t tilingKey = 0;
-    uint32_t numBlocks = 0;
-    IncreFlashAttentionTilingDataV2 tilingData;
-    uint8_t fdFlag;
-    uint8_t layoutVal;
-    uint8_t antiquantMode_;
-};
 
 class IFATiling {
 struct ValidityConfigFD {
