@@ -3125,7 +3125,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_fixed_axis)
                                                     {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({64, 0, -1})},
+                                                    {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({256, 0, -1})},
                                                 }, &compileInfo);
     int64_t expectTilingKey = gmmTestUtils::GMMEncodeTilingKey(
         DT_INT8, // D_T_A
