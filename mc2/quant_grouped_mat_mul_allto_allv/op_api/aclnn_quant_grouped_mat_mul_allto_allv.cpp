@@ -50,7 +50,7 @@ enum class NnopbaseHcclServerType : uint32_t { // HCCL Server
 static constexpr int64_t DIM_TWO = 2;
 static constexpr int64_t DIM_THREE = 3;
 
-extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
+extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
@@ -62,7 +62,7 @@ extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
     int64_t groupSize, int64_t commQuantDtypeOptional, const aclTensor *yOut, const aclTensor *mmYOptional,
     uint64_t *workspaceSize, aclOpExecutor **executor);
 
-extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize,
+extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize,
                                                         aclOpExecutor *executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
@@ -397,7 +397,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
     char *strGroup = const_cast<char *>(group);
 
-    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
+    aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
         gmmXScaleOptional, gmmWeightScaleOptional, gmmXOffsetOptional, gmmWeightOffsetOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, commQuantScaleOptional, strGroup, epWorldSize,
@@ -414,7 +414,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
-    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllv(workspace, workspaceSize, executor, stream);
+    aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllv(workspace, workspaceSize, executor, stream);
     return ret;
 }
 } // namespace
