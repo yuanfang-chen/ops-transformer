@@ -1860,15 +1860,15 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
         uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
                     coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-        int32_t subMSizeAlign;
-        if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
-            IsSameType<INPUT_T, hifloat8_t>::value) {
-            subMSizeAlign = (runInfo.s1RealSize + 31) >> 5 << 5; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，32对齐
-        } else {
-            subMSizeAlign = (runInfo.s1RealSize + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，16对齐
-        }
         if constexpr(isInfer) {
             if (IsGS1Merge(constInfo)) {
+                int32_t subMSizeAlign;
+                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
+                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                    subMSizeAlign = (runInfo.s1RealSize + 31) >> 5 << 5; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，32对齐
+                } else {
+                    subMSizeAlign = (runInfo.s1RealSize + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，16对齐
+                }
                 FaL1Tensor<INPUT_T, L1Format::NZ> dstTensor = {
                     .tensor = mm1BTensor,
                     .rowCount = static_cast<uint32_t>(subMSizeAlign)
@@ -1883,12 +1883,12 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
                 };
                 copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
             } else {
-                if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	  
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {  
                     CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
-                        constInfo.mm1Ka);	 
-                } else { 
+                        constInfo.mm1Ka);
+                } else {
                     CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
-                    constInfo.mm1Ka); 
+                    constInfo.mm1Ka);
                 }
             }
         } else {

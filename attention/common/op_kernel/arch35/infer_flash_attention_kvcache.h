@@ -153,41 +153,28 @@ TEMPLATE_INTF
 __aicore__ inline void AdjustActualS1Size(RunParamStr<isInfer>& runParam,
     const ConstInfo<isInfer, hasRope>& constInfo)
 {
-    if (constInfo.isGqa) {
-        if (runParam.actualS1Size < 0) {
-            runParam.actualS1Size = 0;
-        }
-        return;
-    }
-    if constexpr (enableKVPrefix) {
-        runParam.actualS1Size = (runParam.actualS1Size >
-            runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch) ?
-            runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
-            runParam.actualS1Size;
-    } else {
-        if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
-            layout != LayOutTypeEnum::LAYOUT_BNSD) {
+    if (!constInfo.isGqa) {
+        if constexpr (enableKVPrefix) {
             runParam.actualS1Size = (runParam.actualS1Size >
-                runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch) ?
-                runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch :
-                runParam.actualS1Size;
-        } else if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
-            runParam.actualS1Size = (runParam.actualS1Size >
-                (runParam.actualS2Size + runParam.preTokensPerBatch) * constInfo.gSize) ?
-                (runParam.actualS2Size + runParam.preTokensPerBatch) * constInfo.gSize :
+                runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch) ?
+                runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
                 runParam.actualS1Size;
         } else {
-            runParam.actualS1Size = (runParam.actualS1Size >
-                runParam.actualS2Size + runParam.preTokensPerBatch) ?
-                runParam.actualS2Size + runParam.preTokensPerBatch :
-                runParam.actualS1Size;
-        }
-
-        // 计算S1的尾块大小，非对齐
-        if (runParam.nextTokensPerBatch < 0) {
-            if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
-                runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch * constInfo.gSize;
+            if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
+                layout != LayOutTypeEnum::LAYOUT_BNSD) {
+                runParam.actualS1Size = (runParam.actualS1Size >
+                    runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch) ?
+                    runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch :
+                    runParam.actualS1Size;
             } else {
+                runParam.actualS1Size = (runParam.actualS1Size >
+                    runParam.actualS2Size + runParam.preTokensPerBatch) ?
+                    runParam.actualS2Size + runParam.preTokensPerBatch :
+                    runParam.actualS1Size;
+            }
+
+            // 计算S1的尾块大小，非对齐
+            if (runParam.nextTokensPerBatch < 0) {
                 runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch;
             }
         }
