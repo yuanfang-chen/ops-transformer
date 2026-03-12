@@ -29,7 +29,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * dropMaskUb, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t nPadding, 
     uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16, const float dScale, 
     const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, const float deSCaleKValue = 1.0f)
+    const T minValue, const float deSCaleKValue = 1.0f, const uint32_t sinkValue = 0)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel;
@@ -44,6 +44,8 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     RegTensor<float> vreg_zero;
     RegTensor<float> vreg_rowmax_p;
     RegTensor<float> vreg_scale_qk;
+    RegTensor<float> vreg_sink_input;
+    RegTensor<float> vreg_sink_exp;
     // bfloat16_t
     RegTensor<bfloat16_t> vreg_exp_even_bf16;
     RegTensor<bfloat16_t> vreg_exp_bf16;
@@ -249,7 +251,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f)
+    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const uint32_t sinkValue = 0)
 {
     __ubuf__ T2 * expUb = (__ubuf__ T2*)dstTensor.GetPhyAddr();
     __ubuf__ pseShiftType * pseUb = (__ubuf__ pseShiftType*)pseTensor.GetPhyAddr();
@@ -278,7 +280,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
 
     ProcessVec1NoUpdateImpl64VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant>(
         expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, dropMaskUb, blockStride, repeatStride, 
-        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue);
+        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue, sinkValue);
 }
 } // namespace
 
