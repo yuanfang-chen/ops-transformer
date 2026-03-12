@@ -161,10 +161,15 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_
 {
     if ASCEND_IS_AIC {
         this->oriKvGm.gmTensor.SetGlobalBuffer((__gm__ KV_T *)oriKv);
-        this->oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
-        if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE) {
+        if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+            this->oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
+        }
+        if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE && \
+            TEMPLATE_MODE != SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
             this->cmpKvGm.gmTensor.SetGlobalBuffer((__gm__ KV_T *)cmpKv);
-            this->cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
+            if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+                this->cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
+            }
         }
         if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
             this->cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
@@ -423,7 +428,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1CFA(
         shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
         GmCopyInToL1PA<KV_T>(inputRightTensor, curKvGm.gmTensor, blockTableGm, KVLAYOUT::BBH, shape, startPos);
     } else {
-        int64_t keyOffset = this->keyGm.offsetCalculator.GetOffset(
+        int64_t keyOffset = this->curKvGm.offsetCalculator.GetOffset(
             coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
         CopyToL1Nd2Nz<KV_T>(inputRightTensor, curKvGm.gmTensor[keyOffset], runInfo.s2RealSize,
                             constInfo.dSize, constInfo.mm1Kb);
@@ -600,7 +605,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1SCFA(
                 shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
                 GmCopyInToL1PA<KV_T>(inputRightTensor, curKvGm.gmTensor, blockTableGm, KVLAYOUT::BBH, shape, startPos);
             } else {
-                int64_t keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                int64_t keyOffset = this->curKvGm.offsetCalculator.GetOffset(
                     coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
                 CopyToL1Nd2Nz<KV_T>(inputRightTensor, curKvGm.gmTensor[keyOffset], runInfo.s2RealSize,
                                     constInfo.dSize, constInfo.mm1Kb);

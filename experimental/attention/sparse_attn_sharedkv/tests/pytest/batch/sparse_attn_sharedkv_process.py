@@ -41,7 +41,7 @@ def call_npu(input_data):
     # tensor解析
     q = tensor_input['q'].npu()
     ori_kv = tensor_input['ori_kv'].npu()
-    ori_block_table = tensor_input['ori_block_table'].npu()
+    ori_block_table = tensor_input['ori_block_table'].npu() if tensor_input['ori_block_table'] is not None else None
     if 'cu_seqlens_q' in tensor_input and tensor_input['cu_seqlens_q'] is not None:
         cu_seqlens_q = tensor_input['cu_seqlens_q']
     else:
@@ -54,7 +54,7 @@ def call_npu(input_data):
     else:
         seqused_q = torch.tensor([])
     seqused_q = seqused_q.npu()
-    seqused_kv = tensor_input['seqused_kv'].npu()
+    seqused_kv = tensor_input['seqused_kv'].npu() if tensor_input['seqused_kv'] is not None else None
     sinks = tensor_input['sinks'].npu()
     softmax_scale = tensor_input['softmax_scale']
     ori_mask_mode = tensor_input['ori_mask_mode']
@@ -63,7 +63,7 @@ def call_npu(input_data):
     ori_win_right = tensor_input['ori_win_right']
     layout_q = tensor_input['layout_q'] if type(tensor_input['layout_q']) == type('TND') else tensor_input['layout_q'][0]
     layout_kv = tensor_input['layout_kv']
-    ori_k_in_pa_shape = tensor_input['ori_kv'].npu()
+    ori_k_in_pa_shape = tensor_input['ori_kv'].npu() if tensor_input['ori_kv'] is not None else None
     cmp_k_in_pa_shape = tensor_input['cmp_kv'].npu() if tensor_input['cmp_kv'] is not None else None
     max_seqlen_q = metadata_input['max_seqlen_q']
     ori_max_s2 = metadata_input['max_seqlen_kv']
@@ -95,9 +95,7 @@ def call_npu(input_data):
 
     q = q.npu()
     ori_k_in_pa_shape = ori_k_in_pa_shape.npu()
-    ori_block_table = ori_block_table.npu()
     cu_seqlens_q = cu_seqlens_q.npu()
-    seqused_kv = seqused_kv.npu()
     sinks = sinks.npu()
 
     if template_idx == 0:

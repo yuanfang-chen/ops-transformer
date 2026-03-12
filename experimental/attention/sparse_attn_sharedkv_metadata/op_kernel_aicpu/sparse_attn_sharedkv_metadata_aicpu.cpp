@@ -153,14 +153,14 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
     }
     // layout_kv TND Tensor 存在性校验
     if (layoutKv_ == "TND") {
-        if (isInvalid(actSeqLenOriKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
-            return false;
-        }
-        if (isValid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
-            return false;
-        }
+        // if (isInvalid(actSeqLenOriKv_)) {
+        //     KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
+        //     return false;
+        // }
+        // if (isValid(seqUsedKv_)) {
+        //     KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
+        //     return false;
+        // }
     }
     // layoutKv_ "PA_ND" 存在性校验
     if (layoutKv_ == "PA_ND") {

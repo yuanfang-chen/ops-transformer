@@ -155,6 +155,8 @@ __aicore__ inline void SparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init
         }
     }
     this->ComputeConstexpr();
+    this->sharedParams.isActualSeqLengthsKVNull = (sequsedKv == nullptr);
+    this->constInfo.isActualLenDimsKVNull = (sequsedKv == nullptr);
     this->InitGlobalBuffer(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable,
         cuSeqlensQ, sequsedQ, sequsedKv, oriTopkLength, sinks, workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
