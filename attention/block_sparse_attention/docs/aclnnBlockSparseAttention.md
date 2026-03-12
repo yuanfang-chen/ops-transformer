@@ -135,7 +135,8 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>value</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的value。</td>
-      <td>支持的shape为：
+      <td>
+        支持的shape为：
         <ul>
           <li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li>
           <li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li>
@@ -150,7 +151,8 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>blockSparseMaskOptional</td>
       <td>输入</td>
       <td>Device侧的aclTensor，表示实际的稀疏pattern。</td>
-      <td>可选输入（当前版本为必选）
+      <td>
+        可选输入（当前版本为必选）
         <ul>
           <li>shape为[batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]。</li>
           <li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）。</li>
@@ -196,11 +198,12 @@ aclnnStatus aclnnBlockSparseAttention(
     </tr>
       <td>actualSeqLengthsOptional</td>
       <td>输入</td>
-      <td>描述每个Batch对应的query序列长度。</td>
+      <td>Host侧的aclIntArray，描述每个Batch对应的query序列长度。</td>
       <td>
+        可选输入，用于变长序列场景：
         <ul>
-          <li>如不使用可传nullptr。</li>
-          <li>用于变长序列场景。</li>
+          <li>当qInputLayout为"TND"时：该项输入必须配置。</li>
+          <li>当qInputLayout为"BNSD"时：如配置该项输入，算子内会按该输入指定的实际序列长度进行处理；如不配置该项输入(传入nullptr)，算子内会按照query的shape中的S进行处理。</li>
         </ul>
       </td>
       <td>INT64</td>
@@ -211,11 +214,12 @@ aclnnStatus aclnnBlockSparseAttention(
     <tr>
       <td>actualSeqLengthsKvOptional</td>
       <td>输入</td>
-      <td>描述每个Batch对应的key/value序列长度。</td>
+      <td>Host侧的aclIntArray，描述每个Batch对应的key/value序列长度。</td>
       <td>
+        可选输入，用于变长序列场景：
         <ul>
-          <li>如不使用可传nullptr。</li>
-          <li>用于变长序列场景。</li>
+          <li>当kvInputLayout为"TND"时：该项输入必须配置。</li>
+          <li>当kvInputLayout为"BNSD"时：如配置该项输入，算子内会按该输入指定的实际序列长度进行处理；如不配置该项输入(传入nullptr)，算子内会按照key/value的shape中的S进行处理。</li>
         </ul>
       </td>
       <td>INT64</td>
