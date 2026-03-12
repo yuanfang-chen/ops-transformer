@@ -194,7 +194,7 @@ at::Tensor npu_prompt_flash_attention(
     int deviceId;
     aclrtGetDevice(&deviceId);
     auto npuStream = c10_npu::getCurrentNPUStream(deviceId);
-    auto aclStream = npuStream.stream(true);
+    auto aclStream = npuStream.stream();
     
     // Execute the kernel
     ret = aclnnPromptFlashAttentionV4(workspace_addr, workspace_size, executor, aclStream);
