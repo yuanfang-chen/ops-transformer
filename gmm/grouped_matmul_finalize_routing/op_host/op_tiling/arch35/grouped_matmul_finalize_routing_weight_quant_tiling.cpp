@@ -83,6 +83,7 @@ ge::graphStatus GMMFRWeightQuantTiling::DoOpTiling()
     tilingData_.sharedInputOffset = inputParams_.shareInputOffset;
     tilingData_.sharedInputLen = inputParams_.sharedInputLen;
     tilingData_.sharedInputWeight = inputParams_.sharedInputWeight;
+    tilingData_.groupSize = MX_BLOCK_SIZE;
 
     tilingData_.kSize = inputParams_.kSize;
     tilingData_.nSize = inputParams_.nSize;

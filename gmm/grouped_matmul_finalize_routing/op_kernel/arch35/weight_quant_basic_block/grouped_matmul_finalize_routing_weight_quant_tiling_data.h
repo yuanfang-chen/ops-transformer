@@ -34,7 +34,7 @@ struct GMMFinalizeRoutingWeightQuantTilingData {\
     uint32_t sharedInputOffset = 0;
     uint32_t sharedInputLen = 0;
     float sharedInputWeight = 0;
-    uint32_t reserve2 = 0;
+    uint32_t groupSize = 0;
 
     uint64_t kSize = 0;
     uint64_t nSize = 0;
