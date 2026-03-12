@@ -26,7 +26,8 @@ using namespace AscendC;
 enum class SASTemplateMode {
     SWA_TEMPLATE_MODE = 0,
     CFA_TEMPLATE_MODE = 1,
-    SCFA_TEMPLATE_MODE = 2
+    SCFA_TEMPLATE_MODE = 2,
+    ORI_SCFA_TEMPLATE_MODE = 3
 };
 
 enum class SAS_LAYOUT {

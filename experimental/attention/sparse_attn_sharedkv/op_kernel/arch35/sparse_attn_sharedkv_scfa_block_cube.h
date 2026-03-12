@@ -68,9 +68,10 @@ public:
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers, 
         Buffer<BufferType::L1, SyncType::INNER_CORE_SYNC> &inputRightBuf, const RunInfo &runInfo,
         const ConstInfo &constInfo);
-    // SCFA场景, inputRightBuf是CROSS_CORE_SYNC_BOTH类型
+    // SCFA场景, inputRightBuf是CROSS_CORE_SYNC_FORWARD类型
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
+        Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm,
         const RunInfo &runInfo, const ConstInfo &constInfo);
     __aicore__ inline void IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers, 
@@ -98,6 +99,7 @@ private:
 
     __aicore__ inline void IterateBmm1SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
+        Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm,
         const RunInfo &runInfo, const ConstInfo &constInfo);
     __aicore__ inline void IterateBmm2SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
@@ -166,18 +168,20 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_
         }
         if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
             this->cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
-            mte1ToMte2Id[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
-            mte1ToMte2Id[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
-            mte1ToMte2Id[2] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
-            mte2ToMte1Id[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
-            mte2ToMte1Id[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
-            mte2ToMte1Id[2] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
-            SetFlag<HardEvent::MTE1_MTE2>(mte1ToMte2Id[0]);
-            SetFlag<HardEvent::MTE1_MTE2>(mte1ToMte2Id[1]);
-            SetFlag<HardEvent::MTE1_MTE2>(mte1ToMte2Id[2]);
-            SetFlag<HardEvent::MTE2_MTE1>(mte2ToMte1Id[0]);
-            SetFlag<HardEvent::MTE2_MTE1>(mte2ToMte1Id[1]);
-            SetFlag<HardEvent::MTE2_MTE1>(mte2ToMte1Id[2]);
+        }
+        if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE || \
+            TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE || IS_SPLIT_G) {
+            mte1ToMte2Id[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
+            mte1ToMte2Id[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
+            mte1ToMte2Id[2] = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
+            mte2ToMte1Id[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
+            mte2ToMte1Id[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
+            mte2ToMte1Id[2] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
+        }
+        if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
+            SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[0]);
+            SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[1]);
+            SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[2]);
         }
         InitGmTensor(cuSeqlensQ, constInfo);
     }
@@ -303,20 +307,20 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &to
     int64_t topkBS1Idx = 0;
     if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
         uint64_t actualSeqQPrefixSum = cuSeqlensQGm.GetValue(runInfo.boIdx);
-        topkBS1Idx += (actualSeqQPrefixSum + runInfo.s1oIdx) * constInfo.sparseBlockCount; // T, N2(1), K
+        topkBS1Idx += (actualSeqQPrefixSum + runInfo.s1oIdx) * constInfo.cmpSparseBlockCount; // T, N2(1), K
     } else {
-        topkBS1Idx += runInfo.boIdx * constInfo.s1Size * constInfo.sparseBlockCount +
-            runInfo.s1oIdx * constInfo.sparseBlockCount; // B, S1, N2(1), K
+        topkBS1Idx += runInfo.boIdx * constInfo.s1Size * constInfo.cmpSparseBlockCount +
+            runInfo.s1oIdx * constInfo.cmpSparseBlockCount; // B, S1, N2(1), K
     }
     int64_t cmpS2LoopCnt = runInfo.s2LoopCount - runInfo.oriKvLoopEndIdx;
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
-    if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
+    if (unlikely(topkKIdx >= constInfo.cmpSparseBlockCount)) {
         token0Idx = -1;
     } else {
         token0Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
     topkKIdx += 1;
-    if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
+    if (unlikely(topkKIdx >= constInfo.cmpSparseBlockCount)) {
         token1Idx = -1;
     } else {
         token1Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
@@ -327,7 +331,7 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline uint32_t SCFABlockCube<TEMPLATE_ARGS>::CopyInKvSparse(LocalTensor<Q_T> inputRightTensor, int64_t startRow,
     int64_t token0Idx, int64_t token1Idx, const RunInfo &runInfo, const ConstInfo &constInfo)
 {
-    if constexpr (isPa) {
+    if constexpr (IS_PA) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -403,7 +407,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1CFA(
     // 加载当前轮的右矩阵到L1
     inputRightBuf.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<KV_T> inputRightTensor = inputRightBuf.GetTensor<KV_T>();
-    if constexpr (isPa) {
+    if constexpr (IS_PA) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -515,13 +519,14 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm2CFA(Buffer<Buffe
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, const RunInfo &runInfo,
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
+    Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm, const RunInfo &runInfo,
     const ConstInfo &constInfo)
 {
     CalcS1Coord(runInfo, constInfo);
     CalcS2Coord(runInfo, constInfo);
 
-    IterateBmm1SCFA(outputBuf, inputRightBuf, runInfo, constInfo);
+    IterateBmm1SCFA(outputBuf, inputRightBuf, v0ResGm, runInfo, constInfo);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -536,7 +541,8 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm2(Buffer<BufferTy
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1SCFA(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, const RunInfo &runInfo,
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
+    Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm, const RunInfo &runInfo,
     const ConstInfo &constInfo)
 {
     Buffer<BufferType::L1> inputLeftBuf;
@@ -561,36 +567,49 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1SCFA(
     }
 
     // 加载当前轮的右矩阵到L1
-    if (runInfo.s2LoopCount < runInfo.oriKvLoopEndIdx) { // orikv阶段不需要取topk, 核内同步
-        WaitFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
-        LocalTensor<KV_T> inputRightTensor = inputRightBuf.GetTensor<KV_T>();
-        if constexpr (isPa) {
-            Position startPos;
-            startPos.bIdx = runInfo.boIdx;
-            startPos.n2Idx = runInfo.n2oIdx;
-            startPos.s2Offset = coordInfo[runInfo.taskIdMod3].s2Coord;
-            startPos.dIdx = 0;
-            PAShape shape;
-            shape.blockSize = kvCacheBlockSize;
-            shape.headNum = constInfo.n2Size;
-            shape.headDim = constInfo.dSize;
-            shape.actHeadDim = constInfo.dSize;
-            shape.maxblockNumPerBatch = maxBlockNumPerBatch;
-            shape.copyRowNum = runInfo.s2RealSize;
-            shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
-            GmCopyInToL1PA<KV_T>(inputRightTensor, curKvGm.gmTensor, blockTableGm, KVLAYOUT::BBH, shape, startPos);
-        } else {
-            int64_t keyOffset = this->keyGm.offsetCalculator.GetOffset(
-                coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
-            CopyToL1Nd2Nz<KV_T>(inputRightTensor, curKvGm.gmTensor[keyOffset], runInfo.s2RealSize,
-                                constInfo.dSize, constInfo.mm1Kb);
+    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
+        inputRightBuf.WaitCrossCore();
+        if constexpr (IS_SPLIT_G) {
+            SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
+            WaitFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
+            LocalTensor<Q_T> dst = inputRightBuf.GetTensor<Q_T>();
+            v0ResGm.WaitCrossCore();
+            GlobalTensor<Q_T> v0ResGmTensor = v0ResGm.template GetTensor<Q_T>();
+            CopyToL1Nd2Nz<Q_T>(dst, v0ResGmTensor, runInfo.s2RealSize, constInfo.dSize, constInfo.mm1Kb);
+            SetFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
+            WaitFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
+            v0ResGm.SetCrossCore();
         }
-        SetFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
-        WaitFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
     } else {
-        SetFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
-        WaitFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
-        inputRightBuf.WaitCrossCore(); // 核间同步，这里需要根据V0操作处理同步，确保取tensor时，数据已经准备好
+        if (runInfo.s2LoopCount < runInfo.oriKvLoopEndIdx) { // orikv阶段不需要取topk, 核内同步
+            WaitFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
+            LocalTensor<KV_T> inputRightTensor = inputRightBuf.GetTensor<KV_T>();
+            if constexpr (IS_PA) {
+                Position startPos;
+                startPos.bIdx = runInfo.boIdx;
+                startPos.n2Idx = runInfo.n2oIdx;
+                startPos.s2Offset = coordInfo[runInfo.taskIdMod3].s2Coord;
+                startPos.dIdx = 0;
+                PAShape shape;
+                shape.blockSize = kvCacheBlockSize;
+                shape.headNum = constInfo.n2Size;
+                shape.headDim = constInfo.dSize;
+                shape.actHeadDim = constInfo.dSize;
+                shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+                shape.copyRowNum = runInfo.s2RealSize;
+                shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
+                GmCopyInToL1PA<KV_T>(inputRightTensor, curKvGm.gmTensor, blockTableGm, KVLAYOUT::BBH, shape, startPos);
+            } else {
+                int64_t keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                    coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                CopyToL1Nd2Nz<KV_T>(inputRightTensor, curKvGm.gmTensor[keyOffset], runInfo.s2RealSize,
+                                    constInfo.dSize, constInfo.mm1Kb);
+            }
+            SetFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
+            WaitFlag<HardEvent::MTE2_MTE1>(mte1ToMte2Id[runInfo.taskIdMod3]);
+        } else {
+            inputRightBuf.WaitCrossCore(); // 核间同步，这里需要根据V0操作处理同步，确保取tensor时，数据已经准备好
+        }
     }
 
     inputLeftBuf.Wait<HardEvent::MTE2_MTE1>(); // 等待L1A
@@ -657,10 +676,14 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm2SCFA(Buffer<Buff
 
     inputLeftBuf.SetCrossCore();
     // bmm2才释放KV，在这里释放
-    if (runInfo.s2LoopCount < runInfo.oriKvLoopEndIdx) { // orikv阶段不需要取topk, 核内同步
-        SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
-    } else {
+    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
         inputRightBuf.SetCrossCore();
+    } else {
+        if (runInfo.s2LoopCount < runInfo.oriKvLoopEndIdx) { // orikv阶段不需要取topk, 核内同步
+            SetFlag<HardEvent::MTE1_MTE2>(mte2ToMte1Id[runInfo.taskIdMod3]);
+        } else {
+            inputRightBuf.SetCrossCore();
+        }
     }
 
     mm2ResL0C.Set<HardEvent::M_FIX>();  // 通知

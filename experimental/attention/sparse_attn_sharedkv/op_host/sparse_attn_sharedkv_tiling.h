@@ -58,7 +58,8 @@ enum class SASAxis : uint32_t {
 enum class SASTemplateMode : uint32_t {
     SWA_TEMPLATE_MODE = 0,
     CFA_TEMPLATE_MODE = 1,
-    SCFA_TEMPLATE_MODE = 2
+    SCFA_TEMPLATE_MODE = 2,
+    ORI_SCFA_TEMPLATE_MODE = 3
 };
 
 enum class KvStorageMode : uint32_t {
@@ -136,6 +137,7 @@ TILING_DATA_FIELD_DEF(int64_t, paBlockSize)
 TILING_DATA_FIELD_DEF(int64_t, oriBlockSize)
 TILING_DATA_FIELD_DEF(int64_t, cmpBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
+TILING_DATA_FIELD_DEF(uint32_t, oriSparseBlockCount)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
 TILING_DATA_FIELD_DEF(uint32_t, actualLenDimsQ)
 TILING_DATA_FIELD_DEF(uint32_t, actualLenDimsKV)
@@ -160,7 +162,7 @@ REGISTER_TILING_DATA_CLASS(SparseAttnSharedkvSwaParamsOp, SparseAttnSharedkvSwaP
 BEGIN_TILING_DATA_DEF(SparseAttnSharedkvCmpParams)
 
 TILING_DATA_FIELD_DEF(uint32_t, cmpMaxBlockNumPerBatch)
-TILING_DATA_FIELD_DEF(uint32_t, sparseBlockCount)
+TILING_DATA_FIELD_DEF(uint32_t, cmpSparseBlockCount)
 TILING_DATA_FIELD_DEF(int64_t, cmpRatio)
 TILING_DATA_FIELD_DEF(uint64_t, cmpMaskMode)
 END_TILING_DATA_DEF
@@ -186,6 +188,8 @@ struct SASParaInfo {
     SASTilingOptionalParaInfo cuSeqLensCmpKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo seqUsedQ = {nullptr, nullptr};
     SASTilingOptionalParaInfo sequsedKv = {nullptr, nullptr};
+    SASTilingOptionalParaInfo oriTopkLength = {nullptr, nullptr};
+    SASTilingOptionalParaInfo cmpTopkLength = {nullptr, nullptr};
     SASTilingOptionalParaInfo sinks = {nullptr, nullptr};
     SASTilingOptionalParaInfo metadata = {nullptr, nullptr};
     SASTilingRequiredParaInfo attnOut = {nullptr, nullptr};
@@ -237,7 +241,8 @@ public:
     int64_t oriWinLeft = 0;
     int64_t oriWinRight = 0;
     int64_t sparseBlockSize = 0;
-    int64_t sparseBlockCount = 0;
+    int64_t oriSparseBlockCount = 0;
+    int64_t cmpSparseBlockCount = 0;
     // Mask
     int32_t sparseMode = 0;
     // Others Flag
@@ -365,7 +370,8 @@ private:
     uint32_t kvTSize_ = 0; // 仅TND时生效
     int64_t cmpRatio_ = 1;
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
-    uint32_t sparseBlockCount_ = 0;
+    uint32_t oriSparseBlockCount_ = 0;
+    uint32_t cmpSparseBlockCount_ = 0;
     int64_t oriWinLeft_ = 0;
     int64_t oriWinRight_ = 0;
     SASLayout qLayout_ = SASLayout::TND;
@@ -469,7 +475,8 @@ public:
     uint32_t oriKvHeadDim_ = 0;
     uint32_t cmpKvHeadDim_ = 0;
     int64_t sparseBlockSize_ = 0;
-    int64_t sparseBlockCount_ = 0;
+    int64_t oriSparseBlockCount_ = 0;
+    int64_t cmpSparseBlockCount_ = 0;
     int64_t oriWinLeft_ = 0;
     int64_t oriWinRight_ = 0;
     uint32_t maxActualseq_ = 0;
