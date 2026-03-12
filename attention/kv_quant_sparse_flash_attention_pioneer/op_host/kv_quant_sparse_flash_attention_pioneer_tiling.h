@@ -520,10 +520,10 @@ private:
     gert::Shape attenOutShapeCmp_{};
 };
 
-class QSFAInfoParser {
+class QSFAPInfoParser {
 public:
-    explicit QSFAInfoParser(const gert::TilingContext *context) : context_(context) {}
-    ~QSFAInfoParser() = default;
+    explicit QSFAPInfoParser(const gert::TilingContext *context) : context_(context) {}
+    ~QSFAPInfoParser() = default;
 
     ge::graphStatus CheckRequiredInOutExistence() const;
     ge::graphStatus CheckRequiredAttrExistence() const;

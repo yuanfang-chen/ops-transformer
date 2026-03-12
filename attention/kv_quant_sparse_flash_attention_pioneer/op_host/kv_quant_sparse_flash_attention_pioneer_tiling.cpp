@@ -465,7 +465,7 @@ ge::graphStatus QSFAPMlaTiling::DoOpTiling(QSFATilingInfo *sfaaInfo)
 ge::graphStatus TilingKvQuantSparseFlashAttentionPioneer(gert::TilingContext *context)
 {
     QSFATilingInfo sfaaInfo;
-    QSFAInfoParser sfaaInfoParser(context);
+    QSFAPInfoParser sfaaInfoParser(context);
     if (sfaaInfoParser.Parse(sfaaInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -1292,7 +1292,7 @@ ge::graphStatus QSFAPTilingCheck::Process()
     return ge::GRAPH_SUCCESS;
 }
 
-bool QSFAInfoParser::HasAxis(const QSFAAxis &axis, const QSFALayout &layout, const gert::Shape &shape) const
+bool QSFAPInfoParser::HasAxis(const QSFAAxis &axis, const QSFALayout &layout, const gert::Shape &shape) const
 {
     const auto& layoutIt = QSFA_LAYOUT_AXIS_MAP.find(layout);
     if (layoutIt == QSFA_LAYOUT_AXIS_MAP.end()) {
@@ -1312,19 +1312,19 @@ bool QSFAInfoParser::HasAxis(const QSFAAxis &axis, const QSFALayout &layout, con
     return true;
 }
 
-size_t QSFAInfoParser::GetAxisIdx(const QSFAAxis &axis, const QSFALayout &layout) const
+size_t QSFAPInfoParser::GetAxisIdx(const QSFAAxis &axis, const QSFALayout &layout) const
 {
     const std::vector<QSFAAxis>& axes = QSFA_LAYOUT_AXIS_MAP.find(layout)->second;
     const auto& axisIt = std::find(axes.begin(), axes.end(), axis);
     return std::distance(axes.begin(), axisIt);
 }
 
-uint32_t QSFAInfoParser::GetAxisNum(const gert::Shape &shape, const QSFAAxis &axis, const QSFALayout &layout) const
+uint32_t QSFAPInfoParser::GetAxisNum(const gert::Shape &shape, const QSFAAxis &axis, const QSFALayout &layout) const
 {
     return HasAxis(axis, layout, shape) ? shape.GetDim(GetAxisIdx(axis, layout)) : invalidDimValue_;
 }
 
-ge::graphStatus QSFAInfoParser::CheckRequiredInOutExistence() const
+ge::graphStatus QSFAPInfoParser::CheckRequiredInOutExistence() const
 {
     OP_CHECK_IF(opParamInfo_.query.shape == nullptr, OP_LOGE(opName_, "Shape of tensor query is nullptr"),
         return ge::GRAPH_FAILED);
@@ -1352,7 +1352,7 @@ ge::graphStatus QSFAInfoParser::CheckRequiredInOutExistence() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::CheckRequiredAttrExistence() const
+ge::graphStatus QSFAPInfoParser::CheckRequiredAttrExistence() const
 {
     OP_CHECK_IF(opParamInfo_.layoutQuery == nullptr, OP_LOGE(opName_, "attr layoutQuery is nullptr"),
                return ge::GRAPH_FAILED);
@@ -1367,7 +1367,7 @@ ge::graphStatus QSFAInfoParser::CheckRequiredAttrExistence() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::CheckRequiredParaExistence() const
+ge::graphStatus QSFAPInfoParser::CheckRequiredParaExistence() const
 {
     if (CheckRequiredInOutExistence() != ge::GRAPH_SUCCESS ||
         CheckRequiredAttrExistence() != ge::GRAPH_SUCCESS) {
@@ -1377,7 +1377,7 @@ ge::graphStatus QSFAInfoParser::CheckRequiredParaExistence() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
+ge::graphStatus QSFAPInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
     QSFALayout &layout, const std::string &name) const
 {
     if ((tensor == nullptr)) {
@@ -1395,12 +1395,12 @@ ge::graphStatus QSFAInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetActualSeqLenQSize(uint32_t &size)
+ge::graphStatus QSFAPInfoParser::GetActualSeqLenQSize(uint32_t &size)
 {
     return GetActualSeqLenSize(size, opParamInfo_.actualSeqLengthsQ.tensor, qLayout_, "actualSeqLengthsQ");
 }
 
-ge::graphStatus QSFAInfoParser::GetOpName()
+ge::graphStatus QSFAPInfoParser::GetOpName()
 {
     if (context_->GetNodeName() == nullptr) {
         OP_LOGE("KvQuantSparseFlashAttentionPioneer", "opName got from TilingContext is nullptr");
@@ -1410,7 +1410,7 @@ ge::graphStatus QSFAInfoParser::GetOpName()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetNpuInfo()
+ge::graphStatus QSFAPInfoParser::GetNpuInfo()
 {
     platformInfo_ = context_->GetPlatformInfo();
     OP_CHECK_IF(platformInfo_ == nullptr,
@@ -1434,7 +1434,7 @@ ge::graphStatus QSFAInfoParser::GetNpuInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFAInfoParser::GetOptionalInputParaInfo()
+void QSFAPInfoParser::GetOptionalInputParaInfo()
 {
     opParamInfo_.blockTable.tensor = context_->GetOptionalInputTensor(BLOCK_TABLE_INPUT_INDEX);
     opParamInfo_.actualSeqLengthsQ.tensor = context_->GetOptionalInputTensor(ACT_SEQ_LEN_Q_INPUT_INDEX);
@@ -1445,7 +1445,7 @@ void QSFAInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.valueDequantScale.tensor = context_->GetOptionalInputTensor(VALUE_DEQUANT_SCALE_INPUT_INDEX);
 }
 
-void QSFAInfoParser::GetInputParaInfo()
+void QSFAPInfoParser::GetInputParaInfo()
 {
     opParamInfo_.query.desc = context_->GetInputDesc(QUERY_INPUT_INDEX);
     opParamInfo_.query.shape = context_->GetInputShape(QUERY_INPUT_INDEX);
@@ -1458,13 +1458,13 @@ void QSFAInfoParser::GetInputParaInfo()
     GetOptionalInputParaInfo();
 }
 
-void QSFAInfoParser::GetOutputParaInfo()
+void QSFAPInfoParser::GetOutputParaInfo()
 {
     opParamInfo_.attenOut.desc = context_->GetOutputDesc(OUTPUT_INDEX);
     opParamInfo_.attenOut.shape = context_->GetOutputShape(OUTPUT_INDEX);
 }
 
-ge::graphStatus QSFAInfoParser::GetAttrParaInfo()
+ge::graphStatus QSFAPInfoParser::GetAttrParaInfo()
 {
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "attrs got from ge is nullptr"),
@@ -1487,7 +1487,7 @@ ge::graphStatus QSFAInfoParser::GetAttrParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetOpParaInfo()
+ge::graphStatus QSFAPInfoParser::GetOpParaInfo()
 {
     GetInputParaInfo();
     GetOutputParaInfo();
@@ -1497,7 +1497,7 @@ ge::graphStatus QSFAInfoParser::GetOpParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetInOutDataType()
+ge::graphStatus QSFAPInfoParser::GetInOutDataType()
 {
     inputQType_ = opParamInfo_.query.desc->GetDataType();
     inputKvType_ = opParamInfo_.key.desc->GetDataType();
@@ -1505,7 +1505,7 @@ ge::graphStatus QSFAInfoParser::GetInOutDataType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetBatchSize()
+ge::graphStatus QSFAPInfoParser::GetBatchSize()
 {
     // 获取B基准值
     // 1、非TND时, 以query的batch_size维度为基准;
@@ -1518,7 +1518,7 @@ ge::graphStatus QSFAInfoParser::GetBatchSize()
     }
 }
 
-ge::graphStatus QSFAInfoParser::GetQTSize()
+ge::graphStatus QSFAPInfoParser::GetQTSize()
 {
     // 获取query的T基准值
     // 1、非TND时, 以query的batch_size维度为基准;
@@ -1527,7 +1527,7 @@ ge::graphStatus QSFAInfoParser::GetQTSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetKVTSize()
+ge::graphStatus QSFAPInfoParser::GetKVTSize()
 {
     // 获取query的T基准值
     // 1、非TND时, 以key的batch_size维度为基准;
@@ -1536,7 +1536,7 @@ ge::graphStatus QSFAInfoParser::GetKVTSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetQHeadDim()
+ge::graphStatus QSFAPInfoParser::GetQHeadDim()
 {
     // 获取qHeadDim基准值
     // 以query的D维度为基准
@@ -1544,7 +1544,7 @@ ge::graphStatus QSFAInfoParser::GetQHeadDim()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetKHeadDim()
+ge::graphStatus QSFAPInfoParser::GetKHeadDim()
 {
     // 获取kHeadDim基准值
     // 以key的D维度为基准
@@ -1552,7 +1552,7 @@ ge::graphStatus QSFAInfoParser::GetKHeadDim()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetS1Size()
+ge::graphStatus QSFAPInfoParser::GetS1Size()
 {
     // 获取S1基准值
     // 1、非TND时, 以query的S维度为基准;
@@ -1566,7 +1566,7 @@ ge::graphStatus QSFAInfoParser::GetS1Size()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetKvStorageMode()
+ge::graphStatus QSFAPInfoParser::GetKvStorageMode()
 {
     if (kvLayout_ == QSFALayout::PA_BSND) {
         kvStorageMode_ = KvStorageMode::PAGE_ATTENTION;
@@ -1577,7 +1577,7 @@ ge::graphStatus QSFAInfoParser::GetKvStorageMode()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetKvLayout()
+ge::graphStatus QSFAPInfoParser::GetKvLayout()
 {
     const map<string, QSFALayout> layoutKVMap = {
         {"BSND",        QSFALayout::BSND},
@@ -1605,7 +1605,7 @@ ge::graphStatus QSFAInfoParser::GetKvLayout()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetS2SizeForBatchContinuous()
+ge::graphStatus QSFAPInfoParser::GetS2SizeForBatchContinuous()
 {
     if (kvLayout_ == QSFALayout::BSND) { // BSND
         s2Size_ = GetAxisNum(keyShape_, QSFAAxis::S, kvLayout_);
@@ -1615,7 +1615,7 @@ ge::graphStatus QSFAInfoParser::GetS2SizeForBatchContinuous()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetMaxBlockNumPerBatch()
+ge::graphStatus QSFAPInfoParser::GetMaxBlockNumPerBatch()
 {
     if (opParamInfo_.blockTable.tensor == nullptr) {
         OP_LOGE(opName_, "the layout_kv is %s, blockTable must be provided.",
@@ -1636,20 +1636,20 @@ ge::graphStatus QSFAInfoParser::GetMaxBlockNumPerBatch()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetBlockSize()
+ge::graphStatus QSFAPInfoParser::GetBlockSize()
 {
     blockSize_ = GetAxisNum(keyShape_, QSFAAxis::Bs, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetSparseBlockCount()
+ge::graphStatus QSFAPInfoParser::GetSparseBlockCount()
 {
     sparseBlockCount_ = GetAxisNum(sparseIndicesShape_, QSFAAxis::K, qLayout_);
 
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetS2SizeForPageAttention()
+ge::graphStatus QSFAPInfoParser::GetS2SizeForPageAttention()
 {
     if (GetMaxBlockNumPerBatch() != ge::GRAPH_SUCCESS || GetBlockSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
@@ -1658,7 +1658,7 @@ ge::graphStatus QSFAInfoParser::GetS2SizeForPageAttention()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetS2Size()
+ge::graphStatus QSFAPInfoParser::GetS2Size()
 {
     // 获取S2基准值
     // 1、BATCH_CONTINUOUS时, 从key的S轴获取
@@ -1669,7 +1669,7 @@ ge::graphStatus QSFAInfoParser::GetS2Size()
     return GetS2SizeForPageAttention();
 }
 
-ge::graphStatus QSFAInfoParser::GetValueHeadDim()
+ge::graphStatus QSFAPInfoParser::GetValueHeadDim()
 {
     // 获取vHeadDim基准值
     // 以value的D维度为基准
@@ -1677,13 +1677,13 @@ ge::graphStatus QSFAInfoParser::GetValueHeadDim()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetDSizeKV()
+ge::graphStatus QSFAPInfoParser::GetDSizeKV()
 {
     dSizeKV_ = GetAxisNum(keyShape_, QSFAAxis::D, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetQueryAndOutLayout()
+ge::graphStatus QSFAPInfoParser::GetQueryAndOutLayout()
 {
     // 获取query和attentionOut的Layout基准值
     // layoutQuery: {qLayout, outLayout}
@@ -1704,25 +1704,25 @@ ge::graphStatus QSFAInfoParser::GetQueryAndOutLayout()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetTopkLayout()
+ge::graphStatus QSFAPInfoParser::GetTopkLayout()
 {
     topkLayout_ = qLayout_;
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetN1Size()
+ge::graphStatus QSFAPInfoParser::GetN1Size()
 {
     n1Size_ = GetAxisNum(queryShape_, QSFAAxis::N, qLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetN2Size()
+ge::graphStatus QSFAPInfoParser::GetN2Size()
 {
     n2Size_ = GetAxisNum(keyShape_, QSFAAxis::N, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFAInfoParser::SetQSFAShape()
+void QSFAPInfoParser::SetQSFAShape()
 {
     queryShape_ = opParamInfo_.query.shape->GetStorageShape();
     keyShape_ = opParamInfo_.key.shape->GetStorageShape();
@@ -1730,7 +1730,7 @@ void QSFAInfoParser::SetQSFAShape()
     sparseIndicesShape_ = opParamInfo_.sparseIndices.shape->GetStorageShape();
 }
 
-ge::graphStatus QSFAInfoParser::GetGSize()
+ge::graphStatus QSFAPInfoParser::GetGSize()
 {
     if (n2Size_ != 0) {
         gSize_ = n1Size_ / n2Size_;
@@ -1738,7 +1738,7 @@ ge::graphStatus QSFAInfoParser::GetGSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QSFAInfoParser::GetActualseqInfo()
+ge::graphStatus QSFAPInfoParser::GetActualseqInfo()
 {
     maxActualseq_ = static_cast<uint32_t>(s2Size_);
     if (opParamInfo_.actualSeqLengths.tensor != nullptr) {
@@ -1750,7 +1750,7 @@ ge::graphStatus QSFAInfoParser::GetActualseqInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
+void QSFAPInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
 {
     sfaaInfo.opName = opName_;
     sfaaInfo.platformInfo = platformInfo_;
@@ -1810,7 +1810,7 @@ void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
     sfaaInfo.dSizeVInput = dSizeKV_;
 }
 
-ge::graphStatus QSFAInfoParser::Parse(QSFATilingInfo &sfaaInfo)
+ge::graphStatus QSFAPInfoParser::Parse(QSFATilingInfo &sfaaInfo)
 {
     if (context_ == nullptr) {
         OP_LOGE("KvQuantSparseFlashAttentionPioneer", "tiling context is nullptr!");
