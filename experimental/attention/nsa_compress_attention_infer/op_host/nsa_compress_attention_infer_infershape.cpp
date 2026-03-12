@@ -38,13 +38,18 @@ static ge::graphStatus InferShapeNsaCompressAttentionInfer(gert::InferShapeConte
         return ge::GRAPH_FAILED;
     }
     const gert::Shape *queryShape = context->GetInputShape(QUERY_INPUT_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, queryShape);
     gert::Shape *outShape = context->GetOutputShape(ATTEN_OUTPUT_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, outShape);
     const gert::Shape *valueShape = context->GetInputShape(VALUE_INPUT_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, valueShape);
     
     auto attrs = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const uint32_t *kvHeadNumsPtr = attrs->GetAttrPointer<uint32_t>(KV_NUM_HEADS_ATTR_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, kvHeadNumsPtr);
     const int *selectBlockCountPtr = attrs->GetAttrPointer<int32_t>(SELECT_BLOCK_ATTR_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, selectBlockCountPtr);
     const char *layOutPtr = attrs->GetAttrPointer<char>(LAYOUT_ATTR_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, layOutPtr);
 
