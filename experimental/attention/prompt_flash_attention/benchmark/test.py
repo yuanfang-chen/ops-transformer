@@ -8,8 +8,12 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 """
-Pytest file for testing torch_pfa.npu_prompt_flash_attention correctness
-Reuses functions from benchmark.py
+Test suite. Has two modes:
+1. Full-blown pytesting:
+pytest test.py 
+
+2. Quick smoke test on a single input scenario:
+python test.py
 """
 
 import itertools
@@ -91,4 +95,9 @@ def test_prompt_flash_attention_correctness(torch_ref, a, shape, sparsity):
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    import sys
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    test_prompt_flash_attention_correctness(torch_ref=False, a="blocks_optimized_batched", 
+                                            shape=(1, 3, 10_000, 128), sparsity=0.5)
+    logging.getLogger(__name__).info("Smoke test passed.")
