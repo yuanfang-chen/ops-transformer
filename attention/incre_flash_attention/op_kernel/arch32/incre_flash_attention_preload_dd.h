@@ -3961,7 +3961,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::CopyFixedUbToGm(
 {
     LocalTensor<T> tmp = outputBuf2.Get<T>();
     WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
-#ifdef IFA_SOFTMAX_WITHOUT_BRC
+#ifdef IFA_SOFTMAX_WITHOUT_BRC_PRELOAD
     Brcb(tmp, src, (mSizeVector + 7) / 8, {1, 8}); //将m*1数据扩展为m*8匹配后续使用
 #else
     DataCopy(tmp, src, size);
