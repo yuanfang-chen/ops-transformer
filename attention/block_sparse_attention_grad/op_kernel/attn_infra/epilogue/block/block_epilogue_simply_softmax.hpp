@@ -129,6 +129,7 @@ public:
     uint64_t processNums = 0;
     uint64_t usedVecCoreNums = 0;
     uint64_t baseBufLen = 0;
+    float scaleValue = 0.0f;
 
     // const BlockSparseAttentionGradTilingData *tilingData;
 
@@ -168,6 +169,7 @@ public:
 
         maxQSeqlen = tilingData -> maxQSeqlen;
         maxKvSeqlen = tilingData -> maxKvSeqlen;
+        scaleValue = tilingData->scaleValue;
         n1 = tilingData -> numHeads; // q_n
         col = params.actualCol;
         curCoreBatch = params.curCoreBatch;
@@ -434,10 +436,11 @@ public:
             DataCopyPad(sLocal, s, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, 
                         {true, 0, static_cast<uint8_t>(countAlign - count), 0});
         }
-
-        SubBrcb(pLocal, sLocal, lseFp32Brc, row, col);
-
         AscendC::PipeBarrier<PIPE_ALL>();
+        Muls(sLocal, sLocal, (float)scaleValue, count);
+        AscendC::PipeBarrier<PIPE_V>();
+        SubBrcb(pLocal, sLocal, lseFp32Brc, row, col);
+        AscendC::PipeBarrier<PIPE_V>();
 
         Exp(pLocal, pLocal, count);
 
