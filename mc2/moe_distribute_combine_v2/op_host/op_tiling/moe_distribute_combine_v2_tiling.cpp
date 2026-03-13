@@ -38,11 +38,10 @@
 #include "../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
 #include "mc2_hcom_topo_info.h"
 #include "../../../moe_distribute_dispatch_v2/op_host/op_tiling/moe_distribute_check_win_size.h"
+#include "cann_version.h"
 
-#ifdef MC2_EXCEPTION_HANDLER
+#if CANN_VERSION_NUM >= 90000000
 #include "mc2_exception_dump.h"
-#endif
-#ifdef MC2_EXCEPTION_HANDLER
 using namespace Mc2Exception;
 #endif
 
@@ -2192,7 +2191,7 @@ IMPL_OP_OPTILING(MoeDistributeCombineV2)
     .Tiling(MoeDistributeCombineV2TilingFunc)
     .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV2);
 
-#ifdef MC2_EXCEPTION_HANDLER
+#if CANN_VERSION_NUM >= 90000000
 // Register exception func
 inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
