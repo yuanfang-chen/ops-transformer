@@ -417,7 +417,7 @@ namespace BSA {
             blockMmad3(gP[preTaskInfo.sOffset], gDout[preTaskInfo.qOffset], gDv[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
-            // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
+            AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
 
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
