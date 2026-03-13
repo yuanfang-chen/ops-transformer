@@ -272,7 +272,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
-  第一段接口完成入参校验，出现以下场景时报错：
+  第一段接口完成入参校验，出现以下场景时报错，当前部分场景会以WARNING形式提示：
   
   <table style="undefined;table-layout: fixed; width: 1155px"><colgroup>
   <col style="width: 320px">
@@ -293,13 +293,16 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
       <td>必选输入或必选输出的Tensor是空指针。</td>
     </tr>
     <tr>
-      <td> ACLNN_ERR_PARAM_INVALID </td>
-      <td> 161002 </td>
+      <td rowspan="2"> ACLNN_ERR_PARAM_INVALID </td>
+      <td rowspan="2"> 161002 </td>
       <td>输入或输出的数据类型不在支持的范围内。</td>
+      <tr>
+        <td>输入或输出的shape不符合要求。</td>
+      </tr>
     </tr>
     <tr>
-      <td rowspan="4"> ACLNN_ERR_INNER_TILING_ERROR </td>
-      <td rowspan="4"> 561002 </td>
+      <td rowspan="3"> ACLNN_ERR_INNER_XXX </td>
+      <td rowspan="3"> 561xxx </td>
       <td>topK_num > 512。</td>
     </tr>
     <tr>
@@ -307,9 +310,6 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
     </tr>
     <tr>
       <td>capacity大于tokens_num。</td>
-    </tr>
-    <tr>
-      <td>输入或输出的shape不符合要求。</td>
     </tr>
   </tbody></table>
 
