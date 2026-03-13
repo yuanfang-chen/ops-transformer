@@ -35,12 +35,6 @@ public:
     using ArchTag = typename DispatchPolicy::ArchTag;
 
     struct Params {
-        // Data members
-        // GM_ADDR dq;
-        // GM_ADDR dk;
-        // GM_ADDR dv;
-        // GM_ADDR blockSparseMask; 
-        // GM_ADDR blockShape;
         GM_ADDR dqWrk; 
         GM_ADDR dkWrk;
         GM_ADDR dvWrk;
@@ -52,11 +46,9 @@ public:
 
         __aicore__ inline
         Params(
-            // GM_ADDR dq_, GM_ADDR dv_, GM_ADDR dv_,
             GM_ADDR dqWrk_, GM_ADDR dkWrk_, GM_ADDR dvWrk_,
             GM_ADDR tilingData_
         ) : 
-            // dq(dq_), dk(dk_), dv(dv_)
             dqWrk(dqWrk_), dkWrk(dkWrk_), dvWrk(dvWrk_),
             tilingData(tilingData_)
         {
@@ -162,7 +154,6 @@ public:
             processZero(dqWorkSpaceGm[dqOffset], initdqSize, maxDataCount);
         }
 
-       Duplicate(zeroTensor, (float)3.0,  maxDataCount); //test
         if (cBlockIdx < kvPreBlockTotal) {
             processZero(dkWorkSpaceGm[dkvOffset], initdkSize, maxDataCount);
             processZero(dvWorkSpaceGm[dkvOffset], initdkSize, maxDataCount);
