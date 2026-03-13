@@ -64,7 +64,7 @@ namespace ge {
 * @li mm_y_optional: A matrix tensor of shape [BS, N2] containing result of matmul. The data type of elements supports float16 or bfloat16; the format supports ND.
 */
 
-REG_OP(GroupedMatMulAlltoAllv)
+REG_OP(QuantGroupedMatMulAlltoAllv)
       .INPUT(gmm_x, TensorType({DT_FLOAT16, DT_BF16, DT_HIFLOAT8}))
       .INPUT(gmm_weight, TensorType({DT_FLOAT16, DT_BF16, DT_HIFLOAT8}))
       .OPTIONAL_INPUT(send_counts_tensor, TensorType({DT_INT32, DT_INT64}))
@@ -91,7 +91,7 @@ REG_OP(GroupedMatMulAlltoAllv)
       .ATTR(comm_quant_mode, Int, 0)
       .ATTR(group_size, Int, 0)
       .ATTR(comm_quant_dtype, Int, 0)
-      .OP_END_FACTORY_REG(GroupedMatMulAlltoAllv)
+      .OP_END_FACTORY_REG(QuantGroupedMatMulAlltoAllv)
 
 
 }  // namespace ge
