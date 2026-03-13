@@ -17,7 +17,7 @@
 #define MOE_DISTRIBUTE_COMM_CTX_H
 
 constexpr uint32_t HCCL_MTE_MAX_RANK_NUM = 64;
-
+typedef uint8_t * DUMP_GM_ADDR;
 // A5 HCCL Context
 struct HcclCombinOpParam {
     uint64_t workSpace; // client和server之间通信的地址
@@ -34,5 +34,22 @@ struct HcclCombinOpParam {
     uint64_t msAddr; // MS地址，预留
     uint64_t msSize; // 可写的MS个数，预留
 };
-
+struct CommContextForDump{
+    uint64_t epRankid = 0;
+    uint64_t kfcContextAddr = 0;
+    uint64_t epHcclBufffer_[1024];
+};
+struct HcclOpResParamForDump {
+    // 本地资源
+    HcclMC2WorkSpace mc2WorkSpace;
+    uint32_t localUsrRankId; // usrrankid
+    uint32_t rankSize;       // 通信域内total rank个数
+    uint64_t winSize; // 每个win大小，静态图时，可能是0，如果通信域内也有动态图，则可能为非0
+    uint64_t localWindowsIn; // 全F为无效值
+    uint64_t localWindowsOut; // 全F为无效值
+    char hcomId[128];
+    // aicore识别remote window
+    uint64_t winExpSize;
+    uint64_t localWindowsExp;
+};
 #endif

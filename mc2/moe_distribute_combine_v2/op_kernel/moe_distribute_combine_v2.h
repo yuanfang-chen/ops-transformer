@@ -541,6 +541,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::Init(
     }
     tpipe_->InitBuffer(moeQueue_, BUFFER_NUM, hExpandXAlign32Size_);
     flagRcvCount_ = axisK_ + sharedExpertNum_;
+    trap();
 }
 
 template <CombineMC2TypeClass>
