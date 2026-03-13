@@ -40,7 +40,9 @@ public:
     static constexpr bool isFp8 = IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value;
     static constexpr bool isMlaFullQuant = isFp8 && hasRope;
     static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
-    
+    static constexpr bool enableSplitCoreBalance = isMlaNoQuant ||
+        (pseMode == PseTypeEnum::PSE_NONE_TYPE && !enableKVPrefix && !POST_QUANT);    // TODO，输出转置、lse、左padding工作量待评估
+
     /* =====================GM变量========================== */
     GlobalTensor<float> softmaxLseGm;
 
