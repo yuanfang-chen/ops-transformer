@@ -38,7 +38,7 @@ bool CausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *convSt
         OP_OUTPUT(y, convStates), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "CausalConv1d ADD_TO_LAUNCHER_LIST_AICORE failed.");
-        return std::tuple<aclTensor *, aclTensor *>(nullptr, nullptr);
+        return false;
     }
     return true;
 }
