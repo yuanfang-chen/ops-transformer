@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_apt_tiling_key.h
+ * \file all_gather_matmul_apt_tiling_key.h
  * \brief
  */
 
-#ifndef __OP_KERNEL_ALL_GATHER_MATMUL_V2_APT_TILING_KEY_H__
-#define __OP_KERNEL_ALL_GATHER_MATMUL_V2_APT_TILING_KEY_H__
+#ifndef __OP_KERNEL_ALL_GATHER_MATMUL_APT_TILING_KEY_H__
+#define __OP_KERNEL_ALL_GATHER_MATMUL_APT_TILING_KEY_H__
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
@@ -38,7 +38,7 @@ namespace Mc2Tiling{
 
 // 模板参数
 ASCENDC_TPL_ARGS_DECL(
-    Mc2AllGatherMatmulV2Apt, // 算子OpType
+    Mc2AllGatherMatmulApt, // 算子OpType
     ASCENDC_TPL_BOOL_DECL(INPUT_IS_BF16FP16, 0, 1),
     ASCENDC_TPL_BOOL_DECL(TRANS_B, 0, 1),
     ASCENDC_TPL_UINT_DECL(OUTPUTDTYPE, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, \
@@ -63,6 +63,6 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(OUTPUTDTYPE, ASCENDC_TPL_UI_LIST, OUTPUT_TYPE_IS_FP16_BF16),
         SET_NOT_USE_QUANT_BMM_SEL),
 );
-} // all_gather_matmul_v2_apt_tiling_key
+} // all_gather_matmul_apt_tiling_key
 
-#endif // __OP_KERNEL_ALL_GATHER_MATMUL_V2_APT_TILING_KEY_H__
+#endif // __OP_KERNEL_ALL_GATHER_MATMUL_APT_TILING_KEY_H__

@@ -9,29 +9,26 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_apt.cpp
+ * \file all_gather_matmul_apt.cpp
  * \brief
  */
 
 #include "lib/matmul_intf.h"
 #include "common.h"
-#include "all_gather_matmul_v2_apt_tiling_key.h"
-
-#if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
+#include "all_gather_matmul_apt_tiling_key.h"
 #include "all_gather_matmul_fp16_bf16.h"
-#endif
 
 using namespace Mc2Tiling;
 using namespace AllGatherMatmulImpl;
 
-#define INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(templateClass, isTransB, ...)                                     \
+#define INVOKE_ALLGATHERMM_FP16_BF16_OP_IMPL(templateClass, isTransB, ...)                                     \
     do {                                                                                                          \
         using aType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, A_DTYPE, false>;                         \
         using bType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, isTransB>;                      \
         using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, typename BiasType<BIAS_DTYPE>::type>; \
         using cType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;                                \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::AllGatherMatmulTilingDataV2);                                          \
-        auto tiling = (__gm__ Mc2Tiling::AllGatherMatmulTilingDataV2*)tilingGM;                                   \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::AllGatherMatmulTilingData);                                          \
+        auto tiling = (__gm__ Mc2Tiling::AllGatherMatmulTilingData*)tilingGM;                                   \
         __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                    \
         __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                        \
         GET_TILING_DATA(tilingData, tilingGM);                                                                    \
@@ -52,6 +49,6 @@ __global__ __aicore__ void all_gather_matmul(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR b
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     if constexpr (SCALETYPE == SCALE_TYPE_NOT_IS_MX && INPUT_IS_BF16FP16 && \
                 OUTPUTDTYPE == OUTPUT_TYPE_IS_FP16_BF16) {    // full mesh+ no nd2nz +biasNoNeedCast
-        INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, TRANS_B);
+        INVOKE_ALLGATHERMM_FP16_BF16_OP_IMPL(AllGatherMatmulFP16BF16, TRANS_B);
     }
 }

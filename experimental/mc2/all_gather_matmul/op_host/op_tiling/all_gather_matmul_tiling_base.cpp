@@ -31,7 +31,7 @@
 #include "util/math_util.h"
 #include "all_gather_fit_balance_tiling.h"
 #include "all_gather_matmul_tiling_base.h"
-#include "../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
+#include "../../op_kernel/all_gather_matmul_apt_tiling_key.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -134,21 +134,12 @@ ge::graphStatus AllGatherMatmulTilingBase::AnalyzeShapeAttr()
 
 void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, 
                                                         ::TCubeTiling& mmTiling,
-                                                        ::TCubeTiling& tailTiling, 
-                                                        uint32_t debugMode)
+                                                        ::TCubeTiling& tailTiling)
 {
     // 只通信不计算模式下，如果没有gatherOut且K > N, recvOff和sendCnt需要根据N计算
     auto columnNum = args_.orgKValue;
-    OP_LOGD(opName_, "Debug mode is %u, gather out flag is %d, K is %lu, N is %lu.", debugMode,
+    OP_LOGD(opName_, "Gather out flag is %d, K is %lu, N is %lu.",
             (rcsCfg.gatherLen == 0), args_.orgKValue, args_.orgNValue);
-    if ((debugMode == mc2tiling::MC2_DEBUG_ONLY_AICPU) && (rcsCfg.gatherLen != 0) &&
-        (args_.orgKValue > args_.orgNValue)) {
-        OP_LOGW("AllGatherMatmul",
-                "K [%lu] is greater than N [%lu], cut recvOff and sendCnt according to N under "
-                "debugMode 4 (i.e. communication only).",
-                args_.orgKValue, args_.orgNValue);
-        columnNum = args_.orgNValue;
-    }
 }
 
 ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg, mc2tiling::Mc2QuantMode quantMmMode)
@@ -185,13 +176,9 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
 
 void AllGatherMatmulTilingBase::DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, 
                                                   ::TCubeTiling& mmTiling, 
-                                                  ::TCubeTiling& tailTiling,
-                                                  uint32_t& debugMode, uint32_t& dataType)
+                                                  ::TCubeTiling& tailTiling, uint32_t& dataType)
 {
-    auto debugMode_ = mc2tiling::Mc2TilingUtils::GetDebugMode();
-    debugMode = debugMode_;
-
-    SetMC2AllGatherDataInfo(rcsCfg, mmTiling, tailTiling, debugMode_);
+    SetMC2AllGatherDataInfo(rcsCfg, mmTiling, tailTiling);
 
     dataType = (static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));  // hccl数据类型
 
@@ -227,7 +214,7 @@ void AllGatherMatmulTilingBase::SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg)
 bool AllGatherMatmulTilingBase::SetCommAlgo()
 {
     args_.commAlg = mc2tiling::Mc2GetCommAlgo(rankSize_, args_.orgMValue, group_, context_);
-    if (args_.commAlg == mc2tiling::COMM_ALG_DEFAULT) {
+    if (args_.commAlg != mc2tiling::COMM_ALG_FULL_MESH) {
         OP_LOGE(opName_, "CommAlgo %u is not supported.", args_.commAlg);
         return false;
     }
@@ -266,11 +253,6 @@ CutResult AllGatherMatmulTilingBase::GetTilingResult()
 
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
 {
-    if (args_.commAlg == mc2tiling::COMM_ALG_DOUBLE_RING) {
-        args_.mValue /= DOUBLE_RING_FACTOR;
-        drMValue_ = args_.mValue;
-        OP_LOGI(opName_, " args.mValue is set to be %lu under double ring communication algorithm.", args_.mValue);
-    }
     // cmdType = HCCL_CMD_ALLGATHER, 是允许切K
     if (args_.enableSplitK) {  // 只有1份
         OP_LOGI(opName_, "enabelSplik is True.");

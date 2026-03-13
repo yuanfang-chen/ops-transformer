@@ -9,23 +9,22 @@
  */
 
 /*!
- * \file all_gather_matmul_tiling_arch35.h
+ * \file all_gather_matmul_tiling.h
  * \brief
  */
-#ifndef __ALL_GATHER_MATMUL_TILING_arch35_H_
-#define __ALL_GATHER_MATMUL_TILING_arch35_H_
+#ifndef __ALL_GATHER_MATMUL_TILING_H_
+#define __ALL_GATHER_MATMUL_TILING_H_
 
 #include "kernel_tiling/kernel_tiling.h"
 #include "matmul_dependency/mc2_tiling_struct.h"
 
 namespace Mc2Tiling {
 
-struct AllGatherMatmulTilingDataV2 {
+struct AllGatherMatmulTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
     RCSTiling param;
     uint32_t dataType;
-    uint32_t debugMode;
     Mc2MatMulV3TilingData mc2MmV3LocalTilingData;
     Mc2MatMulV3TilingData mc2MmV3TileTilingData;
     Mc2MatMulV3TilingData mc2MmV3TailTilingData;

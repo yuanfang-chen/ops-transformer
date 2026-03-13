@@ -20,17 +20,17 @@
 #include "all_gather_matmul_tiling_base.h"
 #include "register/tilingdata_base.h"
 #include "mc2_matmul_tiling_cfg.h"
-#include "../../op_kernel/all_gather_matmul_tiling_arch35.h"
+#include "../../op_kernel/all_gather_matmul_tiling.h"
 
 namespace optiling {
 
 using namespace mc2_matmul_v3_advanced;
 
-class AllGatherMatmulTilingV2 : public AllGatherMatmulTilingBase
+class AllGatherMatmulTiling : public AllGatherMatmulTilingBase
 {
 public:
-    explicit AllGatherMatmulTilingV2(gert::TilingContext *context);
-    ~AllGatherMatmulTilingV2() override = default;
+    explicit AllGatherMatmulTiling(gert::TilingContext *context);
+    ~AllGatherMatmulTiling() override = default;
     ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg, 
                                      Mc2MatMulV3TilingData &tilingData);
 
@@ -43,20 +43,20 @@ protected:
 
     Mc2Tiling::RCSTiling &MutableRCSTilingData()
     {
-        return allGatherMatmulTilingDataV2_->param;
+        return allGatherMatmulTilingData_->param;
     }
 
     Mc2MatMulV3TilingData &MutableMC2MatmulV3LocalTilingData()
     {
-        return allGatherMatmulTilingDataV2_->mc2MmV3LocalTilingData;
+        return allGatherMatmulTilingData_->mc2MmV3LocalTilingData;
     }
     Mc2MatMulV3TilingData &MutableMC2MatmulV3TileTilingData()
     {
-        return allGatherMatmulTilingDataV2_->mc2MmV3TileTilingData;
+        return allGatherMatmulTilingData_->mc2MmV3TileTilingData;
     }
     Mc2MatMulV3TilingData &MutableMC2MatmulV3TailTilingData()
     {
-        return allGatherMatmulTilingDataV2_->mc2MmV3TailTilingData;
+        return allGatherMatmulTilingData_->mc2MmV3TailTilingData;
     }
 
     ge::graphStatus DoVersion2Tiling();
@@ -64,8 +64,8 @@ protected:
     ge::graphStatus SetRawTilingData();
 
 private:
-    Mc2Tiling::AllGatherMatmulTilingDataV2 allGatherMatmulTilingDataV2Self_;
-    Mc2Tiling::AllGatherMatmulTilingDataV2 *allGatherMatmulTilingDataV2_;
+    Mc2Tiling::AllGatherMatmulTilingData allGatherMatmulTilingDataSelf_;
+    Mc2Tiling::AllGatherMatmulTilingData *allGatherMatmulTilingData_;
     uint64_t myWorkSpaceSize_{0U};
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;

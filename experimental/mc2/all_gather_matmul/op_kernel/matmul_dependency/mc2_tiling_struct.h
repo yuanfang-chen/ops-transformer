@@ -21,8 +21,6 @@
 namespace Mc2Tiling {
 constexpr uint8_t COMM_ALG_DEFAULT = 0;
 constexpr uint8_t COMM_ALG_FULL_MESH = 1;
-constexpr uint8_t COMM_ALG_DOUBLE_RING = 2;
-constexpr uint8_t COMM_ALG_SWITCH_WING = 3;
 constexpr uint32_t DOUBLE_RING_FACTOR = 2;
 constexpr int64_t KVALUE_MIN = 256;
 constexpr int64_t KVALUE_MAX = 65535;

@@ -19,7 +19,7 @@
 #include "lib/hccl/hccl.h"
 #include "matmul_dependency/mc2_mat_mul_asw_kernel.h"
 #include "matmul_dependency/mc2_mat_mul_asw_block.h"
-#include "all_gather_matmul_tiling_arch35.h"
+#include "all_gather_matmul_tiling.h"
 
 namespace AllGatherMatmulImpl
 {
@@ -33,7 +33,7 @@ public:
     {
     }
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM,
-                                GM_ADDR workspaceGM, GM_ADDR gatherOut, Mc2Tiling::AllGatherMatmulTilingDataV2* tilingData,
+                                GM_ADDR workspaceGM, GM_ADDR gatherOut, Mc2Tiling::AllGatherMatmulTilingData* tilingData,
                                 __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe);
     __aicore__ inline void Process();
 
@@ -47,7 +47,7 @@ private:
                                                      uint32_t count, bool isLast, bool isTail);
 
 private:
-    Mc2Tiling::AllGatherMatmulTilingDataV2* tilingData_;
+    Mc2Tiling::AllGatherMatmulTilingData* tilingData_;
     TPipe* tPipe_;
     GM_ADDR aGM_;
     GM_ADDR bGM_;
@@ -58,7 +58,6 @@ private:
     GM_ADDR context_;
     uint32_t rankId_;
     AscendC::HcclDataType dataType_;
-    uint8_t debugMode_;
     bool notifyFlag_{false};
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;         // CCU模式
     AscendC::HcclHandle hHandles_[MAX_HANDLE];  // 最大支持16个handleID
@@ -67,7 +66,7 @@ private:
 template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::Init(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM, GM_ADDR workspaceGM, GM_ADDR gatherOut,
-    Mc2Tiling::AllGatherMatmulTilingDataV2* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
+    Mc2Tiling::AllGatherMatmulTilingData* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
 {
     // 获取tilingdata数据
     tilingData_ = tilingData;
@@ -81,7 +80,6 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     tPipe_ = tPipe;
 
     // 其它
-    debugMode_ = tilingData_->debugMode;
     dataType_ = static_cast<AscendC::HcclDataType>(tilingData_->dataType);
     aGM_ = aGM;
     bGM_ = bGM;
@@ -94,13 +92,6 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     if ((cfg.gatherLen != 0) || (!gatherOut)) {
         gatherAddr_ = workspaceGM_;
         workspaceGM_ += cfg.gatherLen;
-    }
-
-    // 全核通信
-    if ASCEND_IS_AIC {
-        if (debugMode_ != MC2_DEBUG_ONLY_CUBE) {
-            notifyFlag_ = true;
-        }
     }
 }
 
@@ -214,27 +205,11 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
 {
     auto&& cfg = tilingData_->param;
     // 处理gather主块
-    if (debugMode_ == MC2_DEBUG_ONLY_CUBE) {
-        MatmulKernelComputeGather(aGM_, cGM_, tilingData_->mc2MmV3TileTilingData, cfg.tileCnt, cfg.tailM ? false : true,
-                                  false);
-    } else {
-        MatmulKernelComputeGather(gatherAddr_, cGM_, tilingData_->mc2MmV3TileTilingData, cfg.tileCnt,
+    MatmulKernelComputeGather(gatherAddr_, cGM_, tilingData_->mc2MmV3TileTilingData, cfg.tileCnt,
                                   cfg.tailM ? false : true, false);
-    }
 
     if (cfg.tailM) {
-        if (debugMode_ == MC2_DEBUG_ONLY_CUBE) {
-            Mc2MatMulV3TilingData tileTilingData = tilingData_->mc2MmV3TailTilingData;
-            uint64_t tileM = tileTilingData.tCubeTiling.M;
-            uint64_t tileN = tileTilingData.tCubeTiling.N;
-            uint64_t tileK = tileTilingData.tCubeTiling.Ka;
-            using A_T = typename AType::T;
-            using C_T = typename CType::T;
-            auto tailAGM = aGM_ + tileM * tileK * sizeof(A_T) * (uint64_t)(cfg.tileCnt);
-            auto tailCGM = cGM_ + tileM * tileN * sizeof(C_T) * (uint64_t)(cfg.tileCnt);
-            MatmulKernelComputeGather(tailAGM, tailCGM, tilingData_->mc2MmV3TailTilingData, cfg.tailCnt, true, true);
-        } else {
-            MatmulKernelComputeGather(gatherAddr_, cGM_, tilingData_->mc2MmV3TailTilingData, cfg.tailCnt, true, true);
+        MatmulKernelComputeGather(gatherAddr_, cGM_, tilingData_->mc2MmV3TailTilingData, cfg.tailCnt, true, true);
         }
     }
 }
