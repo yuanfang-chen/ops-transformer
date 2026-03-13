@@ -9,8 +9,8 @@
  */
 
 /*!
- * \file mhc_sinkhorn_tiling.cc
- * \brief
+ * \file mhc_sinkhorn_tiling.cpp
+ * \brief mhc_sinkhorn_tiling
  */
 
 #include <vector>

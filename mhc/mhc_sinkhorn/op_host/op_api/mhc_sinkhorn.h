@@ -10,7 +10,7 @@
 
 /*!
  * \file mhc_sinkhorn.h
- * \brief
+ * \brief mhc_sinkhorn
  */
 
 #ifndef PTA_NPU_OP_API_INC_LEVEL0_OP_MHC_SINKHORN_OP_H_

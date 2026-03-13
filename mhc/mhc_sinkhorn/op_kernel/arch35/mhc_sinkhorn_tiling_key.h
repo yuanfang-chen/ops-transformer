@@ -7,7 +7,6 @@
 * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 * See LICENSE in the root of the software repository for the full text of the License.
 */
-
 /*!
 * \file mhc_sinkhorn_tiling_key.h
 * \brief mhc_sinkhorn tiling key declare

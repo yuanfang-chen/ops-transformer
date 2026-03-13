@@ -10,7 +10,7 @@
 
 /*!
  * \file mhc_sinkhorn_infershape.cpp
- * \brief
+ * \brief mhc_sinkhorn_infershape
  */
 
 #include <vector>

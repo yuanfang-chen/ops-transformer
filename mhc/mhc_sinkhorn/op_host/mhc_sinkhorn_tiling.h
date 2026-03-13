@@ -10,7 +10,7 @@
 
 /* !
  * \file mhc_sinkhorn_tiling.h
- * \brief
+ * \brief mhc_sinkhorn_tiling
  */
 
 #ifndef MHC_SINKHORN_TILING_H_
