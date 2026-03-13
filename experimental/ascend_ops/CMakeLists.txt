@@ -10,7 +10,10 @@
 # ----------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.16)
-project(AscendOps)
+find_package(ASC REQUIRED) 
+find_package(AICPU REQUIRED) 
+
+project(AscendOps LANGUAGES ASC AICPU CXX)
 option(BUILD_TORCH_OPS "Build torch ops project (PyTorch extension style)" OFF)
 message(STATUS "Build torch ops: ${BUILD_TORCH_OPS}")
 
@@ -166,5 +169,5 @@ set_target_properties(_C PROPERTIES
 target_compile_options(_C PRIVATE ${COMMON_COMPILE_OPTIONS})
 target_include_directories(_C PRIVATE ${COMMON_INCLUDE_DIRS})
 target_link_directories(_C PRIVATE ${COMMON_LINK_DIRS})
-target_link_libraries(_C PRIVATE ${COMMON_LINK_LIBS})
+target_link_libraries(_C PRIVATE ${COMMON_LINK_LIBS} incre_flash_attention_meta_kernel_objects)
 return()

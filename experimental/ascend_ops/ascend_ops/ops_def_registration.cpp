@@ -64,6 +64,19 @@ TORCH_LIBRARY(custom, m)
                                                 int? dequant_scale_key_dtype=None, 
                                                 int? dequant_scale_value_dtype=None, 
                                                 int? dequant_scale_key_rope_dtype=None) -> (Tensor, Tensor))"); 
+
+    m.def(R"(npu_fused_infer_attention_score_metadata( int batch_size,
+                                                        int query_seq_size,
+                                                        int query_head_num,
+                                                        int key_seq_size,
+                                                        int key_head_num,
+                                                        int block_size,
+                                                        int max_block_num_per_batch,
+                                                        *,
+                                                        Tensor? actual_seq_lengths_query=None,
+                                                        Tensor? actual_seq_lengths_kv=None,
+                                                        str layout_query='BSND',
+                                                        str layout_key='BSND') -> Tensor)");
 }
     // 通过pybind将c++接口和python接口绑定，这里绑定的是接口不是算子
     PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {}
