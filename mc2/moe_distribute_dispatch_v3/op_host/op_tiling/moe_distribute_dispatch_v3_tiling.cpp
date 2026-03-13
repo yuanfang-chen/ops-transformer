@@ -37,7 +37,7 @@
 #include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_tiling.h"
 #include "mc2_hcom_topo_info.h"
 
-#ifdef MC2_EXCEPTION_HANDLER
+#if ASC_DEVKIT_MAJOR >= 9
 #include "mc2_exception_dump.h"
 using namespace Mc2Exception;
 #endif
@@ -94,7 +94,7 @@ IMPL_OP_OPTILING(MoeDistributeDispatchV3)
     .Tiling(MoeDistributeDispatchV3TilingFunc)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV3);
 
-#ifdef MC2_EXCEPTION_HANDLER
+#if ASC_DEVKIT_MAJOR >= 9
 // Register exception func
 inline void MoeDistributeDispatchV3ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
