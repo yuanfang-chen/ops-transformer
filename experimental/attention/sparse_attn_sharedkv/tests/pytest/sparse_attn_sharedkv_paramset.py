@@ -252,11 +252,77 @@ TEST_PARAMS = {
         "ori_win_right": [0],
         "ori_kv_topk_mode": ["random"]
     },
+    "all_scfa_g128_test_prefill_TND":{
+        "layout_q": ["TND"],
+        "layout_kv": ["TND"],
+        "q_type": [torch.bfloat16],
+        "ori_kv_type": [torch.bfloat16],
+        "B": [1],
+        "S1": [16],
+        "T1": [16],
+        "T2": [16],
+        "N1": [128],
+        "N2": [1],
+        "D": [512],
+        "K1": [512],
+        "cu_seqlens_q": [[0, 16]],
+        "softmax_scale": [0.04419417],
+        "cmp_ratio": [1],
+        "ori_mask_mode": [0],
+        "cmp_mask_mode": [3],
+        "ori_win_left": [127],
+        "ori_win_right": [0],
+        "ori_kv_topk_mode": ["full"]
+    },
+    "all_scfa_g128_test_prefill_unbanlance1_TND":{
+        "layout_q": ["TND"],
+        "layout_kv": ["TND"],
+        "q_type": [torch.bfloat16],
+        "ori_kv_type": [torch.bfloat16],
+        "B": [1],
+        "S1": [5],
+        "T1": [5],
+        "T2": [5],
+        "N1": [128],
+        "N2": [1],
+        "D": [512],
+        "K1": [512],
+        "cu_seqlens_q": [[0, 5]],
+        "softmax_scale": [0.04419417],
+        "cmp_ratio": [1],
+        "ori_mask_mode": [0],
+        "cmp_mask_mode": [3],
+        "ori_win_left": [127],
+        "ori_win_right": [0],
+        "ori_kv_topk_mode": ["full"]
+    },
+    "all_scfa_g128_test_prefill_unbanlance2_TND":{
+        "layout_q": ["TND"],
+        "layout_kv": ["TND"],
+        "q_type": [torch.bfloat16],
+        "ori_kv_type": [torch.bfloat16],
+        "B": [1],
+        "S1": [33],
+        "T1": [33],
+        "T2": [33],
+        "N1": [128],
+        "N2": [1],
+        "D": [512],
+        "K1": [129],
+        "cu_seqlens_q": [[0, 33]],
+        "softmax_scale": [0.04419417],
+        "cmp_ratio": [1],
+        "ori_mask_mode": [0],
+        "cmp_mask_mode": [3],
+        "ori_win_left": [127],
+        "ori_win_right": [0],
+        "ori_kv_topk_mode": ["random"]
+    },
 }
 
 # 按需选择要启用的测试参数（例如默认启用所有）
-#ENABLED_PARAMS = [TEST_PARAMS[key] for key in TEST_PARAMS.keys()]
-ENABLED_PARAMS = [TEST_PARAMS["swa_decode"]]
+ENABLED_PARAMS = [TEST_PARAMS[key] for key in TEST_PARAMS.keys()]
+#ENABLED_PARAMS = [TEST_PARAMS["swa_decode"]]
 #ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_decode"]]
 #ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_prefill"]]
 #ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_prefill_unbanlance1"]]

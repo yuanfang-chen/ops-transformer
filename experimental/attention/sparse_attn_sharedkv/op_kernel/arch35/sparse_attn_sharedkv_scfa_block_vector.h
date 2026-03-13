@@ -210,7 +210,7 @@ __aicore__ inline int64_t SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Id
             static_cast<int64_t>(blockSize) * constInfo.dSizeVInput +
             blkTableOffset * constInfo.dSizeVInput; // BlockNum, BlockSize, N(1), D
     } else {
-        realkeyOffset = runInfo.boIdx * constInfo.s2Size + s2Idx; // BSN(1)D
+        realkeyOffset = runInfo.boIdx * constInfo.n2S2Dv + runInfo.n2oIdx * constInfo.s2Dv + s2Idx * constInfo.dSize; // BSN(1)D
     }
     return realkeyOffset;
 }
@@ -354,9 +354,11 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
         outputL1.WaitCrossCore();
         v0ResGm.WaitCrossCore();
         keyGm = oriKVGm;
-        blockTableGm = oriBlockTableGm;
-        blockSize = constInfo.oriBlockSize;
-        maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
+        if constexpr (IS_PA) {
+            blockTableGm = oriBlockTableGm;
+            blockSize = constInfo.oriBlockSize;
+            maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
+        }
         CalSparseCalSize(runInfo, constInfo);
         ProcessSparseKv(outputL1, v0ResGm, runInfo, constInfo, startPos);
         if constexpr (IS_SPLIT_G) {
@@ -375,9 +377,11 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
         }
         if (runInfo.s2RealSize > startPos) {
             keyGm = cmpKVGm;
-            blockTableGm = cmpBlockTableGm;
-            blockSize = constInfo.cmpBlockSize;
-            maxBlockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
+            if constexpr (IS_PA) {
+                blockTableGm = cmpBlockTableGm;
+                blockSize = constInfo.cmpBlockSize;
+                maxBlockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
+            }
             ProcessSparseKv(outputL1, v0ResGm, runInfo, constInfo, startPos);
         }
         if (startPos == 80) {
@@ -688,13 +692,17 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
     __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks)
 {
     oriKVGm.SetGlobalBuffer((__gm__ KV_T *)(oriKV));
-    oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
+    if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+        oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
+    }
     if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
         oriSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)oriSparseIndices);
     }
     if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
         cmpKVGm.SetGlobalBuffer((__gm__ KV_T *)cmpKV);
-        cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
+        if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+            cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
+        }
         cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
     }
 
@@ -809,7 +817,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
 
     sharedParams.needInit = 0;
     for (uint32_t bIdx = 0; bIdx < sharedParams.bSize; bIdx++) {
-        int64_t s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
+        int64_t s2Size;
+        if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+            s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
+        } else {
+            s2Size = sharedParams.s2Size;
+        }
         int64_t s1Size;
         if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
             s1Size = cuSeqlensQGm.GetValue(bIdx + 1) - cuSeqlensQGm.GetValue(bIdx);

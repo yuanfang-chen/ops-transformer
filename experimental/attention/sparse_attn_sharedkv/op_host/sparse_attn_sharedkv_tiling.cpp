@@ -48,7 +48,7 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
 
 const std::map<std::string, std::vector<SASLayout>> LAYOUT_SUPPORT_MAP = {
     {QUERY_NAME,            {SASLayout::BSND, SASLayout::TND}},
-    {ORI_KV_NAME,               {SASLayout::PA_ND}},
+    {ORI_KV_NAME,               {SASLayout::PA_ND, SASLayout::TND}},
     {CMP_KV_NAME,             {SASLayout::PA_ND}},
     {ATTEN_OUT_NAME,         {SASLayout::BSND, SASLayout::TND}},
     {ORI_SPARSE_INDICES,         {SASLayout::BSND, SASLayout::TND}},
@@ -137,8 +137,10 @@ ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.oriKv.tensor == nullptr, OP_LOGE(opName_, "tensor of oriKv is nullptr"),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of oriBlockTable is nullptr"),
-                return ge::GRAPH_FAILED);
+    if (opParamInfo_.layoutKv == "PA_ND") {
+        OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of oriBlockTable is nullptr"),
+                    return ge::GRAPH_FAILED);
+    }
     if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE){
         OP_CHECK_IF(opParamInfo_.cmpKv.tensor == nullptr, OP_LOGE(opName_, "tensor of cmpKv is nullptr"),
                     return ge::GRAPH_FAILED);
@@ -169,12 +171,6 @@ ge::graphStatus SASInfoParser::CheckRequiredParaExistence() const
 
 ge::graphStatus SASInfoParser::CheckUnrequiredParaExistence() const
 {
-    OP_CHECK_IF(opParamInfo_.cuSeqLensOriKv.tensor != nullptr || opParamInfo_.cuSeqLensOriKv.desc != nullptr,
-                OP_LOGE(opName_, "Currently, cuSeqLensOriKv must be a nullptr"),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.cuSeqLensCmpKv.tensor != nullptr || opParamInfo_.cuSeqLensCmpKv.desc != nullptr,
-                OP_LOGE(opName_, "Currently, cuSeqLensCmpKv must be a nullptr"),
-                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -203,7 +199,7 @@ ge::graphStatus SASInfoParser::GetNpuInfo()
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND950)) {
         OP_LOGE(opName_, "SOC Version[%d] is not support.", (int32_t)socVersion_);
-        return GRAPH_FAILED;
+        return ge::GRAPH_FAILED;
     }
 
     return ge::GRAPH_SUCCESS;
@@ -361,6 +357,8 @@ ge::graphStatus SASInfoParser::GetKvLayout()
 {
     const map<string, SASLayout> layoutKVMap = {
         {"PA_ND",     SASLayout::PA_ND},
+        {"TND",       SASLayout::TND},
+        {"BSND",      SASLayout::BSND},
     };
     std::string layout(opParamInfo_.layoutKv);
     auto it = layoutKVMap.find(layout);
@@ -590,8 +588,16 @@ ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
 
 ge::graphStatus SASInfoParser::GetS2Size()
 {
-    // 获取S2基准值:PAGE_ATTENTION时, S2 = block_table.dim1 * block_size
-    return GetS2SizeForPageAttention();
+    if (kvLayout_ == SASLayout::TND) {
+        s2Size_ = GetAxisNum(oriKvShape_, SASAxis::T, kvLayout_);
+        return ge::GRAPH_SUCCESS;
+    } else if (kvLayout_ == SASLayout::BSND) {
+        s2Size_ = GetAxisNum(oriKvShape_, SASAxis::S, kvLayout_);
+        return ge::GRAPH_SUCCESS;
+    } else if (kvLayout_ == SASLayout::PA_ND) {
+        // 获取S2基准值:PAGE_ATTENTION时, S2 = block_table.dim1 * block_size
+        return GetS2SizeForPageAttention();
+    }
 }
 
 ge::graphStatus SASInfoParser::GetQHeadDim()
@@ -672,11 +678,12 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
             }
             actualLenDimsKV_ = opParamInfo_.sequsedKv.tensor->GetShapeSize();
         } else {
-            OP_LOGE(opName_, "Input sequsedKv must be provided");
+            OP_LOGE(opName_, "Input sequsedKv must be provided when kv layout is PA_ND");
             return ge::GRAPH_FAILED;
         }
+    } else if (kvLayout_ == SASLayout::TND) {
     } else {
-        OP_LOGE(opName_, "oriKV and cmpKv only support PA_ND layout.");
+        OP_LOGE(opName_, "oriKV and cmpKv only support PA_ND and TND layout, but got %d.", kvLayout_);
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -944,7 +951,7 @@ ge::graphStatus SASTilingCheck::CheckSingleParaQuery() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaOriKv() const
 {
-    const std::vector<size_t> oriKvDimNumList = {DIM_NUM_FOUR};
+    const std::vector<size_t> oriKvDimNumList = {DIM_NUM_THREE, DIM_NUM_FOUR};
     if (
         ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.oriKv.desc, ORI_KV_NAME) ||
         ge::GRAPH_SUCCESS != CheckLayoutSupport(kvLayout_, ORI_KV_NAME) ||
@@ -1024,9 +1031,12 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaOriBlockTable() const
 {
+    if (kvLayout_ != SASLayout::PA_ND) {
+        return ge::GRAPH_SUCCESS;
+    }
     const std::vector<size_t> oriBlockTableDimNumList = {DIM_NUM_TWO};
     if (
-        ge::GRAPH_SUCCESS != CheckDtypeSupport( opParamInfo_.oriBlockTable.desc, ORI_BLOCK_TABLE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.oriBlockTable.desc, ORI_BLOCK_TABLE_NAME) ||
         ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.oriBlockTable.tensor->GetShape(), oriBlockTableDimNumList, ORI_BLOCK_TABLE_NAME)) {
         return ge::GRAPH_FAILED;
     }
@@ -1040,6 +1050,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaOriBlockTable() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaCmpBlockTable() const
 {
+    if (kvLayout_ != SASLayout::PA_ND) {
+        return ge::GRAPH_SUCCESS;
+    }
     if (sasInfo_.perfMode == optiling::SASTemplateMode::SCFA_TEMPLATE_MODE ||
         sasInfo_.perfMode == optiling::SASTemplateMode::CFA_TEMPLATE_MODE){
             const std::vector<size_t> cmpBlockTableDimNumList = {DIM_NUM_TWO};
@@ -1188,6 +1201,7 @@ ge::graphStatus SASTilingCheck::CheckExistenceByMap(std::map<std::string, const 
 
 ge::graphStatus SASTilingCheck::CheckParaExistence() const
 {
+#if 0
     std::map<std::string, const void *> ParamExistMap = {
         {"actualSeqLengths", opParamInfo_.sequsedKv.tensor},
         {"oriBlockTable", opParamInfo_.oriBlockTable.tensor},
@@ -1196,6 +1210,7 @@ ge::graphStatus SASTilingCheck::CheckParaExistence() const
     if (CheckExistenceByMap(ParamExistMap, ParamNotExistMap) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+#endif
     return ge::GRAPH_SUCCESS;
 }
 

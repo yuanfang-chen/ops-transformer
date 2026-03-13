@@ -42,14 +42,15 @@ for params in ENABLED_PARAMS_FROM_FILE:
         "S1": params.get("S1"),
         "S2": params.get("S2"),
         "T1": params.get("T1"),
+        "T2": params.get("T2"),
         "N1": params.get("N1"),
         "N2": params.get("N2"),
         "D": params.get("D"),
         "K1": params.get("K1", [None]),
         "K": params.get("K", [None]),
-        "block_num1": params.get("block_num1"),
+        "block_num1": params.get("block_num1", [None]),
         "block_num2": params.get("block_num2", [None]),
-        "block_size1": params.get("block_size1"),
+        "block_size1": params.get("block_size1", [None]),
         "block_size2": params.get("block_size2", [None]),
         "cu_seqlens_q": params.get("cu_seqlens_q", [None]),
         "seqused_q": params.get("seqused_q", [None]),
@@ -83,6 +84,7 @@ def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
     S1 = int(param_combinations['S1'])
     S2 = None if param_combinations['S2'] is None else int(param_combinations['S2'])
     T1 = None if param_combinations['T1'] is None else int(param_combinations['T1'])
+    T2 = None if param_combinations['T2'] is None else int(param_combinations['T2'])
     N1 = int(param_combinations['N1'])
     N2 = int(param_combinations['N2'])
     D = int(param_combinations['D'])
@@ -106,14 +108,8 @@ def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
     ori_kv_datarange = ast.literal_eval(param_combinations['ori_kv_datarange']) if param_combinations['ori_kv_datarange'] is not None else [-10,10]
     cmp_kv_datarange = ast.literal_eval(param_combinations['cmp_kv_datarange']) if param_combinations['cmp_kv_datarange'] is not None else [-10,10]
     ori_kv_topk_mode = param_combinations['ori_kv_topk_mode']
-
-    # maxSeqLen / block_size向上取整
-    ori_block_num_per_batch = []
-    ori_block_num_sum = 0
-    cmp_block_num_per_batch = []
-    cmp_block_num_sum = 0
     
-    test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K1, K, block_num1, \
+    test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, T2, N1, N2, D, K1, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, \
                 ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, testcase_name, S2, q_datarange, \
                 ori_kv_datarange, cmp_kv_datarange, seqused_q, ori_kv_topk_mode

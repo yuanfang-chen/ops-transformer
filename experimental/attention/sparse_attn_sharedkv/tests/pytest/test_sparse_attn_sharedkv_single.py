@@ -39,14 +39,15 @@ for params in ENABLED_PARAMS:
         "S1": params.get("S1"),
         "S2": params.get("S2", [None]),
         "T1": params.get("T1", [None]),
+        "T2": params.get("T2", [None]),
         "N1": params.get("N1"),
         "N2": params.get("N2"),
         "D": params.get("D"),
         "K1": params.get("K1", [None]),
         "K": params.get("K", [None]),
-        "block_num1": params.get("block_num1"),
+        "block_num1": params.get("block_num1", [None]),
         "block_num2": params.get("block_num2", [None]),
-        "block_size1": params.get("block_size1"),
+        "block_size1": params.get("block_size1", [None]),
         "block_size2": params.get("block_size2", [None]),
         "seqused_q": params.get("seqused_q", [None]),
         "cu_seqlens_q": params.get("cu_seqlens_q", [None]),
@@ -81,6 +82,7 @@ def test_example(param_combinations):
     S1 = param_combinations['S1']
     S2 = param_combinations['S2']
     T1 = param_combinations['T1']
+    T2 = param_combinations['T2']
     N1 = param_combinations['N1']
     N2 = param_combinations['N2']
     D = param_combinations['D']
@@ -107,7 +109,7 @@ def test_example(param_combinations):
 
     torch_npu.npu.set_device(0)
     # 增加参数请在最后增加，保证结果统计
-    test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K1, K, block_num1, \
+    test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, T2, N1, N2, D, K1, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, \
                 ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, testcase_name, S2, q_datarange, \
                 ori_kv_datarange, cmp_kv_datarange, seqused_q, ori_kv_topk_mode
