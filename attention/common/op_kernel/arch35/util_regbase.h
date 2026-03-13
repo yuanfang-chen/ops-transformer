@@ -185,7 +185,8 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     uint8_t taskIdMod3; \
     uint8_t multiCoreIdxMod2 = 0; \
     uint8_t multiCoreIdxMod3 = 0; \
-    int64_t sOuterOffset
+    int64_t sOuterOffset; \
+    uint8_t isSinkBlock
 
 template<bool isInfer = false>
 struct RunInfo;
@@ -292,7 +293,9 @@ struct RunInfo<false> {
     float scaleValue; \
     int64_t matmulMSize;     /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */ \
     bool learnableSinkFlag = false; /* attentionsink */ \
-    float pScale
+    float pScale; \
+    uint8_t sinkLength = 128; \
+    uint8_t sinkBlockCnt = 0
 
 
 #define ROPE_INFO \

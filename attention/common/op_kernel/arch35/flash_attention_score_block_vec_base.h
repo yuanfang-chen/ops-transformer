@@ -666,16 +666,34 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     }
 
     LocalTensor<uint8_t> attenMaskUb;
+    // zql 如果提升效率这里可以增加一个模板判断是否使能sink
     if constexpr (hasAtten == true) {
         if constexpr (isMlaFullQuant || isMlaNoQuant) {
             this->MlaAttenMaskCopyIn(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
                 this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
         } else {
-            AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
-                this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
+            // zql sink块不走attenmask逻辑
+            // zql 需要把UB上拷贝attenMask块刷成0
+            if (runInfo.isSinkBlock) {
+                // zql 为啥不用uint8_t类型，看手册910D也支持
+                attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
+                LocalTensor<int16_t> attenMaskUbDst = attenMaskUb.template ReinterpretCast<int16_t>();
+                uint32_t rowLength = constInfo.s2BaseSize / 2;
+                uint32_t tailSinkSize = constInfo.sinkLength - runInfo.s2LoopCount * constInfo.s2BaseSize;
+                uint32_t colLength = tailSinkSize > constInfo.s2BaseSize ? constInfo.s2BaseSize / 2 : tailSinkSize / 2;
+                // zql 关注v有两个，所以用halfS1RealSize
+                Duplicate(attenMaskUbDst, static_cast<int16_t>(0), colLength, runInfo.halfS1RealSize, 1, rowLength / 16);
+                attenMaskUb = attenMaskUbDst.template ReinterpretCast<uint8_t>();
+            } else {
+                AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
+                    this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
+            }
         }
-        attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
+        if (!runInfo.isSinkBlock) {
+            attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
+        }
     }
+    //DumpTensor(attenMaskUb,8888,128);
     LocalTensor<uint8_t> dropMaskUb;
     GetDerived()->GenerateDropoutMask(runInfo, constInfo, dropMaskUb);
 
@@ -736,14 +754,15 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
     constexpr bool useMlaSgdFlag = ((isMlaFullQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
-    if (runInfo.s2LoopCount == 0) {
+    //DumpTensor(mmRes,66661,128);
+    if (runInfo.s2LoopCount == 0 && (constInfo.sinkLength == 0 || runInfo.isSinkBlock)) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, hasDrop, useMlaSgdFlag, isMlaFullQuant>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfoPtr->pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), descaleQK, negativeFloatScalar,
                 constInfo.keepProb, queryScaleUb, deSCaleKValue);
-        } else if (runInfo.s2RealSize <= 64) {
+          } else if (runInfo.s2RealSize <= 64) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, hasDrop, useMlaSgdFlag, isMlaFullQuant>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
@@ -853,7 +872,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     }
     outputBuf.SetCrossCore();
     // ======================================================
-    if (runInfo.s2LoopCount != 0) {
+    if (runInfo.s2LoopCount != 0  || (constInfo.sinkLength > 0 && !runInfo.isSinkBlock)) {
         UpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
     }
     if constexpr (IsSameType<INPUT_T, float>::value) {
@@ -864,7 +883,9 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             this->InvalidLineProcess(runInfo, constInfo, sumUb, maxUb);
         }
     }
+    printf("=====zql before SoftmaxDataCopyOut debug\n");
     if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
+        printf("=====zql SoftmaxDataCopyOut!! runInfo.s2LoopCount %d runInfo.isSinkBlock:%d constInfo.s1BaseSize=%d\n",runInfo.s2LoopCount,runInfo.isSinkBlock,constInfo.s1BaseSize);
         GetDerived()->SoftmaxDataCopyOut(runInfo, constInfo, sumUb, maxUb);
     }
 }
@@ -880,7 +901,10 @@ TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUb(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm2ResBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo) {
+        // zql 这里走了22次？
+        printf("========zql ProcessVec2OnUb in=============\r\n");
     if (unlikely(runInfo.vec2S1BaseSize == 0)) {
+        printf("========zql ProcessVec2OnUb in runInfo.vec2S1BaseSize == 0=============\r\n");
         bmm2ResBuf.SetCrossCore();
         return;
     }
@@ -888,27 +912,24 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUb(
     if constexpr (implMode != ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION && !isFp8 && useDn) {
         if constexpr (isInfer) {
             if (constInfo.s2Size <= 128 && !constInfo.isRowInvalid && !POST_QUANT) { // 128: kv方向基本块大小
+            printf("========zql     ProcessVec2OnUb isInfer=============\r\n");
                 ProcessVec2NoGlobalUpdate(runInfo, constInfo, bmm2ResBuf, (dTemplateAlign64 * sizeof(INPUT_T)) << 5);
                 return;
             }
         } else {
             if (constInfo.s2Size <= 128) { // 128: kv方向基本块大小
+            printf("========zql     ProcessVec2OnUb !isInfer=============\r\n");
                 ProcessVec2NoGlobalUpdate(runInfo, constInfo, bmm2ResBuf, (dTemplateAlign64 * sizeof(INPUT_T)) << 5);
                 return;
             }
         }
     }
+    printf("========zql ProcessVec2OnUb in 2=============\r\n");
     int64_t vec2CalcSize = runInfo.vec2S1RealSize * dTemplateAlign64;
     float deSCaleVValue;
     if constexpr (isFp8) {
         if constexpr (isMlaFullQuant) {
             deSCaleVValue = this->deScaleVGm.GetValue(0);
-        } else if constexpr (useNz) {
-            int64_t s2BlockCnt = CeilDivision(constInfo.s2Size, FP8_QUANT_V_BLOCK_SIZE);
-            runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt +
-                                                runInfo.n2oIdx * s2BlockCnt +
-                                                (runInfo.s2StartIdx >> 9) + runInfo.s2LoopCount;
-            deSCaleVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
         } else {
             deSCaleVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
         }
@@ -918,7 +939,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUb(
     LocalTensor<T> vec2ResUb = this->stage2OutBuf.template Get<T>();
     LocalTensor<T> mmRes = bmm2ResBuf.template GetTensor<T>();
     WaitFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
-    if (unlikely(runInfo.s2LoopCount == 0)) {
+    if (unlikely(runInfo.s2LoopCount == 0 && (constInfo.sinkLength == 0 || runInfo.isSinkBlock))) {
+        printf("VEC2 !! unlikely(runInfo.s2LoopCount == 0 \n");
         DataCopy(vec2ResUb, mmRes, vec2CalcSize);
     } else {
         LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<T>();
@@ -998,13 +1020,16 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUb(
     }
     bmm2ResBuf.SetCrossCore();
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
-        if (unlikely(runInfo.s2LoopCount == 0)) {
+        if (unlikely(runInfo.s2LoopCount == 0 && (constInfo.sinkLength == 0 || runInfo.isSinkBlock))) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
             LastDivNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, isMlaFullQuant>(
                 vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize, (uint16_t)dTemplateAlign64, deSCaleVValue);
         }
+        printf("========zql ProcessVec2OnUb runInfo.s2LoopCount == runInfo.s2LoopLimit=============\r\n");
+        //DumpTensor(vec2ResUb,77772,128);
         GetDerived()->CopyOutAttentionOut(runInfo, constInfo, vec2ResUb, 0, vec2CalcSize);
     }
+    printf("=====zql Vec2 END==============\r\n");
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
 }
 

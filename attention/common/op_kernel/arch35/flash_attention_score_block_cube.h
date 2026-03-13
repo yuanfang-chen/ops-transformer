@@ -675,16 +675,16 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
+    printf("============zql IterateBmm2===================\r\n");
     if constexpr (isMlaFullQuant) {
         IterateBmm2MLAFullQuant(outputBuf, inputBuf, runInfo, constInfo);
-    } else if constexpr (useNz) {
-        IterateBmm2Nz(outputBuf, inputBuf, runInfo, constInfo);
     } else {
         if constexpr (isInfer && layout == LayOutTypeEnum::LAYOUT_BNSD) {
             if (constInfo.isKvContinuous == 0) {
                 this->valueGm.offsetCalculator.Init(0, constInfo.n2Size, runInfo.s2InCurrentBatch, constInfo.dSizeV);
             }
         }
+        // zql 
         if constexpr (IsSameType<INPUT_T, float>::value || (uint32_t)dVTemplateType > 256 || (uint32_t)dTemplateType > 256) {
             IterateBmm2L1SplitN(outputBuf, inputBuf, runInfo, constInfo);
         } else {
@@ -730,14 +730,35 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                                                constInfo.dSizeV, constInfo.mm2Kb);
                     }
                 } else {
-                    uint64_t gmOffset = runInfo.keyOffset;
-                    if (constInfo.dSize != constInfo.dSizeV) {
-                        gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
-                                                                            runInfo.n2oIdx,
-                                                                            coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                    // zql sink块特殊处理  通过日志打印看走这里
+                    // zql offset重新算
+                    if (runInfo.isSinkBlock) {
+                        uint64_t gmOffset = runInfo.keyOffset;
+                        printf("=========zql valueSinkGm dSize=%d  dSizeV=%d coordInfo[runInfo.taskIdMod3].s2Coord=%d gmOffset=%d==============\r\n", constInfo.dSize, constInfo.dSizeV,coordInfo[runInfo.taskIdMod3].s2Coord,gmOffset);
+                        if (constInfo.dSize != constInfo.dSizeV) {
+                            gmOffset = runInfo.n2oIdx * constInfo.dSizeV + runInfo.s2LoopCount * s2BaseSize * constInfo.dSizeV;
+                            // gmOffset = this->valueSinkGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
+                            //                                                     runInfo.n2oIdx,
+                            //                                                     coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                        }
+                        printf("==============zql valueSinkGm gmOffset=%d curBIdx=%d n2oIdx=%d s2Coord=%d s2RealSize=%d dSizeV=%d mm2Kb=%d=============\r\n", 
+                        gmOffset, coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,coordInfo[runInfo.taskIdMod3].s2Coord,runInfo.s2RealSize,constInfo.dSizeV,constInfo.mm2Kb);
+                        // CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, this->valueSinkGm.gmTensor[gmOffset], runInfo.s2RealSize,
+                        //                     constInfo.dSizeV, constInfo.mm2Kb);
+                        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, this->valueSinkGm.gmTensor[gmOffset], constInfo.sinkLength,
+                                            constInfo.dSizeV, constInfo.mm2Kb);
+                    } else {
+                        uint64_t gmOffset = runInfo.keyOffset;
+                        // zql 这里v的偏移使用key的，为什么  下面的判断是针对合并rope传入的场景来说吗
+                        if (constInfo.dSize != constInfo.dSizeV) {
+                            gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
+                                                                                runInfo.n2oIdx,
+                                                                                coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                        }
+                        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
+                                            constInfo.dSizeV, constInfo.mm2Kb);
                     }
-                    CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
-                                           constInfo.dSizeV, constInfo.mm2Kb);
+
                 }
             }
             mm2B.Set<HardEvent::MTE2_MTE1>(); // 通知
@@ -835,7 +856,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
         }
     }
 }
-
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitDequantParams(
     __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV)
@@ -889,8 +909,7 @@ FABlockCube<TEMPLATE_ARGS>::GetValueGm(RunInfo<isInfer> &runInfo,
     }
 }
 
-/* 针对S1Base=128, S2Base = 128, D > 128场景，L1全载，左矩阵驻留 + L0切D + L0Db*/
-TEMPLATES_DEF_NO_DEFAULT
+ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
@@ -899,33 +918,34 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     Buffer<BufferType::L1> mm1B;
     // 左矩阵复用 ,s2的第一次循环加载左矩阵
     // 加载左矩阵到L1 当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本快：搬运0
+    // zql 没开sink功能，或者是sink首块时搬运进来左矩阵
+    if (unlikely(runInfo.s2LoopCount == 0) && (constInfo.sinkLength == 0 || runInfo.isSinkBlock)) { // sOuter循环第一个基本快：搬运0
         mm1A = l1QBuffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
 
         if constexpr (isInfer){
+            //zql run
+            printf("===zql IterateBmm1NdL0Split isInfer====\r\n");
             if (IsGS1Merge(constInfo)) {
+                printf("===zql IterateBmm1NdL0Split IsGS1Merge Q_FORMAT=3 constInfo.isPfaGS1Merge=0====\r\n");
                 uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
                 CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], constInfo.s1Size, constInfo.gSize, constInfo.dSize,
                     constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
             } else {
-                if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	 
-                    uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
-                         coordInfo[runInfo.taskIdMod3].s1Coord, 0);	 
-                    CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
-                        constInfo.mm1Ka);	 
-                } else { 
-                    CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
-                        constInfo.mm1Ka); 
-                }
+                printf("===zql IterateBmm1NdL0Split !IsGS1Merge====\r\n");
+                uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize, constInfo.mm1Ka);
             }
         } else {
+            printf("===zql IterateBmm1NdL0Split !isInfer====\r\n");
             uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
             CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize, constInfo.mm1Ka);
         }
         
         if constexpr (hasRope) {
+            // zql run
+            printf("===zql IterateBmm1NdL0Split hasRope====\r\n");
             uint32_t dstNzC0Stride = (runInfo.s1RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
             if constexpr (isFp8) {
                 dstNzC0Stride = (runInfo.s1RealSize + 31) >> 5 << 5; // fp8场景在L1上M方向32对齐，防止loadL12L0出现地址越界
@@ -942,9 +962,11 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
         mm1A.Set<HardEvent::MTE2_MTE1>(); // 通知 // 是否可以省略
     }
     // 加载当前轮的右矩阵到L1
+    // zql -- 权重吸收D 576不走这里，这里是申请一块用来加载右矩阵到L1内存中
     mm1B = l1KBuffers.Get();
     mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
+    // zql pa暂时不考虑
     if constexpr (isPa) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
@@ -975,6 +997,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
             ropeShape.actHeadDim = constInfo.dSizeRope;
             uint32_t dstNzC0Stride = shape.copyRowNumAlign;
             LocalTensor<INPUT_T> mm1BRopeTensor = mm1BTensor[dstNzC0Stride * constInfo.dSize];
+            // zql prefill阶段keyRope和key合并传入，这里是否要考虑Decode 分离传入场景，当前A5是否还区分PD？
             GlobalTensor<INPUT_T> mm1BRopeGmTensor = this->keyRopeGm.gmTensor;
             GmCopyInToL1HasRopePA<INPUT_T>(mm1BTensor, mm1BRopeTensor, mm1BGmTensor, mm1BRopeGmTensor, blockTableGm, kvLayout, shape, ropeShape, startPos);
         } else {
@@ -995,10 +1018,47 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                                        constInfo.dSize, constInfo.mm1Kb);
             }
         } else {
-            runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
-                coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
-            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
-                                   constInfo.dSize, constInfo.mm1Kb);
+            printf("=======zql isSinkBlock=%d dSize=%d========\r\n", runInfo.isSinkBlock, constInfo.dSize);
+            if (runInfo.isSinkBlock) {
+                // zql offset偏移计算方式和key一样，了解下这个GetOffset是在哪里定义的
+                // zql keysink的偏移要单独手动算 B=1 N2 S2 D
+                // runInfo.keyOffset = this->keySinkGm.offsetCalculator.GetOffset(
+                //     0, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                // runInfo.keyOffset = runInfo.s2LoopCount * s2BaseSize * constInfo.dSize;
+                // Nd2NzParams Gm2L1Nd2NzParams;
+                // Gm2L1Nd2NzParams.ndNum = 1; // ND矩阵的个数
+                // Gm2L1Nd2NzParams.nValue = runInfo.s2RealSize; // 单个ND矩阵的实际行数，单位为元素个数
+                // Gm2L1Nd2NzParams.dValue = constInfo.dSize; // 单个ND矩阵的实际列数，单位为元素个数
+                // Gm2L1Nd2NzParams.srcNdMatrixStride = 0; // 相邻ND矩阵起始地址之间的偏移， 单位为元素个数
+                // Gm2L1Nd2NzParams.srcDValue = constInfo.mm1Kb; // 同一个ND矩阵中相邻行起始地址之间的偏移， 单位为元素个数
+                // //Gm2L1Nd2NzParams.dstNzC0Stride = (Gm2L1Nd2NzParams.nValue + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移， 单位为Block个数 // zql为什么在这里是这个数
+                // Gm2L1Nd2NzParams.dstNzC0Stride = (runInfo.s2RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移， 单位为Block个数 // zql为什么在这里是这个数
+                // Gm2L1Nd2NzParams.dstNzNStride = 1; // 转换为NZ矩阵后，ND之间相邻两行在NZ矩阵中起始地址之间的偏移， 单位为Block个数
+                // // Gm2L1Nd2NzParams.dstNzC0Stride = 1;
+                // // Gm2L1Nd2NzParams.dstNzNStride = constInfo.dSize >> 4;
+                // Gm2L1Nd2NzParams.dstNzMatrixStride = 0; // 两个NZ矩阵，起始地址之间的偏移， 单位为元素数量
+                // DataCopy(mm1BTensor, this->keySinkGm.gmTensor[runInfo.keyOffset], Gm2L1Nd2NzParams);
+                // // CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->keySinkGm.gmTensor[runInfo.keyOffset], runInfo.s2RealSize,
+                // //                     constInfo.dSize, constInfo.mm1Kb);
+                // printf("============zql keysinkGM isSinkBlock n2oIdx=%d s2Coord=%d runInfo.keyOffset=%d constInfo.mm1Kb=%d constInfo.dSize=%d runInfo.s2RealSize=%d dstNzNStride=%d======================\r\n",
+                //  runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, runInfo.keyOffset,constInfo.mm1Kb,constInfo.dSize,runInfo.s2RealSize,Gm2L1Nd2NzParams.dstNzNStride);
+                // runInfo.keyOffset = this->keySinkGm.offsetCalculator.GetOffset(
+                //     coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                runInfo.keyOffset = runInfo.n2oIdx * constInfo.dSize + runInfo.s2LoopCount * s2BaseSize * constInfo.dSize;
+                printf("==========zql test break n2oIdx=%d sinkLength =%d s2LoopCount=%d dSize=%d keyOffset=%d===============\r\n",
+                    runInfo.n2oIdx,constInfo.sinkLength,runInfo.s2LoopCount,constInfo.dSize,runInfo.keyOffset);
+                // CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->keySinkGm.gmTensor[runInfo.keyOffset], runInfo.s2RealSize,
+                //                     constInfo.dSize, constInfo.mm1Kb);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->keySinkGm.gmTensor[runInfo.keyOffset], constInfo.sinkLength,
+                                    constInfo.dSize, constInfo.mm1Kb);
+            } else {
+                runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                    coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
+                                    constInfo.dSize, constInfo.mm1Kb);
+                printf("============zql keysinkGM !isSinkBlock n2oIdx=%d s2Coord=%d runInfo.keyOffset=%d constInfo.mm1Kb=%d constInfo.dSize=%d runInfo.s2RealSize=%d======================\r\n",
+                 runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, runInfo.keyOffset,constInfo.mm1Kb,constInfo.dSize,runInfo.s2RealSize);
+            }
         }
         if constexpr (hasRope) {
             uint32_t dstNzC0Stride = (runInfo.s2RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
@@ -1011,6 +1071,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                 runInfo.s2RealSize, constInfo.dSizeRope, constInfo.mm1RopeKb); 
         }
     }
+    printf("==========zql test break 1===============\r\n");
     mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
 
     mm1A.Wait<HardEvent::MTE2_MTE1>(); // 等待L1A
@@ -1026,7 +1087,9 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                     };
 
     // 这里base M N K不要写死
+    printf("==========zql test break 2===============\r\n");
     if constexpr (s2BaseSize == 256) {
+        printf("==========zql MatmulN s2BaseSize == 256=============\r\n");
         MatmulN<INPUT_T, INPUT_T, T, 64, 128, 256, ABLayout::MK, ABLayout::KN>(
             mm1A.GetTensor<INPUT_T>(), mm1B.GetTensor<INPUT_T>(),
             mmL0ABuffers, mmL0BBuffers,
@@ -1040,6 +1103,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                 mm1ResL0C.GetTensor<T>(),
                 param);
         } else {
+            printf("==========zql MatmulK s2BaseSize != 256 runInfo.s1RealSize=%d runInfo.s2RealSize=%d constInfo.dSize=%d constInfo.dSizeRope=%d=============\r\n",runInfo.s1RealSize,runInfo.s2RealSize,constInfo.dSize,constInfo.dSizeRope);
             MatmulK<INPUT_T, INPUT_T, T, 128, 128, 128, ABLayout::MK, ABLayout::KN>(
                 mm1A.GetTensor<INPUT_T>(), mm1B.GetTensor<INPUT_T>(),
                 mmL0ABuffers, mmL0BBuffers,
@@ -1047,6 +1111,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                 param);
         }
     }
+    printf("==========zql test break 3===============\r\n");
     if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
         mm1A.Set<HardEvent::MTE1_MTE2>();
     }
@@ -1072,7 +1137,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
             fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
         }
     }
-
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放
     outputBuf.SetCrossCore();

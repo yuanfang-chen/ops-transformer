@@ -4725,6 +4725,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
         uint64_t batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
         uint64_t headNumKVSize = tilingData.promptAttentionBaseParams.get_headNumSize(); // IFA kv N
         uint64_t bng = batchSize * headNumKVSize * (gSize + sOuterSize - 1) / sOuterSize;
+        // zql 增加互斥判断 Prefill阶段sink不支持FD，等tilingdata增加数据
         if (IsFlashDecode(contextKeyParams, bng)) {
             enableFlashDecode = true;
             return SplitBNS(tilingData, bng);

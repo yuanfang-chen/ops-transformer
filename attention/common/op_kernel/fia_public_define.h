@@ -120,6 +120,7 @@ struct RunInfo {
 
     uint64_t qPaddingBeginOffset = 0;
     uint64_t kvPaddingBeginOffset = 0;
+    bool isSinkBlock = 0;
 };
 
 struct ConstInfo {

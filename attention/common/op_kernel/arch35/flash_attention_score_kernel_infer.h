@@ -113,6 +113,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
     uint32_t bnEndIdx;
     int64_t s2LoopLimit;
     int64_t nextGs1Idx = this->sharedParams.multiCoreInnerLimit;
+    // zql sink sink不开FD
     if constexpr (!isFd) {
         bnStartIdx = this->sharedParams.bnStartIdx;
         gS1StartIdx = this->sharedParams.multiCoreInnerOffset;
@@ -125,6 +126,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
             bnEndIdx = this->sharedParams.bSize * this->constInfo.n2Size *
                 this->constInfo.headNumRatio;
         }
+        printf("======zql mainloop nextGs1Idx=%d bnStartIdx=%d gS1StartIdx=%d bnEndIdx=%d=========\r\n",nextGs1Idx,bnStartIdx,gS1StartIdx,bnEndIdx);
     } else {
         gS1StartIdx = 0;
         bnStartIdx = 0;
@@ -155,6 +157,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
         }
         ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, this->attenMaskInfo,
             this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
+        // zql 
         ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, lastBN,
                                                                       nextGs1Idx);
         if constexpr (isFd) {
@@ -172,9 +175,12 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
             runParam.s1LoopTimes = 1;
         }
         int64_t tempGS1End = lastBN ? (runParam.s1LoopTimes + 3) : runParam.s1LoopTimes;
+        // zql 每个GS1共用一个KV
+        printf("==========zql bnStartIdx=%d bnEndIdx=%d gS1StartIdx=%d tempGS1End=%d bnIdx=%d===============\r\n", bnStartIdx, bnEndIdx, gS1StartIdx, tempGS1End,bnIdx);
         for (int64_t gS1Index = gS1StartIdx; gS1Index < tempGS1End; ++gS1Index) {
             bool notLastThreeLoop = true;
             bool notLastTwoLoop = true;
+            printf("=======zql lastBN=%d gS1Index=%d  runParam.s1LoopTimes=%d  tempGS1End %d=========\r\n",lastBN,gS1Index,runParam.s1LoopTimes,tempGS1End);
             if (lastBN) {
                 int32_t extraGS1 = gS1Index - runParam.s1LoopTimes;
                 switch (extraGS1) {
@@ -197,6 +203,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                         break;
                 }
             }
+            printf("===========zql notLastThreeLoop=%d==================\r\n",notLastThreeLoop);
             if (notLastThreeLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
                 bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(
@@ -204,15 +211,22 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                 bool s2NoNeedCalc =
                     ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
+                // zql 上面的意思是s1 s2中有不符合计算逻辑的就不用算了
                 if (s1NoNeedCalc || s2NoNeedCalc) {
+                    printf("===========zql s1NoNeedCalc || s2NoNeedCalc==================\r\n");
                     continue;
                 }
-                s2LoopLimit = runParam.s2LoopEndIdx - 1;
+                //zql 增加sink块的循环个数，下面的s2循环要带上sink块，这里没看懂为啥给s2LoopEndIdx
+                //s2LoopLimit = runParam.s2LoopEndIdx - 1 + this->constInfo.sinkBlockCnt;
+                //runParam.s2LoopEndIdx += this->constInfo.sinkBlockCnt;//加上sink部分的主流程循环次数 runParam.s2LoopEndIdx 保持含义：当前行需要计算的S2loop次数
+                s2LoopLimit = runParam.s2LoopEndIdx - 1 + this->constInfo.sinkBlockCnt;
+                printf("======zql s2LoopLimit=%d s2LoopEndIdx=%d sinkBlockCnt=%d=======\r\n", s2LoopLimit, runParam.s2LoopEndIdx, this->constInfo.sinkBlockCnt);
             } else {
+                //zql 为啥最后3个循环不需要这个？最后三个循环是说s2的循环吗
                 s2LoopLimit = 0;
             }
 
-            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
+            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) { 
                 if (notLastThreeLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
@@ -220,6 +234,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
                     }
                 }
+                printf("=====zql mainloop s2LoopCount=%d s2LoopLimit=%d taskId=%d notLastThreeLoop=%d notLastTwoLoop=%d notLast=%d ====\r\n", s2LoopCount, s2LoopLimit,taskId, notLastThreeLoop, notLastTwoLoop, notLast);
                 if (taskId > 0 && notLastTwoLoop) {
                     if ASCEND_IS_AIV {
                         auto &runInfo3 = runInfo[(taskId + 3) & 3];
@@ -228,6 +243,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                     }
                 }
                 if (taskId > 1 && notLast) {
+                    printf("==============zql main IterateBmm2 ==================\r\n");
                     if ASCEND_IS_AIC {
                         RunInfo<isInfer> &runInfo2 = runInfo[(taskId + 2) & 3];
                         if constexpr (BaseClass::bmm2Write2Ub) {
@@ -240,8 +256,10 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                     }
                 }
                 if (taskId > 2) {
+                    printf("==============zql main ProcessVec2 ==================\r\n");
                     if ASCEND_IS_AIV {
                         RunInfo<isInfer> &runInfo3 = runInfo[(taskId + 1) & 3];
+                        // zql s2loopcount=0（&&isSinkblock）和s2loopcount=s2looplimit（&&!isSinkblock）的时候刷Max要适配
                         if constexpr (BaseClass::bmm2Write2Ub) {
                             this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
                         } else {

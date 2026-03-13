@@ -531,7 +531,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         }
         constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
     }
-
+    constInfo.sinkBlockCnt =  (constInfo.sinkLength + s2BaseSize - 1) / s2BaseSize;
     GetDerived()->InitUniqueConstInfo();
 }
 
@@ -613,9 +613,6 @@ template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    runInfo.s2StartIdx = runParam.s2LineStartIdx;
-    runInfo.s2EndIdx = runParam.s2LineEndIdx;
-    runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
         runInfo.s1oIdx = runParam.s1oIdx;
         runInfo.boIdx = runParam.boIdx;
@@ -637,7 +634,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     runInfo.taskId = taskId;
     runInfo.taskIdMod2 = taskId & 1;
     runInfo.taskIdMod3 = taskId % 3;
-    runInfo.s2LoopLimit = s2LoopLimit;
 
     if constexpr (isFd) {
         runInfo.flashDecodeS2Idx = this->aicIdx % constInfo.splitKVNum;
@@ -650,10 +646,31 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (isInfer) {
         runInfo.sOuterOffset = runParam.sOuterOffset;
     }
+    // zql sink块单独处理,后期为了性能可以整理成模板参数，编译期间判断
+    if (s2LoopCount < constInfo.sinkBlockCnt && constInfo.sinkLength != 0) {
+        runInfo.s2StartIdx = 0;
+        runInfo.s2EndIdx = constInfo.sinkLength;
+        runInfo.s2LoopCount = s2LoopCount;
+        runInfo.s2LoopLimit = s2LoopLimit;// 这里是为了在sink块遍历完毕时也不会重新搬入Q
+        runInfo.boIdx = 0; // zql 因为sinkTensor只有1个batch，所有batch共用一个sinkTensor
+        runInfo.isSinkBlock = true;
+    } else {
+        runInfo.s2StartIdx = runParam.s2LineStartIdx;
+        runInfo.s2EndIdx = runParam.s2LineEndIdx; // LineEndIdx表示S2具体位置，并非块位置。
+        runInfo.s2LoopCount = s2LoopCount - constInfo.sinkBlockCnt;
+        runInfo.s2LoopLimit = s2LoopLimit - constInfo.sinkBlockCnt;
+        // zql 这里是为了保持boIdx逻辑和原本一致，详设的逻辑改变了原本的逻辑,不是sink块，则boIdx保持原样
+        // 暂时修改看看
+        runInfo.boIdx = runParam.boIdx;
+        runInfo.isSinkBlock = false;
+    }
+    printf("==========zql SetRunInfo s2StartIdx=%d s2EndIdx=%d s2LoopCount=%d s2LoopLimit=%d boIdx=%d isSinkBlock=%d sinkBlockCnt=%d sinkLength%d n2oIdx=%d===============\r\n",
+        runInfo.s2StartIdx,runInfo.s2EndIdx,runInfo.s2LoopCount,runInfo.s2LoopLimit,runInfo.boIdx,runInfo.isSinkBlock, constInfo.sinkBlockCnt, constInfo.sinkLength,runInfo.n2oIdx);
+    // zql sink的尾块处理
+    // 原有逻辑
     this->ComputeBmm1Tail(runInfo, runParam);
     GetDerived()->InitUniqueRunInfo(runParam, runInfo);
 }
-
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, VecBlockType>::ComputeBmm1Tail(
     RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam)
@@ -682,10 +699,19 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             }
         }
     } else {
-        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+        if (runInfo.isSinkBlock) {
+            if (runInfo.s2LoopCount == constInfo.sinkBlockCnt - 1) {
+                runInfo.s2RealSize = constInfo.sinkLength - runInfo.s2LoopCount * s2BaseSize;
+                runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+            }
+        } else {
+            if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+                runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+                runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+            }
         }
+        printf("=====zql ComputeBmm1Tail s2StartIdx=%d s2EndIdx=%d s2RealSize=%d s2LoopCount=%d s2AlignedSize=%d vec2S1BaseSize=%d======\r\n",
+        runInfo.s2StartIdx, runInfo.s2EndIdx, runInfo.s2RealSize,runInfo.s2LoopCount,runInfo.s2AlignedSize,runInfo.vec2S1BaseSize);
     }
 }
 }
