@@ -89,18 +89,10 @@ __global__ __aicore__ void quant_grouped_mat_mul_allto_allv(
         W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
     using ComputeOpType =
         QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, DTYPE_Y,
-        CubeFormat::ND,
-        false,  // 左矩阵不支持转置
-        TILINGKEY_GROUPED_MATMUL_TRANS,
-        false,  // isShared
-        false>; // isA2avGmm
+        CubeFormat::ND, false, TILINGKEY_GROUPED_MATMUL_TRANS, false, false>;
     using SharedGmmExpertOpType =
         QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, DTYPE_Y,
-        CubeFormat::ND,
-        false,  // 左矩阵不支持转置
-        TILINGKEY_MATMUL_TRANS,
-        true,   // isShared
-        false>; // isA2avGmm
+        CubeFormat::ND, false, TILINGKEY_MATMUL_TRANS, true, false>;
     using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType,
         SharedGmmExpertOpType, TILINGKEY_COMPUTE_MATMUL>;
     // hccl
@@ -110,7 +102,6 @@ __global__ __aicore__ void quant_grouped_mat_mul_allto_allv(
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
         gmmBaseTiling, gmmArray, gmmArrayAddr_, tilingGM);
     ComputeOpType computeOp;
-    // auto tilingData_ = static_cast<const QuantGmmA2avTilingData*>(&tilingData);
     auto gmmGroupListGM = workspaceGM + tilingData_->workspaceInfo.wsGmmOutputSize;
     computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, workspaceGM, gmmGroupListGM,
         tilingData_, &tilingData_->gmmBaseTiling, gmmArrayAddr_, &pipe, false);

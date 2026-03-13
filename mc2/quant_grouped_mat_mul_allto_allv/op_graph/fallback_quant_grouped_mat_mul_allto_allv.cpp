@@ -115,26 +115,20 @@ static ge::graphStatus GroupedMatMulAlltoAllvExecuteFunc(gert::OpExecuteContext*
 
     // 输入参数和属性的校验
     ge::graphStatus ret = CheckInputsAndAttrs(gmmX, gmmWeight, group, transGmmWeight, epWorldSize);
-    if (ret != ge::GRAPH_SUCCESS) {
-        return ret;
-    }
+    if (ret != ge::GRAPH_SUCCESS) {return ret;}
 
     // 解析 sendCounts 和 recvCounts
     std::vector<int64_t> actRecvCountsSeqArray;
     std::vector<int64_t> actSendCountsSeqArray;
     ret = ParseSendRecvCounts(sendCounts, recvCounts,
                               actSendCountsSeqArray, actRecvCountsSeqArray);
-    if (ret != ge::GRAPH_SUCCESS) {
-        return ret;
-    }
+    if (ret != ge::GRAPH_SUCCESS) {return ret;}
 
     // 获取并校验输出参数
     auto y = host_api_ctx->GetOutputTensor(static_cast<size_t>(ops::GroupedMatMulAlltoAllvOutputIdx::K_Y));
     auto mmY = host_api_ctx->GetOutputTensor(static_cast<size_t>(ops::GroupedMatMulAlltoAllvOutputIdx::K_MM_Y));
     ret = CheckOutputTensors(y, mmY);
-    if (ret != ge::GRAPH_SUCCESS) {
-        return ret;
-    }
+    if (ret != ge::GRAPH_SUCCESS) {return ret;}
 
     // 计算
     const auto apiRet = EXEC_OPAPI_CMD(aclnnGroupedMatMulAlltoAllv,
