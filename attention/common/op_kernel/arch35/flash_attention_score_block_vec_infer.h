@@ -117,11 +117,6 @@ private:
     __aicore__ inline void Bmm2FDOut(LocalTensor<T> &vec2ResUb, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
                                      int64_t vec2S1Idx, int64_t vec2CalcSize);
 
-    __aicore__ inline void Bmm2FDOutBalance(LocalTensor<T> &vec2ResUb, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-                                            int64_t vec2S1Idx, int64_t vec2CalcSize);
-
-    __aicore__ inline void CalcAccumOffset(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
-
     __aicore__ inline void CopyLseIn(ConstInfo<isInfer, hasRope> &constInfo, uint32_t bIdx, uint32_t n2Idx, uint32_t startRow, uint32_t dealRowCount);
 
     __aicore__ inline void CopyFinalResOut(ConstInfo<isInfer, hasRope> &constInfo, uint64_t attenOutOffset, LocalTensor<T> &accumOutLocal, uint32_t startRow,
@@ -131,8 +126,6 @@ private:
                                           uint32_t dealRowCount);
 
     __aicore__ inline void ComputeLogSumExpAndCopyToGm(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
-
-    __aicore__ inline void ComputeLogSumExpAndCopyToGmBalance(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
 
     __aicore__ inline void CopySinkIn(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
 
@@ -414,15 +407,9 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb,
     LocalTensor<float> &maxUb)
 {
-    if constexpr (enableSplitCoreBalance) {
-        if (runInfo.isS2SplitCore) {
-            ComputeLogSumExpAndCopyToGmBalance(runInfo, constInfo, sumUb, maxUb);
-        }
-    } else {
-        if constexpr (isFd) {
-            ComputeLogSumExpAndCopyToGm(runInfo, constInfo);
-            return;
-        }
+    if constexpr (isFd) {
+        ComputeLogSumExpAndCopyToGm(runInfo, constInfo);
+        return;
     }
     if (constInfo.learnableSinkFlag) {
         if (constInfo.isGqa) {
@@ -478,18 +465,10 @@ template <typename VEC2_RES_T>
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyOutAttentionOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
-    if constexpr (enableSplitCoreBalance) {
-        if (runInfo.isS2SplitCore) {
-            Bmm2FDOutBalance(vec2ResUb, runInfo, constInfo, vec2S1Idx, vec2CalcSize);
-        } else {
-            this->Bmm2DataCopyOut(runInfo, constInfo, vec2ResUb, vec2S1Idx, vec2CalcSize);
-        }
+    if constexpr (isFd) {
+        Bmm2FDOut(vec2ResUb, runInfo, constInfo, vec2S1Idx, vec2CalcSize);
     } else {
-        if constexpr (isFd) {
-            Bmm2FDOut(vec2ResUb, runInfo, constInfo, vec2S1Idx, vec2CalcSize);
-        } else {
-            this->Bmm2DataCopyOut(runInfo, constInfo, vec2ResUb, vec2S1Idx, vec2CalcSize);
-        }
+        this->Bmm2DataCopyOut(runInfo, constInfo, vec2ResUb, vec2S1Idx, vec2CalcSize);
     }
 }
 
@@ -715,62 +694,6 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopySinkFDIn(uint32_t spl
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CalcAccumOffset(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
-{
-    const uint32_t *bN2IdxOfFdHead = this->tilingData->fdParams.bN2IdxOfFdHead;
-    const uint32_t *gS1IdxOfFdHead = this->tilingData->fdParams.gS1IdxOfFdHead;
-    const uint32_t *s2SplitNumOfFdHead = this->tilingData->fdParams.s2SplitNumOfFdHead;
-    uint64_t accumTmpOutNum = 0;
-    uint32_t taskId = 0;
-    uint32_t curbN2Idx = runInfo.boIdx * constInfo.n2Size + runInfo.n2oIdx;
-    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != constInfo.gS1Start)) {
-        accumTmpOutNum += s2SplitNumOfFdHead[taskId]; // 计算前面的workspace数
-        taskId++;
-    }
-    runInfo.accumTmpOutNum = accumTmpOutNum;
-
-
-    // runInfo.fATmpResGMPos = constInfo.coreStartKVSplitPos;
-    // constInfo.coreStartKVSplitPos = s2SplitStartIdxOfCore[aiCoreIdx];
-}
-
-TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOutBalance(LocalTensor<T> &vec2ResUb,
-    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2S1Idx, int64_t vec2CalcSize)
-{
-    LocalTensor<T> attenOut;
-    int64_t dSizeAligned64 = (int64_t)dVTemplateType;
-    if constexpr (BaseClass::splitD){
-        dSizeAligned64 = constInfo.dBasicBlock;
-    }
-    SetFlag<HardEvent::V_MTE3>(this->vToMte3Id[runInfo.taskIdMod2]);
-    WaitFlag<HardEvent::V_MTE3>(this->vToMte3Id[runInfo.taskIdMod2]);
-    attenOut = vec2ResUb;
-    CalcAccumOffset(runInfo, constInfo);
-    PRINTF("Bmm2FDOutBalance accumTmpOutNum: %d\n", runInfo.accumTmpOutNum);
-    uint64_t gmOffset = 0;
-
-    if (isMlaNoQuant) {
-        gmOffset = runInfo.accumTmpOutNum * constInfo.n2Size * constInfo.mBaseSize * constInfo.dSizeV +     // taskoffset
-                   runInfo.fATmpResGMPos * constInfo.n2Size * constInfo.mBaseSize * constInfo.dSizeV +      // 份数offset
-                   (constInfo.subBlockIdx * runInfo.firstHalfS1RealSize +
-                   vec2S1Idx * runInfo.vec2S1BaseSize) * constInfo.dSizeV;                                  // m轴offset
-    } else {
-        gmOffset = runInfo.accumTmpOutNum * constInfo.mBaseSize * constInfo.dSizeV +   // taskoffset
-                   runInfo.fATmpResGMPos * constInfo.mBaseSize * constInfo.dSizeV +    // 份数offset
-                   (constInfo.subBlockIdx * runInfo.firstHalfS1RealSize +
-                   vec2S1Idx * runInfo.vec2S1BaseSize) * constInfo.dSizeV;             // m轴offset
-    }
-    DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = runInfo.vec2S1RealSize;
-    dataCopyParams.blockLen = constInfo.dSizeV * sizeof(T);
-    dataCopyParams.srcStride = (dSizeAligned64 - constInfo.dSizeV) / (FA_BYTE_BLOCK / sizeof(T));
-    dataCopyParams.dstStride = 0;
-
-    DataCopyPad(this->accumOutGm[gmOffset], attenOut, dataCopyParams);
-}
-
-TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> &vec2ResUb,
     RunInfo<isInfer> &runInfo,  ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
@@ -896,35 +819,6 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyAccumOutIn(ConstInfo<
                                      startRow * constInfo.dSizeV;
     DataCopyPad(accumOutLocal, this->accumOutGm[combineAccumOutOffset], copyInParams, copyInPadParams);
     accumOutInputQue.EnQue(accumOutLocal);
-}
-
-__aicore__ inline void
-FABlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGmBalance(RunInfo<isInfer> &runInfo,
-    ConstInfo<isInfer, hasRope> &constInfo)
-{
-    if (unlikely(runInfo.halfS1RealSize == 0)) {
-        return;
-    }
-    int64_t calculateSize = runInfo.halfS1RealSize * fp32BaseSize;
-    // 是否要改成halfMRealSize
-    CalcAccumOffset(runInfo, constInfo);
-    PRINTF("compute log sum exp accumTmpOutNum: %d\n", runInfo.accumTmpOutNum);
-    int64_t gmOffset = 0;
-    
-    if(isMlaNoQuant) {
-        gmOffset =
-            (runInfo.accumTmpOutNum * constInfo.n2Size * constInfo.mBaseSize +      // taskoffset
-             runInfo.fATmpResGMPos * constInfo.n2Size * constInfo.mBaseSize +       // 份数offset
-             constInfo.subBlockIdx * runInfo.firstHalfS1RealSize) * fp32BaseSize;   // m轴offset
-    } else {
-        gmOffset =
-            (runInfo.accumTmpOutNum * constInfo.mBaseSize +                         // taskoffset
-             runInfo.fATmpResGMPos * constInfo.mBaseSize +                          // 份数offset
-             constInfo.subBlockIdx * runInfo.firstHalfS1RealSize) * fp32BaseSize;   // m轴offset
-    }
-    // flashDecodeS2Idx?nBufferStartM?
-    // Copy sum to gm
-    this->BroadCastAndCopyOut(runInfo, softmaxFDSumGm, softmaxFDMaxGm, gmOffset, calculateSize);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
