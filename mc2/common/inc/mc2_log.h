@@ -25,12 +25,15 @@
 #include "base/err_msg.h"
 #include "log/log.h"
 #include "securec.h"
+#include "kernel/mc2_tiling_struct.h"
 #include "tiling/tiling_api.h"
 #if __has_include("error_manager/error_manager.h")
 #include "error_manager/error_manager.h"
 #else
 #include "err_mgr.h"
 #endif
+#include "quant_batch_matmul_v3/op_kernel/arch35/quant_batch_matmul_v3_tiling_data.h" 
+#include "mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
 
 template <typename T>
 std::string ConcatString(const T &arg) {
