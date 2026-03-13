@@ -336,7 +336,7 @@ static bool CheckScalesValid(const gert::TilingContext *context,
     // 检查每个维度的值是否一致
     for (size_t i = 0; i < expectedScalesDims.size(); ++i) {
         uint64_t expectedDim = expectedScalesDims[i];
-        uint64_t actualDim = scalesShape->GetStorageShape().GetDim(i);       
+        uint64_t actualDim = scalesShape->GetStorageShape().GetDim(i);
         if (expectedDim != actualDim) {
             OP_LOGE(nodeName,
                     "Scales dimension %lu mismatch in %s quant mode. Expected %lu, but got %lu. "
