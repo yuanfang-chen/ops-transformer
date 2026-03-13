@@ -1050,8 +1050,8 @@ bool CheckSpecConditions(const gert::TilingContext *context)
                 specConditionFlag = true;
             }
         } else if (kvDimNum == 4U && tempK->GetStorageShape().GetDim(DIM_3) == 16 && tempV->GetStorageShape().GetDim(DIM_3) == 16) {
-            int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_1)) / kvHeadNum;
-            int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) / kvHeadNum;
+            int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_1)) * 16 / kvHeadNum;
+            int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) * 16 / kvHeadNum;
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_2);
             bool isFAIDSize = (tempQD <= 256 && tempKD <= 256 && tempVD <= 256) &&
                     (tempQD == tempKD && tempQD == tempVD);
