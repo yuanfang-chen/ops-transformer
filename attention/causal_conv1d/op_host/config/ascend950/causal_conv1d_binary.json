@@ -101,6 +101,11 @@
                     "name": "runMode",
                     "dtype": "int",
                     "value": 0
+                },
+                {
+                    "name": "residualConnection",
+                    "dtype": "int",
+                    "value": 0
                 }
             ],
             "outputs": [
@@ -214,17 +219,22 @@
                 {
                     "name": "activationMode",
                     "dtype": "int",
-                    "value": null
+                    "value": 0
                 },
                 {
                     "name": "padSlotId",
                     "dtype": "int",
-                    "value": null
+                    "value": -1
                 },
                 {
                     "name": "runMode",
                     "dtype": "int",
-                    "value": null
+                    "value": 0
+                },
+                {
+                    "name": "residualConnection",
+                    "dtype": "int",
+                    "value": 0
                 }
             ],
             "outputs": [
