@@ -170,6 +170,8 @@ TILING_DATA_FIELD_DEF(uint32_t, sparseMode)
 TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, sparseBlockCount)
 TILING_DATA_FIELD_DEF(int64_t, dSizeVInput)
+TILING_DATA_FIELD_DEF(uint32_t, hasSink)
+TILING_DATA_FIELD_DEF(uint32_t, sinkTokenNum)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseFlashAttentionPioneerBaseParamsMlaOp, KvQuantSparseFlashAttentionPioneerBaseParamsMla)
 
@@ -305,6 +307,9 @@ struct QSFATilingInfo {
 
     uint64_t l2CacheSize = 0;
     int64_t dSizeVInput = 0;
+
+    bool hasSink = false;
+    uint32_t sinkTokenNum = 0;
 };
 
 // ---------------算子Tiling类---------------
@@ -456,6 +461,7 @@ private:
     ge::graphStatus CheckActualSeqLensDType();
     ge::graphStatus CheckActualSeqLensShape();
     ge::graphStatus CheckMultiParaConsistency();
+    ge::graphStatus CheckKeySinkValueSink() const;
 
     ge::graphStatus CheckFeatureMlaAntiquantShape() const;
     ge::graphStatus CheckFeatureMlaAntiquantLayout() const;
