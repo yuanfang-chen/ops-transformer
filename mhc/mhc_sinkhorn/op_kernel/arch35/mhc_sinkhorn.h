@@ -285,8 +285,8 @@ __aicore__ inline void MhcSinkhornSimd::Process()
 
         for (uint16_t i = 0; i < repeatTimes; i++) {
             for (uint16_t j = 0; j < tilingData_.n; j++) {
-                auto curAddr = outputAddr + i * repeatSize + j;
-                CalcCol(curAddr, curAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                auto curAddrCol = outputAddr + i * repeatSize + j;
+                CalcCol(curAddrCol, curAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                         static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
             }
         }

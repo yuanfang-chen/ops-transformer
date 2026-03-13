@@ -148,10 +148,11 @@ void MhcSinkhornTiling::SplitByCoreNum(int64_t tCoreNum, int64_t ubBlockX, int64
                                        int64_t &tCoreLoop, int64_t &tUbFactorTail)
 {
     int64_t blockFactorAlignX = Ops::Base::CeilAlign(tCoreNum * n_ * n_, ubBlockX);
-    if (blockFactorAlignX * 4 <= ubSizeUsed_ / xDtypeSize) {
+    if (blockFactorAlignX * 4 <= Ops::Base::FloorDiv(ubSizeUsed_, xDtypeSize)) {
         tUbFactor = blockFactorAlignX;
     } else {
-        tUbFactor = Ops::Base::FloorAlign(ubSizeUsed_ / static_cast<int64_t>(4) / xDtypeSize, ubBlockX);
+        tUbFactor =
+            Ops::Base::FloorAlign(Ops::Base::FloorDiv(ubSizeUsed_ / static_cast<int64_t>(4), xDtypeSize), ubBlockX);
         tUbFactor = Ops::Base::FloorAlign(tUbFactor, n_ * n_);
     }
     tCoreLoop = Ops::Base::CeilDiv(blockFactorAlignX, tUbFactor);
@@ -169,7 +170,7 @@ ge::graphStatus MhcSinkhornTiling::DoOpTiling()
     ubSizeUsed_ = ubSize_ - SIMD_RESERVED_SIZE - MASK_BUFFER - MAX_BUFFER;
     int64_t ubBlock = static_cast<int64_t>(Ops::Base::GetUbBlockSize(context_));
     int64_t xDtypeSize = ge::GetSizeByDataType(xDtype_);
-    int64_t ubBlockX = ubBlock / xDtypeSize;
+    int64_t ubBlockX = Ops::Base::FloorDiv(ubBlock, xDtypeSize);
     int64_t tTailUbFactor = 0;
 
     SplitByCoreNum(tNormCore_, ubBlockX, xDtypeSize, tUbFactor_, tNormCoreLoop_, tUbFactorTail_);
