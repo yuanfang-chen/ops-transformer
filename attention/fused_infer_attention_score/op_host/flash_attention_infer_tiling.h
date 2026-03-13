@@ -252,6 +252,7 @@ namespace optiling{
         constexpr uint64_t COMP_CAUSAL_MASK_KEY = 3;
         constexpr uint64_t COMP_SWA_MASK_KEY = 5;
         constexpr uint64_t FULL_MASK_KEY = 6;
+        constexpr uint64_t KVCACHE_NZ_KEY = 10;
         constexpr uint64_t LAYOUTQ_TND_KEY = 200000;
         constexpr uint64_t KVCACHE_NZ_KEY = 10;
         constexpr uint64_t DTYPE_FP16_KEY = 100;
