@@ -294,7 +294,7 @@ ge::graphStatus AlltoAllvGmmTiling::GetContextAttr(const gert::TilingContext* co
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(A_INNER_DEBUG, "GetAttrs returned nullptr!"), return ge::GRAPH_FAILED);
 
     auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
     auto transGmmWeightPtr = attrs->GetAttrPointer<bool>(ATTR_TRANS_GMM_WEIGHT_INDEX);
@@ -506,6 +506,10 @@ ge::graphStatus AlltoAllvGmmTiling::CheckShapeSize(const gert::TilingContext* co
                           context->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(1);
         if (N2 <= NUM_ZERO || N2 >= MAX_SHAPE_SIZE) {
             OP_LOGE(A_INNER_DEBUG, "N2 should be in (0, 65536), but got %lu!", N2);
+            return ge::GRAPH_FAILED;
+        }
+        if (BS == 0) {
+            OP_LOGE(A_INNER_DEBUG, "BS can not be zero, but got %lu!", BS);
             return ge::GRAPH_FAILED;
         }
         uint64_t topK = BSK / BS;
