@@ -11,11 +11,9 @@
 #ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP
 #define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP
 
-// #include "catlass/catlass.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
 #include "kernel_operator.h"
-
 
 using namespace AscendC;
 
@@ -27,7 +25,6 @@ struct ShapeBnsd {
     uint64_t s;
     uint64_t d;
 };
-
 
 template <
     uint32_t INPUT_LAYOUT,
@@ -67,7 +64,7 @@ public:
     };
 
     NpuArch::Arch::Resource<ArchTag> resource;
-    constexpr static uint32_t BUFFER_NUM = 1;
+    constexpr static uint32_t BUFFER_NUM = 2;
     constexpr static uint64_t INPUT_NUM = 2;
     constexpr static uint64_t BNSD = 1; // g = q_n1 / kv_n2
     constexpr static uint64_t TND = 0;
@@ -100,7 +97,6 @@ public:
     uint64_t curS1Idx = 0; // q_s
     uint64_t curS2Idx = 0; // v_s
 
-    // uint64_t batch[3] ={0};
     uint64_t curT1Idx = 0;
     uint64_t transpseQStride = 0;
     uint64_t transpseKvStride = 0;
@@ -116,7 +112,6 @@ public:
     uint64_t s1 = 0;
     uint64_t s2 = 0;
     uint64_t d = 0;
-    // uint32_t INPUT_LAYOUT = 0; // 0 tnd, 1 bnsd
 
     __aicore__ inline
     BlockPost(Params const &params)
@@ -136,12 +131,7 @@ public:
         d = tilingData->headDim;
         scaleValue = tilingData->scaleValue;
         ubBaseSize = tilingData->postUbBaseSize / BUFFER_NUM * BUFFER_NUM / WORKSPACE_NUM_ALIGN * WORKSPACE_NUM_ALIGN;
-        // uint64_t  basePostSize =  ubBaseSize / POST_COEX_NODE;
-        //printf("ubBaseSize: %lu \n", ubBaseSize);
-        // //printf("basePostSize: %lu \n", basePostSize);
 
-        uint64_t dAlign = (d + FP16_BLOCK_NUMS - 1) / FP16_BLOCK_NUMS * FP16_BLOCK_NUMS; // 当前场景下满足对齐
-        // actualCol = dAlign;
         uint64_t qPostSize = tilingData->dqSize / d;
         uint64_t kvPostSize = tilingData->dkvSize / d;
 
@@ -206,7 +196,6 @@ public:
     __aicore__ inline
     void InitIndex(uint64_t startIdx, uint64_t& curS, GM_ADDR seqS, uint64_t &bIdx, uint64_t &nIdx, uint64_t &sIdx, struct ShapeBnsd shape)
     {
-        //printf("InitIndex::::::::\n");
         if constexpr (INPUT_LAYOUT == TND) {
             uint64_t totalLen = 0;
             for (uint64_t bDimIdx = bIdx; bDimIdx < shape.b; bDimIdx++) {
@@ -223,19 +212,12 @@ public:
                 }
             }
         } else {
-            //printf("startId: %ld\n", startIdx);
-            //printf("shape.n * shape.s * shape.d : %ld, %ld, %ld", shape.n, shape.s, shape.d);
             bIdx = startIdx / (shape.n * shape.s * shape.d);
-            //printf("bIdx: %ld\n", bIdx);
             uint64_t bTail = startIdx % (shape.n * shape.s * shape.d);
-            //printf("bTail: %ld\n", bTail);
             nIdx = bTail / (shape.s * shape.d);
-            //printf("nIdx: %ld\n", nIdx);
             uint64_t nTail = bTail % (shape.s * shape.d);
-            //printf("nTail: %ld\n", nTail);
             sIdx = nTail / shape.d;
         }
-        //printf("InitIndex::::::::\n");
     }
         
     __aicore__ inline
@@ -274,7 +256,6 @@ public:
     __aicore__ inline 
     void CopyOutPost(uint64_t leftNburst, LocalTensor<OutputDtype_> output, int32_t qkvFlag)
     {
-        //printf("postcopyouttttttttt\n");
         GM_ADDR seqS = (qkvFlag  > 0) ? actualSeqQlen : actualSeqKvlen;
         uint64_t n = (qkvFlag  > 0) ? n1 : n2;
         uint64_t s =  (qkvFlag  > 0) ? s1 : s2;
@@ -290,23 +271,15 @@ public:
             uint64_t curNburst = 0;
             count++;
             if (curS - sIdx < leftNburst) { // 需要借N或借B
-                //printf("nnnnnnnnnnnnnnbbbbbbbbbbb\n");
-                //printf("count:%ld\n", count);
                 curNburst = curS - sIdx;
-                AscendC::PipeBarrier<PIPE_ALL>();
-                //printf("curNburst:%ld\n", curNburst);
                 Copy2Out(curNburst, output, dstOffset, qkvFlag);
-                AscendC::PipeBarrier<PIPE_ALL>();
                 leftNburst = leftNburst - curNburst;
-                //printf("leftNburst:%ld\n", leftNburst);
                 sIdx = 0;
                 if (nIdx < n - 1) { // 需要借N
-                    //printf("jie n\n");
                     nIdx += 1;
                 } else {
                     nIdx = 0;
                     if (bIdx < b - 1) { // 需要借B
-                        //printf("jie B\n");
                         bIdx += 1;
                         if constexpr (INPUT_LAYOUT == TND) {
                             // curS = ((__gm__ int64_t *)seqS)[bIdx + 1] - ((__gm__ uint64_t *)seqS)[bIdx];
@@ -319,16 +292,10 @@ public:
                     }
                 }
             } else {  // 当前leftNburst 搬运量不会到下一个n
-                //printf("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS\n");
-                //printf("count:%ld\n", count);
                 curNburst = leftNburst;
-                //printf("curNburst: %lu \n", curNburst);
-                AscendC::PipeBarrier<PIPE_ALL>();
                 Copy2Out(curNburst, output, dstOffset, qkvFlag);
-                AscendC::PipeBarrier<PIPE_ALL>();
                 sIdx = sIdx + leftNburst;
                 leftNburst = 0;
-                //printf("sIdx: %lu \n", sIdx);
             }
             dstOffset = dstOffset + curNburst * d;
         }
@@ -382,39 +349,44 @@ public:
         }
 
         int64_t ping = 0;
+        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID1);
         for (uint64_t i = 0; i < loopTimes; i ++) {
+            auto event_id = ping ? EVENT_ID0 : EVENT_ID1;
             uint64_t sCount = singleLoopScount;
             uint64_t totalSCout = i * singleLoopScount;
             uint64_t gmOffset = totalSCout * d;
             if (i == loopTimes - 1) {
                 sCount = tailS;
             }
+                
+            wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
 
-            AscendC::PipeBarrier<PIPE_ALL>();
             DataCopy(input[ping], inGm[gmOffset], sCount * d); // d 为32b 对齐场景
-            AscendC::PipeBarrier<PIPE_ALL>();
+
+            set_flag(PIPE_MTE2, PIPE_V, event_id);
+            wait_flag(PIPE_MTE2, PIPE_V, event_id);
 
             Muls(input[ping], input[ping], (float)scaleValue, sCount * d);
-            AscendC::PipeBarrier<PIPE_ALL>();
+            AscendC::PipeBarrier<PIPE_V>();
 
             AscendC::LocalTensor<float> srcLocal = input[ping];
             AscendC::LocalTensor<OutputDtype_> dstLocal = output[ping];
-
-            auto event_id =  EVENT_ID0;
-            set_flag(PIPE_MTE2, PIPE_V, event_id);
-            wait_flag(PIPE_MTE2, PIPE_V, event_id);
             Cast(dstLocal, srcLocal, AscendC::RoundMode::CAST_ROUND, sCount * d);
+
             set_flag(PIPE_V, PIPE_MTE3, event_id);
             wait_flag(PIPE_V, PIPE_MTE3, event_id);
 
-            AscendC::PipeBarrier<PIPE_ALL>();
             CopyOutPost(sCount, output[ping], qkvFlag);
-            AscendC::PipeBarrier<PIPE_ALL>();
             
+            set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+
             if (BUFFER_NUM == 2) {
                 ping = 1 - ping;
             }
-        }           
+        }
+        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID1);      
     }
 
     __aicore__ inline
@@ -423,7 +395,7 @@ public:
         // dq
         ProcessOut(computeS1, DQ);
         AscendC::PipeBarrier<PIPE_ALL>();
-        //dk
+        // dk
         ProcessOut(computeS2, DK);
         AscendC::PipeBarrier<PIPE_ALL>();
         // dv
