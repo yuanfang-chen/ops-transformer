@@ -679,7 +679,7 @@ ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
     uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
 
     // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
-    uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
+    uint64_t seqWorkspaceSize = (kernelWidth_ - 1) * dim_ * realCoreNum_ * xDtypeSize_;
 
     // 总 workspace 大小
     workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
