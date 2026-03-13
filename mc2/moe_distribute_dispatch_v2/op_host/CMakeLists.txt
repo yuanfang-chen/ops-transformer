@@ -28,6 +28,7 @@ if (BUILD_OPEN_PROJECT)  # custom
             OP_NAME MoeDistributeDispatchV2
             OPTIONS --cce-auto-sync=off
         )
+        add_definitions(-DMC2_EXCEPTION_HANDLER)
     elseif("${CONDITION_UNIT}" STREQUAL "ascend910b")
         add_ops_compile_options(
             OP_NAME MoeDistributeDispatchV2
