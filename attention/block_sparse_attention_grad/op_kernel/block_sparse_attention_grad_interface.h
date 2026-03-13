@@ -121,8 +121,9 @@ namespace BSA {
 
         // Kernel instantiation
         using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2, BlockMmadCube3,
-                                                          EpilogueFAGPre, EpilogueFAGSfmg, EpilogueAtlasA2FAGOp,
-                                                          EpilogueAtlasA2FAGPost, InputLayout>;
+                                                          EpilogueFAGPre, EpilogueFAGSfmg, EpilogueFAGOp,
+                                                          EpilogueFAGPost, InputLayout>;
+
 
         // // VEC_Pre ：dQ/dK/dV的workspace清零
         // using EpilogueAtlasA2FAGPre = Epilogue::EpilogueAtlasA2FAGPre;
