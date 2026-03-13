@@ -76,10 +76,10 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::P
 ```
 **问题诊断**：
 - **通信前计算单元空闲**。AllGather通信首次启动前，本卡数据已准备好计算，此时计算单元闲置
-- **单次通信数据量不足导致CUBE核利用率低**。Matmul计算远端数据时，如果单次通信数据量较少则Cube核未完全利用
+- **单次通信数据量不足导致CUBE核利用率低**。Matmul计算GatherOut主块数据时，内存地址不连续，Cube核利用效率低
 
 ### 优化实现1-local块提前启动
-AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在通信启动前，可以**提前启动本卡本地数据的计算任务**，从而掩盖通信任务下发带来的额外开销，进一步释放性能。优化前与优化后的通信及计算执行流程对比如下图所示：
+AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在本卡下发AllGather通信任务时，可以同时**提前启动本卡本地数据的计算任务**，从而掩盖通信任务下发带来的额外开销，进一步释放性能。优化前与优化后的通信及计算执行流程对比如下图所示：
 
 ![all_gather_matmul_demo_2](./images/image-2.jpg)
 
@@ -111,7 +111,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
 
 ### 优化实现2-非连续转连续
 
-当算子进行多轮通算融合时，如果单次AllGather通信不足，会导致Cube核未跑满、利用率低。通过非连续转连续优化，将单次AllGather通信收取数据后剩余存储空间继续加载其他卡GatherOut数据，再启动Matmul，从而实现Cube核的全载运行。优化前与优化后的通信及计算执行流程对比如下图所示：
+AllGatherMatmul算子通过将通信输入的矩阵切分为多块，主块数据的Matmul计算和尾块数据的通信并行执行，从而形成流水掩盖。本卡对通信后收取的GatherOut主块数据进行计算时，尾块数据尚未通信，导致主块数据地址不连续，Matmul模板需要重复实例化，Cube核执行效率低。通过非连续转连续优化，将GatherOut数据地址通过偏移的方式连续加载，从而减少Matmul重复实例化带来的计算头开销，实现Cube核流水的不间断运行，提升计算效率。优化前与优化后的通信及计算执行流程对比如下图所示：
 
 ![all_gather_matmul_demo_3](./images/image-3.jpg)
 
@@ -144,8 +144,8 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::M
 
 
 **优化亮点**：
-1. 针对单次数据量不足导致CUBE核未跑满的问题，通过优化数据调度策略，实现CUBE高效利用。
-2. 将分散、非连续的数据块融合为连续数据流，最大化利用剩余空间。
+1. 通过通信启动即计算启动的策略，实现对通信延迟的自然掩蔽，充分释放计算性能。
+2. 将分散、非连续的GatherOut数据块融合为连续数据流，实现Cube核高效利用。
 
 ## 支持架构
 NPU ARCH 3510
