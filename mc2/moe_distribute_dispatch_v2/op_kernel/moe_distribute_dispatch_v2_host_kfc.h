@@ -45,23 +45,16 @@ constexpr uint8_t BUFFER_SINGLE = 1;
 constexpr uint32_t STATE_OFFSET = 32U; // 状态空间偏移地址
 constexpr uint8_t COMM_NUM = 2;        // 通信域大小
 constexpr uint8_t COMM_EP_IDX = 0;
-constexpr uint8_t COMM_TP_IDX = 1;
 constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
 constexpr uint64_t STATE_WIN_OFFSET = 950UL * 1024UL;
 constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
 constexpr uint64_t CYCLES_PER_US = 50UL;
 constexpr uint64_t TIMEOUT_DETECTION_TX_UNITS = 8UL;
-constexpr uint32_t TP_STATE_SIZE = 100U * 1024U;
 constexpr uint32_t WORKSPACE_ELEMENT_OFFSET = 512U;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
 constexpr uint64_t ALIGNED_LEN_256 = 256UL;
-constexpr uint32_t RANK_LIST_NUM = 2U;
 constexpr uint32_t EXPAND_IDX_INFO = 3U; // expand_idx是按3元组保存信息，分别为rank_id token_id topk_id
-constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
 constexpr uint32_t FLAG_AFTER_WAIT = 2U;
-constexpr uint8_t EP_WORLD_SIZE_IDX = 1;
-constexpr uint8_t SHARE_RANK_NUM_IDX = 2;
-constexpr uint8_t MOE_NUM_IDX = 3;
 constexpr int32_t BITS_PER_BYTE = 8;
 constexpr uint32_t MAX_UB_SIZE = 170U * 1024U;
 constexpr uint32_t BW_ITEM_SIZE = 32; // batchWriteItemSize
@@ -229,23 +222,18 @@ private:
     GlobalTensor<bool> xActiveMaskGMTensor_;
     GlobalTensor<int32_t> sendCountGMTensor_;
     GlobalTensor<float> fpWinTpGatherOutGMTensor_;
-    GlobalTensor<int32_t> winTpEpCntGMTensor_;
     GlobalTensor<int32_t> expandIdxGMTensor_;
     GlobalTensor<int32_t> elasticInfoGMTensor_;
     GlobalTensor<uint32_t> selfDataStatusGMTensor_;
-    GlobalTensor<uint32_t> selfhcclDataStatusTensor_;
     GlobalTensor<uint64_t> dataBatchWriteInfoTensor_;
     GlobalTensor<uint32_t> bufferChosenGlobal_;
 
     LocalTensor<ExpandXOutType> xTmpTensor_;
     LocalTensor<XType> recvTmpTensor_;
-    LocalTensor<int32_t> tpTmpTensor_;
     LocalTensor<float> floatLocalTemp_;
     LocalTensor<ExpandXOutType> xOutTensor_;
-    LocalTensor<float> xOutFp32Tensor_;
     LocalTensor<int32_t> expertIdsTensor_;
     LocalTensor<float> rowMaxTensor_;
-    LocalTensor<int32_t> countTensor_;
     LocalTensor<int32_t> statusTensor_;
     LocalTensor<float> statusFp32Tensor_;
     LocalTensor<float> smoothScalesTensor_;
@@ -255,7 +243,6 @@ private:
     LocalTensor<int32_t> validExpertIndexTensor_;
     LocalTensor<uint32_t> gatherMaskTensor_;
     LocalTensor<int32_t> validBsIndexTensor_;
-    LocalTensor<int32_t> elasticInfoTensor_;
     LocalTensor<uint32_t> dataStateLocalTensor_;
     LocalTensor<uint32_t> serverCountTensor_;
     LocalTensor<int32_t> tokenSendMap_;
@@ -285,11 +272,8 @@ private:
     TBuf<> expertMaskInputBuf_;
     TBuf<> subExpBuf_;
     TBuf<> waitStatusBuf_;
-    TBuf<> workLocalBuf_;
-    TBuf<> maskBuf_;
     TBuf<> validExpertIndexBuf_;
     TBuf<> validBsIndexTBuf_;
-    TBuf<> elasticInfoBuf_;
     TBuf<> gatherMaskTBuf_;
     TBuf<> serverCountBuf_;
     TBuf<> serverMapBuf_;
@@ -302,7 +286,6 @@ private:
     TQue<QuePosition::VECOUT, 1> xOutQueue_;                      // 量化使用，量化后的输出
 
     LocalTensor<XType> tokenData_;
-    TQue<QuePosition::VECOUT, 1> sendtoexpertQueue_;
 
     TBuf<> localSetTbuf_;
     LocalTensor<int32_t> localSet_;
@@ -312,10 +295,6 @@ private:
     GM_ADDR sendTpCountOutGM_;
     GM_ADDR statusSpaceGm_;
     GM_ADDR windowGM_;
-    GM_ADDR tpWindowGM_;
-    GM_ADDR tpStatusWindowGM_;
-    GM_ADDR tpLocalWindowGM_;
-    GM_ADDR tpLocalStatusWindowGM_;
     GM_ADDR recvCntWorkspaceGM_;
     GM_ADDR statusDataSpaceGm_;
     GM_ADDR dataBatchWriteInfo_;
@@ -359,18 +338,14 @@ private:
     uint32_t hAlignWinCnt_{0};
     uint32_t hOutAlignUbSize_{0};
     uint32_t hAlignSize_{0};
-    uint32_t hOutSizeAlign_{0};
     uint32_t moeListAlign_{0};
     uint32_t moeCntAlign_{0};
     uint32_t moeExpertScalesAlign_{0};
-    uint32_t hScaleSizeAlign_{0};
-    uint32_t shareListAlign_{0};
-    uint32_t shareCntAlign_{0};
     uint32_t statusBufCntAlign_{0};
-    uint32_t startExpertId_;
-    uint32_t endExpertId_;
-    uint32_t sendExpertNum_;
-    uint32_t totalCnt_;
+    uint32_t startExpertId_{0};
+    uint32_t endExpertId_{0};
+    uint32_t sendExpertNum_{0};
+    uint32_t totalCnt_{0};
     uint32_t lastCore_{0};
     uint32_t dataState_{0};
     uint32_t axisBsAlignSize_{0};
@@ -381,14 +356,12 @@ private:
     uint64_t expertPerSizeOnWin_{0};
     uint64_t recvWinBlockNum_; // 接收Win区块数
     uint64_t sendToMoeExpTokenCnt_{0};
-    uint64_t flagPadOffset_{0};
     bool isTokenMaskFlag_ = false;
     bool isExpertMaskFlag_ = false;
     bool hasElasticInfoFlag_ = false;
     bool isShareExpertRankFlag_ = false;
     uint64_t totalWinSizeTp_{0};
     uint64_t totalWinSizeEp_{0};
-    uint32_t gatherCount_{0};
     uint32_t expertTokenNumsType_{1};
     uint32_t stateOffset_{0};
     uint32_t recStatusNumPerCore_{0};
@@ -399,7 +372,6 @@ private:
     uint32_t rscvStatusNum_{0};
     uint32_t remainderRankNum_{0};
     uint32_t startStatusIndex_{0};
-    uint32_t sendToSharedExpTokenCnt_{0};
     uint32_t maxSize_{0};
     uint32_t bufferNum_{0};
     uint32_t blockCntPerToken_{0};
@@ -412,7 +384,6 @@ private:
     uint32_t scaleOutBytes_{0};
     uint32_t scalesCount_{0};
 
-    Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
     __gm__ HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
 
     DataCopyExtParams floatDataCopyParams_;
