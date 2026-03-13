@@ -17,7 +17,7 @@
 #define MOE_DISTRIBUTE_COMM_CTX_H
 
 constexpr uint32_t HCCL_MTE_MAX_RANK_NUM = 64;
-
+typedef uint8_t * DUMP_GM_ADDR;
 // A5 HCCL Context
 struct HcclCombinOpParam {
     uint64_t workSpace; // client和server之间通信的地址
@@ -34,5 +34,9 @@ struct HcclCombinOpParam {
     uint64_t msAddr; // MS地址，预留
     uint64_t msSize; // 可写的MS个数，预留
 };
-
+struct CommContextForDump{
+    uint64_t epRankid = 0;
+    uint64_t kfcContextAddr = 0;
+    uint64_t epHcclBufffer_[1024];
+};
 #endif
