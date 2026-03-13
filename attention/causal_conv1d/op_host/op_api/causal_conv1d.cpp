@@ -24,30 +24,23 @@ using namespace op;
 namespace l0op {
 OP_TYPE_REGISTER(CausalConv1d);
 
-std::tuple<aclTensor *, aclTensor *> CausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *convStates,
-                                                  const aclTensor *queryStartLoc, const aclTensor *cacheIndices,
-                                                  const aclTensor *initialStateMode, const aclTensor *bias,
-                                                  const aclTensor *numAcceptedToken, int64_t activationMode,
-                                                  int64_t padSlotId, int64_t runMode, int64_t residualConnection,
-                                                  const aclTensor *y, aclOpExecutor *executor)
+bool CausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
+                  const aclTensor *cacheIndices, const aclTensor *initialStateMode, const aclTensor *bias,
+                  const aclTensor *numAcceptedToken, int64_t activationMode, int64_t padSlotId, int64_t runMode,
+                  int64_t residualConnection, const aclTensor *y, aclOpExecutor *executor)
 {
     L0_DFX(CausalConv1d, x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedToken,
-           activationMode, padSlotId, runMode, residualConnection, y);
-    auto yOut = executor->AllocTensor(y->GetViewShape(), y->GetDataType(), Format::FORMAT_ND);
-    if (yOut == nullptr) {
-        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "alloc yOut tensor failed.");
-        return std::tuple<aclTensor *, aclTensor *>(nullptr, nullptr);
-    }
+           activationMode, padSlotId, runMode, residualConnection, y, convStates);
 
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(
         CausalConv1d,
         OP_INPUT(x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedToken),
-        OP_OUTPUT(convStates, yOut), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
+        OP_OUTPUT(y, convStates), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "CausalConv1d ADD_TO_LAUNCHER_LIST_AICORE failed.");
         return std::tuple<aclTensor *, aclTensor *>(nullptr, nullptr);
     }
-    return std::tuple<aclTensor *, aclTensor *>(yOut, convStates);
+    return true;
 }
 
 } // namespace l0op
