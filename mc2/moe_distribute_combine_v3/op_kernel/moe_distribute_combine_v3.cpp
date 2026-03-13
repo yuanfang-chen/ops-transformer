@@ -68,6 +68,7 @@ __global__ __aicore__ void moe_distribute_combine_v3(GM_ADDR mc2Context, GM_ADDR
                                                     GM_ADDR performanceInfo, GM_ADDR XOut, GM_ADDR workspaceGM, 
                                                     GM_ADDR tilingGM)
 {
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
     REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
     TPipe pipe;
 #if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
