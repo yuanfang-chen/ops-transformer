@@ -84,7 +84,7 @@ public:
     using ElementC = typename BlockMmad::ElementC;
     using LayoutC = typename BlockMmad::LayoutC;
 
-    using FixpipeBlockMmad = Gemm::Block::FixpipeBlockMmad<DispatchPolicy, L1TileShape, L0TileShape,
+    using FixpipeBlockMmad = Gemm::Block::FixpipeBlockMmad<Gemm::MmadAtlasA2Preload<false, false>, L1TileShape, L0TileShape,
         LayoutA, LayoutB, LayoutC>;
 
     /// Parameters structure

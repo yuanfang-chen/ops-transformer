@@ -93,7 +93,7 @@ public:
     using CopyGmToUbC = typename TileCopy_::CopyGmToUbC;
     using CopyGmToUbScale = typename TileCopy_::CopyGmToUbX;
     using CopyGmToUbPerTokenScale = typename TileCopy_::CopyGmToUbY;
-    using CopyGmToUbBias = typename TileCopy_::CopyGmToUbBias;
+    using CopyGmToUbBias = Catlass::Epilogue::Tile::CopyGm2Ub<ArchTag, BiasType_>;
     using CopyUbToGmD = typename TileCopy_::CopyUbToGmD;
     using CopyGmToUbD = Epilogue::Tile::CopyGm2Ub<ArchTag, Gemm::GemmType<ElementD, layout::RowMajor>>;
 
@@ -407,7 +407,7 @@ public:
 
     // perToken
     CATLASS_DEVICE
-    void operator() (__gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenScale layoutPerTokenScale,
+    void operator() (__gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenScale layoutPerTokenScale, __gm__ ElementC *ptrBias, LayoutC layoutBias,
                      __gm__ ElementD *ptrIn, LayoutD layoutIn, __gm__ ElementD *ptrOut, LayoutD layoutOut,
                      GemmCoord problemShape)
     {
