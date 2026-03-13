@@ -1318,6 +1318,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncFunc<AscendC::HardEvent::S_MTE3>();
 }
 
+// 判断两张卡是否属于同一server
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline bool
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::IsInSameServer(uint32_t targetRankId)
@@ -1325,13 +1326,14 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::IsInSameServer(uint
     return targetRankId / serverRankSize_ == serverId_;
 }
 
+// 将token写入对端win区
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ProcessToken(
     GlobalTensor<ExpandXOutType> &outTokenGT, uint32_t tokenIndex, uint32_t topKIndex, DataCopyPadParams &padParams,
     DataCopyParams &scaleInParams, uint32_t expertIndex, LocalTensor<XType> &tokenData, uint32_t srcRankIndex,
     float expertScale)
 {
-    if constexpr (QuantMode > UNQUANT) {
+    if constexpr (QuantMode > UNQUANT) { // 量化场景
         xInQueue_.EnQue(tokenData);
         tokenData = xInQueue_.DeQue<XType>();
         xOutTensor_ = xOutQueue_.AllocTensor<ExpandXOutType>();
@@ -1341,7 +1343,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         FillTriple(xOutTensor_, srcRankIndex, tokenIndex, topKIndex, expertScale);
         DataCopyPad(outTokenGT, xOutTensor_, hCommuCopyOutParams_);
         xOutQueue_.FreeTensor<ExpandXOutType>(xOutTensor_);
-    } else {
+    } else { //非量化场景
         xOutTensor_ = xOutQueue_.AllocTensor<ExpandXOutType>();
         DataCopy(xOutTensor_, tokenData, hAlignSize_ / sizeof(ExpandXOutType));
 #if defined(__DAV_C310__)
@@ -1359,6 +1361,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
+// 中间卡做框内dispatch
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SendToExpert(uint32_t rcvCnt)
 {
@@ -1413,6 +1416,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
+// 状态区tensor初始化
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitStatusTensor()
 {
@@ -1428,6 +1432,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     PipeBarrier<PIPE_V>();
 }
 
+// 发送状态区
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SetStatus()
 {
@@ -1519,6 +1524,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(xQueue_, BUFFER_NUM, hOutAlignUbSize_);    // 7k*2 + 32 + 12
 }
 
+// 超时
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::TimeOutDetection()
 {
@@ -1533,6 +1539,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
+// 清状态
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitDispatchClearStatus()
 {
@@ -1549,6 +1556,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
 
+// 框内通信等待
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitDispatch()
 {
@@ -1596,6 +1604,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncAll<true>();
 }
 
+// 拷贝recv cnt
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::GetCumSum(LocalTensor<int32_t> &outLocal,
@@ -1694,6 +1703,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
     PipeBarrier<PIPE_MTE3>();
 }
 
+// 将数据搬运到输出GM
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::LocalWindowCopy()
 {
