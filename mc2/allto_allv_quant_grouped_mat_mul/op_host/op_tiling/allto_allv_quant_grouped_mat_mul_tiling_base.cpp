@@ -164,7 +164,9 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckEpWorldSizeValue()
     // check epWorldSize in socVersion
     std::vector<int64_t> epWorldSizeValueList;
     std::string epWorldSizeValueStr = "";
-    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+    auto platformInfo = context_->GetPlatformInfo();
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         epWorldSizeValueList = { 2, 4, 8, 16, 32, 64, 128, 256 }; // epWorldSize value only support 2, 4, 8, 16, 32, 64, 128, 256
     } else {
         epWorldSizeValueList = { 8, 16, 32, 64, 128 }; // epWorldSize value only support 8, 16, 32, 64, 128
