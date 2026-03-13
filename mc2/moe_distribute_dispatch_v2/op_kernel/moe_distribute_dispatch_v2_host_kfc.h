@@ -35,7 +35,7 @@
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
 
-namespace MoeDistributeDispatchV2HostKfcImpl {
+namespace MC2kernel {
 constexpr uint32_t STATE_SIZE = 2048 * 1024; // 2M
 constexpr uint64_t TIMEOUT_OFFSET = 1024UL * 1024UL;
 constexpr uint8_t BUFFER_NUM = 2; // 多buf
@@ -535,6 +535,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitMaskInfo()
 {
+    // 初始化计算activateBS于Expert Id相关的buffer
     expertIdsCnt_ = axisBS_ * axisK_;
     uint32_t hFp32Size = axisH_ * sizeof(float);
     uint32_t expertIdsSize = expertIdsCnt_ * sizeof(int32_t);
@@ -553,7 +554,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     totalUsedUB_ += maxSize_;
     gatherMaskTensor_ = gatherMaskTBuf_.Get<uint32_t>();
     workLocalTensor_ = gatherMaskTBuf_.Get<float>();
-    if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) {
+    if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) { // 如果需要计算0专家或者二维才会去初始化对应的Buffer
         uint32_t axisBSAlign = Ceil(axisBS_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
         tpipe_->InitBuffer(validBsIndexTBuf_, axisBSAlign);
         totalUsedUB_ += axisBSAlign;
@@ -569,17 +570,17 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(xSendBuf_, sendTokenLength_);
     tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
 
-    uint64_t mask[1] = {0x0101010101010101};
+    uint64_t mask[1] = {0x0101010101010101}; // 用于发送数据时按照每512B中后32B插入flag的掩码
     uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
 
-    flagTensor_ = flagBuf_.Get<uint32_t>();
+    flagTensor_ = flagBuf_.Get<uint32_t>(); // 用于发送数据时按照每512B中后32B插入flag的flag数据
     Duplicate<uint32_t>(flagTensor_, uint32_t(1), mask, repeatTime, uint16_t(1), uint8_t(8));
 }
 
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitTemp()
 {
-    if constexpr (QuantMode > UNQUANT) {
+    if constexpr (QuantMode > UNQUANT) { // 这部分是后续初始化量化相关的buffer
         tpipe_->InitBuffer(receiveDataCastFloatBuf_, maxSize_); // max{28K, BS * K * 4B}
         floatLocalTemp_ = receiveDataCastFloatBuf_.Get<float>();
         tpipe_->InitBuffer(smoothScalesBuf_, maxSize_); // max{28K, BS * K * 4B}
@@ -599,10 +600,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitDispatchBetweenServerInfo()
 {
+    // 本函数用于初始化server间发送时所使用的的buffer
     tpipe_->InitBuffer(expertMaskInputBuf_, expertIdsCnt_ * sizeof(bool));
     totalUsedUB_ += expertIdsCnt_ * sizeof(bool);
     expertMaskInputTensor_ = expertMaskInputBuf_.Get<bool>();
-
     if constexpr (QuantMode > UNQUANT) {
         tpipe_->InitBuffer(receiveDataCastFloatBuf_, maxSize_); // max{28K, BS * K * 4B}
         totalUsedUB_ += maxSize_;
@@ -627,9 +628,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     bufferNum_ = tmpTotalUB > MAX_UB_SIZE ? BUFFER_SINGLE : BUFFER_NUM;
     dstExpIdTensor_ = dstExpBuf_.Get<int32_t>();
     subExpIdTensor_ = subExpBuf_.Get<int32_t>();
-
+    // 调用量化模版，进行初始化
     quantInst_.SetQuantInitParams(floatLocalTemp_, smoothScalesTensor_, smoothScalesBuf_, dynamicScalesOutGMTensor_);
-
     uint32_t axisHCommu = hScaleIdxSize_ / sizeof(ExpandXOutType); // 有效搬运长度
     floatDataCopyParams_ = {1U, sizeof(float), 0U, 0U, 0U};
     xCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U};
@@ -748,6 +748,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CalValidExpIdx()
 {
+    // 用于计算专家有效的Id数
     uint32_t mask = expertIdsCnt_;
     uint32_t curMaskCnt = axisBS_ * axisK_;
     uint32_t calCnt = Ceil(curMaskCnt * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half);
@@ -829,11 +830,13 @@ __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillQuadruple(LocalTensor<XType> &xOutTensor,
                                                                            uint32_t tokenIndex)
 {
+    // 本函数主要是在server进行数据发送时，用来填充需要随token数据一起发给对端的其他相关信息
     LocalTensor<int32_t> xOutTint32 = xOutTensor.template ReinterpretCast<int32_t>();
     LocalTensor<float> xoutTfloat32 = xOutTensor.template ReinterpretCast<float>();
     xOutTint32(sendXTypeElemAlign_) = epRankId_;      // 源rankId
     xOutTint32(sendXTypeElemAlign_ + 1) = tokenIndex; // TokenID ,
 
+    // 填充token需要发送的对应的专家Id
     DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(axisK_ * sizeof(uint32_t)), 0U, 0U, 0U};
     DataCopyPadExtParams<int32_t> CopyPadParams{false, 0U, 0U, 0U};
     DataCopyPad(xOutTint32[moeListAlign_], expertIdsGMTensor_[tokenIndex * axisK_], copyParams, CopyPadParams);
@@ -849,7 +852,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillQuadruple(Local
     }
     DataCopyPadExtParams<float> expertScalePadParams{false, 0U, 0U, 0U};
     DataCopyPad(xoutTfloat32[moeExpertScalesAlign_], expertScalesGMTensor_[tokenIndex * axisK_], copyParams,
-                expertScalePadParams);
+                expertScalePadParams); // 对应的scals系数
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -857,6 +860,7 @@ __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(LocalTensor<XType> &xOutTensor,
                                                                                uint32_t dstServerId, uint32_t cnt)
 {
+    // 本函数用于将需要发送的数据copy到对应的GM并按照每480的数据插入32B字节的flag位，
     GlobalTensor<XType> dataDstWinGMTensor;
     GlobalTensor<uint32_t> flagDstWinGMTensor;
     dataDstWinGMTensor.SetGlobalBuffer((__gm__ XType *)(GetSendAddrBetweenServer(COMM_EP_IDX, dstServerId) +
@@ -866,11 +870,11 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
     SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
     DataCopyExtParams dataCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), SPLIT_BLOCK_DATA_SIZE, 0U,
                                            UB_ALIGN, 0U};
-    DataCopyPad(dataDstWinGMTensor, xOutTensor, dataCopyOutParams);
+    DataCopyPad(dataDstWinGMTensor, xOutTensor, dataCopyOutParams); // 将对应的数据拷贝到GM，然后间隔32B
 
     DataCopyExtParams flagCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), UB_ALIGN, 0U,
                                            SPLIT_BLOCK_DATA_SIZE, 0U};
-    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor_, flagCopyOutParams);
+    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor_, flagCopyOutParams); // 插入Flag位
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -878,6 +882,7 @@ __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SingleTokenProcess(uint32_t tokenIndex,
                                                                                 uint32_t dstServerId, uint32_t cnt)
 {
+    // 本函数主要功能处理单个需要发送的TOKen，包括填充数据和插入flag
     LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>();
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     DataCopyPadParams copyPadExtParams{true, 0U, 0U, 0U};
@@ -931,11 +936,11 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     if (startTokenId >= totalSendCnt || sendTokenNum == 0) {
         return;
     }
-    DispatchAndCountTokens(0, startTokenId, false);
-    DispatchAndCountTokens(startTokenId, endTokenId, true);
+    DispatchAndCountTokens(0, startTokenId, false); // 计算当前TOken是发送给目标server的第几个Token
+    DispatchAndCountTokens(startTokenId, endTokenId, true); // 处理本核需要发送的所有Token
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
-    if (endTokenId == totalSendCnt) {
+    if (endTokenId == totalSendCnt) { // 由最后一个核来写入需要发送的总的token cnt
         GlobalTensor<uint32_t> dstStateGMTensor;
         TBuf<> tempbuf;
         tpipe_->InitBuffer(tempbuf, SERVER_STATE_ALIGN);
@@ -956,12 +961,11 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ExpertOffsetCal()
 {
+    // 本函数用来计算当前TOKen是发送给目标专家的第几个Token
     TBuf<> expertOffTempBuf;
     LocalTensor<int32_t> expertOffsetTemp;
-
     tpipe_->InitBuffer(expertOffTempBuf, moeExpertNum_ * sizeof(int32_t));
     expertOffsetTemp = expertOffTempBuf.Get<int32_t>();
-
     DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(int32_t)), 0U, 0U, 0U};
     DataCopyPadExtParams<int32_t> expertIdsCntCopyPadParams{false, 0U, 0U, 0U};
     DataCopyPad(expertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, expertIdsCntCopyPadParams); // copy expertid
@@ -981,6 +985,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SetServerFlag()
 {
+    // 用来设置server Cnt的flag位，就算给目标server的数据为0，但是依然需要发送cnt数
     uint32_t totalSeverCnt = serverNum_;
     uint32_t startServerNum, endServerNum, sendServerNum;
     SplitToCore(totalSeverCnt, aivNum_, startServerNum, endServerNum, sendServerNum, true);
@@ -1019,8 +1024,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         return;
     }
 
-    ExpertOffsetCal();
-    SendToServer();
+    ExpertOffsetCal(); // 计算每个TOken是发送给每个 moe专家的的第几个token
+    SendToServer(); // 跨server发送数据
     SyncAll<true>();
 }
 
@@ -1070,7 +1075,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         return;
     }
 
-    for (uint32_t dstServerInd = startServerId; dstServerInd < endServerId; ++dstServerInd) {
+    for (uint32_t dstServerInd = startServerId; dstServerInd < endServerId; ++dstServerInd) { // 等待框间数据
         uint32_t tokenCnt;
         WaitStatusFlag(dstServerInd, tokenCnt);
         tpipe_->Reset();
@@ -1126,7 +1131,7 @@ template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitStatusFlag(uint32_t serverIdx,
                                                                                                    uint32_t &tokenCnt)
 {
-    tpipe_->Reset();
+    tpipe_->Reset(); // 用来检查数据是否来到，检查flag位是否为对应的数
     TBuf<> tBuf;
     LocalTensor<uint32_t> statusFlagLocal, statusCntLocal;
     GlobalTensor<uint32_t> statusCntGlobal;
@@ -1166,7 +1171,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     for (uint32_t idx = 0; idx < tokenCnt; idx++) {
         finishNumTensor_(idx) = 0;
     }
-
+    // 处理远端发过来的Token数据
     while (true) {
         if (finishNumTensor_(index) == 1) {
             index = (index + 1) % tokenCnt; // 轮询查询每个有效的index
