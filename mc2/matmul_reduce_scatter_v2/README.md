@@ -34,7 +34,7 @@
     -   情形2：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的pertensor场景，或者x1和x2数据类型为INT8的perchannel、pertoken场景，且不输出amaxOut，入参x1、x2进行Matmul计算和dequant计算后，进行ReduceScatter通信。
 
         $$
-        output=ReduceScatter((x1Scale*x2Scale)*(x1@x2 + bias_{optional}))
+        output=ReduceScatter((x1Scale*x2Scale)*(x1@x2) + bias_{optional})
         $$
     -   情形3：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的perblock场景，且不输出amaxOut，当x1为(a0, a1)x2为(b0, b1)时x1Scale为(ceildiv(a0, 128), ceildiv(a1, 128))x2Scale为(ceildiv(b0, 128), ceildiv(b1, 128))时，入参x1、x2进行Matmul计算和dequant计算后，再进行ReduceScatter通信。
     
@@ -240,7 +240,7 @@
 </table>
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
+    - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, bias数据类型支持FLOAT16、BFLOAT16、FLOAT32，x1的shape为[m, k]，x2的shape为[k, n]。
     - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
     - groupSize当前版本仅支持输入为0。
     - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
