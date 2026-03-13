@@ -15,6 +15,8 @@
 #ifndef ATVC_COMMON_OPS_UTILS_H
 #define ATVC_COMMON_OPS_UTILS_H
 
+#include <type_traits>
+
 namespace OpsUtils {
 template <typename T>
 inline T Ceil(T a, T b)
