@@ -28,7 +28,6 @@ extern "C" {
  * 计算公式：x_{l+1} = (H_{l}^{res})^{T} * x_l + h_{l}^{out} * H_{t}^{post}
  *          其中：(H_{l}^{res})^{T} * x_l 表示对x_l使用转置后的h_res矩阵进行矩阵乘法变换
  *                h_{l}^{out} * H_{t}^{post} 表示逐元素相乘后广播到所有维度
- * @domain aclnn_ops_infer
  */
 aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *hRes, const aclTensor *hOut,
                                          const aclTensor *hPost, aclTensor *out, uint64_t *workspaceSize,
