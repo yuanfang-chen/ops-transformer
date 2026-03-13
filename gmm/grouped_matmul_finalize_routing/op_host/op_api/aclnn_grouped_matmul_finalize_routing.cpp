@@ -26,7 +26,7 @@
 #include "aclnn_kernels/transpose.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/reshape.h"
-#include "grouped_matmul_finalize_routing_MX_checker.h"
+#include "grouped_matmul_finalize_routing_950_checker.h"
 #include "../../../grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h"
 
 using namespace op;
@@ -1054,6 +1054,11 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         DFX_OUT(out));
     (void) antiquantScaleOptional;
     (void) antiquantOffsetOptional;
+    if (x1 == nullptr || x2 == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
+                "GroupedMatmulFinalizeRoutingWeightNzV2: x and weight should not be nullptr.");
+        return ACLNN_ERR_PARAM_NULLPTR;
+    }
     auto viewShape = x2->GetViewShape();
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
