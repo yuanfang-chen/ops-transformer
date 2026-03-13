@@ -22,11 +22,10 @@ enum class GmmTrans {
     ABTrans = 3
 };
 namespace optiling {
-
-constexpr size_t ANTIQUANT_SCALE_DIM_NUM_MX = 4;                   // MX格式antiquantScale维度数
-constexpr size_t NDIM_INDEX_K_MX_TRANSPOSED = 2;                   // MX格式转置时k轴的倒数索引（倒数第2维）
-constexpr size_t NDIM_INDEX_K_MX_NOT_TRANSPOSED = 3;               // MX格式非转置时k轴的倒数索引（倒数第3维）
-constexpr int64_t MX_GROUP_FACTOR = 2;                             // MX格式groupNum计算因子
+constexpr size_t ANTIQUANT_SCALE_DIM_NUM = 4;                   // MX格式antiquantScale维度数
+constexpr size_t PENULTIMATE_DIM = 2;                           // 倒数第2维
+constexpr size_t ANTEPENULTIMATE_DIM = 3;                       // 倒数第3维
+constexpr int64_t MX_GROUP_FACTOR = 2;                          // MX格式groupNum计算因子
 
 static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_SUPPORT_MAP = {
     {ge::DT_FLOAT16, {ge::DT_FLOAT16}},
@@ -1050,10 +1049,11 @@ bool GroupedWeightQuantBatchMatmulTiling::SetAntiquantGroupSize(const gert::Tili
                     return false);
         // GMM伪量化场景支持K=groupSize
         groupSize_ = groupNum > 0 ? kSize_ / static_cast<uint64_t>(groupNum) : 0;
-    } else if (antiquantScaleDimNum == ANTIQUANT_SCALE_DIM_NUM_MX) {
+    } else if (antiquantScaleDimNum == ANTIQUANT_SCALE_DIM_NUM) {
         // antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
-        int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_TRANSPOSED) * MX_GROUP_FACTOR :
-                                     antiquantScaleShape.GetDim(antiquantScaleDimNum - NDIM_INDEX_K_MX_NOT_TRANSPOSED) * MX_GROUP_FACTOR;
+        int64_t groupNum = transB_ ?
+                               antiquantScaleShape.GetDim(antiquantScaleDimNum - PENULTIMATE_DIM) * MX_GROUP_FACTOR :
+                               antiquantScaleShape.GetDim(antiquantScaleDimNum - ANTEPENULTIMATE_DIM) * MX_GROUP_FACTOR;
         OP_CHECK_IF(groupNum <= 0 || kSize_ % groupNum > 0,
                     OP_LOGE(context->GetNodeName(),
                             "Invalid groupNum[%ld], expect greater than 0 and divisible by kSize[%lu]", groupNum,
