@@ -57,6 +57,9 @@ else()
     set(ASCEND_CANN_PACKAGE_PATH  "/usr/local/Ascend/latest")
 endif ()
 message(STATUS "ASCEND_CANN_PACKAGE_PATH=${ASCEND_CANN_PACKAGE_PATH}")
+
+get_filename_component(OPS_ADV_DIR                  "${CMAKE_CURRENT_SOURCE_DIR}"           REALPATH)
+get_filename_component(OPS_ADV_CMAKE_DIR            "${OPS_ADV_DIR}/cmake"                  REALPATH)
 include(cmake/func.cmake)
 
 include(version.cmake)
@@ -119,6 +122,7 @@ set_directory_properties(PROPERTIES
     ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_BINARY_DIR}/_CPack_Packages"
 )
 
+include(cmake/third_party/opbase.cmake)
 include(cmake/config.cmake)
 include(cmake/third_party/json.cmake)
 if (ENABLE_TEST)

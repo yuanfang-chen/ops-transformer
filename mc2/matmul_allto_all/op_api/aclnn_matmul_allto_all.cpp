@@ -9,7 +9,7 @@
  */
 
 #include "aclnn_matmul_allto_all.h"
-#include "checker.h"
+#include "matmul_allto_all_util.h"
 #include "securec.h"
 #include "op_mc2.h"
 #include "acl/acl.h"
@@ -324,7 +324,9 @@ extern "C" aclnnStatus aclnnMatmulAlltoAll(void *workspace, uint64_t workspaceSi
     if (NnopbaseSetHcclServerType) {
         if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else {
+        } else if (GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B){
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
         }
     }

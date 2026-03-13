@@ -21,7 +21,8 @@
   - cacheMode=1时，为交错式拼接cos和sin。
 * 计算公式：
 
-    1、**mrope模式**：positions的shape输入是[3, numTokens]：
+    1、**mrope模式**：positions的shape输入是[m, numTokens], m为mropeSection的元素数，支持3或4：
+    
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -31,47 +32,68 @@
     $$
 
     （1）cacheMode为0：
-    $$
-    cos0 = cos[0, :, :mropeSection[0]]
-    $$
+    - mropeSection的元素数为3：
 
-    $$
-    cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      cos0 = cos[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    cos = torch.cat((cos0, cos1, cos2), dim=-1)
-    $$
+      $$
+      cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    sin0 = sin[0, :, :mropeSection[0]]
-    $$
+      $$
+      cos = torch.cat((cos0, cos1, cos2), dim=-1)
+      $$
 
-    $$
-    sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      sin0 = sin[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    sin= torch.cat((sin0, sin1, sin2), dim=-1)
-    $$
+      $$
+      sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    queryRot = query[..., :rotaryDim]
-    $$
+      $$
+      sin= torch.cat((sin0, sin1, sin2), dim=-1)
+      $$
 
-    $$
-    queryPass = query[..., rotaryDim:]
-    $$
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
+
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
+
+    - mropeSection的元素数为4：
+
+      $$
+      cos = torch.cat([m[i]\ for\ i, m\ in\ enumerate(cos.split(mropeSection, dim=-1))], dim=-1)
+      $$
+
+      $$
+      sin = torch.cat([m[i]\ for\ i, m\ in\ enumerate(sin.split(mropeSection, dim=-1))], dim=-1)
+      $$
+      
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
+
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
 
     （2）cacheMode为1：
+
     $$
     cosTmp = cos
     $$
@@ -81,7 +103,7 @@
     $$
 
     $$
-    cos[..., 2:mropeSection[1] * 3:3] = cosTmp[2, ..., 2:mrope_section[1] * 3:3]
+    cos[..., 2:mropeSection[1] * 3:3] = cosTmp[2, ..., 2:mropeSection[1] * 3:3]
     $$
 
     $$
@@ -93,7 +115,7 @@
     $$
 
     $$
-    sin[..., 2:mropeSection[1] * 3:3] = sinTmp [2, ..., 2:mrope_section[1] * 3:3]
+    sin[..., 2:mropeSection[1] * 3:3] = sinTmp [2, ..., 2:mropeSection[1] * 3:3]
     $$
 
     $$
@@ -105,6 +127,7 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
+
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -126,6 +149,7 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
+
     $$
     x1 = queryRot[..., ::2]
     $$
@@ -151,6 +175,7 @@
     $$
 
     2、**rope模式**：positions的shape输入是[numTokens]：
+
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -168,6 +193,7 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
+
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -189,6 +215,7 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
+
     $$
     x1 = queryRot[..., ::2]
     $$
@@ -271,7 +298,7 @@ aclnnStatus aclnnRopeWithSinCosCacheV2(
         <td>positions</td>
         <td>输入</td>
         <td>公式中的positions，用于选取位置编码张量。</td>
-        <td><ul><li>不支持空tensor。</li><li>rope模式shape为(numTokens)。</li><li>mrope模式shape为(3, numTokens)。</li></ul></td>
+        <td><ul><li>不支持空tensor。</li><li>rope模式shape为(numTokens)。</li><li>mrope模式shape为(3, numTokens)或(4, numTokens)。</li></ul></td>
         <td>INT64</td>
         <td>ND</td>
         <td>1-2</td>
@@ -426,6 +453,14 @@ aclnnStatus aclnnRopeWithSinCosCacheV2(
         <tr>
         <td>输入属性和输入tensor之间的shape信息不匹配。</td>
         </tr>
+        <tr>
+        <td rowspan="2"> ACLNN_ERR_INNER_TILING_ERROR </td>
+        <td rowspan="2"> 361001 </td>
+        <td>query或者key非64B对齐。</td>
+        </tr>
+        <tr>
+        <td>rotaryDim>headSize。</td>
+        </tr>
     </tbody></table>
 
 ## aclnnRopeWithSinCosCacheV2
@@ -474,7 +509,7 @@ aclnnStatus aclnnRopeWithSinCosCacheV2(
 - queryIn、keyIn、cosSinCache只支持2维shape输入。
 - queryIn、keyIn、cosSinCache输入的数据类型需要保持一致。
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。
-- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足 mropeSection[0] + mropeSection[1] + mropeSection[2] = rotaryDim/2。
+- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足mropeSection所有元素累加和为rotaryDim值的一半。
 - 输入tensor positions的取值应小于cosSinCache的0维maxSeqLen。
 - mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]、[8, 12, 12]和[16, 16, 16, 16]。
 - mrope模式下，cacheMode仅支持0和1, 当mropeSection为[16, 16, 16, 16]时，仅支持0。

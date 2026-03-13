@@ -42,7 +42,8 @@ TILING_DATA_FIELD_DEF(uint64_t, blockShapeY);  // block的y维度(KV方向)
 // selectIdx相关参数
 TILING_DATA_FIELD_DEF(uint32_t, maxKvBlockNum);      // 最大KV块数量（selectIdx的最后一维）
 TILING_DATA_FIELD_DEF(uint32_t, maxQBlockNum);      // 最大KV块数量（selectIdx的最后一维）
-
+TILING_DATA_FIELD_DEF(uint32_t, avgRowPerSubCore);
+TILING_DATA_FIELD_DEF(uint32_t, preActivateSubCoreNum);
 
 // query Layout: 0=TND, 1=BNSD
 TILING_DATA_FIELD_DEF(uint32_t, queryLayout);
@@ -141,6 +142,7 @@ private:
     ge::graphStatus ProcessQueryShape(gert::TilingContext *rfaContext);
     ge::graphStatus ProcessActualSeqLengths(gert::TilingContext *rfaContext);
     ge::graphStatus ProcessBlockShape(gert::TilingContext *rfaContext);
+    ge::graphStatus ProcessSoftmaxLse(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateConfiguration(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *rfaContext);
     
@@ -177,10 +179,13 @@ private:
     float scaleValue_ = 0.0f;
     uint32_t maskType_ = 0;
     uint32_t innerPrecise_ = 1;  // 0=float32 softmax, 1=fp16 softmax
+    bool softmaxLseFlag_ = false;
     
     uint32_t totalQBlocks_ = 0;
     uint32_t maxKvBlockNum_ = 0;
     uint32_t maxQBlockNum_ = 0;
+    uint32_t avgRowPerSubCore_ = 0;
+    uint32_t preActivateSubCoreNum_ = 0;
     uint32_t firstQBlockNum_ = 0;
     uint32_t firstBatchTaskNum_ = 0;
     uint32_t totalTaskNum_ = 0;
