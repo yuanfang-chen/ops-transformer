@@ -23,6 +23,7 @@
 #include "kernel_operator.h"
 #endif
 
+
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
 constexpr int64_t GATHER_OUT_HIF8_PERTENSOR_QUANT_BUFFER_NUM = 1;
