@@ -736,6 +736,7 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.cacheStride = 0;
     tilingData_.xInputMode = xInputMode_;
     tilingData_.hasAcceptTokenNum = hasAcceptTokenNum_;
+    tilingData_.residualConnection = residualConnection_;
 
     // Save tiling data to buffer
     auto tilingDataSize = sizeof(CausalConv1dUpdateTilingData);
