@@ -216,7 +216,7 @@ private:
     uint32_t cubeCount_ = 0;
     uint64_t mmCount_ = 0;
     uint64_t vec1Count_ = 0;
-    uint16_t eleNumPerVf__ = 0;
+    uint16_t eleNumPerVf_ = 0;
 };
 
 template <class T, class P>
@@ -270,7 +270,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitFromTilingData(const MhcPreTiling
     chunTSize_ = tiling_->chunkTSize;
     v1ChunkDSize_ = tiling_->v1ChunkDSize;
     hasGamma_ = (tiling_->hasGamma != 0);
-    eleNumPerVf__ = MhcPreUtils::GetVRegSize() / sizeof(P);
+    eleNumPerVf_ = MhcPreUtils::GetVRegSize() / sizeof(P);
 }
 
 template <class T, class P>
