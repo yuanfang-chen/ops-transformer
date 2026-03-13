@@ -501,7 +501,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadExtParams);
     inQueue.EnQue(xInTensor);
     xInTensor = inQueue.DeQue<XType>();
-    if (QuantMode > UNQUANT) {
+    if constexpr (QuantMode > UNQUANT) {
         quantInst_.QuantProcess(tempTensor_, xInTensor, quantExpertIdx, scalesCount_, scalesGMTensor_);
     }
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)

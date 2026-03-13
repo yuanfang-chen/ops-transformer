@@ -596,7 +596,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
         xInQueue_.EnQue(xInTensor_);
         xInTensor_ = xInQueue_.DeQue<XType>();
         xOutTensor_ = xOutQueue_.AllocTensor<ExpandXOutType>();
-        if (QuantMode > UNQUANT) {
+        if constexpr (QuantMode > UNQUANT) {
             quantInst_.QuantProcess(xOutTensor_, xInTensor_, expertIndex, scalesCount_, scalesGMTensor_); // 量化
         }
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
