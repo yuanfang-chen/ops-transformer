@@ -73,7 +73,136 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(CpuKernelContext &ctx)
     GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
     GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
-    return (ParamsCheck() && ParamsInit());
+    if (queryHeadNum_ > 64) {
+        return (ParamsCheckN128() && ParamsInit());
+    } else {
+        return (ParamsCheck() && ParamsInit());
+    }
+}
+
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParamN128()
+{
+    // 核心数校验
+    if (aicCoreNum_ == 0 || aivCoreNum_ == 0) {
+        KERNEL_LOG_ERROR("AIC num or AIV num should not be 0, but got %u and %u", aicCoreNum_, aivCoreNum_);
+        return false;
+    }
+    // batch_size 非负校验
+    if (batchSize_ < 0) {
+        KERNEL_LOG_ERROR("batch_size should not be negative, but got %d", batchSize_);
+        return false;
+    }
+    // max_seqlen_q 非负校验
+    if (querySeqSize_ < 0) {
+        KERNEL_LOG_ERROR("max_seqlen_q should not be negative, but got %d", querySeqSize_);
+        return false;
+    }
+    // num_heads_q 校验
+    if (queryHeadNum_ > 128) {
+        KERNEL_LOG_ERROR("num_heads_q should not be greater than 128, but got %d", queryHeadNum_);
+        return false;
+    }
+    // num_heads_kv 校验
+    if (kvHeadNum_ != 1) {
+        KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %d", kvHeadNum_);
+        return false;
+    }
+    // ori_mask_mode 校验
+    if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
+        KERNEL_LOG_ERROR("ori_mask_mode should only be 0, but got %d", oriMaskMode_);
+        return false;
+    }
+    // cmp_mask_mode 校验
+    if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
+        KERNEL_LOG_ERROR("cmp_mask_mode should only be 0, but got %d", cmpMaskMode_);
+        return false;
+    }
+    // ori_topk 校验
+    if (oriTopK_ != 128) {
+        KERNEL_LOG_ERROR("oriTopK_ should only be 128, but got %d", oriMaskMode_);
+        return false;
+    }
+    // layout_q 校验
+    if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
+        KERNEL_LOG_ERROR("layout_q must be TND or BSND!");
+        return false;
+    }
+    // layout_kv 校验
+    if (layoutKv_ != "PA_ND" && layoutKv_ != "TND" && layoutKv_ != "BSND") {
+        KERNEL_LOG_ERROR("layout_kv must be TND, BSND or PA_ND!");
+        return false;
+    }
+    // layout交叉校验
+    if (layoutQuery_ == "TND" && layoutKv_ == "BSND") {
+        KERNEL_LOG_ERROR("For layout_query TND, layout_key should be PA_BSND/TND");
+        return false;
+    }
+    if (layoutQuery_ == "BSND" && layoutKv_ == "TND") {
+        KERNEL_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
+        return false;
+    }
+    return true;
+}
+
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistenceN128()
+{
+    auto isInvalid = [](std::vector<uint32_t> &t) { return t.empty(); };
+    auto isValid = [](std::vector<uint32_t> &t) { return !t.empty(); };
+    // cu_seqlens_q 存在性校验
+    if (layoutQuery_ == "TND") {
+        if (isInvalid(actSeqLenQ_)) {
+            KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
+            return false;
+        }
+    }
+    // layout_kv TND Tensor 存在性校验
+    if (layoutKv_ == "TND") {
+        if (isInvalid(actSeqLenOriKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
+            return false;
+        }
+        if (isValid(seqUsedKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
+            return false;
+        }
+    }
+    // layoutKv_ "PA_ND" 存在性校验
+    if (layoutKv_ == "PA_ND") {
+        if (isInvalid(seqUsedKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv PA_ND, seqused_kv must be provided!");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistencyN128()
+{
+    int32_t queryBatchSize = GetQueryBatchSize();
+    int32_t kvBatchSize = GetKvBatchSize();
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("The batch_size obtained from q Tensor should be the same as "
+                "that obtained from kv tensor, but got %d and %d", queryBatchSize, kvBatchSize);
+        return false;
+    }
+    if (!cmpTopkLength_.empty()) {
+        if (cmpTopkLength_.size() != queryBatchSize) {
+            KERNEL_LOG_ERROR("The shape size of cmp_topk_length %d should be equal with the batch size %d",
+                    static_cast<int32_t>(cmpTopkLength_.size()), queryBatchSize);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeatureN128()
+{
+    return true;
+}
+
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheckN128()
+{
+    return (CheckSingleParamN128() && CheckExistenceN128() && CheckConsistencyN128() && CheckFeatureN128());
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() 
@@ -256,7 +385,6 @@ ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
     } else {
         return ValidSocVersion::ASCEND910;
     }
-    return ValidSocVersion::RESERVED_VERSION;
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
@@ -282,6 +410,11 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
         hasOriTopk = true;
     } else if (oriTopK_ != 0) {
         hasOriTopk = true;
+    }
+    if (hasCmpKv_) {
+    	if(!cmpTopkLength_.empty() || cmpTopK_ != 0) {
+            hasCmpTopk = true;
+        }
     }
     if (queryHeadNum_ == 128) {
     	isN128 = true;
@@ -315,63 +448,27 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     return true;
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx)
-{
-    uint32_t s1GToken = s1GIdx * mBaseSize_;
-    uint32_t s1Idx = 0;
-    if (isS1G_) {
-        s1Idx = s1GToken / static_cast<int64_t>(groupSize_);
-    } else {
-        s1Idx = s1GToken % static_cast<int64_t>(batchCache.s1Size);
-    }
-    return s1Idx;
-}
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_t s1Idx)
-{
-    uint32_t bsStride = 0;
-    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
-        const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
-        for (uint32_t i = 0; i < bIdx; i++) {
-            if (i == 0) {
-                continue;
-            }
-            bsStride += seqUsedPtr[i - 1];
-        }
-        bsStride += s1Idx;
-        return bsStride;
-    }
-    if (layoutQuery_ == "TND") {
-        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
-            const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
-            bsStride = s1Ptr[bIdx] + s1Idx;
-            return bsStride;
-        }
-    }
-    bsStride = bIdx * static_cast<uint32_t>(querySeqSize_) + s1Idx;
-    return bsStride;
-}
-
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t bsStride)
+uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t bIdx)
 {
     auto mode = static_cast<SparseMode>(oriMaskMode_);
     if (mode == SparseMode::DEFAULT_MASK) {
         // 如果是 DEFAULT_MASK，尝试使用 oriTopkLength_
         if (oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
             const int32_t *oriTopkPtr =static_cast<const int32_t*>(oriTopkLength_->GetData());
-            return static_cast<uint32_t>(oriTopkPtr[bsStride]);
+            return static_cast<uint32_t>(oriTopkPtr[bIdx]);
         }
     }
     // 如果不是 DEFAULT_MASK，使用 oriTopK_
     return static_cast<uint32_t>(oriTopK_);
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetCmpTopkLength(uint32_t bsStride)
+uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetCmpTopkLength(uint32_t bIdx)
 {
     // 尝试使用 cmpTopkLength_
     if (cmpTopkLength_ != nullptr && cmpTopkLength_->GetData() != nullptr) {
         const int32_t *cmpTopkPtr =static_cast<const int32_t*>(cmpTopkLength_->GetData());
-        return static_cast<uint32_t>(cmpTopkPtr[bsStride]);
+        return static_cast<uint32_t>(cmpTopkPtr[bIdx]);
     }
     // 如果不是 DEFAULT_MASK，使用 cmpTopK_
     return static_cast<uint32_t>(cmpTopK_);
@@ -630,9 +727,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range
     } else {
         oriS2FirstToken = Clip(oriS2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
         oriS2LastToken = Clip(oriS2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
-        uint32_t s1Idx = GetS1Idx(batchCache, s1GCache.s1GIdx);
-        uint32_t bsStride = GetBsStride(s1GCache.bIdx, s1Idx);
-        uint32_t oriTopkSize = GetOriTopkLength(bsStride);
+        uint32_t oriTopkSize = GetOriTopkLength(s1GCache.bIdx);
         oriS2LastTokenSize = hasOriTopk ? std::min(oriS2LastToken + 1, static_cast<int64_t>(oriTopkSize)) : (oriS2LastToken + 1);
         s1GCache.winS2Start = 0;
         s1GCache.winS2End = oriS2LastTokenSize == 0 ? 0 : (oriS2LastTokenSize - 1 - oriS2FirstToken) / s2BaseSize_ + 1U;
@@ -643,14 +738,10 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range
     // 计算CmpS2LastToken的长度
     uint32_t cmpS2LastTokenSize = hasCmpKv_ ? oriS2LastTokenSize / cmpRatio_ : 0;
     uint32_t actCmpS2LastTokenSize = 0;
-    if (isCFA) {
-        actCmpS2LastTokenSize = cmpS2LastTokenSize;
-    } else if (isSCFA) {
-        // CmpS2LastToken与topk取最小
-        uint32_t s1Idx = GetS1Idx(batchCache, s1GCache.s1GIdx);
-        uint32_t bsStride = GetBsStride(s1GCache.bIdx, s1Idx);
-        uint32_t cmpTopkSize = GetCmpTopkLength(bsStride);
-        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, cmpTopkSize);
+    if (hasCmpKv_) {
+    	// CmpS2LastToken与topk取最小
+        uint32_t cmpTopkSize = GetCmpTopkLength(s1GCache.bIdx);
+        actCmpS2LastTokenSize = hasCmpTopk ? std::min(cmpS2LastTokenSize, cmpTopkSize) : cmpS2LastTokenSize;
     }
     // 将token长度转化为token索引，然后由token索引计算s2索引
     s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? s1GCache.cmpS2Start : s1GCache.cmpS2Start + 

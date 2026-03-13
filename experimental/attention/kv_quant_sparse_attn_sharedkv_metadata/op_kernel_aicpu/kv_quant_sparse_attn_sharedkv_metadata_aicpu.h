@@ -237,6 +237,11 @@ private:
     bool CheckConsistency();
     bool CheckFeature();
     bool ParamsCheck();
+    bool CheckSingleParamN128();
+    bool CheckExistenceN128();
+    bool CheckConsistencyN128();
+    bool CheckFeatureN128();
+    bool ParamsCheckN128();
     bool ParamsInit();
     bool BalanceSchedule(SplitResult &splitRes);
     bool GenMetaData(SplitResult &splitRes);
@@ -246,8 +251,6 @@ private:
     uint32_t GetS2SeqSize(uint32_t bIdx);
     uint32_t GetOriTopkLength(uint32_t bsStride);
     uint32_t GetCmpTopkLength(uint32_t bsStride);
-    uint32_t GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx);
-    uint32_t GetBsStride(uint32_t bIdx, uint32_t s1Idx);
     int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
@@ -331,11 +334,11 @@ private:
     bool isCFA = false;
     bool isSCFA = false;
     bool supportFd = false;
-    uint32_t sparseMode_ = 0;
     uint32_t attentionMode_ = 1;
-    BlockCost<int64_t> typeCost_;
+    BlockCost<int64_t> typeCost_ = {};
     bool isN128 = false;
     bool hasOriTopk = false;
+    bool hasCmpTopk = false;
     
 private:
     enum class ParamId : uint32_t {
