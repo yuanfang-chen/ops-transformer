@@ -26,6 +26,7 @@ struct SimplySoftMaxInfo {
 
     GlobalTensor<float> sGm;
     GlobalTensor<float> lseGm;
+    GlobalTensor<float> pGm;
 };
 
 struct CalDsInfo {
@@ -158,6 +159,9 @@ public:
         cBlockIdx = vecCoreIdx;
         __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
         usedVecCoreNums = tilingData->usedVecCoreNum;
+        printf("cBlockIdx: %lu \n", cBlockIdx);
+
+
         if (cBlockIdx >= usedVecCoreNums) {
             return;
         }
@@ -172,12 +176,12 @@ public:
         curCoreS1Idx = params.curCoreS1Idx;
         actualQSeqlen = params.actualQSeqlen;
         actualKvSeqlen = params.actualKvSeqlen;
-        // uint64_t blockNums = BLOCK_BYTE_SIZE / sizeof(float);
 
-        uint64_t s2 = ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch + 1] - ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch];;
+        uint64_t s2 = ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch];
+            printf("s2: %lu \n", s2);
         uint64_t curCoreProcessNum = params.processNums;
         uint64_t ubSize = tilingData->ubSize;
-        uint64_t ubSizeEeachStage = ubSize  / STAGES; // 32字节对齐
+        uint64_t ubSizeEeachStage = ubSize  / STAGES / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE; // 32字节对齐
 
         if (vecCoreIdx % 2 == 0) {
             row = params.actualRow / 2 + params.actualRow % 2;
@@ -191,7 +195,7 @@ public:
         } else if constexpr(INPUT_LAYOUT == BNSD){
             transpseStride = 0;
         }
-
+  
         // 默认 s2 > 8
         // 计算 simply_softmax p = (exp(S - L)) buffer 大小 记得广播
         // 设S buffer x, l broc buffer 8 * x / s2, 则x + 8 * x / s2 = 192*1024 / 2
@@ -222,8 +226,7 @@ public:
         uint64_t dpBufLen = baseBufLen;
         uint64_t pBufLen = baseBufLen;
         uint64_t dBufLen = BRCB_BASE_NUM * baseBufLen / s2;
-        // uint64_t tempBufferLen = 40 * 1024 - outputBufferLen;
-
+  
         for (uint64_t i = 0; i < STAGES; i++) {
             uint64_t stageOffset = ubSizeEeachStage * i;
             // 第一轮 softmax 计算空间划分
@@ -240,14 +243,18 @@ public:
             dsTensor[i] = pTensor[i]; // 复用s
         }
 
+        uint64_t coreOffset = 0; // ai core 的每个vectore 的偏移
+        if (vecCoreIdx % 2 != 0) {
+            coreOffset += (params.actualRow / 2 + params.actualRow % 2) * params.actualCol;
+        }
+
         // 初始化 GM
-        sGm.SetGlobalBuffer((__gm__ float *)params.s);
+        sGm.SetGlobalBuffer((__gm__ float *)params.s + coreOffset);
         softmaxLseGm.SetGlobalBuffer((__gm__ float *)params.softmaxLse);
-        dpGm.SetGlobalBuffer((__gm__ float *)params.dp);
-        // blockSparseMaskGm.SetGlobalBuffer((__gm__ float *)blockSparseMask);
-        pWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.pWorkspace);
+        dpGm.SetGlobalBuffer((__gm__ float *)params.dp + coreOffset);
+        pWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.pWorkspace + coreOffset);
         softGradworkspaceGm.SetGlobalBuffer((__gm__ float *)params.softGradworkspace);
-        dsWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.dsWorkspace);
+        dsWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.dsWorkspace + coreOffset);
     }
         
     __aicore__ inline
@@ -275,44 +282,24 @@ public:
             return;
         }
         
-        // 假设 col 不会太大，baseBufLen至少能满足1行
+        // col < 128
         // 计算单loop的计算量及loop次数
         uint64_t eleBaseBuffNum = baseBufLen / sizeof(float); // 基本buffer块的元素数量
-        uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col;
+        uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
 
-        uint64_t colLoopTimes = 1;  // 执行一次 bufferRows 需loop数
-        uint64_t loopBaseCol = col; // 最小的loop处理的列数
-        uint64_t loopBaseRow = bufferRows; // 最小的loop处理的行数
-        uint64_t loopTailCol = col;  // 尾块的列数
-        uint64_t loopTailRow = bufferRows;  // 尾块的行数
-        if (col > eleBaseBuffNum) {
-            // 考虑到col 大于 eleBaseBuffNum的场景
-            colLoopTimes = CeilDiv(col, eleBaseBuffNum);
-            loopTailCol = col - (colLoopTimes - 1) * eleBaseBuffNum;
-            loopBaseCol = eleBaseBuffNum;
-            loopBaseRow = 1;
-            loopTailRow = 1;
-        }
 
-        uint64_t ping = 1;
+        uint64_t ping = 0;
         // 不包含尾行处理
         for (uint64_t i = 0; i < rowLoopTimes; i++) {
-            auto eventId = ping ? EVENT_ID0 : EVENT_ID1;
+            auto eventId = ping ? EVENT_ID1 : EVENT_ID0;
 
             uint64_t curS1 = curCoreS1Idx + i * bufferRows;
             int32_t gmRowOffset = i * bufferRows * col;
-            uint64_t tempRow = loopBaseRow;
-            uint64_t tempCol = loopTailCol;
-            for (uint64_t colLoop = 0; colLoop < colLoopTimes; colLoop++) {
-                if (colLoop == (colLoopTimes -1)) {
-                    tempCol = loopTailCol;
-                    tempRow = loopTailRow;
-                }
-                compute(gmRowOffset, tempRow, tempCol, curS1, ping);
-                gmRowOffset += tempRow * tempCol;
-            }
+            compute(gmRowOffset, bufferRows, col, curS1, ping);
+            gmRowOffset += bufferRows * col;
+      
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
             }
@@ -324,15 +311,9 @@ public:
             uint64_t curS1 = curCoreS1Idx + rowLoopTimes * bufferRows;
             int32_t gmOffset =  rowLoopTimes * bufferRows * col;
             uint64_t tempRow = tailRowNum;
-            uint64_t tempCol = loopTailCol;
-            for (uint64_t colLoop = 0; colLoop < colLoopTimes; colLoop++) {
-                if (colLoop == (colLoopTimes -1)) {
-                    tempCol = loopTailCol;
-                    tempRow = loopTailRow;
-                }
-                compute(gmOffset, tempRow, tempCol, curS1, ping);
-                gmOffset += tempRow * tempCol;
-            }
+            uint64_t tempCol = col;
+            compute(gmOffset, tempRow, tempCol, curS1, ping);
+            gmOffset += tempRow * tempCol;
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
             }
@@ -342,7 +323,7 @@ public:
     __aicore__ inline
     void compute(int32_t gmOffset, uint64_t row, uint64_t col, uint64_t curS1, uint64_t ping)
     {
-        struct SimplySoftMaxInfo runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm};
+        struct SimplySoftMaxInfo runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
         struct CalDsInfo runDsInfo = {dpTensor[ping], softmaxGradTensor[ping], pTensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
         SimplySoftmax(runSftInfo, row, col, curS1);
         CalDs(runDsInfo, row, col, curS1 );
@@ -356,7 +337,7 @@ public:
     * dtype float
     */
     __aicore__ inline
-    void LseBrocast(GlobalTensor<float> LseGm, LocalTensor<float> lse, LocalTensor<float> lseFp32Brc, uint64_t count, uint64_t curS1)
+    void LseBrocast(GlobalTensor<float> &LseGm, LocalTensor<float> &lse, LocalTensor<float> &lseFp32Brc, uint64_t count, uint64_t curS1)
     {
         uint64_t startOffset = 0;
         if constexpr (INPUT_LAYOUT == TND) {
@@ -371,13 +352,17 @@ public:
                     {static_cast<uint16_t>(count), static_cast<uint32_t>(1 * sizeof(float)),
                     static_cast<uint32_t>(transpseStride), 0, 0},
                     {false, 0, 0, 0});
+        AscendC::PipeBarrier<PIPE_ALL>();
+
 
         uint8_t repeatimes = CeilDiv(count, BRCB_BASE_NUM);
         Brcb(lseFp32Brc, lse, repeatimes, {1, 8});
+
     }
 
     /*
         * brief: Compute the elementwise multiplication of a tensor of shape (m, n) and a tensor of shape
+        * ubIn0:[m, n], ubIn1[m, 8]
     */
     __aicore__ inline
     void SubBrcb(LocalTensor<float> const &ubOut, LocalTensor<float> const &ubIn0, LocalTensor<float> const &ubIn1, uint64_t row, uint64_t col)
@@ -393,18 +378,21 @@ public:
         repeatParams.dstRepStride = 1;
         repeatParams.src0RepStride = 1;
         repeatParams.src1RepStride = 0;
-        
+
         // 执行一次sub，迭代次数 col / oneblock ， 一次迭代计算 row * oneblock 元素， 
         uint32_t rowNumPerCompute = BLK_NUM_PER_VECTOR_FRACTAL; // 256 / 32 = 8 即per_repeat / per_block = 8
         uint32_t colNumPerCompute = eleNumPerBlk * maxRepeatNum; // 255 * 8
+
         for (uint32_t rowOffset = 0; rowOffset < row; rowOffset += rowNumPerCompute) {
             uint32_t residueM = row - rowOffset;
             uint32_t currentRowNum = (residueM > rowNumPerCompute) ? rowNumPerCompute : residueM;
             uint64_t mask = static_cast<uint64_t>(currentRowNum) * static_cast<uint64_t>(eleNumPerBlk);
+
             for (uint32_t colOffset = 0; colOffset < col; colOffset += colNumPerCompute) {
                 uint32_t residueN = col - colOffset;
                 uint32_t currentColNum = (residueN > colNumPerCompute) ? colNumPerCompute : residueN;
                 uint8_t repeatTimes = static_cast<uint8_t>(currentColNum / eleNumPerBlk);
+
                 AscendC::Sub(
                     ubOut[rowOffset * col + colOffset],
                     ubIn0[rowOffset * col + colOffset],
@@ -413,6 +401,7 @@ public:
                 );
             }
         }
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
@@ -423,34 +412,44 @@ public:
     __aicore__ inline
     void SimplySoftmax(struct SimplySoftMaxInfo runInfo, uint64_t row, uint64_t col, uint64_t curS1)
     {
-        LocalTensor<float> sLocal = runInfo.sTensor;
-        LocalTensor<float> lse = runInfo.lseTensor;
-        LocalTensor<float> lseFp32Brc = runInfo.lseBrocTensor;
-        LocalTensor<float> pLocal = runInfo.pTensor;
+        LocalTensor<float> &sLocal = runInfo.sTensor;
+        LocalTensor<float> &lse = runInfo.lseTensor;
+        LocalTensor<float> &lseFp32Brc = runInfo.lseBrocTensor;
+        LocalTensor<float> &pLocal = runInfo.pTensor;
 
         GlobalTensor<float> s = runInfo.sGm;
         GlobalTensor<float> lseGm = runInfo.lseGm;
+        GlobalTensor<float> pGm = runInfo.pGm;
 
         uint64_t count = row * col;
         uint64_t countAlign = (count + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
+
+
+        LseBrocast(lseGm, lse, lseFp32Brc, row, curS1);
+        AscendC::PipeBarrier<PIPE_ALL>();
+
         if (count * sizeof(float) % BLOCK_SIZE == 0) {
             DataCopy(sLocal, s, count);
         } else {
             DataCopyPad(sLocal, s, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, 
                         {true, 0, static_cast<uint8_t>(countAlign - count), 0});
         }
-        LseBrocast(lseGm, lse, lseFp32Brc, count, curS1);
 
         SubBrcb(pLocal, sLocal, lseFp32Brc, row, col);
 
+        AscendC::PipeBarrier<PIPE_ALL>();
+
         Exp(pLocal, pLocal, count);
 
-        if (count * sizeof(float) % BLOCK_SIZE == 0) {
-            DataCopy(pWorkspaceGm, pLocal, count);
-        } else {
-            DataCopyPad(pWorkspaceGm, pLocal, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0});
-        }
+        AscendC::PipeBarrier<PIPE_ALL>();
 
+
+        if (count * sizeof(float) % BLOCK_SIZE == 0) {
+            DataCopy(pGm, pLocal, count);
+        } else {
+            DataCopyPad(pGm, pLocal, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0});
+        }
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
@@ -471,12 +470,20 @@ public:
         GlobalTensor<float> ds = runInfo.dsGm;
 
         uint64_t count = row * col;
+
+
+        AscendC::PipeBarrier<PIPE_ALL>();
+
         DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
         CopyDIn(d, dLocal, row, curS1);
 
+        AscendC::PipeBarrier<PIPE_ALL>();
         SubBrcb(dpLocal, dpLocal, dLocal, row, col);
+        AscendC::PipeBarrier<PIPE_ALL>();
 
+        AscendC::PipeBarrier<PIPE_ALL>();
         Mul(dpLocal, pLocal, dpLocal, count);
+        AscendC::PipeBarrier<PIPE_ALL>();
 
         DataCopyPad(ds, dpLocal, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0});
     }
