@@ -198,7 +198,7 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, float eps, int6
     // 将输入x转换成连续的tensor
     const aclTensor *xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
     CHECK_RET(xContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    aclTensor *outputContiguous = const_cast<aclTensor*>l0op::Contiguous(output, uniqueExecutor.get());
+    aclTensor *outputContiguous = const_cast<aclTensor*>(l0op::Contiguous(output, uniqueExecutor.get()));
     CHECK_RET(outputContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     const aclTensor *kernelOut =
