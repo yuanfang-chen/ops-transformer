@@ -445,14 +445,19 @@ namespace BSA {
         {
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
 
+            // pre
             VecPre(params);
-
+            PipeBarrier<PIPE_ALL>();
+            
+            // softmaxgrad
+            VecSoftMaxGrad(params);
             PipeBarrier<PIPE_ALL>();
 
-            heleDqkv2Float(params);
-
+            // simply softmax
+            VecOp(params);
             PipeBarrier<PIPE_ALL>();
-  
+
+            // post
             VecPost(params);
             PipeBarrier<PIPE_ALL>();
         }
