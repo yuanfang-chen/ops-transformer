@@ -1,3 +1,0 @@
-testcase_name,op_name,stc_inputs,stc_outputs,stc_input_dtypes,dyn_inputs,dyn_outputs,dyn_input_dtypes,cst_inputs,cst_outputs,cst_input_dtypes,output_dtypes
-tsqr_0,tsqr,"((4096, 160))","((4096, 160), (160, 160))","('float32')","((4096, 160))","((4096, 160), (160, 160))","('float32')","((4096, 160))","((4096, 160), (160, 160))","('float32')","('float32', 'float32')"
-jacobi_test,jacobi_molotilka,"((1, 128, 128),)  ","((1, 128),(1, 128, 128), (1,128, 128)) ",('float32'),"((1, 128, 128),)  ","((1, 128),(1, 128, 128), (1,128, 128)) ",('float32'),"((1, 128, 128),)  ","((1, 128),(1, 128, 128), (1,128, 128)) ",('float32'),"('float32', 'float32', 'float32')"

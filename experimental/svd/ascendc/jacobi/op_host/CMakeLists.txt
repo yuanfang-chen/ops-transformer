@@ -7,14 +7,21 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
+add_op_to_compiled_list()
 
-file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
-if(NOT ENABLE_TEST AND NOT BENCHMARK)
-    list(REMOVE_ITEM CURRENT_DIRS tests)
-endif()
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/utils/inc/")
-foreach(SUB_DIR ${CURRENT_DIRS})
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
-        add_subdirectory(${SUB_DIR})
-    endif()
-endforeach()
+target_sources(op_host_aclnnInner PRIVATE
+    jacobi_def.cpp
+)
+
+add_ops_compile_options(
+    OP_NAME Jacobi
+    OPTIONS --cce-auto-sync=off
+            -Wno-deprecated-declarations
+            -Werror
+            -mllvm -cce-vf-remove-membar=false
+            -mllvm -cce-aicore-hoist-movemask=false
+            --op_relocatable_kernel_binary=true
+)
+
+add_modules_sources_with_soc(OPTYPE jacobi ACLNNTYPE aclnn_inner)
+

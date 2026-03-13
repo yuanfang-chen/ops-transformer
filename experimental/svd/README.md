@@ -1,12 +1,13 @@
 # Long-context Linear Algebra Operations for Ascend NPU
 
-A target is to support PyTorch linear algebra operations for long sequences (~128K) in method ShadowKV on NPU Ascend 910B/C, Ascend 950PR.
+A target is to support PyTorch linear algebra operations for long sequences in method ShadowKV on NPU Ascend 910B/C, Ascend 950PR.
 
 ShadowKV series operators (Ascend CANN / cann-ops-transformer).
 
 This catalog contains custom operators for ShadowKV method, based on the cann-ops-transformer framework, achieving high-performance acceleration on the Huawei Ascend AI (Ascend NPU) 950PR platform.
 
 **Low-rank SVD components：**
+
 ```mermaid
 stateDiagram-v2
 	Active: Low-rank SVD
@@ -49,6 +50,7 @@ stateDiagram-v2
 	class Gauss, Jacobi, HouseholderQR, Vector VECState
 	class TSQR TSQRState
 ```
+
 ### Custom Kernel Input/Output (I/O)
 
 **Parameters description:**  
@@ -84,7 +86,7 @@ There are 4 linear algebra operators npu_linalg are the core implementation modu
 
 **Directory structure**  
 ```
-├── npu_linalg            # Linear algebra components
+├── svd                   # Linear algebra components for ShadowKV SVD
    ├── ascendc            # AscendC operators for linear algebra functions
    |  ├── cmake           # CMake utilities
    |  ├── jacobi/         # Jacobi rotation SVD
@@ -110,28 +112,32 @@ There are 4 linear algebra operators npu_linalg are the core implementation modu
 	  └── setup.py        # Wheel package compilation file
 ```
 
+
+**Quick start**
+
+```bash
+bash ./run.sh
+```
+
 **Compilation and use**
 
-1. CANN operator compilation and installation @ 910B4
+1. CANN operator compilation and installation @ 910B2
 ```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-path="npu_linalg"
-cd $path$/ascendc
-bash build.sh -c ascend910b
-./output/CANN-custom_ops--linux.aarch64.run --quiet --install-path=/usr/local/Ascend/ascend-toolkit/latest/opp
-source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/customize/bin/set_env.bash
+path="ops-transformer"
+cd $path$
+bash build.sh --pkg --experimental --soc=ascend910b --ops=svd
 ```
 
 2. Python wrapper compilation and installation
 ```bash
-cd $path$/torch_npu_linalg
+cd $path$/experimental/svd/torch_npu_linalg
 pip install -r requirements.txt
 bash build_and_install.sh
 ```
 
 3. Accuracy tests
 ```bash
-pytest $path$/torch_npu_linalg/tests/test_svd.py
+pytest $path$/experimental/svd/torch_npu_linalg/tests/test_svd.py
 ```
 
 4. Performance tests
@@ -140,10 +146,10 @@ Performance scripts support the `--mode` argument:
  - profile — collect profiler trace
  - benchmark — measure execution time and save benchmark results
 ```bash
-python $path$/torch_npu_linalg/tests/perf/svd.py --mode benchmark
-python $path$/torch_npu_linalg/tests/perf/svd.py --mode profile
-python $path$/torch_npu_linalg/tests/perf/tsqr.py --mode <profile|benchmark>
-python $path$/torch_npu_linalg/tests/perf/svd_lowrank.py --mode <profile|benchmark>
+python $path$/experimental/svd/torch_npu_linalg/tests/perf/svd.py --mode benchmark
+python $path$/experimental/svd/torch_npu_linalg/tests/perf/svd.py --mode profile
+python $path$/experimental/svd/torch_npu_linalg/tests/perf/tsqr.py --mode <profile|benchmark>
+python $path$/experimental/svd/torch_npu_linalg/tests/perf/svd_lowrank.py --mode <profile|benchmark>
 cd perf_result
 ```
 
