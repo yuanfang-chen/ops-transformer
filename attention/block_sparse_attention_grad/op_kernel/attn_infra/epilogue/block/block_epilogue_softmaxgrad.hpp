@@ -28,7 +28,6 @@ namespace NpuArch::Epilogue::Block {
 template <
     typename InputDType,
     typename OutputDtype,
-    // class ArchTag,
     uint32_t INPUT_LAYOUT>
 class SoftmaxGrad
 {
@@ -40,13 +39,9 @@ public:
         // Data members
         GM_ADDR dout;
         GM_ADDR out;
-        // GM_ADDR blockSparseMask; 
-        // GM_ADDR blockShape;
         GM_ADDR actualQSeqlen; 
         GM_ADDR softGradworkspace;
         GM_ADDR tilingData;
-        // GM_ADDR doutWorkspace;
-        // GM_ADDR tilingData;
 
         // Methods
         __aicore__ inline
@@ -54,17 +49,12 @@ public:
 
         __aicore__ inline
         Params(
-            GM_ADDR dout_, GM_ADDR out_,  
-            // GM_ADDR blockSparseMask_,
-            // GM_ADDR blockShape_,
+            GM_ADDR dout_, GM_ADDR out_, 
             GM_ADDR actualQSeqlen_, GM_ADDR softGradworkspace_, GM_ADDR tilingData_
             // GM_ADDR doutWorkspace_,
         ) : dout(dout_), out(out_),
-            // blockSparseMask(blockSparseMask_),
-            // blockShape(blockShape_),
             actualQSeqlen(actualQSeqlen_),
             softGradworkspace(softGradworkspace_), tilingData(tilingData_)
-            // doutWorkspace(doutWorkspace_)
         {
             
         }    
@@ -77,7 +67,7 @@ public:
     constexpr static uint64_t SFMG_HIGH_PERF_N_FACTOR = 8;
     constexpr static uint64_t SFMG_HIGH_PERF_D_FACTOR = 64;
     constexpr static uint64_t STAGES = 1;
-    constexpr static uint64_t DOUBLE_BUFFER = 2;
+    constexpr static uint64_t DOUBLE_BUFFER = 1;
     constexpr static uint64_t INPUT_NUM = 2;
     constexpr static uint64_t BNSD = 1;
     constexpr static uint64_t TND = 0;
@@ -87,7 +77,6 @@ public:
     GlobalTensor<float> sfmgWorkspaceGm;
     GlobalTensor<InputDType> dyGm;
     GlobalTensor<InputDType> attenInGm;
-    // GlobalTensor<float> doutP32Gm;
     GM_ADDR actualSeqQlenAddr;
 
     LocalTensor<InputDType> doutTensor[STAGES];
@@ -113,6 +102,7 @@ public:
 
     uint64_t usedCoreNums = 0;
     uint64_t normalCoreSize = 0;
+    uint64_t tailCoreSize = 0;
     uint64_t singleLoopNBurstNum = 0;
     uint64_t normalCoreLoopTimes = 0;
     uint64_t normalCoreLastLoopNBurstNum = 0;
@@ -124,7 +114,6 @@ public:
     SoftmaxGrad(Params const &params)
     {
         cBlockIdx = GetBlockIdx();
-        // tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
         GET_TILING_DATA_WITH_STRUCT(BlockSparseAttentionGradTilingData, tiling, params.tilingData);
         tilingData = &tiling;
         usedCoreNums = tilingData->usedVecCoreNum;
@@ -137,12 +126,10 @@ public:
         n1 = tilingData -> numHeads;            // q_n
         d = tilingData -> headDim;
         s1 =tilingData -> maxQSeqlen;
-        // softmaxGradTilingData = tilingData->softmaxGradTilingData;
 
         uint64_t blockNums = BLOCK_BYTE_SIZE / sizeof(InputDType);
         dAlign = (d + blockNums - 1) / blockNums * blockNums;
         actualSeqQlenAddr = params.actualQSeqlen;
-
         // 计算 buffer 大小
         constexpr static uint64_t inputBufferLen = 24 * 1024;                    // castBuffer 24K*2=48K
         constexpr static uint64_t castBufferLen = 48 * 1024;                     // castBuffer 48K*2=96K
@@ -167,7 +154,7 @@ public:
             outFp32Tensor[i] = 
                 resource.ubBuf.template GetBufferByByte<float>(inputBufferLen * INPUT_NUM + castBufferLen + castBufferLenEeachStage * i);
             softmaxGradTensor[i] = 
-                resource.ubBuf.template GetBufferByByte<float>(inputBufferLen * INPUT_NUM + castBufferLen + castBufferLenEeachStage * i);
+                resource.ubBuf.template GetBufferByByte<float>(inputBufferLen * INPUT_NUM + castBufferLen * INPUT_NUM + outBufferLenEeachStage * i);
         }
         tempBuffer =  resource.ubBuf.template GetBufferByByte<uint8_t>((inputBufferLen + castBufferLen) * INPUT_NUM + outputBufferLen);
 
@@ -179,21 +166,25 @@ public:
 
         uint64_t normalAxisSize = 0;
         if (INPUT_LAYOUT == TND) {
+            //printf("TND\n");
             normalAxisSize = t1 * n1;
         } else {
+            //printf("BNSD\n");
             normalAxisSize = b * n1 * s1;
         }
-    
-        // 计算单核的计算量
-        uint64_t normalCoreSize = normalAxisSize / usedCoreNums;
-        uint64_t tailCoreSize = normalAxisSize - (usedCoreNums - 1) * normalCoreSize;
 
-        // 计算单loop的计算量及loop次数 没考虑dublebuffer
-        uint64_t singleLoopNBurstNum = inputBufferLenEeachStage / sizeof(InputDType) / dAlign;
-        uint64_t normalCoreLoopTimes = CeilDiv(normalCoreSize, singleLoopNBurstNum);
-        uint64_t normalCoreLastLoopNBurstNum = normalCoreSize - (normalCoreLoopTimes - 1) * singleLoopNBurstNum;
-        uint64_t tailCoreLoopTimes = CeilDiv(tailCoreSize, singleLoopNBurstNum);
-        uint64_t tailCoreLastLoopNBurstNum = tailCoreSize - (tailCoreLoopTimes - 1) * singleLoopNBurstNum;
+        // 计算单核的计算量
+        normalCoreSize = normalAxisSize / usedCoreNums;
+        tailCoreSize = normalAxisSize - (usedCoreNums - 1) * normalCoreSize;
+
+        // 计算单loop的计算量及loop次数
+        singleLoopNBurstNum = inputBufferLenEeachStage / sizeof(InputDType) / dAlign; // 1次loop可以处理最大s行数
+        normalCoreLoopTimes = CeilDiv(normalCoreSize, singleLoopNBurstNum); // loop次数
+        normalCoreLastLoopNBurstNum = normalCoreSize - (normalCoreLoopTimes - 1) * singleLoopNBurstNum; // 尾循环处理行数
+
+        tailCoreLoopTimes = CeilDiv(tailCoreSize, singleLoopNBurstNum);
+        tailCoreLastLoopNBurstNum = tailCoreSize - (tailCoreLoopTimes - 1) * singleLoopNBurstNum;
+
 
         if constexpr(INPUT_LAYOUT == TND) {
             transpseStride = (n1 * d - d) * sizeof(InputDType);
@@ -237,6 +228,7 @@ public:
         uint64_t curS = s1;
         uint32_t ping = 0;
 
+            
         for (uint64_t i = 0; i < singleCoreLoop; i++) {
             if (i == singleCoreLoop - 1) {
                 nBurst = singleCoreLastLoopNBurstNum;
@@ -253,6 +245,7 @@ public:
             uint64_t calcSize = nBurst * dAlign;
             Cast(doutFp32Tensor[ping], doutTensor[ping], RoundMode::CAST_NONE, calcSize);
             AscendC::PipeBarrier<PIPE_V>();
+
 
             // cast 2
             Cast(outFp32Tensor[ping], outTensor[ping], RoundMode::CAST_NONE, calcSize);
@@ -283,7 +276,7 @@ public:
                 SoftmaxGradFront<float, false>(softmaxGradTensor[ping], doutFp32Tensor[ping], outFp32Tensor[ping], tempBuffer, tilingData->softmaxGradTilingData);
             }
             AscendC::PipeBarrier<PIPE_V>();
-
+            AscendC::PipeBarrier<PIPE_ALL>();
             // copyOut
             uint64_t sfmgOutputOffset = (startIdx + i * singleLoopNBurstNum) * BLOCK_SIZE;
             DataCopy(sfmgWorkspaceGm[sfmgOutputOffset], softmaxGradTensor[ping], nBurst * BLOCK_SIZE);
@@ -299,7 +292,7 @@ public:
     *
     * startIdx : input 开始序号
     * curS: 当前batch的seqlen, 主要要针对tnd格式，s不等场景
-    * seqS: actual seqlen list, s 在list是累加的，例如s1 2, s2 3, s3 10, seqS[0, 2, 5, 15]
+    * seqS: actual seqlen list
     */
     __aicore__ inline
     void InitIndex(uint64_t startIdx, uint64_t& curS, GM_ADDR seqS)
@@ -346,7 +339,7 @@ public:
                     if (bIdx < b - 1) { // 需要借B
                         bIdx += 1;
                         if constexpr (INPUT_LAYOUT == TND) {
-                            curS = ((__gm__ uint64_t *)seqS)[bIdx] - ((__gm__ uint64_t *)seqS)[bIdx - 1];
+                            curS = ((__gm__ uint64_t *)seqS)[bIdx];
                         } else {
                             curS = s1;
                         }
