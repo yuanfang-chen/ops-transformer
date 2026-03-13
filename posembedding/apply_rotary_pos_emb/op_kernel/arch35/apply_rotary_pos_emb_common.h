@@ -453,16 +453,18 @@ __aicore__ inline void DeepSeekInterleaveModeVF(
 
 template <typename T, bool IsBBoardcast>
 __aicore__ inline void BatchHalfAlignVF(
+    //    输入数据指针        cos位置编码         sin位置编码                  输出结果指针         序列长度  T               
     __local_mem__ T* in, __local_mem__ T* cos, __local_mem__ T* sin, __local_mem__ T* out, uint16_t sLength,
+    //    batch大小        特征头数  N   hidden_size D   对齐后的隐藏维度    UB中S维度的步长因子  n维度的步长因子
     uint16_t bLength, uint16_t nLength, int64_t d, int64_t dAlign, int64_t ubFactorS, int64_t ubFactorN)
 {
-    uint32_t dHalfSize = d / HALF_INTERLEAVE_COEF;
-    uint16_t dLoopCount = (dHalfSize + VL_FLOAT32_SIZE - 1) / VL_FLOAT32_SIZE;
-    uint32_t dHalfOffset = dAlign / HALF_INTERLEAVE_COEF;
+    uint32_t dHalfSize = d / HALF_INTERLEAVE_COEF;   //把特征维度d分成两部分
+    uint16_t dLoopCount = (dHalfSize + VL_FLOAT32_SIZE - 1) / VL_FLOAT32_SIZE;  //需要多少个VL来处理 dHalfSize
+    uint32_t dHalfOffset = dAlign / HALF_INTERLEAVE_COEF;  //计算dHalfSize的偏移量
 
     // 计算循环参数
-    int32_t bStepUb = ubFactorN * ubFactorS * dAlign;
-    int32_t nStepUb = ubFactorS * dAlign;
+    int32_t bStepUb = ubFactorN * ubFactorS * dAlign;  //每个batch在UB中的步长
+    int32_t nStepUb = ubFactorS * dAlign;   //每个head在UB中的步长
 
     __VEC_SCOPE__
     {
@@ -478,13 +480,17 @@ __aicore__ inline void BatchHalfAlignVF(
         for (uint16_t bIdx = 0; bIdx < bLength; bIdx++) {
             for (uint16_t nIdx = 0; nIdx < nLength; nIdx++) {
                 for (uint16_t sIdx = 0; sIdx < sLength; sIdx++) {
-                    uint32_t count = dHalfSize;
+                    uint32_t count = dHalfSize;     //当前 batch、head、seq的起始地址
                     currInUb = in + bIdx * bStepUb + nIdx * nStepUb + sIdx * dAlign;
                     currOutUb = out + bIdx * bStepUb + nIdx * nStepUb + sIdx * dAlign;
-                    if constexpr (IsBBoardcast) {
+                    if constexpr (IsBBoardcast) {   //对B维度广播
+                    // cos sin 只和 s 相关
+                    // shape [S, D]
                         currCosUb = cos + sIdx * dAlign;
                         currSinUb = sin + sIdx * dAlign;
                     } else {
+                        // cos sin 和 B、S相关
+                        // shape [B, N, S, D]/[B, S, D]
                         currCosUb = cos + bIdx * nStepUb + sIdx * dAlign;
                         currSinUb = sin + bIdx * nStepUb + sIdx * dAlign;
                     }
@@ -501,12 +507,15 @@ __aicore__ inline void BatchHalfAlignVF(
                         ops::LoadOneTensorForDtypeT<T>(
                             currSinUb, sinPart2Reg, pregLoop, i * VL_FLOAT32_SIZE + dHalfOffset);
                         // 计算
-                        Mul(cosPart1Reg, inPart1Reg, cosPart1Reg, pregLoop);
-                        Mul(sinPart1Reg, inPart2Reg, sinPart1Reg, pregLoop);
-                        Sub(cosPart1Reg, cosPart1Reg, sinPart1Reg, pregLoop);
-                        Mul(cosPart2Reg, inPart2Reg, cosPart2Reg, pregLoop);
-                        Mul(sinPart2Reg, sinPart2Reg, inPart1Reg, pregLoop);
-                        Add(cosPart2Reg, cosPart2Reg, sinPart2Reg, pregLoop);
+                        // 前半部分输出: out[0:d/2] = in[0:d/2] * cos - in[d/2:d] * sin
+                        Mul(cosPart1Reg, inPart1Reg, cosPart1Reg, pregLoop);  // cosPart1Reg = inPart1 * cosPart1
+                        Mul(sinPart1Reg, inPart2Reg, sinPart1Reg, pregLoop);  // sinPart1Reg = inPart2 * sinPart1
+                        Sub(cosPart1Reg, cosPart1Reg, sinPart1Reg, pregLoop); // cosPart1Reg = inPart1*cos - inPart2*sin
+                        
+                        // 后半部分输出: out[d/2:d] = in[d/2:d] * cos + in[0:d/2] * sin
+                        Mul(cosPart2Reg, inPart2Reg, cosPart2Reg, pregLoop);  // cosPart2Reg = inPart2 * cosPart2
+                        Mul(sinPart2Reg, sinPart2Reg, inPart1Reg, pregLoop);  // sinPart2Reg = sinPart2 * inPart1
+                        Add(cosPart2Reg, cosPart2Reg, sinPart2Reg, pregLoop); // cosPart2Reg = inPart2*cos + inPart1*sin
                         // 拷贝回UB
                         ops::StoreOneTensorForDtypeT<T>(currOutUb, cosPart1Reg, pregLoop, i * VL_FLOAT32_SIZE);
                         ops::StoreOneTensorForDtypeT<T>(
