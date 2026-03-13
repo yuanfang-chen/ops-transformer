@@ -1766,7 +1766,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         isQKVDDifferent = true;
     }
 
-    enableSplitCoreBalance = CheckSplitCoreBalance(contextKeyParams);
+    enableSplitCoreBalance = IsSplitCoreBalance(contextKeyParams);
     if (enableSplitCoreBalance) {
         OP_LOGI(contextKeyParams.opName, "Split core balance enable.");
         this->faTilingAdapter = &this->fiaTiling;
@@ -3862,16 +3862,16 @@ void PromptFlashAttentionTilingV2::ComputeSplitNBSeq(PromptFlashAttentionTilingD
     seqParams->set_singleCoreHeadNumSize(coreSidEnd.data());
     seqParams->set_coreSeqPosStart(coreSposStart.data());
     seqParams->set_coreSeqPosEnd(coreSposEnd.data());
-    faTilingAdapter.multiCoreParamsRegbase.set_bnStartIdx(bnStartIdx.data());
-    faTilingAdapter.multiCoreParamsRegbase.set_sparseStartIdx(gS1StartIdx.data());
+    faTilingAdapter->multiCoreParamsRegbase.set_bnStartIdx(bnStartIdx.data());
+    faTilingAdapter->multiCoreParamsRegbase.set_sparseStartIdx(gS1StartIdx.data());
 }
 
 void PromptFlashAttentionTilingV2::SetMultiCoreParamsRegbase(int64_t totalSize, int64_t actualUsedCoreNum)
 {
-    faTilingAdapter.multiCoreParamsRegbase.set_coreNum(static_cast<int32_t>(actualUsedCoreNum));
-    faTilingAdapter.multiCoreParamsRegbase.set_totalSize(totalSize);
-    faTilingAdapter.multiCoreParamsRegbase.set_splitFactorSize(CeilDivision(totalSize, actualUsedCoreNum));
-    faTilingAdapter.multiCoreParamsRegbase.set_splitFactorTailSize(CalcTailSize(totalSize, faTilingAdapter.multiCoreParamsRegbase.get_splitFactorSize()));
+    faTilingAdapter->multiCoreParamsRegbase.set_coreNum(static_cast<int32_t>(actualUsedCoreNum));
+    faTilingAdapter->multiCoreParamsRegbase.set_totalSize(totalSize);
+    faTilingAdapter->multiCoreParamsRegbase.set_splitFactorSize(CeilDivision(totalSize, actualUsedCoreNum));
+    faTilingAdapter->multiCoreParamsRegbase.set_splitFactorTailSize(CalcTailSize(totalSize, faTilingAdapter->multiCoreParamsRegbase.get_splitFactorSize()));
 }
 
 void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAttentionTilingData& tilingData,
@@ -3916,7 +3916,7 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
     double coreWightTarget = (double(totalBlockNumsOneHead * baseParams->get_headNumSize()) / double(curCoreNum));
 
     int64_t s1OuterSize = (baseParams->get_seqSize() + sOuterSize - 1) / sOuterSize;
-    faTilingAdapter.multiCoreParamsRegbase.set_s1OuterSize(s1OuterSize);
+    faTilingAdapter->multiCoreParamsRegbase.set_s1OuterSize(s1OuterSize);
 
     // The tiling structure element needs to have a length greater than or equal to the length specified
     // by TILING_DATA_FIELD_DEF_ARR. If the tiling structure definition specifies a length of 64,
@@ -4199,7 +4199,7 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
             auto batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
             auto headNumSize = tilingData.promptAttentionBaseParams.get_headNumSize();
             uint64_t headDimAlign = AlignUp(tilingData.promptAttentionBaseParams.get_vHeadSize(), BYTE_BLOCK);
-            uint32_t kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
+            uint32_t kvSplitPart = faTilingAdapter->inputParamsRegbase.get_kvSplitPart();
             accumOutSize = batchSize * gSize * headNumSize * kvSplitPart * headDimAlign * sizeof(float);
             logSumExpSize = batchSize * gSize * headNumSize * kvSplitPart * BYTE_BLOCK * 2; // 2: fixed multiplier factor
         }
@@ -4345,7 +4345,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
         OP_CHECK_IF((pseType != 0) && (pseType != 2) && (pseType != 3), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "PseType(%ld) is not support, pseType must be 0/2/3.", pseType),
             return ge::GRAPH_FAILED);
-        faTilingAdapter.inputParamsRegbase.set_pseType(pseType);
+        faTilingAdapter->inputParamsRegbase.set_pseType(pseType);
     }
     if (pseType == PSE_TYPE_2_TILING_V2 || pseType == PSE_TYPE_3_TILING_V2) {
         enableAlibiPse = true;
@@ -4514,7 +4514,7 @@ bool PromptFlashAttentionTilingV2::CheckAlibiPseShiftTypeAndShape(ContextParamsF
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShape, "pseShift")) {
         return false;
     }
-    auto &inputParams = faTilingAdapter.inputParamsRegbase;
+    auto &inputParams = faTilingAdapter->inputParamsRegbase;
 
     pseShiftElemType = contextKeyParams.pseShiftDataType;
 
@@ -4785,9 +4785,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SplitBNS(PromptFlashAttentionTilin
         kvSplitPart--;
     }
 
-    faTilingAdapter.inputParamsRegbase.set_kvSplitPart(kvSplitPart);
-    faTilingAdapter.inputParamsRegbase.set_accumOutSize(batchSize * headNumSize * kvSplitPart * headDimAlign);
-    faTilingAdapter.inputParamsRegbase.set_logSumExpSize(batchSize * headNumSize * kvSplitPart * (BYTE_BLOCK / sizeof(float)));
+    faTilingAdapter->inputParamsRegbase.set_kvSplitPart(kvSplitPart);
+    faTilingAdapter->inputParamsRegbase.set_accumOutSize(batchSize * headNumSize * kvSplitPart * headDimAlign);
+    faTilingAdapter->inputParamsRegbase.set_logSumExpSize(batchSize * headNumSize * kvSplitPart * (BYTE_BLOCK / sizeof(float)));
 
     return ge::GRAPH_SUCCESS;
 }
@@ -4863,9 +4863,9 @@ void PromptFlashAttentionTilingV2::SetAttenMaskCompressMode()
     };
     auto itr = sparseToCompressModeMap.find(sparseModeVal);
     if (itr == sparseToCompressModeMap.end()) {
-        faTilingAdapter.inputParamsRegbase.set_attenMaskCompressMode(0);
+        faTilingAdapter->inputParamsRegbase.set_attenMaskCompressMode(0);
     } else {
-        faTilingAdapter.inputParamsRegbase.set_attenMaskCompressMode(itr->second);
+        faTilingAdapter->inputParamsRegbase.set_attenMaskCompressMode(itr->second);
     }
 }
 
@@ -4880,15 +4880,15 @@ void PromptFlashAttentionTilingV2::SetLayoutType()
     };
     auto itr = layoutStrToLayoutTypeMap.find(inputLayout);
     if (itr == layoutStrToLayoutTypeMap.end()) {
-        faTilingAdapter.inputParamsRegbase.set_layoutType(static_cast<uint8_t>(0));
+        faTilingAdapter->inputParamsRegbase.set_layoutType(static_cast<uint8_t>(0));
     } else {
-        faTilingAdapter.inputParamsRegbase.set_layoutType(static_cast<uint8_t>(itr->second));
+        faTilingAdapter->inputParamsRegbase.set_layoutType(static_cast<uint8_t>(itr->second));
     }
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::SetQKVStartIdx(ContextParamsForPFATiling& contextKeyParams) 
 {
-    auto &inputParams = faTilingAdapter.inputParamsRegbase;
+    auto &inputParams = faTilingAdapter->inputParamsRegbase;
     inputParams.set_qStartIdx(0);
     inputParams.set_kvStartIdx(0);
     if (!enableAlibiPse) {
@@ -5009,14 +5009,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::ConvertContextToPFAParams(ContextP
 void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTilingData& tilingData) 
 {
     if (emptyTensor) {
-        auto &initOutputParams = faTilingAdapter.initOutputParams;
+        auto &initOutputParams = faTilingAdapter->initOutputParams;
         initOutputParams.set_singleCoreSize(tilingData.promptAttentionInitOutputParams.get_singleCoreSize());
         initOutputParams.set_totalOutputSize(tilingData.promptAttentionInitOutputParams.get_totalOutputSize());
         initOutputParams.set_totalSoftMaxLseOutputSize(tilingData.promptAttentionInitOutputParams.get_totalSoftMaxLseOutputSize());
         return;
     }
     SetLayoutType();
-    auto &inputParams = faTilingAdapter.inputParamsRegbase;
+    auto &inputParams = faTilingAdapter->inputParamsRegbase;
     inputParams.set_bSize(tilingData.promptAttentionBaseParams.get_batchSize());
     inputParams.set_t1Size(tilingData.promptAttentionBaseParams.get_t1Size());
     inputParams.set_t2Size(tilingData.promptAttentionBaseParams.get_t2Size());
@@ -5094,7 +5094,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_isRowInvalid(static_cast<uint8_t>(tilingData.promptAttentionBaseParams.get_isRowInvalid()));
     inputParams.set_headNumRatio(tilingData.promptAttentionBaseParams.get_headNumRatio());
 
-    auto &initOutputParams = faTilingAdapter.initOutputParams;
+    auto &initOutputParams = faTilingAdapter->initOutputParams;
     initOutputParams.set_singleCoreSize(tilingData.promptAttentionInitOutputParams.get_singleCoreSize());
     initOutputParams.set_totalOutputSize(tilingData.promptAttentionInitOutputParams.get_totalOutputSize());
     initOutputParams.set_totalSoftMaxLseOutputSize(tilingData.promptAttentionInitOutputParams.get_totalSoftMaxLseOutputSize());

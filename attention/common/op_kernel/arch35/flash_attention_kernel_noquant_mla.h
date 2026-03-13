@@ -466,7 +466,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
             }
 
             int32_t tempS2End, extraLoopTimes;
-            if unlikely(lastBN && lastGS1) {
+            if (unlikely(lastBN && lastGS1)) {
                 tempS2End = s2EndIdx
                 extraLoopTimes = PRELOAD_N;
             } else {
