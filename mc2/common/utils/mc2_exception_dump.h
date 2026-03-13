@@ -39,7 +39,11 @@ const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-using HcclOpParam = HcclCombinOpParam;
+#ifdef __DAV_C310__ // A5
+    using HcclOpParam = HcclCombinOpParam;
+#else
+    using HcclOpParam = CommContextForDump;
+#endif
 inline std::string GetTimestampWithMilliseconds()
 {
     auto now = std::chrono::system_clock::now();
@@ -83,7 +87,7 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
 
     std::string rankPath = dir + "/" + std::to_string(id) + "/";
     std::string path = rankPath + name;
-    OP_LOGE(OP_NAME, "Start to dump file. The dump path is %s", path);
+    OP_LOGE(OP_NAME, "Start to dump file. The dump path is %s", path.c_str());
 
     // Open file
     int fd = open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
@@ -108,33 +112,64 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
     return 0;
 }
 
-inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
+inline int ProcessArgsForA5(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
 {
     // Get hccl context from its addr
-    std::vector<uint8_t> hcclArgs(sizeof(HcclOpParam), 0);
-    auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(HcclOpParam), (void *)argsAddr, sizeof(HcclOpParam),
+    std::vector<uint8_t> hcclArgs(sizeof(HcclCombinOpParam), 0);
+    auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(HcclCombinOpParam), (void *)argsAddr, sizeof(HcclCombinOpParam),
                            ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
-        OP_LOGE(OP_NAME, "aclrtMemcpy HcclOpParam from device to host failed. ret = %d", ret);
+    if (ret != ACL_SUCCESS) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy HcclCombinOpParam from device to host failed. ret = %d", ret);
         return -1;
     }
-    HcclOpParam* winContext = reinterpret_cast<HcclOpParam *>(hcclArgs.data());
-    if (!(winContext != nullptr)) {
-        OP_LOGE(OP_NAME, "Cast to winContext failed. HcclOpParam is null.");
+    HcclCombinOpParam* winContext = reinterpret_cast<HcclCombinOpParam *>(hcclArgs.data());
+    if (winContext == nullptr) {
+        OP_LOGE(OP_NAME, "Cast to winContext failed. HcclCombinOpParam is null.");
         return -1;
     }
-    OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
+    OP_LOGD(OP_NAME, "Get A5 winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
 
     void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
-    if (!(winAddr != nullptr)) {
-        OP_LOGE(OP_NAME, "Get win addr failed.");
+    if (winAddr == nullptr) {
+        OP_LOGE(OP_NAME, "Get A5 win addr failed.");
+        return -1;
+    }
+    // Get windowsIn of each rank from hccl context
+    ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, winAddr, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (ret != ACL_SUCCESS) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy win from A5 device to host failed. ret = %d", ret);
+        return -1;
+    }
+    return 0;
+}
+
+inline int ProcessArgsForA3(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
+{
+    // Get hccl context from its addr
+    std::vector<uint8_t> hcclArgs(sizeof(CommContextForDump), 0);
+    auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(CommContextForDump), (void *)argsAddr, sizeof(CommContextForDump),
+                           ACL_MEMCPY_DEVICE_TO_HOST);
+    if (ret != ACL_SUCCESS) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy CommContextForDump from device to host failed. ret = %d", ret);
+        return -1;
+    }
+    CommContextForDump* winContext = reinterpret_cast<CommContextForDump *>(hcclArgs.data());
+    if (winContext == nullptr) {
+        OP_LOGE(OP_NAME, "Cast to winContext failed. CommContextForDump is null.");
+        return -1;
+    }
+    OP_LOGD(OP_NAME, "Get A3 winContext from args. rankId=%u", winContext->epRankid);
+
+    void* winAddr = reinterpret_cast<void *>(winContext->epHcclBufffer_[winContext->epRankid]);
+    if (winAddr == nullptr) {
+        OP_LOGE(OP_NAME, "Get A3 win addr failed.");
         return -1;
     }
 
     // Get windowsIn of each rank from hccl context
     ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, winAddr, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
-        OP_LOGE(OP_NAME, "aclrtMemcpy win from device to host failed. ret = %d", ret);
+    if (ret != ACL_SUCCESS) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy win from A3 device to host failed. ret = %d", ret);
         return -1;
     }
     return 0;
@@ -143,7 +178,7 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
 inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
 {
     const char* socName = aclrtGetSocName();
-    if(std::strstr(socName, "Ascend950") == nullptr) {
+    if((std::strstr(socName, "Ascend950") == nullptr) && (std::strstr(socName, "Ascend910_93") == nullptr)) {
         OP_LOGE(OP_NAME, "The soc version is %s, skip dump process", socName);
         return;
     }
@@ -153,12 +188,12 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     void* devArgsPtr = nullptr;
     uint32_t devArgsLen = 0;
     auto ret = aclrtGetArgsFromExceptionInfo(args, &devArgsPtr, &devArgsLen);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtGetArgsFromExceptionInfo failed. ret=%d", ret);
         return;
     }
     uint32_t deviceId = aclrtGetDeviceIdFromExceptionInfo(args);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtGetDeviceIdFromExceptionInfo failed. ret=%d", ret);
         return;
     }
@@ -166,19 +201,30 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
             devArgsLen);
 
     uint64_t argsAddr = 0;
-    ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    uint64_t argsOffset = 0;
+    if ((std::strstr(socName, "Ascend910_93") != nullptr) && (std::strstr(op, "MoeDistributeCombineV3") == nullptr)) {
+        argsOffset = sizeof(uint64_t);
+    }
+    ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr + argsOffset, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
         return;
     }
 
     // Get win content
     std::vector<uint8_t> winContent(WIN_SIZE, 0);
-    if (ProcessArgs(argsAddr, winContent) != 0) {
-        OP_LOGE(OP_NAME, "Failed to get win content.");
-        return;
+    if (std::strstr(socName, "Ascend910_93") != nullptr) {
+        if (ProcessArgsForA3(argsAddr, winContent) != 0) {
+            OP_LOGE(OP_NAME, "Failed to get A3 win content.");
+            return;
+        }
+    } else if (std::strstr(socName, "Ascend950") != nullptr) {
+        if (ProcessArgsForA5(argsAddr, winContent) != 0) {
+            OP_LOGE(OP_NAME, "Failed to get A5 win content.");
+            return;
+        }
     }
-
+    
     // Write to bin file
     if (DumpToFile(std::string(acldumpGetPath(acldumpType::AIC_ERR_BRIEF_DUMP)), GenDumpFileName(args, op), deviceId,
                    winContent.data()) != 0) {
