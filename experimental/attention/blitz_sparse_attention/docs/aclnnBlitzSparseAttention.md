@@ -1,4 +1,4 @@
-# aclnnBlitzSparseAttentionV4
+# aclnnBlitzSparseAttention
 
 ## 产品支持情况
 |产品      | 是否支持 |
@@ -30,10 +30,10 @@
 
 ## 函数原型
 
-算子执行接口为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用“aclnnBlitzSparseAttentionV3GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnBlitzSparseAttentionV3”接口执行计算。
+算子执行接口为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用“aclnnBlitzSparseAttentionGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnBlitzSparseAttention”接口执行计算。
 
 ```cpp
-aclnnStatus aclnnBlitzSparseAttentionV3GetWorkspaceSize(
+aclnnStatus aclnnBlitzSparseAttentionGetWorkspaceSize(
     const aclTensor   *query,
     const aclTensor   *key,
     const aclTensor   *value,
@@ -61,14 +61,14 @@ aclnnStatus aclnnBlitzSparseAttentionV3GetWorkspaceSize(
 ```
 
 ```cpp
-aclnnStatus aclnnBlitzSparseAttentionV3(
+aclnnStatus aclnnBlitzSparseAttention(
      void              *workspace,
      uint64_t           workspaceSize,
      aclOpExecutor     *executor,
      const aclrtStream  stream)
 ```
 
-## aclnnBlitzSparseAttentionV3GetWorkspaceSize
+## aclnnBlitzSparseAttentionGetWorkspaceSize
 
 - **参数说明**
   
@@ -391,7 +391,7 @@ aclnnStatus aclnnBlitzSparseAttentionV3(
     </table>
     </div>
 
-## aclnnBlitzSparseAttentionV3
+## aclnnBlitzSparseAttention
 
 - **参数说明**
 
@@ -416,7 +416,7 @@ aclnnStatus aclnnBlitzSparseAttentionV3(
       <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在Device侧申请的workspace大小，由第一段接口aclnnBlitzSparseAttentionV3GetWorkspaceSize获取。</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnBlitzSparseAttentionGetWorkspaceSize获取。</td>
       </tr>
       <tr>
         <td>executor</td>
@@ -673,7 +673,7 @@ aclnnStatus aclnnBlitzSparseAttentionV3(
 #include <cmath>
 #include <cstring>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_blitz_sparse_attention_v3.h"
+#include "aclnnop/aclnn_blitz_sparse_attention.h"
 #include "securec.h"
  
 using namespace std;
@@ -826,14 +826,14 @@ int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream,
     memcpy(layerOut, LAYER_OUT_STR, LAYER_OUT_LEN);
 
     aclOpExecutor* executor;
-    int ret = aclnnBlitzSparseAttentionV3GetWorkspaceSize(
+    int ret = aclnnBlitzSparseAttentionGetWorkspaceSize(
         resources.queryTensor, resources.keyTensor, resources.valueTensor, 
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
         numHeads, scaleValue, preTokens, nextTokens, layerOut, numKeyValueHeads, 
         sparseMode, innerPrecise, resources.outTensor, workspaceSize, &executor);
         
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnBlitzSparseAttentionV3GetWorkspaceSize failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnBlitzSparseAttentionGetWorkspaceSize failed. ERROR: %d\n", ret);
         return ret;
     }
 
@@ -845,9 +845,9 @@ int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream,
         }
     }
 
-    ret = aclnnBlitzSparseAttentionV3(*workspaceAddr, *workspaceSize, executor, stream);
+    ret = aclnnBlitzSparseAttention(*workspaceAddr, *workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnBlitzSparseAttentionV3 failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnBlitzSparseAttention failed. ERROR: %d\n", ret);
         return ret;
     }
 
