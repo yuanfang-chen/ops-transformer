@@ -367,7 +367,10 @@ public:
             set_flag(PIPE_MTE2, PIPE_V, event_id);
             wait_flag(PIPE_MTE2, PIPE_V, event_id);
 
-            Muls(input[ping], input[ping], (float)scaleValue, sCount * d);
+            if (qkvFlag != DV) {
+                Muls(input[ping], input[ping], (float)scaleValue, sCount * d);
+                AscendC::PipeBarrier<PIPE_V>();
+            }
             AscendC::PipeBarrier<PIPE_V>();
 
             AscendC::LocalTensor<float> srcLocal = input[ping];
