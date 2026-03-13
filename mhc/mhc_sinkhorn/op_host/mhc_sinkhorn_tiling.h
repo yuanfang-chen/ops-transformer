@@ -76,7 +76,7 @@ private:
     int64_t totalCoreNum_ = 0;
     int64_t ubSize_ = 0;
     int64_t ubSizeUsed_ = 0;
-    float eps_ = 1E-6;
+    float eps_ = 1E-6f;
     int64_t num_iters_ = 20;
     int64_t out_flag_ = 0;
     int64_t xDimNum_ = 0;
