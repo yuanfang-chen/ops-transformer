@@ -793,12 +793,6 @@ void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, 
     const auto &gmmArray = data.gmmArray;
 
     std::stringstream ss;
-    ss << "MM Tiling: M=" << mm.M << ", N=" << mm.N << ", K=" << mm.Ka << ", usedCoreNum=" << mm.usedCoreNum <<
-        ", baseM=" << mm.baseM << ", baseN=" << mm.baseN << ", baseK=" << mm.baseK << ", singleCoreM=" <<
-        mm.singleCoreM << ", singleCoreN=" << mm.singleCoreN << ", singleCoreK=" << mm.singleCoreK << ", dbL0C=" <<
-        mm.dbL0C << ", depthA1=" << mm.depthA1 << ", depthB1=" << mm.depthB1 << ", stepKa=" << mm.stepKa <<
-        ", stepKb=" << mm.stepKb << ", stepM=" << mm.stepM << ", stepN=" << mm.stepN << ", iterateOrder=" <<
-        mm.iterateOrder;
 
     ss << "\nQuant Params: groupNum=" << quantParams.groupNum << ", activeType=" << quantParams.activeType <<
         ", aQuantMode=" << quantParams.aQuantMode << ", bQuantMode=" << quantParams.bQuantMode <<
@@ -811,6 +805,13 @@ void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, 
 
     ss << "\nArray: mList[0]=" << gmmArray.mList[0] << ", kList[0]=" << gmmArray.kList[0] << ", nList[0]=" <<
         gmmArray.nList[0];
+
+    ss << "MM Tiling: M=" << mm.M << ", N=" << mm.N << ", K=" << mm.Ka << ", usedCoreNum=" << mm.usedCoreNum <<
+        ", baseM=" << mm.baseM << ", baseN=" << mm.baseN << ", baseK=" << mm.baseK << ", singleCoreM=" <<
+        mm.singleCoreM << ", singleCoreN=" << mm.singleCoreN << ", singleCoreK=" << mm.singleCoreK << ", dbL0C=" <<
+        mm.dbL0C << ", depthA1=" << mm.depthA1 << ", depthB1=" << mm.depthB1 << ", stepKa=" << mm.stepKa <<
+        ", stepKb=" << mm.stepKb << ", stepM=" << mm.stepM << ", stepN=" << mm.stepN << ", iterateOrder=" <<
+        mm.iterateOrder;
 
     OP_LOGI(opName_, "QuantGmmA2AvTiling TilingParams:\n%s", ss.str().c_str());
 }

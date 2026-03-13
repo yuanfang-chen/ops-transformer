@@ -32,13 +32,13 @@ static const size_t INDEX_ATTR_RECV_COUNTS = 3;
 static const size_t INDEX_ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
 static const size_t INDEX_ATTR_TRANS_MM_WEIGHT_INDEX = 5;
 
+static constexpr size_t DIM_0 = 0;
+static constexpr size_t DIM_1 = 1;
+static constexpr size_t DIM_2 = 2;
 static constexpr size_t DIM_NUM_0 = 0;
 static constexpr size_t DIM_NUM_1 = 1;
 static constexpr size_t DIM_NUM_2 = 2;
 static constexpr size_t DIM_NUM_3 = 3;
-static constexpr size_t DIM_0 = 0;
-static constexpr size_t DIM_1 = 1;
-static constexpr size_t DIM_2 = 2;
 
 static constexpr int64_t FIRST_ELE_SIZE = -1;
 
@@ -47,14 +47,14 @@ static graphStatus CheckDims(const gert::InferShapeContext* context, const gert:
 {
     auto result = ge::GRAPH_SUCCESS;
 
-    auto gmmXDimNum = gmmXShape->GetDimNum();
     auto gmmWeightDimNum = gmmWeightShape->GetDimNum();
-    if (gmmXDimNum != DIM_NUM_2) {
-        VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only gmmX with dim 2 is supported.");
-        result = ge::GRAPH_FAILED;
-    }
+    auto gmmXDimNum = gmmXShape->GetDimNum();
     if (gmmWeightDimNum != DIM_NUM_3) {
         VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only gmmWeight with dim 3 is supported.");
+        result = ge::GRAPH_FAILED;
+    }
+    if (gmmXDimNum != DIM_NUM_2) {
+        VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only gmmX with dim 2 is supported.");
         result = ge::GRAPH_FAILED;
     }
 
@@ -76,14 +76,14 @@ static graphStatus CheckDimsOptional(const gert::InferShapeContext* context, con
 {
     auto result = ge::GRAPH_SUCCESS;
 
-    auto xDimNum = mmXShape->GetDimNum();
     auto mmWeightDimNum = mmWeightShape->GetDimNum();
-    if (xDimNum != DIM_NUM_2) {
-        VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only x with dim 2 is supported.");
-        result = ge::GRAPH_FAILED;
-    }
+    auto xDimNum = mmXShape->GetDimNum();
     if (mmWeightDimNum != DIM_NUM_2) {
         VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only mmWeight with dim 2 is supported.");
+        result = ge::GRAPH_FAILED;
+    }
+    if (xDimNum != DIM_NUM_2) {
+        VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only x with dim 2 is supported.");
         result = ge::GRAPH_FAILED;
     }
 
@@ -100,12 +100,8 @@ static graphStatus CheckDimsOptional(const gert::InferShapeContext* context, con
     return result;
 }
 
-static ge::graphStatus InferGMMOutputShape(
-    const gert::InferShapeContext* context,
-    gert::Shape* gmmYShape,
-    const int64_t* epWorldSizePtr,
-    const gert::ContinuousVector* recvCountsPtr,
-    const gert::ContinuousVector* sendCountsPtr,
+static ge::graphStatus InferGMMOutputShape(const gert::InferShapeContext* context, gert::Shape* gmmYShape,
+    const int64_t* epWorldSizePtr, const gert::ContinuousVector* recvCountsPtr, const gert::ContinuousVector* sendCountsPtr,
     const int64_t e, int64_t& bsk, const int64_t n1)
 {
     gmmYShape->SetDim(DIM_0, FIRST_ELE_SIZE);
