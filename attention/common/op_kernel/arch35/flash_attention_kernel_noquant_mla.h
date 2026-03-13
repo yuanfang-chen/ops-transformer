@@ -450,13 +450,11 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 
         ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo,
             keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
-        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, lastBN,
-            this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
 
-        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(runParam.s1LoopTimes - 1, 0);
+        int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, static_cast<int32_t>(s1TemplateType));
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(s1LoopTimes - 1, 0);
         for (int64_t gS1Index = gS1StartIdx; gS1Index <= tempGS1End; gS1Index++) {
             bool lastGS1 = (gS1Index == tempGS1End);
-
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
             bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
                 gS1Index, actualSeqQlenAddr, this->pseInfo);
