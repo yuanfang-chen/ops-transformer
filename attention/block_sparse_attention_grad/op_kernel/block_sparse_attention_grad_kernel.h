@@ -373,9 +373,9 @@ namespace BSA {
                             GemmCoord actualShape1{curInfo.curCalQSize, curInfo.curCalKVSize, headDim};
                             blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 0);
                             blockMmad1(gDout[curInfo.qOffset], gV[curInfo.kvOffset], gDp[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 1);
-                            // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
+                            AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
                             if (count > 0) {
-                                // AscendC::WaitEvent(VEC2CUBE);
+                                AscendC::WaitEvent(VEC2CUBE);
                                 LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
                                 LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
                                 LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
@@ -403,7 +403,7 @@ namespace BSA {
                         blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
                 }
             }
-            // AscendC::WaitEvent(VEC2CUBE);
+            AscendC::WaitEvent(VEC2CUBE);
             LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
             LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
             LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
@@ -456,6 +456,9 @@ namespace BSA {
             // simply softmax
             VecOp(params);
             PipeBarrier<PIPE_ALL>();
+
+            AscendC::WaitEvent(CUBE2POST);
+            AscendC::SyncAll();
 
             // post
             VecPost(params);
@@ -569,12 +572,12 @@ namespace BSA {
                             GM_ADDR dsWorkspace = params.workspace + sOutSize + curInfo.sOffset; // 连续
                             GM_ADDR tiling = params.tiling;
 
+                            AscendC::WaitEvent(CUBE2VEC);
                             SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
                                                 actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
                             EpilogueFAGOp sStmOp(sfmParams);
                             sStmOp();
-                      
-                            // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
+                            AscendC::CrossCoreSetFlag<2, PIPE_FIX>(VEC2CUBE);
                             PipeBarrier<PIPE_ALL>();
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
