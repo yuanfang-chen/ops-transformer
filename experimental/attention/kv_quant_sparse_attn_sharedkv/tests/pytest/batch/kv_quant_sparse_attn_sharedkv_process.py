@@ -196,13 +196,14 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         q=input['q'].npu() if input['q'] is not None else None,
                                                         ori_kv=input['ori_kv'].npu() if input['ori_kv'] is not None else None,
                                                         cmp_kv=input['cmp_kv'].npu() if input['cmp_kv'] is not None else None,
-                                                        ori_sparse_indices=input['ori_sparse_indices'].npu() if input['ori_sparse_indices'] is not None else None,
-                                                        cmp_sparse_indices=input['cmp_sparse_indices'].npu() if input['cmp_sparse_indices'] is not None else None,
+                                                        ori_sparse_indices=input['ori_sparse_data'].npu() if input['ori_sparse_data'] is not None else None,
+                                                        cmp_sparse_indices=input['cmp_sparse_data'].npu() if input['cmp_sparse_data'] is not None else None,
                                                         ori_block_table=input['ori_block_table'].npu() if input['ori_block_table'] is not None else None,
                                                         cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
                                                         cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
                                                         seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
                                                         ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
+                                                        cmp_topk_length=input['cmp_topk_length'].npu() if input['cmp_topk_length'] is not None else None,
                                                         sinks=input['sinks'].npu() if input['sinks'] is not None else None,
                                                         metadata=metadata,
                                                         kv_quant_mode=input['kv_quant_mode'],
@@ -215,7 +216,8 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         ori_win_left=input['ori_win_left'],
                                                         ori_win_right=input['ori_win_right'],
                                                         layout_q=input['layout_q'],
-                                                        layout_kv=input['layout_kv'])
+                                                        layout_kv=input['layout_kv'],
+                                                        topk_value_mode=input['topk_value_mode'])
 
     torch.npu.synchronize()
 

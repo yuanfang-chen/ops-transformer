@@ -22,7 +22,7 @@ using std::string;
 using std::pair;
 namespace optiling {
 
-static constexpr uint32_t TopK_SIZE = 512;
+static constexpr uint32_t TopK_SIZE = 128;
 static constexpr uint32_t DIM_0 = 0;
 static constexpr uint32_t DIM_1 = 1;
 static constexpr uint32_t DIM_2 = 2;
@@ -82,7 +82,7 @@ ge::graphStatus KvQuantSASTilingCheck::CheckCmpSparseIndicesExistence()
             }
         } else {
             if (opParamInfo_.cmpSparseIndices.tensor->GetStorageShape().GetDim(DIM_2) != TopK_SIZE) {
-                OP_LOGE(opName_, "When qLayout is BNSD, topK should be %u but got %ld", TopK_SIZE, opParamInfo_.cmpSparseIndices.tensor->GetStorageShape().GetDim(2));
+                OP_LOGE(opName_, "When qLayout is TND, topK should be %u but got %ld", TopK_SIZE, opParamInfo_.cmpSparseIndices.tensor->GetStorageShape().GetDim(2));
                 return ge::GRAPH_FAILED;
             }
             if (opParamInfo_.cmpSparseIndices.tensor->GetStorageShape().GetDim(DIM_0) != qTSize_) {

@@ -77,7 +77,13 @@ enum class SASTemplateMode : uint32_t {
     SWA_TEMPLATE_MODE = 0,
     CFA_TEMPLATE_MODE = 1,
     SCFA_TEMPLATE_MODE = 2,
-    ORI_SCFA_TEMPLATE_MODE = 3
+    ORI_SCFA_TEMPLATE_MODE = 3,
+    ORI_CMP_SCFA_TEMPLATE_MODE = 4,
+};
+
+enum class TopkValueMode {
+    TOPK_INDEX_MODE = 1,
+    TOPK_OFFSET_MODE = 2,
 };
 
 enum class KvStorageMode : uint32_t {
@@ -130,6 +136,7 @@ constexpr uint32_t ATTR_ORI_WIN_LEFT_INDEX = 7;
 constexpr uint32_t ATTR_ORI_WIN_RIGHT_INDEX = 8;
 constexpr uint32_t ATTR_LAYOUT_Q_INDEX = 9;
 constexpr uint32_t ATTR_LAYOUT_KV_INDEX = 10;
+constexpr uint32_t ATTR_TOPK_VALUE_MODE_INDEX = 11;
 constexpr uint32_t ATTR_ORIKV_STRIDE_INDEX = 12;
 constexpr uint32_t ATTR_CMPKV_STRIDE_INDEX = 13;
 
@@ -239,6 +246,7 @@ struct KvQuantSASParaInfo {
     const int64_t *cmpRatio = nullptr;
     const uint32_t *oriMaskMode = nullptr;
     const uint32_t *cmpMaskMode = nullptr;
+    const uint32_t *topkValueMode = nullptr;
     const int64_t *oriWinLeft = nullptr;
     const int64_t *oriWinRight = nullptr;
     const char *layoutQ = nullptr;
@@ -282,6 +290,7 @@ public:
     int64_t cmpRatio = 0;
     uint64_t oriMaskMode = 0;
     uint64_t cmpMaskMode = 0;
+    uint64_t topkValueMode = 1;
     int64_t oriWinLeft = 0;
     int64_t oriWinRight = 0;
     int64_t sparseBlockSize = 0;

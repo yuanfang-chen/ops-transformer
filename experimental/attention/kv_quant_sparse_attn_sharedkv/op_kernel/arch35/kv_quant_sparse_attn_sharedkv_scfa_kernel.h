@@ -53,8 +53,8 @@ private:
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
         __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-        __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *sinks,
-        __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
+        __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *cmpTopkLength,
+        __gm__ uint8_t *sinks, __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf(__gm__ uint8_t *workspace);
     __aicore__ inline void ComputeConstexpr();
@@ -87,7 +87,9 @@ private:
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
     GlobalTensor<int32_t> oriTopkLengthGm;
+    GlobalTensor<int32_t> cmpTopkLengthGm;
     bool hasOriTopkLength = false;
+    bool hasCmpTopkLength = false;
     /* workspace 空间 */
     BuffersPolicy3buff<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> v0ResGmBuffers;
     /* 核Index信息 */
@@ -154,7 +156,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     }
     this->ComputeConstexpr();
     this->InitGlobalBuffer(query, oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable,
-        cuSeqlensQ, sequsedQ, sequsedKv, oriTopkLength, sinks, workspace, tiling, tPipe); // gm设置
+        cuSeqlensQ, sequsedQ, sequsedKv, oriTopkLength, cmpTopkLength, sinks, workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
 
@@ -162,8 +164,9 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitGlobalBuffer(
     __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *oriSparseIndices,
     __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
-    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *oriTopkLength,
-    __gm__ uint8_t *sinks, __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
+    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, 
+    __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *cmpTopkLength, __gm__ uint8_t *sinks,
+    __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
     TPipe *tPipe)
 {
     if (cuSeqlensQ != nullptr) {
@@ -176,11 +179,15 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     if (sequsedQ != nullptr) {
         actualSeqQlenAddr = (__gm__ int32_t *)sequsedQ;
     }
-    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
-        if (oriTopkLength != nullptr) {
-            oriTopkLengthGm.SetGlobalBuffer((__gm__ int32_t *)oriTopkLength);
-            hasOriTopkLength = true;
-        }
+
+    if (oriTopkLength != nullptr) {
+        oriTopkLengthGm.SetGlobalBuffer((__gm__ int32_t *)oriTopkLength);
+        hasOriTopkLength = true;
+    }
+
+    if (cmpTopkLength != nullptr) {
+        cmpTopkLengthGm.SetGlobalBuffer((__gm__ int32_t *)cmpTopkLength);
+        hasCmpTopkLength = true;
     }
 
     vecBlock.InitGlobalBuffer(oriKV, cmpKV, oriSparseIndices, cmpSparseIndices, oriBlockTable, cmpBlockTable,
@@ -391,7 +398,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
                     runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr);
                 bool s2NoNeedCalc =
                     ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(bnIdx, gS1Index, this->cuSeqlensQAddr, oriTopkLengthGm, hasOriTopkLength,
-                        runParam, this->constInfo);
+                        cmpTopkLengthGm, hasCmpTopkLength, runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
@@ -498,6 +505,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
 
     runInfo.actualS1Size = runParam.actualS1Size;
     runInfo.actualS2Size = runParam.actualS2Size;
+    runInfo.cmpSparseBlockCount = runParam.cmpSparseBlockCount;
+    runInfo.oriSparseBlockCount = runParam.oriSparseBlockCount;
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
     runInfo.sOuterOffset = runParam.sOuterOffset;
     this->ComputeBmm1Tail(runInfo, runParam);

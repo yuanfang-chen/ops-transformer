@@ -47,6 +47,8 @@ TEST_PARAMS = {
         "actlen_mode":["full"],       # random full
         "S1EQS2":[False],
         "ori_kv_topk_mode":["no"],
+        "cmp_kv_topk_mode":["no"],
+        "topk_value_mode":[1],
     },
 
     "prefill_first":{
@@ -82,6 +84,8 @@ TEST_PARAMS = {
         "actlen_mode":["full"],       # random full
         "S1EQS2":[False],
         "ori_kv_topk_mode":["no"],
+        "cmp_kv_topk_mode":["no"],
+        "topk_value_mode":[1],
     },
     "decode_g128_test":{
         "Testcase_Name": [None],
@@ -96,7 +100,7 @@ TEST_PARAMS = {
         "N1": [128],
         "N2": [1],
         "D": [512],
-        "K": [512],
+        "K": [128],
         "block_num1": [None],
         "block_num2": [None],
         "block_size1": [128],
@@ -104,20 +108,22 @@ TEST_PARAMS = {
         "cu_seqlens_q": [None],
         "seqused_kv": [None],
         "softmax_scale": [0.04419417],
-        "cmp_ratio": [1],
+        "cmp_ratio": [4],
         "ori_mask_mode": [0],
-        "cmp_mask_mode": [3],
+        "cmp_mask_mode": [0],
         "ori_win_left": [127],
         "ori_win_right": [0],
-        "kv_quant_mode": [1],
+        "kv_quant_mode": [2],
         "tile_size": [64],
         "rope_head_dim": [64],
-        "template_run_mode": ["ALL_SCFA"], # SWA SCFA CFA
+        "template_run_mode": ["ALL_SCFA"], # SWA SCFA CFA ALL_SCFA ORI_SCFA
         "actlen_mode":["full"],       # random full
         "S1EQS2":[False],
         "ori_kv_topk_mode":["full"],       # random full
+        "cmp_kv_topk_mode":["full"],       # random full
+        "topk_value_mode":[2],
     },
 }
 
 # 填入启用的测试参数
-ENABLED_PARAMS = [TEST_PARAMS["decode_first"]]
+ENABLED_PARAMS = [TEST_PARAMS["decode_g128_test"]]

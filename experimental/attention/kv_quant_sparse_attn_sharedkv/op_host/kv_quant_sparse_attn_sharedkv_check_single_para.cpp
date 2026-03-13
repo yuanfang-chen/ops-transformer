@@ -270,8 +270,8 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaSparseMode() const
     OP_CHECK_IF((*opParamInfo_.oriMaskMode != 0 && *opParamInfo_.oriMaskMode != 3 && *opParamInfo_.oriMaskMode != 4),
         OP_LOGE(opName_, "oriMaskMode only support {0, 3, 4}, but got %u.", *opParamInfo_.oriMaskMode),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF((*opParamInfo_.cmpMaskMode != 3),
-        OP_LOGE(opName_, "cmpMaskMode only support 3, but got %u.", *opParamInfo_.cmpMaskMode),
+    OP_CHECK_IF((*opParamInfo_.cmpMaskMode != 3 && *opParamInfo_.cmpMaskMode != 0),
+        OP_LOGE(opName_, "cmpMaskMode only support (0, 3), but got %u.", *opParamInfo_.cmpMaskMode),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
