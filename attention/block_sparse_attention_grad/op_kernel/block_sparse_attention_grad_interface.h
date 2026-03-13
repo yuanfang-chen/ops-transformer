@@ -117,13 +117,12 @@ namespace BSA {
 
         // VEC_Post：dQ*scale和dK*scale，并搬运输出dQ/dK/dV
         using EpilogueAtlasA2FAGPost = Epilogue::EpilogueAtlasA2FAGPre;
-        using EpilogueFAGPost = Epilogue::Block::BlockPost<InputLayout, InputDtype, UpdateType, InputDtype, EpilogueAtlasA2FAGPost>;
-
+        using EpilogueFAGPost = Epilogue::Block::BlockPost<InputLayout, InputDtype, UpdateType, InputDtype>;
 
         // Kernel instantiation
         using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2, BlockMmadCube3,
-                                                          EpilogueFAGPre, EpilogueFAGSfmg, EpilogueFAGOp,
-                                                          EpilogueFAGPost, InputLayout>;
+                                                          EpilogueFAGPre, EpilogueFAGSfmg, EpilogueAtlasA2FAGOp,
+                                                          EpilogueAtlasA2FAGPost, InputLayout>;
 
         // // VEC_Pre ：dQ/dK/dV的workspace清零
         // using EpilogueAtlasA2FAGPre = Epilogue::EpilogueAtlasA2FAGPre;
