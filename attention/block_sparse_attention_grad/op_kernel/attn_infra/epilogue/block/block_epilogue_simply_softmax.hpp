@@ -504,7 +504,6 @@ public:
         } else {
             startOffset = curCoreBatch * (n1 * maxQSeqlen * BRCB_BASE_NUM) + curCoreN1Idx * maxQSeqlen * BRCB_BASE_NUM + curS1 * BRCB_BASE_NUM;
         }
-        startOffset = curCoreBatch * (n1 * maxQSeqlen * BRCB_BASE_NUM) + curCoreN1Idx * maxQSeqlen * BRCB_BASE_NUM + curS1 * BRCB_BASE_NUM;
         DataCopyPad(dLocal, d[startOffset],
                     {static_cast<uint16_t>(count), static_cast<uint32_t>(BRCB_BASE_NUM * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
     }
