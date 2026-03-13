@@ -15,10 +15,10 @@
 #include "acl/acl_base.h"
 #include "acl/acl_rt.h"
 #include "acl/acl_dump.h"
-#include "../op_kernel/moe_distribute_comm_ctx.h"
+#include "kernel/moe_distribute_comm_ctx.h"
 #include "mc2_log.h"
-#include "mc2_tiling_utils.h"
-#include "op_graph/mc2_gen_task_ops_utils.h"
+#include "tiling/mc2_tiling_utils.h"
+#include "mc2_gen_task_ops_utils.h"
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -136,7 +136,7 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
             return -1;
         }
     #else
-        OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->epRankid);
+        OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u", winContext->epRankid);
 
         void* winAddr = reinterpret_cast<void *>(winContext->epHcclBufffer_[winContext->epRankid]);
         if (winAddr == nullptr) {
@@ -182,7 +182,11 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     #ifdef __DAV_C310__ //A5
         ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
     #else
-        ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr + sizeof(uint64_t), sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        if (std::strstr(socName, "MoeDistributeCombineV3") == nullptr) {
+            ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr + sizeof(uint64_t), sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        } else {
+            ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        }        
     #endif
     if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
