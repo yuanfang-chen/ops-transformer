@@ -29,6 +29,7 @@ constexpr uint32_t HEAD_NUM_ONE = 1;
 constexpr uint32_t HEAD_DIM_64 = 64;
 constexpr uint32_t HEAD_DIM_128 = 128;
 constexpr uint32_t HEAD_DIM_192 = 192;
+
 ge::graphStatus FiaTilingCheck::CheckFeatureNoQuantDtype() const
 {
     if (quantMode_ != FiaQuantMode::NO_QUANT) {
