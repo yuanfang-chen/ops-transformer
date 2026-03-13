@@ -352,8 +352,8 @@ private:
     __aicore__ inline void ProcessSingleToken(uint32_t tokenId, LocalTensor<uint32_t> &tokenCntArray);
     __aicore__ inline void SearchAndAccumulateToken(uint32_t targetTokenId, LocalTensor<uint32_t>& tokenCntArray,
                                                     LocalTensor<float>& sumLocal, bool& foundAny);
-    __aicore__ inline void AccumulateTokenFromServer(GM_ADDR winInTkAddr, uint32_t hitIdx, 
-                                                    LocalTensor<float>& sumLocal);                                                
+    __aicore__ inline void AccumulateTokenFromServer(GM_ADDR winInTkAddr, uint32_t hitIdx,
+                                                    LocalTensor<float>& sumLocal);
     __aicore__ inline void ProcessSharedExpertAndOutput(uint32_t tokenId, LocalTensor<float>& sumLocal);
                                                                                 
 private:
@@ -1014,7 +1014,7 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::Accumu
     ReadRankTokenCnt(fromLocalRank, cnt, shareBase);
     if (cnt == 0U) {
         return;
-    }   
+    }
     GM_ADDR shareDataBase = shareBase + static_cast<uint64_t>(shareFlagTotalBytes_ +
         (fromLocalRank * shareDataSliceBytes_));
     LocalTensor<float> tmpUb = localOutTempBuf_.Get<float>();
@@ -1048,7 +1048,7 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::Proces
         uint32_t originRankId = metaU32.GetValue(0);
         uint32_t tokenIdInServer = metaU32.GetValue(1);
         AscendC::PipeBarrier<PIPE_ALL>();
-        if ((originRankId / serverRankSize_) != targetServerId 
+        if ((originRankId / serverRankSize_) != targetServerId
             || tokenIdInServer < baseId || tokenIdInServer >= endId) {
             AscendC::PipeBarrier<PIPE_ALL>();
             continue;
@@ -1260,7 +1260,7 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::AlltoA
 
     for (uint32_t tokenId = startTokenId_; tokenId < endTokenId_; tokenId++) {
         ProcessSingleToken(tokenId, tokenCntArray);
-    }    
+    }
 }
 
 template <CombineV2HostTypeClass>
@@ -1277,13 +1277,14 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::LoadTo
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         uint32_t count = static_cast<uint32_t>(localCntTensor_.GetValue(1));
         tokenCntArray.SetValue(serverIdx, count);
-    }   
-    PipeBarrier<PIPE_ALL>();     
+    }
+    PipeBarrier<PIPE_ALL>();
 }
 
 template <CombineV2HostTypeClass>
 __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::ProcessSingleToken(
-                                                                    uint32_t tokenId, LocalTensor<uint32_t> &tokenCntArray)
+                                                                    uint32_t tokenId,
+                                                                    LocalTensor<uint32_t> &tokenCntArray)
 {
     const uint32_t targetTokenId = tokenIdBaseInServer_ + tokenId;
     LocalTensor<float> sumLocal = sumBuf_.Get<float>();
@@ -1328,8 +1329,8 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::Search
             continue;
         }
         foundAny = true;
-        AccumulateTokenFromServer(winInTkAddr, hitIdx, sumLocal);    
-    }            
+        AccumulateTokenFromServer(winInTkAddr, hitIdx, sumLocal);
+    }
 }
 
 template <CombineV2HostTypeClass>
@@ -1371,7 +1372,6 @@ __aicore__ inline void MoeDistributeCombineV2Host<CombineV2HostTypeFunc>::Proces
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     GlobalTensor<ExpandXType> outGm = expandOutGlobal_[tokenId * axisH_];
     DataCopy(outGm, outUb, tokenDataBytesAlign_ / sizeof(ExpandXType));
-
 }
 
 template <CombineV2HostTypeClass>
