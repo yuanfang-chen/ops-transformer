@@ -110,9 +110,8 @@ protected:
 private:
     // Tiling calculation functions
     int64_t CalculateLimitedCoreNum();
-    int64_t ComputeOptimalDimChunk(int64_t dim, int64_t batch, int64_t coreNum);
-    void CalculateTilingParams(int64_t validBatch);
-    void CalculateIntraCoreTiling();
+
+
 
     // Hardware information
     uint64_t ubSize_ = 0;
@@ -148,23 +147,35 @@ private:
     int64_t hasAcceptTokenNum_ = 0;     // Whether acceptTokenNum input is provided: 0 for false, 1 for true
     int64_t residualConnection_ = 0;    // Whether use residual connection: 0 for false, 1 for true
 
-    // Tiling parameters
-    int64_t limitedCoreNum_ = 0;      // Limited core number based on data size
+    // Inter-core tiling parameters (non-uniform split)
+    int64_t limitedCoreNum_ = 0;      // Limited core number based on data size (for reference)
     int64_t usedCoreNum_ = 0;         // Actually used core number
     int64_t dimCoreCnt_ = 0;          // Number of cores for dim direction
     int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
-    int64_t dimChunkSize_ = 0;        // Dim chunk size per core (256 * N)
-    int64_t dimTailSize_ = 0;         // Dim tail size for last core
-    int64_t batchPerCore_ = 0;        // Batches per core (regular)
-    int64_t batchTailPerCore_ = 0;    // Batches for tail core
+    int64_t dimHeadCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
+    int64_t dimTailCoreCnt_ = 0;      // Number of small dim cores (base blocks)
+    int64_t dimChunkSize_ = 0;        // Big core dim size ((base+1) * 128)
+    int64_t dimTailSize_ = 0;         // Small core dim size (base * 128)
+    int64_t batchHeadCoreCnt_ = 0;    // Number of big batch cores
+    int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores
+    int64_t batchPerCore_ = 0;        // Batch size for big cores
+    int64_t batchTailPerCore_ = 0;    // Batch size for small cores
     int64_t validBatchStart_ = 0;     // First valid batch index
     int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
 
-    // Intra-core tiling parameters
-    int64_t ubBatchSize_ = 0;         // Batch size per UB iteration
-    int64_t ubDimSize_ = 0;           // Dim size per UB iteration (elements)
-    int64_t batchLoopCnt_ = 0;        // Batch loop count within core
-    int64_t dimLoopCnt_ = 0;          // Dim loop count within core
+    // Intra-core tiling parameters UB loop (match Fn style)
+    int64_t loopNumBS_ = 0;                // Loops in BS direction for big cores
+    int64_t loopNumDim_ = 0;               // Loops in Dim direction for big cores
+    int64_t ubFactorBS_ = 0;               // UB BS factor for big cores
+    int64_t ubTailFactorBS_ = 0;           // UB BS tail factor for big cores
+    int64_t ubFactorDim_ = 0;              // UB Dim factor for big cores
+    int64_t ubTailFactorDim_ = 0;          // UB Dim tail factor for big cores
+    int64_t tailBlockloopNumBS_ = 0;       // Loops in BS direction for tail cores
+    int64_t tailBlockloopNumDim_ = 0;      // Loops in Dim direction for tail cores
+    int64_t tailBlockubFactorBS_ = 0;      // UB BS factor for tail cores
+    int64_t tailBlockubTailFactorBS_ = 0;  // UB BS tail factor for tail cores
+    int64_t tailBlockubFactorDim_ = 0;     // UB Dim factor for tail cores
+    int64_t tailBlockubTailFactorDim_ = 0; // UB Dim tail factor for tail cores
 
     // TilingData object
     CausalConv1dUpdateTilingData tilingData_;
