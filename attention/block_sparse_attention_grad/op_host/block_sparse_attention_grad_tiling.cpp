@@ -454,7 +454,7 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_dQOutSize(dQOutSize_);
     tilingData_->set_dKOutSize(dKOutSize_);
     tilingData_->set_dVOutSize(dVOutSize_);
-    tilingData_->set_dVOutSize(gradSize_);
+    tilingData_->set_gradSize(gradSize_);
     tilingData_->set_scaleValue(scaleValue_);
     tilingData_->set_usedVecCoreNum(blockDim_*2);
     tilingData_->set_qTotalSeqlen(totalTokensT_);
