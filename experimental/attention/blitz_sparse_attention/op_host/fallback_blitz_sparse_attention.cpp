@@ -104,7 +104,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
     return GRAPH_FAILED;
   }
   OP_LOGD("aclnnFallback",
-          "BlitzSparseAttentionV4 fallback begin, numHeads = %ld, dScaleValue = %lf",
+          "BlitzSparseAttention fallback begin, numHeads = %ld, dScaleValue = %lf",
           numHeads, dScaleValue);
   OP_LOGD("aclnnFallback",
           "preTokens = %ld, nextTokens = %ld, kvHeadNum = %ld, sparseMode = %ld, innerPrecise = %ld",
@@ -118,7 +118,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
             sparseMode, innerPrecise);
   }
 
-  auto api_ret = EXEC_OPAPI_CMD(aclnnBlitzSparseAttentionV4, query, key, value, pseShiftGe, attenMaskGe, sabiGe, actSeqArray,
+  auto api_ret = EXEC_OPAPI_CMD(aclnnBlitzSparseAttention, query, key, value, pseShiftGe, attenMaskGe, sabiGe, actSeqArray,
                                 actSeqArrayKv, deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2,
                                 numHeads, dScaleValue, preTokens, nextTokens, layout, kvHeadNum, sparseMode,
                                 innerPrecise, output);

@@ -19,7 +19,7 @@ extern "C" {
 
 /**
  * @brief The first interface of aclnnBlitzSparseAttention is used to calculate the workspace size based on the specific calculation process.
- * @domain aclnn_math
+ * @domain aclnn_ops_infer
 */
 __attribute__ ((visibility("default"))) aclnnStatus aclnnBlitzSparseAttentionGetWorkspaceSize(
     const aclTensor *query,
@@ -27,13 +27,22 @@ __attribute__ ((visibility("default"))) aclnnStatus aclnnBlitzSparseAttentionGet
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
+    const aclIntArray *actualSeqLengthsKv,
+    const aclTensor *deqScale1,
+    const aclTensor *quantScale1,
+    const aclTensor *deqScale2,
+    const aclTensor *quantScale2,
+    const aclTensor *quantOffset2,
     int64_t numHeads,
     double scaleValue,
     int64_t preTokens,
     int64_t nextTokens,
     char *inputLayout,
     int64_t numKeyValueHeads,
+    int64_t sparseMode,
+    int64_t innerPrecise,
     const aclTensor *attentionOut,
     uint64_t *workspaceSize,
     aclOpExecutor **executor);

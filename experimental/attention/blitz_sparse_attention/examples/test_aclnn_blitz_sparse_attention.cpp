@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_blitz_sparse_attention_v3.cpp
+ * \file test_blitz_sparse_attention.cpp
  * \brief
  */
 
@@ -18,7 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_blitz_sparse_attention_v3.h"
+#include "aclnnop/aclnn_blitz_sparse_attention.h"
 #include "securec.h"
 #include<unistd.h>
  
@@ -172,14 +172,14 @@ int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream,
     memcpy(layerOut, LAYER_OUT_STR, LAYER_OUT_LEN);
 
     aclOpExecutor* executor;
-    int ret = aclnnBlitzSparseAttentionV3GetWorkspaceSize(
+    int ret = aclnnBlitzSparseAttentionGetWorkspaceSize(
         resources.queryTensor, resources.keyTensor, resources.valueTensor, 
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
         numHeads, scaleValue, preTokens, nextTokens, layerOut, numKeyValueHeads, 
         sparseMode, innerPrecise, resources.outTensor, workspaceSize, &executor);
         
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnBlitzSparseAttentionV3GetWorkspaceSize failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnBlitzSparseAttentionGetWorkspaceSize failed. ERROR: %d\n", ret);
         return ret;
     }
 
@@ -191,9 +191,9 @@ int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream,
         }
     }
 
-    ret = aclnnBlitzSparseAttentionV3(*workspaceAddr, *workspaceSize, executor, stream);
+    ret = aclnnBlitzSparseAttention(*workspaceAddr, *workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnBlitzSparseAttentionV3 failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnBlitzSparseAttention failed. ERROR: %d\n", ret);
         return ret;
     }
 

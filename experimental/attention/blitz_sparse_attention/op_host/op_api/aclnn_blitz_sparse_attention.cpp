@@ -7,16 +7,18 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
 #include "aclnn_blitz_sparse_attention.h"
 #include "aclnn_blitz_sparse_attention_inner.h"
-#include "aclnn/aclnn_base.h"
+#include "opdev/op_dfx.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/pad.h"
 #include "aclnn_kernels/reshape.h"
-#include "aclnn_kernels/transpose.h"
 #include "aclnn_kernels/slice.h"
+#include "aclnn_kernels/transpose.h"
 #include "opdev/common_types.h"
 #include "opdev/fast_vector.h"
+#include "opdev/op_errno.h"
 #include "opdev/op_executor.h"
 
 using namespace op;
@@ -32,26 +34,26 @@ aclnnStatus aclnnBlitzSparseAttentionGetWorkspaceSize(
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
-    int64_t numHeads, // q_n
+    const aclIntArray *actualSeqLengthsKv,
+    const aclTensor *deqScale1,
+    const aclTensor *quantScale1,
+    const aclTensor *deqScale2,
+    const aclTensor *quantScale2,
+    const aclTensor *quantOffset2,
+    int64_t numHeads,
     double scaleValue,
     int64_t preTokens,
     int64_t nextTokens,
     char *inputLayout,
     int64_t numKeyValueHeads,
+    int64_t sparseMode,
+    int64_t innerPrecise,
     const aclTensor *attentionOut,
     uint64_t *workspaceSize,
-    aclOpExecutor **executor) {   
-        (void) pseShift;    
-        const aclIntArray *actualSeqLengthsKv = nullptr;
-        int64_t sparseMode = 0;
-        int64_t innerPrecise = 1;
-        const aclTensor *deqScale1 = nullptr;
-        const aclTensor *quantScale1 = nullptr;
-        const aclTensor *deqScale2 = nullptr;
-        const aclTensor *quantScale2 = nullptr;
-        const aclTensor *quantOffset2 = nullptr;
-        return InnerBlitzSparseAttentionV4GetWorkspaceSize(query, key, value, nullptr, attenMask, nullptr,
+    aclOpExecutor **executor) {
+        return InnerBlitzSparseAttentionGetWorkspaceSize(query, key, value, pseShift, attenMask, sabi,
                                                               actualSeqLengths, actualSeqLengthsKv,
                                                               deqScale1, quantScale1, deqScale2,
                                                               quantScale2, quantOffset2,
@@ -65,8 +67,7 @@ aclnnStatus aclnnBlitzSparseAttention(
     uint64_t workspaceSize,
     aclOpExecutor *executor,
     const aclrtStream stream) {
-        // perform attention computations.
-        return InnerBlitzSparseAttentionV4(workspace, workspaceSize, executor, stream);
+        return InnerBlitzSparseAttention(workspace, workspaceSize, executor, stream);
     }
 
 }

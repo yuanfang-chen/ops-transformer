@@ -12,7 +12,7 @@
 #include <torch/extension.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_blitz_sparse_attention_v4.h"
+#include "aclnnop/aclnn_blitz_sparse_attention.h"
 
 const static int64_t PFA_SPARSE_HIGH_PRECISION_NO_MASK = 10;
 const static int64_t PFA_SPARSE_HIGH_PRECISION_BAND = 14;
@@ -52,7 +52,7 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
 }
 
 /**
- * @brief Interface to the `aclnnBlitzSparseAttentionV4` kernel which performs 
+ * @brief Interface to the `aclnnBlitzSparseAttention` kernel which performs 
  *        flash attention computation with prompt support
  *
  * @param [in] query Tensor of shape [B, N, S, D] (fp16/bf16)
@@ -156,7 +156,7 @@ at::Tensor npu_blitz_sparse_attention(
     aclOpExecutor* executor = nullptr;
     void* workspace_addr = nullptr;
     
-    int ret = aclnnBlitzSparseAttentionV4GetWorkspaceSize(
+    int ret = aclnnBlitzSparseAttentionGetWorkspaceSize(
         query_tensor,                 //  const aclTensor   *query,
         key_tensor,                   //  const aclTensor   *key,
         value_tensor,                 //  const aclTensor   *value,
@@ -182,7 +182,7 @@ at::Tensor npu_blitz_sparse_attention(
         &workspace_size,              //  uint64_t          *workspaceSize,
         &executor);                   //  aclOpExecutor     **executor)
 
-    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnBlitzSparseAttentionV4GetWorkspaceSize failed with error: ", ret);
+    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnBlitzSparseAttentionGetWorkspaceSize failed with error: ", ret);
     
     // Allocate workspace if needed
     if (workspace_size > 0) {
@@ -197,8 +197,8 @@ at::Tensor npu_blitz_sparse_attention(
     auto aclStream = npuStream.stream();
     
     // Execute the kernel
-    ret = aclnnBlitzSparseAttentionV4(workspace_addr, workspace_size, executor, aclStream);
-    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnBlitzSparseAttentionV4 execution failed with error: ", ret);
+    ret = aclnnBlitzSparseAttention(workspace_addr, workspace_size, executor, aclStream);
+    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnBlitzSparseAttention execution failed with error: ", ret);
 
     // Deallocation of workspace (first make sure it finished)
     ret = aclrtSynchronizeStream(aclStream);
@@ -215,7 +215,7 @@ at::Tensor npu_blitz_sparse_attention(
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("npu_blitz_sparse_attention", &npu_blitz_sparse_attention,
         R"DOC(
-        Interface to the `aclnnBlitzSparseAttentionV4` kernel which performs 
+        Interface to the `aclnnBlitzSparseAttention` kernel which performs 
         flash attention computation with prompt support.
 
         Args:

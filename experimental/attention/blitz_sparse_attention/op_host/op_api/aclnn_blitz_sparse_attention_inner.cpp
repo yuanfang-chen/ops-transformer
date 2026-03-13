@@ -741,7 +741,7 @@ static inline bool CheckResultOutShapePfa(const aclTensor *inferOut, const aclTe
     return true;
 }
 
-aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
+aclnnStatus InnerBlitzSparseAttentionGetWorkspaceSize(
     const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *pseShift,
     const aclTensor *attenMask, const aclTensor *sabi, const aclIntArray *actualSeqLengths, const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1, const aclTensor *quantScale1, const aclTensor *deqScale2, const aclTensor *quantScale2,
@@ -749,7 +749,7 @@ aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
     char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,
     const aclTensor *attentionOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(InnerBlitzSparseAttentionV4,
+    L2_DFX_PHASE_1(InnerBlitzSparseAttention,
                 DFX_IN(query, key, value, pseShift, attenMask, sabi, actualSeqLengths, actualSeqLengthsKv,
                         deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
                         numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads,
@@ -804,10 +804,10 @@ aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus InnerBlitzSparseAttentionV4(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+aclnnStatus InnerBlitzSparseAttention(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                            const aclrtStream stream)
 {
-    L2_DFX_PHASE_2(InnerBlitzSparseAttentionV4);
+    L2_DFX_PHASE_2(InnerBlitzSparseAttention);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 

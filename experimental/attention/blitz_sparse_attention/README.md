@@ -1,6 +1,6 @@
 # BlitzSparseAttention  - Prompt Flash Attention with Block-Sparsity
 
-This kernel is based on PromptFlashAttentionV3, extending it by a new argument "sabi" to enable block sparse attention computation during prefill. We provide a **torch interface** to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabi argument can be found in [docs/aclnnBlitzSparseAttentionV4.md](docs/aclnnBlitzSparseAttentionV4.md)
+This kernel is based on PromptFlashAttentionV3, extending it by a new argument "sabi" to enable block sparse attention computation during prefill. We provide a **torch interface** to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabi argument can be found in [docs/aclnnBlitzSparseAttention.md](docs/aclnnBlitzSparseAttention.md)
 
 ## Quick test and benchmark in python:
 build the kernel as a custom experimental package, install it, then install our "torch_bsa" torch interface package
@@ -225,4 +225,4 @@ If this block sparse kernel is of an interest, please consider merging it with t
 
 | 调用方式  | 样例代码                                                     | 说明                                                         |
 | --------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| aclnn接口 | [test_aclnn_BlitzSparseAttentionV3](./examples/test_aclnn_blitz_sparse_attention.cpp) | 通过[aclnnBlitzSparseAttentionV3](./docs/aclnnBlitzSparseAttentionV3.md)调用BlitzSparseAttentionV3算子 |
+| aclnn接口 | [test_aclnn_BlitzSparseAttention](./examples/test_aclnn_blitz_sparse_attention.cpp) | 通过[aclnnBlitzSparseAttention](./docs/aclnnBlitzSparseAttention.md)调用BlitzSparseAttention算子 |

@@ -22,7 +22,7 @@ extern "C" {
  * @brief The first interface of InnerBlitzSparseAttention is used to calculate the workspace size based on the specific calculation process.
  * @domain aclnn_math
  */
-ACLNN_API aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
+ACLNN_API aclnnStatus InnerBlitzSparseAttentionGetWorkspaceSize(
     const aclTensor* query, const aclTensor* key, const aclTensor* value, const aclTensor* pseShift,
     const aclTensor* attenMask, const aclTensor *sabi, const aclIntArray* actualSeqLengths, const aclIntArray* actualSeqLengthsKv,
     const aclTensor* deqScale1, const aclTensor* quantScale1, const aclTensor* deqScale2, const aclTensor* quantScale2,
@@ -32,7 +32,7 @@ ACLNN_API aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
 /**
  * @brief The second interface of InnerBlitzSparseAttention is used to perform calculations.
  */
-ACLNN_API aclnnStatus InnerBlitzSparseAttentionV4(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+ACLNN_API aclnnStatus InnerBlitzSparseAttention(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                                      const aclrtStream stream);
 
 #ifdef __cplusplus
