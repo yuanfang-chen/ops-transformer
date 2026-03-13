@@ -29,7 +29,7 @@ extern "C" __global__ __aicore__ void kv_rms_norm_rope_cache(GM_ADDR qkv, GM_ADD
     if (TILING_KEY_IS(0)) {
         GET_TILING_DATA_WITH_STRUCT(FusedKRmsNormRopeStoreKvCacheMxQuantTilingData, tiling_data_in, tiling);
         const FusedKRmsNormRopeStoreKvCacheMxQuantTilingData *__restrict tilingData = &tiling_data_in;
-        FusedKRmsNormRopeStoreKvCacheMxQuantRegbase<DTYPE_QKV> op(&pipe, tilingData);
+        FusedKRmsNormRopeStoreKvCacheMxQuantRegbase<DTYPE_QKV, DTYPE_Q> op(&pipe, tilingData);
         op.Init(qkv, cos, sin, gamma, kv_slot_mapping, v_scale_slot_mapping, k_cache, k_scale_cache, v_cache,
                 v_scale_cache, q, q_scale);
         op.Process();
