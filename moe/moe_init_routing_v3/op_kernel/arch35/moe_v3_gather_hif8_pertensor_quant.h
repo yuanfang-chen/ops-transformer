@@ -42,6 +42,7 @@ private:
     __aicore__ inline void CopyOutPartialXQuant(int64_t progress);
     __aicore__ inline void ComputePartial(LocalTensor<float> &inLocal, int32_t srcIdx, int64_t dstIndex, int64_t j);
     
+    
 
 private:
     TPipe *pipe_;
