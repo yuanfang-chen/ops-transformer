@@ -1263,6 +1263,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
     auto tempQ = context->GetInputShape(QUERY_INDEX);
     auto tempK = context->GetInputShape(KEY_INDEX);
+    auto tempV = context->GetInputShape(VALUE_INDEX);
     auto actualQSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     auto actualKvSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     auto blockTable = context->GetOptionalInputShape(BLOCK_TABLE_INDEX);
@@ -1305,6 +1306,9 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     faInfo.learnableSinkFlag = learnableSinkFlag;
     faInfo.innerPrecise = innerPrecise;
     if (faInfo.pagedCacheFlag) {
+        if (tempK->GetStorageShape().GetDimNum() == 4U && tempK->GetStorageShape().GetDim(DIM_3) == 16 && tempV->GetStorageShape().GetDim(DIM_3) == 16) {
+            faInfo.kvcacheNzFlag = true;
+        }
         faInfo.maxNumBlocksPerBatch = blockTable->GetStorageShape().GetDim(DIM_1);
     }
     if (faInfo.layout == "TND") {
@@ -1417,6 +1421,17 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
             int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
             int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_1);
+            bool isFAIDSize = (tempD <= 256U && tempKD <= 256 && tempVD <= 256) &&
+                    (tempD == tempKD && tempD == tempVD);
+            bool blockSizeSupported = (blockSize % BLOCK_SIZE_ALIGN_16 == 0) && 
+                    (blockSize <= MAX_BLOCK_SIZE);
+            if (isFAIDSize && blockSizeSupported) {
+                usingFAI = true;
+            }
+        } else if (kvDimNum == 4U && tempK->GetStorageShape().GetDim(DIM_3) == 16 && tempV->GetStorageShape().GetDim(DIM_3) == 16) {
+            int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_1)) / kvHeadNum;
+            int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) / kvHeadNum;
+            int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_2);
             bool isFAIDSize = (tempD <= 256U && tempKD <= 256 && tempVD <= 256) &&
                     (tempD == tempKD && tempD == tempVD);
             bool blockSizeSupported = (blockSize % BLOCK_SIZE_ALIGN_16 == 0) && 

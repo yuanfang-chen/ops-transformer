@@ -140,6 +140,7 @@ namespace optiling{
         bool learnableSinkFlag = false;
         bool isTilingSink = false;
         bool flashDecodeFlag = false;
+        bool kvcacheNzFlag = false;
         string layout;
     };
 
@@ -248,6 +249,10 @@ namespace optiling{
         if (faInfo_.layout == "TND") {
             tilingKey += static_cast<uint64_t>(LAYOUTQ_TND_KEY);
         }
+        if (faInfo_.kvcacheNzFlag) {
+            tilingKey += static_cast<uint64_t>(KVCACHE_NZ_KEY);
+        }
+            constexpr uint64_t KVCACHE_NZ_KEY = 10;
         if (faInfo_.dataType == DataType::FP16) {
             tilingKey += static_cast<uint64_t>(DTYPE_FP16_KEY);
         } else if (faInfo_.dataType == DataType::BF16) {
