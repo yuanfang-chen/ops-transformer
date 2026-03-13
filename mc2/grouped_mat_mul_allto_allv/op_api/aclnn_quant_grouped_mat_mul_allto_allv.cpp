@@ -21,6 +21,7 @@
 #include "opdev/op_dfx.h"
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
+#include "platform/soc_spec.h"
 #include "opdev/platform.h"
 #include "securec.h"
 #include <algorithm>
@@ -294,15 +295,17 @@ static bool CheckSingleQuantMode(int64_t quantMode, const aclTensor *scaleOption
 }
 
 // 检查量化参数是否合法
-static bool CheckQuantMode(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
-                           int64_t mmWeightQuantMode, const aclTensor *gmmXScaleOptional,
-                           const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXScaleOptional,
-                           const aclTensor *mmWeightScaleOptional)
+static bool CheckQuantMode(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *mmXOptional,
+                           const aclTensor *mmWeightOptional, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
+                           const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional,
+                           const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional)
 {
     CHECK_RET(CheckSingleQuantMode(gmmXQuantMode, gmmXScaleOptional, "gmmXScaleOptional"), false);
     CHECK_RET(CheckSingleQuantMode(gmmWeightQuantMode, gmmWeightScaleOptional, "gmmWeightScaleOptional"), false);
-    CHECK_RET(CheckSingleQuantMode(mmXQuantMode, mmXScaleOptional, "mmXScaleOptional"), false);
-    CHECK_RET(CheckSingleQuantMode(mmWeightQuantMode, mmWeightScaleOptional, "mmWeightScaleOptional"), false);
+    if (mmXOptional != nullptr && mmWeightOptional != nullptr) {
+        CHECK_RET(CheckSingleQuantMode(mmXQuantMode, mmXScaleOptional, "mmXScaleOptional"), false);
+        CHECK_RET(CheckSingleQuantMode(mmWeightQuantMode, mmWeightScaleOptional, "mmWeightScaleOptional"), false);
+    }
     return true;
 }
 
@@ -327,8 +330,9 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
               ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, y, mmXOptional, mmWeightOptional, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
-    CHECK_RET(CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, gmmXScaleOptional,
-                             gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional),
+    CHECK_RET(CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, mmXOptional, mmWeightOptional, mmXQuantMode,
+                             mmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional,
+                             mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
     if (commQuantMode != 0) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "commQuantMode only supports 0, but got %ld.", commQuantMode);
@@ -379,7 +383,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_
                                                         aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND950) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
