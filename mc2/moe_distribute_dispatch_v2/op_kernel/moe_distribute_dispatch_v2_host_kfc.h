@@ -380,7 +380,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
 
-    serverNum_ = 1; // ToDo
+    serverNum_ = 1;
     serverRankSize_ = 2;
     epRankId_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     epRankIdOriginal_ = tilingData->moeDistributeDispatchV2Info.epRankId;
@@ -564,6 +564,17 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         validExpertIndexTensor_ = validExpertIndexBuf_.Get<int32_t>();
         validBsIndexTensor_ = validBsIndexTBuf_.Get<int32_t>();
     }
+    
+    tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
+    expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<int32_t>();
+    tpipe_->InitBuffer(xSendBuf_, sendTokenLength_);
+    tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
+
+    uint64_t mask[1] = {0x0101010101010101};
+    uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
+
+    flagTensor_ = flagBuf_.Get<uint32_t>();
+    Duplicate<uint32_t>(flagTensor_, uint32_t(1), mask, repeatTime, uint16_t(1), uint8_t(8));
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -636,17 +647,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tokenSendMap_ = serverMapBuf_.Get<int32_t>();
     Duplicate<uint32_t>(serverCountTensor_, uint32_t(0), serverBuferLength);
     Duplicate<int32_t>(tokenSendMap_, int32_t(0), serverMapLength);
-
-    tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
-    expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<int32_t>();
-    tpipe_->InitBuffer(xSendBuf_, sendTokenLength_);
-    tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
-
-    uint64_t mask[1] = {0x0101010101010101};
-    uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
-
-    flagTensor_ = flagBuf_.Get<uint32_t>();
-    Duplicate<uint32_t>(flagTensor_, uint32_t(1), mask, repeatTime, uint16_t(1), uint8_t(8));
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -904,9 +904,9 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DispatchAndCountTok
                 uint32_t curIndex = expertIndex - sharedExpertNum_;
                 expertId = expertIdsTensor_(tokenIndex * axisK_ + curIndex);
                 dstRankId = expertId / moeExpertNumPerRank_ + sharedExpertRankNum_;
-                if (zeroComputeExpertNum_ != 0 && expertId >= moeExpertNum_) { // 处理零专家
+            }
+            if (zeroComputeExpertNum_ != 0 && expertId >= moeExpertNum_) { // 处理零专家
                     continue;
-                }
             }
             uint32_t dstServerId = dstRankId / serverRankSize_;
             uint32_t pos = dstServerId * activeMaskBsCnt_ + tokenIndex; // 计算当前token是否发给这个server
@@ -1134,7 +1134,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     GM_ADDR wAddr = GetReceiveAddrBetweenServer(COMM_EP_IDX, serverIdx);
     statusCntGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ uint32_t *>(wAddr));
     uint32_t tBufRealSize_ = MAX_UB_SIZE - (BUFFER_NUM * UB_ALIGN * 3);
-    tpipe_->InitBuffer(tBuf, 512 * 2); // todo: 只需要512*2
+    tpipe_->InitBuffer(tBuf, 512 * 2);
     statusFlagLocal = tBuf.Get<uint32_t>();
     statusCntLocal = tBuf.Get<uint32_t>();
 
@@ -1657,12 +1657,9 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
         uint32_t i = index - startExpertId_;
         uint32_t count = statusTensor_.GetValue(i * 8 + 1); // 收到的专家的cnt
         outCountLocal.SetValue(i, beginIdx + count);
-
         uint32_t winOffset = index;
-        if (!isShareExpertRankFlag_) {
-            if (moeExpertNumPerRank_ > 1) { // moe专家卡且一卡多专家场景 转换成数据区的排布偏移
+        if (!isShareExpertRankFlag_ && moeExpertNumPerRank_ > 1) { // moe专家卡且一卡多专家场景 转换成数据区的排布偏移
                 winOffset = index % epWorldSize_ * moeExpertNumPerRank_ + index / epWorldSize_;
-            }
         }
         GM_ADDR wAddr = (__gm__ uint8_t *)(windowGM_) + winOffset * expertPerSizeOnWin_;
         GlobalTensor<ExpandXOutType> tokGlobal;
@@ -1670,9 +1667,8 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
         tokGlobal.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
         LocalTensor<int32_t> xTmpTensorInt;
         LocalTensor<float> xTmpTensorFloat;
-        for (uint32_t j = 0; j < count; j++) {
+        for (uint32_t j = 0; j < count; j++) { // 将数据从Window拷贝到UB
             tokGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(wAddr + j * hAlignWinSize_));
-            // 将数据从Window拷贝到UB
             xTmpTensor_ = xQueue_.AllocTensor<ExpandXOutType>();
             DataCopyPad(xTmpTensor_, tokGlobal, doWindowCopyOutParams_, copyPadExtParams);
             xQueue_.EnQue(xTmpTensor_);
@@ -1681,23 +1677,18 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
             xTmpTensorFloat = xTmpTensor_.template ReinterpretCast<float>();
             DataCopyPad(expandIdxGMTensor_[(beginIdx + j) * EXPAND_IDX_INFO], xTmpTensorInt[tokenQuantAlign_],
                         dataCopyExpandIdxParams); // 拷贝三元组
-
             if (!isShareExpertRankFlag_) {
                 DataCopyPad(expandScalesOutGMTensor_[(beginIdx + j)], xTmpTensorFloat[expertScaleAlign_],
                             dataCopyexpandScaleParams); // 拷贝expert专家系数
             }
             quantInst_.CopyScalesToOut(beginIdx + j, scaleOutBytes_, xTmpTensor_, scaleOutParams_);
-            // 拷贝数据
             expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(expandXOutGM_) + (beginIdx + j) * axisH_,
-                                             axisH_);
+                                             axisH_); // 拷贝数据
             DataCopyPad(expandXOutGlobal, xTmpTensor_, expandXCopyParams_);
             xQueue_.FreeTensor(xTmpTensor_);
         }
         beginIdx += count;
     }
-    totalCnt_ = beginIdx;
-    lastCore_ = MIN(rscvStatusNum_, aivNum_) - 1;
-
     GlobalTensor<int32_t> sendCountsGlobal;
     sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(sendCountsOutGM_));
     DataCopyPad(sendCountsGlobal[startExpertId_], outCountLocal, dataCopyOutParams);
@@ -1735,34 +1726,32 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         expertTokenNumsOutGMTensor_.SetValue(0, tokenNum);
         DataCacheCleanAndInvalid<int64_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
             expertTokenNumsOutGMTensor_);
-        if (moeExpertNumPerRank_ != 1) {
-            if (!isShareExpertRankFlag_) {
-                uint32_t tokenSums = 0;
-                SyncFunc<AscendC::HardEvent::MTE3_S>();
-                GlobalTensor<int32_t> sendCountsGlobal;
-                sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(sendCountsOutGM_));
-                DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-                    sendCountsGlobal[epWorldSize_ - 1]);
+        if (moeExpertNumPerRank_ != 1 && !isShareExpertRankFlag_) {
+            uint32_t tokenSums = 0;
+            SyncFunc<AscendC::HardEvent::MTE3_S>();
+            GlobalTensor<int32_t> sendCountsGlobal;
+            sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(sendCountsOutGM_));
+            DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+                sendCountsGlobal[epWorldSize_ - 1]);
 
-                uint32_t firstMoeCnt = sendCountsGlobal.GetValue(epWorldSize_ - 1);
-                tokenSums = firstMoeCnt;
-                expertTokenNumsOutGMTensor_.SetValue(0, tokenSums);
+            uint32_t firstMoeCnt = sendCountsGlobal.GetValue(epWorldSize_ - 1);
+            tokenSums = firstMoeCnt;
+            expertTokenNumsOutGMTensor_.SetValue(0, tokenSums);
+            DataCacheCleanAndInvalid<int64_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+                expertTokenNumsOutGMTensor_[0]);
+            for (uint32_t localMoeIndex = 1; localMoeIndex < moeExpertNumPerRank_; ++localMoeIndex) {
+                uint32_t preOffset = epWorldSize_ * (localMoeIndex - 1) + epWorldSize_ - 1;
+                uint32_t curOffset = epWorldSize_ * localMoeIndex + epWorldSize_ - 1;
+                DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+                    sendCountsGlobal[preOffset]);
+                DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+                    sendCountsGlobal[curOffset]);
+                uint32_t preMoeIndexCnt = sendCountsGlobal.GetValue(preOffset);
+                uint32_t curMoeIndexCnt = sendCountsGlobal.GetValue(curOffset);
+                tokenSums = ((expertTokenNumsType_ == 0) ? tokenSums : 0) + (curMoeIndexCnt - preMoeIndexCnt);
+                expertTokenNumsOutGMTensor_.SetValue(localMoeIndex, tokenSums);
                 DataCacheCleanAndInvalid<int64_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-                    expertTokenNumsOutGMTensor_[0]);
-                for (uint32_t localMoeIndex = 1; localMoeIndex < moeExpertNumPerRank_; ++localMoeIndex) {
-                    uint32_t preOffset = epWorldSize_ * (localMoeIndex - 1) + epWorldSize_ - 1;
-                    uint32_t curOffset = epWorldSize_ * localMoeIndex + epWorldSize_ - 1;
-                    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-                        sendCountsGlobal[preOffset]);
-                    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-                        sendCountsGlobal[curOffset]);
-                    uint32_t preMoeIndexCnt = sendCountsGlobal.GetValue(preOffset);
-                    uint32_t curMoeIndexCnt = sendCountsGlobal.GetValue(curOffset);
-                    tokenSums = ((expertTokenNumsType_ == 0) ? tokenSums : 0) + (curMoeIndexCnt - preMoeIndexCnt);
-                    expertTokenNumsOutGMTensor_.SetValue(localMoeIndex, tokenSums);
-                    DataCacheCleanAndInvalid<int64_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-                        expertTokenNumsOutGMTensor_[localMoeIndex]);
-                }
+                    expertTokenNumsOutGMTensor_[localMoeIndex]);
             }
         }
     }
