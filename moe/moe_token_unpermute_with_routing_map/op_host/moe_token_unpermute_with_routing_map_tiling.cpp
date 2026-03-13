@@ -224,6 +224,10 @@ static inline ge::graphStatus InputParamCheck(const gert::TilingContext* context
     OP_CHECK_IF(topK > 512,
                     OP_LOGE(nodeName, "[MoeTokenUnpermuteWithRoutingMap] topK can not larger than 512."),
                     return ge::GRAPH_FAILED);
+    
+    if (topK > probsShape->GetStorageShape().GetDim(1)) {
+        OP_LOGW(nodeName, "[MoeTokenUnpermuteWithRoutingMap] topK is larger than experts_num, which may cause unexpected behavior.");
+    }
   }
   return ge::GRAPH_SUCCESS;
 }
@@ -509,7 +513,22 @@ static inline void PrintTilingDataPad(const gert::TilingContext* context, const 
 static ge::graphStatus TilingMoeTokenUnpermuteWithRoutingMapPad(gert::TilingContext* context) {
     TilingPadParams param;
     InitPad(context, param);
-    auto probDtype = context->GetInputDesc(INPUT_PROBS_OPTIONAL_INDEX)->GetDataType();
+    
+    OP_LOGD(context->GetNodeName(), "[MoeTokenUnpermuteWithRoutingMap] capacity=%lu, num_tokens=%lu, num_experts=%lu", 
+            param.capacity, param.num_tokens, param.num_experts);
+    
+    if (param.capacity > param.num_tokens) {
+        OP_LOGW(context->GetNodeName(), "[MoeTokenUnpermuteWithRoutingMap] capacity is larger than tokens_num, which may cause unexpected behavior.");
+    }
+    
+    auto probDtypeDesc = context->GetInputDesc(INPUT_PROBS_OPTIONAL_INDEX);
+    uint64_t probDtype = 0;
+    if (probDtypeDesc != nullptr) {
+        probDtype = probDtypeDesc->GetDataType();
+    } else {
+        probDtype = context->GetInputDesc(0)->GetDataType();
+    }
+    
     InitSplitInfoPad(context, param, probDtype);
     SetTilingKeyPad(context, param, probDtype);
     SetTilingDataPad(context, param);
