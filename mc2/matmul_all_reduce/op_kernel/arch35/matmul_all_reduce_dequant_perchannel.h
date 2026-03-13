@@ -62,14 +62,14 @@ public:
         const uint32_t quantUbSize, int64_t& blockAddrOffset, uint32_t& tileCalCntM, uint32_t& tailCalCntM,
         uint32_t& aivLoopNum)
     {
-        uint32_t vectorIndex = GetBlockIdx();                 // [0, 23]
-        uint32_t singleAivM = dequantM_ / dequantAivCoreNum_; // 单核要计算的总行数（多次循环累计）
         uint32_t aivAddOneIndex = dequantAivCoreNum_ + 1; // 要多算一轮的核的下标，如果不均分，使用后面 [aivAddOneIndex,
                                                           // dequantAivCoreNum_ - 1] 核来完成多余一轮的计算
         if ((dequantM_ % dequantAivCoreNum_) != 0) {
             aivAddOneIndex = dequantAivCoreNum_ - (dequantM_ % dequantAivCoreNum_);
         }
 
+        uint32_t vectorIndex = GetBlockIdx();                 // [0, 23]
+        uint32_t singleAivM = dequantM_ / dequantAivCoreNum_; // 单核要计算的总行数（多次循环累计）
         if (singleAivM == 0) { // M小于核数，singleAivM为0，核计算行数更新及偏移计算
             uint32_t usedAivCoreIndex = dequantAivCoreNum_ - aivAddOneIndex;
             if (vectorIndex < usedAivCoreIndex) {
@@ -96,8 +96,8 @@ public:
         tileCalCntM = quantUbSize / dequantAlginN_; // 单次循环计算行数
         aivLoopNum = singleAivM / tileCalCntM;      // 循环次数
         if (singleAivM % (quantUbSize / dequantAlginN_) != 0) {
-            aivLoopNum += 1;
             tailCalCntM = singleAivM % tileCalCntM;
+            aivLoopNum += 1;
         }
     }
 
@@ -299,12 +299,12 @@ __aicore__ inline void MatmulAllReduceDequantPerchannelCommInt8(
     }
     uint32_t tileBlockCnt = 0;
     uint32_t tailBlockCnt = 0;
-    uint32_t dequantAivLoopNum = 0;
-    int64_t blockAddrOffset = 0;
     uint32_t tailCalCntM = 0;
     uint32_t tileCalCntM = 0;
     uint32_t needAivCoreNum = 0;
+    uint32_t dequantAivLoopNum = 0;
     uint32_t blockNumPerRow = 1;
+    int64_t blockAddrOffset = 0;
 
     tPipe->Reset();
     int32_t nowDequantAlginN = Ceil(N * sizeof(int8_t), BYTE512_MATMUL_ALLREDUCE_INT8) * BYTE512_MATMUL_ALLREDUCE_INT8;
@@ -322,8 +322,8 @@ __aicore__ inline void MatmulAllReduceDequantPerchannelCommInt8(
     op.dequantN_ = N;
     op.dequantAlginN_ = static_cast<uint32_t>(nowDequantAlginN);
     op.dequantAivCoreNum_ = nowDequantAivCoreNum;
-    op.allgatherOut_ = allgatherOut;
     op.dequantScale_ = dequantScale;
+    op.allgatherOut_ = allgatherOut;
     op.dequantedOut_ = dequantedOut;
     if (nowDequantUbSize > M * nowDequantAlginN) {
         nowDequantUbSize = M * nowDequantAlginN;

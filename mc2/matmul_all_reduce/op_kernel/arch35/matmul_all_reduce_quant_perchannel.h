@@ -98,13 +98,15 @@ public:
         const uint32_t quantUbSize, int64_t& blockAddrOffset, uint32_t& tileCalCntM, uint32_t& tailCalCntM,
         uint32_t& aivLoopNum)
     {
-        uint32_t vectorIndex = GetBlockIdx();             // [0, 23]
-        uint32_t singleAivM = quantM_ / quantAivCoreNum_; // 单核要计算的总行数（多次循环累计）
+        
         uint32_t aivAddOneIndex = quantAivCoreNum_ + 1; // 要多算一轮的核的下标，如果不均分，使用后面 [aivAddOneIndex,
                                                         // quantAivCoreNum_ - 1] 核来完成多余一轮的计算
         if (quantM_ % quantAivCoreNum_ != 0) {
             aivAddOneIndex = quantAivCoreNum_ - (quantM_ % quantAivCoreNum_);
         }
+
+        uint32_t vectorIndex = GetBlockIdx();             // [0, 23]
+        uint32_t singleAivM = quantM_ / quantAivCoreNum_; // 单核要计算的总行数（多次循环累计）
 
         if (singleAivM == 0) { // M小于核数，singleAivM为0，核计算行数更新及偏移计算
             uint32_t usedAivCoreIndex = quantAivCoreNum_ - aivAddOneIndex;
@@ -132,8 +134,8 @@ public:
         tileCalCntM = quantUbSize / quantAlginN_; // 单次循环计算行数
         aivLoopNum = singleAivM / tileCalCntM;    // 循环次数
         if (singleAivM % (quantUbSize / quantAlginN_) != 0) {
-            aivLoopNum += 1;
             tailCalCntM = singleAivM % tileCalCntM;
+            aivLoopNum += 1;
         }
     }
 
