@@ -215,18 +215,19 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedP
     sharedParams.multiCoreInnerOffset = multiCoreParamsRegbase.sparseStartIdx[aicIdx];
     sharedParams.multiCoreInnerLimit = multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1];
 
+    auto &outerSplitParams = this->tilingData->outerSplitParams;
     if (aicIdx == 0) {
         sharedParams.bN2StartIdx = 0;
         sharedParams.gS1StartIdx = 0;
         sharedParams.s2StartIdx = 0;
     } else {
-        sharedParams.bN2StartIdx = multiCoreParamsRegbase.bN2End[aicIdx - 1];
-        sharedParams.gS1StartIdx = multiCoreParamsRegbase.mEnd[aicIdx - 1];
-        sharedParams.s2StartIdx = multiCoreParamsRegbase.s2End[aicIdx - 1];
+        sharedParams.bN2StartIdx = outerSplitParams.bN2End[aicIdx - 1];
+        sharedParams.gS1StartIdx = outerSplitParams.mEnd[aicIdx - 1];
+        sharedParams.s2StartIdx = outerSplitParams.s2End[aicIdx - 1];
     }
-    sharedParams.bN2EndIdx = multiCoreParamsRegbase.bN2End[aicIdx];
-    sharedParams.gS1EndIdx = multiCoreParamsRegbase.mEnd[aicIdx];
-    sharedParams.s2EndIdx = multiCoreParamsRegbase.s2End[aicIdx];
+    sharedParams.bN2EndIdx = outerSplitParams.bN2End[aicIdx];
+    sharedParams.gS1EndIdx = outerSplitParams.mEnd[aicIdx];
+    sharedParams.s2EndIdx = outerSplitParams.s2End[aicIdx];
 
     sharedParams.needInit = this->tilingData->initOutputParams.needInit;
 
