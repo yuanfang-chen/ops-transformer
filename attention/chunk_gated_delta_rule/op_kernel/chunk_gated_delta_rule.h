@@ -40,6 +40,55 @@ struct CGDRInitParams {
     GM_ADDR finalState;
 };
 
+template <typename srcType, typename dstType>
+__aicore__ inline void CopyCast(
+    const GlobalTensor<srcType>& src,
+    const GlobalTensor<dstType>& dst,
+    TPipe* pipe,
+    const int64_t totalDataCount,
+    const RoundMode& roundMode)
+{
+    if ASCEND_IS_AIV {
+        int64_t blkNum = GetBlockNum();
+        int64_t blkId = GetBlockIdx();
+        int64_t dataPerCore = (totalDataCount + blkNum - 1) / blkNum;
+        int64_t startPos = dataPerCore * blkId;
+        int64_t endPos = startPos + dataPerCore;
+        if (startPos >= totalDataCount) {
+            return;
+        }
+        if (endPos > totalDataCount) {
+            endPos = totalDataCount;
+        }
+        uint32_t tileLen = 1024;   // 1024 = 1kb，经测试1kb和10kb性能差异很小
+        TQue<QuePosition::VECIN, 2> inQueue;      // use 2 buffer
+        TQue<QuePosition::VECOUT, 2> outQueue;    // use 2 buffer
+        pipe->InitBuffer(inQueue, 2, tileLen * sizeof(srcType));   // use 2 buffer
+        pipe->InitBuffer(outQueue, 2, tileLen * sizeof(dstType));  // use 2 buffer
+        for (int64_t i = startPos; i < endPos; i += tileLen) {
+            uint32_t blockLen = i + tileLen > endPos ? endPos - i : tileLen;
+            // copy in
+            DataCopyExtParams inParams{1, static_cast<uint32_t>(blockLen * sizeof(srcType)), 0, 0, 0};
+            DataCopyPadExtParams<srcType> inPadParams{false, 0, 0, 0};
+            auto inLocal = inQueue.AllocTensor<srcType>();
+            DataCopyPad(inLocal, src[i], inParams, inPadParams);
+            inQueue.EnQue(inLocal);
+            // cast
+            auto state_in = inQueue.DeQue<srcType>();
+            auto state_out = outQueue.AllocTensor<dstType>();
+            Cast(state_out, state_in, roundMode, blockLen);
+            outQueue.EnQue(state_out);
+            inQueue.FreeTensor(state_in);
+            // copy out
+            auto outLocal = outQueue.DeQue<dstType>();
+            DataCopyExtParams outParams{1, static_cast<uint32_t>(blockLen * sizeof(dstType)), 0, 0, 0};
+            DataCopyPad(dst[i], outLocal, outParams);
+            outQueue.FreeTensor(outLocal);
+        }
+        PipeBarrier<PIPE_V>();
+    }
+}
+
 
 template <typename lowType, typename highType>
 class CGDR {
@@ -68,9 +117,9 @@ public:
                 InitOutput<lowType>(out_, tiling_->t * tiling_->nv * tiling_->dv, 0);
             }
             // 初始化mask矩阵
-            pipe_->InitBuffer(tmpBuff_, tiling_->chunkSize * tiling_->chunkSize * sizeof(float));
-            auto cCFloat_ = tmpBuff_.GetWithOffset<float>(
-                static_cast<uint32_t>(tiling_->chunkSize * tiling_->chunkSize), 0);
+            uint32_t cBlockSize = tiling_->chunkSize * tiling_->chunkSize;
+            pipe_->InitBuffer(tmpBuff_, cBlockSize * sizeof(float));
+            auto cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(cBlockSize), 0);
             Duplicate<float>(cCFloat_, 0, tiling_->chunkSize);
             DataCopyExtParams copyParams;
             copyParams.blockCount = static_cast<uint16_t>(1);
@@ -78,7 +127,7 @@ public:
             copyParams.srcStride = static_cast<uint32_t>(0);
             copyParams.dstStride = static_cast<uint32_t>((0) * sizeof(float));
             for (int i = 0; i < tiling_->chunkSize; ++i) {
-                DataCopyPad(stageOneMask_[i * tiling_->chunkSize], cCFloat_, copyParams);
+                DataCopyPad(stageOneMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
                 cCFloat_.SetValue(i, 1);
                 DataCopyPad(stageThreeMask_[i * tiling_->chunkSize], cCFloat_, copyParams);
             }
@@ -137,10 +186,10 @@ public:
         offset += sizeof(highType) * tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
 
         stageOneMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize;
-        
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
+
         stageThreeMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize;
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
 
         stageWsAddr_ = user + offset;
 
@@ -230,12 +279,16 @@ private:
 
     __aicore__ inline void initHighState()
     {
-        // todo: 用initState_的值初始化highState_
+        int64_t dataCount = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
+        CopyCast(initState_, highState_, pipe_, dataCount, RoundMode::CAST_NONE);
+        pipe_->Reset();
     }
 
     __aicore__ inline void SetFinalState()
     {
-        // todo: 将highState_的值搬运到initState_
+        int64_t dataCount = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
+        CopyCast(highState_, finalState_, pipe_, dataCount, RoundMode::CAST_RINT);
+        pipe_->Reset();
     }
 
 private:

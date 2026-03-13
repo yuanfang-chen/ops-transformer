@@ -138,6 +138,9 @@ public:
         buffOffset += halfChunkSize_ * dk_ * sizeof(float);
 
         inverseUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
+        buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
+
+        colBuffer = tmpBuff.GetWithOffset<uint32_t>(static_cast<uint32_t>(INVERSE_SHAPE), buffOffset);
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
@@ -185,7 +188,6 @@ public:
             uint64_t nid   = task_id % nv_;
             uint64_t cg_id = task_id / nv_;
             // 尾chunk处理
-            uint64_t valid_len = chunkSize_;
             if (cg_id == NumChunk_ - 1 && cg_.length % chunkSize_ != 0) {
                 validLen_ = cg_.length % chunkSize_;
             }
@@ -359,7 +361,7 @@ private:
         Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat, chunkSize_ * chunkSize_);
         PipeBarrier<PIPE_V>();
         // mask
-        DataCopyInFp32(chunkSize_ * chunkSize_, stageOneMask_);
+        DataCopyInFp32(chunkSize_ * chunkSize_, stageOneMask_[GetBlockIdx() * chunkSize_ * chunkSize_]);
         kkLocal = fp32InQueue_.DeQue<float>();
         Mul(gammaUbFloat, gammaUbFloat, kkLocal, chunkSize_ * chunkSize_);
         fp32InQueue_.FreeTensor(kkLocal);
@@ -409,8 +411,6 @@ private:
         auto yLocal = inverseUbFloat[inverseBufferOffset];
         inverseBufferOffset += inverseVecLen * inverseVecLen;
         auto ei = inverseUbFloat[inverseBufferOffset];
-        inverseBufferOffset += inverseVecLen * inverseVecLen;
-        auto colBufferGather = colBuffer[inverseBufferOffset];
 
         Duplicate(ei, static_cast<float>(0.0), inverseVecLen);
         Duplicate(yLocal, static_cast<float>(0.0), 2 * inverseVecLen * inverseVecLen); // yLocal清零
@@ -419,12 +419,12 @@ private:
         uint32_t srcShape[2] = {1, inverseVecLen};
         uint32_t offsetIdx = 0;
         for (uint32_t j = 0; j < inverseVecLen; ++j) {
-            colBufferGather.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
+            colBuffer.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
         }
         for (int i = 1; i < inverseVecLen; ++i) {
             uint32_t curI = i - 1;
             uint32_t validRows = inverseVecLen - i;
-            Gather(col, attnUbFloat[offset + i * chunkSize_ + curI], colBufferGather, (uint32_t)0, validRows);
+            Gather(col, attnUbFloat[offset + i * chunkSize_ + curI], colBuffer, (uint32_t)0, validRows);
 
             uint32_t dstShape[2] = {validRows, inverseVecLen};
             uint32_t colSrcShape[2] = {validRows, 1};
