@@ -146,8 +146,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParamN128()
 
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistenceN128()
 {
-    auto isInvalid = [](std::vector<uint32_t> &t) { return t.empty(); };
-    auto isValid = [](std::vector<uint32_t> &t) { return !t.empty(); };
+    auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
+    auto isValid = [](Tensor* t) { return t != nullptr && t->GetData() != nullptr; };
     // cu_seqlens_q 存在性校验
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_)) {
@@ -185,10 +185,11 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistencyN128()
                 "that obtained from kv tensor, but got %d and %d", queryBatchSize, kvBatchSize);
         return false;
     }
-    if (!cmpTopkLength_.empty()) {
-        if (cmpTopkLength_.size() != queryBatchSize) {
+    if (cmpTopkLength_ != nullptr && cmpTopkLength_->GetData() != nullptr && cmpTopkLength_->GetTensorShape() != nullptr) {
+        int32_t cmpTopkLengthSize = cmpTopkLength_->GetTensorShape()->GetDimSize(0);
+        if (cmpTopkLengthSize != queryBatchSize) {
             KERNEL_LOG_ERROR("The shape size of cmp_topk_length %d should be equal with the batch size %d",
-                    static_cast<int32_t>(cmpTopkLength_.size()), queryBatchSize);
+                    cmpTopkLengthSize, queryBatchSize);
             return false;
         }
     }
@@ -412,7 +413,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
         hasOriTopk = true;
     }
     if (hasCmpKv_) {
-    	if(!cmpTopkLength_.empty() || cmpTopK_ != 0) {
+    	if((cmpTopkLength_ != nullptr && cmpTopkLength_->GetData() != nullptr) || cmpTopK_ != 0) {
             hasCmpTopk = true;
         }
     }
