@@ -439,24 +439,25 @@ namespace BSA {
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
         }
 
-        template <>
+  template <>
         __aicore__ inline
         void operator()<AscendC::AIV>(Params const &params)
         {
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
 
-            // pre
-            // VecPre(params);
+            VecPre(params);
 
-            // // softmaxgrad
-            // VecSoftMaxGrad(params);
+            PipeBarrier<PIPE_ALL>();
 
-            // // simply softmax
-            // VecOp(params);
+            heleDqkv2Float(params);
 
-            // // post
-            // VecPost(params);
+            PipeBarrier<PIPE_ALL>();
+  
+            VecPost(params);
+            PipeBarrier<PIPE_ALL>();
         }
+
+
 
         __aicore__ inline
         void VecOp(Params const &params)
@@ -535,34 +536,44 @@ namespace BSA {
                             } else {
                                 curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * headDim;
                             }
+
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
+
+                            uint64_t actualRow = curInfo.curCalQSize;
+                            uint64_t actualCol = curInfo.curCalKVSize;
+                            uint64_t processNums = curInfo.curCalQSize * curInfo.curCalKVSize;
+                            uint64_t curCoreBatch = curInfo.curBatchIdx;
+                            uint64_t curCoreN1Idx = curInfo.curHeadIdx;
+                            uint64_t curCoreS1Idx = curInfo.curQSeqIdx;
+                            uint64_t curT1Idx = 0; // 不需要
+                            uint64_t sOutSize = tilingData->sOutSize;
+                            uint64_t dPOutSize = tilingData->dPOutSize;
+                            uint64_t dQOutSize = tilingData->dQOutSize;
+                            uint64_t dKOutSize = tilingData->dKOutSize;
+                            uint64_t dVOutSize = tilingData->dVOutSize;
 
                             GM_ADDR s = params.workspace + curInfo.sOffset;
                             GM_ADDR softmaxLse = params.softmaxLse;
                             GM_ADDR dp = params.workspace + sOutSize + curInfo.sOffset;
+                            // GM_ADDR dp = s; // 测试用
                             GM_ADDR blockSparseMask = softmaxLse; // 不需要
                             GM_ADDR actualSeqQlen = params.actualQseqlen;
                             GM_ADDR actualSeqKvlen = params.actualKvseqlen;
                             GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
                             GM_ADDR pWorkspace = params.workspace + curInfo.sOffset; // 连续
                             GM_ADDR dsWorkspace = params.workspace + sOutSize + curInfo.sOffset; // 连续
-                            GM_ADDR tilingData = params.tiling;
-                            uint64_t actualRow = curInfo.curCalQSize;
-                            uint64_t actualCol = curInfo.curCalKVSize;
-                            uint64_t processNums = curInfo.curCalQSize * curInfo.curCalKVSize;
-                            uint64_t curCoreBatch = curInfo.curBatchIdx;
-                            uint64_t curCoreN1Idx = curInfo.curHeadIdx;
-                            uint64_t curCoreS1Idx = curInfo.curQSeqIdx; // 不需要
-                            uint64_t curT1Idx = 0; // 不需要
-                            SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tilingData,
+                            GM_ADDR tiling = params.tiling;
+
+                            SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
                                                 actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
                             EpilogueFAGOp sStmOp(sfmParams);
                             sStmOp();
-
+                      
                             // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
-
+                            PipeBarrier<PIPE_ALL>();
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
+                            // break;
                             // count++;
                         }
                         kvBlockBasicOffset += basicKVBlockSize;
@@ -588,9 +599,11 @@ namespace BSA {
             uint64_t dKOutSize = tilingData->dKOutSize;
             uint64_t dVOutSize = tilingData->dVOutSize;
 
+            GM_ADDR gDqWrkGm = params.workspace + sOutSize + dPOutSize;
+
             GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
             SfmgParams SfmgParams(params.dout, params.out, params.actualQseqlen, sftmgGm, params.tiling);
-            EpilogueFAGSfmg_ vecSftmg(SfmgParams);
+            EpilogueFAGSfmg vecSftmg(SfmgParams);
             vecSftmg();
         }
 
@@ -626,6 +639,7 @@ namespace BSA {
             uint64_t dQOutSize = tilingData->dQOutSize;
             uint64_t dKOutSize = tilingData->dKOutSize;
             uint64_t dVOutSize = tilingData->dVOutSize;
+
 
             GM_ADDR gDqWrkGm = params.workspace + sOutSize + dPOutSize;
             GM_ADDR gDkWrkGm = params.workspace + sOutSize + dPOutSize + dQOutSize;
