@@ -28,7 +28,7 @@ void OneCalcTwoCommBase::ECutInit(CutResult& eCut) {
   eCut.totalTileCnt = eCut.numLongTile;
 }
 
-void OneCalcTwoCommBase::EAxisCut(uint64_t tmpCnt, uint64_t eSize,
+const void OneCalcTwoCommBase::EAxisCut(uint64_t tmpCnt, uint64_t eSize,
                                   CutResult& eCut) {
   tmpCnt = std::min(eSize, tmpCnt);
   tmpCnt = std::max(ONE, tmpCnt);
@@ -162,7 +162,7 @@ void OneCalcTwoCommBase::GetTiling() {
   }
 }
 
-void OneCalcTwoCommShardHBase::InitCutResult(CutResult& tmpCut,
+const void OneCalcTwoCommShardHBase::InitCutResult(CutResult& tmpCut,
                                              uint64_t totalLen) {
   tmpCut.longTileLen = totalLen;
   tmpCut.numLongTile = ONE;
@@ -192,7 +192,7 @@ void OneCalcTwoCommShardHBase::AsignMaxCutNumForBranches(double totalBMMTime,
   }
 }
 
-void OneCalcTwoCommShardHBase::CutAxisE(CutResult& cutRes, uint64_t maxCutNum,
+const void OneCalcTwoCommShardHBase::CutAxisE(CutResult& cutRes, uint64_t maxCutNum,
                                         uint64_t minLen,
                                         double unbalanceRatio) {
   uint64_t totalLen = cutRes.longTileLen;
@@ -273,7 +273,7 @@ void OneCalcTwoCommShardHBase::CutAxisC(uint64_t maxCutNum, uint64_t minLen,
       tilingC.cutRes.numLongTile + tilingC.cutRes.numShortTile;
 }
 
-void OneCalcTwoCommShardHBase::TrimCutResult(CutResult& tmpCut,
+const void OneCalcTwoCommShardHBase::TrimCutResult(CutResult& tmpCut,
                                              bool setShortFlag) {
   // 长短块一样长时归一
   if (tmpCut.shortTileLen == tmpCut.longTileLen) {
