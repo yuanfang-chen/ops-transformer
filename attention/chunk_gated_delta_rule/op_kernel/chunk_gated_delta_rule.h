@@ -68,9 +68,9 @@ public:
                 InitOutput<lowType>(out_, tiling_->t * tiling_->nv * tiling_->dv, 0);
             }
             // 初始化mask矩阵
-            pipe_->InitBuffer(tmpBuff_, tiling_->chunkSize * tiling_->chunkSize * sizeof(float));
-            auto cCFloat_ = tmpBuff_.GetWithOffset<float>(
-                static_cast<uint32_t>(tiling_->chunkSize * tiling_->chunkSize), 0);
+            uint32_t cBlockSize = tiling_->chunkSize * tiling_->chunkSize;
+            pipe_->InitBuffer(tmpBuff_, cBlockSize * sizeof(float));
+            auto cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(cBlockSize), 0);
             Duplicate<float>(cCFloat_, 0, tiling_->chunkSize);
             DataCopyExtParams copyParams;
             copyParams.blockCount = static_cast<uint16_t>(1);
@@ -78,7 +78,7 @@ public:
             copyParams.srcStride = static_cast<uint32_t>(0);
             copyParams.dstStride = static_cast<uint32_t>((0) * sizeof(float));
             for (int i = 0; i < tiling_->chunkSize; ++i) {
-                DataCopyPad(stageOneMask_[i * tiling_->chunkSize], cCFloat_, copyParams);
+                DataCopyPad(stageOneMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
                 cCFloat_.SetValue(i, 1);
                 DataCopyPad(stageThreeMask_[i * tiling_->chunkSize], cCFloat_, copyParams);
             }
@@ -137,10 +137,10 @@ public:
         offset += sizeof(highType) * tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
 
         stageOneMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize;
-        
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
+
         stageThreeMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize;
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
 
         stageWsAddr_ = user + offset;
 
