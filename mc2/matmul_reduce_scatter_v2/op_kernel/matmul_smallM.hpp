@@ -354,7 +354,7 @@ public:
                     blockMmad(
                         gmA[gmOffsetA], params.layoutA,
                         gmB[gmOffsetB], params.layoutB,
-                        gmC[gmOffsetC], params.layoutC,
+                        gmC[gmOffsetC], layout_tmp,
                         gmBias[blockLocCoord.n()], blockSizeCoord);
                 } else {
 
