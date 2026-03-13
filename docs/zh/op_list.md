@@ -896,6 +896,16 @@
     <td>基于用Sinkhorn-Knopp迭代算法将超连接的混合矩阵投影到双随机矩阵流形，以此稳定深度网络信号传播、解决梯度消失 / 爆炸问题</td>
   </tr>
   <tr>
+    <td>mhc</td>
+    <td><a href="../../mhc/mhc_post/README.md">mhc_post</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>基于一系列计算对mHC架构中上一层输出进行Post Mapping，对上一层的输入进行Res Mapping，然后对二者进行残差连接，得到下一层的输入</td>
+  </tr>
+  <tr>
     <td>posembedding</td>
     <td><a href="../../posembedding/apply_rotary_pos_emb/README.md">apply_rotary_pos_emb</a></td>
     <td>✓</td>

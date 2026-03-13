@@ -1411,6 +1411,16 @@ mhc:
     ut_cov_exclude:
       - mhc/mhc_sinkhorn/examples
       - mhc/mhc_sinkhorn/tests
+  mhc_post:
+    module: True
+    src:
+      - mhc/mhc_post
+    exclude:
+      - mhc/mhc_post/docs
+      - mhc/mhc_post/README.md
+    ut_cov_exclude:
+      - mhc/mhc_post/examples
+      - mhc/mhc_post/tests
     test:
       examples: False
       ut: True
