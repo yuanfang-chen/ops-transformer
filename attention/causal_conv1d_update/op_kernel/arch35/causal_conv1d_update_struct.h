@@ -26,7 +26,7 @@ int64_t batchCoreCnt;             // Number of cores for batch direction
 // Dim tiling parameters inter-core (non-uniform split)
 int64_t dimMainCoreCnt;           // Number of big dim cores (base+1 blocks of 128)
 int64_t dimTailCoreCnt;           // Number of small dim cores (base blocks of 128)
-int64_t dimChunkSize;             // Big core dim size: (base+1) * 128
+int64_t dimMainSize;             // Big core dim size: (base+1) * 128
 int64_t dimTailSize;              // Small core dim size: base * 128
 
 // Batch tiling parameters inter-core (non-uniform split)

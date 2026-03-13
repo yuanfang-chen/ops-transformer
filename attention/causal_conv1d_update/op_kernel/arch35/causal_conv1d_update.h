@@ -42,7 +42,7 @@ constexpr int32_t ALIGN_BYTES = 32;      // 32字节对齐，用于DataCopyParam
 
 // TilingData结构定义在Host侧：op_host/causal_conv1d_update_tiling_arch35.h
 // 核间切分策略：二维切分（Dim方向 × Batch方向）
-// - Dim方向：256B对齐分割，dimChunkSize * (dimCoreCnt-1) + dimTailSize = dim
+// - Dim方向：256B对齐分割，dimMainSize * (dimCoreCnt-1) + dimTailSize = dim
 // - Batch方向：按照有效batch范围分配，支持过滤无效batch
 
 // ========== 核函数主类 ==========
@@ -128,7 +128,7 @@ private:
 
     // ========== Tiling参数（二维切分：Dim方向 × Batch方向） ==========
     // 核间切分参数
-    int64_t dimChunkSize_;          // 每个核处理的Dim大小（256B对齐）
+    int64_t dimMainSize_;          // 每个核处理的Dim大小（256B对齐）
     int64_t batchMainPerCore_;          // 每个核处理的batch数
     int64_t validBatchStart_;       // 有效batch起始索引
     int64_t validBatchEnd_;         // 有效batch结束索引（包含）
@@ -176,7 +176,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dUpdateTilingData* tilingData)
 {
     // === 1. 获取核间切分参数（二维：Dim方向 × Batch方向） ===
-    dimChunkSize_ = tilingData->dimChunkSize;
+    dimMainSize_ = tilingData->dimMainSize;
     batchMainPerCore_ = tilingData->batchMainPerCore;
     validBatchStart_ = tilingData->validBatchStart;
     validBatchEnd_ = tilingData->validBatchEnd;
@@ -208,12 +208,12 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     // === 5. 计算当前核处理的Dim范围 ===
     dimSum_ = dim_ + xStride_;
     cacheLenSum_ = dim_ + cacheStride_;
-    dimOffset_ = dimIdx_ * dimChunkSize_;  // Dim起始偏移
+    dimOffset_ = dimIdx_ * dimMainSize_;  // Dim起始偏移
     // 判断是否为Dim方向尾核
     if (dimIdx_ == tilingData->dimCoreCnt - 1) {
         currentDimSize_ = tilingData->dimTailSize;   // 尾核使用tail大小
     } else {
-        currentDimSize_ = dimChunkSize_;  // 常规核使用chunk大小
+        currentDimSize_ = dimMainSize_;  // 常规核使用chunk大小
     }
 
     // === 6. 计算当前核处理的Batch范围 ===

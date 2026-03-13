@@ -154,7 +154,7 @@ private:
     int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
     int64_t dimMainCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
     int64_t dimTailCoreCnt_ = 0;      // Number of small dim cores (base blocks)
-    int64_t dimChunkSize_ = 0;        // Big core dim size ((base+1) * 128)
+    int64_t dimMainSize_ = 0;        // Big core dim size ((base+1) * 128)
     int64_t dimTailSize_ = 0;         // Small core dim size (base * 128)
     int64_t batchMainCoreCnt_ = 0;    // Number of big batch cores
     int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores

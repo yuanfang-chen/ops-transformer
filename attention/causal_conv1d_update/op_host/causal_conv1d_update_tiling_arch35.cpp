@@ -582,10 +582,10 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     dimMainCoreCnt_ = remainder;
     dimTailCoreCnt_ = bestDimCores - remainder;
     if (remainder > 0) {
-        dimChunkSize_ = (base + 1) * DIM_GRANULARITY; // big core size
+        dimMainSize_ = (base + 1) * DIM_GRANULARITY; // big core size
         dimTailSize_  = base * DIM_GRANULARITY;       // small core size
     } else {
-        dimChunkSize_ = base * DIM_GRANULARITY;
+        dimMainSize_ = base * DIM_GRANULARITY;
         dimTailSize_  = base * DIM_GRANULARITY;
     }
 
@@ -631,9 +631,9 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     };
 
     // Big cores UB params
-    computeUbFor(dimChunkSize_, batchMainPerCore_, ubMainFactorDim_, ubMainFactorBS_, loopNumDim_, loopNumBS_, ubTailFactorDim_, ubTailFactorBS_);
+    computeUbFor(dimMainSize_, batchMainPerCore_, ubMainFactorDim_, ubMainFactorBS_, loopNumDim_, loopNumBS_, ubTailFactorDim_, ubTailFactorBS_);
     // Tail cores UB params
-    computeUbFor((dimMainCoreCnt_ > 0 ? dimTailSize_ : dimChunkSize_), batchTailPerCore_,
+    computeUbFor((dimMainCoreCnt_ > 0 ? dimTailSize_ : dimMainSize_), batchTailPerCore_,
                  tailBlockubFactorDim_, tailBlockubFactorBS_, tailBlockloopNumDim_, tailBlockloopNumBS_,
                  tailBlockubTailFactorDim_, tailBlockubTailFactorBS_);
 
@@ -700,7 +700,7 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     // Dim tiling parameters (non-uniform)
     tilingData_.dimMainCoreCnt = dimMainCoreCnt_;
     tilingData_.dimTailCoreCnt = dimTailCoreCnt_;
-    tilingData_.dimChunkSize = dimChunkSize_;
+    tilingData_.dimMainSize = dimMainSize_;
     tilingData_.dimTailSize = dimTailSize_;
 
     // Batch tiling parameters (non-uniform)
@@ -762,7 +762,7 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", batchCoreCnt_);
 
     // Dim tiling parameters inter-core
-    OP_LOGI(context_->GetNodeName(), "dimChunkSize: %ld", dimChunkSize_);
+    OP_LOGI(context_->GetNodeName(), "dimMainSize: %ld", dimMainSize_);
     OP_LOGI(context_->GetNodeName(), "dimTailSize: %ld", dimTailSize_);
 
     // Batch tiling parameters inter-core
