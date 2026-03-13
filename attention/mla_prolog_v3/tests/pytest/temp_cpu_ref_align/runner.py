@@ -13,7 +13,8 @@ import aclnnMlaPrologV3Ref
 import check_valid_param
 import prologv3_generalized
 
-from .case_adapter import build_old_ref_case
+from .case_adapter import build_old_ref_case, build_trusted_refnew_case
+from . import trusted_refnew_bridge
 
 
 def _canonicalize_old_result(old_raw_result, case_payload, generalized_result):
@@ -55,6 +56,44 @@ def run_cpu_ref_alignment_case(params, attr_overrides=None, input_overrides=None
     return old_result, generalized_result, case_payload
 
 
+def run_triple_ref_overlap_case(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    case_payload, generalized_result = prologv3_generalized.run_prologv3_cpu_only(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+
+    old_params, old_tensor_list = build_old_ref_case(case_payload, generalized_result)
+    old_mla_param = aclnnMlaPrologV3Ref.get_param(old_tensor_list, old_params)
+    old_mla_param["device"] = "cpu"
+    old_raw_result = aclnnMlaPrologV3Ref.cal_mlaprolog(old_mla_param)
+    old_result = _canonicalize_old_result(old_raw_result, case_payload, generalized_result)
+
+    trusted_params, trusted_tensor_list = build_trusted_refnew_case(case_payload, generalized_result)
+    trusted_mla_param = trusted_refnew_bridge.get_param(trusted_tensor_list, trusted_params)
+    trusted_mla_param["device"] = "cpu"
+    trusted_raw_result = trusted_refnew_bridge.cal_mlaprolog(trusted_mla_param)
+    trusted_result = _canonicalize_old_result(trusted_raw_result, case_payload, generalized_result)
+
+    return old_result, trusted_result, generalized_result, case_payload
+
+
+def run_trusted_refnew_overlap_case(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    case_payload, generalized_result = prologv3_generalized.run_prologv3_cpu_only(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+    trusted_params, torch_tensor_list = build_trusted_refnew_case(case_payload, generalized_result)
+    trusted_mla_param = trusted_refnew_bridge.get_param(torch_tensor_list, trusted_params)
+    trusted_mla_param["device"] = "cpu"
+    trusted_raw_result = trusted_refnew_bridge.cal_mlaprolog(trusted_mla_param)
+    trusted_result = _canonicalize_old_result(trusted_raw_result, case_payload, generalized_result)
+    return trusted_result, generalized_result, case_payload
+
+
 def assert_cpu_refs_aligned(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
     old_result, generalized_result, case_payload = run_cpu_ref_alignment_case(
         params,
@@ -63,6 +102,30 @@ def assert_cpu_refs_aligned(params, attr_overrides=None, input_overrides=None, v
         validate_quant_combo=validate_quant_combo,
     )
     check_valid_param.check_result(old_result, generalized_result)
+    return case_payload
+
+
+def assert_trusted_refnew_aligned(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    trusted_result, generalized_result, case_payload = run_trusted_refnew_overlap_case(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+    check_valid_param.check_result(trusted_result, generalized_result)
+    return case_payload
+
+
+def assert_overlap_refs_match_trusted(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    old_result, trusted_result, generalized_result, case_payload = run_triple_ref_overlap_case(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+    check_valid_param.check_result(old_result, generalized_result)
+    check_valid_param.check_result(trusted_result, generalized_result)
+    check_valid_param.check_result(old_result, trusted_result)
     return case_payload
 
 

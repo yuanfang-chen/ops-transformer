@@ -158,3 +158,22 @@ def build_old_ref_case(case_payload, generalized_result):
         "actual_seq_value": actual_seq_value if actual_seq_value is not None else np.empty((0,), dtype=np.int32),
     }
     return params, tensor_list
+
+
+def build_trusted_refnew_case(case_payload, generalized_result):
+    params, tensor_list = build_old_ref_case(case_payload, generalized_result)
+    named = case_payload["named_params"]
+    cache_index = tensor_list[9]
+    if (
+        named["cache_mode"] == "PA_BLK_NZ"
+        and (named["bs_fused_flag"] or named["cache_mode"] == "TND")
+        and cache_index.ndim == 1
+    ):
+        pages_per_b = (int(named["q_seq"]) + int(named["block_size"]) - 1) // int(named["block_size"])
+        expected = int(named["batch_size"]) * pages_per_b
+        if cache_index.numel() == expected:
+            tensor_list[9] = cache_index.reshape(int(named["batch_size"]), pages_per_b)
+            params = dict(params)
+            params["shape_input"] = list(params["shape_input"])
+            params["shape_input"][9] = tuple(int(dim) for dim in tensor_list[9].shape)
+    return params, tensor_list

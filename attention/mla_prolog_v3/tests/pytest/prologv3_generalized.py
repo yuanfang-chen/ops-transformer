@@ -1822,6 +1822,13 @@ def _build_default_case_payload(params, validate_quant_combo=True, runtime_devic
             _rand_scale((1, Hckv + Dr), generator),
             runtime_device,
         )
+        if kv_quant_mode == 1:
+            quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale((1,), generator), runtime_device)
+        if kv_quant_mode == 3:
+            k_nope_clip_alpha = _move_tensor_to_runtime_device(
+                _rand_scale((1,), generator, min_val=0.9, max_val=1.1),
+                runtime_device,
+            )
         if smooth_scales_cq_flag:
             smooth_scale_cq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
     elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
