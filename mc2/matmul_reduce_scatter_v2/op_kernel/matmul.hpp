@@ -30,6 +30,7 @@
 #include "matmul_reduce_scatter_aiv_mode_util.h"
 #include "matmul_reduce_scatter_v2_aiv_mode_tiling.h"
 #include "block_mmad_preload_fixpipe.h"
+#include "../3rd/template_linear_algebra/include/template_linear_algebra/gemm/tile/dispatch_policy.hpp"
 
 using namespace AscendC;
 using namespace matmulReduceScatterV2_aivmode_tiling;
@@ -84,7 +85,7 @@ public:
     using ElementC = typename BlockMmad::ElementC;
     using LayoutC = typename BlockMmad::LayoutC;
 
-    using FixpipeBlockMmad = Gemm::Block::FixpipeBlockMmad<DispatchPolicy, L1TileShape, L0TileShape,
+    using FixpipeBlockMmad = Gemm::Block::FixpipeBlockMmad<Gemm::MmadAtlasA2Preload<false, false>, L1TileShape, L0TileShape,
         LayoutA, LayoutB, LayoutC>;
 
     /// Parameters structure
