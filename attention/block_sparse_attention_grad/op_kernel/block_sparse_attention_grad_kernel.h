@@ -577,7 +577,7 @@ namespace BSA {
                                                 actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
                             EpilogueFAGOp sStmOp(sfmParams);
                             sStmOp();
-                            AscendC::CrossCoreSetFlag<2, PIPE_FIX>(VEC2CUBE);
+                            AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(VEC2CUBE);
                             PipeBarrier<PIPE_ALL>();
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
