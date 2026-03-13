@@ -579,7 +579,7 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     int64_t remainder = N % bestDimCores; // big core count
 
     dimCoreCnt_ = bestDimCores;
-    dimHeadCoreCnt_ = remainder;
+    dimMainCoreCnt_ = remainder;
     dimTailCoreCnt_ = bestDimCores - remainder;
     if (remainder > 0) {
         dimChunkSize_ = (base + 1) * DIM_GRANULARITY; // big core size
@@ -593,9 +593,9 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     batchCoreCnt_ = bestBSCores;
     int64_t bsBase = validBatch / batchCoreCnt_;
     int64_t bsRemainder = validBatch % batchCoreCnt_;
-    batchHeadCoreCnt_ = bsRemainder;               // 前remainder个核是大核
+    batchMainCoreCnt_ = bsRemainder;               // 前remainder个核是大核
     batchTailCoreCnt_ = batchCoreCnt_ - bsRemainder; // 其余是小核
-    batchPerCore_ = bsBase + (bsRemainder > 0 ? 1 : 0); // 大核批大小
+    batchMainPerCore_ = bsBase + (bsRemainder > 0 ? 1 : 0); // 大核批大小
     batchTailPerCore_ = bsBase;                          // 小核批大小
 
     usedCoreNum_ = dimCoreCnt_ * batchCoreCnt_;
@@ -631,9 +631,9 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     };
 
     // Big cores UB params
-    computeUbFor(dimChunkSize_, batchPerCore_, ubFactorDim_, ubFactorBS_, loopNumDim_, loopNumBS_, ubTailFactorDim_, ubTailFactorBS_);
+    computeUbFor(dimChunkSize_, batchMainPerCore_, ubMainFactorDim_, ubMainFactorBS_, loopNumDim_, loopNumBS_, ubTailFactorDim_, ubTailFactorBS_);
     // Tail cores UB params
-    computeUbFor((dimHeadCoreCnt_ > 0 ? dimTailSize_ : dimChunkSize_), batchTailPerCore_,
+    computeUbFor((dimMainCoreCnt_ > 0 ? dimTailSize_ : dimChunkSize_), batchTailPerCore_,
                  tailBlockubFactorDim_, tailBlockubFactorBS_, tailBlockloopNumDim_, tailBlockloopNumBS_,
                  tailBlockubTailFactorDim_, tailBlockubTailFactorBS_);
 
@@ -698,15 +698,15 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.batchCoreCnt = batchCoreCnt_;
 
     // Dim tiling parameters (non-uniform)
-    tilingData_.dimHeadCoreCnt = dimHeadCoreCnt_;
+    tilingData_.dimMainCoreCnt = dimMainCoreCnt_;
     tilingData_.dimTailCoreCnt = dimTailCoreCnt_;
     tilingData_.dimChunkSize = dimChunkSize_;
     tilingData_.dimTailSize = dimTailSize_;
 
     // Batch tiling parameters (non-uniform)
-    tilingData_.batchHeadCoreCnt = batchHeadCoreCnt_;
+    tilingData_.batchMainCoreCnt = batchMainCoreCnt_;
     tilingData_.batchTailCoreCnt = batchTailCoreCnt_;
-    tilingData_.batchPerCore = batchPerCore_;
+    tilingData_.batchMainPerCore = batchMainPerCore_;
     tilingData_.batchTailPerCore = batchTailPerCore_;
     tilingData_.validBatchStart = validBatchStart_;
     tilingData_.validBatchEnd = validBatchEnd_;
@@ -714,9 +714,9 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     // Intra-core tiling parameters (UB loop, big/tail blocks)
     tilingData_.loopNumBS = loopNumBS_;
     tilingData_.loopNumDim = loopNumDim_;
-    tilingData_.ubFactorBS = ubFactorBS_;
+    tilingData_.ubMainFactorBS = ubMainFactorBS_;
     tilingData_.ubTailFactorBS = ubTailFactorBS_;
-    tilingData_.ubFactorDim = ubFactorDim_;
+    tilingData_.ubMainFactorDim = ubMainFactorDim_;
     tilingData_.ubTailFactorDim = ubTailFactorDim_;
     tilingData_.tailBlockloopNumBS = tailBlockloopNumBS_;
     tilingData_.tailBlockloopNumDim = tailBlockloopNumDim_;
@@ -765,14 +765,14 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "dimTailSize: %ld", dimTailSize_);
 
     // Batch tiling parameters inter-core
-    OP_LOGI(context_->GetNodeName(), "batchPerCore: %ld", batchPerCore_);
+    OP_LOGI(context_->GetNodeName(), "batchMainPerCore: %ld", batchMainPerCore_);
     OP_LOGI(context_->GetNodeName(), "batchTailPerCore: %ld", batchTailPerCore_);
     OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", validBatchStart_);
     OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", validBatchEnd_);
 
     // Intra-core tiling parameters UB loop (big/tail blocks)
-    OP_LOGI(context_->GetNodeName(), "ubFactorBS: %ld", ubFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "ubFactorDim: %ld", ubFactorDim_);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorBS: %ld", ubMainFactorBS_);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorDim: %ld", ubMainFactorDim_);
     OP_LOGI(context_->GetNodeName(), "loopNumBS: %ld", loopNumBS_);
     OP_LOGI(context_->GetNodeName(), "loopNumDim: %ld", loopNumDim_);
     OP_LOGI(context_->GetNodeName(), "tailBlockubFactorBS: %ld", tailBlockubFactorBS_);

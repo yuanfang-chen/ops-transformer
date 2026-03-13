@@ -152,13 +152,13 @@ private:
     int64_t usedCoreNum_ = 0;         // Actually used core number
     int64_t dimCoreCnt_ = 0;          // Number of cores for dim direction
     int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
-    int64_t dimHeadCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
+    int64_t dimMainCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
     int64_t dimTailCoreCnt_ = 0;      // Number of small dim cores (base blocks)
     int64_t dimChunkSize_ = 0;        // Big core dim size ((base+1) * 128)
     int64_t dimTailSize_ = 0;         // Small core dim size (base * 128)
-    int64_t batchHeadCoreCnt_ = 0;    // Number of big batch cores
+    int64_t batchMainCoreCnt_ = 0;    // Number of big batch cores
     int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores
-    int64_t batchPerCore_ = 0;        // Batch size for big cores
+    int64_t batchMainPerCore_ = 0;        // Batch size for big cores
     int64_t batchTailPerCore_ = 0;    // Batch size for small cores
     int64_t validBatchStart_ = 0;     // First valid batch index
     int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
@@ -166,9 +166,9 @@ private:
     // Intra-core tiling parameters UB loop (match Fn style)
     int64_t loopNumBS_ = 0;                // Loops in BS direction for big cores
     int64_t loopNumDim_ = 0;               // Loops in Dim direction for big cores
-    int64_t ubFactorBS_ = 0;               // UB BS factor for big cores
+    int64_t ubMainFactorBS_ = 0;               // UB BS factor for big cores
     int64_t ubTailFactorBS_ = 0;           // UB BS tail factor for big cores
-    int64_t ubFactorDim_ = 0;              // UB Dim factor for big cores
+    int64_t ubMainFactorDim_ = 0;              // UB Dim factor for big cores
     int64_t ubTailFactorDim_ = 0;          // UB Dim tail factor for big cores
     int64_t tailBlockloopNumBS_ = 0;       // Loops in BS direction for tail cores
     int64_t tailBlockloopNumDim_ = 0;      // Loops in Dim direction for tail cores

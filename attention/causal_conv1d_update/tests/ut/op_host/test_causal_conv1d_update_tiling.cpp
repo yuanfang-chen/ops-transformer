@@ -43,8 +43,8 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(

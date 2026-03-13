@@ -129,7 +129,7 @@ private:
     // ========== Tiling参数（二维切分：Dim方向 × Batch方向） ==========
     // 核间切分参数
     int64_t dimChunkSize_;          // 每个核处理的Dim大小（256B对齐）
-    int64_t batchPerCore_;          // 每个核处理的batch数
+    int64_t batchMainPerCore_;          // 每个核处理的batch数
     int64_t validBatchStart_;       // 有效batch起始索引
     int64_t validBatchEnd_;         // 有效batch结束索引（包含）
 
@@ -177,7 +177,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 {
     // === 1. 获取核间切分参数（二维：Dim方向 × Batch方向） ===
     dimChunkSize_ = tilingData->dimChunkSize;
-    batchPerCore_ = tilingData->batchPerCore;
+    batchMainPerCore_ = tilingData->batchMainPerCore;
     validBatchStart_ = tilingData->validBatchStart;
     validBatchEnd_ = tilingData->validBatchEnd;
 
@@ -221,12 +221,12 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     int64_t validBatchCount = validBatchEnd_ - validBatchStart_ + 1;
     int64_t batchStartOffset = validBatchStart_;
 
-    firstBatchIdx_ = batchStartOffset + batchIdx_ * static_cast<int32_t>(batchPerCore_);
+    firstBatchIdx_ = batchStartOffset + batchIdx_ * static_cast<int32_t>(batchMainPerCore_);
     // 判断是否为Batch方向尾核
     if (batchIdx_ == static_cast<int32_t>(tilingData->batchCoreCnt) - 1) {
         currentBatchNum_ = static_cast<int32_t>(tilingData->batchTailPerCore);
     } else {
-        currentBatchNum_ = static_cast<int32_t>(batchPerCore_);
+        currentBatchNum_ = static_cast<int32_t>(batchMainPerCore_);
     }
 
     // 确保不超出有效batch范围
