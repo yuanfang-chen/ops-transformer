@@ -22,7 +22,7 @@ using std::pair;
 using namespace ge;
 using namespace AscendC;
 namespace optiling {
-
+constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
 ge::graphStatus FiaTilingCheck::CheckFeatureNoQuantDtype() const
 {
     if (quantMode_ != FiaQuantMode::NO_QUANT) {
@@ -205,6 +205,82 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
+{
+    if (!fiaInfo_.isOutQuantEnable) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (fiaInfo_.s1Size > 1) {
+        bool checkPostQuantOffset =
+            (fiaInfo_.outputType == ge::DT_INT8) &&
+            (opParamInfo_.quantOffset2.tensor != nullptr && opParamInfo_.quantOffset2.desc != nullptr) &&
+            (opParamInfo_.quantOffset2.tensor->GetStorageShape().GetShapeSize() != 0);
+        if (!fiaInfo_.isMaxWorkspace) {
+            std::vector<int64_t> actualSeqLengthsKV{};
+            std::vector<int64_t> actualSeqLengths{};
+            actualSeqLengthsKV.resize(fiaInfo_.bSize);
+            actualSeqLengths.resize(fiaInfo_.bSize);
+
+            const gert::Tensor *tempData = fiaInfo_.opParamInfo.actualSeqLengthsQ.tensor;
+            const gert::Tensor *tempDataKV = fiaInfo_.opParamInfo.actualSeqLengths.tensor;
+            const int64_t* preTokens = fiaInfo_.opParamInfo.preToken;
+            const int64_t* nextTokens = fiaInfo_.opParamInfo.nextToken;
+            uint32_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
+            uint32_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
+            for (uint32_t i = 0; i < fiaInfo_.bSize; i++) {
+                if ((actualLenDims == 0) || (tempData == nullptr) || (tempData->GetData<int64_t>() == nullptr)) {
+                    actualSeqLengths[i] = fiaInfo_.s1Size;
+                } else {
+                    actualSeqLengths[i] = (actualLenDims > 1) ? static_cast<uint32_t>(tempData->GetData<int64_t>()[i]) :
+                                                                static_cast<uint32_t>(tempData->GetData<int64_t>()[0]);
+                }
+                if ((actualLenDimsKV == 0) || (tempDataKV == nullptr) ||
+                    (tempDataKV->GetData<int64_t>() == nullptr)) { // The user did not input act_seq_kv
+                    if (fiaInfo_.kvStorageMode == KvStorageMode::BATCH_CONTINUOUS) {
+                        actualSeqLengthsKV[i] = fiaInfo_.s2Size;
+                    } else {
+                        actualSeqLengthsKV[i] = fiaInfo_.kvListSeqLens[i];
+                    }
+                } else {
+                    actualSeqLengthsKV[i] = (actualLenDimsKV > 1) ?
+                                                static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[i]) :
+                                                static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[0]);
+                }
+                int64_t preTokensPerbatch = 0;
+                int64_t nextTokensPerbatch = 0;
+                if (fiaInfo_.sparseMode == SPARSE_MODE_RIGHT_DOWN) {
+                    preTokensPerbatch = static_cast<int64_t>(SPARSE_MODE_INT_MAX);
+                    nextTokensPerbatch =
+                        actualSeqLengthsKV[i] + static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i];
+                } else if (fiaInfo_.sparseMode == SPARSE_MODE_BAND) {
+                    preTokensPerbatch = fiaInfo_.preToken - actualSeqLengthsKV[i] -
+                                        static_cast<int64_t>(fiaInfo_.systemPrefixLen) + actualSeqLengths[i];
+                    nextTokensPerbatch = fiaInfo_.nextToken + actualSeqLengthsKV[i] +
+                                         static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i];
+                } else {
+                    preTokensPerbatch = fiaInfo_.preToken;
+                    nextTokensPerbatch = fiaInfo_.nextToken;
+                }
+                OP_CHECK_IF((checkPostQuantOffset &&
+                             ((preTokensPerbatch + actualSeqLengthsKV[i] +
+                                   static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i] <
+                               0) ||
+                              (nextTokensPerbatch < 0))),
+                            OPS_REPORT_VECTOR_INNER_ERR(
+                                opName_,
+                                "When sparse mode = %d, output dtype is int8, the output's dequant offset "
+                                "is not null or empty tensor, "
+                                "preTokens = %ld and nextTokens = %ld, some rows of the matrix do not "
+                                "participate in the calculation, "
+                                "the accuracy of the final result will be incorrect. Please see the "
+                                "documentation for more details.",
+                                fiaInfo_.sparseMode, *preTokens, *nextTokens),
+                            return ge::GRAPH_FAILED);
+            }
+        }
+    }
+    return ge::GRAPH_SUCCESS;
+}
 ge::graphStatus FiaTilingCheck::CheckFeatureLeftPadding() const
 {
     if (fiaInfo_.qPaddingSizeFlag || fiaInfo_.kvPaddingSizeFlag) {
@@ -355,6 +431,80 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), QUERY_NAME.c_str(), LayoutToSerialString(qLayout_).c_str()),
             return ge::GRAPH_FAILED);
     }
+
+    const std::vector<std::string> splitRopeLayoutSupportListA = {
+        "BSH", "BSND", "BNSD", "TND", "BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "TND_NTD"
+    };
+    const std::vector<std::string> splitRopeLayoutSupportListB = {
+        "BSH", "BSND", "BNSD", "BNSD_BSND", "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
+    };
+    const std::vector<std::string> noRopeLayoutSupportListA = {
+        "BSH", "BSND", "BNSD"
+    };
+    const std::vector<std::string> noRopeLayoutSupportListB = {
+        "BNSD_BSND"
+    };
+    const std::vector<std::string> noRopeLayoutSupportListC = {
+        "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
+    };
+    const std::vector<std::string> noRopeLayoutSupportListD = {
+        "TND"
+    };
+    const std::vector<std::string> combineRopeLayoutSupportList = {
+        "BSH", "BSND", "BNSD", "BNSD_BSND", "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
+    };
+
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT) {
+        if (vHeadDim_ == 512) { // 512: qkvD = 512 to determine specific input layout
+            OP_CHECK_IF(std::find(splitRopeLayoutSupportListA.begin(), splitRopeLayoutSupportListA.end(), layout) == splitRopeLayoutSupportListA.end(),
+            OP_LOGE(opName_, "In %s %s situation, when value headDim = 512, layout only supports BSH, BSND, BNSD, TND, BNSD_NBSD, BSND_NBSD, BSH_NBSD, TND_NTD, but got %s",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+            return ge::GRAPH_FAILED);
+        }
+        if (vHeadDim_ == 128) { // 128: qkvD = 128 to determine specific input layout
+            OP_CHECK_IF(std::find(splitRopeLayoutSupportListB.begin(), splitRopeLayoutSupportListB.end(), layout) == splitRopeLayoutSupportListB.end(),
+            OP_LOGE(opName_, "In %s %s situation, when value headDim = 128, layout only supports BSH, BSND, BNSD, BNSD_BSND, TND, NTD, BSH_BNSD, BSND_BNSD, NTD_TND, but got %s",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+            return ge::GRAPH_FAILED);
+        }
+    } else if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
+        if (!fiaInfo_.isLegacyIfa && (vHeadDim_ % 16 != 0)) { // 16: qkvD need 16 align when qs>1, in specific input layout
+            OP_CHECK_IF(std::find(noRopeLayoutSupportListA.begin(), noRopeLayoutSupportListA.end(), layout) != noRopeLayoutSupportListA.end(),
+            OP_LOGE(opName_, "In %s %s situation, when Qs>1 and input_layout is %s, headDim of query|key|value should be align to 16.",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+            return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF(std::find(noRopeLayoutSupportListB.begin(), noRopeLayoutSupportListB.end(), layout) != noRopeLayoutSupportListB.end(),
+            OP_LOGE(opName_, "In %s %s situation, when Qs>1 and input_layout is %s, headDim of query|key|value should be align to 16.",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+            return ge::GRAPH_FAILED);
+        }
+        if (fiaInfo_.isLegacyIfa && (vHeadDim_ != 64 && vHeadDim_ != 128)) { // 64: qkvD need 64 128: qkvD need 128 in specific input layout
+            OP_CHECK_IF(std::find(noRopeLayoutSupportListB.begin(), noRopeLayoutSupportListB.end(), layout) != noRopeLayoutSupportListB.end(),
+            OP_LOGE(opName_, "In %s %s situation, when Qs=1 and input_layout is BNSD_BSND, only query|key|value headDim = 64/128 are supported, but got %u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
+        if (std::find(noRopeLayoutSupportListC.begin(), noRopeLayoutSupportListC.end(), layout) != noRopeLayoutSupportListC.end()) {
+            OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128, // 64: qkvD (optional) 64 128: qkvD (optional) 128 in specific input layout
+            OP_LOGE(opName_, "In %s %s situation, when input_layout is NTD, BSH_BNSD, BSND_BNSD, NTD_TND, only query|key|value headDim = 64/128 are supported, but got %u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
+        if (std::find(noRopeLayoutSupportListD.begin(), noRopeLayoutSupportListD.end(), layout) != noRopeLayoutSupportListD.end()) {
+            OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128 && vHeadDim_ != 192, // 64: qkvD (optional) 64, 128: qkvD (optional) 128, 192: qkvD (optional) 192 when input_layout=TND
+            OP_LOGE(opName_, "In %s %s situation, when input_layout is TND, only query|key|value headDim = 64/128/192 are supported, but got %u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
+    } else if (fiaInfo_.ropeMode == RopeMode::ROPE_COMBINE) {
+        if (std::find(combineRopeLayoutSupportList.begin(), combineRopeLayoutSupportList.end(), layout) != combineRopeLayoutSupportList.end()) {
+            OP_CHECK_IF(qkHeadDim_ != 192 || vHeadDim_ != 128, // 192: qkD need 192, 128: vD need 128 to determine specific input layout
+            OP_LOGE(opName_, "In %s %s situation, when input_layout is BSH, BSND, BNSD, BNSD_BSND, TND, NTD, BSH_BNSD, BSND_BNSD, NTD_TND, only query|key headDim = 192, value headDim = 128 are supported, but got query|key headDim: %u, value headDim: %u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), qkHeadDim_, vHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -380,6 +530,21 @@ ge::graphStatus FiaTilingCheck::CheckFeatureAxisInfo() const
             return ge::GRAPH_FAILED);
     }
 
+    const std::vector<std::int32_t> ropeSplitgSizeSupportList = {
+        1, 2, 4, 8, 16, 32, 64, 128
+    };
+
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && vHeadDim_ == 512) { // 512: qkvD = 512 to determine gsize 
+        OP_CHECK_IF(std::find(ropeSplitgSizeSupportList.begin(), ropeSplitgSizeSupportList.end(), gSize_) == ropeSplitgSizeSupportList.end(),
+        OP_LOGE(opName_, "In %s %s situation, when query|key|value headDim = 512, layout only supports 1, 2, 4, 8, 16, 32, 64, 128, but got %u",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), gSize_),
+        return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF(n2Size_ != 1, // 1: KV_S need equals to 1 when vD = 512
+        OP_LOGE(opName_, "In %s %s situation, when query|key|value headDim = 512, key sequence_len should be equals to 1.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str()),
+        return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -453,6 +618,30 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
             QuantModeToSerialString(quantMode_).c_str(), vHeadDim_, qkHeadDim_),
         return ge::GRAPH_FAILED);
     }
+
+    if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
+        if (!fiaInfo_.isLegacyIfa) {
+            OP_CHECK_IF((!fiaInfo_.isOutQuantEnable && (vHeadDim_ % 16 != 0)), // 16: qkvD need 16 align when qs>1
+            OP_LOGE(opName_, "In %s %s situation, when Qs>1, headDim of query|key|value should be align to 16, but got value headDim:%u, query|key headDim:%u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
+            return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF((fiaInfo_.isOutQuantEnable && (vHeadDim_ % 32 != 0)), // 32: qkvD need 16 align when qs>1 and enable postquant
+ 	        OP_LOGE(opName_, "In %s %s situation, when Qs>1 and enable postquant, headDim of query|key|value should be align to 32, but got value headDim:%u, query|key headDim:%u",
+ 	            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
+ 	        return ge::GRAPH_FAILED);
+        }
+    } else if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT) {
+        OP_CHECK_IF(!(vHeadDim_ == 512 && ropeHeadDim_ == 64) && !(vHeadDim_ == 128 && ropeHeadDim_ == 64), // 512: vD need 512 64: ropeD need 64, 128: vD need 128 64: ropeD need 64
+        OP_LOGE(opName_, "In %s %s situation, only value matrix headDim = 128/512 and rope headDim = 64 are supported, but got value matrix headDim:%u, rope headDim:%u.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, ropeHeadDim_),
+        return ge::GRAPH_FAILED);
+    } else if (fiaInfo_.ropeMode == RopeMode::ROPE_COMBINE) {
+        OP_CHECK_IF(!(vHeadDim_ == 128 && ropeHeadDim_ == 64), // 128: vD need 128 64: ropeD need 64
+        OP_LOGE(opName_, "In %s %s situation, only value matrix headDim = 128 and rope headDim = 64 are supported, but got value matrix headDim:%u, rope headDim:%u.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, ropeHeadDim_),
+        return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -474,6 +663,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureLearnableSink() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaPrefix() ||
         ge::GRAPH_SUCCESS != CheckFeatureLeftPadding() ||
+        ge::GRAPH_SUCCESS != CheckFeaturePostQuant() ||
         ge::GRAPH_SUCCESS != CheckFeaturePSE() ||
         ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
         return ge::GRAPH_FAILED;

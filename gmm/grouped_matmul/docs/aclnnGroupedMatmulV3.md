@@ -1,6 +1,6 @@
 # aclnnGroupedMatmulV3
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
+**须知：该接口后续版本会废弃，请使用最新aclnnGroupedMatmulV5接口。**
 
 ## 产品支持情况
 
@@ -262,7 +262,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - biasOptional支持FLOAT16、BFLOAT16、FLOAT32、INT32
     - y支持FLOAT16、BFLOAT16、FLOAT32、INT8
-    - 不支持scaleOptional、offsetOptional
+    - 不支持offsetOptional
     - groupType支持m轴分组和不分组，仅非量化支持k轴分组。
     - 输入参数x、weight，输出参数y在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor，在量化场景支持最多1个tensor。
 
@@ -301,7 +301,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <td>若bias不为空，bias的长度不等于weight的长度。</td>
     </tr>
     <tr>
-      <td>groupListOptional维度为1。</td>
+      <td>groupListOptional维度不在支持范围内。</td>
     </tr>
     <tr>
       <td>splitItem为2、3的场景，out长度不等于1。</td>
@@ -358,7 +358,7 @@ aclnnStatus aclnnGroupedMatmulV3(
 ## 约束说明
 - 确定性计算：
   - aclnnGroupedMatmulV3默认确定性实现。
-- 如果传入groupListOptional，groupListOptional必须为非负递增数列，groupListOptional长度不能为1。
+- 如果传入groupListOptional，groupListOptional必须为非负递增数列。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
   - 非量化场景支持的输入类型为：
@@ -366,7 +366,6 @@ aclnnStatus aclnnGroupedMatmulV3(
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为BFLOAT16；
     - x为FLOAT32、weight为FLOAT32、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为FLOAT32（仅x、weight、y都为单tensor场景支持）；
   - 量化场景支持的输入类型为：
-
     - x为INT8、weight为INT8、biasOptional为INT32、scaleOptional为UINT64、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为INT8；
   - 伪量化场景支持的输入类型为：
     - x为FLOAT16、weight为INT8、biasOptional为FLOAT16、scaleOptional为空，offsetOptional为空，antiquantScaleOptional为FLOAT16、antiquantOffsetOptional为FLOAT16、y为FLOAT16；
@@ -432,18 +431,14 @@ aclnnStatus aclnnGroupedMatmulV3(
   <summary>量化场景约束</summary>
 
   - 以下入参为空：offsetOptional、antiquantScaleOptional、antiquantOffsetOptional
+  - 仅支持单单单场景
 
-  - 不为空的参数支持的数据类型组合要满足下表：
+  - 不为空的参数支持的数据类型和维度组合要满足下表（其中g为matmul组数即分组数）：
 
-      |groupType| x       | weight  | biasOptional | scaleOptional | out     |
-      |:-------:|:-------:|:-------:| :------      |:-------       | :------ |
-      |0|INT8     |INT8     |INT32/null    | UINT64/INT64  |INT8|
+      |groupType| x dtype     | x shape | weight dtype |weight shape| biasOptional dtype |biasOptional shape| scaleOptional dtpye |scaleOptional shape| out dtpye    |out shape|
+      |:-------:|:-------:|:-------:|:-------:|:-------:| :------      | :------      |:-------       | :------ |:-------       | :------ |
+      |0|INT8     |(M,K)|INT8     |(g,K,N)/(g,N,K)|INT32/null    | (g,N)|UINT64/INT64  |(g,N)/null|INT8|(M,N)|
 
-  - scaleOptional要满足下表（其中g为matmul组数即分组数）：
-
-      |groupType| 使用场景 | shape限制 |
-      |:---------:|:---------:| :------ |
-      |0|weight单tensor|每个tensor 2维， shape为（g, N）|
   </details>
 
   <details>

@@ -16,8 +16,13 @@
 #define MOE_V3_GATHER_HIF8_PERTOKEN_QUANT_H_REGBASE
 
 #include "moe_v3_common.h"
-#include "kernel_operator.h"
 #include "op_kernel/load_store_utils.h"
+#if ASC_DEVKITMAJOE >= 9
+#include "kernel_vec_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+
 
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
@@ -325,7 +330,7 @@ template <typename T>
 __aicore__ inline void MoeGatherOutHif8PertokenQuant<T>::Init(GM_ADDR inputX, GM_ADDR sortedExpertIdx, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
                                                             GM_ADDR expandedScale, const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe)
 {
-#if (__NPU_ARCH__ == 3101)
+#if (__NPU_ARCH__ == 3510)
     SetCtrlSpr<OVERFLOW_MODE_CTRL, OVERFLOW_MODE_CTRL>(0);
 #endif
 

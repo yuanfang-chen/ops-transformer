@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -7,6 +7,11 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file flash_attention_infer_tiling.h
+ * \brief
+ */
 
 #ifndef FLASH_ATTN_INFER_TILING_H
 #define FLASH_ATTN_INFER_TILING_H
@@ -63,8 +68,8 @@ namespace optiling{
     TILING_DATA_FIELD_DEF(uint64_t, UpdateSize)
     TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize)
     TILING_DATA_FIELD_DEF(float, scaleValue)
-    TILING_DATA_FIELD_DEF(uint64_t, padding1)
-    TILING_DATA_FIELD_DEF(uint64_t, padding2)
+    TILING_DATA_FIELD_DEF(uint64_t, pseQ)
+    TILING_DATA_FIELD_DEF(uint64_t, pseKv)
     TILING_DATA_FIELD_DEF(uint32_t, padding3)
     TILING_DATA_FIELD_DEF(int64_t, preToken)
     TILING_DATA_FIELD_DEF(int64_t, nextToken)
@@ -90,7 +95,8 @@ namespace optiling{
     enum class MaskType : uint32_t {
         NO_MASK = 0,
         MASK_SPEC = 1,
-        SWA_MASK = 3
+        SWA_MASK = 3,
+        FULL_MASK = 4
     };
 
     enum class DataType : uint32_t {
@@ -122,6 +128,8 @@ namespace optiling{
         int32_t innerPrecise = 0;
         int64_t maxQSeqlen = 0;
         int64_t maxKvSeqlen = 0;
+        int64_t pseQ = 0;
+        int64_t pseKv = 0;
         int64_t preToken = 0;
         int64_t nextToken = 0;
         int32_t sparseMode = 0;
@@ -213,6 +221,8 @@ namespace optiling{
         faTilingData.set_sparseMode(faInfo_.sparseMode);
         faTilingData.set_preToken(static_cast<int64_t>(faInfo_.preToken));
         faTilingData.set_nextToken(static_cast<int64_t>(faInfo_.nextToken));
+        faTilingData.set_pseQ(faInfo_.pseQ);
+        faTilingData.set_pseKv(faInfo_.pseKv);
     }
 
     uint64_t FAInferTiling::GetTilingKey() 
@@ -221,6 +231,7 @@ namespace optiling{
         constexpr uint64_t PAGED_CACHE_KEY = 10000000;
         constexpr uint64_t COMP_CAUSAL_MASK_KEY = 3;
         constexpr uint64_t COMP_SWA_MASK_KEY = 5;
+        constexpr uint64_t FULL_MASK_KEY = 6;
         constexpr uint64_t LAYOUTQ_TND_KEY = 200000;
         constexpr uint64_t DTYPE_FP16_KEY = 100;
         constexpr uint64_t DTYPE_BF16_KEY = 200;
@@ -236,6 +247,8 @@ namespace optiling{
             tilingKey += static_cast<uint64_t>(COMP_CAUSAL_MASK_KEY);
         } else if (faInfo_.maskType == MaskType::SWA_MASK) {
             tilingKey += static_cast<uint64_t>(COMP_SWA_MASK_KEY);
+        } else if (faInfo_.maskType == MaskType::FULL_MASK) {
+            tilingKey += static_cast<uint64_t>(FULL_MASK_KEY); 
         }
         if (faInfo_.layout == "TND") {
             tilingKey += static_cast<uint64_t>(LAYOUTQ_TND_KEY);

@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 #include "aclnn_grouped_matmul.h"
 #include "aclnn_grouped_matmul_v2.h"
 #include "aclnn_grouped_matmul_v3.h"
@@ -35,12 +35,23 @@
 #include "opdev/tensor_view_utils.h"
 #include "opdev/make_op_executor.h"
 
-#include "aclnn_grouped_matmul_util.h"
-#include "aclnn_grouped_matmul_950_checker.h"
-#include "aclnn_grouped_matmul_weight_quant_950_checker.h"
+#include "grouped_matmul_util.h"
+#include "grouped_matmul_950_checker.h"
+#include "grouped_matmul_weight_quant_950_checker.h"
 #include "grouped_matmul_no_quant_950_checker.h"
 
 using namespace op;
+
+#define DEPRECATED_API_WARN_ONCE(oldApiName, newApiName)                                 \
+    do {                                                                                 \
+        static bool isFirstWarn = true;                                                  \
+        if (isFirstWarn){                                                                \
+            OP_LOGW("%s is scheduled to be deprecated in a post-December 2026 version update, "                                                              \
+                        "and will be replaced by the %s. "                                                                                                   \
+                        "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.", (oldApiName), (newApiName)); \
+            isFirstWarn = false;                                                         \
+        }                                                                                \
+    } while(0)
 
 #ifdef __cplusplus
 extern "C" {
@@ -169,6 +180,7 @@ namespace {
   {
     return ge::GetSizeByDataType(xDtype) != ge::GetSizeByDataType(weightDtype);
   }
+
 }
 
 namespace {
@@ -1854,6 +1866,39 @@ static aclnnStatus CheckZeroShape(gmm::GroupedMatmulParams &params, uint64_t *wo
     return ACLNN_SUCCESS;
 }
 
+static aclnnStatus CheckZeroShapeSplitK(gmm::GroupedMatmulParams &params, uint64_t *workspaceSize) {
+    // all M or N be zero, get true
+    bool zeroM = true;
+    bool zeroN = true;
+    // current view_shape transpose is always false false
+    for (size_t i = 0; i < params.x->Size(); ++i) {
+      // return ACLNN_SUCCESS,后续校验报错即可
+      CHECK_COND((*params.x)[i] != nullptr, ACLNN_SUCCESS, "GroupedMatmul x tensor should not be null");
+      auto xShape = (*params.x)[i]->GetViewShape();
+      size_t xDimNum = xShape.GetDimNum();
+      // return ACLNN_SUCCESS,后续校验报错即可
+      CHECK_COND(xDimNum == gmm::MIN_FM_DIM, ACLNN_SUCCESS,
+                "When groupType = 2 GroupedMatmul x dim num should be 2, but actual is %zu.", xDimNum);
+      zeroM = zeroM && (xShape.GetDim(1) == 0);
+    }
+    for (size_t i = 0; i < params.weight->Size(); ++i) {
+      // return ACLNN_SUCCESS,后续校验报错即可
+      CHECK_COND((*params.weight)[i] != nullptr, ACLNN_SUCCESS,
+                "GroupedMatmul weight tensor should not be null");
+      auto wShape = (*params.weight)[i]->GetViewShape();
+      // return ACLNN_SUCCESS,后续校验报错即可
+      CHECK_COND(wShape.GetDimNum() == gmm::MIN_FM_DIM, ACLNN_SUCCESS,
+                "When groupType = 2 GroupedMatmul weight dim num should be 2, but actual %zu.", wShape.GetDimNum());
+      zeroN = zeroN && (wShape.GetDim(wShape.GetDimNum() - 1) == 0);
+    }
+    if (zeroM || zeroN) {
+        *workspaceSize = 0UL;
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    return ACLNN_SUCCESS;
+}
+
+
 static void SetAntiQuantParamsTensorEmptyDAV3510(gmm::GroupedMatmulParams &params, aclOpExecutor *executor)
 {
     DataType weightDtype = (*params.weight)[0]->GetDataType();
@@ -2170,9 +2215,16 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
   SetTransposedTensorListContiguous(params, executorPtr);
   CHECK_COND(ParamsDataContiguous(params, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "ParamsDataContiguous failed.");
-  if (CheckZeroShape(params, workspaceSize) != ACLNN_SUCCESS) {
-    uniqueExecutor.ReleaseTo(executor);
-    return ACLNN_SUCCESS;}
+  if (params.groupType == gmm::SPLIT_K) {
+    if (CheckZeroShapeSplitK(params, workspaceSize) != ACLNN_SUCCESS) {
+      uniqueExecutor.ReleaseTo(executor);
+      return ACLNN_SUCCESS;}
+  } else {
+    if (CheckZeroShape(params, workspaceSize) != ACLNN_SUCCESS) {
+      uniqueExecutor.ReleaseTo(executor);
+      return ACLNN_SUCCESS;}
+  }
+
   op::Shape nzShape = (*params.weight)[0]->GetStorageShape();
   if (params.apiVersion == gmm::GMMApiVersion::WeightNz ||
       (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
@@ -2292,8 +2344,10 @@ static aclnnStatus aclnnGroupedMatmulGetWorkspaceSizeCommon(const aclTensorList 
   bool isSingleWeight = (weight->Size() == 1 && groupType != gmm::NO_SPLIT);
   bool transposeX = false;
   bool transposeWeight = false;
-  CHECK_COND(CheckEmptyTensor(x, weight) == ACLNN_SUCCESS,
-             ACLNN_ERR_PARAM_INVALID, "CheckEmptyTensor failed!");
+  if(groupType != gmm::SPLIT_K) {
+    CHECK_COND(CheckEmptyTensor(x, weight) == ACLNN_SUCCESS,
+              ACLNN_ERR_PARAM_INVALID, "CheckEmptyTensor failed!");
+  }
   CHECK_COND(CheckTransposeStatus(x, weight, transposeX, transposeWeight, groupType) == ACLNN_SUCCESS,
              ACLNN_ERR_PARAM_INVALID, "CheckTransposeStatus failed!");
   gmm::GroupedMatmulParams gmmParams{x, weight, biasOptional, groupListOptional, groupTensorOptional, scaleOptional,
@@ -2450,6 +2504,7 @@ aclnnStatus aclnnGroupedMatmulV4GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *activationQuantOffsetOptional, int64_t splitItem, int64_t groupType, int64_t groupListType,
   int64_t actType, aclTensorList *out, aclTensorList *activationFeatureOutOptional,
   aclTensorList *dynQuantScaleOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor) {
+ 	DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV4GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, out) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2484,6 +2539,7 @@ aclnnStatus aclnnGroupedMatmulV3GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclTensor *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV3GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2513,6 +2569,7 @@ aclnnStatus aclnnGroupedMatmulV2GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV2GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2538,6 +2595,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, const aclTensorList *y, uint64_t *workspaceSize,
   aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulGetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2575,6 +2633,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
 
 aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmul", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmul);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2583,6 +2642,7 @@ aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExe
 
 aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV2", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV2);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2591,6 +2651,7 @@ aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV3", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV3);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2599,6 +2660,7 @@ aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV4(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE("aclnnGroupedMatmulV4", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV4);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");

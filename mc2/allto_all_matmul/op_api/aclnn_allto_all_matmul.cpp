@@ -23,7 +23,7 @@
 #include "hccl_util.h"
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/transdata.h"
-#include "mc2/matmul_allto_all/op_api/checker.h"
+#include "mc2/matmul_allto_all/op_api/matmul_allto_all_util.h"
 
 
 namespace {
@@ -312,6 +312,8 @@ extern "C" aclnnStatus aclnnAlltoAllMatmul(void *workspace, uint64_t workspaceSi
     if (NnopbaseSetHcclServerType) {
         if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        } else if (GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
         } else if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }

@@ -26,8 +26,8 @@
 #include "aclnn_kernels/transpose.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/reshape.h"
-#include "aclnn_grouped_matmul_finalize_routing_MX_checker.h"
-#include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_950_checker.h"
+#include "grouped_matmul_finalize_routing_MX_checker.h"
+#include "../../../grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h"
 
 using namespace op;
 using namespace GmmFinalizeRouting;
@@ -619,6 +619,10 @@ static op::Shape SwapLastSecondAndThirdDimValue(const op::Shape& tensorShape)
 {
     op::Shape swapedShape = tensorShape;
     int64_t dimNum = tensorShape.GetDimNum();
+    if(dimNum != FOUR_DIM){
+        // 如果维度不是四维，直接不交换返回原shape
+        return swapedShape;
+    }
     int64_t lastSecondDim = tensorShape.GetDim(dimNum - 2);
     // dimNum - 2, 这里1指的是取倒数第二维的dim值。dimNum - 3, 这里3指的是取倒数第三维的dim值
     swapedShape.SetDim(dimNum - 2, tensorShape.GetDim(dimNum - 3));
@@ -756,6 +760,7 @@ static aclnnStatus WeightNZCaseProcessForMXScale(const aclTensor *&x2, bool &tra
 {
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GroupedMatmulFinalizeRoutingWeightV3: Scale only soupports ND format, but current format is FORMAT_FRACTAL_NZ.");
         return ACLNN_ERR_PARAM_INVALID;
     } else {
         CHECK_RET(TransposeTensorContiguousProcessForMXScale(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
@@ -819,6 +824,14 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
 
 static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProcess(GroupedMatmulParams &params, aclOpExecutor *executor)
 {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        auto x1MDim = params.x1->GetViewShape().GetDim(0);
+        auto x2NIndex = params.x2->GetViewShape().GetDimNum() - (params.transposeX2 ? PENULTIMATE_DIM : 1);
+        auto x2NDim = params.x2->GetViewShape().GetDim(x2NIndex);
+        if (x1MDim == 0 || x2NDim == 0) {
+            return ACLNN_SUCCESS;
+        }
+    }
     auto ret = PreMatmulCalcProcess(params, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     // shareInput格式转换
@@ -1257,7 +1270,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV2(void *workspace, uint64_t worksp
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, aclTensor *x2, const aclTensor *scaleOptional,
+static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, const aclTensor *x2, const aclTensor *scaleOptional,
                                                  const aclTensor *groupListOptional,
                                                  const aclTensor *pertokenScaleOptional, const aclTensor *logitOptional,
                                                  const aclTensor *rowIndexOptional,

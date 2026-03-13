@@ -70,6 +70,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckOpInputInfo()
                     OP_LOGE(opName_, "Tiling check shape failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(CheckAlltoAllOut(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check allToAllOut failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckGroupSize(context_, opName_, ALLTOALL_MATMUL_INDEX_SCHEMA) == ge::GRAPH_FAILED,
+                    OP_LOGE(opName_, "Check block size and axis failed!"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -85,6 +87,39 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckX2Transpose(const gert::Ti
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     const bool *isTransX2 = attrs->GetAttrPointer<bool>(indexSchema.x2Transpose);
     OP_TILING_CHECK(!(*isTransX2), OP_LOGE(opName, "the mx quant input x2transpose must be true, but actual is false."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckGroupSize(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema)
+{
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const int64_t *groupSizePtr = attrs->GetAttrPointer<int64_t>(ALLTOALLMATMUL_ATTR_GROUP_SIZE_INDEX);
+    OP_TILING_CHECK(groupSizePtr == nullptr, CUBE_INNER_ERR_REPORT(opName, "GroupSizePtr shouldn't be nullptr"),
+                    return ge::GRAPH_FAILED);
+    uint64_t groupSize = static_cast<uint64_t>(*groupSizePtr);
+    OP_LOGI(opName, "groupSize=%lu", groupSize);
+    mc2tiling::Mc2MatmulShapeInfo shapeInfo = {
+        context_->GetInputShape(INPUT_X1_INDEX),
+        context_->GetInputShape(INPUT_X2_INDEX),
+        context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX),
+        context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX),
+        false,
+        *context_->GetAttrs()->GetAttrPointer<bool>(indexSchema.x2Transpose),
+        opName
+    };
+    uint64_t groupSizeK = groupSize & GROUP_MNK_BIT_SIZE;
+    uint64_t groupSizeN = (groupSize >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
+    uint64_t groupSizeM = (groupSize >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
+    shapeInfo.isMxfp = true;
+    OP_TILING_CHECK(!mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeM, groupSizeN, groupSizeK),
+        CUBE_INNER_ERR_REPORT(opName, "Failed to execute inferGroupSize in mx scene."),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((groupSizeM != MX_SCALE_BLOCK_M) || (groupSizeN != MX_SCALE_BLOCK_N) ||
+            (groupSizeK != MX_SCALE_BLOCK_K),
+        CUBE_INNER_ERR_REPORT(opName, "[groupSizeM, groupSizeN, groupSizeK] should be [1, 1, 32] in mx scene,"
+            " but actual is [groupSizeM=%lu, groupSizeN=%lu, groupSizeK=%lu]",
+            groupSizeM, groupSizeN, groupSizeK),
+        return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -177,10 +212,13 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const ger
     OP_TILING_CHECK((x1ScaleShape == nullptr), OP_LOGE(opName, "The input x1Scale shape is invalid"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x2ScaleShape == nullptr), OP_LOGE(opName, "The input x2Scale shape is invalid"), return ge::GRAPH_FAILED);
     uint64_t x1Dim0 = x1Shape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t x1Dim1 = x1Shape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x1ScaleDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
     uint64_t x2ScaleDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
+    OP_TILING_CHECK((x1Dim1 % MX_SCALE_ALIGN != 0), OP_LOGE(opName, "The mx quant input x1 dim(k) should be divisible by 64, but actual value is %lu.", x1Dim1),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x1ScaleDimNum != DIM_THREE), OP_LOGE(opName, "The mx quant input x1scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x1ScaleDimNum),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x2ScaleDimNum != DIM_THREE), OP_LOGE(opName, "The mx quant input x2scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x2ScaleDimNum),
@@ -194,10 +232,10 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const ger
     uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x1ScaleDim1 = x1ScaleShape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x1ScaleDim2 = x1ScaleShape->GetStorageShape().GetDim(DIM_TWO);
-    OP_TILING_CHECK((x1ScaleDim0 != x1Dim0 / rankDim),
-                    OP_LOGE(opName, "The x1scale first dim should be %lu, but actual value is %lu.", x1Dim0 / rankDim, x1ScaleDim0), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x1ScaleDim1 != x2Dim1 / MX_SCALE_ALIGN),
-                    OP_LOGE(opName, "The x1scale second dim should be %lu, but actual value is %lu.", x2Dim1 / MX_SCALE_ALIGN, x1ScaleDim1), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1ScaleDim0 != x1Dim0),
+                    OP_LOGE(opName, "The x1scale first dim should be %lu, but actual value is %lu.", x1Dim0, x1ScaleDim0), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1ScaleDim1 != x1Dim1 / MX_SCALE_ALIGN),
+                    OP_LOGE(opName, "The x1scale second dim should be %lu, but actual value is %lu.", x1Dim1 / MX_SCALE_ALIGN, x1ScaleDim1), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x1ScaleDim2 != DIM_TWO),
                     OP_LOGE(opName, "The x1scale third dim should be %lu, but actual value is %lu.", DIM_TWO, x1ScaleDim2), return ge::GRAPH_FAILED);
     uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(DIM_ZERO);
@@ -629,7 +667,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
-    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + inferredInfo.biasLen;
+    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + 
+                             inferredInfo.biasLen + inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
@@ -644,12 +683,13 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
  */
 void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
 {
-    constexpr uint64_t alignAddrLength = 512;
+    constexpr uint64_t alignAddrLen = 512;
+    constexpr uint64_t mxGroupSize = 64;
     // AlltoAllMatmul先进行通信，需要有对应的空间先存放结果，假设x1(m,k),假设原始rank上X1的第0维为M，这里的m就是M/ranksize,
     // m已经在前面获取输入参数的时候进行过处理
     inferredInfo.commLen = mc2tiling::AlignUp(
-        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLength);
-    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，就不需要申请这块空间
+        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLen);
+    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，不需要申请这块
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
     }
@@ -657,6 +697,11 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
         inferredInfo.biasLen =
             mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
+
+    inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.rankDim *
+                                Ops::Base::CeilDiv((contextInfo.args_.kValue / contextInfo.args_.rankDim),
+                                mxGroupSize) * 2, alignAddrLen);
+    inferredInfo.permuteScaleLen = inferredInfo.commScaleLen; 
 }
 
 /**

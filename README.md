@@ -3,7 +3,7 @@
 ## 🔥Latest News
 
 - [2026/02] 新支持算子[mhc_post](experimental/mhc/mhc_post)、[mhc_pre](experimental/mhc/mhc_pre)、[mhc_res](experimental/mhc/mhc_res)。
-- [2026/01] 新支持算子[grouped matmul<<<>>>调用示例](examples/fast_kernel_launch_example/ascend_ops/csrc/grouped_matmul)，方便用户自定义使用。
+- [2026/01] 新支持算子[grouped_matmul<<<>>>调用示例](examples/fast_kernel_launch_example/csrc/grouped_matmul)，方便用户自定义使用。
 - [2026/01] 新支持算子[fused_floyd_attention](attention/fused_floyd_attention)、[fused_floyd_attention_grad](attention/fused_floyd_attention_grad)、[matmul_allto_all](mc2/matmul_allto_all)。
 - [2025/12] 新增[QuickStart](QUICKSTART.md)，指导新手零基础入门算子项目部署（支持Docker环境）、算子开发和贡献流程。
 - [2025/12] 优化指南类文档，聚焦[算子开发指南](docs/zh/develop/aicore_develop_guide.md)，明确最小交付件和关键示例代码，针对[Ascend/samples](https://gitee.com/ascend/samples/tree/master)仓算子提供迁移本项目的指导。
@@ -47,7 +47,7 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 3. [算子开发](docs/zh/develop/aicore_develop_guide.md)：基于项目工程**开发新算子**指南，从零学习创建算子工程、实现Tiling和Kernel核心交付件等。
 4. [算子调试调优](docs/zh/debug/op_debug_prof.md)：提供常见的算子**调试和调优**方法，如DumpTensor、msProf、Simulator等。
 
-除了上述指南，还提供了其他文档介绍，例如算子调用方式和流程、算子基本概念等，全量文档介绍请访问[docs](docs/README.md)。
+除了上述指南，还提供了其他文档例如[算子调用方式](docs/zh/invocation/op_invocation.md)、术语概念、build参数介绍等，全量文档请访问[docs](docs/README.md)。
 
 ## 🔍目录结构
 

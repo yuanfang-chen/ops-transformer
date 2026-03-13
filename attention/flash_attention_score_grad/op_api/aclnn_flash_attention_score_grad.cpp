@@ -651,6 +651,21 @@ static aclnnStatus ContiguousOptionalInputTensor(
     return ret;
 }
 
+static aclnnStatus ContiguousQuantOptionalInputTensor(
+    const aclTensor *dsScaleOptional, const aclTensor *pScaleOptional, const aclTensor **dsScaleOptionalCngs, const aclTensor **pScaleOptionalCngs, 
+    aclOpExecutor *executor)
+{
+    auto ret = ACLNN_SUCCESS;
+
+    // 如果非连续，需要转连续
+    ret = ContiguousTensorWithCheck(dsScaleOptional, dsScaleOptionalCngs, executor);
+    CHECK_RET(ret == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
+
+    ret = ContiguousTensorWithCheck(pScaleOptional, pScaleOptionalCngs, executor);
+    CHECK_RET(ret == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
+    return ret;
+}
+
 static void GetInputAndOutputReshapeArray(const aclTensor *query, const aclTensor *key, FagInShapeInfo fagShape,
                                           FagShapeArray &fagShapeArray, aclOpExecutor *executor)
 {
@@ -1957,7 +1972,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3GetWorkspaceSize(
                sparseMode, pseType),
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut));
 
-    // layout检查1
+    // layout检查
     if (strcmp(inputLayout, "TND") != 0) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
         return ACLNN_ERR_PARAM_INVALID;
@@ -2052,9 +2067,9 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV4GetWorkspaceSize(
                           inputLayout, innerPrecise, sparseMode, softmaxInLayout),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(inputLayout, "TND") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
-        return ACLNN_ERR_PARAM_INVALID;
+    if (strcmp(inputLayout, "TND") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
     }
 
     if (strcmp(softmaxInLayout, "same_as_input") != 0 && strcmp(softmaxInLayout, "") != 0 ) {
@@ -2348,9 +2363,9 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
                sparseMode, pseType, softmaxInLayout), 
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut, dsinkOut)); 
     
-    if (strcmp(inputLayout, "TND") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
-        return ACLNN_ERR_PARAM_INVALID;
+    if (strcmp(inputLayout, "TND") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
     }
     
     // 固定写法，创建OpExecutor
@@ -2660,6 +2675,8 @@ static aclnnStatus QuantFlashAttentionScoreGradGetWorkspace(
     const aclTensor *dScaleOOptionalCngs = nullptr;
     const aclTensor *sinkInOptionalCngs = nullptr;
     const aclTensor *dsink = nullptr;
+    const aclTensor *dsScaleOptionalCngs = nullptr;
+    const aclTensor *pScaleOptionalCngs = nullptr;
     ret = ContiguousInputTensor(query, nullptr, key, nullptr, value, dy,
         attentionInOptional, &queryCngs, &queryRopeOptionalCngs, &keyCngs, &keyRopeOptionalCngs, &valueCngs, &dyCngs,
         &attentionInOptionalCngs, executor); 
@@ -2676,6 +2693,8 @@ static aclnnStatus QuantFlashAttentionScoreGradGetWorkspace(
         &dScaleVOptionalCngs, &dScaleDyOptionalCngs, &dScaleOOptionalCngs, &sinkInOptionalCngs, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
+    ret = ContiguousQuantOptionalInputTensor(dsScaleOptional, pScaleOptional, &dsScaleOptionalCngs, &pScaleOptionalCngs, executor);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     // reshape + PAD + Transpose
     FagShapeArray fagShapeArray;
@@ -2687,13 +2706,13 @@ static aclnnStatus QuantFlashAttentionScoreGradGetWorkspace(
     char inputLayoutUnderTrans[MAX_LAYOUT_SIZE] = {0};
     ConvertInputLayout(fagShape, inputLayout, inputLayoutUnderTrans, MAX_LAYOUT_SIZE);
 
-// 调用FAG ascendc接口
+    // 调用FAG ascendc接口
     auto fagRes = l0op::FlashAttentionScoreGrad(
         queryCngs, keyCngs, valueCngs, dyCngs, pseShiftOptionalCngs, dropMaskOptionalCngs, paddingMaskOptionalCngs,
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, nullptr, nullptr, nullptr, nullptr,
         nullptr, dScaleQOptionalCngs, dScaleKOptionalCngs, dScaleVOptionalCngs, dScaleDyOptionalCngs,
-        dScaleOOptionalCngs, dsScaleOptional, pScaleOptional, nullptr, nullptr, nullptr, scaleValue, keepProb,
+        dScaleOOptionalCngs, dsScaleOptionalCngs, pScaleOptionalCngs, nullptr, nullptr, nullptr, scaleValue, keepProb,
         preTokens, nextTokens, headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType,
         seed, offset, outDtypeOptional, defaultSoftmaxInLayout, executor);
     CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut

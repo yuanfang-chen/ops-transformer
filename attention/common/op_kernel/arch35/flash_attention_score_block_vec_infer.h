@@ -425,7 +425,13 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Vec1SinkCompute(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
 {
     int64_t sinkOffset = runInfo.n2oIdx * constInfo.gSize + runInfo.goIdx;
-    float sinkValue = ToFloat(this->sinkGm.GetValue(sinkOffset));
+    auto sinkRaw = this->sinkGm.GetValue(sinkOffset);
+    float sinkValue;
+    if constexpr (IsSameType<decltype(sinkRaw), half>::value) {
+        sinkValue = static_cast<float>(sinkRaw);
+    } else {
+        sinkValue = ToFloat(sinkRaw);
+    }
     SinkSubExpAddVF<float>(sumUb, maxUb, sinkValue, runInfo.halfS1RealSize);
 }
 
@@ -433,23 +439,23 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Vec1SinkComputeGSFused(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
 {
     CopySinkIn(runInfo, constInfo);
-    LocalTensor<bfloat16_t> sinkUb = sinkQue.DeQue<bfloat16_t>();
-    SinkSubExpAddGSFusedVF<float, bfloat16_t>(sinkUb, sumUb, maxUb, runInfo.halfS1RealSize);
+    LocalTensor<INPUT_T> sinkUb = sinkQue.DeQue<INPUT_T>();
+    SinkSubExpAddGSFusedVF<float, INPUT_T>(sinkUb, sumUb, maxUb, runInfo.halfS1RealSize);
     sinkQue.FreeTensor(sinkUb);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopySinkIn(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
 {
-    LocalTensor<bfloat16_t> sinkUbBf16 = sinkQue.AllocTensor<bfloat16_t>();
+    LocalTensor<INPUT_T> sinkUbBf16 = sinkQue.AllocTensor<INPUT_T>();
     int64_t sinkOffset = runInfo.n2oIdx * constInfo.gSize + constInfo.subBlockIdx * runInfo.halfS1RealSize;
     DataCopyExtParams sinkCopyParams;
     sinkCopyParams.blockCount = 1; // 进行一次连续拷贝
-    sinkCopyParams.blockLen = runInfo.halfS1RealSize * sizeof(bfloat16_t); // 实际需要拷贝的字节数
+    sinkCopyParams.blockLen = runInfo.halfS1RealSize * sizeof(INPUT_T); // 实际需要拷贝的字节数
     sinkCopyParams.srcStride = 0; // 源地址连续
     sinkCopyParams.dstStride = 0; // 目的地址连续
 
-    DataCopyPadExtParams<bfloat16_t> sinkCopyPadParams{};
+    DataCopyPadExtParams<INPUT_T> sinkCopyPadParams{};
     DataCopyPad(sinkUbBf16, this->sinkGm[sinkOffset], sinkCopyParams, sinkCopyPadParams);
     sinkQue.EnQue(sinkUbBf16);
 }
@@ -517,20 +523,12 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
     intriParams1.blockCount = runInfo.halfS1RealSize;
     intriParams1.srcStride = 0;
     if (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-        if (constInfo.isGqa) {
-            intriParams1.dstStride = 0;
-        } else {
-            intriParams1.dstStride = sizeof(float) * (constInfo.n2G - 1);
-        }
+        intriParams1.dstStride = constInfo.isGqa ? 0 : sizeof(float) * (constInfo.n2G - 1);
     } else {
         intriParams1.dstStride = 0;
     }
     if constexpr (isMlaFullQuant || isMlaNoQuant) {
-        if (layout == LayOutTypeEnum::LAYOUT_BSH) {
-            intriParams1.dstStride = sizeof(float) * (constInfo.s1Size - 1);
-        } else {
-            intriParams1.dstStride = 0;
-        }
+        intriParams1.dstStride = (layout == LayOutTypeEnum::LAYOUT_BSH) ? sizeof(float) * (constInfo.s1Size - 1) : 0;
     }
     if (isMlaNoQuant && layout == LayOutTypeEnum::LAYOUT_BSH && constInfo.gSize < 32) { // 32:gSize限制
         int64_t currRowOffset = runInfo.sOuterOffset % constInfo.n2G;
@@ -657,10 +655,10 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
     if (constInfo.isSoftmaxLseEnable) {
         lseOutputUb = softmaxLseQueue.template AllocTensor<T>();
     }
-    LocalTensor<bfloat16_t> tmpSinkUb;
+    LocalTensor<INPUT_T> tmpSinkUb;
     if (constInfo.learnableSinkFlag) {
         CopySinkFDIn(splitSize, sinkOffset);
-        tmpSinkUb = sinkQue.DeQue<bfloat16_t>();
+        tmpSinkUb = sinkQue.DeQue<INPUT_T>();
     }
     ComputeScaleValue_VF(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, splitSize, constInfo.actualCombineLoopSize,
                          constInfo.isSoftmaxLseEnable, constInfo.learnableSinkFlag);
@@ -683,14 +681,14 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopySinkFDIn(uint32_t splitSize, uint64_t sinkOffset)
 {
-    LocalTensor<bfloat16_t> sinkUbBf16 = sinkQue.AllocTensor<bfloat16_t>();
+    LocalTensor<INPUT_T> sinkUbBf16 = sinkQue.AllocTensor<INPUT_T>();
     DataCopyExtParams sinkCopyParams;
     sinkCopyParams.blockCount = 1; // 进行一次连续拷贝
-    sinkCopyParams.blockLen = splitSize * sizeof(bfloat16_t); // 实际需要拷贝的字节数
+    sinkCopyParams.blockLen = splitSize * sizeof(INPUT_T); // 实际需要拷贝的字节数
     sinkCopyParams.srcStride = 0; // 源地址连续
     sinkCopyParams.dstStride = 0; // 目的地址连续
 
-    DataCopyPadExtParams<bfloat16_t> sinkCopyPadParams{};
+    DataCopyPadExtParams<INPUT_T> sinkCopyPadParams{};
     DataCopyPad(sinkUbBf16, this->sinkGm[sinkOffset], sinkCopyParams, sinkCopyPadParams);
     sinkQue.EnQue(sinkUbBf16);
 }
@@ -932,7 +930,8 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInf
                 }
             }
         } else {
-            uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + runInfo.sOuterOffset * constInfo.dSizeV;
+            uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + vec2S1Idx * runInfo.vec2S1BaseSize * constInfo.dSizeV +
+                                                runInfo.sOuterOffset * constInfo.dSizeV;
             uint64_t perChannelQuantOffset = constInfo.isGqa ?
                                                  perChannelQuantGQAOffset :
                                                  runInfo.n2oIdx * constInfo.gDv + runInfo.goIdx * constInfo.dSizeV;
@@ -957,9 +956,8 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInf
             }
         }
     } else {
-        PostQuantPerTensorImpl<T, OUTPUT_T, true>(
-            attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize,
-            constInfo.dSizeV, dSizeAligned64);
+        PostQuantPerTensorImpl<T, OUTPUT_T, true>(attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, 
+                                                 runInfo.vec2S1RealSize, constInfo.dSizeV, dSizeAligned64);
     }
 }
 

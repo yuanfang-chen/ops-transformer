@@ -1,12 +1,13 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
 /*!
  * \file mc2_gen_task_ops_utils.cpp
  * \brief
@@ -94,7 +95,7 @@ ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(const gert::ExeResGener
                                                          const ge::AscendString &reuse_key)
 {
     if (context == nullptr) {
-        OPS_LOG_E(context->GetNodeName(), "Failed to get context.");
+        OPS_LOG_E("Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc", "Failed to get context.");
         return ge::GRAPH_FAILED;
     }
     gert::StreamInfo stream_info;
@@ -219,7 +220,7 @@ ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2GenTask(const gert::ExeResGenerationC
                                                    std::vector<std::vector<uint8_t>> &tasks)
 {
     if (context == nullptr) {
-        OPS_LOG_E(context->GetNodeName(), "Failed to get context.");
+        OPS_LOG_E("Mc2GenTaskOpsUtils::CommonKFCMc2GenTask", "Failed to get context.");
         return ge::GRAPH_FAILED;
     }
     int64_t aicore_idx = 0; // 新定义下aicoreTask的vector 成员变量数为1，有且仅有一个aicoreTask

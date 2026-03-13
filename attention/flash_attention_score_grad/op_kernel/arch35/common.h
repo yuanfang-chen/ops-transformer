@@ -144,6 +144,18 @@ constexpr uint8_t DETER_DENSE = 2;
 constexpr uint8_t DETER_CAUSAL = 3;
 constexpr uint8_t DETER_BAND = 4;
 
+constexpr uint16_t ALIGN_OFFSET_16 = 15;
+constexpr uint16_t ALIGN_OFFSET_32 = 31;
+constexpr uint16_t ALIGN_OFFSET_64 = 63;
+constexpr uint16_t ALIGN_OFFSET_128 = 127;
+constexpr uint16_t ALIGN_OFFSET_512 = 511;
+
+constexpr uint16_t OFFSET_BITS_4 = 4;
+constexpr uint16_t OFFSET_BITS_5 = 5;
+constexpr uint16_t OFFSET_BITS_6 = 6;
+constexpr uint16_t OFFSET_BITS_7 = 7;
+constexpr uint16_t OFFSET_BITS_9 = 9;
+
 // pse shape type same as tiling
 constexpr uint32_t PSE_SHAPE_TYPE_BNSS = 0;
 constexpr uint32_t PSE_SHAPE_TYPE_BN1S = 1;
@@ -232,6 +244,20 @@ struct FagConstInfo {
     int64_t mm4Kb;
     int64_t dRopeSize = 64; // rope旋转的维度
     uint32_t continuousBlockNum = 0; // 核内连续块数量
+    // swizzle相关
+    int64_t mSwizzleBlockNum = 0;
+    int64_t mSwizzleBlockNumTail = 0;
+    int64_t nSwizzleBlockNum = 0;
+    int64_t nSwizzleBlockNumTail = 0;
+    int64_t leftUpTotalRound = 0;
+    int64_t leftDownTotalRound = 0;
+    int64_t rightUpTotalRound = 0;
+    int64_t rightDownTotalRound = 0;
+    int64_t leftSingleColTotalRound = 0;
+    int64_t leftTotalRound = 0;
+    int64_t batchTotalRound = 0;
+    // 核数
+    uint32_t aicCoreNum = 0;
 };
 
 // fp8反量化因子
@@ -269,6 +295,8 @@ struct QuantRunInfo {
 
     int64_t qInnerOffset[4];
     int64_t kvInnerOffset[4];
+
+    bool kvNeedAtomic;
 };
 struct FagRunInfo {
     RunInfo<false> commonRunInfo{0};
@@ -317,7 +345,9 @@ struct FagRunInfo {
     bool isFirstBlock = true;
     bool isKeyReuse = false;
     bool isValueReuse = false;
-    bool isNextKeyReuse = true;
+    bool isNextKeyReuse = false;
+    bool isLastProcessBlock = false;
+    bool isFirstProcessBlock = false;
     
     int64_t maxsumOffset;
 };
@@ -350,15 +380,15 @@ __aicore__ inline uint32_t AlignTo(uint32_t num1, uint32_t num2)
     return (num1 + num2 - 1) / num2 * num2;
 }
 
-__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 16 - 1) >> 4 << 4; }
+__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + ALIGN_OFFSET_16) >> OFFSET_BITS_4 << OFFSET_BITS_4; }
 
-__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 32 - 1) >> 5 << 5; }
+__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + ALIGN_OFFSET_32) >> OFFSET_BITS_5 << OFFSET_BITS_5; }
 
-__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 64 - 1) >> 6 << 6; }
+__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + ALIGN_OFFSET_64) >> OFFSET_BITS_6 << OFFSET_BITS_6; }
 
-__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 128 - 1) >> 7 << 7; }
+__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + ALIGN_OFFSET_128) >> OFFSET_BITS_7 << OFFSET_BITS_7; }
 
-__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 512 - 1) >> 9 << 9; }
+__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + ALIGN_OFFSET_512) >> OFFSET_BITS_9 << OFFSET_BITS_9; }
 
 __aicore__ constexpr bool IS_DETER_OLD(const uint8_t deterSparseType) 
 {

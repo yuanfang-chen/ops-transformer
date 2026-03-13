@@ -14,16 +14,19 @@
 ## 功能说明
 
 - 算子功能：完成AlltoAll通信、Permute(保证通信后地址连续)和Matmul计算的融合，**先通信后计算**，支持非量化、K-C量化、K-C动态量化和mx[量化模式](../../docs/zh/context/量化介绍.md)。
-- 计算公式：假设x1输入shape为(BS, H)，rankSize为NPU卡数
+- 计算公式：假设x1输入shape为(BS, H)，mx量化场景下x1Scale输入shape为(BS, ceil(H/64), 2)，rankSize为NPU卡数
 
-    - **非量化场景：**
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+      - 非量化场景： 
+        
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
         permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
         output = permutedOut @ x2 + bias \\
         $$
-
-    - **K-C量化、mx量化场景：**
+      
+      - K-C量化场景：
+        
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
         permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -31,25 +34,46 @@
         output = output_{quant} \times x1_{scale} \times x2_{scale} \\
         output = output + bias
         $$
+      
+      - K-C动态量化场景：
+        
+        $$
+        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        x1_{quant}, x1_{scale} = Quant(permutedOut) \\
+        output_{quant} = x1_{quant} @ x2 \\
+        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+        output = output + bias
+        $$
 
-    - **K-C动态量化场景：**
-        - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-          $$
-          commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-          permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-          x1_{quant}, x1_{scale} = Quant(permutedOut) \\
-          output_{quant} = x1_{quant} @ x2 \\
-          output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-          output = output + bias
-          $$
-        - <term>Ascend 950PR/Ascend 950DT</term>：
-          $$
-          commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-          permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-          dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
-          output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
-          $$
+    - <term>Ascend 950PR/Ascend 950DT</term>：
+      - 非量化场景：
 
+        $$
+        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        output = permutedOut @ x2 + bias \\
+        $$
+
+      - K-C动态量化场景：
+
+        $$
+        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
+        output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+        $$
+        
+      - mx量化场景：
+
+        $$
+        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        commScale = AlltoAll(x1Scale.view(rankSize, BS/rankSize, ceil(H/64), 2)) \\
+        permutedScale = commScale.permute(1, 0, 2, 3).view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
+        output = \sum_{0}^{\left \lfloor \frac{k}{blockSize=32} \right \rfloor} (permutedOut @ x2 * (permutedScale * x2Scale)) + bias
+        $$
+        
 ## 参数说明​
 
  <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
@@ -209,7 +233,7 @@
     <tr>
     <td>group_size</td>
     <td>可选属性</td>
-    <td>用于Matmul计算三个方向上的量化分组大小，其值由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>用于Matmul计算三个方向上的量化分组大小，仅在scale输入都是2维及以上数据时取值有效，其他场景默认传入0即可。</td>
     <td>INT</td>
     <td>-</td>
     </tr>

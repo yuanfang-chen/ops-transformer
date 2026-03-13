@@ -124,7 +124,7 @@ public:
     quantGmType pScaleGm;
     using vec2ResGmType = typename std::conditional<splitD, GlobalTensor<float>, int8_t>::type;
     vec2ResGmType vec2ResGm[3];
-    GlobalTensor<bfloat16_t> sinkGm;
+    GlobalTensor<INPUT_T> sinkGm;
 
     /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
@@ -242,7 +242,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitCommonGlobalBuffe
             bmm2SubBlockOffset = constInfo.subBlockIdx * mm2ResultSize >> 1; // s1BaseSize一定可以被2整除
         }
         if (learnableSink != nullptr) {
-            sinkGm.SetGlobalBuffer((__gm__ bfloat16_t *)learnableSink);
+            sinkGm.SetGlobalBuffer((__gm__ INPUT_T *)learnableSink);
             constInfo.learnableSinkFlag = true;
         }
     }
@@ -1572,7 +1572,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitLocalBuffer(TPipe
     if constexpr (!bmm2Write2Ub) {
         tPipe->InitBuffer(mm2InBuf, 32768); // bmm2结果在Gm，vector2开启多层循环，每次处理32KB
     }
-    if constexpr (s2BaseSize == 256) { // s1BaseSize = 128
+    if constexpr (s2BaseSize == 256) {
         if constexpr (s1BaseSize == 128) { // s1BaseSize = 128 s2BaseSize = 256
             tPipe->InitBuffer(stage2OutBuf, 64 * dTemplateAlign64 * sizeof(T));
             SoftmaxInitBuffer();
