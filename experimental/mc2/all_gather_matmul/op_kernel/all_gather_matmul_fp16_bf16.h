@@ -68,6 +68,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM, GM_ADDR workspaceGM, GM_ADDR gatherOut,
     Mc2Tiling::AllGatherMatmulTilingData* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
 {
+    AscendC::PRINTF("ENTER EXPERIMENTAL!!!");
     // 获取tilingdata数据
     tilingData_ = tilingData;
     auto&& cfg = tilingData_->param;
