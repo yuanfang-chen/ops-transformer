@@ -34,5 +34,9 @@ struct HcclCombinOpParam {
     uint64_t msAddr; // MS地址，预留
     uint64_t msSize; // 可写的MS个数，预留
 };
-
+struct CommContextForDump{
+    uint64_t epRankid = 0;
+    uint64_t kfcContextAddr = 0;
+    uint64_t epHcclBufffer_[1024];
+};
 #endif
