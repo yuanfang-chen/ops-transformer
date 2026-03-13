@@ -32,18 +32,6 @@ class AllGatherMatmul : public OpDef {
         .ParamType(OPTIONAL)
         .DataType({ge::DT_FLOAT16})
         .FormatList({ge::FORMAT_ND});
-    this->Input("x1_scale")
-        .ParamType(OPTIONAL)
-        .DataType({ge::DT_FLOAT})
-        .FormatList({ge::FORMAT_ND});
-    this->Input("x2_scale")
-        .ParamType(OPTIONAL)
-        .DataType({ge::DT_FLOAT})
-        .FormatList({ge::FORMAT_ND});
-    this->Input("quant_scale")
-        .ParamType(OPTIONAL)
-        .DataType({ge::DT_FLOAT})
-        .FormatList({ge::FORMAT_ND});
 
     this->Output("y")
         .ParamType(REQUIRED)
@@ -52,10 +40,6 @@ class AllGatherMatmul : public OpDef {
     this->Output("gather_out")
         .ParamType(REQUIRED)
         .DataType({ge::DT_FLOAT16})
-        .FormatList({ge::FORMAT_ND});
-    this->Output("amax_out")
-        .ParamType(OPTIONAL)
-        .DataType({ge::DT_FLOAT})
         .FormatList({ge::FORMAT_ND});
 
     this->Attr("group").AttrType(REQUIRED).String();

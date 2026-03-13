@@ -39,20 +39,23 @@ using namespace Mc2Tiling;
 
 namespace optiling
 {
-bool AllGatherMatmulTilingV2::IsCapable()
+ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext* context);
+ge::graphStatus TilingParseForAllGatherMatmul(gert::TilingParseContext* context);
+
+bool AllGatherMatmulTiling::IsCapable()
 {
-    OP_LOGI(opName_, "Start with AllGatherMatmulTilingV2 tiling.");
+    OP_LOGI(opName_, "Start with AllGatherMatmulTiling tiling.");
     return true;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::SetRawTilingData()
+ge::graphStatus AllGatherMatmulTiling::SetRawTilingData()
 {
     auto rawTilingData = context_->GetRawTilingData();
-    allGatherMatmulTilingDataV2_ = context_->GetTilingData<AllGatherMatmulTilingDataV2>();
+    allGatherMatmulTilingData_ = context_->GetTilingData<AllGatherMatmulTilingData>();
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
+ge::graphStatus AllGatherMatmulTiling::DoOpTiling()
 {
     GE_ASSERT_GRAPH_SUCCESS(SetRawTilingData());
     OP_TILING_CHECK(SetMc2Hcomm(MutableRCSTilingData()) != ge::GRAPH_SUCCESS,
@@ -63,16 +66,15 @@ ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingData(), mc2tiling::Mc2QuantMode::DEFAULT));
     GE_ASSERT_GRAPH_SUCCESS(DoVersion2Tiling());
     DoAllGatherTiling(MutableRCSTilingData(), MutableMC2MatmulV3TileTilingData().tCubeTiling,
-                      MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingDataV2_->debugMode, 
-                      allGatherMatmulTilingDataV2_->dataType);
+                      MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingData_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::PostTiling()
+ge::graphStatus AllGatherMatmulTiling::PostTiling()
 {
     OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.",
-            sizeof(AllGatherMatmulTilingDataV2), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(AllGatherMatmulTilingDataV2));
+            sizeof(AllGatherMatmulTilingData), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(sizeof(AllGatherMatmulTilingData));
 
     context_->SetBlockDim(args_.aicCoreNum);
     // 独占全核，设置以后会让所有核空闲以后才启动，有多核同步指令需要设置避免出现网络挂死
@@ -80,7 +82,7 @@ ge::graphStatus AllGatherMatmulTilingV2::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg, Mc2MMRegisterCfg& registerCfg,
+ge::graphStatus AllGatherMatmulTiling::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg, Mc2MMRegisterCfg& registerCfg,
                                                           Mc2MatMulV3TilingData& tilingData)
 {
     tilingCfg.SetRankDim(args_.rankDim - 1);
@@ -94,7 +96,7 @@ ge::graphStatus AllGatherMatmulTilingV2::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2Ma
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
+ge::graphStatus AllGatherMatmulTiling::DoVersion2Tiling()
 {
     // 获取芯片平台信息
     auto platformInfo = context_->GetPlatformInfo();
@@ -144,7 +146,7 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
+ge::graphStatus AllGatherMatmulTiling::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
 {
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
@@ -153,22 +155,40 @@ ge::graphStatus AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCf
                                         algConfig, 0, 
                                         static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
                                         static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingDataV2_->param.gatherLen == 0) ? 
+    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingData_->param.gatherLen == 0) ? 
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
     mc2CcTilingConfig.SetSkipBufferWindowCopy(skipBufferWindowCopy);
-    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2InitTiling) != 0,
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingData_->mc2InitTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2CcTiling) != 0,
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingData_->mc2CcTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
-AllGatherMatmulTilingV2::AllGatherMatmulTilingV2(gert::TilingContext* context)
-    : AllGatherMatmulTilingBase(context), allGatherMatmulTilingDataV2_(&allGatherMatmulTilingDataV2Self_)
+AllGatherMatmulTiling::AllGatherMatmulTiling(gert::TilingContext* context)
+    : AllGatherMatmulTilingBase(context), allGatherMatmulTilingData_(&allGatherMatmulTilingDataSelf_)
 {
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmul, AllGatherMatmulTilingV2, \
+REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmul, AllGatherMatmulTiling, \
                                    static_cast<int32_t>(NpuArch::DAV_3510), 0);
+
+ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext* context)
+{
+    return Ops::Transformer::OpTiling::TilingRegistryArch::GetInstance().DoTilingImpl(context);
+}
+
+struct AllGatherMatmulCompileInfo {
+};
+
+ge::graphStatus TilingParseForAllGatherMatmul(gert::TilingParseContext* context)
+{
+    (void)context;
+    return ge::GRAPH_SUCCESS;
+}
+
+IMPL_OP_OPTILING(AllGatherMatmul)
+    .Tiling(AllGatherMatmulTilingFunc)
+    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmul);
 }  // namespace optiling

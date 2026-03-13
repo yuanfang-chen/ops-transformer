@@ -22,7 +22,7 @@
 #include "tiling/mc2_tiling_struct.h"
 #include "tiling/matmul_formulaic_tiling.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "../../op_kernel/all_gather_matmul_tiling_arch35.h"
+#include "../../op_kernel/all_gather_matmul_tiling.h"
 
 using Ops::Transformer::OpTiling::TilingBaseClass;
 namespace optiling
@@ -80,7 +80,7 @@ protected:
     bool SetCommAlgo();
     // tiling
     void DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
-                           ::TCubeTiling& tailTiling, uint32_t& debugMode, uint32_t& dataType);
+                           ::TCubeTiling& tailTiling, uint32_t& dataType);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
     CutResult GetTilingResult();
@@ -98,7 +98,7 @@ protected:
     void SetTilingArgsDataType();
     void SetTilingArgsGatherStatus();
     void SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
-                                 ::TCubeTiling& tailTiling, uint32_t debugMode);
+                                 ::TCubeTiling& tailTiling);
     ge::graphStatus AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcsCfg, mc2tiling::Mc2QuantMode quantMmMode);
 
     mc2tiling::TilingArgs args_;
