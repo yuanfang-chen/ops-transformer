@@ -121,7 +121,7 @@ static bool CheckShape(const aclTensor *x, int64_t outFlag, const aclTensor *out
     if (xDim == SUPPORT_DIM_NUM_3) {
         n0 = xShape.GetDim(DIM_ONE);
         n1 = xShape.GetDim(DIM_TWO);
-    } else if (xDim == SUPPORT_DIM_NUM_3) {
+    } else if (xDim == SUPPORT_DIM_NUM_4) {
         n0 = xShape.GetDim(DIM_TWO);
         n1 = xShape.GetDim(DIM_THREE);
     }
@@ -183,9 +183,11 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, float eps, int6
     // 将输入x转换成连续的tensor
     const aclTensor *xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
     CHECK_RET(xContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    const aclTensor *outputContiguous = l0op::Contiguous(output, uniqueExecutor.get());
+    CHECK_RET(outputContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     const aclTensor *kernelOut =
-        l0op::MhcSinkhorn(xContiguous, outFlag, eps, numIters, output, normOut, sumOut, uniqueExecutor.get());
+        l0op::MhcSinkhorn(xContiguous, outFlag, eps, numIters, outputContiguous, normOut, sumOut, uniqueExecutor.get());
     CHECK_RET(kernelOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // 固定写法，将计算结果拷贝到输出outRef上
