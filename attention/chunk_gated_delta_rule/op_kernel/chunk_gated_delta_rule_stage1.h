@@ -191,7 +191,7 @@ public:
             }
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
             uint64_t chunk_start_row = cg_.startPos + cg_id * chunkSize_;
-            SetChunkTensors(nid, cg_id, chunk_start_row);
+            SetChunkTensors(nid, cg_id, chunk_start_row, valid_len);
             ProcessOneChunk();
         }
     }
@@ -203,8 +203,9 @@ private:
     //   local_cid : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     //   chunk_start_row   : 当前 chunk 在全局 T 上的起始行
     // ----------------------------------------------------------
-   __aicore__ inline void SetChunkTensors(uint64_t nid, uint64_t local_cid, uint64_t chunk_start_row)
+   __aicore__ inline void SetChunkTensors(uint64_t nid, uint64_t local_cid, uint64_t chunk_start_row, uint64_t valid_len)
     {
+        validLen_ = valid_len;
         uint64_t kid = nid * nk_ / nv_;
         uint64_t sub_row = chunk_start_row + subOffset_;
         uint64_t qk_base = sub_row * nk_ * dk_ + kid * dk_;
