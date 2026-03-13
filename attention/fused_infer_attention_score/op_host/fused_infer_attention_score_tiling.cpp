@@ -1433,7 +1433,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
             int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) * 16 / kvHeadNum;
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_2);
             bool isFAIDSize = (tempD <= 256U && tempKD <= 256 && tempVD <= 256) &&
-                    (tempD == tempKD && tempD == tempVD);
+                    (tempD == tempKD && tempD == tempVD) && (blockSize % BLOCK_SIZE_ALIGN_16 == 0);
             bool blockSizeSupported = (blockSize % BLOCK_SIZE_ALIGN_16 == 0) && 
                     (blockSize <= MAX_BLOCK_SIZE);
             if (isFAIDSize && blockSizeSupported) {
