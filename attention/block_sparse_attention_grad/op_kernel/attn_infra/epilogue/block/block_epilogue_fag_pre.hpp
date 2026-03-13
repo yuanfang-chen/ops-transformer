@@ -64,8 +64,11 @@ public:
         }    
     };
 
+    NpuArch::Arch::Resource<ArchTag> resource;
     GlobalTensor<float> dqWorkSpaceGm, dkWorkSpaceGm, dvWorkSpaceGm;
+    LocalTensor<float> zeroTensor;
     uint64_t cBlockIdx;
+    uint64_t BLOCK_BYTE = 32;
 
     uint64_t qPreBlockFactor = 0;
     uint64_t qPreBlockTotal = 0;
@@ -84,6 +87,7 @@ public:
     uint64_t dkvOffset = 0;
 
     uint64_t usedCoreNum = 0;
+    uint64_t ubsize = 0;
 
     __aicore__ inline
     BlockEpilogue(Params const &params)
@@ -91,15 +95,14 @@ public:
         cBlockIdx = GetBlockIdx();
         __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
         usedCoreNum = tilingData->usedVecCoreNum; // 先按这个把，得适配
-        if (cBlockIdx >= usedCoreNum) {
-            return;
-        }
 
         qSizeAlign = tilingData->dqSize;
         kvSizeAlign = tilingData->dkvSize;
-        qPreBlockFactor = (qSizeAlign + usedCoreNum - 1) / usedCoreNum;
-        qPreBlockTotal = (qSizeAlign + qPreBlockFactor - 1) / qPreBlockFactor;
-        qPreTailNumTmp = qSizeAlign % qPreBlockFactor;
+        ubsize = tilingData->ubSize / BLOCK_BYTE * BLOCK_BYTE; // 32字节对齐
+
+        qPreBlockFactor = (qSizeAlign + usedCoreNum - 1) / usedCoreNum; // 每个vec 处理的元素数量 向上取整
+        qPreBlockTotal = (qSizeAlign + qPreBlockFactor - 1) / qPreBlockFactor; // 一共需要处理次数 向上取整， 也理解需要的核数
+        qPreTailNumTmp = qSizeAlign % qPreBlockFactor; // remain量， 尾核数量
         qPreTailNum = qPreTailNumTmp == 0 ? qPreBlockFactor : qPreTailNumTmp;
 
         kvPreBlockFactor = (kvSizeAlign + usedCoreNum - 1) / usedCoreNum;
@@ -115,6 +118,8 @@ public:
         dqOffset = ((uint64_t)cBlockIdx) * qPreBlockFactor;
         initdkSize = cBlockIdx == kvPreBlockTotal - 1 ? kvPreTailNum : kvPreBlockFactor;
         dkvOffset = ((uint64_t)cBlockIdx) * kvPreBlockFactor;
+
+        zeroTensor = resource.ubBuf.template GetBufferByByte<float>(0);
     }
 
     __aicore__ inline
@@ -141,17 +146,50 @@ public:
             return;
         }
 
-        // process clear dq dk dv workspace
+        uint64_t maxDataCount = (ubsize) / sizeof(float);
+        Duplicate(zeroTensor, (float)0.0,  maxDataCount);
+
+        // dq
+        uint64_t cOutElement = initdqSize; // currenr out ele
+        uint64_t totalLoop = cOutElement / maxDataCount;
+        uint64_t remainOutNum = cOutElement % maxDataCount;
+
+        auto eventID1 = EVENT_ID2;
+        set_flag(PIPE_V, PIPE_MTE3, eventID1);
+        wait_flag(PIPE_V, PIPE_MTE3, eventID1);
+
         if (cBlockIdx < qPreBlockTotal) {
-            matmul::InitOutput<float>(dqWorkSpaceGm[dqOffset], initdqSize, 0);
+            processZero(dqWorkSpaceGm[dqOffset], initdqSize, maxDataCount);
         }
 
+       Duplicate(zeroTensor, (float)3.0,  maxDataCount); //test
         if (cBlockIdx < kvPreBlockTotal) {
-            matmul::InitOutput<float>(dkWorkSpaceGm[dkvOffset], initdkSize, 0);
-            matmul::InitOutput<float>(dvWorkSpaceGm[dkvOffset], initdkSize, 0);
+            processZero(dkWorkSpaceGm[dkvOffset], initdkSize, maxDataCount);
+            processZero(dvWorkSpaceGm[dkvOffset], initdkSize, maxDataCount);
         }
     }
 
+
+    __aicore__ inline
+    void processZero(GlobalTensor<float> outGm, uint64_t outCount, uint64_t maxDataCount)
+    {
+        uint64_t cOutElement = outCount; // currenr out ele
+        uint64_t totalLoop = cOutElement / maxDataCount;
+        uint64_t remainOutNum = cOutElement % maxDataCount;
+
+        for (uint32_t i = 0; i < totalLoop; i++) {
+            DataCopy(outGm[i * maxDataCount], zeroTensor, maxDataCount);
+        }
+
+        if (remainOutNum > 0) {
+            if (remainOutNum * sizeof(float) % BLOCK_BYTE == 0) {
+                DataCopy(outGm[totalLoop * maxDataCount], zeroTensor, remainOutNum);
+            } else {
+                AscendC::DataCopyExtParams copyParams{1, static_cast<uint32_t>(remainOutNum * sizeof(float)), 0, 0, 0};
+                AscendC::DataCopyPad(outGm[totalLoop * maxDataCount], zeroTensor, copyParams);
+            }
+        }
+    }
 };
 
 }
