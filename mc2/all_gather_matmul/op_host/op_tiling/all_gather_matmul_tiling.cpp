@@ -166,7 +166,7 @@ static ge::graphStatus AllGatherParamsCheck(const gert::TilingContext* context)
     if (context->GetAttrs() == nullptr) {
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "get attrs failed");
     } else {
-        auto gather_index = context->GetAttrs()->GetAttrPointer<int>(3);
+        auto gather_index = context->GetAttrs()->GetAttrPointer<int64_t>(3);
         OP_TILING_CHECK(*gather_index != 0,
             VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
         "the gather_index should be 0, but real value is %d", *gather_index), return ge::GRAPH_FAILED);
@@ -304,8 +304,8 @@ static ge::graphStatus SetMatmulTilingAllGatherMatmul(gert::TilingContext* conte
     auto aType = context->GetInputDesc(0)->GetDataType();
     auto bType = context->GetInputDesc(1)->GetDataType();
     auto cType = aType;
-    const gert::StorageShape* matrix_bias = context->GetOptionalInputShape(2);
-    if (matrix_bias == nullptr) {
+    const gert::StorageShape* matrixBias = context->GetOptionalInputShape(2);
+    if (matrixBias == nullptr) {
         isBias = false;
         biasType = cType;
     }
@@ -434,7 +434,7 @@ static uint64_t GetStorage_a(AllGatherMatmulTilingData& tilingData, mc2tiling::T
     auto&& cfg = tilingData.param;
     uint32_t gatherIndex = cfg.gatherIndex;
     uint64_t nd2nzLen = 0;
-    uint64_t storage_a = 0;
+    uint64_t storageA = 0;
 
     // step1: ND2NZ
     if (gatherIndex == 0) { // 转置B
@@ -467,9 +467,9 @@ static uint64_t GetStorage_a(AllGatherMatmulTilingData& tilingData, mc2tiling::T
         tilingData.param.cToFloatLen = gmcFloat;
         tilingData.param.gatherLen = gatherLen;
 
-        storage_a = nd2nzLen + gmcFloat + gatherLen; // 需要计算存放的A矩阵
+        storageA = nd2nzLen + gmcFloat + gatherLen; // 需要计算存放的A矩阵
     }
-    return storage_a;
+    return storageA;
 }
 
 struct HcclAicpuOpParam {
@@ -494,14 +494,14 @@ static ge::graphStatus MC2SetWorkspace(gert::TilingContext* context, AllGatherMa
     OP_TILING_CHECK(workspaces == nullptr,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "get workspace failed"),
         return ge::GRAPH_FAILED);
-    uint64_t storage_a = GetStorage_a(tilingData, args);
+    uint64_t storageA = GetStorage_a(tilingData, args);
 
     int biasLen = 0;
     if (args.isBias) {
         biasLen = mc2tiling::AlignUp(args.orgNValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
     tilingData.param.biasLen = biasLen;
-    workspaces[0] = storage_a + 16 * 1024 * 1024 + biasLen; // 16 mb, 1024 * 1024 is 1 mb
+    workspaces[0] = storageA + 16 * 1024 * 1024 + biasLen; // 16 mb, 1024 * 1024 is 1 mb
     OP_LOGD("AllGatherMatmul", "workspaces[0] size is %ld.", workspaces[0]);
     OP_LOGD("AllGatherMatmul", "biasLen is %d.", biasLen);
 
@@ -574,8 +574,8 @@ static ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext *context) {
 
   auto is_trans_a = context->GetAttrs()->GetAttrPointer<bool>(index++);
   auto is_trans_b = context->GetAttrs()->GetAttrPointer<bool>(index++);
-  auto gather_index = context->GetAttrs()->GetAttrPointer<int>(index++);
-  auto comm_turn = *context->GetAttrs()->GetAttrPointer<int>(index++);
+  auto gather_index = context->GetAttrs()->GetAttrPointer<int64_t>(index++);
+  auto comm_turn = *context->GetAttrs()->GetAttrPointer<int64_t>(index++);
 
   auto rankSize = mc2tiling::MatmulFormulaicTiling::GetRankSize(group);
   OP_TILING_CHECK(comm_turn != 0, VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
@@ -603,11 +603,11 @@ static ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext *context) {
     VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
     "world_size value is %u, which is illegal.", rankSize), return ge::GRAPH_FAILED);
 
-  args.isATrans = is_trans_a ? *is_trans_a : 0;
-  args.isBTrans = is_trans_b ? *is_trans_b : 0;
+  args.isATrans = isTransA ? *isTransA : 0;
+  args.isBTrans = isTransB ? *isTransB : 0;
   args.cmdType = mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER;
   args.rankDim = rankSize;
-  args.commTurn = comm_turn;
+  args.commTurn = commTurn;
   args.commAlg = tilingData->socParam.commAlg;
 
   if (NeedGatherOut(context)) {
