@@ -569,10 +569,14 @@ __aicore__ inline void QLIPreload<QLIT>::Process()
         ProcessInvalid();
         return;
     }
+    printf("============= ProcessMain , tmpBlockIdx is %d =================\n", tmpBlockIdx);
 
     ProcessMain();
 
+    printf("============= ProcessDecode , tmpBlockIdx is %d =================\n", tmpBlockIdx);
     ProcessDecode();
+
+    printf("============= ProcessDecode END, tmpBlockIdx is %d =================\n", tmpBlockIdx);
 }
 
 template <typename QLIT>
