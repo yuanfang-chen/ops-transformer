@@ -204,6 +204,8 @@ struct RunInfo<true> {
 
     // FD相关
     int64_t flashDecodeS2Idx;
+    bool isS2SplitCore;
+    int32_t faTmpResGMPose;
 
     // tensorlist相关
     int64_t s2InCurrentBatch;
@@ -367,6 +369,7 @@ struct RunInfo<false> {
     int64_t sInnerLoopSize; /* FD s2总大小 */ \
     int64_t actualCombineLoopSize; /* 实际规约块数 */ \
     int64_t splitKVNum; \
+    int32_t headFdDataIdx; \
     /* 后量化 */ \
     bool isPostQuantPerChnl; \
     bool isPostQuantBF16; \

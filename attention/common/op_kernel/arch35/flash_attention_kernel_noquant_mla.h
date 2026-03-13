@@ -232,6 +232,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     constInfo.s1BaseSize = s1BaseSize;
     constInfo.s2BaseSize = s2BaseSize;
 
+    // TODO，这里cube访问了tilingData，会导致cube scalar开销增加，待优化
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
 
     constInfo.bSize = inputParamsRegbase.bSize;
@@ -413,6 +414,11 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     if constexpr (POST_QUANT) {
         constInfo.isPostQuantPerChnl = inputParamsRegbase.isPostQuantPerChnl;
         constInfo.isPostQuantBF16 = inputParamsRegbase.isPostQuantBF16;
+    }
+
+    if ASCEND_IS_AIV {
+        auto &outerSplitParams = this->tilingData->outerSplitParams;
+        constInfo.headFdDataIdx = outerSplitParams.headFdDataIdx[this->aicIdx];
     }
 }
 
@@ -641,6 +647,31 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
         / s2BaseSize, runInfo);
+
+    if ASCEND_IS_AIV {
+        info.isS2SplitCore = false;
+        info.faTmpResGMPose = 0;
+        if (constInfo.bN2Start == constInfo.bN2End && constInfo.gS1Start == constInfo.gS1End) {
+            // 所有任务属于同一个S1G
+            info.isS2SplitCore = true;
+            info.faTmpResGMPos = constInfo.headFdDataIdx;
+        } else {
+            if (constInfo.headS2Split && (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start)) {
+                // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
+                info.isS2SplitCore = true;
+                info.faTmpResGMPos = constInfo.headFdDataIdx;
+            } else if (constInfo.tailS2Split && (bN2Cur == constInfo.bN2End) && (gS1Cur == constInfo.gS1End)) {
+                // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
+                info.isS2SplitCore = true;
+            }
+        }
+
+        if constexpr (FLASH_DECODE) {
+            if (info.isS2SplitCore) {
+                CalcAccumOffset(info, constInfo);
+            }
+        }
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
