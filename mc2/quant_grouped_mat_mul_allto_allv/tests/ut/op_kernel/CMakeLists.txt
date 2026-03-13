@@ -9,5 +9,5 @@
 # -----------------------------------------------------------------------------------------------------------
 
 if (UT_TEST_ALL OR OP_KERNEL_UT)
-    AddOpTestCase(grouped_mat_mul_allto_allv "Ascend910_9391" "-DDTYPE_X_REF=half" "")
+    AddOpTestCase(quant_grouped_mat_mul_allto_allv "Ascend910_9391" "-DDTYPE_X_REF=half" "")
 endif()

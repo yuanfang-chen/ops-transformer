@@ -99,25 +99,26 @@ constexpr uint32_t DIM_THREE = 3;
 constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
 constexpr uint32_t HCCL_CMD_ALLTOALLV = 8;
 
-constexpr uint32_t INDEX_TWO = 2U;
-
 constexpr int64_t NUM_ZERO = 0;
 constexpr int64_t NUM_TWO = 2;
 constexpr int64_t NUM_FOUR = 4;
 constexpr int64_t NUM_EIGHT = 8;
 
+constexpr uint32_t INDEX_TWO = 2U;
+
+constexpr int64_t BEST_BASEN = 256;
 constexpr int64_t BEST_L1_PARTA = 256 * 1024;
 constexpr int64_t BEST_L1_PARTB = 128 * 1024;
-constexpr int64_t BEST_BASEN = 256;
-constexpr uint32_t UB_DIVIDE_NUM = 2;
-constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
+
 constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
 constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
+constexpr uint32_t UB_DIVIDE_NUM = 2;
+constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
 constexpr uint32_t SYS_WORKSPACE_SIZE = 16U * 1024U * 1024U;
 constexpr uint32_t MAX_TURN_NUM = 24;
 constexpr int32_t MAX_BASE_K = 128;
-constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
 constexpr uint64_t MAX_EXPERT_NUM = 256;
+constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
 constexpr int64_t MAX_EXPERT_NUM_PER_RANK = 32;
 constexpr int64_t MAX_DIM_VALUE = 65536;
 constexpr uint64_t MAX_H1_VALUE = 65536;
