@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <vector>
+#include <cstring>
 
 using ops::Mc2GenTaskOpsUtils;
 using ops::NPUARCH_A5;
@@ -39,7 +40,6 @@ const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-using HcclOpParam = HcclCombinOpParam;
 inline std::string GetTimestampWithMilliseconds()
 {
     auto now = std::chrono::system_clock::now();
@@ -108,7 +108,7 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
     return 0;
 }
 
-inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
+inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf, const char *op)
 {
     // Get hccl context from its addr
     std::vector<uint8_t> hcclArgs(sizeof(HcclOpParam), 0);
@@ -123,14 +123,28 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
         OP_LOGE(OP_NAME, "Cast to winContext failed. HcclOpParam is null.");
         return -1;
     }
-    OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
+    #ifdef __DAV_C310__ //A5
+        OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
 
-    void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
-    if (!(winAddr != nullptr)) {
-        OP_LOGE(OP_NAME, "Get win addr failed.");
-        return -1;
-    }
-
+        void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
+        if (!(winAddr != nullptr)) {
+            OP_LOGE(OP_NAME, "Get win addr failed.");
+            return -1;
+        }
+    #else
+        if (op != nullptr && ((std:: strcmp(op, "MoeDistributeDispatchV2") == 0) || (std:: strcmp(op, "MoeDistributeCombineV2") == 0))) {
+            OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->localUsrRankId, winContext->rankSize);
+            void* winAddr = reinterpret_cast<void *>((DUMP_GM_ADDR)(winContext->localWindowsExp));
+        }
+        else if (op != nullptr && ((std:: strcmp(op, "MoeDistributeDispatchV3") == 0) || (std:: strcmp(op, "MoeDistributeCombineV3") == 0))) {
+            OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u", winContext->epRankid);
+            void* winAddr = reinterpret_cast<void *>((DUMP_GM_ADDR)(winContext->epHcclBufffer_[winContext->epRankid]));
+        }
+        if (!(winAddr != nullptr)) {
+            OP_LOGE(OP_NAME, "Get win addr failed.");
+            return -1;
+        }
+    #endif
     // Get windowsIn of each rank from hccl context
     ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, winAddr, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
     if (!(ret == ACL_SUCCESS)) {
@@ -143,11 +157,21 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
 inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
 {
     const char* socName = aclrtGetSocName();
-    if(std::strstr(socName, "Ascend950") == nullptr) {
+    if(std::strstr(socName, "Ascend950") == nullptr && std::strstr(socName, "Ascend910_93") == nullptr) {
         OP_LOGE(OP_NAME, "The soc version is %s, skip dump process", socName);
         return;
     }
     OP_LOGD(OP_NAME, "Start to handle mc2 exception and dump win info.");
+    #ifdef __DAV_C310__ //A5
+        using HcclOpParam = HcclCombinOpParam;
+    #else
+        if (op != nullptr && ((std:: strcmp(op, "MoeDistributeDispatchV2") == 0) || (std:: strcmp(op, "MoeDistributeCombineV2") == 0))) {
+            using HcclOpParam = HcclOpResParamForDump;
+        }
+        else if (op != nullptr && ((std:: strcmp(op, "MoeDistributeDispatchV3") == 0) || (std:: strcmp(op, "MoeDistributeCombineV3") == 0))) {
+            using HcclOpParam = CommContextForDump;
+        }
+    #endif
 
     // Get addr of hccl context from ExceptionInfo
     void* devArgsPtr = nullptr;
@@ -166,7 +190,11 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
             devArgsLen);
 
     uint64_t argsAddr = 0;
-    ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    #ifdef __DAV_C310__ //A5
+        ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    #else
+        ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr + sizeof(uint64_t), sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    #endif
     if (!(ret == ACL_SUCCESS)) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
         return;
@@ -174,7 +202,7 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
 
     // Get win content
     std::vector<uint8_t> winContent(WIN_SIZE, 0);
-    if (ProcessArgs(argsAddr, winContent) != 0) {
+    if (ProcessArgs(argsAddr, winContent, op) != 0) {
         OP_LOGE(OP_NAME, "Failed to get win content.");
         return;
     }
