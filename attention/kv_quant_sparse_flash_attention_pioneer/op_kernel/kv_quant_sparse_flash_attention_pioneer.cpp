@@ -45,7 +45,7 @@ using namespace AscendC;
         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                               \
         const tilingdataClass *__restrict tilingData = &tilingDataIn;                                     \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
-            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                   \
+            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                  \
 	    attentionOut, user, tilingData, &tPipe);                                                          \
         op.Process();                                                                                     \
     } while (0)
