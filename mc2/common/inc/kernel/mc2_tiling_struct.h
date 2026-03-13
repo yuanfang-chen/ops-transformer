@@ -15,9 +15,6 @@
 #ifndef MC2_TILING_STRUCT_H
 #define MC2_TILING_STRUCT_H
 
-#include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
-
 namespace Mc2Tiling {
 constexpr uint8_t COMM_ALG_DEFAULT = 0;
 constexpr uint8_t COMM_ALG_FULL_MESH = 1;
