@@ -513,6 +513,18 @@ ge::graphStatus BSAGradTiling::GetBSAGradTiling(gert::TilingContext *context,
         return ret;
     }
     
+    ret = CalculatePostUbBaseSize(context);
+    if (ret != ge::GRAPH_SUCCESS) {
+        OP_LOGE(context->GetNodeName(), "CalculatePostUbBaseSize failed");
+        return ret;
+    }
+    
+    ret = CalculateSoftmaxGradTiling(context);
+    if (ret != ge::GRAPH_SUCCESS) {
+        OP_LOGE(context->GetNodeName(), "CalculateSoftmaxGradTiling failed");
+        return ret;
+    }
+    
     ret = FillTilingData(context);
     if (ret != ge::GRAPH_SUCCESS) {
         OP_LOGE(context->GetNodeName(), "FillTilingData failed");
