@@ -186,7 +186,7 @@ template<uint8_t Q_T, uint8_t KV_T, uint16_t OUT_T, uint8_t PAGE_ATTENTIOND, uin
                 uint16_t M_FIAFLAG_P_MMTYPETMP_I_MODEVAL,   uint8_t P_CVDIFF_BASE_FLAG,
                 uint8_t P_CVDIFF_MLA_FLAG,  uint8_t P_TEMPLATE_VERSION, uint8_t TEMPLATE_MODE>
 __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
-                                                        __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask, __gm__ uint8_t* sabiTensor,
+                                                        __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask, __gm__ uint8_t* sabi,
                                                         __gm__ uint8_t* actualSeqLengths, __gm__ uint8_t* actualSeqLengthsKV,
                                                         __gm__ uint8_t* deq_scale1, __gm__ uint8_t* quant_scale1,
                                                         __gm__ uint8_t* deq_scale2, __gm__ uint8_t* quant_scale2,
@@ -242,7 +242,7 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
         // // Ensure 8-byte alignment. If you’re not 100% sure user is aligned, write at an aligned offset you control
         constexpr uint32_t sabiOffset = 0; // or 8/16/32 etc.
         auto p = reinterpret_cast<__gm__ uint64_t*>(user + sabiOffset);
-        *p = reinterpret_cast<uint64_t>(sabiTensor);
+        *p = reinterpret_cast<uint64_t>(sabi);
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         if constexpr ((Q_T == 0 || Q_T == 6) && (KV_T != 1)){
             if constexpr ((Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0)
@@ -686,7 +686,7 @@ template<uint8_t Q_T, uint8_t KV_T, uint8_t OUT_T, uint8_t PAGE_ATTENTIOND, uint
             uint8_t M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE, uint8_t M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T, uint8_t M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA, uint8_t M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE,
             uint8_t M_FIAFLAG_P_MMTYPETMP_I_MODEVAL, uint8_t P_CVDIFF_BASE_FLAG, uint8_t P_CVDIFF_MLA_FLAG, uint8_t P_TEMPLATE_VERSION, uint8_t TEMPLATE_MODE>
 __global__ __aicore__ void blitz_sparse_attention(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
-                                            __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask, __gm__ uint8_t* sabiTensor,
+                                            __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask, __gm__ uint8_t* sabi,
                                             __gm__ uint8_t* actualSeqLengths, __gm__ uint8_t* actualSeqLengthsKV,
                                             __gm__ uint8_t* deq_scale1, __gm__ uint8_t* quant_scale1,
                                             __gm__ uint8_t* deq_scale2, __gm__ uint8_t* quant_scale2,
@@ -696,6 +696,6 @@ __global__ __aicore__ void blitz_sparse_attention(__gm__ uint8_t* query, __gm__ 
         blitz_sparse_attention_FIAS<Q_T, KV_T, OUT_T, PAGE_ATTENTIOND, LAYOUT_T, KV_LAYOUT_T, FLASH_DECODE, ENABLE_PREFIX, M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE,
                                     M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T, M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA, M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE,
                                     M_FIAFLAG_P_MMTYPETMP_I_MODEVAL, P_CVDIFF_BASE_FLAG, P_CVDIFF_MLA_FLAG, P_TEMPLATE_VERSION, TEMPLATE_MODE>
-           (query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengths, actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
+           (query, key, value, pseShift, attenMask, sabi, actualSeqLengths, actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
                                 quant_offset2, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, attentionOut, nullptr, workspace, tiling);
 }

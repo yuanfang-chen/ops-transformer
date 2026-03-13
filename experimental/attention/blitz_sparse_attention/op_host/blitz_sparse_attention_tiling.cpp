@@ -392,7 +392,7 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     contextKeyParams.fromTilingSink = 0U;
     contextKeyParams.pseShift = context->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMask = context->GetOptionalInputTensor(ATTEN_MASK_INDEX);
-    contextKeyParams.sabiTensor = context->GetOptionalInputTensor(SABI_TENSOR_INDEX);
+    contextKeyParams.sabi = context->GetOptionalInputTensor(SABI_TENSOR_INDEX);
     contextKeyParams.actualSequenceLengthQ = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     contextKeyParams.actualSequenceLengthKV = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     contextKeyParams.antiquantScale = context->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
@@ -408,7 +408,7 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     context->GetOptionalInputDesc(PSE_SHIFT_INDEX)->GetDataType() : contextKeyParams.inputDataType;
     contextKeyParams.maskDataType = (contextKeyParams.attentionMask != nullptr) ?
     context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() : contextKeyParams.inputDataType;
-    contextKeyParams.sabiDataType = (contextKeyParams.sabiTensor != nullptr) ?
+    contextKeyParams.sabiDataType = (contextKeyParams.sabi != nullptr) ?
     context->GetOptionalInputDesc(SABI_TENSOR_INDEX)->GetDataType() : contextKeyParams.inputDataType;
     contextKeyParams.outputDataType = context->GetOutputDesc(0)->GetDataType();
     contextKeyParams.queryInputShape = context->GetInputShape(QUERY_INDEX);
@@ -416,7 +416,7 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     contextKeyParams.valueInputShape = context->GetInputShape(VALUE_INDEX);
     contextKeyParams.pseShiftShape = context->GetOptionalInputShape(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMaskShape = context->GetOptionalInputShape(ATTEN_MASK_INDEX);
-    contextKeyParams.sabiTensorShape = context->GetOptionalInputShape(SABI_TENSOR_INDEX);
+    contextKeyParams.sabiShape = context->GetOptionalInputShape(SABI_TENSOR_INDEX);
     contextKeyParams.deqScale1Shape = context->GetOptionalInputShape(DEQ_SCALE1_INDEX);
     contextKeyParams.scale1Shape = context->GetOptionalInputShape(QUANT_SCALE1_INDEX);
     contextKeyParams.deqScale2Shape = context->GetOptionalInputShape(DEQ_SCALE2_INDEX);
@@ -4090,7 +4090,7 @@ ge::graphStatus BlitzSparseAttentionTiling::RunBigKernelTilingWithParams(Context
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
     const gert::StorageShape* attenMaskShape = contextKeyParams.attentionMaskShape;
-    const gert::StorageShape* sabiShape = contextKeyParams.sabiTensorShape;
+    const gert::StorageShape* sabiShape = contextKeyParams.sabiShape;
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
@@ -6001,15 +6001,15 @@ void BlitzSparseAttentionTiling::SetMaskSize(const gert::StorageShape* attenMask
     tilingData->promptAttentionBaseParams.set_maskQsSize(maskQsSize);
 }
 
-void BlitzSparseAttentionTiling::SetSabiSize(const gert::StorageShape* sabiTensorShape,
+void BlitzSparseAttentionTiling::SetSabiSize(const gert::StorageShape* sabiShape,
                                             BlitzSparseAttentionTilingData* tilingData) {
     uint32_t sabiBatchSize = 1; // implicit batch for 3D tensor
     uint32_t sabiHeadNum = 0;
     uint32_t sabiQblocks = 0;
     uint32_t sabiKVBlocks = 0;
 
-    if (sabiTensorShape != nullptr) {
-        const auto& shape = sabiTensorShape->GetStorageShape(); // GetOriginShape in case the underlying data is messed up/flattened
+    if (sabiShape != nullptr) {
+        const auto& shape = sabiShape->GetStorageShape(); // GetOriginShape in case the underlying data is messed up/flattened
         const int64_t dimNum = shape.GetDimNum();
 
         // Expect 3D: [H, Q, KV] or 4D: [B, H, Q, KV]

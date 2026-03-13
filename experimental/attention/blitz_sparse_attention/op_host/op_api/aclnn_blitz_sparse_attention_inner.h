@@ -24,7 +24,7 @@ extern "C" {
  */
 ACLNN_API aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
     const aclTensor* query, const aclTensor* key, const aclTensor* value, const aclTensor* pseShift,
-    const aclTensor* attenMask, const aclTensor *sabiTensor, const aclIntArray* actualSeqLengths, const aclIntArray* actualSeqLengthsKv,
+    const aclTensor* attenMask, const aclTensor *sabi, const aclIntArray* actualSeqLengths, const aclIntArray* actualSeqLengthsKv,
     const aclTensor* deqScale1, const aclTensor* quantScale1, const aclTensor* deqScale2, const aclTensor* quantScale2,
     const aclTensor* quantOffset2, int64_t numHeads, double scaleValue, int64_t preTokens, int64_t nextTokens,
     char* inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,

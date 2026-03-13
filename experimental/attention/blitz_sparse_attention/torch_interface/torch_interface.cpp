@@ -59,7 +59,7 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
  * @param [in] key Tensor of shape [B, N, T, D] (fp16/bf16) 
  * @param [in] value Tensor of shape [B, N, T, D] (fp16/bf16)
  * @param [in] atten_mask Tensor of shape [B, N, S, T] (bool, optional)
- * @param [in] sabi_blocks Tensor of shape [B, N, S / Qtile_size, sparsity * T / KVTileSize] (uint16, padded with 65535, optional)
+ * @param [in] sabi Tensor of shape [B, N, S / Qtile_size, sparsity * T / KVTileSize] (uint16, padded with 65535, optional)
  * @param [in] actual_seq_lengths vector of actual sequence lengths
  * @param [in] actual_seq_lengths_kv vector of actual sequence lengths for key/value
  * @param [in] num_heads number of attention heads
@@ -79,7 +79,7 @@ at::Tensor npu_blitz_sparse_attention(
     const at::Tensor &key, 
     const at::Tensor &value,
     const c10::optional<at::Tensor> &atten_mask = c10::nullopt,
-    const c10::optional<at::Tensor> &sabi_blocks = c10::nullopt,
+    const c10::optional<at::Tensor> &sabi = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_opt = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_kv_opt = c10::nullopt,
     c10::optional<int64_t> num_heads_opt = c10::nullopt,
@@ -104,8 +104,8 @@ at::Tensor npu_blitz_sparse_attention(
         TORCH_CHECK(atten_mask.value().scalar_type() == at::kBool, "atten_mask must be bool tensor");
     }
 
-    if (sabi_blocks.has_value()) {
-        TORCH_CHECK(sabi_blocks.value().scalar_type() == at::kUInt16, "sabi tensor must be uint16 tensor");
+    if (sabi.has_value()) {
+        TORCH_CHECK(sabi.value().scalar_type() == at::kUInt16, "sabi tensor must be uint16 tensor");
     }
     
     // Create ACL tensors from torch tensors
@@ -117,8 +117,8 @@ at::Tensor npu_blitz_sparse_attention(
         atten_mask_tensor = create_acl_tensor(atten_mask.value());
     }
     aclTensor* sabi_tensor = nullptr;
-    if (sabi_blocks.has_value()) {
-        sabi_tensor = create_acl_tensor(sabi_blocks.value());
+    if (sabi.has_value()) {
+        sabi_tensor = create_acl_tensor(sabi.value());
     }
     
     // Create actual sequence lengths array - handle optional parameters
@@ -162,7 +162,7 @@ at::Tensor npu_blitz_sparse_attention(
         value_tensor,                 //  const aclTensor   *value,
         nullptr,                      //  const aclTensor   *pseShift,
         atten_mask_tensor,            //  const aclTensor   *attenMask,
-        sabi_tensor,                  //  const aclTensor   *sabiTensor,
+        sabi_tensor,                  //  const aclTensor   *sabi,
         actual_seq_lengths_array,     //  const aclIntArray *actualSeqLengths,
         actual_seq_lengths_kv_array,  //  const aclIntArray *actualSeqLengthsKv,
         nullptr,                      //  const aclTensor   *deqScale1,
@@ -240,7 +240,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         py::arg("key"),
         py::arg("value"),
         py::arg("atten_mask") = c10::optional<at::Tensor>(),
-        py::arg("sabi_blocks") = c10::optional<at::Tensor>(),
+        py::arg("sabi") = c10::optional<at::Tensor>(),
         py::arg("actual_seq_lengths") = c10::optional<std::vector<int64_t>>(),
         py::arg("actual_seq_lengths_kv") = c10::optional<std::vector<int64_t>>(),
         py::arg("num_heads") = c10::optional<int64_t>(),

@@ -34,7 +34,7 @@ aclnnStatus aclnnBlitzSparseAttentionV4GetWorkspaceSize(
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
-    const aclTensor *sabiTensor,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,
@@ -53,7 +53,7 @@ aclnnStatus aclnnBlitzSparseAttentionV4GetWorkspaceSize(
     const aclTensor *attentionOut,
     uint64_t *workspaceSize,
     aclOpExecutor **executor) {
-        return InnerBlitzSparseAttentionV4GetWorkspaceSize(query, key, value, pseShift, attenMask, sabiTensor,
+        return InnerBlitzSparseAttentionV4GetWorkspaceSize(query, key, value, pseShift, attenMask, sabi,
                                                               actualSeqLengths, actualSeqLengthsKv,
                                                               deqScale1, quantScale1, deqScale2,
                                                               quantScale2, quantOffset2,

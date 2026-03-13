@@ -27,7 +27,7 @@ __attribute__ ((visibility("default"))) aclnnStatus aclnnBlitzSparseAttentionV4G
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask, // attenMask of V4
-    const aclTensor *sabiTensor,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,

@@ -60,7 +60,7 @@ def test_blitz_sparse_attention_correctness(torch_ref, a, shape, sparsity):
     s_q = s_kv
     
     # Generate attention mask and parameters
-    atten_mask, npu_atten_mask, sabi_blocks, sm, scale, pre_tok, post_tok = create_attention_mask(
+    atten_mask, npu_atten_mask, sabi, sm, scale, pre_tok, post_tok = create_attention_mask(
         b, h, s_q, s_kv, d, sparsity, a, device=DEVICE, emit_atten_mask=True
     )
     
@@ -71,7 +71,7 @@ def test_blitz_sparse_attention_correctness(torch_ref, a, shape, sparsity):
     
     # Run our implementation
     out_our = torch_bsa.npu_blitz_sparse_attention(q, k, v,
-        sabi_blocks=sabi_blocks,
+        sabi=sabi,
         actual_seq_lengths=actseqlen, actual_seq_lengths_kv=actseqlenkv, 
         num_heads=h, num_key_value_heads=h, input_layout=INPUT_LAYOUT,
         scale_value=scale, atten_mask=npu_atten_mask, sparse_mode=sm, 

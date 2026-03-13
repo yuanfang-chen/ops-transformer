@@ -29,7 +29,7 @@ The old BSA tillingContext will also be transformed to this structure in the fut
 struct ContextParamsForPFATiling {
     const gert::Tensor *pseShift = nullptr;
     const gert::Tensor *attentionMask = nullptr;
-    const gert::Tensor *sabiTensor = nullptr;
+    const gert::Tensor *sabi = nullptr;
     const gert::Tensor *actualSequenceLengthQ = nullptr;
     const gert::Tensor *actualSequenceLengthKV = nullptr;
     const gert::Tensor *antiquantScale = nullptr;
@@ -68,7 +68,7 @@ struct ContextParamsForPFATiling {
     const gert::StorageShape *valueInputShape = nullptr;
     const gert::StorageShape *pseShiftShape = nullptr;
     const gert::StorageShape *attentionMaskShape = nullptr;
-    const gert::StorageShape *sabiTensorShape = nullptr;
+    const gert::StorageShape *sabiShape = nullptr;
     const gert::StorageShape *deqScale1Shape = nullptr;
     const gert::StorageShape *scale1Shape = nullptr;
     const gert::StorageShape *deqScale2Shape = nullptr;

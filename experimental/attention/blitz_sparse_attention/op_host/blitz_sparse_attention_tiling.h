@@ -172,7 +172,7 @@ protected:
     ge::graphStatus CheckDimNums(ContextParamsForPFATiling& contextKeyParams);
     ge::graphStatus CheckMaskType(ContextParamsForPFATiling& contextKeyParams, BlitzSparseAttentionTilingData* tilingData, uint32_t& maskElemSize);
     void SetMaskSize(const gert::StorageShape* attenMaskShape, BlitzSparseAttentionTilingData* tilingData);
-    void SetSabiSize(const gert::StorageShape* sabiTensorShape, BlitzSparseAttentionTilingData* tilingData);
+    void SetSabiSize(const gert::StorageShape* sabiShape, BlitzSparseAttentionTilingData* tilingData);
     ge::graphStatus CheckShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* queryShape, const gert::StorageShape* keyShape,
                                const gert::StorageShape* valueShape, const gert::StorageShape* outShape, const gert::StorageShape* pseShiftShape,
                                const gert::StorageShape* attenMaskShape);

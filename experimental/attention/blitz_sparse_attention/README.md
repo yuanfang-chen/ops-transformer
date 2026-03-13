@@ -1,6 +1,6 @@
 # BlitzSparseAttention  - Prompt Flash Attention with Block-Sparsity
 
-This kernel is based on PromptFlashAttentionV3, extending it by a new argument "sabi_tensor" to enable block sparse attention computation during prefill. We provide a **torch interface** to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabiTensor argument can be found in [docs/aclnnBlitzSparseAttentionV4.md](docs/aclnnBlitzSparseAttentionV4.md)
+This kernel is based on PromptFlashAttentionV3, extending it by a new argument "sabi" to enable block sparse attention computation during prefill. We provide a **torch interface** to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabi argument can be found in [docs/aclnnBlitzSparseAttentionV4.md](docs/aclnnBlitzSparseAttentionV4.md)
 
 ## Quick test and benchmark in python:
 build the kernel as a custom experimental package, install it, then install our "torch_bsa" torch interface package
@@ -45,7 +45,7 @@ out = torch_bsa.npu_blitz_sparse_attention(
     q,
     k,
     v,
-    sabi_blocks=sabi_blocks,  # our new argument torch.uint16 shape: [batch_size, num_heads, ceil(seq_len/128), ceil(seq_len/512)]
+    sabi=sabi,  # our new argument torch.uint16 shape: [batch_size, num_heads, ceil(seq_len/128), ceil(seq_len/512)]
     actual_seq_lengths=actseqlen,
     actual_seq_lengths_kv=actseqlenkv,
     num_heads=h,

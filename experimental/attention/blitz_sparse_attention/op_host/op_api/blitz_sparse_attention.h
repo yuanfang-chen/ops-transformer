@@ -20,7 +20,7 @@ const aclTensor *BlitzSparseAttention(
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask, // attenMask of bsa
-    const aclTensor *sabiTensor,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,

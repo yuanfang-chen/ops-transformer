@@ -28,7 +28,7 @@ const aclTensor *BlitzSparseAttention(
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
-    const aclTensor *sabiTensor,
+    const aclTensor *sabi,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,
@@ -46,7 +46,7 @@ const aclTensor *BlitzSparseAttention(
     int64_t innerPrecise,
     const aclTensor *attentionOut,
     aclOpExecutor *executor) {
-    L0_DFX(BlitzSparseAttention, query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengths, actualSeqLengthsKv,
+    L0_DFX(BlitzSparseAttention, query, key, value, pseShift, attenMask, sabi, actualSeqLengths, actualSeqLengthsKv,
            deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
            numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads,
            sparseMode, innerPrecise);
@@ -74,7 +74,7 @@ const aclTensor *BlitzSparseAttention(
 
     auto attentionOutOut = executor->AllocTensor(attentionOut->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
     auto ret = INFER_SHAPE(BlitzSparseAttention,
-        OP_INPUT(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
+        OP_INPUT(query, key, value, pseShift, attenMask, sabi, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
                  deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2),
         OP_OUTPUT(attentionOutOut),
         OP_ATTR(numHeads, static_cast<float>(scaleValue), preTokens, nextTokens,
@@ -85,7 +85,7 @@ const aclTensor *BlitzSparseAttention(
     }
 
     ret = ADD_TO_LAUNCHER_LIST_AICORE(BlitzSparseAttention,
-        OP_INPUT(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
+        OP_INPUT(query, key, value, pseShift, attenMask, sabi, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
                  deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2),
         OP_OUTPUT(attentionOutOut),
         OP_ATTR(numHeads, static_cast<float>(scaleValue), preTokens, nextTokens,

@@ -48,7 +48,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
 
   auto pseShiftGe = host_api_ctx->GetOptionalInputTensor(3);
   auto attenMaskGe = host_api_ctx->GetOptionalInputTensor(4);
-  auto sabiTensorGe = host_api_ctx->GetOptionalInputTensor(5);
+  auto sabiGe = host_api_ctx->GetOptionalInputTensor(5);
   auto actualSeqLengthsGe = host_api_ctx->GetOptionalInputTensor(6);
 
   auto actualSeqLengthsGeKv = host_api_ctx->GetOptionalInputTensor(7);
@@ -118,7 +118,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
             sparseMode, innerPrecise);
   }
 
-  auto api_ret = EXEC_OPAPI_CMD(aclnnBlitzSparseAttentionV4, query, key, value, pseShiftGe, attenMaskGe, sabiTensorGe, actSeqArray,
+  auto api_ret = EXEC_OPAPI_CMD(aclnnBlitzSparseAttentionV4, query, key, value, pseShiftGe, attenMaskGe, sabiGe, actSeqArray,
                                 actSeqArrayKv, deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2,
                                 numHeads, dScaleValue, preTokens, nextTokens, layout, kvHeadNum, sparseMode,
                                 innerPrecise, output);

@@ -413,7 +413,7 @@ static inline const aclTensor *GeneratePaddings(int32_t dimNum, int32_t padNum, 
 }
 
 static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
-                                   const aclTensor *&pseShift, const aclTensor *&attenMask, const aclTensor *&sabiTensor,
+                                   const aclTensor *&pseShift, const aclTensor *&attenMask, const aclTensor *&sabi,
                                    aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
@@ -431,9 +431,9 @@ static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&ke
         attenMask = l0op::Contiguous(attenMask, executor);
         CHECK_RET(attenMask != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
-    if (sabiTensor) {
-        sabiTensor = l0op::Contiguous(sabiTensor, executor);
-        CHECK_RET(sabiTensor != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (sabi) {
+        sabi = l0op::Contiguous(sabi, executor);
+        CHECK_RET(sabi != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
     return ACLNN_SUCCESS;
 }
@@ -601,7 +601,7 @@ static bool CheckNotNull(const aclTensor* query, const aclTensor* key, const acl
 }
 
 static bool CheckTensorDataType(const aclTensor* query, const aclTensor* key, const aclTensor* value,
-                                const aclTensor *pseShift, const aclTensor* attenMask, const aclTensor* sabiTensor,
+                                const aclTensor *pseShift, const aclTensor* attenMask, const aclTensor* sabi,
                                 const aclTensor* attentionOut) {
     const DataType queryDataType = query->GetDataType();
     const DataType keyDataType = key->GetDataType();
@@ -672,11 +672,11 @@ static bool CheckTensorDataType(const aclTensor* query, const aclTensor* key, co
         }
     }
 
-    if (sabiTensor != nullptr) {
+    if (sabi != nullptr) {
         const DataType validSabiType = DataType::DT_UINT16;
-        const DataType sabiDataType = sabiTensor->GetDataType();
+        const DataType sabiDataType = sabi->GetDataType();
         if (sabiDataType != validSabiType) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sabiTensor dataType(%s) is invalid, should be %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sabi dataType(%s) is invalid, should be %s",
                 StrDataTypePfa.at(ValidPfaAclDataType(sabiDataType)).c_str(), StrDataTypePfa.at(ValidPfaAclDataType(DataType::DT_UINT16)).c_str());
             return false;
         }
@@ -696,7 +696,7 @@ static bool CheckTensorFormatPrivate(const aclTensor* tensor) {
 
 static bool CheckTensorFormat(const aclTensor* query, const aclTensor* key, const aclTensor* value,
                                 const aclTensor *pseShift, const aclTensor* attenMask,
-                                const aclTensor* sabiTensor, const aclTensor* attentionOut) {
+                                const aclTensor* sabi, const aclTensor* attentionOut) {
     if (CheckTensorFormatPrivate(query)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Query format only support ND.");
         return false;
@@ -717,7 +717,7 @@ static bool CheckTensorFormat(const aclTensor* query, const aclTensor* key, cons
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "AttenMask format only support ND.");
         return false;
     }
-    if (sabiTensor != nullptr && CheckTensorFormatPrivate(sabiTensor)) {
+    if (sabi != nullptr && CheckTensorFormatPrivate(sabi)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "SABI tensor format only support ND.");
         return false;
     }
@@ -743,14 +743,14 @@ static inline bool CheckResultOutShapePfa(const aclTensor *inferOut, const aclTe
 
 aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
     const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *pseShift,
-    const aclTensor *attenMask, const aclTensor *sabiTensor, const aclIntArray *actualSeqLengths, const aclIntArray *actualSeqLengthsKv,
+    const aclTensor *attenMask, const aclTensor *sabi, const aclIntArray *actualSeqLengths, const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1, const aclTensor *quantScale1, const aclTensor *deqScale2, const aclTensor *quantScale2,
     const aclTensor *quantOffset2, int64_t numHeads, double scaleValue, int64_t preTokens, int64_t nextTokens,
     char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,
     const aclTensor *attentionOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(InnerBlitzSparseAttentionV4,
-                DFX_IN(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengths, actualSeqLengthsKv,
+                DFX_IN(query, key, value, pseShift, attenMask, sabi, actualSeqLengths, actualSeqLengthsKv,
                         deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
                         numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads,
                         sparseMode, innerPrecise),
@@ -770,22 +770,22 @@ aclnnStatus InnerBlitzSparseAttentionV4GetWorkspaceSize(
         return ACLNN_SUCCESS;
     }
 
-    CHECK_RET(CheckTensorDataType(query, key, value, pseShift, attenMask, sabiTensor, attentionOut), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckTensorDataType(query, key, value, pseShift, attenMask, sabi, attentionOut), ACLNN_ERR_PARAM_INVALID);
 
     FaShapeInfo shapeInfo;
     CHECK_RET(AnalysisInputShapeInfo(query, key, value, inputLayout, numHeads, numKeyValueHeads, shapeInfo, attentionOut) ==
               ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     if (shapeInfo.needPad) {
-        CHECK_RET(CheckTensorFormat(query, key, value, pseShift, attenMask, sabiTensor, attentionOut), ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(CheckTensorFormat(query, key, value, pseShift, attenMask, sabi, attentionOut), ACLNN_ERR_PARAM_INVALID);
     }
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
-    CHECK_RET(ContiguousInput(query, key, value, pseShift, attenMask, sabiTensor, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(ContiguousInput(query, key, value, pseShift, attenMask, sabi, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
     CHECK_RET(PreprocessQKVInput(query, key, value, quantScale2, quantOffset2, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
 
-    auto l0AttentionOutOut = l0op::BlitzSparseAttention(query, key, value, pseShift, attenMask, sabiTensor,
+    auto l0AttentionOutOut = l0op::BlitzSparseAttention(query, key, value, pseShift, attenMask, sabi,
                                                         actualSeqLengths, actualSeqLengthsKv,
                                                         deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
                                                         numHeads, scaleValue, preTokens, nextTokens,

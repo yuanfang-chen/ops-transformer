@@ -39,7 +39,7 @@ aclnnStatus aclnnBlitzSparseAttentionV3GetWorkspaceSize(
     const aclTensor   *value,
     const aclTensor   *pseShift,
     const aclTensor   *attenMask,
-    const aclTensor   *sabiTensor,
+    const aclTensor   *sabi,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor   *deqScale1,
@@ -148,7 +148,7 @@ aclnnStatus aclnnBlitzSparseAttentionV3(
         <td>×</td>
       </tr>
       <tr>
-        <td>sabiTensor</td>
+        <td>sabi</td>
         <td>输入</td>
         <td>mask矩阵</td>
         <td><ul><li>不使用该功能可传入nullptr。</li>
@@ -641,10 +641,10 @@ aclnnStatus aclnnBlitzSparseAttentionV3(
     - sparseMode = 3，每个batch actualSeqLengthsKV - actualSeqLengths < 0，满足拦截条件。
     - sparseMode = 4，preTokens < 0 或 每个batch nextTokens + actualSeqLengthsKV - actualSeqLengths < 0 时，满足拦截条件。
 
-- sabiTensor:
+- sabi:
    - Shape: `[batch_size, num_heads, num_sabi_rows, num_sabi_cols]` where num_sabi_rows is ceil(sequence_length/128) and num_sabi_cols is ceil(sequence_length/512).
-   - Semantis: for a given batch b and head h the sabiTensor[b, h, i, :] specifies a list of 128x512 attention matrix tiles that should be computed. -1 will indicate a "skip" that is "do not compute". 
-   - Example of sabi_tensor of batch_size=1 and 2 heads processing sequence length 4000 (the sabi will have 31 rows and 7 columns):
+   - Semantis: for a given batch b and head h the sabi[b, h, i, :] specifies a list of 128x512 attention matrix tiles that should be computed. -1 will indicate a "skip" that is "do not compute". 
+   - Example of `sabi` of batch_size=1 and 2 heads processing sequence length 4000 (the sabi will have 31 rows and 7 columns):
    ```python
     [
       # head 0:
