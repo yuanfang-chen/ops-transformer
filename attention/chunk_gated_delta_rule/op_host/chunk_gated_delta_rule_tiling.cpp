@@ -143,51 +143,27 @@ namespace optiling {
 
         // ========== MT_FP32: FP32 -> FP32 ==========
         // 直接设置 tilingData_.matmulTilingFp32 的各个字段
-        tilingData_.matmulTilingFp32.usedCoreNum = static_cast<uint32_t>(compileInfo_.aicNum);
-        tilingData_.matmulTilingFp32.singleCoreM = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingFp32.singleCoreN = static_cast<uint32_t>(baseN);
-        tilingData_.matmulTilingFp32.singleCoreK = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingFp32.baseM = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingFp32.baseN = static_cast<uint32_t>(baseN);
-        tilingData_.matmulTilingFp32.baseK = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingFp32.depthA1 = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.depthB1 = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.stepM = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.stepN = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.stepKa = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.stepKb = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.iterateOrder = static_cast<uint32_t>(0);
-        tilingData_.matmulTilingFp32.dbL0C = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingFp32.M = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingFp32.N = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingFp32.Ka = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingFp32.Kb = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingFp32.usedCoreNum = static_cast<int32_t>(compileInfo_.aicNum);
+        tilingData_.matmulTilingFp32.singleCoreM = static_cast<int32_t>(baseM);
+        tilingData_.matmulTilingFp32.singleCoreN = static_cast<int32_t>(baseN);
+        tilingData_.matmulTilingFp32.singleCoreK = static_cast<int32_t>(baseK);
+        tilingData_.matmulTilingFp32.baseM = static_cast<int32_t>(baseM);
+        tilingData_.matmulTilingFp32.baseN = static_cast<int32_t>(baseN);
+        tilingData_.matmulTilingFp32.baseK = static_cast<int32_t>(baseK);
+        tilingData_.matmulTilingFp32.depthA1 = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.depthB1 = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.stepM = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.stepN = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.stepKa = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.stepKb = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.iterateOrder = static_cast<int32_t>(0);
+        tilingData_.matmulTilingFp32.dbL0C = static_cast<int32_t>(1);
+        tilingData_.matmulTilingFp32.M = static_cast<int32_t>(baseM);
+        tilingData_.matmulTilingFp32.N = static_cast<int32_t>(baseM);
+        tilingData_.matmulTilingFp32.Ka = static_cast<int32_t>(baseK);
+        tilingData_.matmulTilingFp32.Kb = static_cast<int32_t>(baseK);
 
         OP_LOGD(context_->GetNodeName(), "MT_FP32 tiling: baseM=%u, baseN=%u, baseK=%u", baseM, baseN, baseK);
-
-        // ========== MT_BF16: FP32 -> BF16 ==========
-        // 直接设置 tilingData_.matmulTilingBf16 的各个字段
-        tilingData_.matmulTilingBf16.usedCoreNum = static_cast<uint32_t>(compileInfo_.aicNum);
-        tilingData_.matmulTilingBf16.singleCoreM = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingBf16.singleCoreN = static_cast<uint32_t>(baseN);
-        tilingData_.matmulTilingBf16.singleCoreK = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingBf16.baseM = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingBf16.baseN = static_cast<uint32_t>(baseN);
-        tilingData_.matmulTilingBf16.baseK = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingBf16.depthA1 = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.depthB1 = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.stepM = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.stepN = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.stepKa = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.stepKb = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.iterateOrder = static_cast<uint32_t>(0);
-        tilingData_.matmulTilingBf16.dbL0C = static_cast<uint32_t>(1);
-        tilingData_.matmulTilingBf16.M = static_cast<uint32_t>(baseM);
-        tilingData_.matmulTilingBf16.N = static_cast<uint32_t>(baseN);
-        tilingData_.matmulTilingBf16.Ka = static_cast<uint32_t>(baseK);
-        tilingData_.matmulTilingBf16.Kb = static_cast<uint32_t>(baseK);
-
-        OP_LOGD(context_->GetNodeName(), "MT_BF16 tiling: baseM=%u, baseN=%u, baseK=%u", baseM, baseN, baseK);
 
         return ge::GRAPH_SUCCESS;
     }
