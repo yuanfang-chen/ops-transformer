@@ -45,8 +45,16 @@ using namespace AscendC;
 
 constexpr uint32_t BUFFER_NUM = 1U;
 constexpr uint32_t UB_ALIGN_BYTES = 32U;
+constexpr uint32_t STATE_ALIGN_BYTES = 32U;
+constexpr uint32_t NZ_W0 = 32U;
+constexpr uint32_t REDUCE_BUF_BYTES = 256U;
 constexpr uint32_t FLOAT_UB_ALIGN_NUM = 8U;
 constexpr uint32_t BLOCK_LENGTH = 5120U;
+constexpr uint32_t EIGHT_BYTES_ALIGN = 8U;
+constexpr uint32_t TP_WORLD_SIZE = 4U;
+constexpr uint32_t UB_CALCM = 22U;
+constexpr uint32_t M_N_TWO_DIMS = 2U;
+constexpr float EPSILON = 1e-6f;
 constexpr float ONE = 1;
 constexpr static uint64_t SYNC_AIC_TO_AIV = 5;
 
@@ -93,7 +101,7 @@ protected:
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId);
     __aicore__ inline void SplitToCore(const uint32_t curSendCnt, const uint32_t curUseAivNum, const uint32_t coreId, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId);
-    __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col);
+    __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col);
     __aicore__ inline void ReadRemoteDataAdd();
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
@@ -129,13 +137,13 @@ protected:
     TBuf<TPosition::VECCALC> reduceFp32Buf_;
 
     // define the que
-    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> tokenQueue_;
-    TQue<QuePosition::VECIN, 1> vecQueSrc_;
-    TQue<QuePosition::VECIN, 1> vecQueScale_;
-    TQue<QuePosition::VECIN, 1> vecQuePertokenScale_;
-    TQue<QuePosition::VECIN, 1> vecQueBias_;
+    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, BUFFER_NUM> tokenQueue_;
+    TQue<QuePosition::VECIN, BUFFER_NUM> vecQueSrc_;
+    TQue<QuePosition::VECIN, BUFFER_NUM> vecQueScale_;
+    TQue<QuePosition::VECIN, BUFFER_NUM> vecQuePertokenScale_;
+    TQue<QuePosition::VECIN, BUFFER_NUM> vecQueBias_;
     TBuf<TPosition::VECCALC> vecQueTmp_;
-    TQue<QuePosition::VECOUT, 1> vecQueOut_;
+    TQue<QuePosition::VECOUT, BUFFER_NUM> vecQueOut_;
     TBuf<TPosition::VECCALC> broadcastFp32Tmp_;
     TBuf<TPosition::VECCALC> biasFp32Tmp_;
     TBuf<TPosition::VECCALC> outFp32Tmp_;
@@ -232,35 +240,34 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     InitTilingData(tilingData);
     singleM_ = singleTimeM_;
     singleN_ = singleTimeN_;
-    ubCalcM_ = 22;
+    ubCalcM_ = UB_CALCM;
     ubCalcN_ = baseN_;
 
-    ubTmpBuffer_ = 8 * ubCalcM_ * ubCalcN_;
-    aicNum_ = 24;
-    aivNum_ = 48;
-    tpWorldSize_ = 4;
-    singleTpSize_ = (m_ / 4) * n_;
-    armAvgFactor_ = 1.0f / n_;
-    epsilon_ = 1e-6f;
+    ubTmpBuffer_ = EIGHT_BYTES_ALIGN * ubCalcM_ * ubCalcN_;
+    
+    tpWorldSize_ = TP_WORLD_SIZE;
+    singleTpSize_ = (m_ / TP_WORLD_SIZE) * n_;
+    armAvgFactor_ = ONE / n_;
+    epsilon_ = EPSILON;
 
     aTrans_ = false;
     bTrans_ = false;
     perTokenScaleAddr_ = perTokenScale;
 
-    m_core_num = CeilDiv(m_, 128);
-    n_core_num = 24 / m_core_num;
+    m_core_num = CeilDiv(m_, baseM_);
+    n_core_num = aicNum_ / m_core_num;
     
     // init ub local buffer for dequantCompute
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
     tpipe_->InitBuffer(vecQueOut_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(YType));
     tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, baseN_ * sizeof(ScaleType));
-    tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, 8U) * sizeof(float));
+    tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, EIGHT_BYTES_ALIGN) * sizeof(float));
     tpipe_->InitBuffer(broadcastFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
     tpipe_->InitBuffer(outFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
-    tpipe_->InitBuffer(writeStateBuf_, 32);
-    tpipe_->InitBuffer(readStateBuf_, 32);
-    tpipe_->InitBuffer(resetStateBuf_, 32);
+    tpipe_->InitBuffer(writeStateBuf_, STATE_ALIGN_BYTES);
+    tpipe_->InitBuffer(readStateBuf_, STATE_ALIGN_BYTES);
+    tpipe_->InitBuffer(resetStateBuf_, STATE_ALIGN_BYTES);
     
     winContext_ = (__gm__ HcclOpResParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
@@ -281,6 +288,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     baseM_ = singleTimeM_;
     baseN_ = singleTimeN_;
     baseK_ = singleCoreK_;
+    aicNum_ = tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.aicNum;
+    aivNum_ = tilingData.qbmmReduceScatterAddRmsNormCastTilingInfo.aicNum;
     isGammaBf16_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.isGammaBf16;
 }
 
@@ -368,7 +377,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 }
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col)
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col)
 {
     LocalTensor<float> dstLocalFp32;
     uint32_t curAivM = ubCalcM_;
@@ -388,17 +397,17 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
         uint32_t moffset_begin = mOffset_ + GetSubBlockIdx() * curAicM + mUbLoopIdx * ubCalcM_;
         uint32_t moffset_end = moffset_begin + curAivM - 1;
-        uint32_t tp_id = moffset_begin / (m_ / 4);
-        uint32_t tp_start = (m_ * tp_id) / 4;
-        uint32_t tp_end = (((tp_id + 1) * m_) / 4) -1;
+        uint32_t tp_id = moffset_begin / (m_ / TP_WORLD_SIZE);
+        uint32_t tp_start = (m_ * tp_id) / TP_WORLD_SIZE;
+        uint32_t tp_end = (((tp_id + 1) * m_) / TP_WORLD_SIZE) -1;
         uint32_t m_diff = moffset_begin - tp_start;
 
         LocalTensor<int32_t> srcLocal = vecQueSrc_.AllocTensor<int32_t>();
         LocalTensor<YType> dstLocal = vecQueOut_.AllocTensor<YType>();
         LocalTensor<uint8_t> tmpLocal = vecQueTmp_.Get<uint8_t>();
 
-        DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * 4 / 32), static_cast<uint16_t>(n_ * sizeof(uint32_t) / 32 - (curAivN * 4 / 32)), 0};
-        DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(n_ * sizeof(bfloat16_t) / 32 - (curAivN * 2 / 32))};
+        DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * sizeof(uint32_t) / UB_ALIGN_BYTES), static_cast<uint16_t>(n_ * sizeof(uint32_t) / UB_ALIGN_BYTES - (curAivN * sizeof(uint32_t) / UB_ALIGN_BYTES)), 0};
+        DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES), 0, static_cast<uint16_t>(n_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES - (curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES))};
         
         uint32_t curAicAivOffset = offsetC_ + GetSubBlockIdx() * curAicM * n_  + mUbLoopIdx * ubCalcM_ * n_;
         DataCopy(srcLocal, mmOutGm_[curAicAivOffset], gm2UbParams);
@@ -424,7 +433,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         DataCopyPad(pertokenScaleLocal, pertokenScaleGm[pertokenScaleOffset], scale2UbParams, padParams);
         vecQuePertokenScale_.EnQue<float>(pertokenScaleLocal);
         pertokenScaleLocal = vecQuePertokenScale_.DeQue<float>();
-        BroadCast<float, 2, 1>(broadcastFp32, pertokenScaleLocal, broadCastDst, broadCastSrc);
+        BroadCast<float, M_N_TWO_DIMS, 1>(broadcastFp32, pertokenScaleLocal, broadCastDst, broadCastSrc);
         AscendC::PipeBarrier<PIPE_V>();
         LocalTensor<float> tmpdstLocal = vecQueTmp_.Get<float>();
         if (computedAivN == ubResAlignedN) {
@@ -454,8 +463,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         } else {
             uint32_t front_count = tp_end - moffset_begin + 1;
             uint32_t end_count = moffset_end - tp_end;
-            DataCopyParams ub2GmParams1{static_cast<uint16_t>(front_count), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(320 - (curAivN * 2 / 32))};
-            DataCopyParams ub2GmParams2{static_cast<uint16_t>(end_count), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(320 - (curAivN * 2 / 32))};
+            DataCopyParams ub2GmParams1{static_cast<uint16_t>(front_count), static_cast<uint16_t>(curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES), 0, static_cast<uint16_t>(n_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES - (curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES))};
+            DataCopyParams ub2GmParams2{static_cast<uint16_t>(end_count), static_cast<uint16_t>(curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES), 0, static_cast<uint16_t>(n_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES - (curAivN * sizeof(bfloat16_t) / UB_ALIGN_BYTES))};
 
             GM_ADDR remoteWinAddr = GetWindAddrByRankId(tp_id);
             remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
@@ -542,7 +551,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     uint32_t endRowId = 0;
     uint32_t rowNum = 0;
     uint32_t tokenIndex = 0;
-    SplitToCore(m_ / 4, aivNum_, coreVid_, startRowId, endRowId, rowNum);
+    SplitToCore(m_ / TP_WORLD_SIZE, aivNum_, coreVid_, startRowId, endRowId, rowNum);
 
     LocalTensor<float> sumFp32Tensor = sumFp32Buf_.Get<float>();
     LocalTensor<float> tokenFp32Tensor = tokenFp32Buf_.Get<float>();
@@ -551,7 +560,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     GlobalTensor<YType> localWinTensor;
     localWinTensor.SetGlobalBuffer((__gm__ YType*)GetWindAddrByRankId(rankId_));
 
-    DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * 2), 0U, 0U, 0U};
+    DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(float16_t)), 0U, 0U, 0U};
     DataCopyExtParams gammaCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(GammaType)), 0U, 0U, 0U};
     const DataCopyPadExtParams<YType> copyPadXTypeParams{false, 0U, 0U, 0U};
     const DataCopyPadExtParams<GammaType> copyPadFloatParams{false, 0U, 0U, 0U};
@@ -621,9 +630,9 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     if constexpr (BMatmulType::format == CubeFormat::ND) {
         offsetB_ = nOffset_;
     } else if constexpr (BMatmulType::format == CubeFormat::NZ) {
-        uint64_t temp1 = nOffset_ / 32;
-        uint64_t temp2 = nOffset_ % 32;
-        offsetB_ = temp1 * k_ * 32 + temp2;
+        uint64_t temp1 = nOffset_ / NZ_W0;
+        uint64_t temp2 = nOffset_ % NZ_W0;
+        offsetB_ = temp1 * k_ * NZ_W0 + temp2;
     }
     if (loopIdx == 0) {
         return;
@@ -708,7 +717,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
                 CalcNAxisOffset(j);
                 uint32_t singleN = baseN_;
                 CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
-                DequantCompute(mmOutGm_, 0, 0, curAicM, baseN_, mOffset_, nOffset_);
+                DequantCompute(mmOutGm_, curAicM, baseN_, mOffset_, nOffset_);
             }
         }
         SyncAll<true>();
@@ -718,15 +727,15 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         SyncAll<true>();    //确保前4个核都等到了状态，即数据区完全ready
         tpipe_->Reset();
         tpipe_->InitBuffer(tokenQueue_, BUFFER_NUM, BLOCK_LENGTH * sizeof(float));   //涉及到Cast的src和dst记得，小cast大要分配大的空间
-        tpipe_->InitBuffer(sumFp32Buf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(tokenFp32Buf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(tokenBuf_, BLOCK_LENGTH * 2);
-        tpipe_->InitBuffer(rowTmpFloatBuf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(mulBuf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(reduceFp32Buf_, 256);
-        tpipe_->InitBuffer(resFp32Buf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(gammaBuf_, BLOCK_LENGTH * 4);
-        tpipe_->InitBuffer(gammaFp32Buf_, BLOCK_LENGTH * 4);
+        tpipe_->InitBuffer(sumFp32Buf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(tokenFp32Buf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(tokenBuf_, BLOCK_LENGTH * sizeof(bfloat16_t));
+        tpipe_->InitBuffer(rowTmpFloatBuf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(mulBuf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(reduceFp32Buf_, REDUCE_BUF_BYTES);
+        tpipe_->InitBuffer(resFp32Buf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(gammaBuf_, BLOCK_LENGTH * sizeof(float));
+        tpipe_->InitBuffer(gammaFp32Buf_, BLOCK_LENGTH * sizeof(float));
         ReadRemoteDataAdd();
     }
 }

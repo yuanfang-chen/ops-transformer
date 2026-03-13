@@ -40,29 +40,7 @@ constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
 using namespace AscendC;
 using namespace ge;
 
-// /**
-//  * @brief 打印tilingData
-//  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
-//  * @param tilingData: 框架根据context的opName匹配tiling模板，计算产生的tilingData
-//  * @return
-//  */
-// static void PrintTilingDataInfo(gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData &tilingData)
-// {
 
-// }
-
-// static ge::graphStatus CheckSocVersion(const gert::TilingContext *context)
-// {
-//     const char *nodeName = context->GetNodeName();
-//     // 校验socVersion
-//     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-//     OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(nodeName, "platformInfoPtr is null."), return ge::GRAPH_FAILED);
-//     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-//     platform_ascendc::SocVersion socVersion = ascendcPlatform.GetSocVersion();
-//     OP_TILING_CHECK(socVersion != platform_ascendc::SocVersion::ASCEND910_93,
-//         OP_LOGE(nodeName, "SocVersion needed to be 910_93."), return ge::GRAPH_FAILED);
-//     return ge::GRAPH_SUCCESS;
-// }
 
 /**
  * @brief 设置hcomm参数
@@ -130,7 +108,7 @@ static void SetTilingKey(gert::TilingContext *context)
     }
 }
 
-static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
+static ge::graphStatus SetWorkSpace(gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     const char *nodeName = context->GetNodeName();
 
@@ -140,7 +118,9 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
 
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName, "workSpaces is nullptr."), return ge::GRAPH_FAILED);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE + M * 5120 * 4;
+    uint32_t M = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M;
+    uint32_t N = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.N;
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + M * N * sizeof(int32_t);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -152,9 +132,12 @@ static ge::graphStatus SetTCubeTiling(
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
     const gert::StorageShape *x1Shape = context -> GetInputShape(0);
+    const gert::StorageShape *x2Shape = context -> GetInputShape(1);
     uint32_t M = x1Shape->GetStorageShape().GetDim(0);
-    uint32_t N = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.N;
-    uint32_t Ka = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.Ka;
+    uint32_t Ka = x1Shape->GetStorageShape().GetDim(1);
+    tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M = M;
+    tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.Ka = Ka;
+    uint32_t N;
 
     uint32_t blockDim = context->GetBlockDim();
     const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
@@ -168,15 +151,18 @@ static ge::graphStatus SetTCubeTiling(
     if (x2Format == ge::FORMAT_ND) {
         mmTiling.SetBType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isBtrans);
+        N = x2Shape->GetStorageShape().GetDim(1);
     } else if (x2Format == ge::FORMAT_FRACTAL_NZ) {
         mmTiling.SetBType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, isBtrans);
+        N = x2Shape->GetStorageShape().GetDim(0) * x2Shape->GetStorageShape().GetDim(3);
     }
+    tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.N = N;
     mmTiling.SetCType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT32);
     mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
         matmul_tiling::DataType::DT_INT32);
-    mmTiling.SetOrgShape(M, 5120, 2560);
+    mmTiling.SetOrgShape(M, N, Ka);
     mmTiling.SetSingleShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
     mmTiling.SetFixSplit(BASE_M, BASE_N, -1);
     mmTiling.EnableBias(false);
@@ -186,7 +172,7 @@ static ge::graphStatus SetTCubeTiling(
                     OP_LOGE(nodeName, "failed to get tiling matmulTiling."),
                     return ge::GRAPH_FAILED);
 
-    tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M = M;
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -211,9 +197,6 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr in qbmm_reduce_scatter_add_rms_norm_cast."),
                     return ge::GRAPH_FAILED);
 
-    // // 校验socVersion
-    // OP_TILING_CHECK(CheckSocVersion(context) != ge::GRAPH_SUCCESS,
-    //     OP_LOGE(nodeName, "socVersion is invalid."), return ge::GRAPH_FAILED);
 
     // 校验输入输出tensor的dim/dtype/format
     OP_TILING_CHECK(QbmmReduceScatterAddRmsNormCastCheckTiling::TilingCheckQbmmReduceScatterAddRmsNormCast(context) !=
@@ -229,10 +212,9 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     // 调用matmul做tiling切分
     OP_TILING_CHECK(SetTCubeTiling(context, tilingData) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetTCubeTiling failed."), return ge::GRAPH_FAILED);
-    SetWorkSpace(context);
+    SetWorkSpace(context, tilingData);
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
-    // PrintTilingDataInfo(context, *tilingData);
     OP_LOGD("QbmmReduceScatterAddRmsNormCast tiling end.");
     return ge::GRAPH_SUCCESS;
 }
