@@ -15,10 +15,10 @@
 #include "acl/acl_base.h"
 #include "acl/acl_rt.h"
 #include "acl/acl_dump.h"
-#include "../op_kernel/moe_distribute_comm_ctx.h"
-#include "mc2_log.h"
-#include "mc2_tiling_utils.h"
-#include "op_graph/mc2_gen_task_ops_utils.h"
+#include "../op_kernel/moe_distribute_comm_ctx.h"	 
+#include "mc2_log.h"	 
+#include "mc2_tiling_utils.h"	 
+#include "op_graph/mc2_gen_task_ops_utils.h
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -39,7 +39,11 @@ const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-using HcclOpParam = HcclCombinOpParam;
+#ifdef __DAV_C310__ // A5
+    using HcclOpParam = HcclCombinOpParam;
+#else
+    using HcclOpParam = CommContextForDump;
+#endif
 inline std::string GetTimestampWithMilliseconds()
 {
     auto now = std::chrono::system_clock::now();
@@ -83,7 +87,7 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
 
     std::string rankPath = dir + "/" + std::to_string(id) + "/";
     std::string path = rankPath + name;
-    OP_LOGE(OP_NAME, "Start to dump file. The dump path is %s", path);
+    OP_LOGE(OP_NAME, "Start to dump file. The dump path is %s", path.c_str());
 
     // Open file
     int fd = open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
@@ -114,26 +118,35 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
     std::vector<uint8_t> hcclArgs(sizeof(HcclOpParam), 0);
     auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(HcclOpParam), (void *)argsAddr, sizeof(HcclOpParam),
                            ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy HcclOpParam from device to host failed. ret = %d", ret);
         return -1;
     }
     HcclOpParam* winContext = reinterpret_cast<HcclOpParam *>(hcclArgs.data());
-    if (!(winContext != nullptr)) {
+    if (winContext == nullptr) {
         OP_LOGE(OP_NAME, "Cast to winContext failed. HcclOpParam is null.");
         return -1;
     }
-    OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
+    #ifdef __DAV_C310__ // A5
+        OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
 
-    void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
-    if (!(winAddr != nullptr)) {
-        OP_LOGE(OP_NAME, "Get win addr failed.");
-        return -1;
-    }
+        void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
+        if (winAddr == nullptr) {
+            OP_LOGE(OP_NAME, "Get win addr failed.");
+            return -1;
+        }
+    #else
+        OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u", winContext->epRankid);
 
+        void* winAddr = reinterpret_cast<void *>(winContext->epHcclBufffer_[winContext->epRankid]);
+        if (winAddr == nullptr) {
+            OP_LOGE(OP_NAME, "Get win addr failed.");
+            return -1;
+        }
+    #endif
     // Get windowsIn of each rank from hccl context
     ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, winAddr, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy win from device to host failed. ret = %d", ret);
         return -1;
     }
@@ -143,7 +156,7 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
 inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
 {
     const char* socName = aclrtGetSocName();
-    if(std::strstr(socName, "Ascend950") == nullptr) {
+    if((std::strstr(socName, "Ascend950") == nullptr) && (std::strstr(socName, "Ascend910_93") == nullptr)) {
         OP_LOGE(OP_NAME, "The soc version is %s, skip dump process", socName);
         return;
     }
@@ -153,12 +166,12 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     void* devArgsPtr = nullptr;
     uint32_t devArgsLen = 0;
     auto ret = aclrtGetArgsFromExceptionInfo(args, &devArgsPtr, &devArgsLen);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtGetArgsFromExceptionInfo failed. ret=%d", ret);
         return;
     }
     uint32_t deviceId = aclrtGetDeviceIdFromExceptionInfo(args);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtGetDeviceIdFromExceptionInfo failed. ret=%d", ret);
         return;
     }
@@ -166,8 +179,16 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
             devArgsLen);
 
     uint64_t argsAddr = 0;
-    ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    #ifdef __DAV_C310__ //A5
+        ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+    #else
+        if (std::strstr(socName, "MoeDistributeCombineV3") == nullptr) {
+            ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr + sizeof(uint64_t), sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        } else {
+            ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        }        
+    #endif
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
         return;
     }
