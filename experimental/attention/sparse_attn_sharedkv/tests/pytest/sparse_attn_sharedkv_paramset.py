@@ -322,8 +322,3 @@ TEST_PARAMS = {
 
 # 按需选择要启用的测试参数（例如默认启用所有）
 ENABLED_PARAMS = [TEST_PARAMS[key] for key in TEST_PARAMS.keys()]
-#ENABLED_PARAMS = [TEST_PARAMS["swa_decode"]]
-#ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_decode"]]
-#ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_prefill"]]
-#ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_prefill_unbanlance1"]]
-#ENABLED_PARAMS = [TEST_PARAMS["all_scfa_g128_test_prefill_unbanlance2"]]
