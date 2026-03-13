@@ -594,12 +594,9 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
 
     // 初始化为 dc=1 的情况（所有核给BS方向）
     uint64_t bestDimCores = 1;
-    // BS方向的约束：n <= validSeqLen - overlap
-    uint64_t maxBSCores = (validSeqLen_ > bsOverlap) ? (validSeqLen_ - bsOverlap) : 1;
-    uint64_t initialBSRequest = std::min(totalCoreNum_, maxBSCores);
-    CuSeqLenSplitInfo bestBSSplitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, initialBSRequest);
-    uint64_t bestBSCores = bestBSSplitInfo.realCoreNum;
-    uint64_t bestUsed = 1 * bestBSCores;
+    uint64_t bestBSCores = 1;
+    uint64_t bestUsed = 1;
+    CuSeqLenSplitInfo bestBSSplitInfo;
 
     // 从大到小遍历 [1, N] 的所有值（允许不均匀切分）
     for (uint64_t dc = N; dc >= 1; --dc) {
