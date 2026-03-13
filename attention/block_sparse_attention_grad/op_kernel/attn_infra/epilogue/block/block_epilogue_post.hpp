@@ -14,12 +14,8 @@
 // #include "catlass/catlass.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
-// #include "catlass/epilogue/tile/tile_copy.hpp"
-// #include "catlass/gemm_coord.hpp"
-// #include "catlass/matrix_coord.hpp"
 #include "kernel_operator.h"
-// #include "common_header.h"
-// #include "fag_common/common_header.h"
+
 
 using namespace AscendC;
 
@@ -32,25 +28,13 @@ struct ShapeBnsd {
     uint64_t d;
 };
 
-template <
-    uint32_t INPUT_LAYOUT,
-    class... Args>
-class BlockPost{
-    // static_assert(DEPENDENT_FALSE<DispatchPolicy>, "Could not find an epilogue specialization");
-};
-
 
 template <
     uint32_t INPUT_LAYOUT,
-    class OutputDtype_,
-    class UpdateType_,
-    class InputType_>
-class BlockPost<
-        INPUT_LAYOUT,
-        OutputDtype_,
-        UpdateType_,
-        InputType_,
-        EpilogueAtlasA2FAGPre>
+    typename OutputDtype_,
+    typename UpdateType_,
+    typename InputType_>
+class BlockPost
 {
 public:
     using DispatchPolicy = EpilogueAtlasA2FAGPre;
@@ -64,18 +48,8 @@ public:
         GM_ADDR dkWrk;
         GM_ADDR dvWrk;
         GM_ADDR tilingData;
-        // uint64_t computeS1 = 0;
-        // uint64_t computeS2 = 0;
-        // uint64_t actualCol = 0;
-        // uint64_t curBatch = 0;
-        // uint64_t curN1Idx = 0; // q_n
-        // uint64_t curN2Idx = 0; // kv_n
-        // uint64_t curS1Idx = 0; // q_s
-        // uint64_t curS2Idx = 0; // kv_s
-        // uint64_t curT1Idx = 0;
         GM_ADDR actualSeqQlen;
         GM_ADDR actualSeqKvlen;
-        // uint32_t INPUT_LAYOUT = 0;
 
         // Methods
         __aicore__ inline
@@ -95,9 +69,10 @@ public:
     NpuArch::Arch::Resource<ArchTag> resource;
     constexpr static uint32_t BUFFER_NUM = 1;
     constexpr static uint64_t INPUT_NUM = 2;
-    constexpr static uint64_t BNSD = 0; // g = q_n1 / kv_n2
-    constexpr static uint64_t TND = 1;
+    constexpr static uint64_t BNSD = 1; // g = q_n1 / kv_n2
+    constexpr static uint64_t TND = 0;
     constexpr static uint32_t WORKSPACE_NUM_ALIGN = 256;
+    constexpr static uint32_t BASE_BLOCK_BYTE = 32;
     constexpr static uint32_t POST_COEX_NODE = 3;
     constexpr static uint32_t FP16_BLOCK_NUMS = 16;
     constexpr static int32_t DQ = 1;
@@ -119,11 +94,13 @@ public:
     uint64_t computeS2 = 0;
     uint64_t actualCol = 0;
     uint64_t curBatch1 = 0;
-    uint64_t curBatch2 = 0;
+    uint64_t curBatch2 = 0; // k
     uint64_t curN1Idx = 0; // q_n
-    uint64_t curN2Idx = 0; // kv_n
+    uint64_t curN2Idx = 0; // k_n
     uint64_t curS1Idx = 0; // q_s
-    uint64_t curS2Idx = 0; // kv_s
+    uint64_t curS2Idx = 0; // v_s
+
+    // uint64_t batch[3] ={0};
     uint64_t curT1Idx = 0;
     uint64_t transpseQStride = 0;
     uint64_t transpseKvStride = 0;
@@ -159,9 +136,12 @@ public:
         d = tilingData->headDim;
         scaleValue = tilingData->scaleValue;
         ubBaseSize = tilingData->postUbBaseSize / BUFFER_NUM * BUFFER_NUM / WORKSPACE_NUM_ALIGN * WORKSPACE_NUM_ALIGN;
+        // uint64_t  basePostSize =  ubBaseSize / POST_COEX_NODE;
+        //printf("ubBaseSize: %lu \n", ubBaseSize);
+        // //printf("basePostSize: %lu \n", basePostSize);
 
         uint64_t dAlign = (d + FP16_BLOCK_NUMS - 1) / FP16_BLOCK_NUMS * FP16_BLOCK_NUMS; // 当前场景下满足对齐
-        actualCol = dAlign;
+        // actualCol = dAlign;
         uint64_t qPostSize = tilingData->dqSize / d;
         uint64_t kvPostSize = tilingData->dkvSize / d;
 
@@ -189,18 +169,10 @@ public:
             transpseKvStride = 0;
         }
     
-        computeS1 = cBlockIdx == usedCoreNum - 1 ? (kvPostTailNum +  qPostBlockEeachCore): qPostBlockEeachCore; // 当前核需要计算的dq的行数
+        computeS1 = cBlockIdx == usedCoreNum - 1 ? (qPostTailNum +  qPostBlockEeachCore): qPostBlockEeachCore; // 当前核需要计算的dq的行数
         dqOffset = ((uint64_t)cBlockIdx) * qPostBlockNumEeachCore; // 当前核dq的偏移元素个数
         computeS2 = cBlockIdx == usedCoreNum - 1 ? (kvPostBlockEeachCore + kvPostTailNum): kvPostBlockEeachCore; // 当前核需要计算的dkv的行数
         dkvOffset = ((uint64_t)cBlockIdx) * kvPostBlockNumEeachCore; // 当前核dkv的偏移元素个数
-
-        // dqWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dqWrk + dqOffset);
-        // dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dkWrk + dkvOffset);
-        // dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dvWrk + dkvOffset);
-
-        // dq.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dqGm + dqOffset);
-        // dk.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dkGm + dkvOffset);
-        // dv.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dkvGm + dkvOffset);
 
         dqWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dqWrk + dqOffset);
         dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dkWrk + dkvOffset);
@@ -210,7 +182,7 @@ public:
         dkGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dk);
         dvGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dv);
 
-        ubBasePreBufferSize = ubBaseSize / BUFFER_NUM; // double buffer 
+        ubBasePreBufferSize = ubBaseSize/ BUFFER_NUM / BASE_BLOCK_BYTE * BASE_BLOCK_BYTE; // double buffer 
         for (uint64_t i = 0; i < BUFFER_NUM; i++) {
             input[i] = resource.ubBuf.template GetBufferByByte<float>(ubBasePreBufferSize * 3 * i);
             output[i] = resource.ubBuf.template GetBufferByByte<OutputDtype_>(ubBasePreBufferSize * 2 + ubBasePreBufferSize * 3 * i);
@@ -219,8 +191,8 @@ public:
         // 获取当前核的dq dk dv 对应的索引序号
         struct ShapeBnsd qShape{b, n1, s1, d};
         InitIndex(dqOffset, curS1Idx, actualSeqQlen, curBatch1, curN1Idx, curS1Idx, qShape);
-        struct ShapeBnsd kvShape{b, n1, s1, d};
-        InitIndex(dkvOffset, curS2Idx, actualSeqQlen, curBatch2, curN2Idx, curS2Idx, kvShape);
+        struct ShapeBnsd kvShape{b, n2, s2, d};
+        InitIndex(dkvOffset, curS2Idx, actualSeqKvlen, curBatch2, curN2Idx, curS2Idx, kvShape);
     }
 
     /*
@@ -234,6 +206,7 @@ public:
     __aicore__ inline
     void InitIndex(uint64_t startIdx, uint64_t& curS, GM_ADDR seqS, uint64_t &bIdx, uint64_t &nIdx, uint64_t &sIdx, struct ShapeBnsd shape)
     {
+        //printf("InitIndex::::::::\n");
         if constexpr (INPUT_LAYOUT == TND) {
             uint64_t totalLen = 0;
             for (uint64_t bDimIdx = bIdx; bDimIdx < shape.b; bDimIdx++) {
@@ -250,12 +223,19 @@ public:
                 }
             }
         } else {
+            //printf("startId: %ld\n", startIdx);
+            //printf("shape.n * shape.s * shape.d : %ld, %ld, %ld", shape.n, shape.s, shape.d);
             bIdx = startIdx / (shape.n * shape.s * shape.d);
+            //printf("bIdx: %ld\n", bIdx);
             uint64_t bTail = startIdx % (shape.n * shape.s * shape.d);
+            //printf("bTail: %ld\n", bTail);
             nIdx = bTail / (shape.s * shape.d);
+            //printf("nIdx: %ld\n", nIdx);
             uint64_t nTail = bTail % (shape.s * shape.d);
+            //printf("nTail: %ld\n", nTail);
             sIdx = nTail / shape.d;
         }
+        //printf("InitIndex::::::::\n");
     }
         
     __aicore__ inline
@@ -294,29 +274,43 @@ public:
     __aicore__ inline 
     void CopyOutPost(uint64_t leftNburst, LocalTensor<OutputDtype_> output, int32_t qkvFlag)
     {
+        //printf("postcopyouttttttttt\n");
         GM_ADDR seqS = (qkvFlag  > 0) ? actualSeqQlen : actualSeqKvlen;
         uint64_t n = (qkvFlag  > 0) ? n1 : n2;
         uint64_t s =  (qkvFlag  > 0) ? s1 : s2;
         uint64_t dstOffset = 0;
-        uint64_t& nIdx =  (qkvFlag  > 0) ? curN1Idx : curN2Idx;
-        uint64_t& sIdx =  (qkvFlag  > 0) ? curS1Idx : curS2Idx;
-        uint64_t bIdx =  (qkvFlag  > 0) ? curBatch1 : curBatch2;
-        uint64_t curS = ((__gm__ uint64_t *)seqS)[bIdx + 1] - ((__gm__ uint64_t *)seqS)[bIdx];
+        uint64_t &nIdx =  (qkvFlag  > 0) ? curN1Idx : curN2Idx;
+        uint64_t &sIdx =  (qkvFlag  > 0) ? curS1Idx : curS2Idx;
+        uint64_t &bIdx =  (qkvFlag  > 0) ? curBatch1 : curBatch2;
+  
+        uint64_t curS = ((__gm__ uint64_t *)seqS)[bIdx];
+        uint64_t count = 0;
+
         while (leftNburst > 0) { // 当前leftNburst 搬运量不会到下一个n
             uint64_t curNburst = 0;
+            count++;
             if (curS - sIdx < leftNburst) { // 需要借N或借B
+                //printf("nnnnnnnnnnnnnnbbbbbbbbbbb\n");
+                //printf("count:%ld\n", count);
                 curNburst = curS - sIdx;
+                AscendC::PipeBarrier<PIPE_ALL>();
+                //printf("curNburst:%ld\n", curNburst);
                 Copy2Out(curNburst, output, dstOffset, qkvFlag);
+                AscendC::PipeBarrier<PIPE_ALL>();
                 leftNburst = leftNburst - curNburst;
+                //printf("leftNburst:%ld\n", leftNburst);
                 sIdx = 0;
                 if (nIdx < n - 1) { // 需要借N
+                    //printf("jie n\n");
                     nIdx += 1;
                 } else {
                     nIdx = 0;
                     if (bIdx < b - 1) { // 需要借B
+                        //printf("jie B\n");
                         bIdx += 1;
                         if constexpr (INPUT_LAYOUT == TND) {
-                            curS = ((__gm__ uint64_t *)seqS)[bIdx + 1] - ((__gm__ uint64_t *)seqS)[bIdx];
+                            // curS = ((__gm__ int64_t *)seqS)[bIdx + 1] - ((__gm__ uint64_t *)seqS)[bIdx];
+                            curS = ((__gm__ int64_t *)seqS)[bIdx];
                         } else {
                             curS = s;
                         }
@@ -325,10 +319,16 @@ public:
                     }
                 }
             } else {  // 当前leftNburst 搬运量不会到下一个n
+                //printf("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS\n");
+                //printf("count:%ld\n", count);
                 curNburst = leftNburst;
+                //printf("curNburst: %lu \n", curNburst);
+                AscendC::PipeBarrier<PIPE_ALL>();
                 Copy2Out(curNburst, output, dstOffset, qkvFlag);
+                AscendC::PipeBarrier<PIPE_ALL>();
                 sIdx = sIdx + leftNburst;
                 leftNburst = 0;
+                //printf("sIdx: %lu \n", sIdx);
             }
             dstOffset = dstOffset + curNburst * d;
         }
@@ -345,9 +345,9 @@ public:
         uint64_t curBatch =  (qkvFlag  > 0) ? curBatch1 : curBatch2;
         GlobalTensor<OutputDtype_> outGm = dqGm;
         uint64_t transpseStride =  (qkvFlag  > 0) ? transpseQStride : transpseKvStride;
-        if (qkvFlag == -1) {
+        if (qkvFlag == DK) {
             outGm = dkGm;
-        } else if (qkvFlag == -2) {
+        } else if (qkvFlag == DV) {
             outGm = dvGm;
         }
 
@@ -368,8 +368,8 @@ public:
     __aicore__ inline
     void ProcessOut(uint64_t conputerS, int32_t qkvFlag)
     {
-        uint64_t ubBaseSizeNum = ubBasePreBufferSize / sizeof(OutputDtype_); // 一块buffer处理的元素数量
-        uint64_t singleLoopScount = ubBaseSizeNum / d; // d 一般不会太大
+        uint64_t ubBaseSizeNum = ubBasePreBufferSize / sizeof(float); // 一块buffer处理的元素数量
+        uint64_t singleLoopScount = ubBaseSizeNum / d;
         uint64_t loopTimes = static_cast<uint64_t>(CeilDiv(conputerS, singleLoopScount));
         uint64_t tailS = conputerS % singleLoopScount;
         uint64_t curSIdx = (qkvFlag  > 0) ? curS1Idx : curS2Idx;
@@ -390,19 +390,27 @@ public:
                 sCount = tailS;
             }
 
+            AscendC::PipeBarrier<PIPE_ALL>();
             DataCopy(input[ping], inGm[gmOffset], sCount * d); // d 为32b 对齐场景
-            if constexpr (AscendC::IsSameType<OutputDtype_, float>::value) {
-                Muls(input[ping], input[ping], (float)scaleValue,  sCount * d);
-                AscendC::PipeBarrier<PIPE_V>();
-                CopyOutPost(sCount, input[ping], qkvFlag);
-            } else {
-                Muls(input[ping], input[ping], (float)scaleValue, sCount * d);
-                AscendC::PipeBarrier<PIPE_V>();
-                AscendC::LocalTensor<float> srcLocal = input[ping];
-                AscendC::LocalTensor<OutputDtype_> dstLocal = output[ping];
-                Cast(dstLocal, srcLocal, AscendC::RoundMode::CAST_ROUND, sCount * d);
-                CopyOutPost(sCount, output[ping], qkvFlag);
-            }
+            AscendC::PipeBarrier<PIPE_ALL>();
+
+            Muls(input[ping], input[ping], (float)scaleValue, sCount * d);
+            AscendC::PipeBarrier<PIPE_ALL>();
+
+            AscendC::LocalTensor<float> srcLocal = input[ping];
+            AscendC::LocalTensor<OutputDtype_> dstLocal = output[ping];
+
+            auto event_id =  EVENT_ID0;
+            set_flag(PIPE_MTE2, PIPE_V, event_id);
+            wait_flag(PIPE_MTE2, PIPE_V, event_id);
+            Cast(dstLocal, srcLocal, AscendC::RoundMode::CAST_ROUND, sCount * d);
+            set_flag(PIPE_V, PIPE_MTE3, event_id);
+            wait_flag(PIPE_V, PIPE_MTE3, event_id);
+
+            AscendC::PipeBarrier<PIPE_ALL>();
+            CopyOutPost(sCount, output[ping], qkvFlag);
+            AscendC::PipeBarrier<PIPE_ALL>();
+            
             if (BUFFER_NUM == 2) {
                 ping = 1 - ping;
             }
@@ -414,10 +422,19 @@ public:
     {
         // dq
         ProcessOut(computeS1, DQ);
-        // dk
+        AscendC::PipeBarrier<PIPE_ALL>();
+        //dk
         ProcessOut(computeS2, DK);
+        AscendC::PipeBarrier<PIPE_ALL>();
         // dv
+        // 重新初始化索引
+        curS2Idx = 0;
+        curBatch2 = 0;
+        curN2Idx = 0;
+        struct ShapeBnsd kvShape{b, n2, s2, d};
+        InitIndex(dkvOffset, curS2Idx, actualSeqKvlen, curBatch2, curN2Idx, curS2Idx, kvShape);
         ProcessOut(computeS2, DV);
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
 };
