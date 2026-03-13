@@ -1673,17 +1673,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFA
 bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& contextKeyParams,
     const PFAShapeInfo& queryShapeInfo) const 
 {
-    const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
     if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) { // 256U, 64: d > 256 must be multiple of 64 for memory alignment
-        return false;
-    }
-
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
-    if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
-        return false;
-    }
-    if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
         return false;
     }
 
