@@ -167,7 +167,7 @@ static ge::graphStatus AllGatherParamsCheck(const gert::TilingContext* context)
     if (context->GetAttrs() == nullptr) {
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "get attrs failed");
     } else {
-        auto gather_index = context->GetAttrs()->GetAttrPointer<int>(3);
+        auto gather_index = context->GetAttrs()->GetAttrPointer<int64_t>(3);
         OP_TILING_CHECK(*gather_index != 0,
             VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
         "the gather_index should be 0, but real value is %d", *gather_index), return ge::GRAPH_FAILED);
@@ -575,8 +575,8 @@ static ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext *context) {
 
   auto is_trans_a = context->GetAttrs()->GetAttrPointer<bool>(index++);
   auto is_trans_b = context->GetAttrs()->GetAttrPointer<bool>(index++);
-  auto gather_index = context->GetAttrs()->GetAttrPointer<int>(index++);
-  auto comm_turn = *context->GetAttrs()->GetAttrPointer<int>(index++);
+  auto gather_index = context->GetAttrs()->GetAttrPointer<int64_t>(index++);
+  auto comm_turn = *context->GetAttrs()->GetAttrPointer<int64_t>(index++);
 
   auto rankSize = mc2tiling::MatmulFormulaicTiling::GetRankSize(group);
   OP_TILING_CHECK(comm_turn != 0, VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
