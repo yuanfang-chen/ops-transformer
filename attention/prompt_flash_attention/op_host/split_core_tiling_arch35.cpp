@@ -250,7 +250,6 @@ void CopyTmpResult(FAMetaData &tmpRes, FAMetaData &splitRes)
     splitRes.usedCoreNum = tmpRes.usedCoreNum;
     splitRes.maxCost = tmpRes.maxCost;
     splitRes.fdRes.fdNum = tmpRes.fdRes.fdNum;
-    // splitRes.maxS2SplitNum = tmpRes.maxS2SplitNum;
 
     for (size_t i = 0; i < len; ++i) {
         splitRes.bN2End[i] = tmpRes.bN2End[i];
@@ -272,7 +271,6 @@ void ClearTmpResult(FAMetaData &tmpResult)
     tmpResult.usedCoreNum = 0U;
     tmpResult.maxCost = 0;
     tmpResult.fdRes.fdNum = 0U;
-    // tmpResult.maxS2SplitNum = 0U;
     tmpResult.fdRes.fdUsedVecNum = 0U;
 
     for (size_t i = 0; i < len; ++i) {
@@ -534,7 +532,6 @@ void RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignC
     uint32_t curFdS1gSplitPart = (curFdS1gSize + splitParam.gS1BaseSizeOfFd - 1U) / splitParam.gS1BaseSizeOfFd;
     uint32_t curFdS1gLastPartSize = curFdS1gSize - (splitParam.gS1BaseSizeOfFd * (curFdS1gSplitPart - 1U));
     // 记录
-    // result.maxS2SplitNum = std::max(result.maxS2SplitNum, assignContext.curKvSplitPart);
     // 若存在头归约，则切分点一定为上一个核结束的位置
     result.fdRes.fdBN2Idx[result.fdRes.fdNum] = result.bN2End[assignContext.curCoreIdx - 1U];
     result.fdRes.fdMIdx[result.fdRes.fdNum] = result.mEnd[assignContext.curCoreIdx - 1U];

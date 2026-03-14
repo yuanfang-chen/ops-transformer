@@ -28,11 +28,8 @@ class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<
 public:
     ARGS_TRAITS;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-<<<<<<< HEAD
-=======
     static constexpr bool enableSplitCoreBalance = (pseMode == PseTypeEnum::PSE_NONE_TYPE && !enableKVPrefix && !POST_QUANT);    // TODO，输出转置、lse、左padding工作量待评估
 
->>>>>>> cfbd82e106ab7ca54e3135349954fd317279df5a
     using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>, CubeBlockType, VecBlockType>;
     /* =====================UB变量==================== */
     __aicore__ inline void InitUniqueConstInfo();

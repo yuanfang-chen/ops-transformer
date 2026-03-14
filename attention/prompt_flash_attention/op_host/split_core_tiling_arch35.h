@@ -103,7 +103,6 @@ struct FlashDecodeResult {
     std::vector<uint32_t> fdS2SplitNum {};       // 每个归约任务的S2核间切分份数，脚标为归约任务的序号
     // 2、FD负载均衡阶段，归约任务的分核（vec）信息
     uint32_t fdUsedVecNum { 0U };                // 归约过程使用的vector数量
-    // uint32_t fdBalanceMBaseSize = 0U;             // 归约任务进行负载分配时，GS1方向的切分大小
     std::vector<uint32_t> fdBalanceMSplitNum {};      // 每个归约任务m轴切分份数，脚标为归约任务的序号
     std::vector<uint32_t> fdBalanceMTailSize {};  // 每个归约任务m轴切分的最后一份的大小，脚标为归约任务的序号
     std::vector<uint32_t> fdBalanceEndIdx1 {};        // FD负载均衡阶段，每个vector的一级索引，脚标为vector ID，值为归约任务的ID
@@ -127,7 +126,6 @@ struct FAMetaData {
     std::vector<uint32_t> mEnd {};    // 每个核处理数据的GS1结束点
     std::vector<uint32_t> s2End {};     // 每个核处理数据的S2结束点
     int64_t maxCost { 0 };            // 慢核开销
-    uint32_t maxS2SplitNum { 0U };      // 单个归约任务最大分核数量
     std::vector<uint32_t> headFdDataIdx {}; //每个core处理的第1个归约任务的数据应存放的workspace位置
     FlashDecodeResult fdRes { 0U, 0U };     // FD信息
     FAMetaData(uint32_t coreNum, uint32_t ratio) :

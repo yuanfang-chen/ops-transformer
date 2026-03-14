@@ -21,7 +21,6 @@
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 #include "../fia_public_define.h"
-// #include "../vector_common_35.h"  //优化文件，去掉冗余文件
 #include "infer_flash_attention_comm.h"
 #include "../memory_copy_fd.h"
 
