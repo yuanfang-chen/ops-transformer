@@ -598,24 +598,38 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
     int64_t remainder = N % bestDimCores; // big core count
 
     dimCoreCnt_ = bestDimCores;
-    dimMainCoreCnt_ = remainder;
-    dimTailCoreCnt_ = bestDimCores - remainder;
-    if (remainder > 0) {
-        mainCoredimLen_ = (base + 1) * DIM_ALIGN_ELEMENT; // big core size
-        tailCoredimLen_  = base * DIM_ALIGN_ELEMENT;       // small core size
-    } else {
+    if (remainder == 0) {
+        // Even split on dim: treat as only main cores, no tail cores
+        dimMainCoreCnt_ = bestDimCores;
+        dimTailCoreCnt_ = 0;
+        // Both main/tail lengths are the same tile size; keep tail length equal for UB calc
         mainCoredimLen_ = base * DIM_ALIGN_ELEMENT;
-        tailCoredimLen_  = base * DIM_ALIGN_ELEMENT;
+        tailCoredimLen_ = base * DIM_ALIGN_ELEMENT;
+    } else {
+        // Non-even split: first 'remainder' big cores take (base+1) tiles, rest take base tiles
+        dimMainCoreCnt_ = remainder;
+        dimTailCoreCnt_ = bestDimCores - remainder;
+        mainCoredimLen_ = (base + 1) * DIM_ALIGN_ELEMENT; // big core size
+        tailCoredimLen_ = 0;       // small core size
     }
 
     // Derive batch non-uniform parameters (均分+多前核)
     batchCoreCnt_ = bestBSCores;
     int64_t bsBase = validBatch / batchCoreCnt_;
     int64_t bsRemainder = validBatch % batchCoreCnt_;
-    batchMainCoreCnt_ = bsRemainder;               // 前remainder个核是大核
-    batchTailCoreCnt_ = batchCoreCnt_ - bsRemainder; // 其余是小核
-    mainCoreBatchNum_ = bsBase + (bsRemainder > 0 ? 1 : 0); // 大核批大小
-    tailCoreBatchNum_ = bsBase;                          // 小核批大小
+    if (bsRemainder == 0) {
+        // Even split on batch: treat as only main cores, no tail cores
+        batchMainCoreCnt_ = batchCoreCnt_;
+        batchTailCoreCnt_ = 0;
+        mainCoreBatchNum_ = bsBase;
+        tailCoreBatchNum_ = 0;
+    } else {
+        // Non-even split: first 'bsRemainder' big cores take (bsBase+1) batches, rest take bsBase batches
+        batchMainCoreCnt_ = bsRemainder;                 // 前remainder个核是大核
+        batchTailCoreCnt_ = batchCoreCnt_ - bsRemainder; // 其余是小核
+        mainCoreBatchNum_ = bsBase + 1;                  // 大核批大小
+        tailCoreBatchNum_ = bsBase;                      // 小核批大小
+    }
 
     usedCoreNum_ = dimCoreCnt_ * batchCoreCnt_;
 
@@ -673,11 +687,21 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeIntraCoreUbTiling()
                  ubTailFactorDim_, ubTailFactorBS_);
 
     // Tail cores UB params
-    int64_t tailCoreDim = (dimMainCoreCnt_ > 0 ? tailCoredimLen_ : mainCoredimLen_);
-    ComputeUbFor(tailCoreDim, tailCoreBatchNum_, availableUbSize,
-                 tailBlockubFactorDim_, tailBlockubFactorBS_,
-                 tailBlockloopNumDim_, tailBlockloopNumBS_,
-                 tailBlockubTailFactorDim_, tailBlockubTailFactorBS_);
+    if (dimTailCoreCnt_ > 0 || batchTailCoreCnt_ > 0) {
+        int64_t tailCoreDim = (dimMainCoreCnt_ > 0 ? tailCoredimLen_ : mainCoredimLen_);
+        ComputeUbFor(tailCoreDim, tailCoreBatchNum_, availableUbSize,
+                     tailBlockubFactorDim_, tailBlockubFactorBS_,
+                     tailBlockloopNumDim_, tailBlockloopNumBS_,
+                     tailBlockubTailFactorDim_, tailBlockubTailFactorBS_);
+    } else {
+        // No tail cores: mirror main-core UB params to keep values consistent
+        tailBlockubFactorDim_ = ubMainFactorDim_;
+        tailBlockubFactorBS_ = ubMainFactorBS_;
+        tailBlockloopNumDim_ = loopNumDim_;
+        tailBlockloopNumBS_ = loopNumBS_;
+        tailBlockubTailFactorDim_ = ubTailFactorDim_;
+        tailBlockubTailFactorBS_ = ubTailFactorBS_;
+    }
 
     return ge::GRAPH_SUCCESS;
 }
