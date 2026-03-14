@@ -195,7 +195,7 @@ private:
     bool isSingleY_ = false;
     bool isAllSingleTensor_ = false;
     bool hasBias_ = false;
-    int32_t groupType_ = 0;
+    int64_t groupType_ = 0;
     int64_t splitItem_ = 0L;
     uint32_t groupListType_ = 0;
     uint32_t xKDim_ = 0;
@@ -203,7 +203,7 @@ private:
     uint32_t weightKDim_ = 0;
     uint32_t xDimNum_ = 0;
     bool antiquantPerformance_ = false;
-    uint32_t actType_ = 0;
+    int64_t actType_ = 0;
     uint32_t usedCoreNum_ = 0;
     int64_t tuningConfig_ = 0L;
     int64_t tuningConfigWorkspace_ = 0L;
