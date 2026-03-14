@@ -430,10 +430,14 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0SinkSync(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo)
 {
-    // Sink 块时 AIV 不做数据搬运，仅维持核间同步握手
-    outputL1.WaitCrossCore();   // 等待 buffer 可用
-    // 不做任何数据操作（Sink KV 由 AIC 侧搬运）
-    outputL1.SetCrossCore();    // 释放 buffer，通知 AIC 可以操作
+    // Sink 块时 AIV 不做数据搬运，通过双握手维持核间同步
+    // 第一次握手：释放 buffer 给 AIC，让 AIC 搬运 Sink KV 到 L1
+    outputL1.WaitCrossCore();   // 获取 buffer（从 init 或上次 BMM2 释放）
+    outputL1.SetCrossCore();    // 释放给 AIC 做 CopySinkKvToL1
+
+    // 第二次握手：等 AIC 搬运完成，再释放给 IterateBmm1 的 WaitCrossCore
+    outputL1.WaitCrossCore();   // 等待 AIC CopySinkKvToL1 完成（AIC SetCrossCore）
+    outputL1.SetCrossCore();    // 释放给 AIC IterateBmm1 的 WaitCrossCore
 }
 
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0(

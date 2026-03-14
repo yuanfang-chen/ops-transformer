@@ -550,16 +550,17 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                         InitUniqueRunInfo(runParam, runInfo1);
 
                         if ASCEND_IS_AIC {
-                            this->cubeBlock.CopySinkKvToL1(this->l1RightBuffers.Get(), runInfo1,
+                            auto sinkL1Buf = this->l1RightBuffers.Get();
+                            this->cubeBlock.CopySinkKvToL1(sinkL1Buf, runInfo1,
                                 this->constInfo);
-                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(),
+                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), sinkL1Buf,
                                 runInfo1, this->constInfo);
                         } else {
                             this->vecBlock.ProcessVec0SinkSync(this->l1RightBuffers.Get(), runInfo1,
                                 this->constInfo);
                         }
                     } else {
-                        // 正常 KV 块：使用 effectiveS2LoopCount
+                        // 正常 KV 块：使用 effectiveS2LoopCount 进行数据访问（sparse_indices、尾块计算）
                         this->SetRunInfo(runInfo1, runParam, taskId, effectiveS2LoopCount,
                                          s2LoopLimit - sinkOffset, multiCoreInnerIdx);
                         runInfo1.isFirstS2Loop = (s2LoopCount == 0 && sinkOffset == 0);
@@ -569,6 +570,18 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                                 runInfo1, this->constInfo);
                         } else {
                             this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
+                        }
+
+                        // Vec0/BMM1 已使用 effectiveS2LoopCount 完成数据访问，
+                        // 现在修正 s2LoopCount/s2LoopLimit 供后续 Vec1/Vec2 使用：
+                        // Vec1 用 s2LoopCount==0 判断 softmax init vs update,
+                        // Vec2 用 s2LoopCount==0 判断 DataCopy vs FlashUpdate,
+                        //      用 s2LoopCount==s2LoopLimit 判断是否为最后一轮。
+                        // 当有 Sink 时，第一个正常 KV 块的 s2LoopCount 必须 >0，
+                        // 否则会重新初始化 softmax/flash 输出，丢弃 Sink 的计算结果。
+                        if (sinkOffset > 0) {
+                            runInfo1.s2LoopCount = s2LoopCount;
+                            runInfo1.s2LoopLimit = s2LoopLimit;
                         }
                     }
                 }
