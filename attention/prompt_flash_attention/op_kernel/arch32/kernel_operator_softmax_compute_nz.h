@@ -22,8 +22,6 @@
 #include "kernel_cube_intf.h"
 #include "adv_api/activation/softmax.h"
 #include "adv_api/activation/softmaxflashv2.h"
-#else
-#include "kernel_operator.h"
 #endif
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
