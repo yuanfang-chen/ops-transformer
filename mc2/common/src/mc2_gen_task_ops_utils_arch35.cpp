@@ -20,6 +20,7 @@ namespace ops {
 ge::Status Mc2Arch35GenTaskOpsUtils::CreateCCUFusionTask(const gert::ExeResGenerationContext *context,
                                                          std::vector<std::vector<uint8_t>> &tasks)
 {
+    // empty for test
     // 填充groupinfo
     GroupInfo groupInfo;
     if (!GetGroupInfo(context, groupInfo)) {
