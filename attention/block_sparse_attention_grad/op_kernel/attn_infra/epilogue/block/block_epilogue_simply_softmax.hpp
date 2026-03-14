@@ -18,21 +18,23 @@
 
 using namespace AscendC;
 
+template<typename InDtype>
 struct SimplySoftMaxInfo {
     LocalTensor<float> sTensor;
     LocalTensor<float> lseTensor;
     LocalTensor<float> lseBrocTensor;
-    LocalTensor<float> pTensor;
+    LocalTensor<float> pFp32Tensor;
+    LocalTensor<InDtype> pFp16Tensor;
 
     GlobalTensor<float> sGm;
     GlobalTensor<float> lseGm;
-    GlobalTensor<float> pGm;
+    GlobalTensor<InDtype> pGm;
 };
 
 struct CalDsInfo {
-    LocalTensor<float> dpTensor;
+    LocalTensor<float> dpFp32Tensor;
     LocalTensor<float> softmaxGradTensor;
-    LocalTensor<float> pTensor;
+    LocalTensor<float> pFp32Tensor;
 
     GlobalTensor<float> dpGm;
     GlobalTensor<float> softmaxGradGm;
@@ -128,7 +130,8 @@ public:
     // uint64_t s2 = 0;     // q_s 
     uint64_t processNums = 0;
     uint64_t usedVecCoreNums = 0;
-    uint64_t baseBufLen = 0;
+    uint64_t p16BaseBufLen = 0;
+    uint64_t p32BaseBufLen = 0;
     float scaleValue = 0.0f;
     // const BlockSparseAttentionGradTilingData *tilingData;
 
@@ -136,7 +139,7 @@ public:
     GlobalTensor<float> softmaxLseGm; // (N s1 1)
     GlobalTensor<float> dpGm; // (N s1 s2)
     // GlobalTensor<uint8_t> blockSparseMaskGm; // (b n block_s1 block_s2)
-    GlobalTensor<float> pWorkspaceGm; // (N s1 s2)
+    GlobalTensor<InputDType> pWorkspaceGm; // (N s1 s2)
     GlobalTensor<float> softGradworkspaceGm; // (N s1 8)
     GlobalTensor<float> dsWorkspaceGm; // (N s1 s2)
 
@@ -146,8 +149,9 @@ public:
     LocalTensor<float> sTensor[STAGES];
     LocalTensor<float> lseTensor[STAGES];
     LocalTensor<float> lseBrocTensor[STAGES];
-    LocalTensor<float> pTensor[STAGES];
-    LocalTensor<float> dpTensor[STAGES];
+    LocalTensor<float> pFp32Tensor[STAGES];
+    LocalTensor<InputDType> pTensor[STAGES];
+    LocalTensor<float> dpFp32Tensor[STAGES];
     // LocalTensor<float> mask[STAGES];
     LocalTensor<float> softmaxGradTensor[STAGES];
     LocalTensor<float> dsTensor[STAGES];
@@ -194,50 +198,57 @@ public:
             transpseStride = 0;
         }
         // 默认 s2 > 8
-        // 计算 simply_softmax p = (exp(S - L)) buffer 大小 记得广播
-        // 设S buffer x, l broc buffer 8 * x / s2, 则x + 8 * x / s2 = 192*1024 / 2
+        // 计算 simply_softmax p32 = (exp(S - L)) buffer 大小 记得广播
+        // s 一份最大 128 * 128 float, p32 cast为p16
+        // 设S buffer 2x, l broc buffer 8 * 2x / s2, 则2x + 8 * 2x / s2 + x = 192*1024 / stage
         // x 需保持32字节对齐
         // 计算 ds = p * (dp - D)  buffer 大小
-        // 设D buffer y * 8 / s2, dp 为  y, p 为 y, 则y *2 +  8 * y / s2 = 192*1024 / 2
+        // 设D buffer 2y * 8 / s2, dp 为  2y, p 为 2y, 则2y *2 +  8 * 2y / s2 = 192*1024 / stage
         // y 需要保持32字节对齐
         //  x > y ? y : x 理论上要保持x = y 
-        // uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (1 + (float)8.0 / s2));
-        uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (1 + 8 / s2));
+        // uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (3 + (float)8.0 / s2));
+        uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (3 + 16 / s2));
+
         // 字节对齐
         xBufferLen = (xBufferLen * BRCB_BASE_NUM) / s2 / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE * s2 / BRCB_BASE_NUM;
         xBufferLen = xBufferLen / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE;
         // uint64_t yBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (2 + (float)8.0 / s2));
-        uint64_t yBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (2 + 8 / s2));
+
+        uint64_t yBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (4 + 16 / s2));
         // 字节对齐
         yBufferLen =  (BRCB_BASE_NUM * yBufferLen) / s2 / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE * s2 / BRCB_BASE_NUM;
         xBufferLen = yBufferLen / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE;
-        baseBufLen = xBufferLen > yBufferLen ? yBufferLen : xBufferLen;
+
+        p16BaseBufLen = xBufferLen > yBufferLen ? yBufferLen : xBufferLen;
         // 保持8元素对齐
-        baseBufLen = (baseBufLen / s2 / sizeof(float))  / BRCB_BASE_NUM * BRCB_BASE_NUM * s2 * sizeof(float);
+        p16BaseBufLen = (p16BaseBufLen / (sizeof(float) / 2) / s2)  / BRCB_BASE_NUM * BRCB_BASE_NUM * s2 * (sizeof(float) / 2);
+
+        p32BaseBufLen = 2 * p16BaseBufLen;
 
         // 空间大小计算
-        uint64_t sBufferLen = baseBufLen;
-        uint64_t lBufferLen = baseBufLen / s2;
-        uint64_t lBrobBufferLen = BRCB_BASE_NUM * baseBufLen / s2; 
-        uint64_t pBufferLen = baseBufLen;
-        uint64_t dpBufLen = baseBufLen;
-        uint64_t pBufLen = baseBufLen;
-        uint64_t dBufLen = BRCB_BASE_NUM * baseBufLen / s2;
+        uint64_t sBufferLen = p32BaseBufLen;
+        uint64_t lBufferLen = p32BaseBufLen / s2;
+        uint64_t lBrobBufferLen = BRCB_BASE_NUM * p32BaseBufLen / s2; 
+        uint64_t p32BufferLen = p32BaseBufLen;
+        uint64_t dpBufLen = p32BaseBufLen;
+        uint64_t pBufLen = p32BaseBufLen;
+        uint64_t dBufLen = BRCB_BASE_NUM * p32BaseBufLen / s2;
   
         for (uint64_t i = 0; i < STAGES; i++) {
             uint64_t stageOffset = ubSizeEeachStage * i;
             // 第一轮 softmax 计算空间划分
             sTensor[i] = resource.ubBuf.template GetBufferByByte<float>(stageOffset);
-            pTensor[i] = sTensor[i]; // 复用s
+            pFp32Tensor[i] = sTensor[i]; // 复用s
             lseTensor[i] = sTensor[i]; // 复用s
-            lseBrocTensor[i] = resource.ubBuf.template GetBufferByByte<float>(sBufferLen + stageOffset);
+            pTensor[i] = resource.ubBuf.template GetBufferByByte<InputDType>(sBufferLen + stageOffset);
+            lseBrocTensor[i] = resource.ubBuf.template GetBufferByByte<float>(sBufferLen + p16BaseBufLen + stageOffset);
 
             // 第二轮 ds 计算空间划分
-            dpTensor[i] = 
-                resource.ubBuf.template GetBufferByByte<float>(pBufferLen + stageOffset);
+            dpFp32Tensor[i] = 
+                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + stageOffset);
             softmaxGradTensor[i] = 
-                resource.ubBuf.template GetBufferByByte<float>(pBufferLen + stageOffset + dpBufLen);
-            dsTensor[i] = pTensor[i]; // 复用s
+                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + stageOffset + dpBufLen);
+            dsTensor[i] = pFp32Tensor[i]; // 复用s
         }
 
         uint64_t coreOffset = 0; // ai core 的每个vectore 的偏移
@@ -249,7 +260,7 @@ public:
         sGm.SetGlobalBuffer((__gm__ float *)params.s + coreOffset);
         softmaxLseGm.SetGlobalBuffer((__gm__ float *)params.softmaxLse);
         dpGm.SetGlobalBuffer((__gm__ float *)params.dp + coreOffset);
-        pWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.pWorkspace + coreOffset);
+        pWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.pWorkspace + coreOffset);
         softGradworkspaceGm.SetGlobalBuffer((__gm__ float *)params.softGradworkspace);
         dsWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.dsWorkspace + coreOffset);
     }
@@ -280,7 +291,7 @@ public:
         
         // col < 128
         // 计算单loop的计算量及loop次数
-        uint64_t eleBaseBuffNum = baseBufLen / sizeof(float); // 基本buffer块的元素数量
+        uint64_t eleBaseBuffNum = p32BaseBufLen / sizeof(float); // 基本buffer块的元素数量
         uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
@@ -318,10 +329,10 @@ public:
     __aicore__ inline
     void compute(int32_t gmOffset, uint64_t row, uint64_t col, uint64_t curS1, uint64_t ping)
     {
-        struct SimplySoftMaxInfo runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
-        struct CalDsInfo runDsInfo = {dpTensor[ping], softmaxGradTensor[ping], pTensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
+        struct SimplySoftMaxInfo<InputDType> runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pFp32Tensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
+        struct CalDsInfo runDsInfo = {dpFp32Tensor[ping], softmaxGradTensor[ping], pFp32Tensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
         SimplySoftmax(runSftInfo, row, col, curS1);
-        // CalDs(runDsInfo, row, col, curS1 );
+        CalDs(runDsInfo, row, col, curS1 );
     }
 
 
@@ -398,16 +409,17 @@ public:
         * s shape (n s1 s2) fp32 连续
     */
     __aicore__ inline
-    void SimplySoftmax(struct SimplySoftMaxInfo runInfo, uint64_t row, uint64_t col, uint64_t curS1)
+    void SimplySoftmax(struct SimplySoftMaxInfo<InputDType> runInfo, uint64_t row, uint64_t col, uint64_t curS1)
     {
         LocalTensor<float> &sLocal = runInfo.sTensor;
         LocalTensor<float> &lse = runInfo.lseTensor;
         LocalTensor<float> &lseFp32Brc = runInfo.lseBrocTensor;
-        LocalTensor<float> &pLocal = runInfo.pTensor;
+        LocalTensor<float> &pLocal = runInfo.pFp32Tensor;
+        LocalTensor<InputDType> &p16Local = runInfo.pFp16Tensor;
 
         GlobalTensor<float> s = runInfo.sGm;
         GlobalTensor<float> lseGm = runInfo.lseGm;
-        GlobalTensor<float> pGm = runInfo.pGm;
+        GlobalTensor<InputDType> pGm = runInfo.pGm;
 
         uint64_t count = row * col;
         uint64_t countAlign = (count + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
@@ -415,7 +427,7 @@ public:
         LseBrocast(lseGm, lse, lseFp32Brc, row, curS1);
         AscendC::PipeBarrier<PIPE_ALL>();
 
-        if (count * sizeof(float) % BLOCK_SIZE == 0) {
+        if (count % BLOCK_SIZE == 0) {
             DataCopy(sLocal, s, count);
         } else {
             DataCopyPad(sLocal, s, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, 
@@ -427,20 +439,22 @@ public:
         SubBrcb(pLocal, sLocal, lseFp32Brc, row, col);
         AscendC::PipeBarrier<PIPE_V>();
         Exp(pLocal, pLocal, count);
+        AscendC::PipeBarrier<PIPE_V>();
 
+        Cast(p16Local, pLocal, AscendC::RoundMode::CAST_ROUND, count);
         AscendC::PipeBarrier<PIPE_ALL>();
         // printf("count : %lu\n", count);
-        if (count * sizeof(float) % BLOCK_SIZE == 0) {
-            DataCopy(pGm, pLocal, count);
+        if (count * sizeof(InputDType) % BLOCK_BYTE_SIZE == 0) {
+            DataCopy(pGm, p16Local, count);
         } else {
-            DataCopyPad(pGm, pLocal, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0});
+            DataCopyPad(pGm, p16Local, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(InputDType)), 0, 0, 0});
         }
 
         AscendC::PipeBarrier<PIPE_ALL>();
-        // for (uint32_t i = 0; i < 64*128; i++) {
-        //     printf("pGm[%d] = %f \n", i, static_cast<float>(pGm.GetValue(i)));
-        // }
-        // AscendC::PipeBarrier<PIPE_ALL>();
+        for (uint32_t i = 0; i < 64*128; i++) {
+            printf("pGm[%d] = %f \n", i, static_cast<float>(pGm.GetValue(i)));
+        }
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
@@ -452,9 +466,9 @@ public:
     __aicore__ inline
     void CalDs(struct CalDsInfo runInfo,  uint64_t row, uint64_t col, uint64_t curS1)
     {
-        LocalTensor<float> dpLocal = runInfo.dpTensor;
+        LocalTensor<float> dpLocal = runInfo.dpFp32Tensor;
         LocalTensor<float> dLocal = runInfo.softmaxGradTensor;
-        LocalTensor<float> pLocal = runInfo.pTensor;
+        LocalTensor<float> pLocal = runInfo.pFp32Tensor;
 
         GlobalTensor<float> dp = runInfo.dpGm;
         GlobalTensor<float> d = runInfo.softmaxGradGm;
