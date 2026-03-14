@@ -839,8 +839,8 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "dim: %ld", tilingData_.dim);
     OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", tilingData_.kernelSize);
     OP_LOGI(context_->GetNodeName(), "stateLen: %ld", tilingData_.stateLen);
-    OP_LOGI(context_->GetNodeName(), "xStride: %ld", tilingData_.);
-    OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", tilingData_.);
+    OP_LOGI(context_->GetNodeName(), "xStride: %ld", tilingData_.xStride);
+    OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", tilingData_.cacheStride);
     OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", tilingData_.xInputMode);
     OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", tilingData_.hasAcceptTokenNum);
     OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", tilingData_.residualConnection);
