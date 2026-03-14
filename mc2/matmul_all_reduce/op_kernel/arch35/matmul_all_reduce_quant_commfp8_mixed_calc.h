@@ -123,9 +123,9 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.InitV2(GetHcclContext<0>(), tilingData);
-    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
-    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingComm));
+    hccl_.InitV2(GetHcclContext<0>(),tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5,mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5,mc2CcTilingComm));
     tilingData_ = tilingData;
     rankNum_ = tilingData_->param.rankDim;
     tPipe_ = tPipe;
