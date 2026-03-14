@@ -185,21 +185,20 @@ public:
         return {singleCoreM, singleCoreN, mSplitAddrOffset, nSplitAddrOffset};
     }
 
-    __aicore__ inline BlockCoord GetBlockCoord(int64_t mTileIdx, int64_t nTileIdx)
-    {
-        return {mTileIdx * l1M, nTileIdx * l1N, 0, 0};
-    }
-
     __aicore__ inline int64_t GetEndBlockIdx()
     {
         return endBlockIdx_;
     }
 
-    static int64_t GetBlockNum(ProblemShape shape)
+    __aicore__ inline int64_t GetMBaseTail()
     {
-        return DoGetBlockNum(l1M, l1N, shape);
+        return mBaseTail_;
     }
 
+    __aicore__ inline int64_t GetNBaseTail()
+    {
+        return nBaseTail_;
+    }
 };
 
 template <class ProblemShape_, class L1TileShape_, class L0TileShape_, bool TransA_, bool TransB_>
