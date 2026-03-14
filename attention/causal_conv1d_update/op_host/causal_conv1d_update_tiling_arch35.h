@@ -56,7 +56,8 @@ constexpr int32_t ATTR_RESIDUAL_CONNECTION_INDEX = 3;
 
 // Constants for validation
 constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
-constexpr int64_t MIN_DIM = 64;
+constexpr int64_t DIM_ALIGN_SiZESiZE = 256;  // 256 bytes
+constexpr int64_t MIN_DIM = 128;
 constexpr int64_t MAX_DIM = 16384;
 constexpr int64_t MIN_BATCH = 1;
 constexpr int64_t MAX_BATCH = 256;
@@ -111,6 +112,15 @@ private:
     // Tiling calculation functions
     int64_t CalculateLimitedCoreNum();
 
+    // Helpers function for DoOpTiling
+    ge::graphStatus ComputeValidBatchRange();
+    ge::graphStatus ComputeInterCoreSplit();    //核间切分
+    ge::graphStatus ComputeIntraCoreUbTiling(); // 核内切分
+    void ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
+                      int64_t &outUbDim, int64_t &outUbBS,
+                      int64_t &outLoopDim, int64_t &outLoopBS,
+                      int64_t &outUbTailDim, int64_t &outUbTailBS);
+
 
 
     // Hardware information
@@ -154,16 +164,16 @@ private:
     int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
     int64_t dimMainCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
     int64_t dimTailCoreCnt_ = 0;      // Number of small dim cores (base blocks)
-    int64_t dimMainSize_ = 0;        // Big core dim size ((base+1) * 128)
-    int64_t dimTailSize_ = 0;         // Small core dim size (base * 128)
+    int64_t mainCoredimLen_ = 0;        // Big core dim size ((base+1) * 128)
+    int64_t tailCoredimLen_ = 0;         // Small core dim size (base * 128)
     int64_t batchMainCoreCnt_ = 0;    // Number of big batch cores
     int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores
-    int64_t batchMainPerCore_ = 0;        // Batch size for big cores
-    int64_t batchTailPerCore_ = 0;    // Batch size for small cores
+    int64_t mainCoreBatchNum_ = 0;        // Batch size for big cores
+    int64_t tailCoreBatchNum_ = 0;    // Batch size for small cores
     int64_t validBatchStart_ = 0;     // First valid batch index
     int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
 
-    // Intra-core tiling parameters UB loop (match Fn style)
+    // Intra-core tiling parameters UB loop
     int64_t loopNumBS_ = 0;                // Loops in BS direction for big cores
     int64_t loopNumDim_ = 0;               // Loops in Dim direction for big cores
     int64_t ubMainFactorBS_ = 0;               // UB BS factor for big cores

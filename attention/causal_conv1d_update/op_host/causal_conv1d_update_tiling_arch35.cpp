@@ -84,6 +84,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 
         // query_start_loc shape is (batch + 1,), so batch = dim0 - 1
         batchSize_ = queryStartLocOriginShape.GetDim(DIM_0) - 1;
+        seqLen_ = MAX_M + 1;
     } else {
         OP_LOGE(context_->GetNodeName(), "X dimension number must be 2 or 3, but got %lu",
                 xOriginShape.GetDimNum());
@@ -197,12 +198,18 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
     }
     // For 2D input, cuSeqLen_ is used instead of seqLen_
 
-    // Validate dimension: [64, 16384]
+    // Validate dimension: [128, 16384]
     OP_CHECK_IF(dim_ < MIN_DIM || dim_ > MAX_DIM,
                 OP_LOGE(context_->GetNodeName(),
                         "X dimension must be in [%ld, %ld], but got %ld",
                         MIN_DIM, MAX_DIM, dim_),
                 return ge::GRAPH_FAILED);
+                
+    OP_CHECK_IF(dim_ % DIM_ALIGN_ELEMENT != 0,
+            OP_LOGE(context_->GetNodeName(),
+                    "The dimension of x must be a multiple of 128, but got %ld",
+                    dim_),
+            return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -497,8 +504,23 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
 
 ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
 {
-    // Calculate invalid batch number by checking padSlotId
-    // Invalid batches can be at the beginning or at the end
+    OP_CHECK_IF(ComputeValidBatchRange() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "ComputeValidBatchRange failed"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(ComputeInterCoreSplit() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(ComputeIntraCoreUbTiling() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "ComputeIntraCoreUbTiling failed"),
+                return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
+{
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
 
@@ -506,7 +528,6 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     if (cacheIndicesTensor != nullptr) {
         const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
         if (dataPtr != nullptr) {
-            // Count invalid batches at the beginning
             for (int64_t i = 0; i < batchSize_; i++) {
                 if (padSlotId_ == static_cast<int64_t>(dataPtr[i])) {
                     invalidBatchAtStart++;
@@ -514,8 +535,6 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
                     break;
                 }
             }
-
-            // Count invalid batches at the end (avoid double counting)
             for (int64_t i = batchSize_ - 1; i >= invalidBatchAtStart; i--) {
                 if (padSlotId_ == static_cast<int64_t>(dataPtr[i])) {
                     invalidBatchAtEnd++;
@@ -527,38 +546,38 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     }
 
     inValidBatchNum_ = invalidBatchAtStart + invalidBatchAtEnd;
-
-    // Record first and last valid batch indices for kernel use
     validBatchStart_ = invalidBatchAtStart;
     validBatchEnd_ = batchSize_ - 1 - invalidBatchAtEnd;
 
-    // Calculate valid batch
     int64_t validBatch = batchSize_ - inValidBatchNum_;
     OP_CHECK_IF(validBatch <= 0,
                 OP_LOGE(context_->GetNodeName(), "Valid batch must be positive, but got %ld", validBatch),
                 return ge::GRAPH_FAILED);
 
-        // New 2D tiling (non-uniform): first split dim by 128, then split batch to maximize cores
-    const int64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENT; // 128 elements (256B)
-    int64_t N = dim_ / DIM_GRANULARITY;
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
+{
+    // 2D tiling (non-uniform): first split dim by 128, then split batch to maximize cores
+    int64_t N = dim_ / DIM_ALIGN_ELEMENT;
     if (N <= 0) {
-        OP_LOGE(context_->GetNodeName(), "dim %ld is smaller than DIM_GRANULARITY %ld", dim_, DIM_GRANULARITY);
+        OP_LOGE(context_->GetNodeName(), "dim %ld is smaller than DIM_ALIGN_ELEMENT %ld", dim_, DIM_ALIGN_ELEMENT);
         return ge::GRAPH_FAILED;
     }
 
     // Compute max available cores considering data-size limit
     limitedCoreNum_ = CalculateLimitedCoreNum();
     int64_t maxCoresAvailable = std::min<int64_t>(totalCoreNum_, limitedCoreNum_);
-    printf("limitedCoreNum_ = %u", limitedCoreNum_);
-    
+
+    int64_t validBatch = batchSize_ - inValidBatchNum_;
+
     // Greedy search best (dimCores, bsCores), prioritize more dim splits
     int64_t bestDimCores = 1;
     int64_t bestBSCores = 1;
     int64_t bestUsed = 1; // dc=1 initially
 
     for (int64_t dc = N; dc >= 1; --dc) {
-        int64_t baseBlocks = N / dc; // each small core gets base blocks of 128
-
         int64_t maxAllowedBSByCore = maxCoresAvailable / dc;
         if (maxAllowedBSByCore == 0) continue;
         int64_t actualBS = std::min<int64_t>(validBatch, maxAllowedBSByCore);
@@ -582,11 +601,11 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     dimMainCoreCnt_ = remainder;
     dimTailCoreCnt_ = bestDimCores - remainder;
     if (remainder > 0) {
-        dimMainSize_ = (base + 1) * DIM_GRANULARITY; // big core size
-        dimTailSize_  = base * DIM_GRANULARITY;       // small core size
+        mainCoredimLen_ = (base + 1) * DIM_ALIGN_ELEMENT; // big core size
+        tailCoredimLen_  = base * DIM_ALIGN_ELEMENT;       // small core size
     } else {
-        dimMainSize_ = base * DIM_GRANULARITY;
-        dimTailSize_  = base * DIM_GRANULARITY;
+        mainCoredimLen_ = base * DIM_ALIGN_ELEMENT;
+        tailCoredimLen_  = base * DIM_ALIGN_ELEMENT;
     }
 
     // Derive batch non-uniform parameters (均分+多前核)
@@ -595,46 +614,69 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     int64_t bsRemainder = validBatch % batchCoreCnt_;
     batchMainCoreCnt_ = bsRemainder;               // 前remainder个核是大核
     batchTailCoreCnt_ = batchCoreCnt_ - bsRemainder; // 其余是小核
-    batchMainPerCore_ = bsBase + (bsRemainder > 0 ? 1 : 0); // 大核批大小
-    batchTailPerCore_ = bsBase;                          // 小核批大小
+    mainCoreBatchNum_ = bsBase + (bsRemainder > 0 ? 1 : 0); // 大核批大小
+    tailCoreBatchNum_ = bsBase;                          // 小核批大小
 
     usedCoreNum_ = dimCoreCnt_ * batchCoreCnt_;
 
-    // Intra-core UB tiling (big and tail blocks separately), similar to Fn
+    return ge::GRAPH_SUCCESS;
+}
+
+void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
+                      int64_t &outUbDim, int64_t &outUbBS,
+                      int64_t &outLoopDim, int64_t &outLoopBS,
+                      int64_t &outUbTailDim, int64_t &outUbTailBS)
+{
+    int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
+    int64_t xCoeffPerDimFullBS = BUFFER_NUM * coreBS * seqLen_ * DTYPE_SIZE;
+    int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBS;
+    int64_t maxUbDim = (totalCoeffPerDim > 0) ? (availableUbSize / totalCoeffPerDim) : 0;
+    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
+    if (maxUbDim >= DIM_ALIGN_ELEMENT) {
+        outUbBS = coreBS;
+        outUbDim = std::min(maxUbDim, coreDimElems);
+        outUbDim = (outUbDim / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
+        if (outUbDim == 0) outUbDim = DIM_ALIGN_ELEMENT;
+    } else {
+        outUbDim = DIM_ALIGN_ELEMENT;
+        int64_t weightConvStatesSize = weightConvStatesCoeffPerDim * outUbDim;
+        int64_t availableForX = availableUbSize - weightConvStatesSize;
+        int64_t xSizePerBatch = seqLen_ * outUbDim * DTYPE_SIZE;
+        outUbBS = (xSizePerBatch > 0) ? (availableForX / xSizePerBatch) : 0;
+        outUbBS = std::max<int64_t>(outUbBS, 1);
+        outUbBS = std::min(outUbBS, coreBS);
+    }
+    outLoopDim = (coreDimElems + outUbDim - 1) / outUbDim;
+    outUbTailDim = (outLoopDim == 1) ? outUbDim : (coreDimElems - (outLoopDim - 1) * outUbDim);
+    outLoopBS = (coreBS + outUbBS - 1) / outUbBS;
+    outUbTailBS = (outLoopBS == 1) ? outUbBS : (coreBS - (outLoopBS - 1) * outUbBS);
+}
+
+ge::graphStatus CausalConv1dUpdateTiling::ComputeIntraCoreUbTiling()
+{
+    // Intra-core UB tiling (big and tail blocks separately)
+    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
+    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
+
+    fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
+    if (xInputMode_ == X_INPUT_2D) {
+        int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
+        fixedUBSize += queryStartLocUBSize;
+    }
+
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUBSize;
-    auto computeUbFor = [&](int64_t coreDimElems, int64_t coreBS, int64_t &outUbDim, int64_t &outUbBS,
-                            int64_t &outLoopDim, int64_t &outLoopBS, int64_t &outUbTailDim, int64_t &outUbTailBS) -> void {
-        // weight + convStates per-dim element coefficient
-        int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
-        int64_t xCoeffPerDimFullBS = BUFFER_NUM * coreBS * seqLen_ * DTYPE_SIZE;
-        int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBS;
-        int64_t maxUbDim = (totalCoeffPerDim > 0) ? (availableUbSize / totalCoeffPerDim) : 0;
-        maxUbDim = (maxUbDim / DIM_GRANULARITY) * DIM_GRANULARITY;
-        if (maxUbDim >= DIM_GRANULARITY) {
-            outUbBS = coreBS;
-            outUbDim = std::min(maxUbDim, coreDimElems);
-            outUbDim = (outUbDim / DIM_GRANULARITY) * DIM_GRANULARITY;
-            if (outUbDim == 0) outUbDim = DIM_GRANULARITY;
-        } else {
-            outUbDim = DIM_GRANULARITY;
-            int64_t weightConvStatesSize = weightConvStatesCoeffPerDim * outUbDim;
-            int64_t availableForX = availableUbSize - weightConvStatesSize;
-            int64_t xSizePerBatch = seqLen_ * outUbDim * DTYPE_SIZE;
-            outUbBS = (xSizePerBatch > 0) ? (availableForX / xSizePerBatch) : 0;
-            outUbBS = std::max<int64_t>(outUbBS, 1);
-            outUbBS = std::min(outUbBS, coreBS);
-        }
-        outLoopDim = (coreDimElems + outUbDim - 1) / outUbDim;
-        outUbTailDim = (outLoopDim == 1) ? outUbDim : (coreDimElems - (outLoopDim - 1) * outUbDim);
-        outLoopBS = (coreBS + outUbBS - 1) / outUbBS;
-        outUbTailBS = (outLoopBS == 1) ? outUbBS : (coreBS - (outLoopBS - 1) * outUbBS);
-    };
 
     // Big cores UB params
-    computeUbFor(dimMainSize_, batchMainPerCore_, ubMainFactorDim_, ubMainFactorBS_, loopNumDim_, loopNumBS_, ubTailFactorDim_, ubTailFactorBS_);
+    ComputeUbFor(mainCoredimLen_, mainCoreBatchNum_, availableUbSize,
+                 ubMainFactorDim_, ubMainFactorBS_,
+                 loopNumDim_, loopNumBS_,
+                 ubTailFactorDim_, ubTailFactorBS_);
+
     // Tail cores UB params
-    computeUbFor((dimMainCoreCnt_ > 0 ? dimTailSize_ : dimMainSize_), batchTailPerCore_,
-                 tailBlockubFactorDim_, tailBlockubFactorBS_, tailBlockloopNumDim_, tailBlockloopNumBS_,
+    int64_t tailCoreDim = (dimMainCoreCnt_ > 0 ? tailCoredimLen_ : mainCoredimLen_);
+    ComputeUbFor(tailCoreDim, tailCoreBatchNum_, availableUbSize,
+                 tailBlockubFactorDim_, tailBlockubFactorBS_,
+                 tailBlockloopNumDim_, tailBlockloopNumBS_,
                  tailBlockubTailFactorDim_, tailBlockubTailFactorBS_);
 
     return ge::GRAPH_SUCCESS;
@@ -642,44 +684,19 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
 
 int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 {
-    // Calculate input x size in bytes (data type is float16/bf16, 2 bytes per element)
+    // Calculate input x size in bytes (only consider batch * dim_)
     int64_t xSizeBytes;
-    if (xInputMode_ == X_INPUT_3D) {
-        // 3D input: batchSize * seqLen * dim * 2 bytes
-        // xSizeBytes = batchSize_ * seqLen_ * dim_ * DTYPE_SIZE;
-        xSizeBytes = batchSize_ * dim_ * DTYPE_SIZE;
-    } else {
-        // 2D input: cuSeqLen * dim * 2 bytes
-        xSizeBytes = cuSeqLen_ * dim_ * DTYPE_SIZE;
-    }
-
-    // Fixed UB usage for auxiliary tensors
-    // cacheIndices: batchSize_ * sizeof(int32)
-    // numAcceptedToken: batchSize_ * sizeof(int32)
-    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
-    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
-    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
-
-    // For 3D input (xInputMode_ == X_INPUT_3D), only include cacheIndicesUBSize and numAcceptedTokensUBSize
-    fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
-    // For 2D input (xInputMode_ == X_INPUT_2D), include queryStartLocUBSize
-    if (xInputMode_ == X_INPUT_2D) {
-        int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
-        fixedUBSize += queryStartLocUBSize;
-    }
-
+    xSizeBytes = batchSize_ * dim_ * DTYPE_SIZE;
+    
     // Limit core number based on data size
-    // New rule: increase 1 core per additional 256 bytes of x data
+    // increase 1 core per additional 256 bytes of x data
     // effectiveCoreNum = ceil(xSizeBytes / 256)
-    const int64_t bytesPerCoreStep = 256;
-    int64_t effectiveCoreNum = (xSizeBytes + bytesPerCoreStep - 1) / bytesPerCoreStep;
+    int64_t effectiveCoreNum = (xSizeBytes + DIM_ALIGN_SiZESiZE - 1) / DIM_ALIGN_SiZESiZE;
     effectiveCoreNum = std::max(effectiveCoreNum, static_cast<int64_t>(1));
 
     // Actual core number is min(effectiveCoreNum, totalCoreNum_)
     return std::min(effectiveCoreNum, static_cast<int64_t>(totalCoreNum_));
 }
-
-
 
 
 uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
@@ -697,17 +714,17 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.dimCoreCnt = dimCoreCnt_;
     tilingData_.batchCoreCnt = batchCoreCnt_;
 
-    // Dim tiling parameters (non-uniform)
+    // Dim tiling parameters
     tilingData_.dimMainCoreCnt = dimMainCoreCnt_;
     tilingData_.dimTailCoreCnt = dimTailCoreCnt_;
-    tilingData_.dimMainSize = dimMainSize_;
-    tilingData_.dimTailSize = dimTailSize_;
+    tilingData_.mainCoredimLen = mainCoredimLen_;
+    tilingData_.tailCoredimLen = tailCoredimLen_;
 
-    // Batch tiling parameters (non-uniform)
+    // Batch tiling parameters
     tilingData_.batchMainCoreCnt = batchMainCoreCnt_;
     tilingData_.batchTailCoreCnt = batchTailCoreCnt_;
-    tilingData_.batchMainPerCore = batchMainPerCore_;
-    tilingData_.batchTailPerCore = batchTailPerCore_;
+    tilingData_.mainCoreBatchNum = mainCoreBatchNum_;
+    tilingData_.tailCoreBatchNum = tailCoreBatchNum_;
     tilingData_.validBatchStart = validBatchStart_;
     tilingData_.validBatchEnd = validBatchEnd_;
 
@@ -761,25 +778,33 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", dimCoreCnt_);
     OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", batchCoreCnt_);
 
-    // Dim tiling parameters inter-core
-    OP_LOGI(context_->GetNodeName(), "dimMainSize: %ld", dimMainSize_);
-    OP_LOGI(context_->GetNodeName(), "dimTailSize: %ld", dimTailSize_);
+    // Dim tiling parameters
+    OP_LOGI(context_->GetNodeName(), "dimMainCoreCnt: %ld", dimMainCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "dimTailCoreCnt: %ld", dimTailCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "mainCoredimLen: %ld", mainCoredimLen_);
+    OP_LOGI(context_->GetNodeName(), "tailCoredimLen: %ld", tailCoredimLen_);
 
-    // Batch tiling parameters inter-core
-    OP_LOGI(context_->GetNodeName(), "batchMainPerCore: %ld", batchMainPerCore_);
-    OP_LOGI(context_->GetNodeName(), "batchTailPerCore: %ld", batchTailPerCore_);
+    // Batch tiling parameters
+    OP_LOGI(context_->GetNodeName(), "batchMainCoreCnt: %ld", batchMainCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "batchTailCoreCnt: %ld", batchTailCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "mainCoreBatchNum: %ld", mainCoreBatchNum_);
+    OP_LOGI(context_->GetNodeName(), "tailCoreBatchNum: %ld", tailCoreBatchNum_);
     OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", validBatchStart_);
     OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", validBatchEnd_);
 
-    // Intra-core tiling parameters UB loop (big/tail blocks)
-    OP_LOGI(context_->GetNodeName(), "ubMainFactorBS: %ld", ubMainFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "ubMainFactorDim: %ld", ubMainFactorDim_);
+    // Intra-core tiling parameters (UB loop, big/tail blocks)
     OP_LOGI(context_->GetNodeName(), "loopNumBS: %ld", loopNumBS_);
     OP_LOGI(context_->GetNodeName(), "loopNumDim: %ld", loopNumDim_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorBS: %ld", tailBlockubFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorDim: %ld", tailBlockubFactorDim_);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorBS: %ld", ubMainFactorBS_);
+    OP_LOGI(context_->GetNodeName(), "ubTailFactorBS: %ld", ubTailFactorBS_);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorDim: %ld", ubMainFactorDim_);
+    OP_LOGI(context_->GetNodeName(), "ubTailFactorDim: %ld", ubTailFactorDim_);
     OP_LOGI(context_->GetNodeName(), "tailBlockloopNumBS: %ld", tailBlockloopNumBS_);
     OP_LOGI(context_->GetNodeName(), "tailBlockloopNumDim: %ld", tailBlockloopNumDim_);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorBS: %ld", tailBlockubFactorBS_);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorBS: %ld", tailBlockubTailFactorBS_);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorDim: %ld", tailBlockubFactorDim_);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorDim: %ld", tailBlockubTailFactorDim_);
 
     // Shape information for kernel use
     OP_LOGI(context_->GetNodeName(), "batchSize: %ld", batchSize_);
@@ -788,14 +813,11 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "dim: %ld", dim_);
     OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", kernelSize_);
     OP_LOGI(context_->GetNodeName(), "stateLen: %ld", stateLen_);
+    OP_LOGI(context_->GetNodeName(), "xStride: %ld", 0);
+    OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", 0);
     OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", xInputMode_);
     OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", hasAcceptTokenNum_);
-
-    // Additional debug information (not in struct)
-    OP_LOGI(context_->GetNodeName(), "Invalid Batch Number: %ld", inValidBatchNum_);
-    OP_LOGI(context_->GetNodeName(), "Total Core Number: %ld", totalCoreNum_);
-    OP_LOGI(context_->GetNodeName(), "Limited Core Number: %ld", limitedCoreNum_);
-    OP_LOGI(context_->GetNodeName(), "UB Size: %lu bytes", ubSize_);
+    OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", residualConnection_);
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()

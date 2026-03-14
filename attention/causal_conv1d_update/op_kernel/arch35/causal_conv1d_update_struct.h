@@ -26,18 +26,18 @@ int64_t batchCoreCnt;             // Number of cores for batch direction
 // Dim tiling parameters inter-core (non-uniform split)
 int64_t dimMainCoreCnt;           // Number of big dim cores (base+1 blocks of 128)
 int64_t dimTailCoreCnt;           // Number of small dim cores (base blocks of 128)
-int64_t dimMainSize;             // Big core dim size: (base+1) * 128
-int64_t dimTailSize;              // Small core dim size: base * 128
+int64_t mainCoredimLen;             // Big core dim size: (base+1) * 128
+int64_t tailCoredimLen;              // Small core dim size: base * 128
 
 // Batch tiling parameters inter-core (non-uniform split)
 int64_t batchMainCoreCnt;         // Number of big batch cores
 int64_t batchTailCoreCnt;         // Number of small batch cores
-int64_t batchMainPerCore;             // Batch size for big cores
-int64_t batchTailPerCore;         // Batch size for small cores
+int64_t mainCoreBatchNum;             // Batch size for big cores
+int64_t tailCoreBatchNum;         // Batch size for small cores
 int64_t validBatchStart;          // First valid batch index
 int64_t validBatchEnd;            // Last valid batch index inclusive
 
-// Intra-core tiling parameters UB loop (extended Fn-style fields for non-uniform tail blocks)
+// Intra-core tiling parameters UB loop
 int64_t loopNumBS;                // Loops in BS direction for big cores
 int64_t loopNumDim;               // Loops in Dim direction for big cores
 int64_t ubMainFactorBS;               // UB BS factor for big cores
