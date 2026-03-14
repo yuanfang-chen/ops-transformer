@@ -22,7 +22,8 @@
 using namespace Mc2Tiling;
 namespace optiling {
 constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
-
+constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 bool WeightQuantMatmulAllReduceTilingA5::IsCapable()
 {
     if (isA16W8_ || isA16W4_) {
@@ -255,11 +256,9 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCa
     OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
     
     // MatMul输出存储+alltoall输出存储+reduceSum输出存储
-    if (cgmPadLen == 0) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
-    } else {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
-    }
+    uint64_t workspaceSizeCount = cgmPadLen ? STANDARD_CARD_CGMPAD_WORKSPACE_CNT : STANDARD_CARD_WORKSPACE_CNT;
+    myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * workspaceSizeCount + commFp16WorkSpace / args_.rankDim;
+
     return ge::GRAPH_SUCCESS;
 }
 
