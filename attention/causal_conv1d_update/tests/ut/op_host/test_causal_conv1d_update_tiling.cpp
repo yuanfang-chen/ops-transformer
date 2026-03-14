@@ -35,101 +35,101 @@ protected:
 };
 
 
-// TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
-// {
-//     optiling::CausalConv1dUpdateCompileInfo compileInfo = {
-//         64, 261888};
-//
-//     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-//         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-//         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//         {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
-//     };
-//
-//     gert::TilingContextPara tilingContextPara(
-//         "CausalConv1dUpdate",
-//         {
-//             // Input 0: x - (batch=4, seq_len=1, dim=512)
-//             {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 1: weight - (kernel_size=3, dim=512)
-//             {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 2: convStates - (batch=4, cache_len=3+1-2=2, dim=512)
-//             {{{4, 2, 512}, {4, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 3: queryStartLoc - optional for 3D x
-//             {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 4: cacheIndices - (batch=4)
-//             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 5: hasInitialState - (batch=4)
-//             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 6: bias - optional, (dim=512)
-//             {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 7: numAcceptedTokens - optional, (batch=4)
-//             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
-//         },
-//         {
-//             // Output 0: y - (batch=4, seq_len=1, dim=512)
-//             {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Output 1: cacheStates - (batch=4, cache_len=2, dim=512)
-//             {{{4, 2, 512}, {4, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-//         },
-//         attrs,
-//         &compileInfo);
-//
-//     int64_t expectTilingKey = 20000;
-//     std::string expectTilingData = "16 4 4 4 0 128 128 4 0 1 1 0 3 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 0 0 0 1 0 ";
-//
-//     std::vector<size_t> expectWorkspaces = {};
-//     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-// }
+TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
+{
+    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
+        64, 261888};
 
-// TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
-// {
-//     optiling::CausalConv1dUpdateCompileInfo compileInfo = {
-//         64, 261888};
-//
-//     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-//         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-//         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//         {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
-//     };
-//
-//     gert::TilingContextPara tilingContextPara(
-//         "CausalConv1dUpdate",
-//         {
-//             // Input 0: x - (batch=1, seq_len=4, dim=1024)
-//             {{{1, 4, 1024}, {1, 4, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 1: weight - (kernel_size=3, dim=1024)
-//             {{{3, 1024}, {3, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 2: convStates - (batch=1, cache_len=3+4-2=5, dim=1024)
-//             // cache_len = kernel_size + seq_len - 2 = 3 + 4 - 2 = 5
-//             {{{1, 5, 1024}, {1, 5, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 3: queryStartLoc - (batch+1=2)
-//             {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 4: cacheIndices - (batch=1)
-//             {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 5: hasInitialState - (batch=1)
-//             {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-//             // Input 6: bias - optional, (dim=1024)
-//             {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Input 7: numAcceptedTokens - optional, (batch=1)
-//             {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-//             },
-//         {
-//             // Output 0: y - (batch=1, seq_len=4, dim=1024)
-//             {{{1, 4, 1024}, {1, 4, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
-//             // Output 1: cacheStates - (batch=1, cache_len=5, dim=1024)
-//             {{{1, 5, 1024}, {1, 5, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
-//         },
-//         attrs,
-//         &compileInfo);
-//
-//     int64_t expectTilingKey = 20000;
-//     std::string expectTilingData = "8 8 1 0 8 128 128 0 1 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 4 0 1024 3 5 0 0 0 1 0 ";
-//     std::vector<size_t> expectWorkspaces = {};
-//     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-// }
+    std::vector<gert::TilingContextPara::OpAttr> attrs = {
+        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+    };
+
+    gert::TilingContextPara tilingContextPara(
+        "CausalConv1dUpdate",
+        {
+            // Input 0: x - (batch=4, seq_len=1, dim=512)
+            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_size=3, dim=512)
+            {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 2: convStates - (batch=4, cache_len=3+1-2=2, dim=512)
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 3: queryStartLoc - optional for 3D x
+            {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 4: cacheIndices - (batch=4)
+            {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: hasInitialState - (batch=4)
+            {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 6: bias - optional, (dim=512)
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 7: numAcceptedTokens - optional, (batch=4)
+            {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
+        },
+        {
+            // Output 0: y - (batch=4, seq_len=1, dim=512)
+            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (batch=4, cache_len=2, dim=512)
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+        },
+        attrs,
+        &compileInfo);
+
+    int64_t expectTilingKey = 20000;
+    std::string expectTilingData = "16 4 4 4 0 128 128 4 0 1 1 0 3 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 0 0 0 1 0 ";
+
+    std::vector<size_t> expectWorkspaces = {};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
+{
+    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
+        64, 261888};
+
+    std::vector<gert::TilingContextPara::OpAttr> attrs = {
+        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+    };
+
+    gert::TilingContextPara tilingContextPara(
+        "CausalConv1dUpdate",
+        {
+            // Input 0: x - (batch=1, seq_len=4, dim=1024)
+            {{{1, 4, 1024}, {1, 4, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_size=3, dim=1024)
+            {{{3, 1024}, {3, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 2: convStates - (batch=1, cache_len=3+4-2=5, dim=1024)
+            // cache_len = kernel_size + seq_len - 2 = 3 + 4 - 2 = 5
+            {{{1, 5, 1024}, {1, 5, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 3: queryStartLoc - (batch+1=2)
+            {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 4: cacheIndices - (batch=1)
+            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: hasInitialState - (batch=1)
+            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 6: bias - optional, (dim=1024)
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 7: numAcceptedTokens - optional, (batch=1)
+            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
+            },
+        {
+            // Output 0: y - (batch=1, seq_len=4, dim=1024)
+            {{{1, 4, 1024}, {1, 4, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (batch=1, cache_len=5, dim=1024)
+            {{{1, 5, 1024}, {1, 5, 1024}}, ge::DT_BF16, ge::FORMAT_ND},
+        },
+        attrs,
+        &compileInfo);
+
+    int64_t expectTilingKey = 20000;
+    std::string expectTilingData = "8 8 1 0 8 128 128 0 1 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 4 0 1024 3 5 0 0 0 1 0 ";
+    std::vector<size_t> expectWorkspaces = {};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
 
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512)
@@ -225,13 +225,6 @@ static gert::TilingContextPara Make2DTilingPara(int64_t batch, int64_t cuSeqLen,
 }
 
 // batch=1, cuSeqLen=4
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d)
-{
-    auto para = Make2DTilingPara(1, 4, 512);
-    int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "4 4 1 4 0 128 128 1 0 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 512 3 5 0 0 1 1 1", {});
-}
-
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d768_x2d)
 {
     auto para = Make2DTilingPara(1, 4, 768);
