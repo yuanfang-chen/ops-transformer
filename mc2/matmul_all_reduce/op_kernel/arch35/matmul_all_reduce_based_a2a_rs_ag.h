@@ -187,7 +187,6 @@ protected:
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tileInfo_.cAddrOffset;
                 reduceSumOutGM_ += tileInfo_.cAddrOffset / rankNum_;
-                SyncAll();
             }
 
             for (int i = 0; i < paramInTiling_->tailCnt; i++){
@@ -197,7 +196,6 @@ protected:
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailInfo_.cAddrOffset;
                 reduceSumOutGM_ += tailInfo_.cAddrOffset / rankNum_;
-                SyncAll();
             }
         }
         SyncAll();
