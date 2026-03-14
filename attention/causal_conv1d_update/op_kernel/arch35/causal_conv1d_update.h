@@ -225,15 +225,11 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     dimIdx_ = blockIdx_ % dimCoreCnt_;    // Dim方向索引
     if (dimIdx_ < dimMainCoreCnt_) {
         coreDimLen_ = mainCoredimLen_;
-        ubMainFactorBS_ = tilingData->ubMainFactorBS;
-        ubTailFactorBS_ = tilingData->ubTailFactorBS;
         ubMainFactorDim_ = tilingData->ubMainFactorDim;
         ubTailFactorDim_ = tilingData->ubTailFactorDim;
         dimOffset_ = dimIdx_ * mainCoredimLen_;
     } else {
         coreDimLen_ = tailCoredimLen_; 
-        ubMainFactorBS_ = tilingData->tailBlockubFactorBS;
-        ubTailFactorBS_ = tilingData->tailBlockubTailFactorBS;
         ubMainFactorDim_ = tilingData->tailBlockubFactorDim;
         ubTailFactorDim_ = tilingData->tailBlockubTailFactorDim;
         dimOffset_ = dimMainCoreCnt_ * mainCoredimLen_ + (dimIdx_ - dimMainCoreCnt_) * tailCoredimLen_;
@@ -241,9 +237,13 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 
     // === 当前核的batch个数和第一个batch的id ===
     if (batchIdx_ < batchMainCoreCnt_) {
+        ubMainFactorBS_ = tilingData->ubMainFactorBS;
+        ubTailFactorBS_ = tilingData->ubTailFactorBS;
         coreBatchNum_ = mainCoreBatchNum_;
         firstBatchIdx_ = validBatchStart_ + batchIdx_ * mainCoreBatchNum_;
     } else {
+        ubMainFactorBS_ = tilingData->tailBlockubFactorBS;
+        ubTailFactorBS_ = tilingData->tailBlockubTailFactorBS;
         coreBatchNum_ = tailCoreBatchNum_;
         firstBatchIdx_ = validBatchStart_ + batchMainCoreCnt_ * mainCoreBatchNum_ + (batchIdx_ - batchMainCoreCnt_) * tailCoreBatchNum_;
     }
@@ -512,7 +512,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const Local
     if (convStatesNeedRow > 0) {
         int32_t srcCacheOffset = (acceptToken - 1 + convStatesNeedRow) * dimSizeInLoop_;
         DataCopyParams dataCopyParams;
-        dataCopyParams.blockCount = cacheLen_ - seqLen_;
+        dataCopyParams.blockCount = convStatesNeedRow;
         dataCopyParams.blockLen = blockLen;
         dataCopyParams.srcStride = 0;
         dataCopyParams.dstStride = dstStrideBytes;

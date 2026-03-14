@@ -570,7 +570,7 @@ __aicore__ inline void Conv1dNeedState(LocalTensor<T> &xUb, LocalTensor<T> &weig
     __ubuf__ T * yAddr = (__ubuf__ T *)yUb.GetPhyAddr();
     if(isResidualConnection == 1) {
         Conv1dNeedStateConVF(xAddr, weightAddr, stateAddr , yAddr, stateSLen, xSLen, dimLen);
-    } else {
+    } else if(isResidualConnection == 0){
         Conv1dNeedStateNoConVF(xAddr, weightAddr, stateAddr , yAddr, stateSLen, xSLen, dimLen);
     }
 }
@@ -590,7 +590,7 @@ __aicore__ inline void Conv1dNoNeedState(LocalTensor<T> &xUb, LocalTensor<T> &we
         } else if(xLoopRem == 0) {
             Conv1dNoNeedStateConNoResVF(xAddr, weightAddr, yAddr, xLoopNum, dimLen);
         }
-    } else {
+    } else if(isResidualConnection == 0){
         if(xLoopRem == 1) {
             Conv1dNoNeedStateNoConResVF(xAddr, weightAddr, yAddr, xLoopNum, dimLen);
         } else if(xLoopRem == 0) {
