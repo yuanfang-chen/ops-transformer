@@ -376,5 +376,37 @@ public:
     InitOutputParams initOutputParams;
 };
 
+const uint32_t AIC_CORE_NUM = 32;
+const uint32_t AIV_CORE_NUM = 64;
+const uint32_t MAX_FD_NUM = AIV_CORE_NUM;
+
+struct FDResult {
+    uint32_t fdNum = 0U;
+    uint32_t fdBN2Idx[MAX_FD_NUM];
+    uint32_t fdMIdx[MAX_FD_NUM];
+    uint32_t fdS2SplitNum[MAX_FD_NUM];
+
+    uint32_t fdUsedVecNum = 0;
+    uint32_t fdBalanceMBaseSize = 0;
+    uint32_t fdBalanceMSplitNum[MAX_FD_NUM];
+    uint32_t fdBalanceMTailSize[MAX_FD_NUM];
+    uint32_t fdBalanceEndIdx1[AIV_CORE_NUM];
+    uint32_t fdBalanceEndIdx2[AIV_CORE_NUM];
+};
+
+struct OuterSplitParams {
+    uint32_t usedCoreNum = 0;
+    uint32_t bN2End[AIC_CORE_NUM];
+    uint32_t mEnd[AIC_CORE_NUM];
+    uint32_t s2End[AIC_CORE_NUM];
+    uint32_t headFdDataIdx[AIC_CORE_NUM];
+    struct FDResult fdRes;
+};
+
+class FusedInferAttentionScoreTilingData : public FlashAttentionScoreSimplifiedTilingData {
+public:
+    struct OuterSplitParams outerSplitParams;
+};
+
 }  // namespace optiling
 #endif
