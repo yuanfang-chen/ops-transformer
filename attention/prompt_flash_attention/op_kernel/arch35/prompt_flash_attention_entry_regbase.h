@@ -38,8 +38,8 @@ using namespace regbaseutil;
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling)                                                    \
-    GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn
+    GET_TILING_DATA_WITH_STRUCT(FusedInferAttentionScoreTilingData, tilingDataIn, tiling);                           \
+    const FusedInferAttentionScoreTilingData *__restrict tilingData = &tilingDataIn
 
 #define INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(templateClass, ...)                                               \
     do {                                                                                                                \
@@ -48,7 +48,8 @@ using namespace regbaseutil;
         REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling);                                                   \
         using CubeBlockType = FABlockCubeNoquantMla<__VA_ARGS__>;                                                   \
         using VecBlockType = BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>;                                                     \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                  \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengths,                                               \
                 actualSeqLengthsKV, blocktable, postQuantScale, postQuantOffset, queryRope, keyRope, softmaxLse, attentionOut,                           \
                 user, tilingData, &tPipe);                                                                              \
@@ -151,7 +152,8 @@ using namespace regbaseutil;
         TPipe tPipe;                                                                                                                    \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                                      \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
             actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, nullptr, &tPipe);            \
@@ -224,7 +226,8 @@ using namespace regbaseutil;
         TPipe tPipe;                                                                                                                    \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        using FdBlockType = typename std::conditional<g_coreType == AscendC::AIC || !isFd, BaseApi::FiaBlockVecFlashDecodeDummy<__VA_ARGS__>, BaseApi::FiaBlockVecFlashDecode<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType, FdBlockType> op;                                                                                \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
             actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
@@ -320,6 +323,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
     REGISTER_TILING_DEFAULT(PFAFullQuantTilingData);
     REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) != 30", FlashAttentionScoreSimplifiedTilingData);
     REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 30", PFAFullQuantTilingData);
+    // TODO，非量化需要注册为FusedInferAttentionScoreTilingData
+    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 31", FusedInferAttentionScoreTilingData);
     if constexpr (emptyTensor == true) {
         # if (ORIG_DTYPE_ATTENTION_OUT != DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT != DT_BF16)
             INVOKE_PFA_ZERO_OP_IMPL_V2(fp8_e4m3fn_t);
