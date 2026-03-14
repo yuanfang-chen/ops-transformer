@@ -80,11 +80,11 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommTwoShot(const char* gro
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
     OP_TILING_CHECK(
         mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
+        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData by SetMc2HcommTwoShot failed."),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData by SetMc2HcommTwoShot failed."),
         return ge::GRAPH_FAILED);
     mc2CcTilingConfig.SetGroupName(groupName);
     mc2CcTilingConfig.SetOpType(opType2);
@@ -92,7 +92,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommTwoShot(const char* gro
     mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
     OP_TILING_CHECK(
         mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
-        OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+        OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData by SetMc2HcommTwoShot failed."),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -108,11 +108,11 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommRSAG(const char* groupN
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType2, dataType1);
     OP_TILING_CHECK(
         mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
+        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData by SetMc2HcommRSAG failed."),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData by SetMc2HcommRSAG failed."),
         return ge::GRAPH_FAILED);
     mc2CcTilingConfig.SetGroupName(groupName);
     mc2CcTilingConfig.SetOpType(opType2);
