@@ -116,21 +116,23 @@ static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, cons
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightScale should not be null.");
         return false;
     }
-    if (gmmXQuantMode != static_cast<int64_t>(QuantModeType::PERTENSOR_QUANT)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXQuantMode should be 1.");
+    if ((gmmXQuantMode != static_cast<int64_t>(QuantModeType::PERTENSOR_QUANT)) ||
+        (gmmXQuantMode != static_cast<int64_t>(QuantModeType::MX_QUANT))) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXQuantMode should be 1(pertensor) or 6(mx), but actual is %lu.", gmmXQuantMode);
         return false;
     }
-    if (gmmWeightQuantMode != static_cast<int64_t>(QuantModeType::PERTENSOR_QUANT)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightQuantMode should be 1.");
+    if ((gmmWeightQuantMode != static_cast<int64_t>(QuantModeType::PERTENSOR_QUANT)) ||
+        (gmmWeightQuantMode != static_cast<int64_t>(QuantModeType::MX_QUANT))) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightQuantMode should be 1(pertensor) or 6(mx), but actual is %lu.", gmmWeightQuantMode);
         return false;
     }
     return true;
 }
 
 // 根据API定义，列出输入的所能支持的所有dtype
-static const std::initializer_list<op::DataType> IN_DTYPE_SUPPORT_LIST = {op::DataType::DT_HIFLOAT8};
+static const std::initializer_list<op::DataType> IN_DTYPE_SUPPORT_LIST = {op::DataType::DT_HIFLOAT8, op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_FLOAT_E4M3FN};
 // 根据API定义，列出输入Scale所能支持的所有dtype
-static const std::initializer_list<op::DataType> SCALE_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> SCALE_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT, op::DataType::DT_FLOAT_E8M0};
 // 根据API定义，列出输出output所能支持的所有dtype
 static const std::initializer_list<op::DataType> OUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT16,
                                                                            op::DataType::DT_BF16};
