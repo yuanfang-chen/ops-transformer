@@ -427,7 +427,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckQuantMode() const
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape can not be null."), return ge::GRAPH_FAILED);
     auto gmmXScaleDimNum = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDimNum();
-    OP_TILING_CHECK(gmmXScaleDim != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmXScale input dimNum should be 1, but actual dimNum is %lu", gmmXScaleDim), 
+    OP_TILING_CHECK(gmmXScaleDimNum != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmXScale input dimNum should be 1, but actual dimNum is %lu", gmmXScaleDimNum), 
         return ge::GRAPH_FAILED);
     auto gmmXScaleShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
     OP_TILING_CHECK(gmmXScaleShape != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmXScale input shape should be [1], but actual shape is [%lu]", gmmXScaleShape), 
