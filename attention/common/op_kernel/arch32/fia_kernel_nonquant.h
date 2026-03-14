@@ -73,18 +73,24 @@ protected:
     static constexpr FIA_LAYOUT KV_LAYOUT_T = FIAT::kvLayout;
     static constexpr ActualSeqLensMode Q_MODE = GetQActSeqMode<LAYOUT_T>();
     static constexpr ActualSeqLensMode KV_MODE = GetKvActSeqMode<LAYOUT_T, PAGE_ATTENTION>();
-    static constexpr bool QUANT = (IsSameType<Q_T, KV_T>::value && IsSameType<KV_T, int8_t>::value);
-    static constexpr uint8_t PER_CHANNEL_MODE = 0; // 伪量化: K V per-channel
-    static constexpr uint8_t ANTIQUANT_MODE = FIAT::antiquantMode;
-    static constexpr bool ANTIQUANT = !IsSameType<Q_T, KV_T>::value;
-    static constexpr bool ANTIQUANT_PER_CHANNEL = (ANTIQUANT && (ANTIQUANT_MODE == PER_CHANNEL_MODE));
-    using Q_ROPE_T = typename AscendC::Conditional<ANTIQUANT, Q_T, ORIGIN_T>::type;
-    using K_ROPE_T = typename AscendC::Conditional<ANTIQUANT, KV_T, ORIGIN_T>::type;    
 
-    using UPDATE_T = typename AscendC::Conditional<QUANT || ANTIQUANT, half, T>::type;
-    using TMP_T = typename AscendC::Conditional<ANTIQUANT, half, T>::type;
-    using MM1_OUT_T = typename AscendC::Conditional<QUANT, int32_t, TMP_T>::type;
-    using MM2_OUT_T = typename AscendC::Conditional<QUANT, half, TMP_T>::type;
+
+
+
+    using Q_ROPE_T = ORIGIN_T;
+
+    using K_ROPE_T =  ORIGIN_T;   
+
+
+    using UPDATE_T = T;
+
+    using TMP_T = T;
+
+    using MM1_OUT_T = TMP_T;
+
+    using MM2_OUT_T = TMP_T;
+    
+    
 
 
     // ==============================Service Define==============================
@@ -114,7 +120,7 @@ protected:
     // ================================Required Global Tensor=================================
     GlobalTensor<OUT_T> attentionOutGm;
 
-    GlobalTensor<bfloat16_t> sinkGm;
+    GlobalTensor<bfloat16_t> sinkGm; 
 
     __gm__ uint8_t *keyPtr = nullptr;
     __gm__ uint8_t *valuePtr = nullptr;
@@ -455,11 +461,9 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     if ASCEND_IS_AIC {
         matmulService.InitParams(constInfo);
         matmulService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
-            deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
             blockTable, queryPaddingSize, kvPaddingSize,
-            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
-            queryRope, keyRope, keyRopeAntiquantScale,
+            queryRope, keyRope, 
             attentionOut);
         matmulService.InitMm1GlobalTensor(mm1ResGm);
         matmulService.InitMm2GlobalTensor(vec1ResGm, mm2ResGm);
@@ -475,11 +479,9 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
         }
         vectorService.InitParams(constInfo);
         vectorService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
-            deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
             blockTable, queryPaddingSize, kvPaddingSize,
-            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
-            queryRope, keyRope, keyRopeAntiquantScale, learnableSink,
+            queryRope, keyRope,  learnableSink,
             attentionOut);
         vectorService.InitVec1GlobalTensor(vec1ResGm, mm1ResGm);
         vectorService.InitVec2GlobalTensor(vec2ResGm, mm2ResGm);
