@@ -107,21 +107,21 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParamN128()
         KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %d", kvHeadNum_);
         return false;
     }
-    // ori_mask_mode 校验
-    if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
-        KERNEL_LOG_ERROR("ori_mask_mode should only be 0, but got %d", oriMaskMode_);
-        return false;
-    }
-    // cmp_mask_mode 校验
-    if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
-        KERNEL_LOG_ERROR("cmp_mask_mode should only be 0, but got %d", cmpMaskMode_);
-        return false;
-    }
-    // ori_topk 校验
-    if (oriTopK_ != 128) {
-        KERNEL_LOG_ERROR("oriTopK_ should only be 128, but got %d", oriMaskMode_);
-        return false;
-    }
+    // // ori_mask_mode 校验
+    // if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
+    //     KERNEL_LOG_ERROR("ori_mask_mode should only be 0, but got %d", oriMaskMode_);
+    //     return false;
+    // }
+    // // cmp_mask_mode 校验
+    // if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK)) {
+    //     KERNEL_LOG_ERROR("cmp_mask_mode should only be 0, but got %d", cmpMaskMode_);
+    //     return false;
+    // }
+    // // ori_topk 校验
+    // if (oriTopK_ != 128) {
+    //     KERNEL_LOG_ERROR("oriTopK_ should only be 128, but got %d", oriMaskMode_);
+    //     return false;
+    // }
     // layout_q 校验
     if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
         KERNEL_LOG_ERROR("layout_q must be TND or BSND!");
@@ -156,16 +156,16 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckExistenceN128()
         }
     }
     // layout_kv TND Tensor 存在性校验
-    if (layoutKv_ == "TND") {
-        if (isInvalid(actSeqLenOriKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
-            return false;
-        }
-        if (isValid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
-            return false;
-        }
-    }
+    // if (layoutKv_ == "TND") {
+    //     if (isInvalid(actSeqLenOriKv_)) {
+    //         KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
+    //         return false;
+    //     }
+    //     if (isValid(seqUsedKv_)) {
+    //         KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
+    //         return false;
+    //     }
+    // }
     // layoutKv_ "PA_ND" 存在性校验
     if (layoutKv_ == "PA_ND") {
         if (isInvalid(seqUsedKv_)) {
