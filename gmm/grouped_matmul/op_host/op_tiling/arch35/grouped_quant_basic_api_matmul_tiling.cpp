@@ -34,7 +34,6 @@ bool GroupedQmmBasicApiTiling::IsCapable()
 void GroupedQmmBasicApiTiling::Reset()
 {
     tilingData_ = GMMQuantBasicApiTilingData();
-    // inputParams_.Reset();
 }
 
 ge::graphStatus GroupedQmmBasicApiTiling::GetShapeAttrsInfo()

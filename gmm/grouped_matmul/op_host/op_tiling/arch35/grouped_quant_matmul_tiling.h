@@ -223,7 +223,6 @@ private:
     virtual bool CheckCoreNum() const;
 
     GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
-    bool isWeightNz_ = false;
 
     int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
     int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};

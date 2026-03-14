@@ -46,7 +46,6 @@ bool GroupedQmmTiling::IsCapable()
 void GroupedQmmTiling::Reset()
 {
     tilingData_ = GMMQuantTilingData();
-    inputParams_.Reset();
 }
 
 ge::graphStatus GroupedQmmTiling::GetPlatformInfo()
@@ -269,8 +268,7 @@ actual is %s.",
     auto pertokenScaleDesc = context_->GetOptionalInputDesc(PER_TOKEN_SCALE_INDEX);
     inputParams_.perTokenScaleDtype =
         pertokenScaleDesc != nullptr ? pertokenScaleDesc->GetDataType() : inputParams_.perTokenScaleDtype;
-    isWeightNz_ = inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ;
-    if (isWeightNz_) {
+    if (inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ) {
         OP_CHECK_IF(!CheckDtypeForWeightNz(nullptr == pertokenScaleDesc),
                     OP_LOGE(inputParams_.opName, "CheckDtypeForWeightNz failed."), return false);
     }
@@ -636,7 +634,6 @@ bool GroupedQmmTiling::AnalyzeInputs()
 
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."), return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
-    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
 
     if (inputParams_.cDtype == ge::DT_INT32) {
         return true;
@@ -658,7 +655,7 @@ bool GroupedQmmTiling::AnalyzeInputs()
     OP_CHECK_IF(!CheckQuantParams(xScaleStorageShape, wScaleShape),
                 OP_LOGE(inputParams_.opName, "CheckQuantParams failed."), return false);
 
-    if (isWeightNz_) {
+    if (inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ) {
         OP_CHECK_IF(!CheckShapeForWeightNz(weightNzStorageShape),
                     OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
     }
@@ -872,6 +869,7 @@ ge::graphStatus GroupedQmmTiling::DoOpTiling()
     tilingData_.gmmQuantParams.groupType = static_cast<int8_t>(inputParams_.groupType);
     tilingData_.gmmQuantParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmQuantParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias);
+    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return ge::GRAPH_FAILED);
     errno_t retM = memcpy_s(tilingData_.gmmArray.mList, sizeof(tilingData_.gmmArray.mList), mList_, sizeof(mList_));
     if (retM != EOK) {
         OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", retM);
