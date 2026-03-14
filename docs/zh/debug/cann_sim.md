@@ -24,7 +24,7 @@ CANN Simulator是一款面向算子开发场景的SoC级芯片仿真工具，用
 
 ## 环境准备
 
-CANN Simulator集成在CANN toolkit包里，参考[环境部署](../context/quick_install.md)完成软件包的安装
+CANN Simulator集成在CANN toolkit包里，参考[环境部署](../install/quick_install.md)完成软件包的安装
 
 # 快速开始
 
