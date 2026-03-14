@@ -108,8 +108,9 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Init
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::ProcessMainLoopBalance()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ProcessMainLoopBalance()
 {
     int32_t actualCoreNums = this->sharedParams.coreNum;
     if (this->aicIdx >= actualCoreNums) {

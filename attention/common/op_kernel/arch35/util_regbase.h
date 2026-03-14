@@ -207,7 +207,8 @@ struct RunInfo<true> {
     // FD相关
     int64_t flashDecodeS2Idx;
     bool isS2SplitCore;
-    int32_t faTmpResGMPose;
+    int32_t faTmpResGMPos;
+    int32_t accumTmpOutNum;
 
     // tensorlist相关
     int64_t s2InCurrentBatch;

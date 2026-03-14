@@ -660,51 +660,87 @@ TEMPLATE_INTF
 __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo)
 {
     constexpr int32_t s2BaseSize = static_cast<int32_t>(s2TemplateType);
-    if constexpr (isFd) {
-        runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
+    constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
+    constexpr bool isFp8 = IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value;
+    static constexpr bool isMlaFullQuant = isFp8 && hasRope;
+    static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
+    static constexpr bool isGqaNoQuant = !isFp8 && isInfer && !isMlaNoQuant && !isMlaFullQuant;
+    constexpr bool enableSplitCoreBalance = isMlaNoQuant ||
+        (isGqaNoQuant && pseMode == PseTypeEnum::PSE_NONE_TYPE && !enableKVPrefix && !POST_QUANT);    // TODO，输出转置、lse、左padding工作量待评估
+
+    if constexpr (enableSplitCoreBalance) {
+        int64_t sInnerFirstToken = 0;
+        if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+            sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
+                0, runParam.actualS2Size);
+            runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+                runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
+        } else {
+            if (constInfo.isGqa) {
+                sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx - runParam.preTokensPerBatch,
+                    0, runParam.actualS2Size);
+                runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx + runParam.nextTokensPerBatch +
+                    runParam.s1RealSize, 0, runParam.actualS2Size);
+            } else {
+                sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
+                    0, runParam.actualS2Size);
+                runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+                    runParam.s1RealSize, 0, runParam.actualS2Size);
+            }
+        }
+        runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken / s2BaseSize;
+        if (runParam.s2LoopEndIdx <= 0) {
+            return true;
+        }
+        runParam.s2LineStartIdx = sInnerFirstToken / s2BaseSize * s2BaseSize;
+        return false;
+    } else {
+        if constexpr (isFd) {
+            runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
+            return false;
+        }
+
+        int64_t sInnerFirstToken = 0;
+        if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+            sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
+                0, runParam.actualS2Size);
+            runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+                runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
+        } else {
+            if (constInfo.isGqa) {
+                sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx - runParam.preTokensPerBatch,
+                    0, runParam.actualS2Size);
+                runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx + runParam.nextTokensPerBatch +
+                    runParam.s1RealSize, 0, runParam.actualS2Size);
+            } else {
+                sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
+                    0, runParam.actualS2Size);
+                runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+                    runParam.s1RealSize, 0, runParam.actualS2Size);
+            }
+        }
+        runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken / s2BaseSize;
+        if constexpr (enableKVPrefix) {
+            sInnerFirstToken =
+                ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch, 0,
+                                                        runParam.actualS2Size + constInfo.actualKVPrefixSize);
+            runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(
+                runParam.cubeSOuterOffset + runParam.nextTokensPerBatch + runParam.s1RealSize, 0,
+                runParam.actualS2Size + constInfo.actualKVPrefixSize);
+            runParam.s2LoopEndIdx = (constInfo.actualKVPrefixSize + s2BaseSize - 1) / s2BaseSize +
+                                    (runParam.s2LineEndIdx - constInfo.actualKVPrefixSize + s2BaseSize - 1) / s2BaseSize -
+                                    sInnerFirstToken / s2BaseSize;
+        }
+        if (runParam.s2LoopEndIdx <= 0) {
+            return true;
+        }
+        if constexpr (hasAtten) {
+            runParam.s2LineStartIdx = sInnerFirstToken / s2BaseSize * s2BaseSize;
+        } else {
+            runParam.s2LineStartIdx = sInnerFirstToken;
+        }
         return false;
     }
-
-    int64_t sInnerFirstToken = 0;
-    if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
-        sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
-            0, runParam.actualS2Size);
-        runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
-            runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
-    } else {
-        if (constInfo.isGqa) {
-            sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx - runParam.preTokensPerBatch,
-                0, runParam.actualS2Size);
-            runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx + runParam.nextTokensPerBatch +
-                runParam.s1RealSize, 0, runParam.actualS2Size);
-        } else {
-            sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
-                0, runParam.actualS2Size);
-            runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
-                runParam.s1RealSize, 0, runParam.actualS2Size);
-        }
-    }
-    runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken / s2BaseSize;
-    if constexpr (enableKVPrefix) {
-        sInnerFirstToken =
-            ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch, 0,
-                                                    runParam.actualS2Size + constInfo.actualKVPrefixSize);
-        runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(
-            runParam.cubeSOuterOffset + runParam.nextTokensPerBatch + runParam.s1RealSize, 0,
-            runParam.actualS2Size + constInfo.actualKVPrefixSize);
-        runParam.s2LoopEndIdx = (constInfo.actualKVPrefixSize + s2BaseSize - 1) / s2BaseSize +
-                                (runParam.s2LineEndIdx - constInfo.actualKVPrefixSize + s2BaseSize - 1) / s2BaseSize -
-                                sInnerFirstToken / s2BaseSize;
-    }
-    if (runParam.s2LoopEndIdx <= 0) {
-        return true;
-    }
-    if constexpr (hasAtten) {
-        runParam.s2LineStartIdx = sInnerFirstToken / s2BaseSize * s2BaseSize;
-    } else {
-        runParam.s2LineStartIdx = sInnerFirstToken;
-    }
-    return false;
 }
 
 TEMPLATE_INTF

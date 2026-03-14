@@ -46,10 +46,9 @@ public:
     /* =====================GM变量========================== */
     GlobalTensor<float> softmaxLseGm;
 
-    using FDGmType = typename std::conditional<isFd, GlobalTensor<float>, int8_t>::type;
-    FDGmType accumOutGm;
-    FDGmType softmaxFDMaxGm;
-    FDGmType softmaxFDSumGm;
+    GlobalTensor<T> accumOutGm;
+    GlobalTensor<T> softmaxFDMaxGm;
+    GlobalTensor<T> softmaxFDSumGm;
 
     using postQuantGmType = typename std::conditional<POST_QUANT, GlobalTensor<float>, int8_t>::type;
     postQuantGmType postQuantScaleGm;
@@ -224,19 +223,21 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedP
     sharedParams.multiCoreInnerOffset = multiCoreParamsRegbase.sparseStartIdx[aicIdx];
     sharedParams.multiCoreInnerLimit = multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1];
 
-    auto &outerSplitParams = this->tilingData->outerSplitParams;
-    if (aicIdx == 0) {
-        sharedParams.bN2StartIdx = 0;
-        sharedParams.gS1StartIdx = 0;
-        sharedParams.s2StartIdx = 0;
-    } else {
-        sharedParams.bN2StartIdx = outerSplitParams.bN2End[aicIdx - 1];
-        sharedParams.gS1StartIdx = outerSplitParams.mEnd[aicIdx - 1];
-        sharedParams.s2StartIdx = outerSplitParams.s2End[aicIdx - 1];
+    if constexpr (enableSplitCoreBalance) {
+        auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+        if (aicIdx == 0) {
+            sharedParams.bN2StartIdx = 0;
+            sharedParams.gS1StartIdx = 0;
+            sharedParams.s2StartIdx = 0;
+        } else {
+            sharedParams.bN2StartIdx = outerSplitParams.bN2End[aicIdx - 1];
+            sharedParams.gS1StartIdx = outerSplitParams.mEnd[aicIdx - 1];
+            sharedParams.s2StartIdx = outerSplitParams.s2End[aicIdx - 1];
+        }
+        sharedParams.bN2EndIdx = outerSplitParams.bN2End[aicIdx];
+        sharedParams.gS1EndIdx = outerSplitParams.mEnd[aicIdx];
+        sharedParams.s2EndIdx = outerSplitParams.s2End[aicIdx];
     }
-    sharedParams.bN2EndIdx = outerSplitParams.bN2End[aicIdx];
-    sharedParams.gS1EndIdx = outerSplitParams.mEnd[aicIdx];
-    sharedParams.s2EndIdx = outerSplitParams.s2End[aicIdx];
 
     sharedParams.needInit = this->tilingData->initOutputParams.needInit;
 
@@ -432,7 +433,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut
 {
     if constexpr (enableSplitCoreBalance) {
         if (runInfo.isS2SplitCore) {
-            ComputeLogSumExpAndCopyToGmBalance(runInfo, constInfo, sumUb, maxUb);
+            ComputeLogSumExpAndCopyToGmBalance(runInfo, constInfo);
         }
     } else {
         if constexpr (isFd) {
@@ -789,27 +790,28 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopySinkFDIn(uint3
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CalcAccumOffset(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CalcAccumOffset(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
 {
-    const uint32_t *bN2IdxOfFdHead = this->tilingData->fdParams.bN2IdxOfFdHead;
-    const uint32_t *gS1IdxOfFdHead = this->tilingData->fdParams.gS1IdxOfFdHead;
-    const uint32_t *s2SplitNumOfFdHead = this->tilingData->fdParams.s2SplitNumOfFdHead;
+    auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+    const uint32_t *bN2IdxOfFdHead = outerSplitParams.fdRes.fdBN2Idx;
+    const uint32_t *gS1IdxOfFdHead = outerSplitParams.fdRes.fdMIdx;
+    const uint32_t *s2SplitNumOfFdHead = outerSplitParams.fdRes.fdS2SplitNum;
     uint64_t accumTmpOutNum = 0;
     uint32_t taskId = 0;
     uint32_t curbN2Idx = runInfo.boIdx * constInfo.n2Size + runInfo.n2oIdx;
-    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != constInfo.gS1Start)) {
+    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != runInfo.gS1Idx)) {
         accumTmpOutNum += s2SplitNumOfFdHead[taskId]; // 计算前面的workspace数
         taskId++;
     }
     runInfo.accumTmpOutNum = accumTmpOutNum;
 
 
-    // runInfo.fATmpResGMPos = constInfo.coreStartKVSplitPos;
+    // runInfo.faTmpResGMPos = constInfo.coreStartKVSplitPos;
     // constInfo.coreStartKVSplitPos = s2SplitStartIdxOfCore[constInfo.aivIdx];
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOutBalance(LocalTensor<T> &vec2ResUb,
+__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOutBalance(LocalTensor<T> &vec2ResUb,
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     LocalTensor<T> attenOut;
@@ -825,13 +827,13 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOutBalance(LocalTen
     uint64_t gmOffset = 0;
 
     if (isMlaNoQuant) {
-        gmOffset = runInfo.accumTmpOutNum * constInfo.n2Size * constInfo.mBaseSize * constInfo.dSizeV +     // taskoffset
-                   runInfo.fATmpResGMPos * constInfo.n2Size * constInfo.mBaseSize * constInfo.dSizeV +      // 份数offset
+        gmOffset = runInfo.accumTmpOutNum * constInfo.n2Size * BaseClass::s1BaseSize * constInfo.dSizeV +     // taskoffset
+                   runInfo.faTmpResGMPos * constInfo.n2Size * BaseClass::s1BaseSize * constInfo.dSizeV +      // 份数offset
                    (constInfo.subBlockIdx * runInfo.firstHalfS1RealSize +
                    vec2S1Idx * runInfo.vec2S1BaseSize) * constInfo.dSizeV;                                  // m轴offset
     } else {
-        gmOffset = runInfo.accumTmpOutNum * constInfo.mBaseSize * constInfo.dSizeV +   // taskoffset
-                   runInfo.fATmpResGMPos * constInfo.mBaseSize * constInfo.dSizeV +    // 份数offset
+        gmOffset = runInfo.accumTmpOutNum * BaseClass::s1BaseSize * constInfo.dSizeV +   // taskoffset
+                   runInfo.faTmpResGMPos * BaseClass::s1BaseSize * constInfo.dSizeV +    // 份数offset
                    (constInfo.subBlockIdx * runInfo.firstHalfS1RealSize +
                    vec2S1Idx * runInfo.vec2S1BaseSize) * constInfo.dSizeV;             // m轴offset
     }
@@ -972,8 +974,8 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyAccumOutIn(Con
     accumOutInputQue.EnQue(accumOutLocal);
 }
 
-__aicore__ inline void
-FABlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGmBalance(RunInfo<isInfer> &runInfo,
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGmBalance(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     if (unlikely(runInfo.halfS1RealSize == 0)) {
@@ -987,13 +989,13 @@ FABlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGmBalance(RunInfo<isInf
     
     if(isMlaNoQuant) {
         gmOffset =
-            (runInfo.accumTmpOutNum * constInfo.n2Size * constInfo.mBaseSize +      // taskoffset
-             runInfo.fATmpResGMPos * constInfo.n2Size * constInfo.mBaseSize +       // 份数offset
+            (runInfo.accumTmpOutNum * constInfo.n2Size * BaseClass::s1BaseSize +      // taskoffset
+             runInfo.faTmpResGMPos * constInfo.n2Size * BaseClass::s1BaseSize +       // 份数offset
              constInfo.subBlockIdx * runInfo.firstHalfS1RealSize) * fp32BaseSize;   // m轴offset
     } else {
         gmOffset =
-            (runInfo.accumTmpOutNum * constInfo.mBaseSize +                         // taskoffset
-             runInfo.fATmpResGMPos * constInfo.mBaseSize +                          // 份数offset
+            (runInfo.accumTmpOutNum * BaseClass::s1BaseSize +                         // taskoffset
+             runInfo.faTmpResGMPos * BaseClass::s1BaseSize +                          // 份数offset
              constInfo.subBlockIdx * runInfo.firstHalfS1RealSize) * fp32BaseSize;   // m轴offset
     }
     // flashDecodeS2Idx?nBufferStartM?

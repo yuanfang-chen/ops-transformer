@@ -48,7 +48,8 @@ private:
     __aicore__ inline void SetFlag3Buffer();
     __aicore__ inline void InitBuffer();
     __aicore__ inline void ComputeConstexpr();
-    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
+    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam, int64_t taskId,
+        int32_t bN2Cur, int64_t gS1Cur, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndx, int64_t gS1Index, int64_t &multiCoreInnerIdx, RunParamStr<isInfer>& runParam);
     __aicore__ inline void GetSeqQlenKvlenByBoidx(int64_t boIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvLen);
     __aicore__ inline void ComputeBmm1Tail(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam);
@@ -417,7 +418,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     }
 
     if ASCEND_IS_AIV {
-        auto &outerSplitParams = this->tilingData->outerSplitParams;
+        auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
         constInfo.headFdDataIdx = outerSplitParams.headFdDataIdx[this->aicIdx];
     }
 }
@@ -452,8 +453,9 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
             keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
 
         int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, static_cast<int32_t>(s1TemplateType));
+        int32_t tempGS1Start = (bnIdx == bN2StartIdx) ? gS1StartIdx : 0;
         int32_t tempGS1End = lastBN ? gS1EndIdx : Max(s1LoopTimes - 1, 0);
-        for (int64_t gS1Index = gS1StartIdx; gS1Index <= tempGS1End; gS1Index++) {
+        for (int64_t gS1Index = tempGS1Start; gS1Index <= tempGS1End; gS1Index++) {
             bool lastGS1 = (gS1Index == tempGS1End);
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
             bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
@@ -465,19 +467,20 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
                 continue;
             }
 
+            int32_t tempS2Start = (bnIdx == bN2StartIdx) && (gS1Index == gS1StartIdx) ? s2StartIdx : runParam.s2LineStartIdx:  
             int32_t tempS2End, extraLoopTimes;
             if (unlikely(lastBN && lastGS1)) {
-                tempS2End = s2EndIdx
+                tempS2End = s2EndIdx;
                 extraLoopTimes = PRELOAD_N;
             } else {
                 tempS2End = runParam.s2LoopEndIdx;
                 extraLoopTimes = 0;
             }
 
-            for (int64_t s2LoopCount = s2StartIdx; s2LoopCount < tempS2End + extraLoopTimes; s2LoopCount++) {
+            for (int64_t s2LoopCount = tempS2Start; s2LoopCount < tempS2End + extraLoopTimes; s2LoopCount++) {
                 if (s2LoopCount < runParam.s2LoopEndIdx) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, tempS2End - 1,
+                    this->SetRunInfo(runInfo1, runParam, taskId, bnIdx, gS1Index, s2LoopCount, tempS2End - 1,
                         multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, false, constInfo);     // TODO，后续删除
@@ -498,9 +501,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
                 }
                 taskId++;
             }
-            s2StartIdx = 0;
         }
-        gS1StartIdx = 0;
     }
 
     if constexpr (isFd) {
@@ -602,7 +603,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::SetRunInfo(RunInfo<isInfer> &runInfo,
-    RunParamStr<isInfer>& runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
+    RunParamStr<isInfer>& runParam, int64_t taskId, int32_t bN2Cur, int64_t gS1Cur, int64_t s2LoopCount,
+    int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
     runInfo.sOuterOffset = runParam.sOuterOffset;
@@ -647,26 +649,27 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         / s2BaseSize, runInfo);
 
     if ASCEND_IS_AIV {
-        info.isS2SplitCore = false;
-        info.faTmpResGMPose = 0;
-        if (constInfo.bN2Start == constInfo.bN2End && constInfo.gS1Start == constInfo.gS1End) {
+        runInfo.isS2SplitCore = false;
+        runInfo.faTmpResGMPos = 0;
+        if (sharedParams.bN2StartIdx == sharedParams.bN2EndIdx && sharedParams.gS1StartIdx == sharedParams.gS1EndIdx) {
             // 所有任务属于同一个S1G
-            info.isS2SplitCore = true;
-            info.faTmpResGMPos = constInfo.headFdDataIdx;
+            runInfo.isS2SplitCore = true;
+            runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
         } else {
-            if (constInfo.headS2Split && (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start)) {
+            if ((bN2Cur == sharedParams.bN2StartIdx) && (gS1Cur == sharedParams.gS1StartIdx)) {
                 // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
-                info.isS2SplitCore = true;
-                info.faTmpResGMPos = constInfo.headFdDataIdx;
-            } else if (constInfo.tailS2Split && (bN2Cur == constInfo.bN2End) && (gS1Cur == constInfo.gS1End)) {
+                runInfo.isS2SplitCore = (sharedParams.s2StartIdx != runParam.s2LineStartIdx);
+                runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
+            } else if ((bN2Cur == sharedParams.bN2EndIdx) && (gS1Cur == sharedParams.gS1EndIdx)) {
                 // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
-                info.isS2SplitCore = true;
+                runInfo.isS2SplitCore = (sharedParams.s2EndIdx > 0U) ? true : false;
+                runInfo.faTmpResGMPos = 0;
             }
         }
 
-        if constexpr (FLASH_DECODE) {
-            if (info.isS2SplitCore) {
-                CalcAccumOffset(info, constInfo);
+        if constexpr (isFd) {
+            if (runInfo.isS2SplitCore) {
+                CalcAccumOffset(runInfo, constInfo);
             }
         }
     }
