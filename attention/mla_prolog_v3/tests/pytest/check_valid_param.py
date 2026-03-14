@@ -123,30 +123,46 @@ def validate_config(params):
 def _check_failure_continuity(fail_indices):
     """分析失败下标是否为连续分布（聚簇）或离散分布（散点）。
 
+    判定条件（同时满足才视为离散）：
+      1. 平均段长 <= 2：大多数失败点是孤立的单点或对点
+      2. 最长连续段 <= max_run_thd：不存在较长的连续失败区域
+
     Args:
         fail_indices: 1-D LongTensor，失败元素的扁平化下标。
 
     Returns:
-        (is_discontinuous, n_runs, avg_run_len)
+        (is_discontinuous, n_runs, avg_run_len, max_run_len)
           is_discontinuous: True 表示失败点离散分布（孤立散点），False 表示聚簇。
           n_runs:           连续段数量。
           avg_run_len:      平均每段长度（fail_count / n_runs）。
+          max_run_len:      最长连续段长度。
     """
     fail_count = len(fail_indices)
     if fail_count == 0:
-        return False, 0, 0.0
+        return False, 0, 0.0, 0
 
     sorted_idx = fail_indices.cpu().sort().values
     if fail_count == 1:
-        return True, 1, 1.0
+        return True, 1, 1.0, 1
 
     diffs = sorted_idx[1:] - sorted_idx[:-1]
-    n_runs = int((diffs > 1).sum()) + 1          # 段数 = 断口数 + 1
+    breaks = (diffs > 1)
+    n_runs = int(breaks.sum()) + 1               # 段数 = 断口数 + 1
     avg_run_len = fail_count / n_runs
 
-    # 离散判定：平均段长 <= 2（大多数失败点是孤立的单点或对点）
-    is_discontinuous = avg_run_len <= 2.0
-    return is_discontinuous, n_runs, avg_run_len
+    # 计算每段长度，取最大值
+    break_positions = breaks.nonzero(as_tuple=True)[0]
+    run_starts = torch.cat([torch.tensor([0]), break_positions + 1])
+    run_ends   = torch.cat([break_positions + 1, torch.tensor([fail_count])])
+    run_lengths = run_ends - run_starts
+    max_run_len = int(run_lengths.max())
+
+    # 离散判定（两个条件同时满足）：
+    #   1. 平均段长 <= 2（整体上以孤立散点为主）
+    #   2. 最长连续段 <= 8（不存在明显的连续失败区域）
+    max_run_thd = 8
+    is_discontinuous = (avg_run_len <= 2.0) and (max_run_len <= max_run_thd)
+    return is_discontinuous, n_runs, avg_run_len, max_run_len
 
 
 def check_single_output(name, expect, result, prec_params, pct_thd_override=None):
@@ -243,7 +259,7 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
 
         # 精度违规：检查失败点分布是否离散
         fail_indices = fail_mask.nonzero(as_tuple=True)[0]
-        is_discontinuous, n_runs, avg_run_len = _check_failure_continuity(fail_indices)
+        is_discontinuous, n_runs, avg_run_len, max_run_len = _check_failure_continuity(fail_indices)
 
         # 记录失败点样本（最差的 5 个）
         if fail_count > 0:
@@ -255,19 +271,21 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
                 f"result={result_f32[sample].tolist()}"
             )
 
+        continuity_info = (
+            f"fail={fail_count}/{total}, n_runs={n_runs}, "
+            f"avg_run_len={avg_run_len:.1f}, max_run_len={max_run_len}"
+        )
         if is_discontinuous:
             # 离散误差点：可能是 NPU 与 CPU 浮点实现的合理差异，标记为通过并发出警告
             logger.warning(
                 f"[{name}] PRECISION WARNING — test PASSED (discontinuous errors): "
-                f"violations={violations} | "
-                f"fail={fail_count}/{total}, n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+                f"violations={violations} | {continuity_info}"
             )
         else:
             # 连续失败块：系统性误差，判定为真实精度失败
             raise AssertionError(
                 f"[{name}] precision FAILED (continuous errors): "
-                f"{violations} | "
-                f"fail={fail_count}/{total}, n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+                f"{violations} | {continuity_info}"
             )
 
     else:
@@ -287,7 +305,7 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
 
         # 精度违规：检查失败点分布是否离散
         fail_indices = fail_mask.nonzero(as_tuple=True)[0]
-        is_discontinuous, n_runs, avg_run_len = _check_failure_continuity(fail_indices)
+        is_discontinuous, n_runs, avg_run_len, max_run_len = _check_failure_continuity(fail_indices)
 
         if fail_count > 0:
             sample = fail_indices[torch.topk(abs_diff[fail_indices], min(5, fail_count)).indices]
@@ -302,17 +320,18 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
             f"PCT: {error_rate:.4%} > pct_thd={pct_thd:.4%} "
             f"({fail_count}/{total} elements with abs_diff > atol={atol})"
         )
+        continuity_info = (
+            f"n_runs={n_runs}, avg_run_len={avg_run_len:.1f}, max_run_len={max_run_len}"
+        )
         if is_discontinuous:
             logger.warning(
                 f"[{name}] PRECISION WARNING — test PASSED (discontinuous errors): "
-                f"{violation_msg} | "
-                f"n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+                f"{violation_msg} | {continuity_info}"
             )
         else:
             raise AssertionError(
                 f"[{name}] precision FAILED (continuous errors): "
-                f"{violation_msg} | "
-                f"n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+                f"{violation_msg} | {continuity_info}"
             )
 
 
