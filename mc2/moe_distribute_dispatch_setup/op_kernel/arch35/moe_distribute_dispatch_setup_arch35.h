@@ -941,11 +941,8 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
         SyncFunc<AscendC::HardEvent::MTE3_S>();
         GlobalTensor<int32_t> dstAddrStatus;
         dstAddrStatus.SetGlobalBuffer((__gm__ int32_t*)(GetWindStateAddrByRankId(epRankId_) + (epRankId_ + expertIdx * epWorldSize_) * stateOffset_));
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus);
         dstAddrStatus.SetValue(0, 0x40000000);
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus[0]);
         dstAddrStatus.SetValue(1, statusTensor_((preExpertNum + expertIdx) * 8 + 1));
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus[1]);
         calCnt += statusTensor_((preExpertNum + expertIdx) * 8 + 1);
     }
     moeStartToken += calCnt;
@@ -992,6 +989,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
         if (cqPi == 0 && cqCi == 0 && !isNotFirstInitCqe) {
             InvalidateCqeStatus(cqInfoU8, cqeTensorU8);
             SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
+            UpdateIsFirstInComm((GM_ADDR)hcclContext_, epRankId_, rankId, true);
         }
         PollCommCQUpdateSQCI(sqInfoU8, cqInfoU8, cqeTensorU8, jfcDoorBellU8, sqCi, cqCi, cqCiLinear);
         UpdateCommWriteSQE(templateSqeU8, sqInfoU8);
