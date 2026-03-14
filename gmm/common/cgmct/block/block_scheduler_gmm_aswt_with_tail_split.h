@@ -108,12 +108,18 @@ public:
         nTailAlign_ = nTailAlign;
     }
 
+    __aicore__ inline int64_t GetTailTileCnt()
+    {
+        return Min(static_cast<int64_t>(endBlockIdx_ + 1), totalCnt_);
+    }
+
     __aicore__ inline void UpdateTailTile(uint32_t mTailCnt, uint32_t nTailCnt)
     {
         mTailCnt_ = mTailCnt;
         nTailCnt_ = nTailCnt;
         tailCnt_ = mTailCnt_ * nTailCnt_;
-        int64_t newEndBlockIdx = tailCnt_ * (endBlockIdx_ + 1) - 1;
+        int64_t tailOriCnt = GetTailTileCnt();
+        int64_t newEndBlockIdx = endBlockIdx_ + tailOriCnt * (tailCnt_ - 1);
         if (blockIdx_ > endBlockIdx_ && blockIdx_ <= newEndBlockIdx) {
             round_ += 1;
         }
@@ -123,6 +129,39 @@ public:
             tailCnt_ = 1;
         }
         endBlockIdx_ = newEndBlockIdx;
+    }
+
+    __aicore__ inline void UpdateTailTile()
+    {
+        // 计算可切分数，不切为1
+        int64_t remainTile = (AscendC::GetBlockNum() - endBlockIdx_ - 1) / GetTailTileCnt() + 1;
+        if (remainTile <= 1) {
+            return;
+        }
+
+        // 初始化最小 tile 大小
+        int64_t mMin = AscendC::BLOCK_CUBE;
+        int64_t nMin = AscendC::BLOCK_CUBE;
+
+        // 根据矩阵是否转置调整最小 tile 大小
+        if constexpr (TransA_) {
+            mMin = INNER_AXIS_MIN_SPLIT_VAL; // 内轴至少128B
+        }
+        if constexpr (!TransB_) {
+            nMin = INNER_AXIS_MIN_SPLIT_VAL; // 内轴至少128B
+        }
+
+        // 计算 mTile 和 nTile，尽可能让m,n方向切分数一致
+        int64_t mTile = Min(CeilDiv(mBaseTail_, mMin), remainTile);
+        int64_t nTile = Min(CeilDiv(nBaseTail_, nMin), remainTile);
+        while (mTile * nTile > remainTile) {
+            if (mTile >= nTile) {
+                mTile -= 1;
+            } else {
+                nTile -= 1;
+            }
+        }
+        UpdateTailTile(mTile, nTile);
     }
 
     __aicore__ inline bool GetTileIdx(BlockCoord& blockCoord)
@@ -135,6 +174,8 @@ public:
         // add startBlockIdx
         if (blockIdx_ < startBlockIdx_) {
             index += blockNum_ - startBlockIdx_;
+        } else if (endBlockIdx_ + 1 >= tailCnt_ * totalCnt_) {
+            index -= startBlockIdx_ / tailCnt_;
         } else {
             index -= startBlockIdx_;
         }
@@ -185,21 +226,10 @@ public:
         return {singleCoreM, singleCoreN, mSplitAddrOffset, nSplitAddrOffset};
     }
 
-    __aicore__ inline BlockCoord GetBlockCoord(int64_t mTileIdx, int64_t nTileIdx)
-    {
-        return {mTileIdx * l1M, nTileIdx * l1N, 0, 0};
-    }
-
     __aicore__ inline int64_t GetEndBlockIdx()
     {
         return endBlockIdx_;
     }
-
-    static int64_t GetBlockNum(ProblemShape shape)
-    {
-        return DoGetBlockNum(l1M, l1N, shape);
-    }
-
 };
 
 template <class ProblemShape_, class L1TileShape_, class L0TileShape_, bool TransA_, bool TransB_>
