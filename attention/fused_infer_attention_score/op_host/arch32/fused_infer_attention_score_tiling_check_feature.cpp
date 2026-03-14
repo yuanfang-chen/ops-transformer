@@ -479,7 +479,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         }
     } else if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
         OP_CHECK_IF(std::find(restrictedLayoutSupportList.begin(), restrictedLayoutSupportList.end(), layout) == restrictedLayoutSupportList.end(),
-            OP_LOGE(opName_, "In %s %s situation, only input_layout BSH、BSND、BNSD、BNSD_BSND、TND、NTD、BSH_BNSD、BSND_BNSD、NTD_TND are supported, but got %s.",
+            OP_LOGE(opName_, "In %s %s situation, layout only supports BSH、BSND、BNSD、BNSD_BSND、TND、NTD、BSH_BNSD、BSND_BNSD、NTD_TND, but got %s.",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
             return ge::GRAPH_FAILED);
 
@@ -519,7 +519,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), qkHeadDim_, vHeadDim_),
             return ge::GRAPH_FAILED);
         } else {
-            OP_LOGE(opName_, "In %s %s situation, only input_layout BSH、BSND、BNSD、BNSD_BSND、TND、NTD、BSH_BNSD、BSND_BNSD、NTD_TND are supported, but got %s.",
+            OP_LOGE(opName_, "In %s %s situation, layout only supports BSH、BSND、BNSD、BNSD_BSND、TND、NTD、BSH_BNSD、BSND_BNSD、NTD_TND, but got %s.",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str());
             return ge::GRAPH_FAILED;
         }
@@ -560,7 +560,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureAxisInfo() const
         return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(n2Size_ != HEAD_NUM_ONE,
-        OP_LOGE(opName_, "In %s %s situation, when query|key|value headDim = 512, key sequence_len should be equals to 1.",
+        OP_LOGE(opName_, "In %s %s situation, when query|key|value headDim = 512, kvN should be equals to 1.",
             QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str()),
         return ge::GRAPH_FAILED);
     }
