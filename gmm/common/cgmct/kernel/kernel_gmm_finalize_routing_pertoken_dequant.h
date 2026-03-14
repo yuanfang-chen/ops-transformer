@@ -332,6 +332,8 @@ public:
         if ASCEND_IS_AIV {
             prologueOp_.Init(params.prologueParams);
             prologueOp_();
+            SetAtomicAdd<float>();
+            PipeBarrier<PIPE_ALL>();
         }
         if ASCEND_IS_AIC {
             mmadOp_.Init(const_cast<TCubeTiling *__restrict>(params.gmmParams.matmulTiling), GetTPipePtr());
@@ -354,6 +356,10 @@ public:
                 continue;
             }
             ProcessSingleGroup(params, bs, groupIdx);
+        }
+        if ASCEND_IS_AIV {
+            SetAtomicNone();
+            PipeBarrier<PIPE_ALL>();
         }
         End();
     }

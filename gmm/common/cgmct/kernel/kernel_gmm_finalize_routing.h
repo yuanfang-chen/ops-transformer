@@ -329,6 +329,8 @@ public:
         {
             prologueOp_.Init(params.prologueParams);
             prologueOp_();
+            SetAtomicAdd<float>();
+            PipeBarrier<PIPE_ALL>();
         }
         if ASCEND_IS_AIC
         {
@@ -356,6 +358,10 @@ public:
                 continue;
             }
             ProcessSingleGroup(params, bs, groupIdx);
+        }
+        if ASCEND_IS_AIV {
+            SetAtomicNone();
+            PipeBarrier<PIPE_ALL>();
         }
         End();
     }
