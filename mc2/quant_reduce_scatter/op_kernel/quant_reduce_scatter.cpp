@@ -39,5 +39,6 @@ __global__ __aicore__ void quant_reduce_scatter(GM_ADDR x, GM_ADDR scales, GM_AD
         QuantReduceScatterMte<DTYPE_X, DTYPE_SCALES, DTYPE_OUT_PUT> op;
         op.Init(x, scales, output, &pipe, &tilingData);
         op.Process();
+        printf("zxb nb");
     }
 }
