@@ -53,6 +53,7 @@ private:
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndx, int64_t gS1Index, int64_t &multiCoreInnerIdx, RunParamStr<isInfer>& runParam);
     __aicore__ inline void GetSeqQlenKvlenByBoidx(int64_t boIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvLen);
     __aicore__ inline void ComputeBmm1Tail(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam);
+    __aicore__ inline void CalcAccumOffset(RunInfo<isInfer> &runInfo);
     __aicore__ inline bool IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx);
     __aicore__ inline void FlashDecode();
     /* =====================GM变量========================== */
@@ -669,7 +670,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 
         if constexpr (isFd) {
             if (runInfo.isS2SplitCore) {
-                CalcAccumOffset(runInfo, constInfo);
+                CalcAccumOffset(runInfo);
             }
         }
     }
@@ -710,6 +711,24 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
         runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
     }
+}
+
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::CalcAccumOffset(RunInfo<isInfer> &runInfo)
+{
+    auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+    const uint32_t *bN2IdxOfFdHead = outerSplitParams.fdRes.fdBN2Idx;
+    const uint32_t *gS1IdxOfFdHead = outerSplitParams.fdRes.fdMIdx;
+    const uint32_t *s2SplitNumOfFdHead = outerSplitParams.fdRes.fdS2SplitNum;
+    uint64_t accumTmpOutNum = 0;
+    uint32_t taskId = 0;
+    uint32_t curbN2Idx = runInfo.boIdx * constInfo.n2Size + runInfo.n2oIdx;
+    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != runInfo.gS1Idx)) {
+        // OBP里使用的是tilingData->outerSplitParams.usedCoreNum，这里改用了constInfo.aivIdx，不清楚是否相同
+        accumTmpOutNum += s2SplitNumOfFdHead[taskId]; // 计算前面的workspace数
+        taskId++;
+    }
+    runInfo.accumTmpOutNum = accumTmpOutNum;
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
