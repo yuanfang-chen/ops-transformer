@@ -113,7 +113,7 @@ protected:
 
     // ================================Required Global Tensor=================================
     GlobalTensor<OUT_T> attentionOutGm;
-    GlobalTensor<float> softmaxLseGm;
+
     GlobalTensor<bfloat16_t> sinkGm;
 
     __gm__ uint8_t *keyPtr = nullptr;
@@ -245,7 +245,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
     constInfo.isExistRowInvalid = (tilingData->maskParams.isExistRowInvalid != 0);
     constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
-    constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
 
     constInfo.maxBlockNumPerBatch = tilingData->pageAttenParams.maxBlockNumPerBatch;
@@ -333,19 +332,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         }
 
-        if (constInfo.softmaxLseFlag) {
-            // 兼容性考虑，IFA的LSE初值设置为-3.4e38，PFA设置为3e+99
-            float lseInitValue = constInfo.isLegacyIfa ? static_cast<float>(FLOAT_MIN) : static_cast<float>(constInfo.FLOAT_INF);
-            uint64_t totalLseSize = tSize * constInfo.qHeadNum;
-            uint64_t singleCoreLseSize = (totalLseSize + (2 * usedCoreNum) - 1) / (2 * usedCoreNum); // 2 means c:v = 1:2;
-            uint64_t tailLseSize = totalLseSize - tmpBlockIdx * singleCoreLseSize;
-            uint64_t singleInitOutputLseSize = tailLseSize < singleCoreLseSize ? tailLseSize : singleCoreLseSize;
-            WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-            if (tmpBlockIdx * singleCoreLseSize < totalLseSize && singleInitOutputLseSize > 0) {
-                matmul::InitOutput<float>(softmaxLseGm[tmpBlockIdx * singleCoreLseSize], singleInitOutputLseSize, lseInitValue);
-            }
-            SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-        }
         WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         SyncAll();
     }
@@ -451,9 +437,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
     // init global buffer
     attentionOutGm.SetGlobalBuffer((__gm__ OUT_T *)attentionOut);
-    if (constInfo.softmaxLseFlag) {
-        softmaxLseGm.SetGlobalBuffer((__gm__ float *)softmaxLse);
-    }
+
 
     if (constInfo.isQHasLeftPadding) {
         // left padding
@@ -483,7 +467,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
             queryRope, keyRope, keyRopeAntiquantScale,
-            attentionOut, softmaxLse);
+            attentionOut);
         matmulService.InitMm1GlobalTensor(mm1ResGm);
         matmulService.InitMm2GlobalTensor(vec1ResGm, mm2ResGm);
     } else {
@@ -491,9 +475,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm, 
                                        actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
-            if (constInfo.softmaxLseFlag) {
-                fdService.InitSoftmaxLseGm(softmaxLseGm);
-            }
             if (learnableSink != nullptr) {
                 sinkGm.SetGlobalBuffer((__gm__ bfloat16_t *)learnableSink);
                 fdService.InitLearnableSinkGm(sinkGm);
@@ -506,7 +487,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
             queryRope, keyRope, keyRopeAntiquantScale, learnableSink,
-            attentionOut, softmaxLse);
+            attentionOut);
         vectorService.InitVec1GlobalTensor(vec1ResGm, mm1ResGm);
         vectorService.InitVec2GlobalTensor(vec2ResGm, mm2ResGm);
         vectorService.InitFlashDecodeGlobalTensor(accumOutGm, lseMaxFdGm, lseSumFdGm);
