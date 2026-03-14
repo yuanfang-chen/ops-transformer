@@ -1108,7 +1108,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
   OP_CHECK_NULL_WITH_CONTEXT(context, attr);  // check attr is not null
   const bool* transposeWeightPtr = attr->GetAttrPointer<bool>(ATTR_INDEX_TRANS_W);
   const bool* transposeXPtr = attr->GetAttrPointer<bool>(ATTR_INDEX_TRANS_X);
-  const int32_t* groupTypePtr = attr->GetAttrPointer<int32_t>(ATTR_INDEX_GROUPTYPE);
+  const int64_t* groupTypePtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_GROUPTYPE);
   const int64_t* splitItemPtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_SPLIT_ITEM);
   const int64_t* actTypePtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_ACT_TYPE);
   const uint32_t* groupListTypePtr = attr->GetAttrPointer<uint32_t>(ATTR_INDEX_GROUP_LIST_TYPE);
