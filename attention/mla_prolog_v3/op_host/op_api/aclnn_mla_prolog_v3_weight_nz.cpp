@@ -80,6 +80,31 @@ public:
         return inner_ == nullptr;
     }
 
+    //  校验weightQuantMode参数的合法性
+    static bool CheckWeightQuantModeValidity(int64_t weightQuantMode) {
+        std::set<int64_t> supportedWeightQuantMode;
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            supportedWeightQuantMode = {0U, 1U, 2U, 3U};
+        } else {
+            supportedWeightQuantMode = {0U, 1U, 2U};
+        }
+
+        if (supportedWeightQuantMode.find(weightQuantMode) == supportedWeightQuantMode.end()) {
+            std::string supportedStr;
+            for (auto mode : supportedWeightQuantMode) {
+                supportedStr += std::to_string(mode) + ", ";
+            }
+            if (!supportedStr.empty()) {
+                supportedStr.pop_back(); 
+                supportedStr.pop_back();
+            }
+            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR,"WeightQuantMode must be within {%s}, actually is %u.", 
+                    supportedStr.c_str(), weightQuantMode);
+            return false;
+        }
+        return true;
+    }
+
 private:
     const aclTensor *inner_;
     std::string name_;
