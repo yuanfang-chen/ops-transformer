@@ -91,6 +91,8 @@ public:
     __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo &runInfo, ConstInfo &constInfo);
+    __aicore__ inline void ProcessVec0SinkSync(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo);
@@ -425,6 +427,15 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     DataCopy(dst[s2StartIdx * blockElementNum], antiKvTensorAsB16, dataCopyParams);
 }
 
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0SinkSync(
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo)
+{
+    // Sink 块时 AIV 不做数据搬运，仅维持核间同步握手
+    outputL1.WaitCrossCore();   // 等待 buffer 可用
+    // 不做任何数据操作（Sink KV 由 AIC 侧搬运）
+    outputL1.SetCrossCore();    // 释放 buffer，通知 AIC 可以操作
+}
+
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo)
 {
@@ -739,6 +750,9 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 
     sharedParams.usedCoreNum = this->tilingData->singleCoreParams.usedCoreNum;
 
+    sharedParams.hasSink = sparseAttnSharedkvBaseParams.hasSink;
+    sharedParams.sinkTokenNum = sparseAttnSharedkvBaseParams.sinkTokenNum;
+
     // pageAttention, rope在C侧搬运时使用
     if constexpr (isPa) {
         sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.blockSize;
@@ -793,6 +807,8 @@ public:
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseFlashAttentionPioneerTilingDataMla *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo) {}
+    __aicore__ inline void ProcessVec0SinkSync(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        const RunInfo &runInfo, ConstInfo &constInfo) {}
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo) {}

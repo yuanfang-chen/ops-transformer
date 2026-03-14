@@ -101,6 +101,7 @@ private:
     /* GM信息 */
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
+    __gm__ uint8_t *keySinkAddr = nullptr;   // Sink KV 的 GM 地址
 
     GlobalTensor<int32_t> actualSeqLengthsQGm;
     uint32_t usedCoreNum = 0U;
@@ -141,6 +142,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     constInfo.s2BaseSize = 128;
 
     this->pipe = tPipe;
+    this->keySinkAddr = key_sink;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, actualSeqLengthsQ, actualSeqLengths);
     if ASCEND_IS_AIV {
         constInfo.bSize = this->sharedParams.bSize;
@@ -166,6 +168,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     this->ComputeConstexpr();
     this->InitGlobalBuffer(query, key, value, sparseIndices, blockTable, actualSeqLengthsQ, actualSeqLengths,
         workspace, tiling, tPipe); // gm设置
+    cubeBlock.SetSinkKvAddr(this->keySinkAddr);
     this->InitCalcParamsEach();
     this->InitLocalBuffer();
 }
@@ -403,6 +406,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
         constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
         constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
     }
+    constInfo.hasSink = sharedParams.hasSink;
+    constInfo.sinkTokenNum = sharedParams.sinkTokenNum;
 
     InitUniqueConstInfo();
 }
@@ -502,15 +507,69 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                 s2LoopLimit = 0;
             }
 
+            int64_t sinkOffset = (constInfo.hasSink == 1) ? 1 : 0;
+            if (notLastTwoLoop) {
+                s2LoopLimit += sinkOffset;  // 为 Sink 迭代预留额外一次循环
+            }
+
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
                 if (notLastTwoLoop) {
+                    bool isSinkBlock = (s2LoopCount == 0) && (sinkOffset == 1);
+                    int64_t effectiveS2LoopCount = s2LoopCount - sinkOffset;
+
                     RunInfo &runInfo1 = runInfo[taskId % 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
-                    if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
-                            this->constInfo);
+
+                    if (isSinkBlock) {
+                        // Sink 块：不调用 SetRunInfo，不访问 sparse_indices
+                        runInfo1.s2LoopCount = 0;
+                        runInfo1.s2RealSize = constInfo.sinkTokenNum;
+                        runInfo1.s2AlignedSize = constInfo.sinkTokenNum;
+                        runInfo1.s2LoopLimit = s2LoopLimit;
+                        runInfo1.taskId = taskId;
+                        runInfo1.taskIdMod2 = taskId & 1;
+                        runInfo1.taskIdMod3 = taskId % 3;
+                        runInfo1.isFirstS2Loop = true;
+                        runInfo1.multiCoreInnerIdx = multiCoreInnerIdx;
+                        runInfo1.multiCoreIdxMod2 = multiCoreInnerIdx & 1;
+                        runInfo1.multiCoreIdxMod3 = multiCoreInnerIdx % 3;
+                        runInfo1.s1oIdx = runParam.s1oIdx;
+                        runInfo1.boIdx = runParam.boIdx;
+                        runInfo1.n2oIdx = runParam.n2oIdx;
+                        runInfo1.goIdx = runParam.goIdx;
+                        runInfo1.actualS1Size = runParam.actualS1Size;
+                        runInfo1.actualS2Size = runParam.actualS2Size;
+                        runInfo1.attentionOutOffset = runParam.attentionOutOffset;
+                        runInfo1.sOuterOffset = runParam.sOuterOffset;
+                        runInfo1.queryOffset = runParam.tensorQOffset;
+                        runInfo1.mRealSize = runParam.mRealSize;
+                        runInfo1.halfMRealSize = runParam.halfMRealSize;
+                        runInfo1.firstHalfMRealSize = runParam.firstHalfMRealSize;
+                        runInfo1.s1RealSize = runParam.s1RealSize;
+                        runInfo1.halfS1RealSize = runParam.halfS1RealSize;
+                        runInfo1.firstHalfS1RealSize = runParam.firstHalfS1RealSize;
+                        InitUniqueRunInfo(runParam, runInfo1);
+
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.CopySinkKvToL1(this->l1RightBuffers.Get(), runInfo1,
+                                this->constInfo);
+                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(),
+                                runInfo1, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec0SinkSync(this->l1RightBuffers.Get(), runInfo1,
+                                this->constInfo);
+                        }
                     } else {
-                        this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
+                        // 正常 KV 块：使用 effectiveS2LoopCount
+                        this->SetRunInfo(runInfo1, runParam, taskId, effectiveS2LoopCount,
+                                         s2LoopLimit - sinkOffset, multiCoreInnerIdx);
+                        runInfo1.isFirstS2Loop = (s2LoopCount == 0 && sinkOffset == 0);
+
+                        if ASCEND_IS_AIC {
+                            this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(),
+                                runInfo1, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
+                        }
                     }
                 }
                 if (taskId > 0 && notLast) {

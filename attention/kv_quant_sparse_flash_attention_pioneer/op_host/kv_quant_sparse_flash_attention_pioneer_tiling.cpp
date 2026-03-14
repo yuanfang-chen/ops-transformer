@@ -1129,20 +1129,27 @@ ge::graphStatus QSFAPTilingCheck::CheckKeySinkValueSink() const
             KEY_SINK_NAME.c_str(), qHeadDim_, keySinkShape.GetDim(2)),
         return ge::GRAPH_FAILED);
 
-    // shape校验：value_sink shape必须与key_sink一致
+    // shape校验：value_sink shape = (sinkTokenNum, N2, D_v)
     gert::Shape valueSinkShape = opParamInfo_.valueSink.tensor->GetStorageShape();
     OP_CHECK_IF(valueSinkShape.GetDimNum() != SINK_SHAPE_DIM_NUM,
         OP_LOGE(opName_, "%s dimNum should be %u, but got %zu.",
             VALUE_SINK_NAME.c_str(), SINK_SHAPE_DIM_NUM, valueSinkShape.GetDimNum()),
         return ge::GRAPH_FAILED);
 
-    for (size_t i = 0; i < SINK_SHAPE_DIM_NUM; ++i) {
-        OP_CHECK_IF(keySinkShape.GetDim(i) != valueSinkShape.GetDim(i),
-            OP_LOGE(opName_, "%s dim[%zu](%ld) should be equal to %s dim[%zu](%ld).",
-                VALUE_SINK_NAME.c_str(), i, valueSinkShape.GetDim(i),
-                KEY_SINK_NAME.c_str(), i, keySinkShape.GetDim(i)),
-            return ge::GRAPH_FAILED);
-    }
+    OP_CHECK_IF(static_cast<uint32_t>(valueSinkShape.GetDim(0)) != SINK_TOKEN_NUM,
+        OP_LOGE(opName_, "%s dim[0] should be %u(sinkTokenNum), but got %ld.",
+            VALUE_SINK_NAME.c_str(), SINK_TOKEN_NUM, valueSinkShape.GetDim(0)),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(static_cast<uint32_t>(valueSinkShape.GetDim(1)) != n2Size_,
+        OP_LOGE(opName_, "%s dim[1] should be %u(kv_head_num), but got %ld.",
+            VALUE_SINK_NAME.c_str(), n2Size_, valueSinkShape.GetDim(1)),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(static_cast<uint32_t>(valueSinkShape.GetDim(2)) != vHeadDim_,
+        OP_LOGE(opName_, "%s dim[2] should be %u(v_head_dim), but got %ld.",
+            VALUE_SINK_NAME.c_str(), vHeadDim_, valueSinkShape.GetDim(2)),
+        return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }

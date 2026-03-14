@@ -29,7 +29,7 @@ using namespace AscendC;
             BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                    \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
-            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                  \
+            actualSeqLengthsQuery, actualSeqLengthsKV, key_sink, value_sink,                              \
 	    attentionOut, user, nullptr, &tPipe);                                                             \
         op.Process();                                                                                     \
     } while (0)
@@ -44,7 +44,7 @@ using namespace AscendC;
         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                               \
         const tilingdataClass *__restrict tilingData = &tilingDataIn;                                     \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
-            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                   \
+            actualSeqLengthsQuery, actualSeqLengthsKV, key_sink, value_sink,                               \
 	    attentionOut, user, tilingData, &tPipe);                                                          \
         op.Process();                                                                                     \
     } while (0)
