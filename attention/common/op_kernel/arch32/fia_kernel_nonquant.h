@@ -105,7 +105,7 @@ protected:
     static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
     static constexpr int64_t fdPrefetchLen = 2;
 
-    static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
+
     static constexpr float FLOAT_MIN = -3.4e+38F;
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
@@ -125,11 +125,7 @@ protected:
     // actual seq lens
     GlobalTensor<uint64_t> actualSeqLengthsGmQ;
     GlobalTensor<uint64_t> actualSeqLengthsGm;
-    // post quant
-    GlobalTensor<float> quantScale2Gm;
-    GlobalTensor<float> quantOffset2Gm;
-    GlobalTensor<bfloat16_t> quantScale2Bf16Gm;
-    GlobalTensor<bfloat16_t> quantOffset2Bf16Gm;
+
     // block table
     GlobalTensor<int32_t> blockTableGm;
     // share prefix
@@ -276,9 +272,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.systemPrefixMaxLen = tilingData->prefixParams.prefixMaxLen;
     constInfo.systemPrefixFlag = tilingData->prefixParams.prefixFlag;
     constInfo.systemPrefixLen = tilingData->prefixParams.prefixLen;
-
-    constInfo.isPostQuantPerChn = tilingData->postquantParams.isPerChnOut;
-    constInfo.isPostQuantTypeBf16 = tilingData->postquantParams.isOutQuantTypeBf16;
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -762,11 +755,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     uint32_t bIdx = GetBIdx(bN2Cur);
 
     // 对整个batch的结果置0
-    if constexpr (POST_QUANT) { // out int8
-        if ASCEND_IS_AIV {
-            vectorService.DealZeroActSeqLenWithPostQuant(bIdx, n2Idx);
-        }
-    } else {
+
         if (constInfo.outputLayout == FIA_LAYOUT::BSND || constInfo.outputLayout == FIA_LAYOUT::BSH) {
             OffsetCalculator<GmFormat::BSNGD> offsetCalculator;
             offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize, constInfo.qSeqSize, constInfo.headDim, 
@@ -791,7 +780,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims);
             DealActSeqLenIsZero<GmFormat::NGTD, OUT_T>(bIdx, n2Idx, offsetCalculator, attentionOutGm);
         }
-    }
+    
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>

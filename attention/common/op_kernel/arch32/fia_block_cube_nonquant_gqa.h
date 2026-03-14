@@ -419,7 +419,7 @@ public:
         __gm__ uint8_t *keyAntiquantScale, __gm__ uint8_t *keyAntiquantOffset, __gm__ uint8_t *valueAntiquantScale,
         __gm__ uint8_t *valueAntiquantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix,
         __gm__ uint8_t *actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-        __gm__ uint8_t *keyRopeAntiquantScale, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse);
+        __gm__ uint8_t *keyRopeAntiquantScale, __gm__ uint8_t *attentionOut);
     __aicore__ inline void InitMm1GlobalTensor(const GlobalTensor<MM_OUT_T>& mm1ResGm);
     __aicore__ inline void InitMm2GlobalTensor(const GlobalTensor<KV_T>& vec1ResGm, const GlobalTensor<MM_OUT_T>& mm2ResGm);
 
@@ -530,7 +530,7 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::Init(
             __gm__ uint8_t *keyAntiquantScale, __gm__ uint8_t *keyAntiquantOffset, __gm__ uint8_t *valueAntiquantScale,
             __gm__ uint8_t *valueAntiquantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix,
             __gm__ uint8_t *actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-            __gm__ uint8_t *keyRopeAntiquantScale, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse)
+            __gm__ uint8_t *keyRopeAntiquantScale, __gm__ uint8_t *attentionOut)
 {
     // 先初始化基础参数
     if (constInfo.actualLenQDims != 0) {
