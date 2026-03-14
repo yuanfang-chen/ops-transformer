@@ -267,7 +267,25 @@ ge::graphStatus QLIInfoParser::GetAndCheckInOutDataType()
     if (npuArch_ == NpuArch::DAV_3510) {
         OP_CHECK_IF(inputQType_ != ge::DT_FLOAT8_E4M3FN && inputQType_ != ge::DT_HIFLOAT8,
                OP_LOGE(opName_, "The data types of the input query and key must be float8_e4m3 or hifloat8."), return ge::GRAPH_FAILED);
-        
+        // hifloat8只支持bf16的weights和fp32的scale
+        if (inputQType_ == ge::DT_FLOAT8_E4M3FN) {
+            OP_CHECK_IF(weightsType_ != ge::DT_BF16 && weightsType_ != ge::DT_FLOAT16,
+                OP_LOGE(opName_, "When inputQType is float8_e4m3, the data types of the input weights must be bfloat16 or float16."),
+                return ge::GRAPH_FAILED);
+            OP_CHECK_IF(inputQueryScaleType_ != ge::DT_FLOAT && inputQueryScaleType_ != ge::DT_FLOAT16,
+                OP_LOGE(opName_, "When inputQType is float8_e4m3, the data types of the inputQueryScale must be float or float16."),
+                return ge::GRAPH_FAILED);
+            OP_CHECK_IF(weightsType_ == ge::DT_FLOAT16 && inputQueryScaleType_ != ge::DT_FLOAT16,
+                OP_LOGE(opName_, "When weightType is float16, the data types of the inputQueryScale must be float16."),
+                return ge::GRAPH_FAILED);
+            OP_CHECK_IF(weightsType_ == ge::DT_BF16 && inputQueryScaleType_ != ge::DT_FLOAT,
+                OP_LOGE(opName_, "When weightsType is bfloat16, the data types of the inputQueryScale must be float."),
+                return ge::GRAPH_FAILED);
+        } else {
+            OP_CHECK_IF(weightsType_ != ge::DT_BF16 || inputQueryScaleType_ != ge::DT_FLOAT,
+                OP_LOGE(opName_, "When inputQType is hifloat8, the data types of the input weights must be bfloat16, and the data types of inputQueryScaleType_ must be float16."),
+                return ge::GRAPH_FAILED);
+        }
         OP_CHECK_IF(weightsType_ != ge::DT_BF16,
                 OP_LOGE(opName_, "The data types of the input weights must be bfloat16."), return ge::GRAPH_FAILED);
 
