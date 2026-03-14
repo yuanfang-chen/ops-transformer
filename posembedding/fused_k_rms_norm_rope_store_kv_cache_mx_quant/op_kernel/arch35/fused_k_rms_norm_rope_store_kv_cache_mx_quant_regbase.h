@@ -130,11 +130,11 @@ public:
         qScaleGm_.SetGlobalBuffer((__gm__ uint8_t *)q_scale);
 
         // init pipe
-        pipe_->InitBuffer(inQueue_, DOUBLE_BUFFER, this->ubFactor * tilingData_->inUbSize);
+        pipe_->InitBuffer(inQueue_, DOUBLE_BUFFER,  48 * 1024);
         pipe_->InitBuffer(inQueueGamma_, 1, tilingData_->headDim * sizeof(float));
-        pipe_->InitBuffer(outQueue_, 1, this->ubFactor * tilingData_->outUbSize);
-        pipe_->InitBuffer(wsBuffer0_, WORKSPACE_FLOAT_VECTOR_COUNT * VL_FP32 * sizeof(float));
-        pipe_->InitBuffer(wsBuffer1_, this->ubFactor * tilingData_->rmsNormWspSize);
+        pipe_->InitBuffer(outQueue_, 1, 30 * 1024);
+        pipe_->InitBuffer(wsBuffer0_, 80 * 1024);
+        pipe_->InitBuffer(wsBuffer1_, 40 * 1024);
     }
 
     /*
@@ -536,38 +536,29 @@ public:
         PadMxScaleBlockAlign(scaleBlockAlignAddr, mxScaleU8Addr, mSize);
     }
 
-
-    // 将两个block的scale(uint16)用Pack LOWEST + Pack HIGHEST + Or交织，输出到scaleOutAddr
-    // 参考 small_tail: Pack LOWEST把lhs scale放低字节, Pack HIGHEST把rhs scale放高字节, Or合并
-    __aicore__ inline void InterleaveScaleAxis0VF(__ubuf__ uint8_t *scaleOutAddr,
-                                                  __ubuf__ uint16_t *mxScaleU16Addr0,
-                                                  __ubuf__ uint16_t *mxScaleU16Addr1)
+    __aicore__ inline void InterleaveScaleAxis0VF(__ubuf__ uint8_t *scaleOutAddr, __ubuf__ uint8_t *mxScaleU8ddr0,
+                                                  const uint16_t scalePairNum, uint16_t colLoopNum, const int64_t dSize)
     {
         __VEC_SCOPE__
         {
-            AscendC::MicroAPI::RegTensor<uint16_t> lhsScaleU16;
-            AscendC::MicroAPI::RegTensor<uint16_t> rhsScaleU16;
-            AscendC::MicroAPI::MaskReg pregAll16 =
-                AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::ALL>();
-            uint32_t scaleMask = tilingData_->headDim * DIGIT_TWO;
-            AscendC::MicroAPI::MaskReg scaleOutMask = AscendC::MicroAPI::UpdateMask<uint8_t>(scaleMask);
-
-            AscendC::MicroAPI::DataCopy<uint16_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
-                lhsScaleU16, mxScaleU16Addr0);
-            AscendC::MicroAPI::DataCopy<uint16_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
-                rhsScaleU16, mxScaleU16Addr1);
-
-            // Pack LOWEST: 将lhs scale的uint16截取低字节，放在寄存器低半部分
-            AscendC::MicroAPI::Pack<uint8_t, uint16_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
-                (AscendC::MicroAPI::RegTensor<uint8_t> &)lhsScaleU16, lhsScaleU16);
-            // Pack HIGHEST: 将rhs scale的uint16截取低字节，放在寄存器高半部分
-            AscendC::MicroAPI::Pack<uint8_t, uint16_t, AscendC::MicroAPI::HighLowPart::HIGHEST>(
-                (AscendC::MicroAPI::RegTensor<uint8_t> &)rhsScaleU16, rhsScaleU16);
-            // Or合并: 低半部分是block0的scale，高半部分是block1的scale
-            AscendC::MicroAPI::Or(lhsScaleU16, lhsScaleU16, rhsScaleU16, pregAll16);
-
-            AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
-                scaleOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)lhsScaleU16, scaleOutMask);
+            AscendC::MicroAPI::RegTensor<uint8_t> scale0;
+            AscendC::MicroAPI::RegTensor<uint8_t> scale1;
+            AscendC::MicroAPI::RegTensor<uint8_t> first128;
+            AscendC::MicroAPI::RegTensor<uint8_t> second128;
+            AscendC::MicroAPI::MaskReg pregAllU8 =
+                AscendC::MicroAPI::CreateMask<uint8_t, AscendC::MicroAPI::MaskPattern::ALL>();
+            for (uint16_t pairIdx = 0, pairIdx < scalePairNum, pairIdx++) {
+                // 两行scale为一个交织对，[2, dSize] -> [1, dSize, 2]
+                for (uint16_t i = 0; i < colLoopNum; i++) {
+                    AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
+                        scale0, mxScaleU8ddr0 + pairIdx * dSize * DIGIT_TWO + i * VL_B16);
+                    AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
+                        scale1, mxScaleU8ddr0 + dSize + pairIdx * dSize * DIGIT_TWO + i * VL_B16);
+                    AscendC::MicroAPI::Interleave(first128, second128, scale0, scale1);
+                    AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_NORM>(
+                        scaleOutAddr + pairIdx * dSize * DIGIT_TWO + i * VL_B16 * DIGIT_TWO, first128, pregAllU8);
+                }
+            }
         }
     }
 
@@ -609,8 +600,9 @@ public:
             AscendC::MicroAPI::Duplicate(nanRegTensor, NAN_CUSTOMIZATION);
             AscendC::MicroAPI::Duplicate(specialExpRegTensor, SPECIAL_EXP_THRESHOLD);
             AscendC::MicroAPI::Duplicate(expMaxRegTensor, 0);
-
+            // 列方向循环
             for (uint16_t i = 0; i < colLoopNum; i++) {
+                // 行方向循环
                 for (uint16_t j = 0; j < rowLoopNum; j++) {
                     DataCopy(xRegTensor, xAddr + j * dSize + i * VL_B16);
                     AscendC::MicroAPI::And(expRegTensor, (AscendC::MicroAPI::RegTensor<uint16_t> &)xRegTensor,
@@ -650,13 +642,12 @@ public:
     }
 
     template <typename T, typename U>
-    __aicore__ inline void CalcAxis0QuantOutVF(uint16_t dataLen, uint16_t blockCount, __ubuf__ T *xAddr,
-                                               __ubuf__ uint16_t *tmpAddr, __ubuf__ uint8_t *yAddr)
+    __aicore__ inline void CalcAxis0QuantOutVF(__ubuf__ uint8_t *yAddr, __ubuf__ T *xAddr, __ubuf__ uint16_t *tmpAddr,
+                                               int64_t dSize, uint16_t rowLoopNum, uint16_t colLoopNum)
     {
         __VEC_SCOPE__
         {
             AscendC::MicroAPI::RegTensor<T> xRegTensor;
-            AscendC::MicroAPI::RegTensor<bfloat16_t> valueRegTensor;
             AscendC::MicroAPI::RegTensor<float> xFP32RegTensor0;
             AscendC::MicroAPI::RegTensor<float> xFP32RegTensor1;
             AscendC::MicroAPI::RegTensor<uint16_t> reversedShareExpRegTensor;
@@ -691,41 +682,45 @@ public:
             AscendC::MicroAPI::Cast<float, bfloat16_t, castTraitXdtypetoFp32One>(
                 reversedShareExpFP32RegTensor1, (AscendC::MicroAPI::RegTensor<bfloat16_t> &)reversedShareExpRegTensor,
                 pregAll16);
+            // 列方向循环
+            for (uint16_t i = 0; i < colLoopNum; i++) {
+                // 行方向循环
+                for (uint16_t j = 0; j < rowLoopNum; j++) {
+                    AscendC::MicroAPI::DataCopy<xDtype, MicroAPI::LoadDist::DIST_NORM>(xRegTensor,
+                                                                                       xAddr + j * dSize + i * VL_B16);
 
-            for (uint16_t j = 0; j < blockCount; j++) {
-                AscendC::MicroAPI::DataCopy<xDtype, MicroAPI::LoadDist::DIST_NORM>(xRegTensor,
-                                                                                   xAddr + j * VL_B16);
+                    AscendC::MicroAPI::Cast<float, xDtype, castTraitXdtypetoFp32Zero>(xFP32RegTensor0, xRegTensor,
+                                                                                      pregAll16);
+                    AscendC::MicroAPI::Cast<float, xDtype, castTraitXdtypetoFp32One>(xFP32RegTensor1, xRegTensor,
+                                                                                     pregAll16);
 
-                AscendC::MicroAPI::Cast<float, xDtype, castTraitXdtypetoFp32Zero>(xFP32RegTensor0, xRegTensor,
-                                                                                  pregAll16);
-                AscendC::MicroAPI::Cast<float, xDtype, castTraitXdtypetoFp32One>(xFP32RegTensor1, xRegTensor,
-                                                                                 pregAll16);
+                    AscendC::MicroAPI::Mul(xFP32RegTensor0, xFP32RegTensor0, reversedShareExpFP32RegTensor0, pregAll32);
+                    AscendC::MicroAPI::Mul(xFP32RegTensor1, xFP32RegTensor1, reversedShareExpFP32RegTensor1, pregAll32);
 
-                AscendC::MicroAPI::Mul(xFP32RegTensor0, xFP32RegTensor0, reversedShareExpFP32RegTensor0, pregAll32);
-                AscendC::MicroAPI::Mul(xFP32RegTensor1, xFP32RegTensor1, reversedShareExpFP32RegTensor1, pregAll32);
+                    AscendC::MicroAPI::Cast<U, float, castTraitFp32toFp8>(
+                        yZeroFP8, (AscendC::MicroAPI::RegTensor<float> &)xFP32RegTensor0, pregAll32);
+                    AscendC::MicroAPI::Pack<uint16_t, uint32_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
+                        (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
+                        (AscendC::MicroAPI::RegTensor<uint32_t> &)yZeroFP8);
 
-                AscendC::MicroAPI::Cast<U, float, castTraitFp32toFp8>(
-                    yZeroFP8, (AscendC::MicroAPI::RegTensor<float> &)xFP32RegTensor0, pregAll32);
-                AscendC::MicroAPI::Pack<uint16_t, uint32_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
-                    (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
-                    (AscendC::MicroAPI::RegTensor<uint32_t> &)yZeroFP8);
+                    AscendC::MicroAPI::Cast<U, float, castTraitFp32toFp8>(
+                        yOneFP8, (AscendC::MicroAPI::RegTensor<float> &)xFP32RegTensor1, pregAll32);
+                    AscendC::MicroAPI::Pack<uint16_t, uint32_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
+                        (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8,
+                        (AscendC::MicroAPI::RegTensor<uint32_t> &)yOneFP8);
 
-                AscendC::MicroAPI::Cast<U, float, castTraitFp32toFp8>(
-                    yOneFP8, (AscendC::MicroAPI::RegTensor<float> &)xFP32RegTensor1, pregAll32);
-                AscendC::MicroAPI::Pack<uint16_t, uint32_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
-                    (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8,
-                    (AscendC::MicroAPI::RegTensor<uint32_t> &)yOneFP8);
+                    AscendC::MicroAPI::Interleave((AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
+                                                  (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8,
+                                                  (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
+                                                  (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8);
 
-                AscendC::MicroAPI::Interleave((AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
-                                              (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8,
-                                              (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8,
-                                              (AscendC::MicroAPI::RegTensor<uint16_t> &)yOneFP8);
+                    AscendC::MicroAPI::Pack<uint8_t, uint16_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
+                        (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
+                        (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8);
 
-                AscendC::MicroAPI::Pack<uint8_t, uint16_t, AscendC::MicroAPI::HighLowPart::LOWEST>(
-                    (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
-                    (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8);
-
-                DataCopy(yAddr + (j * VL_B16), (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8, preg128);
+                    DataCopy(yAddr + j * dSize + i * VL_B16, (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
+                             preg128);
+                }
             }
         }
     }
@@ -747,27 +742,21 @@ public:
 
         uint16_t rowLoopNum = QUANT_BLOCK_SIZE;
         uint16_t colLoopNum = dSize / VL_B16;
+        uint16_t scalePairNum = blockCount / DIGIT_TWO;
 
         // 临时空间
         auto tmpAddr = reinterpret_cast<__ubuf__ uint16_t *>(tmpTensor.GetPhyAddr());
         auto mxScaleTmpAddr = reinterpret_cast<__ubuf__ uint8_t *>(tmpTensor[blockCount * dSize].GetPhyAddr());
 
-
         for (int64_t blockIdx = 0; blockIdx < blockCount; blockIdx++) {
+            CalcAxis0MaxExpOcpVF(mxScaleTmpAddr, tmpAddr, srcAddr, dSize, rowLoopNum, colLoopNum);
+            CalcAxis0QuantOutVF(quantOutAddr, srcAddr, mxScaleTmpAddr, dSize, rowLoopNum, colLoopNum);
             tmpAddr += dSize;
             mxScaleTmpAddr += dSize;
             srcAddr += QUANT_BLOCK_SIZE * dSize;
-            CalcAxis0MaxExpOcpVF(mxScaleTmpAddr, tmpAddr, srcAddr, dSize, rowLoopNum, colLoopNum);
-
-
-
         }
 
-        InterleaveScaleAxis0VF(scaleOutAddr + pairIdx * dSize * DIGIT_TWO,
-                                mxScaleU16Addr0, mxScaleU16Addr1);
-
-
-
+        InterleaveScaleAxis0VF(scaleOutAddr, mxScaleTmpAddr, scalePairNum, colLoopNum, dSize);
     }
 
     /*
@@ -844,11 +833,12 @@ public:
 
     __aicore__ inline void ScatterUpdateV(const LocalTensor<uint8_t> &outTensor,
                                           const LocalTensor<uint8_t> &outScaleTensor, const int64_t processSeqLen,
+                                          const int64_t processNLen,
                                           const int64_t startTIdx, const int64_t nIdx)
     {
         event_t eventIDSToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_MTE3));
         DataCopyExtParams copyQuantOutParams;
-        copyQuantOutParams.blockCount = tilingData_->vNumHeadUbFactor;
+        copyQuantOutParams.blockCount = processNLen;
         copyQuantOutParams.blockLen = tilingData_->headDim * sizeof(uint8_t);
         copyQuantOutParams.srcStride = 0;
         copyQuantOutParams.dstStride = (tilingData_->blockSize - 1) * tilingData_->headDim * sizeof(uint8_t);
@@ -863,11 +853,11 @@ public:
             WaitFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
             DataCopyPad(vCacheGm_[bnIndex * vCacheBlockOffset_ + nIdx * tilingData_->blockSize * tilingData_->headDim +
                                   bsIndex * tilingData_->headDim],
-                        outTensor[i * vUbHiddenSize_], copyQuantOutParams);
+                        outTensor[i * processNLen * tilingData_->headDim], copyQuantOutParams);
         }
 
         DataCopyExtParams copyScaleOutParams;
-        copyScaleOutParams.blockCount = tilingData_->vNumHeadUbFactor;
+        copyScaleOutParams.blockCount = processNLen;
         copyScaleOutParams.blockLen = tilingData_->headDim * DIGIT_TWO * sizeof(uint8_t);
         copyScaleOutParams.srcStride = 0;
         copyScaleOutParams.dstStride = (vScaleCacheActualBs_ - 1) * tilingData_->headDim * DIGIT_TWO * sizeof(uint8_t);
@@ -880,7 +870,7 @@ public:
             DataCopyPad(vScaleCacheGm_[bnIndex * vScaleCacheBlockOffset_ +
                                        nIdx * vScaleCacheActualBs_ * tilingData_->headDim * DIGIT_TWO +
                                        bsIndex * tilingData_->headDim * DIGIT_TWO],
-                        outScaleTensor[i * vUbHiddenSize_ * DIGIT_TWO], copyScaleOutParams);
+                        outScaleTensor[i * processNLen * tilingData_->headDim * DIGIT_TWO], copyScaleOutParams);
         }
 
         __aicore__ inline void DoPhase1()
@@ -992,27 +982,32 @@ public:
             if (endTIndex > tilingData_->seqLengthSum) {
                 endTIndex = tilingData_->seqLengthSum;
             }
-            for (int64_t tIdx = startTIndex; tIdx < endTIndex; tIdx += tilingData_->vBlockFactor) {
-                int64_t processSeqLen = tilingData_->vBlockFactor;
+            for (int64_t tIdx = startTIndex; tIdx < endTIndex; tIdx += tilingData_->vTUbFactor) {
+                int64_t processSeqLen = tilingData_->vTUbFactor;
                 if (tIdx + processSeqLen > endTIndex) {
                     processSeqLen = endTIndex - tIdx;
                 }
                 for (int64_t nIdx = 0; nIdx < tilingData_->vNumHead; nIdx += tilingData_->vNumHeadUbFactor) {
+                    int64_t processNLen = tilingData_->vNumHeadUbFactor;
+                    if (nIdx + processNLen > tilingData_->vNumHead) {
+                        processNLen = tilingData_->vNumHead - nIdx;
+                    }
                     LocalTensor<T_QKV> vTensor = inQueue_.AllocTensor<T_QKV>();
                     GatherCopyIn(vTensor,
                                  qkvGm_[tIdx * allHiddenSize_ +
                                         (tilingData_->qNumHead + tilingData_->kNumHead + nIdx) * tilingData_->headDim],
-                                 processSeqLen, allHiddenSize_, vUbHiddenSize_);
+                                 processSeqLen, allHiddenSize_, processNLen * tilingData_->headDim);
                     inQueue_.EnQue(vTensor);
                     vTensor = inQueue_.DeQue<T_QKV>();
                     LocalTensor<uint8_t> outTensor = outQueue_.AllocTensor<uint8_t>();
                     LocalTensor<uint8_t> outScaleTensor = outTensor[tilingData_->vUbFactor * vUbHiddenSize_];
-                    DoMxQuant(outTensor, outScaleTensor, vTensor, 0, processSeqLen * tilingData_->vNumHeadUbFactor,
-                              tilingData_->headDim);
+                    LocalTensor<T_QKV> tmpTensor = wsBuffer0_.Get<T_QKV>();
+                    DoMxQuant(outTensor, outScaleTensor, vTensor, tmpTensor, 0, processSeqLen, 
+                              processNLen * tilingData_->headDim);
                     inQueue_.FreeTensor(vTensor);
                     outQueue_.EnQue(outTensor);
                     outTensor = outQueue_.DeQue<uint8_t>();
-                    ScatterUpdateV(outTensor, outScaleTensor, tIdx, nIdx);
+                    ScatterUpdateV(outTensor, outScaleTensor, processSeqLen, processNLen, tIdx, nIdx);
                     outQueue_.FreeTensor(outTensor);
                 }
             }
@@ -1024,7 +1019,7 @@ public:
             DoPhase1();
             // 对k做rms_norm，rope，mxquant，再scatter到cache中
             DoPhase2();
-            // 对v做再scatter到cache中
+            // 对v做mxquant再scatter到cache中
             DoPhase3();
         }
 

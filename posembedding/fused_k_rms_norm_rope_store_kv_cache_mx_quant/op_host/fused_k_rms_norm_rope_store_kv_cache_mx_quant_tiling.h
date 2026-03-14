@@ -20,7 +20,6 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include <unordered_map>
 namespace optiling {
-
 BEGIN_TILING_DATA_DEF(FusedKRmsNormRopeStoreKvCacheMxQuantTilingData)
 TILING_DATA_FIELD_DEF(int64_t, seqLengthSum);
 TILING_DATA_FIELD_DEF(int64_t, qkvNumHead);
@@ -30,11 +29,22 @@ TILING_DATA_FIELD_DEF(int64_t, vNumHead);
 TILING_DATA_FIELD_DEF(int64_t, headDim);
 TILING_DATA_FIELD_DEF(int64_t, blockNum);
 TILING_DATA_FIELD_DEF(int64_t, blockSize);
+TILING_DATA_FIELD_DEF(int64_t, qUsedCoreNum);
+TILING_DATA_FIELD_DEF(int64_t, qBlockFactor);
+TILING_DATA_FIELD_DEF(int64_t, qUbFactor);
+TILING_DATA_FIELD_DEF(int64_t, kUsedCoreNum);
+TILING_DATA_FIELD_DEF(int64_t, kBlockFactor);
+TILING_DATA_FIELD_DEF(int64_t, kUbFactor);
+TILING_DATA_FIELD_DEF(int64_t, vUsedCoreNum);
+TILING_DATA_FIELD_DEF(int64_t, vBlockFactor);
+TILING_DATA_FIELD_DEF(int64_t, vTUbFactor);            // T轴上的ub切分值
+TILING_DATA_FIELD_DEF(int64_t, vNumHeadUbFactor);      // N轴上的ub切分值
 TILING_DATA_FIELD_DEF(float, epsilon);
 TILING_DATA_FIELD_DEF(float, reciprocal);
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(FusedKRmsNormRopeStoreKvCacheMxQuant, FusedKRmsNormRopeStoreKvCacheMxQuantTilingData)
+REGISTER_TILING_DATA_CLASS(FusedKRmsNormRopeStoreKvCacheMxQuant_0, FusedKRmsNormRopeStoreKvCacheMxQuantTilingData)
 
 struct FusedKRmsNormRopeStoreKvCacheMxQuantCompileInfo {
     int64_t coreNum = 0;
@@ -69,11 +79,13 @@ constexpr int64_t SHAPE_IDX_BLOCK_SIZE = 2;
 
 constexpr int64_t FLOAT32_BYTES = 4;
 constexpr int64_t FLOAT16_BYTES = 2;
-constexpr int64_t INT8_BYTES = sizeof(int8_t);
+constexpr int64_t INT8_BYTES = 1
 constexpr int64_t FP32_BLOCK_ALIGN_NUM = 8;
 constexpr int64_t FP16_BLOCK_ALIGN_NUM = 16;
 constexpr int64_t INT8_BLOCK_ALIGN_NUM = 32;
-constexpr int64_t BASE_BLOCK_SIZE = 32;
+constexpr int64_t QUANT_BLOCK_SIZE = 32;
+constexpr int64_t DIGIT_TWO = 2;
+constexpr int64_t UB_RESERVED_BYTE = 1024;
 
 constexpr int64_t DIM_SIZE = 4;
 constexpr int64_t DIM_ZERO = 0;
@@ -96,32 +108,19 @@ public:
     ~FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase() override
     {}
     uint64_t tilingKey_{0};
-    uint64_t coreNum_ = 0;
-    uint64_t ubSize_ = 0;
+    int64_t coreNum_ = 0;
+    int64_t ubSize_ = 0;
     int64_t seqLengthSum_ = 0;
     int64_t numHead_ = 0;
-    int64_t qkvDim_ = 0;
+    int64_t headDim_ = 0;
     int64_t numHeadQ_ = 0;
     int64_t numHeadK_ = 0;
     int64_t numHeadV_ = 0;
     int64_t blockNum_ = 0;
     int64_t blockSize_ = 0;
     float epsilon_ = 0.0;
-    int64_t blockFactor_ = 0;
-    int64_t blockFactorQ_ = 0;
-    int64_t blockFactorK_ = 0;
-    int64_t blockFactorV_ = 0;
-    int64_t blockDim_ = 0;
-    int64_t blockDimQ_ = 0;
-    int64_t blockDimK_ = 0;
-    int64_t blockDimV_ = 0;
-    int64_t ubFactor_ = 0;
-    int64_t ubFactorQ_ = 0;
-    int64_t ubFactorK_ = 0;
-    int64_t ubFactorV_ = 0;
     float reciprocal_ = 0.0;
-
-    ge::DataType qkvDtype_{ge::DataType::DT_FLOAT16};
+    ge::DataType qkvDtype_{ge::DataType::DT_BF16};
     int64_t qkvDtypeSize_{0};
 
 protected:
@@ -152,12 +151,6 @@ protected:
     }
     uint64_t GetTilingKey() const override;
     void DumpTilingInfo() override {}
-
-protected:
-    std::tuple<int64_t, int64_t, int64_t, int64_t> GetShapeTuple(
-        const gert::TilingContext* context, const int64_t index = 0);
-    std::tuple<int64_t, int64_t> GetShapeTupleOfTH(
-        const gert::TilingContext* context, const int64_t index = 0);
 };
 
 class FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling : virtual public FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase {
@@ -176,7 +169,7 @@ protected:
 protected:
     ge::graphStatus GetShapeAttrsInfoInner();
     void CalUbTiling();
- 
+
 private:
     FusedKRmsNormRopeStoreKvCacheMxQuantTilingData tilingData_;
 };

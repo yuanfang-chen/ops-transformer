@@ -42,7 +42,8 @@ constexpr int64_t DIM_ONE = 1;
 constexpr int64_t DIM_TWO = 2;
 constexpr int64_t DIM_THREE = 3;
 constexpr int64_t SUPPORTED_D = 128;
-constexpr int64_t BLOCK_SIZE = 32;
+constexpr int64_t QUANT_BLOCK_SIZE = 32;
+constexpr int64_t DIGIT_TWO = 2;
 
 graphStatus InferShape4FusedKRmsNormRopeStoreKvCacheMxQuant(gert::InferShapeContext* context)
 {
@@ -157,10 +158,11 @@ graphStatus InferShape4FusedKRmsNormRopeStoreKvCacheMxQuant(gert::InferShapeCont
     qOutputShape->SetDim(DIM_ONE, Nq);
     qOutputShape->SetDim(DIM_TWO, qkvInputShape->GetDim(DIM_TWO));
 
-    qScaleOutputShape->SetDimNum(DIM_TWO + 1);
+    qScaleOutputShape->SetDimNum(DIM_TWO + 1 + 1);
     qScaleOutputShape->SetDim(DIM_ZERO, qkvInputShape->GetDim(DIM_ZERO));
     qScaleOutputShape->SetDim(DIM_ONE, Nq);
-    qScaleOutputShape->SetDim(DIM_TWO, qkvInputShape->GetDim(DIM_TWO) / BLOCK_SIZE);
+    qScaleOutputShape->SetDim(DIM_TWO, qkvInputShape->GetDim(DIM_TWO) / QUANT_BLOCK_SIZE / DIGIT_TWO);
+    qScaleOutputShape->SetDim(DIM_THREE, DIGIT_TWO);
 
     *kCacheOutputShape = *kCacheInputShape;
     *kScaleCacheOutputShape = *kScaleCacheInputShape;

@@ -25,79 +25,90 @@ bool FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling::IsCapable()
     return true;
 }
 
-void FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling::CalUbTiling()
+ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling::CalUbTiling()
 {
-    int64_t tns = seqLength_ * numHead_;
-    int64_t maxUbFactor = 32;
-    constexpr static int64_t needUbSize = static_cast<int64_t>(170) * static_cast<int64_t>(1024);
-    if (static_cast<int64_t>(ubSize_) >= static_cast<int64_t>(needUbSize)) {
-        ubFactor_ = maxUbFactor;
-    } else {
-        ubFactor_ = 1;
-    }
+    // q,k ub切分在T轴，v的ub切分在T轴和N轴
+    // 待具体按照比例进行分配，当前粗略分配
+    int64_t inQueSize = 48 * 1024; // 开DB
+    int64_t wsp0Size = 80 * 1024;
+    int64_t wsp1Size = 40 * 1024;
+    int64_t outQueSize = 30 * 1024;
+    // 计算qUbFactor
+    int64_t qUbFactor = inQueSize / (2 * tilingData_.get_headDim() * qkvDtypeSize_ +
+                                     tilingData_.get_qNumHead() * tilingData_.get_headDim() * qkvDtypeSize_);
+    qUbFactor = std::min(qUbFactor, wsp0Size / tilingData_.get_qNumHead() * tilingData_.get_headDim() * FLOAT16_BYTES);
+    qUbFactor = std::min(qUbFactor, wsp1Size / tilingData_.get_qNumHead() * tilingData_.get_headDim() * FLOAT16_BYTES);
+    qUbFactor = std::min(qUbFactor, outQueSize / (tilingData_.get_qNumHead() * tilingData_.get_headDim() * INT8_BYTES +
+                                                  tilingData_.get_qNumHead() * INT8_BLOCK_ALIGN_NUM * INT8_BYTES));
+    OP_CHECK_IF((qUbFactor <= 0), OP_LOGI(context_->GetNodeName(), "qUbFactor <= 0"), return ge::GRAPH_FAILED);
+    tilingData_.set_qUbFactor(qUbFactor);
+    // 计算kUbFactor
+    int64_t kUbFactor = inQueSize / (2 * tilingData_.get_headDim() * qkvDtypeSize_ +
+                                     tilingData_.get_kNumHead() * tilingData_.get_headDim() * qkvDtypeSize_);
+    kUbFactor = std::min(kUbFactor, wsp0Size / tilingData_.get_kNumHead() * tilingData_.get_headDim() * FLOAT32_BYTES);
+    kUbFactor = std::min(kUbFactor, wsp1Size / tilingData_.get_kNumHead() * tilingData_.get_headDim() * FLOAT16_BYTES);
+    kUbFactor = std::min(kUbFactor, outQueSize / (tilingData_.get_kNumHead() * tilingData_.get_headDim() * INT8_BYTES +
+                                                  tilingData_.get_kNumHead() * INT8_BLOCK_ALIGN_NUM * INT8_BYTES));
+    OP_CHECK_IF((kUbFactor <= 0), OP_LOGI(context_->GetNodeName(), "kUbFactor <= 0"), return ge::GRAPH_FAILED);
+    tilingData_.set_kUbFactor(kUbFactor);
+    // 计算vUbFactor
+    int64_t vNumHeadUbFactor = inQueSize / (QUANT_BLOCK_SIZE * DIGIT_TWO * tilingData_.get_headDim() * qkvDtypeSize_);
+    vNumHeadUbFactor = std::min(
+        vNumHeadUbFactor, wsp0Size / (2 * DIGIT_TWO * tilingData_.get_headDim() * FLOAT16_BYTES)); // 2表示两块空间
+    vNumHeadUbFactor = std::min(vNumHeadUbFactor,
+                                outQueSize / (tilingData_.get_headDim() * DIGIT_TWO * INT8_BYTES +
+                                              QUANT_BLOCK_SIZE * DIGIT_TWO * tilingData_.get_headDim() * INT8_BYTES));
+    OP_CHECK_IF((vNumHeadUbFactor <= 0), OP_LOGI(context_->GetNodeName(), "vNumHeadUbFactor <= 0"),
+                return ge::GRAPH_FAILED);
+    tilingData_.set_vTUbFactor(QUANT_BLOCK_SIZE * DIGIT_TWO);
+    tilingData_.set_vNumHeadUbFactor(vNumHeadUbFactor);
 }
 
 ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling::DoOpTiling()
 {
-    tilingData_.set_batchSize(batchSize_);
-    tilingData_.set_seqLength(seqLength_);
-    tilingData_.set_numHeadHeads(numHead_);
-    tilingData_.set_qkvDim(qkvDim_);
-    tilingData_.set_ropeRange(ropeRange_);
-    tilingData_.set_numHeadQ(numHeadQ_);
-    tilingData_.set_numHeadK(numHeadK_);
-    tilingData_.set_numHeadV(numHeadV_);
+    tilingData_.set_seqLengthSum(seqLengthSum_);
+    tilingData_.set_qkvNumHead(numHead_);
+    tilingData_.set_headDim(headDim_);
+    tilingData_.set_qNumHead(numHeadQ_);
+    tilingData_.set_kNumHead(numHeadK_);
+    tilingData_.set_vNumHead(numHeadV_);
     tilingData_.set_blockNum(blockNum_);
     tilingData_.set_blockSize(blockSize_);
     tilingData_.set_epsilon(epsilon_);
     tilingData_.set_reciprocal(reciprocal_);
 
-    int64_t tns = seqLength_ * numHead_;
-    blockFactor_ = (tns + coreNum_ - 1) / coreNum_;
-    int64_t numBlocks = (tns + blockFactor_ - 1) / blockFactor_;
-    tilingData_.set_blockFactor(blockFactor_);
-    tilingData_.set_blockDim(blockFactor_);
+    int64_t qkblockFactor = (seqLengthSum_ + coreNum_ - 1) / coreNum_;
+    int64_t qkUsedCoreNum = (seqLengthSum_ + qkblockFactor - 1) / qkblockFactor;
+    // q，k的多核切分策略相同
+    tilingData_.set_qUsedCoreNum(qkUsedCoreNum);
+    tilingData_.set_qBlockFactor(qkblockFactor);
+    tilingData_.set_kUsedCoreNum(qkUsedCoreNum);
+    tilingData_.set_kBlockFactor(qkblockFactor);
+    // seqLengthSum_保证是64的整数倍
+    int64_t vQuantGroup = seqLengthSum_ / QUANT_BLOCK_SIZE / DIGIT_TWO;
+    int64_t vGropuBlockFactor = (vQuantGroup + coreNum_ - 1) / coreNum_;
+    int64_t vUsedCoreNum = (seqLengthSum_ + vGropuBlockFactor - 1) / vGropuBlockFactor;
+    tilingData_.set_vUsedCoreNum(vUsedCoreNum);
+    tilingData_.set_vBlockFactor(vGropuBlockFactor * QUANT_BLOCK_SIZE * DIGIT_TWO);
 
-    blockFactorQ_ = blockFactor_;
-    blockFactorK_ = blockFactor_;
-    blockFactorV_ = blockFactor_;
-    tilingData_.set_blockFactorQ(blockFactorQ_);
-    tilingData_.set_blockFactorK(blockFactorK_);
-    tilingData_.set_blockFactorV(blockFactorV_);
+    auto status = CalUbTiling();
 
-    blockDimQ_ = (seqLength_ * numHeadQ_ + blockFactorQ_ - 1) / blockFactorQ_;
-    blockDimK_ = (seqLength_ * numHeadK_ + blockFactorK_ - 1) / blockFactorK;
-    blockDimV_ = (seqLength_ * numHeadV_ + blockFactorV_ - 1) / blockFactorV_;
-    tilingData_.set_blockDimQ(blockDimQ_);
-    tilingData_.set_blockDimK(blockDimK_);
-    tilingData_.set_blockDimV(blockDimV_);
+    tilingKey_ = 0;
 
-    CalUbTiling();
-    tilingData_.set_ubFactor(ubFactor_);
-
-    ubFactorQ_ = ubFactor_;
-    ubFactorK_ = ubFactor_;
-    ubFactorV_ = ubFactor_;
-    tilingData_.set_ubFactorQ(ubFactorQ_);
-    tilingData_.set_ubFactorK(ubFactorK_);
-    tilingData_.set_ubFactorV(ubFactorV_);
-
-    tilingKey_ = TEMPLATE_DS_PRIORITY;
-
-    return ge::GRAPH_SUCCESS;
+    return status;
 }
 
 ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling::PostTiling()
 {
     context_->SetTilingKey(GetTilingKey());
     context_->SetBlockDim(tilingData_.get_blockDim());
-    size_t* workspaces = context_->GetWorkspaceSizes(1);
+    size_t *workspaces = context_->GetWorkspaceSizes(1);
     workspaces[0] = 0;
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
     return ge::GRAPH_SUCCESS;
 }
 
-
-REGISTER_OPS_TILING_TEMPLATE(FusedKRmsNormRopeStoreKvCacheMxQuant, FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling, 1000);
+REGISTER_OPS_TILING_TEMPLATE(FusedKRmsNormRopeStoreKvCacheMxQuant, FusedKRmsNormRopeStoreKvCacheMxQuantRegbaseTiling,
+                             1000);
 } // namespace optiling

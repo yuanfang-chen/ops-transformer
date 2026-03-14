@@ -36,7 +36,7 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::GetPlatformInfo(
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
         coreNum_ = ascendcPlatform.GetCoreNumAiv();
-        uint64_t ubSize = 0;
+        int64_t ubSize = 0;
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
         ubSize_ = ubSize;
     }
@@ -57,7 +57,7 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::GetShapeAttrsInf
     
     seqLengthSum_ = qkvInputShape->GetDim(DIM_ZERO);
     numHead_ = qkvInputShape->GetDim(DIM_ONE);
-    qkvDim_ = qkvInputShape->GetDim(DIM_TWO);
+    headDim_ = qkvInputShape->GetDim(DIM_TWO);
     
     blockNum_ = kCacheInputShape->GetDim(DIM_ZERO);
     numHeadK_ = kCacheInputShape->GetDim(DIM_ONE);
@@ -86,9 +86,7 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::GetShapeAttrsInf
     const float* epsilon = attrs->GetFloat(EPSILON_IDX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, epsilon);
     epsilon_ = *epsilon;
-    reciprocal_ = 1.0 / static_cast<float>(qkvDim_);
-
-
+    reciprocal_ = 1.0 / static_cast<float>(headDim_);
 
     OP_CHECK_IF(CheckQkvValid() != ge::GRAPH_SUCCESS,
         OP_LOGE(context_->GetNodeName(), "CheckQkvValid failed."), return ge::GRAPH_FAILED);
@@ -109,8 +107,6 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::GetShapeAttrsInf
     OP_CHECK_IF(CheckVScaleCacheValid() != ge::GRAPH_SUCCESS,
         OP_LOGE(context_->GetNodeName(), "CheckVScaleCacheValid failed."), return ge::GRAPH_FAILED);
 
-
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -121,8 +117,8 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckQkvValid()
         OP_LOGE(context_->GetNodeName(), "qkv must be 3D tensor [T, N, D].");
         return ge::GRAPH_FAILED;
     }
-    if (qkvShape->GetDim(DIM_THREE) != qkvDim_) {
-        OP_LOGE(context_->GetNodeName(), "qkv D dimension must be %ld, got %ld.", qkvDim_, qkvShape->GetDim(DIM_THREE));
+    if (qkvShape->GetDim(DIM_THREE) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "qkv D dimension must be %ld, got %ld.", headDim_, qkvShape->GetDim(DIM_THREE));
         return ge::GRAPH_FAILED;
     }
     if (qkvShape->GetDim(DIM_ZERO) <= 0 || qkvShape->GetDim(DIM_ONE) <= 0) {
