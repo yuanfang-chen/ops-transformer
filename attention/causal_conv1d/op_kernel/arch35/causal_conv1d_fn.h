@@ -208,7 +208,7 @@ private:
     //   xQueue         : maxUbBS × maxUbDim × sizeof(T)，BUF_NUM=2（双缓冲，y 复用）
     // -------------------------------------------------------------------------
     TQue<QuePosition::VECIN, 1>        weightInQueue_;
-    TQue<QuePosition::VECIN, 1>        cacheQueue_;
+    TQueBind<TPosition::VECIN, TPosition::VECOUT, 1> cacheQueue_;
     TQue<QuePosition::VECIN, 1>        startLocInQueue_;
     TQue<QuePosition::VECIN, 1>        indicesInQueue_;
     TQue<QuePosition::VECIN, 1>        hasInitInQueue_;
