@@ -663,11 +663,23 @@ def cal_mlaprolog(mla_param):
 
     qnorm_flag = mla_param["qnorm_flag"]
 
-    deq_scale_q_nope = torch.empty(0)
+    # 可选输出的空张量占位符 —— 使用正确的 dtype 以匹配 NPU 输出
+    wqm = mla_param["weight_quant_mode"]
+    is_bm = mla_param.get("action_type") == "bm_output_gold"
+    if wqm == 3 and is_bm:
+        deq_scale_q_nope = torch.empty(0, dtype=torch.float32)
+        out_qnorm = torch.empty(0, dtype=torch.float8_e4m3fn)
+        out_deq_qnorm = torch.empty(0, dtype=torch.float8_e8m0)
+    elif wqm in [1, 2] and is_bm:
+        deq_scale_q_nope = torch.empty(0, dtype=torch.float32)
+        out_qnorm = torch.empty(0, dtype=torch.int8)
+        out_deq_qnorm = torch.empty(0, dtype=torch.float32)
+    else:
+        deq_scale_q_nope = torch.empty(0, dtype=torch.float32)
+        out_qnorm = torch.empty(0, dtype=torch.float32)
+        out_deq_qnorm = torch.empty(0, dtype=torch.float32)
     deq_scale_qcqr = None
-    out_qnorm = torch.empty(0)
-    out_deq_qnorm = torch.empty(0)
-    enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (mla_param["weight_quant_mode"] == 2 or mla_param["weight_quant_mode"] == 3) else False
+    enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (wqm == 2 or wqm == 3) else False
     quant_scale_ckv = mla_param["quant_scale_ckv_tensor"]
     actual_seq_lengths = mla_param["actual_seq_len"]
     if enable_quant_output:
