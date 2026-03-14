@@ -130,7 +130,6 @@ public:
     uint64_t usedVecCoreNums = 0;
     uint64_t baseBufLen = 0;
     float scaleValue = 0.0f;
-
     // const BlockSparseAttentionGradTilingData *tilingData;
 
     GlobalTensor<float> sGm;  // (N s1 s2)
@@ -160,8 +159,6 @@ public:
         cBlockIdx = vecCoreIdx;
         __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
         usedVecCoreNums = tilingData->usedVecCoreNum;
-        printf("cBlockIdx: %lu \n", cBlockIdx);
-
 
         if (cBlockIdx >= usedVecCoreNums) {
             return;
@@ -169,7 +166,6 @@ public:
 
         maxQSeqlen = tilingData -> maxQSeqlen;
         maxKvSeqlen = tilingData -> maxKvSeqlen;
-        scaleValue = tilingData->scaleValue;
         n1 = tilingData -> numHeads; // q_n
         col = params.actualCol;
         curCoreBatch = params.curCoreBatch;
@@ -178,9 +174,9 @@ public:
         curCoreS1Idx = params.curCoreS1Idx;
         actualQSeqlen = params.actualQSeqlen;
         actualKvSeqlen = params.actualKvSeqlen;
+        scaleValue = tilingData->scaleValue;
 
         uint64_t s2 = ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch];
-            printf("s2: %lu \n", s2);
         uint64_t curCoreProcessNum = params.processNums;
         uint64_t ubSize = tilingData->ubSize;
         uint64_t ubSizeEeachStage = ubSize  / STAGES / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE; // 32字节对齐
@@ -197,7 +193,6 @@ public:
         } else if constexpr(INPUT_LAYOUT == BNSD){
             transpseStride = 0;
         }
-  
         // 默认 s2 > 8
         // 计算 simply_softmax p = (exp(S - L)) buffer 大小 记得广播
         // 设S buffer x, l broc buffer 8 * x / s2, 则x + 8 * x / s2 = 192*1024 / 2
@@ -279,7 +274,6 @@ public:
     __aicore__ inline
     void operator()<AscendC::AIV>()
     {
-        PipeBarrier<PIPE_ALL>(); // 去掉pre和sfmg之间的SyncALL，这里需要增加pipeALL ??
         if (cBlockIdx >= usedVecCoreNums) {
             return;
         }
@@ -290,7 +284,6 @@ public:
         uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
-
 
         uint64_t ping = 0;
         // 不包含尾行处理
@@ -328,7 +321,7 @@ public:
         struct SimplySoftMaxInfo runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
         struct CalDsInfo runDsInfo = {dpTensor[ping], softmaxGradTensor[ping], pTensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
         SimplySoftmax(runSftInfo, row, col, curS1);
-        CalDs(runDsInfo, row, col, curS1 );
+        // CalDs(runDsInfo, row, col, curS1 );
     }
 
 
@@ -348,7 +341,6 @@ public:
         } else {
             startOffset = curCoreBatch * (n1 * maxQSeqlen) + curCoreN1Idx * maxQSeqlen + curS1;
         }
-
         // 对于TND 格式来说， 会进行leis (s n) -> (n s) 的transpose转换
         DataCopyPad(lse, LseGm[startOffset],
                     {static_cast<uint16_t>(count), static_cast<uint32_t>(1 * sizeof(float)),
@@ -356,10 +348,8 @@ public:
                     {false, 0, 0, 0});
         AscendC::PipeBarrier<PIPE_ALL>();
 
-
         uint8_t repeatimes = CeilDiv(count, BRCB_BASE_NUM);
         Brcb(lseFp32Brc, lse, repeatimes, {1, 8});
-
     }
 
     /*
@@ -384,17 +374,14 @@ public:
         // 执行一次sub，迭代次数 col / oneblock ， 一次迭代计算 row * oneblock 元素， 
         uint32_t rowNumPerCompute = BLK_NUM_PER_VECTOR_FRACTAL; // 256 / 32 = 8 即per_repeat / per_block = 8
         uint32_t colNumPerCompute = eleNumPerBlk * maxRepeatNum; // 255 * 8
-
         for (uint32_t rowOffset = 0; rowOffset < row; rowOffset += rowNumPerCompute) {
             uint32_t residueM = row - rowOffset;
             uint32_t currentRowNum = (residueM > rowNumPerCompute) ? rowNumPerCompute : residueM;
             uint64_t mask = static_cast<uint64_t>(currentRowNum) * static_cast<uint64_t>(eleNumPerBlk);
-
             for (uint32_t colOffset = 0; colOffset < col; colOffset += colNumPerCompute) {
                 uint32_t residueN = col - colOffset;
                 uint32_t currentColNum = (residueN > colNumPerCompute) ? colNumPerCompute : residueN;
                 uint8_t repeatTimes = static_cast<uint8_t>(currentColNum / eleNumPerBlk);
-
                 AscendC::Sub(
                     ubOut[rowOffset * col + colOffset],
                     ubIn0[rowOffset * col + colOffset],
@@ -403,7 +390,6 @@ public:
                 );
             }
         }
-        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
@@ -426,7 +412,6 @@ public:
         uint64_t count = row * col;
         uint64_t countAlign = (count + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
 
-
         LseBrocast(lseGm, lse, lseFp32Brc, row, curS1);
         AscendC::PipeBarrier<PIPE_ALL>();
 
@@ -441,18 +426,21 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
         SubBrcb(pLocal, sLocal, lseFp32Brc, row, col);
         AscendC::PipeBarrier<PIPE_V>();
-
         Exp(pLocal, pLocal, count);
 
         AscendC::PipeBarrier<PIPE_ALL>();
-
-
+        // printf("count : %lu\n", count);
         if (count * sizeof(float) % BLOCK_SIZE == 0) {
             DataCopy(pGm, pLocal, count);
         } else {
             DataCopyPad(pGm, pLocal, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0});
         }
+
         AscendC::PipeBarrier<PIPE_ALL>();
+        // for (uint32_t i = 0; i < 64*128; i++) {
+        //     printf("pGm[%d] = %f \n", i, static_cast<float>(pGm.GetValue(i)));
+        // }
+        // AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
@@ -474,7 +462,6 @@ public:
 
         uint64_t count = row * col;
 
-
         AscendC::PipeBarrier<PIPE_ALL>();
 
         DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
@@ -495,7 +482,7 @@ public:
         * D shape ((n s1 8) or (b n s1 8) fp32 
     */
     __aicore__ inline
-    void CopyDIn(GlobalTensor<float> d, LocalTensor<float> dLocal, uint64_t count, uint64_t curS1)
+    void CopyDIn(GlobalTensor<float> &d, LocalTensor<float> &dLocal, uint64_t count, uint64_t curS1)
     {
         uint64_t startOffset = 0;
         if constexpr (INPUT_LAYOUT == TND) {
