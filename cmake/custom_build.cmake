@@ -285,6 +285,7 @@ else()
     # genop新增非experimental算子分类
     # add_subdirectory(${op_class})
     add_subdirectory(attention)
+    add_subdirectory(mhc)
 endif()
 
 if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
@@ -931,10 +932,10 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
 )
 
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/atvoss
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/op_kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
         
 foreach (op_dir ${OP_DIR_LIST})
