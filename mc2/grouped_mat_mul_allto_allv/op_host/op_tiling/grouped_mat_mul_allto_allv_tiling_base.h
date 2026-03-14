@@ -131,14 +131,11 @@ public:
     explicit GmmAlltoAllvTilingBase(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context){};
 
 protected:
-    ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus GetPlatformInfo() override;
+    ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
-    uint64_t GetTilingKey() const override;
     ge::graphStatus PostTiling() override;
-    QuantModePair GetQuantMode(const gert::TilingContext *context, const char *opName);
-    const char *opName_{nullptr};
 
     NpuArch npuArch_;
 };
