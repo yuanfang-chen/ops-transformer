@@ -27,6 +27,8 @@ constexpr uint64_t HCOMM_CNT = 2;
 constexpr uint64_t INT8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP32_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
@@ -50,6 +52,7 @@ bool QuantMatmulAllReduceTilingA5::IsCapable()
     OP_LOGI(opName_, "Skip quant tiling as dtype not support.");
     return false;
 }
+
 ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
@@ -66,7 +69,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommAllReduce(const char* g
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
-ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType, const uint8_t dataType)
+
+ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommTwoShot(const char* groupName, const uint32_t reduceType, const uint8_t dataType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
     uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
@@ -92,6 +96,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* group
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
 ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommRSAG(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_REDUCE_SCATTER);
@@ -119,6 +124,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommRSAG(const char* groupN
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
 ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 {
     bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
@@ -133,8 +139,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
     if (isStandardCard4P && !MutableRCSTilingData().isInputCommQuantScale) {
         uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
         OP_TILING_CHECK(
-            SetMc2HcommA2AAG(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
-            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
+            SetMc2HcommTwoShot(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommTwoShot failed."),
             return ge::GRAPH_FAILED);
     } else {
         if (MutableRCSTilingData().isInputCommQuantScale == 1) {
@@ -145,8 +151,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
         } else if (MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8) {
             uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType));
             OP_TILING_CHECK(
-                SetMc2HcommA2AAG(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
-                OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
+                SetMc2HcommTwoShot(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
+                OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommTwoShot failed."),
                 return ge::GRAPH_FAILED);
         } else {
             OP_TILING_CHECK(
@@ -331,29 +337,23 @@ void QuantMatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
     OP_LOGD(opName_, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.mTailTile);
     OP_LOGD(opName_, "AdaptiveSlidingWin.nTailTile=%u.", tiling.adaptiveSlidingWin.nTailTile);
 }
+
 ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P(const uint64_t gmcFloat)
 {
-    uint64_t commFp16Len = 0UL;
+    uint64_t commLen = 0UL;
     uint64_t cgmPadLen = 0UL;
-    uint64_t commFp16WorkSpace = 0UL;
+    uint64_t commWorkSpace = 0UL;
 
-    uint64_t tileM = MutableTCubeTileTilingData().M;
-    uint64_t tailM = MutableTCubeTailTilingData().M;
-    uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
-    uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
-    commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-    cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
-    commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
-                            tempTailSize * MutableRCSTilingData().tailCnt +
-                            cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
-    OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+    uint64_t rankM = static_cast<uint64_t>(MutableRCSTilingData().rankM);
+    uint64_t rankN = static_cast<uint64_t>(MutableRCSTilingData().rankN);
+    commLen = rankM * rankN;
+    cgmPadLen = (args_.rankDim - commLen % args_.rankDim) % args_.rankDim;
+    commWorkSpace = (commLen + cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
+    OP_LOGI(opName_, "Set commWorkSpace size=%lu to context.", commWorkSpace);
 
     myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat;
-    if (cgmPadLen == 0) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
-    } else {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
-    }
+    uint64_t workspaceSizeCount = cgmPadLen ? STANDARD_CARD_CGMPAD_WORKSPACE_CNT : STANDARD_CARD_WORKSPACE_CNT;
+    myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * workspaceSizeCount + commWorkSpace / args_.rankDim;
     return ge::GRAPH_SUCCESS;
 }
 

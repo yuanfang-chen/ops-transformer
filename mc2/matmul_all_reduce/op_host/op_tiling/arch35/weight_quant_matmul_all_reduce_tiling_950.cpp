@@ -380,6 +380,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::PostTiling()
     context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
 }
+
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType)
 {
     const std::string algConfig = "AllReduce=level0:fullmesh";
@@ -407,7 +408,8 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommAllReduce(const c
     }
     return ge::GRAPH_SUCCESS;
 }
-ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType)
+
+ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommTwoShot(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
     uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
@@ -468,8 +470,8 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 
     if (isStandardCard4P) {
         OP_TILING_CHECK(
-            SetMc2HcommA2AAG(groupName, reduceType) != ge::GRAPH_SUCCESS,
-            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
+            SetMc2HcommTwoShot(groupName, reduceType) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommTwoShot failed."),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(
