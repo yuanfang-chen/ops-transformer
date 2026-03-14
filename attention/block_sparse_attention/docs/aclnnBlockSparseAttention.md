@@ -168,7 +168,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>attenMaskOptional</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的atten_mask。</td>
-      <td>atten_mask会与稀疏pattern叠加产生作用。当前不支持，应传入nullptr。</td>
+      <td>atten_mask会与稀疏pattern叠加产生作用。当前不支持，必须传入nullptr。</td>
       <td>INT8</td>
       <td>ND</td>
       <td>2</td>
@@ -231,7 +231,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>blockTableOptional</td>
       <td>输入</td>
       <td>Device侧的aclTensor，Block表用于PagedAttention。</td>
-      <td>当前不支持，传入nullptr。</td>
+      <td>当前不支持，必须传入nullptr。</td>
       <td>INT32</td>
       <td>ND</td>
       <td>2</td>
@@ -299,8 +299,8 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>
         当前只支持传0或1
         <ul>
-          <li>0：表示高精度softmax计算，中间值采取fp32数据类型，适合追求计算精度的场景使用。</li>
-          <li>1：表示低精度softmax计算，中间值采取fp16数据类型，性能更好，适合追求极致性能的场景使用。</li>
+          <li>0：表示高精度softmax计算，中间值全部采取fp32数据类型，适合追求计算精度的场景使用。</li>
+          <li>1：表示低精度softmax计算，中间值全部采取fp16数据类型，性能更好，但精度较低，适合追求极致性能的场景使用。</li>
         </ul>
       </td>
       <td>INT64</td>
@@ -312,7 +312,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>blockSize</td>
       <td>输入</td>
       <td>Host侧的int64_t，PagedAttention的block大小。</td>
-      <td>用于PagedAttention场景，当前不支持PagedAttention功能。</td>
+      <td>用于PagedAttention场景，当前不支持PagedAttention功能，因此只支持传0。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -322,7 +322,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>preTokens</td>
       <td>输入</td>
       <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向前包含多少个token。</td>
-      <td>用于滑窗attention场景，当前不支持滑窗attention。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -332,7 +332,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>nextTokens</td>
       <td>输入</td>
       <td>Host侧的int64_t，滑窗attention场景下，滑窗需要向后包含多少个token。</td>
-      <td>用于滑窗attention场景，当前不支持滑窗attention。</td>
+      <td>用于滑窗attention场景，当前不支持滑窗attention，只支持传入2147483647。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -506,6 +506,8 @@ aclnnStatus aclnnBlockSparseAttention(
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
 - 输入query的headNum为N1，输入key和value的headNum为N2，则N1 >= N2 && N1 % N2 == 0。
 - maskType当前只支持输入0，表示不加mask。
+- blockSize当前只支持输入0，表示不支持paged cache。
+- preTokens和nextTokens当前只支持输入2147483647，表示当前token的前后所有token都参与attention运算，即不支持滑窗attention。
 
 
 ## 调用示例
