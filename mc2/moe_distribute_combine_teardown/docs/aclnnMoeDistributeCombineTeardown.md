@@ -144,7 +144,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
     <tr>
         <td>commCmdInfo（aclTensor*）</td>
         <td>输入</td>
-        <td>aclnnMoeDistributeDispatchSetup的输出，通信的cmd信息</td>
+        <td>aclnnMoeDistributeCombineSetup的输出，通信的cmd信息</td>
         <td>不支持空Tensor。</td>
         <td>INT32</td>
         <td>ND</td>
