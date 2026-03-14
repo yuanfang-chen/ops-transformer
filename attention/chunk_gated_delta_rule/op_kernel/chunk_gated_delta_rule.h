@@ -21,6 +21,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 #include "chunk_gated_delta_rule_stage1.h"
+#include "chunk_gated_delta_rule_stage1_nog.h"
 #include "chunk_gated_delta_rule_stage2.h"
 #include "chunk_gated_delta_rule_stage3.h"
 
@@ -94,7 +95,7 @@ template <typename lowType, typename highType>
 class CGDR {
 public:
     __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
-        : stageOneOp_(mmFp32_)
+        : stageOneOp_(mmFp32_), stageOneNoGOp_(mmFp32_)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -137,6 +138,7 @@ public:
 
     __aicore__ inline void Init(const CGDRInitParams &initParams, GM_ADDR user)
     {
+        gOptional_ = initParams.gOptional;
         uint64_t dataSize = tiling_->t * tiling_->nk * tiling_->dk;
         query_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.query), dataSize);
         key_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.key), dataSize);
@@ -235,10 +237,17 @@ private:
     __aicore__ inline void RunStage1(const ChunkGroup& cg)
     {
         // todo: stage1, release ub resource after computing
-        GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
-                                                  gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
-        stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
-        stageOneOp_.Process();
+        if (gOptional_ != nullptr) {
+            GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
+                                                    gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
+            stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
+            stageOneOp_.Process();
+        } else {
+            GDRStageOneNoGInitParams initStageOneParams {query_, key_, value_, beta_,
+                                                    gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
+            stageOneNoGOp_.Init(initStageOneParams, pipe_, tiling_);
+            stageOneNoGOp_.Process();
+        }
         pipe_->Reset();
     }
     
@@ -318,6 +327,7 @@ private:
     GlobalTensor<highType> stageOneMask_;          // (Nv, maxGroupLength, C)
     GlobalTensor<highType> stageThreeMask_;          // (Nv, maxGroupLength, C)
     GM_ADDR stageWsAddr_;                 // temporary space addr for stages
+    GM_ADDR gOptional_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;  // 构造mask矩阵
 
@@ -330,6 +340,7 @@ private:
 
     // Stage operators
     GDRStageOne stageOneOp_;
+    GDRStageOneNoG stageOneNoGOp_;
     Stage2 stageTwoOp_;
 
 };
