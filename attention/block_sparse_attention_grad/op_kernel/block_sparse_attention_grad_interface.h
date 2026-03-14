@@ -113,7 +113,7 @@ namespace BSA {
 
         // VEC_Op：P = simple_softmax(S)，再计算dS = P * Sub(dP, Sfmg)  【cube1 输出S = Q*K^T 及 dP = dOut * V^T】
         using EpilogueAtlasA2FAGOp = Epilogue::EpilogueAtlasA2FAGPre;
-        using EpilogueFAGOp = Epilogue::Block::SimpltSoftmax<float, float, InputLayout>;
+        using EpilogueFAGOp = Epilogue::Block::SimpltSoftmax<InputDtype, float, InputLayout>;
 
         // VEC_Post：dQ*scale和dK*scale，并搬运输出dQ/dK/dV
         using EpilogueAtlasA2FAGPost = Epilogue::EpilogueAtlasA2FAGPre;
