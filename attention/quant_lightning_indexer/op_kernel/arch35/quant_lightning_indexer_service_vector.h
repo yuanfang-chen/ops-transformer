@@ -390,7 +390,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
         AscendC::Cast(qScaleFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))], qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(SCALE_T))], RoundMode::CAST_NONE, curAivS1ProcNum * QLICommon::Align((uint64_t)gSize_, (uint64_t)16));
         AscendC::Cast(kScaleFloatUB_[pingpong * s2BaseSize_], kScaleUB_[pingpong * s2BaseSize_], RoundMode::CAST_NONE, 2 * s2BaseSize_);
         qScaleBase = qScaleFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
-        kScaleBase = kScaleFloatUB_[pingpong * s2BaseSize_ * 2];
+        kScaleBase = kScaleFloatUB_[pingpong * s2BaseSize_];
     } else {
         qScaleBase = qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
         kScaleBase = kScaleUB_[pingpong * s2BaseSize_];
