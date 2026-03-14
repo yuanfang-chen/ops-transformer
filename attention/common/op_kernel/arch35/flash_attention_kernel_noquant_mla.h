@@ -94,19 +94,18 @@ private:
     AttenMaskInfo attenMaskInfo;
     CVSharedParams<isInfer, isPa> sharedParams;
 
-    // Unpack参数
     __gm__ int64_t *actualSeqQlenAddr;
     __gm__ int64_t *actualSeqKvlenAddr;
-    uint64_t s1SizeAcc;
-    uint64_t s2SizeAcc;
+    uint64_t s1SizeAcc = 0;
+    uint64_t s2SizeAcc = 0;
     uint64_t b1SSOffset = 0;
-    uint64_t b1SSOffsetAlign16 = 0;
 
     BufferManager<BufferType::UB> ubBufferManager;
     BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> bmm1Buffers;
     BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> bmm2Buffers;
 
     BufferManager<BufferType::L1> l1BufferManager;
+    uint32_t l1BuffSize = 524288;  // 512k
     // mm1和mm2右矩阵，在L1上复用，其中K_rope内存空间与bmm2的左矩阵p复用
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm12Bmm2AL1Buffers;
 };
@@ -152,10 +151,10 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 {
     constexpr uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
     constexpr uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
-    uint32_t mm12RightSize = max((uint32_t)dTemplateType, (uint32_t)dVTemplateType) * s2BaseSize * sizeof(INPUT_T);
+    uint32_t mm12RightSize = max(static_cast<uint32_t>(dTemplateType), static_cast<uint32_t>(dVTemplateType)) * s2BaseSize * sizeof(INPUT_T);
 
     // L1
-    l1BufferManager.Init(tPipe, 524288); // 512k
+    l1BufferManager.Init(tPipe, l1BuffSize); // 512k
     // 3Buffer
     mm12Bmm2AL1Buffers.Init(l1BufferManager, mm12RightSize);    // L1: 144k * 3 = 432k
     if ASCEND_IS_AIC {
@@ -215,9 +214,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         actualSeqKvlenAddr = (__gm__ int64_t *)actualSeqLengthsKv;
     }
 
-    uint64_t singleCoreOffset = 0;
     this->vecBlock.InitGlobalBuffer(pse, nullptr, nullptr, nullptr, nullptr, postQuantScale, postQuantOffset,
-        nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, singleCoreOffset, this->aicIdx, constInfo);
+        nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, 0, this->aicIdx, constInfo);
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -234,6 +232,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     constInfo.s1BaseSize = s1BaseSize;
     constInfo.s2BaseSize = s2BaseSize;
 
+    // TODO，这里cube访问了tilingData，会导致cube scalar开销增加，待优化
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
 
     constInfo.bSize = inputParamsRegbase.bSize;
@@ -241,11 +240,6 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     constInfo.n2Size = inputParamsRegbase.n2Size;
     constInfo.s1Size = inputParamsRegbase.s1Size;
     constInfo.s2Size = inputParamsRegbase.s2Size;
-    if constexpr (isFd) {
-        constInfo.splitKVNum = this->sharedParams.splitKVNum;
-        constInfo.sInnerLoopSize = CeilDiv(inputParamsRegbase.s2Size, constInfo.splitKVNum);
-        constInfo.actualCombineLoopSize = CeilDiv(constInfo.s2Size, constInfo.sInnerLoopSize);
-    }
     constInfo.dSize = inputParamsRegbase.dSize;
     constInfo.dSizeV = inputParamsRegbase.dSizeV;
     constInfo.dBasicBlock = Align64Func((uint16_t)constInfo.dSizeV);
@@ -327,7 +321,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         constInfo.mm2Kb /= inputParamsRegbase.headNumRatio;
         constInfo.attentionOutStride = 0;
     } else {
-        if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BSH) {
+        if (layout == LayOutTypeEnum::LAYOUT_BSH) {
             // BSH/BSNGD
             constInfo.s1BaseN2GD = s1BaseSize * constInfo.n2GD;
             constInfo.s1BaseN2GDv = s1BaseSize * constInfo.n2GDv;
@@ -342,7 +336,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
             constInfo.mm1Kb /= inputParamsRegbase.headNumRatio;
             constInfo.mm2Kb /= inputParamsRegbase.headNumRatio;
             constInfo.attentionOutStride = 0;
-        } else if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BNSD) {
+        } else if (layout == LayOutTypeEnum::LAYOUT_BNSD) {
             // BNSD
             constInfo.s1BaseD = s1BaseSize * constInfo.dSize;
             constInfo.s2BaseD = s2BaseSize * constInfo.dSize;
@@ -361,7 +355,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         }
     }
 
-    if constexpr (hasPse == true) {
+    if constexpr (hasPse) {
         this->pseInfo.pseLayoutType = inputParamsRegbase.pseShapeType;
         this->pseInfo.pseType = inputParamsRegbase.pseType;
         this->pseInfo.pseBSize = inputParamsRegbase.pseBSize;
@@ -375,7 +369,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
             constInfo.gS2 = constInfo.gSize * constInfo.s2Size;
         }
     }
-    if constexpr (hasAtten == true) {
+    if constexpr (hasAtten) {
         this->attenMaskInfo.preTokens = inputParamsRegbase.preTokens;
         this->attenMaskInfo.nextTokens = inputParamsRegbase.nextTokens;
         this->attenMaskInfo.compressMode = inputParamsRegbase.attenMaskCompressMode;
@@ -421,103 +415,72 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         constInfo.isPostQuantPerChnl = inputParamsRegbase.isPostQuantPerChnl;
         constInfo.isPostQuantBF16 = inputParamsRegbase.isPostQuantBF16;
     }
+
+    if ASCEND_IS_AIV {
+        auto &outerSplitParams = this->tilingData->outerSplitParams;
+        constInfo.headFdDataIdx = outerSplitParams.headFdDataIdx[this->aicIdx];
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::Process()
 {
     int32_t actualCoreNums = this->tilingData->multiCoreParamsRegbase.coreNum;
-    if constexpr (isFd) {
-        actualCoreNums = this->tilingData->inputParamsRegbase.bSize * constInfo.n2Size * constInfo.splitKVNum; // b * n2 * splitKv
-    }
-
     if (aicIdx >= actualCoreNums) {
         return;
     }
 
     // 确定核内切分起点
-    int64_t gS1StartIdx = 0;
-    int64_t gS1EndIdx = 1;
-    uint32_t bnStartIdx = 0;
-    uint32_t bnEndIdx = 1;
-    int64_t s2LoopStart = 0;
-    int64_t s2LoopLimit = 0;
+    int32_t bN2StartIdx = this->sharedParams.bN2StartIdx;
+    int32_t bN2EndIdx = this->sharedParams.bN2EndIdx;
+    int32_t gS1StartIdx = this->sharedParams.gS1StartIdx;
+    int32_t gS1EndIdx = this->sharedParams.gS1EndIdx;
+    int32_t s2StartIdx = this->sharedParams.s2StartIdx;
+    int32_t s2EndIdx = this->sharedParams.s2EndIdx;
 
-    if constexpr (!isFd) {
-        bnStartIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx];
-        gS1StartIdx = this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx];
-        if (likely((this->tilingData->multiCoreParamsRegbase.coreNum - 1) > aicIdx)) {
-            bnEndIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx + 1];
-            // 下一个核从0开始gs1循环，当前核bn不需要多计算一个，否则需要多计算一个bn
-            if (this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1] != 0) {
-                bnEndIdx++;
-            }
-        } else {
-            bnEndIdx = this->tilingData->inputParamsRegbase.bSize * constInfo.n2Size;
-        }
-    }
     int64_t taskId = 0;
-    bool isLastBmm1 = false;
     RunInfo<isInfer> runInfo[NUM_4];
     RunParamStr<isInfer> runParam;
 
-    if constexpr (isFd) {
-        runParam.boIdx = aicIdx / (constInfo.n2Size * constInfo.splitKVNum);
-        runParam.n2oIdx = (aicIdx / constInfo.splitKVNum) % constInfo.n2Size;
-        bnStartIdx = runParam.boIdx * constInfo.n2Size + runParam.n2oIdx;
-        bnEndIdx = bnStartIdx + 1;
-    }
+    int64_t multiCoreInnerIdx = 0;      // TODO，确认这个变量
+    for (uint32_t bnIdx = bN2StartIdx; bnIdx <= bN2EndIdx; bnIdx++) {
+        bool lastBN = IsLastBN(bnIdx, bN2EndIdx);
+        runParam.boIdx = bnIdx / constInfo.n2Size;
+        runParam.n2oIdx = bnIdx % constInfo.n2Size;
 
-    int64_t multiCoreInnerIdx = 0;
-    for (uint32_t bnIdx = bnStartIdx; bnIdx < bnEndIdx; bnIdx++) {
-        bool lastBN = IsLastBN(bnIdx, bnEndIdx);
-        if constexpr (!isFd) {
-            runParam.boIdx = bnIdx / constInfo.n2Size;
-            runParam.n2oIdx = bnIdx % constInfo.n2Size;
-        }
         ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo,
             keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
-        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, lastBN,
-            this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
-        if constexpr (isFd) {
-            if (constInfo.sInnerLoopSize * (aicIdx % constInfo.splitKVNum) > runParam.actualSeqLengthKVPerBatch) {
-                runParam.actualSInnerLoopSize = 0;
-            } else {
-                int64_t tailSInnerLoopSize =
-                    runParam.actualSeqLengthKVPerBatch - constInfo.sInnerLoopSize * (aicIdx % constInfo.splitKVNum);
-                runParam.actualSInnerLoopSize =
-                    tailSInnerLoopSize > constInfo.sInnerLoopSize ? constInfo.sInnerLoopSize : tailSInnerLoopSize;
-            }
-            runParam.s1LoopTimes = 1; // GQA支持后解决
-        }
 
-        gS1EndIdx = runParam.s1LoopTimes;
-        for (int64_t gS1Index = gS1StartIdx; gS1Index <runParam.s1LoopTimes; gS1Index++) {
-            s2LoopLimit = 0;
+        int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, static_cast<int32_t>(s1TemplateType));
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(s1LoopTimes - 1, 0);
+        for (int64_t gS1Index = gS1StartIdx; gS1Index <= tempGS1End; gS1Index++) {
+            bool lastGS1 = (gS1Index == tempGS1End);
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
             bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
                 gS1Index, actualSeqQlenAddr, this->pseInfo);
             bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo);
-            bool lastLoopThisCore = lastBN && (gS1Index == runParam.s1LoopTimes - 1);
             bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam,
                 actualSeqQlenAddr);
-            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastLoopThisCore) || lastBnNoNeedCalc) {
+            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastGS1) || lastBnNoNeedCalc) {
                 continue;
             }
-            // s2轴循环计数，支持sparse和非sparse场景
-            s2LoopLimit = runParam.s2LoopEndIdx - 1;
-            if (lastLoopThisCore) {
-                isLastBmm1 = true;
-                s2LoopLimit += PRELOAD_N;
+
+            int32_t tempS2End, extraLoopTimes;
+            if (unlikely(lastBN && lastGS1)) {
+                tempS2End = s2EndIdx
+                extraLoopTimes = PRELOAD_N;
+            } else {
+                tempS2End = runParam.s2LoopEndIdx;
+                extraLoopTimes = 0;
             }
-            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
+
+            for (int64_t s2LoopCount = s2StartIdx; s2LoopCount < tempS2End + extraLoopTimes; s2LoopCount++) {
                 if (s2LoopCount < runParam.s2LoopEndIdx) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, runParam.s2LoopEndIdx - 1,
+                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, tempS2End - 1,
                         multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, isLastBmm1 &&
-                            (s2LoopCount == (runParam.s2LoopEndIdx - 1)), constInfo);
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, false, constInfo);     // TODO，后续删除
                     }
                     if ASCEND_IS_AIV {
                         this->vecBlock.ProcessVec1(this->mm12Bmm2AL1Buffers.Get(), this->bmm1Buffers.Get(), runInfo1,
@@ -535,6 +498,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
                 }
                 taskId++;
             }
+            s2StartIdx = 0;
         }
         gS1StartIdx = 0;
     }
@@ -651,7 +615,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         runInfo.n2oIdx = runParam.n2oIdx;
         runInfo.goIdx = runParam.goIdx;
         runInfo.multiCoreInnerIdx = multiCoreInnerIdx;
-        runInfo.multiCoreIdxMod2 = multiCoreInnerIdx & 1;
+        runInfo.multiCoreIdxMod2 = multiCoreInnerIdx % 2;
         runInfo.multiCoreIdxMod3 = multiCoreInnerIdx % 3;
     }
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
@@ -662,22 +626,17 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         runInfo.s2SizeAcc = runInfo.boIdx * constInfo.s2Size;
     }
     runInfo.taskId = taskId;
-    runInfo.taskIdMod2 = taskId & 1;
+    runInfo.taskIdMod2 = taskId % 2;
     runInfo.taskIdMod3 = taskId % 3;
     runInfo.s2LoopLimit = s2LoopLimit;
 
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         GetSeqQlenKvlenByBoidx(runParam.boIdx, constInfo.s1Size, constInfo.s2Size);
         runInfo.b1SSOffset = this->b1SSOffset;
-        runInfo.b1SSOffsetAlign = this->b1SSOffsetAlign16;
     } else {
         runInfo.b1SSOffset = runInfo.boIdx * constInfo.s1S2;
-        runInfo.b1SSOffsetAlign = runInfo.boIdx * constInfo.s1Size * Align(constInfo.s2Size);
     }
 
-    if constexpr (isFd) {
-        runInfo.flashDecodeS2Idx = (this->aicIdx) % constInfo.splitKVNum;
-    }
     runInfo.actualS1Size = constInfo.s1Size;
     runInfo.actualS2Size = constInfo.s2Size;
 
@@ -686,6 +645,31 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
         / s2BaseSize, runInfo);
+
+    if ASCEND_IS_AIV {
+        info.isS2SplitCore = false;
+        info.faTmpResGMPose = 0;
+        if (constInfo.bN2Start == constInfo.bN2End && constInfo.gS1Start == constInfo.gS1End) {
+            // 所有任务属于同一个S1G
+            info.isS2SplitCore = true;
+            info.faTmpResGMPos = constInfo.headFdDataIdx;
+        } else {
+            if (constInfo.headS2Split && (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start)) {
+                // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
+                info.isS2SplitCore = true;
+                info.faTmpResGMPos = constInfo.headFdDataIdx;
+            } else if (constInfo.tailS2Split && (bN2Cur == constInfo.bN2End) && (gS1Cur == constInfo.gS1End)) {
+                // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
+                info.isS2SplitCore = true;
+            }
+        }
+
+        if constexpr (FLASH_DECODE) {
+            if (info.isS2SplitCore) {
+                CalcAccumOffset(info, constInfo);
+            }
+        }
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -699,6 +683,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     }
     actualSeqQlen = actualSeqQlenAddr[boIdx] - actualSeqQlenAddr[boIdx - 1];
     if constexpr (isPa) {
+        // TND + PA 时 act_seq_kv 是非累加的
         actualSeqKvLen = actualSeqKvlenAddr[boIdx];
     } else {
         actualSeqKvLen = actualSeqKvlenAddr[boIdx] - actualSeqKvlenAddr[boIdx - 1];
@@ -714,36 +699,37 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
     runInfo.s1RealSizeAlign32 = runParam.s1RealSizeAlign32;
     runInfo.halfS1RealSize = runParam.halfS1RealSize;
     runInfo.firstHalfS1RealSize = runParam.firstHalfS1RealSize;
-
-    runInfo.vec2S1BaseSize = runInfo.halfS1RealSize;  // D>128 这里需要适配
+    runInfo.vec2S1BaseSize = runInfo.halfS1RealSize;
     runInfo.vecCoreOffset = constInfo.subBlockIdx * runInfo.firstHalfS1RealSize;
 
     // -----------S2 Base Related-----------------
     runInfo.s2RealSize = s2BaseSize;
-    runInfo.s2AlignedSize = runInfo.s2RealSize;
     if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
         runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
 
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline bool FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx)
 {
-    if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
-        return bnStartIdx == bnEndIdx - 1;
-    }
-    // TND
-    if (bnStartIdx != bnEndIdx - 1) {
-        for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
-            uint32_t boIdx = bnIdx / constInfo.n2Size;
-            uint32_t boStart = bnStartIdx / constInfo.n2Size;
-            if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return bnStartIdx == bnEndIdx;
+
+
+    // if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
+    //     return bnStartIdx == bnEndIdx - 1;
+    // }
+    // // TODO：下面这个逻辑是在干嘛
+    // // TND
+    // if (bnStartIdx != bnEndIdx - 1) {
+    //     for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
+    //         uint32_t boIdx = bnIdx / constInfo.n2Size;
+    //         uint32_t boStart = bnStartIdx / constInfo.n2Size;
+    //         if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
+    //             return false;
+    //         }
+    //     }
+    // }
+    // return true;
 }
 
 #endif

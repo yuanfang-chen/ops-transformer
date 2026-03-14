@@ -105,6 +105,7 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     COMMON_RUN_PARAM;
     /* 推理新增 */
     int64_t s1LoopTimes;
+    int64_t gS1Idx;
     // BN循环生产的数据
     int64_t s2InCurrentBatch;                 // Tensorlist场景，不同batch的S2长度，后续用计算KvStride
     int64_t preTokensPerBatch = MAX_PRE_NEXT_TOKENS; // 左上顶点的pretoken
@@ -195,6 +196,7 @@ template <>
 struct RunInfo<true> {
     COMMON_RUN_INFO;
     // 推理新增
+    int64_t gS1Idx;
     uint64_t pseShiftOffset;              // vector1 pse 的 offset
     int64_t queryLeftPaddingSize;
     int64_t kvLeftPaddingSize;
@@ -204,6 +206,8 @@ struct RunInfo<true> {
 
     // FD相关
     int64_t flashDecodeS2Idx;
+    bool isS2SplitCore;
+    int32_t faTmpResGMPose;
 
     // tensorlist相关
     int64_t s2InCurrentBatch;
@@ -367,6 +371,7 @@ struct RunInfo<false> {
     int64_t sInnerLoopSize; /* FD s2总大小 */ \
     int64_t actualCombineLoopSize; /* 实际规约块数 */ \
     int64_t splitKVNum; \
+    int32_t headFdDataIdx; \
     /* 后量化 */ \
     bool isPostQuantPerChnl; \
     bool isPostQuantBF16; \
@@ -484,6 +489,13 @@ struct CVSharedParams<true, false> {
     uint32_t bnStartIdx;
     uint32_t bnEndIdx;
 
+    int32_t bN2StartIdx;
+    int32_t bN2EndIdx;
+    int32_t gS1StartIdx;
+    int32_t gS1EndIdx;
+    int32_t s2StartIdx;
+    int32_t s2EndIdx;
+
     uint32_t queryRightPaddingSize;
     uint32_t kvRightPaddingSize;
 
@@ -514,8 +526,12 @@ struct CVSharedParams<true, true> {
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;
 
-    uint32_t bnStartIdx;
-    uint32_t bnEndIdx;
+    int32_t bN2StartIdx;
+    int32_t bN2EndIdx;
+    int32_t gS1StartIdx;
+    int32_t gS1EndIdx;
+    int32_t s2StartIdx;
+    int32_t s2EndIdx;
 
     uint32_t queryRightPaddingSize;
     uint32_t kvRightPaddingSize;
