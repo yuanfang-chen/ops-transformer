@@ -249,7 +249,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
     // conv states shape: [-1, K-1+m, dim]
     // The second dimension should be K-1 + m = K-1 + (seqLen-1) = K + seqLen - 2
     // state_len must be greater than the maximum of width-1+seq_len-1 for all batches. 
-    if (xInputMode == X_INPUT_3D) {
+    if (xInputMode_ == X_INPUT_3D) {
         int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
         int64_t state_len = convStatesOriginShape.GetDim(DIM_1);
         OP_CHECK_IF(state_len < expectedCacheLen,
