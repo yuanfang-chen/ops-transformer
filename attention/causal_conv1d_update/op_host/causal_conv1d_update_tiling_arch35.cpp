@@ -624,7 +624,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
         tailCoredimLen_ = base * DIM_ALIGN_ELEMENT;       // small core size
     }
 
-    // Derive batch non-uniform parameters (均分+多前核)
+    // Derive batch non-uniform parameters
     batchCoreCnt_ = bestBSCores;
     int64_t bsBase = validBatch / batchCoreCnt_;
     int64_t bsRemainder = validBatch % batchCoreCnt_;
@@ -666,7 +666,7 @@ void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS
         outUbDim = DIM_ALIGN_ELEMENT;
         int64_t weightConvStatesSize = weightConvStatesCoeffPerDim * outUbDim;
         int64_t availableForX = availableUbSize - weightConvStatesSize;
-        int64_t xSizePerBatch = seqLen_ * outUbDim * DTYPE_SIZE;
+        int64_t xSizePerBatch = BUFFER_NUM * seqLen_ * outUbDim * DTYPE_SIZE;
         outUbBS = (xSizePerBatch > 0) ? (availableForX / xSizePerBatch) : 0;
         outUbBS = std::max<int64_t>(outUbBS, 1);
         outUbBS = std::min(outUbBS, coreBS);
