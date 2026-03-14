@@ -93,16 +93,10 @@ def scatter_pa_nz(cache, inputs, index, data_size=16):
     h = cache.shape[3]
     bxs1 = inputs.shape[0]
     if len(cache.shape) != 4 or len(inputs.shape) != 2 or len(index.shape) != 1:
-        print(
-            f"[ERROR]scatter_pa_nz got wrong inputs dims: cache-{cache.shape}, inputs-{inputs.shape}, index-{index.shape}")
         return cache
     elif inputs.shape[1] != h:
-        print(
-            f"[ERROR]scatter_pa_nz got wrong inputs h: cache-{cache.shape}, inputs-{inputs.shape}")
         return cache
     elif index.shape[0] != bxs1:
-        print(
-            f"[ERROR]scatter_pa_nz got wrong inputs b*s1: input-{inputs.shape}, index-{index.shape}")
         return cache
 
     data_num = math.ceil(h / data_size)
@@ -296,7 +290,6 @@ def dynamic_quant(inputs, smooth_scale):
     inputs = inputs.reshape(T, H).to(torch.float32)
     if smooth_scale!=None:
         if len(smooth_scale.shape) != 2 or smooth_scale.shape[1] != H:
-            print(f"[ERROR]dynamic_quant got wrong input smooth_scale:{tuple(smooth_scale.shape)}, expected:({H})")
             return None, None
         smooth_scale = smooth_scale.to(torch.float32)
         for bs_index in range(T):
@@ -356,7 +349,6 @@ def _mx_reshape_to_blocks(fp_array: np.ndarray, axis: int, block_size: int):
     reshape[axis + 1] = block_size
     reshape[axis] = reshape[axis] // block_size
     fp_array = fp_array.reshape(reshape)
-    print(f"_mx_reshape_to_blocks: {fp_array.shape}")
     return fp_array, orig_shape, padded_shape
 
 def _mx_calculate_share_exp(fp_array: np.ndarray, scale_axis: int, mx_ele_dtype: str):
@@ -500,19 +492,14 @@ def dynamic_mx_quant_cq(fp_array: np.ndarray, mx_ele_dtype: str = "float4_e2m1",
     ele_array = np.nan_to_num(ele_array, nan=0.0, copy=False)
     ele_array = ele_array.astype(ele_dtype_np, copy=False)
     scale_array_pad = pad_to_even(scale_array, axis=axis)
-    print(f"scale_array_pad: {scale_array_pad.shape}")
     result_shape = copy.deepcopy(list(scale_array_pad.shape))
     result_shape.append(2)
 
     result_shape[axis] = scale_array_pad.shape[axis] // 2
     if axis != (len(fp_array.shape) - 1):
         scale_array_pad = interleave(scale_array_pad, axis=axis)
-    print(f"result_shape: {np.array(result_shape).shape}")
-    print(f"scale_array_pad1: {scale_array_pad.shape}")
     scale_array_pad = scale_array_pad.reshape(result_shape)
-    print(f"scale_array_pad2: {scale_array_pad.shape}, {scale_array_pad.dtype}")
     scale_array = scale_array_pad.astype("uint8", copy=False)
-    print(f"{scale_array}")
     return scale_array, ele_array
 
 
@@ -528,10 +515,6 @@ def dynamic_mx_quant_qn(x, mla_param):
         output_data = input_scaled.astype(numpy_float8_e4m3fn(), copy=False)
     else:
         output_data = input_scaled
-    print(f"scale shape: {scale.shape}")
-    print(f"output shape: {output_data.shape}")
-    print(f"scale: {scale}")
-    print(f"output: {output_data}")
     return scale, output_data
 
 
@@ -542,7 +525,6 @@ def dynamic_quant_ckv_with_amax(inputs: torch.Tensor, amax: torch.Tensor, smooth
 
     if smooth_scale is not None:
         if smooth_scale.ndim != 3 or smooth_scale.shape[1:] != (N, H):
-            print(f"[ERROR] dynamic_quant got wrong input smooth_scale:{tuple(smooth_scale.shape)}, expected:(1, {N}, {H})")
             return None, None
         smooth_scale = smooth_scale.to(torch.float32)
         scaled_inputs = inputs * smooth_scale
@@ -580,10 +562,8 @@ def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape):
     y = torch.round(inputs/scale)
     y = s8_saturation(y)
     if len(out_deqq_shape_shape) == 2:
-        print(f"[INFO]dynamic_quant_without_smooth_scale in per_token mode")
         return y.reshape(T, N, H), scale.reshape(quant_loops, 1).to(torch.float64)
     else:
-        print(f"[INFO]dynamic_quant_without_smooth_scale in per_head mode")
         return y.reshape(T, N, H), scale.reshape(T, N, 1).to(torch.float64)
 
 
@@ -625,13 +605,10 @@ def convert_dict_values_to_torch(input_dict):
     for key, value in input_dict.items():
         if isinstance(value, np.ndarray):
             if value.dtype == numpy_float8_e4m3fn():
-                print(f"e4m3: {key}")
                 output_dict[key] = torch.tensor(value.astype(np.float32)).to(torch.float8_e4m3fn)
             elif float8_e8m0 is not None and value.dtype == float8_e8m0:
-                print(f"e8m0: {key}")
                 output_dict[key] = torch.tensor(value.astype(np.int8))
             else:
-                print(f"else: {key}")
                 output_dict[key] = torch.from_numpy(value)
         else:
             output_dict[key] = value
@@ -674,7 +651,6 @@ def cal_mlaprolog(mla_param):
     T = mla_param['T']
     BlockSize = mla_param['block_size']
     index_table = mla_param['cache_index_tensor']
-    print("==========index_table: ", index_table.size())
     x_dtype = mla_param["x_dtype"]
     uqqr_dtype = mla_param["w_uq_qr_dtype"]
     uk_dtype = mla_param["w_uk_dtype"]
@@ -687,20 +663,18 @@ def cal_mlaprolog(mla_param):
 
     qnorm_flag = mla_param["qnorm_flag"]
 
-    deq_scale_q_nope = None
+    deq_scale_q_nope = torch.empty(0)
     deq_scale_qcqr = None
-    out_qnorm = None
-    out_deq_qnorm = None
+    out_qnorm = torch.empty(0)
+    out_deq_qnorm = torch.empty(0)
     enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (mla_param["weight_quant_mode"] == 2 or mla_param["weight_quant_mode"] == 3) else False
     quant_scale_ckv = mla_param["quant_scale_ckv_tensor"]
     actual_seq_lengths = mla_param["actual_seq_len"]
-    print("*********actual_seq_value: ", actual_seq_lengths)
     if enable_quant_output:
         out_deqq_shape_shape = mla_param['out_deqq_shape']
 
     # BS合轴
     if not mla_param["t_flag"]:
-        print("[INFO]非TH场景，相关参数进行BS合轴")
         T = B * S1
         token_x = token_x.reshape(T, He)
         cos = cos.reshape(T, Dr)
@@ -709,16 +683,12 @@ def cal_mlaprolog(mla_param):
     else:
         seq_len = actual_seq_lengths
 
-    print("[INFO]========================================")
-    print("[INFO]>>>>>>>>  Start to calculate  >>>>>>>>>>")
-    print("[INFO]========================================")
     # -------------------------------------------------------------------
     # matmul1 : token_x(B*S1,He) * w_dq (He,Hcq) -> matmul1_res(B*S1,Hcq)
     # -------------------------------------------------------------------
     w_dq = mla_param["w_dq_tensor"]
     matmul1_dtype = torch.float32
     # matmul1预处理
-    print(f"[TEST]====================token: {token_x}")
     token_x_new = token_x
     if x_dtype == 'int8':
         token_x_new = token_x_new.to(torch.int32)
@@ -729,7 +699,6 @@ def cal_mlaprolog(mla_param):
         token_x_new = token_x_new.to(torch.bfloat16)
         token_x = token_x.to(torch.bfloat16)
         deq_scale_x = mla_param["deq_scale_x_tensor"]
-        print(f"====scale x shape is: {deq_scale_x.shape}, B is {B}, S1 is {S1} he is {He}")
         if not mla_param["t_flag"]:
             deq_scale_x = deq_scale_x.reshape(B * S1, He // 32)
         else:
@@ -757,8 +726,6 @@ def cal_mlaprolog(mla_param):
                 w_dq[dqs1_idx * grp_size:(dqs1_idx + 1) * grp_size, dqs0_idx:dqs0_idx + 1] *= scale_w_dq
     # matmul1计算
     x_shape = "(T,He)" if mla_param["t_flag"] else "(B*S1,He)"
-    print(
-        f"[INFO]matmul1 start. token_x{x_shape}:{tuple(token_x.shape)}|{token_x.dtype} w_dq(He,Hcq):{tuple(w_dq.shape)}|{w_dq.dtype} matmul1_dtype:{matmul1_dtype}")
     token_x_new = token_x_new.to(torch.float32)
     w_dq = w_dq.to(torch.float32)
     matmul1_res = torch.matmul(token_x_new, w_dq).to(matmul1_dtype)
@@ -771,25 +738,19 @@ def cal_mlaprolog(mla_param):
             matmul1_res[t_index, :] = matmul1_res[t_index, :] * deq_scale_x[t_index, 0]
         for h_index in range(Hcq):
             matmul1_res[:, h_index] = matmul1_res[:, h_index] * deq_scale_w_dq[0, h_index]
-        print(f"[INFO]deq1 end. matmul1_res dtype trans to {matmul1_res.dtype}")
     elif x_dtype == 'bfloat16':
-        print(f"[INFO]cast matmul1_res->bfloat16->float32")
         matmul1_res = matmul1_res.to(torch.bfloat16).to(torch.float32)
     matmul1_res_shape = "(T,Hcq)" if mla_param["t_flag"] else "(B*S1,Hcq)"
-    print(f"[INFO]matmul1 end. matmul1_res{matmul1_res_shape}:{tuple(matmul1_res.shape)}|{matmul1_res.dtype}")
 
     # ----------------------------------------------------------------------
     # rmsnorm1 : matmul1_res(B*S1,Hcq) * gamma_cq(Hcq) -> norm1_res(B*S1,Hcq)
     # ----------------------------------------------------------------------
     ep1 = float(mla_param["epsilon_cq"])
     gamma1 = mla_param["gamma_cq_tensor"]
-    print(
-        f"[INFO]rmsnorm1 start. matmul1_res{matmul1_res_shape}:{tuple(matmul1_res.shape)}|{matmul1_res.dtype} gamma_cq(Hcq):{tuple(gamma1.shape)}|{gamma1.dtype}")
     norm1_res = matmul1_res / torch.sqrt(torch.mean(matmul1_res ** 2, dim=-1, keepdim=True) + ep1)
     norm1_res *= gamma1
     qc_qr_scale = float(mla_param["qc_qr_scale"])
     norm1_res *= qc_qr_scale
-    print(f"[INFO]rmsnorm1 end. norm1_res{matmul1_res_shape}:{tuple(norm1_res.shape)}|{norm1_res.dtype}")
 
     # ----------------------------------------------------------------------------------
     # matmul2 : norm1_res(B*S1,Hcq) * w_uq_qr(Hcq,N*(D+Dr)) -> matmul2_res(B*S1,N,(D+Dr))
@@ -809,7 +770,6 @@ def cal_mlaprolog(mla_param):
             else:
                 out_qnorm = norm1_res
                 out_deq_qnorm = deq_scale_qcqr
-        print(f"[INFO]dynamic_quant end. norm1_res dtype trans to {norm1_res.dtype}")
     elif mla_param["weight_quant_mode"] == 3:
         w_uq_qr = w_uq_qr.to(torch.bfloat16)
         deq_scale_uqqr = mla_param["deq_scale_w_uqqr_tensor"]
@@ -846,14 +806,11 @@ def cal_mlaprolog(mla_param):
                 normal_cur = normal_cur * scale_qcqr
                 norm1_res[qcqrs0_idx:qcqrs0_idx + 1, qcqrs1_idx * grp_size:(qcqrs1_idx + 1) * grp_size] = normal_cur
     elif mla_param["weight_quant_mode"] == 0:
-        print(f"[INFO]cast norm1_res->bfloat16->float32")
         norm1_res = norm1_res.to(torch.bfloat16).to(torch.float32)
         if qnorm_flag:
             out_qnorm = norm1_res
 
     # matmul2计算
-    print(
-        f"[INFO]matmul2 start. norm1_res{matmul1_res_shape}:{tuple(norm1_res.shape)}|{norm1_res.dtype} w_uq_qr(Hcq,N*(D+Dr)):{tuple(w_uq_qr.shape)}|{w_uq_qr.dtype} matmul2_dtype:{matmul2_dtype}")
     norm1_res = norm1_res.to(torch.float32)
     w_uq_qr = w_uq_qr.to(torch.float32)
     matmul2_res = torch.matmul(norm1_res, w_uq_qr).to(matmul2_dtype)
@@ -865,12 +822,9 @@ def cal_mlaprolog(mla_param):
             matmul2_res[t_index, :] = matmul2_res[t_index, :] * deq_scale_qcqr[t_index]
         for nddr_index in range(matmul2_res.shape[1]):
             matmul2_res[:, nddr_index] = matmul2_res[:, nddr_index] * deq_scale_uqqr[0, nddr_index]
-        print(f"[INFO]deq2 end. matmul2_res dtype trans to {matmul2_res.dtype}")
     elif uqqr_dtype == 'bfloat16':
-        print(f"[INFO]cast matmul2_res->bfloat16->float32")
         matmul2_res = matmul2_res.to(torch.bfloat16).to(torch.float32)
     matmul2_res = matmul2_res.reshape(T, N1, D + Dr)
-    print(f"[INFO]matmul2 end. matmul2_res(B*S1,N,D+Dr):{tuple(matmul2_res.shape)}|{matmul2_res.dtype}")
 
     # -------------------------------------------------------------------------------------
     # splitD1 : matmul2_res(B*S1,N,D+Dr) -> splitd1_res1(B*S1,N,D) & splitd1_res2(B*S1,N,Dr)
@@ -879,8 +833,6 @@ def cal_mlaprolog(mla_param):
     splitd1_res2 = matmul2_res[:, :, D:]
     splitd1_res1_shape = "(T,N1,D)" if mla_param["t_flag"] else "(B*S1,N1,D)"
     splitd1_res2_shape = "(T,N1,Dr)" if mla_param["t_flag"] else "(B*S1,N1,Dr)"
-    print(
-        f"[INFO]splitD1 end. splitd1_res1{splitd1_res1_shape}:{tuple(splitd1_res1.shape)} splitd1_res2{splitd1_res2_shape}:{tuple(splitd1_res2.shape)}")
     # -------------------------------------------------------------------------
     # matmul3 : -> splitd1_res1(B*S1,N,D) * w_uk(N,D,Hckv) -> out1(B,S1,N,Hckv)
     # -------------------------------------------------------------------------
@@ -894,13 +846,10 @@ def cal_mlaprolog(mla_param):
         w_uk = w_uk.to(torch.bfloat16)
         splitd1_res1 = splitd1_res1.to(torch.bfloat16)
     else:
-        print(f"[INFO]cast w_uk->float32")
         w_uk = w_uk.to(torch.float32)
         if uk_dtype == 'bfloat16':
             splitd1_res1 = splitd1_res1.to(torch.bfloat16).to(torch.float32)
     # matmul3计算
-    print(
-        f"[INFO]matmul3 start. splitd1_res1(B,S1,N,D):{tuple(splitd1_res1.shape)}|{splitd1_res1.dtype} w_uk(N,D,Hckv):{tuple(w_uk.shape)}|{w_uk.dtype} matmul3_dtype:{matmul3_dtype}")
     for n1_index in range(N1):
         out1[n1_index, :, :] = torch.matmul(splitd1_res1[n1_index, :, :].to(torch.float32), w_uk[n1_index, :, :].to(torch.float32)).to(matmul3_dtype)
     # matmul3后处理
@@ -921,15 +870,12 @@ def cal_mlaprolog(mla_param):
             out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
     out1 = out1 if mla_param["t_flag"] else out1.reshape(B, S1, N1, Hckv)
     out1_shape = "(T,N1,Hckv)" if mla_param["t_flag"] else "(B,S1,N,Hckv)"
-    print(f"[INFO]matmul3 end. {COLOR_YELLOW}out1{out1_shape}:{out1.shape}|{out1.dtype}{YELLOW_RESET}")
 
     # -------------------------------------------------------------------------------------
     # rotary1 : -> splitd1_res2(B*S1,N,Dr) * cos(B*S1,Dr) * sin(B*S1,Dr) -> out2(B,S1,N,Dr)
     # -------------------------------------------------------------------------------------
     splitd1_res2_shape = "(T,N1,Dr)" if mla_param["t_flag"] else "(B*S1,N1,Dr)"
     cos_shape = "(T,Dr)" if mla_param["t_flag"] else "(B*S1,Dr)"
-    print(
-        f"[INFO]rotary1 start. splitd1_res2{splitd1_res2_shape}:{tuple(splitd1_res2.shape)}|{splitd1_res2.dtype} cos{cos_shape}:{tuple(cos.shape)}|{cos.dtype}")
     expanded_cos = cos.unsqueeze(1).repeat(1, N1, 1)
     expanded_sin = sin.unsqueeze(1).repeat(1, N1, 1)
     q = splitd1_res2.reshape(T, N1, int(Dr / 2), 2).transpose(3, 2).reshape(T, N1, Dr)
@@ -939,13 +885,11 @@ def cal_mlaprolog(mla_param):
         out2 = dequant(out2, deq_scale_q_nope, quant_scale_ckv)
     out2 = out2 if mla_param["t_flag"] else out2.reshape(B, S1, N1, Dr)
     out2_shape = "(T,N1,Dr)" if mla_param["t_flag"] else "(B,S1,N1,Dr)"
-    print(f"[INFO]rotary1 end. {COLOR_YELLOW}out2{out2_shape}:{tuple(out2.shape)}|{out2.dtype}{YELLOW_RESET}")
 
     # -------------------------------------------------------------------------------
     # matmul4 : token_x(B*S1,He) * w_kv_kr(He,Hckv+Dr) -> matmul4_res(B*S1,Hckv+Dr)
     # -------------------------------------------------------------------------------
     w_kv_kr = mla_param["w_dkv_kr_tensor"]
-    print(f"===========================w_kv_kr:{w_kv_kr}")
     # matmul4预处理
     matmul4_dtype = torch.float32
     if mla_param["weight_quant_mode"] == 2:
@@ -962,12 +906,7 @@ def cal_mlaprolog(mla_param):
                 scale_dkvkr = deq_scale_dkvkr[dkvkrs0_idx:dkvkrs0_idx + 1, dkvkrs1_idx:(dkvkrs1_idx + 1)]
                 w_kv_kr[dkvkrs1_idx * grp_size:(dkvkrs1_idx + 1) * grp_size, dkvkrs0_idx:dkvkrs0_idx + 1] *= scale_dkvkr
     # matmul4计算
-    print(
-        f"[INFO]matmul4 start. token_x{x_shape}:{tuple(token_x.shape)}|{token_x.dtype} w_kv_kr(He,Hckv+Dr):{tuple(w_kv_kr.shape)}|{w_kv_kr.dtype} matmul4_dtype:{matmul4_dtype}")
-    print(f"======================token_new: {token_x_new}")
-    print(f"======================w_kv_kr:{w_kv_kr}")
     matmul4_res = torch.matmul(token_x_new.to(torch.float32), w_kv_kr.to(torch.float32)).to(matmul4_dtype)
-    print(f"===============================================mm4:{matmul4_res}")
     # matmul4后处理
     if mla_param["weight_quant_mode"] == 2:
         deq_scale_x = mla_param["deq_scale_x_tensor"]
@@ -977,12 +916,9 @@ def cal_mlaprolog(mla_param):
             matmul4_res[t_index, :] = matmul4_res[t_index, :] * deq_scale_x[t_index, 0]
         for h_index in range(Hckv + Dr):
             matmul4_res[:, h_index] = matmul4_res[:, h_index] * deq_scale_dkvkr[0, h_index]
-        print(f"[INFO]deq3 end. matmul4_res dtype trans to {matmul4_res.dtype}")
     elif x_dtype == 'bfloat16':
-        print(f"[INFO]cast matmul4_res->bfloat16->float32")
         matmul4_res = matmul4_res.to(torch.bfloat16).to(torch.float32)
     matmul4_res_shape = "(T,Hckv+Dr)" if mla_param["t_flag"] else "(B*S1,Hckv+Dr)"
-    print(f"[INFO]matmul4 end. matmul4_res{matmul4_res_shape}:{tuple(matmul4_res.shape)}|{matmul4_res.dtype}")
 
     # -------------------------------------------------------------------------------------
     # splitD2 : matmul4_res(B*S1,Hckv+Dr) -> splitd2_res1(B*S1,Hckv) & splitd2_res2(B*S1,Dr)
@@ -991,30 +927,22 @@ def cal_mlaprolog(mla_param):
     splitd2_res2 = matmul4_res[:, Hckv:]
     splitd2_res1_shape = "(T,Hckv)" if mla_param["t_flag"] else "(B*S1,Hckv)"
     splitd2_res2_shape = "(T,Dr)" if mla_param["t_flag"] else "(B*S1,Dr)"
-    print(
-        f"[INFO]splitD2 end. splitd2_res1{splitd2_res1_shape}:{tuple(splitd2_res1.shape)}, splitd2_res2{splitd2_res2_shape}:{tuple(splitd2_res2.shape)}")
 
     # -------------------------------------------------------------------------------------
     # rotary2 : splitd2_res2(B*S1,Dr) * cos(B*S1,Dr) * sin(B*S1,Dr) -> rotary2_res(B*S1,Dr)
     # -------------------------------------------------------------------------------------
-    print(
-        f"[INFO]rotary2 start. splitd2_res2{splitd2_res2_shape}:{tuple(splitd2_res2.shape)}|{splitd2_res2.dtype} cos{cos_shape}:{tuple(cos.shape)}|{cos.dtype}")
     k = splitd2_res2.reshape(T, 1, int(Dr / 2), 2).transpose(3, 2).reshape(T, Dr)
     rotary2_res = (k * cos) + (rotate_half(k) * sin)
-    print(f"[INFO]rotary2 end. rotary2_res{splitd2_res2_shape}:{tuple(rotary2_res.shape)}|{rotary2_res.dtype}")
     # rotary2后处理
     quant_scale_ckr = mla_param["quant_scale_ckr_tensor"]
     if mla_param["weight_quant_mode"] == 1 and mla_param["kv_quant_mode"] == 2:
         rotary2_res = quant(rotary2_res, quant_scale_ckr)
-        print(f"[INFO]quant2 end. rotary2_res dtype trans to {rotary2_res.dtype}")
 
     # ----------------------------------------------------------------------------
     # rmsnorm2 : splitd2_res1(B*S1,Hckv) * gamma_ckv(Hckv) -> norm2_res(B*S1,Hckv)
     # ----------------------------------------------------------------------------
     ep2 = float(mla_param["epsilon_ckv"])
     gamma2 = mla_param["gamma_ckv_tensor"]
-    print(
-        f"[INFO]rmsnorm2 start. splitd2_res1{splitd2_res1_shape}:{tuple(splitd2_res1.shape)}|{splitd2_res1.dtype} gamma_ckv(Hckv):{tuple(gamma2.shape)}|{gamma2.dtype}")
     norm2_res = splitd2_res1 / torch.sqrt(torch.mean(splitd2_res1 ** 2, dim=-1, keepdim=True) + ep2)
     norm2_res *= gamma2
 
@@ -1028,11 +956,9 @@ def cal_mlaprolog(mla_param):
                 norm2_res = torch.tensor(norm2_res_np.astype(np.float32))
             else:
                 norm2_res = torch.tensor(norm2_res_np.astype(np.float32)).to(torch.float8_e4m3fn)
-            print(f"[INFO]quant1 end. norm2_res dtype trans to {norm2_res.dtype}")
         else:
             quant_scale_ckv = mla_param["quant_scale_ckv_tensor"]
             norm2_res = quant(norm2_res, quant_scale_ckv)
-            print(f"[INFO]quant1 end. norm2_res dtype trans to {norm2_res.dtype}")
     elif mla_param["kv_quant_mode"] == 3:
         if mla_param["weight_quant_mode"] == 3:
             norm2_res = norm2_res.reshape(T * Hckv//mla_param["tile_size"], mla_param["tile_size"])
@@ -1049,11 +975,9 @@ def cal_mlaprolog(mla_param):
             if mla_param["quant_scale_repo_mode"] == 1:
                 norm2_res = torch.cat((norm2_res, deq_scale_ckv.view(torch.float8_e4m3fn)), axis = -1)
                 Dtile = Dtile + Hckv//mla_param["tile_size"] * 4
-            print("deq_scale_ckv.dtype:", deq_scale_ckv.dtype)
             if mla_param['action_type'] == 'bm_output_gold':
                 norm2_res = norm2_res.to(torch.float32)
                 deq_scale_ckv = deq_scale_ckv.to(torch.float64)
-            print(f"[INFO]quant1 end. norm2_res dtype trans to {norm2_res.dtype}")
         else:
             norm2_res = norm2_res.reshape(T, Hckv//mla_param["tile_size"], mla_param["tile_size"])
             eps = 1e-8
@@ -1070,7 +994,6 @@ def cal_mlaprolog(mla_param):
             if mla_param["quant_scale_repo_mode"] == 1:
                 norm2_res = torch.cat((norm2_res, deq_scale_ckv.view(torch.int8)), axis = -1)
                 Dtile = Dtile + Hckv//mla_param["tile_size"] * 4
-            print(f"[INFO]quant1 end. norm2_res dtype trans to {norm2_res.dtype}")
     # -------------------------------------------------------------------------------------------------------
     # scatter1 : norm2_res(B*S1,Hckv) * kv_cache(B,N2,S2,Hckv/B,B,N2,Hckv) -> out3(B,N2,S2,Hckv/B,B,N2,Hckv)
     # -------------------------------------------------------------------------------------------------------
@@ -1094,8 +1017,6 @@ def cal_mlaprolog(mla_param):
         kv_cache = kv_cache.to(torch.bfloat16)
     else:
         scatter_size = 16
-    print(
-        f"[INFO]scatter1 start. norm2_res{splitd2_res1_shape}:{tuple(norm2_res.shape)}|{norm2_res.dtype} kv_cache{out3_info}:{tuple(kv_cache.shape)}|{kv_cache.dtype} scatter_size:{scatter_size}")
 
 
     if mla_param['cache_mode'] == "PA_BLK_NZ":
@@ -1117,21 +1038,16 @@ def cal_mlaprolog(mla_param):
                 for j in range(N2):
                     kv_cache[i, j, :] = norm2_res[i, :]
     out3 = kv_cache.reshape(out3_shape)
-    print(f"[INFO]scatter1 end. {COLOR_YELLOW}out3{out3_info}:{tuple(out3.shape)}|{out3.dtype}{YELLOW_RESET}")
 
     # -------------------------------------------------------------------------------------
     # rotary2 : splitd2_res2(B*S1,Dr) * cos(B*S1,Dr) * sin(B*S1,Dr) -> rotary2_res(B*S1,Dr)
     # -------------------------------------------------------------------------------------
-    print(
-        f"[INFO]rotary2 start. splitd2_res2{splitd2_res2_shape}:{tuple(splitd2_res2.shape)}|{splitd2_res2.dtype} cos{cos_shape}:{tuple(cos.shape)}|{cos.dtype}")
     k = splitd2_res2.reshape(T, 1, int(Dr / 2), 2).transpose(3, 2).reshape(T, Dr)
     rotary2_res = (k * cos) + (rotate_half(k) * sin)
-    print(f"[INFO]rotary2 end. rotary2_res{splitd2_res2_shape}:{tuple(rotary2_res.shape)}|{rotary2_res.dtype}")
     # rotary2后处理
     quant_scale_ckr = mla_param["quant_scale_ckr_tensor"]
     if mla_param["flaglist"][19]:
         rotary2_res = quant(rotary2_res, quant_scale_ckr)
-        print(f"[INFO]quant2 end. rotary2_res dtype trans to {rotary2_res.dtype}")
 
     # ----------------------------------------------------------------------------------------------
     # scatter2 : rotary2_res(B*S1,Dr) * kr_cache(B,N2,S2,Dr/B,B,N2,Dr) -> out4(B,N2,S2,Dr/B,B,N2,Dr)
@@ -1152,8 +1068,6 @@ def cal_mlaprolog(mla_param):
             kr_cache = kr_cache.to(torch.bfloat16)
         else:
             scatter_size = 16
-        print(
-            f"[INFO]scatter2 start. rotary2_res{splitd2_res2_shape}:{tuple(rotary2_res.shape)}|{rotary2_res.dtype} kr_cache{out4_info}:{tuple(kr_cache.shape)}|{kr_cache.dtype} scatter_size:{scatter_size}")
         if mla_param['cache_mode'] == "PA_BLK_NZ":
             kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_res, index_table, seq_len, scatter_size)
         elif mla_param['cache_mode'] == "PA_BLK_BSND":
@@ -1173,11 +1087,7 @@ def cal_mlaprolog(mla_param):
                     for j in range(N2):
                         kr_cache[i, j, :] = rotary2_res[i, :]
         out4 = kr_cache.reshape(out4_shape)
-        print(f"[INFO]scatter2 end. {COLOR_YELLOW}out4{out4_info}:{tuple(out4.shape)}|{out4.dtype}{YELLOW_RESET}")
 
-    print("[INFO]========================================")
-    print("[INFO]>>>>>>>>   Calculate success  >>>>>>>>>>")
-    print("[INFO]========================================")
 
     return out1, out2, out3, out4, deq_scale_q_nope, out_qnorm, out_deq_qnorm
 
@@ -1585,10 +1495,15 @@ def test_mla_prolog_v3(params):
 
     torch.npu.synchronize()
 
-    # Build result list (NPU returns a tuple of tensors)
-    result_list = list(result) if isinstance(result, (tuple, list)) else [result]
+    # kv_cache and kr_cache are updated in-place by the NPU operator.
+    # The returned tuple only contains: (queryOut, queryRopeOut, [deqScaleQNope], [queryNorm], [deqScaleQNorm]).
+    # We insert the in-place-updated caches at positions [2] and [3] to match the CPU golden order:
+    # (out1, out2, out3=kv_cache, out4=kr_cache, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
+    npu_outputs = list(result) if isinstance(result, (tuple, list)) else [result]
+    result_list = npu_outputs[:2] + [kv_cache_npu, kr_cache_npu] + npu_outputs[2:]
 
-    # Build expect list (filter None values to match NPU output count)
-    expect_list = list(expect)  # (out1, out2, out3, out4, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
+    # CPU golden: (out1, out2, out3, out4, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
+    # Empty tensors are used for unused optional outputs.
+    expect_list = list(expect)
 
     return expect_list, result_list

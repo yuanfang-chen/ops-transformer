@@ -92,22 +92,18 @@ def check_result(expect_list, result_list):
 
     Args:
         expect_list: cal_mlaprolog 返回的 tuple (out1, out2, out3, out4, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
-        result_list: torch_npu.npu_mla_prolog_v3 返回的 tuple
+                     未启用的可选输出以 torch.empty(0) 表示。
+        result_list: torch_npu.npu_mla_prolog_v3 返回的列表，kv_cache/kr_cache 已插入 [2]/[3] 位。
     """
     output_names = ["queryOut", "queryRopeOut", "kvCache", "krCache",
                     "deqScaleQNope", "queryNorm", "deqScaleQNorm"]
 
-    # 从 expect_list 中过滤 None 值
-    expected_outputs = []
-    expected_names = []
-    for i, (name, val) in enumerate(zip(output_names, expect_list)):
-        if val is not None:
-            expected_outputs.append(val)
-            expected_names.append(name)
+    assert len(expect_list) == len(result_list), \
+        f"Output count mismatch: expect {len(expect_list)}, got {len(result_list)}"
 
-    # result_list 长度可能不一致（NPU 只返回非 None 输出）
-    assert len(expected_outputs) == len(result_list), \
-        f"Output count mismatch: expected {len(expected_outputs)}, got {len(result_list)}"
-
-    for name, expect, result in zip(expected_names, expected_outputs, result_list):
+    for name, expect, result in zip(output_names, expect_list, result_list):
+        # 跳过双方均为空的可选输出
+        if expect.numel() == 0 and result.numel() == 0:
+            logger.info(f"[{name}] skipped (both empty)")
+            continue
         check_single_output(name, expect, result)
