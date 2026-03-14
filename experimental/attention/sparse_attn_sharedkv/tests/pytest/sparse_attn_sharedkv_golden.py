@@ -751,10 +751,10 @@ def gen_data(params):
                 raise ValueError(f"layout_q is not support {layout_q}")
         elif ori_kv_topk_mode == "random":
             if layout_q == "TND":
-                ori_topk_length = torch.tensor(np.random.uniform(0, K1, (T1))).to(torch.int32)
+                ori_topk_length = torch.tensor(np.random.uniform(1, K1, (T1))).to(torch.int32)
                 print(f"ori_topk_length = {ori_topk_length}")
             elif layout_q == "BSND":
-                ori_topk_length = torch.tensor(np.random.uniform(0, K1, (B, S1))).to(torch.int32)
+                ori_topk_length = torch.tensor(np.random.uniform(1, K1, (B, S1))).to(torch.int32)
                 print(f"ori_topk_length = {ori_topk_length}")
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
