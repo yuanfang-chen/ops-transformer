@@ -148,6 +148,7 @@ class GeneralizedSFA:
                             self.ori_mask_mode, self.K1, ori_topk_length_bnsd)
                     else:
                         cur_ori_k_bnsd = ori_k_bnsd[i_B, i_N2, ori_win_start:ori_win_end, :]
+                        empty_flag_ori = False
 
                     cur_attn_out = attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :]
                     if RUN_MODE == 0:
@@ -165,12 +166,17 @@ class GeneralizedSFA:
                         mm2_res = torch.matmul(softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float), v_concat_fp32)
                         attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = mm2_res.to(dtype=q_bnsd.dtype)
                     elif RUN_MODE == 1:
-                        ori_s2_loop_time = math.ceil(cur_ori_k_bnsd.size(0) / s2_base_size)
-                        total_s2_loop_time = ori_s2_loop_time + cmp_s2_loop_time
-                        cur_ori_k_bnsd_fp32 = cur_ori_k_bnsd.to(dtype=torch.float32)
-                        row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
-                        row_max = torch.empty((G, 1), dtype=torch.float32)
-                        row_max = cur_sinks
+                        if empty_flag_ori:
+                            ori_s2_loop_time = 0
+                            total_s2_loop_time = 0
+                            row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
+                        else:
+                            ori_s2_loop_time = math.ceil(cur_ori_k_bnsd.size(0) / s2_base_size)
+                            total_s2_loop_time = ori_s2_loop_time + cmp_s2_loop_time
+                            cur_ori_k_bnsd_fp32 = cur_ori_k_bnsd.to(dtype=torch.float32)
+                            row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
+                            row_max = torch.empty((G, 1), dtype=torch.float32)
+                            row_max = cur_sinks
 
                         for i_S2 in range(total_s2_loop_time):
                             if i_S2 < ori_s2_loop_time: # ori_kv
@@ -659,8 +665,17 @@ def gen_data(params):
         raise ValueError(f"only support B = 1 for TND, B = {B}")
     else:
         pass
+
+    if layout_q == "TND" and T1 == None:
+        raise ValueError(f"T2 must be provided when layout_kv is TND")
+    if layout_kv == "TND" and T2 == None:
+        raise ValueError(f"T2 must be provided when layout_kv is TND")
+
     if cu_seqlens_q is not None:
         cu_seqlens_q = torch.tensor(cu_seqlens_q).to(torch.int32)
+    elif layout_q == "TND":
+        cu_seqlens_q = torch.tensor([0, T1]).to(torch.int32)
+
     if seqused_kv is not None:
         seqused_kv = torch.tensor(seqused_kv).to(torch.int32)
     if seqused_q is not None:
@@ -728,15 +743,19 @@ def gen_data(params):
         if ori_kv_topk_mode == "full":
             if layout_q == "TND":
                 ori_topk_length = torch.tensor(np.random.uniform(K1, K1, (T1))).to(torch.int32)
+                print(f"ori_topk_length = {ori_topk_length}")
             elif layout_q == "BSND":
                 ori_topk_length = torch.tensor(np.random.uniform(K1, K1, (B, S1))).to(torch.int32)
+                printf(f"ori_topk_length = {ori_topk_length}")
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
         elif ori_kv_topk_mode == "random":
             if layout_q == "TND":
                 ori_topk_length = torch.tensor(np.random.uniform(0, K1, (T1))).to(torch.int32)
+                print(f"ori_topk_length = {ori_topk_length}")
             elif layout_q == "BSND":
                 ori_topk_length = torch.tensor(np.random.uniform(0, K1, (B, S1))).to(torch.int32)
+                print(f"ori_topk_length = {ori_topk_length}")
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
         else:
