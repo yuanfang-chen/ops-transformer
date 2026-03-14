@@ -51,7 +51,7 @@ constexpr uint32_t B16_REP_SIZE = 256 / sizeof(half); // = 128
 //     2. 按 blockIndex 决定切 BS 还是切 Dim
 //     3. ProcessMainCompute：双层循环（BS × Dim），每次调用 ProcessUBBlock
 //     4. SyncAll（全核同步）
-//     5. WriteCacheFromWorkspace：从 workspace 回写 cache state
+//     5. WriteDeferredCacheToStates：从 GM 原始数据重建 cache 并写回 cacheStates
 // ============================================================================
 template <typename T>
 class CausalConv1dFn {
@@ -121,8 +121,8 @@ private:
         uint32_t dimStart, uint32_t cacheSkipBlocks,
         int64_t cIdx, uint32_t curBatchIdx);
 
-    // 将 cache state 从 workspace 写回 cacheStates GM（全核同步后调用）
-    __aicore__ inline void WriteCacheFromWorkspace();
+    // 全核同步后，从 GM 原始数据重建 cache 并写回 cacheStates（延迟写回）
+    __aicore__ inline void WriteDeferredCacheToStates();
 
     // 通过二分查找确定 globalSeqIdx 所属的 batch（0-indexed）
     __aicore__ inline uint32_t FindBatchIdx(uint64_t globalSeqIdx);
@@ -209,7 +209,6 @@ private:
     GlobalTensor<int32_t> seqStartIndexGM_;
     GlobalTensor<int32_t> hasInitialStateGM_;   // 0: 用0填充cache计算, 1: 使用cache, 2: 前K-1个置0
     GlobalTensor<T>       yGM_;
-    GlobalTensor<T>       workspaceGM_;         // 临时存放待更新的 cache rows
 
 
     // -------------------------------------------------------------------------
@@ -218,10 +217,10 @@ private:
     // 按 requirement.md §6 分配：
     //   weightInQueue  : K × maxUbDim × sizeof(T)，BUF_NUM=1
     //   cacheQueue     : (K-1) × maxUbDim × sizeof(T)，BUF_NUM=1（TQueBind 可 VECIN/VECOUT）
-    //   startLocInQueue: (MAX_BATCH+1) × sizeof(int64_t)，BUF_NUM=1
-    //   indicesInQueue : MAX_BATCH × sizeof(int64_t)，BUF_NUM=1
-    //   hasInitInQueue : MAX_BATCH × sizeof(int32_t)，BUF_NUM=1
-    //   xQueue         : maxUbBS × maxUbDim × sizeof(T)，BUF_NUM=2（双缓冲，y 复用，也用于 workspace 回写）
+    //   startLocInQueue: (batch+1) × sizeof(int32_t)，BUF_NUM=1
+    //   indicesInQueue : batch × sizeof(int32_t)，BUF_NUM=1
+    //   hasInitInQueue : batch × sizeof(int32_t)，BUF_NUM=1
+    //   xQueue         : maxUbBS × maxUbDim × sizeof(T)，BUF_NUM=2（双缓冲，y 复用）
     // -------------------------------------------------------------------------
     TQue<QuePosition::VECIN, 1>        weightInQueue_;
     TQue<QuePosition::VECIN, 1>        cacheQueue_;
@@ -236,13 +235,13 @@ private:
     LocalTensor<int32_t> hasInitLocal_;
 
     // -------------------------------------------------------------------------
-    // 第一个 batch 跟踪（用于区分写 workspace 还是直接写 cache_states）
-    // 只有当第一个 batch 不完整（首个 token 在前一个核）时才需要写 workspace
+    // 第一个 batch 跟踪（用于延迟写回 cache）
+    // 只有当第一个 batch 不完整（首个 token 在前一个核）时才需要延迟写回
     // -------------------------------------------------------------------------
     uint32_t firstBatchIdx_;        // 当前核的第一个 batch 索引
     int64_t  firstBatchCIdx_;       // 第一个 batch 对应的 cacheIndices 值
     bool     firstBatchComplete_;   // 第一个 batch 是否完整（首个 token 在当前核）
-    bool     firstBatchWrittenToWS_;// 是否已将第一个 batch 的 cache 写入 workspace
+    bool     firstBatchNeedsDeferredWrite_;// 是否需要在 SyncAll 后延迟写回 cache
 };
 
 // ============================================================================
@@ -342,13 +341,6 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
         hasInitialStateGM_.SetGlobalBuffer((__gm__ int32_t*)initialStateMode, batchSize_);
     }
     yGM_.SetGlobalBuffer((__gm__ T*)y, cuSeqLen_ * dim_);
-    if (workspace != nullptr) {
-        GM_ADDR userWS = GetUserWorkspace(workspace);
-        if (userWS != nullptr) {
-            // workspace 按 bsIdx 分配，每个 bsIdx 对应 (K-1) * dim_ 的空间
-            workspaceGM_.SetGlobalBuffer((__gm__ T*)userWS, bsCoreNum_ * (kernelWidth_ - 1) * dim_);
-        }
-    }
 
     // --- 计算 buffer 字节大小并对齐到 32 字节 ---
     uint32_t K = kernelWidth_;
@@ -722,43 +714,31 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
     uint32_t xRowsInBatch = curBatchLen;
     uint32_t cacheRowsToKeep = (K - 1 > xRowsInBatch) ? (K - 1 - xRowsInBatch) : 0;
 
-    bool needWriteWorkspace = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
+    bool needDeferredWrite = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
 
     // 等待 cacheLocal 数据就绪（可能由 Duplicate 填充）
     PipeBarrier<PIPE_ALL>();
-    if (needWriteWorkspace) {
-        // workspace 按 bsIdx_ 分配，加上 dimStart 偏移
-        uint64_t wsOffset = (uint64_t)bsIdx_ * (K - 1) * dim_ + dimStart;
-        // workspace 每行 dim_ 个元素，当前只写 dimSize 个，dstStride 跳过剩余部分
-        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T);
-
-        if (cacheRowsToKeep > 0) {
-            DataCopyExtParams wcp{static_cast<uint16_t>(cacheRowsToKeep),
-                                  static_cast<uint16_t>(dimBlocks * ALIGN_BYTES), 0, wsDstSkip, 0};
-            DataCopyPad(workspaceGM_[wsOffset], cacheLocal[xRowsInBatch * dimSize], wcp);
-        }
-        if (xRowsInBatch > 0) {
-            DataCopyExtParams wcp2{static_cast<uint16_t>(xRowsInBatch),
-                                   static_cast<uint16_t>(dimBlocks * ALIGN_BYTES), 0, wsDstSkip, 0};
-            DataCopyPad(workspaceGM_[wsOffset + cacheRowsToKeep * dim_], xLocal[i * dimSize], wcp2);
-        }
-        firstBatchWrittenToWS_ = true;
-    } else {
-        uint64_t csOffset = (uint64_t)cIdx * (K - 1) * cacheStride_ + dimStart;
-
-        if (cacheRowsToKeep > 0) {
-            DataCopyExtParams wcp{static_cast<uint16_t>(cacheRowsToKeep),
-                                  static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                                  0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
-            DataCopyPad(cacheStatesGM_[csOffset], cacheLocal[xRowsInBatch * dimSize], wcp);
-        }
-        if (xRowsInBatch > 0) {
-            DataCopyExtParams wcp2{static_cast<uint16_t>(xRowsInBatch),
-                                   static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                                   0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
-            DataCopyPad(cacheStatesGM_[csOffset + cacheRowsToKeep * cacheStride_], xLocal[i * dimSize], wcp2);
-        }
+    if (needDeferredWrite) {
+        // 延迟写回：SyncAll 后再从 GM 原始数据重建 cache
+        firstBatchNeedsDeferredWrite_ = true;
+        return;
     }
+
+    uint64_t csOffset = (uint64_t)cIdx * (K - 1) * cacheStride_ + dimStart;
+
+    if (cacheRowsToKeep > 0) {
+        DataCopyExtParams wcp{static_cast<uint16_t>(cacheRowsToKeep),
+                              static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                              0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
+        DataCopyPad(cacheStatesGM_[csOffset], cacheLocal[xRowsInBatch * dimSize], wcp);
+    }
+    if (xRowsInBatch > 0) {
+        DataCopyExtParams wcp2{static_cast<uint16_t>(xRowsInBatch),
+                               static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                               0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
+        DataCopyPad(cacheStatesGM_[csOffset + cacheRowsToKeep * cacheStride_], xLocal[i * dimSize], wcp2);
+    }
+
     // 等待 MTE3 写 GM 完成
     PipeBarrier<PIPE_ALL>();
 }
@@ -778,23 +758,19 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
     uint32_t lastK1Start = batchEndInUB - (K - 1);
     uint32_t rowsToCopy = K - 1;
 
-    bool needWriteWorkspace = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
-    if (needWriteWorkspace) {
-        // workspace 按 bsIdx_ 分配，加上 dimStart 偏移
-        uint64_t wsOffset = (uint64_t)bsIdx_ * (K - 1) * dim_ + dimStart;
-        // workspace 每行 dim_ 个元素，当前只写 dimSize 个，dstStride 跳过剩余部分
-        uint32_t wsDstSkip = (dim_ - dimSize) * sizeof(T);
-        DataCopyExtParams wcp{static_cast<uint16_t>(rowsToCopy),
-                              static_cast<uint16_t>(dimBlocks * ALIGN_BYTES), 0, wsDstSkip, 0};
-        DataCopyPad(workspaceGM_[wsOffset], xLocal[lastK1Start * dimSize], wcp);
-        firstBatchWrittenToWS_ = true;
-    } else {
-        uint64_t csOffset = (uint64_t)cIdx * (K - 1) * cacheStride_ + dimStart;
-        DataCopyExtParams wcp{static_cast<uint16_t>(rowsToCopy),
-                              static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                              0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
-        DataCopyPad(cacheStatesGM_[csOffset], xLocal[lastK1Start * dimSize], wcp);
+    bool needDeferredWrite = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
+    if (needDeferredWrite) {
+        // 延迟写回：SyncAll 后再从 GM 原始数据重建 cache
+        firstBatchNeedsDeferredWrite_ = true;
+        return;
     }
+
+    uint64_t csOffset = (uint64_t)cIdx * (K - 1) * cacheStride_ + dimStart;
+    DataCopyExtParams wcp{static_cast<uint16_t>(rowsToCopy),
+                          static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                          0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
+    DataCopyPad(cacheStatesGM_[csOffset], xLocal[lastK1Start * dimSize], wcp);
+
     // 等待 MTE3 写 GM 完成
     PipeBarrier<PIPE_ALL>();
 }
@@ -827,7 +803,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
     // 判断第一个 batch 是否完整：bsIdx_ == 0 时肯定完整，否则检查 globalBsStart == batch 起始位置
     uint64_t firstBatchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
     firstBatchComplete_   = (bsIdx_ == 0) || (globalBsStart == firstBatchStart);
-    firstBatchWrittenToWS_ = false;
+    firstBatchNeedsDeferredWrite_ = false;
 
     // iStart：只有 bsIdx_ == 0 的核的第一个 BS 循环从 0 开始，其余从 K-1 开始
     bool isBsFirstCore = (bsIdx_ == 0);
@@ -874,23 +850,23 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
 }
 
 // ============================================================================
-// WriteCacheFromWorkspace：SyncAll 后，从 workspace 回写 cacheStates
+// WriteDeferredCacheToStates：SyncAll 后，从 GM 原始数据重建 cache 并写回 cacheStates
 //
-// 新设计（二维切分）：
-// - workspace 按 bsIdx_ 分配，每个 bsIdx_ 对应 (K-1) 行，每行 dim_ 个元素
-// - 同一个 bsIdx_ 的不同 dimIdx_ 核写同一个 workspace 区域的不同 dim 切片
-// - 每个核只回写自己负责的 dim 切片
+// 当核的第一个 batch 不完整（跨核 split）时，compute 期间跳过了 cache 写回。
+// SyncAll 后所有核已完成计算，可安全从 xGM 和 cacheStatesGM 读取原始数据重建 cache：
+//   - Long batch (len >= K)：新 cache = x 的最后 K-1 行
+//   - Short batch (len < K)：新 cache = [旧 cache 尾部, x 行]
+//     （hasInitState==1 时从 GM 读旧 cache，否则填零）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::WriteCacheFromWorkspace()
+__aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
 {
-    // 如果没有写 workspace，直接返回
-    if (!firstBatchWrittenToWS_) {
+    if (!firstBatchNeedsDeferredWrite_) {
         return;
     }
 
-    uint32_t K        = kernelWidth_;
-    uint32_t rows     = K - 1;
+    uint32_t K    = kernelWidth_;
+    uint32_t rows = K - 1;
 
     // 计算当前核负责的 dim 范围
     uint32_t dimStart, dimSize;
@@ -902,38 +878,77 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheFromWorkspace()
         dimSize  = dimBlockTailFactor_;
     }
 
-    // 每行实际数据的字节数
-    uint32_t rowBytes = dimSize * sizeof(T);
-    uint32_t rowBlocks = rowBytes / ALIGN_BYTES;
-    // cacheStates 的行间跳过块数
-    uint32_t cacheSkip = (cacheStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
-    // workspace 的行间跳过块数（workspace 每行 dim_ 个元素，只取 dimSize 个）
-    uint32_t wsSkip = (dim_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+    // 计算 batch 信息
+    uint64_t batchStart  = (uint64_t)seqStartLocal_.GetValue(firstBatchIdx_);
+    uint64_t batchEnd    = (uint64_t)seqStartLocal_.GetValue(firstBatchIdx_ + 1);
+    uint32_t curBatchLen = (uint32_t)(batchEnd - batchStart);
 
-    // workspace 按 bsIdx_ 索引，加上 dimStart 偏移
-    uint64_t wsOff = (uint64_t)bsIdx_ * rows * dim_ + dimStart;
-    // cacheStates 使用 firstBatchCIdx_
-    uint64_t csOff = (uint64_t)firstBatchCIdx_ * rows * cacheStride_ + dimStart;
+    // 每行实际数据的字节数和块数
+    uint32_t rowBytes   = dimSize * sizeof(T);
+    uint32_t rowBlocks  = rowBytes / ALIGN_BYTES;
+    // cacheStates 的行间跳过
+    uint32_t cacheSkip  = (cacheStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
+    // x 的行间跳过
+    uint32_t xSkip      = (xStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
 
-    // 直接 GM→GM 搬运（通过 UB 中转）
+    int64_t cIdx = firstBatchCIdx_;
+
     LocalTensor<T> tmpBuf = xQueue_.AllocTensor<T>();
-    {
-        DataCopyExtParams cp{static_cast<uint16_t>(rows),
-                             static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
-                             wsSkip * ALIGN_BYTES, 0, 0};  // workspace 非连续（srcStride），UB 连续
+
+    if (curBatchLen >= K) {
+        // Long batch：从 xGM 读取 batch 最后 K-1 行
+        uint64_t localBatchEnd = batchEnd - validSeqStart_;
+        uint64_t xSrcOffset = (localBatchEnd - rows) * xStride_ + dimStart;
+        DataCopyExtParams rcp{static_cast<uint16_t>(rows),
+                              static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
+                              static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
-        DataCopyPad(tmpBuf, workspaceGM_[wsOff], cp, padParams);
+        DataCopyPad(tmpBuf, xGM_[xSrcOffset], rcp, padParams);
+    } else {
+        // Short batch：组装 [旧 cache 尾部, x 行]
+        uint32_t cacheRowsToKeep = rows - curBatchLen;
+        int32_t hasInit = initialStateModeNull_ ? 2 : hasInitLocal_.GetValue(firstBatchIdx_);
+
+        if (cacheRowsToKeep > 0) {
+            if (hasInit == 1) {
+                // 从 cacheStatesGM 读取旧 cache 尾部（偏移 curBatchLen 行）
+                uint64_t cacheSrcOffset = (uint64_t)cIdx * rows * cacheStride_ +
+                                          (uint64_t)curBatchLen * cacheStride_ + dimStart;
+                DataCopyExtParams rcp{static_cast<uint16_t>(cacheRowsToKeep),
+                                      static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
+                                      static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0, 0};
+                DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
+                DataCopyPad(tmpBuf, cacheStatesGM_[cacheSrcOffset], rcp, padParams);
+            } else {
+                // hasInit == 0 或 2：旧 cache 为零
+                Duplicate(tmpBuf, (T)0, cacheRowsToKeep * dimSize);
+            }
+        }
+        if (curBatchLen > 0) {
+            // 从 xGM 读取该 batch 的全部 x 行
+            uint64_t localBatchStart = batchStart - validSeqStart_;
+            uint64_t xSrcOffset = localBatchStart * xStride_ + dimStart;
+            DataCopyExtParams rcp{static_cast<uint16_t>(curBatchLen),
+                                  static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
+                                  static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
+            DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
+            DataCopyPad(tmpBuf[cacheRowsToKeep * dimSize], xGM_[xSrcOffset], rcp, padParams);
+        }
     }
+
     xQueue_.EnQue(tmpBuf);
     tmpBuf = xQueue_.DeQue<T>();
 
-    // 等待 MTE2 搬运完成，确保 tmpBuf 数据就绪
+    // 等待数据就绪
     PipeBarrier<PIPE_ALL>();
+
+    // 写回 cacheStates
+    uint64_t csDstOffset = (uint64_t)cIdx * rows * cacheStride_ + dimStart;
     {
-        DataCopyExtParams cp{static_cast<uint16_t>(rows),
-                             static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
-                             0, cacheSkip * ALIGN_BYTES, 0};  // UB 连续，cacheStates 非连续
-        DataCopyPad(cacheStatesGM_[csOff], tmpBuf, cp);
+        DataCopyExtParams wcp{static_cast<uint16_t>(rows),
+                              static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
+                              0, static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0};
+        DataCopyPad(cacheStatesGM_[csDstOffset], tmpBuf, wcp);
     }
 
     // 等待 MTE3 写 GM 完成
@@ -998,11 +1013,11 @@ __aicore__ inline void CausalConv1dFn<T>::Process()
     // 5. 调用统一的计算逻辑
     ProcessMainCompute(bsStart, dimStart, loopBS, factBS, tailBS, loopDim, factDim, tailDim);
 
-    // 6. 全核同步（保证所有核完成计算、workspace 写入完毕后再更新 cacheStates）
+    // 6. 全核同步（保证所有核完成计算后再执行延迟 cache 写回）
     SyncAll();
 
-    // 7. 从 workspace 回写 cache state
-    WriteCacheFromWorkspace();
+    // 7. 从 GM 原始数据重建 cache 并写回 cacheStates（延迟写回）
+    WriteDeferredCacheToStates();
 }
 
 } // namespace CausalConv1dFnNs
