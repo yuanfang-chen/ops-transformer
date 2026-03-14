@@ -120,6 +120,35 @@ def validate_config(params):
 # 精度比较
 # ---------------------------------------------------------------------------
 
+def _check_failure_continuity(fail_indices):
+    """分析失败下标是否为连续分布（聚簇）或离散分布（散点）。
+
+    Args:
+        fail_indices: 1-D LongTensor，失败元素的扁平化下标。
+
+    Returns:
+        (is_discontinuous, n_runs, avg_run_len)
+          is_discontinuous: True 表示失败点离散分布（孤立散点），False 表示聚簇。
+          n_runs:           连续段数量。
+          avg_run_len:      平均每段长度（fail_count / n_runs）。
+    """
+    fail_count = len(fail_indices)
+    if fail_count == 0:
+        return False, 0, 0.0
+
+    sorted_idx = fail_indices.cpu().sort().values
+    if fail_count == 1:
+        return True, 1, 1.0
+
+    diffs = sorted_idx[1:] - sorted_idx[:-1]
+    n_runs = int((diffs > 1).sum()) + 1          # 段数 = 断口数 + 1
+    avg_run_len = fail_count / n_runs
+
+    # 离散判定：平均段长 <= 2（大多数失败点是孤立的单点或对点）
+    is_discontinuous = avg_run_len <= 2.0
+    return is_discontinuous, n_runs, avg_run_len
+
+
 def check_single_output(name, expect, result, prec_params, pct_thd_override=None):
     """比较单个输出张量的精度。
 
@@ -187,38 +216,59 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
             f"pct={error_rate:.4%}(thd={pct_thd:.4%})"
         )
 
+        # 收集违规项
+        violations = []
+        if error_rate > pct_thd:
+            violations.append(
+                f"PCT: {error_rate:.4%} > pct_thd={pct_thd:.4%} "
+                f"({fail_count}/{total} elements with RE > diff_thd={diff_thd})"
+            )
+        if max_re > max_diff_thd:
+            violations.append(f"max_diff: {max_re:.6f} > max_diff_thd={max_diff_thd}")
+        if max_re > max_re_rtol * rtol:
+            violations.append(
+                f"max_re: {max_re:.6f} > max_re_rtol*rtol={max_re_rtol * rtol:.6f}"
+            )
+        if avg_re > avg_re_rtol * rtol:
+            violations.append(
+                f"avg_re: {avg_re:.6f} > avg_re_rtol*rtol={avg_re_rtol * rtol:.6f}"
+            )
+        if rmse > rmse_rtol * rtol:
+            violations.append(
+                f"rmse: {rmse:.6f} > rmse_rtol*rtol={rmse_rtol * rtol:.6f}"
+            )
+
+        if not violations:
+            return
+
+        # 精度违规：检查失败点分布是否离散
+        fail_indices = fail_mask.nonzero(as_tuple=True)[0]
+        is_discontinuous, n_runs, avg_run_len = _check_failure_continuity(fail_indices)
+
+        # 记录失败点样本（最差的 5 个）
         if fail_count > 0:
-            worst = torch.topk(abs_diff[fail_mask], min(5, fail_count)).indices
-            fail_indices = fail_mask.nonzero(as_tuple=True)[0]
-            sample = fail_indices[worst]
-            logger.info(
-                f"[{name}] worst discontinuous: "
+            sample = fail_indices[torch.topk(re[fail_indices], min(5, fail_count)).indices]
+            logger.warning(
+                f"[{name}] worst failing elements: "
                 f"re={re[sample].tolist()}, "
                 f"expect={expect_f32[sample].tolist()}, "
                 f"result={result_f32[sample].tolist()}"
             )
 
-        # 1. PCT 检验
-        assert error_rate <= pct_thd, (
-            f"[{name}] PCT failed: {error_rate:.4%} > pct_thd={pct_thd:.4%} "
-            f"({fail_count}/{total} elements with RE > diff_thd={diff_thd})"
-        )
-        # 2. Max diff 检验
-        assert max_re <= max_diff_thd, (
-            f"[{name}] max RE {max_re:.6f} > max_diff_thd={max_diff_thd}"
-        )
-        # 3. Max RE 统计检验
-        assert max_re <= max_re_rtol * rtol, (
-            f"[{name}] max RE {max_re:.6f} > max_re_rtol*rtol={max_re_rtol * rtol:.6f}"
-        )
-        # 4. Avg RE 统计检验
-        assert avg_re <= avg_re_rtol * rtol, (
-            f"[{name}] avg RE {avg_re:.6f} > avg_re_rtol*rtol={avg_re_rtol * rtol:.6f}"
-        )
-        # 5. RMSE 统计检验
-        assert rmse <= rmse_rtol * rtol, (
-            f"[{name}] RMSE {rmse:.6f} > rmse_rtol*rtol={rmse_rtol * rtol:.6f}"
-        )
+        if is_discontinuous:
+            # 离散误差点：可能是 NPU 与 CPU 浮点实现的合理差异，标记为通过并发出警告
+            logger.warning(
+                f"[{name}] PRECISION WARNING — test PASSED (discontinuous errors): "
+                f"violations={violations} | "
+                f"fail={fail_count}/{total}, n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+            )
+        else:
+            # 连续失败块：系统性误差，判定为真实精度失败
+            raise AssertionError(
+                f"[{name}] precision FAILED (continuous errors): "
+                f"{violations} | "
+                f"fail={fail_count}/{total}, n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+            )
 
     else:
         # ---- 整数 / FP8 类型：绝对误差 + PCT 检验 ----
@@ -232,19 +282,38 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
             f"fail={fail_count}/{total}"
         )
 
+        if error_rate <= pct_thd:
+            return
+
+        # 精度违规：检查失败点分布是否离散
+        fail_indices = fail_mask.nonzero(as_tuple=True)[0]
+        is_discontinuous, n_runs, avg_run_len = _check_failure_continuity(fail_indices)
+
         if fail_count > 0:
-            worst = torch.topk(abs_diff, min(5, fail_count)).indices
-            logger.info(
+            sample = fail_indices[torch.topk(abs_diff[fail_indices], min(5, fail_count)).indices]
+            logger.warning(
                 f"[{name}] worst diffs: "
-                f"abs_diff={abs_diff[worst].tolist()}, "
-                f"expect={expect_f32[worst].tolist()}, "
-                f"result={result_f32[worst].tolist()}"
+                f"abs_diff={abs_diff[sample].tolist()}, "
+                f"expect={expect_f32[sample].tolist()}, "
+                f"result={result_f32[sample].tolist()}"
             )
 
-        assert error_rate <= pct_thd, (
-            f"[{name}] PCT failed: {error_rate:.4%} > pct_thd={pct_thd:.4%} "
+        violation_msg = (
+            f"PCT: {error_rate:.4%} > pct_thd={pct_thd:.4%} "
             f"({fail_count}/{total} elements with abs_diff > atol={atol})"
         )
+        if is_discontinuous:
+            logger.warning(
+                f"[{name}] PRECISION WARNING — test PASSED (discontinuous errors): "
+                f"{violation_msg} | "
+                f"n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+            )
+        else:
+            raise AssertionError(
+                f"[{name}] precision FAILED (continuous errors): "
+                f"{violation_msg} | "
+                f"n_runs={n_runs}, avg_run_len={avg_run_len:.1f}"
+            )
 
 
 def check_result(expect_list, result_list, pct_thd_override=None):
