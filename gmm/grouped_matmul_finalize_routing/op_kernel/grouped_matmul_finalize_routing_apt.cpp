@@ -30,6 +30,7 @@
 #if defined (V310_GMM_ANTI_QUANT)
 // 伪量化场景
 #include "arch35/wweight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
+#include "arch35/wweight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
 #else
 // 全量化场景
 #include "lib/matmul_intf.h"

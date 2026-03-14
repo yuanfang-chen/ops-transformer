@@ -83,23 +83,28 @@ private:
     static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD = 128;
     static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256 = 256;
     static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 = 240;
+    static constexpr uint64_t M_L1 = 256;
+    static constexpr uint64_t KB_L1_SIZE = 256;
     uint64_t mxA8W4L1KDynamicConfigMThreshold_; // m轴依赖空间划分，无法静态配置
 };
 
 GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
 __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
-    GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR bias,
-    GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling)
+    GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR antiquantScale,
+    GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
+    GM_ADDR y, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling)
 {
     tiling_ = baseTiling;
 
     xGm_ = reinterpret_cast<__gm__ xType *>(x);
-    weightGm_= reinterpret_cast<__gm__ wType *>(weight);
-    biasGm_= reinterpret_cast<__gm__ biasType *>(bias);
-    scaleGm_= reinterpret_cast<__gm__ scaleType *>(0, scale);
-    perTokenScaleGm_= reinterpret_cast<__gm__ perTokenScaleType *>(perTokenScale);
-    yGm_= reinterpret_cast<__gm__ yType *>(y);
-    groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t *>groupList);
+    weightGm_ = reinterpret_cast<__gm__ wType *>(weight);
+    biasGm_ = reinterpret_cast<__gm__ biasType *>(bias);
+    scaleGm_ = reinterpret_cast<__gm__ scaleType *>(scale);
+    antiquantScaleGm_ = reinterpret_cast<__gm__ antiQuantScaleType *>(antiquantScale);
+    antiquantOffsetGm_ = reinterpret_cast<__gm__ xType *>(antiquantOffset);
+    perTokenScaleGm_ = reinterpret_cast<__gm__ perTokenScaleType *>(perTokenScale);
+    yGm_ = reinterpret_cast<__gm__ yType *>(y);
+    groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t *>(groupList));
     basicBlock_.Init(tiling_->hasBias, tiling_->groupSize);
     mxA8W4L1KDynamicConfigMThreshold_ = tiling_->hasBias ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
                                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
@@ -130,10 +135,10 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Process()
     for (uint32_t groupIdx = 0, startBasicBlockId = 0; groupIdx < tiling_->groupNum; ++groupIdx) {
         ctrlParam.mSize = GetSplitValueFromGroupList(groupIdx);
         if (ctrlParam.mSize > 0 && offsetParam[ctrlParam.processId].nSize > 0) {
-            uint64_t mBlkNum = CeilDivide(ctrlParam.mSize, static_cast<uint64_t>(mmTiling_->baseM));
+            uint64_t mBlkNum = CeilDivide(ctrlParam.mSize, M_L1);
             ctrlParam.mL1Size = CeilDivide(ctrlParam.mSize, mBlkNum);
             basicBlock_.UpdateGlobalAddr(xGm_, weightGm_, scaleGm_,
-                                         perTokenScaleGm_, biasGm_, yGm_, tiling_->isBias,
+                                         perTokenScaleGm_, biasGm_, yGm_, tiling_->hasBias,
                                          ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned);
             ctrlParam.curBasicBlockId =
                 cubeBlockIdx >= startBasicBlockId ? cubeBlockIdx : cubeBlockIdx + tiling_->coreNum;
@@ -157,12 +162,12 @@ GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
 __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::InitOffsetParam(
     BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM])
 {
-    offsetParam[0].kbL1Size = tiling_->kbL1Size;
+    offsetParam[0].kbL1Size = KB_L1_SIZE;
     offsetParam[0].kaL1Size = offsetParam[0].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
     offsetParam[0].kSize = tiling_->kSize;
     offsetParam[0].nSize = tiling_->nSize;
     offsetParam[0].kAlign = CeilAlign(tiling_->kSize, static_cast<uint64_t>(BLOCK_CUBE));
-    offsetParam[1].kbL1Size = tiling_->kbL1Size;
+    offsetParam[1].kbL1Size = KB_L1_SIZE;
     offsetParam[1].kaL1Size = offsetParam[0].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
     offsetParam[1].kSize = offsetParam[0].kSize;
     offsetParam[1].nSize = offsetParam[0].nSize;
