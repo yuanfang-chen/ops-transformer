@@ -800,50 +800,50 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate DumpTilingInfo ===");
 
     // Core distribution parameters
-    OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", usedCoreNum_);
-    OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", dimCoreCnt_);
-    OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", batchCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", tilingData_.usedCoreNum);
+    OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", tilingData_.dimCoreCnt);
+    OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", tilingData_.batchCoreCnt);
 
     // Dim tiling parameters
-    OP_LOGI(context_->GetNodeName(), "dimMainCoreCnt: %ld", dimMainCoreCnt_);
-    OP_LOGI(context_->GetNodeName(), "dimTailCoreCnt: %ld", dimTailCoreCnt_);
-    OP_LOGI(context_->GetNodeName(), "mainCoredimLen: %ld", mainCoredimLen_);
-    OP_LOGI(context_->GetNodeName(), "tailCoredimLen: %ld", tailCoredimLen_);
+    OP_LOGI(context_->GetNodeName(), "dimMainCoreCnt: %ld", tilingData_.dimMainCoreCnt);
+    OP_LOGI(context_->GetNodeName(), "dimTailCoreCnt: %ld", tilingData_.dimTailCoreCnt);
+    OP_LOGI(context_->GetNodeName(), "mainCoredimLen: %ld", tilingData_.mainCoredimLen);
+    OP_LOGI(context_->GetNodeName(), "tailCoredimLen: %ld", tilingData_.tailCoredimLen);
 
     // Batch tiling parameters
-    OP_LOGI(context_->GetNodeName(), "batchMainCoreCnt: %ld", batchMainCoreCnt_);
-    OP_LOGI(context_->GetNodeName(), "batchTailCoreCnt: %ld", batchTailCoreCnt_);
-    OP_LOGI(context_->GetNodeName(), "mainCoreBatchNum: %ld", mainCoreBatchNum_);
-    OP_LOGI(context_->GetNodeName(), "tailCoreBatchNum: %ld", tailCoreBatchNum_);
-    OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", validBatchStart_);
-    OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", validBatchEnd_);
+    OP_LOGI(context_->GetNodeName(), "batchMainCoreCnt: %ld", tilingData_.batchMainCoreCnt);
+    OP_LOGI(context_->GetNodeName(), "batchTailCoreCnt: %ld", tilingData_.batchTailCoreCnt);
+    OP_LOGI(context_->GetNodeName(), "mainCoreBatchNum: %ld", tilingData_.mainCoreBatchNum);
+    OP_LOGI(context_->GetNodeName(), "tailCoreBatchNum: %ld", tilingData_.tailCoreBatchNum);
+    OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", tilingData_.validBatchStart);
+    OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", tilingData_.validBatchEnd);
 
     // Intra-core tiling parameters (UB loop, big/tail blocks)
-    OP_LOGI(context_->GetNodeName(), "loopNumBS: %ld", loopNumBS_);
-    OP_LOGI(context_->GetNodeName(), "loopNumDim: %ld", loopNumDim_);
-    OP_LOGI(context_->GetNodeName(), "ubMainFactorBS: %ld", ubMainFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "ubTailFactorBS: %ld", ubTailFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "ubMainFactorDim: %ld", ubMainFactorDim_);
-    OP_LOGI(context_->GetNodeName(), "ubTailFactorDim: %ld", ubTailFactorDim_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockloopNumBS: %ld", tailBlockloopNumBS_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockloopNumDim: %ld", tailBlockloopNumDim_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorBS: %ld", tailBlockubFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorBS: %ld", tailBlockubTailFactorBS_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorDim: %ld", tailBlockubFactorDim_);
-    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorDim: %ld", tailBlockubTailFactorDim_);
+    OP_LOGI(context_->GetNodeName(), "loopNumBS: %ld", tilingData_.loopNumBS);
+    OP_LOGI(context_->GetNodeName(), "loopNumDim: %ld", tilingData_.loopNumDim);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorBS: %ld", tilingData_.ubMainFactorBS);
+    OP_LOGI(context_->GetNodeName(), "ubTailFactorBS: %ld", tilingData_.ubTailFactorBS);
+    OP_LOGI(context_->GetNodeName(), "ubMainFactorDim: %ld", tilingData_.ubMainFactorDim);
+    OP_LOGI(context_->GetNodeName(), "ubTailFactorDim: %ld", tilingData_.ubTailFactorDim);
+    OP_LOGI(context_->GetNodeName(), "tailBlockloopNumBS: %ld", tilingData_.tailBlockloopNumBS);
+    OP_LOGI(context_->GetNodeName(), "tailBlockloopNumDim: %ld", tilingData_.tailBlockloopNumDim);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorBS: %ld", tilingData_.tailBlockubFactorBS);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorBS: %ld", tilingData_.tailBlockubTailFactorBS);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubFactorDim: %ld", tilingData_.tailBlockubFactorDim);
+    OP_LOGI(context_->GetNodeName(), "tailBlockubTailFactorDim: %ld", tilingData_.tailBlockubTailFactorDim);
 
     // Shape information for kernel use
-    OP_LOGI(context_->GetNodeName(), "batchSize: %ld", batchSize_);
-    OP_LOGI(context_->GetNodeName(), "seqLen: %ld", seqLen_);
-    OP_LOGI(context_->GetNodeName(), "cuSeqLen: %ld", cuSeqLen_);
-    OP_LOGI(context_->GetNodeName(), "dim: %ld", dim_);
-    OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", kernelSize_);
-    OP_LOGI(context_->GetNodeName(), "stateLen: %ld", stateLen_);
-    OP_LOGI(context_->GetNodeName(), "xStride: %ld", 0);
-    OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", 0);
-    OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", xInputMode_);
-    OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", hasAcceptTokenNum_);
-    OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", residualConnection_);
+    OP_LOGI(context_->GetNodeName(), "batchSize: %ld", tilingData_.batchSize);
+    OP_LOGI(context_->GetNodeName(), "seqLen: %ld", tilingData_.seqLen);
+    OP_LOGI(context_->GetNodeName(), "cuSeqLen: %ld", tilingData_.cuSeqLen);
+    OP_LOGI(context_->GetNodeName(), "dim: %ld", tilingData_.dim);
+    OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", tilingData_.kernelSize);
+    OP_LOGI(context_->GetNodeName(), "stateLen: %ld", tilingData_.stateLen);
+    OP_LOGI(context_->GetNodeName(), "xStride: %ld", tilingData_.);
+    OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", tilingData_.);
+    OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", tilingData_.xInputMode);
+    OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", tilingData_.hasAcceptTokenNum);
+    OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", tilingData_.residualConnection);
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
