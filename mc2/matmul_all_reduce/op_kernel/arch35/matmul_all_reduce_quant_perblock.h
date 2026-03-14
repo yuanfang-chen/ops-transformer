@@ -84,7 +84,6 @@ protected:
             this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
-
 private:
     Mc2Tiling::QuantMatmulAllReduceTilingDataA5* mc2TilingData_;
 };

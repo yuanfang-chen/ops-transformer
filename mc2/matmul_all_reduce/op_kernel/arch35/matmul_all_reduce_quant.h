@@ -83,7 +83,7 @@ protected:
                 this->quantAddrs_->pertokenGM, this->addrs_->cGM, this->addrs_->workspaceGM, tiling, this->tPipe_);
 
             mmOp.Process();
-            const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
+            const uint64_t index = tailFlag ? i+this->paramInTiling_->tileCnt : i;
             this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
             this->quantAddrs_->pertokenGM += pertokenOffset;
         }
