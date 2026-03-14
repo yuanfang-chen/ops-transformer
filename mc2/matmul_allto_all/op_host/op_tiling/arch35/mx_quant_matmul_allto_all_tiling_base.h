@@ -66,14 +66,15 @@ protected:
     ge::graphStatus CheckMxQuantInputShapesValid(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckQuantGroupSize(const gert::TilingContext *context, const char *opName);
     ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName,
-                                             TilingContextInfo &contextInfo);
-    
+                                        TilingContextInfo &contextInfo);
+    ge::graphStatus CheckMxQuantScaleDataType(const gert::TilingContext *context, const char *opName); 
     void SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const;
     void PrintMxQuantMatmulAlltoAllTilingData(QuantMatmulAlltoAllTilingData &outTilingData);
     
 private:
     QuantMatmulAlltoAllTilingData localTilingData_;
-    uint64_t mmMvalueLen = 0;
+    uint64_t mmMvalueLen_ = 0;
+    bool isMxfp4_ = false;
     void PrintMxQuantMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
     void PrintMxQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
     void PrintExtendMatmulTiling(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
