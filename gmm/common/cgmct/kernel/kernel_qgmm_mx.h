@@ -136,6 +136,8 @@ private:
     __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx);
     __aicore__ inline void UpdateMMGlobalAddr();
     __aicore__ inline void Iterate(int64_t singleCoreM, int64_t singleCoreN);
+    __aicore__ inline bool IsLastGroupAndNeedSplit(BlockSchedulerOp &bs, uint32_t groupIdx);
+    // __aicore__ inline void UpdateTailTile(BlockSchedulerOp &bs);
 
 private:
     BlockMmad mmadOp_;
@@ -195,6 +197,10 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Pa
             Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_), 0L};
         BaseMBalance(bs, Get<MNK_M>(problemShape_), params.gmmParams.baseM);
         bs.UpdateNextProblem(bsProblemShape);
+        // 最后一个group最后一轮是否进一步切分以使用更多的核数
+        if (IsLastGroupAndNeedSplit(bs, groupIdx)) {
+            bs.UpdateTailTile();
+        }
         UpdateMMGlobalAddr();
         ProcessSingleGroup(params, bs, groupIdx);
     }
@@ -240,6 +246,52 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBalance
         bs.UpdateBaseM(curBaseM_);
     }
 }
+
+QGMM_MX_KERNEL_CLASS_TEM_PARAMS
+__aicore__ inline bool KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::IsLastGroupAndNeedSplit(BlockSchedulerOp &bs,
+                                                                                            uint32_t groupIdx)
+{
+    // 2: 剩一半及以上核数时才考虑尾块切分
+    return groupIdx == groupNum_ - 1 && (bs.GetEndBlockIdx() + 1) <= AscendC::GetBlockNum() / 2;
+}
+
+/*
+QGMM_MX_KERNEL_CLASS_TEM_PARAMS
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateTailTile(BlockSchedulerOp &bs)
+{
+    // 获取m,n方向尾块大小
+    uint64_t mTail = bs.GetMBaseTail();
+    uint64_t nTail = bs.GetNBaseTail();
+    // 计算可切分数，不切为1
+    uint64_t remainTile = (AscendC::GetBlockNum() - bs.GetEndBlockIdx()) / bs.GetTailTileCnt() + 1;
+    if (remainTile <= 1) {
+        return;
+    }
+
+    // 初始化最小 tile 大小
+    uint64_t mMin = AscendC::BLOCK_CUBE;
+    uint64_t nMin = AscendC::BLOCK_CUBE;
+
+    // 根据矩阵是否转置调整最小 tile 大小
+    if constexpr (transA) {
+        mMin = 128UL; // 内轴至少128B
+    }
+    if constexpr (!transB) {
+        nMin = 128UL; // 内轴至少128B
+    }
+
+    // 计算 mTile 和 nTile，尽可能让m,n方向切分数一致
+    uint64_t mTile = Min(CeilDiv(mTail, mMin), remainTile);
+    uint64_t nTile = Min(CeilDiv(nTail, nMin), remainTile);
+    while (mTile * nTile > remainTile) {
+        if (mTile >= nTile) {
+            mTile -= 1;
+        } else {
+            nTile -= 1;
+        }
+    }
+    bs.UpdateTailTile(mTile, nTile);
+}*/
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t groupIdx)
