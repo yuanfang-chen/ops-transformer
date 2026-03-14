@@ -1243,20 +1243,23 @@ def build_mla_param(params):
     t_flag = params.get('t_flag', True)
 
     # --- Create input tensors (on CPU) ---
+    # NOTE: generation order must match original to preserve random state for reproducibility
     if t_flag:
         token_x = _create_tensor((T, He), x_dtype, generator)
-        rope_sin = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
-        rope_cos = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
     else:
         token_x = _create_tensor((B, S1, He), x_dtype, generator)
-        rope_sin = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
-        rope_cos = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
     w_dq = _create_tensor((He, HCQ), w_dq_dtype, generator)
     w_uq_qr = _create_tensor((HCQ, N1 * (D + DR)), w_uq_qr_dtype, generator)
     w_uk = _create_tensor((N1, D, HCKV), w_uk_dtype, generator)
     w_dkv_kr = _create_tensor((He, HCKV + DR), w_dkv_kr_dtype, generator)
     gamma_cq = torch.randn(HCQ, dtype=torch.bfloat16, generator=generator)
     gamma_ckv = torch.randn(HCKV, dtype=torch.bfloat16, generator=generator)
+    if t_flag:
+        rope_sin = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
+        rope_cos = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
+    else:
+        rope_sin = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
+        rope_cos = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
 
     # --- Cache setup ---
     block_num = math.ceil(T / block_size)
@@ -1285,21 +1288,24 @@ def build_mla_param(params):
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((total_blocks, block_size, N2, DR), kr_cache_dtype, generator)
-        cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
+        if cache_mode == "PA_BLK_NZ":
+            cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
+        else:  # PA_BLK_BSND — scatter expects 1D index
+            cache_index = torch.arange(total_blocks, dtype=torch.int64)
     elif cache_mode == "BSND":
         kv_cache = _create_tensor((B, S2, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((B, S2, N2, DR), kr_cache_dtype, generator)
-        cache_index = None
+        cache_index = torch.arange(T, dtype=torch.int64)
     elif cache_mode == "TND":
         kv_cache = _create_tensor((T, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((T, N2, DR), kr_cache_dtype, generator)
-        cache_index = None
+        cache_index = torch.arange(T, dtype=torch.int64)
     else:
         raise ValueError(f"Unsupported cache_mode: {cache_mode}")
 
@@ -1315,7 +1321,10 @@ def build_mla_param(params):
 
     grp_size = 32
 
-    if weight_quant_mode == 2:
+    if weight_quant_mode == 1:
+        # Smooth quant: per-channel dequant scale for w_uq_qr (matmul2 post-processing)
+        deq_scale_w_uqqr = torch.rand(1, N1 * (D + DR), dtype=torch.float32) + 0.01
+    elif weight_quant_mode == 2:
         # INT8 full quantization: per-token scale for x, per-channel scale for weights
         deq_scale_x = torch.rand(T, 1, dtype=torch.float32) + 0.01
         deq_scale_w_dq = torch.rand(1, HCQ, dtype=torch.float32) + 0.01
@@ -1359,8 +1368,9 @@ def build_mla_param(params):
     pa_flag = "PA" in cache_mode
 
     # --- actual_seq_len for PA_BLK modes ---
+    # Cumulative format: [S1, 2*S1, ..., B*S1] — required by scatter functions
     if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
-        actual_seq_len = torch.tensor([S1] * B, dtype=torch.int64)
+        actual_seq_len = torch.tensor([S1 * (i + 1) for i in range(B)], dtype=torch.int64)
     else:
         actual_seq_len = None
 

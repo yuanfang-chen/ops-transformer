@@ -23,6 +23,9 @@
 import itertools
 import torch
 
+# wqm=3 requires torch.float8_e8m0 (PyTorch 2.6+)
+HAS_FLOAT8_E8M0 = hasattr(torch, 'float8_e8m0')
+
 # ---------------------------------------------------------------------------
 # 18 种合法量化组合 (weight_quant_mode, kv_cache_quant_mode, query_quant_mode)
 # ---------------------------------------------------------------------------
@@ -45,6 +48,9 @@ CACHE_MODES = ["PA_BSND", "PA_NZ", "PA_BLK_BSND", "PA_BLK_NZ", "BSND", "TND"]
 
 def is_valid(wqm, kqm, qqm, cache_mode, t_flag, qnorm):
     """检查参数组合是否满足所有约束。"""
+    # wqm=3 需要 torch.float8_e8m0 支持
+    if wqm == 3 and not HAS_FLOAT8_E8M0:
+        return False
     # kqm=3 只支持 PA_BSND, BSND, TND
     if kqm == 3 and cache_mode not in ("PA_BSND", "BSND", "TND"):
         return False
