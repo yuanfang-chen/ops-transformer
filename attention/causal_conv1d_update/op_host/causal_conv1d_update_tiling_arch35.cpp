@@ -610,7 +610,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
         dimMainCoreCnt_ = remainder;
         dimTailCoreCnt_ = bestDimCores - remainder;
         mainCoredimLen_ = (base + 1) * DIM_ALIGN_ELEMENT; // big core size
-        tailCoredimLen_ = 0;       // small core size
+        tailCoredimLen_ = base * DIM_ALIGN_ELEMENT;       // small core size
     }
 
     // Derive batch non-uniform parameters (均分+多前核)
@@ -622,7 +622,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
         batchMainCoreCnt_ = batchCoreCnt_;
         batchTailCoreCnt_ = 0;
         mainCoreBatchNum_ = bsBase;
-        tailCoreBatchNum_ = 0;
+        tailCoreBatchNum_ = bsBase;
     } else {
         // Non-even split: first 'bsRemainder' big cores take (bsBase+1) batches, rest take bsBase batches
         batchMainCoreCnt_ = bsRemainder;                 // 前remainder个核是大核
