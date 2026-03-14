@@ -67,7 +67,7 @@ public:
     constexpr static uint64_t SFMG_HIGH_PERF_N_FACTOR = 8;
     constexpr static uint64_t SFMG_HIGH_PERF_D_FACTOR = 64;
     constexpr static uint64_t STAGES = 1;
-    constexpr static uint64_t DOUBLE_BUFFER = 1;
+    constexpr static uint64_t DOUBLE_BUFFER = 2;
     constexpr static uint64_t INPUT_NUM = 2;
     constexpr static uint64_t BNSD = 1;
     constexpr static uint64_t TND = 0;
@@ -241,6 +241,8 @@ public:
                 CopyInSfmg(nBurst, curS, actualSeqQlenAddr, ping);
             }
 
+            AscendC::PipeBarrier<PIPE_ALL>();
+
             // cast 1
             uint64_t calcSize = nBurst * dAlign;
             Cast(doutFp32Tensor[ping], doutTensor[ping], RoundMode::CAST_NONE, calcSize);
@@ -251,6 +253,7 @@ public:
             Cast(outFp32Tensor[ping], outTensor[ping], RoundMode::CAST_NONE, calcSize);
             AscendC::PipeBarrier<PIPE_V>();
 
+            AscendC::PipeBarrier<PIPE_ALL>();
             // pre copyIn next nBurst
             if (i < singleCoreLoop - 1) {
                 uint64_t nextNBurst = i == singleCoreLoop - 2 ? singleCoreLastLoopNBurstNum : nBurst;
