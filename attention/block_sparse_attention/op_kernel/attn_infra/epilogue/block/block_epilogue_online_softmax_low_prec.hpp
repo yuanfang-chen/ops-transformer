@@ -600,7 +600,7 @@ public:
     __aicore__ inline
     void CopyPUbToGm(AscendC::GlobalTensor<ElementOutput> gOutput, uint32_t sUbOffset, uint32_t rowNumCurLoop,
         uint32_t columnNumRound, uint32_t columnNumPad)
-    {
+    {   
         AscendC::DataCopy(gOutput,
             lpUbTensor[sUbOffset],
             AscendC::DataCopyParams(
@@ -639,7 +639,7 @@ public:
             isFirstStackTile);
         CalcExp(sUbOffset, rowNumCurLoop, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
 
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
         MoveP(sUbOffset, rowNumCurLoop, columnNumRound);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
 
@@ -647,7 +647,7 @@ public:
 
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
         CopyPUbToGm(gOutput, sUbOffset, rowNumCurLoop, columnNumRound, columnNumPad);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
         if (isLastLoop) {
             NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxFlag);
         }
@@ -679,6 +679,7 @@ public:
         uint32_t rowNumTile = RoundDown(maxRowNumPerLoop, BLOCK_SIZE);
         rowNumTile = AscendC::Std::min(rowNumTile, HALF_VECTOR_SIZE);
         uint32_t rowLoopNum = CeilDiv(rowActualThisSubBlock, rowNumTile);
+
         if (rowActualThisSubBlock == 0) {
             NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxFlag);
             return;
