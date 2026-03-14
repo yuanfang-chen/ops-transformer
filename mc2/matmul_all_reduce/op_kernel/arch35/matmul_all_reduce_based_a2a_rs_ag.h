@@ -55,21 +55,19 @@ public:
         const uint64_t mVal = isOneTileFlag_ ? ((uint64_t)paramInTiling_->rankM) : (uint64_t)tileInfo_.mmTiling->M;
 
         tileInfo_.aOffset = mVal * (uint64_t)tileInfo_.mmTiling->Ka;
+        tileInfo_.aAddrOffset = tileInfo_.aOffset * sizeof(XType);
         if (AscendC::IsSameType<XType, fp4x2_e2m1_t>::value) {
             // In 4-bits scenario, the data length is 0.5, the size of Xtype is 1, it should be divided by 2.
-            tileInfo_.aAddrOffset = tileInfo_.aOffset * sizeof(XType) / 2;
-        } else {
-            tileInfo_.aAddrOffset = tileInfo_.aOffset * sizeof(XType);
+            tileInfo_.aAddrOffset = tileInfo_.aAddrOffset / 2;
         }
         tileInfo_.cOffset = mVal * (uint64_t)tileInfo_.mmTiling->N;
         tileInfo_.cAddrOffset = tileInfo_.cOffset * sizeof(YType);
         if (tailFlag_) {
             tailInfo_.aOffset = (uint64_t)tailInfo_.mmTiling->M * (uint64_t)tailInfo_.mmTiling->Ka;
+            tailInfo_.aAddrOffset = tailInfo_.aOffset * sizeof(XType);
             if (AscendC::IsSameType<XType, fp4x2_e2m1_t>::value || AscendC::IsSameType<XType, fp4x2_e1m2_t>::value) {
                 // In 4-bits scenario, the data length is 0.5, the size of Xtype is 1, it should be divided by 2.
-                tailInfo_.aAddrOffset = tailInfo_.aOffset * sizeof(XType) / 2;
-            } else {
-                tailInfo_.aAddrOffset = tailInfo_.aOffset * sizeof(XType);
+                tailInfo_.aAddrOffset = tailInfo_.aAddrOffset / 2;
             }
             tailInfo_.cOffset = (uint64_t)tailInfo_.mmTiling->M * (uint64_t)tailInfo_.mmTiling->N;
             tailInfo_.cAddrOffset = tailInfo_.cOffset * sizeof(YType);
@@ -187,7 +185,6 @@ protected:
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tileInfo_.cAddrOffset;
                 reduceSumOutGM_ += tileInfo_.cAddrOffset / rankNum_;
-                SyncAll();
             }
 
             for (int i = 0; i < paramInTiling_->tailCnt; i++){
@@ -197,7 +194,6 @@ protected:
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailInfo_.cAddrOffset;
                 reduceSumOutGM_ += tailInfo_.cAddrOffset / rankNum_;
-                SyncAll();
             }
         }
         SyncAll();
