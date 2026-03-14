@@ -240,8 +240,8 @@ private:
                        chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
             // query @ key.transpose(-1,-2)   stage1 out
-            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, chunkSize_, chunkSize_, dk_, 
-                       chunkSize_, chunkSize_, dk_, true);
+            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, validLen_, validLen_, dk_, 
+                       validLen_, validLen_, dk_, true);
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
             // 求逆左下角矩阵
             AttnInverseMMCompute(INVERSE_SHAPE);
