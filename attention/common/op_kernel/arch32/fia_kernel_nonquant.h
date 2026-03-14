@@ -85,7 +85,7 @@ protected:
     using TMP_T = typename AscendC::Conditional<ANTIQUANT, half, T>::type;
     using MM1_OUT_T = typename AscendC::Conditional<QUANT, int32_t, TMP_T>::type;
     using MM2_OUT_T = typename AscendC::Conditional<QUANT, half, TMP_T>::type;
-    using PSE_T = typename AscendC::Conditional<IsSameType<Q_T, int8_t>::value, half, Q_T>::type;
+
 
     // ==============================Service Define==============================
     CubeBlockType matmulService;
@@ -122,7 +122,6 @@ protected:
     __gm__ uint8_t *value_ = nullptr;
 
     // ================================Optional Global Tensor=================================
-    GlobalTensor<PSE_T> pseShiftGm;
     // actual seq lens
     GlobalTensor<uint64_t> actualSeqLengthsGmQ;
     GlobalTensor<uint64_t> actualSeqLengthsGm;
@@ -248,10 +247,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
     constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
-    constInfo.pseShiftFlag = tilingData->pseParams.pseShiftFlag;
-    constInfo.pseShiftByBatch = tilingData->pseParams.pseShiftByBatch;
-    constInfo.pseShiftS1 = tilingData->pseParams.pseShiftS1;
-    constInfo.pseShiftS2 = tilingData->pseParams.pseShiftS2;
 
     constInfo.maxBlockNumPerBatch = tilingData->pageAttenParams.maxBlockNumPerBatch;
     constInfo.kvCacheBlockSize = tilingData->pageAttenParams.blockSize;
@@ -482,7 +477,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
     if ASCEND_IS_AIC {
         matmulService.InitParams(constInfo);
-        matmulService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
+        matmulService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
             deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
             blockTable, queryPaddingSize, kvPaddingSize,
             keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
@@ -505,7 +500,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             }
         }
         vectorService.InitParams(constInfo);
-        vectorService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
+        vectorService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
             deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
             blockTable, queryPaddingSize, kvPaddingSize,
             keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,

@@ -56,13 +56,13 @@ public:
     using MM1_OUT_T = T;
     using MM2_OUT_T = T;
     using SINK_T = bfloat16_t;
-    using PSE_T = typename AscendC::Conditional<IsSameType<Q_T, int8_t>::value, half, Q_T>::type;
+
 
     __aicore__ inline FiaBlockVecNonQuant(){};
     // =================================设置参数=================================
     __aicore__ inline void InitParams(const struct ConstInfo &constInfo);
     __aicore__ inline void Init(
-        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
+        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, 
         __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
         __gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1, __gm__ uint8_t *deqScale2, __gm__ uint8_t *quantScale2,
         __gm__ uint8_t *quantOffset2, __gm__ uint8_t *antiquantScale, __gm__ uint8_t *antiquantOffset,
@@ -143,7 +143,7 @@ protected:
     GlobalTensor<T> lseMaxFdGm;
 
     GlobalTensor<T> accumOutGm;
-    GlobalTensor<PSE_T> pseShiftGm;
+
     GlobalTensor<OUT_T> attentionOutGm;
     GlobalTensor<float> softmaxLseGm;
 
@@ -212,12 +212,6 @@ protected:
     ActualSeqLensParser<Q_MODE> qActSeqLensParser; 
     ActualSeqLensParser<KV_MODE> kvActSeqLensParser;
 
-    // PSE仅在Q的lauot为BSH/BSND/BNSD时支持
-    static constexpr bool IS_SUPPORT_PSE = IsSupportPse<LAYOUT_T>();
-    static constexpr UbFormat PSE_UB_FORMAT = GetPseUbFormat<LAYOUT_T>();
-    FaGmTensor<PSE_T, GmFormat::BN2GS1S2> pseShiftGmTensor;
-    CopyPSEGmToUb<PSE_T, GmFormat::BN2GS1S2, PSE_UB_FORMAT> copyPSEGmToUb;
-    bool pseHasBatch = true;
 
     bool learnableSinkFlag = false;
 };
@@ -239,7 +233,7 @@ public:
     // =================================设置参数=================================
     __aicore__ inline void InitParams(const struct ConstInfo &constInfo);
     __aicore__ inline void Init(
-        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
+        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, 
         __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
         __gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1, __gm__ uint8_t *deqScale2, __gm__ uint8_t *quantScale2,
         __gm__ uint8_t *quantOffset2, __gm__ uint8_t *antiquantScale, __gm__ uint8_t *antiquantOffset,
@@ -271,7 +265,7 @@ FiaBlockVecNonQuant<FIAT>::InitParams(const struct ConstInfo &constInfo)
 
 template <typename FIAT>
 __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Init(
-        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
+        __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, 
         __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
         __gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1, __gm__ uint8_t *deqScale2, __gm__ uint8_t *quantScale2,
         __gm__ uint8_t *quantOffset2, __gm__ uint8_t *antiquantScale, __gm__ uint8_t *antiquantOffset,
@@ -300,15 +294,7 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Init(
     qActSeqLensParser.Init(this->actualSeqLengthsGmQ, constInfo.actualLenQDims, constInfo.qSeqSize); 
     kvActSeqLensParser.Init(this->actualSeqLengthsGm, constInfo.actualLenDims, constInfo.kvSeqSize);
 
-    if constexpr (IS_SUPPORT_PSE) {
-        if (constInfo.pseShiftFlag) {
-            pseShiftGm.SetGlobalBuffer((__gm__ PSE_T *)pseShift);
-            pseShiftGmTensor.gmTensor = pseShiftGm;
-            pseShiftGmTensor.offsetCalculator.Init(
-                constInfo.pseShiftByBatch ? constInfo.batchSize : 1, constInfo.kvHeadNum, constInfo.gSize,
-                constInfo.pseShiftS1, constInfo.pseShiftS2, this->actualSeqLengthsGmQ, constInfo.actualLenQDims);
-        }
-    }
+
     if constexpr (POST_QUANT) {
         InitPostQuant(quantScale2, quantOffset2);
     }
@@ -527,38 +513,7 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
     uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
     Muls(mmResUb, mmResUb, static_cast<MM1_OUT_T>(constInfo.scaleValue), dealRowCount * columnCount);
-
-    if constexpr (IS_SUPPORT_PSE) {
-        if (constInfo.pseShiftFlag) {
-            LocalTensor<PSE_T> pseShiftB16 = inputQue2.AllocTensor<PSE_T>();
-            FaUbTensor<PSE_T> pseShiftUbTensor {
-                .tensor = pseShiftB16,
-                .rowCount = dealRowCount,
-                .colCount = columnCount
-            };
-            GmPseCoord pseCoord = {
-                .bIdx = constInfo.pseShiftByBatch ? info.bIdx : 0,
-                .n2Idx = info.n2Idx,
-                .gS1Idx = info.gS1Idx + mSplitInfo.nBufferStartM + mSplitInfo.vecStartM + startRow,
-                .s2Idx = info.s2Idx * constInfo.s2BaseSize,
-                .gS1DealSize = dealRowCount,
-                .s2DealSize = actualColumnCount,
-                .s1LeftPaddingSize = info.qPaddingBeginOffset,
-                .s2LeftPaddingSize = info.kvPaddingBeginOffset,
-                .actualBIdx = info.bIdx
-            };
-            bool qsEqualOne = (constInfo.qSeqSize == 1);
-            copyPSEGmToUb(pseShiftUbTensor, pseShiftGmTensor, pseCoord, qsEqualOne);
-            inputQue2.EnQue(pseShiftB16);
-            inputQue2.DeQue<PSE_T>();
-            LocalTensor<T> pseShiftUbFP32 = tmpBuf.Get<T>();
-            AscendC::Cast(pseShiftUbFP32, pseShiftB16, AscendC::RoundMode::CAST_NONE, dealRowCount * columnCount);
-            inputQue2.FreeTensor(pseShiftB16);
-            AscendC::PipeBarrier<PIPE_V>();
-            AscendC::Add(mmResUb, mmResUb, pseShiftUbFP32, dealRowCount * columnCount);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
-    }
+    
 
     if (constInfo.attenMaskFlag == 1) {
         AscendC::PipeBarrier<PIPE_V>();
