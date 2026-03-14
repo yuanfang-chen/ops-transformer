@@ -387,7 +387,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-注意：由于量化接口仅支持Ascend 950PR/Ascend 950DT系列，以下示例基于该系列实现。
+注意：由于量化接口仅支持Ascend 950PR/Ascend 950DT系列，以下示例基于该系列实现。本示例代码以2卡为例，请根据实际环境卡数修改 `EP_WORLD_SIZE`。
 
 ```cpp
 #include <thread>
