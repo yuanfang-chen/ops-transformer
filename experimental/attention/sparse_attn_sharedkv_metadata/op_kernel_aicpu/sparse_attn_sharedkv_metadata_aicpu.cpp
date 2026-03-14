@@ -449,6 +449,43 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     return true;
 }
 
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx)
+{
+    uint32_t s1GToken = s1GIdx * mBaseSize_;
+    uint32_t s1Idx = 0;
+    if (isS1G_) {
+        s1Idx = s1GToken / static_cast<int64_t>(groupSize_);
+    } else {
+        s1Idx = s1GToken % static_cast<int64_t>(batchCache.s1Size);
+    }
+    return s1Idx;
+}
+
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_t s1Idx)
+{
+    uint32_t bsStride = 0;
+    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
+        for (uint32_t i = 0; i < bIdx; i++) {
+            if (i == 0) {
+                continue;
+            }
+            bsStride += seqUsedPtr[i - 1];
+        }
+        bsStride += s1Idx;
+        return bsStride;
+    }
+    if (layoutQuery_ == "TND") {
+        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+            const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
+            bsStride = s1Ptr[bIdx] + s1Idx;
+            return bsStride;
+        }
+    }
+    bsStride = bIdx * static_cast<uint32_t>(querySeqSize_) + s1Idx;
+    return bsStride;
+}
+
 uint32_t SparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t bIdx)
 {
     auto mode = static_cast<SparseMode>(oriMaskMode_);
@@ -724,7 +761,9 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range<int64_
     } else {
         oriS2FirstToken = Clip(oriS2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
         oriS2LastToken = Clip(oriS2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
-        uint32_t oriTopkSize = GetOriTopkLength(s1GCache.bIdx);
+        uint32_t s1Idx = GetS1Idx(batchCache, s1GCache.s1GIdx);
+        uint32_t bsStride = GetBsStride(s1GCache.bIdx, s1Idx);
+        uint32_t oriTopkSize = GetOriTopkLength(bsStride);
         oriS2LastTokenSize = hasOriTopk ? std::min(oriS2LastToken + 1, static_cast<int64_t>(oriTopkSize)) : (oriS2LastToken + 1);
         s1GCache.winS2Start = 0;
         s1GCache.winS2End = oriS2LastTokenSize == 0 ? 0 : (oriS2LastTokenSize - 1 - oriS2FirstToken) / s2BaseSize_ + 1U;
@@ -735,10 +774,14 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range<int64_
     // 计算CmpS2LastToken的长度
     uint32_t cmpS2LastTokenSize = hasCmpKv_ ? oriS2LastTokenSize / cmpRatio_ : 0;
     uint32_t actCmpS2LastTokenSize = 0;
-    if (hasCmpKv_) {
-    	// CmpS2LastToken与topk取最小
-        uint32_t cmpTopkSize = GetCmpTopkLength(s1GCache.bIdx);
-        actCmpS2LastTokenSize = hasCmpTopk ? std::min(cmpS2LastTokenSize, cmpTopkSize) : cmpS2LastTokenSize;
+    if (isCFA) {
+        actCmpS2LastTokenSize = cmpS2LastTokenSize;
+    } else if (isSCFA) {
+        // CmpS2LastToken与topk取最小
+        uint32_t s1Idx = GetS1Idx(batchCache, s1GCache.s1GIdx);
+        uint32_t bsStride = GetBsStride(s1GCache.bIdx, s1Idx);
+        uint32_t cmpTopkSize = GetCmpTopkLength(bsStride);
+        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, cmpTopkSize);
     }
     // 将token长度转化为token索引，然后由token索引计算s2索引
     s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? s1GCache.cmpS2Start : s1GCache.cmpS2Start + 

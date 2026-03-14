@@ -252,6 +252,8 @@ private:
     uint32_t GetS2SeqSize(uint32_t bIdx);
     uint32_t GetOriTopkLength(uint32_t bsStride);
     uint32_t GetCmpTopkLength(uint32_t bsStride);
+    uint32_t GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx);
+    uint32_t GetBsStride(uint32_t bIdx, uint32_t s1Idx);
     int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
