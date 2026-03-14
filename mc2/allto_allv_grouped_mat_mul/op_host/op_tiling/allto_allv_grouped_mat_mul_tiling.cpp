@@ -834,16 +834,16 @@ ge::graphStatus AlltoAllvGmmTiling::CheckDType(const gert::TilingContext* contex
                 (context->GetOptionalInputDesc(MM_X_INDEX)->GetDataType() !=
                  context->GetOutputDesc(OUTPUT_MM_Y_INDEX)->GetDataType()),
             OP_LOGE(A_INNER_DEBUG, "The dataType of mmWeight and mmY should be the same with mmX."), return ge::GRAPH_FAILED);
-        // 校验mmType和gmmType一致
-        OP_TILING_CHECK(context_->GetOptionalInputDesc(MM_X_INDEX)->GetDataType() != context_->GetInputDesc(GMM_X_INDEX)->GetDataType(),
- 	            OP_LOGE(context_->GetNodeName(), "mmX data type (%s) must be the same as gmmX data type (%s) when shared expert is enabled.",
- 	                ge::TypeUtils::DataTypeToSerialString(context_->GetOptionalInputDesc(MM_X_INDEX)->GetDataType()).c_str(),
- 	                ge::TypeUtils::DataTypeToSerialString(context_->GetInputDesc(GMM_X_INDEX)->GetDataType()).c_str()),
+        // 校验mmdataType和gmmdataType一致
+        OP_TILING_CHECK(context->GetOptionalInputDesc(MM_X_INDEX)->GetDataType() != context->GetInputDesc(GMM_X_INDEX)->GetDataType(),
+ 	            OP_LOGE(context->GetNodeName(), "mmX data type (%s) must be the same as gmmX data type (%s) when shared expert is enabled.",
+ 	                ge::TypeUtils::DataTypeToSerialString(context->GetOptionalInputDesc(MM_X_INDEX)->GetDataType()).c_str(),
+ 	                ge::TypeUtils::DataTypeToSerialString(context->GetInputDesc(GMM_X_INDEX)->GetDataType()).c_str()),
  	            return ge::GRAPH_FAILED);
- 	    OP_TILING_CHECK(context_->GetOptionalInputDesc(MM_WEIGHT_INDEX)->GetDataType() != context_->GetInputDesc(GMM_X_INDEX)->GetDataType(),
- 	        OP_LOGE(context_->GetNodeName(), "mmWeight data type (%s) must be the same as gmmX data type (%s) when shared expert is enabled.",
- 	            ge::TypeUtils::DataTypeToSerialString(context_->GetOptionalInputDesc(MM_WEIGHT_INDEX)->GetDataType()).c_str(),
- 	            ge::TypeUtils::DataTypeToSerialString(context_->GetInputDesc(GMM_X_INDEX)->GetDataType()).c_str()),
+ 	    OP_TILING_CHECK(context->GetOptionalInputDesc(MM_WEIGHT_INDEX)->GetDataType() != context->GetInputDesc(GMM_X_INDEX)->GetDataType(),
+ 	        OP_LOGE(context->GetNodeName(), "mmWeight data type (%s) must be the same as gmmX data type (%s) when shared expert is enabled.",
+ 	            ge::TypeUtils::DataTypeToSerialString(context->GetOptionalInputDesc(MM_WEIGHT_INDEX)->GetDataType()).c_str(),
+ 	            ge::TypeUtils::DataTypeToSerialString(context->GetInputDesc(GMM_X_INDEX)->GetDataType()).c_str()),
  	        return ge::GRAPH_FAILED);
     }
 
