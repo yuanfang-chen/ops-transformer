@@ -19,6 +19,8 @@
 
 using namespace Mc2Tiling;
 namespace optiling {
+constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 bool MatmulAllReduceTilingA5::IsCapable()
 {
     OP_LOGI(opName_, "Start with MatmulAllReduceTilingA5 tiling.");
@@ -171,26 +173,21 @@ void MatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
 
 ge::graphStatus MatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P()
 {
-    uint64_t commFp16WorkSpace = 0UL;
-    uint64_t commFp16Len = 0UL;
+    uint64_t commWorkSpace = 0UL;
+    uint64_t commLen = 0UL;
     uint64_t cgmPadLen = 0UL;
-    uint64_t tileM = MutableTCubeTileTilingData().M;
-    uint64_t tailM = MutableTCubeTailTilingData().M;
-    uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
-    uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
+    uint64_t tempTileSize = MutableTCubeTileTilingData().M * MutableTCubeTileTilingData().N;
+    uint64_t tempTailSize = MutableTCubeTailTilingData().M * MutableTCubeTailTilingData().N;
 
-    commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-    cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
-    commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
+    commLen = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
+    cgmPadLen = (args_.rankDim - commLen % args_.rankDim) % args_.rankDim;
+    commWorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
                             tempTailSize * MutableRCSTilingData().tailCnt +
                             cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
-    OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+    OP_LOGI(opName_, "MatmulAllReduceTilingA5 Set commWorkSpace size=%lu to context.", commWorkSpace);
     // MatMul输出存储+alltoall输出存储+reduceSum输出存储
-    if (cgmPadLen == 0) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
-    } else {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
-    }
+    uint64_t workspaceSizeCount = cgmPadLen ? STANDARD_CARD_CGMPAD_WORKSPACE_CNT : STANDARD_CARD_WORKSPACE_CNT;
+    myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * workspaceSizeCount + commWorkSpace / args_.rankDim;
     return ge::GRAPH_SUCCESS;
 }
 
