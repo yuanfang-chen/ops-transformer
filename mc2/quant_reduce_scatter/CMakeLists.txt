@@ -18,4 +18,5 @@ foreach(SUB_DIR ${CURRENT_DIRS})
     endif()
 endforeach()
 
+
 set(MC2_COMPILE ${SUB_MC2_COMPILE} PARENT_SCOPE)
