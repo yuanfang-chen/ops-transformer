@@ -121,8 +121,6 @@ private:
                       int64_t &outLoopDim, int64_t &outLoopBS,
                       int64_t &outUbTailDim, int64_t &outUbTailBS);
 
-
-
     // Hardware information
     uint64_t ubSize_ = 0;
     uint64_t totalCoreNum_ = 0;

@@ -331,11 +331,16 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
 // Validate query start loc tensor shape
 ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
 {
-    // This is an optional input
-    auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
-    if (queryStartLocShape == nullptr) {
+    if (xInputMode_ == X_INPUT_3D) {
         return ge::GRAPH_SUCCESS;
     }
+    // This is an optional input
+    auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
+    OP_CHECK_IF(queryStartLocShape == nullptr,
+                OP_LOGE(context_->GetNodeName(),
+                        "queryStartLoc must be provided when input X is 2D"),
+                return ge::GRAPH_FAILED);
+
     auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
     // Validate dimension number: must be 1
@@ -415,11 +420,15 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesType()
 // Validate query start loc tensor type
 ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 {
-    // This is an optional input
-    auto queryStartLocDesc = context_->GetOptionalInputDesc(QUERY_START_LOC_INDEX);
-    if (queryStartLocDesc == nullptr) {
+    if (xInputMode_ == X_INPUT_3D) {
         return ge::GRAPH_SUCCESS;
     }
+    // This is an optional input
+    auto queryStartLocDesc = context_->GetOptionalInputDesc(QUERY_START_LOC_INDEX);
+    OP_CHECK_IF(queryStartLocDesc == nullptr,
+                OP_LOGE(context_->GetNodeName(),
+                        "queryStartLoc must be provided when input X is 2D"),
+                return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(queryStartLocDtype_ != ge::DataType::DT_INT32,
                 OP_LOGE(context_->GetNodeName(),
