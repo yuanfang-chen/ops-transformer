@@ -132,7 +132,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
 }
 
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512)
+TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d)
 {
     optiling::CausalConv1dUpdateCompileInfo compileInfo = {
         64, 261888};
@@ -236,14 +236,14 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d4096_x2
 {
     auto para = Make2DTilingPara(1, 4, 4096);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "32 32 1 32 0 128 128 1 0 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 4096 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "32 32 1 32 0 128 128 1 0 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 4096 3 5 0 0 1 1 1 ", {});
 }
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d8192_x2d)
 {
     auto para = Make2DTilingPara(1, 4, 8192);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 64 1 64 0 128 128 1 0 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 8192 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 64 1 64 0 128 128 1 0 1 1 0 0 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 8192 3 5 0 0 1 1 1 ", {});
 }
 
 // batch=32, cuSeqLen=128
@@ -251,26 +251,26 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d512_x2
 {
     auto para = Make2DTilingPara(32, 128, 512);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 4 0 128 128 16 0 2 2 0 31 1 1 2 2 128 128 1 1 2 2 128 128 32 6 128 512 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 4 0 128 128 16 0 2 2 0 31 1 1 2 2 128 128 1 1 2 2 128 128 32 6 128 512 3 5 0 0 1 1 1 ", {});
 }
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d768_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 768);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 2 2 256 128 16 0 2 2 0 31 1 1 2 2 256 256 1 1 2 2 128 128 32 6 128 768 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 2 2 256 128 16 0 2 2 0 31 1 1 2 2 256 256 1 1 2 2 128 128 32 6 128 768 3 5 0 0 1 1 1 ", {});
 }
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d4096_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 4096);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 32 2 32 0 128 128 2 0 16 16 0 31 1 1 16 16 128 128 1 1 16 16 128 128 32 6 128 4096 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 32 2 32 0 128 128 2 0 16 16 0 31 1 1 16 16 128 128 1 1 16 16 128 128 32 6 128 4096 3 5 0 0 1 1 1 ", {});
 }
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d8192_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 8192);
     int64_t expectTilingKey = 20000;
-    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 64 1 64 0 128 128 1 0 32 32 0 31 1 1 32 32 128 128 1 1 32 32 128 128 32 6 128 8192 3 5 0 0 1 1 1", {});
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 64 1 64 0 128 128 1 0 32 32 0 31 1 1 32 32 128 128 1 1 32 32 128 128 32 6 128 8192 3 5 0 0 1 1 1 ", {});
 }
