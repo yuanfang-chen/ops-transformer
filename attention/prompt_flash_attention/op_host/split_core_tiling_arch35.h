@@ -129,8 +129,8 @@ struct FAMetaData {
     std::vector<uint32_t> headFdDataIdx {}; //每个core处理的第1个归约任务的数据应存放的workspace位置
     FlashDecodeResult fdRes { 0U, 0U };     // FD信息
     FAMetaData(uint32_t coreNum, uint32_t ratio) :
-        bN2End(coreNum),
         vecCubeRatio(ratio),
+        bN2End(coreNum),
         mEnd(coreNum),
         s2End(coreNum),
         headFdDataIdx(coreNum),

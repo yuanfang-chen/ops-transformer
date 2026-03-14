@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fia_block_vec_flashdecode.h
+ * \file flash_attention_noquant_block_vec_flashdecode_VF.h
  * \brief
  */
 #ifndef FIA_BLOCK_VEC_FLASHDECODE_H
@@ -52,7 +52,6 @@ __aicore__ inline constexpr AttentionCommon::FIA_LAYOUT ConvertLayoutEnum(LayOut
                 return AttentionCommon::FIA_LAYOUT::NTD;
             }
         default: //LAYOUT_SBH 不会再推理中出现，不会进入这个分支
-            // ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Unhandled LayOutTypeEnum value in ConvertLayoutEnum, current value is %d", layoutType); });
             return AttentionCommon::FIA_LAYOUT::BSH; // 不会执行，默认值
             
     }
@@ -66,7 +65,7 @@ public:
     // 中间计算数据类型为float，高精度模式
     using Type = float;
     using FDGmType = typename std::conditional<true, GlobalTensor<float>, int8_t>::type;
-    using OUT_T = OUTPUT_T;   //问
+    using OUT_T = OUTPUT_T;   
     using BaseClass = FABlockVecBase<FABlockVecInfer<TEMPLATE_ARGS>, TEMPLATE_ARGS>;
     static constexpr AttentionCommon::FIA_LAYOUT LAYOUT_T = ConvertLayoutEnum(layout);
     __aicore__ inline void InitGlobalTensor(FDGmType lseMaxFdGm, FDGmType lseSumFdGm, FDGmType accumOutGm, 
@@ -112,7 +111,7 @@ private:
     static constexpr uint32_t BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(Type); // 32/4=8
     AttentionCommon::FIA_LAYOUT outputLayout = ConvertLayoutEnum(layout, true);
     uint32_t preLoadNum = 2U;
-    uint32_t dSizeV_Align;  // 声明为成员变量
+    uint32_t dSizeV_Align; 
     
 protected:
     FDGmType lseSumFdGm;
@@ -122,8 +121,8 @@ protected:
     GlobalTensor<uint64_t> actualSeqLengthsGmQ;
     GlobalTensor<uint64_t> actualSeqLengthsGm;
 
-    // =======================获取实际Act_S，用于行无效处理===========================
-    static constexpr bool PAGE_ATTENTION = isPa; //问
+    // =======================获取实际Act_S===========================
+    static constexpr bool PAGE_ATTENTION = isPa; 
     static constexpr ActualSeqLensMode Q_MODE = fa_memory_copy_fd::GetQActSeqMode<LAYOUT_T>();
     static constexpr ActualSeqLensMode KV_MODE = fa_memory_copy_fd::GetKvActSeqMode<LAYOUT_T, PAGE_ATTENTION>();
     // tensorlist
@@ -194,7 +193,7 @@ void FiaBlockVecFlashDecode<TEMPLATE_ARGS>::InitBuffers(TPipe *pipe)
     if ASCEND_IS_AIV {
         pipe->Reset();
         // InQue, DB, SYNC_LSE_MAX_SUM_BUF1_FLAG SYNC_LSE_MAX_SUM_BUF2_FLAG
-        pipe->InitBuffer(fdSumBuf1, ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_4K + ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_2K); //考虑调大点 在关注一下
+        pipe->InitBuffer(fdSumBuf1, ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_4K + ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_2K); 
 
         pipe->InitBuffer(fdSumBuf2, ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_4K + ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_2K);
         pipe->InitBuffer(fdMaxBuf1, ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_4K + ConstInfo<isInfer, hasRope>::BUFFER_SIZE_BYTE_2K);
@@ -436,7 +435,7 @@ FiaBlockVecFlashDecode<TEMPLATE_ARGS>::FlashDecode(FDparams &fd)
             LocalTensor<Type> lseExp = fdLseExpBuf.Get<Type>();
             LocalTensor<Type> reduceOut = fdReduceBuf.Get<Type>();
 
-            WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_LSE_MAX_SUM_BUF1_FLAG + reduceMLoop % 2); //
+            WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_LSE_MAX_SUM_BUF1_FLAG + reduceMLoop % 2); 
             CopyLseIn(startRow, actualGSplitSize, taskOffset, reduceMLoop);
             SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_LSE_MAX_SUM_BUF1_FLAG + reduceMLoop % 2);
             WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_LSE_MAX_SUM_BUF1_FLAG + reduceMLoop % 2);
@@ -449,10 +448,7 @@ FiaBlockVecFlashDecode<TEMPLATE_ARGS>::FlashDecode(FDparams &fd)
                 SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + (reduceGlobaLoop + preLoadIdx) % 2);
             }
 
-            // ComputeScaleValue(lseExp, startRow, actualGSplitSize, reduceMLoop);
             ComputeScaleValue(lseExp, constInfo, actualGSplitSize, taskInfo.actualCombineLoopSize, reduceMLoop);
-            // CalcPreNextTokens();
-            // LocalTensor<Type> lseExp2 = reduceMLoop % 2 == 0 ? fdMaxBuf1.Get<Type>() : fdMaxBuf2.Get<Type>();
             SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_LSE_MAX_SUM_BUF1_FLAG + reduceMLoop % 2);
             for (uint32_t i = 0; i < taskInfo.actualCombineLoopSize; i++) {
                 mm2Res = reduceGlobaLoop % 2 == 0 ? fdMm2ResBuf1.Get<Type>() : fdMm2ResBuf2.Get<Type>();
@@ -479,14 +475,13 @@ public:
     // =================================类型定义区=================================
     // 中间计算数据类型为float，高精度模式
     using Type = float;
-    using OUT_T = bfloat16_t;   //问
+    using OUT_T = bfloat16_t;   
     using FDGmType = typename std::conditional<isFd, GlobalTensor<float>, int8_t>::type;
 
     static constexpr AttentionCommon::FIA_LAYOUT LAYOUT_T = AttentionCommon::FIA_LAYOUT::BSND; 
     __aicore__ inline FiaBlockVecFlashDecodeDummy(){};
     __aicore__ inline void InitGlobalTensor(FDGmType lseMaxFdGm, FDGmType lseSumFdGm, FDGmType accumOutGm, 
         GlobalTensor<OUT_T> attentionOutGm, GlobalTensor<uint64_t> actualSeqLengthsGmQ, GlobalTensor<uint64_t> actualSeqLengthsGm){};
-    // __aicore__ inline void InitSoftmaxLseGm(GlobalTensor<float> softmaxLseGm){};
     __aicore__ inline void InitParams(const ConstInfo<isInfer, hasRope> &constInfo){};
     __aicore__ inline void InitDecodeParams(){};
     __aicore__ inline void InitBuffers(TPipe *pipe){};
