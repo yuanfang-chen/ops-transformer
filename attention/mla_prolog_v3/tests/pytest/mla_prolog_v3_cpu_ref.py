@@ -1261,7 +1261,7 @@ def build_mla_param(params):
     if cache_mode in ("PA_BSND", "PA_NZ"):
         kv_cache = _create_tensor((block_num, block_size, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
-            kr_cache = torch.empty(0)
+            kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((block_num, block_size, N2, DR), kr_cache_dtype, generator)
         cache_index = torch.arange(T, dtype=torch.int64)
@@ -1270,21 +1270,21 @@ def build_mla_param(params):
         total_blocks = B * pages_per_batch
         kv_cache = _create_tensor((total_blocks, block_size, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
-            kr_cache = torch.empty(0)
+            kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((total_blocks, block_size, N2, DR), kr_cache_dtype, generator)
         cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
     elif cache_mode == "BSND":
         kv_cache = _create_tensor((B, S2, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
-            kr_cache = torch.empty(0)
+            kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((B, S2, N2, DR), kr_cache_dtype, generator)
         cache_index = None
     elif cache_mode == "TND":
         kv_cache = _create_tensor((T, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
-            kr_cache = torch.empty(0)
+            kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((T, N2, DR), kr_cache_dtype, generator)
         cache_index = None
