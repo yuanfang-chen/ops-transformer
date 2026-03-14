@@ -90,7 +90,8 @@ public:
         PrePareHCCL();
     }
 
-    __aicore__ inline void PrePareHCCL(){
+    __aicore__ inline void PrePareHCCL()
+    {
         for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++){
             const uint64_t alltoallIndexOffsetTile = tileInfo_.cAddrOffset * i;
             const uint64_t allgatherIndexOffsetTile = alltoallIndexOffsetTile;
@@ -164,7 +165,6 @@ protected:
         if (notifyFlag_) {
             hccl_.Commit(all2allHandleId_[index]);
         }
-        
     }
     __aicore__ inline void WaitAlltoAllEachTurn(bool tailFlag, uint32_t turnCnt){
         if (notifyFlag_) {
@@ -210,7 +210,6 @@ protected:
 
     __aicore__ inline void HcclFinalize()
     {
-
         if (notifyFlag_) {
             for (int i = 0; i < paramInTiling_->tileCnt + paramInTiling_->tailCnt; i++) {
                 hccl_.Wait(allgatherHandleId_[i]);
