@@ -484,23 +484,15 @@ ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
     if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX) != nullptr) {
         innerPrecise_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
     }
-    if (socVer_ == SOC_VER_950_CODE) {
-        if (innerPrecise_ != BsaInnerCalcPrec::LOW_HIGH_MIXED) {
-            OP_LOGE(bsaContext->GetNodeName(), "On chip 950, only innerPrec = 4 is supported, "
-                "but got %u.", innerPrecise_);
-            return ge::GRAPH_FAILED;
-        }
-    } else {
-        auto dtypeQ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
-        if (innerPrecise_ != BsaInnerCalcPrec::ALL_HIGH && innerPrecise_ != BsaInnerCalcPrec::ALL_LOW) {
-            OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, only innerPrec = 0 or 1 is supported, "
-                "but got %u.", innerPrecise_);
-            return ge::GRAPH_FAILED;
-        } else if (innerPrecise_ == BsaInnerCalcPrec::ALL_LOW && dtypeQ == ge::DT_BF16) {
-            OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, when query dtype is bfloat16, "
-                "only innerPrec = 0 is supported, but got %u.", innerPrecise_);
-            return ge::GRAPH_FAILED;
-        }
+    auto dtypeQ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
+    if (innerPrecise_ != BsaInnerCalcPrec::ALL_HIGH && innerPrecise_ != BsaInnerCalcPrec::ALL_LOW) {
+        OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, only innerPrec = 0 or 1 is supported, "
+            "but got %u.", innerPrecise_);
+        return ge::GRAPH_FAILED;
+    } else if (innerPrecise_ == BsaInnerCalcPrec::ALL_LOW && dtypeQ == ge::DT_BF16) {
+        OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, when query dtype is bfloat16, "
+            "only innerPrec = 0 is supported, but got %u.", innerPrecise_);
+        return ge::GRAPH_FAILED;
     }
     // reserved yet non-configurable attrs
     int64_t blockSize = *bsaContext->GetAttrs()->GetAttrPointer<int64_t>(BLOCK_SIZE_INDEX);
