@@ -16,7 +16,11 @@
 #ifndef MATMUL_BLOCK_BLOCK_QUANT_MATMUL_BUILDER_H
 #define MATMUL_BLOCK_BLOCK_QUANT_MATMUL_BUILDER_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "../utils/common_utils.h"
 #include "../utils/layout_utils.h"
@@ -73,7 +77,7 @@ public:
 
     using BlockMmadOp =
         Block::BlockMmad<BlockMatmulPolicy, L1TileShape, L0TileShape, AMatmulType, BMatmulType, CMatmulType,
-                         BiasMatmulType, Tile::TileCopy<Arch::Ascend950, Tile::CopyWithParams>>;
+                         BiasMatmulType, Tile::TileCopy<Arch::DAV3510, Tile::CopyWithParams>>;
 
     static constexpr int64_t l1M = GetIntegralConstant<0, L1TileShape>();
     static constexpr int64_t l1N = GetIntegralConstant<1, L1TileShape>();

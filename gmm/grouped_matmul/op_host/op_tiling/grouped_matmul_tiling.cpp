@@ -557,7 +557,9 @@ void GMMTiling::DivideUbAndSetWorkspaceAntiquant(size_t* workspaces, const uint3
 }
 
 int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
-  if(maxN_ < baseN_ || tuningConfig_ <= 0|| xDType_ != ge::DT_INT8 || weightDtype_ != ge::DT_INT8) {
+  uint64_t quantGroupNum = tilingData.gmmBaseParams.get_quantGroupNum();
+  // A8W8模式以及A4W4 Perchannel模式支持动态分块
+  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8_ || (isA4W4_ && quantGroupNum == 1)) ) {
     return baseN_;
   }
   int32_t mDim = CeilDiv(tuningConfig_ , baseM_);
@@ -594,9 +596,10 @@ int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
 
 bool GMMTiling::TryFullLoadA(int32_t baseM,const GMMCompileInfo *compileInfoPtr) {
   auto l1Size = compileInfoPtr->l1Size;
-  //暂时只支持A8W8
-  float sizeofweightDtype = 1.0f;
-  float sizeofxDtype = 1.0f;
+  //暂时只支持A8W8和A4W4Perchannel模式
+  float sizeofweightDtype = weightDtype_ == ge::DT_INT4 ? 0.5f : 1.0f;
+  float sizeofxDtype = xDType_ == ge::DT_INT4 ? 0.5f : 1.0f;
+
   auto matBl1Size = static_cast<int32_t>(tilingData.mmTilingData.get_depthB1() * baseN_ * baseK_ * sizeofweightDtype);
   auto remainL1Size = l1Size - matBl1Size;
   if(hasBias_) {
@@ -1384,9 +1387,15 @@ ge::graphStatus GMMTiling::GMMSetMMTiling(const gert::TilingContext* context, co
   mm.SetShape(mInMM, baseN_, maxK_);
   mm.SetFixSplit(baseM_, baseN_, baseK_);
   mm.SetBufferSpace(compileInfoPtr->l1Size, compileInfoPtr->l0CSize, ubSize_);
-  OP_CHECK_IF(mm.GetTiling(tilingData.mmTilingData) == -1,
-             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "matmul getTiling failed."),
-             return ge::GRAPH_FAILED);
+  if(groupType_ == SPLIT_K && maxK_ == 0) {
+    //切K场景K轴为0时不需要使用高阶API，无需tiling，kernel需要做清零处理，此处无需tiling
+    OP_LOGD("GMM SplitK,and K == 0, no need tiling");
+  } else {
+    OP_CHECK_IF(mm.GetTiling(tilingData.mmTilingData) == -1,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "matmul getTiling failed."),
+            return ge::GRAPH_FAILED);
+  }
+
 
   uint32_t mmStepKa = 1;
   uint32_t mmStepKb = 1;
@@ -1869,6 +1878,15 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         const int is_in_a8w4_white_list = ((tuningConfig !=0 &&tuningConfig <= 64) || (A8W4_PRETILING_WHITE_LIST.count(mKNList)))
               && quantGroupNum != 0 && k / quantGroupNum == 256 && k % quantGroupNum == 0
               && withOffset == 0 && k%64==0 && n%64==0; // 256: 新方案只支持256 pergroup
+		uint32_t calc_m = 1U;
+        if (groupNum != 0U) {
+          calc_m = m / groupNum;
+        }
+        const uint32_t avg_m = tuningConfig != 0L ? static_cast<uint32_t>(tuningConfig) : calc_m;
+		uint32_t enableCV11 = 0;
+		if (avg_m <= 128 && groupNum <= 4 && k <= 8192 && n <= 8192) {
+            enableCV11 = 1;
+        }
 
         tilingDataA8W4.gmmBaseParams.set_coreNum(aicNum);
         tilingDataA8W4.gmmBaseParams.set_groupNum(groupNum);
@@ -1904,11 +1922,6 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         InitPlatformInfo(compileInfoPtr, platformInfo);
         matmul_tiling::MultiCoreMatmulTiling mm(platformInfo);
 
-        uint32_t calc_m = 1U;
-        if (groupNum != 0U) {
-          calc_m = m / groupNum;
-        }
-        const uint32_t avg_m = tuningConfig != 0L ? static_cast<uint32_t>(tuningConfig) : calc_m;
         const bool isPerchannel = quantGroupNum == 1U;
         const bool isMSD = tuningConfig == 0L || avg_m == 0U || n / avg_m > 4U || withOffset == true;
         if (!isMSD) {
@@ -2006,11 +2019,19 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           if (is_in_a8w4_white_list) {
             a8w4KernelTemplate = static_cast<uint32_t>(GROUPED_MATMUL_A8W4_KERNEL_TEMPLATE_MSD_VECTOR_DEQUANT);
           }
-          context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
+          if (enableCV11){
+			context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
+                                                   GROUPED_MATMUL_GROUP_LIST_TYPE_COUNT, 0,
+                                                   a8w4KernelTemplate,
+                                                   GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE,
+                                                   GROUPED_MATMUL_AIV_AIC_RATIO_1, 0));
+		  } else {
+			context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
                                                    GROUPED_MATMUL_GROUP_LIST_TYPE_COUNT, 0,
                                                    a8w4KernelTemplate,
                                                    GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE,
                                                    GROUPED_MATMUL_AIV_AIC_RATIO_2, 0));
+		  }
           tilingDataA8W4.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
           context->GetRawTilingData()->SetDataSize(tilingDataA8W4.GetDataSize());
 
@@ -2037,9 +2058,9 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
   ge::DataType weightDtype = w0Desc->GetDataType();
   auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
   OP_CHECK_NULL_WITH_CONTEXT(context, compileInfoPtr);
-  if (compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND950) {
+  if (compileInfoPtr->npuArch == NpuArch::DAV_3510) {
       // 全量化：双8bits或双4bits(不会有A4W2)
-      bool isQuant = xDType == ge::DT_FLOAT4_E1M2 || xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
+      bool isQuant = xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
                      (ge::GetSizeByDataType(xDType) == 1 && ge::GetSizeByDataType(weightDtype) == 1);
       if (isQuant) {
           return TilingRegistry::GetInstance().DoTilingImpl(context);
@@ -2089,6 +2110,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMM(gert::TilingParseContext* c
   compileInfoPtr->aicNum = ascendcPlatform.GetCoreNumAic();
   compileInfoPtr->aivNum = ascendcPlatform.GetCoreNumAiv();
   compileInfoPtr->socVersion = ascendcPlatform.GetSocVersion();
+  compileInfoPtr->npuArch = ascendcPlatform.GetCurNpuArch();
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfoPtr->ubSize);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfoPtr->l1Size);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfoPtr->l0ASize);
@@ -2096,7 +2118,14 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMM(gert::TilingParseContext* c
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfoPtr->l0CSize);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, compileInfoPtr->l2Size);
 
-  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->aivNum == 0 || compileInfoPtr->ubSize == 0 || \
+  OP_CHECK_IF((compileInfoPtr->npuArch != NpuArch::DAV_3510 && compileInfoPtr->aivNum == 0),
+             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+             "platform info is invalid, aicNum=%u, aivNum=%u, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
+             compileInfoPtr->aicNum, compileInfoPtr->aivNum, compileInfoPtr->ubSize, compileInfoPtr->l1Size,
+             compileInfoPtr->l0CSize, compileInfoPtr->l0ASize, compileInfoPtr->l0BSize),
+             return ge::GRAPH_FAILED);
+
+  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->ubSize == 0 || \
              compileInfoPtr->l1Size == 0 || compileInfoPtr->l0CSize == 0 || compileInfoPtr->l0ASize == 0 || \
              compileInfoPtr->l0BSize == 0),
              OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),

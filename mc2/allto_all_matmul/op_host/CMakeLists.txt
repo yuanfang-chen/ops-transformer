@@ -21,8 +21,9 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(MC2_OPT ON PARENT_SCOPE)
     set(allto_all_matmul_depends mc2/common mc2/3rd mc2/matmul_allto_all PARENT_SCOPE)
     set(allto_all_matmul_apt_depends mc2/common mc2/3rd mc2/matmul_allto_all PARENT_SCOPE)
-
-    if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
+    
+    set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+    if("${CONDITION_UNIT}" STREQUAL "ascend950")
         add_ops_compile_options(
             OP_NAME AlltoAllMatmul
             COMPUTE_UNIT Ascend950PR_9599
@@ -31,6 +32,12 @@ if (BUILD_OPEN_PROJECT)  # custom
                     -cce-aicore-dcci-before-kernel-end=false
                     -DENABLE_CV_COMM_VIA_SSBUF=true
         )
+    elseif("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+        add_ops_compile_options(
+            OP_NAME AlltoAllMatmul
+            OPTIONS --cce-auto-sync=off
+                    -DAICORE_EXCEPTION_RESTART
+    )
     endif()
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE allto_all_matmul allto_all_matmul ACLNNTYPE aclnn aclnn_inner)

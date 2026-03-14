@@ -73,8 +73,8 @@ constexpr uint32_t TRANSPOSEB_INDEX = 3;
 
 bool QuantBmmReduceScatterTiling::IsCapable()
 {
-    if (socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
-        OP_LOGI(opName_, "skip quantbmm reducescatter tiling when version is not 950.");
+    if (npuArch_ != NpuArch::DAV_3510) {
+        OP_LOGI(opName_, "skip quantbmm reducescatter tiling when npuArch is not 3510.");
         return false;
     }
     // geAType 和 geBType 为fp8e4m3/fp8e5m2/hif8时, 走该tiling流程
@@ -113,29 +113,45 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckGroupSize() const
     OP_TILING_CHECK(attrsPtr == nullptr, CUBE_INNER_ERR_REPORT(opName_, "AttrsPtr shouldn't be nullptr"),
                     return ge::GRAPH_FAILED);
 
-    auto groupSizePtr = attrsPtr->GetAttrPointer<uint64_t>(GROUPSIZE_INDEX);
+    auto groupSizePtr = attrsPtr->GetAttrPointer<int64_t>(GROUPSIZE_INDEX);
     OP_TILING_CHECK(groupSizePtr == nullptr, CUBE_INNER_ERR_REPORT(opName_, "GroupSizePtr shouldn't be nullptr"),
                     return ge::GRAPH_FAILED);
+    mc2tiling::Mc2MatmulShapeInfo shapeInfo = {
+        context_->GetInputShape(X1_INDEX),
+        context_->GetInputShape(X2_INDEX),
+        context_->GetOptionalInputShape(X1SCALE_INDEX),
+        context_->GetOptionalInputShape(X2SCALE_INDEX),
+        false,
+        *context_->GetAttrs()->GetAttrPointer<bool>(TRANSPOSEB_INDEX),
+        opName_
+    };
     uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
     uint64_t groupSizeN = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
     uint64_t groupSizeM = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
     if (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) {
-        OP_TILING_CHECK(
-            (groupSizeM != MXFP8_SIZE_M) || (groupSizeN != MXFP8_SIZE_N) || (groupSizeK != MXFP8_SIZE_K),
+        shapeInfo.isMxfp = true;
+        OP_TILING_CHECK(!mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeM, groupSizeN, groupSizeK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize in mx scene."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((groupSizeM != MXFP8_SIZE_M) || (groupSizeN != MXFP8_SIZE_N) || (groupSizeK != MXFP8_SIZE_K),
             CUBE_INNER_ERR_REPORT(opName_, "groupSizeM, groupSizeN should be 1, "
-            "groupSizeK should be 32 in mxfp8 scene, "
-            "but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld]",
-            groupSizeM, groupSizeN, groupSizeK), return ge::GRAPH_FAILED);
+                "groupSizeK should be 32 in mxfp8 scene, "
+                "but actual is [groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu]",
+                groupSizeM, groupSizeN, groupSizeK),
+            return ge::GRAPH_FAILED);
     } else if (quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) {
         OP_TILING_CHECK(*groupSizePtr != 0,
-            CUBE_INNER_ERR_REPORT(opName_, "GroupSize should be 0 in pertensor, actually %lu",
-            *groupSizePtr), return ge::GRAPH_FAILED);
+            CUBE_INNER_ERR_REPORT(opName_, "GroupSize should be 0 in pertensor, actually %ld", *groupSizePtr),
+            return ge::GRAPH_FAILED);
     } else if (quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) {
-        OP_TILING_CHECK(
-            (groupSizeM != PERBLOCK_SIZE) || (groupSizeN != PERBLOCK_SIZE) || (groupSizeK != PERBLOCK_SIZE),
+        OP_TILING_CHECK(!mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeM, groupSizeN, groupSizeK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize in perblock scene."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((groupSizeM != PERBLOCK_SIZE) || (groupSizeN != PERBLOCK_SIZE) || (groupSizeK != PERBLOCK_SIZE),
             CUBE_INNER_ERR_REPORT(opName_, "groupSizeM, groupSizeN and groupSizeK should be 128 in perblock scene,"
-            " but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld]",
-            groupSizeM, groupSizeN, groupSizeK), return ge::GRAPH_FAILED);
+                " but actual is [groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu]",
+                groupSizeM, groupSizeN, groupSizeK),
+            return ge::GRAPH_FAILED);
     } else {
         OP_LOGE(opName_, "Quant mode should be pertensor or perblock or mxfp!");
         return ge::GRAPH_FAILED;
@@ -361,18 +377,29 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
 
 ge::graphStatus QuantBmmReduceScatterTiling::SetMc2Hcomm()
 {
-    const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
+    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    const uint32_t opType = isA2APath_ 
+        ? static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL)
+        : static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
+
+    const std::string rsConfig = isA2APath_ 
+        ? "AlltoAll=level0:fullmesh" 
+        : "ReduceScatter=level0:fullmesh";
+
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
-    const std::string rsConfig = "ReduceScatter=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig,
-                                                 static_cast<uint32_t>(mc2tiling::HcclReduceOp::HCCL_REDUCE_SUM), 
-                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)), 
-                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
+    uint32_t dataType = static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(
+        group, opType, rsConfig, reduceType, dataType, dataType
+    );
+
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2InitTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2CcTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -413,16 +440,19 @@ bool QuantBmmReduceScatterTiling::CheckPerblockM()
 
 ge::graphStatus QuantBmmReduceScatterTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
         OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingDataA5());
 
+    // 在perblock量化场景，orgMValue不满足PERBLOCK_SIZE * args_.rankDim整数倍时，不做公式化切分，走计算通信串行
     if ((quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) ||
         (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) ||
         (quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE && CheckPerblockM())) {
             GE_ASSERT_GRAPH_SUCCESS(DoSplitMTiling(MutableRCSTilingDataA5()));
     }
+    GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingDataA5(), GetQuantMode()));
     GE_ASSERT_GRAPH_SUCCESS(DoAdaptSlidWindowTiling());
     if ((GetQuantMode() == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) && (MutableRCSTilingDataA5().tileCnt == 0) 
         && (MutableRCSTilingDataA5().tailCnt == 0)) {
@@ -457,8 +487,9 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
     }
 
     bool isPerBlock = quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE;
+    uint8_t commAlg = isA2APath_ ? TPL_CCU_ALL2ALL_VEC_REDUCE : TPL_CCU_REDUCESUM;
     uint64_t tilingKey = GET_TPL_TILING_KEY(   \
-        isPerBlock, args_.isATrans, args_.isBTrans, INPUT_TYPE_IS_FP8, outputType, scaleType);
+        isPerBlock, args_.isATrans, args_.isBTrans, INPUT_TYPE_IS_FP8, outputType, scaleType, commAlg);
     OP_LOGD(opName_, "isPerBlock, transA, transB is: [%d, %d, %d]", isPerBlock, args_.isATrans, args_.isBTrans);
     OP_LOGD(opName_, "outputType, scaleType is: [%u, %u]", outputType, scaleType);
     return tilingKey;
@@ -466,7 +497,10 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
 
 ge::graphStatus QuantBmmReduceScatterTiling::GetWorkspaceSize()
 {
-    myWorkSpaceSize_ = myWorkSpaceSize_ + MutableRCSTilingDataA5().cToFloatLen;
+    // A2A 路径需要 3 倍 cToFloatLen (senBuf + recvBuf + matmul)，否则只需 1 倍
+    uint32_t factor = isA2APath_ ? 3 : 1;
+    myWorkSpaceSize_ = myWorkSpaceSize_ + MutableRCSTilingDataA5().cToFloatLen * factor;
+
     OP_LOGI(opName_, "set max workspace size %lu to context", myWorkSpaceSize_);
     size_t* workspaces = context_->GetWorkspaceSizes(1);
     if (workspaces == nullptr) {
@@ -659,7 +693,8 @@ void QuantBmmReduceScatterHelper::AnalyzeBatchInfo(const gert::Shape &oriShapeA,
 
 void QuantBmmReduceScatterHelper::SetBatch()
 {
-    if (inputParams_.isPerBlock) {
+    // perblock量化非串行场景将batch4_设置成卡数
+    if (inputParams_.isPerBlock && !isSerial_) {
         batch4_ = tilingArgs_.rankDim;
     }
 }
@@ -752,6 +787,8 @@ ge::graphStatus QuantBmmReduceScatterHelper::GetShapeAttrsInfo()
                                 (tilingProcesser_.GetQuantMode() == mc2tiling::Mc2QuantMode::MXFP_MODE));
     inputParams_.isPerBlock = (tilingProcesser_.GetQuantMode() == mc2tiling::Mc2QuantMode::PERBLOCK_MODE);
     inputParams_.isDoubleScale = true;
+    // 当orgMValue在perblock量化场景不满足PERBLOCK_SIZE * rankDim的整数倍，mValue不做切分，设置为计算和通信串行
+    isSerial_ = (tilingArgs_.mValue == tilingArgs_.orgMValue) && inputParams_.isPerBlock;
     if (inputParams_.isPerBlock) {
         inputParams_.groupSizeM = PERBLOCK_SIZE;
         inputParams_.groupSizeK = PERBLOCK_SIZE;
@@ -810,8 +847,8 @@ QuantBmmReduceScatterHelper::QuantBmmReduceScatterHelper(QuantBmmReduceScatterTi
 {
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulReduceScatterV2, QuantBmmReduceScatterTiling, \
-                                    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 1);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulReduceScatterV2, QuantBmmReduceScatterTiling, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 1);
 } // namespace
 
 #endif //_QUANT_BMM_MATMUL_REDUCE_SCATTER_TILING_CC_

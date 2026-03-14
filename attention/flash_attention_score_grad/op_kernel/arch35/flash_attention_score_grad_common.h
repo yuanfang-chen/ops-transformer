@@ -35,11 +35,36 @@ constexpr uint8_t DQ_IDX = 0;
 constexpr uint8_t DK_IDX = 1;
 constexpr uint8_t DV_IDX = 2;
 
+// quant flag
+constexpr uint8_t SYNC_COMPUTE_DKV_FLAG = 2;
+constexpr uint8_t SYNC_TRANSFER_DKV_FLAG = 3;
+constexpr uint8_t SYNC_TRANSFER_DQ_FLAG = 4;
+constexpr uint8_t SYNC_UB2L1_P_FLAG = 9;
+constexpr uint8_t SYNC_UB2L1_DS_FLAG = 10;
+constexpr uint8_t SYNC_PDS_TO_DKV_FLAG = 8;
+constexpr uint8_t SYNC_PDS_TO_DQ_FLAG = 7;
+constexpr uint8_t SYNC_DETER_FLAG = 11;
+
 // 最小Swizzle块数量
 constexpr uint32_t MIN_SWIZZLE_S1 = 16384;
 // Swizzle块数量，16K对应8块，随S增大倍数增大
 constexpr uint32_t BASE_SWIZZLE_BLOCK_NUM = 8;
+constexpr uint32_t M_SWIZZLE_SIZE = 32768;
+constexpr uint32_t N_SWIZZLE_SIZE = 32768;
+constexpr uint32_t SWIZZLE_CONTINUOUS_BLOCK_NUM = 16;
+constexpr uint8_t MULTIPLY_COEF = 8;
 
+// shift left by three bits
+constexpr uint8_t kShiftToMultiplyByEight = 3;
+
+// quant
+constexpr uint16_t QUANT_S2_BASE_COUNT = 8;
+constexpr uint16_t QUANT_S1_BASE_COUNT = 64;
+constexpr uint16_t QUANT_S1_BASE_COUNT_DB = 128;
+
+constexpr uint16_t QUANT_UB2L1_SRC_STRIDE = 15;
+constexpr uint16_t QUANT_UB2L1_SRC_OFFSET = 512;
+ 
 template <typename T, bool IS_WRITE_UB>
 struct DqkvResPos {
     using PosType = typename std::conditional<IS_WRITE_UB, LocalTensor<T> &, GlobalTensor<T> &>::type;
@@ -79,31 +104,28 @@ __aicore__ constexpr bool GET_IS_L1_REUSE(const uint32_t HEAD_DIM_ALIGN, const b
         (CUBE_BASEM) * (CUBE_BASEN) * sizeof(float) :                                  \
         (CUBE_BASEM) * (HEAD_DIM_ALIGN) * sizeof(float))) <= L0C_MAX_SIZE
 
-#define FagTilingType                                                                                                  \
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> \
-        *__restrict
-
 #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X)                                                                               \
     X(INPUT_TYPE)                                                                                                      \
     X(CALC_TYPE)                                                                                                       \
     X(OUTDTYPE)
- 
+
 #define CUBE_BLOCK_TRAITS_CONST_FIELDS(X)                                                                              \
     X(IS_ATTEN_MASK, bool, false)                                                                                      \
     X(IS_PSE, bool, false)                                                                                             \
     X(IS_DROP, bool, false)                                                                                            \
     X(IS_TND, bool, false)                                                                                             \
-    X(IS_BN2_MULTIBLK, bool, false)                                                                                           \
+    X(IS_BN2_MULTIBLK, bool, false)                                                                                    \
     X(DETER_SPARSE_TYPE, uint8_t, 0)                                                                                   \
     X(IS_N_EQUAL, bool, false)                                                                                         \
     X(IS_D_NO_EQUAL, bool, false)                                                                                      \
     X(IS_ROPE, bool, false)                                                                                            \
     X(FP8_OPEN_TSCM, bool, false)                                                                                      \
+    X(IS_TND_SWIZZLE, bool, false)                                                                                     \
     X(SPLIT_AXIS, uint8_t, 0)                                                                                          \
     X(s1TemplateType, S1TemplateType, S1TemplateType::Aligned128)                                                      \
     X(s2TemplateType, S2TemplateType, S2TemplateType::Aligned128)                                                      \
     X(dTemplateType, DTemplateType, DTemplateType::Aligned128)
- 
+
 /* 1. 生成带默认值的模版Template */
 #define GEN_TYPE_PARAM(name) typename name,
 #define GEN_CONST_PARAM(name, type, default_val) type (name) = (default_val),

@@ -49,7 +49,7 @@ constexpr uint32_t SPARSE_MODE_LEFT_UP = 2;
 constexpr uint32_t SPARSE_MODE_RIGHT_DOWN = 3;
 constexpr uint32_t SPARSE_MODE_BAND = 4;
 constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
-constexpr uint32_t MASKDIM_BS_SS = 2;
+constexpr uint32_t MASKDIM_SS = 2;
 constexpr uint32_t MASKDIM_1SS_BSS = 3;
 constexpr uint32_t MASKDIM_11SS_B1SS = 4;
 constexpr uint32_t SPARSE_OPTIMIZE_ATTENTION_SIZE = 2048;
@@ -195,10 +195,10 @@ private:
 
   bool CheckMaskTypeAndShape(const gert::Tensor* maskShape, ge::DataType attenMaskType) const;
   bool CheckSparseMode(bool isDefaultSparseMode, bool enableMask);
-  bool CheckBandMode(bool isBandMode);
   void SetSparseModeData(bool& isBandMode, bool enableMask, bool isDefaultSparseMode);
   bool CheckMaskCrossover(const gert::Tensor* maskShape, ge::DataType attenMaskType, bool enableMask, bool isDefaultSparseMode);
   bool CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool isDefaultSparseMode);
+  bool CheckMaskShape(bool isDefaultSparseMode, const gert::Tensor* maskShape, std::string& strMaskShape, bool& checkMask);
 
   bool CanChangeToNew() const;
   bool ShapeEqual(const gert::Shape &aShape, const gert::Shape &bShape) const;
@@ -258,7 +258,7 @@ private:
   bool GetMatmulType(ge::DataType getype, matmul_tiling::DataType *mmType) const;
 
   ge::graphStatus CalcWorkSpace();
-  ge::graphStatus CalcBlockDim() const;
+  ge::graphStatus CalcNumBlocks() const;
   ge::graphStatus GenTilingKey();
   uint8_t GenAntiquantModeVal() const;
   ge::graphStatus FillTiling();
@@ -345,7 +345,7 @@ private:
   bool attenMaskFlag_ = false;
   uint32_t attenMaskBatch_ = 1;
   uint32_t attenMaskQSize_ = 0;
-  uint32_t attenMaskSize_ = 0;
+  uint32_t attenMaskKvSize_ = 0;
   uint32_t attenMaskTypeSize_ = 0;
 
   bool antiQuantFlag_ = false;

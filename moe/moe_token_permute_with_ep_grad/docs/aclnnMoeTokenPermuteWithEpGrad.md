@@ -55,7 +55,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGradGetWorkspaceSize(
     int64_t                numTopk,
     const aclIntArray     *rangeOptional,
     bool                   paddedMode,
-    const aclTensor       *tokenGradOut
+    const aclTensor       *tokenGradOut,
     const aclTensor       *probsGradOut,
     uint64_t              *workspaceSize,
     aclOpExecutor         **executor)
@@ -101,7 +101,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
       <td>shape支持2D维度，不支持空tensor，topK_num为numTopk的值。</td>
       <td>BFLOAT16、FLOAT16、FLOAT32</td>
       <td>ND</td>
-      <td>（rangeOptional[1] - rangeOptional[0]）* topK_num，hidden_size）</td>
+      <td>((rangeOptional[1] - rangeOptional[0])* topK_num,hidden_size)</td>
       <td>√</td>
   </tr>
   <tr>
@@ -123,7 +123,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
       • 与计算输出probsGradOut对应，传入空则不输出probsGradOut。</td>
       <td>BFLOAT16、FLOAT16、FLOAT32</td>
       <td>ND</td>
-      <td>（rangeOptional[1] - rangeOptional[0]） * topK_num）</td>
+      <td>((rangeOptional[1] - rangeOptional[0]) * topK_num)</td>
       <td>√</td>
   </tr>
   <tr>
@@ -159,7 +159,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
   <tr>
       <td>tokenGradOut</td>
       <td>输出</td>
-      <td>输入token的梯度。</td>
+      <td>输出token的梯度。</td>
       <td>要求为一个维度为2D的Tensor。</td>
       <td>BFLOAT16、FLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -169,7 +169,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
   <tr>
       <td>probsGradOut</td>
       <td>输出</td>
-      <td>输入probs的梯度。</td>
+      <td>输出probs的梯度。</td>
       <td>shape支持2D维度</td>
       <td>BFLOAT16、FLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -278,7 +278,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
 - 确定性计算：
   - aclnnMoeTokenPermuteWithEpGrad默认确定性实现。
 
- - top_k <= 512。
+ - numTopk <= 512。
  - 不支持paddedMode为`True`。
  - 当rangeOptional为空时，忽略permutedProbsOutputGradOptional和probsGradOut，执行逻辑回退到[aclnnMoeTokenPermuteGrad](../../moe_token_permute_grad/docs/aclnnMoeTokenPermuteGrad.md)。
 
@@ -292,6 +292,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
 #include "aclnnop/aclnn_moe_token_permute_with_ep_grad.h"
 #include <iostream>
 #include <vector>
+#include <cstdio>
 
 #define CHECK_RET(cond, return_expr)                                           \
   do {                                                                         \
@@ -404,20 +405,20 @@ int main() {
   int64_t num_topk = 2;
   std::vector<float> permuted_token_output_grad_Data = {2, 2, 1, 1, 3, 3, 2, 2};
   std::vector<float> permuted_prob_output_grad_Data = {0.2, 0.5, 0.4, 0.4};
-  std::vector<int64_t> permuted_token_output_grad_Shape = {4, 2};
-  std::vector<int64_t> permuted_prob_output_grad_Shape = {4};
+  std::vector<int64_t> permuted_token_output_grad_Shape = {8, 2};
+  std::vector<int64_t> permuted_prob_output_grad_Shape = {8};
   void *permuted_token_output_grad_Addr = nullptr;
   void *permuted_prob_output_grad_Addr = nullptr;
   aclTensor *permuted_token_output_grad = nullptr;
   aclTensor *permuted_prob_output_grad = nullptr;
 
   ret = CreateAclTensor(permuted_token_output_grad_Data, permuted_token_output_grad_Shape,
-                        &permuted_token_output_grad_Addr, aclDataType::ACL_BF16,
+                        &permuted_token_output_grad_Addr, aclDataType::ACL_FLOAT,
                         &permuted_token_output_grad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
   ret = CreateAclTensor(permuted_prob_output_grad_Data, permuted_prob_output_grad_Shape,
-                        &permuted_prob_output_grad_Addr, aclDataType::ACL_BF16,
+                        &permuted_prob_output_grad_Addr, aclDataType::ACL_FLOAT,
                         &permuted_prob_output_grad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
@@ -441,7 +442,7 @@ int main() {
   void *tokenOutAddr = nullptr;
   aclTensor *tokenOut = nullptr;
 
-  ret = CreateAclTensor(tokenOutData, tokenOutShape, &tokenOutAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(tokenOutData, tokenOutShape, &tokenOutAddr, aclDataType::ACL_FLOAT,
                         &tokenOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
@@ -450,7 +451,7 @@ int main() {
   void *probOutAddr = nullptr;
   aclTensor *probOut = nullptr;
 
-  ret = CreateAclTensor(probOutData, probOutShape, &probOutAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(probOutData, probOutShape, &probOutAddr, aclDataType::ACL_FLOAT,
                         &probOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 

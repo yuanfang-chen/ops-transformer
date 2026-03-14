@@ -12,7 +12,7 @@
  * \file moe_finalize_routing_v2_tiling_arch35.cpp
  * \brief
  */
-
+#include "tiling_base/tiling_util.h"
 #include "moe_finalize_routing_v2_tiling.h"
 #include "moe_finalize_routing_v2_tiling_arch35.h"
 
@@ -613,7 +613,7 @@ void MoeFinalizeRoutingV2Regbase::PrintTilingData()
 {
     OP_LOGI(
         context_->GetNodeName(),
-        "MoeFinalizeRoutingV2 tiling data: blockDim[%ld] row[%ld] e[%ld] c[%ld] h[%ld] hAligned[%ld] k[%ld]"
+        "MoeFinalizeRoutingV2 tiling data: numBlocks[%ld] row[%ld] e[%ld] c[%ld] h[%ld] hAligned[%ld] k[%ld]"
         "rowOfFormerBlock[%ld] rowOfTailBlock[%ld] rowLoopOfFormerBlock[%ld] rowLoopOfTailBlock[%ld] "
         "rowFactor[%ld] tailRowFactorOfFormerBlock[%ld] tailRowFactorOfTailBlock[%ld] "
         "hLoop[%ld] hFactor[%ld] tailHFactor[%ld]",
@@ -718,7 +718,7 @@ bool MoeFinalizeRoutingV2Regbase::IsHFullLoad()
 
 bool MoeFinalizeRoutingV2Regbase::IsCapable()
 {
-    if (socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
+    if (!Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
         return false;
     }
 

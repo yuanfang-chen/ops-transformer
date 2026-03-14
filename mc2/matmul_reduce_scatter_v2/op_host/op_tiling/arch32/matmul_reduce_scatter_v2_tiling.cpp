@@ -40,7 +40,7 @@ constexpr uint32_t X2SCALE_INDEX = 4;
 // 新功能从这里开始
 bool MatmulReduceScatterV2Tiling::IsCapable()
 {
-    if ((socVersion_ == platform_ascendc::SocVersion::ASCEND950) &&
+    if ((npuArch_ == NpuArch::DAV_3510) &&
         ((args_.geAType == ge::DT_BF16) || (args_.geAType == ge::DT_FLOAT16))) {
         OP_LOGI(opName_, "start with MatmulReduceScatterV2Tiling tiling.");
         return true;
@@ -90,19 +90,31 @@ ge::graphStatus MatmulReduceScatterV2Tiling::CheckInput()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm()
+ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm() 
 {
-    const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
+    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    const uint32_t opType = isA2APath_ 
+        ? static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL)
+        : static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
+
+    const std::string rsConfig = isA2APath_ 
+        ? "AlltoAll=level0:fullmesh" 
+        : "ReduceScatter=level0:fullmesh";
+
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
-    const std::string rsConfig = "ReduceScatter=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 0,
-                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
-                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
+    uint32_t dataType = static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType));
+
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(
+        group, opType, rsConfig, reduceType, dataType, dataType
+    );
+
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2InitTiling) != 0,
-        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "mc2CcTilingConfig GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+        
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2CcTiling) != 0,
-        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "mc2CcTilingConfig GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -130,9 +142,9 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
 
     // 根据芯片型号获取策略模板
     std::vector<int32_t> priorities;
-    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "get mmv3 priority policy failed"), return ge::GRAPH_FAILED);
-    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", socVersion_, priorities};
+    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", npuArch_, priorities};
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 获取tileTiling
@@ -153,11 +165,13 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
 
 ge::graphStatus MatmulReduceScatterV2Tiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
         OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(matmulReduceScatterV2TilingData_->param);
     DoSplitMTiling(matmulReduceScatterV2TilingData_->param);
+    GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(matmulReduceScatterV2TilingData_->param, mc2tiling::Mc2QuantMode::DEFAULT));
     GE_ASSERT_GRAPH_SUCCESS(DoAllMatmulTiling());
     SetTilingResult(matmulReduceScatterV2TilingData_->param, MutableMC2MmV3TileTilingData().tCubeTiling,
                     MutableMC2MmV3TailTilingData().tCubeTiling, matmulReduceScatterV2TilingData_->debugMode,
@@ -186,7 +200,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
-                                    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 
 }

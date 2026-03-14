@@ -23,7 +23,7 @@ namespace Gemm {
 namespace Tile {
 /**
  * @struct Copy
- * @brief Copy struct for Ascend950 architecture with specific parameters
+ * @brief Copy struct for DAV3510 architecture with specific parameters
  *
  * This struct is enabled only if the output is in UB, the format is ND or ND_ALIGN,
  * and it is not a quantization scenario
@@ -33,7 +33,7 @@ namespace Tile {
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNDOrAlign<OutputType>() &&       // UB ND
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -44,7 +44,7 @@ public:
     using SrcT = typename AscendC::GetMmDstType<typename InputType::T>::Type;
 
     /**
-     * @brief Overloaded operator() for Ascend950 architecture
+     * @brief Overloaded operator() for DAV3510 architecture
      * @param [in] dst: destination local tensor
      * @param [in] src: source local tensor
      * @param [in] curRow: current row index
@@ -62,7 +62,7 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, uint8_t subBlockId = 0)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         uint32_t dimN = orgKc != 0 ? orgKc : orgN;
         constexpr uint32_t blockCount = AscendC::ONE_BLK_SIZE / sizeof(DstT);
         if constexpr (OutputType::format == CubeFormat::ND_ALIGN) {
@@ -88,14 +88,14 @@ public:
         params.subBlockId = subBlockId;
         AscendC::Fixpipe<DstT, SrcT, AscendC::Impl::CFG_ROW_MAJOR_UB>(dst[dstOffset], src, params);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 };
 
 /**
  * @struct Copy
- * @brief Copy struct for Ascend950 architecture with specific parameters
+ * @brief Copy struct for DAV3510 architecture with specific parameters
  *
  * This struct is enabled only if the output is in UB, the format is NZ,
  * and it is not a quantization scenario
@@ -105,7 +105,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNz<OutputType>() &&              // UB NZ
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -116,7 +116,7 @@ public:
     using SrcT = typename AscendC::GetMmDstType<typename InputType::T>::Type;
 
     /**
-     * @brief Overloaded operator() for Ascend950 architecture
+     * @brief Overloaded operator() for DAV3510 architecture
      * @param [in] dst: destination local tensor
      * @param [in] src: source local tensor
      * @param [in] curRow: current row index
@@ -134,7 +134,7 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, uint8_t id = 0)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         int64_t dstOffset =
             static_cast<int64_t>(curCol * baseN) * orgM + static_cast<int64_t>(curRow * baseM) * AscendC::BLOCK_CUBE;
         uint32_t stride =
@@ -157,14 +157,14 @@ public:
         params.subBlockId = id;
         AscendC::Fixpipe<DstT, SrcT, AscendC::Impl::CFG_NZ_UB>(dst[dstOffset], src, params);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 };
 
 /**
  * @struct Copy
- * @brief Copy struct for Ascend950 architecture with specific parameters
+ * @brief Copy struct for DAV3510 architecture with specific parameters
  *
  * This struct is only valid when the output is in UB, the format is either ND or ND_ALIGN, and
  * the IsQuantSenario condition is satisfied
@@ -174,7 +174,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNDOrAlign<OutputType>() &&      // UB ND/ND_ALIGN
         IsQuantSenario<typename OutputType::T, typename InputType::T>() // quant
@@ -203,11 +203,11 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, const AscendC::LocalTensor<uint64_t>& quantTens)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         CopyOutNZ2ND(dst, src, curRow, curCol, l0CTileHeight, l0CTileWidth, baseM, baseN,
                      orgKc != 0 ? orgKc : orgN, quantTens);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 
@@ -230,16 +230,16 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, uint64_t quantScalar)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         CopyOutNZ2ND(dst, src, curRow, curCol, l0CTileHeight, l0CTileWidth, baseM, baseN,
                      orgKc != 0 ? orgKc : orgN, quantScalar);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 
 private:
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     /**
      * @brief Copy data from a local tensor to a global tensor, supporting multiple data types and quantization modes
      * @param [in] T: quantization object type
@@ -327,7 +327,7 @@ private:
 
 /**
  * @struct Copy
- * @brief Copy struct for Ascend950 architecture with specific parameters
+ * @brief Copy struct for DAV3510 architecture with specific parameters
  *
  * This struct is only valid when the output is in UB, the format is either NZ, and
  * the IsQuantSenario condition is satisfied
@@ -337,7 +337,7 @@ private:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNz<OutputType>() &&             // UB NZ
         IsQuantSenario<typename OutputType::T, typename InputType::T>() // quant
@@ -366,10 +366,10 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, const AscendC::LocalTensor<uint64_t>& quantTensor)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         CopyOutNZ2NZ(dst, src, curRow, curCol, l0CTileHeight, l0CTileWidth, baseM, baseN, orgM, quantTensor);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 
@@ -392,15 +392,15 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileHeight, int32_t l0CTileWidth, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, uint64_t quantScalar)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         CopyOutNZ2NZ(dst, src, curRow, curCol, l0CTileHeight, l0CTileWidth, baseM, baseN, orgM, quantScalar);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 
 private:
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     /**
      * @brief Copy data from a local tensor to a global tensor, supporting both quantized and non-quantized modes
      * @param [in] T: quantization object type

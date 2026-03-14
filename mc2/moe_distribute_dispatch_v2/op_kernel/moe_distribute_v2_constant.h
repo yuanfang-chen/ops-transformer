@@ -44,6 +44,7 @@ constexpr uint8_t COMM_NUM = 2;  // 通信域大小
 constexpr uint8_t COMM_EP_IDX = 0;
 constexpr uint8_t COMM_TP_IDX = 1;
 constexpr uint8_t QUANT_PADDING_VALUE = 0;
+constexpr uint32_t FIRST_CORE = 0U;
 // 先写死这个偏移，如果TP固定为2，可直接往起始数据偏移开始读写
 constexpr uint64_t WIN_STATE_OFFSET = 384UL * 1024UL;
 constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
@@ -72,6 +73,7 @@ constexpr uint32_t STATIC_QUANT = 1;
 constexpr uint32_t PERTOKEN_DYNAMIC_QUANT = 2;
 constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
+constexpr uint32_t CACHEWRITESIZE = 8U;
 
 // combinev2额外所需常量段
 constexpr uint64_t COMBINE_STATE_WIN_OFFSET = 818UL * 1024UL;   // combine 0/1状态区偏移，为dispatch预留50k大小
@@ -93,6 +95,14 @@ constexpr uint64_t COMBINE_ARN_STATE_WIN_OFFSET = 818UL * 1024UL;
 constexpr uint32_t NUM_PER_REP_FP32 = 64U;  // ONE_REPEAT_BYTE_SIZE / sizeof(float)
 constexpr float ZERO = 0;
 constexpr float ONE = 1;
+
+// context额外所需常量段
+constexpr uint64_t WINDOWS_IN_OFFSET = 780U;
+constexpr uint64_t EP_WIN_SIZE_OFFSET = 1U;
+constexpr uint64_t TP_WIN_SIZE_OFFSET = 2U;
+constexpr uint64_t EP_STATUS_DATA_SPACE_OFFSET = 3U;
+constexpr uint64_t EP_RANK_ID_OFFSET = 4U;
+constexpr uint64_t EP_WORLD_SIZE_OFFSET = 5U;
 
 // 其他
 constexpr uint32_t JUMP_WRITE = sizeof(int64_t) / sizeof(int32_t);

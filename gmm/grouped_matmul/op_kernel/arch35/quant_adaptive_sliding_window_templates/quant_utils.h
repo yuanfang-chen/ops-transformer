@@ -15,7 +15,11 @@
 #ifndef ASCENDC_QUANT_UTILS_H
 #define ASCENDC_QUANT_UTILS_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 
 #define LOCAL_TEMPLATE_CLASS_PARAMS                                                                              \
@@ -93,7 +97,7 @@ __aicore__ inline constexpr bool IsMxType()
 template <typename T>
 __aicore__ inline constexpr bool IsFp4()
 {
-    return (AscendC::IsSameType<T, fp4x2_e2m1_t>::value || AscendC::IsSameType<T, fp4x2_e1m2_t>::value);
+    return AscendC::IsSameType<T, fp4x2_e2m1_t>::value;
 }
 
 template <typename aType, typename biasType>

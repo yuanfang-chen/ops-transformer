@@ -40,6 +40,7 @@ OP_REPO_LIST+="gmm "
 OP_REPO_LIST+="ffn "
 OP_REPO_LIST+="posembedding "
 OP_REPO_LIST+="mc2 "
+OP_REPO_LIST+="mhc "
 
 # 读取算子option配置 ################################################################################################
 op_config_yaml="$CODE_PATH/tests/test_config.yaml"
@@ -108,7 +109,7 @@ for OP_REPO in $OP_REPO_LIST; do
         fi
 
         cd $CODE_PATH
-        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov &> $LOG_PATH/op_test/$OP.log
+        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov --soc=ascend310p,ascend910b,ascend910_93,ascend950 &> $LOG_PATH/op_test/$OP.log
         if [ $? -ne 0 ]; then
             echo -ne "\033[31mFAIL\033[0m            "
             echo -n "FAIL," &>> $LOG_PATH/results.csv
@@ -118,6 +119,7 @@ for OP_REPO in $OP_REPO_LIST; do
         fi
 
         if [ -f build/cov_result/coverage.info ]; then
+            echo "$OP ut coverage file info is:" >> $LOG_PATH/ut.log
             ls -sh build/cov_result/coverage.info &>> $LOG_PATH/ut.log
             cat build/cov_result/coverage.info >> ./coverage.info
         else

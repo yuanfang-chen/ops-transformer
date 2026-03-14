@@ -16,7 +16,12 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_VCV_BASIC_BLOCK_H
 
 #include "basic_block_config.h"
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#include "kernel_operator_intf.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "tool.h"
 #include "weight_quant_cube_compute.h"
@@ -248,15 +253,15 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::IterateNzKnWithKAic(const B
         uint64_t kbL1RealSize = (kbL1Offset + curOffsetParam.kbL1Size) >= curOffsetParam.kSize
                                     ? curOffsetParam.kSize - kbL1Offset
                                     : curOffsetParam.kbL1Size;
-        cubeCompute_.WaitMTE1ToMTE2(cvLoopIdx_);
-        cubeCompute_.CopyAAndBiasGmToL1(curOffsetParam, kbL1Offset, kbL1RealSize, curOffsetParam.nL1Size, cvLoopIdx_);
+        cubeCompute_.WaitMTE1ToMTE2(kbL1Offset, curOffsetParam);
+        cubeCompute_.CopyAAndBiasGmToL1(curOffsetParam, kbL1Offset, cvLoopIdx_);
         WaitAivToAic<PIPE_MTE1>(SYNC_AIV_AIC_FLAG);
 
         cubeCompute_.LaunchMatmul(weightS8L1_[(cvLoopIdx_ & 1) * weightS8L1DbOffset_], kbL1Offset, kbL1RealSize,
-                                  curOffsetParam,
-                                  cvLoopIdx_);  // mte1 mmad fixp流水
+                                  cvLoopIdx_,
+                                  curOffsetParam); // mte1 mmad fixp流水
 
-        cubeCompute_.SetMTE1ToMTE2(cvLoopIdx_);
+        cubeCompute_.SetMTE1ToMTE2(kbL1Offset, curOffsetParam);
         SetAicToAiv<PIPE_MTE1>(SYNC_AIC_AIV_FLAG);
     }
 }
@@ -276,7 +281,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::End(const BasicBlockOffsetP
             cubeCompute_.GetTensorC(ubOutputS32Buffer_);
             SetAicToAiv<PIPE_FIX>(SYNC_AIC_FIX_AIV_VF_FLAG);
         }
-        cubeCompute_.EndSync(cvLoopIdx_);
+        cubeCompute_.EndSync();
     } else {
         if (cvLoopIdx_ > 0) {
             SetAivToAic<PIPE_MTE3>(SYNC_AIV_MTE3_AIC_FIX_FLAG);

@@ -24,14 +24,14 @@ namespace Gemm {
 namespace Tile {
 /**
  * @struct Copy
- * @brief Define a Copy structure for tensor copy operations on Ascend910B architecture
+ * @brief Define a Copy structure for tensor copy operations on DAV2201 architecture
  * @param [in] AType: the operation type, such as transpose or non-transpose
  * @param [in] DstTrait: the traits of the destination tensor, including data type and position
  * @param [in] SrcTrait: the traits of the source tensor, including data type and position
  */
 template <class AType, class DstTrait, class SrcTrait>
 struct Copy<
-    Arch::Ascend910B, CopyWithLayout, AType, DstTrait, SrcTrait,
+    Arch::DAV2201, CopyWithLayout, AType, DstTrait, SrcTrait,
     AscendC::Std::enable_if_t<SrcTrait::tPos == AscendC::TPosition::A1 && DstTrait::tPos == AscendC::TPosition::A2>> {
 public:
     using DstTensor = AscendC::LocalTensor<DstTrait>;
@@ -60,7 +60,7 @@ public:
             NoneTransposeLoadA2(l0A, l1A, coord);
         }
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend910B"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV2201"); });
 #endif
     }
 
@@ -203,14 +203,14 @@ private:
 
 /**
  * @struct Copy
- * @brief Define a Copy structure for tensor copy operations on the Ascend950 architecture based on position traits
+ * @brief Define a Copy structure for tensor copy operations on the DAV3510 architecture based on position traits
  * @param [in] AType: template parameter indicating whether to perform a transpose operation
  * @param [in] DstTrait: traits of the destination tensor
  * @param [in] SrcTrait: traits of the source tensor
  */
 template <class AType, class DstTrait, class SrcTrait>
 struct Copy<
-    Arch::Ascend950, CopyWithLayout, AType, DstTrait, SrcTrait,
+    Arch::DAV3510, CopyWithLayout, AType, DstTrait, SrcTrait,
     AscendC::Std::enable_if_t<SrcTrait::tPos == AscendC::TPosition::A1 && DstTrait::tPos == AscendC::TPosition::A2>> {
 public:
     using DstTensor = AscendC::LocalTensor<DstTrait>;
@@ -226,7 +226,7 @@ public:
     template <class Coord>
     __aicore__ inline void operator()(const DstTensor& l0A, const SrcTensor& l1A, const Coord& coord)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         ASCENDC_ASSERT((AscendC::Std::is_same_v<typename DstTrait::LiteType, typename SrcTrait::LiteType>),
                        { KERNEL_LOG(KERNEL_ERROR, "l0A l1A type must be same"); });
         if constexpr (AType::isTrans) {
@@ -235,12 +235,12 @@ public:
             NoneTransposeLoadA2(l0A, l1A, coord);
         }
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 
 private:
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     constexpr static int32_t C0_SIZE = AscendC::AuxGetC0Size<typename AType::T>();
 
     /**

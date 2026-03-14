@@ -13,7 +13,11 @@
  * \brief
  */
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "moe_distribute_dispatch_tiling_key.h"
 
 #if __has_include("../moe_distribute_dispatch_v2/moe_distribute_dispatch_tiling.h")
@@ -48,7 +52,7 @@ __global__ __aicore__ void moe_distribute_dispatch(
 
     TPipe pipe;
 
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);

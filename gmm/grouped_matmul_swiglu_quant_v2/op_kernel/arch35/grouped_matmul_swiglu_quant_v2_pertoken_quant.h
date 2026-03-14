@@ -60,7 +60,7 @@ __aicore__ inline void GmmSwigluAswtPertokenKernel(GM_ADDR x, GM_ADDR weight, GM
     using BlockMmad =
         Block::BlockMmadBuilder<AType, LayoutA, BType, LayoutB, C1Type, LayoutC, BiasType, layout::RowMajor,
                                 L1TileShape, L0TileShape, BlockScheduler, MatmulMultiBlock<>,
-                                Tile::TileCopy<Arch::Ascend950, Tile::CopyInAndCopyOutSplitMWithParams>>;
+                                Tile::TileCopy<Arch::DAV3510, Tile::CopyInAndCopyOutSplitMWithParams>>;
     using QGmmKernel =
         Kernel::KernelGmmSwiGluPertokenQuant<ProblemShape, BlockMmad, BlockEpilogueDequantAndSwiglu,
                                              BlockEpiloguePertokenQuant, BlockScheduler, weightscaleType, xscaleType>;
@@ -71,7 +71,6 @@ __aicore__ inline void GmmSwigluAswtPertokenKernel(GM_ADDR x, GM_ADDR weight, GM
     GMMTiling gmmParams{gmmSwigluQuantParams_.groupNum, gmmSwigluQuantParams_.groupListType, mmTilingData_.baseM,
                         mmTilingData_.baseN, mmTilingData_.baseK};
     gmmParams.matmulTiling = &mmTilingData_;
-    // TODO 要调整，要加workspaceoffset
     Params params = {
         {1, 1, 1, 1},
         // mmad args

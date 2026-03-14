@@ -71,6 +71,8 @@ constexpr uint32_t BF16_WORKSIZE = 2;
 constexpr uint32_t FP32_WORKSIZE = 4;
 constexpr uint64_t DB_REQUIRED_BYTES_SIZE = 14;
 constexpr uint32_t SYS_WORKSPACE_SIZES = 16 * 1024 * 1024;
+
+constexpr uint32_t CORE_RATIO = 2;
 } // namespace GmmConstant
 
 enum class QuantMode : uint32_t {
@@ -82,6 +84,15 @@ enum class QuantMode : uint32_t {
     PERGROUP_MODE = 0x1U << 4,
     PERBLOCK_MODE = 0x1U << 5,
 };
+
+typedef enum {
+    GMM_ACT_TYPE_NONE = 0L,
+    GMM_ACT_TYPE_RELU = 1L,
+    GMM_ACT_TYPE_GELU_TANH = 2L,
+    GMM_ACT_TYPE_GELU_ERR_FUNC = 3L,
+    GMM_ACT_TYPE_FAST_GELU = 4L,
+    GMM_ACT_TYPE_SILU = 5L,
+} GMMActType;
 
 struct GQmmBasicTiling {
     uint32_t usedCoreNum = 1;
@@ -106,6 +117,8 @@ struct GQmmBasicTiling {
 };
 
 struct GQmmInputInfo {
+public:
+    void Reset(); // 新增数据成员要修改Reset函数
     uint64_t mSize = 0UL;
     uint64_t kSize = 0UL;
     uint64_t nSize = 0UL;
@@ -137,15 +150,13 @@ struct GQmmInputInfo {
     bool isSingleX = false;
     bool isSingleW = false;
     bool isSingleY = false;
+    bool initFlag = false; // 避免重复解析flag
 };
 
-class GroupedQbmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class GroupedQmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit GroupedQbmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
-    {
-        Reset();
-    }
-    ~GroupedQbmmTiling() override = default;
+    explicit GroupedQmmTiling(gert::TilingContext *context);
+    ~GroupedQmmTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
     {
@@ -182,8 +193,9 @@ protected:
     virtual void PrintQuantParams();
     bool IsMicroScaling() const;
     bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
+    bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     GQmmBasicTiling basicTiling_;
-    GQmmInputInfo inputParams_;
+    GQmmInputInfo &inputParams_;
 
 private:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
@@ -206,9 +218,9 @@ private:
     bool SetMKNList();
     bool IsBiasInL1() const;
     bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
-    bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     bool CheckActiveModeDtype(const gert::StorageShape *xScaleStorageShape) const;
- 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape) const;
+ 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
+    virtual bool CheckCoreNum() const;
 
     GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;

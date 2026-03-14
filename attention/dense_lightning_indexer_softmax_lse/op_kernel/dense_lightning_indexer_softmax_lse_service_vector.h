@@ -32,7 +32,7 @@ using namespace AscendC;
 template <typename T>
 class DenseLISoftmaxLseVector {
 public:
-    using K_T = typename T::keyType;
+    using W_T = typename T::weightType;
     using OUT_T = typename T::outputType;
     static constexpr LAYOUT LAYOUT_T = T::layout;
 
@@ -49,7 +49,7 @@ public:
     __aicore__ inline void InitParams(const struct DenseLISoftmaxLseCommon::ConstInfo &constInfo,
                                       const DenseLISoftmaxLseTilingData *__restrict tilingData);
     __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<MM1_OUT_T> mm1ResGm, GlobalTensor<float> vec1ResGm,
-                                                GlobalTensor<K_T> weightsGm, GlobalTensor<OUT_T> softmaxMaxGm,
+                                                GlobalTensor<W_T> weightsGm, GlobalTensor<OUT_T> softmaxMaxGm,
                                                 GlobalTensor<OUT_T> softmaxSumGm);
     __aicore__ inline void AllocEventID();
     __aicore__ inline void FreeEventID();
@@ -57,7 +57,7 @@ public:
 protected:
     GlobalTensor<MM1_OUT_T> mm1ResGm;
     GlobalTensor<float> vec1ResGm;
-    GlobalTensor<K_T> weightsGm;
+    GlobalTensor<W_T> weightsGm;
     GlobalTensor<OUT_T> softmaxMaxGm;
     GlobalTensor<OUT_T> softmaxSumGm;
 
@@ -139,7 +139,7 @@ __aicore__ inline void DenseLISoftmaxLseVector<T>::InitParams(
 template <typename T>
 __aicore__ inline void DenseLISoftmaxLseVector<T>::InitVec1GlobalTensor(GlobalTensor<MM1_OUT_T> mm1ResGm,
                                                                      GlobalTensor<float> vec1ResGm,
-                                                                     GlobalTensor<K_T> weightsGm,
+                                                                     GlobalTensor<W_T> weightsGm,
                                                                      GlobalTensor<OUT_T> softmaxMaxGm,
                                                                      GlobalTensor<OUT_T> softmaxSumGm)
 {
@@ -202,9 +202,9 @@ __aicore__ inline void DenseLISoftmaxLseVector<T>::ProcessVec(const DenseLISoftm
 
                 LocalTensor<float> mmInUb = scaleBuf_.AllocTensor<float>();
                 LocalTensor<float> weightsInUb = mmInUb[procGnum * s2BaseSize_];
-                LocalTensor<K_T> weightsInTUb = weightsInUb.template ReinterpretCast<K_T>();
+                LocalTensor<W_T> weightsInTUb = weightsInUb.template ReinterpretCast<W_T>();
                 // weightsInTUb用于weight原始类型float16、bfloat16
-                if constexpr (!IsSameType<K_T, float>::value) {
+                if constexpr (!IsSameType<W_T, float>::value) {
                     weightsInTUb = weightsInTUb[groupInner_];
                 }
 
@@ -243,11 +243,14 @@ template <typename T>
 __aicore__ inline void DenseLISoftmaxLseVector<T>::ProcessSoftmax(const DenseLISoftmaxLseCommon::RunInfo &info)
 {
     uint32_t loop = info.s1BlockInnerLoop;
-    if (blockId_ % AIV_RATIO == 0 && loop % AIV_RATIO != 0) {
+    uint32_t actDealS1BaseSize = info.gS1Idx * s1BaseSize_ + s1BaseSize_ > info.actS1Size ?
+        info.actS1Size % s1BaseSize_ : s1BaseSize_;
+    uint32_t aiv0DealS1Size = DenseLISoftmaxLseCommon::CeilDiv(actDealS1BaseSize, (uint32_t)AIV_RATIO);
+    if (blockId_ % AIV_RATIO == 0 && loop >= aiv0DealS1Size) {
         return;
     }
 
-    if (blockId_ % AIV_RATIO != 0 && loop % AIV_RATIO == 0) {
+    if (blockId_ % AIV_RATIO != 0 && loop < aiv0DealS1Size) {
         return;
     }
 

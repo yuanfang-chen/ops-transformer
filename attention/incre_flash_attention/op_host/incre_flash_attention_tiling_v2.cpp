@@ -543,18 +543,14 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
 
   const uint32_t *innerPrecisePtr = ifaContext_->innerPrecise;
   innerPrecise_ = innerPrecisePtr ? *innerPrecisePtr : IFA_HIGH_PERFORMANCE; // 910B默认高性能
-  if (isPFAFlag_) {
-    OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION) &&
-                (innerPrecise_ != HIGH_PERFORMANCE_ROW_INVALID) && (innerPrecise_ != HIGH_PRECISION_ROW_INVALID)),
-                OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1 or 2 or 3.", innerPrecise_),
-                return ge::GRAPH_FAILED); // pfa支持0-3，第0位：0-高精度，1-高性能；第1位：0-不开启行无效修正，1-开启行无效修正
-    isRowInvalid_ = (innerPrecise_ >> 1) & 1;
-    innerPrecise_ &= NUM1;
-  } else {
-    OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION)),
-                OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1.", innerPrecise_),
-                return ge::GRAPH_FAILED); // 当前只支持高精度0和高性能1
-  }
+
+  OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION) &&
+              (innerPrecise_ != HIGH_PERFORMANCE_ROW_INVALID) && (innerPrecise_ != HIGH_PRECISION_ROW_INVALID)),
+              OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1 or 2 or 3.", innerPrecise_),
+              return ge::GRAPH_FAILED); // pfa支持0-3，第0位：0-高精度，1-高性能；第1位：0-不开启行无效修正，1-开启行无效修正
+  isRowInvalid_ = (innerPrecise_ >> 1) & 1;
+  innerPrecise_ &= NUM1;
+
   OP_LOGD(ifaContext_->opName, "InnerPrecise is %u", innerPrecise_);
 
   if (!pageAttentionFlag_ && CheckQKOutShape() != ge::GRAPH_SUCCESS) {
@@ -1044,7 +1040,7 @@ void IFATilingV2::SetEmptyTensor() {
               OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null!"),
               return);
   auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-  ifaContext_->blockDim = ascendcPlatform.CalcTschBlockDim(coreNum_, aicNum_, coreNum_);
+  ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(coreNum_, aicNum_, coreNum_);
   ifaContext_->workSpaces[0] = ascendcPlatform.GetLibApiWorkSpaceSize();
 }
 
@@ -1165,7 +1161,6 @@ ge::graphStatus IFATilingV2::ProcessOptionalTensors() {
     }
     qPaddingSizeFlag_ = false;
     needInit_ = needInitfaRun_;
-    isRowInvalid_ = (innerPrecise_ >> 1) & 1;
   }
   return ge::GRAPH_SUCCESS;
 }
@@ -1700,28 +1695,6 @@ bool IFATilingV2::CheckSparseMode(bool isDefaultSparseMode, bool enableMask) {
       preToken_, nextToken_),
     return false);
 
-  if (!CheckBandMode(isBandMode)) {
-    return false;
-  }
-  return true;
-}
-
-bool IFATilingV2::CheckBandMode(bool isBandMode) {
-  if (!isBandMode) {
-    return true;
-  }
-  if (ifaContext_->actualSeqLengths.tensor != nullptr) {
-    const gert::Tensor* actSeqLen = ifaContext_->actualSeqLengths.tensor;
-    uint32_t actualLenKvDims = actSeqLen->GetShapeSize();
-    uint32_t actSeqLengthKvSize = std::min(actualLenKvDims, batchSize_);
-    for (uint32_t i = 0; i < actSeqLengthKvSize; ++i) {
-      int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
-      OP_CHECK_IF(nextToken_ <= -actSeqTmp,
-        OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "In SparseMode 4(band mode), nextToken must be greater than -actualSeqLengthsKv, but nextToken got %ld while actualSeqLengthsKv[%u] got %ld.", nextToken_, i, actSeqTmp),
-        return false);
-    }
-  }
   return true;
 }
 
@@ -1798,50 +1771,67 @@ bool IFATilingV2::CheckMaskCrossover(const gert::Tensor* maskShape, ge::DataType
   return true;
 }
 
-bool IFATilingV2::CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool isDefaultSparseMode) {
+bool IFATilingV2::CheckMaskShape(bool isDefaultSparseMode, const gert::Tensor* maskShape, std::string& strMaskShape, bool& checkMask) {
   size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
   int64_t attenMaskN = 1U;
-  attenMaskQSize_ = 0;
-  attenMaskSize_ = 0;
-  bool checkMask = false;
-  std::string strMaskShape;
-
-  if (attenMaskDim == MASKDIM_BS_SS) {
-    attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM0);
-    attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM1);
-    strMaskShape = std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskSize_);
+  if (attenMaskDim == MASKDIM_SS) {
+    if (isDefaultSparseMode || (ifaContext_->sparseMode != nullptr && sparseMode_ == SPARSE_MODE_ALL_MASK)) { // sparse 0、1时不支持二维mask
+      OP_LOGE(ifaContext_->opName, "The current dimension of the mask is 2. "
+        "When sparseMode is 0 or 1, the mask dimension only supports 3 and 4. "
+        "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\].");
+      return false;
+    } else {
+      attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM0);
+      attenMaskKvSize_ = maskShape->GetStorageShape().GetDim(NUM1);
+      strMaskShape = std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskKvSize_);
+    }
   } else if (attenMaskDim == MASKDIM_1SS_BSS) {
     attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM1);
-    attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM2); // 2: When the dim is 3, the second dimension is S2.
+    attenMaskKvSize_ = maskShape->GetStorageShape().GetDim(NUM2); // 2: When the dim is 3, the second dimension is S2.
     strMaskShape = std::to_string(attenMaskBatch_) + ", " + std::to_string(attenMaskQSize_) + ", " + 
-      std::to_string(attenMaskSize_);
+      std::to_string(attenMaskKvSize_);
   } else if (attenMaskDim == MASKDIM_11SS_B1SS) {
     attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskN = maskShape->GetStorageShape().GetDim(NUM1);
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM2); // 2: When the dim is 4, the second dimension is S1.
-    attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM3); // 3: When the dim is 4, the third dimension is S2.
+    attenMaskKvSize_ = maskShape->GetStorageShape().GetDim(NUM3); // 3: When the dim is 4, the third dimension is S2.
     strMaskShape = std::to_string(attenMaskBatch_) + ", " + std::to_string(attenMaskN) + ", " + 
-      std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskSize_);
+      std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskKvSize_);
   } else {
     OP_LOGE(ifaContext_->opName, "attenMask dim(%zu) must be 2 or 3 or 4!", attenMaskDim);
     return false;
   }
 
   if (isDefaultSparseMode || (ifaContext_->sparseMode != nullptr && sparseMode_ == SPARSE_MODE_ALL_MASK)) {
-    checkMask = (attenMaskQSize_ >= sOfQuery_) && (attenMaskSize_ >= seqSize_) && 
-      (attenMaskBatch_ == NUM1 || attenMaskBatch_ == batchSize_) &&  (static_cast<uint32_t>(attenMaskN) == NUM1);
+    checkMask = (attenMaskQSize_ >= sOfQuery_) && (attenMaskKvSize_ >= seqSize_) && 
+      (attenMaskBatch_ == NUM1 || attenMaskBatch_ == batchSize_) && (static_cast<uint32_t>(attenMaskN) == NUM1);
+    if (static_cast<uint32_t>(attenMaskN) != NUM1) {
+      OP_LOGE(ifaContext_->opName, "The second dimension of the 4D mask must be 1, but now it is %lld!", attenMaskN);
+    }
   } else if ((ifaContext_->sparseMode != nullptr) && ((sparseMode_ == SPARSE_MODE_LEFT_UP) ||
     (sparseMode_ == SPARSE_MODE_RIGHT_DOWN) || (sparseMode_ == SPARSE_MODE_BAND))) {
     checkMask = (attenMaskBatch_ == NUM1) && (static_cast<uint32_t>(attenMaskN) == NUM1) &&
-      (attenMaskQSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE) && (attenMaskSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE);
+      (attenMaskQSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE) && (attenMaskKvSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE);
+  }
+  return true;
+}
+
+bool IFATilingV2::CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool isDefaultSparseMode) {
+  attenMaskQSize_ = 0;
+  attenMaskKvSize_ = 0;
+  bool checkMask = false;
+  std::string strMaskShape;
+
+  if (!CheckMaskShape(isDefaultSparseMode, maskShape, strMaskShape, checkMask)) {
+    return false;
   }
 
-  if (isDefaultSparseMode || ((ifaContext_->sparseMode != nullptr) && (sparseMode_ == SPARSE_MODE_ALL_MASK))) {
+  if (isDefaultSparseMode || (ifaContext_->sparseMode != nullptr && sparseMode_ == SPARSE_MODE_ALL_MASK)) {
     OP_CHECK_IF(!checkMask, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
         "attenMask batch(%u) must be 1 or %u, attenMask Q_S(%u) must be larger than or equal to sQ(%u),"
         "attenMask KV_S(%u) must be larger than or equal to sK(%u), please check",
-        attenMaskBatch_, batchSize_, attenMaskQSize_, sOfQuery_, attenMaskSize_, seqSize_),
+        attenMaskBatch_, batchSize_, attenMaskQSize_, sOfQuery_, attenMaskKvSize_, seqSize_),
       return false);
   }
   if ((ifaContext_->sparseMode != nullptr) && ((sparseMode_ == SPARSE_MODE_LEFT_UP) ||
@@ -1869,11 +1859,11 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
   size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
   attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
   ge::DataType attenMaskType = ifaContext_->attenMask.desc->GetDataType();
-  if (attenMaskDim == MASKDIM_BS_SS) {
-    OP_CHECK_IF(attenMaskBatch_ != batchSize_,
-      OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query, "
-                "when mask is two-dimensional.", attenMaskBatch_, batchSize_),
-                return ge::GRAPH_FAILED);
+  if (attenMaskDim == MASKDIM_SS) { // 伪量化qs=1在未生效sparse时仅支持二维mask为BS，所以此处全部拦截
+    OP_LOGE(ifaContext_->opName, "The current dimension of the mask is 2. "
+      "When sparseMode is 0 or 1, the mask dimension only supports 3 and 4. "
+      "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\].");
+    return ge::GRAPH_FAILED;
   } else {
     OP_CHECK_IF(!(attenMaskBatch_ == batchSize_ || attenMaskBatch_ == 1),
       OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query or 1, "
@@ -1886,10 +1876,10 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
               return ge::GRAPH_FAILED);
 
   uint32_t minAttenMaskSize = pageAttentionFlag_ ? sMax_ : maxActualseq_;
-  attenMaskSize_ = maskShape->GetStorageShape().GetDim(maskShape->GetStorageShape().GetDimNum() - 1);
-  OP_CHECK_IF(attenMaskSize_ < minAttenMaskSize,
+  attenMaskKvSize_ = maskShape->GetStorageShape().GetDim(maskShape->GetStorageShape().GetDimNum() - 1);
+  OP_CHECK_IF(attenMaskKvSize_ < minAttenMaskSize,
     OP_LOGE(ifaContext_->opName, "S Size[%u] of attenMask must be greater than or equal to the second dimension of blockTable * blockSize([%u]).",
-              attenMaskSize_, minAttenMaskSize),
+              attenMaskKvSize_, minAttenMaskSize),
               return ge::GRAPH_FAILED);
 
   attenMaskFlag_ = true;
@@ -1919,16 +1909,30 @@ ge::graphStatus IFATilingV2::CheckActualSeqLens()
         OP_LOGE(ifaContext_->opName, "TND actualLenDims_ is 0!");
         return ge::GRAPH_FAILED;
     }
-    if (actualLenQDims_ != actualLenDims_) {
-        OP_LOGE(ifaContext_->opName, "When layout is TND, the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
-          actualLenQDims_, actualLenDims_);
+    if (!pageAttentionFlag_ && (actualLenQDims_ != actualLenDims_)) {
+        OP_LOGE(ifaContext_->opName, "When layout is TND and page attention is not enable, "
+                "the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
+                actualLenQDims_, actualLenDims_);
+        return ge::GRAPH_FAILED;
+    }
+    // layout为TND, kv PA管理场景 actualSequenceLengthKV size可以为1或者>=B
+    if (pageAttentionFlag_ && (actualLenDims_ != 1 && actualLenDims_ < actualLenQDims_)) {
+        OP_LOGE(ifaContext_->opName, "When layout is TND and page attention is enable, "
+                "the length of actualSequenceLengthKV (%u) should be greater than or equal to "
+                "the length of actualSequenceLengthQ(%u) or equal to 1 ",
+                actualLenDims_, actualLenQDims_);
         return ge::GRAPH_FAILED;
     }
     int64_t lastActSeq = 0;
     int64_t lastActSeqKV = 0;
+    int64_t curActSeqKV = 0;
     for (uint32_t i = 0; i < actualLenQDims_; i++) {
         int64_t curActSeq = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>()[i];
-        int64_t curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[i];
+        if (pageAttentionFlag_ && actualLenDims_ == 1) {
+            curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[0];
+        } else {
+            curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[i];
+        }
         if (curActSeq < 0) {
             OP_LOGE(ifaContext_->opName, "actualSeqLengths[%u] = %ld, should >= 0", i, curActSeq);
             return ge::GRAPH_FAILED;
@@ -2171,22 +2175,36 @@ ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2
 
   // per-tensor or per-channel verification
   uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(numHeads_) * static_cast<uint64_t>(headDim_);
+  std::string layoutString = ifaContext_->layOut;
+  bool isSupportedLayout = layoutString == "BSH" || layoutString == "BSND" || layoutString == "BNSD" || layoutString == "BNSD_BSND";
+
   if (quantScale2Dim == 1) {
-      if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
+      if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel && isSupportedLayout) {
         // per-channel quant scale/offset shape is [H].
         isPostQuantPerChnl_ = true;
       } else {
         OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
             OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+                "For post quant per-tensor, quantScale2/quantOffset2 only support [1], now is [%d]", quantScale2ShapeSize),
             return ge::GRAPH_FAILED);
       }
   } else {
-      OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
-          OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-              "for post quant per-channel, quant scale/offset dim multiply result only support qN * vD(%u * %u = %lu), now is (%ld).",
-              numHeads_ , headDim_ , quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
-          return ge::GRAPH_FAILED);
+      if (isSupportedLayout) {
+          OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
+                      OP_LOGE(ifaContext_->opName,
+                              "For post quant per-channel,  when layout is %s, quantScale2/quantOffset2 dim multiply "
+                              "result only support qN * vD(%u * %u = %lu), now is (%ld).",
+                              layoutString.c_str(), numHeads_, headDim_, quantScale2ShapeSizePerChannel,
+                              quantScale2ShapeSize),
+                      return ge::GRAPH_FAILED);
+      } else {
+          OP_CHECK_IF(qtScale2->GetStorageShape() != gert::Shape({numHeads_, headDim_}),
+                      OP_LOGE(ifaContext_->opName,
+                              "For post quant per-channel, when layout is %s, "
+                              "quantScale2/quantOffset2 expect shape is [%u, %u].",
+                              layoutString.c_str(), numHeads_, headDim_),
+                      return ge::GRAPH_FAILED);
+      }
       isPostQuantPerChnl_ = true;
   }
 
@@ -2229,16 +2247,9 @@ ge::graphStatus IFATilingV2::ProcessQuant2() {
           optiling::v2::GetPfaDataTypeStr(quantScale2Type).c_str(), optiling::v2::GetPfaDataTypeStr(quantOffset2Type).c_str()),
           return ge::GRAPH_FAILED);
 
-    size_t quantOffset2Dim = qtOffset2->GetStorageShape().GetDimNum();
-    OP_CHECK_IF(quantScale2Dim != quantOffset2Dim, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "quant_scale2 dim num(%ld) do not equal quant_offset2 dim num(%ld).",
-        quantScale2Dim, quantOffset2Dim),
-        return ge::GRAPH_FAILED);
-    int64_t quantOffset2ShapeSize = qtOffset2->GetShapeSize();
-    OP_CHECK_IF(quantScale2ShapeSize != quantOffset2ShapeSize, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "quant_scale2 dimension multiply result(%ld) do not equal quant_offset2 dimension multiply result(%ld).",
-        quantScale2ShapeSize, quantOffset2ShapeSize),
-        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(qtScale2->GetStorageShape() != qtOffset2->GetStorageShape(),
+                OP_LOGE(ifaContext_->opName, "quantScale2 and quantOffset2 should have same shape."),
+                return ge::GRAPH_FAILED);
   }
   OP_CHECK_IF(ProcessQuant2Attribute(qtScale2) != ge::GRAPH_SUCCESS,
       OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "post quant attribute process failed!"),
@@ -2621,6 +2632,16 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   auto valueAntiquantScaleDesc = ifaContext_->valueAntiquantScale.desc;
   auto valueAntiquantOffsetTensor = ifaContext_->valueAntiquantOffset.tensor;
   auto valueAntiquantOffsetDesc = ifaContext_->valueAntiquantOffset.desc;
+  auto queryRopeInputShape = ifaContext_->queryRopeInputShape;
+  auto keyRopeInputShape = ifaContext_->keyRopeInputShape;
+
+  OP_CHECK_IF((keyAntiquantScaleTensor == nullptr || valueAntiquantScaleTensor == nullptr),
+    OP_LOGE(ifaContext_->opName, "In antiquant scenario, keyAntiquantScale and valueAntiquantScale must exist."),
+      return ge::GRAPH_FAILED);
+  OP_CHECK_IF((*ifaContext_->antiquantMode != 0 || antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr),
+    OP_LOGE(ifaContext_->opName, "Antiquant scenario only supports key/value split mode, antiquantMode,"
+            "antiquantScale and antiquantOffset are not supported."),
+      return ge::GRAPH_FAILED);
   if (!antiQuantFlag_ && (antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr
     || keyAntiquantScaleTensor != nullptr || keyAntiquantOffsetTensor != nullptr
     || valueAntiquantScaleTensor != nullptr || valueAntiquantOffsetTensor != nullptr)) {
@@ -2632,7 +2653,9 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
     return ge::GRAPH_SUCCESS;
   }
   kvAntiParamSplitFlag_ = false;
-
+  OP_CHECK_IF(antiQuantFlag_ && (queryRopeInputShape != nullptr || keyRopeInputShape != nullptr),
+    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario."),
+      return ge::GRAPH_FAILED);
   OP_CHECK_IF((keyAntiquantScaleTensor != nullptr && valueAntiquantScaleTensor == nullptr),
     OP_LOGE(ifaContext_->opName, "ValueAntiquantScaleTensor is null, but keyAntiquantScaleTensor exists."),
       return ge::GRAPH_FAILED);
@@ -2686,6 +2709,35 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
       }
+    }
+    OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && inputLayout_ == IfaLayout::TND),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "the layout of input does not support TND."),
+                return ge::GRAPH_FAILED);
+    if (isPFAFlag_) {
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (inputQType_ != ge::DT_BF16 || outputType_ != ge::DT_BF16)),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "the data type of query and output only support BF16."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionKvLayoutType_ != KvCacheLayout::KV_CACHE_NZ && sOfQuery_ > 16),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "S of query should not be greater than 16."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && !batchContinuousFlag_),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "tensorlist is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (ifaContext_->queryPaddingSize.tensor || ifaContext_->kvPaddingSize.tensor)),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "leftpadding is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionFlag_),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                        "page attention is not supported."),
+                return ge::GRAPH_FAILED);
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT32),
+                OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode scenario, int4 and int32 data types are not supported for the key and value."),
+                return ge::GRAPH_FAILED);
     }
   } else {
     OP_CHECK_IF((antiquantScaleTensor !=nullptr && antiquantScaleDesc == nullptr),
@@ -3567,7 +3619,7 @@ void IFATilingV2::FillTilingBaseParams() const {
   tilingData_->baseParams.set_antiquantPerHeadFlag(antiquantPerHeadFlag_);
   tilingData_->baseParams.set_attenMaskBatch(attenMaskBatch_);
   tilingData_->baseParams.set_attenMaskQSize(attenMaskQSize_);
-  tilingData_->baseParams.set_attenMaskSize(attenMaskSize_);
+  tilingData_->baseParams.set_attenMaskSize(attenMaskKvSize_);
   tilingData_->baseParams.set_sparseMode(sparseMode_);
   tilingData_->baseParams.set_preToken(preToken_);
   tilingData_->baseParams.set_nextToken(nextToken_);
@@ -3899,12 +3951,12 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus IFATilingV2::CalcBlockDim() const {
+ge::graphStatus IFATilingV2::CalcNumBlocks() const {
   auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
   auto aicNum = aicNum_;
   auto aivNum = aivNum_;
-  ifaContext_->blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);  // 暂时与当前代码一致
-  OP_LOGD(ifaContext_->opName, "IFA block dim:%u aivNum:%u aicNum:%u.", ifaContext_->blockDim, aivNum, aicNum);
+  ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);  // 暂时与当前代码一致
+  OP_LOGD(ifaContext_->opName, "IFA block dim:%u aivNum:%u aicNum:%u.", ifaContext_->numBlocks, aivNum, aicNum);
   return ge::GRAPH_SUCCESS;
 }
 
@@ -4003,7 +4055,7 @@ ge::graphStatus IFATilingV2::DoTiling(gert::TilingContext& context) {
 
   if (RunBigKernelTiling(ifaContext, tilingData) == ge::SUCCESS) {
     context.SetTilingKey(ifaContext.tilingKey);
-    context.SetBlockDim(ifaContext.blockDim);
+    context.SetBlockDim(ifaContext.numBlocks);
   } else {
     return ge::GRAPH_FAILED;
   }
@@ -4110,7 +4162,7 @@ ge::graphStatus IFATilingV2::RunBigKernelTiling(IncreFlashAttentionContext& cont
   if (EmptyTensorProcess() != ge::GRAPH_SUCCESS) {
     if ((Split() != ge::GRAPH_SUCCESS) || (FillTiling() != ge::GRAPH_SUCCESS) ||
         (GenTilingKey() != ge::GRAPH_SUCCESS) || (CalcWorkSpace() != ge::GRAPH_SUCCESS) ||
-        (CalcBlockDim() != ge::GRAPH_SUCCESS)) {
+        (CalcNumBlocks() != ge::GRAPH_SUCCESS)) {
       return ge::GRAPH_FAILED;
     }
   }
@@ -4202,7 +4254,7 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_keepProbUint8(0); // 默认值
   inputParams.set_dropMaskOuter(0); // 默认值
   inputParams.set_remain(0); // 默认值
-  inputParams.set_attenMaskS2Size(attenMaskSize_);
+  inputParams.set_attenMaskS2Size(attenMaskKvSize_);
   inputParams.set_rsv1(0); // 默认值
   inputParams.set_s1SparseValidSize(0); // 临时默认值
   inputParams.set_s2SparseValidSize(0); // 临时默认值
@@ -4232,6 +4284,7 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_fromFused(1);   //伪量化模板没有用到，设置为默认值
   std::string layout(ifaContext_->layOut);
   inputParams.set_isBSNDOut(layout == "BNSD_BSND");
+  inputParams.set_transposeLayout(ifaContext_->transposeLayout);
   //关于合轴
   inputParams.set_isGqa(isGqa_);
   inputParams.set_isSoftMaxLseEnable(softmaxLseFlag_ );
@@ -4314,13 +4367,13 @@ ge::graphStatus IFATilingV2::DoOpTiling()
             static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
             static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
-    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
-    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return ret;
 }
 
 ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContext)
 {
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     if (ifaContext.key.desc->GetDataType() == ge::DT_FLOAT16 || ifaContext.key.desc->GetDataType() == ge::DT_BF16) {
         auto platformInfoPtr = context_->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr,
@@ -4357,7 +4410,7 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
         OP_CHECK_IF(ret == ge::GRAPH_FAILED,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in IFA RunBigKernelTiling"),
                     return ge::GRAPH_FAILED);
-        context_->SetBlockDim(ifaContext.blockDim);
+        context_->SetBlockDim(ifaContext.numBlocks);
         FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
         OP_CHECK_IF(tiling == nullptr,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "tilingdata ptr should not be null"),

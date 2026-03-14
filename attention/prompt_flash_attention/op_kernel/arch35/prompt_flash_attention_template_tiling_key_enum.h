@@ -28,7 +28,7 @@
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \
     constexpr S2TemplateType s2TemplateType = static_cast<S2TemplateType>(ConfigValue[config].s2); \
     constexpr DTemplateType dTemplateType = static_cast<DTemplateType>(ConfigValue[config].d); \
-    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv);
+    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv)
 
 #define PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, ...) \
     constexpr LayOutTypeEnum inputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutTypeValue[inOutLayoutType][0]); \
@@ -36,7 +36,7 @@
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \
     constexpr S2TemplateType s2TemplateType = static_cast<S2TemplateType>(ConfigValue[config].s2); \
     constexpr DTemplateType dTemplateType = static_cast<DTemplateType>(ConfigValue[config].d); \
-    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv);
+    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv)
 
 #define PARSE_PARAMS_FullQuant(inOutLayoutType, config, pseMode, ...) \
     constexpr LayOutTypeEnum inputLayoutType = static_cast<LayOutTypeEnum>(InOutLayoutPFATypeValue[inOutLayoutType][0]); \
@@ -44,7 +44,7 @@
     constexpr S1TemplateType s1TemplateType = static_cast<S1TemplateType>(ConfigValue[config].s1); \
     constexpr S2TemplateType s2TemplateType = static_cast<S2TemplateType>(ConfigValue[config].s2); \
     constexpr DTemplateType dTemplateType = static_cast<DTemplateType>(ConfigValue[config].d); \
-    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv);
+    constexpr DTemplateType dVTemplateType = static_cast<DTemplateType>(ConfigValue[config].dv)
 
 #endif
 
@@ -179,10 +179,10 @@ static constexpr ConfigParams ConfigValue[] ={
 #define Config_S1Aligned32_S2Aligned512_DAligned128_DVAligned128 20
 #define Config_S1Aligned32_S2Aligned256_DAligned256_DVAligned256 21
 #define Config_S1Aligned32_S2Aligned128_DAligned512_DVAligned512 22
-#define Config_S1Aligned128_S2Aligned128_DAligned128_DVAligned64 23 //qkvd不相等
-#define Config_S1Aligned128_S2Aligned128_DAligned64_DVAligned128 24 //qkvd不相等
-#define Config_S1Aligned64_S2Aligned256_DAligned128_DVAligned64 25  //qkvd不相等
-#define Config_S1Aligned64_S2Aligned256_DAligned64_DVAligned128 26  //qkvd不相等
+#define Config_S1Aligned128_S2Aligned128_DAligned128_DVAligned64 23
+#define Config_S1Aligned128_S2Aligned128_DAligned64_DVAligned128 24
+#define Config_S1Aligned64_S2Aligned256_DAligned128_DVAligned64 25
+#define Config_S1Aligned64_S2Aligned256_DAligned64_DVAligned128 26
 
 
 //PseMode

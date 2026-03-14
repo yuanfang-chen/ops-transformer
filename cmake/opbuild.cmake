@@ -92,7 +92,9 @@ function(gen_aclnn_classify host_obj prefix ori_out_srcs ori_out_headers opbuild
     endif()
   else()
     set(${opbuild_out_srcs} ${ori_out_srcs} ${out_srcs} PARENT_SCOPE)
-    set(${opbuild_out_headers} ${ori_out_headers} ${out_headers} PARENT_SCOPE)
+    if ("${prefix}" STREQUAL "aclnn")
+      set(${opbuild_out_headers} ${ori_out_headers} ${out_headers} PARENT_SCOPE)
+    endif()
   endif()
 endfunction()
 
@@ -139,11 +141,11 @@ function(gen_aclnn_with_opdef)
   set(mc2_aclnn_master_headers "")
   if (NOT ENABLE_BUILT_IN AND NOT ("${ASCEND_OP_NAME}" STREQUAL "ALL"))
     foreach(op_name IN LISTS ASCEND_OP_NAME)
-      file(GLOB matching_file "${OPS_TRANSFORMER_DIR}/mc2/${op_name}/op_api/*.h")
+      file(GLOB matching_file "${OPS_TRANSFORMER_DIR}/mc2/${op_name}/op_api/aclnn_*.h")
       list(APPEND mc2_aclnn_master_headers ${matching_file})
     endforeach()
   else()
-    file(GLOB matching_file "${OPS_TRANSFORMER_DIR}/mc2/*/op_api/*.h")
+    file(GLOB matching_file "${OPS_TRANSFORMER_DIR}/mc2/*/op_api/aclnn_*.h")
     list(APPEND mc2_aclnn_master_headers ${matching_file})
   endif()
 
@@ -216,7 +218,16 @@ function(merge_graph_headers)
     ${proto_headers}
     --output-file ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
   )
-  add_custom_target(${MGPROTO_TARGET} ALL
+  add_custom_command(
+    OUTPUT ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
+    COMMAND ${CMAKE_COMMAND} -E copy
+      ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
+      ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
     DEPENDS ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
+  )
+  add_custom_target(${MGPROTO_TARGET} ALL
+    DEPENDS
+    ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
+    ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
   )
 endfunction()

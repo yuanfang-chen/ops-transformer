@@ -13,7 +13,11 @@
  * \brief A5
  */
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "common.h"
 #include "./arch35/matmul_all_reduce_empty_tensor_k_general.h"
@@ -50,7 +54,6 @@ namespace{
 #include "arch35/matmul_all_reduce_quant.h"
 #include "arch35/matmul_all_reduce_quant_comm_int8.h"
 #include "arch35/matmul_all_reduce_quant_perblock.h"
-#include "arch35/matmul_all_reduce_quant_pertile_comm_fp8.h"
 #include "arch35/matmul_all_reduce_quant_commfp8_mixed_calc.h"
 #endif
 

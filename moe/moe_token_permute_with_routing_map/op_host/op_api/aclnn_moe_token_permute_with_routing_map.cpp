@@ -27,15 +27,14 @@
 #else
     #include "level0/gather_v2.h"
 #endif
+#include "external/aclnn_kernels/aclnn_platform.h"
 
 using namespace op;
 #ifdef __cplusplus
 extern "C" {
 #endif
 namespace {
-static constexpr int64_t GRAD_Y_SHAPE_WITH_GROUP_IDX = 2;
-static constexpr int64_t GRAD_Y_SHAPE_NO_GROUP_IDX = 3;
-static constexpr int64_t GROUP_INDEX_SHAPE = 1;
+static constexpr int64_t TOKENS_SHAPE_SIZE = 2;
 static constexpr int64_t TRANSPOSE_SHAPE_SIZE = 2;
 static constexpr int64_t INPUT_MAX_GROUP = 2048;
 static constexpr int64_t SORT_LIMIT_LENGTH = 16777215;
@@ -128,6 +127,18 @@ static bool CheckShapeValid(const aclTensor* routingMap, const aclTensor* probsO
     return true;
 }
 
+static bool CheckTokensValid(const aclTensor* tokens)
+{
+    auto tokensDimNum = tokens->GetViewShape().GetDimNum();
+    OP_CHECK(
+        tokensDimNum == TOKENS_SHAPE_SIZE,
+        OP_LOGE(
+            ACLNN_ERR_PARAM_INVALID, "The dimensions of tokens should be two, but got %ld.",
+            static_cast<int64_t>(tokensDimNum)),
+        return false);
+    return true;
+}
+
 static aclnnStatus CheckParams(
     const aclTensor* tokens, const aclTensor* routingMap, const aclTensor* probsOptional,
     const aclTensor* permuteTokensOut, const aclTensor* permuteProbsOutOptional, const aclTensor* sortedIndicesOut,
@@ -148,6 +159,7 @@ static aclnnStatus CheckParams(
 
     int64_t alignNum = (dropAndPad == true) ? expertNum : tokenNum;
     alignNum = (alignNum == 0) ? 1 : alignNum;
+    CHECK_RET(CheckTokensValid(tokens), ACLNN_ERR_PARAM_INVALID);
     OP_CHECK(
         numOutTokens >= 0,
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "numOutTokens should great than %ld, but got %ld.", int64_t(0), numOutTokens),
@@ -270,19 +282,24 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGetWorkspaceSize(
     }
 
     const aclTensor* permuteTokensOpOut;
-    #ifdef BUILD_OPEN_PROJECT_API
-        if (dropAndPad) {
-            permuteTokensOpOut = l0op::MoeGatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
-        } else {
-            permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
-        }
-    #else
-        if (dropAndPad) {
-            permuteTokensOpOut = l0op::GatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
-        } else {
-            permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
-        }
-    #endif
+    bool isRegbase = Ops::Transformer::AclnnUtil::IsRegbase();
+    if (isRegbase) {// regbase 场景在算子内部进行gather，其余场景由gather算子计算
+        permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
+    } else {
+        #ifdef BUILD_OPEN_PROJECT_API
+            if (dropAndPad) {
+                permuteTokensOpOut = l0op::MoeGatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
+            } else {
+                permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
+            }
+        #else
+            if (dropAndPad) {
+                permuteTokensOpOut = l0op::GatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
+            } else {
+                permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
+            }
+        #endif
+    }
 
     CHECK_RET(permuteTokensOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto permuteTokensResult = l0op::ViewCopy(permuteTokensOpOut, permuteTokensOut, uniqueExecutor.get());

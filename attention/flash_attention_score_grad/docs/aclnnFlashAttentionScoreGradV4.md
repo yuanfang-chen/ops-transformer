@@ -2,13 +2,14 @@
 
 ## 产品支持情况
 
-| 产品                                           | 是否支持 |
-|:---------------------------------------------|:----:|
+|产品      | 是否支持 |
+|:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      √     |
-|<term>Atlas A3 训练系列产品</term>|     ×      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     ×      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     x      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     x      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 
@@ -268,7 +269,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>softmaxMaxOptional</td>
       <td>可选输入</td>
       <td>注意力正向计算的中间输出。</td>
-      <td>shape=[B,N,Sq,8]。</td>
+      <td>shape=[B,N,Sq,8],[N,T,8]。</td>
       <td>FLOAT</td>
       <td>ND</td>
       <td>0、4</td>
@@ -278,7 +279,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>softmaxSumOptional</td>
       <td>可选输入</td>
       <td>注意力正向计算的中间输出。</td>
-      <td>shape=[B,N,Sq,8]。</td>
+      <td>shape=[B,N,Sq,8],[N,T,8]。</td>
       <td>FLOAT</td>
       <td>ND</td>
       <td>0、4</td>
@@ -631,7 +632,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
   </colgroup>
   <thead>
     <tr>
-      <th>返回码</th>
+      <th>返回值</th>
       <th>错误码</th>
       <th>描述</th>
     </tr>
@@ -712,10 +713,10 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
     -   KeepProb：取值范围为(0, 1]。
 - 部分场景下，如果计算量过大可能会导致算子执行超时(aicore error类型报错，errorStr为：timeout or trap error)，此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - prefixOptional稀疏计算仅支持压缩场景，sparseModeOptional=6，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]，当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。当sparseModeOptional=5、prefix的N > Skv或prefixOptional不传时执行全计算，sparseModeOptional=6要求prefixOptional必传。
-- sparseModeOptional=7时，不支持可选输入realShiftOptional。
-- sparseModeOptional=8时，当每个sequence的q、kv等长时支持可选输入realShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
+- sparseModeOptional=7时，不支持可选输入pseShiftOptional。
+- sparseModeOptional=8时，当每个sequence的q、kv等长时支持可选输入pseShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
 - actualSeqQLenOptional输入支持某个Batch上的S长度为0，此时不支持可选输入pseShiftOptional。
-- 关于softmaxMax与softmaxSum参数的约束：输入格式固定为\[B, N, S, 8\],TND的输入格式除外，此时为\[T, N, 8\]，注：T=B*S。
+- 关于softmaxMax与softmaxSum参数的约束：输入格式固定为\[B, N, S, 8\],TND的输入格式除外，此时为\[N, T, 8\]，注：T=B*S。
 - headNum的取值必须和传入的Query中的N值保持一致。
 - <term>Ascend 950PR/Ascend 950DT</term>：
 

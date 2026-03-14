@@ -97,7 +97,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <td>topK</td>
       <td>输入</td>
       <td>topK值。</td>
-      <td>必须大于0，且能被expandedRowIdx的0轴大小整除。</td>
+      <td>必须大于0，且expandedRowIdx的0轴大小能被topK整除。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -107,7 +107,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <td>dropPadMode</td>
       <td>输入</td>
       <td>表示是否为Drop/Pad场景。</td>
-      <td>取值为0和1。<ul><li>0：表示Dropless场景。</li><li>1：表示Drop/Pad场景。</li></ul></td>
+      <td>取值为0或1。<ul><li>0：表示Dropless场景。</li><li>1：表示Drop/Pad场景。</li></ul></td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -196,7 +196,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <tr>
         <td rowspan="8">ACLNN_ERR_INNER_TILING_ERROR</td>
         <td rowspan="8">561002</td>
-        <td>dropPadMode的属性值不是0和1。</td>
+        <td>dropPadMode的属性值不是0或1。</td>
       </tr>
       <tr>
         <td>topK小于等于0。</td>
@@ -358,7 +358,7 @@ int main() {
     aclTensor* out = nullptr;
     std::vector<float> gradExpandedXHostData = {0.1, 0.1, 0.3, 0.3, 0.2, 0.2, 0.4, 0.4};
     std::vector<int32_t> expandedRowIdxHostData = {2, 0, 1, 3};
-    std::vector<float> gradXOutHostData = {0, 0, 0, 0, 0, 0, 0, 0};
+    std::vector<float> gradXOutHostData = {0, 0, 0, 0};
     int32_t kValue = 2;
     int32_t dropPadModeValue = 0;
     int32_t activeNumValue = 0;
@@ -388,7 +388,7 @@ int main() {
     void* workspaceAddr = nullptr;
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret;);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
     }
     // 调用aclnnMoeInitRoutingV2Grad第二段接口
     ret = aclnnMoeInitRoutingV2Grad(workspaceAddr, workspaceSize, executor, stream);

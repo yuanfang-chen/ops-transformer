@@ -17,6 +17,7 @@
 #include "moe_gating_top_k_tiling.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_info.h"
+#include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
 
@@ -74,7 +75,7 @@ public:
 protected:
     bool IsCapable() override
     {
-        if (socVersion != platform_ascendc::SocVersion::ASCEND950) {
+        if (!Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
             return false;
         }
         return true;
@@ -375,7 +376,7 @@ ge::graphStatus MoeGatingTopKTilingRegbase::GetPlatformInfo()
     auto platformInfo = context_->GetPlatformInfo();
     OP_CHECK_IF(platformInfo == nullptr, OP_LOGE(context_, "fail to get platform info"), return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    aicoreParams_.blockDim = ascendcPlatform.GetCoreNumAiv();
+    aicoreParams_.numBlocks = ascendcPlatform.GetCoreNumAiv();
     socVersion = ascendcPlatform.GetSocVersion();
     uint64_t ubSizePlatForm;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
@@ -441,7 +442,7 @@ void MoeGatingTopKTilingRegbase::CalTmpBufUbSize()
 
 void MoeGatingTopKTilingRegbase::SplitRows()
 {
-    int64_t perCoreRows = Ops::Base::CeilDiv(rows_, static_cast<int64_t>(aicoreParams_.blockDim));
+    int64_t perCoreRows = Ops::Base::CeilDiv(rows_, static_cast<int64_t>(aicoreParams_.numBlocks));
     int64_t needCoreNum = Ops::Base::CeilDiv(rows_, perCoreRows);
     if (perCoreRows == 0) {
         OP_LOGE(context_, "perCoreRows can't be 0.");

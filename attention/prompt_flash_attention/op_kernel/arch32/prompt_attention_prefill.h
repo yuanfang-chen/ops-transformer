@@ -18,16 +18,13 @@
 #include "simd.h"
 #include "iterator.h"
 #include "mma.h"
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
-#include "unpad_flash_attention_common.h"
-
-#ifdef __CCE_KT_TEST__
-#define __aicore__
 #else
-#define __aicore__ [aicore]
+#include "kernel_operator.h"
 #endif
-
+#include "unpad_flash_attention_common.h"
 
 template <typename PFATypeNZ, PrecType prec_type>
 class PromptAttentionPrefill {

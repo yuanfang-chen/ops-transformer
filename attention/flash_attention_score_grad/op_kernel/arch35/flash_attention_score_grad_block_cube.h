@@ -261,8 +261,11 @@ __aicore__ inline void FAGBlockCube<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR que
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FAGBlockCube<TEMPLATE_ARGS>::InitCubeBuffer(FagConstInfo &constInfo)
 {
-    isDkvL0CResidentForD192Dv128 = (SPLIT_AXIS == BN2GS1S2 && (HEAD_DIM_ALIGN == static_cast<uint32_t>(DTemplateType::Aligned192)
-                                    && constInfo.commonConstInfo.dSizeV <= static_cast<uint32_t>(DTemplateType::Aligned128))) || IS_ROPE;
+    isDkvL0CResidentForD192Dv128 =
+        ((SPLIT_AXIS == BN2GS1S2 || SPLIT_AXIS == BN2S2) &&
+         (HEAD_DIM_ALIGN == static_cast<uint32_t>(DTemplateType::Aligned192) &&
+          constInfo.commonConstInfo.dSizeV <= static_cast<uint32_t>(DTemplateType::Aligned128))) ||
+        IS_ROPE;
     // init l1 buffer
     if constexpr (IS_FP8_INPUT) {
         if constexpr (IS_L1_REUSE || IS_L1_PRELOAD) {
@@ -712,7 +715,7 @@ __aicore__ inline void FAGBlockCube<TEMPLATE_ARGS>::IterateMmQK(LocalTensor<CALC
                 nd2NzParams.dstNzC0Stride = AlignTo32(runInfo.commonRunInfo.s1RealSize); 
             } else {
                 // L1->L0A，L1上的src stride为C0对齐后的SingleM
-                nd2NzParams.dstNzC0Stride = AlignTo16(runInfo.commonRunInfo.s1RealSize); // todo: fp8 adapt
+                nd2NzParams.dstNzC0Stride = AlignTo16(runInfo.commonRunInfo.s1RealSize);
             }
             nd2NzParams.dstNzNStride = 1;
             nd2NzParams.dstNzMatrixStride = 0;
@@ -804,7 +807,7 @@ __aicore__ inline void FAGBlockCube<TEMPLATE_ARGS>::IterateMmQK(LocalTensor<CALC
                     nd2NzParams.dstNzC0Stride = AlignTo32(preloadArgs.nextMOrN);
                 } else {
                     // L1->L0A，L1上的src stride为C0对齐后的SingleM
-                    nd2NzParams.dstNzC0Stride = AlignTo16(preloadArgs.nextMOrN); // todo: fp8 adapt
+                    nd2NzParams.dstNzC0Stride = AlignTo16(preloadArgs.nextMOrN);
                 }
                 nd2NzParams.dstNzNStride = 1;
                 nd2NzParams.dstNzMatrixStride = 0;
@@ -1153,8 +1156,9 @@ FAGBlockCube<TEMPLATE_ARGS>::IterateMmDsQNormal(typename DqkvResPos<T, IS_WRITE_
         } else {
             // fixp2gm
             if (isFixpOut) {
-                bool needAtomic = SPLIT_AXIS == BN2GS1S2 || (!IS_DKV_RESIDENT_L0C && runInfo.isS2IdxNoChange) ||
-                                    (SPLIT_AXIS == BN2S2 && !runInfo.isFirstBlock && (runInfo.specialS2Index != -1));
+                bool needAtomic = SPLIT_AXIS == BN2GS1S2 ||
+                                  (!IS_DKV_RESIDENT_L0C && !isDkvL0CResidentForD192Dv128 && runInfo.isS2IdxNoChange) ||
+                                  (SPLIT_AXIS == BN2S2 && !runInfo.isFirstBlock && (runInfo.specialS2Index != -1));
                 if constexpr (IS_BN2_MULTIBLK) {
                     needAtomic = (!IS_DKV_RESIDENT_L0C && runInfo.isS2IdxNoChange);
                 }
@@ -1343,7 +1347,8 @@ FAGBlockCube<TEMPLATE_ARGS>::IterateMmPDyNormal(typename DqkvResPos<T, IS_WRITE_
                 }
             } else { // BNS2
                 if (isFixpOut) {
-                    bool needAtomic = ((!IS_DKV_RESIDENT_L0C) && runInfo.isS2IdxNoChange) ||
+                    bool needAtomic =
+                        ((!IS_DKV_RESIDENT_L0C) && runInfo.isS2IdxNoChange && !isDkvL0CResidentForD192Dv128) ||
                         (!runInfo.isFirstBlock && (runInfo.specialS2Index != -1));
                     if (needAtomic) {
                         SetAtomicAdd<CALC_TYPE>();
@@ -1358,7 +1363,6 @@ FAGBlockCube<TEMPLATE_ARGS>::IterateMmPDyNormal(typename DqkvResPos<T, IS_WRITE_
                 }
             }
         } else {
-            // todo: 待确认dv是否有直接输出到UB的情况，如无可以删除此分支
             if (isFixpOut) {
                 fixpipeParams.nSize = (realN + 7) >> 3 << 3;
                 Fixpipe<T, CALC_TYPE, DV_FIXPIPE_CONFIG>(outTensor[gmNOffset], dvL0CBuffer.GetTensor<CALC_TYPE>(), fixpipeParams);

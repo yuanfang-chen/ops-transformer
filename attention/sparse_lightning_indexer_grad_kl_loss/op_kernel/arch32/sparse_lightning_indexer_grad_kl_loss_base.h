@@ -38,6 +38,7 @@ public:
     using T = float;
     using Q_T = typename SLIT::inputQT;
     using KV_T = typename SLIT::inputKT;
+    using W_T = typename SLIT::inputWT;
     using OUT_T = typename SLIT::outputT;
     using Q_ROPE_T = Q_T;
     using K_ROPE_T = KV_T;
@@ -95,7 +96,8 @@ private:
     SLITMatmulService<SLIT> matmulService;
 
     // input GM
-    GlobalTensor<Q_T> queryGm, queryIndexGm, weightGm;
+    GlobalTensor<Q_T> queryGm, queryIndexGm;
+    GlobalTensor<W_T> weightGm;
     GlobalTensor<KV_T> keyGm, keyIndexGm;
     GlobalTensor<Q_ROPE_T> queryRopeGm;
     GlobalTensor<K_ROPE_T> keyRopeGm;
@@ -103,7 +105,8 @@ private:
     GlobalTensor<int32_t> topKIndexGm;
     GlobalTensor<int64_t> actualSeqLengthsQueryGm, actualSeqLengthsKeyGm;
     // output GM
-    GlobalTensor<OUT_T> dQueryIndexGm, dKeyIndexGm, dWeightGm;
+    GlobalTensor<OUT_T> dQueryIndexGm, dKeyIndexGm;
+    GlobalTensor<W_T> dWeightGm;
     GlobalTensor<T> lossGm;
     // workspace
     GlobalTensor<KV_T> gatherPRes, gatherSYRes;
@@ -111,6 +114,8 @@ private:
     GlobalTensor<T> psySyncGm;
     GlobalTensor<KV_T> reluGradRes;
     GlobalTensor<T> scatterAddRes;
+    using scatterAddGmType = typename std::conditional<deterministic, GlobalTensor<T>, int8_t>::type;
+    scatterAddGmType scatterAddResPong;
     GlobalTensor<MM3_OUT_T> bmm3Res;
     GlobalTensor<T> reluGm;
     GlobalTensor<T> lossRes;
@@ -147,7 +152,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
     keyGm.SetGlobalBuffer((__gm__ KV_T *)key);
     queryIndexGm.SetGlobalBuffer((__gm__ Q_T *)queryIndex);
     keyIndexGm.SetGlobalBuffer((__gm__ KV_T *)keyIndex);
-    weightGm.SetGlobalBuffer((__gm__ Q_T *)weight);
+    weightGm.SetGlobalBuffer((__gm__ W_T *)weight);
     topKIndexGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
     softmaxMaxGm.SetGlobalBuffer((__gm__ T *)softmaxMax);
     softmaxSumGm.SetGlobalBuffer((__gm__ T *)softmaxSum);
@@ -169,7 +174,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
     // init output global buffer
     dQueryIndexGm.SetGlobalBuffer((__gm__ OUT_T *)dQueryIndex);
     dKeyIndexGm.SetGlobalBuffer((__gm__ OUT_T *)dKeyIndex);
-    dWeightGm.SetGlobalBuffer((__gm__ OUT_T *)dWeight);
+    dWeightGm.SetGlobalBuffer((__gm__ W_T *)dWeight);
     lossGm.SetGlobalBuffer((__gm__ T *)loss);
     lossGm.SetValue(0, 0.0F);
     AscendC::DataCacheCleanAndInvalid<T, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(lossGm);
@@ -184,7 +189,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
                                     gatherPRes, gatherSYRes);
         vectorService.InitVector1GM(bmm1Res, softmaxMaxGm, softmaxSumGm, bmm2Res, weightGm, psySyncGm,
                                     lossGm, dWeightGm, reluGm, reluGradRes, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes);
-        vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes);
+        vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes, scatterAddResPong);
     } else if ASCEND_IS_AIC {
         // initCubeOP
         matmulService.InitParams(constInfo);
@@ -239,6 +244,15 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
     int64_t reluGradOffset = constInfo.gSizeQueryIndex * topKSize * sizeof(float); // * 2;
     int64_t bmm3Offset =  topKSize * constInfo.dSizeQueryIndex * sizeof(float); // * 2;
     int64_t lossOffset = sizeof(float) * 128; // 为了512Byte对齐
+    int64_t scatterAddOffset;
+
+    int64_t bS2Len = 0;
+    if constexpr (LAYOUT_T == SLILayout::TND) {
+        bS2Len = actualSeqLengthsKeyGm.GetValue(constInfo.bSize - 1);
+    } else {
+        bS2Len = constInfo.bSize * constInfo.s2Size;
+    }
+    scatterAddOffset = bS2Len * constInfo.dSizeQueryIndex * sizeof(float);
 
     int64_t coreTotalOffset = constInfo.aicIdx *
             (pOffset * constInfo.gatherKeyDbNum + syOffset * constInfo.gatherKeyIndexDbNum +
@@ -284,22 +298,26 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
         (__gm__ T *)(workspace + totalOffset));
     totalOffset += lossOffset;
 
+    if constexpr (deterministic) {
+        scatterAddResPong.SetGlobalBuffer(
+            (__gm__ T *)(workspace + totalOffset));
+        totalOffset += scatterAddOffset;
+    }
+
     scatterAddRes.SetGlobalBuffer(
         (__gm__ T *)(workspace + totalOffset));
     if ASCEND_IS_AIV {
-        int64_t totalCost = 0;
-        if constexpr (KV_LAYOUT_T == SLILayout::TND) {
-            totalCost = actualSeqLengthsKeyGm.GetValue(constInfo.bSize - 1);
-        } else {
-            totalCost = constInfo.bSize * constInfo.s2Size;
-        }
-
+        int64_t totalCost = bS2Len;
+        
         int64_t totalCoreNum = GetBlockNum() * GetTaskRation();
         int64_t avgCost = CeilDiv(totalCost, totalCoreNum);
 
         int32_t t2Start = Min(constInfo.aivIdx * avgCost, totalCost);
         int32_t t2End = Min(t2Start + avgCost, totalCost);
         AscendC::InitOutput(scatterAddRes[t2Start * constInfo.dSizeQueryIndex], constInfo.dSizeQueryIndex * (t2End - t2Start), static_cast<T>(0));
+        if constexpr (deterministic) {
+            AscendC::InitOutput(scatterAddResPong[t2Start * constInfo.dSizeQueryIndex], constInfo.dSizeQueryIndex * (t2End - t2Start), static_cast<T>(0));
+        }
         AscendC::InitOutput(lossRes[constInfo.aivIdx], 1, static_cast<T>(0));
     }
     SyncAll();
@@ -498,7 +516,8 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::DeterProcess(
     }
     if ASCEND_IS_AIV {
         vector2Service.InitParams(constInfo, tilingData);
-        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes, lossGm);
+        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm,
+            lossRes, lossGm, scatterAddResPong);
         vector2Service.InitBuffers(pipe);
     }
     SyncAll<false>();
@@ -596,7 +615,8 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::MainProcess()
     }
     if ASCEND_IS_AIV {
         vector2Service.InitParams(constInfo, tilingData);
-        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes, lossGm);
+        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm,
+            lossRes, lossGm, scatterAddResPong);
         vector2Service.InitBuffers(pipe);
     }
     SyncAll<false>();

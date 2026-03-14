@@ -35,6 +35,7 @@ constexpr uint32_t INPUT_BIAS_INDEX = 2;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
 constexpr uint32_t USER_WORKSPACE_A2 = 1 * 1024 * 1024; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
 constexpr uint32_t UB_OFFSET = 97440;
+constexpr uint32_t USED_UB_SIZE = 160 * 1024;
 constexpr uint32_t ELEMENT_SIZE = 2;
 constexpr uint32_t MAX_BLOCK_COUNT = 2;
 constexpr uint32_t BLOCK_ALIGN_BYTES = 32U;
@@ -51,7 +52,9 @@ constexpr int32_t DEFAULT_SWIZZLE_COUNT = 7;
 constexpr int32_t SWIZZLE_COUNT_THREE = 3;
 constexpr int32_t CORE_NUM_FOUR = 4;
 constexpr int32_t CORE_NUM_EIGHT = 8;
+constexpr int32_t CORE_NUM_SIXTEEN = 16;
 
+// basic场景tiling默认值
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT = 16;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_PVALUE_DEFAULT = 14;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_M0_DEFAULT = 128;
@@ -65,6 +68,15 @@ constexpr int32_t ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT = 2;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_PVALUE_DEFAULT = 12;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_M0_DEFAULT = 128;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT = 2;
+
+// A16W8场景tiling默认值
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT = 7651;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT = 24035;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT = 24035;
+// A16W4场景tiling默认值
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT = 16867;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT = 24035;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT = 7651;
 
 constexpr int32_t CONDITION_M_ST = 0;
 constexpr int32_t CONDITION_M_END = 1;
@@ -85,11 +97,21 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITH_BIAS = {
     {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT, ge::DT_BF16},
     {ge::DT_INT4, ge::DT_INT4, ge::DT_BF16, ge::DT_BF16},
     {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT, ge::DT_FLOAT16},
-    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT4, ge::DT_FLOAT, ge::DT_BF16},
+    {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT, ge::DT_FLOAT16},
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16}
 };
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
-    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT8, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_BF16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}
 };
 }
 
@@ -362,11 +384,247 @@ static std::map<int, std::vector<std::vector<int>>> g_alltoallmatmulEightRankFP1
         {{36864, 2147483647, 2304, 4608, 6656, 2147483647}}}
 };
 
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 640}, {-1, 640, 2560, 2147483647, 640, 2560},
+        {640, 13312, 13312, 2147483647, 1536, 2560}, {-1, 3584, 3584, 2147483647, 2560, 3584},
+        {-1, 2560, -1, 2147483647, 3584, 8704}, {-1, 3584, -1, 4608, 8704, 13312},
+        {-1, 640, 4608, 2147483647, 8704, 13312}, {-1, 1536, -1, 2147483647, 13312, 2147483647},
+        {1536, 3584, -1, 2560, 13312, 2147483647}, {3584, 2147483647, 640, 2560, 13312, 2147483647}}},
+    {1507,
+        {{-1, 640, -1, 2560, 640, 2560}, {640, 3584, 4608, 8704, -1, 1536},
+        {640, 13312, 4608, 13312, 1536, 2560}, {13312, 2147483647, 6144, 2147483647, 1536, 2560},
+        {-1, 3584, 1536, 3584, 2560, 3584}, {2560, 3584, 1536, 2147483647, 3584, 8704},
+        {3584, 2147483647, 640, 1536, 6144, 13312}}},
+    {3555,
+        {{640, 8704, -1, 4608, -1, 1536}, {640, 3584, 8704, 2147483647, -1, 1536},
+        {3584, 2147483647, 4608, 2147483647, -1, 1536}, {640, 13312, -1, 4608, 1536, 2560},
+        {13312, 2147483647, 4608, 6144, 1536, 2560}, {-1, 3584, -1, 1536, 2560, 3584},
+        {2560, 3584, -1, 1536, 3584, 8704}, {640, 3584, 4608, 2147483647, 8704, 13312},
+        {1536, 3584, 2560, 2147483647, 13312, 2147483647}, {3584, 4608, -1, 640, 6144, 2147483647},
+        {4608, 13312, -1, 640, 2560, 2147483647}, {3584, 2147483647, 640, 1536, 2560, 6144},
+        {3584, 2147483647, 1536, 2147483647, 2560, 13312}, {3584, 2147483647, 6144, 2147483647, 13312, 2147483647}}},
+    {7651,
+        {{8704, 2147483647, -1, 4608, -1, 1536}, {13312, 2147483647, -1, 4608, 1536, 2560},
+        {3584, 4608, -1, 640, 2560, 6144}, {13312, 2147483647, -1, 640, 2560, 2147483647},
+        {3584, 2147483647, 2560, 6144, 13312, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BFourRankA16W8tilingCodeMap = {
+    {3555,
+        {{-1, 3072, -1, 96, -1, 640}, {1536, 3072, 704, 2147483647, -1, 640},
+        {1280, 3072, 96, 192, 640, 1536}, {1536, 3072, 192, 2147483647, 640, 1536},
+        {1536, 3072, -1, 704, 2560, 3584}, {3072, 12288, 2560, 2147483647, -1, 640},
+        {3072, 12288, 576, 2147483647, 640, 3584}, {24576, 49152, 1792, 2147483647, -1, 640},
+        {24576, 49152, 704, 2147483647, 640, 2560}, {24576, 2147483647, 2560, 2147483647, 2560, 3584},
+        {3072, 12288, 96, 576, 3584, 8704}, {12288, 24576, 160, 576, 6144, 8704},
+        {3072, 40960, 576, 960, 3584, 4608}, {6144, 2147483647, 1408, 2147483647, 3584, 4608},
+        {12288, 2147483647, 576, 960, 6144, 8704}, {12288, 2147483647, 960, 2147483647, 4608, 8704},
+        {12288, 24576, 96, 320, 8704, 13312}, {24576, 2147483647, 192, 320, 8704, 13312},
+        {3072, 12288, -1, 320, 13312, 2147483647}, {3072, 6144, 2304, 2147483647, 13312, 2147483647},
+        {12288, 24576, 96, 192, 13312, 2147483647}, {24576, 2147483647, -1, 192, 13312, 2147483647},
+        {12288, 24576, 2560, 2147483647, 13312, 2147483647}}},
+    {1507,
+        {{-1, 3072, 96, 704, -1, 640}, {-1, 1536, 704, 832, -1, 640},
+        {-1, 3072, -1, 96, 640, 1536}, {-1, 1536, 192, 832, 640, 1536},
+        {-1, 1536, 960, 2147483647, 640, 1536}, {-1, 768, 192, 576, 2560, 8704},
+        {-1, 768, 576, 1792, 4608, 6144}, {768, 3072, -1, 2147483647, 1536, 2560},
+        {768, 1536, -1, 896, 2560, 3584}, {768, 1536, -1, 2147483647, 6144, 8704},
+        {1536, 3072, 704, 2147483647, 2560, 3584}, {1536, 3072, -1, 1792, 3584, 8704},
+        {3072, 6144, 960, 2147483647, 3584, 4608}, {3072, 12288, 576, 2147483647, 4608, 8704},
+        {-1, 768, 448, 576, 8704, 13312}, {-1, 768, 704, 832, 8704, 13312},
+        {768, 12288, -1, 576, 8704, 13312}, {3072, 12288, 576, 704, 8704, 13312},
+        {-1, 768, 832, 1408, 8704, 13312}, {12288, 24576, 320, 640, 8704, 13312},
+        {24576, 2147483647, 320, 576, 8704, 13312}, {-1, 3072, -1, 96, 13312, 2147483647},
+        {1280, 3072, 96, 192, 13312, 2147483647}, {-1, 3072, 192, 320, 13312, 2147483647},
+        {-1, 768, 448, 1280, 13312, 2147483647}, {3072, 6144, 320, 576, 13312, 2147483647},
+        {12288, 24576, 192, 448, 13312, 2147483647}, {24576, 2147483647, 192, 320, 13312, 2147483647}}},
+    {483,
+        {{-1, 1536, 832, 2147483647, -1, 640}, {-1, 1536, 832, 960, 640, 1536},
+        {-1, 768, 576, 1792, 1536, 4608}, {-1, 768, 576, 1792, 6144, 8704},
+        {-1, 768, 1792, 2147483647, 1536, 8704}, {768, 1536, 896, 2147483647, 2560, 3584},
+        {768, 1536, -1, 2147483647, 3584, 6144}, {1536, 3072, 1792, 2147483647, 3584, 8704},
+        {-1, 768, -1, 448, 8704, 13312}, {768, 3072, 576, 832, 8704, 13312},
+        {3072, 12288, 704, 832, 8704, 13312}, {768, 12288, 832, 1408, 8704, 13312},
+        {-1, 6144, 1408, 2147483647, 8704, 13312}, {6144, 12288, 2560, 2147483647, 8704, 13312},
+        {12288, 24576, 640, 2147483647, 8704, 13312}, {24576, 49152, 576, 1408, 8704, 13312},
+        {24576, 49152, 2560, 2147483647, 8704, 13312}, {49152, 2147483647, 576, 2147483647, 8704, 13312},
+        {-1, 768, 320, 448, 13312, 2147483647}, {-1, 768, 1280, 2147483647, 13312, 2147483647},
+        {768, 3072, 320, 1792, 13312, 2147483647}, {768, 1536, 1792, 2147483647, 13312, 2147483647},
+        {3072, 6144, 576, 1152, 13312, 2147483647}, {6144, 12288, 320, 2147483647, 13312, 2147483647},
+        {12288, 24576, 448, 1664, 13312, 2147483647}, {24576, 2147483647, 448, 2560, 13312, 2147483647}}},
+    {231,
+        {{-1, 1280, 96, 192, 640, 1536}, {-1, 768, -1, 576, 1536, 2560},
+        {-1, 768, -1, 192, 2560, 8704}, {-1, 768, 576, 704, 8704, 13312},
+        {6144, 12288, 1408, 2560, 8704, 13312}, {24576, 49152, 1408, 2560, 8704, 13312},
+        {-1, 1280, 96, 192, 13312, 2147483647}, {1536, 3072, 1792, 2147483647, 13312, 2147483647},
+        {3072, 6144, 1152, 2304, 13312, 2147483647}, {12288, 24576, 1664, 2560, 13312, 2147483647}}},
+    {24035,
+        {{3072, 12288, -1, 96, -1, 640}, {12288, 24576, -1, 320, -1, 1536},
+        {12288, 24576, 320, 1152, -1, 640}, {24576, 49152, -1, 1792, -1, 640},
+        {49152, 2147483647, -1, 1408, -1, 640}, {24576, 2147483647, -1, 704, 640, 2560},
+        {24576, 2147483647, -1, 192, 2560, 3584}}},
+    {7651,
+        {{3072, 12288, 96, 576, -1, 640}, {3072, 12288, -1, 576, 640, 3584},
+        {3072, 12288, 576, 2560, -1, 640}, {12288, 24576, 320, 448, 640, 3584},
+        {12288, 24576, 1152, 2147483647, -1, 640}, {12288, 24576, 448, 2147483647, 640, 3584},
+        {24576, 2147483647, 832, 2560, 2560, 3584}, {6144, 12288, -1, 96, 3584, 8704},
+        {12288, 24576, -1, 576, 3584, 6144}, {12288, 24576, -1, 160, 6144, 8704},
+        {24576, 49152, 320, 448, 3584, 8704}, {24576, 2147483647, 448, 576, 4608, 8704},
+        {12288, 2147483647, 576, 960, 4608, 6144}, {12288, 24576, -1, 96, 8704, 13312},
+        {24576, 49152, 96, 192, 8704, 13312}, {49152, 2147483647, -1, 192, 8704, 13312},
+        {12288, 24576, -1, 96, 13312, 2147483647}}},
+    {11747,
+        {{12288, 24576, -1, 320, 1536, 3584}, {49152, 2147483647, 1408, 2147483647, -1, 640},
+        {49152, 2147483647, 704, 2147483647, 640, 2560}, {24576, 2147483647, 192, 832, 2560, 3584},
+        {24576, 2147483647, 192, 320, 3584, 8704}, {6144, 2147483647, 960, 1408, 3584, 4608},
+        {24576, 49152, -1, 96, 8704, 13312}}},
+    {17891,
+        {{3072, 6144, -1, 96, 3584, 8704}}},
+    {13795,
+        {{24576, 2147483647, -1, 192, 3584, 8704}, {49152, 2147483647, 320, 448, 3584, 8704},
+        {24576, 2147483647, 448, 576, 3584, 4608}, {40960, 2147483647, 576, 960, 3584, 4608},
+        {24576, 2147483647, 2560, 2147483647, 13312, 2147483647}}},
+    {3303,
+        {{24576, 2147483647, 320, 448, 13312, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap = {
+    {1507,
+        {{-1, 1536, -1, 96, -1, 640}, {1536, 3072, -1, 2147483647, -1, 1536},
+        {1536, 3072, -1, 2560, 1536, 3584}, {3072, 2147483647, 2560, 2147483647, -1, 3584},
+        {-1, 768, -1, 192, 13312, 2147483647}, {768, 3072, -1, 576, 3584, 8704},
+        {768, 3072, -1, 96, 8704, 2147483647}, {3072, 6144, 192, 1152, 3584, 8704},
+        {3072, 6144, -1, 448, 8704, 13312}, {3072, 6144, 2304, 2147483647, 13312, 2147483647},
+        {6144, 12288, 320, 2147483647, 3584, 8704}}},
+    {483,
+        {{-1, 1536, 96, 2147483647, -1, 640}, {-1, 1536, -1, 2147483647, 640, 1536},
+        {-1, 768, -1, 704, 1536, 2560}, {-1, 1536, 704, 2147483647, 1536, 2560},
+        {-1, 768, -1, 2147483647, 2560, 3584}, {768, 1536, 320, 2147483647, 2560, 3584},
+        {1536, 3072, 2560, 2147483647, 1536, 3584}, {-1, 768, -1, 2147483647, 3584, 13312},
+        {-1, 768, 192, 2147483647, 13312, 2147483647}, {768, 3072, 576, 2147483647, 3584, 8704},
+        {768, 3072, 96, 2147483647, 8704, 2147483647}, {3072, 6144, 1152, 2147483647, 3584, 8704},
+        {3072, 6144, 448, 2147483647, 8704, 13312}, {3072, 6144, -1, 2304, 13312, 2147483647},
+        {6144, 24576, 320, 1152, 8704, 2147483647}, {6144, 12288, 1152, 2147483647, 8704, 2147483647}}},
+    {231,
+        {{768, 1536, -1, 704, 1536, 2560}, {768, 1536, -1, 320, 2560, 3584}}},
+    {7651,
+        {{3072, 2147483647, -1, 832, -1, 3584}, {12288, 2147483647, -1, 96, 3584, 13312}}},
+    {3555,
+        {{3072, 2147483647, 832, 2560, -1, 3584}, {3072, 6144, -1, 192, 3584, 8704},
+        {6144, 12288, -1, 96, 3584, 13312}, {6144, 2147483647, -1, 96, 13312, 2147483647},
+        {6144, 49152, 96, 320, 3584, 2147483647}, {12288, 2147483647, 320, 2147483647, 3584, 8704},
+        {12288, 2147483647, 1152, 2147483647, 8704, 2147483647}}},
+    {11747,
+        {{49152, 2147483647, 96, 320, 3584, 8704}}},
+    {3303,
+        {{49152, 2147483647, 96, 320, 8704, 2147483647}, {24576, 2147483647, 320, 1152, 8704, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 640}, {-1, 640, 640, 2147483647, 640, 1536},
+        {-1, 640, -1, 1536, 1536, 3584}, {-1, 640, 1536, 2147483647, 1536, 4608},
+        {640, 6144, 4608, 2147483647, 2560, 4608}, {-1, 3584, 1536, 2147483647, 4608, 6144},
+        {-1, 1536, 1536, 2147483647, 6144, 8704}, {-1, 2048, 640, 1536, 8704, 13312},
+        {-1, 2147483647, 1536, 8704, 8704, 13312}, {640, 1536, -1, 1536, 13312, 2147483647},
+        {-1, 1536, 1536, 2147483647, 13312, 2147483647}, {1536, 2147483647, -1, 4608, 13312, 2147483647}}},
+    {1507,
+        {{-1, 640, -1, 640, 640, 1536}, {-1, 640, -1, 1536, 3584, 4608},
+        {640, 6144, -1, 4608, 1536, 4608}, {640, 2147483647, 8704, 2147483647, 640, 1536},
+        {640, 2147483647, 6144, 2147483647, 1536, 2560}, {-1, 3584, 640, 1536, 4608, 6144},
+        {3584, 8704, 640, 2147483647, 4608, 6144}, {-1, 1536, -1, 1536, 6144, 8704},
+        {1536, 13312, 640, 2147483647, 6144, 8704}, {-1, 2688, -1, 640, 8704, 13312},
+        {2048, 2147483647, 640, 1536, 8704, 13312}, {-1, 2147483647, 8704, 2147483647, 8704, 13312},
+        {-1, 640, -1, 1536, 13312, 2147483647}, {1536, 2147483647, 4608, 2147483647, 13312, 2147483647}}},
+    {3555,
+        {{640, 8704, -1, 4608, -1, 1536}, {6144, 8704, -1, 4608, 1536, 4608},
+        {640, 2147483647, 4608, 2147483647, -1, 640}, {640, 2147483647, 4608, 8704, 640, 1536},
+        {640, 2147483647, 4608, 6144, 1536, 2560}, {6144, 2147483647, 4608, 2147483647, 2560, 4608},
+        {640, 10752, -1, 640, 4608, 6144}, {8704, 2147483647, 640, 2147483647, 4608, 6144},
+        {1536, 37888, -1, 640, 6144, 8704}, {13312, 2147483647, 640, 2147483647, 6144, 8704},
+        {2688, 2147483647, -1, 640, 8704, 13312}}},
+    {7651,
+        {{8704, 2147483647, -1, 4608, -1, 4608}, {10752, 2147483647, -1, 640, 4608, 6144},
+        {37888, 2147483647, -1, 640, 6144, 8704}}},
+    {16867,
+        {{-1, 640, -1, 640, 4608, 6144}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BFourRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 2560}, {-1, 640, -1, 384, 8704, 2147483647},
+        {-1, 640, 384, 768, 2560, 8704}, {-1, 3584, 384, 768, 8704, 2147483647},
+        {-1, 2147483647, 768, 1536, 6144, 2147483647}, {-1, 6144, 1536, 4608, 2560, 2147483647},
+        {-1, 1536, 4608, 7680, 2560, 2147483647}, {-1, 13312, 7680, 2147483647, 2560, 6144}}},
+    {1507,
+        {{640, 1536, -1, 2147483647, -1, 640}, {1536, 8704, 2560, 2147483647, -1, 640},
+        {640, 8704, 768, 2147483647, 640, 1536}, {640, 8704, 1536, 2147483647, 1536, 2560},
+        {8704, 2147483647, 768, 2147483647, 1536, 2560}, {640, 24576, -1, 384, 8704, 2147483647},
+        {640, 1536, 384, 768, 2560, 8704}, {1536, 2147483647, 384, 768, 6144, 8704},
+        {3584, 2147483647, 384, 768, 8704, 2147483647}, {6144, 2147483647, 1536, 4608, 2560, 2147483647},
+        {1536, 2147483647, 4608, 7680, 2560, 2147483647}, {-1, 2147483647, 7680, 2147483647, 6144, 2147483647}}},
+    {7651,
+        {{1536, 8704, -1, 2560, -1, 640}, {640, 2147483647, -1, 768, 640, 1536},
+        {8704, 2147483647, -1, 768, 1536, 2560}, {-1, 2147483647, -1, 384, 2560, 4608},
+        {24576, 2147483647, -1, 384, 8704, 13312}}},
+    {3555,
+        {{8704, 24576, -1, 2147483647, -1, 640}, {24576, 2147483647, 768, 2147483647, -1, 640},
+        {640, 8704, -1, 1536, 1536, 2560}, {8704, 2147483647, 768, 2147483647, 640, 1536},
+        {-1, 2147483647, -1, 384, 4608, 8704}, {24576, 2147483647, -1, 384, 13312, 2147483647},
+        {1536, 2147483647, 384, 768, 2560, 6144}, {-1, 2147483647, 768, 1536, 2560, 6144},
+        {13312, 2147483647, 7680, 2147483647, 2560, 6144}}},
+    {24035,
+        {{24576, 2147483647, -1, 768, -1, 640}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BEightRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 1536, -1, 2147483647, -1, 3584}, {2560, 8704, 1536, 2147483647, -1, 3584},
+        {-1, 1536, -1, 2147483647, 3584, 2147483647}, {1536, 2560, -1, 2147483647, 3584, 6144},
+        {1536, 2560, 448, 2147483647, 6144, 8704}, {1536, 2560, 96, 2147483647, 8704, 2147483647},
+        {2560, 6144, 1536, 2560, 3584, 8704}, {2560, 2147483647, 2560, 2147483647, 3584, 8704},
+        {2560, 6144, 576, 2147483647, 8704, 2147483647}, {6144, 2147483647, 576, 4235, 8704, 2147483647}}},
+    {1507,
+        {{1536, 2560, -1, 2147483647, -1, 3584}, {8704, 2147483647, 1536, 2147483647, -1, 3584},
+        {1536, 2560, -1, 448, 6144, 8704}, {1536, 2560, -1, 96, 8704, 2147483647},
+        {2560, 8704, 320, 1536, 3584, 8704}, {6144, 2147483647, 1536, 2560, 3584, 8704},
+        {2560, 13312, -1, 576, 8704, 2147483647}}},
+    {3555,
+        {{2560, 4608, -1, 1536, -1, 3584}, {4608, 2147483647, -1, 1536, 1536, 3584},
+        {2560, 13312, -1, 320, 3584, 8704}, {8704, 2147483647, 320, 1536, 3584, 8704},
+        {13312, 2147483647, -1, 576, 8704, 2147483647}, {6144, 2147483647, 4235, 2147483647, 8704, 2147483647}}},
+    {7651,
+        {{4608, 2147483647, -1, 1536, -1, 1536}, {13312, 2147483647, -1, 320, 3584, 8704}}}
+};
+
 bool AlltoAllMatmulTiling910b::IsCapable()
 {
-    OP_LOGI(opName_, "Start with AllToAllMatmul tiling.");
-    return true;
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(opName_, "fail to get platfoem info"), return false);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    OP_LOGD(opName_, "Current SocVersion is : %s", socVersionStr.c_str());
+    QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+    if (socVersionStr == "Ascend910B") {
+        OP_LOGI(opName_, "Start with AllToAllMatmul tiling.");
+        return true;
+    }
+    OP_LOGD(opName_, "Skip AlltoAllMatmulTiling910b tiling when the SocVersion is unsupported.");
+    return false;
 }
+
+enum class QuantModeType : int64_t {
+    NO_QUANT = 0,
+    PERTENSOR_QUANT = 1,
+    PERCHANNEL_QUANT = 2,
+    PERTOKEN_QUANT = 3,
+    PERGROUP_QUANT = 4,
+    PERBLOCK_QUANT = 5,
+    MX_QUANT = 6,
+    DYN_PERTOKEN_QUANT = 7
+};
 
 /**
  * @brief 校验attrs信息
@@ -391,6 +649,17 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckAndSetAttrsInfo(AlltoAllMatmulInf
         OP_LOGE(opName_, "World_size should be 2 or 4 or 8, but the actual value is %u.", info.rankSize),
         return ge::GRAPH_FAILED);
 
+    const int64_t *x1QuantMode = attrs->GetAttrPointer<int64_t>(ATTR_X1_QUANTMODE_INDEX);
+    OP_TILING_CHECK(
+        x1QuantMode == nullptr,
+        OP_LOGE(opName_, "x1QuantMode is nullPtr."), return ge::GRAPH_FAILED);
+    
+    auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+    info.isSmoothQuant = false;
+    if (*x1QuantMode == static_cast<int64_t>(QuantModeType::DYN_PERTOKEN_QUANT) && x1ScaleTensorDesc != nullptr) {
+        info.isSmoothQuant = true;
+    }
+
     const bool *isTransX1 = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX);
     bool x1TransposeFlag = (isTransX1 != nullptr) ? *isTransX1 : false;
     OP_TILING_CHECK(x1TransposeFlag, OP_LOGE(opName_, "X1 transpose is not supported, should be false."),
@@ -398,7 +667,11 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckAndSetAttrsInfo(AlltoAllMatmulInf
     
     const bool *isTransX2 = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_X2_TRANSPOSE_INDEX);
     bool x2TransposeFlag = (isTransX2 != nullptr) ? *isTransX2 : false;
-    needTransX2 = x2TransposeFlag;
+    x2Transpose = x2TransposeFlag;
+
+    const bool *isAlltoallOut = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_ALLTO_ALL_OUT_FLAG_INDEX);
+    bool alltoallOutFlag = (isAlltoallOut != nullptr) ? *isAlltoallOut : false;
+    info.isAlltoallOut = alltoallOutFlag;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -418,26 +691,47 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
                     return ge::GRAPH_FAILED);
     auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName_, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
+    auto alltoallOutDesc = context_->GetOutputDesc(ALLTO_ALL_OUT_INDEX);;
+    if (info.isAlltoallOut) {  // 可选参数
+        OP_TILING_CHECK((alltoallOutDesc == nullptr), OP_LOGE(opName_, "Output tensor alltoallout is nullptr."), return ge::GRAPH_FAILED);
+    }
 
     // 获取数据类型并校验一致性与范围
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     ge::DataType x2Dtype = x2TensorDesc->GetDataType();
     ge::DataType yDtype = yDesc->GetDataType();
+
+    if (info.isAlltoallOut) {  // 校验alltoallout类型
+        ge::DataType alltoallOutDtype = alltoallOutDesc->GetDataType();
+        OP_TILING_CHECK((alltoallOutDtype != x1Dtype),
+                        OP_LOGE(opName_, "x1Dtype should be same with alltoallOutDtype, but x1Dtype is %s and alltoallOutDtype is %s.", 
+                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(alltoallOutDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+    }
     auto biasTensorDesc = context_->GetOptionalInputDesc(INPUT_BIAS_INDEX);
 
     auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
     auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
     // 校验 scale 张量，量化模式
-    if (x2Dtype == ge::DT_INT8) {
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+    if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT8) {
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
-                        OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
+                        OP_LOGE(opName_, "x2Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
+        if (info.isSmoothQuant) {
+            OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
+                OP_LOGE(opName_, "x1Scale tensors should not be null in smoothQuant mode."), return ge::GRAPH_FAILED);
+            ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
+            OP_TILING_CHECK(x1ScaleDtype != x1Dtype,
+                OP_LOGE(opName_, "x1Scale tensors Dtype should be same with x1 tensor in smoothQuant mode, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
+                return ge::GRAPH_FAILED);
+        }
         quantType = TILINGKEY_TPL_A16W8;
     }
-    if (x2Dtype == ge::DT_INT4) {  // A4W4检测
+
+    if (x1Dtype == ge::DT_INT4 && x2Dtype == ge::DT_INT4) {  // A4W4检测
         OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
                         OP_LOGE(opName_, "x1Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
@@ -445,16 +739,34 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
         
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
         quantType = TILINGKEY_TPL_A4W4;
     }
+    // A16W4检测
+    if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT4) {  
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
+        ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
+        OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
+                        OP_LOGE(opName_, "x2Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+        if (info.isSmoothQuant) {
+            OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
+                OP_LOGE(opName_, "x1Scale tensors should not be null in smoothQuant mode."), return ge::GRAPH_FAILED);
+            ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
+            OP_TILING_CHECK(x1ScaleDtype != x1Dtype,
+                OP_LOGE(opName_, "x1Scale tensors Dtype should be same with x1 tensor in smoothQuant mode, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
+                return ge::GRAPH_FAILED);
+        }
+        quantType = TILINGKEY_TPL_A16W4;
+    }
 
-    // 校验 bias 数据类型（如果存在）
+    // 校验类型组合
     if (biasTensorDesc != nullptr) {
         hasBias = true;
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
@@ -525,8 +837,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     info.K = x1Shape->GetStorageShape().GetDim(1);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
-    bool isTrans = info.K * info.rankSize == x2Dim1;
-    info.N = isTrans ? x2Dim0 : x2Dim1;
+    info.N = x2Transpose ? x2Dim0 : x2Dim1;
 
     // 校验输出
     const gert::StorageShape *yShape = context_->GetOutputShape(OUTPUT_Y_INDEX);
@@ -543,20 +854,26 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     // info.K * info.rankSize限制：A16W8时不超过6144，其余情况不超过35000；A16W8要为32倍数，A4W4要为偶数
     uint32_t tokenSize = info.K * info.rankSize;
     if (quantType == TILINGKEY_TPL_A16W8) {
-        OP_TILING_CHECK((tokenSize > 6144), 
-                    OP_LOGE(opName_, "%lu times of the second dim of x1 should be in range[1, 6144], but it is %lu.",
+        OP_TILING_CHECK((tokenSize % 16 != 0), 
+                    OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
                     return ge::GRAPH_FAILED);
-        OP_TILING_CHECK((tokenSize % 32 != 0), 
-                    OP_LOGE(opName_, "%lu times of the second dim of x1 should be a multiple of 32, but it is %lu.",
+    } else if (quantType == TILINGKEY_TPL_A16W4) {
+        OP_TILING_CHECK((tokenSize % 16 != 0),
+                    OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
                     return ge::GRAPH_FAILED);
-    } else {
-        OP_TILING_CHECK((tokenSize > 35000), 
-                    OP_LOGE(opName_, "%lu times of the second dim of x1 should be in range[1, 35000], but it is %lu.",
-                        info.rankSize, tokenSize),
-                    return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((info.N % 2 == 1), 
+                        OP_LOGE(opName_, "The x2 %s dim should be an even number, but it is %lu.",
+                        x2Transpose ? "first" : "second",
+                        info.N),
+                        return ge::GRAPH_FAILED);
     }
+
+    OP_TILING_CHECK((tokenSize > 35000), 
+        OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be in range[1, 35000], but it is %lu.",
+        info.rankSize, tokenSize),
+        return ge::GRAPH_FAILED);
 
     // INT4计算时，需要额外验证维度为偶数
     if (quantType == TILINGKEY_TPL_A4W4) {
@@ -565,7 +882,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
                         return ge::GRAPH_FAILED);
         OP_TILING_CHECK((info.N % 2 == 1), 
                         OP_LOGE(opName_, "The x2 %s dim should be an even number, but it is %lu.",
-                        isTrans ? "first" : "second",
+                        x2Transpose ? "first" : "second",
                         info.N),
                         return ge::GRAPH_FAILED);
     }
@@ -574,7 +891,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     orgM = info.M;
     orgN = info.N;
     orgK = info.K;
-    if (quantType == TILINGKEY_TPL_A16W8) {
+    if (quantType == TILINGKEY_TPL_A16W8 || quantType == TILINGKEY_TPL_A16W4) {
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
@@ -673,6 +990,17 @@ void AlltoAllMatmulTiling910b::CalTilingParam(CoCTiling &cocTilingData, const st
     }
 }
 
+void AlltoAllMatmulTiling910b::DecodeTilingData(int32_t code, CoCTiling &cocTilingData)
+{
+    cocTilingData.allToAllRecvCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.allToAllSendCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.pValue = (code & 15) + 1;
+    code >>= 4;
+    cocTilingData.m0 = (code + 1) * 128;
+}
+
 void TilingParamDeal(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info, int32_t ubSize)
 {
     uint32_t k = info.K;
@@ -740,25 +1068,153 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
     if (quantType == TILINGKEY_TPL_A4W4) {
+        if (cocTilingData.m0 == 256) {
+            cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
+            cocTilingData.allToAllRecvCoreNum = CORE_NUM_FOUR;
+        }
         cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
     }
 }
 
+// A16W8 tiling
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+    
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BFourRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+// A16W4 tiling
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BTwoRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BFourRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BEightRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+
+}
+
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
-    if (info.rankSize == 2) {  // 若2卡
-        DoTwoRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    } else if (info.rankSize == 4) {  // 若4卡
-        DoFourRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
+    if (quantType == TILINGKEY_TPL_A16W8) {
+        // A16W8 tiling策略
+        if (info.rankSize == 2) {
+            AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {
+            AlltoAllMatmulNPU910BFourRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
+        }
+    } else if (quantType == TILINGKEY_TPL_A16W4) {
+        // A16W4 tiling策略
+        if (info.rankSize == 2) {
+            AlltoAllMatmulNPU910BTwoRankA16W4Tiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {
+            AlltoAllMatmulNPU910BFourRankA16W4Tiling(cocTilingData, info);         
+        } else if (info.rankSize == 8) {
+            AlltoAllMatmulNPU910BEightRankA16W4Tiling(cocTilingData, info);                
+        }
+    } else {
+        // basic、A4W4
+        if (info.rankSize == 2) {  // 若2卡
+            DoTwoRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {  // 若4卡
+            DoFourRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            DoEightRankTiling(cocTilingData, info);  // 若8卡
+        }
     }
-    DoEightRankTiling(cocTilingData, info);  // 若8卡
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
 {
+    // 涉及SyncAll，需要设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    auto ret = context_->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret);
     // 1. tilingData
     AlltoAllMatmulTilingData *tilingData = context_->GetTilingData<AlltoAllMatmulTilingData>();
     OPS_CHECK(tilingData == nullptr, OPS_REPORT_VECTOR_INNER_ERR(opName_, "tilingData is nullptr."),
@@ -774,7 +1230,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
     numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
-
+    info.quantCoreNum = aivNum; //quant阶段利用全部vector
     CalcQuantWorkspaceSize(tilingData->cocTiling, info);
 
     OPS_LOG_I(opName_, "Leave AllToAllMatmul tiling func.");
@@ -788,7 +1244,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
  */
 uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
 {
-    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, needTransX2, quantType, biasDtype_);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, x2Transpose, quantType, biasDtype_);
     OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey);
     return tilingKey;
 }
@@ -816,35 +1272,41 @@ void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTiling
     int32_t tokenSize = info.K * rankSize;  // 加上padding后，此处需要使用k_align
     int32_t tokenPerCore = (cocTilingData.m0 * cocTilingData.pValue) / (cocTilingData.allToAllSendCoreNum);  // 每个核需要处理的token数
     int32_t quantScaleSize = Block32B<float>::AlignUp(tokenPerCore);  // 用于存储quantScale
+    int32_t smoothScaleSize = info.isSmoothQuant ? Block32B<float>::AlignUp(tokenSize) : 0;  // 用于存储smoothScale
+    int32_t absTensorSize = Block32B<float>::AlignUp(tokenSize);
     int32_t reduceMaxSize = BLOCK_ALIGN_BYTES / sizeof(float);  // 用于存储reduceMax的结果，存放某个token的max的值
-    int32_t ubLeftForCopyAndAbs = UB_OFFSET / sizeof(float) - quantScaleSize - reduceMaxSize;  // 剩余用来存放absTensor和copyTensor的空间
-    int32_t copyTokenNum = ubLeftForCopyAndAbs / Block32B<float>::AlignUp(tokenSize) / 2;  // copyTensor和absTensor所用空间相同
-
+    int32_t doubleBufferSize = (USED_UB_SIZE / sizeof(float) - quantScaleSize - smoothScaleSize) / UB_PINGPONG_SIZE; //存放quantScale和smoothScale不使用doubleBuffer
+    int32_t ubLeftForCopyTensor = doubleBufferSize - reduceMaxSize - absTensorSize;  // 剩余用来存放copyTensor的空间
+    int32_t copyTokenNum = ubLeftForCopyTensor / Block32B<float>::AlignUp(tokenSize);
     int32_t copyTimes = 0;
     int32_t copyTensorSize = 0;
-    if (copyTokenNum == 0) {
+    info.isSegmentK = doubleBufferSize <= 0 || ubLeftForCopyTensor <= 0 || copyTokenNum == 0;
+    if (info.isSegmentK) {
         // tokenSize过大，需要切分token，进入大Token量化流程
-        int32_t quantScaleSize = Block32B<float>::AlignUp(tokenPerCore) * sizeof(float);
-        int32_t reduceMaxSize = 32;  // reduceMax只占用一个DataBlock即可
-        int32_t remainUbSize = (UB_OFFSET - quantScaleSize - reduceMaxSize) / sizeof(float);
-        copyTensorSize = Block32B<float>::AlignDown(remainUbSize / 2);  // copyTensor和absTensor的Tensor大小
+        quantScaleSize = Block32B<float>::AlignUp(tokenPerCore) * sizeof(float);
+        reduceMaxSize = BLOCK_ALIGN_BYTES;  // reduceMax只占用一个DataBlock即可
+        int32_t remainUbSize = (USED_UB_SIZE - quantScaleSize - reduceMaxSize) / sizeof(float);
+        int32_t doubleBufferSize = remainUbSize / UB_PINGPONG_SIZE;
+        //copyTensor、absTensor和smoothScale拷贝到UB的数据量一致。如果存在smoothQuant，则需要UB存储copyTensor、absTensor和smoothScale；否则只需要存储copyTensor、absTensor。
+        int32_t copyTensorSizeTimes = info.isSmoothQuant ? 3 : 2;
+        copyTensorSize = Block32B<float>::AlignDown(doubleBufferSize / copyTensorSizeTimes);  // copyTensor和absTensor的Tensor大小
         copyTimes = tokenSize / copyTensorSize;
         if (tokenSize % copyTensorSize != 0) {
             copyTimes += 1;
         }
     }
-    info.isSegmentK = (copyTokenNum == 0);
     info.segmentsNum = copyTimes;
     info.copyTensorSize = copyTensorSize;
 }
 
 void AlltoAllMatmulTiling910b::CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info) {
     info.dequantSize = orgM * orgN * sizeof(int32_t);  // 量化则需要空间存放中间结果
-    if (quantType == TILINGKEY_TPL_A16W8) {
+    if (quantType == TILINGKEY_TPL_A16W8 || quantType == TILINGKEY_TPL_A16W4) {
         CalcQuantTokenNumPerUb(cocTilingData, info);
         uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
         uint32_t midOutputKSize = orgK * rankSize;
-        info.quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;  // int8类型的A需要占用的空间大小
+        uint32_t quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;
+        info.quantSize = quantType == TILINGKEY_TPL_A16W8 ? quantSize : (quantSize + 1) / 2; // int8类型每个元素占用1个字节，int4类型每两个元素占用1个字节
         info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / rankSize;  // A反量化参数所需要的空间大小
 
         quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
@@ -918,6 +1380,6 @@ AlltoAllMatmulTiling910b::AlltoAllMatmulTiling910b(gert::TilingContext *context)
 }
 
 // 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AlltoAllMatmul, AlltoAllMatmulTiling910b,
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AlltoAllMatmul, AlltoAllMatmulTiling910b, \
                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), 0);
 } // namespace MC2Tiling

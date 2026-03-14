@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file mc2_a5_gen_task_utils.cpp
@@ -17,7 +17,7 @@
 #include "mc2_a5_gen_task_utils.h"
 #include "mc2_gen_task_utils.h"
 #include "runtime/rt_model.h"
-#include "checker.h"
+#include "matmul_allto_all_util.h"
 #include "error/ops_error.h"
 #include "error_util.h"
 #include "proto/task.pb.h"
@@ -62,6 +62,8 @@ const std::string GROUPED_MM_ALL_TO_ALLV_OP_TYPE = "GroupedMatMulAlltoAllv";
 const std::string ALL_GATHER_MM_V2_OP_TYPE = "AllGatherMatmulV2";
 const std::string MM_REDUCE_SCATTER_V2_OP_TYPE = "MatmulReduceScatterV2";
 const std::string MM_ALL_REDUCE_OP_TYPE = "MatmulAllReduce";
+const std::string MM_ALLTO_ALL_OP_TYPE = "MatmulAlltoAll";
+const std::string ALLTO_ALL_MM_OP_TYPE = "AlltoAllMatmul";
 const std::string ATTR_NAME_GROUP = "group";
 const std::string ATTR_NAME_GROUP_EP = "group_ep";
 const int32_t MAX_GROUP_CNT = 16;
@@ -75,6 +77,8 @@ static const std::map<const std::string, const GroupInfo> GROUP_INFO_MAP_A5 {
   {ALL_GATHER_MM_V2_OP_TYPE,           {1, {ATTR_NAME_GROUP}}},
   {MM_REDUCE_SCATTER_V2_OP_TYPE,       {1, {ATTR_NAME_GROUP}}},
   {MM_ALL_REDUCE_OP_TYPE,              {1, {ATTR_NAME_GROUP}}},
+  {MM_ALLTO_ALL_OP_TYPE,               {1, {ATTR_NAME_GROUP}}},
+  {ALLTO_ALL_MM_OP_TYPE,               {1, {ATTR_NAME_GROUP}}},
   {ALL_TO_ALLV_GROUPED_MM_OP_TYPE,     {1, {ATTR_NAME_GROUP}}},
   {GROUPED_MM_ALL_TO_ALLV_OP_TYPE,     {1, {ATTR_NAME_GROUP}}},
   {MOE_DISTRIBUTE_DISPATCH_OP_TYPE,    {2, {ATTR_NAME_GROUP_EP}}},
@@ -142,7 +146,7 @@ ge::Status Mc2A5GenTaskUtils::InsertContextForCcuFusion(const gert::ExeResGenera
   // is_all_kernel为true表示优先进行二进制复用，如果没有匹配到则进行在线编译
   aicore_fusion_task_info->set_is_all_kernel(isAllKernel);
   OPS_LOG_I(context->GetNodeName(), "set is all kernel to %u.", isAllKernel);
-  // 设置attribute中的numBlocks 
+  // 设置attribute中的numBlocks
   auto config = aicore_fusion_task_info->mutable_config();
   GE_ASSERT_NOTNULL(config);
   config->add_launch_attribute();
@@ -276,22 +280,37 @@ ge::Status Mc2A5GenTaskUtils::GetArgsFormat(const gert::ExeResGenerationContext 
   return ge::GRAPH_SUCCESS;
 }
 
-bool Mc2A5GenTaskUtils::IsTargetPlatform(const char *nodeName, const std::set<std::string> &targetPlatform)
+bool Mc2A5GenTaskUtils::IsTargetPlatformSocVersion(const char *nodeName, const std::set<std::string> &targetPlatform)
 {
     fe::PlatFormInfos platform_info;
     fe::OptionalInfos optional_info;
     if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info) !=
         ge::GRAPH_SUCCESS) {
-        OPS_LOG_E(nodeName, "Cannot get platform info!");
+        OPS_LOG_E(nodeName, "Cannot get platform info in gentask!");
         return false;
     }
     std::string short_soc_version;
     if (!platform_info.GetPlatformRes("version", "Short_SoC_version", short_soc_version) || short_soc_version.empty()) {
-        OPS_LOG_E(nodeName, "Cannot get short soc version!");
+        OPS_LOG_E(nodeName, "Cannot get short soc version in Mc2A5GenTaskUtils::IsTargetPlatformSocVersion!");
         return false;
     }
     OPS_LOG_D(nodeName, "Get soc version: %s", short_soc_version.c_str());
     return targetPlatform.count(short_soc_version) > 0;
+}
+
+bool Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(const char *nodeName, const std::set<std::string> &targetPlatform)
+{
+    fe::PlatFormInfos platform_info;
+    fe::OptionalInfos optional_info;
+    if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info) !=
+        ge::GRAPH_SUCCESS) {
+        OPS_LOG_E(nodeName, "Cannot get platform info in Mc2A5GenTaskUtils::IsTargetPlatformNpuArch!");
+        return false;
+    }
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(&platform_info);
+    std::string socNpuArch = std::to_string(static_cast<uint32_t>(ascendcPlatform.GetCurNpuArch()));
+    OPS_LOG_D(nodeName, "Current GenTask Platform (NpuArch) %s", socNpuArch.c_str());
+    return targetPlatform.count(socNpuArch) > 0;
 }
 
 const std::string Mc2A5GenTaskUtils::GetCommAlg(const gert::ExeResGenerationContext *context, const size_t commAlgIdx)

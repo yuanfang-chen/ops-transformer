@@ -16,8 +16,12 @@
 #ifndef FIA_KERNEL_NONQUANT_MLA_H
 #define FIA_KERNEL_NONQUANT_MLA_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -408,16 +412,14 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         (__gm__ T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T);
 
-    if constexpr (FLASH_DECODE) {
-        accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
-        lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
-        offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
-    }
-
     if ASCEND_IS_AIV {
         if constexpr (FLASH_DECODE) {
+            accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
+            lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
+            offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
+
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
                                        actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
@@ -529,12 +531,10 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
     // 命名修改为isUpdateKV
     if (constInfo.batchContinuous) {
         info.isChangeBatch = false;
+    } else if (loop == 0) { // 第一个有效任务才需要重置KV的tensor
+        info.isChangeBatch = true;
     } else {
-        if (loop == 0) { // 第一个有效任务才需要重置KV的tensor
-            info.isChangeBatch = true;
-        } else {
-            info.isChangeBatch = (info.n2Idx == 0 && s2Cur == curS2Start);
-        }
+        info.isChangeBatch = (info.n2Idx == 0 && s2Cur == curS2Start);
     }
 
     int64_t safePreToken = constInfo.preToken;
@@ -569,15 +569,13 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         // 所有任务属于同一个S1G
         info.tndIsS2SplitCore = true;
         info.tndCoreStartKVSplitPos = constInfo.coreStartKVSplitPos;
-    } else {
-        if (constInfo.headS2Split && (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start)) {
-            // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
-            info.tndIsS2SplitCore = true;
-            info.tndCoreStartKVSplitPos = constInfo.coreStartKVSplitPos;
-        } else if (constInfo.tailS2Split && (bN2Cur == constInfo.bN2End) && (gS1Cur == constInfo.gS1End)) {
-            // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
-            info.tndIsS2SplitCore = true;
-        }
+    } else if (constInfo.headS2Split && (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start)) {
+        // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
+        info.tndIsS2SplitCore = true;
+        info.tndCoreStartKVSplitPos = constInfo.coreStartKVSplitPos;
+    } else if (constInfo.tailS2Split && (bN2Cur == constInfo.bN2End) && (gS1Cur == constInfo.gS1End)) {
+        // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
+        info.tndIsS2SplitCore = true;
     }
 
     uint64_t sInnerOffsetDataSize = info.s2Idx * constInfo.s2BaseSize;
@@ -658,10 +656,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
                 gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
                 tilingData->fdParams.gS1BaseSizeOfFd};
 
-        SyncAll();
-
         fdService.AllocEventID();
         fdService.InitDecodeParams();
+        SyncAll();
         fdService.FlashDecode(fdParams);
         fdService.FreeEventID();
     } else {

@@ -1114,7 +1114,7 @@ public:
     uint64_t dsinksumWorkSpaceOffset = 0;
     uint64_t dsinksumDataSizeOffset = 0;
     uint32_t baseMN = 0;
-    uint8_t PostParamsPH[4] = {};
+    uint32_t sinkDataSize = 0;
 
     uint32_t get_coreNum() const
     {
@@ -1503,7 +1503,7 @@ public:
         this->value_d = value_d_val;
     }
 
-    uint64_t get_dsinksumWorkSpaceOffset()
+    uint64_t get_dsinksumWorkSpaceOffset() const
     {
         return this->dsinksumWorkSpaceOffset;
     }
@@ -1511,7 +1511,7 @@ public:
     {
         this->dsinksumWorkSpaceOffset = dsinksumWorkSpaceOffset_val;
     }
-    uint64_t get_dsinksumDataSizeOffset()
+    uint64_t get_dsinksumDataSizeOffset() const
     {
         return this->dsinksumDataSizeOffset;
     }
@@ -1519,13 +1519,22 @@ public:
     {
         this->dsinksumDataSizeOffset = dsinksumDataSizeOffset_val;
     }
-    uint32_t get_baseMN()
+    uint32_t get_baseMN() const
     {
         return this->baseMN;
     }
     void set_baseMN(uint32_t baseMN_val)
     {
         this->baseMN = baseMN_val;
+    }
+
+    uint32_t get_sinkDataSize() const
+    {
+        return this->sinkDataSize;
+    }
+    void set_sinkDataSize(uint32_t sinkDataSize_val)
+    {
+        this->sinkDataSize = sinkDataSize_val;
     }
 
     void reset()
@@ -1576,6 +1585,7 @@ public:
         dsinksumWorkSpaceOffset = 0;
         dsinksumDataSizeOffset = 0;
         baseMN = 0;
+        sinkDataSize = 0;
     }
 };
 
@@ -4569,6 +4579,8 @@ public:
     int64_t b = 0;
     int64_t t1 = 0;
     int64_t t2 = 0;
+    int64_t s1 = 0;
+    int64_t s2 = 0;
     int64_t n2 = 0;
     int64_t g = 0;
     int64_t d = 0;
@@ -4580,6 +4592,7 @@ public:
     int64_t nextTockens = 0;
     uint32_t dqPostAbsorb = 0;
     uint32_t sparseMode = 0;
+    uint32_t layout = 0;
     uint8_t dqWorkSpaceOffsetPH[4] = {};
     int64_t dqWorkSpaceOffset = 0;
     int64_t dkWorkSpaceOffset = 0;
@@ -4681,6 +4694,23 @@ public:
     {
         this->t2 = t2_val;
     }
+    uint64_t get_s1() const
+    {
+        return s1;
+    }
+    void set_s1(uint64_t s1_val)
+    {
+        this->s1 = s1_val;
+    }
+
+    uint64_t get_s2() const
+    {
+        return s2;
+    }
+    void set_s2(uint64_t s2_val)
+    {
+        this->s2 = s2_val;
+    }
 
     uint64_t get_n2() const
     {
@@ -4743,6 +4773,15 @@ public:
     void set_sparseMode(uint32_t sparseMode_val)
     {
         this->sparseMode = sparseMode_val;
+    }
+
+    uint32_t get_layout() const
+    {
+        return layout;
+    }
+    void set_layout(uint32_t layout_val)
+    {
+        this->layout = layout_val;
     }
 
     uint64_t get_dqWorkSpaceOffset() const

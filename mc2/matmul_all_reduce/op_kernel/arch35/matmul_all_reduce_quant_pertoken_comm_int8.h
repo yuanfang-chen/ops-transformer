@@ -15,7 +15,11 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTOKEN_COMM_INT8_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTOKEN_COMM_INT8_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
@@ -103,7 +107,9 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     cGM_ = cGM;
     tilingData_ = tilingData;
     tPipe_ = tPipe;
@@ -181,9 +187,6 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
         uint32_t numN = (mc2Tiling.tileCnt + mc2Tiling.tailCnt) / NUM_TWO_PERTOKEN;
         uint32_t numReN = (mc2Tiling.tileCnt + mc2Tiling.tailCnt) % NUM_TWO_PERTOKEN;
         for (uint32_t i = 0U; i < numN; ++i) { // 按总核数下发
-            (void)hccl_.SetReduceDataTypeAbility(
-                HcclReduceOp::HCCL_REDUCE_SUM, AscendC::HCCL_DATA_TYPE_FP32,
-                AscendC::HCCL_DATA_TYPE_INT8); // reduceScatter 发送数据类型为int8，接收数据类型为fp32
             reduceScatterHandleId_[nowReduceScatterIdx] = hccl_.ReduceScatter<false>(
                 reduceScatterSendGM_[nowReduceScatterIdx], reduceScatterRecvGM_[nowReduceScatterIdx],
                 SendCountCheck(nowReduceScatterIdx), AscendC::HCCL_DATA_TYPE_INT8, HcclReduceOp::HCCL_REDUCE_SUM, 0, 1);
@@ -192,9 +195,6 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
                 reduceScatterSendGM_[nowReduceScatterIdx], reduceScatterRecvGM_[nowReduceScatterIdx],
                 SendCountCheck(nowReduceScatterIdx), AscendC::HCCL_DATA_TYPE_INT8, HcclReduceOp::HCCL_REDUCE_SUM, 0, 1);
             nowReduceScatterIdx++;
-            (void)hccl_.SetReduceDataTypeAbility(
-                HcclReduceOp::HCCL_REDUCE_SUM, AscendC::HCCL_DATA_TYPE_INT8,
-                AscendC::HCCL_DATA_TYPE_INT8); // allGather 发送数据类型为int8，接收数据类型为int8
             allGatherHandleId_[nowAllGatherIdx] = hccl_.AllGather<false>(
                 allGatherSendGM_[nowAllGatherIdx], allGatherRecvGM_[nowAllGatherIdx], SendCountCheck(nowAllGatherIdx),
                 AscendC::HCCL_DATA_TYPE_INT8, 0);
@@ -206,14 +206,10 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
         }
 
         if (numReN != 0U) { // 余数下发
-            (void)hccl_.SetReduceDataTypeAbility(
-                HcclReduceOp::HCCL_REDUCE_SUM, AscendC::HCCL_DATA_TYPE_FP32, AscendC::HCCL_DATA_TYPE_INT8);
             reduceScatterHandleId_[nowReduceScatterIdx] = hccl_.ReduceScatter<false>(
                 reduceScatterSendGM_[nowReduceScatterIdx], reduceScatterRecvGM_[nowReduceScatterIdx],
                 SendCountCheck(nowReduceScatterIdx), AscendC::HCCL_DATA_TYPE_INT8, HcclReduceOp::HCCL_REDUCE_SUM, 0, 1);
             nowReduceScatterIdx++;
-            (void)hccl_.SetReduceDataTypeAbility(
-                HcclReduceOp::HCCL_REDUCE_SUM, AscendC::HCCL_DATA_TYPE_INT8, AscendC::HCCL_DATA_TYPE_INT8);
             allGatherHandleId_[nowAllGatherIdx] = hccl_.AllGather<false>(
                 allGatherSendGM_[nowAllGatherIdx], allGatherRecvGM_[nowAllGatherIdx], SendCountCheck(nowAllGatherIdx),
                 AscendC::HCCL_DATA_TYPE_INT8, 0);

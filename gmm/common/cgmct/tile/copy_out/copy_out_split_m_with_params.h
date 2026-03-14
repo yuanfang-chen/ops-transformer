@@ -25,14 +25,14 @@ namespace Tile {
  * @struct Copy
  * @brief Structure for copying data from local tensor to UB with split M dimension
  *
- * This struct implements data copy operations in the Arch::Ascend950 architecture using the CopyOutSplitMWithParams mode
+ * This struct implements data copy operations in the Arch::DAV3510 architecture using the CopyOutSplitMWithParams mode
  *
  * @param [in] OutputType: the type of the output tensor
  * @param [in] InputType: the type of the input tensor
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyOutSplitMWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyOutSplitMWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNDOrAlign<OutputType>() &&       // UB ND/ND_ALIGN
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -61,7 +61,7 @@ public:
         int32_t curRow, int32_t curCol, int32_t l0CTileH, int32_t l0CTileW, int32_t baseM, int32_t baseN,
         int32_t orgM, int32_t orgN, int32_t orgKc, uint8_t id = 0)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         l0CTileH = AscendC::Align(l0CTileH, 2); // 2 means SplitM scenario aligned to 2
         uint32_t dimN = orgKc != 0 ? orgKc : orgN;
         constexpr uint32_t blockCount = AscendC::ONE_BLK_SIZE / sizeof(DstT);
@@ -91,7 +91,7 @@ public:
         params.dualDstCtl = static_cast<uint8_t>(AscendC::McgShfMode::DUAL_DST_SPLIT_M);
         AscendC::Fixpipe<DstT, SrcT, AscendC::Impl::CFG_ROW_MAJOR_UB>(dstLocal[dstOffset], src, params);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 };
@@ -100,7 +100,7 @@ public:
  * @struct Copy
  * @brief Template struct Copy, used to implement data copy operations
  *
- * This struct implements data copy operations for Arch::Ascend950 platform when the output is positioned in UB
+ * This struct implements data copy operations for Arch::DAV3510 platform when the output is positioned in UB
  * The format is CubeFormat::NZ, and the scenario is not quantized
  *
  * @param [in] OutputType: the type of the output tensor
@@ -108,7 +108,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyOutSplitMWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyOutSplitMWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNz<OutputType>() &&              // UB NZ
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -139,7 +139,7 @@ public:
                                       int32_t l0CTileH, int32_t l0CTileW, int32_t baseM, int32_t baseN,
                                       int orgM, int orgN, int orgKc, uint8_t id = 0)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         uint32_t stride = static_cast<uint32_t>(orgM * AscendC::BLOCK_CUBE);
         int64_t dstOffset =
             static_cast<int64_t>(curCol * baseN) * orgM + static_cast<int64_t>(curRow * baseM) * AscendC::BLOCK_CUBE;
@@ -160,7 +160,7 @@ public:
         params.subBlockId = id;
         AscendC::Fixpipe<DstT, SrcT, AscendC::Impl::CFG_NZ_UB>(dst[dstOffset], src, params);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 };
@@ -177,7 +177,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend950, CopyOutSplitMWithParams, void, OutputType, InputType,
+    Arch::DAV3510, CopyOutSplitMWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsUB<OutputType::pos>() && IsNDOrAlign<OutputType>() &&      // UB ND/ND_ALIGN
         IsQuantSenario<typename OutputType::T, typename InputType::T>() // quant
@@ -207,7 +207,7 @@ public:
                                       int32_t l0CTileH, int32_t l0CTileW, int32_t baseM, int32_t baseN,
                                       int32_t orgM, int32_t orgN, int32_t orgKc, uint8_t id = 0)
     {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         l0CTileH = AscendC::Align(l0CTileH, 2); // 2 means SplitM scenario aligned to 2
         uint32_t stride = l0CTileW;
         int64_t dstOffset = 0;
@@ -231,7 +231,7 @@ public:
         params.subBlockId = id;
         AscendC::Fixpipe<DstT, SrcT, AscendC::Impl::CFG_ROW_MAJOR_UB>(dst[dstOffset], src, params);
 #else
-        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support Ascend950"); });
+        ASCENDC_ASSERT(false, { KERNEL_LOG(KERNEL_ERROR, "Only support DAV3510"); });
 #endif
     }
 };

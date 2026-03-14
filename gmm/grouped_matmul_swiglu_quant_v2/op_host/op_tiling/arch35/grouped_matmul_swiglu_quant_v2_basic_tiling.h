@@ -27,17 +27,17 @@
 
 namespace optiling {
 using namespace Ops::Transformer::OpTiling;
-class GroupedMatmulSwigluQuantDavidV2Tiling : public GroupedQbmmTiling {
+class GroupedMatmulSwigluQuantV2Tiling950 : public GroupedQmmTiling {
 public:
-    explicit GroupedMatmulSwigluQuantDavidV2Tiling(gert::TilingContext *context) : GroupedQbmmTiling(context)
+    explicit GroupedMatmulSwigluQuantV2Tiling950(gert::TilingContext *context) : GroupedQmmTiling(context)
     {
         Reset();
     }
-    ~GroupedMatmulSwigluQuantDavidV2Tiling() override = default;
+    ~GroupedMatmulSwigluQuantV2Tiling950() override = default;
 
     void Reset(gert::TilingContext *context) override
     {
-        GroupedQbmmTiling::Reset(context);
+        GroupedQmmTiling::Reset(context);
         Reset();
     }
 
@@ -74,10 +74,11 @@ private:
     bool AnalyzeInputsPertoken();
     ge::graphStatus DoOpTilingPertoken();
     void PrintPertokenQuantParams();
+    bool CheckCoreNum() const override;
     GMMSwigluQuantTilingDataParams tilingData_;
 
     const std::vector<ge::DataType> quantDtypeSupportList = {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2,
-                                                             ge::DT_FLOAT4_E2M1, ge::DT_FLOAT4_E1M2};
+                                                             ge::DT_FLOAT4_E2M1};
 };
 } // namespace optiling
 

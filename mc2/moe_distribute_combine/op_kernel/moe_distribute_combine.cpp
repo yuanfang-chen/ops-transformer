@@ -12,7 +12,11 @@
  * \file moe_distribute_combine.cpp
  * \brief
  */
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "moe_distribute_combine_tiling_key.h"
 
@@ -50,7 +54,7 @@ __global__ __aicore__ void moe_distribute_combine(GM_ADDR expandX, GM_ADDR exper
     TPipe pipe;
     
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
-#ifdef __DAV_C310__
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineTilingData, tilingData, tilingGM);
         MoeDistributeCombine<DTYPE_EXPAND_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT> op;

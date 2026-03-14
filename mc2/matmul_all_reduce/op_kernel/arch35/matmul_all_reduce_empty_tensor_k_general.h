@@ -15,7 +15,11 @@
 #ifndef MATMUL_ALL_REDUCE_EMPTY_TENSOR_K_GENERAL_H
 #define MATMUL_ALL_REDUCE_EMPTY_TENSOR_K_GENERAL_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../common.h"
 #include "matmul_all_reduce_add_x3.h"
 #include "matmul_all_reduce_tiling_struct_ar35.h"
@@ -43,7 +47,8 @@ public:
 
     __aicore__ inline void Init()
     {
-        hccl_.Init(GetHcclContext<0>());
+        hccl_.InitV2(GetHcclContext<0>(), tilingData_);
+        hccl_.SetCcTilingV2(offsetof(MC2TilingHeader, mc2CcTiling));
         notifyFlag_ = (GetBlockIdx() == 0);
         if (notifyFlag_) {
             hcclHandleId_ =
@@ -142,6 +147,7 @@ private:
 
     MC2GmAddrs* addrs_;
     Mc2Tiling::RCSTiling* param_;
+    MC2TilingHeader* tilingData_;
     bool biasFlag_{false};
     uint64_t cOffset_;
     TPipe* tPipe_;

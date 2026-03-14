@@ -4,8 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 
@@ -20,7 +24,7 @@ P_{cmp} = Softmax(query*key^T) \\
 $$
 
 $$
-attentionOut = Softmax(atten\_mask(scale*query*key^T, atten\_mask)))*value
+attentionOut = Softmax(atten\_mask(scale*query*key^T, atten\_mask))*value
 $$
 
 $$
@@ -71,7 +75,7 @@ aclnnStatus aclnnNsaCompressAttentionGetWorkspaceSize(
   int64_t            selectBlockCount,
   const aclTensor   *softmaxMaxOut,
   const aclTensor   *softmaxSumOut,
-  const aclTensor   *attentionOutOut,
+  const aclTensor   *attentionOut,
   const aclTensor   *topkIndicesOut,
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
@@ -308,7 +312,7 @@ aclnnStatus aclnnNsaCompressAttention(
         <td>attentionOut</td>
         <td>输出</td>
         <td>公式中的attentionOut。</td>
-        <td>数据类型和shape与query保持一致。</td>
+        <td>数据类型和shape前2维与query保持一致，最后1维和value的最后1维一致。</td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>3-4</td>
@@ -361,7 +365,7 @@ aclnnStatus aclnnNsaCompressAttention(
   </colgroup>
   <thead>
     <tr>
-      <th>返回码</th>
+      <th>返回值</th>
       <th>错误码</th>
       <th>描述</th>
     </tr>

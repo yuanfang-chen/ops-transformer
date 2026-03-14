@@ -17,36 +17,23 @@
 #define MC2_PIPELINE_CONTEXT_H
 
 namespace MC2KernelTemplate {
-//todo 后续可以按节点拆成对应的上下文复用
-template <typename ExtraDataType, typename TilingDataType>
+struct MC2TransposeContext;
+struct MC2AlltoAllContext;
+struct MC2PertokenDQuantContext;
+// 后续可以按节点拆成对应的上下文复用
+template <typename ComputationContextType>
 struct PipelineContext {
-// computation
-    GM_ADDR aGM;
-    GM_ADDR bGM;
-    GM_ADDR cGM;
-    GM_ADDR biasGM;
-    ExtraDataType extraData;
-    TilingDataType* tilingData;
-// transpose
-    GM_ADDR transposeSrcAddr;
-    GM_ADDR transposeDstAddr;
-    uint64_t transposeSrcOffset;
-    uint64_t nextSrcBlockOffset;
-    uint64_t nextDstBlockOffset;
-    uint64_t transposeDstOffset;
-    uint32_t rankCnt;
-    uint64_t innerAxis;
-    uint64_t transM;
-// communication
-    uint32_t taskCnt;
-    GM_ADDR sendBuffer;
-    GM_ADDR recvBuffer;
-    uint64_t sendOffset;
-    uint64_t recvOffset;
-    uint64_t sendCount;
-    uint64_t strideCount;
-    uint64_t hcclDataType;
+    // computation
+    ComputationContextType* computationContext;
+    // transpose
+    MC2TransposeContext* transposeContext;
+    // scaleTranspose
+    MC2TransposeContext* scaleTransposeContext;
+    // communication
+    MC2AlltoAllContext* communicationContext;
+    // quantization
+    MC2PertokenDQuantContext* quantizationContext;
 };
-};
+}; // namespace MC2KernelTemplate
 
 #endif

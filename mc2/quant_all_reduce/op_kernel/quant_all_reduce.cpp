@@ -13,14 +13,18 @@
  * \brief
  */
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "quant_all_reduce_tiling_data.h"
 #include "quant_all_reduce_tiling_key.h"
 #include "quant_all_reduce_mte_one_shot.h"
 
 using namespace AscendC;
 using namespace QuantAllReduceImpl;
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 #endif
 
 template<uint32_t quantAllReduceCommMode>

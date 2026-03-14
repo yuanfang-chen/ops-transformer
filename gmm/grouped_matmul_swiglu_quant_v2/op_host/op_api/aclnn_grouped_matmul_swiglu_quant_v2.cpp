@@ -12,28 +12,29 @@
 #include <new>
 #include <memory>
 #include <unordered_map>
-#include "aclnn_gmm_dsq_base.h"
-#include "aclnn_grouped_matmul_swiglu_quant_v2_utils.h"
+#include "gmm_dsq_base.h"
+#include "grouped_matmul_swiglu_quant_v2_utils.h"
 #include "grouped_matmul_swiglu_quant_v2.h"
 #include "aclnn_grouped_matmul_swiglu_quant_weight_nz_v2.h"
 #include "aclnn_grouped_matmul_swiglu_quant_v2.h"
 
 using namespace op;
 using namespace gmm_dsq;
+using namespace gmm_dsq_base;
 
 class GmmDsqHandlerFactory {
 private:
-    std::unordered_map<SocVersion, std::unique_ptr<GroupedMatmulSwigluQuantHandler>> handlers_;
+    std::unordered_map<NpuArch, std::unique_ptr<GroupedMatmulSwigluQuantHandler>> handlers_;
 
 public:
-    void registerHandler(SocVersion version, std::unique_ptr<GroupedMatmulSwigluQuantHandler> handler)
+    void registerHandler(NpuArch npuArch, std::unique_ptr<GroupedMatmulSwigluQuantHandler> handler)
     {
-        handlers_[version] = std::move(handler);
+        handlers_[npuArch] = std::move(handler);
     }
 
-    GroupedMatmulSwigluQuantHandler *getHandler(SocVersion version)
+    GroupedMatmulSwigluQuantHandler *getHandler(NpuArch npuArch)
     {
-        auto it = handlers_.find(version);
+        auto it = handlers_.find(npuArch);
         return it != handlers_.end() ? it->second.get() : nullptr;
     }
 };
@@ -42,16 +43,13 @@ static aclnnStatus aclnnGroupedMatmulSwigluQuantGetWorkspaceSizeCommon(const cha
     GroupedMatmulSwigluQuantParamsBase &params, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     GmmDsqHandlerFactory factory;
-    auto version = GetCurrentPlatformInfo().GetSocVersion();
-
-    factory.registerHandler(SocVersion::ASCEND910B,
+    auto npuArch = op::GetCurrentPlatformInfo().GetCurNpuArch();
+    factory.registerHandler(NpuArch::DAV_2201,
         std::make_unique<gmm_dsq_base::GroupedMatmulSwigluQuantBaseHandler>());
-    factory.registerHandler(SocVersion::ASCEND910_93,
-        std::make_unique<gmm_dsq_base::GroupedMatmulSwigluQuantBaseHandler>());
-    factory.registerHandler(SocVersion::ASCEND950,
+    factory.registerHandler(NpuArch::DAV_3510,
         std::make_unique<gmmSwigluQuantV2::GroupedMatmulSwigluQuantBaseHandler>());
 
-    if (auto *handler = factory.getHandler(version)) {
+    if (auto *handler = factory.getHandler(npuArch)) {
         handler->Initialize(interfaceName, params, workspaceSize, executor);
         return handler->Process();
     } else {
@@ -89,6 +87,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(const aclTensor *x,
         .SetDequantAttr(dequantMode, dequantDtype)
         .SetQuantAttr(quantMode, static_cast<int64_t> (output->GetDataType()))
         .SetTransposeAttr(false).SetBias(bias)
+        .SetScenario()
         .SetTuningConfig(tuningConfigOptional).Build();
 
     // 调用公共接口
@@ -112,22 +111,47 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(const aclTen
 
     // weight在该场景下强制绑定StorageFormat 和 ViewFormat 为NZ
     CHECK_RET(weight != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    auto w = (*weight)[0];
-    auto storgeShape = w->GetStorageShape();
-    auto viewShape = w->GetViewShape();
-    aclTensor *weightNZ = const_cast<aclTensor *>(w);
-    CHECK_COND((storgeShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT), ACLNN_ERR_PARAM_INVALID,
-               "aclnnGroupedMatmulSwigluQuantWeightNzV2, The dimnum of storageShape for second input (weight) \
-             must be 5. \n But StorageShape got %s , and dimNum is %lu.",
-               op::ToString(storgeShape).GetString(), storgeShape.GetDimNum());
-    // weight的StorageFormat无条件视为NZ
-    weightNZ->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
-    if (viewShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT) {
-        // 若weight的viewShape为5维则视为NZ
-        weightNZ->SetViewFormat(op::Format::FORMAT_FRACTAL_NZ);
-    } else if (viewShape.GetDimNum() == WEIGHT_ND_DIM_LIMIT) {
-        // 若weight的viewShape为3维则视为ND
-        weightNZ->SetViewFormat(op::Format::FORMAT_ND);
+    size_t wLength = weight->Size();
+    if (wLength == 1) {
+        // 单Tensor场景
+        auto w = (*weight)[0];
+        auto storgeShape = w->GetStorageShape();
+        auto viewShape = w->GetViewShape();
+        aclTensor *weightNZ = const_cast<aclTensor *>(w);
+        CHECK_COND((storgeShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT), ACLNN_ERR_PARAM_INVALID,
+                   "aclnnGroupedMatmulSwigluQuantWeightNzV2, The dimnum of storageShape for second input (weight)"
+                 "must be 5. \n But StorageShape got %s , and dimNum is %lu.",
+                   op::ToString(storgeShape).GetString(), storgeShape.GetDimNum());
+        // weight的StorageFormat无条件视为NZ
+        weightNZ->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
+        if (viewShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT) {
+            // 若weight的viewShape为5维则视为NZ
+            weightNZ->SetViewFormat(op::Format::FORMAT_FRACTAL_NZ);
+        } else if (viewShape.GetDimNum() == WEIGHT_ND_DIM_LIMIT) {
+            // 若weight的viewShape为3维则视为ND
+            weightNZ->SetViewFormat(op::Format::FORMAT_ND);
+        }
+    } else {
+        // 多Tensor场景
+        for (size_t i = 0; i < wLength; i++) {
+            auto w = (*weight)[i];
+            auto storgeShape = w->GetStorageShape();
+            auto viewShape = w->GetViewShape();
+            aclTensor *weightNZ = const_cast<aclTensor *>(w);
+            CHECK_COND((storgeShape.GetDimNum() == MULTI_WEIGHT_NZ_DIM_LIMIT), ACLNN_ERR_PARAM_INVALID,
+                       "aclnnGroupedMatmulSwigluQuantWeightNzV2, The dimnum of storageShape for second input (weight)"
+                     "must be 4. \n But StorageShape got %s , and dimNum is %lu.",
+                       op::ToString(storgeShape).GetString(), storgeShape.GetDimNum());
+            // weight的StorageFormat无条件视为NZ
+            weightNZ->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
+            if (viewShape.GetDimNum() == MULTI_WEIGHT_NZ_DIM_LIMIT) {
+                // 若weight的viewShape为4维则视为NZ
+                weightNZ->SetViewFormat(op::Format::FORMAT_FRACTAL_NZ);
+            } else if (viewShape.GetDimNum() == MULTI_WEIGHT_ND_DIM_LIMIT) {
+                // 若weight的viewShape为2维则视为ND
+                weightNZ->SetViewFormat(op::Format::FORMAT_ND);
+            }
+        }
     }
 
     GroupedMatmulSwigluQuantParamsBase params =
@@ -136,6 +160,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(const aclTen
         .SetGroupList(groupList).SetGroupListType(groupListType)
         .SetWeightAssistMatrix(weightAssistMatrix)
         .SetDequantAttr(dequantMode, dequantDtype)
+        .SetScenario()
         .SetTuningConfig(tuningConfigOptional).Build();
 
     // 调用公共接口

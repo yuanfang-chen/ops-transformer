@@ -19,7 +19,7 @@
 #include "moe_distribute_v2_constant.h"
 #include "moe_distribute_v2_base.h"
 
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 #include "quantize_functions.h"
 #endif
 
@@ -32,7 +32,6 @@ class MoeDistributeDispatchV2Quant{
 public:
     uint32_t axisH_{0};
     uint32_t hOutSizeAlign_{0};
-    uint32_t scaleOutBytes_{0};
 
     LocalTensor<float> floatLocalTemp_;
     LocalTensor<float> smoothScalesTensor_;
@@ -59,7 +58,7 @@ public:
     }
 
     __aicore__ inline void QuantInit(uint32_t &hAlignSize_, uint32_t &hOutSize_, uint32_t scaleInBytes_, 
-                                     int32_t &tokenQuantAlign_, uint32_t &hScaleIdxSize_, uint32_t axisH)
+                                     int32_t &tokenQuantAlign_, uint32_t &hScaleIdxSize_, uint32_t &scaleOutBytes, uint32_t axisH)
     {
         axisH_ = axisH;
         hOutSizeAlign_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN; // scale起始放置偏移
@@ -67,27 +66,27 @@ public:
         if constexpr ((QuantMode == UNQUANT) && IsSmoothScaleExist) {
             hOutSizeAlign_ += scaleInBytes_;
             hAlignSize_ += scaleInBytes_;
-            scaleOutBytes_ = scaleInBytes_; // 外部输入的scales大小
+            scaleOutBytes = scaleInBytes_; // 外部输入的scales大小
         } else if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
             hOutSizeAlign_ += sizeof(float); 
-            scaleOutBytes_ = sizeof(float); // PERTOKEN量化一个token生成一个scale
+            scaleOutBytes = sizeof(float); // PERTOKEN量化一个token生成一个scale
         }
-        #if defined(__DAV_C310__)
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (QuantMode == MX_QUANT) {
             hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
-            scaleOutBytes_ = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
+            scaleOutBytes = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             hOutSizeAlign_ = Align128(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
-            scaleOutBytes_ = Ceil128(axisH_) * sizeof(float); // MX量化每128个值生成一个scale
+            scaleOutBytes = Ceil128(axisH_) * sizeof(float); // PERGROUP量化每128个值生成一个scale
         }
         #endif
         uint32_t hScaleSizeAlign = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN; //保证后面填充三元组的起始地址对齐32
         tokenQuantAlign_ = hScaleSizeAlign / sizeof(int32_t);
-        // 实际搬运大小，搬运Align32(token_align + scaleOutBytes_) + 3*4B(三元组)
+        // 实际搬运大小，搬运Align32(token_align + scaleOutBytes) + 3*4B(三元组)
         hScaleIdxSize_ = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
     }
 
@@ -99,7 +98,7 @@ public:
         } else if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
             QuantDynamicPerToken(outLocal, inLocal, expertIndex, scalesGMTensor_);
         } 
-        #if defined(__DAV_C310__)
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (QuantMode == MX_QUANT) {
             QuantDynamicMxFp8(outLocal, inLocal);
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
@@ -134,7 +133,7 @@ public:
             Cast(tokenF16LT, tokenI32LT, RoundMode::CAST_ROUND, axisH_);
             Cast(outLocal, tokenF16LT, RoundMode::CAST_TRUNC, axisH_);
         }
-        #if defined(__DAV_C310__)
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (Std::IsSame<ExpandXOutType, hifloat8_t>::value) {
             DataCacheCleanAndInvalid<float, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(scalesGMTensor_);
             float scaleVal = scalesGMTensor_(0);
@@ -149,7 +148,7 @@ public:
     {
         float dynamicScale = 0.0;
         float maxVal = INT8_MAX_VALUE; // 获取输出类型的最大值（AscendC未提供相关接口）
-        #if defined(__DAV_C310__)
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
             maxVal = FP8_E5M2_MAX_VALUE;
         } else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value) {
@@ -184,7 +183,7 @@ public:
             PipeBarrier<PIPE_V>();
             Cast(outLocal, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
         } 
-        #if defined(__DAV_C310__)
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value || 
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value){
             Cast(outLocal, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
@@ -195,7 +194,7 @@ public:
         SyncFunc<AscendC::HardEvent::S_MTE3>();
     }
 
-    #if defined(__DAV_C310__)
+    #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     __aicore__ inline void QuantDynamicPerGroup(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
@@ -216,7 +215,8 @@ public:
         }
     }
 
-    __aicore__ inline void QuantDynamicMxFp8(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal){
+    __aicore__ inline void QuantDynamicMxFp8(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal)
+    {
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
             uint32_t mxScaleNum = Align2(Ceil32(axisH_));
@@ -234,19 +234,20 @@ public:
     }
     #endif
 
-    __aicore__ inline void CopyScalesToOut(uint32_t currentTokenIndex, LocalTensor<ExpandXOutType> &quantTok){
-        scaleOutParams_ = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U};
+    __aicore__ inline void CopyScalesToOut(uint32_t currentTokenIndex, uint32_t scaleOutBytes,
+                                           LocalTensor<ExpandXOutType> &quantTok, DataCopyExtParams &scaleOutParams)
+    {
         if constexpr (((QuantMode > UNQUANT) && (QuantMode != STATIC_QUANT)) ||
                     ((QuantMode == UNQUANT) && IsSmoothScaleExist)) {
             auto scaleLT = quantTok[(Ceil(axisH_, UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
-            #if defined(__DAV_C310__)
+            #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
             if constexpr (QuantMode == MX_QUANT) {
                 scaleLT = quantTok[Align256<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
             } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
                 scaleLT = quantTok[Align128<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
             }
             #endif
-            DataCopyPad(dynamicScalesOutGMTensor_[currentTokenIndex * scaleOutBytes_], scaleLT, scaleOutParams_);
+            DataCopyPad(dynamicScalesOutGMTensor_[currentTokenIndex * scaleOutBytes], scaleLT, scaleOutParams);
         }
     }
 

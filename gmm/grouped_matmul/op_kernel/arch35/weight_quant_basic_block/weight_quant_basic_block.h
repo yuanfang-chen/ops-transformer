@@ -16,7 +16,12 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_H
 
 #include "basic_block_config.h"
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#include "kernel_operator_intf.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "tool.h"
 #include "weight_quant_basic_block_base.h"
@@ -108,32 +113,35 @@ __aicore__ inline void GMM_WQ_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t ant
 {
     hasBias_ = hasBias;
     biasL1DbOffset_ = 0;
-    uint64_t weightL1Space;
+    weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, L1_SIZE_BYTE / sizeof(xType));
+
     if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-        weightL1Space = 256 * 256; // weight单块大小的标准shape是256*256
-    } else {
-        weightL1Space = matmulTiling->baseN * matmulTiling->stepKb * matmulTiling->baseK;  // weight单块大小
-    }
-    uint64_t totalSize = 0;
-    if constexpr (IsSameType<yType, int8_t>::value) {
-        totalSize = L1_SIZE_WITH_QUANTSCALE_BYTE;  // 除去quantScale, 共使用504KB
-        weightL1DbOffset_ = L1_SIZE_WITH_QUANTSCALE * GetKBUnit<half>() - weightL1Space;
-    } else if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-        totalSize = L1_SIZE_BYTE;
-        weightL1DbOffset_ = L1_SIZE * GetKBUnit<int8_t>() - weightL1Space;
+        static constexpr uint64_t MXA8W4_WEIGHT_SIZE = 256 * 256; // weight单块大小的标准shape是256*256
+        static constexpr uint64_t MX_BIAS_L1_SIZE = BIAS_L1_SIZE * GetKBUnit<biasType>() * sizeof(biasType);
+        weightL1DbOffset_ = L1_SIZE * GetKBUnit<xType>() - MXA8W4_WEIGHT_SIZE;
+        uint64_t l1RemainSize = L1_SIZE_BYTE - MXA8W4_WEIGHT_SIZE * DOUBLE_BUFFER_NUM;
+        uint64_t l1StartSize = MXA8W4_WEIGHT_SIZE;
+        biasL1_ = LocalTensor<biasType>(TPosition::TSCM, l1StartSize, l1RemainSize / sizeof(biasType));
         if (hasBias_) {
-            biasL1_ = LocalTensor<biasType>(TPosition::TSCM, (weightL1Space >> 1) * sizeof(biasType), totalSize / sizeof(biasType) - (weightL1Space >> 1));
-            biasL1DbOffset_ = (L1_SIZE - BIAS_L1_SIZE) * GetKBUnit<biasType>() - weightL1Space;
+            biasL1DbOffset_ = (l1RemainSize - MX_BIAS_L1_SIZE) / sizeof(biasType);
+            l1RemainSize -= DOUBLE_BUFFER_NUM * MX_BIAS_L1_SIZE;
+            l1StartSize += MX_BIAS_L1_SIZE;
+        }
+
+        if ASCEND_IS_AIC {
+            cubeCompute_.MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1_);
+        } else {
+            vectorCompute_.Init(tPipe, hasBias_);
         }
     } else {
-        totalSize = L1_SIZE_BYTE;
-        weightL1DbOffset_ = L1_SIZE * GetKBUnit<half>() - weightL1Space;
-    }
-    weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, totalSize / sizeof(xType));
-    if ASCEND_IS_AIC {
-        cubeCompute_.Init(totalSize, weightL1Space, aPrefetchSize, matmulTiling, tPipe, biasL1DbOffset_);
-    } else {
-        vectorCompute_.Init(tPipe, hasBias_);
+        uint64_t weightL1Space = matmulTiling->baseN * matmulTiling->stepKb * matmulTiling->baseK; // weight单块大小
+        weightL1DbOffset_ = L1_SIZE * GetKBUnit<xType>() - weightL1Space;
+
+        if ASCEND_IS_AIC {
+            cubeCompute_.Init(L1_SIZE_BYTE, weightL1Space, aPrefetchSize, matmulTiling, tPipe, biasL1DbOffset_);
+        } else {
+            vectorCompute_.Init(tPipe, hasBias_);
+        }
     }
 }
 
@@ -299,20 +307,23 @@ GMM_WQ_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_BASIC_BLOCK_CLASS::ComputeBasicBlockAic(const BasicBlockOffsetParam &offsetParam)
 {
     // 当前方案下，不会出现N方向计算量小于载入量的情况，所以没有N的循环
-    for (uint64_t kbL1Offset = 0; kbL1Offset < offsetParam.kSize; kbL1Offset += offsetParam.kbL1Size, cvLoopIdx_++) {
-        uint64_t kbL1RealSize = (kbL1Offset + offsetParam.kbL1Size) >= offsetParam.kSize
-                                    ? offsetParam.kSize - kbL1Offset
+    for (uint64_t kbGmOffset = 0; kbGmOffset < offsetParam.kSize; kbGmOffset += offsetParam.kbL1Size, cvLoopIdx_++) {
+        uint64_t kbL1RealSize = (kbGmOffset + offsetParam.kbL1Size) >= offsetParam.kSize
+                                    ? offsetParam.kSize - kbGmOffset
                                     : offsetParam.kbL1Size;
-        cubeCompute_.WaitMTE1ToMTE2(cvLoopIdx_);
         if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-            // 当前仅支持scale单倍载入
-            cubeCompute_.CopyMxScaleGmToL1(offsetParam, kbL1Offset, cvLoopIdx_);
+            cubeCompute_.WaitScaleMTE1ToMTE2(kbGmOffset);
+            cubeCompute_.CopyMxScaleGmToL1(offsetParam, kbGmOffset);
         }
-        cubeCompute_.CopyAAndBiasGmToL1(offsetParam, kbL1Offset, kbL1RealSize, offsetParam.nL1Size, cvLoopIdx_);
+        cubeCompute_.WaitMTE1ToMTE2(kbGmOffset, offsetParam);
+        cubeCompute_.CopyAAndBiasGmToL1(offsetParam, kbGmOffset, cvLoopIdx_);
         WaitAivToAic();
-        cubeCompute_.LaunchMatmul(weightL1_[(cvLoopIdx_ & 1) * weightL1DbOffset_], kbL1Offset, kbL1RealSize,
-                                  offsetParam, cvLoopIdx_);  // mte1 mmad fixp流水
-        cubeCompute_.SetMTE1ToMTE2(cvLoopIdx_);
+        cubeCompute_.LaunchMatmul(weightL1_[(cvLoopIdx_ & 1) * weightL1DbOffset_], kbGmOffset, kbL1RealSize, cvLoopIdx_,
+                                  offsetParam); // mte1 mmad fixp流水
+        cubeCompute_.SetMTE1ToMTE2(kbGmOffset, offsetParam);
+        if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
+            cubeCompute_.SetScaleMTE1ToMTE2(kbGmOffset, offsetParam);
+        }
         SetAicToAiv();
     }
     cubeCompute_.GetTensorC(offsetParam);
@@ -345,7 +356,7 @@ GMM_WQ_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_BASIC_BLOCK_CLASS::End(const BasicBlockOffsetParam &offsetParam)
 {
     if ASCEND_IS_AIC {
-        cubeCompute_.EndSync(cvLoopIdx_);
+        cubeCompute_.EndSync();
     } else {
         if (cvLoopIdx_ > 0) {
             WaitAicToAiv();

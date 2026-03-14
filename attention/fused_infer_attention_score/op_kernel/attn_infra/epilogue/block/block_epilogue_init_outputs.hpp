@@ -11,6 +11,7 @@
 #ifndef EPILOGUE_BLOCK_BLOCK_EPILOGUE_INIT_OUTPUTS_HPP
 #define EPILOGUE_BLOCK_BLOCK_EPILOGUE_INIT_OUTPUTS_HPP
 
+#include <limits>
 #include "../../../attn_infra/base_defs.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
@@ -49,7 +50,10 @@ public:
     static constexpr uint32_t UB_UINT8_BLOCK_SIZE = 16384;
 
     __aicore__ inline
-    BlockEpilogue(Arch::Resource<ArchTag> &resource)
+    BlockEpilogue() {}
+
+    __aicore__ inline
+    void init(Arch::Resource<ArchTag> &resource)
     {
         // Allocate UB space
         constexpr uint32_t ATTN_OUT_INIT_UB_TENSOR_OFFSET = 0;

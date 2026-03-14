@@ -38,15 +38,15 @@ constexpr size_t DIM_THREE = 3;
 // 轴信息
 constexpr size_t AXIS_TWO = 2;
 // rankSize有效值
-const std::set<int> SUPPORT_RANK_SIZE = {2, 4, 8, 16, 32};
+const std::vector<int> SUPPORT_RANK_SIZE = {2, 4, 8};
 
 struct QuantAllReduceShapeInfo {
-    uint64_t b;
-    uint64_t s;
-    uint64_t bs;
-    uint64_t hiddenSize;
+    int64_t b;
+    int64_t s;
+    int64_t bs;
+    int64_t hiddenSize;
     uint64_t xDim;
-    uint64_t rankNum;
+    int64_t rankNum;
 };
 
 /**
@@ -91,8 +91,9 @@ static ge::graphStatus GetRankSize(gert::InferShapeContext* context, QuantAllRed
     // 通过attr获取卡数
     const int *rankSize = attrs->GetAttrPointer<int>(WORLD_SIZE_INDEX);
     OP_LOGE_IF(rankSize == nullptr, ge::GRAPH_FAILED, context->GetNodeName(), "Get rank_size failed in quant_all_reduce");
-    OP_TILING_CHECK(SUPPORT_RANK_SIZE.find(*rankSize) == SUPPORT_RANK_SIZE.end(),
-                    OP_LOGE(INNER_DEBUG, "Rank size must be 2/4/8/16/32, but the actual value is %ld", *rankSize),
+    OP_TILING_CHECK(std::find(SUPPORT_RANK_SIZE.begin(), SUPPORT_RANK_SIZE.end(), *rankSize) >= SUPPORT_RANK_SIZE.end(),
+                    OP_LOGE(INNER_DEBUG, "Rank size must be in %s, but the actual value is %ld",
+                    VectorToString(SUPPORT_RANK_SIZE).c_str(), *rankSize),
                     return ge::GRAPH_FAILED);
 
     shapeInfo.rankNum = *rankSize;

@@ -285,8 +285,21 @@ namespace MC2Tiling {
 
 bool MatmulAlltoAllTiling910B::IsCapable()
 {
-    OP_LOGI(opName_, "Start with MatmulAllToAll tiling.");
-    return true;
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,         \
+ 	    OP_LOGE(opName_, "fail to get platform info"),  \
+ 	    return false);
+ 	fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+ 	std::string socVersionStr;
+ 	(void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+ 	OP_LOGD(opName_, "Current SocVersion is : %s", socVersionStr.c_str());
+ 	QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+ 	if (socVersionStr == "Ascend910B") {
+ 	    OP_LOGI(opName_, "Start with MatmulAllToAll tiling.");
+ 	    return true;
+ 	}
+ 	OP_LOGD(opName_, "Skip MatmulAlltoAllTiling910b tiling when the SocVersion is unsupported.");
+ 	return false;
 }
 
 /**
@@ -635,6 +648,10 @@ ge::graphStatus MatmulAlltoAllTiling910B::DoMmCommTiling(CoCTiling &cocTilingDat
 
 ge::graphStatus MatmulAlltoAllTiling910B::DoOpTiling()
 {
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    auto ret = context_->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret);
     // 1. tilingData
     MatmulAlltoAllTilingData *tilingData = context_->GetTilingData<MatmulAlltoAllTilingData>();
     OPS_CHECK(tilingData == nullptr, OPS_REPORT_VECTOR_INNER_ERR(opName_, "tilingData is nullptr."),

@@ -24,7 +24,7 @@ using AscendC::QuePosition;
 namespace regbaseutil {
 constexpr uint16_t regBytes = 256;
 constexpr int64_t MAX_PRE_NEXT_TOKENS = 0x7FFFFFFF;
-enum class VselrIndexEnum {GT_64_AND_LTE_128_INDEX = 0, GT_0_AND_LTE_64_INDEX = 1, DN_INDEX = 2};
+enum class VselrIndexEnum {GT_64_AND_LTE_128_INDEX = 0, GT_0_AND_LTE_64_INDEX = 1, DN_INDEX = 2, NZ_INDEX = 3};
 enum class DTemplateType {
     Aligned16 = 16,
     Aligned32 = 32,
@@ -47,6 +47,7 @@ enum class S1TemplateType {
     Aligned64 = 64,
     Aligned128 = 128,
     Aligned256 = 256,
+    Aligned512 = 512,
     NotAligned,
 };
 
@@ -103,6 +104,7 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     COMMON_RUN_PARAM;
     /* 推理新增 */
     int64_t s1LoopTimes;
+    int64_t gS1Idx;
     // BN循环生产的数据
     int64_t s2InCurrentBatch;                 // Tensorlist场景，不同batch的S2长度，后续用计算KvStride
     int64_t preTokensPerBatch = MAX_PRE_NEXT_TOKENS; // 左上顶点的pretoken
@@ -165,6 +167,8 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     int64_t multiCoreInnerIdx = 0; \
     \
     int64_t attentionOutOffset; \
+    uint64_t s1ScaleNumAcc; \
+    uint64_t s2ScaleNumAcc; \
     int64_t s1SizeAcc; /* 对于非TND场景 = boIdx * pseInfo.s2Size; TND场景等于前面boIdx个batch的s2之和（每个batch的s2不同）*/ \
     int64_t s2SizeAcc; /* 对于非TND场景 = boIdx * pseInfo.s2Size; TND场景等于前面boIdx个batch的s2之和（每个batch的s2不同）*/ \
     int64_t actualS1Size; /* 非TND场景=总s1Size, Tnd场景下当前batch对应的s1 */ \
@@ -191,9 +195,11 @@ template <>
 struct RunInfo<true> {
     COMMON_RUN_INFO;
     // 推理新增
+    int64_t gS1Idx;
     uint64_t pseShiftOffset;              // vector1 pse 的 offset
     int64_t queryLeftPaddingSize;
     int64_t kvLeftPaddingSize;
+    int64_t actualSeqLengthOfMlaPerBatch = 0; // 在mla场景下Q的actualSeqLength
     // lse 输出offset
     int64_t softmaxLseOffset;
 
@@ -288,7 +294,8 @@ struct RunInfo<false> {
     float keepProb; \
     float scaleValue; \
     int64_t matmulMSize;     /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */ \
-    bool learnableSinkFlag = false /* attentionsink */
+    bool learnableSinkFlag = false; /* attentionsink */ \
+    float pScale
 
 
 #define ROPE_INFO \
@@ -438,6 +445,7 @@ struct CVSharedParams<false, false> {
     CV_SHARED_PARAMS;
     int64_t firstFullLoadS1OuterIdx;
     int64_t totalSize;
+    float scaleValue;
 };
 
 /* CVSharedParams需要小于等于CacheLine的大小：128Bytes */

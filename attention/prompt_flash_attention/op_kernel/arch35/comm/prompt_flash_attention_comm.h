@@ -42,9 +42,9 @@ constexpr uint32_t DSIZE_CONST_256 = 256;
 constexpr uint32_t DSIZE_CONST_512 = 512;
 constexpr uint32_t DSIZE_CONST_576 = 576;
 
-constexpr static uint32_t PFA_NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr static uint32_t PFA_NEGATIVE_MIN_VAULE_FP16 = 0xC77FE000;
-constexpr static uint32_t NEGATIVE_MAX_VAULE_FP32 = 0x7F7FFFFF;
+constexpr static uint32_t PFA_NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t PFA_NEGATIVE_MIN_VALUE_FP16 = 0xC77FE000;
+constexpr static uint32_t NEGATIVE_MAX_VALUE_FP32 = 0x7F7FFFFF;
 
 constexpr static int64_t SPARSE_MODE_INT_MAX = 2147483647;
 
@@ -373,7 +373,7 @@ constexpr MatmulConfig CFG_SAMEB_G_64_S2_128_D512 = GetPFACustomConfig(
 
 struct ConstParam {
     int64_t tmpBlockIdx;
-    uint32_t subBlockIdx; // 单个blockDim中vectorCore编号: 0或者1
+    uint32_t subBlockIdx; // 单个numBlocks中vectorCore编号: 0或者1
 
     int32_t sIdStart;        // 分核后，单个核batch的开始idx
     int32_t sIdEnd;          // 分核后，单个核batch的结束idx

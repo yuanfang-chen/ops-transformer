@@ -74,13 +74,13 @@ bool Mc2WeightQuantBatchMatmulV2TilingAS::IsCapable()
 {
     OP_TILING_CHECK(
         matmulInfoPtr_->antiQuantScaleDtype == ge::DT_UINT64,
-        OP_LOGE(opName_, "ascend950 does not support antiQuantScaleDtype is uint64."),
+        OP_LOGE(opName_, "NpuArch 3510 does not support antiQuantScaleDtype is uint64."),
         return false);
     OP_TILING_CHECK(
         (matmulInfoPtr_->bDtype == ge::DT_INT4 && matmulInfoPtr_->bFormat == ge::FORMAT_FRACTAL_NZ) &&
             (matmulInfoPtr_->transA || matmulInfoPtr_->transB),
         OP_LOGE(
-            opName_, "ascend950 does not support A16W4 transA or transB when weight's layout is FRACTAL_NZ."),
+            opName_, "NpuArch 3510 does not support A16W4 transA or transB when weight's layout is FRACTAL_NZ."),
         return false);
 
     // PS 从RegBase模板迁移的场景: pergroup int4 Nz groupsize(32, 64, 128, 256)
@@ -127,7 +127,7 @@ ge::graphStatus Mc2WeightQuantBatchMatmulV2TilingAS::DoOpTiling()
         InstantiateTilingData() == ge::GRAPH_FAILED,
         OP_LOGE(opName_, "unable to get pointer of tiling data"), return ge::GRAPH_FAILED);
     if (compileInfoPtr_->socVersion != SocVersion::ASCEND910_55) {
-        // 910D上默认给L1的n轴大小为256
+        // 950上默认给L1的n轴大小为256
         l1NMaxSize_ = 256UL;
     } else {
         // 910_55上默认给L1的n轴大小转置情况下为128，非转置情况下为256

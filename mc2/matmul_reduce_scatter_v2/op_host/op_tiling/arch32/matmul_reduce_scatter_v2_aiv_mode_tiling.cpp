@@ -542,7 +542,7 @@ static ge::graphStatus MatmulReduceScatterV2CheckAttrAndSetTiling(gert::TilingCo
     OP_TILING_CHECK(attrs == nullptr, VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "AivMode attrs is null."),
                     return ge::GRAPH_FAILED);
 
-    // todo：Attr相关tilingdata的设置、校验、打印
+    // Attr相关tilingdata的设置、校验、打印
     auto groupPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
     auto is_trans_a = attrs->GetAttrPointer<bool>(ATTR_IS_TRANS_A);
     auto is_trans_b = attrs->GetAttrPointer<bool>(ATTR_IS_TRANS_B);
@@ -1083,6 +1083,11 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
 {
     OP_LOGI("Enter MatmulReduceScatterV2 aivMode tiling func.");
 
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    auto ret = context->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret); 
+
     // 1. tilingData
     MatmulReduceScatterV2AivModeTilingData *tilingData =
         context->GetTilingData<MatmulReduceScatterV2AivModeTilingData>();
@@ -1201,7 +1206,6 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
                 "mc2CcTilingConfig mc2CcTiling GetTiling failed."),
             return ge::GRAPH_FAILED);
     }
-
 
     OP_LOGI("Leave MatmulReduceScatterV2AivMode tiling func.");
     return ge::GRAPH_SUCCESS;
