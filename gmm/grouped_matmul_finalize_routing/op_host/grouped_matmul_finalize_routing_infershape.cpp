@@ -220,7 +220,7 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
     auto attrs = context->GetAttrs();
     auto shape_out = context->GetOutputShape(0);
     shape_out->SetDimNum(twoDimNum);
-    const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
+    const int *output_bs = attrs->GetAttrPointer<int64_t>(outputBSAttrIndex);
     OP_CHECK_IF(output_bs == nullptr,
         OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is not given."), return ge::GRAPH_FAILED);
     if (output_bs != nullptr) {
@@ -237,7 +237,7 @@ static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const char* 
     auto shape_out = context->GetOutputShape(0);
     
     shape_out->SetDimNum(twoDimNum);
-    const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
+    const int *output_bs = attrs->GetAttrPointer<int64_t>(outputBSAttrIndex);
     
     if (output_bs != nullptr) {
         shape_out->SetDim(0, *output_bs);

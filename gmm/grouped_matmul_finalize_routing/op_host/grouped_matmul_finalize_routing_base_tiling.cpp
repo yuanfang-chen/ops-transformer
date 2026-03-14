@@ -138,8 +138,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::ParseAttr()
 
     // 存在sharedInput为空的情况
     if (context_->GetOptionalInputDesc(SHARE_INPUT_INDEX) != nullptr &&
-        attrs->GetAttrPointer<int>(SHARED_INPUT_OFFSET_INDEX) != nullptr) {
-        sharedInputOffset_ = *attrs->GetAttrPointer<int>(SHARED_INPUT_OFFSET_INDEX);
+        attrs->GetAttrPointer<int64_t>(SHARED_INPUT_OFFSET_INDEX) != nullptr) {
+        sharedInputOffset_ = *attrs->GetAttrPointer<int64_t>(SHARED_INPUT_OFFSET_INDEX);
     } else {
         sharedInputOffset_ = 0;
     }
@@ -151,8 +151,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::ParseAttr()
         return ge::GRAPH_FAILED;
     }
 
-    if (attrs->GetAttrPointer<int>(BATCH_INDEX) != nullptr) {
-        batch_ = *attrs->GetAttrPointer<int>(BATCH_INDEX);
+    if (attrs->GetAttrPointer<int64_t>(BATCH_INDEX) != nullptr) {
+        batch_ = *attrs->GetAttrPointer<int64_t>(BATCH_INDEX);
     } else {
         OP_LOGE(context_->GetNodeName(), "Attr BATCH is None.");
         return ge::GRAPH_FAILED;

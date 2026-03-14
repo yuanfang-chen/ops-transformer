@@ -464,7 +464,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(attr == nullptr, OP_LOGE(context->GetNodeName(), "attr is nullptr."), return false);
     const bool *transposeWeightPtr = attr->GetAttrPointer<bool>(ATTR_TRANS_W_IDX);
     const bool *transposeXPtr = attr->GetAttrPointer<bool>(ATTR_TRANS_X_IDX);
-    const int32_t *groupTypePtr = attr->GetAttrPointer<int32_t>(ATTR_GROUPTYPE_IDX);
+    const int32_t *groupTypePtr = attr->GetAttrPointer<int64_t>(ATTR_GROUPTYPE_IDX);
     const int64_t *splitItemPtr = attr->GetAttrPointer<int64_t>(ATTR_SPLIT_ITEM_IDX);
     const uint32_t *groupListTypePtr = attr->GetAttrPointer<uint32_t>(ATTR_GROUP_LIST_TYPE_IDX);
     transA_ = transposeXPtr != nullptr ? *transposeXPtr : false;

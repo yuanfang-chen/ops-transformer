@@ -268,9 +268,9 @@ ge::graphStatus TilingComputeDropPad(gert::TilingContext* context)
 {
     auto attrPtr = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrPtr);
-    const int32_t* ptokenNum = attrPtr->GetAttrPointer<int32_t>(1);
+    const int32_t* ptokenNum = attrPtr->GetAttrPointer<int64_t>(1);
     int32_t tokenNum = *ptokenNum;
-    const int32_t* pExpertsNum = attrPtr->GetAttrPointer<int32_t>(0);
+    const int32_t* pExpertsNum = attrPtr->GetAttrPointer<int64_t>(0);
     int32_t expertsNum = *pExpertsNum;
     const gert::StorageShape* tokensShape = context->GetInputShape(0);
     OP_CHECK_NULL_WITH_CONTEXT(context, tokensShape);
@@ -318,7 +318,7 @@ static inline ge::graphStatus Tiling4MoeTokenPermuteWithRoutingMapGrad(gert::Til
         const gert::StorageShape* tokensShape = context->GetInputShape(0);
         OP_CHECK_NULL_WITH_CONTEXT(context, tokensShape);
 
-        const int32_t* ptokenNum = attrPtr->GetAttrPointer<int32_t>(1);
+        const int32_t* ptokenNum = attrPtr->GetAttrPointer<int64_t>(1);
         int32_t tokenNum = *ptokenNum;
         int32_t topk = safeDiv(tokensShape->GetStorageShape().GetDim(0), tokenNum);
         if (topk > MAX_TOPK_NUM) {
