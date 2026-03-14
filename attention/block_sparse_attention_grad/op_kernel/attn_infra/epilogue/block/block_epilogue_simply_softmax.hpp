@@ -451,10 +451,6 @@ public:
         }
 
         AscendC::PipeBarrier<PIPE_ALL>();
-        for (uint32_t i = 0; i < 64*128; i++) {
-            printf("pGm[%d] = %f \n", i, static_cast<float>(pGm.GetValue(i)));
-        }
-        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     /*
