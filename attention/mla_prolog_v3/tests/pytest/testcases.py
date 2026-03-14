@@ -105,3 +105,7 @@ FUZZ_PARAMS = TEST_PARAMS["fuzz_default"]
 FUZZ_ENABLED = os.environ.get("MLA_PROLOG_V3_ENABLE_FUZZ", "0") == "1"
 FUZZ_CASES = int(os.environ.get("MLA_PROLOG_V3_FUZZ_CASES", "20"))
 FUZZ_SEED = int(os.environ.get("MLA_PROLOG_V3_FUZZ_SEED", "42"))
+
+# 成对覆盖测试参数（由 gen_coverage_testcases 生成）
+from gen_coverage_testcases import generate_coverage_params
+COVERAGE_PARAMS = generate_coverage_params()

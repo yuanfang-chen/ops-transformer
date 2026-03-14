@@ -1227,16 +1227,24 @@ def build_mla_param(params):
         kr_cache_dtype = torch.bfloat16
         kr_cache_dtype_str = 'bfloat16'
 
+    # --- Read t_flag from params ---
+    t_flag = params.get('t_flag', True)
+
     # --- Create input tensors (on CPU) ---
-    token_x = _create_tensor((T, He), x_dtype, generator)
+    if t_flag:
+        token_x = _create_tensor((T, He), x_dtype, generator)
+        rope_sin = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
+        rope_cos = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
+    else:
+        token_x = _create_tensor((B, S1, He), x_dtype, generator)
+        rope_sin = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
+        rope_cos = torch.randn(B, S1, DR, dtype=torch.bfloat16, generator=generator)
     w_dq = _create_tensor((He, HCQ), w_dq_dtype, generator)
     w_uq_qr = _create_tensor((HCQ, N1 * (D + DR)), w_uq_qr_dtype, generator)
     w_uk = _create_tensor((N1, D, HCKV), w_uk_dtype, generator)
     w_dkv_kr = _create_tensor((He, HCKV + DR), w_dkv_kr_dtype, generator)
     gamma_cq = torch.randn(HCQ, dtype=torch.bfloat16, generator=generator)
     gamma_ckv = torch.randn(HCKV, dtype=torch.bfloat16, generator=generator)
-    rope_sin = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
-    rope_cos = torch.randn(T, DR, dtype=torch.bfloat16, generator=generator)
 
     # --- Cache setup ---
     block_num = math.ceil(T / block_size)
@@ -1250,19 +1258,38 @@ def build_mla_param(params):
     if kv_quant_mode == 3 and quant_scale_repo_mode == 1:
         Dtile += HCKV // tile_size * 4
 
-    if cache_mode == "PA_BSND":
+    if cache_mode in ("PA_BSND", "PA_NZ"):
         kv_cache = _create_tensor((block_num, block_size, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
             kr_cache = torch.empty(0)
         else:
             kr_cache = _create_tensor((block_num, block_size, N2, DR), kr_cache_dtype, generator)
+        cache_index = torch.arange(T, dtype=torch.int64)
+    elif cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
+        pages_per_batch = math.ceil(S2 / block_size)
+        total_blocks = B * pages_per_batch
+        kv_cache = _create_tensor((total_blocks, block_size, N2, Dtile), kv_cache_dtype, generator)
+        if ckvkr_repo_mode == 1:
+            kr_cache = torch.empty(0)
+        else:
+            kr_cache = _create_tensor((total_blocks, block_size, N2, DR), kr_cache_dtype, generator)
+        cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
+    elif cache_mode == "BSND":
+        kv_cache = _create_tensor((B, S2, N2, Dtile), kv_cache_dtype, generator)
+        if ckvkr_repo_mode == 1:
+            kr_cache = torch.empty(0)
+        else:
+            kr_cache = _create_tensor((B, S2, N2, DR), kr_cache_dtype, generator)
+        cache_index = None
+    elif cache_mode == "TND":
+        kv_cache = _create_tensor((T, N2, Dtile), kv_cache_dtype, generator)
+        if ckvkr_repo_mode == 1:
+            kr_cache = torch.empty(0)
+        else:
+            kr_cache = _create_tensor((T, N2, DR), kr_cache_dtype, generator)
+        cache_index = None
     else:
-        # Default: BSND/TND non-PA modes
-        kv_cache = _create_tensor((B, S2, N2, HCKV), kv_cache_dtype, generator)
-        kr_cache = _create_tensor((B, S2, N2, DR), kr_cache_dtype, generator)
-
-    # cache_index: sequential for simplicity
-    cache_index = torch.arange(T, dtype=torch.int64)
+        raise ValueError(f"Unsupported cache_mode: {cache_mode}")
 
     # --- Dequant/quant scale tensors ---
     deq_scale_x = torch.ones(1, dtype=torch.float32)
@@ -1312,13 +1339,18 @@ def build_mla_param(params):
     flaglist[22] = 1 if qnorm_flag else 0
     # flag[23]: deq_scale_q_norm output
     flaglist[23] = 1 if (qnorm_flag and weight_quant_mode in [1, 2, 3]) else 0
-    # flag[24]: actual_seq_len
-    flaglist[24] = 0  # BSND mode, not needed
+    # flag[24]: actual_seq_len (needed for PA_BLK modes)
+    flaglist[24] = 1 if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ") else 0
     flaglist_bool = str_to_bool_list(flaglist)
 
-    # --- PA flag / t_flag ---
+    # --- PA flag ---
     pa_flag = "PA" in cache_mode
-    t_flag = True  # token_x is 2D (T, He)
+
+    # --- actual_seq_len for PA_BLK modes ---
+    if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
+        actual_seq_len = torch.tensor([S1] * B, dtype=torch.int64)
+    else:
+        actual_seq_len = None
 
     # --- Output shapes (for enable_quant_output) ---
     enable_quant_output = (query_quant_mode == 1 and weight_quant_mode in [2, 3])
@@ -1331,7 +1363,7 @@ def build_mla_param(params):
         "T": T, "block_size": block_size, "cache_mode": cache_mode,
         "qnorm_flag": qnorm_flag,
         "flaglist": flaglist_bool,
-        "actual_seq_len": None,
+        "actual_seq_len": actual_seq_len,
         # Tensor fields
         "x_tensor": token_x, "x_dtype": x_dtype_str,
         "w_dq_tensor": w_dq, "w_dq_dtype": str(w_dq.dtype).replace("torch.", ""),
@@ -1395,7 +1427,7 @@ def build_mla_param(params):
         "quant_scale_ckr": quant_scale_ckr if kv_quant_mode in [1, 2] else None,
         "smooth_scales_cq": smo_scale_cq,
         "k_nope_clip_alpha": k_nope_clip_alpha if kv_quant_mode == 3 else None,
-        "actual_seq_len": None,
+        "actual_seq_len": actual_seq_len,
     }
 
     return mla_param, npu_inputs
