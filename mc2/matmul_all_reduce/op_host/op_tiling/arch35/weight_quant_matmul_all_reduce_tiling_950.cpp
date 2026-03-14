@@ -22,7 +22,8 @@
 using namespace Mc2Tiling;
 namespace optiling {
 constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
-
+constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 bool WeightQuantMatmulAllReduceTilingA5::IsCapable()
 {
     if (isA16W8_ || isA16W4_) {
@@ -239,27 +240,25 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
 
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P()
 {
-    uint64_t commFp16WorkSpace = 0UL;
-    uint64_t commFp16Len = 0UL;
+    uint64_t commWorkSpace = 0UL;
+    uint64_t commLen = 0UL;
     uint64_t cgmPadLen = 0UL;
     uint64_t tileM = MutableTCubeTileTilingData().M;
     uint64_t tailM = MutableTCubeTailTilingData().M;
     uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
     uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
 
-    commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-    cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
-    commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
+    commLen = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
+    cgmPadLen = (args_.rankDim - commLen % args_.rankDim) % args_.rankDim;
+    commWorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
                         tempTailSize * MutableRCSTilingData().tailCnt +
                         cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
-    OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+    OP_LOGI(opName_, "WeightQuantMatmulAllReduceTilingA5 Set commWorkSpace size=%lu to context.", commWorkSpace);
     
     // MatMul输出存储+alltoall输出存储+reduceSum输出存储
-    if (cgmPadLen == 0) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
-    } else {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
-    }
+    uint64_t workspaceSizeCount = cgmPadLen ? STANDARD_CARD_CGMPAD_WORKSPACE_CNT : STANDARD_CARD_WORKSPACE_CNT;
+    myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * workspaceSizeCount + commWorkSpace / args_.rankDim;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -457,26 +456,24 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommTwoShot(const cha
 
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 {
-
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     OP_TILING_CHECK(
         mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
         VECTOR_INNER_ERR_REPORT_TILING(
             opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return ge::GRAPH_FAILED);
-    const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-
+    const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     if (isStandardCard4P) {
         OP_TILING_CHECK(
             SetMc2HcommTwoShot(groupName, reduceType) != ge::GRAPH_SUCCESS,
-            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommTwoShot failed."),
+            OP_LOGE(opName_, "WeightQuantMatmulAllReduceTilingA5 set Mc2Hcomm config By SetMc2HcommTwoShot failed."),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(
             SetMc2HcommAllReduce(groupName, reduceType) != ge::GRAPH_SUCCESS,
-            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommAllReduce failed."),
+            OP_LOGE(opName_, "WeightQuantMatmulAllReduceTilingA5 set Mc2Hcomm config By SetMc2HcommAllReduce failed."),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
