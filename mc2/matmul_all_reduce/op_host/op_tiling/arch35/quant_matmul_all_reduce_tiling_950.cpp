@@ -27,6 +27,8 @@ constexpr uint64_t HCOMM_CNT = 2;
 constexpr uint64_t INT8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP32_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
+constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
@@ -333,26 +335,22 @@ void QuantMatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
 }
 ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P(const uint64_t gmcFloat)
 {
-    uint64_t commFp16Len = 0UL;
+    uint64_t commLen = 0UL;
     uint64_t cgmPadLen = 0UL;
-    uint64_t commFp16WorkSpace = 0UL;
+    uint64_t commWorkSpace = 0UL;
 
-    uint64_t tileM = MutableTCubeTileTilingData().M;
-    uint64_t tailM = MutableTCubeTailTilingData().M;
-    uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
-    uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
-    commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-    cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
-    commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
-                            tempTailSize * MutableRCSTilingData().tailCnt +
-                            cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
-    OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+    uint64_t rankM = static_cast<uint64_t>(MutableRCSTilingData().rankM);
+    uint64_t rankN = static_cast<uint64_t>(MutableRCSTilingData().rankN);
+    commLen = rankM * rankN;
+    cgmPadLen = (args_.rankDim - commLen % args_.rankDim) % args_.rankDim;
+    commWorkSpace = (commLen + cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
+    OP_LOGI(opName_, "Set commWorkSpace size=%lu to context.", commWorkSpace);
 
     myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat;
     if (cgmPadLen == 0) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
+        myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * STANDARD_CARD_WORKSPACE_CNT + commWorkSpace / args_.rankDim;
     } else {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
+        myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * STANDARD_CARD_CGMPAD_WORKSPACE_CNT + commWorkSpace / args_.rankDim;
     }
     return ge::GRAPH_SUCCESS;
 }
