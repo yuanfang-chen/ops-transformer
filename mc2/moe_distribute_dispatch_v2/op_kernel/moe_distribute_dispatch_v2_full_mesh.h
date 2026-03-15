@@ -1290,10 +1290,13 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     uint32_t srcExpRankId, dstPosition, arriveCount, copyCnt, srcDataBlockIdx;
     uint32_t flagMaxRecvNum = (blockCntPerToken_ * maxCopyTokenCnt * UB_ALIGN) / sizeof(uint32_t);
     uint32_t gatherOutSize = Ceil(blockCntPerToken_ * maxCopyTokenCnt * sizeof(uint32_t), SIZE_ALIGN_256) * SIZE_ALIGN_256;
-    GlobalTensor<int32_t> cleanGlobal;
+    GlobalTensor<float> cleanGlobal;
     flagGatherOutTensor_ = tBuf.GetWithOffset<float>(gatherOutSize / sizeof(float), 0); // buf复用
     flagRecvTensor_ = tBuf.GetWithOffset<float>(flagMaxRecvNum, gatherOutSize);  // buf复用
+    LocalTensor<float> cleanTensor = tBuf.GetWithOffset<float>(UB_ALIGN / sizeof(float), gatherOutSize + flagMaxRecvNum * sizeof(uint32_t)); // buf复用
     LocalTensor<int32_t> xOutInt32Tensor = xTmpTensor_.template ReinterpretCast<int32_t>();
+    DataCopyExtParams cleanUpParams = {uint16_t(1), UB_ALIGN, 0U, 0U, 0U};
+    Duplicate<float>(cleanTensor, float(0), UB_ALIGN_DATA_COUNT);
     while (true) {
         if (expertLeftNumTensor_(index) == 0) { // 当前核负责的不需要收集
             index = (index + 1) % validNum; // 轮询查询每个有效的index
@@ -1313,13 +1316,12 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
             expertLeftNumTensor_(index) -= arriveCount;
             if (expertLeftNumTensor_(index) == 0) {
                 uint32_t cleanUpNum = expertFinishNumTensor_(index) * blockCntPerToken_;
-                DataCopyExtParams cleanUoParams = {uint16_t(cleanUpNum), sizeof(int32_t), 0U, SPLIT_BLOCK_SIZE - sizeof(int32_t), 0U};
-                LocalTensor<int32_t> cleanTensor = tBuf.GetWithOffset<int32_t>(UB_ALIGN / sizeof(int32_t), 0); // 在0偏移位置存放比较结果
-                cleanGlobal.SetGlobalBuffer((__gm__ int32_t *)(wAddr));
-                SyncFunc<AscendC::HardEvent::MTE3_V>();
-                Duplicate<int32_t>(cleanTensor, 0, UB_ALIGN_DATA_COUNT);
-                SyncFunc<AscendC::HardEvent::V_MTE3>();
-                DataCopyPad(cleanGlobal[SPLIT_BLOCK_DATA_SIZE / sizeof(int32_t)], cleanTensor, cleanUoParams);
+                cleanGlobal.SetGlobalBuffer((__gm__ float *)(wAddr));
+                PipeBarrier<PIPE_MTE3>();
+                for (uint32_t i = 0; i < cleanUpNum; i++){
+                    uint32_t flagIndex = i * SPLIT_BLOCK_SIZE / sizeof(float) + SPLIT_BLOCK_DATA_SIZE / sizeof(float);
+                    DataCopyPad(cleanGlobal[flagIndex], cleanTensor, cleanUpParams);
+                }
                 finishNum++;
             }
             PipeBarrier<PIPE_ALL>();
