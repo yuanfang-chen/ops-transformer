@@ -179,6 +179,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &tok
         sparseBlockCount = constInfo.oriSparseBlockCount;
     } else if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_CMP_SCFA_TEMPLATE_MODE) {
         sparseBlockCount = runInfo.isCmp ? constInfo.cmpSparseBlockCount : constInfo.oriSparseBlockCount;
+        cmpS2LoopCnt = runInfo.isCmp ? (cmpS2LoopCnt - runInfo.oriKvLoopEndIdx) : cmpS2LoopCnt;
     }
     int64_t topkBS1Idx = 0;
     if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
@@ -189,7 +190,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &tok
             runInfo.s1oIdx * sparseBlockCount; // B, S1, N2(1), K
     }
     int64_t curSparseBlockCount = sparseBlockCount;
-    curSparseBlockCount = runInfo.isCmp ? runInfo.oriSparseBlockCount : runInfo.cmpSparseBlockCount;
+    curSparseBlockCount = runInfo.isCmp ? runInfo.cmpSparseBlockCount : runInfo.oriSparseBlockCount;
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
     if (unlikely(topkKIdx >= curSparseBlockCount)) {
         token0Data = -1;

@@ -153,7 +153,11 @@ void KvQuantSASTilingCheck::Init()
             perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
         }
     } else if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
-        perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+        if (opParamInfo_.oriSparseIndices.tensor != nullptr) {
+            perfMode_ = SASTemplateMode::ORI_CMP_SCFA_TEMPLATE_MODE;
+        } else {
+            perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+        }
     } else {
         perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
     }

@@ -235,14 +235,6 @@ __aicore__ inline bool ComputeS2LoopInfo(int64_t bnIndex, int64_t gS1Index, __gm
     runParam.cmpSparseBlockCount = hasCmpTopkLength ? cmpTopkLengthGm.GetValue(runParam.boIdx) :
         constInfo.cmpSparseBlockCount;
 
-    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE || \
-        TEMPLATE_MODE == SASTemplateMode::ORI_CMP_SCFA_TEMPLATE_MODE) {
-        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx, runParam.oriSparseBlockCount);
-        runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
-    } else {
-        runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
-    }
-
     if constexpr (TEMPLATE_MODE == SASTemplateMode::SWA_TEMPLATE_MODE || \
         TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE) {
         runParam.cmpKvLoopEndIdx = 0;
@@ -251,8 +243,16 @@ __aicore__ inline bool ComputeS2LoopInfo(int64_t bnIndex, int64_t gS1Index, __gm
         runParam.s2CmpLineEndIdx = runParam.s2LineEndIdx / constInfo.cmpRatio;
         runParam.cmpKvLoopEndIdx = (runParam.s2CmpLineEndIdx + s2BaseSize - 1) / s2BaseSize;
     } else { // SCFA_TEMPLATE_MODE / ORI_CMP_SCFA_TEMPLATE_MODE
-        runParam.s2CmpLineEndIdx = Min(runParam.s2LineEndIdx / constInfo.cmpRatio, constInfo.cmpSparseBlockCount); // 当前LI输出的block size只可能是1
+        runParam.s2CmpLineEndIdx = Min(runParam.s2LineEndIdx / constInfo.cmpRatio, runParam.cmpSparseBlockCount); // 当前LI输出的block size只可能是1
         runParam.cmpKvLoopEndIdx = (runParam.s2CmpLineEndIdx + s2BaseSize - 1) / s2BaseSize;
+    }
+
+    if constexpr (TEMPLATE_MODE == SASTemplateMode::ORI_SCFA_TEMPLATE_MODE || \
+        TEMPLATE_MODE == SASTemplateMode::ORI_CMP_SCFA_TEMPLATE_MODE) {
+        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx, runParam.oriSparseBlockCount);
+        runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
+    } else {
+        runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
     }
     runParam.s2LoopEndIdx = runParam.oriKvLoopEndIdx + runParam.cmpKvLoopEndIdx;
     return false;
