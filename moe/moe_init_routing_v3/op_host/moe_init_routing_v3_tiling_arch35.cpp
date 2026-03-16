@@ -206,6 +206,7 @@ private:
     MultipleParams GetMultipleParams();
     PerLoopParams GetPerLoopParams(MultipleParams& multipleParams);
     void Tiling4GatherOutCompute();
+    void Tiling4GatherOutStaticQuant();
     void Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
     void Tiling4VMSMiddleCompute();
