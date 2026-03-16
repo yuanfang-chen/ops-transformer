@@ -304,7 +304,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
 
 int32_t SparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize()
 {
-    // 1. 如果seqUsedQ_ 传了，使用seqUsedQ_获取BatchSize
+    // 1. 如果seqUsedQ_传了，使用seqUsedQ_获取BatchSize
     if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
         if (seqUsedQ_->GetTensorShape() != nullptr) {
             return seqUsedQ_->GetTensorShape()->GetDimSize(0);
@@ -325,7 +325,7 @@ int32_t SparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize()
 
 int32_t SparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
 {
-    // 1. 如果 seqUsedKv_ 传了，直接使用
+    // 1. 如果seqUsedKv_传了，使用seqUsedKv_获取BatchSize
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
         if (seqUsedKv_->GetTensorShape() != nullptr) {
             return seqUsedKv_->GetTensorShape()->GetDimSize(0);
@@ -333,14 +333,14 @@ int32_t SparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
     }
     // 2. seqUsedKv_ 没传，判断 Layout
     if (layoutKv_ == "TND") {
-        // 如果是 TND，尝试使用 actSeqLenOriKv_
+        // 如果是 TND，尝试使用 actSeqLenOriKv_获取BatchSize
         if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
             if (actSeqLenOriKv_->GetTensorShape() != nullptr) {
                 return actSeqLenOriKv_->GetTensorShape()->GetDimSize(0) - 1;
             }
         }
     }
-    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 kvSeqSize_
+    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 batchSize_
     return batchSize_;
 }
 

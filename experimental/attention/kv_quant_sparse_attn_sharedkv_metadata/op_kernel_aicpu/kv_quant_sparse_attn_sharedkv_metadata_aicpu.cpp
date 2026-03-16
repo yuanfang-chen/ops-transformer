@@ -128,17 +128,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParamN128()
         return false;
     }
     // layout_kv 校验
-    if (layoutKv_ != "PA_ND" && layoutKv_ != "TND" && layoutKv_ != "BSND") {
-        KERNEL_LOG_ERROR("layout_kv must be TND, BSND or PA_ND!");
-        return false;
-    }
-    // layout交叉校验
-    if (layoutQuery_ == "TND" && layoutKv_ == "BSND") {
-        KERNEL_LOG_ERROR("For layout_query TND, layout_key should be PA_BSND/TND");
-        return false;
-    }
-    if (layoutQuery_ == "BSND" && layoutKv_ == "TND") {
-        KERNEL_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
+    if (layoutKv_ != "PA_ND") {
+        KERNEL_LOG_ERROR("layout_kv must be PA_ND!");
         return false;
     }
     return true;
@@ -155,17 +146,6 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistenceN128()
             return false;
         }
     }
-    // layout_kv TND Tensor 存在性校验
-    // if (layoutKv_ == "TND") {
-    //     if (isInvalid(actSeqLenOriKv_)) {
-    //         KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
-    //         return false;
-    //     }
-    //     if (isValid(seqUsedKv_)) {
-    //         KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
-    //         return false;
-    //     }
-    // }
     // layoutKv_ "PA_ND" 存在性校验
     if (layoutKv_ == "PA_ND") {
         if (isInvalid(seqUsedKv_)) {
@@ -254,17 +234,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
         return false;
     }
     // layout_kv 校验
-    if (layoutKv_ != "PA_ND" && layoutKv_ != "TND" && layoutKv_ != "BSND") {
-        KERNEL_LOG_ERROR("layout_kv must be TND, BSND or PA_ND!");
-        return false;
-    }
-    // layout交叉校验
-    if (layoutQuery_ == "TND" && layoutKv_ == "BSND") {
-        KERNEL_LOG_ERROR("For layout_query TND, layout_key should be PA_BSND/TND");
-        return false;
-    }
-    if (layoutQuery_ == "BSND" && layoutKv_ == "TND") {
-        KERNEL_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
+    if (layoutKv_ != "PA_ND") {
+        KERNEL_LOG_ERROR("layout_kv must be PA_ND!");
         return false;
     }
     return true;
@@ -278,17 +249,6 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence()
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_)) {
             KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
-            return false;
-        }
-    }
-    // layout_kv TND Tensor 存在性校验
-    if (layoutKv_ == "TND") {
-        if (isInvalid(actSeqLenOriKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
-            return false;
-        }
-        if (isValid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
             return false;
         }
     }
@@ -325,7 +285,7 @@ int32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize()
 
 int32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
 {
-    // 1. 如果 seqUsedKv_ 传了，直接使用
+    // 1. 如果seqUsedKv_传了，使用seqUsedKv_获取BatchSize
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
         if (seqUsedKv_->GetTensorShape() != nullptr) {
             return seqUsedKv_->GetTensorShape()->GetDimSize(0);
@@ -333,14 +293,14 @@ int32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
     }
     // 2. seqUsedKv_ 没传，判断 Layout
     if (layoutKv_ == "TND") {
-        // 如果是 TND，尝试使用 actSeqLenOriKv_
+        // 如果是 TND，尝试使用 actSeqLenOriKv_获取BatchSize
         if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
             if (actSeqLenOriKv_->GetTensorShape() != nullptr) {
                 return actSeqLenOriKv_->GetTensorShape()->GetDimSize(0) - 1;
             }
         }
     }
-    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 kvSeqSize_
+    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 batchSize_
     return batchSize_;
 }
 
