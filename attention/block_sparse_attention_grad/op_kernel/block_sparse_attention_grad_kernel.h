@@ -44,6 +44,8 @@ namespace BSA {
     constexpr uint64_t WORKSPACE_BLOCK_SIZE = 128 * 128;
     constexpr uint64_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
     constexpr uint64_t L1_SIZE_OFFSET = 131072;
+    constexpr uint32_t PINGPONG_OFFSET_2 = 2;
+    constexpr uint32_t PINGPONG_OFFSET_4 = 4;
 
     template <
         class BlockMmadBSAG1_,
@@ -141,6 +143,48 @@ namespace BSA {
             uint64_t kvOffset;//K, V, dk, dv
             uint64_t sOffset; //workspace : S, P, dp, ds
         };
+
+        __aicore__ inline void SetFlag() {
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
+            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+        }
+
+        __aicore__ inline void WaitFlag() {
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+        }
 
         __aicore__ inline void UpdateTaskInfoCalQSize(uint32_t blockShapeX, uint32_t basicQBlockSize, TaskInfo &taskInfo) {
             taskInfo.curQBlcokIdx = taskInfo.curQSeqIdx / blockShapeX;
@@ -322,37 +366,23 @@ namespace BSA {
             }
 
             BlockMmadBSAG1 blockMmad1(resource);
-            BlockMmadBSAG2 blockMmad2(resource, L1_SIZE_OFFSET);
-            BlockMmadBSAG3 blockMmad3(resource, L1_SIZE_OFFSET * 2);
+            BlockMmadBSAG2 blockMmad2(resource, L1_SIZE_OFFSET, PINGPONG_OFFSET_2);
+            BlockMmadBSAG3 blockMmad3(resource, L1_SIZE_OFFSET * 2, PINGPONG_OFFSET_4);
             uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
 
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
-            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
-            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
-            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
-            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+            SetFlag();
             for (uint32_t i = 0; i < taskLength; i++) {
                 TaskInfo curInfo = taskInfo[i % 2];
                 LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
+                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
                 blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
                 blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
 
                 uint64_t kvBlockOffset = 0;
+                uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
                     uint64_t kvBlockBasicOffset = 0;
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
@@ -363,9 +393,9 @@ namespace BSA {
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
                             curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
                             if (inputLayout == 0) {
-                                curInfo.kvOffset += (kvBlockOffset + kvBlockBasicOffset) * kvHeads * headDim;
+                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * kvHeads * headDim;
                             } else {
-                                curInfo.kvOffset += (kvBlockOffset + kvBlockBasicOffset) * headDim;
+                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * headDim;
                             }
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
                             LayoutB1 layoutB1(curInfo.curCalKVSize, headDim);
@@ -397,7 +427,8 @@ namespace BSA {
                     }
                     kvBlockOffset += blockShapeY;
                 }
-
+                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
                 if (i != taskLength - 1) {
                     updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
                         blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
@@ -418,25 +449,7 @@ namespace BSA {
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
-
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
-            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
-            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+            WaitFlag();
         }
 
   template <>

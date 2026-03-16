@@ -95,8 +95,9 @@ public:
     static_assert(std::is_same_v<LayoutC, layout::RowMajor>, "LayoutC only support RowMajor yet!");
 
     __aicore__ inline
-    BlockMmad(Arch::Resource<ArchTag> &resource, uint32_t l1BufAddrStart = 0)
+    BlockMmad(Arch::Resource<ArchTag> &resource, uint32_t l1BufAddrStart = 0, uint32_t pingpongFlagOffset = 2)
     {
+        PINGPONG_FLAG_OFFSET = pingpongFlagOffset;
         for (uint32_t i = 0; i < STAGES; i++) {
             l1ATensor[i] = resource.l1Buf.template GetBufferByByte<ElementA>(l1BufAddrStart + L1A_SIZE * i);
             l1BTensor[i] = resource.l1Buf.template GetBufferByByte<ElementB>(l1BufAddrStart + L1A_SIZE * 2 + L1B_SIZE * i);
@@ -122,7 +123,6 @@ public:
         uint32_t nRound = RoundUp<L1BAlignHelper::N_ALIGNED>(actualShape.n());
         uint32_t kRound = RoundUp<L1BAlignHelper::K_ALIGNED>(actualShape.k());
 
-        constexpr uint32_t PINGPONG_FLAG_OFFSET = 2;
         AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(pingpongFlag + PINGPONG_FLAG_OFFSET);
         auto layoutTileB = layoutB.GetTileLayout(MakeCoord(actualShape.k(), actualShape.n()));
         copyGmToL1B(l1BTensor[pingpongFlag], gB, layoutBInL1, layoutTileB);
@@ -183,6 +183,7 @@ protected:
     uint32_t l1BPingPongFlag = 0;
     uint32_t l0CPingPongFlag = 0;
     uint32_t l0ABPingPongFlag = 0;
+    uint32_t PINGPONG_FLAG_OFFSET = 2;
 };
 
 ////////////////////////////////////////////////////////////////////
