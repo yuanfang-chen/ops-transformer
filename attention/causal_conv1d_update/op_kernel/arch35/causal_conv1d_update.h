@@ -450,14 +450,14 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         //=== 更新cachestate ===
         int32_t curBatchSeq = seqLen_;
         int32_t curBatchUbOffset = b * curBatchSeq * dimSizeInLoop_;
+        int64_t yOffset = curBatchIdx * seqLen_ * dim_ + dimOffset_ + dimInnerOffset_;
         if(xInputMode_ == 1) {
             curBatchSeq = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx);
             curBatchUbOffset = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx - b + 1) * dimSizeInLoop_;
+            yOffset =(queryStartLocLocal.GetValue(curBatchIdx) - queryStartLocLocal.GetValue(0)) * dim_ + dimOffset_ + dimInnerOffset_;
         }
         UpdateconvStates(xLocal, convStatesLocal, acceptToken, curBatchUbOffset, convStatesIdx, curBatchSeq);
         InsertSync(HardEvent::MTE2_V);
-
-        int32_t yOffset = curBatchIdx * seqLen_ * dim_ + dimOffset_ + dimInnerOffset_;
 
         // 情况A：序列位置 j ∈ [0, K-2]，需要使用cache state
         for (int32_t j = 0; j < kernelSize_ - 1 && j < curBatchSeq; j++) {
