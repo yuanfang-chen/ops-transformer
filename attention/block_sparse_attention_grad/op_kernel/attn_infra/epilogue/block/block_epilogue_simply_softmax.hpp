@@ -344,19 +344,22 @@ public:
         uint64_t startOffset = 0;
         if constexpr (INPUT_LAYOUT == TND) {
             uint64_t bOffset = n1 * ((__gm__ int64_t *)actualQSeqlen)[curCoreBatch];
-            startOffset = bOffset + curS1 * n1 + curCoreN1Idx;               
-        } else {
-            startOffset = curCoreBatch * (n1 * maxQSeqlen) + curCoreN1Idx * maxQSeqlen + curS1;
-        }
-        // 对于TND 格式来说， 会进行leis (s n) -> (n s) 的transpose转换
-        DataCopyPad(lse, LseGm[startOffset],
+            startOffset = bOffset + curS1 * n1 + curCoreN1Idx;
+            // 对于TND 格式来说， 会进行leis (s n) -> (n s) 的transpose转换
+            DataCopyPad(lseFp32Brc, LseGm[startOffset],
                     {static_cast<uint16_t>(count), static_cast<uint32_t>(1 * sizeof(float)),
                     static_cast<uint32_t>(transpseStride), 0, 0},
                     {false, 0, 0, 0});
-        AscendC::PipeBarrier<PIPE_ALL>();
-
-        uint8_t repeatimes = CeilDiv(count, BRCB_BASE_NUM);
-        Brcb(lseFp32Brc, lse, repeatimes, {1, 8});
+        } else {
+            startOffset = curCoreBatch * (n1 * maxQSeqlen) + curCoreN1Idx * maxQSeqlen + curS1;
+            DataCopyPad(lse, LseGm[startOffset],
+                    {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)),
+                    static_cast<uint32_t>(0), 0, 0},
+                    {false, 0, 0, 0});
+            AscendC::PipeBarrier<PIPE_ALL>();
+            uint8_t repeatimes = CeilDiv(count, BRCB_BASE_NUM);
+            Brcb(lseFp32Brc, lse, repeatimes, {1, 8});
+        }
     }
 
     /*
