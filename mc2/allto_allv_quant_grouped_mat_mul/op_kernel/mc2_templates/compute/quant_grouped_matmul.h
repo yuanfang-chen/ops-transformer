@@ -129,6 +129,17 @@ protected:
         xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * h1_);
         wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * h1_ * n1_);
         yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * n1_);
+
+        // MX 模式：更新 scale 的 per-expert / per-token 偏移
+        if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+            uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
+                Mc2QuantUtils::CeilDiv(h1_, static_cast<uint64_t>(Mc2QuantUtils::MXFP_DIVISOR_SIZE));
+            // scale2 (weight scale, xScaleGM_): per-expert 偏移
+            xScaleGM_ = (GM_ADDR)xScaleGlobalBuffer_.GetPhyAddr(expertIdx * n1_ * scaleK);
+            // scale1 (activation scale, weightScaleGM_): per-token 偏移
+            weightScaleGM_ = (GM_ADDR)wScaleGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * scaleK);
+        }
+
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
