@@ -60,7 +60,7 @@ struct StageThreeParams {
     GlobalTensor<bfloat16_t> attnOut_;
 
     // matmul
-    MT3 *mm3_;
+    StageThreeMT *mm3_;
 
     // Pipe
     TPipe *pipe_;
