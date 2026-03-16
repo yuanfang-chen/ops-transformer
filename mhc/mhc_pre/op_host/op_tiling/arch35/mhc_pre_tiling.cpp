@@ -74,6 +74,11 @@ const constexpr uint32_t OUT_FLAG_H_PRE = 4;
 const constexpr float DEFAULT_NORM_EPS = 1e-6f;
 const constexpr float DEFAULT_HC_EPS = 1e-6f;
 
+const constexpr uint64_t DECODE_BS_THRESHOLD = 512;
+const constexpr uint32_t DECODE_CHUNK_T_SIZE = 2;
+const constexpr uint32_t DECODE_ALIGN_16 = 16;
+const constexpr size_t DECODE_WORKSPACE_ALIGN = 32;
+
 REGISTER_OPS_TILING_TEMPLATE(MhcPre, MhcPreBaseTiling, 1000);
 
 ge::graphStatus MhcPreBaseTiling::GetInputShape()
@@ -91,7 +96,6 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
     hasGamma_ = (gammaTensor == nullptr) ? 0 : 1;
 
     auto xDims = xTensor->GetStorageShape().GetDimNum();
-    auto phiDims = phiTensor->GetStorageShape().GetDimNum();
 
     if (xDims == BSND_DIM_NUM) {
         return ParseBsndFormat(xTensor);
@@ -161,12 +165,24 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 
     matM_ = totalLength_;
     matN_ = phiTensor->GetStorageShape().GetDim(0);
-    chunkTSize_ = (((totalLength_ + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR) + CHUNK_T_CALC_FACTOR - 1) *
-                  CHUNK_T_CALC_FACTOR;
-    if (chunkTSize_ > CHUNK_T_MAX) {
-        chunkTSize_ = CHUNK_T_MAX;
+
+    if (totalLength_ <= DECODE_BS_THRESHOLD) {
+        tilingMode_ = TilingMode::DECODE;
+    } else {
+        tilingMode_ = TilingMode::PREFILL;
     }
-    v1ChunkDSize_ = V1_CHUNK_D_SIZE;
+    
+    if (tilingMode_ == TilingMode::DECODE) {
+        chunkTSize_ = DECODE_CHUNK_T_SIZE;
+        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
+    } else {
+        chunkTSize_ = (((totalLength_ + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR) + CHUNK_T_CALC_FACTOR - 1) *
+                      CHUNK_T_CALC_FACTOR;
+        if (chunkTSize_ > CHUNK_T_MAX) {
+            chunkTSize_ = CHUNK_T_MAX;
+        }
+        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
+    }
 
     uint64_t phiSecondDim = phiTensor->GetStorageShape().GetDim(1);
     if (phiSecondDim != matK_) {
@@ -261,9 +277,19 @@ void MhcPreBaseTiling::FillTilingData()
     tilingData_.matmulTiling.set_stepM(STEP_MN);
     tilingData_.matmulTiling.set_stepN(STEP_MN);
 
-    uint32_t baseM = chunkTSize_;
-    uint32_t baseN = baseM;
-    uint32_t baseK = L0_B_SIZE / baseN / FLOAT_ELE_SIZE * KERNEL_WIDTH;
+    uint32_t baseM;
+    uint32_t baseN;
+    uint32_t baseK;
+
+    if (tilingMode_ == TilingMode::DECODE) {
+        baseN = (matN_ + DECODE_ALIGN_16 - 1) / DECODE_ALIGN_16 * DECODE_ALIGN_16;
+        baseK = L0_B_SIZE / baseN / FLOAT_ELE_SIZE * KERNEL_WIDTH;
+        baseM = L0_B_SIZE / baseK / DECODE_ALIGN_16 * DECODE_ALIGN_16;
+    } else {
+        baseM = chunkTSize_;
+        baseN = baseM;
+        baseK = L0_B_SIZE / baseN / FLOAT_ELE_SIZE * KERNEL_WIDTH;
+    }
 
     tilingData_.matmulTiling.set_baseM(baseM);
     tilingData_.matmulTiling.set_baseN(baseN);
@@ -288,11 +314,28 @@ void MhcPreBaseTiling::FillTilingData()
 
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
-    size_t userWorkspaceSize =
-        (WORKSPACE_MULT_A * WORKSPACE_MULT_B * WORKSPACE_DIM_M +
-         WORKSPACE_MULT_A * WORKSPACE_MULT_B * (KERNEL_WIDTH * KERNEL_WIDTH + WORKSPACE_MULT_A * KERNEL_WIDTH)) *
-        sizeof(float) * blockDim_;
+    size_t userWorkspaceSize;
     size_t systemWorkspaceSize = SYSTEM_WORKSPACE;
+
+    if (tilingMode_ == TilingMode::DECODE) {
+        size_t xFloatWorkspaceSizeRaw = static_cast<size_t>(matM_) * static_cast<size_t>(matK_) * sizeof(float);
+        size_t xFloatWorkspaceSize = (xFloatWorkspaceSizeRaw + DECODE_WORKSPACE_ALIGN - 1U) /
+                                    DECODE_WORKSPACE_ALIGN * DECODE_WORKSPACE_ALIGN;
+        size_t mmResWorkspaceSize = 0;
+
+        if (outFlag_ == 0U) {
+            uint64_t chunkNd = (matK_ + blockDim_ - 1) / blockDim_;
+            uint64_t mmResBlockNum = (matK_ + chunkNd - 1) / chunkNd;
+            mmResWorkspaceSize = static_cast<size_t>(mmResBlockNum) * static_cast<size_t>(matM_) *
+                                static_cast<size_t>(matN_) * sizeof(float);
+        }
+        userWorkspaceSize = xFloatWorkspaceSize + mmResWorkspaceSize;
+    } else {
+        userWorkspaceSize =
+            (WORKSPACE_MULT_A * WORKSPACE_MULT_B * WORKSPACE_DIM_M +
+             WORKSPACE_MULT_A * WORKSPACE_MULT_B * (KERNEL_WIDTH * KERNEL_WIDTH + WORKSPACE_MULT_A * KERNEL_WIDTH)) *
+            sizeof(float) * blockDim_;
+    }
 
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, false);
     mm_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, true);
@@ -305,8 +348,6 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
         OP_LOGE(context_->GetNodeName(), "MhcPre Tiling get tiling failed, batch: %lu, m: %lu", totalLength_, matM_);
         return ge::GRAPH_FAILED;
     }
-
-    tilingKey_ = 0UL;
 
     workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
 
@@ -325,6 +366,8 @@ ge::graphStatus MhcPreBaseTiling::DoOpTiling()
     if (ParseInputAndAttr() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+
+    tilingKey_ = static_cast<uint64_t>(tilingMode_);
 
     if (TilingProcess() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
