@@ -946,8 +946,6 @@ bool IsEmptyTensor(const gert::TilingContext *context)
     }
 
 
-    }
-
     uint32_t keyBIdx = 0;
     while ((context->GetDynamicInputShape(KEY_INDEX, keyBIdx)) != nullptr) {
         const gert::StorageShape *keyShape = context->GetDynamicInputShape(KEY_INDEX, keyBIdx);
