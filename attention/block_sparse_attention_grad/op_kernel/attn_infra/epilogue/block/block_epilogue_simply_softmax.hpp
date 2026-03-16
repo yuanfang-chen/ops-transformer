@@ -342,6 +342,7 @@ public:
     void LseBrocast(GlobalTensor<float> &LseGm, LocalTensor<float> &lse, LocalTensor<float> &lseFp32Brc, uint64_t count, uint64_t curS1)
     {
         uint64_t startOffset = 0;
+        auto event_id = EVENT_ID0;
         if constexpr (INPUT_LAYOUT == TND) {
             uint64_t bOffset = n1 * ((__gm__ int64_t *)actualQSeqlen)[curCoreBatch];
             startOffset = bOffset + curS1 * n1 + curCoreN1Idx;
@@ -356,9 +357,15 @@ public:
                     {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)),
                     static_cast<uint32_t>(0), 0, 0},
                     {false, 0, 0, 0});
-            AscendC::PipeBarrier<PIPE_ALL>();
+
+            set_flag(PIPE_MTE2, PIPE_V, event_id);
+            wait_flag(PIPE_MTE2, PIPE_V, event_id);
+
             uint8_t repeatimes = CeilDiv(count, BRCB_BASE_NUM);
             Brcb(lseFp32Brc, lse, repeatimes, {1, 8});
+
+            set_flag(PIPE_V, PIPE_MTE2, event_id);
+            wait_flag(PIPE_V, PIPE_MTE2, event_id);
         }
     }
 
@@ -423,9 +430,12 @@ public:
         uint64_t count = row * col;
         uint64_t countAlign = (count + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
         
-        AscendC::PipeBarrier<PIPE_ALL>();
+        auto event_id = EVENT_ID0;
+        set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+
         LseBrocast(lseGm, lse, lseFp32Brc, row, curS1);
-        AscendC::PipeBarrier<PIPE_ALL>();
+
 
         if (count % BLOCK_SIZE == 0) {
             DataCopy(sLocal, s, count);
@@ -433,22 +443,32 @@ public:
             DataCopyPad(sLocal, s, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, 
                         {true, 0, static_cast<uint8_t>(countAlign - count), 0});
         }
-        AscendC::PipeBarrier<PIPE_ALL>();
+
+        set_flag(PIPE_MTE2, PIPE_V, event_id);
+        wait_flag(PIPE_MTE2, PIPE_V, event_id);
+        
         Muls(sLocal, sLocal, (float)scaleValue, count);
         AscendC::PipeBarrier<PIPE_V>();
+
         SubBrcb(p32Local, sLocal, lseFp32Brc, row, col);
         AscendC::PipeBarrier<PIPE_V>();
+
         Exp(p32Local, p32Local, count);
         AscendC::PipeBarrier<PIPE_V>();
 
         Cast(p16Local, p32Local, AscendC::RoundMode::CAST_ROUND, count);
-        AscendC::PipeBarrier<PIPE_ALL>();
-        // printf("count : %lu\n", count);
+
+        set_flag(PIPE_V, PIPE_MTE3, event_id);
+        wait_flag(PIPE_V, PIPE_MTE3, event_id);
+
         if (count * sizeof(InputDType) % BLOCK_BYTE_SIZE == 0) {
             DataCopy(pGm, p16Local, count);
         } else {
             DataCopyPad(pGm, p16Local, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(InputDType)), 0, 0, 0});
         }
+
+        set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
     }
 
     /*
@@ -472,20 +492,32 @@ public:
         uint64_t count = row * col;
 
         AscendC::PipeBarrier<PIPE_ALL>();
+        auto event_id = EVENT_ID0;
+        set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
 
         DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
         CopyDIn(d, dLocal, row, curS1);
 
-        AscendC::PipeBarrier<PIPE_ALL>();
-        SubBrcb(dpLocal, dpLocal, dLocal, row, col);
+        set_flag(PIPE_MTE2, PIPE_V, event_id);
+        wait_flag(PIPE_MTE2, PIPE_V, event_id);
 
+        SubBrcb(dpLocal, dpLocal, dLocal, row, col);
         AscendC::PipeBarrier<PIPE_V>();
+
         Mul(dpLocal, p32Local, dpLocal, count);
         AscendC::PipeBarrier<PIPE_V>();
+
         Cast(ds16Tensor, dpLocal, AscendC::RoundMode::CAST_ROUND, count);
 
-        AscendC::PipeBarrier<PIPE_ALL>();
+        set_flag(PIPE_V, PIPE_MTE3, event_id);
+        wait_flag(PIPE_V, PIPE_MTE3, event_id);
+
         DataCopyPad(ds, ds16Tensor, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(InputDType)), 0, 0, 0});
+        AscendC::PipeBarrier<PIPE_ALL>();
+
+        set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
     }
 
     /*
