@@ -1327,6 +1327,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Process()
         }
         BuffInit();
         SetWaitTpStatusAndDisPatch();
+        PipeBarrier<PIPE_ALL>(); // AlltoAllBuffInitAndMaskCal中包含reset操作，需确保前面操作完成
         AlltoAllBuffInitAndMaskCal();
         LocalWindowCopy();
     }
