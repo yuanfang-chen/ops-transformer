@@ -82,6 +82,14 @@ ge::graphStatus FiaTilingCheck::CheckFeatureBlockSize() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckFeatureLse() const
+{
+    if (!fiaInfo_.softmaxLseFlag) {
+        return ge::GRAPH_SUCCESS;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckFeatureTensorList() const
 {
@@ -251,6 +259,27 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLeftPadding() const
     return ge::GRAPH_SUCCESS;
 }
 
+// ge::graphStatus FiaTilingCheck::CheckFeaturePSE() const
+// {
+//     if (fiaInfo_.pseShiftFlag) {
+//         const std::vector<std::string> layoutSupportList = {
+//             "BSND", "BNSD", "BSH", "BNSD_BSND",
+//         };
+//         std::string layout = opParamInfo_.layOut;
+//         if (std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end()) {
+//             OP_LOGE(opName_,
+//                     "when pse_shift exists, input_layout only supports BSH, BSND, BNSD, and BNSD_BSND, but got %s",
+//                     layout.c_str());
+//             return ge::GRAPH_FAILED;
+//         }
+
+//         OP_CHECK_IF(ropeMode_ != RopeMode::NO_ROPE,
+//             OP_LOGE(opName_, "when pse_shift exists, query_rope and key_rope should be not exist and the head_dim(D) "
+//                              "dimension of query and key should be equal to the head_dim(D) dimension of value."),
+//             return ge::GRAPH_FAILED);
+//     }
+//     return ge::GRAPH_SUCCESS;
+// }
 
 ge::graphStatus FiaTilingCheck::CheckFeatureLearnableSink() const
 {
@@ -482,7 +511,12 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaPrefix() const
         return ge::GRAPH_FAILED;
     }
 
-
+    if (fiaInfo_.pseShiftFlag) {
+        if (fiaInfo_.s2Size + fiaInfo_.systemPrefixLen > fiaInfo_.pseShiftS2) {
+            OP_LOGE(opName_, "when enable pse and system prefix, pse s2 Size greater than kv s2size + systemPrefixLen");
+            return ge::GRAPH_FAILED;   
+        }
+    }
     return ge::GRAPH_SUCCESS;
 }
 

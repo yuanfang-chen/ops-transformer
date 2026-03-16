@@ -574,6 +574,16 @@ ge::graphStatus FiaTilingCheck::CheckTokens()
 
 
 
+ge::graphStatus FiaTilingCheck::CheckSoftmaxLseDType() 
+{
+    if (opParamInfo_.lseOut.desc->GetDataType() != ge::DT_FLOAT) { 
+        OP_LOGE(opName_, "only support dtype FP32, but got %s",
+            FusedDataTypeToSerialString(opParamInfo_.lseOut.desc->GetDataType()).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 
 
 ge::graphStatus FiaTilingCheck::CheckPostQuant()
@@ -638,6 +648,7 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||
         ge::GRAPH_SUCCESS != CheckPostQuant()) {
         return ge::GRAPH_FAILED;
