@@ -764,9 +764,9 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
         inferredInfo.permuteLen = inferredInfo.commLen;
     }
     if (contextInfo.args_.isBias) {
-         inferredInfo.biasLen =
-             mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
-     }
+        inferredInfo.biasLen =
+            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
+    }
     inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.rankDim *
                                 Ops::Base::CeilDiv((contextInfo.args_.kValue / contextInfo.args_.rankDim),
                                 mxGroupSize) * DIM_TWO, alignAddrLen);
