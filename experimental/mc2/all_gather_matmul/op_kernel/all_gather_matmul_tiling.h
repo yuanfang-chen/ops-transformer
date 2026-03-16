@@ -16,7 +16,7 @@
 #define __ALL_GATHER_MATMUL_TILING_H_
 
 #include "kernel_tiling/kernel_tiling.h"
-#include "matmul_dependency/mc2_tiling_struct.h"
+#include "kernel_dependency/mc2_tiling_struct.h"
 
 namespace Mc2Tiling {
 
