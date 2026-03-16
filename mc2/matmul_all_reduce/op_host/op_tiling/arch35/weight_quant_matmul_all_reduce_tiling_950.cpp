@@ -22,7 +22,6 @@
 using namespace Mc2Tiling;
 namespace optiling {
 constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
-constexpr uint64_t STANDARD_CARD_WORKSPACE_CNT = 2;
 constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 bool WeightQuantMatmulAllReduceTilingA5::IsCapable()
 {
@@ -241,22 +240,20 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P()
 {
     uint64_t commWorkSpace = 0UL;
-    uint64_t commLen = 0UL;
     uint64_t cgmPadLen = 0UL;
     uint64_t tileM = MutableTCubeTileTilingData().M;
     uint64_t tailM = MutableTCubeTailTilingData().M;
     uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
     uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
 
-    commLen = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-    cgmPadLen = (args_.rankDim - commLen % args_.rankDim) % args_.rankDim;
+    cgmPadLen = (MutableRCSTilingData().tileCnt + MutableRCSTilingData().tailCnt) * args_.rankDim;
     commWorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
                         tempTailSize * MutableRCSTilingData().tailCnt +
                         cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
     OP_LOGI(opName_, "WeightQuantMatmulAllReduceTilingA5 Set commWorkSpace size=%lu to context.", commWorkSpace);
     
     // MatMul输出存储+alltoall输出存储+reduceSum输出存储
-    uint64_t workspaceSizeCount = cgmPadLen ? STANDARD_CARD_CGMPAD_WORKSPACE_CNT : STANDARD_CARD_WORKSPACE_CNT;
+    uint64_t workspaceSizeCount = STANDARD_CARD_CGMPAD_WORKSPACE_CNT;
     myWorkSpaceSize_ = myWorkSpaceSize_ + commWorkSpace * workspaceSizeCount + commWorkSpace / args_.rankDim;
 
     return ge::GRAPH_SUCCESS;
