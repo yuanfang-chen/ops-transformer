@@ -60,8 +60,8 @@ __aicore__ inline constexpr uint32_t GetVRegSizeDispatch()
 template<typename T>
 __aicore__ inline void ComputeMaxExp(__ubuf__ T* srcAddr, __ubuf__ uint16_t* maxExpAddr, uint32_t totalCountInUB)
 {
-    uint32_t vlForHalfNumber = GetVRegSizeDispatch() / sizeof(T);
-    uint16_t elementAfterReduce = GetVRegSizeDispatch() / GetUbBlockSizeDispatch();
+    uint32_t vlForHalfNumber = GetVRegSizeDispatch() / sizeof(T); // 每个向量寄存器可以存储的元素个数
+    uint16_t elementAfterReduce = GetVRegSizeDispatch() / GetUbBlockSizeDispatch(); // Reduce操作后搬出的元素个数
     uint16_t loopNum = Ceil(totalCountInUB, 2 * vlForHalfNumber);
 
     __VEC_SCOPE__
@@ -92,23 +92,25 @@ __aicore__ inline void ComputeMaxExp(__ubuf__ T* srcAddr, __ubuf__ uint16_t* max
         for (uint16_t i = 0; i < loopNum; i++) {
             scaleMask1 = MicroAPI::UpdateMask<T>(totalCountInUB);
             scaleMask2 = MicroAPI::UpdateMask<T>(totalCountInUB);
+            // 双搬，将数据交织搬运到两个向量寄存器上
             MicroAPI::DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE,
             MicroAPI::LoadDist::DIST_DINTLV_B16>(vdExp0, vdExp1, srcAddr, vlForHalfNumber * DIGIT_TWO);
             if constexpr (Std::IsSame<T, half>::value) {
                 MicroAPI::And(vdExpSelect0, (MicroAPI::RegTensor<uint16_t>&)vdExp0, invalidMaskFP16,
-                    scaleMask1);
+                    scaleMask1); // 将FP16非正常指数位与每个元素的指数位进行与操作，消除尾数位
                 MicroAPI::And(vdExpSelect1, (MicroAPI::RegTensor<uint16_t>&)vdExp1, invalidMaskFP16,
                     scaleMask1);
-                MicroAPI::Compare<uint16_t, CMPMODE::NE>(
+                MicroAPI::Compare<uint16_t, CMPMODE::NE>( // 将FP16非正常指数位与实际指数位作对比，生成非正常指数位掩码
                     invalidDataMask0, vdExpSelect0, invalidMaskFP16, scaleMask1);
                 MicroAPI::Compare<uint16_t, CMPMODE::NE>(
                     invalidDataMask1, vdExpSelect1, invalidMaskFP16, scaleMask1);   
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp0BF16, vdExp0, scaleMask1);
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp1BF16, vdExp1, scaleMask1);
                 MicroAPI::And(vdExpExtract0, (MicroAPI::RegTensor<uint16_t>&)vdExp0BF16, expMaskBF16,
-                    scaleMask1);
+                    scaleMask1); // 与操作保留指数位
                 MicroAPI::And(vdExpExtract1, (MicroAPI::RegTensor<uint16_t>&)vdExp1BF16, expMaskBF16,
                     scaleMask1);
+                // 筛选正常指数位，非正常值则使用expMaskBF16替代
                 MicroAPI::Select<uint16_t>(vdExpExtract0, vdExpExtract0, expMaskBF16, invalidDataMask0);
                 MicroAPI::Select<uint16_t>(vdExpExtract1, vdExpExtract1, expMaskBF16, invalidDataMask1);
             } else {
@@ -117,8 +119,9 @@ __aicore__ inline void ComputeMaxExp(__ubuf__ T* srcAddr, __ubuf__ uint16_t* max
                 MicroAPI::And(vdExpExtract1, (MicroAPI::RegTensor<uint16_t>&)vdExp1, expMaskBF16,
                     scaleMask1);
             }
-
+            // 两个向量寄存器上的元素一一对比输出最大指数位
             MicroAPI::Max(vdMaxExp, vdExpExtract0, vdExpExtract1, scaleMask1);
+            // 按每个block输出一个最大指数位
             MicroAPI::ReduceMaxWithDataBlock(vdMaxExp, vdMaxExp, scaleMask1);
 
             MicroAPI::DataCopyUnAlign<uint16_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(maxExpAddr,
@@ -175,16 +178,20 @@ __aicore__ inline void ComputeScale(__ubuf__ uint16_t* maxExpAddr, __ubuf__ uint
             preMaskScale = MicroAPI::UpdateMask<uint16_t>(totalScaleInUB);
             MicroAPI::DataCopy<uint16_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vdMaxExp,
                 maxExpAddr, vlForHalfNumber);
+            // 检测非正常值
             MicroAPI::Compare<uint16_t, CMPMODE::NE>(cmpResult, vdMaxExp, expMask, preMaskScale);
+            // 检测零值
             MicroAPI::Compare<uint16_t, CMPMODE::NE>(zeroMask, vdMaxExp, zeroRegTensor, preMaskScale);
+            // 检测超出目标格式的最大值
             MicroAPI::Compare<uint16_t, CMPMODE::LE>(invalidDataMask, vdMaxExp, maxExpValue,
                 preMaskScale);
-
+            // 限制最大指数不超过目标格式最大指数
             MicroAPI::Select<uint16_t>(vdMaxExp, maxExpValue, vdMaxExp, invalidDataMask);
-
+            // 计算相对指数差值
             MicroAPI::Sub(sharedExp, vdMaxExp, maxExpValue, preMaskScale);
+            // 右移得到缩放值
             MicroAPI::ShiftRights(scaleValue, sharedExp, SHR_NUM_FOR_BF16, preMaskScale);
-
+            // 特殊值处理
             MicroAPI::Select<uint16_t>(scaleValue, scaleValue, fp8NanRegTensor, cmpResult);
             MicroAPI::Select<uint16_t>(scaleValue, scaleValue, zeroRegTensor, zeroMask);
 
@@ -234,10 +241,11 @@ __aicore__ inline void ComputeFp8Data(__ubuf__ T* srcAddr, __ubuf__ uint16_t* ha
         MicroAPI::RegTensor<U> vdExp0FP8One;
         MicroAPI::RegTensor<U> vdExp1FP8Zero;
         MicroAPI::RegTensor<U> vdExp1FP8One;
-
+        // 放到索引位置0
         static constexpr MicroAPI::CastTrait castTraitZero = {
             MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
             MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
+        // 放到索引位置1
         static constexpr MicroAPI::CastTrait castTraitOne = {
             MicroAPI::RegLayout::ONE, MicroAPI::SatMode::UNKNOWN,
             MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
@@ -251,11 +259,16 @@ __aicore__ inline void ComputeFp8Data(__ubuf__ T* srcAddr, __ubuf__ uint16_t* ha
             dataMask4 = MicroAPI::UpdateMask<T>(totalCountInUB2);
             MicroAPI::DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE,
                 MicroAPI::LoadDist::DIST_DINTLV_B16>(vdExp0, vdExp1, srcAddr, vlForHalfNumber * DIGIT_TWO);
+            // 这里DIST_E2B_B16是将每个16bit元素广播到一个DataBlock(32B)中
             MicroAPI::DataCopy<uint16_t, MicroAPI::PostLiteral::POST_MODE_UPDATE,
                 MicroAPI::LoadDist::DIST_E2B_B16>(halfScaleForMul, halfScaleLocalAddr, elementAfterReduce);
+            // 因为前面scale计算用的BF16类型，所以对于fp16需要先cast到float再计算
             if constexpr (Std::IsSame<T, half>::value) {
+                // 取偶数索引的元素Cast到vdExp0FP32Zero
                 MicroAPI::Cast<float, T, castTraitZero>(vdExp0FP32Zero, vdExp0, dataMask1);
+                // 取奇数索引的元素Cast到vdExp0FP32One
                 MicroAPI::Cast<float, T, castTraitOne>(vdExp0FP32One, vdExp0, dataMask1);
+                // 由于前面搬入是一个广播操作，所以直接取偶数索引元素即可
                 MicroAPI::Cast<float, bfloat16_t, castTraitZero>(floatScaleForMul,
                     (MicroAPI::RegTensor<bfloat16_t>&)halfScaleForMul, maskAll);
                 MicroAPI::Mul(vdExp0FP32Zero, vdExp0FP32Zero, floatScaleForMul, dataMask3);

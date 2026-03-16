@@ -27,7 +27,7 @@ namespace Mc2Kernel {
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
 
-template <typename XType, typename ExpandXOutType, typename XOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
+template <typename XType, typename ExpandXOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
 class MoeDistributeDispatchV2Quant{
 public:
     uint32_t axisH_{0};
@@ -77,13 +77,13 @@ public:
                 Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
                 hOutSizeAlign_ = Align256(Ceil(axisH_, 2));
             } else {
-                hOutSizeAlign_ = Align256(axisH_) * sizeof(XOutType);
+                hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
             }
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
             scaleOutBytes = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
-            hOutSizeAlign_ = Align128(axisH_) * sizeof(XOutType);
+            hOutSizeAlign_ = Align128(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
             scaleOutBytes = Ceil128(axisH_) * sizeof(float); // PERGROUP量化每128个值生成一个scale
@@ -95,7 +95,7 @@ public:
         hScaleIdxSize_ = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
     }
 
-    __aicore__ inline void QuantProcess(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex,
+    __aicore__ inline void QuantProcess(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex,
                                         uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (QuantMode == STATIC_QUANT) {
@@ -112,7 +112,7 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantStatic(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex, 
+    __aicore__ inline void QuantStatic(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex, 
                                        uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         Cast(floatLocalTemp_, inLocal, RoundMode::CAST_NONE, axisH_);
@@ -148,7 +148,7 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         float dynamicScale = 0.0;
@@ -200,7 +200,7 @@ public:
     }
 
     #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
-    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
@@ -215,12 +215,12 @@ public:
             __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
             __ubuf__ float* scaleOutLocalAddr = (__ubuf__ float*)outLocal[Align128<uint32_t>(axisH_)].GetPhyAddr();
 
-            quant::ComputePerTileDynamic<XType, XOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(srcAddr,
+            quant::ComputePerTileDynamic<XType, ExpandXOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(srcAddr,
                 smoothLocalAddr, scaleOutLocalAddr, outLocalAddr, axisH_);
         }
     }
 
-    __aicore__ inline void QuantDynamicMxFp8(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal)
+    __aicore__ inline void QuantDynamicMxFp8(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal)
     {
         
         uint32_t mxScaleNum = Align2(Ceil32(axisH_));
@@ -248,7 +248,7 @@ public:
     #endif
 
     __aicore__ inline void CopyScalesToOut(uint32_t currentTokenIndex, uint32_t scaleOutBytes,
-                                           LocalTensor<XOutType> &quantTok, DataCopyExtParams &scaleOutParams)
+                                           LocalTensor<ExpandXOutType> &quantTok, DataCopyExtParams &scaleOutParams)
     {
         if constexpr (((QuantMode > UNQUANT) && (QuantMode != STATIC_QUANT)) ||
                     ((QuantMode == UNQUANT) && IsSmoothScaleExist)) {
