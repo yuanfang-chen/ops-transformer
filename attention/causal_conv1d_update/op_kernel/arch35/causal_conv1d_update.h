@@ -148,7 +148,6 @@ private:
     int64_t ubMainFactorDim_;      // 主UB循环处理的dim数
     int64_t ubTailFactorDim_;      // 尾UB循环处理的dim数
 
-    int64_t ubDimSize_;             // UB循环每次处理的Dim大小（元素数）
     int64_t loopNumBS_;          // Batch方向的循环次数
     int64_t loopNumDim_;            // Dim方向的循环次数
 
@@ -224,11 +223,13 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     batchIdx_ = blockIdx_ / dimCoreCnt_;  // Batch方向索引
     dimIdx_ = blockIdx_ % dimCoreCnt_;    // Dim方向索引
     if (dimIdx_ < dimMainCoreCnt_) {
+        loopNumDim_ = tilingData->loopNumDim;
         coreDimLen_ = mainCoredimLen_;
         ubMainFactorDim_ = tilingData->ubMainFactorDim;
         ubTailFactorDim_ = tilingData->ubTailFactorDim;
         dimOffset_ = dimIdx_ * mainCoredimLen_;
     } else {
+        loopNumDim_ = tilingData->tailBlockloopNumDim;
         coreDimLen_ = tailCoredimLen_; 
         ubMainFactorDim_ = tilingData->tailBlockubFactorDim;
         ubTailFactorDim_ = tilingData->tailBlockubTailFactorDim;
@@ -237,11 +238,13 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 
     // === 当前核的batch个数和第一个batch的id ===
     if (batchIdx_ < batchMainCoreCnt_) {
+        loopNumBS_ = tilingData->loopNumBS;
         ubMainFactorBS_ = tilingData->ubMainFactorBS;
         ubTailFactorBS_ = tilingData->ubTailFactorBS;
         coreBatchNum_ = mainCoreBatchNum_;
         firstBatchIdx_ = validBatchStart_ + batchIdx_ * mainCoreBatchNum_;
     } else {
+        loopNumBS_ = tilingData->tailBlockloopNumBS;
         ubMainFactorBS_ = tilingData->tailBlockubFactorBS;
         ubTailFactorBS_ = tilingData->tailBlockubTailFactorBS;
         coreBatchNum_ = tailCoreBatchNum_;
@@ -380,7 +383,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::CopyIn(int32_t batchLoop, in
     // === 1. 计算当前循环处理的batch数和dim大小 ===
     batchNumInLoop_ = (batchLoop == loopNumBS_ - 1) ? ubTailFactorBS_ : ubMainFactorBS_;
     dimSizeInLoop_ = (dimLoop == loopNumDim_ - 1) ? ubTailFactorDim_ : ubMainFactorDim_;
-    dimInnerOffset_ = dimLoop * ubDimSize_;
+    dimInnerOffset_ = dimLoop * dimSizeInLoop_;
     int32_t startBatchIdx = firstBatchIdx_ + batchLoop * ubMainFactorBS_;
     int32_t endBatchIdx = firstBatchIdx_ + (batchLoop + 1) * ubMainFactorBS_ - 1;
     int64_t blockCount = batchNumInLoop_ * seqLen_;
