@@ -77,6 +77,13 @@ private:
     __aicore__ inline void SplitCoreCal();
     __aicore__ inline void SetStatus();
     __aicore__ inline void WaitDispatch();
+    __aicore__ inline void InitializeBasicMembers(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, 
+        GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR XOut, GM_ADDR workspaceGM, 
+        TPipe *pipe, const MoeDistributeCombineTilingData *tilingData);
+    __aicore__ inline void InitializeQuantizationParameters(const MoeDistributeCombineTilingData *tilingData);
+    __aicore__ inline void InitializeHcclContexts();
+    __aicore__ inline void InitializeEpDomain(const MoeDistributeCombineTilingData *tilingData);
+    __aicore__ inline void InitializeTpDomainIfRequired(const MoeDistributeCombineTilingData *tilingData, GM_ADDR tpSendCount);
     __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain, const uint32_t expertLocalId = 0U)
     {
         if (domain == EP_DOMAIN) {
@@ -224,31 +231,14 @@ private:
 };
 
 template <TemplateCombineTypeClass>
-__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::Init(GM_ADDR expandX, GM_ADDR expertIds,
-    GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR XOut, GM_ADDR workspaceGM,
-    TPipe *pipe, const MoeDistributeCombineTilingData *tilingData)
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::InitializeBasicMembers(
+    GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR tpSendCount, 
+    GM_ADDR scales, GM_ADDR XOut, GM_ADDR workspaceGM, TPipe *pipe, 
+    const MoeDistributeCombineTilingData *tilingData)
 {
     tpipe_ = pipe;
     coreIdx_ = GetBlockIdx();
     epRankId_ = tilingData->moeDistributeCombineInfo.epRankId;
-    auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
-    auto contextGM1 = AscendC::GetHcclContext<1>();
-    epWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)contextGM0;
-    GlobalTensor<int32_t> selfDataStatusTensor;
-    GM_ADDR statusDataSpaceGm = Mc2Kernel::GetStatusDataSpaceGm(epWinContext_);
-    selfDataStatusTensor.SetGlobalBuffer((__gm__ int32_t*)(statusDataSpaceGm + STATE_WIN_OFFSET));
-    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-        selfDataStatusTensor[coreIdx_ * UB_ALIGN]);
-    dataState_ = selfDataStatusTensor(coreIdx_ * UB_ALIGN);
-    if (dataState_ == 0) {
-        selfDataStatusTensor(coreIdx_ * UB_ALIGN) = 1;
-    } else {
-        selfDataStatusTensor(coreIdx_ * UB_ALIGN) = 0;
-    }
-    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
-        selfDataStatusTensor[coreIdx_ * UB_ALIGN]);
-    PipeBarrier<PIPE_ALL>();
-
     workspaceGM_ = workspaceGM;
     expandXGM_.SetGlobalBuffer((__gm__ ExpandXType *)expandX);
     expertIdsGM_.SetGlobalBuffer((__gm__ ExpandIdxType *)expertIds);
@@ -275,6 +265,38 @@ __aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::Init(GM_AD
     expertPerSizeOnWin_ = static_cast<uint64_t>(axisMaxBS_) * static_cast<uint64_t>(axisH_) * static_cast<uint64_t>(sizeof(ExpandXType));
     winDataSizeOffsetEp_ = static_cast<uint64_t>(dataState_) * static_cast<uint64_t>(moeSendNum_) * expertPerSizeOnWin_;
     winDataSizeOffsetTp_ = static_cast<uint64_t>(dataState_) * (tilingData->moeDistributeCombineInfo.totalWinSizeTp / 2UL);
+    axisHFloatSize_ = axisH_ * sizeof(float);
+    axisHExpandXTypeSize_ = axisH_ * sizeof(ExpandXType);
+    bsKNum_ = axisBS_ * axisK_;
+    isShardExpert_ = (epRankId_ < sharedExpertRankNum_);
+}
+
+template <TemplateCombineTypeClass>
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::InitializeHcclContexts()
+{
+    auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+    auto contextGM1 = AscendC::GetHcclContext<1>();
+    epWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)contextGM0;
+    GlobalTensor<int32_t> selfDataStatusTensor;
+    GM_ADDR statusDataSpaceGm = Mc2Kernel::GetStatusDataSpaceGm(epWinContext_);
+    selfDataStatusTensor.SetGlobalBuffer((__gm__ int32_t*)(statusDataSpaceGm + STATE_WIN_OFFSET));
+    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+        selfDataStatusTensor[coreIdx_ * UB_ALIGN]);
+    dataState_ = selfDataStatusTensor(coreIdx_ * UB_ALIGN);
+    if (dataState_ == 0) {
+        selfDataStatusTensor(coreIdx_ * UB_ALIGN) = 1;
+    } else {
+        selfDataStatusTensor(coreIdx_ * UB_ALIGN) = 0;
+    }
+    DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
+        selfDataStatusTensor[coreIdx_ * UB_ALIGN]);
+    PipeBarrier<PIPE_ALL>();
+}
+
+template <TemplateCombineTypeClass>
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::InitializeEpDomain(
+    const MoeDistributeCombineTilingData *tilingData)
+{
     epWindowGM_ = GetWinAddrByRankId(epRankId_, EP_DOMAIN);
     epStatusSpaceGm_ = GetWinStateAddrByRankId(epRankId_, EP_DOMAIN);
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
@@ -284,25 +306,15 @@ __aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::Init(GM_AD
     epStatusSpaceGlobalTensor_.SetGlobalBuffer((__gm__ float *)epStatusSpaceGm_);
     epDataOffsetOnWin_ = static_cast<uint64_t>(epRankId_) * moeExpertPerRankNum_ * expertPerSizeOnWin_;
     epStateOffsetOnWin_ = epRankId_ * stateOffset_;
-    isShardExpert_ = (epRankId_ < sharedExpertRankNum_);
-    axisHFloatSize_ = axisH_ * sizeof(float);
-    axisHExpandXTypeSize_ = axisH_ * sizeof(ExpandXType);
-    bsKNum_ = axisBS_ * axisK_;
+}
 
-    if constexpr (IsQuant) {
-        scaleValFloat_ = static_cast<float>(1.0f / SCALE_PARAM);
-        scaleGranu_ = UB_ALIGN / static_cast<uint32_t>(sizeof(float));         // 计算每个block得到的reducemax结果数量
-        scaleNum_ = axisH_ / scaleGranu_;
-        scaleLen_ = scaleNum_;
-        repeatNum_ = static_cast<uint32_t>(axisH_ / (VEC_LEN / sizeof(float)));
-        mask_ = static_cast<uint32_t>(VEC_LEN / sizeof(float));
-    }
-
+template <TemplateCombineTypeClass>
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::InitializeTpDomainIfRequired(
+    const MoeDistributeCombineTilingData *tilingData, GM_ADDR tpSendCount)
+{
     if constexpr (IsNeedReduceScatter) {
-        tpWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)contextGM1;
+        tpWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)AscendC::GetHcclContext<1>();
         tpSendCountGM_.SetGlobalBuffer((__gm__ int32_t *)tpSendCount);
-        tpWorldSize_ = tilingData->moeDistributeCombineInfo.tpWorldSize;
-        tpRankId_ = tilingData->moeDistributeCombineInfo.tpRankId;
         tpWindowGM_ = GetWinAddrByRankId(tpRankId_, TP_DOMAIN);
         tpStatusSpaceGm_ = GetWinStateAddrByRankId(tpRankId_, TP_DOMAIN);
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
@@ -316,7 +328,32 @@ __aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::Init(GM_AD
         GM_ADDR rankGM = tpWindowGM_ + tpScatterRankWinOffset;
         tpRankWindow_.SetGlobalBuffer((__gm__ ExpandXType *)rankGM);
     }
+}
 
+template <TemplateCombineTypeClass>
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::InitializeQuantizationParameters(
+    const MoeDistributeCombineTilingData *tilingData)
+{
+    if constexpr (IsQuant) {
+        scaleValFloat_ = static_cast<float>(1.0f / SCALE_PARAM);
+        scaleGranu_ = UB_ALIGN / static_cast<uint32_t>(sizeof(float));         // 计算每个block得到的reducemax结果数量
+        scaleNum_ = axisH_ / scaleGranu_;
+        scaleLen_ = scaleNum_;
+        repeatNum_ = static_cast<uint32_t>(axisH_ / (VEC_LEN / sizeof(float)));
+        mask_ = static_cast<uint32_t>(VEC_LEN / sizeof(float));
+    }
+}
+
+template <TemplateCombineTypeClass>
+__aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::Init(GM_ADDR expandX, GM_ADDR expertIds,
+    GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR XOut, GM_ADDR workspaceGM,
+    TPipe *pipe, const MoeDistributeCombineTilingData *tilingData)
+{
+    InitializeBasicMembers(expandX, expertIds, expandIdx, epSendCount, tpSendCount, scales, XOut, workspaceGM, pipe, tilingData);
+    InitializeHcclContexts();
+    InitializeEpDomain(tilingData);
+    InitializeTpDomainIfRequired(tilingData, tpSendCount);
+    InitializeQuantizationParameters(tilingData);
     tpipe_->InitBuffer(moeQueue_, BUFFER_NUM, axisHExpandXTypeSize_); // 7168 * 2 * 2 = 28672
     InitStatusTargetSum();
     SplitCoreCal();
