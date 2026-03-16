@@ -41,4 +41,9 @@ enum class TopkValueMode {
     TOPK_INDEX_MODE = 1,
     TOPK_OFFSET_MODE = 2,
 };
+
+enum class SCALE_CONTIGUOUS_MODE {
+    CONTIGUOUS = 1,
+    NONCONTIGUOUS = 2,
+};
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_COMMON_H

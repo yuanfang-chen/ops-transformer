@@ -202,8 +202,9 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaKey() const
         OP_LOGE(opName_, "when page attention is enabled, ori_block_size(%u) should be in range (0, %u].",
         oriBlockSize_, MAX_BLOCK_SIZE), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(dSizeOriKvInput_ != 584,
-        OP_LOGE(opName_, "Dimension of OriKv only support 584, but got %u", dSizeOriKvInput_),
+    OP_CHECK_IF(dSizeOriKvInput_ != 584 && dSizeOriKvInput_ != 640,
+        OP_LOGE(opName_, "Dimension of OriKv only support 584 or 640, but got %u", dSizeOriKvInput_),
+
         return ge::GRAPH_FAILED);
     
     if (opParamInfo_.cmpKv.tensor != nullptr) {
@@ -218,8 +219,8 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaKey() const
             return ge::GRAPH_FAILED;
         }
 
-        OP_CHECK_IF(dSizeCmpKvInput_ != 584,
-            OP_LOGE(opName_, "Dimension of CmpKv only support 584, but got %u", dSizeCmpKvInput_),
+        OP_CHECK_IF(dSizeCmpKvInput_ != 584 && dSizeCmpKvInput_ != 640,
+            OP_LOGE(opName_, "Dimension of CmpKv only support 584 or 640, but got %u", dSizeCmpKvInput_),
             return ge::GRAPH_FAILED);
 
         uint32_t cmpKvN2Size_ = GetAxisNum(opParamInfo_.cmpKv.tensor->GetStorageShape(), SASAxis::N, kvLayout_);

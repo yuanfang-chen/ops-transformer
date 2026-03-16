@@ -51,10 +51,11 @@ __aicore__ constexpr uint64_t Align64Func(uint64_t data) {
 
 #define TEMPLATE_INTF \
     template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, bool IS_FD, bool IS_PA, SAS_LAYOUT LAYOUT_T, \
-    SAS_LAYOUT KV_LAYOUT_T, SASTemplateMode TEMPLATE_MODE, bool IS_SPLIT_G, TopkValueMode TOPK_VALUE_MODE>
+    SAS_LAYOUT KV_LAYOUT_T, SASTemplateMode TEMPLATE_MODE, bool IS_SPLIT_G, SCALE_CONTIGUOUS_MODE KV_QUANT_MODE, TopkValueMode TOPK_VALUE_MODE>
 
 #define TEMPLATE_INTF_ARGS \
-    Q_T, KV_T, T, OUTPUT_T, IS_FD, IS_PA, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE, IS_SPLIT_G, TOPK_VALUE_MODE
+    Q_T, KV_T, T, OUTPUT_T, IS_FD, IS_PA, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE, IS_SPLIT_G, KV_QUANT_MODE, TOPK_VALUE_MODE
+
 
 #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
     X(Q_T) \
@@ -69,6 +70,7 @@ __aicore__ constexpr uint64_t Align64Func(uint64_t data) {
     X(KV_LAYOUT_T, SAS_LAYOUT, SAS_LAYOUT::PA_ND) \
     X(TEMPLATE_MODE, SASTemplateMode, SASTemplateMode::SCFA_TEMPLATE_MODE) \
     X(IS_SPLIT_G, bool, false) \
+    X(KV_QUANT_MODE, SCALE_CONTIGUOUS_MODE, SCALE_CONTIGUOUS_MODE::CONTIGUOUS) \
     X(TOPK_VALUE_MODE, TopkValueMode, TopkValueMode::TOPK_INDEX_MODE) \
 
 /* 1. 生成带默认值的模版Template */
