@@ -5,6 +5,7 @@
 import math
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import Optional
 
 
 class QuantMode(IntEnum):
@@ -86,11 +87,27 @@ def is_int8_quant(qm: QuantMode) -> bool:
     )
 
 
+# ---------------------------------------------------------------------------
+# Cache and hardware specification
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CacheSpec:
+    """Per-core on-chip cache sizes in bytes."""
+    ub_size: int = 192 * 1024
+    l1_size: int = 512 * 1024
+    l0a_size: int = 64 * 1024
+    l0b_size: int = 64 * 1024
+    l0c_size: int = 128 * 1024
+
+
 @dataclass
 class AscendHWSpec:
     name: str = "Ascend910B"
     aic_num: int = 24
     aiv_num: int = 48
+
+    # Chip-total performance (legacy 910B fields, kept for backward compat)
     cube_tflops_bf16: float = 320.0
     cube_tops_int8: float = 640.0
     cube_tflops_fp8: float = 640.0
@@ -103,20 +120,140 @@ class AscendHWSpec:
     sync_overhead_us: float = 1.0
     scatter_efficiency: float = 0.4
 
+    # Per-cycle specs (0.0 freq means "use chip-total mode")
+    freq_ghz: float = 0.0
+    cache: CacheSpec = field(default_factory=CacheSpec)
+
+    # Per-core bandwidth in bytes/cycle
+    hbm_bw_per_cycle: float = 0.0
+    l2_bw_per_cycle: float = 0.0
+    l1_to_l0a_per_cycle: float = 0.0
+    l1_to_l0b_per_cycle: float = 0.0
+    l0c_to_out_per_cycle: float = 0.0
+    ub_to_l1_per_cycle: float = 0.0
+    ub_to_reg_per_cycle: float = 0.0
+
+    # MMAD throughput: multiply-accumulate ops per cycle per core
+    mmad_ops_per_cycle_fp8: int = 0
+    mmad_ops_per_cycle_fp16: int = 0
+
+    # Chip total bandwidth caps (bytes/sec)
+    chip_hbm_bw_bytes_per_sec: float = 0.0
+    chip_l2_bw_bytes_per_sec: float = 0.0
+
+    @property
+    def has_cycle_spec(self) -> bool:
+        return self.freq_ghz > 0.0
+
+    @property
+    def freq_hz(self) -> float:
+        return self.freq_ghz * 1e9
+
     @property
     def cube_flops_bf16(self) -> float:
+        if self.has_cycle_spec:
+            return self.mmad_ops_per_cycle_fp16 * 2.0 * self.freq_hz * self.aic_num
         return self.cube_tflops_bf16 * 1e12
 
     @property
     def cube_ops_int8(self) -> float:
+        if self.has_cycle_spec:
+            return self.mmad_ops_per_cycle_fp16 * 2.0 * self.freq_hz * self.aic_num
         return self.cube_tops_int8 * 1e12
 
     @property
     def cube_flops_fp8(self) -> float:
+        if self.has_cycle_spec:
+            return self.mmad_ops_per_cycle_fp8 * 2.0 * self.freq_hz * self.aic_num
         return self.cube_tflops_fp8 * 1e12
+
+    def per_core_bw(self, bus: str, active_cores: int) -> float:
+        """Return effective per-core bandwidth in bytes/sec with contention.
+
+        For HBM/L2: min(per_cycle * freq, chip_total / active_cores).
+        For L1/L0 local buses: per_cycle * freq (no cross-core contention).
+        """
+        C = max(active_cores, 1)
+        if bus == "hbm":
+            raw = self.hbm_bw_per_cycle * self.freq_hz
+            cap = self.chip_hbm_bw_bytes_per_sec / C
+            return min(raw, cap)
+        elif bus == "l2":
+            raw = self.l2_bw_per_cycle * self.freq_hz
+            cap = self.chip_l2_bw_bytes_per_sec / C
+            return min(raw, cap)
+        elif bus == "l1_to_l0a":
+            return self.l1_to_l0a_per_cycle * self.freq_hz
+        elif bus == "l1_to_l0b":
+            return self.l1_to_l0b_per_cycle * self.freq_hz
+        elif bus == "l0c_to_out":
+            return self.l0c_to_out_per_cycle * self.freq_hz
+        elif bus == "ub_to_l1":
+            return self.ub_to_l1_per_cycle * self.freq_hz
+        elif bus == "ub_to_reg":
+            return self.ub_to_reg_per_cycle * self.freq_hz
+        return 0.0
+
+    def effective_load_bw(self, active_cores: int, reuse_count: int = 1) -> float:
+        """Effective per-core bandwidth mixing HBM (cold) and L2 (warm reuse).
+
+        First access uses HBM, subsequent (reuse_count - 1) use L2.
+        Returns weighted average in bytes/sec.
+        """
+        if reuse_count <= 1:
+            return self.per_core_bw("hbm", active_cores)
+        hbm = self.per_core_bw("hbm", active_cores)
+        l2 = self.per_core_bw("l2", active_cores)
+        return 1.0 / (1.0 / reuse_count / hbm + (reuse_count - 1.0) / reuse_count / l2)
+
+    def mmad_throughput(self, dtype_size: int) -> float:
+        """MMAD throughput in ops/sec for one core (each op = 1 MAC = 2 FLOPs)."""
+        if dtype_size == 1:
+            return self.mmad_ops_per_cycle_fp8 * self.freq_hz
+        return self.mmad_ops_per_cycle_fp16 * self.freq_hz
 
 
 ASCEND_910B = AscendHWSpec()
+
+ASCEND_950 = AscendHWSpec(
+    name="Ascend950",
+    aic_num=32,
+    aiv_num=64,
+    # Chip-total fields (derived from per-cycle specs for backward compat)
+    cube_tflops_bf16=4096 * 2 * 1.65e9 * 32 / 1e12,   # ~432.5 TFLOPS
+    cube_tops_int8=4096 * 2 * 1.65e9 * 32 / 1e12,
+    cube_tflops_fp8=8192 * 2 * 1.65e9 * 32 / 1e12,     # ~865.1 TFLOPS
+    hbm_bw_bytes_per_sec=1.6e12,
+    l2_bw_bytes_per_sec=5.2e12,
+    fixpipe_bw_bytes_per_sec=256.0 * 1.65e9 * 32,       # l0c_to_out per core * cores
+    vector_ops_per_sec_bf16=20.0e12,
+    mte2_bw_bytes_per_sec=1.6e12,
+    mte3_bw_bytes_per_sec=1.6e12,
+    sync_overhead_us=0.8,
+    scatter_efficiency=0.4,
+    # Per-cycle specs
+    freq_ghz=1.65,
+    cache=CacheSpec(
+        ub_size=256 * 1024,
+        l1_size=1024 * 1024,
+        l0a_size=256 * 1024,
+        l0b_size=256 * 1024,
+        l0c_size=512 * 1024,
+    ),
+    hbm_bw_per_cycle=33.3,
+    l2_bw_per_cycle=108.0,
+    l1_to_l0a_per_cycle=256.0,
+    l1_to_l0b_per_cycle=256.0,
+    l0c_to_out_per_cycle=256.0,
+    ub_to_l1_per_cycle=245.0,
+    ub_to_reg_per_cycle=512.0,
+    mmad_ops_per_cycle_fp8=8192,
+    mmad_ops_per_cycle_fp16=4096,
+    chip_hbm_bw_bytes_per_sec=1.6e12,
+    chip_l2_bw_bytes_per_sec=5.2e12,
+)
+
+CHIP_REGISTRY = {"910b": ASCEND_910B, "950": ASCEND_950}
 
 
 def dtype_size(quant_mode: QuantMode) -> int:
@@ -125,6 +262,71 @@ def dtype_size(quant_mode: QuantMode) -> int:
         return 1
     return 2  # BF16
 
+
+# ---------------------------------------------------------------------------
+# MatMul block specification and cache validation
+# ---------------------------------------------------------------------------
+
+@dataclass
+class MatmulBlockSpec:
+    """Block sizes for a single matmul's inner loop."""
+    name: str
+    baseM: int
+    baseN: int
+    baseK: int
+    stepK: int = 4
+    mode: str = "split_k"   # "split_k" or "full_load"
+    dtype_a_size: int = 2
+    dtype_b_size: int = 2
+    dtype_c_size: int = 2
+
+
+def check_cache_fit(block: MatmulBlockSpec, hw: AscendHWSpec,
+                    n_per_core: Optional[int] = None) -> bool:
+    """Verify that block sizes fit in on-chip buffers (double-buffered)."""
+    n = n_per_core if n_per_core is not None else block.baseN
+    # L0A: baseM * baseK * dtype_a * 2 (ping-pong)
+    l0a_usage = block.baseM * block.baseK * block.dtype_a_size * 2
+    if l0a_usage > hw.cache.l0a_size:
+        return False
+    # L0B: baseK * baseN * dtype_b * 2
+    l0b_usage = block.baseK * block.baseN * block.dtype_b_size * 2
+    if l0b_usage > hw.cache.l0b_size:
+        return False
+    # L0C: baseM * baseN * dtype_c * 2
+    l0c_usage = block.baseM * block.baseN * block.dtype_c_size * 2
+    if l0c_usage > hw.cache.l0c_size:
+        return False
+    # L1 must fit at least 1 stepK worth (double-buffered)
+    l1_per_step_a = block.baseM * block.baseK * block.dtype_a_size
+    l1_per_step_b = block.baseK * n * block.dtype_b_size
+    if (l1_per_step_a + l1_per_step_b) * 2 > hw.cache.l1_size:
+        return False
+    return True
+
+
+def derive_stepK(block: MatmulBlockSpec, K: int, hw: AscendHWSpec,
+                 n_per_core: Optional[int] = None) -> int:
+    """Derive optimal stepK from L1 size constraint.
+
+    stepK = floor(L1_SIZE / 2 / (A_per_step + B_per_step)), clamped to [1, ceil(K/baseK)].
+    """
+    n = n_per_core if n_per_core is not None else block.baseN
+    l1_per_step_a = block.baseM * block.baseK * block.dtype_a_size
+    l1_per_step_b = block.baseK * n * block.dtype_b_size
+    per_step = l1_per_step_a + l1_per_step_b
+    if per_step == 0:
+        return 1
+    max_stepK = hw.cache.l1_size // 2 // per_step
+    if max_stepK < 1:
+        return 0  # invalid: even 1 step doesn't fit
+    k_iters = math.ceil(K / block.baseK) if block.baseK > 0 else 1
+    return min(max_stepK, k_iters)
+
+
+# ---------------------------------------------------------------------------
+# Timing dataclasses
+# ---------------------------------------------------------------------------
 
 @dataclass
 class MatMulTiming:
@@ -141,6 +343,13 @@ class MatMulTiming:
     total_us: float = 0.0
     bound: str = ""
     a_source: str = "HBM"
+    # Inner-loop detail fields (populated by estimate_matmul_detailed)
+    l0a_us: float = 0.0
+    l0b_us: float = 0.0
+    mmad_us: float = 0.0
+    mte1_outer_us: float = 0.0
+    kL1_loops: int = 0
+    inner_bound: str = ""
 
     @property
     def mte1_us(self) -> float:
@@ -157,6 +366,10 @@ class VectorOpTiming:
     total_us: float = 0.0
     bound: str = ""
 
+
+# ---------------------------------------------------------------------------
+# Chip-total matmul estimation (legacy 910B path)
+# ---------------------------------------------------------------------------
 
 def estimate_matmul(
     name: str,
@@ -214,13 +427,6 @@ def estimate_matmul(
     total_s = max(mte1_time_s, cube_time_s, fixpipe_time_s)
 
     # Determine bound
-    components = {
-        "HBM" if a_source == "HBM" else "L2": load_A_effective_s,
-        "HBM_B": load_B_time_s,
-        "CUBE": cube_time_s,
-        "FIXPIPE": fixpipe_time_s,
-    }
-    # MTE1 bound is the max of A and B loads
     if mte1_time_s >= cube_time_s and mte1_time_s >= fixpipe_time_s:
         if load_A_effective_s >= load_B_time_s:
             bound = "HBM" if a_source == "HBM" else "L2"
@@ -245,6 +451,272 @@ def estimate_matmul(
         bound=bound,
         a_source=a_source,
     )
+
+
+# ---------------------------------------------------------------------------
+# Per-cycle inner-loop matmul estimation (950 detailed path)
+# ---------------------------------------------------------------------------
+
+def estimate_matmul_detailed(
+    name: str,
+    M: int, K: int, N: int,
+    active_cores: int,
+    hw: AscendHWSpec,
+    block: MatmulBlockSpec,
+    a_reused: bool = False,
+) -> MatMulTiming:
+    """Estimate matmul timing using per-cycle inner-loop model.
+
+    Models the L1/L0 cache hierarchy:
+    - Outer loop: HBM/L2 -> L1 (MTE1, double-buffered across kL1 iterations)
+    - Inner loop: L1 -> L0A/L0B + MMAD (double-buffered across stepK iterations)
+    - Output: L0C -> FixPipe
+    """
+    C = max(active_cores, 1)
+    per_core_N = math.ceil(N / C)
+    dtype_a = block.dtype_a_size
+    dtype_b = block.dtype_b_size
+    dtype_c = block.dtype_c_size
+
+    us = 1e6
+
+    if block.mode == "full_load":
+        return _estimate_full_load(name, M, K, per_core_N, C, hw, block, a_reused)
+
+    # --- split_k mode ---
+    baseM = block.baseM
+    baseK = block.baseK
+    stepK = block.stepK
+    kL1StepSize = baseK * stepK
+    kL1Loops = math.ceil(K / kL1StepSize)
+
+    # Bandwidth values (bytes/sec)
+    hbm_bw = hw.per_core_bw("hbm", C)
+    l2_bw = hw.per_core_bw("l2", C)
+    l0a_bw = hw.per_core_bw("l1_to_l0a", C)
+    l0b_bw = hw.per_core_bw("l1_to_l0b", C)
+    fixpipe_bw = hw.per_core_bw("l0c_to_out", C)
+    mmad_tput = hw.mmad_throughput(dtype_a)  # ops/sec per core
+
+    # --- Outer loop: GM/L2 -> L1 per kL1 iteration ---
+    load_A_l1_bytes = baseM * kL1StepSize * dtype_a
+    load_B_l1_bytes = kL1StepSize * per_core_N * dtype_b
+    if a_reused:
+        a_source = "L2"
+        load_A_time_s = load_A_l1_bytes / l2_bw if l2_bw > 0 else 0
+    else:
+        a_source = "HBM"
+        load_A_time_s = load_A_l1_bytes / hbm_bw if hbm_bw > 0 else 0
+    load_B_time_s = load_B_l1_bytes / hbm_bw if hbm_bw > 0 else 0
+    mte1_time_s = max(load_A_time_s, load_B_time_s)
+
+    # --- Inner loop: L1 -> L0 + MMAD per stepK iteration ---
+    l0a_bytes = baseM * baseK * dtype_a
+    l0b_bytes = baseK * per_core_N * dtype_b
+    l0a_time_s = l0a_bytes / l0a_bw if l0a_bw > 0 else 0
+    l0b_time_s = l0b_bytes / l0b_bw if l0b_bw > 0 else 0
+    # MMAD: baseM * per_core_N * baseK MACs = baseM * per_core_N * baseK * 2 FLOPs
+    mmad_ops = baseM * per_core_N * baseK
+    mmad_time_s = mmad_ops / mmad_tput if mmad_tput > 0 else 0
+    # Double-buffered: L0A/L0B loads overlap with MMAD
+    inner_iter_s = max(l0a_time_s, l0b_time_s, mmad_time_s)
+    total_inner_s = stepK * inner_iter_s
+
+    # --- FixPipe: L0C -> output per kL1 iteration ---
+    fixpipe_bytes = baseM * per_core_N * dtype_c
+    fixpipe_time_s = fixpipe_bytes / fixpipe_bw if fixpipe_bw > 0 else 0
+
+    # Pipelined: MTE1, inner compute, and FixPipe overlap across kL1 iterations
+    per_kl1_s = max(mte1_time_s, total_inner_s, fixpipe_time_s)
+    total_s = kL1Loops * per_kl1_s
+
+    # Determine inner bound
+    candidates = {
+        "MTE1_A": load_A_time_s,
+        "MTE1_B": load_B_time_s,
+        "L0A": l0a_time_s * stepK,
+        "L0B": l0b_time_s * stepK,
+        "MMAD": mmad_time_s * stepK,
+        "FIXPIPE": fixpipe_time_s,
+    }
+    inner_bound = max(candidates, key=candidates.get)
+    # Simplified bound name
+    if per_kl1_s == mte1_time_s:
+        bound = "HBM" if a_source == "HBM" and load_A_time_s >= load_B_time_s else "HBM"
+        if a_source == "L2" and load_A_time_s >= load_B_time_s:
+            bound = "L2"
+    elif per_kl1_s == total_inner_s:
+        if inner_iter_s == mmad_time_s:
+            bound = "CUBE"
+        elif inner_iter_s == l0a_time_s:
+            bound = "L0A"
+        else:
+            bound = "L0B"
+    else:
+        bound = "FIXPIPE"
+
+    return MatMulTiming(
+        name=name, M=M, K=K, N=N,
+        active_cores=C,
+        load_A_hbm_us=(load_A_l1_bytes / hbm_bw * us) if hbm_bw > 0 else 0,
+        load_A_l2_us=(load_A_l1_bytes / l2_bw * us) if l2_bw > 0 else 0,
+        load_B_hbm_us=load_B_time_s * us,
+        cube_us=mmad_time_s * stepK * kL1Loops * us,
+        fixpipe_us=fixpipe_time_s * kL1Loops * us,
+        total_us=total_s * us,
+        bound=bound,
+        a_source=a_source,
+        l0a_us=l0a_time_s * us,
+        l0b_us=l0b_time_s * us,
+        mmad_us=mmad_time_s * us,
+        mte1_outer_us=mte1_time_s * us,
+        kL1_loops=kL1Loops,
+        inner_bound=inner_bound,
+    )
+
+
+def _estimate_full_load(
+    name: str, M: int, K: int, per_core_N: int,
+    active_cores: int, hw: AscendHWSpec, block: MatmulBlockSpec,
+    a_reused: bool,
+) -> MatMulTiming:
+    """Inner-loop model for full_load mode (MM4): A fully loaded, N-split only."""
+    us = 1e6
+    dtype_a = block.dtype_a_size
+    dtype_b = block.dtype_b_size
+    dtype_c = block.dtype_c_size
+    nSplitSize = block.baseN
+
+    hbm_bw = hw.per_core_bw("hbm", active_cores)
+    l2_bw = hw.per_core_bw("l2", active_cores)
+    l0a_bw = hw.per_core_bw("l1_to_l0a", active_cores)
+    l0b_bw = hw.per_core_bw("l1_to_l0b", active_cores)
+    fixpipe_bw = hw.per_core_bw("l0c_to_out", active_cores)
+    mmad_tput = hw.mmad_throughput(dtype_a)
+
+    a_source = "L2" if a_reused else "HBM"
+    a_bw = l2_bw if a_reused else hbm_bw
+
+    # Load A once
+    load_A_bytes = M * K * dtype_a
+    load_A_time_s = load_A_bytes / a_bw if a_bw > 0 else 0
+
+    nSplits = math.ceil(per_core_N / nSplitSize) if nSplitSize > 0 else 1
+
+    # Per N-split iteration
+    load_B_bytes = K * nSplitSize * dtype_b
+    load_B_time_s = load_B_bytes / hbm_bw if hbm_bw > 0 else 0
+    l0a_bytes = M * K * dtype_a
+    l0b_bytes = K * nSplitSize * dtype_b
+    l0a_time_s = l0a_bytes / l0a_bw if l0a_bw > 0 else 0
+    l0b_time_s = l0b_bytes / l0b_bw if l0b_bw > 0 else 0
+    mmad_ops = M * nSplitSize * K
+    mmad_time_s = mmad_ops / mmad_tput if mmad_tput > 0 else 0
+    fixpipe_bytes = M * nSplitSize * dtype_c
+    fixpipe_time_s = fixpipe_bytes / fixpipe_bw if fixpipe_bw > 0 else 0
+
+    per_split_s = max(load_B_time_s, max(l0a_time_s, l0b_time_s, mmad_time_s), fixpipe_time_s)
+    total_s = load_A_time_s + nSplits * per_split_s
+
+    # Determine bound
+    if per_split_s == load_B_time_s:
+        bound = "HBM"
+    elif max(l0a_time_s, l0b_time_s, mmad_time_s) >= max(load_B_time_s, fixpipe_time_s):
+        if mmad_time_s >= l0a_time_s and mmad_time_s >= l0b_time_s:
+            bound = "CUBE"
+        elif l0a_time_s >= l0b_time_s:
+            bound = "L0A"
+        else:
+            bound = "L0B"
+    else:
+        bound = "FIXPIPE"
+
+    return MatMulTiming(
+        name=name, M=M, K=K, N=per_core_N * max(active_cores, 1),
+        active_cores=active_cores,
+        load_A_hbm_us=(load_A_bytes / hbm_bw * us) if hbm_bw > 0 else 0,
+        load_A_l2_us=(load_A_bytes / l2_bw * us) if l2_bw > 0 else 0,
+        load_B_hbm_us=load_B_time_s * us,
+        cube_us=mmad_time_s * nSplits * us,
+        fixpipe_us=fixpipe_time_s * nSplits * us,
+        total_us=total_s * us,
+        bound=bound,
+        a_source=a_source,
+        l0a_us=l0a_time_s * us,
+        l0b_us=l0b_time_s * us,
+        mmad_us=mmad_time_s * us,
+        mte1_outer_us=load_A_time_s * us,
+        kL1_loops=nSplits,
+        inner_bound=bound,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Default block specs per matmul (from kernel code analysis)
+# ---------------------------------------------------------------------------
+
+def get_default_block_specs(params: 'OperatorParams', hw: AscendHWSpec):
+    """Return default MatmulBlockSpec for each matmul based on quant mode."""
+    qm = params.quant_mode
+    act_size = params.activation_dtype_size
+    wt_size = params.weight_dtype_size
+    out_size = params.mm_output_dtype_size
+
+    is_fp8 = is_mxfp8(qm)
+    is_quant = is_full_quant(qm) or is_int8_quant(qm) or is_fp8
+
+    # MM3 weight dtype
+    mm3_wt_size = 1 if is_quant else 2
+    mm3_act_size = 2  # Cq is always BF16 after RMSNorm
+
+    if is_fp8 or is_quant:
+        mm1_baseK = 256
+        mm2_baseK = 256
+        mm3_baseK = 128
+    else:
+        mm1_baseK = 128
+        mm2_baseK = 128
+        mm3_baseK = 64
+
+    mm1_baseN = 64 if is_fp8 else 128
+    mm2_baseN = 128
+    mm3_baseN = 128 if (is_fp8 or is_quant) else 256
+
+    specs = {}
+    specs["MM1_Cq"] = MatmulBlockSpec(
+        "MM1_Cq", baseM=32, baseN=mm1_baseN, baseK=mm1_baseK, stepK=4,
+        mode="split_k", dtype_a_size=act_size, dtype_b_size=wt_size, dtype_c_size=out_size,
+    )
+    specs["MM2_CkvKr"] = MatmulBlockSpec(
+        "MM2_CkvKr", baseM=32, baseN=mm2_baseN, baseK=mm2_baseK, stepK=4,
+        mode="split_k", dtype_a_size=act_size, dtype_b_size=wt_size, dtype_c_size=out_size,
+    )
+    specs["MM3_QcQr"] = MatmulBlockSpec(
+        "MM3_QcQr", baseM=32, baseN=mm3_baseN, baseK=mm3_baseK, stepK=4,
+        mode="split_k", dtype_a_size=mm3_act_size, dtype_b_size=mm3_wt_size, dtype_c_size=out_size,
+    )
+    specs["MM4_Qn"] = MatmulBlockSpec(
+        "MM4_Qn", baseM=32, baseN=128, baseK=128, stepK=1,
+        mode="full_load", dtype_a_size=2, dtype_b_size=wt_size, dtype_c_size=2,
+    )
+
+    # Derive stepK from L1 constraint for each spec
+    mm_dims = {
+        "MM1_Cq": (params.He, params.Hcq),
+        "MM2_CkvKr": (params.He, params.Hckv + params.Dr),
+        "MM3_QcQr": (params.Hcq, params.N * (params.D + params.Dr)),
+        "MM4_Qn": (params.D, params.Hckv),
+    }
+    for mm_name, (K, N_total) in mm_dims.items():
+        spec = specs[mm_name]
+        if spec.mode == "full_load":
+            continue
+        n_per_core = math.ceil(N_total / hw.aic_num)
+        derived = derive_stepK(spec, K, hw, n_per_core)
+        if derived > 0:
+            spec.stepK = derived
+
+    return specs
 
 
 def estimate_vector_op(
@@ -341,16 +813,12 @@ class OperatorParams:
         return 2
 
 
-def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec):
+def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
+                        block_specs=None):
     """Estimate timing for all matmul and vector stages.
 
-    Args:
-        params: Operator parameters
-        tiling: TilingConfig from tiling_sim
-        hw: Hardware spec
-
-    Returns:
-        dict of stage_name -> MatMulTiming or VectorOpTiming
+    When hw.has_cycle_spec is True, uses the detailed inner-loop model.
+    Otherwise falls back to the chip-total estimate_matmul().
     """
     T = tiling.step_batch_size
     He = params.He
@@ -365,74 +833,77 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec):
     wt_size = params.weight_dtype_size
     out_size = params.mm_output_dtype_size
 
+    use_detailed = hw.has_cycle_spec
+    if use_detailed and block_specs is None:
+        block_specs = get_default_block_specs(params, hw)
+
     stages = {}
 
-    # MM1: tokenX[T, He] x weightDq[He, Hcq] -> Cq[T, Hcq]
-    stages["MM1_Cq"] = estimate_matmul(
-        "MM1_Cq", T, He, Hcq,
-        active_cores=tiling.mm1_block_num,
-        hw=hw,
-        dtype_a_size=act_size,
-        dtype_b_size=wt_size,
-        dtype_c_size=out_size,
-        a_reused=False,
-    )
-
-    # MM2: tokenX[T, He] x weightDkvKr[He, Hckv+Dr] -> CkvKr[T, Hckv+Dr]
-    # tokenX reused from MM1 (L2 warm)
-    stages["MM2_CkvKr"] = estimate_matmul(
-        "MM2_CkvKr", T, He, Hckv + Dr,
-        active_cores=tiling.mm2_block_num,
-        hw=hw,
-        dtype_a_size=act_size,
-        dtype_b_size=wt_size,
-        dtype_c_size=out_size,
-        a_reused=True,
-    )
-
-    # MM3: Cq[T, Hcq] x weightUqQr[Hcq, N*(D+Dr)] -> QcQr[T, N*(D+Dr)]
-    mm3_out_size = out_size
-    if is_full_quant(qm) or is_mxfp8(qm):
-        mm3_wt_size = 1
-    elif is_int8_quant(qm):
-        mm3_wt_size = 1
+    if use_detailed:
+        # MM1: tokenX[T, He] x weightDq[He, Hcq] -> Cq[T, Hcq]
+        stages["MM1_Cq"] = estimate_matmul_detailed(
+            "MM1_Cq", T, He, Hcq,
+            active_cores=tiling.mm1_block_num,
+            hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
+        )
+        # MM2: tokenX reused from MM1 (L2 warm)
+        stages["MM2_CkvKr"] = estimate_matmul_detailed(
+            "MM2_CkvKr", T, He, Hckv + Dr,
+            active_cores=tiling.mm2_block_num,
+            hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+        )
+        # MM3: Cq[T, Hcq] x weightUqQr[Hcq, N*(D+Dr)] -> QcQr
+        stages["MM3_QcQr"] = estimate_matmul_detailed(
+            "MM3_QcQr", T, Hcq, N * (D + Dr),
+            active_cores=tiling.mm3_block_num,
+            hw=hw, block=block_specs["MM3_QcQr"], a_reused=False,
+        )
+        # MM4: Qc[T, D] x Uk[D, Hckv] -> Qn
+        stages["MM4_Qn"] = estimate_matmul_detailed(
+            "MM4_Qn", T, D, Hckv,
+            active_cores=tiling.mm4_block_num,
+            hw=hw, block=block_specs["MM4_Qn"], a_reused=False,
+        )
     else:
-        mm3_wt_size = 2
-    # Cq as A: comes from workspace, not reused from prior matmul HBM load
-    stages["MM3_QcQr"] = estimate_matmul(
-        "MM3_QcQr", T, Hcq, N * (D + Dr),
-        active_cores=tiling.mm3_block_num,
-        hw=hw,
-        dtype_a_size=2,  # Cq is always BF16 after RMSNorm
-        dtype_b_size=mm3_wt_size,
-        dtype_c_size=mm3_out_size,
-        a_reused=False,
-    )
-
-    # MM4: Qc[T, D] x Uk[D, Hckv] -> Qn, per head group
-    # Runs N/mm4_cores iterations
-    stages["MM4_Qn"] = estimate_matmul(
-        "MM4_Qn", T, D, Hckv,
-        active_cores=tiling.mm4_block_num,
-        hw=hw,
-        dtype_a_size=2,  # Qc is BF16
-        dtype_b_size=wt_size,
-        dtype_c_size=2,  # output BF16
-        a_reused=False,
-    )
+        # Legacy chip-total path
+        stages["MM1_Cq"] = estimate_matmul(
+            "MM1_Cq", T, He, Hcq,
+            active_cores=tiling.mm1_block_num, hw=hw,
+            dtype_a_size=act_size, dtype_b_size=wt_size, dtype_c_size=out_size,
+            a_reused=False,
+        )
+        stages["MM2_CkvKr"] = estimate_matmul(
+            "MM2_CkvKr", T, He, Hckv + Dr,
+            active_cores=tiling.mm2_block_num, hw=hw,
+            dtype_a_size=act_size, dtype_b_size=wt_size, dtype_c_size=out_size,
+            a_reused=True,
+        )
+        mm3_wt_size = 1 if (is_full_quant(qm) or is_mxfp8(qm) or is_int8_quant(qm)) else 2
+        stages["MM3_QcQr"] = estimate_matmul(
+            "MM3_QcQr", T, Hcq, N * (D + Dr),
+            active_cores=tiling.mm3_block_num, hw=hw,
+            dtype_a_size=2, dtype_b_size=mm3_wt_size, dtype_c_size=out_size,
+            a_reused=False,
+        )
+        stages["MM4_Qn"] = estimate_matmul(
+            "MM4_Qn", T, D, Hckv,
+            active_cores=tiling.mm4_block_num, hw=hw,
+            dtype_a_size=2, dtype_b_size=wt_size, dtype_c_size=2,
+            a_reused=False,
+        )
 
     vec_cores = tiling.vector_block_num
 
-    # RMSNorm Cq: load Cq + scale, compute norm, store normalized
+    # RMSNorm Cq
     rmsnorm_cq_load = T * Hcq * out_size
-    rmsnorm_cq_compute = T * Hcq * 3  # mul, add, rsqrt ~3 ops/element
-    rmsnorm_cq_store = T * Hcq * 2  # output BF16
+    rmsnorm_cq_compute = T * Hcq * 3
+    rmsnorm_cq_store = T * Hcq * 2
     stages["RmsNormCq"] = estimate_vector_op(
         "RmsNormCq", rmsnorm_cq_load, rmsnorm_cq_compute, rmsnorm_cq_store,
         hw, active_cores=vec_cores,
     )
 
-    # RMSNorm CkvKr: similar to Cq but on Hckv+Dr
+    # RMSNorm CkvKr
     ckv_kr_size = Hckv + Dr
     rmsnorm_ckvkr_load = T * ckv_kr_size * out_size
     rmsnorm_ckvkr_compute = T * Hckv * 3
@@ -442,26 +913,26 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec):
         hw, active_cores=vec_cores,
     )
 
-    # RoPE Kr: apply rotary embedding to Kr portion
-    rope_kr_load = T * Dr * 2 + T * Dr * 2  # Kr data + sin/cos
-    rope_kr_compute = T * Dr * 4  # mul, sub, mul, add
+    # RoPE Kr
+    rope_kr_load = T * Dr * 2 + T * Dr * 2
+    rope_kr_compute = T * Dr * 4
     rope_kr_store = T * Dr * 2
     stages["RopeKr"] = estimate_vector_op(
         "RopeKr", rope_kr_load, rope_kr_compute, rope_kr_store,
         hw, active_cores=vec_cores,
     )
 
-    # Scatter Ckv + Kr to KV cache (indexed write)
+    # Scatter CkvKr
     scatter_store = T * (Hckv + Dr) * 2
     stages["ScatterCkvKr"] = estimate_vector_op(
         "ScatterCkvKr", T * (Hckv + Dr) * 2, T * (Hckv + Dr), scatter_store,
         hw, active_cores=vec_cores, is_scatter=True,
     )
 
-    # DequantQc or CastQc (only for quant modes)
+    # DequantQc
     if is_full_quant(qm) or is_int8_quant(qm) or is_mxfp8(qm):
         dequant_load = T * N * D * out_size
-        dequant_compute = T * N * D * 2  # mul + add per element
+        dequant_compute = T * N * D * 2
         dequant_store = T * N * D * 2
         stages["DequantQc"] = estimate_vector_op(
             "DequantQc", dequant_load, dequant_compute, dequant_store,
@@ -469,7 +940,7 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec):
         )
 
     # RoPE Qr
-    rope_qr_load = T * N * Dr * 2 + T * Dr * 2  # Qr + sin/cos
+    rope_qr_load = T * N * Dr * 2 + T * Dr * 2
     rope_qr_compute = T * N * Dr * 4
     rope_qr_store = T * N * Dr * 2
     stages["RopeQr"] = estimate_vector_op(
@@ -477,17 +948,17 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec):
         hw, active_cores=vec_cores,
     )
 
-    # DynamicQuant Qn (if query_quant_mode=1)
+    # DynamicQuant Qn
     if params.query_quant_mode == 1:
         dyn_quant_load = T * N * Hckv * 2
         dyn_quant_compute = T * N * Hckv * 3
-        dyn_quant_store = T * N * Hckv * 1  # INT8 output
+        dyn_quant_store = T * N * Hckv * 1
         stages["DynamicQuantQn"] = estimate_vector_op(
             "DynamicQuantQn", dyn_quant_load, dyn_quant_compute, dyn_quant_store,
             hw, active_cores=vec_cores,
         )
 
-    # MulQr (if query_quant_mode=1)
+    # MulQr
     if params.query_quant_mode == 1:
         mul_qr_load = T * N * Dr * 2
         mul_qr_compute = T * N * Dr * 1

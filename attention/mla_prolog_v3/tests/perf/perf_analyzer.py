@@ -10,6 +10,8 @@ Usage:
     python perf_analyzer.py --from-testcase base_default --mode advice
     python perf_analyzer.py --from-testcase base_default --mode search
     python perf_analyzer.py --mode report   # run all perf test cases
+    python perf_analyzer.py --chip 950 --from-testcase perf_decode_bs1 --mode roofline
+    python perf_analyzer.py --chip 950 --from-testcase perf_decode_bs1 --mode block-search
 """
 
 import argparse
@@ -20,12 +22,17 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "pytest"))
 
 from perf_model import (
-    AscendHWSpec, ASCEND_910B, OperatorParams, MatMulTiming, VectorOpTiming,
+    AscendHWSpec, ASCEND_910B, ASCEND_950, CHIP_REGISTRY,
+    OperatorParams, MatMulTiming, VectorOpTiming,
     estimate_all_stages, is_full_quant, is_int8_quant, is_mxfp8,
 )
-from tiling_sim import TilingConfig, compute_tiling, search_best_tiling
+from tiling_sim import (
+    TilingConfig, compute_tiling, search_best_tiling,
+    search_all_matmul_blocks,
+)
 from pipeline_model import (
     build_pipeline_dag, estimate_kernel_time, format_timeline, PipelineResult,
+    roofline_analysis, format_roofline_report,
 )
 
 
@@ -70,16 +77,28 @@ def mode_bound(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
     print(f"Tiling: stepBatch={tiling.step_batch_size}")
     print()
 
-    # MatMul stages
-    mm_header = f"{'Stage':<16} {'M':>5} {'K':>6} {'N':>7} {'Cores':>5} | {'MTE1':>8} {'Cube':>8} {'FixPipe':>8} {'Total':>8} | {'Bound':<8} {'A src':<5}"
+    # MatMul stages - extended columns for detailed mode
+    if hw.has_cycle_spec:
+        mm_header = (
+            f"{'Stage':<14} {'M':>4} {'K':>6} {'N':>7} {'C':>3} | "
+            f"{'MTE1':>7} {'L0A':>7} {'L0B':>7} {'MMAD':>7} {'FxPipe':>7} {'Total':>7} | "
+            f"{'kL1':>3} {'Bound':<8} {'A src':<4}"
+        )
+    else:
+        mm_header = f"{'Stage':<16} {'M':>5} {'K':>6} {'N':>7} {'Cores':>5} | {'MTE1':>8} {'Cube':>8} {'FixPipe':>8} {'Total':>8} | {'Bound':<8} {'A src':<5}"
     print(mm_header)
     print("-" * len(mm_header))
 
     for name in ["MM1_Cq", "MM2_CkvKr", "MM3_QcQr", "MM4_Qn"]:
         t = stages[name]
-        print(f"{t.name:<16} {t.M:>5} {t.K:>6} {t.N:>7} {t.active_cores:>5} | "
-              f"{t.mte1_us:>7.2f} {t.cube_us:>7.2f} {t.fixpipe_us:>7.2f} {t.total_us:>7.2f} | "
-              f"{t.bound:<8} {t.a_source:<5}")
+        if hw.has_cycle_spec:
+            print(f"{t.name:<14} {t.M:>4} {t.K:>6} {t.N:>7} {t.active_cores:>3} | "
+                  f"{t.mte1_outer_us:>6.2f} {t.l0a_us:>6.2f} {t.l0b_us:>6.2f} {t.mmad_us:>6.2f} {t.fixpipe_us:>6.2f} {t.total_us:>6.2f} | "
+                  f"{t.kL1_loops:>3} {t.bound:<8} {t.a_source:<4}")
+        else:
+            print(f"{t.name:<16} {t.M:>5} {t.K:>6} {t.N:>7} {t.active_cores:>5} | "
+                  f"{t.mte1_us:>7.2f} {t.cube_us:>7.2f} {t.fixpipe_us:>7.2f} {t.total_us:>7.2f} | "
+                  f"{t.bound:<8} {t.a_source:<5}")
 
     print()
 
@@ -202,7 +221,7 @@ def mode_advice(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
 
 def mode_report(hw: AscendHWSpec):
     """Mode 6: Run all performance test cases and print a comparison table."""
-    print_header("PERFORMANCE REPORT — All Perf Test Cases")
+    print_header(f"PERFORMANCE REPORT — All Perf Test Cases ({hw.name})")
 
     try:
         from testcases import TEST_PARAMS, PERF_CASE_NAMES
@@ -303,7 +322,6 @@ def mode_report(hw: AscendHWSpec):
                 speedup = ""
                 if baseline and r is not baseline:
                     speedup = f" ({baseline['total_us'] / r['total_us']:.2f}x vs BF16)"
-                qm = r["params"].quant_mode.name
                 print(f"    {r['name']:<28} {r['total_us']:>8.2f} us{speedup}")
 
     return results
@@ -340,6 +358,83 @@ def mode_search(params: OperatorParams, hw: AscendHWSpec):
         print(best_cfg.summary())
 
 
+def mode_roofline(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
+    """Roofline model showing compute/memory balance for each matmul."""
+    print_header("ROOFLINE ANALYSIS")
+
+    if not hw.has_cycle_spec:
+        print("  Roofline analysis requires per-cycle HW spec. Use --chip 950.")
+        return
+
+    results = roofline_analysis(params, tiling, hw)
+    print(format_roofline_report(results, hw))
+
+
+def mode_block_search(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
+    """Search optimal baseM/baseN/baseK for each matmul."""
+    print_header("BLOCK SIZE SEARCH — Optimal baseM/baseN/baseK")
+
+    if not hw.has_cycle_spec:
+        print("  Block search requires per-cycle HW spec. Use --chip 950.")
+        return
+
+    print(f"Parameters: T={tiling.step_batch_size}, He={params.He}, N={params.N}")
+    print(f"Cache: L0A={hw.cache.l0a_size//1024}KB, L0B={hw.cache.l0b_size//1024}KB, "
+          f"L0C={hw.cache.l0c_size//1024}KB, L1={hw.cache.l1_size//1024}KB")
+    print()
+
+    all_results = search_all_matmul_blocks(params, tiling, hw)
+
+    for mm_name in ["MM1_Cq", "MM2_CkvKr", "MM3_QcQr", "MM4_Qn"]:
+        results = all_results.get(mm_name, [])
+        if not results:
+            print(f"  {mm_name}: no valid block configurations found")
+            print()
+            continue
+
+        print(f"  {mm_name} (top 5 of {len(results)} valid configs):")
+        header = f"    {'Rank':>4} {'baseM':>5} {'baseN':>5} {'baseK':>5} {'stepK':>5} | {'Total(us)':>10} {'Bound':<8} {'InnerBound':<10}"
+        print(header)
+        print("    " + "-" * (len(header) - 4))
+
+        for i, (block, timing) in enumerate(results[:5], 1):
+            marker = " <-- best" if i == 1 else ""
+            print(f"    {i:>4} {block.baseM:>5} {block.baseN:>5} {block.baseK:>5} {block.stepK:>5} | "
+                  f"{timing.total_us:>9.2f} {timing.bound:<8} {timing.inner_bound:<10}{marker}")
+
+        # Best config summary
+        best_block, best_timing = results[0]
+        print(f"    Optimal: baseM={best_block.baseM}, baseN={best_block.baseN}, "
+              f"baseK={best_block.baseK}, stepK={best_block.stepK} "
+              f"-> {best_timing.bound}-bound, {best_timing.total_us:.2f} us")
+        print()
+
+    # Fitting formulas summary
+    print("Fitting formulas (for tiling code):")
+    qm_label = params.quant_mode.name
+    for mm_name in ["MM1_Cq", "MM2_CkvKr", "MM3_QcQr", "MM4_Qn"]:
+        results = all_results.get(mm_name, [])
+        if results:
+            b, t = results[0]
+            print(f"  {mm_name} ({qm_label}@{hw.name}): "
+                  f"baseM={b.baseM}, baseN={b.baseN}, baseK={b.baseK}, stepK={b.stepK}")
+
+
+def build_hw(args) -> AscendHWSpec:
+    """Build hardware spec from CLI arguments."""
+    import dataclasses
+    hw = CHIP_REGISTRY.get(args.chip, ASCEND_910B)
+    # Apply aic/aiv overrides if explicitly different from chip defaults
+    overrides = {}
+    if args.aic_num != hw.aic_num:
+        overrides["aic_num"] = args.aic_num
+    if args.aiv_num != hw.aiv_num:
+        overrides["aiv_num"] = args.aiv_num
+    if overrides:
+        hw = dataclasses.replace(hw, **overrides)
+    return hw
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="MLA Prolog V3 Performance Analyzer",
@@ -368,34 +463,27 @@ def main():
 
     # Analysis mode
     parser.add_argument("--mode", type=str, default="full",
-                        choices=["bound", "pipeline", "estimate", "advice", "search", "report", "full"],
+                        choices=["bound", "pipeline", "estimate", "advice",
+                                 "search", "report", "roofline", "block-search", "full"],
                         help="Analysis mode (default: full = all modes)")
 
-    # Hardware override
-    parser.add_argument("--aic-num", type=int, default=24)
-    parser.add_argument("--aiv-num", type=int, default=48)
+    # Hardware
+    parser.add_argument("--chip", type=str, default="910b",
+                        choices=list(CHIP_REGISTRY.keys()),
+                        help="Target chip (default: 910b)")
+    parser.add_argument("--aic-num", type=int, default=None)
+    parser.add_argument("--aiv-num", type=int, default=None)
 
     args = parser.parse_args()
 
-    # Build params
-    if args.from_testcase:
-        params = params_from_testcase(args.from_testcase)
-    else:
-        params = OperatorParams(
-            batch_size=args.batch_size,
-            seq_len=args.seq_len,
-            head_num=args.head_num,
-            He=args.He,
-            Hcq=args.Hcq,
-            Hckv=args.Hckv,
-            D=args.D,
-            Dr=args.Dr,
-            weight_quant_mode=args.weight_quant_mode,
-            kv_cache_quant_mode=args.kv_cache_quant_mode,
-            query_quant_mode=args.query_quant_mode,
-        )
+    # Set defaults for aic/aiv based on chip
+    chip_default = CHIP_REGISTRY.get(args.chip, ASCEND_910B)
+    if args.aic_num is None:
+        args.aic_num = chip_default.aic_num
+    if args.aiv_num is None:
+        args.aiv_num = chip_default.aiv_num
 
-    hw = AscendHWSpec(aic_num=args.aic_num, aiv_num=args.aiv_num)
+    hw = build_hw(args)
 
     # 'report' mode uses PERF_CASE_NAMES, no manual params needed
     if args.mode == "report":
@@ -434,6 +522,10 @@ def main():
           f"query_quant={params.query_quant_mode}")
     print(f"  Resolved quant_mode: {params.quant_mode.name}")
     print(f"  HW: {hw.name}, AIC={hw.aic_num}, AIV={hw.aiv_num}")
+    if hw.has_cycle_spec:
+        print(f"  Freq: {hw.freq_ghz} GHz, Cache: L1={hw.cache.l1_size//1024}KB, "
+              f"L0A={hw.cache.l0a_size//1024}KB, L0B={hw.cache.l0b_size//1024}KB, "
+              f"L0C={hw.cache.l0c_size//1024}KB")
 
     if args.mode == "search":
         mode_search(params, hw)
@@ -448,12 +540,17 @@ def main():
         "pipeline": mode_pipeline,
         "estimate": mode_estimate,
         "advice": mode_advice,
+        "roofline": mode_roofline,
+        "block-search": mode_block_search,
     }
 
     if args.mode == "full":
         for mode_fn in [mode_bound, mode_pipeline, mode_estimate, mode_advice]:
             mode_fn(params, tiling, hw)
         mode_search(params, hw)
+        if hw.has_cycle_spec:
+            mode_roofline(params, tiling, hw)
+            mode_block_search(params, tiling, hw)
     else:
         modes[args.mode](params, tiling, hw)
 
