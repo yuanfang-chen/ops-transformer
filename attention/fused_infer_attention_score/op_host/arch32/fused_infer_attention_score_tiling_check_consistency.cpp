@@ -389,11 +389,70 @@ ge::graphStatus FiaTilingCheck::CheckActualSeqLensKv() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckPseShift()
+{
+    if (opParamInfo_.pseShift.tensor == nullptr || opParamInfo_.pseShift.desc == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (ge::GRAPH_SUCCESS != CheckPseShiftDType() ||
+        ge::GRAPH_SUCCESS != CheckPseShiftShape()) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
+ge::graphStatus FiaTilingCheck::CheckPseShiftDType()
+{
+    if ((inputQType_ == ge::DT_FLOAT16 || inputQType_ == ge::DT_BF16) && opParamInfo_.pseShift.desc->GetDataType() != inputQType_) {
+        OP_LOGE(opName_, "when query's dtype is %s, pseShift dtype should be %s, but got %s.",
+            FusedDataTypeToSerialString(opParamInfo_.query.desc->GetDataType()).c_str(),
+            FusedDataTypeToSerialString(inputQType_).c_str(),
+            FusedDataTypeToSerialString(opParamInfo_.pseShift.desc->GetDataType()).c_str());
+        return ge::GRAPH_FAILED;
+    }
 
+    if (inputQType_ == ge::DT_INT8 && (s1Size_ <= 1 || opParamInfo_.pseShift.desc->GetDataType() != ge::DT_FLOAT16)) {
+        OP_LOGE(opName_, "when query's dtype is %s, pseShift dtype should be %s, but got %s.",
+            FusedDataTypeToSerialString(opParamInfo_.query.desc->GetDataType()).c_str(),
+            FusedDataTypeToSerialString(inputQType_).c_str(),
+            FusedDataTypeToSerialString(opParamInfo_.pseShift.desc->GetDataType()).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
+ge::graphStatus FiaTilingCheck::CheckPseShiftShape()
+{
+    if (fiaInfo_.isMaxWorkspace) {
+        return ge::GRAPH_SUCCESS;
+    }
 
+    size_t pseShiftDim0 = opParamInfo_.pseShift.tensor->GetStorageShape().GetDim(0);
+    if (pseShiftDim0 == 1U) {
+        pseShiftLayout_ = FiaLayout::INS1S2;
+    } else {
+        pseShiftLayout_ = FiaLayout::BNS1S2;
+    }
 
+    pseShiftShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(opParamInfo_.pseShift.tensor->GetStorageShape(),
+        pseShiftLayout_, PSE_SHIFT_NAME, opName_);
+
+    FiaTilingShapeCompareParam shapeParams;
+    if (pseShiftLayout_ == FiaLayout::BNS1S2) {
+        shapeParams.B = static_cast<int64_t>(bSize_);
+        shapeParams.N = static_cast<int64_t>(n1Size_);
+        shapeParams.S1 = static_cast<int64_t>(s1Size_);
+        shapeParams.S2 = s2Size_;
+    } else if (pseShiftLayout_ == FiaLayout::INS1S2) {
+        shapeParams.CONST = static_cast<int64_t>(1);
+        shapeParams.N = static_cast<int64_t>(n1Size_);
+        shapeParams.S1 = static_cast<int64_t>(s1Size_);
+        shapeParams.S2 = s2Size_;
+    }
+    shapeParams.compareTypeMap = {{FiaAxis::S1, FiaCompareType::GREATER_EQUAL}, {FiaAxis::S2, FiaCompareType::GREATER_EQUAL}};
+    
+    return pseShiftShapeCmp_->CompareShape(shapeParams, __func__);
+}
 
 ge::graphStatus FiaTilingCheck::CheckSystemPrefix()
 {
@@ -572,7 +631,24 @@ ge::graphStatus FiaTilingCheck::CheckTokens()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckSoftmaxLse()
+{
+    if (!fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
 
+    if (fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
+        OP_LOGE(opName_, "when %s is enabled, softmaxlse should not be NULL.",
+            SOFTMAX_LSE_NAME.c_str()); 
+        return ge::GRAPH_FAILED;
+    }
+
+    if (ge::GRAPH_SUCCESS != CheckSoftmaxLseDType() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxLseShape()) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckSoftmaxLseDType() 
 {
@@ -584,7 +660,31 @@ ge::graphStatus FiaTilingCheck::CheckSoftmaxLseDType()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckSoftmaxLseShape()
+{
+    if (outLayout_ == FiaLayout::TND || outLayout_ == FiaLayout::NTD) {
+        softmaxLseLayout_ = FiaLayout::TN1;
+    } else {
+        softmaxLseLayout_ = FiaLayout::BNS11;
+    }
+    softmaxLseShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(opParamInfo_.lseOut.shape->GetStorageShape(),
+         softmaxLseLayout_, SOFTMAX_LSE_NAME, opName_);
 
+    FiaTilingShapeCompareParam shapeParams;
+    if (fiaInfo_.softmaxLseFlag && softmaxLseLayout_ == FiaLayout::TN1) {
+        shapeParams.T = static_cast<int64_t>(qTSize_);
+        shapeParams.N = static_cast<int64_t>(n1Size_);
+        shapeParams.CONST = 1;
+    } else if (fiaInfo_.softmaxLseFlag && softmaxLseLayout_ == FiaLayout::BNS11) {
+        shapeParams.B = static_cast<int64_t>(bSize_);
+        shapeParams.N = static_cast<int64_t>(n1Size_);
+        shapeParams.S1 = static_cast<int64_t>(s1Size_);
+        shapeParams.CONST = 1;
+    } else if (!fiaInfo_.softmaxLseFlag) {
+        return ge::GRAPH_SUCCESS;
+    }
+    return softmaxLseShapeCmp_->CompareShape(shapeParams, __func__);
+}
 
 ge::graphStatus FiaTilingCheck::CheckPostQuant()
 {
@@ -647,6 +747,7 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckQAndQRope() ||
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
+        ge::GRAPH_SUCCESS != CheckPseShift() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
         ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||

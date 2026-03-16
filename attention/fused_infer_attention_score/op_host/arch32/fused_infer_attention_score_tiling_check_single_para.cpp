@@ -28,6 +28,7 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {QUERY_NAME,                  {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {KEY_NAME,                    {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_INT4}},
     {VALUE_NAME,                  {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_INT4}},
+    {PSE_SHIFT_NAME,              {ge::DT_FLOAT16, ge::DT_BF16}},
     {ATTEN_MASK_NAME,             {ge::DT_BOOL, ge::DT_INT8, ge::DT_UINT8}},
     {DEQUANT_SCALE1_NAME,         {ge::DT_UINT64, ge::DT_FLOAT}},
     {QUANT_SCALE1_NAME,           {ge::DT_FLOAT}},
@@ -46,6 +47,7 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {KEY_ROPE_NAME,               {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {DEQUANT_SCALE_QUERY_NAME,    {ge::DT_FLOAT}},
     {ATTEN_OUT_NAME,              {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
+    {SOFTMAX_LSE_NAME,            {ge::DT_FLOAT}},
 };
 
 const std::map<std::string, std::vector<FiaLayout>> LAYOUT_SUPPORT_MAP = {
@@ -275,7 +277,16 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaValue() const
     return ge::GRAPH_SUCCESS;
 }
 
-
+ge::graphStatus FiaTilingCheck::CheckSingleParaPseShift() const
+{
+    const std::vector<size_t> pseShiftDimNumList = {DIM_NUM_FOUR};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.pseShift.desc, PSE_SHIFT_NAME) ||
+ 	    ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.pseShift.desc, PSE_SHIFT_NAME) ||
+ 	    ge::GRAPH_SUCCESS != CheckDimNumSupport(opParamInfo_.pseShift.tensor, pseShiftDimNumList, PSE_SHIFT_NAME)) {
+ 	    return ge::GRAPH_FAILED;
+ 	}
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaAttenMask() const
 {
@@ -491,7 +502,13 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaAttenOut() const
     return ge::GRAPH_SUCCESS;
 }
 
-
+ge::graphStatus FiaTilingCheck::CheckSingleParaLseOut() const
+{
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.lseOut.desc, SOFTMAX_LSE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaNumHeads() const
 {
@@ -568,6 +585,10 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaAntiquantMode() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckSingleParaSoftmaxLseFlag() const
+{
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaKeyAntiquantMode() const
 {
@@ -631,6 +652,7 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
     if (ge::GRAPH_SUCCESS != CheckSingleParaQuery() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKey() ||
         ge::GRAPH_SUCCESS != CheckSingleParaValue() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaPseShift() ||
         ge::GRAPH_SUCCESS != CheckSingleParaAttenMask() ||
         ge::GRAPH_SUCCESS != CheckSingleParaActualSeqLengthsQ() ||
         ge::GRAPH_SUCCESS != CheckSingleParaActualSeqLengths() ||
@@ -655,6 +677,7 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaKeyRopeAntiquantScale() ||
         ge::GRAPH_SUCCESS != CheckSingleParaDequantScaleQuery() ||
         ge::GRAPH_SUCCESS != CheckSingleParaAttenOut() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaLseOut() ||
         ge::GRAPH_SUCCESS != CheckSingleParaNumHeads() ||
         ge::GRAPH_SUCCESS != CheckSingleParaPreToken() ||
         ge::GRAPH_SUCCESS != CheckSingleParaNextToken() ||
@@ -664,6 +687,7 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaBlockSize() ||
         ge::GRAPH_SUCCESS != CheckSingleParaInnerPrecise() ||
         ge::GRAPH_SUCCESS != CheckSingleParaAntiquantMode() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaSoftmaxLseFlag() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKeyAntiquantMode() ||
         ge::GRAPH_SUCCESS != CheckSingleParaValueAntiquantMode() ||
         ge::GRAPH_SUCCESS != CheckSingleParaSparseMode() ||

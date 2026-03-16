@@ -259,27 +259,27 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLeftPadding() const
     return ge::GRAPH_SUCCESS;
 }
 
-// ge::graphStatus FiaTilingCheck::CheckFeaturePSE() const
-// {
-//     if (fiaInfo_.pseShiftFlag) {
-//         const std::vector<std::string> layoutSupportList = {
-//             "BSND", "BNSD", "BSH", "BNSD_BSND",
-//         };
-//         std::string layout = opParamInfo_.layOut;
-//         if (std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end()) {
-//             OP_LOGE(opName_,
-//                     "when pse_shift exists, input_layout only supports BSH, BSND, BNSD, and BNSD_BSND, but got %s",
-//                     layout.c_str());
-//             return ge::GRAPH_FAILED;
-//         }
+ge::graphStatus FiaTilingCheck::CheckFeaturePSE() const
+{
+    if (fiaInfo_.pseShiftFlag) {
+        const std::vector<std::string> layoutSupportList = {
+            "BSND", "BNSD", "BSH", "BNSD_BSND",
+        };
+        std::string layout = opParamInfo_.layOut;
+        if (std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end()) {
+            OP_LOGE(opName_,
+                    "when pse_shift exists, input_layout only supports BSH, BSND, BNSD, and BNSD_BSND, but got %s",
+                    layout.c_str());
+            return ge::GRAPH_FAILED;
+        }
 
-//         OP_CHECK_IF(ropeMode_ != RopeMode::NO_ROPE,
-//             OP_LOGE(opName_, "when pse_shift exists, query_rope and key_rope should be not exist and the head_dim(D) "
-//                              "dimension of query and key should be equal to the head_dim(D) dimension of value."),
-//             return ge::GRAPH_FAILED);
-//     }
-//     return ge::GRAPH_SUCCESS;
-// }
+        OP_CHECK_IF(ropeMode_ != RopeMode::NO_ROPE,
+            OP_LOGE(opName_, "when pse_shift exists, query_rope and key_rope should be not exist and the head_dim(D) "
+                             "dimension of query and key should be equal to the head_dim(D) dimension of value."),
+            return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckFeatureLearnableSink() const
 {
@@ -587,6 +587,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureLearnableSink() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaPrefix() ||
         ge::GRAPH_SUCCESS != CheckFeatureLeftPadding() ||
+        ge::GRAPH_SUCCESS != CheckFeaturePSE() ||
         ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
         return ge::GRAPH_FAILED;
     }
