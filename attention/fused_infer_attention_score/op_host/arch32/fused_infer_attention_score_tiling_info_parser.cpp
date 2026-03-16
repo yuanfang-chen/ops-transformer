@@ -221,11 +221,6 @@ void FiaInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.quantScale1.desc = context_->GetOptionalInputDesc(QUANT_SCALE1_INDEX);
     opParamInfo_.deqScale2.tensor = context_->GetOptionalInputTensor(DEQUANT_SCALE2_INDEX);
     opParamInfo_.deqScale2.desc = context_->GetOptionalInputDesc(DEQUANT_SCALE2_INDEX);
-    GetOptionalInputParaPostQuantInfo();
-    opParamInfo_.antiquantScale.tensor = context_->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
-    opParamInfo_.antiquantScale.desc = context_->GetOptionalInputDesc(ANTIQUANT_SCALE_INDEX);
-    opParamInfo_.antiquantOffset.tensor = context_->GetOptionalInputTensor(ANTIQUANT_OFFSET_INDEX);
-    opParamInfo_.antiquantOffset.desc = context_->GetOptionalInputDesc(ANTIQUANT_OFFSET_INDEX);
     opParamInfo_.blockTable.tensor = context_->GetOptionalInputTensor(BLOCK_TABLE_INDEX);
     opParamInfo_.blockTable.desc = context_->GetOptionalInputDesc(BLOCK_TABLE_INDEX);
     opParamInfo_.kvPaddingSize.tensor = context_->GetOptionalInputTensor(KV_PADDING_SIZE_INDEX);
@@ -246,13 +241,7 @@ void FiaInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.learnableSink.desc = context_->GetOptionalInputDesc(LEARNABLE_SINK_INDEX);
 }
 
-void FiaInfoParser::GetOptionalInputParaPostQuantInfo()
-{
-    opParamInfo_.quantScale2.tensor = context_->GetOptionalInputTensor(QUANT_SCALE2_INDEX);
-    opParamInfo_.quantScale2.desc = context_->GetOptionalInputDesc(QUANT_SCALE2_INDEX);
-    opParamInfo_.quantOffset2.tensor = context_->GetOptionalInputTensor(QUANT_OFFSET2_INDEX);
-    opParamInfo_.quantOffset2.desc = context_->GetOptionalInputDesc(QUANT_OFFSET2_INDEX);
-}
+
 
 void FiaInfoParser::GetOptionalInputParaPrefixInfo()
 {
@@ -920,15 +909,7 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetPostQuantInfo()
-{
-    if (opParamInfo_.quantScale2.tensor != nullptr && opParamInfo_.quantScale2.desc != nullptr) {
-        isPostQuantEnable_ = true;
-        isOutQuantPerChnOut_ = opParamInfo_.quantScale2.tensor->GetStorageShape().GetShapeSize() != 1;
-        isOutQuantTypeBf16_ = opParamInfo_.quantScale2.desc->GetDataType() == DT_BF16;
-    }
-    return ge::GRAPH_SUCCESS;
-}
+
 
 TilingKeyLayout FiaInfoParser::MapStringToLayout(FiaLayout &layoutString) const
 {
@@ -985,10 +966,7 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.sysPrefixFlag = systemPrefixFlag_;
     fiaInfo.systemPrefixLen = systemPrefixLen_;
     fiaInfo.systemPrefixMaxLen = systemPrefixMaxLen_;
-    //postquant
-    fiaInfo.isOutQuantPerChnOut = isOutQuantPerChnOut_;
-    fiaInfo.isOutQuantTypeBf16 = isOutQuantTypeBf16_;
-    fiaInfo.isOutQuantEnable = isPostQuantEnable_;
+
 }
  
 void FiaInfoParser::GenerateLayoutInfo(FiaTilingInfo &fiaInfo)
@@ -1133,8 +1111,7 @@ ge::graphStatus FiaInfoParser::ParseFeatureInfo()
         ge::GRAPH_SUCCESS != GetAttenMaskInfo() ||
         ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag() ||
         ge::GRAPH_SUCCESS != GetActualSeqInfo() ||
-        ge::GRAPH_SUCCESS != GetSystemPrefix() ||
-        ge::GRAPH_SUCCESS != GetPostQuantInfo()) {
+        ge::GRAPH_SUCCESS != GetSystemPrefix()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
