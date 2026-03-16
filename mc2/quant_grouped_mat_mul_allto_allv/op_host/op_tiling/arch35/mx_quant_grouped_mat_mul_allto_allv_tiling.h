@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file tt_quant_grouped_mat_mul_allto_allv_gmm_tiling.h
+ * \file mx_quant_grouped_mat_mul_allto_allv_gmm_tiling.h
  * \brief
  */
 
-#ifndef TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
-#define TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#ifndef MX_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#define MX_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
 
 #pragma once
 #include "securec.h"
@@ -31,14 +31,14 @@
 
 namespace optiling {
 namespace Mc2GroupedMatmul {
-class TTQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
+class MxQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
 public:
-    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
+    explicit MxQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
         TilingBaseClass::Reset(context);
     }
-    ~TTQuantGroupedMatmulAllToAllvTiling() override = default;
+    ~MxQuantGroupedMatmulAllToAllvTiling() override = default;
 protected:
     void Reset();
     bool IsCapable() override;
@@ -46,6 +46,22 @@ protected:
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckAndSetInputOutputInfo();
     ge::graphStatus SetGmmA2avWorkspaceInfo();
+
+    // ge::graphStatus CheckOpInputSingleParamsTensorNotSupport();
+    // ge::graphStatus CheckOpInputSingleParamsTensorSupport();
+    // ge::graphStatus CheckFormat();
+    // ge::graphStatus CheckOpInputSingleParamsTensorMM();
+    // ge::graphStatus CheckOpInputSingleParamsTensor();
+    // ge::graphStatus CheckAndSetLocalParamsGmm();
+    // ge::graphStatus CheckAndSetLocalParamsMm();
+    // ge::graphStatus CheckAndSetLocalParamsAttr();
+    // ge::graphStatus CheckAndSetLocalParams();
+    // ge::graphStatus CheckParamsRelationGmm();
+    // ge::graphStatus CheckParamsRelationMm();
+    // ge::graphStatus CheckParamsAttrEpAndSetLocalParams();
+    // ge::graphStatus CheckAndSetSendRecvCountsAttr();
+    // ge::graphStatus CheckLocalParams();
+    // ge::graphStatus CheckParamsRelationAndSetLocalParams();
 };
 
 } // namespace Mc2GroupedMatmul
