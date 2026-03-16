@@ -59,6 +59,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckOpInputInfo()
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_, ALLTOALL_MATMUL_INDEX_SCHEMA) !=
                         ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Attrs failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckMxTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(CheckX2Transpose(context_, opName_, ALLTOALL_MATMUL_INDEX_SCHEMA) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check x2transpose failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(CheckMatrixMulShapes(context_, opName_) != ge::GRAPH_SUCCESS,
@@ -76,10 +78,41 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckOpInputInfo()
 }
 
 /**
+ * @brief 校验参数的format::是否为私有格式
+ * 
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称 
+ * @return
+ */
+ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxTensorFormat(const gert::TilingContext *context, const char *opName)
+{
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);
+    auto x1ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+    OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
+                    OP_LOGE(opName, "x1scale tensors should not be null in mx quant mode."), return ge::GRAPH_FAILED);
+    ge::Format x1ScaleFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(x1ScaleTensorDesc->GetStorageFormat()));
+    OP_TILING_CHECK(x1ScaleFormat != ge::FORMAT_ND,
+                    OP_LOGE(opName, "X1Scale format should be ND, but actual value is %s.",
+                            Ops::Base::ToString(x1ScaleFormat).c_str()),
+                    return ge::GRAPH_FAILED);
+    auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
+    OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                    OP_LOGE(opName, "x2scale tensors should not be null in mx quant mode."), return ge::GRAPH_FAILED);
+    ge::Format x2ScaleFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(x2ScaleTensorDesc->GetStorageFormat()));
+    OP_TILING_CHECK(x2ScaleFormat != ge::FORMAT_ND,
+                    OP_LOGE(opName, "X2Scale format should be ND, but actual value is %s.",
+                            Ops::Base::ToString(x2ScaleFormat).c_str()),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
  * @brief 量化场景校验x2transpose是否一定为true
  *
  * @param context 框架根据input，output，attrs等信息生成tiling需要的context
  * @param opName  算子名称
+ * @param indexSchema 存放输入参数索引差别的结构体
  * @return
  */
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckX2Transpose(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema) 
@@ -90,6 +123,14 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckX2Transpose(const gert::Ti
     return ge::GRAPH_SUCCESS;
 }
 
+/**
+ * @brief 量化场景校验groupsize
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName  算子名称
+ * @param indexSchema 存放输入参数索引差别的结构体
+ * @return
+ */
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckGroupSize(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema)
 {
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -143,7 +184,7 @@ static bool IsContain(const std::vector<uint32_t> &list, uint32_t value)
  * @return ge::graphStatus
  */
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantTensorDataType(const gert::TilingContext *context,
-                                                                      const char *opName)
+                                                                            const char *opName)
 {
     // 获取并校验输入张量描述符
     auto x1TensorDesc = context->GetInputDesc(INPUT_X1_INDEX);
@@ -200,13 +241,13 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantTensorDataType(cons
 }
 
 /** 
-  * @brief 校验量化tiling输入的shape信息
-  * 
-  * @param context 框架根据input，output，attrs等信息生成tiling需要的context
-  * @param opName 算子名称
-  * @param indexSchema 存放输入参数索引差别的结构体
-  * @return ge::graphStatus
-  */ 
+ * @brief 校验量化tiling输入的shape信息
+ * 
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @param indexSchema 存放输入参数索引差别的结构体
+ * @return ge::graphStatus
+ */ 
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema)
 {
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context, opName, ALLTOALL_MATMUL_INDEX_SCHEMA) != ge::GRAPH_SUCCESS,
@@ -256,6 +297,14 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const ger
     return ge::GRAPH_SUCCESS;
 }
 
+/**
+ * @brief 设置量化的数据类型信息
+ * 
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @param contextInfo 存储了tiling的过程信息
+ * @return
+ */
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetMxDataTypeInfo(const gert::TilingContext *context,
                                                                    const char *opName, TilingContextInfo &contextInfo)
 {

@@ -61,8 +61,8 @@ protected:
     ge::graphStatus SetHcclTiling();
     ge::graphStatus CheckGroupSize(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema);
     void SetUserWorkSpace();
-    ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName,
-                                                        TilingContextInfo &contextInfo);
+    ge::graphStatus CheckMxTensorFormat(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName, TilingContextInfo &contextInfo);
     
     void SetTilingInfo(AlltoAllMatmulTilingInfo &tilingInfo) const;
     void PrintAlltoAllMxQuantMatmulTilingData(AlltoAllQuantMatmulTilingData &outTilingData);
