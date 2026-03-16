@@ -30,13 +30,13 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
 >- 使用S1和S2分别表示query和key的输入样本序列长度，N1和N2分别表示query和key对应的多头数，k表示最后选取的索引个数。参数query中的D和参数key中的D值相等为128。T1和T2分别表示query和key的输入样本序列长度的累加和。
 -   **query**（`Tensor`）：必选参数，表示输入Index Query，对应公式中的$Q_{index}^{Quant}\in\R^{g\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn、hifloat8`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，Atlas A3 推理系列产品N1仅支持64, Ascend 950PR/Ascend 950DT N1仅支持24、64。
     
--   **key**（`Tensor`）：必选参数，表示输入Index Key，对应公式中的$K_{index}^{Quant}\in\R^{S_{k}\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn、hifloat8`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, N2, D]，`layout_kv`为TND时shape为[T2, N2, D]，N2仅支持1。
+-   **key**（`Tensor`）：必选参数，表示输入Index Key，对应公式中的$K_{index}^{Quant}\in\R^{S_{k}\times d}$。Page Attention场景（layout\_key为PA_BSND）支持非连续输入，非Page Attention场景不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn、hifloat8`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, N2, D]，`layout_kv`为TND时shape为[T2, N2, D]，N2仅支持1。
     
 -   **weights**（`Tensor`）：必选参数，表示权重系数，对应公式中的$W$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`bfloat16`，支持输入shape[B,S1,N1]、[T,N1]。
 
 -   **query_dequant_scale**（`Tensor`）：必选参数，表示Index Query的反量化系数$Scale_Q$ 。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，支持输入shape[B,S1,N1]、[T,N1]。
 
--   **key_dequant_scale**（`Tensor`）：必选参数，表示Index Key的反量化系数，对应公式中的$Scale_K^T$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数。
+-   **key_dequant_scale**（`Tensor`）：必选参数，表示Index Key的反量化系数，对应公式中的$Scale_K^T$。Page Attention场景（layout\_key为PA_BSND）支持非连续输入，非Page Attention场景不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数。
 
 - <strong>*</strong>：代表其之前的参数是位置相关的，必须按照顺序输入；之后的参数是可选参数，位置无关，不赋值会使用默认值。
 
