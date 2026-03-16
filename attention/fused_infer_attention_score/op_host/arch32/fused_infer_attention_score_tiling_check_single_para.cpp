@@ -28,7 +28,6 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {QUERY_NAME,                  {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {KEY_NAME,                    {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_INT4}},
     {VALUE_NAME,                  {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_INT4}},
-    {PSE_SHIFT_NAME,              {ge::DT_FLOAT16, ge::DT_BF16}},
     {ATTEN_MASK_NAME,             {ge::DT_BOOL, ge::DT_INT8, ge::DT_UINT8}},
     {DEQUANT_SCALE1_NAME,         {ge::DT_UINT64, ge::DT_FLOAT}},
     {QUANT_SCALE1_NAME,           {ge::DT_FLOAT}},
@@ -277,16 +276,7 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaValue() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaPseShift() const
-{
-    const std::vector<size_t> pseShiftDimNumList = {DIM_NUM_FOUR};
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.pseShift.desc, PSE_SHIFT_NAME) ||
- 	    ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.pseShift.desc, PSE_SHIFT_NAME) ||
- 	    ge::GRAPH_SUCCESS != CheckDimNumSupport(opParamInfo_.pseShift.tensor, pseShiftDimNumList, PSE_SHIFT_NAME)) {
- 	    return ge::GRAPH_FAILED;
- 	}
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaAttenMask() const
 {
@@ -652,7 +642,6 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
     if (ge::GRAPH_SUCCESS != CheckSingleParaQuery() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKey() ||
         ge::GRAPH_SUCCESS != CheckSingleParaValue() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaPseShift() ||
         ge::GRAPH_SUCCESS != CheckSingleParaAttenMask() ||
         ge::GRAPH_SUCCESS != CheckSingleParaActualSeqLengthsQ() ||
         ge::GRAPH_SUCCESS != CheckSingleParaActualSeqLengths() ||

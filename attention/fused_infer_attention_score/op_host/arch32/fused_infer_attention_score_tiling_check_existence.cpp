@@ -313,7 +313,7 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceMlaNoquant() const
         {DEQUANT_SCALE2_NAME, opParamInfo_.deqScale2.tensor},
         {DEQUANT_SCALE_QUERY_NAME, opParamInfo_.dequantScaleQuery.tensor},
         // unsupportedFeaturesParam
-        {PSE_SHIFT_NAME, opParamInfo_.pseShift.tensor},
+
         {QUERY_PADDING_SIZE_NAME, opParamInfo_.queryPaddingSize.tensor},
         {KV_PADDING_SIZE_NAME, opParamInfo_.kvPaddingSize.tensor},
         {KEY_SHARED_PREFIX_NAME, opParamInfo_.keySharedPrefix.tensor},
@@ -365,7 +365,7 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceMlaAntiquant() const
         {QUANT_SCALE2_NAME, opParamInfo_.quantScale2.tensor},
         {QUANT_OFFSET2_NAME, opParamInfo_.quantOffset2.tensor},
         // unsupportedFeaturesParam
-        {PSE_SHIFT_NAME, opParamInfo_.pseShift.tensor},
+
         {QUERY_PADDING_SIZE_NAME, opParamInfo_.queryPaddingSize.tensor},
         {KV_PADDING_SIZE_NAME, opParamInfo_.kvPaddingSize.tensor},
         {KEY_SHARED_PREFIX_NAME, opParamInfo_.keySharedPrefix.tensor},
@@ -414,7 +414,7 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceMlaFullquant() const
         {QUANT_SCALE2_NAME, opParamInfo_.quantScale2.tensor},
         {QUANT_OFFSET2_NAME, opParamInfo_.quantOffset2.tensor},
         // unsupportedFeaturesParam
-        {PSE_SHIFT_NAME, opParamInfo_.pseShift.tensor},
+
         {QUERY_PADDING_SIZE_NAME, opParamInfo_.queryPaddingSize.tensor},
         {KV_PADDING_SIZE_NAME, opParamInfo_.kvPaddingSize.tensor},
         {KEY_SHARED_PREFIX_NAME, opParamInfo_.keySharedPrefix.tensor},
