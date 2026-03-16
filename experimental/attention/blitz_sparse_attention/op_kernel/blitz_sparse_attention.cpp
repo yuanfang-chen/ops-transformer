@@ -17,14 +17,7 @@
 #include "blitz_sparse_attention_tilingkey.h"
 #if (__CCE_AICORE__ > 200)
 #include "blitz_sparse_attention_base.h"
-#include "blitz_sparse_attention_bnstilling_n_s_no_tail.h"
-#include "blitz_sparse_attention_bnstilling_n_s_tail.h"
-#include "blitz_sparse_attention_bnstilling_n_s_no_tailWBNSD.h"
-#include "blitz_sparse_attention_bnstilling_n_s_tailWBNSD.h"
 #include "blitz_sparse_attention_s1s2_bns1_x910.h"
-#include "blitz_sparse_attention_base_api.h"
-#include "blitz_sparse_attention_base_api_high_precision_no_mask.h"
-#include "blitz_sparse_attention_empty_tensor.h"
 #include "blitz_sparse_attention_tiling_data.h"
 #include "blitz_sparse_attention_template_tiling_key.h"
 #endif
@@ -146,45 +139,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
         *p = reinterpret_cast<uint64_t>(sabi);
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         if constexpr ((Q_T == 0 || Q_T == 6) && (KV_T != 1)){
-            if constexpr ((Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0)
-                && (KV_T == 0) && (P_TEMPLATE_VERSION == 1)){
-                if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1)){
-                    // Non-BNSD layout, split NS no tail
-                    if (maskByteNum == FLOAT16BYTENUM) {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSNoTail, Q_DTYPE, half, CubeFormat::ND, OUT_DTYPE);
-                    }
-                    else {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSNoTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-                    }
-                }
-                else if ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 1) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1)){
-                    // Non-BNSD layout, split NS with tail
-                    if (maskByteNum == FLOAT16BYTENUM) {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSTail, Q_DTYPE, half, CubeFormat::ND, OUT_DTYPE);
-                    }
-                    else {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-                    }
-                }
-                else if ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 5) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1)){
-                    // BNSD layout, split NS no tail
-                    if (maskByteNum == FLOAT16BYTENUM) {
-                        INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDNoTail, Q_DTYPE, half, CubeFormat::ND, OUT_DTYPE);
-                    }
-                    else {
-                        INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDNoTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-                    }
-                }
-                else if ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 6) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1)){
-                    // BNSD layout, split NS with tail
-                    if (maskByteNum == FLOAT16BYTENUM) {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, Q_DTYPE, half, CubeFormat::ND, OUT_DTYPE);
-                    }
-                    else {
-                    INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-                    }
-                }
-            }   
             if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 0) && (LAYOUT_T == 1) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0)    
                 && (KV_T == 0) && (P_TEMPLATE_VERSION == 1)){
                 // no anti-quant path for CVDIFF-BSH, half in half out
@@ -291,27 +245,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
                 && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 0 || M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0 || Q_T == 1) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0 || M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 0 || OUT_T == 1 || OUT_T == 2)                   
                 && (LAYOUT_T == 0 || LAYOUT_T == 1) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0 || M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0 || PAGE_ATTENTIOND == 1 || PAGE_ATTENTIOND == 2) && (ENABLE_PREFIX == 0)       
                 && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0 || P_CVDIFF_BASE_FLAG == 2) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0) && (P_TEMPLATE_VERSION == 1 || P_TEMPLATE_VERSION == 2)){
-            if constexpr ((P_TEMPLATE_VERSION == 1) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 0) && (Q_T == 1) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) 
-            && (P_CVDIFF_BASE_FLAG == 0)  && (P_CVDIFF_MLA_FLAG == 0)){
-                // Non-BNSD layout, split NS no tail
-                INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSNoTail, bfloat16_t, bool, CubeFormat::ND, bfloat16_t);
-            }
-            else if ((P_TEMPLATE_VERSION == 1) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 1) && (Q_T == 1) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) 
-            && (P_CVDIFF_BASE_FLAG == 0)  && (P_CVDIFF_MLA_FLAG == 0)){
-                // Non-BNSD layout, split NS with tail
-                INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSTail, bfloat16_t, bool, CubeFormat::ND, bfloat16_t);
-            }
-            else if ((P_TEMPLATE_VERSION == 1) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 5) && (Q_T == 1) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) 
-            && (P_CVDIFF_BASE_FLAG == 0)  && (P_CVDIFF_MLA_FLAG == 0)){
-                // BNSD layout, split NS no tail
-                INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDNoTail, bfloat16_t, bool, CubeFormat::ND, bfloat16_t);
-            }
-            else if ((P_TEMPLATE_VERSION == 1) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 6) && (Q_T == 1) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) 
-            && (P_CVDIFF_BASE_FLAG == 0)  && (P_CVDIFF_MLA_FLAG == 0)){
-                    // BNSD layout, split NS with tail
-                INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, bfloat16_t, bool, CubeFormat::ND, bfloat16_t);
-            }
-
             if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 1) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 1)   
                 && (LAYOUT_T == 0 || LAYOUT_T == 1) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0 || M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 2) && (PAGE_ATTENTIOND == 0 || PAGE_ATTENTIOND == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)   
                 && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0 || M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 1) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0 || KV_T == 4) && (P_TEMPLATE_VERSION == 1)){
@@ -347,19 +280,7 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
                 && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 0 || M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 2) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0 || M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 2)   
                 && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0 || PAGE_ATTENTIOND == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)   
                 && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0) && (P_TEMPLATE_VERSION == 1)){
-            if constexpr ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSNoTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 1) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 5) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDNoTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 6) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, Q_DTYPE, bool, CubeFormat::ND, OUT_DTYPE);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 0) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)){
+            if constexpr ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 0) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)){
                 INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionS1s2Bns1X910, PFAType<PFALayout::BSH, Q_DTYPE, bool, OUT_DTYPE, int8_t, OptimizationMode::HighPerformance, MATMUL_TYPE, PREFIX_MODE>);
             }
             else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (PAGE_ATTENTIOND == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0)){
@@ -376,19 +297,7 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
                 && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 0 || M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 2) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0 || M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 0)   
                 && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0 || PAGE_ATTENTIOND == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)   
                 && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0) && (P_TEMPLATE_VERSION == 1)){
-            if constexpr ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSNoTail, int8_t, bool, CubeFormat::ND, half);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 1) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSTail, int8_t, bool, CubeFormat::ND, half);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 5) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDNoTail, int8_t, bool, CubeFormat::ND, half);
-            }  
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 6) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0)){
-                INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, int8_t, bool, CubeFormat::ND, half);
-            }
-            else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 0) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)){
+            if constexpr ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 0) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)){
                 INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionS1s2Bns1X910, PFAType<PFALayout::BSH, Q_DTYPE, bool, OUT_DTYPE, int8_t, OptimizationMode::HighPerformance, MATMUL_TYPE, PREFIX_MODE>);
             }
             else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0)){
@@ -400,16 +309,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
             else if ((M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) &&  (PAGE_ATTENTIOND == 1) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T ==7) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (ENABLE_PREFIX == 0)){
                 INVOKE_PFA_INT8_OP_IMPL(BlitzSparseAttentionS1s2Bns1X910, PFAType<PFALayout::BNSD, Q_DTYPE, bool, OUT_DTYPE, int8_t, OptimizationMode::HighPerformance, MatMulType::MM_PA>);
             }
-        }
-        if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 0) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 2) && (Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0)   
-            && (KV_T == 0) && (P_TEMPLATE_VERSION == 1)){
-            // kv is empty tensor, return zero output
-            TPipe tPipe;
-            INVOKE_PFA_TILING_DATA(tiling);
-            BlitzSparseAttentionEmptyTensor<half> op;
-            op.Init(attentionOut, tiling_data, &tPipe);
-            op.Process();
-            return;
         }
     #endif
     }    
