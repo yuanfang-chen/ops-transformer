@@ -102,9 +102,9 @@ using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
 
 template <class T, class P>
-class MhcPreKernelPrefillPrefill {
+class MhcPreKernelPrefill {
 public:
-    __aicore__ inline MhcPreKernelPrefillPrefill(MT &matmul) : mm(matmul)
+    __aicore__ inline MhcPreKernelPrefill(MT &matmul) : mm(matmul)
     {
     }
     __aicore__ inline void Init(InitParams initParams);
@@ -220,7 +220,7 @@ private:
 };
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefillPrefill<T, P>::Init(InitParams initParams)
+__aicore__ inline void MhcPreKernelPrefill<T, P>::Init(InitParams initParams)
 {
     BindGlobalTensors(initParams);
     InitFromTilingData(initParams.tilingData);
