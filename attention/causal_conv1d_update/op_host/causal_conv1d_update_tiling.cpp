@@ -51,6 +51,6 @@ static ge::graphStatus TilingPrepareCausalConv1dUpdate(gert::TilingParseContext*
 // Register the main tiling entry point
 IMPL_OP_OPTILING(CausalConv1dUpdate)
     .Tiling(TilingCausalConv1dUpdate)
-    .TilingInputsDataDependency({CACHE_INDICES_INDEX})
-    .TilingParse<CausalConv1dUpdateCompileInfo>(TilingPrepareCausalConv1dUpdate);
+    .TilingParse<CausalConv1dUpdateCompileInfo>(TilingPrepareCausalConv1dUpdate)
+    .TilingInputsDataDependency({CACHE_INDICES_INDEX});
 } // namespace optiling

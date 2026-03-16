@@ -535,46 +535,29 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
 
-auto cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
+    OP_LOGI(context_->GetNodeName(), "into ComputeValidBatchRange...");
+    int64_t invalidBatchAtStart = 0;
+    int64_t invalidBatchAtEnd = 0;
+
+    const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
     if (cacheIndicesTensor != nullptr) {
-        const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
+        OP_LOGI(context_->GetNodeName(), "cacheIndicesTensor != nullptr\n");
+        int64_t shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
+        OP_LOGI(context_->GetNodeName(), "shapeSize = %ld\n", shapeSize);
+        const int64_t* dataPtr = cacheIndicesTensor->GetData<int64_t>();
         if (dataPtr != nullptr) {
-            printf("dataPtr != nullptr\n");
-            for (int64_t i = 0; i < batchSize_; i++) {
-                if (padSlotId_ == static_cast<int64_t>(dataPtr[i])) {
-                    invalidBatchAtStart++;
-                } else {
-                    break;
-                }
-            }
-            for (int64_t i = batchSize_ - 1; i >= invalidBatchAtStart; i--) {
-                if (padSlotId_ == static_cast<int64_t>(dataPtr[i])) {
-                    invalidBatchAtEnd++;
-                } else {
-                    break;
-                }
-            }
-        } else {
-            printf("dataPtr = nullptr\n");
-        }
-    }
-    const gert::Tensor* cache_indices_tensor = context_->GetInputTensor(CACHE_INDICES_INDEX);
-    if (cache_indices_tensor == nullptr) {
-        printf("cache_indices_tensor == nullptr\n");
-    } else {
-        printf("cache_indices_tensor != nullptr\n");
-        const int64_t* addr = cache_indices_tensor->GetData<int64_t>();
-        if (addr == nullptr) {
-            printf("addr == nullptr");
-        } else {
-            auto shapeSize = static_cast<size_t>(cache_indices_tensor->GetShapeSize());
+            OP_LOGI(context_->GetNodeName(), "dataPtr != nullptr\n");
+            auto shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
             for (size_t i = 0; i < shapeSize; i++) {
-                printf("addr[%ld] = %ld", i, static_cast<int64_t>(addr[shapeSize]));
+                OP_LOGI(context_->GetNodeName(), "dataPtr[%ld] = %ld\n", i, static_cast<int64_t>(dataPtr[shapeSize]));
             }
-            
-            printf("addr != nullptr");
+        } else {
+            OP_LOGI(context_->GetNodeName(), "dataPtr = nullptr\n");
         }
+    } else {
+        OP_LOGI(context_->GetNodeName(), "cacheIndicesTensor = nullptr\n");
     }
+
 
     inValidBatchNum_ = invalidBatchAtStart + invalidBatchAtEnd;
     validBatchStart_ = invalidBatchAtStart;
