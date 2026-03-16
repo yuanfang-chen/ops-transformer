@@ -20,9 +20,6 @@
 namespace optiling {
 
 
-#define TILING_KEY_UPDATE_BF16 20000
-#define TILING_KEY_UPDATE_FP16 20001
-
 bool CausalConv1dUpdateTiling::IsCapable()
 {
     return true;
@@ -653,7 +650,7 @@ void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS
                       int64_t &outUbTailDim, int64_t &outUbTailBS)
 {
     if (xInputMode_ == X_INPUT_2D) {
-        seqLen_ = 6;
+        seqLen_ = MAX_M + 1;
     }
     int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
     int64_t xCoeffPerDimFullBS = BUFFER_NUM * coreBS * seqLen_ * DTYPE_SIZE;
@@ -739,7 +736,11 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 
 uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 {
-    return TILING_KEY_UPDATE_BF16;
+    if (xDtype_ == ge::DataType::DT_BF16) {
+        return TILING_KEY_FN_BF16;
+    } else if (xDtype_ == ge::DataType::DT_FLOAT16) {
+        return TILING_KEY_FN_FP16;
+    }
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
