@@ -36,13 +36,13 @@ constexpr size_t INDEX_ATTR_ALLTOALL_OUT_FLAG = 12;
 constexpr size_t INDEX_OUT = 0;
 constexpr size_t INDEX_ALLTO_ALL_OUT = 1;
 constexpr uint64_t DIM_TWO = 2;
-constexpr uint64_t X1_QUANT_NUM = 7;
-constexpr uint64_t X2_QUANT_NUM = 2;
+constexpr int64_t X1_QUANT_NUM = 7;
+constexpr int64_t X2_QUANT_NUM = 2;
 constexpr int64_t NUM_MINUS_ONE = -1;
 constexpr int64_t NUM_MINUS_TWO = -2;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: AlltoAllMatmul InferShape Debug";
-const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
+const std::set<int64_t> SUPPORT_RANK_NUM{2, 4, 8, 16};
 
 struct AlltoAllMatmulShapeInfo {
     uint64_t output_dim;
@@ -102,7 +102,7 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
 static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, AlltoAllMatmulShapeInfo& shape)
 {
     const auto attrs = context->GetAttrs();
-    const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
+    const int64_t* rankDim = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_WORLD_SIZE);
     OPS_CHECK(rankDim == nullptr,
         CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in allto all matmul.", *rankDim),
         return ge::GRAPH_FAILED);
@@ -174,8 +174,8 @@ static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* c
     OP_LOGD(INNER_DEBUG, "Start to infer datatype of allto all matmul.");
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
-    const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
+    const int64_t* x1_quant_mode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X1_QUANT_MODE);
+    const int64_t* x2_quant_mode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X2_QUANT_MODE);
     const int64_t* y_dtypes_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
     auto y_type = ge::DataType::DT_UNDEFINED;
     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
