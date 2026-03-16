@@ -40,7 +40,7 @@ using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
 #endif  // MHC_PRE_COMMON_DEFINED
 
-struct InitParamsDecodeDecode {
+struct InitParamsDecode {
     GM_ADDR x;
     GM_ADDR phi;
     GM_ADDR alpha;
@@ -50,7 +50,7 @@ struct InitParamsDecodeDecode {
     GM_ADDR h_post;
     GM_ADDR h_res;
     GM_ADDR inv_rms;
-    GM_ADDR mm_res;
+    GM_ADDR h_mix;
     GM_ADDR h_pre;
     GM_ADDR workspace;
     TPipe *tPipeIn;
@@ -64,9 +64,6 @@ static constexpr uint64_t SYNC_CtoV1 = 0x4;
 
 template <class T, class P>
 class MhcPreKernelDecode {
-public:
-    __aicore__ inline MhcPreKernelDecode(MT &matmul) : mm(matmul) {}
-    __aicore__ inline void Init(InitParamsDecodeDecode initParams);
 public:
     __aicore__ inline MhcPreKernelDecode(MT &matmul) : mm(matmul) {}
     __aicore__ inline void Init(InitParamsDecode initParams);
@@ -245,7 +242,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
     curSingleM_ = chunTSize_;
 
     if (outFlag_) {
-        mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.mm_res));
+        mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_mix));
     }
     else {
         constexpr uint64_t kWorkspaceAlignBytes = 32UL;
