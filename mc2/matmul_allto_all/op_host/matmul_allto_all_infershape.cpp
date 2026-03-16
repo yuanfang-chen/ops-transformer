@@ -39,8 +39,8 @@ constexpr uint64_t NUM_ONE = 1;
 constexpr uint64_t DIM_TWO = 2;
 constexpr int64_t NUM_MINUS_ONE = -1;
 constexpr int64_t NUM_MINUS_TWO = -2;
-constexpr uint64_t X1_QUANT_MODE_NUM = 3;
-constexpr uint64_t X2_QUANT_MODE_NUM = 2;
+constexpr int64_t X1_QUANT_MODE_NUM = 3;
+constexpr int64_t X2_QUANT_MODE_NUM = 2;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: MatmulAlltoAll InferShape Debug";
 const std::set<int64_t> SUPPORT_RANK_NUM{2, 4, 8, 16};
@@ -104,7 +104,7 @@ static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, MatmulAllt
     const auto attrs = context->GetAttrs();
     const int64_t* rankDim = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_WORLD_SIZE);
     OPS_CHECK(rankDim == nullptr,
-        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in matmul allto all.", *rankDim),
+        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Attr worldSize is nullptr."),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(SUPPORT_RANK_NUM.find(*rankDim) == SUPPORT_RANK_NUM.end(),
                     OP_LOGE(INNER_DEBUG, "Rank number should be 2 or 4 or 8 or 16, but the actual value is %ld.", *rankDim),
