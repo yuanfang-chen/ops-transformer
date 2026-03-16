@@ -34,6 +34,8 @@ public:
 private:
     __aicore__ inline void CopyInExpandedExpertIdx(int64_t progress);
     __aicore__ inline void CopyOutXQuant(int64_t progress);
+    __aicore__ inline void CopyXIn(int64_t xSrcOffset, int64_t curLoopCols);
+    __aicore__ inline void CopyXOut(int64_t xDstOffset, int64_t curLoopCols);
     __aicore__ inline void Compute(int64_t curLoopCols);
 
 private:
@@ -178,7 +180,7 @@ __aicore__ inline void MoeGatherOutStaticQuant<T>::CopyOutXQuant(int64_t progres
 template <typename T>
 __aicore__ inline void
 MoeGatherOutStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR offset, GM_ADDR expandedRowIdx,
-                                 GM_ADDR_ADDR expandedX, GM_ADDR expandedScale,
+                                 GM_ADDR expandedX, GM_ADDR expandedScale,
                                  const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
