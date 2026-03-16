@@ -18,7 +18,7 @@
 #include "../op_kernel/moe_distribute_comm_ctx.h"
 #include "mc2_log.h"
 #include "mc2_tiling_utils.h"
-#include "mc2_gen_task_ops_utils.h"
+#include "op_graph/mc2_gen_task_ops_utils.h"
 #include <chrono>
 #include <iomanip>
 #include <sstream>
