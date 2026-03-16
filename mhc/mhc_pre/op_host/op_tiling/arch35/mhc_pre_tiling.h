@@ -22,6 +22,11 @@
 
 namespace optiling {
 
+enum class TilingMode : uint32_t {
+    PREFILL = 0,
+    DECODE = 1
+};
+
 BEGIN_TILING_DATA_DEF(MhcPreTilingData)
 TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, matmulTiling);
 TILING_DATA_FIELD_DEF(uint32_t, coreNum);
@@ -122,6 +127,7 @@ private:
     uint32_t hasGamma_;
     uint32_t chunkTSize_;
     uint32_t v1ChunkDSize_;
+    TilingMode tilingMode_;
 
 protected:
     matmul_tiling::MultiCoreMatmulTiling mm_;
