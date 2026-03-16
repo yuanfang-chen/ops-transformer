@@ -47,10 +47,10 @@ Chip total: BF16 = 432.5 TFLOPS, FP8 = 865.1 TFLOPS
 | Cache | Size |
 |-------|------|
 | UB (Unified Buffer) | 256 KB |
-| L1 | 1024 KB |
-| L0A (input A) | 256 KB |
+| L1 | 412 KB |
+| L0A (input A) | 64 KB |
 | L0B (input B) | 256 KB |
-| L0C (accumulator) | 512 KB |
+| L0C (accumulator) | 256 KB |
 
 ### Contention Rule
 
