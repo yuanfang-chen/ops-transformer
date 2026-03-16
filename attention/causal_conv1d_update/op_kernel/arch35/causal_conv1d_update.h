@@ -104,7 +104,7 @@ private:
                 const LocalTensor<int32_t>& acceptTokenLocal, const LocalTensor<int32_t>& queryStartLocLocal);
 
     __aicore__ inline void UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal, int32_t acceptToken,
-                int32_t batchInBlock, int32_t curBatchIdx, int64_t convStatesIdx, int32_t curBatchSeq);
+                int32_t batchInLoopIdx, int32_t curBatchIdx, int64_t convStatesIdx, int32_t curBatchSeq);
 
      __aicore__ inline void InsertSync(const HardEvent& event);
     // ========== Global Memory指针 ==========
@@ -452,10 +452,10 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         if(seqLen_ == 0) {
             curBatchSeq = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx);
         }
-        UpdateconvStates(xLocal, convStatesLocal, acceptToken, perLoopBatch + b, curBatchIdx, convStatesIdx, curBatchSeq);
+        UpdateconvStates(xLocal, convStatesLocal, acceptToken, b, curBatchIdx, convStatesIdx, curBatchSeq);
         InsertSync(HardEvent::MTE2_V);
 
-        int32_t xInnerOffset = (perLoopBatch + b) * seqLen_ * dimSizeInLoop_;
+        int32_t xInnerOffset = b * seqLen_ * dimSizeInLoop_;
         if(seqLen_ == 0) {
             xInnerOffset = (queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx - b + 1)) * dimSizeInLoop_;
         }
@@ -504,9 +504,9 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
 
 template <typename T>
 __aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
-    int32_t acceptToken, int32_t batchInBlock, int32_t curBatchIdx, int64_t convStatesIdx, int32_t curBatchSeq)
+    int32_t acceptToken, int32_t batchInLoopIdx, int32_t curBatchIdx, int64_t convStatesIdx, int32_t curBatchSeq)
 {
-    int32_t xOffset = batchInBlock * seqLen_ * dimSizeInLoop_;
+    int32_t xOffset = batchInLoopIdx * seqLen_ * dimSizeInLoop_;
     int64_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimInnerOffset_;
     uint32_t blockLen = dimSizeInLoop_ * sizeof(T);
     uint32_t dstStrideBytes = (cacheLenSum_ - dimSizeInLoop_) * sizeof(T);
