@@ -9,30 +9,30 @@
 # -----------------------------------------------------------------------------------------------------------
  if(BUILD_OPEN_PROJECT)
  file(GLOB OPTILING_SRCS
-   context_transfer.cpp
-   op_tiling/hccl_formulaic_tiling.cpp
-   op_tiling/hccl_performance.cpp
-   op_graph/matmul_all_reduce_gen_task_ops_utils.cpp
-   op_tiling/matmul_formulaic_tiling.cpp
-   op_tiling/matmul_performance.cpp
-   op_host/mc2_common_infershape.cpp
-   op_graph/mc2_gen_task_ops_utils.cpp
-   mc2_hcom_topo_info.cpp
-   mc2_log.cpp
-   op_tiling/mc2_matmul_tiling_cfg.cpp
-   op_graph/mc2_moe_gen_task_ops_utils.cpp
-   mc2_moe_utils.cpp
-   op_tiling/mc2_tiling_utils.cpp
-   op_tiling/moe_tiling_base.cpp
-   op_tiling/one_calc_two_comm_tiling.cpp
-   op_graph/mc2_gen_task_ops_utils_arch35.cpp
+    utils/context_transfer.cpp
+    op_host/op_tiling/hccl_formulaic_tiling.cpp
+    op_host/op_tiling/hccl_performance.cpp
+    op_graph/matmul_all_reduce_gen_task_ops_utils.cpp
+    op_host/op_tiling/matmul_formulaic_tiling.cpp
+    op_host/op_tiling/matmul_performance.cpp
+    op_host/mc2_common_infershape.cpp
+    op_graph/mc2_gen_task_ops_utils.cpp
+    utils/mc2_hcom_topo_info.cpp
+    utils/mc2_log.cpp
+    op_host/op_tiling/mc2_matmul_tiling_cfg.cpp
+    op_graph/mc2_moe_gen_task_ops_utils.cpp
+    utils/mc2_moe_utils.cpp
+    op_host/op_tiling/mc2_tiling_utils.cpp
+    op_host/op_tiling/moe_tiling_base.cpp
+    op_host/op_tiling/one_calc_two_comm_tiling.cpp
+    op_graph/mc2_gen_task_ops_utils_arch35.cpp
    )
  if(UT_TEST_ALL OR OP_HOST_UT)
-   list(FILTER OPTILING_SRCS EXCLUDE REGEX "mc2_hcom_topo_info\\.cpp")
+   list(FILTER OPTILING_SRCS EXCLUDE REGEX "utils/mc2_hcom_topo_info\\.cpp")
    file(GLOB MC2_TILING_UT_STUB ${UT_COMMON_INC}/mc2_hcom_topology_mocker.cpp ${UT_COMMON_INC}/op_cache_tiling.cpp)
    add_library(mc2_tiling_ut_stub SHARED ${MC2_TILING_UT_STUB})
    target_include_directories(mc2_tiling_ut_stub PRIVATE
-     ${OPS_TRANSFORMER_DIR}/mc2/common
+     ${OPS_TRANSFORMER_DIR}/mc2/common/utils
      ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
      ${OP_TILING_INCLUDE}
    )
@@ -58,7 +58,7 @@
  endif()
 endif()
 
- file(GLOB NEW_MC2_MM_SRC op_tiling/new_mc2_*.cpp)
+ file(GLOB NEW_MC2_MM_SRC op_host/op_tiling/new_mc2_*.cpp)
 # MC2_COMPILE used to avoid tefusion_llt 
 # when blue use SUB_MC2_COMPILE when rty use MC2_COMPILE
 if(MC2_COMPILE OR SUB_MC2_COMPILE OR UT_TEST OR OP_HOST_UT)
