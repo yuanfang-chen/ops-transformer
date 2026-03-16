@@ -78,6 +78,142 @@ TEST_PARAMS = {
         "ckvkr_repo_mode": [1],
         "quant_scale_repo_mode": [1],
     },
+    # 性能分析场景 - 典型推理工作负载
+    # DeepSeek-V3 decode: BS=1, S=1, N=128, He=7168 (单token推理)
+    "perf_decode_bs1": {
+        "batch_size": [1],
+        "seq_len": [1],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # DeepSeek-V3 decode: BS=8, S=1 (多batch推理)
+    "perf_decode_bs8": {
+        "batch_size": [8],
+        "seq_len": [1],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # Prefill: BS=1, S=128, N=128 (首次token)
+    "perf_prefill_s128": {
+        "batch_size": [1],
+        "seq_len": [128],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # Prefill: BS=1, S=512, N=128 (长序列首次填充)
+    "perf_prefill_s512": {
+        "batch_size": [1],
+        "seq_len": [512],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # INT8 全量化 decode: 量化对decode性能影响
+    "perf_decode_int8": {
+        "batch_size": [1],
+        "seq_len": [1],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [2],
+        "kv_cache_quant_mode": [1],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # MXFP8 全量化 decode
+    "perf_decode_mxfp8": {
+        "batch_size": [1],
+        "seq_len": [1],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [3],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # INT8 全量化 prefill
+    "perf_prefill_int8_s128": {
+        "batch_size": [1],
+        "seq_len": [128],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [2],
+        "kv_cache_quant_mode": [1],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # 小模型场景: He=2048, N=16 (较小的MLA配置)
+    "perf_small_model": {
+        "batch_size": [1],
+        "seq_len": [1],
+        "head_num": [16],
+        "He": [2048],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
+    # 大batch高吞吐场景: BS=32, S=1, N=128
+    "perf_decode_bs32": {
+        "batch_size": [32],
+        "seq_len": [1],
+        "head_num": [128],
+        "He": [7168],
+        "dtype": [torch.bfloat16],
+        "cache_mode": ["PA_BSND"],
+        "block_size": [128],
+        "weight_quant_mode": [0],
+        "kv_cache_quant_mode": [0],
+        "query_quant_mode": [0],
+        "ckvkr_repo_mode": [0],
+        "quant_scale_repo_mode": [0],
+    },
     # Fuzz 测试参数
     "fuzz_default": {
         "batch_size": [1, 2, 4, 8],
@@ -97,6 +233,19 @@ TEST_PARAMS = {
 
 # 按需选择要启用的测试参数
 ENABLED_PARAMS = [TEST_PARAMS["base_default"]]
+
+# 性能分析用例名称（perf_analyzer --mode report 使用）
+PERF_CASE_NAMES = [
+    "perf_decode_bs1",
+    "perf_decode_bs8",
+    "perf_decode_bs32",
+    "perf_prefill_s128",
+    "perf_prefill_s512",
+    "perf_decode_int8",
+    "perf_decode_mxfp8",
+    "perf_prefill_int8_s128",
+    "perf_small_model",
+]
 
 # Fuzz 测试参数（通过环境变量控制）
 FUZZ_PARAMS = TEST_PARAMS["fuzz_default"]

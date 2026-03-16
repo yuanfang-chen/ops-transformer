@@ -1032,9 +1032,11 @@ def cal_mlaprolog(mla_param):
 
 
     if mla_param['cache_mode'] == "PA_BLK_NZ":
-        kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res, index_table, seq_len, scatter_size)
+        idx = index_table.reshape(B, -1) if index_table.ndim == 1 else index_table
+        kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res, idx, seq_len, B, scatter_size)
     elif mla_param['cache_mode'] == "PA_BLK_BSND":
-        kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res, index_table, seq_len, B)
+        idx = index_table.reshape(-1) if index_table.ndim > 1 else index_table
+        kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res, idx, seq_len, B)
     elif mla_param['cache_mode'] == "PA_NZ":
         kv_cache = scatter_pa_nz(kv_cache, norm2_res, index_table.reshape(T), scatter_size)
     else:
@@ -1081,9 +1083,11 @@ def cal_mlaprolog(mla_param):
         else:
             scatter_size = 16
         if mla_param['cache_mode'] == "PA_BLK_NZ":
-            kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_res, index_table, seq_len, scatter_size)
+            idx = index_table.reshape(B, -1) if index_table.ndim == 1 else index_table
+            kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_res, idx, seq_len, B, scatter_size)
         elif mla_param['cache_mode'] == "PA_BLK_BSND":
-            kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_res, index_table, seq_len, B)
+            idx = index_table.reshape(-1) if index_table.ndim > 1 else index_table
+            kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_res, idx, seq_len, B)
         elif mla_param['cache_mode'] == "PA_NZ":
             kr_cache = scatter_pa_nz(kr_cache, rotary2_res, index_table.reshape(T), scatter_size)
         else:
@@ -1279,7 +1283,10 @@ def build_mla_param(params):
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((block_num, block_size, N2, DR), kr_cache_dtype, generator)
-        cache_index = torch.arange(T, dtype=torch.int64)
+        if t_flag:
+            cache_index = torch.arange(T, dtype=torch.int64)
+        else:
+            cache_index = torch.arange(T, dtype=torch.int64).reshape(B, S1)
     elif cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
         pages_per_batch = math.ceil(S2 / block_size)
         total_blocks = B * pages_per_batch
@@ -1288,24 +1295,24 @@ def build_mla_param(params):
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((total_blocks, block_size, N2, DR), kr_cache_dtype, generator)
-        if cache_mode == "PA_BLK_NZ":
-            cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
-        else:  # PA_BLK_BSND — scatter expects 1D index
+        if t_flag:
             cache_index = torch.arange(total_blocks, dtype=torch.int64)
+        else:
+            cache_index = torch.arange(total_blocks, dtype=torch.int64).reshape(B, pages_per_batch)
     elif cache_mode == "BSND":
         kv_cache = _create_tensor((B, S2, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((B, S2, N2, DR), kr_cache_dtype, generator)
-        cache_index = torch.arange(T, dtype=torch.int64)
+        cache_index = None
     elif cache_mode == "TND":
         kv_cache = _create_tensor((T, N2, Dtile), kv_cache_dtype, generator)
         if ckvkr_repo_mode == 1:
             kr_cache = torch.empty(0, dtype=kr_cache_dtype)
         else:
             kr_cache = _create_tensor((T, N2, DR), kr_cache_dtype, generator)
-        cache_index = torch.arange(T, dtype=torch.int64)
+        cache_index = None
     else:
         raise ValueError(f"Unsupported cache_mode: {cache_mode}")
 
@@ -1370,7 +1377,7 @@ def build_mla_param(params):
     # --- actual_seq_len for PA_BLK modes ---
     # Cumulative format: [S1, 2*S1, ..., B*S1] — required by scatter functions
     if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
-        actual_seq_len = torch.tensor([S1 * (i + 1) for i in range(B)], dtype=torch.int64)
+        actual_seq_len = torch.tensor([S1 * (i + 1) for i in range(B)], dtype=torch.int32)
     else:
         actual_seq_len = None
 
