@@ -291,11 +291,8 @@ public:
     std::vector<int64_t> kvListSeqLens {};
     bool isAccumKVSeq = false;
 
-    // PSE
-    bool pseShiftFlag = false;
-    bool pseShiftByBatch = false;
-    uint32_t pseShiftS1 = 0U;
-    uint32_t pseShiftS2 = 0U;
+   
+
 
     // Mask
     bool attenMaskFlag = false;

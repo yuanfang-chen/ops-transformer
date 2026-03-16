@@ -93,7 +93,7 @@ bool FiaTilingNonQuantMla::IsCapable()
     }
 
     // 不支持的特性
-    if (fiaInfo_->learnableSinkFlag || fiaInfo_->sysPrefixFlag || fiaInfo_->pseShiftFlag ||
+    if (fiaInfo_->learnableSinkFlag || fiaInfo_->sysPrefixFlag ||
         fiaInfo_->qPaddingSizeFlag || fiaInfo_->kvPaddingSizeFlag) {
         return false;
     }

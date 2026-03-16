@@ -490,7 +490,6 @@ void FiaTilingNonQuant::FillTilingBaseParams()
     tilingData_.baseParams.set_accumQSeqFlag(fiaInfo_->isAccumQSeq ? 1 : 0);
     tilingData_.baseParams.set_accumKVSeqFlag(fiaInfo_->isAccumKVSeq ? 1 : 0);
     tilingData_.baseParams.set_outputLayout(static_cast<uint32_t>(fiaInfo_->outputLayout));
-    tilingData_.baseParams.set_softmaxLseFlag(fiaInfo_->softmaxLseFlag ? 1 : 0);
     tilingData_.baseParams.set_usedCoreNum(usedCoreNum_);
     l2CacheOffFlag_ = GetL2CacheOffFlag();
     tilingData_.baseParams.set_l2CacheOffFlag(l2CacheOffFlag_);
