@@ -1014,6 +1014,15 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
     const gert::StorageShape* antiquantScaleShape = contextKeyParams.antiquantScaleShape;
+    // check QKV QuantMode
+    OP_CHECK_IF((*contextKeyParams.queryQuantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL) ||
+        *contextKeyParams.keyAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)||
+        *contextKeyParams.valueAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "queryQuantMode(%ld), keyAntiquantMode(%ld) or valueQuantMode(%ld) is not supported "
+            "in per-block quant scenario.! Only support Per-Tensor(0).",
+            *contextKeyParams.queryQuantMode, *contextKeyParams.keyAntiquantMode, *contextKeyParams.valueAntiquantMode),
+            return false);
     OP_CHECK_IF((dequantScaleQueryShape == nullptr) || (keyAntiquantScaleShape == nullptr) || (valueAntiquantScaleshape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "dequantScaleQuery, keyAntiquantScale or valueAntiquantScale is nullptr in per-block quant scenario."),
@@ -1026,6 +1035,12 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "antiquantScale is not supported in per-block quant scenario."),
         return false);
+    // 全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset
+    OP_CHECK_IF((contextKeyParams.KeyAntiquantOffsetShape != nullptr) ||
+        (contextKeyParams.valueAntiquantOffsetShape != nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "keyAntiquantOffset and valueAntiquantOffset should be null in per-block quant scenario."),
+            return false);
     const size_t dequeryDim = dequantScaleQueryShape->GetStorageShape().GetDimNum();
     const size_t dekeyDim = keyAntiquantScaleShape->GetStorageShape().GetDimNum();
     const size_t devalueDim = valueAntiquantScaleshape->GetStorageShape().GetDimNum();
@@ -2052,16 +2067,17 @@ bool PromptFlashAttentionTilingV2::CheckKVScaleShape4MLAFullQuant(ContextParamsF
     return true;
 }
 
-bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams) const
+bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo) const
 {
     // check layout
     std::string layoutStr(contextKeyParams.layout);
     const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND"};
     OP_CHECK_IF(std::find(supportedLayoutList.begin(), supportedLayoutList.end(), layoutStr) == supportedLayoutList.end(),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND.",
-            layoutStr.c_str()),
-        return false);
+            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND.", layoutStr.c_str()), return false);
+    // check DSize
+    OP_CHECK_IF((queryShapeInfo.d != 512), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "When MLAFullQuant enables, the d(%d) size of query should be 512.", queryShapeInfo.d), return false);
     // check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
     OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.kDataType != ge::DT_FLOAT8_E4M3FN ||
         contextKeyParams.vDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.outputDataType != ge::DT_BF16),
@@ -2077,24 +2093,21 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         return false);
     // check QKV QuantMode
     OP_CHECK_IF((*contextKeyParams.queryQuantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_TOKEN_HEAD)),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, queryQuantMode (%ld) is InValid! Only support Per-Token-Head(3).",
-            *contextKeyParams.queryQuantMode), return false);
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When MLAFullQuant enables, queryQuantMode (%ld) is InValid! "
+            "Only support Per-Token-Head(3).", *contextKeyParams.queryQuantMode), return false);
     OP_CHECK_IF((*contextKeyParams.keyAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)||
         *contextKeyParams.valueAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, keyAntiquantMode (%ld) or valueQuantMode (%ld) is InValid! Only support Per-Tensor(0).",
             *contextKeyParams.keyAntiquantMode, *contextKeyParams.valueAntiquantMode), return false);
     // check QKV scale
-    OP_CHECK_IF((contextKeyParams.dequantScaleQuery == nullptr),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When MLAFullQuant enables, dequantScaleQuery should not be nullptr."),
-        return false);
+    OP_CHECK_IF((contextKeyParams.dequantScaleQuery == nullptr), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "When MLAFullQuant enables, dequantScaleQuery should not be nullptr."), return false);
     OP_CHECK_IF((contextKeyParams.keyAntiquantScale == nullptr || contextKeyParams.valueAntiquantScale == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, keyAntiQuantScale or valueAntiquantScale should not be nullptr."), return false);
     OP_CHECK_IF((contextKeyParams.dequantScaleQueryType != ge::DT_FLOAT || contextKeyParams.KeyAntiquantScaleType != ge::DT_FLOAT ||
-        contextKeyParams.valueAntiquantScaleType != ge::DT_FLOAT),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        contextKeyParams.valueAntiquantScaleType != ge::DT_FLOAT), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, dataType of dequantScaleQuery(%s), KeyAntiquantScale(%s) and valueAntiquantScale(%s) must be float32.",
             GetPfaDataTypeStr(contextKeyParams.dequantScaleQueryType).c_str(), GetPfaDataTypeStr(contextKeyParams.KeyAntiquantScaleType).c_str(),
             GetPfaDataTypeStr(contextKeyParams.valueAntiquantScaleType).c_str()), return false);
@@ -2106,8 +2119,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, keyAntiquantOffset and valueAntiquantOffset should be null."), return false);
     OP_CHECK_IF((contextKeyParams.deqScale1Shape != nullptr || contextKeyParams.scale1Shape != nullptr ||
-        contextKeyParams.deqScale2Shape != nullptr),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        contextKeyParams.deqScale2Shape != nullptr), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, quantScale1, dequantScale1 and dequantScale2 should be null."), return false);
     // 全量化不支持system prefix
     OP_CHECK_IF((contextKeyParams.keySharedPrefix != nullptr || contextKeyParams.valueSharedPrefix != nullptr),
@@ -2405,14 +2417,15 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     const int32_t* blockSize = contextKeyParams.blockSize;
     // Tiling sinking scene, workspace needs to be calculated, at this time, blockTableDim2 * blockSize is used as S2.
     blockTableDim2 = static_cast<int32_t>(blockTableShape->GetStorageShape().GetDim(1));
+
     // PFA PA blockSize % 128 == 0
-    if (enableIFAMLAFullQuant || enablePertensorQuant) {
+    if (enablePertensorQuant) {
         OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE != 0 || *blockSize < BLOCK_SIZE_BASE || *blockSize > BLOCK_SIZE_MAX)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when Full Quant and PA enable",
                 *blockSize, BLOCK_SIZE_BASE, BLOCK_SIZE_BASE, BLOCK_SIZE_MAX),
             return false);
-    } else {            
+    } else if (!enableIFAMLAFullQuant) {            
         OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant",
@@ -2421,19 +2434,24 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     }
     // IFA PA blockSize % 16 == 0
     ifaBlockSizeBase /= static_cast<int32_t>(dataTypeSize);
-    if (enableIFAMLAFullQuant || enablePertensorQuant) {
+    if (enablePertensorQuant) {
         OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % ifaBlockSizeBase != 0 || *blockSize < ifaBlockSizeBase || *blockSize > BLOCK_SIZE_MAX)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when Full Quant and PA enable",
                 *blockSize, ifaBlockSizeBase, ifaBlockSizeBase, BLOCK_SIZE_MAX),
             return false);
-    } else {
+    } else if (!enableIFAMLAFullQuant) {
         OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant",
                 *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT),
             return false);
     }
+    // MLA 全量化 blocksize == 128
+    OP_CHECK_IF((enableIFAMLAFullQuant && *blockSize != BLOCK_SIZE_BASE),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "block size(%d) should be %d, when MLA Full Quant and PA enable", *blockSize, BLOCK_SIZE_BASE),
+        return false);
     //非量化场景
     if(!enableIFAMLAFullQuant && !enablePertensorQuant){
         if (enableIFAMLA || enablePFARope || enablePFAMLA){
@@ -3047,7 +3065,8 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
     return true;
 }
 
-bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATiling& contextKeyParams) 
+bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATiling& contextKeyParams,
+    PromptFlashAttentionTilingData& tilingData)
 {
     if (!enablePerblockQuant) {
         return true;
@@ -3058,9 +3077,10 @@ bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATil
     OP_CHECK_IF(enableActSeqLenKV && (inputLayout == InputLayout::TND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "ActSeqLenKV is not supported in per-block quant scenario!"),
             return false);
-    OP_CHECK_IF((innerPrecise == 2) || (innerPrecise == 3),
+    // per-block does not support invalid line correction. (innerPrecise = 2/3)
+    OP_CHECK_IF(tilingData.promptAttentionBaseParams.get_isRowInvalid() != 0,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "innerPrecise must be 0 or 1 in per-block quant scenario, now is %ld", innerPrecise),
+            "innerPrecise must be 0 or 1 in per-block quant scenario!"),
             return false);
     OP_CHECK_IF(contextKeyParams.isSoftMaxLseEnable, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "LSE is not supported in per-block quant scenario!"),
@@ -3082,7 +3102,12 @@ bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATil
         return false);
     OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "AlibiPse is not supported in per-block quant scenario!"),
-        return false);      
+        return false);
+    // 全量化不支持system prefix
+    OP_CHECK_IF((contextKeyParams.keySharedPrefix != nullptr || contextKeyParams.valueSharedPrefix != nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "keySharedPrefix and valueSharedPrefix should be null in per-block quant scenario!"),
+        return false);    
     return true;
 }
 
@@ -4482,7 +4507,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
     if (!isMaxWorkspace && enableIFAMLA && (!CheckIFAMLA(contextKeyParams, queryShapeInfo))) {
         return ge::GRAPH_FAILED;
     }
-    if (enableIFAMLAFullQuant && (!CheckMLAFullQuant(contextKeyParams))) {
+    if (enableIFAMLAFullQuant && (!CheckMLAFullQuant(contextKeyParams, queryShapeInfo))) {
         return ge::GRAPH_FAILED;
     }
     // print shape info
@@ -4628,7 +4653,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckCrossoverAttribute(ContextPar
         return ge::GRAPH_FAILED;
     }
 
-    if (!CheckPerblockCrossover(contextKeyParams)) {
+    if (!CheckPerblockCrossover(contextKeyParams, tilingData)) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
