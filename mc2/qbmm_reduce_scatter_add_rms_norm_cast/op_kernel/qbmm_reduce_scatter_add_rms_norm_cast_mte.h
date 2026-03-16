@@ -209,15 +209,15 @@ protected:
     uint32_t ubCalcN_;
     uint32_t ubTmpBuffer_;
     uint32_t curAicM;
-    uint32_t m_core_num;
-    uint32_t n_core_num;
+    uint32_t mCoreNum;
+    uint32_t nCoreNum;
 
     uint64_t offsetA_{0};
     uint64_t offsetB_{0};
     uint64_t offsetC_{0};
     uint64_t mOffset_{0};
     uint64_t nOffset_{0};
-    uint64_t nOffset_fix{0};
+    uint64_t nOffsetFix{0};
 
     uint16_t int32GmToUbData_{0};
     uint16_t int32GmToUbStride_{0};
@@ -271,8 +271,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     bTrans_ = false;
     perTokenScaleAddr_ = perTokenScale;
 
-    m_core_num = CeilDiv(m_, baseM_);
-    n_core_num = aicNum_ / m_core_num;
+    mCoreNum = CeilDiv(m_, baseM_);
+    nCoreNum = aicNum_ / mCoreNum;
     
     // init ub local buffer for dequantCompute
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
@@ -665,13 +665,13 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 {
     mOffset_ = mCoreIndex * baseM_;
     offsetA_ = mCoreIndex * baseM_ * k_;
-    offsetC_ = nOffset_fix + mCoreIndex * baseM_ * n_;
+    offsetC_ = nOffsetFix + mCoreIndex * baseM_ * n_;
 }
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::CalcNAxisOffset(uint32_t loopIdx)
 {
-    nOffset_ = nOffset_fix + loopIdx * baseN_;
+    nOffset_ = nOffsetFix + loopIdx * baseN_;
     if constexpr (BMatmulType::format == CubeFormat::ND) {
         offsetB_ = nOffset_;
     } else if constexpr (BMatmulType::format == CubeFormat::NZ) {
@@ -692,22 +692,22 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     uint32_t mDim = CeilDiv(m_, singleCoreM_ * 2);
     uint32_t nDim = CeilDiv(n_, singleCoreN_);
     // cid(0-15)分2个, (16-23)分1个
-    uint32_t mCoreIndex = coreCid_ % m_core_num;
-    uint32_t nCoreIndex = coreCid_ / m_core_num;
+    uint32_t mCoreIndex = coreCid_ % mCoreNum;
+    uint32_t nCoreIndex = coreCid_ / mCoreNum;
     uint32_t startBlockIdx = 0;
     uint32_t endBlockIdx = 0;
     uint32_t tileNum = 0;
-    SplitToCore(n_ / baseN_, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+    SplitToCore(n_ / baseN_, nCoreNum, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
     uint32_t remain_num = m_ % baseM_;
     singleM_ = baseM_;
-    if (remain_num != 0 && mCoreIndex == m_core_num - 1){
+    if (remain_num != 0 && mCoreIndex == mCoreNum - 1){
         singleM_ = remain_num;
     }
     curAicM = singleM_ / 2;
     uint32_t mLoops = 1;
     uint32_t nLoops = tileNum;
     // CalcOffset, 默认当前都是ND, 且非转置
-    nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
+    nOffsetFix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
     for (uint32_t i = 0; i < mLoops; ++i) {
         CalcMAxisOffset(mCoreIndex, nLoops);
@@ -734,24 +734,24 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         uint32_t nDim = CeilDiv(n_, singleCoreN_);
         // cid(0-15)分2个, (16-23)分1个
         uint32_t group_cid = coreVid_ / 2;
-        uint32_t mCoreIndex = group_cid % m_core_num;
-        uint32_t nCoreIndex = group_cid / m_core_num;
+        uint32_t mCoreIndex = group_cid % mCoreNum;
+        uint32_t nCoreIndex = group_cid / mCoreNum;
         
         uint32_t startBlockIdx = 0;
         uint32_t endBlockIdx = 0;
         uint32_t tileNum = 0;
 
-        SplitToCore(n_ / baseN_, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+        SplitToCore(n_ / baseN_, nCoreNum, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
         uint32_t remain_num = m_ % baseM_;
         singleM_ = baseM_;
-        if (remain_num != 0 && mCoreIndex == m_core_num - 1){
+        if (remain_num != 0 && mCoreIndex == mCoreNum - 1){
             singleM_ = remain_num;
         }
         curAicM = singleM_ / 2;
         uint32_t mLoops = 1;
         uint32_t nLoops = tileNum;
         // CalOffset, 默认当前都是ND, 且非转置
-        nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
+        nOffsetFix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
         for (uint32_t i = 0; i < mLoops; ++i) {
             CalcMAxisOffset(mCoreIndex, nLoops);
