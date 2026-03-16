@@ -37,7 +37,7 @@ const std::string KEY_ROPE_ANTIQUANT_SCALE_NAME = "the key_rope's dequant scale"
 const std::string KV_HEADS_NUM_NAME = "the key/value's heads num";
 const std::string NEXT_TOKENS_NAME = "next_tokens";
 const std::string PRE_TOKENS_NAME = "pre_tokens";
-const std::string PSE_SHIFT_NAME = "pse_shift";
+\
 const std::string QUANT_OFFSET2_NAME = "the output's dequant offset";
 const std::string QUANT_SCALE2_NAME = "the output's dequant scale";
 const std::string QUERY_NAME = "query";
@@ -181,7 +181,7 @@ struct FIAParaInfo {
     FIARequiredParaInfo key = {nullptr, nullptr};
     FIARequiredParaInfo value = {nullptr, nullptr};
 
-    FIAOptionalParaInfo pseShift = {nullptr, nullptr};
+
     FIAOptionalParaInfo attenMask = {nullptr, nullptr};
     FIAOptionalParaInfo actualSeqLengthsQ = {nullptr, nullptr};
     FIAOptionalParaInfo actualSeqLengths = {nullptr, nullptr};
@@ -291,11 +291,7 @@ public:
     std::vector<int64_t> kvListSeqLens {};
     bool isAccumKVSeq = false;
 
-    // PSE
-    bool pseShiftFlag = false;
-    bool pseShiftByBatch = false;
-    uint32_t pseShiftS1 = 0U;
-    uint32_t pseShiftS2 = 0U;
+
 
     // Mask
     bool attenMaskFlag = false;
