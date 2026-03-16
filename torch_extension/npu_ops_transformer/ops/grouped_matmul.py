@@ -12,7 +12,6 @@ High-level wrapper for GroupedMatmul operations.
 Provides a user-friendly interface for grouped matrix multiplication on NPU.
 """
 import torch
-import torch_npu
 from typing import Optional, List, Tuple
 from .grouped_matmul_v5 import npu_grouped_matmul_v5
 
