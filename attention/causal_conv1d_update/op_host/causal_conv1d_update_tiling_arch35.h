@@ -34,6 +34,9 @@ struct CausalConv1dUpdateCompileInfo {
     uint64_t ubSize = 0;
 };
 
+constexpr uint64_t TILING_KEY_UPDATE_BF16 = 20000;
+constexpr uint64_t TILING_KEY_UPDATE_FP16 = 20001;
+
 // Input tensor indices
 constexpr int32_t X_INDEX = 0;
 constexpr int32_t WEIGHT_INDEX = 1;

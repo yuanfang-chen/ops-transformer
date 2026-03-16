@@ -346,7 +346,6 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Process()
     if (hasAcceptTokenNum_ == 1) {
         DataCopyPad(acceptTokenLocal, acceptTokenNumGm, indicesCopyParams, padParams);
     }
-    InsertSync(HardEvent::MTE2_S);
 
     // 拷贝query start loc：[batch+1]
     if(xInputMode_ == 1) {
@@ -360,6 +359,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Process()
         DataCopyPad(queryStartLocLocal, queryStartLocGm, queryStartLocCopyParams, padParams);
     }
 
+    InsertSync(HardEvent::MTE2_S);
     for (int32_t batchLoop = 0; batchLoop < loopNumBS_; batchLoop++) {
         for (int32_t dimLoop = 0; dimLoop < loopNumDim_; dimLoop++) {
             CopyIn(batchLoop, dimLoop, queryStartLocLocal);
@@ -451,8 +451,8 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         int32_t curBatchSeq = seqLen_;
         int32_t curBatchUbOffset = b * curBatchSeq * dimSizeInLoop_;
         if(xInputMode_ == 1) {
-            curBatchSeq = queryStartLocLocal.GetValue(curBatchIdx) - queryStartLocLocal.GetValue(curBatchIdx-1);
-            curBatchUbOffset = queryStartLocLocal.GetValue(curBatchIdx) - queryStartLocLocal.GetValue(curBatchIdx - b) * dimSizeInLoop_;
+            curBatchSeq = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx);
+            curBatchUbOffset = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx - b + 1) * dimSizeInLoop_;
         }
         UpdateconvStates(xLocal, convStatesLocal, acceptToken, curBatchUbOffset, convStatesIdx, curBatchSeq);
         InsertSync(HardEvent::MTE2_V);
