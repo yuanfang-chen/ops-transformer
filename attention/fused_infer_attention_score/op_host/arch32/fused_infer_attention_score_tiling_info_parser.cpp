@@ -65,8 +65,6 @@ ge::graphStatus FiaInfoParser::CheckRequiredAttrExistence() const
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.antiquantMode == nullptr, OP_LOGE(opName_, "attr antiquantMode is nullptr"),
                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.softmaxLseFlag == nullptr, OP_LOGE(opName_, "attr softmaxLseFlag is nullptr"),
-               return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.keyAntiquantMode == nullptr, OP_LOGE(opName_, "attr keyAntiquantMode is nullptr"),
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.valueAntiquantMode == nullptr, OP_LOGE(opName_, "attr valueAntiquantMode is nullptr"),
@@ -104,13 +102,7 @@ ge::graphStatus FiaInfoParser::GetEmptyTensorFlag()
             emptyTensorFlag_ = true;
             return ge::GRAPH_SUCCESS;
     }
-    if (*opParamInfo_.softmaxLseFlag) {
-        if ((opParamInfo_.lseOut.shape == nullptr) || (opParamInfo_.lseOut.shape->GetStorageShape().GetShapeSize() == 0)) {
-            OP_LOGE(opName_, "lse Flag is %u, but lse shape size is 0 byte",
-            *opParamInfo_.softmaxLseFlag);
-            return ge::GRAPH_FAILED;
-        }
-    }
+
     for(auto &kTensor : kCache_) {
         if (kTensor->GetStorageShape().GetShapeSize() != 0) {
             return ge::GRAPH_SUCCESS;
@@ -297,8 +289,6 @@ void FiaInfoParser::GetOutputParaInfo()
 {
     opParamInfo_.attenOut.desc = context_->GetOutputDesc(ATTENTION_OUT_INDEX);
     opParamInfo_.attenOut.shape = context_->GetOutputShape(ATTENTION_OUT_INDEX);
-    opParamInfo_.lseOut.desc = context_->GetOutputDesc(SOFTMAX_LSE_INDEX);
-    opParamInfo_.lseOut.shape = context_->GetOutputShape(SOFTMAX_LSE_INDEX);
 }
 
 ge::graphStatus FiaInfoParser::GetAttrParaInfo()
@@ -314,7 +304,6 @@ ge::graphStatus FiaInfoParser::GetAttrParaInfo()
     opParamInfo_.kvHeadNums = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
     opParamInfo_.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
     opParamInfo_.antiquantMode = attrs->GetAttrPointer<int64_t>(ANTIQUANT_MODE_INDEX);
-    opParamInfo_.softmaxLseFlag = attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
     opParamInfo_.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
     opParamInfo_.valueAntiquantMode = attrs->GetAttrPointer<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
     opParamInfo_.innerPrecise = attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX);
@@ -986,7 +975,6 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.slidingFlag = (*opParamInfo_.sparseMode == 4) && (ropeMode_ == RopeMode::ROPE_SPLIT) && (qkHeadDim_ == 512U);
     fiaInfo.qPaddingSizeFlag = qPaddingSizeFlag_;
     fiaInfo.kvPaddingSizeFlag = kvPaddingSizeFlag_;
-    fiaInfo.softmaxLseFlag = *opParamInfo_.softmaxLseFlag;
     fiaInfo.totalLseSize = (opParamInfo_.lseOut.shape == nullptr) ? 0 : opParamInfo_.lseOut.shape->GetStorageShape().GetShapeSize();
     fiaInfo.isMaxWorkspace = isMaxWorkspace_;
     fiaInfo.isLegacyIfa = isLegacyIfa_;
