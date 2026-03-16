@@ -30,12 +30,12 @@
 #if defined (V310_GMM_ANTI_QUANT)
 // Weight Quantization scenario (伪量化场景)
 // Include all headers directly from source directory to avoid broken paths in copied files
-#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
-#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
-#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_basic_block.h"
-#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
-#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
-#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
+#include "../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
+#include "../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
+#include "../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_basic_block.h"
+#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
+#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
+#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
 #else
 // Full Quantization scenario (全量化场景)
 #include "lib/matmul_intf.h"
