@@ -361,9 +361,7 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceMlaAntiquant() const
         {QUANT_SCALE1_NAME, opParamInfo_.quantScale1.tensor},
         {DEQUANT_SCALE2_NAME, opParamInfo_.deqScale2.tensor},
         {DEQUANT_SCALE_QUERY_NAME, opParamInfo_.dequantScaleQuery.tensor},
-        // postquantParam
-        {QUANT_SCALE2_NAME, opParamInfo_.quantScale2.tensor},
-        {QUANT_OFFSET2_NAME, opParamInfo_.quantOffset2.tensor},
+
         // unsupportedFeaturesParam
 
         {QUERY_PADDING_SIZE_NAME, opParamInfo_.queryPaddingSize.tensor},
@@ -410,9 +408,6 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceMlaFullquant() const
         {DEQUANT_SCALE1_NAME, opParamInfo_.deqScale1.tensor},
         {QUANT_SCALE1_NAME, opParamInfo_.quantScale1.tensor},
         {DEQUANT_SCALE2_NAME, opParamInfo_.deqScale2.tensor},
-        // postquantParam
-        {QUANT_SCALE2_NAME, opParamInfo_.quantScale2.tensor},
-        {QUANT_OFFSET2_NAME, opParamInfo_.quantOffset2.tensor},
         // unsupportedFeaturesParam
 
         {QUERY_PADDING_SIZE_NAME, opParamInfo_.queryPaddingSize.tensor},
@@ -582,9 +577,6 @@ ge::graphStatus FiaTilingCheck::CheckParaExistenceGqaAntiquantInt4() const
         {QUANT_SCALE1_NAME, opParamInfo_.quantScale1.tensor},
         {DEQUANT_SCALE2_NAME, opParamInfo_.deqScale2.tensor},
         {DEQUANT_SCALE_QUERY_NAME, opParamInfo_.dequantScaleQuery.tensor},
-        // postquantParam
-        {QUANT_SCALE2_NAME, opParamInfo_.quantScale2.tensor},
-        {QUANT_OFFSET2_NAME, opParamInfo_.quantOffset2.tensor},
     };
 
     std::map<std::string, std::pair<const int64_t *, int64_t>> attrDefaultValueMap = {
