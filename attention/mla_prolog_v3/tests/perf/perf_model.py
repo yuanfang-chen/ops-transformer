@@ -281,47 +281,84 @@ class MatmulBlockSpec:
     dtype_c_size: int = 2
 
 
+def _buf_factor(full_bytes: int, cache_size: int) -> int:
+    """Return 1 if the full matrix fits in cache (single buffer), else 2 (double buffer)."""
+    return 1 if full_bytes <= cache_size else 2
+
+
 def check_cache_fit(block: MatmulBlockSpec, hw: AscendHWSpec,
-                    n_per_core: Optional[int] = None) -> bool:
-    """Verify that block sizes fit in on-chip buffers (double-buffered)."""
+                    n_per_core: Optional[int] = None,
+                    M: Optional[int] = None,
+                    K: Optional[int] = None) -> bool:
+    """Verify that block sizes fit in on-chip buffers.
+
+    If the full left/right matrix can be loaded at once, single buffer is used.
+    Otherwise double buffering (2x) is required for ping-pong overlap.
+    """
     n = n_per_core if n_per_core is not None else block.baseN
-    # L0A: baseM * baseK * dtype_a * 2 (ping-pong)
-    l0a_usage = block.baseM * block.baseK * block.dtype_a_size * 2
+    actual_M = M if M is not None else block.baseM
+    actual_K = K if K is not None else block.baseK
+
+    # L0A: full A = M*K*dtype_a. If fits → single buffer, else double.
+    full_a = actual_M * actual_K * block.dtype_a_size
+    l0a_factor = _buf_factor(full_a, hw.cache.l0a_size)
+    l0a_usage = block.baseM * block.baseK * block.dtype_a_size * l0a_factor
     if l0a_usage > hw.cache.l0a_size:
         return False
-    # L0B: baseK * baseN * dtype_b * 2
-    l0b_usage = block.baseK * block.baseN * block.dtype_b_size * 2
+
+    # L0B: full B = K*N_per_core*dtype_b.
+    full_b = actual_K * n * block.dtype_b_size
+    l0b_factor = _buf_factor(full_b, hw.cache.l0b_size)
+    l0b_usage = block.baseK * block.baseN * block.dtype_b_size * l0b_factor
     if l0b_usage > hw.cache.l0b_size:
         return False
-    # L0C: baseM * baseN * dtype_c * 2
-    l0c_usage = block.baseM * block.baseN * block.dtype_c_size * 2
+
+    # L0C: full C = M*N_per_core*dtype_c.
+    full_c = actual_M * n * block.dtype_c_size
+    l0c_factor = _buf_factor(full_c, hw.cache.l0c_size)
+    l0c_usage = block.baseM * block.baseN * block.dtype_c_size * l0c_factor
     if l0c_usage > hw.cache.l0c_size:
         return False
-    # L1 must fit at least 1 stepK worth (double-buffered)
+
+    # L1: if full A+B fits → single buffer; else double buffer per-step tile.
     l1_per_step_a = block.baseM * block.baseK * block.dtype_a_size
     l1_per_step_b = block.baseK * n * block.dtype_b_size
-    if (l1_per_step_a + l1_per_step_b) * 2 > hw.cache.l1_size:
+    full_ab = full_a + full_b
+    l1_factor = _buf_factor(full_ab, hw.cache.l1_size)
+    if (l1_per_step_a + l1_per_step_b) * l1_factor > hw.cache.l1_size:
         return False
     return True
 
 
 def derive_stepK(block: MatmulBlockSpec, K: int, hw: AscendHWSpec,
-                 n_per_core: Optional[int] = None) -> int:
+                 n_per_core: Optional[int] = None,
+                 M: Optional[int] = None) -> int:
     """Derive optimal stepK from L1 size constraint.
 
-    stepK = floor(L1_SIZE / 2 / (A_per_step + B_per_step)), clamped to [1, ceil(K/baseK)].
+    If all K iterations fit in a single L1 load (no outer loop ping-pong),
+    single buffer is sufficient. Otherwise double buffer (L1/2) is used.
     """
     n = n_per_core if n_per_core is not None else block.baseN
+    actual_M = M if M is not None else block.baseM
+
     l1_per_step_a = block.baseM * block.baseK * block.dtype_a_size
     l1_per_step_b = block.baseK * n * block.dtype_b_size
     per_step = l1_per_step_a + l1_per_step_b
     if per_step == 0:
         return 1
-    max_stepK = hw.cache.l1_size // 2 // per_step
-    if max_stepK < 1:
-        return 0  # invalid: even 1 step doesn't fit
+
     k_iters = math.ceil(K / block.baseK) if block.baseK > 0 else 1
-    return min(max_stepK, k_iters)
+
+    # Try single buffer first: can all K iterations fit in one L1 load?
+    single_buf_stepK = hw.cache.l1_size // per_step
+    if single_buf_stepK >= k_iters:
+        return k_iters  # full load, single buffer OK
+
+    # Need multiple L1 loads → double buffer
+    double_buf_stepK = hw.cache.l1_size // 2 // per_step
+    if double_buf_stepK < 1:
+        return 0  # invalid: even 1 step doesn't fit with double buffer
+    return min(double_buf_stepK, k_iters)
 
 
 # ---------------------------------------------------------------------------
@@ -680,7 +717,7 @@ def estimate_mm2_split_k_cross_core(
         dtype_c_size=4,  # float32 partial sum output
     )
     # Re-derive stepK for the reduced K
-    derived = derive_stepK(block_kc, K_per_core, hw, N)
+    derived = derive_stepK(block_kc, K_per_core, hw, N, M=M)
     if derived > 0:
         block_kc.stepK = derived
 
@@ -755,12 +792,13 @@ def get_default_block_specs(params: 'OperatorParams', hw: AscendHWSpec):
         "MM3_QcQr": (params.Hcq, params.N * (params.D + params.Dr)),
         "MM4_Qn": (params.D, params.Hckv),
     }
+    T = params.T
     for mm_name, (K, N_total) in mm_dims.items():
         spec = specs[mm_name]
         if spec.mode == "full_load":
             continue
         n_per_core = math.ceil(N_total / hw.aic_num)
-        derived = derive_stepK(spec, K, hw, n_per_core)
+        derived = derive_stepK(spec, K, hw, n_per_core, M=T)
         if derived > 0:
             spec.stepK = derived
 

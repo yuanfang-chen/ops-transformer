@@ -317,7 +317,7 @@ def search_matmul_block_sizes(
                 dtype_a_size=dtype_a_size, dtype_b_size=dtype_b_size,
                 dtype_c_size=dtype_c_size,
             )
-            if not check_cache_fit(block, hw, per_core_N):
+            if not check_cache_fit(block, hw, per_core_N, M=M, K=K):
                 continue
             timing = estimate_matmul_detailed(
                 name, M, K, N_total, active_cores, hw, block, a_reused)
@@ -345,11 +345,11 @@ def search_matmul_block_sizes(
                     dtype_a_size=dtype_a_size, dtype_b_size=dtype_b_size,
                     dtype_c_size=dtype_c_size,
                 )
-                # Check L0 constraints
-                if not check_cache_fit(block, hw, per_core_N):
+                # Check cache constraints (with actual M, K for buffer factor)
+                if not check_cache_fit(block, hw, per_core_N, M=M, K=K):
                     continue
                 # Derive stepK from L1
-                stepK = derive_stepK(block, K, hw, per_core_N)
+                stepK = derive_stepK(block, K, hw, per_core_N, M=M)
                 if stepK < 1:
                     continue
                 block.stepK = stepK
