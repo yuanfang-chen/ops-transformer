@@ -181,7 +181,7 @@ public:
                                    0, 0};
         int padding = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float)) - curChunkSize_;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
-        DataCopyPad(inLocal, sTP_->maskTensor_[GetBlockIdx() * chunkSize_ * chunkSize_], inParams, copyPadParams);
+        DataCopyPad(inLocal, sTP_->maskTensor_, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
         auto lower = inQueue_.DeQue<float>();
         Mul(scale_qkt, scale_qkt, lower, curChunkSize_ * paddingChunkSize);
