@@ -228,7 +228,7 @@ bool FiaTilingNonQuant::IsHighPerformanceTemplate() const
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_64 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_64) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_192 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128)) {
-        if (!(fiaInfo_->sysPrefixFlag || fiaInfo_->pseShiftFlag || fiaInfo_->kvPaddingSizeFlag || fiaInfo_->qPaddingSizeFlag)) {
+        if (!(fiaInfo_->sysPrefixFlag ||  fiaInfo_->kvPaddingSizeFlag || fiaInfo_->qPaddingSizeFlag)) {
             return true;
         }
     }
@@ -542,10 +542,7 @@ void FiaTilingNonQuant::FillTilingFeatureParams()
     tilingData_.prefixParams.set_prefixMaxLen(fiaInfo_->systemPrefixMaxLen);
     tilingData_.prefixParams.set_prefixLen(fiaInfo_->systemPrefixLen);
     tilingData_.prefixParams.set_prefixFlag(fiaInfo_->sysPrefixFlag);
-    tilingData_.pseParams.set_pseShiftFlag(fiaInfo_->pseShiftFlag);
-    tilingData_.pseParams.set_pseShiftByBatch(fiaInfo_->pseShiftByBatch);
-    tilingData_.pseParams.set_pseShiftS1(fiaInfo_->pseShiftS1);
-    tilingData_.pseParams.set_pseShiftS2(fiaInfo_->pseShiftS2);
+
 }
 void FiaTilingNonQuant::CalcMmResSize()
 {
