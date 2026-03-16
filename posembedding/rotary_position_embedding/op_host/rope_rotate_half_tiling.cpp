@@ -27,6 +27,7 @@ const uint64_t BYTE_PER_DATA_4 = 4;
 const uint64_t BYTE_PER_DATA_2 = 2;
 const uint64_t BYTE_OF_BLOCK = 32;
 const uint64_t BYTE_OF_REPEAT = 256;
+const uint64_t UINT16_MAX = 65535;
 const uint64_t TND_DIM_NUM = 3;
 const uint64_t DIM_NUM = 4;
 const uint64_t DIM_FIRST = 0;
@@ -138,6 +139,7 @@ private:
     inline void CalcRotateHalfTiling(const ge::DataType &dtype, uint64_t ubSize);
     ge::graphStatus CheckShapeSupport(const gert::Shape &xShape, const gert::Shape &cosShape,
                                       const gert::Shape &sinShape, uint64_t dLength);
+    ge::graphStatus CheckStrideSupport(const ge::DataType inputDtype);
 };
 
 inline void RotateHalfTiling::PrintTilingParams()
@@ -426,6 +428,26 @@ ge::graphStatus RotateHalfTiling::CheckShapeSupport(const gert::Shape &xShape, c
     return ge::GRAPH_SUCCESS;
 }
 
+/* Check stride support */
+ge::graphStatus RotateHalfTiling::CheckStrideSupport(const ge::DataType inputDtype)
+{   
+    uint64_t tilingMode = tilingData_.get_tilingMode();
+    uint64_t stride = 0;
+    uint64_t bSize = tilingData_.get_broadcastFirstDim();
+    uint64_t nSize = tilingData_.get_broadcastSecondDim();
+    uint64_t dLength = tilingData_.get_dLength();
+    uint64_t bytePerData = GetBytePerData(inputDtype);
+    if (tilingMode == TILING_MODE_SBND) {
+        stride = (bSize * nSize -1) * dLength * bytePerData / BYTE_OF_BLOCK;
+    }
+    else if (tilingMode == TILING_MODE_BSND) {
+        stride = (nSize -1) * dLength * bytePerData / BYTE_OF_BLOCK;
+    }
+    OP_CHECK_IF(stride > UINT16_MAX,
+                OP_LOGE(context, "DataCopy Stride should be less than [%lu], but get [%lu].", UINT16_MAX, stride),
+                return ge::GRAPH_FAILED);
+}
+
 /**
  * Check do not use Rope:
  * 1. layout=BNSD
@@ -519,7 +541,7 @@ ge::graphStatus RotateHalfTiling::DoRotateHalfTiling()
     ChooseTilingMode(xShape, cosShape);
     OP_CHECK_IF(tilingData_.get_tilingMode() == TILING_MODE_UNKNOWN,
                 OP_LOGE(context, "unknow input layout, unable to calculate."), return ge::GRAPH_FAILED);
-
+    
     // block some layout=BNSD case, use small operators for higher performance
     OP_CHECK_IF(CheckBnsdBlockSkip(),
                 OP_LOGE(context, "when input is BNSD layout and  B * N is large or D is not aligned, "
@@ -530,6 +552,11 @@ ge::graphStatus RotateHalfTiling::DoRotateHalfTiling()
     CalcRotateHalfTiling(inputDtype, ubSize);
     OP_CHECK_IF(tilingData_.get_storeSLines() <= 0, OP_LOGE(context, "head_dim shape is too large to compute."),
                 return ge::GRAPH_FAILED);
+    
+    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
+        OP_CHECK_IF(!CheckStrideSupport(inputDtype), OP_LOGE(context, "Stride is too large to compute."),
+                    return ge::GRAPH_FAILED);
+    }
 
     PrintTilingParams();
     return ge::GRAPH_SUCCESS;
