@@ -166,28 +166,28 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <tr>
     <td>gmmXQuantMode</td>
     <td>输入</td>
-    <td>gmmX的量化模式，当前版本仅支持1。</td>
+    <td>gmmX的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>gmmWeightQuantMode</td>
     <td>输入</td>
-    <td>gmmWeight的量化模式，当前版本仅支持1。</td>
+    <td>gmmWeight的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmXQuantMode</td>
     <td>输入</td>
-    <td>mmX的量化模式，当前版本仅支持1。</td>
+    <td>mmX的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmWeightQuantMode</td>
     <td>输入</td>
-    <td>mmWeight的量化模式，当前版本仅支持1。</td>
+    <td>mmWeight的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
@@ -372,7 +372,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
 - 参数说明里shape使用的变量：
   - BSK：本卡发送的token数，是sendCounts参数累加之和，取值范围(0, 52428800)。
   - H1：表示路由专家hidden size隐藏层大小，取值范围(0, 65536)。
-  - H2：表示共享专家hidden size隐藏层大小，取值范围(0, 12288]。
+  - H2：表示共享专家hidden size隐藏层大小，取值范围(0, 65536)。
   - e：表示单卡上专家个数，取值范围(0, 32]，e * epWorldSize最大支持256。
   - N1：表示路由专家的head_num，取值范围(0, 65536)。
   - N2：表示共享专家的head_num，取值范围(0, 65536)。
