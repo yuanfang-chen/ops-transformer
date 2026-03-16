@@ -112,7 +112,6 @@ private:
     ge::graphStatus CheckSingleParaQuery() const;
     ge::graphStatus CheckSingleParaKey() const;
     ge::graphStatus CheckSingleParaValue() const;
-    ge::graphStatus CheckSingleParaPseShift() const;
     ge::graphStatus CheckSingleParaAttenMask() const;
     ge::graphStatus CheckSingleParaActualSeqLengthsQ() const;
     ge::graphStatus CheckSingleParaActualSeqLengths() const;
@@ -213,7 +212,6 @@ private:
     ge::graphStatus CheckFeatureGqaFullquant() const;
     ge::graphStatus CheckFeatureGqaPrefix() const;
     ge::graphStatus CheckFeatureLeftPadding() const;
-    ge::graphStatus CheckFeaturePSE() const;
     ge::graphStatus CheckFeatureHeadDim() const;
     ge::graphStatus CheckFeatureMla();
     ge::graphStatus CheckFeatureGqa();
@@ -235,9 +233,6 @@ private:
     ge::graphStatus CheckKV() const;
 
     ge::graphStatus CheckAttenOut() const;
-    ge::graphStatus CheckPseShiftDType();
-    ge::graphStatus CheckPseShiftShape();
-    ge::graphStatus CheckPseShift();
     ge::graphStatus SetAttenMaskCompare();
     ge::graphStatus CheckAttentionMask();
     ge::graphStatus CheckTokens();
@@ -279,7 +274,6 @@ private:
     FiaLayout qLayout_ = FiaLayout::BSND;
     FiaLayout outLayout_ = FiaLayout::BSND;
     FiaLayout kvLayout_ = FiaLayout::BSND;
-    FiaLayout pseShiftLayout_ = FiaLayout::BNS1S2;
     FiaLayout softmaxLseLayout_ = FiaLayout::BNS11;
     FiaLayout quantScale2Layout_ = FiaLayout::BNSD;
 
@@ -313,7 +307,6 @@ private:
     std::shared_ptr<FiaTilingShapeCompare> keyRopeShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> attenOutShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> attenMaskShapeCmp_ = nullptr;
-    std::shared_ptr<FiaTilingShapeCompare> pseShiftShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> softmaxLseShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> quantScale2ShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> quantOffset2ShapeCmp_ = nullptr;
