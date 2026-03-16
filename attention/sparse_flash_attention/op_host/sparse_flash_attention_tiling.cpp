@@ -1047,6 +1047,8 @@ ge::graphStatus SFATilingCheck::CheckSoftmaxMax()
                 return ge::GRAPH_FAILED;
         }
     } else {
+        OP_LOGE(opName_, "进入 returnSoftmaxLse = false 的情况");
+        OP_LOGE(opName_, "GetShapeSize() == %d", opParamInfo_.softmaxMax.shape->GetStorageShape().GetShapeSize());
         OP_CHECK_IF(opParamInfo_.softmaxMax.shape->GetStorageShape().GetShapeSize() != 0,
                 OP_LOGE(opName_, "When return_softmax_lse is false, SoftmaxMax tensor must be empty tensor."),
                 return ge::GRAPH_FAILED);
@@ -1279,6 +1281,8 @@ ge::graphStatus SFATilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckQRope() ||
         ge::GRAPH_SUCCESS != CheckTopK() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxMax() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxSum() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLensQ() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLens() ||
         ge::GRAPH_SUCCESS != CheckBlockTable()) {
