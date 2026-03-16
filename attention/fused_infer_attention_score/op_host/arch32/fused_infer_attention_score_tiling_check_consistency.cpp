@@ -572,7 +572,24 @@ ge::graphStatus FiaTilingCheck::CheckTokens()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckSoftmaxLse()
+{
+    if (!fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
 
+    if (fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
+        OP_LOGE(opName_, "when %s is enabled, softmaxlse should not be NULL.",
+            SOFTMAX_LSE_NAME.c_str()); 
+        return ge::GRAPH_FAILED;
+    }
+
+    if (ge::GRAPH_SUCCESS != CheckSoftmaxLseDType() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxLseShape()) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
 
 
@@ -640,6 +657,7 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
+        ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||
         ge::GRAPH_SUCCESS != CheckPostQuant()) {
         return ge::GRAPH_FAILED;

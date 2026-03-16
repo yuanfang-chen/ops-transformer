@@ -82,7 +82,14 @@ ge::graphStatus FiaTilingCheck::CheckFeatureBlockSize() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus FiaTilingCheck::CheckFeatureLse() const
+{
+    if (!fiaInfo_.softmaxLseFlag) {
+        return ge::GRAPH_SUCCESS;
+    }
 
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus FiaTilingCheck::CheckFeatureTensorList() const
 {
