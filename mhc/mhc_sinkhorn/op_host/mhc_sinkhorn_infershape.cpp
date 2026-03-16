@@ -35,6 +35,7 @@ constexpr size_t TNN_DIMS = 3;
 namespace ops {
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
+    OP_LOGD(context, "Begin to do MhcPostInfershape.");
     const gert::Shape* x_shape = context->GetInputShape(X_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, x_shape);
     gert::Shape* y_shape = context->GetOutputShape(Y_INDEX);
@@ -47,17 +48,38 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
     OP_CHECK_NULL_WITH_CONTEXT(context, num_iters_ptr);
     auto out_flag_ptr = attr_ptr->GetAttrPointer<gert::ContinuousVector>(INDEX_OUT_FLAG);
     OP_CHECK_NULL_WITH_CONTEXT(context, out_flag_ptr);
-    
-    size_t x_dim_num = x_shape->GetDimNum();
-    OP_CHECK_IF(
-        x_dim_num != BSNN_DIMS && x_dim_num != TNN_DIMS,
-        OP_LOGE(context, "The dims of x not equal 4 or 3."), return GRAPH_FAILED);
-    size_t y_dim_num = y_shape->GetDimNum();
-    OP_CHECK_IF(
-        y_dim_num != x_dim_num,
-        OP_LOGE(context, "The dims of y not equal x."), return GRAPH_FAILED);
 
-    return GRAPH_SUCCESS;
+    if (IsUnknownRank(*xShape)) {
+        SetUnknownRank(*yShape);
+        OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown rank.");
+        return ge::GRAPH_SUCCESS;
+    }
+    size_t xDims = xShape->GetDimNum();
+    if (IsUnknownShape(*xShape)) {
+        yShape->SetDimNum(xDims);
+        for (size_t i = 0; i < xDims; ++i) {
+            yShape->SetDim(i, UNKNOWN_DIM_VALUE);
+        }
+        OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
+        return ge::GRAPH_SUCCESS;
+    }
+
+    OP_CHECK_IF((xDims != DIMS_THREE) && (xDims != DIMS_FOUR),
+                OP_LOGE(context->GetNodeName(), "The dim of x should be 3 or 4, but got %lu", xDims),
+                return ge::GRAPH_FAILED);
+
+    // Output shape is same as input x
+    yShape->SetDimNum(xDims);
+    for (size_t i = 0; i < xDims; ++i) {
+        yShape->SetDim(i, xShape->GetDim(i));
+    }
+
+    ShowInputShapeInfo(context, xShape);
+    ShowOutputShapeInfo(context, yShape);
+
+    OP_LOGD(context, "End to do MhcPostInfershape.");
+
+    return GRAPH_SUCCESS; 
 }
 
 static graphStatus InferDtype4MhcSinkhorn(gert::InferDataTypeContext* context)
