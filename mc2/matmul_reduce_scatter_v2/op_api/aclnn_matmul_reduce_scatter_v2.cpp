@@ -25,7 +25,7 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "common/op_host/op_api/matmul_util.h"
-#include "op_api/mc2_aclnn_util.h"
+#include "common/op_api/mc2_aclnn_util.h"
 #include "aclnn_matmul_reduce_scatter_v2.h"
 
 using namespace op;
