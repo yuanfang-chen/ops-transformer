@@ -870,7 +870,7 @@ static ge::graphStatus MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(gert::
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
     info.aivNum = aivNum;
     info.totalUbSize = ubSize;
-
+    OP_LOGD("MoeDistributeDispatch GetPlatformInfo And SetTiling finished");   
     OP_LOGD(K_INNER_DEBUG, "aivNum=%d", info.aivNum);
     OP_LOGD(K_INNER_DEBUG, "ubSize=%lu", info.totalUbSize);
 
@@ -918,7 +918,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
     auto groupEp = context->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
     uint64_t hcclBuffSize = 0ULL;
     auto ret = mc2tiling::GetCclBufferSize(groupEp, &hcclBuffSize, nodeName);
-    OP_LOGD(nodeName, "HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
+    OP_LOGD("MoeDistributeDispatch", "HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
     OP_TILING_CHECK(ret != ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Get Ep hcclBuffSize failed.", hcclBuffSize),
                     return ge::GRAPH_FAILED);
     uint32_t epWorldSize = info.epWorldSize;
@@ -935,7 +935,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         const uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
         minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE(nodeName,
+            OP_LOGE("MoeDistributeDispatch", 
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * maxBs "
                     "* (h * 2 + 16 * ((k + 7) / 8 * 8)) / 1MB + 6MB) = %luMB, actual HCCL_BUFFSIZE = %luMB, "
                     "moeExpertNum = %u, maxBs = %lu, h = %u, k = %u.",
@@ -949,7 +949,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         const uint64_t maxRecvTokenNum = maxBs * epWorldSize * std::min(localMoeExpertNum, info.k);
         minHcclBuffSize = BUFFER_NUM * (maxRecvTokenNum * perTokenSize + extraBuffSize);
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE(nodeName,
+            OP_LOGE("MoeDistributeDispatch", 
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE (%lu * (maxBs * epWorldSize * "
                     "min(localMoeExpertNum, k) * h * 2 / 1MB + 2MB)) = %luMB, actual HCCL_BUFFSIZE = %luMB, maxBs = "
                     "%lu, epWorldSize = %u, localMoeExpertNum = %u, k = %u, h = %u.",
@@ -961,25 +961,12 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext *context)
+static ge::graphStatus MoeDistributeDispatchA2TilingCheckAll(gert::TilingContext *context, bool isLayered)
 {
     const char *nodeName = context->GetNodeName();
-    OP_LOGI(nodeName, "Enter MoeDistributeDispatchA2 tiling func.");
-    
-    // 涉及SyncAll，设置batch mode模式，所有核同时启动
-    uint32_t batch_mode = 1U;
-    auto ret = context->SetScheduleMode(batch_mode);
-    GE_ASSERT_GRAPH_SUCCESS(ret);
-
-    // 1. tilingData
     MoeDistributeDispatchA2TilingData *tilingData = context->GetTilingData<MoeDistributeDispatchA2TilingData>();
-    OP_TILING_CHECK(tilingData == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "tilingData is nullptr."),
-        return ge::GRAPH_FAILED);
-    OP_LOGI(nodeName, "MoeDistributeDispatchA2 get tilingData.");
     MoeDistributeDispatchA2Info& info = tilingData->moeDistributeDispatchInfo;
-    OP_LOGI(nodeName, "MoeDistributeDispatchA2 get tilingData info.");
-
-    bool isLayered = MoeDistributeDispatchA2IsLayered();
+    
     OP_TILING_CHECK(MoeDistributeDispatchA2CheckShapeAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 CheckShapeAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
@@ -993,12 +980,35 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 CheckWinSize Failed"),
         return ge::GRAPH_FAILED);
 
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext *context)
+{
+    const char *nodeName = context->GetNodeName();
+    OP_LOGI(nodeName, "Enter MoeDistributeDispatchA2 tiling func.");
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    auto ret = context->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret);
+    // 1. tilingData
+    MoeDistributeDispatchA2TilingData *tilingData = context->GetTilingData<MoeDistributeDispatchA2TilingData>();
+    OP_TILING_CHECK(tilingData == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "tilingData is nullptr."),
+        return ge::GRAPH_FAILED);
+    OP_LOGI(nodeName, "MoeDistributeDispatchA2 get tilingData.");
+    MoeDistributeDispatchA2Info& info = tilingData->moeDistributeDispatchInfo;
+    OP_LOGI(nodeName, "MoeDistributeDispatchA2 get tilingData info.");
+    bool isLayered = MoeDistributeDispatchA2IsLayered();
+
+    OP_TILING_CHECK(MoeDistributeDispatchA2TilingCheckAll(context, isLayered) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 check Failed"),
+        return ge::GRAPH_FAILED);
+
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint32_t numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     context->SetBlockDim(numBlocks);
     context->SetAicpuBlockDim(mc2tiling::AICPU_NUM_BLOCKS_A2);
-
     uint64_t tilingKey = MoeDistributeDispatchA2CalcTilingKey(context, isLayered);
     context->SetTilingKey(tilingKey);
     // 2. workspace
@@ -1006,7 +1016,6 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     OP_TILING_CHECK(workSpaces == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
         return ge::GRAPH_FAILED);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE + USER_WORKSPACE_A2;
-
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
