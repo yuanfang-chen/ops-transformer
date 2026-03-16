@@ -17,6 +17,7 @@
 
 
 #define TILING_KEY_UPDATE_FP16 20000
+#define TILING_KEY_UPDATE_BF16 20001
 extern "C" __global__ __aicore__ void causal_conv1d_update(
     GM_ADDR x,                    // 输入0: x
     GM_ADDR weight,               // 输入1: weight
@@ -36,13 +37,13 @@ extern "C" __global__ __aicore__ void causal_conv1d_update(
     TPipe pipe;
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
-    PRINTF("START UPDATE");
     if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
         CausalConv1dUpdateKernel<half> op(&pipe);
-        PRINTF("START Init");
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
-        PRINTF("START Process");
         op.Process();
-        PRINTF("END Process");
+    } else if(TILING_KEY_IS(TILING_KEY_UPDATE_BF16)) {
+        CausalConv1dUpdateKernel<bfloat16_t> op(&pipe);
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
+        op.Process();
     }
 }
