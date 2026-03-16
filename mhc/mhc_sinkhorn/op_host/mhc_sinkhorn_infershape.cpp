@@ -33,29 +33,6 @@ static constexpr size_t INDEX_OUT_FLAG = 2;
 static constexpr size_t BSNN_DIMS = 4;
 static constexpr size_t TNN_DIMS = 3;
 static constexpr int64_t UNKNOWN_RANK_DIM_VALUE = -2LL;
-static constexpr int64_t UNKNOWN_DIM_VALUE = -1LL;
-
-void SetUnknownRank(gert::Shape &shape)
-{
-    shape.SetDimNum(0);
-    shape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
-}
-
-bool IsUnknownShape(const gert::Shape &shape)
-{
-    size_t dimNum = shape.GetDimNum();
-    for (size_t i = 0; i < dimNum; i++) {
-        if (shape.GetDim(i) == UNKNOWN_DIM_VALUE) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool IsUnknownRank(const gert::Shape &shape)
-{
-    return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
-}
 
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
@@ -73,20 +50,13 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
     auto outFlagPtr = attrPtr->GetAttrPointer<gert::ContinuousVector>(INDEX_OUT_FLAG);
     OP_CHECK_NULL_WITH_CONTEXT(context, outFlagPtr);
 
-    if (IsUnknownRank(*xShape)) {
-        SetUnknownRank(*yShape);
+    if (Ops::Base::IsUnknownRank(*xShape)) {
+        yShape.SetDimNum(0);
+        yShape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
         OP_LOGD(context->GetNodeName(), "MhcSinkhorn infershape handles unknown rank.");
         return ge::GRAPH_SUCCESS;
     }
     size_t xDims = xShape->GetDimNum();
-    if (IsUnknownShape(*xShape)) {
-        yShape->SetDimNum(xDims);
-        for (size_t i = 0; i < xDims; ++i) {
-            yShape->SetDim(i, UNKNOWN_DIM_VALUE);
-        }
-        OP_LOGD(context->GetNodeName(), "MhcSinkhorn infershape handles unknown shape.");
-        return ge::GRAPH_SUCCESS;
-    }
 
     OP_CHECK_IF((xDims != TNN_DIMS) && (xDims != BSNN_DIMS),
                 OP_LOGE(context->GetNodeName(), "The dim of x should be 3 or 4, but got %lu", xDims),
