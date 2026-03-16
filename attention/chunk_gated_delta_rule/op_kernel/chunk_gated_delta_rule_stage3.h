@@ -47,8 +47,8 @@ struct mm3Params {
 
 struct StageThreeParams {
     // in
-    GlobalTensor<float> qkt_;
-    GlobalTensor<float> gCumExp_;
+    GlobalTensor<float> qkt_;       // (Nv, Sp, Dk)
+    GlobalTensor<float> gCumExp_;           // (Nv, Sp)
     GlobalTensor<float> attnInter_;
     GlobalTensor<float> vInner_;
     GlobalTensor<float> maskTensor_;
@@ -68,6 +68,7 @@ struct StageThreeParams {
     // attr
     ChunkGroup *cg;
     float scale_;
+    int64_t maxGroupLength_;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;
@@ -131,27 +132,19 @@ public:
                 CrossCoreWaitFlag(0x3);
                 if (GetSubBlockIdx() == 0) {
                     ReadAttnOut(sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_]);
-                }
-                if (idx < endChunk - 1) {
-                    CrossCoreSetFlag<0x2, PIPE_MTE2>(0x5);
-                }
-                if (GetSubBlockIdx() == 0) {
                     CalAttnOut(sTP_->attnOut_[chunkPos * Nv_ * Dv_ + nvId * Dv_]);
                 }
             }
 
             if ASCEND_IS_AIC {
-                if (idx > startChunk) {
-                    CrossCoreWaitFlag(0x5);
-                }
                 CrossCoreWaitFlag(0x4);
+                // masked_qkt @ v_inner
                 mm3Params<float, float> params{
                     cCFloatGM_[coreId * chunkSize_ * chunkSize_],
                     sTP_->vInner_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
                     sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
                     curChunkSize_, Dv_, curChunkSize_, curChunkSize_, Dv_, curChunkSize_};
                 AICProcess<float, float>(params, 1, false, false);
-
                 CrossCoreSetFlag<0x2, PIPE_FIX>(0x3);
             }
         }
@@ -161,6 +154,7 @@ public:
     {
         // g_cum_exp
         CopyIn<float>(sTP_->gCumExp_[nvId * seqLength_ + chunkPos], 1, curChunkSize_);
+        
         auto g_cum_exp = inQueue_.DeQue<float>();
         int64_t paddingChunkSize = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float));
         // broadcast
@@ -177,9 +171,6 @@ public:
         auto qkt = inQueue_.DeQue<float>();
         auto scale_qkt = outQueue_.AllocTensor<float>();
         Muls(scale_qkt, qkt, sTP_->scale_, curChunkSize_ * paddingChunkSize);
-        outQueue_.EnQue(scale_qkt);
-        CopyOut<float>(outGM, curChunkSize_, curChunkSize_);
-        int64_t len = curChunkSize_ * curChunkSize_;
         Mul(scale_qkt, scale_qkt, cCFloat_, curChunkSize_ * paddingChunkSize);
         inQueue_.FreeTensor(qkt);
         
@@ -191,7 +182,7 @@ public:
                                    0, 0};
         int padding = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float)) - curChunkSize_;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
-        DataCopyPad(inLocal, sTP_->maskTensor_, inParams, copyPadParams);
+        DataCopyPad(inLocal, sTP_->maskTensor_[GetBlockIdx() * chunkSize_ * chunkSize_], inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
         auto lower = inQueue_.DeQue<float>();
         Mul(scale_qkt, scale_qkt, lower, curChunkSize_ * paddingChunkSize);
@@ -236,7 +227,7 @@ public:
         LocalTensor<inType> inLocal = inQueue_.AllocTensor<inType>();
         DataCopyPadExtParams<inType> padParams;
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
-                                    static_cast<uint32_t>(col * sizeof(inType)),                // 非对齐情况需要补0
+                                    static_cast<uint32_t>(col * sizeof(inType)),
                                     static_cast<uint32_t>(0), 
                                     0, 0};
         int padding = Ceil(col, 32 / sizeof(inType)) * (32 / sizeof(inType)) - col;
@@ -268,7 +259,7 @@ public:
     {
         LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
-                                    static_cast<uint32_t>(col * sizeof(float)),                // 非对齐情况需要补0
+                                    static_cast<uint32_t>(col * sizeof(float)),
                                     static_cast<uint32_t>(0), 
                                     0, 0};
         int padding = Ceil(col, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t)) - col;
@@ -302,14 +293,14 @@ private:
     GlobalTensor<float> cDvFloatGM_;
     LocalTensor<float> cCFloat_;
     LocalTensor<float> cCFloat2_;
-    int32_t curDk_; // Dk非对齐时补齐后长度
-    int32_t curDv_; // Dv非对齐时补齐后长度
+    int32_t curDk_;
+    int32_t curDv_;
     int32_t curChunkSize_; 
     int32_t chunkSize_;
     int64_t seqLength_;
-    int64_t Sp_;    // S非对齐时补齐后长度
-    int32_t chunkNum_;    // S非对齐时补齐后Chunk个数
-    int32_t coreNum_;    // S非对齐时补齐后Chunk个数
+    int64_t Sp_;
+    int32_t chunkNum_;
+    int32_t coreNum_;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;
