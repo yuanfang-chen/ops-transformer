@@ -153,7 +153,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
       <td>Shape中的capacity表示每个专家能够处理的token个数。</td>
       <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
-      <td>paddedMode为false：(tokens_num * topK_num,  hidden_size）<br>paddedMode为true：(experts_num* capacity,  hidden_size）</td>
+      <td>paddedMode为false：（tokens_num * topK_num,  hidden_size）<br>paddedMode为true：（experts_num* capacity,  hidden_size）</td>
       <td>√</td>
     </tr>
     <tr>
@@ -364,6 +364,11 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
   - aclnnMoeTokenUnpermuteWithRoutingMap默认确定性实现。
 
 - topK_num <= 512, pad模式为false时routingMap中每行为1或true的个数固定且小于`512`。
+- 在以下场景，会以Warning的形式提示用户：
+  - paddedMode为true，且topK_num > experts_num时。
+  - paddedMode为true，且capacity > tokens_num时。
+  - routingMap的数据类型或shape不符合要求时。
+  - 输入tensor的数据格式不为ND时。
 
 ## 调用示例
 
