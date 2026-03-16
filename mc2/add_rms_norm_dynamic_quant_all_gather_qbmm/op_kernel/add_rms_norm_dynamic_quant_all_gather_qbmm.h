@@ -269,7 +269,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         stateResetTensor = stateResetBuf_.Get<int32_t>();
         Duplicate<int32_t>(stateResetTensor, 0, sizeToBeCleaned / sizeof(int32_t));
         SyncFunc<AscendC::HardEvent::V_MTE3>();
-        GM_ADDR cvFlagAddr = (GM_ADDR)(winContext_->localWindowsExp) + CV_SYNC_START_OFFSET;
+        GM_ADDR cvFlagAddr = (GM_ADDR)(winContext_->localWindowsExp + allGatherMte_.GetWinStatusOffset()) + CV_SYNC_START_OFFSET;
         GlobalTensor<int32_t> winCvExpTensor;
         winCvExpTensor.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
         DataCopy(winCvExpTensor, stateResetTensor, sizeToBeCleaned / sizeof(int32_t));

@@ -45,6 +45,7 @@ public:
     __aicore__ inline void ExecuteAllGather(GM_ADDR allGatherDataAddr, GM_ADDR allGatherScalesAddr);
     __aicore__ inline GM_ADDR CalcCvFlagAddr(uint64_t mBlockIdx, uint64_t kBlockIdx);
     __aicore__ inline uint64_t GetWinDataOffset();
+    __aicore__ inline uint64_t GetWinStatusOffset();
 
 private:
     __aicore__ inline void ReadDataBlock(uint64_t curXOffset, uint32_t mCnt);
@@ -248,6 +249,13 @@ template <AllGatherTemplateTypeClass>
 __aicore__ inline uint64_t AllGatherMte<AllGatherTemplateType>::GetWinDataOffset()
 {
     return mteComm_.winFlag_ * WIN_DATA_OFFSET;
+}
+
+/* 获取本卡上对应状态区的地址偏移 */
+template <AllGatherTemplateTypeClass>
+__aicore__ inline uint64_t AllGatherMte<AllGatherTemplateType>::GetWinStatusOffset()
+{
+    return mteComm_.winFlag_ * WIN_STATUS_OFFSET;
 }
 
 template <AllGatherTemplateTypeClass>
