@@ -73,7 +73,12 @@ public:
         }
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (QuantMode == MX_QUANT) {
-            hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
+            if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+                Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
+                hOutSizeAlign_ = Align256(Ceil(axisH_, FP4_ELEMS_PER_BYTE));
+            } else {
+                hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
+            }
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
             scaleOutBytes = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
@@ -100,7 +105,7 @@ public:
         } 
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (QuantMode == MX_QUANT) {
-            QuantDynamicMxFp8(outLocal, inLocal);
+            QuantDynamicMx(outLocal, inLocal);
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             QuantDynamicPerGroup(outLocal, inLocal, expertIndex, scalesGMTensor_);
         }
@@ -215,20 +220,28 @@ public:
         }
     }
 
-    __aicore__ inline void QuantDynamicMxFp8(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal)
+    __aicore__ inline void QuantDynamicMx(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal)
     {
+        
+        uint32_t mxScaleNum = Align2(Ceil32(axisH_));
+        __ubuf__ XType* srcAddr = (__ubuf__ XType*)inLocal.GetPhyAddr();
+        __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
+        __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
+        __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
+        __ubuf__ uint16_t* mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_)].GetPhyAddr();
+        if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+            Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
+            mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].GetPhyAddr();
+        }
+
+        quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
+        quant::ComputeScale<ExpandXOutType>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
-            uint32_t mxScaleNum = Align2(Ceil32(axisH_));
-            __ubuf__ XType* srcAddr = (__ubuf__ XType*)inLocal.GetPhyAddr();
-            __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
-            __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
-            __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
-            __ubuf__ uint16_t* mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_)].GetPhyAddr();
-
-            quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
-            quant::ComputeScale<ExpandXOutType>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
-            quant::ComputeData<XType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
+            quant::ComputeFp8Data<XType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
+                srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
+        } else {
+            quant::ComputeFp4Data<XType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         }
     }
@@ -241,10 +254,17 @@ public:
                     ((QuantMode == UNQUANT) && IsSmoothScaleExist)) {
             auto scaleLT = quantTok[(Ceil(axisH_, UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
             #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
-            if constexpr (QuantMode == MX_QUANT) {
+            if constexpr ((QuantMode == MX_QUANT) && (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+                Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value)) {
+                scaleLT = quantTok[Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>();
+            } else if constexpr ((QuantMode == MX_QUANT) && (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value ||
+                Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value)) {
                 scaleLT = quantTok[Align256<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
             } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
                 scaleLT = quantTok[Align128<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
+            } else if constexpr ((QuantMode == UNQUANT) && (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+                Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value)) {
+                scaleLT = quantTok[(Ceil(Ceil(axisH_, FP4_ELEMS_PER_BYTE), UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
             }
             #endif
             DataCopyPad(dynamicScalesOutGMTensor_[currentTokenIndex * scaleOutBytes], scaleLT, scaleOutParams);
