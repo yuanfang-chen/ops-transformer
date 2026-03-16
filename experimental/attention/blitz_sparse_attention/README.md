@@ -57,6 +57,39 @@ out = torch_bsa.npu_blitz_sparse_attention(
     )
 ```
 
+## Example run in C++:
+A plain, pure C++, example is provided in examples subdirectory. Run it sing:
+```shell
+bash build.sh --experimental --run_example blitz_sparse_attention eager cust --soc=ascend910b --vendor_name=custom
+```
+the output should be:
+``` shell
+[2026-03-16 15:14:17] Warning: The current environment is configured for ascend910b, Please use Atlas A2 series hardware for optimal performance.
+[2026-03-16 15:14:17] [2026-03-16 15:14:17] Start to run example,name:blitz_sparse_attention mode:eager
+[2026-03-16 15:14:17] Start compile and run example file: ../experimental/attention/blitz_sparse_attention/examples/test_aclnn_blitz_sparse_attention.cpp
+[2026-03-16 15:14:17] pkg_mode:cust vendor_name:custom
+[2026-03-16 15:14:21] Initializing ACL...
+[2026-03-16 15:14:21] Initializing tensors...
+[2026-03-16 15:14:21] Executing BlitzSparseAttention...
+[2026-03-16 15:14:21] Synchronizing stream...
+[2026-03-16 15:14:21] Processing results...
+[2026-03-16 15:14:21] Output results:
+[2026-03-16 15:14:21] output[0] = 1.000000
+[2026-03-16 15:14:21] output[1] = 1.000000
+[2026-03-16 15:14:21] output[2] = 1.000000
+[2026-03-16 15:14:21] output[3] = 1.000000
+[2026-03-16 15:14:21] output[4] = 1.000000
+[2026-03-16 15:14:21] output[5] = 1.000000
+[2026-03-16 15:14:21] output[6] = 1.000000
+[2026-03-16 15:14:21] output[7] = 1.000000
+[2026-03-16 15:14:21] output[8] = 1.000000
+[2026-03-16 15:14:21] output[9] = 1.000000
+[2026-03-16 15:14:21] Cleaning up resources...
+[2026-03-16 15:14:21] Test completed successfully!
+[2026-03-16 15:14:21] run test_aclnn_blitz_sparse_attention, execute samples success
+[2026-03-16 15:14:21] Example completed successfully
+```
+
 ## Kernel integration plan
 If this block sparse kernel is of an interest, please consider merging it with the official attention/blitz_sparse_attention. Its source code is based on attention/blitz_sparse_attention taken from git commit a574b5d71faa7c360934a6c7d1b4aa85e1a49147
 

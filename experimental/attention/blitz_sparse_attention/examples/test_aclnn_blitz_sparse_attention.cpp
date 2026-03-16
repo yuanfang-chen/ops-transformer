@@ -91,67 +91,103 @@ struct TensorResources {
     void* keyDeviceAddr = nullptr;
     void* valueDeviceAddr = nullptr;
     void* attenDeviceAddr = nullptr;
+    void* sabiDeviceAddr = nullptr;
     void* outDeviceAddr = nullptr;
     aclTensor* queryTensor = nullptr;
     aclTensor* keyTensor = nullptr;
     aclTensor* valueTensor = nullptr;
     aclTensor* attenTensor = nullptr;
+    aclTensor* sabiTensor = nullptr;
     aclTensor* outTensor = nullptr;
     aclIntArray* actualSeqLengths = nullptr;
+    aclIntArray* actualSeqLengthsKv = nullptr;
 };
 
 int InitializeTensors(TensorResources& resources) {
-    std::vector<int64_t> queryShape = {1, 2, 1, 16};
-    std::vector<int64_t> keyShape = {1, 2, 2, 16};
-    std::vector<int64_t> valueShape = {1, 2, 2, 16};
-    std::vector<int64_t> attenShape = {1, 1, 1, 2};
-    std::vector<int64_t> outShape = {1, 2, 1, 16};
+    // Using shapes that are more consistent with attention patterns
+    std::vector<int64_t> queryShape = {1, 2, 4, 16};   // [B, N, S, D]
+    std::vector<int64_t> keyShape = {1, 2, 4, 16};     // [B, N, T, D]
+    std::vector<int64_t> valueShape = {1, 2, 4, 16};   // [B, N, T, D]
+    std::vector<int64_t> attenShape = {1, 2, 4, 4};    // [B, N, S, T]
+    std::vector<int64_t> sabiShape = {1, 2, 1, 1};     // [B, N, S/Qtile, sparsity*T/KVTile] - simplified
+    std::vector<int64_t> outShape = {1, 2, 4, 16};     // [B, N, S, D]
     
     int64_t queryShapeSize = GetShapeSize(queryShape);
     int64_t keyShapeSize = GetShapeSize(keyShape);
     int64_t valueShapeSize = GetShapeSize(valueShape);
     int64_t attenShapeSize = GetShapeSize(attenShape);
+    int64_t sabiShapeSize = GetShapeSize(sabiShape);
     int64_t outShapeSize = GetShapeSize(outShape);
     
-    std::vector<float> queryHostData(queryShapeSize, 1);
-    std::vector<float> keyHostData(keyShapeSize, 1);
-    std::vector<float> valueHostData(valueShapeSize, 1);
-    std::vector<float> attenHostData(attenShapeSize, 1);
-    std::vector<float> outHostData(outShapeSize, 1);
+    // Initialize with proper data
+    std::vector<float> queryHostData(queryShapeSize, 1.0f);
+    std::vector<float> keyHostData(keyShapeSize, 1.0f);
+    std::vector<float> valueHostData(valueShapeSize, 1.0f);
+    
+    // Attention mask as bool data
+    std::vector<uint8_t> attenHostData(attenShapeSize, 1);  // Using uint8_t for bool
+    
+    // Sabi as uint16 data - using valid indices (not 65535 which is padding)
+    std::vector<uint16_t> sabiHostData(sabiShapeSize, 0);   // Valid indices
+    
+    std::vector<float> outHostData(outShapeSize, 0.0f);
 
+    // Query tensor (BFloat16 or Float16)
     int ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr, 
                              aclDataType::ACL_FLOAT16, &resources.queryTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create query tensor failed. ERROR: %d\n", ret);
       return ret;
     }
 
+    // Key tensor
     ret = CreateAclTensor(keyHostData, keyShape, &resources.keyDeviceAddr, 
                          aclDataType::ACL_FLOAT16, &resources.keyTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create key tensor failed. ERROR: %d\n", ret);
       return ret;
     }
 
+    // Value tensor
     ret = CreateAclTensor(valueHostData, valueShape, &resources.valueDeviceAddr, 
                          aclDataType::ACL_FLOAT16, &resources.valueTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create value tensor failed. ERROR: %d\n", ret);
       return ret;
     }
 
+    // Attention mask tensor (bool)
     ret = CreateAclTensor(attenHostData, attenShape, &resources.attenDeviceAddr, 
                          aclDataType::ACL_BOOL, &resources.attenTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create attention mask tensor failed. ERROR: %d\n", ret);
       return ret;
     }
 
+    // Sabi tensor (uint16)
+    ret = CreateAclTensor(sabiHostData, sabiShape, &resources.sabiDeviceAddr, 
+                         aclDataType::ACL_UINT16, &resources.sabiTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create sabi tensor failed. ERROR: %d\n", ret);
+      return ret;
+    }
+
+    // Output tensor
     ret = CreateAclTensor(outHostData, outShape, &resources.outDeviceAddr, 
                          aclDataType::ACL_FLOAT16, &resources.outTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      LOG_PRINT("Create output tensor failed. ERROR: %d\n", ret);
       return ret;
     }
 
-    std::vector<int64_t> actualSeqlenVector = {2};
+    // Sequence lengths - using actual sequence lengths
+    std::vector<int64_t> actualSeqlenVector = {4};  // Actual sequence length for query
     resources.actualSeqLengths = aclCreateIntArray(actualSeqlenVector.data(), 
                                                   actualSeqlenVector.size());
+
+    std::vector<int64_t> actualSeqlenKvVector = {4};  // Actual sequence length for key/value
+    resources.actualSeqLengthsKv = aclCreateIntArray(actualSeqlenKvVector.data(), 
+                                                    actualSeqlenKvVector.size());
 
     return ACL_SUCCESS;
 }
@@ -159,24 +195,47 @@ int InitializeTensors(TensorResources& resources) {
 int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream, 
                                void** workspaceAddr, uint64_t* workspaceSize) {
     int64_t numHeads = 2;
-    int64_t numKeyValueHeads = numHeads;
-    double scaleValue = 1 / sqrt(2);
-    int64_t preTokens = 65535;
-    int64_t nextTokens = 65535;
-    int64_t sparseMode = 0;
-    int64_t innerPrecise = 1;
+    int64_t numKeyValueHeads = 2;  // Same as numHeads for simplicity
+    float scaleValue = static_cast<float>(1.0 / sqrt(16.0));  // Proper scaling
+    int64_t preTokens = 65535;     // Large value to include all previous tokens
+    int64_t nextTokens = 65535;    // Large value to include all next tokens
+    int64_t sparseMode = 0;        // Basic sparse mode
+    int64_t innerPrecise = 1;      // Standard precision
     
+    // Using BNSD layout as it's common for attention operations
     constexpr const char LAYER_OUT_STR[] = "BNSD";
     constexpr size_t LAYER_OUT_LEN = sizeof(LAYER_OUT_STR);  
     char layerOut[LAYER_OUT_LEN];
     memcpy(layerOut, LAYER_OUT_STR, LAYER_OUT_LEN);
 
     aclOpExecutor* executor;
+    
+    // Function call with all parameters in correct order
     int ret = aclnnBlitzSparseAttentionGetWorkspaceSize(
-        resources.queryTensor, resources.keyTensor, resources.valueTensor, 
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-        numHeads, scaleValue, preTokens, nextTokens, layerOut, numKeyValueHeads, 
-        sparseMode, innerPrecise, resources.outTensor, workspaceSize, &executor);
+        resources.queryTensor,           // const aclTensor   *query,
+        resources.keyTensor,             // const aclTensor   *key,
+        resources.valueTensor,           // const aclTensor   *value,
+        nullptr,                         // const aclTensor   *pseShift,
+        resources.attenTensor,           // const aclTensor   *attenMask,
+        resources.sabiTensor,            // const aclTensor   *sabi,
+        resources.actualSeqLengths,      // const aclIntArray *actualSeqLengths,
+        resources.actualSeqLengthsKv,    // const aclIntArray *actualSeqLengthsKv,
+        nullptr,                         // const aclTensor   *deqScale1,
+        nullptr,                         // const aclTensor   *quantScale1,
+        nullptr,                         // const aclTensor   *deqScale2,
+        nullptr,                         // const aclTensor   *quantScale2,
+        nullptr,                         // const aclTensor   *quantOffset2,
+        numHeads,                        // int64_t            numHeads,
+        scaleValue,                      // float              scaleValue,
+        preTokens,                       // int64_t            preTokens,
+        nextTokens,                      // int64_t            nextTokens,
+        layerOut,                        // char              *inputLayout,
+        numKeyValueHeads,                // int64_t            numKeyValueHeads,
+        sparseMode,                      // int64_t            sparseMode,
+        innerPrecise,                    // int64_t            innerPrecise,
+        resources.outTensor,             // const aclTensor   *attentionOut,
+        workspaceSize,                   // uint64_t          *workspaceSize,
+        &executor);                      // aclOpExecutor     **executor
         
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
         LOG_PRINT("aclnnBlitzSparseAttentionGetWorkspaceSize failed. ERROR: %d\n", ret);
@@ -202,7 +261,7 @@ int ExecuteBlitzSparseAttention(TensorResources& resources, aclrtStream stream,
 
 int ProcessResults(TensorResources& resources, const std::vector<int64_t>& outShape) {
     auto size = GetShapeSize(outShape);
-    std::vector<double> resultData(size, 0);
+    std::vector<float> resultData(size, 0);  // Using float to match output tensor type
     
     int ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), 
                          resources.outDeviceAddr, size * sizeof(resultData[0]), 
@@ -212,8 +271,9 @@ int ProcessResults(TensorResources& resources, const std::vector<int64_t>& outSh
         return ret;
     }
     
-    for (int64_t i = 0; i < size; i++) {
-        LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+    LOG_PRINT("Output results:\n");
+    for (int64_t i = 0; i < std::min(int64_t(10), size); i++) {  // Print first 10 values
+        LOG_PRINT("output[%ld] = %f\n", i, resultData[i]);
     }
     
     return ACL_SUCCESS;
@@ -221,48 +281,33 @@ int ProcessResults(TensorResources& resources, const std::vector<int64_t>& outSh
 
 void CleanupResources(TensorResources& resources, void* workspaceAddr, 
                      aclrtStream stream, int32_t deviceId) {
-    if (resources.queryTensor) {
-      aclDestroyTensor(resources.queryTensor);
-    }
-    if (resources.keyTensor) {
-      aclDestroyTensor(resources.keyTensor);
-    }
-    if (resources.valueTensor) {
-      aclDestroyTensor(resources.valueTensor);
-    }
-    if (resources.attenTensor) {
-      aclDestroyTensor(resources.attenTensor);
-    }
-    if (resources.outTensor) {
-      aclDestroyTensor(resources.outTensor);
-    }
-    if (resources.actualSeqLengths) {
-      aclDestroyIntArray(resources.actualSeqLengths);
-    }
+    // Cleanup tensors
+    if (resources.queryTensor) aclDestroyTensor(resources.queryTensor);
+    if (resources.keyTensor) aclDestroyTensor(resources.keyTensor);
+    if (resources.valueTensor) aclDestroyTensor(resources.valueTensor);
+    if (resources.attenTensor) aclDestroyTensor(resources.attenTensor);
+    if (resources.sabiTensor) aclDestroyTensor(resources.sabiTensor);
+    if (resources.outTensor) aclDestroyTensor(resources.outTensor);
     
-    if (resources.queryDeviceAddr) {
-      aclrtFree(resources.queryDeviceAddr);
-    }
-    if (resources.keyDeviceAddr) {
-      aclrtFree(resources.keyDeviceAddr);
-    }
-    if (resources.valueDeviceAddr) {
-      aclrtFree(resources.valueDeviceAddr);
-    }
-    if (resources.attenDeviceAddr) {
-      aclrtFree(resources.attenDeviceAddr);
-    }
-    if (resources.outDeviceAddr) {
-      aclrtFree(resources.outDeviceAddr);
-    }
+    // Cleanup arrays
+    if (resources.actualSeqLengths) aclDestroyIntArray(resources.actualSeqLengths);
+    if (resources.actualSeqLengthsKv) aclDestroyIntArray(resources.actualSeqLengthsKv);
     
-    if (workspaceAddr) {
-      aclrtFree(workspaceAddr);
-    }
-    if (stream) {
-      aclrtDestroyStream(stream);
-    }
+    // Cleanup device memory
+    if (resources.queryDeviceAddr) aclrtFree(resources.queryDeviceAddr);
+    if (resources.keyDeviceAddr) aclrtFree(resources.keyDeviceAddr);
+    if (resources.valueDeviceAddr) aclrtFree(resources.valueDeviceAddr);
+    if (resources.attenDeviceAddr) aclrtFree(resources.attenDeviceAddr);
+    if (resources.sabiDeviceAddr) aclrtFree(resources.sabiDeviceAddr);
+    if (resources.outDeviceAddr) aclrtFree(resources.outDeviceAddr);
     
+    // Cleanup workspace
+    if (workspaceAddr) aclrtFree(workspaceAddr);
+    
+    // Cleanup stream
+    if (stream) aclrtDestroyStream(stream);
+    
+    // Finalize device
     aclrtResetDevice(deviceId);
     aclFinalize();
 }
@@ -275,9 +320,11 @@ int main() {
     TensorResources resources = {};
     void* workspaceAddr = nullptr;
     uint64_t workspaceSize = 0;
-    std::vector<int64_t> outShape = {1, 2, 1, 16};
+    std::vector<int64_t> outShape = {1, 2, 4, 16};
     int ret = ACL_SUCCESS;
 
+    LOG_PRINT("Initializing ACL...\n");
+    
     // 1. Initialize device and stream
     ret = Init(deviceId, &stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -285,20 +332,28 @@ int main() {
         return ret;
     }
 
+    LOG_PRINT("Initializing tensors...\n");
+    
     // 2. Initialize tensors
     ret = InitializeTensors(resources);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+        LOG_PRINT("Initialize tensors failed. ERROR: %d\n", ret);
         CleanupResources(resources, workspaceAddr, stream, deviceId);
         return ret;
     }
 
+    LOG_PRINT("Executing BlitzSparseAttention...\n");
+    
     // 3. Execute the operation
     ret = ExecuteBlitzSparseAttention(resources, stream, &workspaceAddr, &workspaceSize);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+        LOG_PRINT("Execute BlitzSparseAttention failed. ERROR: %d\n", ret);
         CleanupResources(resources, workspaceAddr, stream, deviceId);
         return ret;
     }
 
+    LOG_PRINT("Synchronizing stream...\n");
+    
     // 4. Synchronize stream
     ret = aclrtSynchronizeStream(stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -307,14 +362,21 @@ int main() {
         return ret;
     }
 
+    LOG_PRINT("Processing results...\n");
+    
     // 5. Process results
     ret = ProcessResults(resources, outShape);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
+        LOG_PRINT("Process results failed. ERROR: %d\n", ret);
         CleanupResources(resources, workspaceAddr, stream, deviceId);
         return ret;
     }
 
+    LOG_PRINT("Cleaning up resources...\n");
+    
     // 6. Cleanup resources
     CleanupResources(resources, workspaceAddr, stream, deviceId);
+    
+    LOG_PRINT("Test completed successfully!\n");
     return 0;
 }

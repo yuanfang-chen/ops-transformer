@@ -1,4 +1,4 @@
-# How to use the benchmarking/correctness file
+# How to use the benchmarking/correctness program benchmark.py
 
 # Installation
 
