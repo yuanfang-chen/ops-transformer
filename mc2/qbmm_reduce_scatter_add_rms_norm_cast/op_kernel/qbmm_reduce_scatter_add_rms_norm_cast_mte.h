@@ -209,15 +209,15 @@ protected:
     uint32_t ubCalcN_;
     uint32_t ubTmpBuffer_;
     uint32_t curAicM;
-    uint32_t m_core_num;
-    uint32_t n_core_num;
+    uint32_t mCoreNum;
+    uint32_t nCoreNum;
 
     uint64_t offsetA_{0};
     uint64_t offsetB_{0};
     uint64_t offsetC_{0};
     uint64_t mOffset_{0};
     uint64_t nOffset_{0};
-    uint64_t nOffset_fix{0};
+    uint64_t nOffsetFix{0};
 
     uint16_t int32GmToUbData_{0};
     uint16_t int32GmToUbStride_{0};
@@ -266,13 +266,12 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     singleTpSize_ = (m_ / TP_WORLD_SIZE) * n_;
     armAvgFactor_ = ONE / n_;
     epsilon_ = EPSILON;
-
     aTrans_ = false;
     bTrans_ = false;
     perTokenScaleAddr_ = perTokenScale;
 
-    m_core_num = CeilDiv(m_, baseM_);
-    n_core_num = aicNum_ / m_core_num;
+    mCoreNum = CeilDiv(m_, baseM_);
+    nCoreNum = aicNum_ / mCoreNum;
     
     // init ub local buffer for dequantCompute
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
@@ -292,8 +291,6 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
     int32GmToUbData_ = baseN_ * sizeof(uint32_t) / UB_ALIGN_BYTES;
     int32GmToUbStride_ = n_ * sizeof(uint32_t) / UB_ALIGN_BYTES - int32GmToUbData_;
-
-
     bf16UbToGmData_ = baseN_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES;
     bf16UbToGmStride_ = n_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES - bf16UbToGmData_;
 
@@ -440,10 +437,10 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
         uint32_t moffset_begin = mOffset_ + GetSubBlockIdx() * curAicM + mUbLoopIdx * ubCalcM_;
         uint32_t moffset_end = moffset_begin + curAivM - 1;
-        uint32_t tp_id = moffset_begin / (m_ / TP_WORLD_SIZE);
-        uint32_t tp_start = (m_ * tp_id) / TP_WORLD_SIZE;
-        uint32_t tp_end = (((tp_id + 1) * m_) / TP_WORLD_SIZE) -1;
-        uint32_t m_diff = moffset_begin - tp_start;
+        uint32_t tpId = moffset_begin / (m_ / TP_WORLD_SIZE);
+        uint32_t tpStart = (m_ * tpId) / TP_WORLD_SIZE;
+        uint32_t tpEnd = (((tpId + 1) * m_) / TP_WORLD_SIZE) -1;
+        uint32_t mDiff = moffset_begin - tpStart;
 
         LocalTensor<int32_t> srcLocal = vecQueSrc_.AllocTensor<int32_t>();
         LocalTensor<YType> dstLocal = vecQueOut_.AllocTensor<YType>();
@@ -496,34 +493,34 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         // 计算当前正处于的TP域
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         winFlag_ = winFlagLocalTensor_.GetValue(ZERONE_STATUS_POS);    // 获取状态区标志位
-        if (moffset_end <= tp_end){
+        if (moffset_end <= tpEnd){
             int32_t remoteRankId = curAicAivOffset / (m_ * n_ / tpWorldSize_);
             GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
             remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
-            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + m_diff * n_;
+            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + mDiff * n_;
             uint64_t nOffset = nOffset_;
             uint32_t dstOffset = tpOffset + nOffset;
             DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams);
             
         } else {
-            uint32_t front_count = tp_end - moffset_begin + 1;
-            uint32_t end_count = moffset_end - tp_end;
-            DataCopyParams ub2GmParams1{static_cast<uint16_t>(front_count), bf16UbToGmData_, 0, bf16UbToGmStride_};
-            DataCopyParams ub2GmParams2{static_cast<uint16_t>(end_count), bf16UbToGmData_, 0, bf16UbToGmStride_};
+            uint32_t frontCount = tpEnd - moffset_begin + 1;
+            uint32_t endCount = moffset_end - tpEnd;
+            DataCopyParams ub2GmParams1{static_cast<uint16_t>(frontCount), bf16UbToGmData_, 0, bf16UbToGmStride_};
+            DataCopyParams ub2GmParams2{static_cast<uint16_t>(endCount), bf16UbToGmData_, 0, bf16UbToGmStride_};
 
-            GM_ADDR remoteWinAddr = GetWindAddrByRankId(tp_id);
+            GM_ADDR remoteWinAddr = GetWindAddrByRankId(tpId);
             remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
 
-            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + m_diff * n_;
+            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + mDiff * n_;
             uint64_t nOffset = nOffset_;
             uint32_t dstOffset = tpOffset + nOffset;
             DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams1);
-            GM_ADDR remoteWinAddr2 = GetWindAddrByRankId(tp_id + 1);
+            GM_ADDR remoteWinAddr2 = GetWindAddrByRankId(tpId + 1);
             remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr2);
             tpOffset = (m_ * n_ / tpWorldSize_) * rankId_;
             nOffset = nOffset_;
             dstOffset = tpOffset + nOffset;
-            DataCopy(remoteTensor[dstOffset], dstLocal[front_count * curAivN], ub2GmParams2);
+            DataCopy(remoteTensor[dstOffset], dstLocal[frontCount * curAivN], ub2GmParams2);
         }
         vecQueOut_.FreeTensor(dstLocal);
 
@@ -665,13 +662,13 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 {
     mOffset_ = mCoreIndex * baseM_;
     offsetA_ = mCoreIndex * baseM_ * k_;
-    offsetC_ = nOffset_fix + mCoreIndex * baseM_ * n_;
+    offsetC_ = nOffsetFix + mCoreIndex * baseM_ * n_;
 }
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::CalcNAxisOffset(uint32_t loopIdx)
 {
-    nOffset_ = nOffset_fix + loopIdx * baseN_;
+    nOffset_ = nOffsetFix + loopIdx * baseN_;
     if constexpr (BMatmulType::format == CubeFormat::ND) {
         offsetB_ = nOffset_;
     } else if constexpr (BMatmulType::format == CubeFormat::NZ) {
@@ -692,22 +689,22 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     uint32_t mDim = CeilDiv(m_, singleCoreM_ * 2);
     uint32_t nDim = CeilDiv(n_, singleCoreN_);
     // cid(0-15)分2个, (16-23)分1个
-    uint32_t mCoreIndex = coreCid_ % m_core_num;
-    uint32_t nCoreIndex = coreCid_ / m_core_num;
+    uint32_t mCoreIndex = coreCid_ % mCoreNum;
+    uint32_t nCoreIndex = coreCid_ / mCoreNum;
     uint32_t startBlockIdx = 0;
     uint32_t endBlockIdx = 0;
     uint32_t tileNum = 0;
-    SplitToCore(n_ / baseN_, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
-    uint32_t remain_num = m_ % baseM_;
+    SplitToCore(n_ / baseN_, nCoreNum, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+    uint32_t remainNum = m_ % baseM_;
     singleM_ = baseM_;
-    if (remain_num != 0 && mCoreIndex == m_core_num - 1){
-        singleM_ = remain_num;
+    if (remainNum != 0 && mCoreIndex == mCoreNum - 1){
+        singleM_ = remainNum;
     }
     curAicM = singleM_ / 2;
     uint32_t mLoops = 1;
     uint32_t nLoops = tileNum;
     // CalcOffset, 默认当前都是ND, 且非转置
-    nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
+    nOffsetFix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
     for (uint32_t i = 0; i < mLoops; ++i) {
         CalcMAxisOffset(mCoreIndex, nLoops);
@@ -734,24 +731,23 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         uint32_t nDim = CeilDiv(n_, singleCoreN_);
         // cid(0-15)分2个, (16-23)分1个
         uint32_t group_cid = coreVid_ / 2;
-        uint32_t mCoreIndex = group_cid % m_core_num;
-        uint32_t nCoreIndex = group_cid / m_core_num;
-        
+        uint32_t mCoreIndex = group_cid % mCoreNum;
+        uint32_t nCoreIndex = group_cid / mCoreNum;
         uint32_t startBlockIdx = 0;
         uint32_t endBlockIdx = 0;
         uint32_t tileNum = 0;
 
-        SplitToCore(n_ / baseN_, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
-        uint32_t remain_num = m_ % baseM_;
+        SplitToCore(n_ / baseN_, nCoreNum, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+        uint32_t remainNum = m_ % baseM_;
         singleM_ = baseM_;
-        if (remain_num != 0 && mCoreIndex == m_core_num - 1){
-            singleM_ = remain_num;
+        if (remainNum != 0 && mCoreIndex == mCoreNum - 1){
+            singleM_ = remainNum;
         }
         curAicM = singleM_ / 2;
         uint32_t mLoops = 1;
         uint32_t nLoops = tileNum;
         // CalOffset, 默认当前都是ND, 且非转置
-        nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
+        nOffsetFix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
         for (uint32_t i = 0; i < mLoops; ++i) {
             CalcMAxisOffset(mCoreIndex, nLoops);
