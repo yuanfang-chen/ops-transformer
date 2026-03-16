@@ -35,7 +35,7 @@
 
 ```bash
 # 创建指定算子目录，如bash build.sh --genop_aicpu=examples/add_example
-# ${op_class}表示算子类型，如math类。
+# ${op_class}表示算子类型，如transformer类。
 # ${op_name}表示算子名的小写下划线形式，如`AddExample`算子对应为add_example，新增算子不允许与已有算子重名。
 bash build.sh --genop_aicpu=${op_class}/${op_name}
 ```
@@ -68,11 +68,11 @@ ${op_name}                              # 替换为实际算子名的小写下�
  	 if(ENABLE_EXPERIMENTAL)
  	   # genop新增experimental算子分类
  	   # add_subdirectory(${op_class})
- 	   add_subdirectory(experimental/math)
+ 	   add_subdirectory(experimental/transformer)
  	 else()
  	   # genop新增非experimental算子分类
  	   # add_subdirectory(${op_class})
- 	   add_subdirectory(math)
+ 	   add_subdirectory(transformer)
  	 endif()
  	 ```
 
@@ -218,31 +218,31 @@ REGISTER_CPU_KERNEL(kAddExample, AddExampleCpuKernel);
     若提示如下信息，说明编译成功：
 
     ```bash
-    Self-extractable archive "cann-ops-math-${vendor_name}_linux-${arch}.run" successfully created.
+    Self-extractable archive "cann-ops-transformer-${vendor_name}_linux-${arch}.run" successfully created.
     ```
 
 3. **安装自定义算子包。**
 
     ```bash
     # 安装run包
-    ./build_out/cann-ops-math-${vendor_name}_linux-${arch}.run
+    ./build_out/cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
     自定义算子包安装在```${ASCEND_HOME_PATH}/opp/vendors```路径中，```${ASCEND_HOME_PATH}```表示CANN软件安装目录，可提前在环境变量中配置。
     
 4. **（可选）卸载自定义算子包。**
 
-    自定义算子包安装后在```${ASCEND_HOME_PATH}/opp/vendors/custom_math/scripts```目录会生成`uninstall.sh`，通过该脚本可卸载自定义算子包，命令如下：
+    自定义算子包安装后在```${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/scripts```目录会生成`uninstall.sh`，通过该脚本可卸载自定义算子包，命令如下：
     
     ```bash
-    bash ${ASCEND_HOME_PATH}/opp/vendors/custom_math/scripts/uninstall.sh
+    bash ${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/scripts/uninstall.sh
     ```
 
 ## 算子验证
 
 验证算子前需确保已配置了环境变量，命令如下：
 ```bash
-export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_math/op_api/lib:${LD_LIBRARY_PATH}
-export ASCEND_CUSTOM_OPP_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_math
+export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transformer/op_api/lib:${LD_LIBRARY_PATH}
+export ASCEND_CUSTOM_OPP_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transformer
 ```
 - **UT验证**
 

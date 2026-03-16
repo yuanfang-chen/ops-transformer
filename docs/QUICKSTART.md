@@ -1,8 +1,8 @@
-# 快速入门：基于ops-math仓
+# 快速入门：基于ops-transformer仓
 
 ## 使用须知
 
-本指南旨在帮助您快速上手CANN和`ops-math`算子仓的使用。为方便快速了解算子开发全流程，将以**AddExample**算子为实践对象，其源文件位于`ops-math/examples/add_example`，具体操作流程如下：
+本指南旨在帮助您快速上手CANN和`ops-transformer`算子仓的使用。为方便快速了解算子开发全流程，将以**AddExample**算子为实践对象，其源文件位于`ops-transformer/examples/add_example`，具体操作流程如下：
 
 1. **[环境部署](zh/install/quick_install.md)**：完成软件包安装和源码下载，此处不再赘述。快速入门场景下，**推荐WebIDE或Docker环境**，安装操作简单。
 
@@ -32,13 +32,13 @@ bash build.sh --pkg --soc=ascend910b --ops=add_example -j16
 
 若提示如下信息，说明编译成功。
 ```bash
-Self-extractable archive "cann-ops-math-custom-linux.${arch}.run" successfully created.
+Self-extractable archive "cann-ops-transformer-custom-linux.${arch}.run" successfully created.
 ```
 编译成功后，run包存放于项目根目录的build_out目录下。
 
 ### 2. 安装AddExample算子包
 ```bash
-./build_out/cann-ops-math-*linux*.run
+./build_out/cann-ops-transformer-*linux*.run
 ```
 `AddExample`安装在```${ASCEND_HOME_PATH}/opp/vendors```路径中，```${ASCEND_HOME_PATH}```表示CANN软件安装目录。
 
@@ -46,7 +46,7 @@ Self-extractable archive "cann-ops-math-custom-linux.${arch}.run" successfully c
 
 将自定义算子包的路径加入环境变量，确保运行时能够找到。
 ```bash
-export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/custom_math/op_api/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/op_api/lib:${LD_LIBRARY_PATH}
 ```
 
 ### 4. 快速验证：运行算子样例
@@ -77,7 +77,7 @@ add_example first input[7] is: 1.000000, second input[7] is: 1.000000, result[7]
 本阶段目的是对已成功运行的AddExample算子尝试**修改核函数代码**。
 
 ### 1. 修改Kernel实现
-找到AddExample算子的核心kernel实现文件`ops-math/examples/add_example/op_kernel/add_example.h`，尝试将算子中的Add操作改为Mul操作：
+找到AddExample算子的核心kernel实现文件`ops-transformer/examples/add_example/op_kernel/add_example.h`，尝试将算子中的Add操作改为Mul操作：
 
 ```cpp
 __aicore__ inline void AddExample<T>::Compute(int32_t progress)
@@ -107,7 +107,7 @@ __aicore__ inline void AddExample<T>::Compute(int32_t progress)
     
 2. **重新安装**：
     ```bash
-    ./build_out/cann-ops-math-*linux*.run
+    ./build_out/cann-ops-transformer-*linux*.run
     ```
 
 3. **重新验证**：
@@ -138,7 +138,7 @@ __aicore__ inline void AddExample<T>::Compute(int32_t progress)
 
 * **printf**
 
-  该接口支持打印Scalar类型数据，如整数、字符型、布尔型等，详细介绍请参见[《Ascend C API》](https://hiascend.com/document/redirect/CannCommunityAscendCApi)中“算子调测API > printf”。
+  该接口支持打印Scalar类型数据，如整数、字符型、布尔型等，详细介绍请参见[《Ascend C API》](https://hiascend.com/document/redirect/CannCommunityAscendCApi)中“Ascend C算子开发接口 > SIMD API > 基础API > 调试接口 > 上板打印 > printf”。
   
   ```c++
   blockLength_ = (tilingData->totalLength + AscendC::GetBlockNum() - 1) / AscendC::GetBlockNum();
@@ -150,7 +150,7 @@ __aicore__ inline void AddExample<T>::Compute(int32_t progress)
   ```
 * **DumpTensor**
 
-  该接口支持Dump指定Tensor的内容，同时支持打印自定义附加信息，比如当前行号等，详细介绍请参见[《Ascend C API》](https://hiascend.com/document/redirect/CannCommunityAscendCApi)中“算子调测API > DumpTensor”。
+  该接口支持Dump指定Tensor的内容，同时支持打印自定义附加信息，比如当前行号等，详细介绍请参见[《Ascend C API》](https://hiascend.com/document/redirect/CannCommunityAscendCApi)中“Ascend C算子开发接口 > SIMD API > 基础API > 调试接口 > 上板打印 > DumpTensor”。
   
   ```c++
   AscendC::LocalTensor<T> zLocal = outputQueueZ.DeQue<T>();
@@ -163,26 +163,26 @@ __aicore__ inline void AddExample<T>::Compute(int32_t progress)
 
 -  **生成可执行文件**
    
-    调用AddExample算子的example样例，生成可执行文件（test_aclnn_add_example），该文件位于项目`ops-math/build`目录。
+    调用AddExample算子的example样例，生成可执行文件（test_aclnn_add_example），该文件位于项目`ops-transformer/build`目录。
     ```bash
     bash build.sh --run_example add_example eager cust --vendor_name=custom
     ```
 
 -  **采集性能数据**
 
-    进入AddExample算子可执行文件目录`ops-math/build/`，执行如下命令：
+    进入AddExample算子可执行文件目录`ops-transformer/build/`，执行如下命令：
 
     ```bash
     msprof --application="./test_aclnn_add_example"
     ```
-采集结果在项目`ops-math/build/`目录，msprof命令执行完后会自动解析并导出性能数据结果文件，详细内容请参见[msprof](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/T&ITools/Profiling/atlasprofiling_16_0110.html#ZH-CN_TOPIC_0000002504160251)。
+采集结果在项目`ops-transformer/build/`目录，msprof命令执行完后会自动解析并导出性能数据结果文件，详细内容请参见[msprof](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/T&ITools/Profiling/atlasprofiling_16_0110.html#ZH-CN_TOPIC_0000002504160251)。
 
 ## 四、算子验证
 
 本阶段通过修改AddExample算子example样例中的输入数据，验证该算子在多种场景下的功能正确性。
 
 ### 1. 修改测试输入
-找到并编辑`AddExample`的`ops-math/examples/add_example/examples/test_aclnn_add_example.cpp`，修改输入张量的形状和数值。
+找到并编辑`AddExample`的`ops-transformer/examples/add_example/examples/test_aclnn_add_example.cpp`，修改输入张量的形状和数值。
 
 **修改输入/输出数据**：修改输入、输出的shape信息，以及初始化数据，构造相应的输入、输出tensor。
 
