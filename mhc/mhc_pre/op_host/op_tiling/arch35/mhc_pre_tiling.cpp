@@ -177,7 +177,7 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
         chunkTSize_ = DECODE_CHUNK_T_SIZE;
         v1ChunkDSize_ = V1_CHUNK_D_SIZE;
     } else {
-        chunkTSize_ = (((totalLength_ + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR) + CHUNK_T_CALC_FACTOR - 1) *
+        chunkTSize_ = (((totalLength_ + blockDim_ - 1) / blockDim_) + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR *
                       CHUNK_T_CALC_FACTOR;
         if (chunkTSize_ > CHUNK_T_MAX) {
             chunkTSize_ = CHUNK_T_MAX;
