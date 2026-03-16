@@ -9,38 +9,13 @@
  */
 
 #include <iostream>
+#include <unordered_map>
 #include <torch/library.h>
+#include <torch/torch.h>
 #include <ATen/Operators.h>
 #include "torch_npu/csrc/framework/utils/OpPreparation.h"
 #include "torch_npu/csrc/framework/OpCommand.h"
-#include <fstream>
-#include <sys/stat.h>
-#include <dlfcn.h>
-#include <vector>
-#include <functional>
-#include <type_traits>
-#include <ATen/Tensor.h>
-#include <ATen/NamedTensorUtils.h>
-#include <acl/acl_base.h>
-#include <acl/acl_rt.h>
-#include <c10/util/Exception.h>
-#include <torch/extension.h>
-#include "torch_npu/csrc/aten/CustomFunctions.h"
-#include "torch_npu/csrc/aten/NPUNativeFunctions.h"
-#include "torch_npu/csrc/core/npu/NPUStream.h"
-#include "torch_npu/csrc/core/npu/NPUFunctions.h"
-#include "torch_npu/csrc/core/npu/NpuVariables.h"
-#include "torch_npu/csrc/core/npu/register/OptionsManager.h"
-#include "torch_npu/csrc/framework/OpCommand.h"
-#include <torch_npu/csrc/framework/utils/CalcuOpUtil.h>
-#include <torch_npu/csrc/framework/utils/OpAdapter.h>
-#include "torch_npu/csrc/framework/utils/OpPreparation.h"
-#include "torch_npu/csrc/framework/utils/RandomOpAdapter.h"
-#include "torch_npu/csrc/framework/interface/AclOpCompileInterface.h"
-#include "torch_npu/csrc/framework/interface/EnvVariables.h"
-#include "torch_npu/csrc/flopcount/FlopCount.h"
-#include "torch_npu/csrc/flopcount/FlopCounter.h"
-#include "op_kernel/split_core.h"
+#include "op_kernel/ifa_meta_public_define.h"
 
 extern "C" {
     extern __global__ __aicpu__ uint32_t IncreFlashAttentionMetadataKernel(void *args);
@@ -49,35 +24,41 @@ extern "C" {
 namespace custom {
 using namespace at_npu::native;
 
+aicpu::kernels::Layout CovertToLayout(const std::string &str)
+{
+    std::unordered_map<std::string, aicpu::kernels::Layout> layoutDict = {
+        {"BSH", aicpu::kernels::Layout::BSH},
+        {"BSND", aicpu::kernels::Layout::BSND},
+        {"BNSD", aicpu::kernels::Layout::BNSD},
+        {"NZ", aicpu::kernels::Layout::NZ},
+        {"TND", aicpu::kernels::Layout::TND},
+        {"NBSD", aicpu::kernels::Layout::NBSD},
+        {"NTD", aicpu::kernels::Layout::NTD}
+    };
+    auto layoutIter = layoutDict.find(str);
+    return (layoutIter == layoutDict.end()) ? aicpu::kernels::Layout::BUTT : layoutIter->second;
+}
+
 // step3, 为META设备实现前向接口
 at::Tensor npu_fused_infer_attention_score_metadata_meta(
     int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_seq_size, int64_t key_head_num,
-    int64_t block_size, int64_t max_block_num_per_batch,
-    const c10::optional<at::Tensor> &actual_seq_lengths_query,
-    const c10::optional<at::Tensor> &actual_seq_lengths_kv,
+    int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, bool is_accum_seq_kv,
+    at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
     printf("start npu_fused_infer_attention_score_metadata_meta\n");
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
-    // at::Tensor output = at::empty({1024});
     return output;
 }
 
 at::Tensor npu_fused_infer_attention_score_metadata_npu(
     int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_seq_size, int64_t key_head_num,
-    int64_t block_size, int64_t max_block_num_per_batch,
-    const c10::optional<at::Tensor> &actual_seq_lengths_query,
-    const c10::optional<at::Tensor> &actual_seq_lengths_kv,
+    int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, bool is_accum_seq_kv,
+    at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
     printf("start npu_fused_infer_attention_score_metadata_npu\n");
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
-
-    // convert str
-    std::string layout_query_str = std::string(layout_query);
-    std::string layout_kv_str = std::string(layout_key);
-    char *layout_query_ptr = const_cast<char *>(layout_query_str.c_str());
-    char *layout_kv_ptr = const_cast<char *>(layout_kv_str.c_str());
 
     auto aicpu_stream = c10_npu::getCurrentNPUStream().stream(true);
 
@@ -91,26 +72,19 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
     args.keyHeadNum = key_head_num;
     args.blockSize = block_size;
     args.maxBlockNumPerBatch = max_block_num_per_batch;
-    if (actual_seq_lengths_query.has_value()) {
-        args.actSeqQLenDim = actual_seq_lengths_query->size(0);
-        args.actSeqQLen = static_cast<int8_t *>(const_cast<void *>(actual_seq_lengths_query->storage().data()));
-    } else {
-        args.actSeqQLenDim = 0U;
-        args.actSeqQLen = nullptr;
-    }
-    if (actual_seq_lengths_kv.has_value()) {
-        args.actSeqKvLenDim = actual_seq_lengths_kv->size(0);
-        args.actSeqKvLen = static_cast<int8_t *>(const_cast<void *>(actual_seq_lengths_kv->storage().data()));
-    } else {
-        args.actSeqKvLenDim = 0U;
-        args.actSeqKvLen = nullptr;
-    }
-    args.layoutQuery = layout_query_str.c_str();
-    args.layoutKey = layout_kv_str.c_str();
+    args.isAccumSeqQ = is_accum_seq_query;
+    args.actSeqQLenDim = actual_seq_lengths_query.size(0);
+    args.actSeqQLen = static_cast<int32_t *>(const_cast<void *>(actual_seq_lengths_query.storage().data()));
+    args.isAccumSeqKv = is_accum_seq_kv;
+    args.actSeqKvLenDim = actual_seq_lengths_kv.size(0);
+    args.actSeqKvLen = static_cast<int32_t *>(const_cast<void *>(actual_seq_lengths_kv.storage().data()));
+
+    // convert str
+    args.layoutQuery = CovertToLayout(std::string(layout_query));
+    args.layoutKey = CovertToLayout(std::string(layout_key));
     args.metaData = static_cast<int8_t *>(const_cast<void *>(output.storage().data()));
 
     IncreFlashAttentionMetadataKernel<<<1, nullptr, aicpu_stream>>>(&args, sizeof(aicpu::kernels::IncreFlashAttentionMetadataArgs));
-    // IncreFlashAttentionMetadataKernel<<<1, nullptr, aicpu_stream>>>(&args);
     return output;
 }
 }

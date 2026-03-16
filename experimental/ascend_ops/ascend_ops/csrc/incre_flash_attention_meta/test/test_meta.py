@@ -16,7 +16,7 @@ def print_tensor_shape(tensor, name):
 # -----------------------------
 # 参数配置
 # -----------------------------
-batch_size = 18
+batch_size = 4
 q_head_num = 64
 kv_head_num = 1
 q_seq = 1
@@ -42,11 +42,13 @@ infer_kwargs = dict(
     key_head_num = kv_head_num,
     block_size = 128,
     max_block_num_per_batch = max_block_num_per_batch,
+    is_accum_seq_query = False,
+    is_accum_seq_kv = False,
     actual_seq_lengths_query = actual_seq_lengths_query,
-    actual_seq_lengths_kv = None,
-    layout_query = "BSND",
-    layout_key = 'BSND'
+    actual_seq_lengths_kv = actual_seq_lengths_kv,
+    layout_query = "BNSD",
+    layout_key = 'BNSD'
 )
 
 result = torch.ops.custom.npu_fused_infer_attention_score_metadata(**infer_kwargs)
-print(result.cpu())
+# print(result.cpu())

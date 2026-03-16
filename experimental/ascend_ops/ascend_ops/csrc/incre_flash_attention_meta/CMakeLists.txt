@@ -9,26 +9,15 @@
 # -----------------------------------------------------------------------------------------------------------
 
 message(STATUS "BUILD_TORCH_OPS ON in incre_flash_attention_metadata")
-# find_package(ASC REQUIRED) 
-# find_package(AICPU REQUIRED) 
-# enable_language(ASC)
-# enable_language(AICPU)
 
 # AICPU
-set(incre_flash_attention_meta_kernel_SOURCE 
-    op_kernel/split_core.cpp
-    op_kernel/incre_flash_attention_metadata.cpp
-)
-
 set_source_files_properties(
-    op_kernel/split_core.cpp 
     op_kernel/incre_flash_attention_metadata.cpp
     PROPERTIES
     LANGUAGE AICPU
 )
 
 add_library(incre_flash_attention_meta_kernel_objects STATIC
-    op_kernel/split_core.cpp
     op_kernel/incre_flash_attention_metadata.cpp
 )
 
@@ -41,9 +30,6 @@ target_include_directories(incre_flash_attention_meta_kernel_objects PUBLIC
 target_link_libraries(incre_flash_attention_meta_kernel_objects PRIVATE pthread)
 
 # Torch
-# file(GLOB_RECURSE incre_flash_attention_meta_NPU_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
-# set(incre_flash_attention_meta_SOURCES npu_fused_infer_attention_score_metadata.cpp)
-
 # Mark .cpp files with special properties
 set_source_files_properties(
     npu_fused_infer_attention_score_metadata.cpp PROPERTIES
