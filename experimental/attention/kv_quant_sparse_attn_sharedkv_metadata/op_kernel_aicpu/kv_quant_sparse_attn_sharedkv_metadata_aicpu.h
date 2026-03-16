@@ -45,8 +45,7 @@ enum class SparseMode : uint8_t {
 
 enum class ValidSocVersion {
     ASCEND910 = 0,
-    ASCEND950,
-    RESERVED_VERSION = 99999
+    ASCEND950
 };
 
 template<class T>
@@ -164,8 +163,10 @@ struct BatchCache {
     uint32_t bIdx { 0U };
     uint32_t s1Size { 0U };
     uint32_t s2Size { 0U };
-    int64_t preTokenLeftUp { 0 };
-    int64_t nextTokenLeftUp { 0 };
+    int64_t oriPreTokenLeftUp { 0 };
+    int64_t oriNextTokenLeftUp { 0 };
+    int64_t cmpPreTokenLeftUp { 0 };
+    int64_t cmpNextTokenLeftUp { 0 };
     BlockCost<int64_t> typeCost {};
 };
 
@@ -182,7 +183,6 @@ struct S1GCache {
     int64_t s1GCost { 0 };
     int64_t s1GLastBlockCost { 0 };
     uint32_t s1GBlock { 0U };
-    int64_t s1GNormalBlockCost { 0 };
     uint32_t winS1GBlock { 0U };
     int64_t winS1GCost { 0 };
     int64_t winS1GLastBlockCost { 0 };
@@ -210,7 +210,6 @@ struct AssignContext {
     uint32_t curS2Idx { 0U };
     uint32_t curCoreIdx { 0U };
     int64_t unassignedCost { 0 };
-    uint32_t usedCoreNum { 0U };
     uint32_t curKvSplitPart { 1U };
     uint32_t preFdDataNum { 0U };
 
@@ -242,6 +241,8 @@ private:
     bool CheckConsistencyN128();
     bool CheckFeatureN128();
     bool ParamsCheckN128();
+    void CalcOriMaskMode();
+    void CalcCmpMaskMode();
     bool ParamsInit();
     bool BalanceSchedule(SplitResult &splitRes);
     bool GenMetaData(SplitResult &splitRes);
@@ -251,9 +252,11 @@ private:
     uint32_t GetS2SeqSize(uint32_t bIdx);
     uint32_t GetOriTopkLength(uint32_t bsStride);
     uint32_t GetCmpTopkLength(uint32_t bsStride);
-    int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
-    int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
-    Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
+    int64_t CalcOriPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
+    int64_t CalcOriNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
+    int64_t CalcCmpPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
+    int64_t CalcCmpNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
+    Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache, bool isCmpKv);
     int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
     int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
     void CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
@@ -261,7 +264,8 @@ private:
 
     // cache calculation
     void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
-    void CalcBlockRangeAndTailSize(Range<int64_t> &oriS2TokenRange, const BatchCache &batchCache, S1GCache &s1GCache);
+    void CalcOriBlockRange(Range<int64_t> &oriS2TokenRange, const BatchCache &batchCache, S1GCache &s1GCache);
+    void CalcCmpBlockRange(Range<int64_t> &cmpS2TokenRange, const BatchCache &batchCache, S1GCache &s1GCache);
     void CalcWinS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
     void CalcCmpS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
     void GatherWinAndCmpCache(S1GCache &s1GCache);
@@ -325,8 +329,10 @@ private:
 
     // attr
     std::string socVersion_ = "ascend910B";
-    int64_t preToken_ = 0; // new
-    int64_t nextToken_ = 0; // new
+    int64_t oriPreToken_ = 0;
+    int64_t oriNextToken_ = 0;
+    int64_t cmpPreToken_ = 0;
+    int64_t cmpNextToken_ = 0;
     uint32_t groupSize_ = 0;
     uint32_t mBaseSize_ = 0;
     uint32_t s2BaseSize_ = 0;
@@ -334,7 +340,8 @@ private:
     bool isCFA = false;
     bool isSCFA = false;
     bool supportFd = false;
-    uint32_t attentionMode_ = 1;
+    uint32_t oriAttentionMode_ = 1;
+    uint32_t cmpAttentionMode_ = 1;
     BlockCost<int64_t> typeCost_ = {};
     bool isN128 = false;
     bool hasOriTopk = false;
