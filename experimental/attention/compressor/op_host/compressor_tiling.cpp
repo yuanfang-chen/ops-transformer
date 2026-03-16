@@ -767,6 +767,12 @@ ge::graphStatus CompressorTiling::CheckFeature() const
                 OP_LOGE(context_->opName, "blockSize should not be less than 1, but got %u",
                         pageAttentionParams_->blockSize),
                 return ge::GRAPH_FAILED);
+    if (static_cast<uint8_t>(*context_->cacheMode) == static_cast<uint8_t>(CACHE_MODE::CYCLE)) {
+        OP_CHECK_IF(pageAttentionParams_->blockNum < baseParams_->batchSize,
+                    OP_LOGE(context_->opName, "when cacheMode is %u, blockNum should not be less than batchSize(%u), but got %u",
+                static_cast<uint8_t>(CACHE_MODE::CYCLE), baseParams_->batchSize, pageAttentionParams_->blockSize),
+                    return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -811,9 +817,6 @@ ge::graphStatus CompressorTiling::CheckShapeConsistency() const
     if (static_cast<uint8_t>(*context_->cacheMode) == static_cast<uint8_t>(CACHE_MODE::CONTINUOUS) && (
         ge::GRAPH_SUCCESS != LogErrorShapeConsistency("stateCache", context_->stateCache.shape, COMPRESSOR_DIM_INDEX_0, "blockNum", pageAttentionParams_->blockNum) ||
         ge::GRAPH_SUCCESS != LogErrorShapeConsistency("stateCache", context_->stateCache.shape, COMPRESSOR_DIM_INDEX_1, "blockSize", pageAttentionParams_->blockSize))) {
-        return ge::GRAPH_FAILED;
-    } else if (static_cast<uint8_t>(*context_->cacheMode) == static_cast<uint8_t>(CACHE_MODE::CYCLE) && (
-        ge::GRAPH_SUCCESS != LogErrorShapeConsistency("stateCache", context_->stateCache.shape, COMPRESSOR_DIM_INDEX_0, "batchSize", baseParams_->batchSize))) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
