@@ -572,35 +572,35 @@ bool CheckSparseModeValue(FuzzyBaseInfoParamsRegbase& fBaseParams);
 bool CheckVarLenSparseModeValue(FuzzyBaseInfoParamsRegbase& fBaseParams);
 ge::graphStatus CheckUnpadTokensInfo(FuzzyBaseInfoParamsRegbase& fBaseParams);
 int64_t FindBandIdx(FuzzyBaseInfoParamsRegbase& fBaseParams);
-bool IsNewDeter(FuzzyBaseInfoParamsRegbase& fBaseParams);
+bool IsNewDeter(const FuzzyBaseInfoParamsRegbase& fBaseParams);
 bool CheckPrefixNExist(FuzzyBaseInfoParamsRegbase& fBaseParams, const int64_t bIdx, const int64_t prefixN,
-                            std::vector<std::vector<std::pair<int64_t, int64_t>>> &s2ValidIdx);
+                            std::vector<std::vector<std::pair<int64_t, int64_t>>> &s1ValidIdx);
 void CalcleBandDeterParam(FuzzyBaseInfoParamsRegbase& fBaseParams);
 void CalcleCausalDeterParam(FuzzyBaseInfoParamsRegbase& fBaseParams);
-void SetSparsePrefixBlockInterval(FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t bIdx,
+void SetSparsePrefixBlockInterval(const FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t bIdx,
     int64_t nIdx, std::vector<std::vector<std::pair<int64_t, int64_t>>> &s1ValidIdx,
     int64_t (&blockStarts)[CORE_LIST_NUM], int64_t (&blockEnds)[CORE_LIST_NUM], uint32_t &coreNum,
     int64_t &tmepBlock);
 std::pair<uint32_t, uint32_t> GetS1S2TemplateType(FuzzyBaseInfoParamsRegbase& fBaseParams);
 uint32_t GetDTemplateType(FuzzyBaseInfoParamsRegbase& fBaseParams);
-void GetCommS1S2OuterInfo(FuzzyBaseInfoParamsRegbase& fBaseParams, const int64_t prefixN, std::vector<std::pair<int64_t, int64_t>> &s2ValidIdx);
-void GetCommonS1S2OuterIndex(FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t (*parseInfo)[ARRAY_LENGTH],
+void GetCommS1S2OuterInfo(FuzzyBaseInfoParamsRegbase& fBaseParams, const int64_t prefixN, std::vector<std::pair<int64_t, int64_t>> &s1ValidIdx);
+void GetCommonS1S2OuterIndex(const FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t (*parseInfo)[ARRAY_LENGTH],
          int64_t gTail, int64_t& s1oIdx, int64_t& s2oIdx);
 void CalcleActualToken(FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t batchIdx, int64_t &actualCalcS1Token, int64_t &actualCalcS2Token);
 ge::graphStatus ProcessOptionalInput(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
-void ProcessDropoutIsDivisibleBy8(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
+void ProcessDropoutIsDivisibleBy8(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
 ge::graphStatus ProcessDropoutInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
 ge::graphStatus ProcessQuantInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
-ge::graphStatus ProcessSparseModeInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
-ge::graphStatus ProcessTokensInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
+ge::graphStatus ProcessSparseModeInfo(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
+ge::graphStatus ProcessTokensInfo(FuzzyBaseInfoParamsRegbase& fBaseParams);
 void SetQKVStartIdx(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
 ge::graphStatus ProcessPseNormal(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams, const char *inputLayout);
 ge::graphStatus ProcessPseInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams, const char *inputLayout);
 void SetPseLayout(FuzzyBaseInfoParamsRegbase& fBaseParams);
 bool SetSparseParams(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
-void SetSplitAxis(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
+void SetSplitAxis(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
 void DetermineMode(FuzzyBaseInfoParamsRegbase& fBaseParams);
-bool SupportTrans2BS2N2GD(FuzzyBaseInfoParamsRegbase& fBaseParams);
+bool SupportTrans2BS2N2GD(const FuzzyBaseInfoParamsRegbase& fBaseParams);
 ge::graphStatus SetAttenMaskShapeType(FuzzyBaseInfoParamsRegbase& fBaseParams, const gert::StorageShape *attenMaskShape, size_t dimNum);
 ge::graphStatus ProcessInnerPseInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams, size_t pseShapeDim);
 ge::graphStatus ProcessPseSparseMode8(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams);
