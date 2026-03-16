@@ -88,7 +88,7 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
         return ge::GRAPH_SUCCESS;
     }
 
-    OP_CHECK_IF((xDims != DIMS_THREE) && (xDims != DIMS_FOUR),
+    OP_CHECK_IF((xDims != TNN_DIMS) && (xDims != BSNN_DIMS),
                 OP_LOGE(context->GetNodeName(), "The dim of x should be 3 or 4, but got %lu", xDims),
                 return ge::GRAPH_FAILED);
 
