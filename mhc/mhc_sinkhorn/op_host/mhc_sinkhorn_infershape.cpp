@@ -62,7 +62,7 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
                 OP_LOGE(context->GetNodeName(), "The dim of x should be 3 or 4, but got %lu", xDims),
                 return ge::GRAPH_FAILED);
 
-    // Output shape is same as input x
+    // y shape is same as input x
     yShape->SetDimNum(xDims);
     for (size_t i = 0; i < xDims; ++i) {
         yShape->SetDim(i, xShape->GetDim(i));
