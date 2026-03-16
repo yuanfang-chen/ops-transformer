@@ -892,6 +892,30 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllGathe
 }
 
 template <TemplateDispatchTypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllgatherExecute()
+{
+    GlobalTensor<ExpandXOutType> tokGlobal;
+    GlobalTensor<ExpandXOutType> expandXOutGlobal;
+#if !(defined(ASCENDC_OOM) && ASCENDC_OOM == 1)
+    tokGlobal.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
+#endif
+    for (uint32_t i = 0; i < coreGatherCount; i++) {
+        tokGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(tpLocalWindowGM_ + (preCount + i) * hCommuSize_));
+        xTmpTensor_ = xQueue_.AllocTensor<ExpandXOutType>();
+        DataCopy(xTmpTensor_, tokGlobal, axisHCommu_);
+        xQueue_.EnQue(xTmpTensor_);
+        xTmpTensor_ = xQueue_.DeQue<ExpandXOutType>();
+        expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(expandXOutGM_ + (preCount + totalCnt_ + i) * hOutSize_));
+        DataCopy(expandXOutGlobal, xTmpTensor_, axisH_);
+        if constexpr (StaticQuant || DynamicQuant) {
+            xOutFp32Tensor_ = xTmpTensor_.template ReinterpretCast<float>();
+            DataCopyPad(dynamicScalesOutGMTensor_[preCount + totalCnt_ + i], xOutFp32Tensor_[axisH_ / sizeof(float)], dataCopyParamsFloat_);
+        }
+        xQueue_.FreeTensor(xTmpTensor_);
+    }
+}
+
+template <TemplateDispatchTypeClass>
 __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllgatherProcessOut()
 {
     if(startExpertId_ >=  totalExpertNum_) {
@@ -925,25 +949,9 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     if (coreGatherCount == 0) {
         return;
     }
-    GlobalTensor<ExpandXOutType> tokGlobal;
-    GlobalTensor<ExpandXOutType> expandXOutGlobal;
-#if !(defined(ASCENDC_OOM) && ASCENDC_OOM == 1)
-    tokGlobal.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
-#endif
-    for (uint32_t i = 0; i < coreGatherCount; i++) {
-        tokGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(tpLocalWindowGM_ + (preCount + i) * hCommuSize_));
-        xTmpTensor_ = xQueue_.AllocTensor<ExpandXOutType>();
-        DataCopy(xTmpTensor_, tokGlobal, axisHCommu_);
-        xQueue_.EnQue(xTmpTensor_);
-        xTmpTensor_ = xQueue_.DeQue<ExpandXOutType>();
-        expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(expandXOutGM_ + (preCount + totalCnt_ + i) * hOutSize_));
-        DataCopy(expandXOutGlobal, xTmpTensor_, axisH_);
-        if constexpr (StaticQuant || DynamicQuant) {
-            xOutFp32Tensor_ = xTmpTensor_.template ReinterpretCast<float>();
-            DataCopyPad(dynamicScalesOutGMTensor_[preCount + totalCnt_ + i], xOutFp32Tensor_[axisH_ / sizeof(float)], dataCopyParamsFloat_);
-        }
-        xQueue_.FreeTensor(xTmpTensor_);
-    }
+
+    AllgatherExecute()
+
 }
 
 // 更新多专家卡上的tokenNumsOut tensor

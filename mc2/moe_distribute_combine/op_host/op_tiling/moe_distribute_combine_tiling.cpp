@@ -225,16 +225,15 @@ static ge::graphStatus MoeDistributeCombineA2CheckShapeAndSetTiling(gert::Tiling
 }
 
 static ge::graphStatus MoeDistributeCombineA2GetPlatformInfoAndSetTiling(gert::TilingContext *context,
-                                                                         MoeDistributeCombineA2Info &info)
+    MoeDistributeCombineA2Info &info)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0U;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-
     info.aivNum = aivNum;
     info.totalUbSize = ubSize;
-
+    OP_LOGD("MoeDistributeCombine：GetPlatformInfo And SetTiling finished");
     OP_LOGD(K_INNER_DEBUG, "aivNum=%d", info.aivNum);
     OP_LOGD(K_INNER_DEBUG, "ubSize=%lu", info.totalUbSize);
 
@@ -287,7 +286,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckWinSize(const gert::TilingCont
     auto groupEp = context->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
     uint64_t hcclBuffSize = 0ULL;
     auto ret = mc2tiling::GetCclBufferSize(groupEp, &hcclBuffSize, nodeName);
-    OP_LOGD(nodeName, "HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
+    OP_LOGD("MoeDistributeCombine：HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
     OP_TILING_CHECK(ret != ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Get Ep hcclBuffSize failed.", hcclBuffSize),
                     return ge::GRAPH_FAILED);
     uint32_t epWorldSize = info.epWorldSize;
@@ -304,8 +303,8 @@ static ge::graphStatus MoeDistributeCombineA2CheckWinSize(const gert::TilingCont
         const uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
         minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE(nodeName,
-                    "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * maxBs "
+            OP_LOGE(
+                    "MoeDistributeCombine：HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * maxBs "
                     "* (h * 2 + 16 * ((k + 7) / 8 * 8)) / 1MB + 6MB) = %luMB, actual HCCL_BUFFSIZE = %luMB, "
                     "moeExpertNum = %u, maxBs = %lu, h = %u, k = %u.",
                     ops::CeilDiv(minHcclBuffSize, MB_SIZE), ops::CeilDiv(hcclBuffSize, MB_SIZE), info.moeExpertNum,
@@ -318,8 +317,8 @@ static ge::graphStatus MoeDistributeCombineA2CheckWinSize(const gert::TilingCont
         const uint64_t maxRecvTokenNum = maxBs * epWorldSize * std::min(localMoeExpertNum, info.k);
         minHcclBuffSize = BUFFER_NUM * (maxRecvTokenNum * perTokenSize + extraBuffSize);
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE(nodeName,
-                    "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE (%lu * (maxBs * epWorldSize * "
+            OP_LOGE(
+                    "MoeDistributeCombine：HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE (%lu * (maxBs * epWorldSize * "
                     "min(localMoeExpertNum, k) * h * 2 / 1MB + 2MB)) = %luMB, actual HCCL_BUFFSIZE = %luMB, maxBs = "
                     "%lu, epWorldSize = %u, localMoeExpertNum = %u, k = %u, h = %u.",
                     BUFFER_NUM, ops::CeilDiv(minHcclBuffSize, MB_SIZE), ops::CeilDiv(hcclBuffSize, MB_SIZE), maxBs,
@@ -329,6 +328,32 @@ static ge::graphStatus MoeDistributeCombineA2CheckWinSize(const gert::TilingCont
     }
     return ge::GRAPH_SUCCESS;
 }
+
+static ge::graphStatus MoeDistributeCombineA2CheckAll(gert::TilingContext *context, 
+    const int32_t commQuantMode, const bool isLayered) 
+{
+    const char *nodeName = context->GetNodeName();
+    MoeDistributeCombineA2TilingData *tilingData = context->GetTilingData<MoeDistributeCombineA2TilingData>();
+    MoeDistributeCombineA2Info &info = tilingData->moeDistributeCombineInfo;
+
+    OP_TILING_CHECK(MoeDistributeCombineA2CheckShapeAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckShapeAndSetTiling Failed"),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        MoeDistributeCombineA2CheckAttrAndSetTiling(context, info, commQuantMode, isLayered) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckAttrAndSetTiling Failed"),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(MoeDistributeCombineA2GetPlatformInfoAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 GetPlatformInfoAndSetTiling Failed"),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        MoeDistributeCombineA2CheckWinSize(context, nodeName, info, isLayered) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckWinSize Failed"),
+        return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 
 static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext *context)
 {
@@ -344,20 +369,11 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext 
     MoeDistributeCombineA2Info &info = tilingData->moeDistributeCombineInfo;
     bool isLayered = MoeDistributeCombineA2IsLayered();
     int32_t commQuantMode = 0;
-    OP_TILING_CHECK(MoeDistributeCombineA2CheckShapeAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
-        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckShapeAndSetTiling Failed"),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        MoeDistributeCombineA2CheckAttrAndSetTiling(context, info, commQuantMode, isLayered) != ge::GRAPH_SUCCESS,
-        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckAttrAndSetTiling Failed"),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(MoeDistributeCombineA2GetPlatformInfoAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
-        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 GetPlatformInfoAndSetTiling Failed"),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        MoeDistributeCombineA2CheckWinSize(context, nodeName, info, isLayered) != ge::GRAPH_SUCCESS,
-        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 CheckWinSize Failed"),
-        return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(MoeDistributeCombineA2CheckAll(context, commQuantMode, isLayered,); != ge::GRAPH_SUCCESS, 
+                    VECTOR_INNER_ERR_REPORT_TILING(nodeName, "MoeDistributeCombineA2 check failed"),
+                    return ge::GRAPH_FAILED);
+
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint32_t numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
