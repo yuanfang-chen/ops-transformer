@@ -567,6 +567,11 @@ auto cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
         if (addr == nullptr) {
             printf("addr == nullptr");
         } else {
+            auto shapeSize = static_cast<size_t>(cache_indices_tensor->GetShapeSize());
+            for (size_t i = 0; i < shapeSize; i++) {
+                printf("addr[%ld] = %ld", i, static_cast<int64_t>(addr[shapeSize]));
+            }
+            
             printf("addr != nullptr");
         }
     }
