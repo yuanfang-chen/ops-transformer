@@ -148,7 +148,6 @@ void FiaTilingNonQuant::GenTilingKey()
     uint8_t splitKvVal = static_cast<uint8_t>(kvSplit_ > static_cast<uint32_t>(0) ? 1 : 0);
     uint8_t paVal = static_cast<uint8_t>((fiaInfo_->pageAttentionFlag && fiaInfo_->s2Size != 0) ? 1 * 2 : 0);
     uint8_t softmaxBrcbFlagVal = static_cast<uint8_t>((softmaxWithBrcbFlag_) ? 1 * 4 : 0);
-    uint8_t antiquantModeVal = 0;
     uint64_t modeVal = 1;
     uint8_t kvLayoutVal = 0;
     
@@ -186,7 +185,7 @@ void FiaTilingNonQuant::GenTilingKey()
     uint64_t baseOffset =
         modeVal * FIA_TILINGKEYOFFSET + (static_cast<uint64_t>(perfMode_)) * FIA_PERF_MODE_TILINGKEYOFFSET;
     tilingKey_ = baseOffset + FIA_GET_TILINGKEY(layoutVal, inputQVal, inputKvVal, outputVal, originVal,
-        (softmaxBrcbFlagVal + paVal + splitKvVal), antiquantModeVal, kvLayoutVal);
+        (softmaxBrcbFlagVal + paVal + splitKvVal), 0, kvLayoutVal);
 
     OP_LOGI(fiaInfo_->opName, "FIA tilingKey_: %lu.", tilingKey_);
 }

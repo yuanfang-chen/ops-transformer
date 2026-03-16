@@ -29,11 +29,8 @@ const std::string BLOCK_TABLE_NAME = "block_table";
 const std::string DEQUANT_SCALE_QUERY_NAME = "the query's dequant scale";
 const std::string INNER_PRECISE_NAME = "inner_precise";
 const std::string KEY_NAME = "key";
-const std::string KEY_ANTIQUANT_MODE_NAME = "the key's quant mode";
-const std::string KEY_ANTIQUANT_OFFSET_NAME = "the key's quant offset";
-const std::string KEY_ANTIQUANT_SCALE_NAME = "the key's quant scale";
+
 const std::string KEY_ROPE_NAME = "key_rope";
-const std::string KEY_ROPE_ANTIQUANT_SCALE_NAME = "the key_rope's dequant scale";
 const std::string KV_HEADS_NUM_NAME = "the key/value's heads num";
 const std::string NEXT_TOKENS_NAME = "next_tokens";
 const std::string PRE_TOKENS_NAME = "pre_tokens";
@@ -47,13 +44,7 @@ const std::string QUERY_ROPE_NAME = "query_rope";
 const std::string SOFTMAX_SCALE_NAME = "the softmax's scale";
 const std::string SPARSE_MODE_NAME = "sparse_mode";
 const std::string VALUE_NAME = "value";
-const std::string VALUE_ANTIQUANT_MODE_NAME = "the value's quant mode";
-const std::string VALUE_ANTIQUANT_OFFSET_NAME = "the value's dequant offset";
-const std::string VALUE_ANTIQUANT_SCALE_NAME = "the value's dequant scale";
 
-const std::string ANTIQUANT_MODE_NAME = "antiquant_mode";
-const std::string ANTIQUANT_SCALE_NAME = "antiquant_scale";
-const std::string ANTIQUANT_OFFSET_NAME = "antiquant_offset";
 const std::string DEQUANT_SCALE1_NAME = "dequant_scale1";
 const std::string DEQUANT_SCALE2_NAME = "dequant_scale2";
 const std::string KEY_SHARED_PREFIX_NAME = "key_shared_prefix";
@@ -190,21 +181,17 @@ struct FIAParaInfo {
     FIAOptionalParaInfo deqScale2 = {nullptr, nullptr};
     FIAOptionalParaInfo quantScale2 = {nullptr, nullptr};
     FIAOptionalParaInfo quantOffset2 = {nullptr, nullptr};
-    FIAOptionalParaInfo antiquantScale = {nullptr, nullptr};
-    FIAOptionalParaInfo antiquantOffset = {nullptr, nullptr};
+
     FIAOptionalParaInfo blockTable = {nullptr, nullptr};
     FIAOptionalParaInfo queryPaddingSize = {nullptr, nullptr};
     FIAOptionalParaInfo kvPaddingSize = {nullptr, nullptr};
-    FIAOptionalParaInfo keyAntiquantScale = {nullptr, nullptr};
-    FIAOptionalParaInfo keyAntiquantOffset = {nullptr, nullptr};
-    FIAOptionalParaInfo valueAntiquantScale = {nullptr, nullptr};
-    FIAOptionalParaInfo valueAntiquantOffset = {nullptr, nullptr};
+
     FIAOptionalParaInfo keySharedPrefix = {nullptr, nullptr};
     FIAOptionalParaInfo valueSharedPrefix = {nullptr, nullptr};
     FIAOptionalParaInfo actualSharedPrefixLen = {nullptr, nullptr};
     FIAOptionalParaInfo queryRope = {nullptr, nullptr};
     FIAOptionalParaInfo keyRope = {nullptr, nullptr};
-    FIAOptionalParaInfo keyRopeAntiquantScale = {nullptr, nullptr};
+
     FIAOptionalParaInfo dequantScaleQuery = {nullptr, nullptr};
     FIAOptionalParaInfo learnableSink = {nullptr, nullptr};
 
@@ -219,10 +206,9 @@ struct FIAParaInfo {
     const char *layOut = nullptr;
     const int32_t *blockSize = nullptr;
     const int32_t *innerPrecise = nullptr;
-    const int64_t *antiquantMode = nullptr;
+
     const bool *softmaxLseFlag = nullptr;
-    const int64_t *keyAntiquantMode = nullptr;
-    const int64_t *valueAntiquantMode = nullptr;
+
     const int32_t *sparseMode = nullptr;
     const int64_t *queryQuantMode = nullptr;
 };
@@ -265,13 +251,7 @@ public:
     uint32_t maxBlockNumPerBatch = 0;
     uint32_t totalBlockNum = 0;
 
-    // antiquant
-    bool antiQuantFlag = false;
-    uint32_t msdIterNum = 1;
-    uint32_t antiqSeqSize = 0;
-    uint32_t antiquantMode = 0;
-    uint32_t keyAntiquantMode = 0;
-    uint32_t valueAntiquantMode = 0;
+
 
     // SysTem Prefix
     bool sysPrefixFlag = false;
