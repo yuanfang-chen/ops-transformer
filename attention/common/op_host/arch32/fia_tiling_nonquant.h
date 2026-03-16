@@ -63,7 +63,6 @@ private:
     void FillTilingLeftPaddingParams();
     void FillTilingWorkspaceParams();
     void FillTilingFeatureParams();
-    void FillTilingPostQuantParams();
     void FillTiling();
 
     uint32_t CalcFlashDecodeParamNums(const uint32_t coreNum) const;

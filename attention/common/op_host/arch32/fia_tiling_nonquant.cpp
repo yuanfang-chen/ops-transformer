@@ -228,7 +228,7 @@ bool FiaTilingNonQuant::IsHighPerformanceTemplate() const
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_64 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_64) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_192 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128)) {
-        if (!(fiaInfo_->sysPrefixFlag || fiaInfo_->pseShiftFlag || fiaInfo_->kvPaddingSizeFlag || fiaInfo_->qPaddingSizeFlag)) {
+        if (!(fiaInfo_->sysPrefixFlag ||  fiaInfo_->kvPaddingSizeFlag || fiaInfo_->qPaddingSizeFlag)) {
             return true;
         }
     }
@@ -490,7 +490,6 @@ void FiaTilingNonQuant::FillTilingBaseParams()
     tilingData_.baseParams.set_accumQSeqFlag(fiaInfo_->isAccumQSeq ? 1 : 0);
     tilingData_.baseParams.set_accumKVSeqFlag(fiaInfo_->isAccumKVSeq ? 1 : 0);
     tilingData_.baseParams.set_outputLayout(static_cast<uint32_t>(fiaInfo_->outputLayout));
-    tilingData_.baseParams.set_softmaxLseFlag(fiaInfo_->softmaxLseFlag ? 1 : 0);
     tilingData_.baseParams.set_usedCoreNum(usedCoreNum_);
     l2CacheOffFlag_ = GetL2CacheOffFlag();
     tilingData_.baseParams.set_l2CacheOffFlag(l2CacheOffFlag_);
@@ -522,11 +521,7 @@ void FiaTilingNonQuant::FillTilingLeftPaddingParams()
     tilingData_.leftPaddingParams.set_kvPaddingFlag(fiaInfo_->kvPaddingSizeFlag ? 1 : 0);
 }
 
-void FiaTilingNonQuant::FillTilingPostQuantParams()
-{
-    tilingData_.postquantParams.set_isPerChnOut(fiaInfo_->isOutQuantPerChnOut);
-    tilingData_.postquantParams.set_isOutQuantTypeBf16(fiaInfo_->isOutQuantTypeBf16);
-}
+
 
 // for flash decode
 void FiaTilingNonQuant::FillTilingWorkspaceParams()
@@ -542,10 +537,7 @@ void FiaTilingNonQuant::FillTilingFeatureParams()
     tilingData_.prefixParams.set_prefixMaxLen(fiaInfo_->systemPrefixMaxLen);
     tilingData_.prefixParams.set_prefixLen(fiaInfo_->systemPrefixLen);
     tilingData_.prefixParams.set_prefixFlag(fiaInfo_->sysPrefixFlag);
-    tilingData_.pseParams.set_pseShiftFlag(fiaInfo_->pseShiftFlag);
-    tilingData_.pseParams.set_pseShiftByBatch(fiaInfo_->pseShiftByBatch);
-    tilingData_.pseParams.set_pseShiftS1(fiaInfo_->pseShiftS1);
-    tilingData_.pseParams.set_pseShiftS2(fiaInfo_->pseShiftS2);
+
 }
 void FiaTilingNonQuant::CalcMmResSize()
 {
@@ -567,7 +559,6 @@ void FiaTilingNonQuant::FillTiling()
     FillTilingPageAttenParams();
     FillTilingMaskParams();
     FillTilingLeftPaddingParams();
-    FillTilingPostQuantParams();
     FillTilingWorkspaceParams();
     FillTilingFeatureParams();
 }

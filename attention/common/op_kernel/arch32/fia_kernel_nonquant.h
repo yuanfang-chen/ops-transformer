@@ -73,19 +73,25 @@ protected:
     static constexpr FIA_LAYOUT KV_LAYOUT_T = FIAT::kvLayout;
     static constexpr ActualSeqLensMode Q_MODE = GetQActSeqMode<LAYOUT_T>();
     static constexpr ActualSeqLensMode KV_MODE = GetKvActSeqMode<LAYOUT_T, PAGE_ATTENTION>();
-    static constexpr bool QUANT = (IsSameType<Q_T, KV_T>::value && IsSameType<KV_T, int8_t>::value);
-    static constexpr uint8_t PER_CHANNEL_MODE = 0; // 伪量化: K V per-channel
-    static constexpr uint8_t ANTIQUANT_MODE = FIAT::antiquantMode;
-    static constexpr bool ANTIQUANT = !IsSameType<Q_T, KV_T>::value;
-    static constexpr bool ANTIQUANT_PER_CHANNEL = (ANTIQUANT && (ANTIQUANT_MODE == PER_CHANNEL_MODE));
-    using Q_ROPE_T = typename AscendC::Conditional<ANTIQUANT, Q_T, ORIGIN_T>::type;
-    using K_ROPE_T = typename AscendC::Conditional<ANTIQUANT, KV_T, ORIGIN_T>::type;    
 
-    using UPDATE_T = typename AscendC::Conditional<QUANT || ANTIQUANT, half, T>::type;
-    using TMP_T = typename AscendC::Conditional<ANTIQUANT, half, T>::type;
-    using MM1_OUT_T = typename AscendC::Conditional<QUANT, int32_t, TMP_T>::type;
-    using MM2_OUT_T = typename AscendC::Conditional<QUANT, half, TMP_T>::type;
-    using PSE_T = typename AscendC::Conditional<IsSameType<Q_T, int8_t>::value, half, Q_T>::type;
+
+
+
+    using Q_ROPE_T = ORIGIN_T;
+
+    using K_ROPE_T =  ORIGIN_T;   
+
+
+    using UPDATE_T = T;
+
+    using TMP_T = T;
+
+    using MM1_OUT_T = TMP_T;
+
+    using MM2_OUT_T = TMP_T;
+    
+    
+
 
     // ==============================Service Define==============================
     CubeBlockType matmulService;
@@ -105,7 +111,7 @@ protected:
     static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
     static constexpr int64_t fdPrefetchLen = 2;
 
-    static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
+
     static constexpr float FLOAT_MIN = -3.4e+38F;
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
@@ -113,8 +119,8 @@ protected:
 
     // ================================Required Global Tensor=================================
     GlobalTensor<OUT_T> attentionOutGm;
-    GlobalTensor<float> softmaxLseGm;
-    GlobalTensor<bfloat16_t> sinkGm;
+
+    GlobalTensor<bfloat16_t> sinkGm; 
 
     __gm__ uint8_t *keyPtr = nullptr;
     __gm__ uint8_t *valuePtr = nullptr;
@@ -122,15 +128,10 @@ protected:
     __gm__ uint8_t *value_ = nullptr;
 
     // ================================Optional Global Tensor=================================
-    GlobalTensor<PSE_T> pseShiftGm;
     // actual seq lens
     GlobalTensor<uint64_t> actualSeqLengthsGmQ;
     GlobalTensor<uint64_t> actualSeqLengthsGm;
-    // post quant
-    GlobalTensor<float> quantScale2Gm;
-    GlobalTensor<float> quantOffset2Gm;
-    GlobalTensor<bfloat16_t> quantScale2Bf16Gm;
-    GlobalTensor<bfloat16_t> quantOffset2Bf16Gm;
+
     // block table
     GlobalTensor<int32_t> blockTableGm;
     // share prefix
@@ -246,12 +247,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
     constInfo.isExistRowInvalid = (tilingData->maskParams.isExistRowInvalid != 0);
     constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
-    constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
-    constInfo.pseShiftFlag = tilingData->pseParams.pseShiftFlag;
-    constInfo.pseShiftByBatch = tilingData->pseParams.pseShiftByBatch;
-    constInfo.pseShiftS1 = tilingData->pseParams.pseShiftS1;
-    constInfo.pseShiftS2 = tilingData->pseParams.pseShiftS2;
 
     constInfo.maxBlockNumPerBatch = tilingData->pageAttenParams.maxBlockNumPerBatch;
     constInfo.kvCacheBlockSize = tilingData->pageAttenParams.blockSize;
@@ -282,9 +278,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.systemPrefixMaxLen = tilingData->prefixParams.prefixMaxLen;
     constInfo.systemPrefixFlag = tilingData->prefixParams.prefixFlag;
     constInfo.systemPrefixLen = tilingData->prefixParams.prefixLen;
-
-    constInfo.isPostQuantPerChn = tilingData->postquantParams.isPerChnOut;
-    constInfo.isPostQuantTypeBf16 = tilingData->postquantParams.isOutQuantTypeBf16;
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -338,19 +331,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         }
 
-        if (constInfo.softmaxLseFlag) {
-            // 兼容性考虑，IFA的LSE初值设置为-3.4e38，PFA设置为3e+99
-            float lseInitValue = constInfo.isLegacyIfa ? static_cast<float>(FLOAT_MIN) : static_cast<float>(constInfo.FLOAT_INF);
-            uint64_t totalLseSize = tSize * constInfo.qHeadNum;
-            uint64_t singleCoreLseSize = (totalLseSize + (2 * usedCoreNum) - 1) / (2 * usedCoreNum); // 2 means c:v = 1:2;
-            uint64_t tailLseSize = totalLseSize - tmpBlockIdx * singleCoreLseSize;
-            uint64_t singleInitOutputLseSize = tailLseSize < singleCoreLseSize ? tailLseSize : singleCoreLseSize;
-            WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-            if (tmpBlockIdx * singleCoreLseSize < totalLseSize && singleInitOutputLseSize > 0) {
-                matmul::InitOutput<float>(softmaxLseGm[tmpBlockIdx * singleCoreLseSize], singleInitOutputLseSize, lseInitValue);
-            }
-            SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-        }
         WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         SyncAll();
     }
@@ -456,9 +436,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
     // init global buffer
     attentionOutGm.SetGlobalBuffer((__gm__ OUT_T *)attentionOut);
-    if (constInfo.softmaxLseFlag) {
-        softmaxLseGm.SetGlobalBuffer((__gm__ float *)softmaxLse);
-    }
+
 
     if (constInfo.isQHasLeftPadding) {
         // left padding
@@ -482,13 +460,11 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
     if ASCEND_IS_AIC {
         matmulService.InitParams(constInfo);
-        matmulService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
-            deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
+        matmulService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
             blockTable, queryPaddingSize, kvPaddingSize,
-            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
-            queryRope, keyRope, keyRopeAntiquantScale,
-            attentionOut, softmaxLse);
+            queryRope, keyRope, 
+            attentionOut);
         matmulService.InitMm1GlobalTensor(mm1ResGm);
         matmulService.InitMm2GlobalTensor(vec1ResGm, mm2ResGm);
     } else {
@@ -496,22 +472,17 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm, 
                                        actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
-            if (constInfo.softmaxLseFlag) {
-                fdService.InitSoftmaxLseGm(softmaxLseGm);
-            }
             if (learnableSink != nullptr) {
                 sinkGm.SetGlobalBuffer((__gm__ bfloat16_t *)learnableSink);
                 fdService.InitLearnableSinkGm(sinkGm);
             }
         }
         vectorService.InitParams(constInfo);
-        vectorService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
-            deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,
+        vectorService.Init(query, key, value, attenMask, actualSeqLengthsQ, actualSeqLengths,
             blockTable, queryPaddingSize, kvPaddingSize,
-            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
             keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,
-            queryRope, keyRope, keyRopeAntiquantScale, learnableSink,
-            attentionOut, softmaxLse);
+            queryRope, keyRope,  learnableSink,
+            attentionOut);
         vectorService.InitVec1GlobalTensor(vec1ResGm, mm1ResGm);
         vectorService.InitVec2GlobalTensor(vec2ResGm, mm2ResGm);
         vectorService.InitFlashDecodeGlobalTensor(accumOutGm, lseMaxFdGm, lseSumFdGm);
@@ -786,11 +757,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     uint32_t bIdx = GetBIdx(bN2Cur);
 
     // 对整个batch的结果置0
-    if constexpr (POST_QUANT) { // out int8
-        if ASCEND_IS_AIV {
-            vectorService.DealZeroActSeqLenWithPostQuant(bIdx, n2Idx);
-        }
-    } else {
+
         if (constInfo.outputLayout == FIA_LAYOUT::BSND || constInfo.outputLayout == FIA_LAYOUT::BSH) {
             OffsetCalculator<GmFormat::BSNGD> offsetCalculator;
             offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize, constInfo.qSeqSize, constInfo.headDim, 
@@ -815,7 +782,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims);
             DealActSeqLenIsZero<GmFormat::NGTD, OUT_T>(bIdx, n2Idx, offsetCalculator, attentionOutGm);
         }
-    }
+    
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
