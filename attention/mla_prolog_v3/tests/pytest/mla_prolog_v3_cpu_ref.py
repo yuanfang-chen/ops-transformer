@@ -1563,68 +1563,62 @@ def _run_npu_op(npu_inputs, params):
     return [t.detach().cpu() if isinstance(t, torch.Tensor) else t for t in result_list]
 
 
+def _npu_worker(npu_inputs, params, conn):
+    """Spawn-target: run NPU op and send results back via *conn*."""
+    try:
+        result = _run_npu_op(npu_inputs, params)
+        conn.send(('ok', result))
+    except Exception as e:
+        try:
+            import torch
+            torch.npu.synchronize()
+        except Exception:
+            pass
+        # Some CANN exceptions are not picklable; fall back to RuntimeError
+        try:
+            conn.send(('error', e))
+        except Exception:
+            conn.send(('error', RuntimeError(f"{type(e).__name__}: {e}")))
+    finally:
+        conn.close()
+
+
 def _run_npu_isolated(npu_inputs, params):
-    """Run _run_npu_op in a forked child process for device error isolation.
+    """Run _run_npu_op in a spawned subprocess for device error isolation.
 
     CANN's sticky error model means a kernel failure puts the device into an
     error state that persists for the lifetime of the process — there is no
-    Python-level API to clear it (aclrtResetDevice is C++ only).  By forking
-    a child for each NPU invocation, a kernel crash is confined to the child;
-    the parent (pytest runner) never touches the device and stays clean.
+    Python-level API to clear it (aclrtResetDevice is C++ only).
+
+    We use multiprocessing with 'spawn' (not fork) because torch_npu starts
+    background threads on import; os.fork() after that inherits locked mutexes
+    and deadlocks.  'spawn' starts a fresh interpreter per invocation, which
+    also guarantees a clean CANN device context every time.
     """
-    import pickle
+    import multiprocessing as mp
 
-    r_fd, w_fd = os.pipe()
-    pid = os.fork()
+    ctx = mp.get_context('spawn')
+    parent_conn, child_conn = ctx.Pipe()
+    p = ctx.Process(target=_npu_worker, args=(npu_inputs, params, child_conn))
+    p.start()
+    child_conn.close()  # parent doesn't write
 
-    if pid == 0:
-        # ---- child process ----
-        os.close(r_fd)
-        try:
-            result = _run_npu_op(npu_inputs, params)
-            data = pickle.dumps(('ok', result))
-        except Exception as e:
-            try:
-                torch.npu.synchronize()
-            except Exception:
-                pass
-            data = pickle.dumps(('error', e))
+    # Read result BEFORE join to avoid pipe-buffer deadlock on large tensors
+    try:
+        if parent_conn.poll(timeout=600):
+            tag, payload = parent_conn.recv()
+        else:
+            p.kill()
+            p.join()
+            raise RuntimeError("NPU subprocess timed out (600s)")
+    finally:
+        parent_conn.close()
 
-        # Write all data to pipe (may require multiple writes)
-        view = memoryview(data)
-        while view:
-            n = os.write(w_fd, view[:1 << 20])
-            view = view[n:]
-        os.close(w_fd)
-        os._exit(0)
-    else:
-        # ---- parent process ----
-        os.close(w_fd)
-        chunks = []
-        while True:
-            chunk = os.read(r_fd, 1 << 20)
-            if not chunk:
-                break
-            chunks.append(chunk)
-        os.close(r_fd)
-        _, status = os.waitpid(pid, 0)
+    p.join()
 
-        data = b''.join(chunks)
-        if not data:
-            if os.WIFSIGNALED(status):
-                sig = os.WTERMSIG(status)
-                raise RuntimeError(
-                    f"NPU subprocess killed by signal {sig}"
-                )
-            raise RuntimeError(
-                f"NPU subprocess exited with code {os.WEXITSTATUS(status)} "
-                f"without sending results"
-            )
-
-        tag, payload = pickle.loads(data)
-        if tag == 'error':
-            raise payload
-        return payload
+    if tag == 'error':
+        raise payload
+    return payload
 
 
 def test_mla_prolog_v3(params):
