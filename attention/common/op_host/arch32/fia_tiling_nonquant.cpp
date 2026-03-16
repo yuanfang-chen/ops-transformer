@@ -521,11 +521,7 @@ void FiaTilingNonQuant::FillTilingLeftPaddingParams()
     tilingData_.leftPaddingParams.set_kvPaddingFlag(fiaInfo_->kvPaddingSizeFlag ? 1 : 0);
 }
 
-void FiaTilingNonQuant::FillTilingPostQuantParams()
-{
-    tilingData_.postquantParams.set_isPerChnOut(fiaInfo_->isOutQuantPerChnOut);
-    tilingData_.postquantParams.set_isOutQuantTypeBf16(fiaInfo_->isOutQuantTypeBf16);
-}
+
 
 // for flash decode
 void FiaTilingNonQuant::FillTilingWorkspaceParams()
@@ -563,7 +559,6 @@ void FiaTilingNonQuant::FillTiling()
     FillTilingPageAttenParams();
     FillTilingMaskParams();
     FillTilingLeftPaddingParams();
-    FillTilingPostQuantParams();
     FillTilingWorkspaceParams();
     FillTilingFeatureParams();
 }
