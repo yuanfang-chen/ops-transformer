@@ -84,9 +84,7 @@ void FiaTilingEmptyTensor::FillTiling()
     if (totalOutputSize > fiaInfo_->totalOutputSize) {
         totalOutputSize = fiaInfo_->totalOutputSize;
     }
-    if (fiaInfo_->isOutQuantEnable) {
-        totalOutputSize = totalOutputSize / 2UL;
-    }
+
     singleCoreSize = (totalOutputSize + (2UL * usedCoreNum_) - 1UL) / (2UL * usedCoreNum_);
     if (fiaInfo_->softmaxLseFlag) {
         totalLseSize = tSize * fiaInfo_->n1Size;
