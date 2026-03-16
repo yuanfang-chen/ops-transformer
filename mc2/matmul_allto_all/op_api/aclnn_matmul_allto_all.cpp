@@ -14,7 +14,7 @@
 #include "common/utils/op_mc2.h"
 #include "acl/acl.h"
 #include "aclnn_kernels/common/op_error_check.h"
-#include "common/op_mc2_def.h"
+#include "common/utils/op_mc2_def.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_dfx.h"

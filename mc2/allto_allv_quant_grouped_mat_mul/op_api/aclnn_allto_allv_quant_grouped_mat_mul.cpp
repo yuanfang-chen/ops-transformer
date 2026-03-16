@@ -12,7 +12,7 @@
 #include "securec.h"
 #include "common/utils/op_mc2.h"
 #include "acl/acl.h"
-#include "common/op_mc2_def.h"
+#include "common/utils/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
