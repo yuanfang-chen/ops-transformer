@@ -260,7 +260,7 @@ private:
         }
         Stage2 stageTwoOp;
         StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
-                                          attnInter_, vNew_, &stage2MT_, pipe_, &cg,
+                                          attnInter_, stageWsAddr_, &stage2MT_, pipe_, &cg,
                                           tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
         stageTwoOp_.Init(&initStageTwoParams, tiling_->aiCoreNum);
         stageTwoOp_.Process();
