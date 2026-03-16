@@ -67,15 +67,6 @@
         op.InitQuant(deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2);                                \
         op.Process();                                                                                                   \
     } while (0)
-#define INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(templateClass, ...)                                                              \
-    do {                                                                                                                \
-        if (query == nullptr) {return;}                                                                                 \
-        INVOKE_PFA_TILING_DATA_BASE_API(tiling);                                                                        \
-        templateClass<__VA_ARGS__> op;                                                                                  \
-        op.Init(query, key, value, pseShift, attenMask, actualSeqLengths, actualSeqLengthsKV, blocktable, queryPaddingSize,         \
-                kvPaddingSize, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, attentionOut, softmaxLse, user, tiling_data, tiling, nullptr, \
-                deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2, nullptr);                                    \
-    } while (0)
 #ifdef __DAV_C220_CUBE__
 #define INVOKE_PFA_TILING_DATA(tiling)                                                                                 \
     GET_TILING_DATA_MEMBER(BlitzSparseAttentionTilingData, bmm1TilingDataRect, bmm1TilingData, tiling);                \
@@ -83,29 +74,13 @@
     const TCubeTiling* __restrict bmm1tiling = &bmm1TilingData;                                                        \
     const TCubeTiling* __restrict bmm2tiling = &bmm2TilingData;                                                        \
     const BlitzSparseAttentionTilingData* __restrict tiling_data = nullptr
-
-#define INVOKE_PFA_TILING_DATA_BASE_API(tiling)                                                                        \
-    GET_TILING_DATA_WITH_STRUCT(BlitzSparseAttentionBaseApiTilingData, tiling_data_in, tiling);                        \
-    const BlitzSparseAttentionBaseApiTilingData* __restrict tiling_data = &tiling_data_in
 #else
 #define INVOKE_PFA_TILING_DATA(tiling)                                                                                 \
     GET_TILING_DATA_WITH_STRUCT(BlitzSparseAttentionTilingData, tiling_data_in, tiling);                               \
     const BlitzSparseAttentionTilingData* __restrict tiling_data = &tiling_data_in;                                    \
     const TCubeTiling* __restrict bmm1tiling = &(tiling_data->bmm1TilingDataRect);                                     \
     const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect)
-
-#define INVOKE_PFA_TILING_DATA_BASE_API(tiling)                                                                        \
-    GET_TILING_DATA_WITH_STRUCT(BlitzSparseAttentionBaseApiTilingData, tiling_data_in, tiling);                        \
-    const BlitzSparseAttentionBaseApiTilingData* __restrict tiling_data = &tiling_data_in
 #endif
-#define INVOKE_PFA_NEW_GQA_OP_IMPL(templateClass, ...)                                                                 \
-    do {                                                                                                               \
-        if (query == nullptr) {return;}                                                                              \
-        INVOKE_PFA_TILING_DATA_BASE_API(tiling);                                                                                \
-        templateClass<__VA_ARGS__> op;                                                                          \
-        op.Init(query, key, value, attenMask, actualSeqLengths, actualSeqLengthsKV, attentionOut, user, tiling_data);                                 \
-        op.Process();                                                                                                  \
-    } while (0)
 
 
 constexpr uint32_t FLOATBYTENUM = 8;
@@ -228,16 +203,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
                     INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionS1s2Bns1X910, PFAType<LAYOUT_DTYPE, Q_DTYPE, uint8_t>);
                 }
             }
-            else if ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 2) && (P_CVDIFF_MLA_FLAG == 0)   
-                && (KV_T == 0) && (P_TEMPLATE_VERSION == 2)){
-                REGISTER_TILING_FOR_TILINGKEY("TRUE", BlitzSparseAttentionBaseApiTilingData);
-                INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(BlitzSparseAttentionBaseApiHighPrecisionNoMask, PFAHighPrecisionBaseType<BlitzSparseAttentionBaseApiTilingData, float, half, half, half, half, float>);
-            }
-            else if ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 0) && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0)   
-                && (KV_T == 0) && (P_TEMPLATE_VERSION == 2)){
-                REGISTER_TILING_FOR_TILINGKEY("TRUE", BlitzSparseAttentionBaseApiTilingData);
-                INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(BlitzSparseAttentionBaseApiHighPerformance, PFATypeNew<BlitzSparseAttentionBaseApiTilingData, Q_DTYPE, half, OUT_DTYPE, half, half, float, half>);
-            }
             if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0 || Q_T == 6) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 0 || M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 0)   
                 && (LAYOUT_T == 0 || LAYOUT_T == 1) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 0 || M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 1 || M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 2 || M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0 || PAGE_ATTENTIOND == 1) && (ENABLE_PREFIX == 0 || ENABLE_PREFIX == 1)   
                 && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0 || M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 1) && (P_CVDIFF_BASE_FLAG == 0) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0 || KV_T == 4 || KV_T == 8) && (P_TEMPLATE_VERSION == 1 || P_TEMPLATE_VERSION == 2)){
@@ -303,11 +268,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
                         INVOKE_PFA_KVANTIQUANT_OP_IMPL(BlitzSparseAttentionS1s2Bns1X910, PFAType<LAYOUT_DTYPE, Q_DTYPE, bool, OUT_DTYPE, int8_t>);
                     }
                 }   
-                else if ((P_TEMPLATE_VERSION == 2) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE) && (OUT_T == 0)
-                && (LAYOUT_T == 0) && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0) && (ENABLE_PREFIX == 0) && (M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE == 0) && (P_CVDIFF_MLA_FLAG == 0) && (KV_T == 0)){
-                    REGISTER_TILING_FOR_TILINGKEY("TRUE", BlitzSparseAttentionBaseApiTilingData);
-                    INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(BlitzSparseAttentionBaseApiHighPrecisionV, PFATypeNew<BlitzSparseAttentionBaseApiTilingData, Q_DTYPE, half, OUT_DTYPE, float, half, float, half, OptimizationMode::HighPrecision>);
-                }
             }
 
             if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 0 || Q_T == 6) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 2)   
@@ -350,17 +310,6 @@ __global__ __aicore__ void blitz_sparse_attention_FIAS(__gm__ uint8_t* query, __
             && (P_CVDIFF_BASE_FLAG == 0)  && (P_CVDIFF_MLA_FLAG == 0)){
                     // BNSD layout, split NS with tail
                 INVOKE_PFA_GENERAL_OP_IMPL(BlitzSparseAttentionBNSTillingNSWithBNSDTail, bfloat16_t, bool, CubeFormat::ND, bfloat16_t);
-            }
-            else if ((P_TEMPLATE_VERSION == 2) && (P_CVDIFF_MLA_FLAG == 0) && (P_CVDIFF_BASE_FLAG == 2) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 1) && (OUT_T == 1) && (LAYOUT_T == 0) 
-            && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0)){
-                REGISTER_TILING_FOR_TILINGKEY("TRUE", BlitzSparseAttentionBaseApiTilingData);
-                INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(BlitzSparseAttentionBaseApiHighPrecisionNoMask, PFAHighPrecisionBaseType<BlitzSparseAttentionBaseApiTilingData, float, bfloat16_t, bfloat16_t, bfloat16_t, bfloat16_t, float>);
-            }
-            else if ((P_TEMPLATE_VERSION == 2) && (P_CVDIFF_MLA_FLAG == 0) && (P_CVDIFF_BASE_FLAG == 0) && (M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 1) && (OUT_T == 1) && (LAYOUT_T == 0) 
-            && (M_FIAFLAG_P_MMTYPETMP_I_MODEVAL == 4) && (PAGE_ATTENTIOND == 0)){
-                REGISTER_TILING_FOR_TILINGKEY("TRUE", BlitzSparseAttentionBaseApiTilingData);
-                INVOKE_PFA_GENERAL_OP_IMPL_BASE_API(BlitzSparseAttentionBaseApiHighPrecisionV,
-                                                    PFATypeNew<BlitzSparseAttentionBaseApiTilingData, bfloat16_t, bfloat16_t, bfloat16_t, float, bfloat16_t, float, bfloat16_t, OptimizationMode::HighPrecision>);
             }
 
             if constexpr ((M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T == 2) && (M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA == 1) && (Q_T == 1) && (M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE == 1) && (OUT_T == 1)   
