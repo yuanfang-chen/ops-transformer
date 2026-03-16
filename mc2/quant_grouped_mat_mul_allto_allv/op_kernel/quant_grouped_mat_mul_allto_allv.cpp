@@ -83,15 +83,24 @@ __global__ __aicore__ void quant_grouped_mat_mul_allto_allv(
     constexpr bool IS_SHARED_EXPERT = true;
     constexpr bool IS_NOT_SHARED_EXPERT = false;
 
+    // 根据 tiling key 量化模式选择 scaleType
+    using GmmScaleType = typename AscendC::Conditional<
+        TILINGKEY_GMM_QUANT_MODE == QUANT_MODE_MX,
+        AscendC::fp8_e8m0_t, float>::type;
+    using SharedMmScaleType = typename AscendC::Conditional<
+        TILINGKEY_SHARED_MM_QUANT_MODE == QUANT_MODE_MX,
+        AscendC::fp8_e8m0_t, float>::type;
+
     using HcclOpType = HcclA2avOp<DTYPE_Y, false>;
-    using GmmASWKernelType = Mc2GroupedMatmul::Mc2GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_Y,
+    using GmmASWKernelType = Mc2GroupedMatmul::Mc2GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
+        float, GmmScaleType, DTYPE_Y,
         W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
     using ComputeOpType =
-        QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, DTYPE_Y,
-        CubeFormat::ND, false, TILINGKEY_GROUPED_MATMUL_TRANS, false, false>;
+        QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT, GmmScaleType,
+        DTYPE_Y, CubeFormat::ND, false, TILINGKEY_GROUPED_MATMUL_TRANS, false, false>;
     using SharedGmmExpertOpType =
-        QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, DTYPE_Y,
-        CubeFormat::ND, false, TILINGKEY_MATMUL_TRANS, true, false>;
+        QuantGroupedMatmul<QuantGmmA2avTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
+        SharedMmScaleType, DTYPE_Y, CubeFormat::ND, false, TILINGKEY_MATMUL_TRANS, true, false>;
     using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType,
         SharedGmmExpertOpType, TILINGKEY_COMPUTE_MATMUL>;
     // hccl

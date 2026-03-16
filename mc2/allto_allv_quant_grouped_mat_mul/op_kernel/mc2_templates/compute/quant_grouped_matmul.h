@@ -44,6 +44,8 @@ public:
         wGM_ = weightGM;
         xScaleGM_ = xScaleGM;
         weightScaleGM_ = weightScaleGM;
+        xScaleBaseGM_ = xScaleGM;
+        weightScaleBaseGM_ = weightScaleGM;
         yGM_ = yGM;
         tilingData_ = tilingData;
         tPipe_ = tPipe;
@@ -129,6 +131,39 @@ protected:
         xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * h1_);
         wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * h1_ * n1_);
         yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * n1_);
+
+        if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+            // 应用当前累积偏移，得到当前 expert 的 scale 起始地址
+            xScaleGM_ = reinterpret_cast<GM_ADDR>(
+                reinterpret_cast<__gm__ scaleType *>(xScaleBaseGM_) + xScaleExpertOffset_);
+            weightScaleGM_ = reinterpret_cast<GM_ADDR>(
+                reinterpret_cast<__gm__ scaleType *>(weightScaleBaseGM_) + wScaleExpertOffset_);
+
+            // 累积偏移以供下一个 expert 使用
+            if constexpr (!aTrans) {
+                // scale shape: (M, ceil(K/64), 2)
+                uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
+                    Mc2QuantUtils::CeilDiv(h1_, Mc2QuantUtils::MXFP_DIVISOR_SIZE);
+                wScaleExpertOffset_ += expertTokenNum_[expertIdx] * scaleK;  // A-scale
+                if (gmmTilingData_->gmmQuantParams.singleW == 0) {
+                    xScaleExpertOffset_ += n1_ * scaleK;  // B-scale
+                }
+            } else if constexpr (aTrans && !bTrans) {
+                wScaleExpertOffset_ += expertTokenNum_[expertIdx] * Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
+                if (gmmTilingData_->gmmQuantParams.singleW == 0) {
+                    xScaleExpertOffset_ += n1_ * Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
+                }
+            } else {
+                // aTrans && bTrans
+                uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
+                    Mc2QuantUtils::CeilDiv(h1_, Mc2QuantUtils::MXFP_DIVISOR_SIZE);
+                wScaleExpertOffset_ += expertTokenNum_[expertIdx] * Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
+                if (gmmTilingData_->gmmQuantParams.singleW == 0) {
+                    xScaleExpertOffset_ += n1_ * scaleK;
+                }
+            }
+        }
+
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
@@ -176,6 +211,10 @@ private:
     uint64_t a_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
+    GM_ADDR xScaleBaseGM_ = nullptr;      // B-scale 基地址（MX 模式）
+    GM_ADDR weightScaleBaseGM_ = nullptr;  // A-scale 基地址（MX 模式）
+    uint64_t xScaleExpertOffset_ = 0;     // B-scale 累积偏移（scaleType 元素数）
+    uint64_t wScaleExpertOffset_ = 0;     // A-scale 累积偏移（scaleType 元素数）
 };
 } // namespace MC2KernelTemplate
 #endif
