@@ -407,7 +407,7 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
         case QuantModeType::PERTENSOR_QUANT:
             return CheckPerTensorQuantMode(XScaleOptional, WeightScaleOptional, xName, weightName);
         case QuantModeType::MX_QUANT:
-            return CheckMxQuantMode(XScaleOptional, WeightScaleOptional, xName, weightName);
+            return CheckMxQuantMode(XScaleOptional, WeightScaleOptional, x, weight, y, xName, weightName);
         case QuantModeType::PERCHANNEL_QUANT:
         case QuantModeType::PERTOKEN_QUANT:
         case QuantModeType::PERGROUP_QUANT:
