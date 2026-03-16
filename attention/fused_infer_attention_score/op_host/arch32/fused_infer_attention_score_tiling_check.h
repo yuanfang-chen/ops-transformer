@@ -147,7 +147,6 @@ private:
     ge::graphStatus CheckSingleParaBlockSize() const;
     ge::graphStatus CheckSingleParaInnerPrecise() const;
     ge::graphStatus CheckSingleParaAntiquantMode() const;
-    ge::graphStatus CheckSingleParaSoftmaxLseFlag() const;
     ge::graphStatus CheckSingleParaKeyAntiquantMode() const;
     ge::graphStatus CheckSingleParaValueAntiquantMode() const;
     ge::graphStatus CheckSingleParaSparseMode() const;
@@ -240,9 +239,7 @@ private:
     ge::graphStatus CheckAttentionMask();
     ge::graphStatus CheckTokens();
     ge::graphStatus CheckMask();
-    ge::graphStatus CheckSoftmaxLseShape();
-    ge::graphStatus CheckSoftmaxLseDType();
-    ge::graphStatus CheckSoftmaxLse();
+
     ge::graphStatus CheckPostQuant();
     ge::graphStatus CheckMultiParaConsistency();
     ge::graphStatus CheckSystemPrefix();
@@ -278,7 +275,7 @@ private:
     FiaLayout outLayout_ = FiaLayout::BSND;
     FiaLayout kvLayout_ = FiaLayout::BSND;
 
-    FiaLayout softmaxLseLayout_ = FiaLayout::BNS11;
+
     FiaLayout quantScale2Layout_ = FiaLayout::BNSD;
 
     // PageAttention
@@ -312,7 +309,6 @@ private:
     std::shared_ptr<FiaTilingShapeCompare> attenOutShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> attenMaskShapeCmp_ = nullptr;
 
-    std::shared_ptr<FiaTilingShapeCompare> softmaxLseShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> quantScale2ShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> quantOffset2ShapeCmp_ = nullptr;
     std::shared_ptr<FiaTilingShapeCompare> prefixKeyShapeCmp_ = nullptr;
