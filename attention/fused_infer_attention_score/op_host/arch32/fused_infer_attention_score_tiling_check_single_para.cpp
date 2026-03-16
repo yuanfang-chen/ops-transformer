@@ -34,12 +34,6 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {DEQUANT_SCALE2_NAME,         {ge::DT_UINT64, ge::DT_FLOAT}},
     {QUANT_SCALE2_NAME,           {ge::DT_FLOAT, ge::DT_BF16}},
     {QUANT_OFFSET2_NAME,          {ge::DT_FLOAT, ge::DT_BF16}},
-    {ANTIQUANT_SCALE_NAME,        {ge::DT_FLOAT16, ge::DT_BF16}},
-    {ANTIQUANT_OFFSET_NAME,       {ge::DT_FLOAT16, ge::DT_BF16}},
-    {KEY_ANTIQUANT_SCALE_NAME,    {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT}},
-    {KEY_ANTIQUANT_OFFSET_NAME,   {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT}},
-    {VALUE_ANTIQUANT_SCALE_NAME,  {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT}},
-    {VALUE_ANTIQUANT_OFFSET_NAME, {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT}},
     {KEY_SHARED_PREFIX_NAME,      {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {VALUE_SHARED_PREFIX_NAME,    {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {QUERY_ROPE_NAME,             {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
@@ -337,23 +331,8 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaQuantOffset2() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaAntiquantScale() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.antiquantScale.desc, ANTIQUANT_SCALE_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.antiquantScale.desc, ANTIQUANT_SCALE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaAntiquantOffset() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.antiquantOffset.desc, ANTIQUANT_OFFSET_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.antiquantOffset.desc, ANTIQUANT_OFFSET_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaBlockTable() const
 {
@@ -392,41 +371,12 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaKvPaddingSize() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaKeyAntiquantScale() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.keyAntiquantScale.desc, KEY_ANTIQUANT_SCALE_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.keyAntiquantScale.desc, KEY_ANTIQUANT_SCALE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaKeyAntiquantOffset() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.keyAntiquantOffset.desc, KEY_ANTIQUANT_OFFSET_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.keyAntiquantOffset.desc, KEY_ANTIQUANT_OFFSET_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaValueAntiquantScale() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.valueAntiquantScale.desc, VALUE_ANTIQUANT_SCALE_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.valueAntiquantScale.desc, VALUE_ANTIQUANT_SCALE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaValueAntiquantOffset() const
-{
-    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.valueAntiquantOffset.desc, VALUE_ANTIQUANT_OFFSET_NAME) ||
-        ge::GRAPH_SUCCESS != CheckFormatSupport(opParamInfo_.valueAntiquantOffset.desc, VALUE_ANTIQUANT_OFFSET_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
+
+
+
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaKeySharedPrefix() const
 {
@@ -470,10 +420,7 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaKeyRope() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaKeyRopeAntiquantScale() const
-{
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaDequantScaleQuery() const
 {
@@ -561,60 +508,15 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaInnerPrecise() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaAntiquantMode() const
-{
-    const std::vector<int64_t> antiquantModeList = {
-        ANTIQUANT_PER_CHANNEL_MODE,
-        ANTIQUANT_PER_TOKEN_MODE
-    };
-    if (ge::GRAPH_SUCCESS != CheckAttrValueSupport(opParamInfo_.antiquantMode,
-        antiquantModeList, ANTIQUANT_MODE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
 
-    return ge::GRAPH_SUCCESS;
-}
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaSoftmaxLseFlag() const
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaKeyAntiquantMode() const
-{
-    const std::vector<int64_t> keyAntiquantModeList = {
-        ANTIQUANT_PER_CHANNEL_MODE,
-        ANTIQUANT_PER_TOKEN_MODE,
-        ANTIQUANT_PER_TENSOR_HEAD_MODE,
-        ANTIQUANT_PER_TOKEN_HEAD_MODE,
-        ANTIQUANT_PER_TOKEN_PA_MODE,
-        ANTIQUANT_PER_TOKEN_HEAD_PA_MODE
-    };
-    if (ge::GRAPH_SUCCESS != CheckAttrValueSupport(opParamInfo_.keyAntiquantMode,
-        keyAntiquantModeList, KEY_ANTIQUANT_MODE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
 
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSingleParaValueAntiquantMode() const
-{
-    const std::vector<int64_t> valueAntiquantModeList = {
-        ANTIQUANT_PER_CHANNEL_MODE,
-        ANTIQUANT_PER_TOKEN_MODE,
-        ANTIQUANT_PER_TENSOR_HEAD_MODE,
-        ANTIQUANT_PER_TOKEN_HEAD_MODE,
-        ANTIQUANT_PER_TOKEN_PA_MODE,
-        ANTIQUANT_PER_TOKEN_HEAD_PA_MODE
-    };
-    if (ge::GRAPH_SUCCESS != CheckAttrValueSupport(opParamInfo_.valueAntiquantMode,
-        valueAntiquantModeList, VALUE_ANTIQUANT_MODE_NAME)) {
-        return ge::GRAPH_FAILED;
-    }
-
-    return ge::GRAPH_SUCCESS;
-}
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaSparseMode() const
 {
@@ -650,20 +552,13 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaDeqScale2() ||
         ge::GRAPH_SUCCESS != CheckSingleParaQuantScale2() ||
         ge::GRAPH_SUCCESS != CheckSingleParaQuantOffset2() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaAntiquantScale() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaAntiquantOffset() ||
         ge::GRAPH_SUCCESS != CheckSingleParaBlockTable() ||
         ge::GRAPH_SUCCESS != CheckSingleParaQueryPaddingSize() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKvPaddingSize() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaKeyAntiquantScale() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaKeyAntiquantOffset() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaValueAntiquantScale() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaValueAntiquantOffset() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKeySharedPrefix() ||
         ge::GRAPH_SUCCESS != CheckSingleParaValueSharedPrefix() ||
         ge::GRAPH_SUCCESS != CheckSingleParaQueryRope() ||
         ge::GRAPH_SUCCESS != CheckSingleParaKeyRope() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaKeyRopeAntiquantScale() ||
         ge::GRAPH_SUCCESS != CheckSingleParaDequantScaleQuery() ||
         ge::GRAPH_SUCCESS != CheckSingleParaAttenOut() ||
         ge::GRAPH_SUCCESS != CheckSingleParaLseOut() ||
@@ -675,10 +570,7 @@ ge::graphStatus FiaTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaLayout() ||
         ge::GRAPH_SUCCESS != CheckSingleParaBlockSize() ||
         ge::GRAPH_SUCCESS != CheckSingleParaInnerPrecise() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaAntiquantMode() ||
         ge::GRAPH_SUCCESS != CheckSingleParaSoftmaxLseFlag() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaKeyAntiquantMode() ||
-        ge::GRAPH_SUCCESS != CheckSingleParaValueAntiquantMode() ||
         ge::GRAPH_SUCCESS != CheckSingleParaSparseMode() ||
         ge::GRAPH_SUCCESS != CheckSingleParaQueryQuantMode()) {
         return ge::GRAPH_FAILED;

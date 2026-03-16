@@ -137,10 +137,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckFeatureMlaAntiquant() const
-{
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaTilingCheck::CheckFeatureMlaFullquant() const
 {
@@ -151,8 +148,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMla()
 {
     if (quantMode_ == FiaQuantMode::NO_QUANT) {
         return CheckFeatureMlaNoquant();
-    } else if (quantMode_ == FiaQuantMode::ANTI_QUANT) {
-        return CheckFeatureMlaAntiquant();
     } else if (quantMode_ == FiaQuantMode::FULL_QUANT) {
         return CheckFeatureMlaFullquant();
     }
@@ -558,10 +553,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckFeatureGqaAntiquant() const
-{
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaTilingCheck::CheckFeatureGqaFullquant() const
 {
@@ -572,8 +564,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqa()
 {
     if (quantMode_ == FiaQuantMode::NO_QUANT) {
         return CheckFeatureGqaNoquant();
-    } else if (quantMode_ == FiaQuantMode::ANTI_QUANT) {
-        return CheckFeatureGqaAntiquant();
     } else if (quantMode_ == FiaQuantMode::FULL_QUANT) {
         return CheckFeatureGqaFullquant();
     }

@@ -24,13 +24,6 @@ constexpr int32_t INNER_PRECISE_HIGH_PERFORMANCE = 1;
 constexpr int32_t INNER_PRECISE_HIGH_PRECISION_ROW_INVALID = 2;
 constexpr int32_t INNER_PRECISE_HIGH_PERFORMANCE_ROW_INVALID = 3;
 
-constexpr int64_t ANTIQUANT_PER_CHANNEL_MODE = 0;
-constexpr int64_t ANTIQUANT_PER_TOKEN_MODE = 1;
-constexpr int64_t ANTIQUANT_PER_TENSOR_HEAD_MODE = 2;
-constexpr int64_t ANTIQUANT_PER_TOKEN_HEAD_MODE = 3;
-constexpr int64_t ANTIQUANT_PER_TOKEN_PA_MODE = 4;
-constexpr int64_t ANTIQUANT_PER_TOKEN_HEAD_PA_MODE = 5;
-constexpr int64_t ANTIQUANT_PER_CHANNEL_TOKEN_MODE = 2;
 
 constexpr uint32_t PRETOKEN_LIMIT_2K = 2048;
 constexpr uint32_t KVS_LIMIT = 131088;
@@ -121,20 +114,16 @@ private:
     ge::graphStatus CheckSingleParaDeqScale2() const;
     ge::graphStatus CheckSingleParaQuantScale2() const;
     ge::graphStatus CheckSingleParaQuantOffset2() const;
-    ge::graphStatus CheckSingleParaAntiquantScale() const;
-    ge::graphStatus CheckSingleParaAntiquantOffset() const;
+
     ge::graphStatus CheckSingleParaBlockTable() const;
     ge::graphStatus CheckSingleParaQueryPaddingSize() const;
     ge::graphStatus CheckSingleParaKvPaddingSize() const;
-    ge::graphStatus CheckSingleParaKeyAntiquantScale() const;
-    ge::graphStatus CheckSingleParaKeyAntiquantOffset() const;
-    ge::graphStatus CheckSingleParaValueAntiquantScale() const;
-    ge::graphStatus CheckSingleParaValueAntiquantOffset() const;
+
     ge::graphStatus CheckSingleParaKeySharedPrefix() const;
     ge::graphStatus CheckSingleParaValueSharedPrefix() const;
     ge::graphStatus CheckSingleParaQueryRope() const;
     ge::graphStatus CheckSingleParaKeyRope() const;
-    ge::graphStatus CheckSingleParaKeyRopeAntiquantScale() const;
+
     ge::graphStatus CheckSingleParaDequantScaleQuery() const;
     ge::graphStatus CheckSingleParaAttenOut() const;
     ge::graphStatus CheckSingleParaLseOut() const;
@@ -146,10 +135,9 @@ private:
     ge::graphStatus CheckSingleParaLayout() const;
     ge::graphStatus CheckSingleParaBlockSize() const;
     ge::graphStatus CheckSingleParaInnerPrecise() const;
-    ge::graphStatus CheckSingleParaAntiquantMode() const;
+
     ge::graphStatus CheckSingleParaSoftmaxLseFlag() const;
-    ge::graphStatus CheckSingleParaKeyAntiquantMode() const;
-    ge::graphStatus CheckSingleParaValueAntiquantMode() const;
+
     ge::graphStatus CheckSingleParaSparseMode() const;
     ge::graphStatus CheckSingleParaQueryQuantMode() const;
     ge::graphStatus CheckSinglePara() const;
@@ -171,14 +159,11 @@ private:
     template <typename T>
     ge::graphStatus CheckAttrValueByMap(std::map<std::string, std::pair<const T *, T>> &attrMap) const;
     ge::graphStatus CheckParaExistenceMlaNoquant() const;
-    ge::graphStatus CheckParaExistenceMlaAntiquant() const;
+
     ge::graphStatus CheckParaExistenceMlaFullquant() const;
     ge::graphStatus CheckParaExistenceGqaNoquant() const;
     ge::graphStatus CheckParaExistenceGqaNoquantForFullquant() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt8Inner() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt8() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt4() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquant() const;
+
     ge::graphStatus CheckParaExistenceGqaFullquant() const;
     ge::graphStatus CheckParaExistenceMla() const;
     ge::graphStatus CheckParaExistenceGqa() const;
@@ -201,7 +186,7 @@ private:
     ge::graphStatus CheckFeatureBlockSize() const;
     ge::graphStatus CheckFeatureAxisInfo() const;
     ge::graphStatus CheckFeatureMlaNoquant();
-    ge::graphStatus CheckFeatureMlaAntiquant() const;
+
     ge::graphStatus CheckFeatureMlaFullquant() const;
     ge::graphStatus CheckFeatureTensorList() const;
     ge::graphStatus CheckFeatureMask() const;
@@ -209,7 +194,7 @@ private:
     ge::graphStatus CheckFeatureLayout() const;
     ge::graphStatus CheckFeatureGqaNoQuantShape() const;
     ge::graphStatus CheckFeatureGqaNoquant();
-    ge::graphStatus CheckFeatureGqaAntiquant() const;
+
     ge::graphStatus CheckFeatureGqaFullquant() const;
     ge::graphStatus CheckFeatureGqaPrefix() const;
     ge::graphStatus CheckFeatureLeftPadding() const;
@@ -243,7 +228,6 @@ private:
     ge::graphStatus CheckSoftmaxLseShape();
     ge::graphStatus CheckSoftmaxLseDType();
     ge::graphStatus CheckSoftmaxLse();
-    ge::graphStatus CheckPostQuant();
     ge::graphStatus CheckMultiParaConsistency();
     ge::graphStatus CheckSystemPrefix();
     ge::graphStatus CheckSystemPrefixDtype();
