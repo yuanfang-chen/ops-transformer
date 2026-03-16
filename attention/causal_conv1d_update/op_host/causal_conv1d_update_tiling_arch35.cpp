@@ -535,10 +535,11 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
 
-    auto cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
+auto cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
     if (cacheIndicesTensor != nullptr) {
         const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
         if (dataPtr != nullptr) {
+            printf("dataPtr != nullptr\n");
             for (int64_t i = 0; i < batchSize_; i++) {
                 if (padSlotId_ == static_cast<int64_t>(dataPtr[i])) {
                     invalidBatchAtStart++;
@@ -553,6 +554,20 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
                     break;
                 }
             }
+        } else {
+            printf("dataPtr = nullptr\n");
+        }
+    }
+    const gert::Tensor* cache_indices_tensor = context_->GetInputTensor(CACHE_INDICES_INDEX);
+    if (cache_indices_tensor == nullptr) {
+        printf("cache_indices_tensor == nullptr\n");
+    } else {
+        printf("cache_indices_tensor != nullptr\n");
+        const int64_t* addr = cache_indices_tensor->GetData<int64_t>();
+        if (addr == nullptr) {
+            printf("addr == nullptr");
+        } else {
+            printf("addr != nullptr");
         }
     }
 
