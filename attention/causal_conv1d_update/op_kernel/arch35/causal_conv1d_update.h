@@ -468,8 +468,6 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSizeInLoop_, isresidualConnection_);
         }
         InsertSync(HardEvent::V_MTE3);
-        cacheQueue.EnQue<T>(convStatesLocal);
-        convStatesLocal = cacheQueue.DeQue<T>();
         DataCopyParams yGMParams;
         yGMParams.blockCount = ((kernelSize_ - 1) < curBatchSeq) ? kernelSize_ - 1 : curBatchSeq;
         yGMParams.blockLen = blockLen;
