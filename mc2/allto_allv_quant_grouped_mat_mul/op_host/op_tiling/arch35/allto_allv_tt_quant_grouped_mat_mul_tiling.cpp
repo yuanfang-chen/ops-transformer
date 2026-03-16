@@ -1,0 +1,225 @@
+/* *
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/* !
+ * \file allto_allv_quant_grouped_mat_mul_tiling.cpp
+ * \brief
+ */
+#include <string>
+#include <numeric>
+#include <climits>
+#include "mc2_hcom_topo_info.h"
+#include "mc2_log.h"
+#include "context_util.h"
+#include "tiling/matmul_formulaic_tiling.h"
+#include "tiling/hccl_formulaic_tiling.h"
+#include "graph/utils/type_utils.h"
+#include "register/op_def_registry.h"
+#include "tiling/mc2_tiling_utils.h"
+#include "register/op_impl_registry.h"
+#include "tiling_base/tiling_templates_registry.h"
+#include "../../../op_kernel/allto_allv_quant_grouped_mat_mul_tiling.h"
+#include "allto_allv_tt_quant_grouped_mat_mul_tiling.h"
+
+using namespace ge;
+using namespace AscendC;
+using namespace Ops::Transformer::OpTiling;
+
+namespace optiling {
+bool AlltoAllvTTQuantGmmTiling::IsCapable()
+{
+    // hifloat8 quant
+    if (gmmXDataType_ != ge::DT_HIFLOAT8) {
+        return false;
+    }
+    if (gmmWeightDataType_ != ge::DT_HIFLOAT8) {
+        return false;
+    }
+    isHif8_ = true;
+    OP_LOGD(context_->GetNodeName(), "AlltoAllvTTQuantGmmTiling is capable.");
+    return true;
+}
+
+uint64_t AlltoAllvTTQuantGmmTiling::GetTilingKey() const
+{
+    uint64_t tilingKey = GET_TPL_TILING_KEY(ADD_TPL_HIF8, hasSharedExpertFlag_, transGmmWeight_, transMmWeight_);
+    return tilingKey;
+}
+
+void AlltoAllvTTQuantGmmTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const
+{
+    auto &mm = gmmQuantTilingData.mmTilingData;
+
+    mm.M = M;
+    mm.N = N;
+    mm.Ka = K;
+    mm.Kb = K;
+    mm.usedCoreNum = aicCoreNum_;
+    mm.isBias = 0;
+    mm.dbL0A = DOUBLE_BUFFER;
+    mm.dbL0B = DOUBLE_BUFFER;
+
+    mm.baseM = std::min(static_cast<int32_t>(M), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
+    mm.baseM = Ops::Base::CeilAlign(mm.baseM, static_cast<int32_t>(CUBE_BLOCK));
+    mm.baseN = std::min(static_cast<int32_t>(N), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
+    mm.baseN = Ops::Base::CeilAlign(mm.baseN, static_cast<int32_t>(CUBE_BLOCK));
+    mm.baseK = std::min(static_cast<int32_t>(K), static_cast<int32_t>(BASIC_BLOCK_SIZE_128));
+    mm.baseK = Ops::Base::CeilAlign(mm.baseK, static_cast<int32_t>(CUBE_REDUCE_BLOCK));
+
+    mm.singleCoreM = std::min(static_cast<int32_t>(M), mm.baseM);
+    mm.singleCoreN = std::min(static_cast<int32_t>(N), mm.baseN);
+    mm.singleCoreK = K;
+
+    uint64_t l0cRequired = static_cast<uint64_t>(mm.baseM) * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
+    mm.dbL0C = (l0cRequired <= l0cSize_) ? DB_SIZE : 1;
+
+    mm.iterateOrder = 0U;
+
+    uint64_t baseASize = static_cast<uint64_t>(mm.baseM) * mm.baseK;
+    uint64_t baseBSize = static_cast<uint64_t>(mm.baseN) * mm.baseK;
+    uint64_t baseL1Size = baseASize + baseBSize;
+
+    OP_TILING_CHECK(baseL1Size == 0, OP_LOGW(context_->GetNodeName(), "baseL1Size cannot be zero."), return );
+
+    uint64_t leftL1Size = l1Size_;
+
+    uint64_t depthInit = leftL1Size / baseL1Size;
+    depthInit = std::max(depthInit, static_cast<uint64_t>(1));
+
+    uint64_t depthScale = depthInit;
+    while (depthScale * mm.baseK % BASIC_BLOCK_SIZE_512 != 0 && depthScale > 1) {
+        depthScale--;
+    }
+    depthScale = std::max(depthScale, static_cast<uint64_t>(1));
+
+    mm.depthA1 = depthScale;
+    mm.depthB1 = depthScale;
+
+    mm.stepKa = (mm.depthA1 > 1) ? (mm.depthA1 / DB_SIZE) : 1;
+    mm.stepKb = (mm.depthB1 > 1) ? (mm.depthB1 / DB_SIZE) : 1;
+
+    OP_TILING_CHECK(mm.baseK == 0, OP_LOGW(context_->GetNodeName(), "baseK cannot be zero."), return );
+
+    if (mm.stepKa * mm.baseK > mm.Ka) {
+        mm.stepKa = Ops::Base::CeilDiv(mm.Ka, mm.baseK);
+    }
+    if (mm.stepKb * mm.baseK > mm.Kb) {
+        mm.stepKb = Ops::Base::CeilDiv(mm.Kb, mm.baseK);
+    }
+
+    mm.depthA1 = mm.stepKa * DB_SIZE;
+    mm.depthB1 = mm.stepKb * DB_SIZE;
+
+    mm.stepM = 1;
+    mm.stepN = 1;
+}
+
+ge::graphStatus AlltoAllvTTQuantGmmTiling::CheckGmmDType() const
+{
+    OP_LOGD(context_->GetNodeName(), "start CheckGmmDType.");
+    auto gmmXDataType = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
+    OP_TILING_CHECK(gmmXDataType != ge::DT_HIFLOAT8,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmX only support hifloat8."), return ge::GRAPH_FAILED);
+    auto gmmWeightDataType = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType();
+    OP_TILING_CHECK(gmmWeightDataType != ge::DT_HIFLOAT8,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmWeight only support hifloat8."),
+        return ge::GRAPH_FAILED);
+    auto gmmXScaleDataType = context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX)->GetDataType();
+    OP_TILING_CHECK(gmmXScaleDataType != ge::DT_FLOAT,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmXScale only support float32."),
+        return ge::GRAPH_FAILED);
+    auto gmmWeightScaleDataType = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX)->GetDataType();
+    OP_TILING_CHECK(gmmWeightScaleDataType != ge::DT_FLOAT,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmWeightScale only support float32."),
+        return ge::GRAPH_FAILED);
+    auto gmmYDataType = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetDataType();
+    OP_TILING_CHECK(gmmYDataType != ge::DT_FLOAT16 && gmmYDataType != ge::DT_BF16,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmY only support float16 and bfloat16."),
+        return ge::GRAPH_FAILED);
+    if (permuteOutFlag_) {
+        // check permuteOut dtype
+        auto permuteOutDataType = context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX)->GetDataType();
+        OP_TILING_CHECK(permuteOutDataType != gmmXDataType,
+            OP_LOGE(context_->GetNodeName(), "Unsupported dataType, permuteOut only support hifloat8."),
+            return ge::GRAPH_FAILED);
+    }
+    OP_LOGD(context_->GetNodeName(), "end CheckGmmDType.");
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus AlltoAllvTTQuantGmmTiling::CheckMmDType() const
+{
+    OP_LOGD(context_->GetNodeName(), "start CheckMmDType.");
+    if (!hasSharedExpertFlag_) {
+        return ge::GRAPH_SUCCESS;
+    }
+    auto mmXDataType = context_->GetOptionalInputDesc(MM_X_INDEX)->GetDataType();
+    OP_TILING_CHECK(mmXDataType != ge::DT_HIFLOAT8,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmX only support hifloat8."), return ge::GRAPH_FAILED);
+    auto mmWeightDataType = context_->GetOptionalInputDesc(MM_WEIGHT_INDEX)->GetDataType();
+    OP_TILING_CHECK(mmWeightDataType != ge::DT_HIFLOAT8,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmWeight only support hifloat8."),
+        return ge::GRAPH_FAILED);
+    auto mmXScaleDataType = context_->GetOptionalInputDesc(MM_X_SCALE_INDEX)->GetDataType();
+    OP_TILING_CHECK(mmXScaleDataType != ge::DT_FLOAT,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmXScale only support float32."),
+        return ge::GRAPH_FAILED);
+    auto mmWeightScaleDataType = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_INDEX)->GetDataType();
+    OP_TILING_CHECK(mmWeightScaleDataType != ge::DT_FLOAT,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmWeightScale only support float32."),
+        return ge::GRAPH_FAILED);
+    auto mmYDataType = context_->GetOutputDesc(OUTPUT_MM_Y_INDEX)->GetDataType();
+    OP_TILING_CHECK(mmYDataType != ge::DT_FLOAT16 && mmYDataType != ge::DT_BF16,
+        OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmY only support float16 and bfloat16."),
+        return ge::GRAPH_FAILED);
+    OP_LOGD(context_->GetNodeName(), "end CheckMmDType.");
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus AlltoAllvTTQuantGmmTiling::CheckScaleShape() const
+{
+    OP_LOGD(context_->GetNodeName(), "start CheckScaleShape.");
+    // check gmmXScale shape
+    auto gmmXScaleDimNum = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDimNum();
+    OP_TILING_CHECK(gmmXScaleDimNum != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmXScale input dimNum should be 1, but actual dimNum is %lu", gmmXScaleDimNum), 
+        return ge::GRAPH_FAILED);
+    auto gmmXScaleShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    OP_TILING_CHECK(gmmXScaleShape != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmXScale input shape should be [1], but actual shape is [%lu]", gmmXScaleShape), 
+        return ge::GRAPH_FAILED);
+    // check gmmWeightScale shape
+    auto gmmWeightScaleDimNum = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDimNum();
+    OP_TILING_CHECK(gmmWeightScaleDimNum != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmWeightScale input dimNum should be 1, but actual dimNum is %lu", gmmWeightScaleDimNum), 
+        return ge::GRAPH_FAILED);
+    auto gmmWeightScaleShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    OP_TILING_CHECK(gmmWeightScaleShape != DIM_ONE, OP_LOGE(context_->GetNodeName(), "gmmWeightScale input shape should be [1], but actual shape is [%lu]", gmmWeightScaleShape), 
+        return ge::GRAPH_FAILED);
+    if (hasSharedExpertFlag_) {
+        // check mmXScale shape
+        auto mmXScaleDimNum = context_->GetOptionalInputShape(MM_X_SCALE_INDEX)->GetStorageShape().GetDimNum();
+        OP_TILING_CHECK(mmXScaleDimNum != DIM_ONE, OP_LOGE(context_->GetNodeName(), "mmXScaleDimNum input dimNum should be 1, but actual dimNum is %lu", mmXScaleDimNum), 
+            return ge::GRAPH_FAILED);
+        auto mmXScaleShape = context_->GetOptionalInputShape(MM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+        OP_TILING_CHECK(mmXScaleShape != DIM_ONE, OP_LOGE(context_->GetNodeName(), "mmXScaleDimNum input shape should be [1], but actual shape is [%lu]", mmXScaleShape), 
+            return ge::GRAPH_FAILED);
+        // check mmWeightScale shape
+        auto mmWeightScaleDimNum = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDimNum();
+        OP_TILING_CHECK(mmWeightScaleDimNum != DIM_ONE, OP_LOGE(context_->GetNodeName(), "mmWeightScale input dimNum should be 1, but actual dimNum is %lu", mmWeightScaleDimNum), 
+            return ge::GRAPH_FAILED);
+        auto mmWeightScaleShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+        OP_TILING_CHECK(mmWeightScaleShape != DIM_ONE, OP_LOGE(context_->GetNodeName(), "mmWeightScale input shape should be [1], but actual shape is [%lu]", mmWeightScaleShape), 
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    }
+    OP_LOGD(context_->GetNodeName(), "end CheckScaleShape.");
+    return ge::GRAPH_SUCCESS;
+}
+
+REGISTER_OPS_TILING_TEMPLATE(AlltoAllvQuantGroupedMatMul, AlltoAllvTTQuantGmmTiling, 1);
+} // namespace optiling
