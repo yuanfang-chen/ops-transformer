@@ -532,9 +532,6 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
 
 ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
 {
-    int64_t invalidBatchAtStart = 0;
-    int64_t invalidBatchAtEnd = 0;
-
     OP_LOGI(context_->GetNodeName(), "into ComputeValidBatchRange...");
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
