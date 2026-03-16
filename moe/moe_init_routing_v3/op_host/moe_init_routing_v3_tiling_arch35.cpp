@@ -495,7 +495,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetInputTensorsInfo()
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(scaleShape_, scaleDtype_, isInputScale_, INPUT_SCALE_INDEX));
     tilingDataPtr_->isInputScale = isInputScale_;
     // 可选输入offset
-    MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(offsetShape_, offsetDtype_, isInputOffset_, INPUT_SCALE_INDEX));
+    MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(offsetShape_, offsetDtype_, isInputOffset_, INPUT_OFFSET_INDEX));
     tilingDataPtr_->isInputOffset = isInputOffset_;
 
     return ge::GRAPH_SUCCESS;
