@@ -68,7 +68,6 @@ struct StageThreeParams {
     // attr
     ChunkGroup *cg;
     float scale_;
-    int64_t maxGroupLength_;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;
