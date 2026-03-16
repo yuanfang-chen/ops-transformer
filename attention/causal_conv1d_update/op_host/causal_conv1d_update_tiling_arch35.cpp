@@ -737,9 +737,9 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 {
     if (xDtype_ == ge::DataType::DT_BF16) {
-        return TILING_KEY_FN_BF16;
+        return TILING_KEY_UPDATE_BF16;
     } else if (xDtype_ == ge::DataType::DT_FLOAT16) {
-        return TILING_KEY_FN_FP16;
+        return TILING_KEY_UPDATE_FP16;
     }
 }
 
