@@ -28,7 +28,7 @@ using namespace matmul;
 using aT3 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using bT3 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using cT3 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-using MT3 = matmul::MatmulImpl<aT3, bT3, cT3>;
+using StageThreeMT = matmul::MatmulImpl<aT3, bT3, cT3>;
 
 #define BUFFER_NUM 1
 
@@ -47,8 +47,8 @@ struct mm3Params {
 
 struct StageThreeParams {
     // in
-    GlobalTensor<float> qkt_;       // (Nv, Sp, Dk)
-    GlobalTensor<float> gCumExp_;           // (Nv, Sp)
+    GlobalTensor<float> qkt_;
+    GlobalTensor<float> gCumExp_;
     GlobalTensor<float> attnInter_;
     GlobalTensor<float> vInner_;
     GlobalTensor<float> maskTensor_;
@@ -68,7 +68,6 @@ struct StageThreeParams {
     // attr
     ChunkGroup *cg;
     float scale_;
-    int64_t maxGroupLength_;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;

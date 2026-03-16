@@ -28,7 +28,7 @@ using namespace matmul;
 using aT2 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using bT2 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using cT2 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-using MT2 = matmul::MatmulImpl<aT2, bT2, cT2>;
+using StageTwoMT = matmul::MatmulImpl<aT2, bT2, cT2>;
 
 constexpr uint64_t BUFFER_NUM = 1;
 constexpr uint64_t BLOCK_SIZE = 32;
@@ -47,12 +47,11 @@ struct StageTwoParams {
 
     GM_ADDR ws;
 
-    MT2 *mm1_;
+    StageTwoMT *mm1_;
 
     TPipe *pipe_;
 
     ChunkGroup *cg;
-    int64_t maxGroupLength_;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;

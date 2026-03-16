@@ -130,7 +130,7 @@ public:
             for (int i = 0; i < tiling_->chunkSize; ++i) {
                 DataCopyPad(stageOneMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
                 cCFloat_.SetValue(i, 1);
-                DataCopyPad(stageThreeMask_[i * tiling_->chunkSize], cCFloat_, copyParams);
+                DataCopyPad(stageThreeMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
             }
             pipe_->Reset();
         }
@@ -256,14 +256,12 @@ private:
     {
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
-            mm1_.Init(&tiling_->matmulTilingFp32, pipe_);
-            mm2_.Init(&tiling_->matmulTilingBf16, pipe_);
+            stage2MT_.Init(&tiling_->matmulTilingFp32, pipe_);
         }
         Stage2 stageTwoOp;
         StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
-                                          state, attnInter_, vNew_,
-                                          &mm1_, &mm2_, pipe_, &cg,
-                                          tiling_->maxGroupLength, tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+                                          attnInter_, vNew_, &stage2MT_, pipe_, &cg,
+                                          tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
         stageTwoOp_.Init(&initStageTwoParams, tiling_->aiCoreNum);
         stageTwoOp_.Process();
         pipe_->Reset();
@@ -273,14 +271,15 @@ private:
     {
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
-            mm3_.Init(&tiling_->matmulTilingFp32, pipe_);
-            // mm2_.Init(&tiling_->matmulTilingBf16, pipe_);
+            stage3MT_.Init(&tiling_->matmulTilingFp32, pipe_);
         }
         Stage3 stageThreeOp;
-        StageThreeParams initStageThreeParams{qkt_, gCumExp_, attnInter_, vInner_,
-            stageThreeMask_, stageWsAddr_,
-            out_[seqStart * tiling_->nv * tiling_->dv], &mm3_, pipe_, &cg, tiling_->scale,
-            tiling_->maxGroupLength, tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+        StageThreeParams initStageThreeParams{
+            qkt_, gCumExp_, attnInter_, vInner_,
+            stageThreeMask_[int(GetBlockIdx() / 2) * tiling_->chunkSize * tiling_->chunkSize], stageWsAddr_,
+            out_[seqStart * tiling_->nv * tiling_->dv],
+            &stage2MT_, pipe_, &cg, tiling_->scale,
+            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
         stageThreeOp.Init(&initStageThreeParams, tiling_->aiCoreNum);
         stageThreeOp.Process();
         pipe_->Reset();
@@ -333,10 +332,8 @@ private:
 
     // Matmul objects
     MT_FP32 mmFp32_;
-
-    MT1 mm1_;
-    MT2 mm2_;
-    MT3 mm3_;
+    StageTwoMT stage2MT_;
+    StageThreeMT stage3MT_;
 
     // Stage operators
     GDRStageOne stageOneOp_;
