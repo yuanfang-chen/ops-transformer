@@ -135,9 +135,19 @@ def build_pipeline_dag(
         "aiv_wait_CKVKR", "AIV", sync_us,
         depends_on=["sync_signal_RMSNORM_CQ", "sync_signal_CKVKR"])
 
+    # If cross-core K-split is used for MM2, add vector accumulation stage
+    has_accum_ckvkr = "AccumCkvKr" in stage_timings
+    if has_accum_ckvkr:
+        stages["AccumCkvKr"] = PipelineStage(
+            "AccumCkvKr", "AIV", get_us("AccumCkvKr"),
+            depends_on=["aiv_wait_CKVKR"])
+        rmsnorm_ckvkr_dep = "AccumCkvKr"
+    else:
+        rmsnorm_ckvkr_dep = "aiv_wait_CKVKR"
+
     stages["RmsNormCkvKr"] = PipelineStage(
         "RmsNormCkvKr", "AIV", get_us("RmsNormCkvKr"),
-        depends_on=["aiv_wait_CKVKR"])
+        depends_on=[rmsnorm_ckvkr_dep])
 
     stages["RopeKr"] = PipelineStage(
         "RopeKr", "AIV", get_us("RopeKr"),

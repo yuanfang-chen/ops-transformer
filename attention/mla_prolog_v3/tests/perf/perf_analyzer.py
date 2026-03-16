@@ -28,7 +28,7 @@ from perf_model import (
 )
 from tiling_sim import (
     TilingConfig, compute_tiling, search_best_tiling,
-    search_all_matmul_blocks,
+    search_all_matmul_blocks, search_mm2_split_k,
 )
 from pipeline_model import (
     build_pipeline_dag, estimate_kernel_time, format_timeline, PipelineResult,
@@ -407,6 +407,27 @@ def mode_block_search(params: OperatorParams, tiling: TilingConfig, hw: AscendHW
         print(f"    Optimal: baseM={best_block.baseM}, baseN={best_block.baseN}, "
               f"baseK={best_block.baseK}, stepK={best_block.stepK} "
               f"-> {best_timing.bound}-bound, {best_timing.total_us:.2f} us")
+        print()
+
+    # MM2 split-K cross-core comparison
+    mm2_sk_results = search_mm2_split_k(params, tiling, hw)
+    if mm2_sk_results:
+        print("  MM2_CkvKr split-N vs split-K comparison:")
+        header = f"    {'Rank':>4} {'Mode':<8} {'K-cores':>7} | {'Cube(us)':>9} {'Accum(us)':>9} {'Total(us)':>10} {'Bound':<8}"
+        print(header)
+        print("    " + "-" * (len(header) - 4))
+        for i, r in enumerate(mm2_sk_results, 1):
+            marker = " <-- best" if i == 1 else ""
+            bound = r.cube_timing.bound if r.cube_timing else ""
+            print(f"    {i:>4} {r.mode:<8} {r.k_cores:>7} | "
+                  f"{r.cube_us:>8.2f} {r.accum_us:>8.2f} {r.total_us:>9.2f} {bound:<8}{marker}")
+        best = mm2_sk_results[0]
+        baseline = next((r for r in mm2_sk_results if r.mode == "split_n"), None)
+        if baseline and best.mode == "split_k":
+            delta = baseline.total_us - best.total_us
+            print(f"    -> split-K ({best.k_cores} cores) saves {delta:.2f} us vs split-N ({baseline.k_cores} cores)")
+        elif baseline:
+            print(f"    -> split-N ({baseline.k_cores} cores) is already optimal")
         print()
 
     # Fitting formulas summary

@@ -5,7 +5,7 @@
 import math
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class QuantMode(IntEnum):
@@ -652,6 +652,54 @@ def _estimate_full_load(
 
 
 # ---------------------------------------------------------------------------
+# Cross-core K-split model (for MM2 with small N)
+# ---------------------------------------------------------------------------
+
+def estimate_mm2_split_k_cross_core(
+    M: int, K: int, N: int, k_cores: int,
+    hw: AscendHWSpec,
+    block: MatmulBlockSpec,
+    a_reused: bool,
+    vec_cores: int,
+    out_size: int = 2,
+) -> Tuple[MatMulTiming, VectorOpTiming]:
+    """Model MM2 with K-axis split across cores + vector accumulation.
+
+    Each cube core computes a partial sum on K/k_cores of K for the full N.
+    FixPipe outputs float32 (4 bytes) for partial sums.
+    Vector side accumulates k_cores partial sums in order, then stores as out_size.
+    """
+    K_per_core = math.ceil(K / k_cores)
+
+    # Cube: override block with float output and reduced K
+    block_kc = MatmulBlockSpec(
+        block.name, block.baseM, block.baseN, block.baseK, block.stepK,
+        mode="split_k",
+        dtype_a_size=block.dtype_a_size,
+        dtype_b_size=block.dtype_b_size,
+        dtype_c_size=4,  # float32 partial sum output
+    )
+    # Re-derive stepK for the reduced K
+    derived = derive_stepK(block_kc, K_per_core, hw, N)
+    if derived > 0:
+        block_kc.stepK = derived
+
+    cube_timing = estimate_matmul_detailed(
+        "MM2_CkvKr", M, K_per_core, N, k_cores, hw, block_kc, a_reused)
+
+    # Vector accumulation: load all partial sums, reduce, store final
+    accum_timing = estimate_vector_op(
+        "AccumCkvKr",
+        load_bytes=k_cores * M * N * 4,
+        compute_elements=M * N * (k_cores - 1),
+        store_bytes=M * N * out_size,
+        hw=hw, active_cores=vec_cores,
+    )
+
+    return cube_timing, accum_timing
+
+
+# ---------------------------------------------------------------------------
 # Default block specs per matmul (from kernel code analysis)
 # ---------------------------------------------------------------------------
 
@@ -814,11 +862,15 @@ class OperatorParams:
 
 
 def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
-                        block_specs=None):
+                        block_specs=None, mm2_split_k_cores: int = 0):
     """Estimate timing for all matmul and vector stages.
 
     When hw.has_cycle_spec is True, uses the detailed inner-loop model.
     Otherwise falls back to the chip-total estimate_matmul().
+
+    Args:
+        mm2_split_k_cores: If > 0, use cross-core K-split for MM2 with this
+            many cores. Adds an "AccumCkvKr" vector stage for partial sum reduction.
     """
     T = tiling.step_batch_size
     He = params.He
@@ -847,11 +899,20 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
             hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
         )
         # MM2: tokenX reused from MM1 (L2 warm)
-        stages["MM2_CkvKr"] = estimate_matmul_detailed(
-            "MM2_CkvKr", T, He, Hckv + Dr,
-            active_cores=tiling.mm2_block_num,
-            hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
-        )
+        if mm2_split_k_cores > 0 and hw.has_cycle_spec:
+            cube_t, accum_t = estimate_mm2_split_k_cross_core(
+                T, He, Hckv + Dr, mm2_split_k_cores,
+                hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+                vec_cores=tiling.vector_block_num, out_size=out_size,
+            )
+            stages["MM2_CkvKr"] = cube_t
+            stages["AccumCkvKr"] = accum_t
+        else:
+            stages["MM2_CkvKr"] = estimate_matmul_detailed(
+                "MM2_CkvKr", T, He, Hckv + Dr,
+                active_cores=tiling.mm2_block_num,
+                hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+            )
         # MM3: Cq[T, Hcq] x weightUqQr[Hcq, N*(D+Dr)] -> QcQr
         stages["MM3_QcQr"] = estimate_matmul_detailed(
             "MM3_QcQr", T, Hcq, N * (D + Dr),
