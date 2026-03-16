@@ -223,8 +223,8 @@ private:
                        chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
             // query @ key.transpose(-1,-2)   stage1 out
-            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, chunkSize_, chunkSize_, dk_, 
-                       chunkSize_, chunkSize_, dk_, true);
+            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, validLen_, validLen_, dk_, 
+                       validLen_, validLen_, dk_, true);
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
             // 求逆左下角矩阵
             AttnInverseMMCompute(INVERSE_SHAPE);
@@ -293,7 +293,7 @@ private:
                                     static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
         if (kgFlag) {
-            DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);  // 存疑
+            DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);
         }
         fp32OutQueue_.FreeTensor(tmpTensor);
     }
@@ -574,7 +574,6 @@ private:
     GlobalTensor<bfloat16_t> keyBaseGm_;
     GlobalTensor<bfloat16_t> valueBaseGm_;
     GlobalTensor<bfloat16_t> betaBaseGm_;
-    // GlobalTensor<float> gBaseGm_;
     GlobalTensor<float> outGCumExpBaseGm_, outVInnerBaseGm_, outKgBaseGm_, outQkBaseGm_;
     GlobalTensor<float> outKCumdecayBaseGm_, outQPrimeBaseGm_;
 
@@ -583,7 +582,6 @@ private:
     GlobalTensor<bfloat16_t> keyGm_;
     GlobalTensor<bfloat16_t> valueGm_;
     GlobalTensor<bfloat16_t> betaGm_;
-    // GlobalTensor<float> gGm_;
     GlobalTensor<float> outGCumExpGm_;
     GlobalTensor<float> outKCumdecayGm_;
     GlobalTensor<float> outVInnerGm_;
