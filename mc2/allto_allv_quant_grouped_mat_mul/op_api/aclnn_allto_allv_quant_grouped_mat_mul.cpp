@@ -10,7 +10,7 @@
 #include <algorithm>
 
 #include "securec.h"
-#include "common/op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "acl/acl.h"
 #include "common/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
@@ -19,7 +19,7 @@
 #include "opdev/common_types.h"
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/transdata.h"
-#include "common/hccl_util.h"
+#include "common/utils/hccl_util.h"
 #include "opdev/op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/make_op_executor.h"

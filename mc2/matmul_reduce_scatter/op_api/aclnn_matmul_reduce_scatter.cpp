@@ -16,7 +16,7 @@
 #include "matmul_reduce_scatter_v2/op_api/aclnn_matmul_reduce_scatter_v2.h"
 #include "securec.h"
 #include "acl/acl.h"
-#include "common/op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "common/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/make_op_executor.h"
@@ -26,7 +26,7 @@
 #include "opdev/platform.h"
 #include "opdev/common_types.h"
 #include "common/op_host/op_api/matmul_util.h"
-#include "common/hccl_util.h"
+#include "common/utils/hccl_util.h"
 
 using namespace op;
 

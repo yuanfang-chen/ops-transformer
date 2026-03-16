@@ -12,7 +12,7 @@
 #include "opdev/make_op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/op_executor.h"
-#include "common/op_api_def.h"
+#include "common/utils/op_api_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 
 #ifdef __cplusplus

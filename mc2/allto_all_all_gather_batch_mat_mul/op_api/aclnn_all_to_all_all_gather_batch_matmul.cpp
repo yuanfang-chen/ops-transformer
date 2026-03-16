@@ -10,7 +10,7 @@
 
 #include "aclnn_all_to_all_all_gather_batch_matmul.h"
 #include <algorithm>
-#include "common/op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "common/op_host/op_api/matmul_util.h"
 #include "common/op_mc2_def.h"
 #include "external/aclnn_kernels/common/op_error_check.h"

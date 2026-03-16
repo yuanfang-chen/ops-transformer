@@ -9,7 +9,7 @@
  */
 #include "aclnn_moe_distribute_combine_v3.h"
 #include <algorithm>
-#include "common/op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "common/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/op_log.h"
