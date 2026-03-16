@@ -272,6 +272,13 @@ __aicore__ inline void ComputeData(__ubuf__ T* srcAddr, __ubuf__ uint16_t* halfS
     }
 }
 
+template <typename T, RoundMode roundMode>
+__aicore__ inline void DequantizeData(__ubuf__ int8_t* srcAddr, __ubuf__ uint16_t* ScaleLocalAddr,
+    __ubuf__ int8_t* outLocalAddr, uint32_t totalCountInUB)
+{
+    //  todo
+}
+
 template <typename T, typename U, RoundMode RMode, bool HasSmooth>
 __aicore__ inline void ComputePerTileDynamic(__ubuf__ T* srcAddr, __ubuf__ float* smoothLocalAddr,
     __ubuf__ float* scaleOutLocalAddr, __ubuf__ int8_t* outLocalAddr, uint32_t totalCountInUB)
