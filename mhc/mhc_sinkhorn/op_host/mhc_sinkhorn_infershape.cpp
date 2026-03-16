@@ -35,7 +35,7 @@ constexpr size_t TNN_DIMS = 3;
 namespace ops {
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
-    OP_LOGD(context, "Begin to do MhcPostInfershape.");
+    OP_LOGD(context, "Begin to do MhcSinkhornInfershape.");
     const gert::Shape* x_shape = context->GetInputShape(X_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, x_shape);
     gert::Shape* y_shape = context->GetOutputShape(Y_INDEX);
@@ -51,7 +51,7 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 
     if (IsUnknownRank(*xShape)) {
         SetUnknownRank(*yShape);
-        OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown rank.");
+        OP_LOGD(context->GetNodeName(), "MhcSinkhorn infershape handles unknown rank.");
         return ge::GRAPH_SUCCESS;
     }
     size_t xDims = xShape->GetDimNum();
@@ -60,7 +60,7 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
         for (size_t i = 0; i < xDims; ++i) {
             yShape->SetDim(i, UNKNOWN_DIM_VALUE);
         }
-        OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
+        OP_LOGD(context->GetNodeName(), "MhcSinkhorn infershape handles unknown shape.");
         return ge::GRAPH_SUCCESS;
     }
 
@@ -77,7 +77,7 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
     ShowInputShapeInfo(context, xShape);
     ShowOutputShapeInfo(context, yShape);
 
-    OP_LOGD(context, "End to do MhcPostInfershape.");
+    OP_LOGD(context, "End to do MhcSinkhornInfershape.");
 
     return GRAPH_SUCCESS; 
 }
