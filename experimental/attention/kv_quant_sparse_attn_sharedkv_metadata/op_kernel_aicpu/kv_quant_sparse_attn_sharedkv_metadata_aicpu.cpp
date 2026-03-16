@@ -429,7 +429,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     CalcCmpMaskMode();
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
-    if (mode == SparseMode::DEFAULT_MASK && oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
+    if (oriMaskMode_ == static_cast<int32_t>(SparseMode::DEFAULT_MASK) && oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
         hasOriTopk = true;
     } else if (oriTopK_ != 0) {
         hasOriTopk = true;

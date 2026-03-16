@@ -388,7 +388,7 @@ ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriMaskMode()
+void SparseAttnSharedkvMetadataCpuKernel::CalcOriMaskMode()
 {
     if (oriMaskMode_ == static_cast<int32_t>(SparseMode::DEFAULT_MASK)) {
         oriPreToken_ = INT64_MAX;
@@ -405,7 +405,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriMaskMode()
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpMaskMode()
+void SparseAttnSharedkvMetadataCpuKernel::CalcCmpMaskMode()
 {
     if (cmpMaskMode_ == static_cast<int32_t>(SparseMode::DEFAULT_MASK)) {
         cmpPreToken_ = INT64_MAX;
@@ -429,7 +429,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     CalcCmpMaskMode();
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
-    if (mode == SparseMode::DEFAULT_MASK && oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
+    if (oriMaskMode_ == static_cast<int32_t>(SparseMode::DEFAULT_MASK) && oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
         hasOriTopk = true;
     } else if (oriTopK_ != 0) {
         hasOriTopk = true;
@@ -589,7 +589,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &splitConte
     return;
 }
 
-int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcOriPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(oriMaskMode_);
     if (mode == SparseMode::BAND) {
@@ -598,7 +598,7 @@ int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriPreTokenLeftUp(uint32
     return oriPreToken_;
 }
 
-int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcOriNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(oriMaskMode_);
     switch (mode) {
@@ -615,7 +615,7 @@ int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriNextTokenLeftUp(uint3
     }
 }
 
-int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcCmpPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(cmpMaskMode_);
     if (mode == SparseMode::BAND) {
@@ -624,7 +624,7 @@ int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpPreTokenLeftUp(uint32
     return cmpPreToken_;
 }
 
-int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcCmpNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(cmpMaskMode_);
     switch (mode) {
@@ -800,7 +800,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(S1GCache &s1GCache, co
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriBlockRange(Range<int64_t> &oriS2TokenRange,
+void SparseAttnSharedkvMetadataCpuKernel::CalcOriBlockRange(Range<int64_t> &oriS2TokenRange,
                                                                    const BatchCache &batchCache,
                                                                    S1GCache &s1GCache)
 {
@@ -826,7 +826,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcOriBlockRange(Range<int64_t
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpBlockRange(Range<int64_t> &cmpS2TokenRange,
+void SparseAttnSharedkvMetadataCpuKernel::CalcCmpBlockRange(Range<int64_t> &cmpS2TokenRange,
                                                                    const BatchCache &batchCache,
                                                                    S1GCache &s1GCache)
 {
