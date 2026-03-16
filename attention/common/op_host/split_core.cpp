@@ -16,7 +16,6 @@
 #include "split_core.h"
 #include <cstdio>
 #include <math.h>
-#include "log/log.h"
 
 
 namespace optiling {
