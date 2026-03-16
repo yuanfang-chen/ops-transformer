@@ -46,7 +46,6 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {KEY_ROPE_NAME,               {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
     {DEQUANT_SCALE_QUERY_NAME,    {ge::DT_FLOAT}},
     {ATTEN_OUT_NAME,              {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8}},
-
 };
 
 const std::map<std::string, std::vector<FiaLayout>> LAYOUT_SUPPORT_MAP = {
@@ -568,7 +567,6 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaAntiquantMode() const
 
     return ge::GRAPH_SUCCESS;
 }
-
 
 
 ge::graphStatus FiaTilingCheck::CheckSingleParaKeyAntiquantMode() const
