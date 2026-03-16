@@ -175,7 +175,7 @@ private:
     int32_t cacheLenSum_;
     int32_t batchNumInLoop_;
     int32_t dimSizeInLoop_;
-    int32_t dimInnerOffset_;
+    int32_t dimOffsetInLoop_;
     int64_t isresidualConnection_;
     
 };
@@ -383,16 +383,15 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::CopyIn(int32_t batchLoop, in
     // === 1. 计算当前循环处理的batch数和dim大小 ===
     batchNumInLoop_ = (batchLoop == loopNumBS_ - 1) ? ubTailFactorBS_ : ubMainFactorBS_;
     dimSizeInLoop_ = (dimLoop == loopNumDim_ - 1) ? ubTailFactorDim_ : ubMainFactorDim_;
-    dimInnerOffset_ = dimLoop * dimSizeInLoop_;
-    int32_t startBatchIdx = firstBatchIdx_ + batchLoop * ubMainFactorBS_;
-    int32_t endBatchIdx = firstBatchIdx_ + (batchLoop + 1) * ubMainFactorBS_ - 1;
+    dimOffsetInLoop_ = dimLoop * dimSizeInLoop_;
+    int32_t startBatchIdxInOffset = firstBatchIdx_ + batchLoop * ubMainFactorBS_;
     int64_t blockCount = batchNumInLoop_ * seqLen_;
-    int64_t startSeqIdx = startBatchIdx * seqLen_;
+    int64_t startSeqIdx = startBatchIdxInOffset * seqLen_;
     if(xInputMode_ == 1) {
-        blockCount = queryStartLocLocal.GetValue(startBatchIdx + batchNumInLoop_) - queryStartLocLocal.GetValue(startBatchIdx);
-        startSeqIdx = queryStartLocLocal.GetValue(startBatchIdx) -queryStartLocLocal.GetValue(0);
+        blockCount = queryStartLocLocal.GetValue(startBatchIdxInOffset + batchNumInLoop_) - queryStartLocLocal.GetValue(startBatchIdxInOffset);
+        startSeqIdx = queryStartLocLocal.GetValue(startBatchIdxInOffset) -queryStartLocLocal.GetValue(0);
     }
-    int64_t xOffset = startSeqIdx * dimSum_ + dimOffset_ + dimInnerOffset_;
+    int64_t xOffset = startSeqIdx * dimSum_ + dimOffset_ + dimOffsetInLoop_;
     uint32_t blockLen = dimSizeInLoop_ * sizeof(T);
 
     // === 拷贝x数据：[blockCount, dimSizeInLoop] ===
@@ -405,8 +404,8 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::CopyIn(int32_t batchLoop, in
     DataCopyPad(xLocal, xGm[xOffset], dataCopyParams, padParams);
 
     // === 拷贝weight数据：[K, dimSizeInLoop] ===
-    // weight的全局偏移 = dimOffset_ + dimInnerOffset_
-    int32_t weightOffset = dimOffset_ + dimInnerOffset_;
+    // weight的全局偏移 = dimOffset_ + dimOffsetInLoop_
+    int32_t weightOffset = dimOffset_ + dimOffsetInLoop_;
     DataCopyParams weightCopyParams;
     weightCopyParams.blockCount = kernelSize_;
     weightCopyParams.blockLen = blockLen;
@@ -436,7 +435,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         int32_t curBatchIdx = firstBatchIdx_ + perLoopBatch + b;
         int64_t convStatesIdx = static_cast<int64_t>(indicesLocal.GetValue(curBatchIdx));
         int32_t acceptToken = acceptTokenLocal.GetValue(curBatchIdx);
-        int32_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimInnerOffset_;
+        int32_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimOffsetInLoop_;
         
         // === 拷贝convStates数据：[, dimSizeInLoop] ===
         DataCopyParams cacheCopyParams;
@@ -450,14 +449,14 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         //=== 更新cachestate ===
         int32_t curBatchSeq = seqLen_;
         int32_t curBatchUbOffset = b * curBatchSeq * dimSizeInLoop_;
+        int64_t yOffset = curBatchIdx * seqLen_ * dim_ + dimOffset_ + dimOffsetInLoop_;
         if(xInputMode_ == 1) {
             curBatchSeq = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx);
             curBatchUbOffset = queryStartLocLocal.GetValue(curBatchIdx + 1) - queryStartLocLocal.GetValue(curBatchIdx - b + 1) * dimSizeInLoop_;
+            yOffset =(queryStartLocLocal.GetValue(curBatchIdx) - queryStartLocLocal.GetValue(0)) * dim_ + dimOffset_ + dimOffsetInLoop_;
         }
         UpdateconvStates(xLocal, convStatesLocal, acceptToken, curBatchUbOffset, convStatesIdx, curBatchSeq);
         InsertSync(HardEvent::MTE2_V);
-
-        int32_t yOffset = curBatchIdx * seqLen_ * dim_ + dimOffset_ + dimInnerOffset_;
 
         // 情况A：序列位置 j ∈ [0, K-2]，需要使用cache state
         for (int32_t j = 0; j < kernelSize_ - 1 && j < curBatchSeq; j++) {
@@ -502,7 +501,7 @@ template <typename T>
 __aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
     int32_t acceptToken, int32_t curBatchUbOffset, int64_t convStatesIdx, int32_t curBatchSeq)
 {
-    int64_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimInnerOffset_;
+    int64_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimOffsetInLoop_;
     uint32_t blockLen = dimSizeInLoop_ * sizeof(T);
     uint32_t dstStrideBytes = (cacheLenSum_ - dimSizeInLoop_) * sizeof(T);
     // === 步骤1：拷贝旧cache state的后cacheLen - seqLen_行（如果需要） ===
