@@ -84,7 +84,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 
         // query_start_loc shape is (batch + 1,), so batch = dim0 - 1
         batchSize_ = queryStartLocOriginShape.GetDim(DIM_0) - 1;
-        seqLen_ = MAX_M + 1;
+        seqLen_ = 0;
     } else {
         OP_LOGE(context_->GetNodeName(), "X dimension number must be 2 or 3, but got %lu",
                 xOriginShape.GetDimNum());
@@ -652,6 +652,9 @@ void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS
                       int64_t &outLoopDim, int64_t &outLoopBS,
                       int64_t &outUbTailDim, int64_t &outUbTailBS)
 {
+    if (xInputMode_ == X_INPUT_2D) {
+        seqLen_ = 6;
+    }
     int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
     int64_t xCoeffPerDimFullBS = BUFFER_NUM * coreBS * seqLen_ * DTYPE_SIZE;
     int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBS;
