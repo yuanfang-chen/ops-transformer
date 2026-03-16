@@ -873,6 +873,7 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     
     ret = CheckParams(params2);
     
+    
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     int64_t outDimNum = params.out->GetViewShape().GetDimNum();
