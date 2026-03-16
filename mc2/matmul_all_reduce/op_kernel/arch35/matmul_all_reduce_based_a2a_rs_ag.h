@@ -74,16 +74,16 @@ public:
         }
         cgmAddr_ = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + tailInfo_.cAddrOffset * paramInTiling_->tailCnt;
         cgmLen_ = tileInfo_.cOffset * paramInTiling_->tileCnt + tailInfo_.cOffset * paramInTiling_->tailCnt;
-        cgmPadLen_ = (rankNum_ - (cgmLen_ % rankNum_)) % rankNum_;      // 和tiling侧对齐，只有最后一块tilingData才可能会不能整除rankNum_
         all2allInGM_ = addrs_->cGM;
-        all2allOutGM_ = all2allInGM_ + cgmAddr_ + cgmPadLen_ * sizeof(YType);       // MM结果
+        all2allOutGM_ = all2allInGM_ + cgmAddr_ + rankNum_ * sizeof(YType);       // MM结果
         reduceSumInGM_ = all2allOutGM_;
-        reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_ + cgmPadLen_ * sizeof(YType);   // alltoall结果
+        reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_ + rankNum_ * sizeof(YType);   // alltoall结果
         allgatherInGM_ = reduceSumOutGM_;
-        if (cgmPadLen_ == 0) {         // 是否需要内存拷贝
+        CalcNeededPad(mVal, (uint64_t)tailInfo_.mmTiling->M);
+        if (!needPad_) {         // 是否需要内存拷贝
             allgatherOutGM_ = addrs_->outputGM;
         } else {
-            allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + cgmPadLen_ * sizeof(YType)) / rankNum_; // reduceSum结果
+            allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + rankNum_ * sizeof(YType)) / rankNum_; // reduceSum结果
         }
         PrePareHCCL();
     }
@@ -132,6 +132,13 @@ public:
     }
 
 protected:
+    __aicore__ inline void CalcNeededPad(uint64_t mTileValue, uint64_t mTailValue)
+    {
+        uint32_t tilePad = (rankNum_ - (mTileValue % rankNum_)) % rankNum_;
+        uint32_t tailPad = (rankNum_ - (mTailValue % rankNum_)) % rankNum_;
+        needPad_ = (tilePad != 0 || tailPad != 0);
+    }
+
     __aicore__ inline void PostProcEachTurn(AscendC::HcclHandle handleId, uint64_t aOffset, uint64_t cOffset, uint64_t index = 0)
     {
         if (addFlag_ && addrs_->cGM != addrs_->addGM) {
@@ -196,13 +203,13 @@ protected:
             }
         }
 
-        if (cgmPadLen_ != 0){
+        if (needPad_){
             if ASCEND_IS_AIV {
                 uint64_t aivNum = GetBlockNum() * GetTaskRation();
                 // DataCopy
                 SyncAll();
                 tPipe_->Reset();
-                dataCopy_.Init(cgmLen_ + cgmPadLen_, aivNum, allgatherOutGM_, addrs_->outputGM, tPipe_);
+                dataCopy_.Init(cgmLen_, aivNum, allgatherOutGM_, addrs_->outputGM, tPipe_);
                 dataCopy_.Process();
                 SyncAll();
             }
@@ -214,7 +221,6 @@ protected:
     uint32_t rankNum_ = 0UL;
     uint64_t cgmLen_ = 0UL;
     uint64_t cgmAddr_ = 0UL;
-    uint64_t cgmPadLen_ = 0UL;
     QuantGmAddrs* quantAddrs_;
     MC2GmAddrs* addrs_;
     ArnGmAddrs* arnAddrs_;
@@ -228,6 +234,7 @@ protected:
     bool tailFlag_;
     bool isOneTileFlag_;
     bool addFlag_;
+    bool needPad_;
     
     AscendC::HcclHandle all2allHandleId_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
     AscendC::HcclHandle allgatherHandleId_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
