@@ -26,11 +26,19 @@ namespace MhcPre {
 using namespace matmul;
 using namespace AscendC;
 
+#ifndef MHC_PRE_COMMON_DEFINED
+#define MHC_PRE_COMMON_DEFINED
 constexpr MicroAPI::CastTrait ctFp32To16 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                                             MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
 constexpr MicroAPI::CastTrait ctHalf2Fp32Zero = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
                                                  MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
 constexpr MicroAPI::DivSpecificMode divMode = {MicroAPI::MaskMergeMode::ZEROING, true};
+
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
+using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using MT = matmul::MatmulImpl<aT, bT, cT>;
+#endif  // MHC_PRE_COMMON_DEFINED
 
 struct InitParams {
     GM_ADDR x;
@@ -95,11 +103,6 @@ static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
     MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask); \
     MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue##nIdx, mask); \
     MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
-using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
-using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
-using MT = matmul::MatmulImpl<aT, bT, cT>;
 
 template <class T, class P>
 class MhcPreKernelPrefill {

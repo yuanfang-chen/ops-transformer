@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef __mhc_pre_KERNEL_H_
-#define __mhc_pre_KERNEL_H_
+#ifndef __mhc_pre_DECODE_KERNEL_H_
+#define __mhc_pre_DECODE_KERNEL_H_
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -26,17 +26,21 @@ namespace MhcPre {
 using namespace matmul;
 using namespace AscendC;
 
+#ifndef MHC_PRE_COMMON_DEFINED
+#define MHC_PRE_COMMON_DEFINED
 constexpr MicroAPI::CastTrait ctFp32To16 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
-                                              MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+                                            MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
 constexpr MicroAPI::CastTrait ctHalf2Fp32Zero = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
                                                  MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
 constexpr MicroAPI::DivSpecificMode divMode = {MicroAPI::MaskMergeMode::ZEROING, true};
 
-using namespace matmul;
-using namespace AscendC;
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
+using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using MT = matmul::MatmulImpl<aT, bT, cT>;
+#endif  // MHC_PRE_COMMON_DEFINED
 
-
-struct InitParams {
+struct InitParamsDecodeDecode {
     GM_ADDR x;
     GM_ADDR phi;
     GM_ADDR alpha;
@@ -53,62 +57,19 @@ struct InitParams {
     MhcPreTilingData *tilingData;
 };
 
-struct MatrixInfo {
-    uint64_t totalLength = 0;  // 总长度 (batch * sequence 或 T)
-    uint64_t nD = 0;           // n * D
-    uint64_t fusionSize = 0;   // phi 的第二维
-    float normEps = 0.0f;      // 归一化 epsilon
-    float hcEps = 0.0f;        // hyper connection epsilon
-};
-
-struct VectorOffsetParams {
-    uint64_t globalOffsetM = 0;
-    uint64_t singleCoreM = 0;
-    uint64_t offsetMStart = 0;
-    uint64_t offsetMEnd = 0;
-};
-
-struct MNConfig {
-    uint64_t m = 0;
-    uint64_t n = 0;
-    uint64_t k = 0;
-    uint64_t baseM = 0;
-    uint64_t baseN = 0;
-    uint64_t baseK = 0;
-    uint64_t curbaseM = 0;
-    uint64_t curBaseN = 0;
-    uint64_t curBaseK = 0;
-    uint64_t singleCoreM;
-    uint64_t singleCoreN;
-    uint64_t singleCoreK;
-    uint64_t curSingleCoreM;
-    uint64_t curSingleCoreN;
-    uint64_t curSingleCoreK;
-};
-
-// ========== 常量配置 ==========
-// 分块处理相关配置
-
-
-// 同步标志常量
-static constexpr uint64_t SYNC_V0toV0 = 0x1;  // Vector -> Vector 同步标志
-static constexpr uint64_t SYNC_V0toC = 0x2;   // Vector -> Cube 同步标志
-static constexpr uint64_t SYNC_CtoC = 0x3;    // Cube -> Cube 同步标志
-static constexpr uint64_t SYNC_CtoV1 = 0x4;   // Cube -> Vector 同步标志
-
-// 其他常量
-static constexpr uint32_t parallNum_ = 2;     // 并行数量
-
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
-using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
-using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
-using MT = matmul::MatmulImpl<aT, bT, cT>;
+static constexpr uint64_t SYNC_V0toV0 = 0x1;
+static constexpr uint64_t SYNC_V0toC = 0x2;
+static constexpr uint64_t SYNC_CtoC = 0x3;
+static constexpr uint64_t SYNC_CtoV1 = 0x4;
 
 template <class T, class P>
 class MhcPreKernelDecode {
 public:
     __aicore__ inline MhcPreKernelDecode(MT &matmul) : mm(matmul) {}
-    __aicore__ inline void Init(InitParams initParams);
+    __aicore__ inline void Init(InitParamsDecodeDecode initParams);
+public:
+    __aicore__ inline MhcPreKernelDecode(MT &matmul) : mm(matmul) {}
+    __aicore__ inline void Init(InitParamsDecode initParams);
     __aicore__ inline void Process();
     __aicore__ inline void AICProcess();
     __aicore__ inline void InitLocalBuffers();
@@ -221,7 +182,7 @@ private:
 };
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParams initParams)
+__aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParams)
 {
     // 1. 绑定 GlobalTensor
     xGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.x));
