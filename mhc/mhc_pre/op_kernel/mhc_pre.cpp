@@ -14,6 +14,7 @@
  */
 
 #include "arch35/mhc_pre_prefill.h"
+#include "arch35/mhc_pre_decode.h"
 
 using namespace AscendC;
 using namespace matmul;
@@ -33,7 +34,13 @@ extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR al
     if (TILING_KEY_IS(0UL)) {
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
-        MhcPreKernel<DTYPE_X, float32_t> op(mm);
+        MhcPreKernelPrefill<DTYPE_X, float32_t> op(mm);
+        op.Init(initParams);
+        op.Process();
+    } else if (TILING_KEY_IS(1UL)) {
+        MT mm;
+        mm.Init(&tilingData.matmulTiling, &pipe);
+        MhcPreKernelDecode<DTYPE_X, float32_t> op(mm);
         op.Init(initParams);
         op.Process();
     }
