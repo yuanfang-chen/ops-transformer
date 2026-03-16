@@ -388,7 +388,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
 
     if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
         Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
-        hOutSize_ = Ceil(axisH_, 2);
+        hOutSize_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
     } else {
         hOutSize_ = axisH_ * sizeof(ExpandXOutType);
     }
@@ -541,7 +541,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     uint32_t axisHCommu = hScaleIdxSize_ / sizeof(ExpandXOutType); // 有效搬运长度
     if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
         Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-        xCopyParams_ = {1U, static_cast<uint16_t>(Ceil(axisH_, 2)), 0U, 0U};
+        xCopyParams_ = {1U, static_cast<uint16_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE)), 0U, 0U};
     } else {
         xCopyParams_ = {1U, static_cast<uint16_t>(axisH_ * sizeof(XType)), 0U, 0U};
     }
@@ -631,8 +631,8 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
             auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
             if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
                 Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-                DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * Ceil(axisH_, 2)], xCopyParams_, padParams);
-                DataCopyPad(xTmpTensor_[Align32(Ceil(axisH_, 2))].template ReinterpretCast<uint8_t>(),
+                DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * Ceil(axisH_, FP4_ELEMS_PER_BYTE)], xCopyParams_, padParams);
+                DataCopyPad(xTmpTensor_[Align32(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>(),
                     tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
             } else {
                 DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * axisH_], xCopyParams_, padParams);
@@ -1255,6 +1255,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Loca
     GetCumSum(outCountLocal, aivId_);
     uint32_t index = 0;
     uint32_t beginIdx = outCountLocal.GetValue(0);
+    uint32_t hOutElemCount = hOutSize_ / sizeof(ExpandXOutType); // expandXOutGlobal申请每个token的GM Buffer空间大小
     preCnt_ = beginIdx;
     statusTensor_ = waitStatusBuf_.Get<int32_t>();
     DataCopyPadParams padParams = {false, 0U, 0U, 0U};
@@ -1292,7 +1293,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Loca
             if constexpr (IsNeedAllgather) {
                 DataCopyPad(winTpGatherOutGMTensor_[(beginIdx + j) * hAlignWinCnt_], xTmpTensor_, hCommuCopyOutParams_);
             }
-            expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(expandXOutGM_) + (beginIdx + j) * hOutSize_ / sizeof(ExpandXOutType), hOutSize_ / sizeof(ExpandXOutType));
+            expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(expandXOutGM_) + (beginIdx + j) * hOutElemCount, hOutElemCount);
             DataCopyPad(expandXOutGlobal, xTmpTensor_, expandXCopyParams_);
             xQueue_.FreeTensor(xTmpTensor_);
         }

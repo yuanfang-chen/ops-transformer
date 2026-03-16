@@ -375,7 +375,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     expertIdsCnt_ = axisBS_ * axisK_;
     if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
         Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
-        hOutSize_ = Ceil(axisH_, 2);
+        hOutSize_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
     } else {
         hOutSize_ = axisH_ * sizeof(ExpandXOutType);
     }
@@ -472,7 +472,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     windowGM_ = GetWindAddrByRankId(epRankIdOriginal_);
     if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
         Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-        hCopyParams_ = {1U, static_cast<uint32_t>(Ceil(axisH_, 2)), 0U, 0U};
+        hCopyParams_ = {1U, static_cast<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE)), 0U, 0U};
     } else {
         hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U};
     }
@@ -549,8 +549,8 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
         if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
             Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-            DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * Ceil(axisH_, 2)], hCopyParams_, copyPadParams);
-            DataCopyPad(xInTensor[Align32(Ceil(axisH_, 2))].template ReinterpretCast<uint8_t>(),
+            DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * Ceil(axisH_, FP4_ELEMS_PER_BYTE)], hCopyParams_, copyPadParams);
+            DataCopyPad(xInTensor[Align32(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>(),
                 tmp[srcTokenIndex * scaleInBytes_], scaleInParams, padParams);
         } else {
             DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadParams);
@@ -1278,9 +1278,10 @@ template <TemplateMC2TypeFullmeshClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::CopyInAndOut(
     LocalTensor<int32_t> xOutInt32Tensor, GM_ADDR wAddr, uint32_t index, uint32_t dstPosition, uint32_t arriveCount)
 {
+    uint32_t hOutElemCount = hOutSize_ / sizeof(ExpandXOutType); // expandXOutGlobal申请每个token的GM Buffer空间大小
     GlobalTensor<ExpandXOutType> dataFlagGlobal, expandXOutGlobal;
     dataFlagGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(wAddr));
-    expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(expandXOutGM_) + (dstPosition) * hOutSize_ / sizeof(ExpandXOutType));
+    expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(expandXOutGM_) + (dstPosition) * hOutElemCount);
     DataCopyParams srcTokenCopyParams{static_cast<uint16_t>(blockCntPerToken_ * arriveCount), 
         static_cast<uint16_t>(SPLIT_BLOCK_DATA_SIZE), static_cast<uint16_t>(UB_ALIGN), 0};
     DataCopyExtParams scalesCopyParams{uint16_t(arriveCount), static_cast<uint32_t>(scaleOutBytes_), 
