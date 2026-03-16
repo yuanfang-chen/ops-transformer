@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef OP_API_INC_ALL_GATHER_MATMUL_V2_
-#define OP_API_INC_ALL_GATHER_MATMUL_V2_
+#ifndef OP_API_INC_ALL_GATHER_MATMUL_
+#define OP_API_INC_ALL_GATHER_MATMUL_
 
 #include <string>
 #include "aclnn/aclnn_base.h"
@@ -36,7 +36,7 @@ extern "C" {
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnAllGatherMatmulV2GetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
+ACLNN_API aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
                                                    const char* group, int64_t gatherIndex, int64_t commTurn, int64_t streamMode,
                                                    aclTensor* output, aclTensor* gatherOut,
                                                    aclTensor* amaxOut, uint64_t* workspaceSize,
@@ -45,16 +45,16 @@ ACLNN_API aclnnStatus aclnnAllGatherMatmulV2GetWorkspaceSize(const aclTensor* x1
 /**
  * @brief aclnnAllGatherMatmul的第二段接口，用于执行计算。
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
- * @param [in] workspaceSize: 在npu device侧申请的workspace大小，由第一段接口aclnnAllGatherMatmulV2GetWorkspaceSize获取。
+ * @param [in] workspaceSize: 在npu device侧申请的workspace大小，由第一段接口aclnnAllGatherMatmulGetWorkspaceSize获取。
  * @param [in] exector: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnAllGatherMatmulV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+ACLNN_API aclnnStatus aclnnAllGatherMatmul(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                    aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // OP_API_INC_ALL_GATHER_MATMUL_V2_
+#endif  // OP_API_INC_ALL_GATHER_MATMUL_
