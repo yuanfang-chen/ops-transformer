@@ -363,7 +363,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     qDataCopyExtParams.blockCount = curAivS1ProcNum;
     qDataCopyExtParams.blockLen = gSize_ * sizeof(SCALE_T);
     qDataCopyExtParams.srcStride = 0;
-    qDataCopyExtParams.dstStride = (UB_BANK_DEPTH_STRIDE - qDataCopyExtParams.blockLen) / 32;
+    qDataCopyExtParams.dstStride = 0;
     DataCopyPad(qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(SCALE_T))],
                 qScaleGm[weightGmOffset], qDataCopyExtParams, padQScaleParams);
 
@@ -383,23 +383,25 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     LocalTensor<float> kScaleBase;
     auto qkBase = resMm1UB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
     auto qkVLstride = (UB_BANK_DEPTH_STRIDE / sizeof(float)) / 2 * constInfo_.mBaseSize;
-
+    uint32_t qScaleStride = 0;
     if constexpr (std::is_same<SCALE_T, float16_t>::value) {
         // cast qScale、kScale: fp16 -> fp32
         PipeBarrier<Pipe_ALL>();
         AscendC::Cast(qScaleFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))], qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(SCALE_T))], RoundMode::CAST_NONE, curAivS1ProcNum * QLICommon::Align((uint64_t)gSize_, (uint64_t)16));
-        AscendC::Cast(kScaleFloatUB_[pingpong * s2BaseSize_], kScaleUB_[pingpong * s2BaseSize_], RoundMode::CAST_NONE, 2 * s2BaseSize_);
+        AscendC::Cast(kScaleFloatUB_[pingpong * s2BaseSize_], kScaleUB_[pingpong * s2BaseSize_], RoundMode::CAST_NONE, s2BaseSize_);
         qScaleBase = qScaleFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
         kScaleBase = kScaleFloatUB_[pingpong * s2BaseSize_];
+        qScaleStride = QLICommon::Align((uint64_t)gSize_, (uint64_t)16);
     } else {
         qScaleBase = qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
         kScaleBase = kScaleUB_[pingpong * s2BaseSize_];
+        qScaleStride = gSize_;
     }
     vector1::BatchMulWeightAndReduceSum(outBase, UB_BANK_DEPTH_STRIDE / sizeof(uint16_t),
                                         qkBase, qkVLstride, (uint32_t)(gSize_ * UB_BANK_DEPTH_STRIDE / sizeof(float)), 
                                         weightBase, QLICommon::Align((uint64_t)gSize_, (uint64_t)16),
                                         kScaleBase, (uint32_t)0,
-                                        qScaleBase, UB_BANK_DEPTH_STRIDE / sizeof(float),
+                                        qScaleBase, qScaleStride,
                                         gSize_, curAivS1ProcNum);
     SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + pingpong);
     SetFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + pingpong);
