@@ -1480,88 +1480,95 @@ def test_mla_prolog_v3(params):
     # --- NPU operator call ---
     torch_npu.npu.set_device(0)
 
-    # Move tensors to NPU
-    token_x_npu = npu_inputs["token_x"].npu()
-    w_dq_npu = npu_inputs["weight_dq"].npu()
-    w_uq_qr_npu = npu_inputs["weight_uq_qr"].npu()
-    w_uk_npu = npu_inputs["weight_uk"].npu()
-    w_dkv_kr_npu = npu_inputs["weight_dkv_kr"].npu()
-    gamma_cq_npu = npu_inputs["rmsnorm_gamma_cq"].npu()
-    gamma_ckv_npu = npu_inputs["rmsnorm_gamma_ckv"].npu()
-    rope_sin_npu = npu_inputs["rope_sin"].npu()
-    rope_cos_npu = npu_inputs["rope_cos"].npu()
-    kv_cache_npu = npu_inputs["kv_cache"].npu()
-    kr_cache_npu = npu_inputs["kr_cache"].npu()
+    try:
+        # Move tensors to NPU
+        token_x_npu = npu_inputs["token_x"].npu()
+        w_dq_npu = npu_inputs["weight_dq"].npu()
+        w_uq_qr_npu = npu_inputs["weight_uq_qr"].npu()
+        w_uk_npu = npu_inputs["weight_uk"].npu()
+        w_dkv_kr_npu = npu_inputs["weight_dkv_kr"].npu()
+        gamma_cq_npu = npu_inputs["rmsnorm_gamma_cq"].npu()
+        gamma_ckv_npu = npu_inputs["rmsnorm_gamma_ckv"].npu()
+        rope_sin_npu = npu_inputs["rope_sin"].npu()
+        rope_cos_npu = npu_inputs["rope_cos"].npu()
+        kv_cache_npu = npu_inputs["kv_cache"].npu()
+        kr_cache_npu = npu_inputs["kr_cache"].npu()
 
-    # NZ format cast for 2D weight matrices
-    w_dq_cast = torch_npu.npu_format_cast(w_dq_npu.contiguous(), 29)
-    w_uq_qr_cast = torch_npu.npu_format_cast(w_uq_qr_npu.contiguous(), 29)
-    w_dkv_kr_cast = torch_npu.npu_format_cast(w_dkv_kr_npu.contiguous(), 29)
+        # NZ format cast for 2D weight matrices
+        w_dq_cast = torch_npu.npu_format_cast(w_dq_npu.contiguous(), 29)
+        w_uq_qr_cast = torch_npu.npu_format_cast(w_uq_qr_npu.contiguous(), 29)
+        w_dkv_kr_cast = torch_npu.npu_format_cast(w_dkv_kr_npu.contiguous(), 29)
 
-    # Optional inputs
-    cache_index_npu = npu_inputs["cache_index"].npu() if npu_inputs["cache_index"] is not None else None
-    deq_scale_x_npu = npu_inputs["deq_scale_x"].npu() if npu_inputs["deq_scale_x"] is not None else None
-    deq_scale_w_dq_npu = npu_inputs["deq_scale_w_dq"].npu() if npu_inputs["deq_scale_w_dq"] is not None else None
-    deq_scale_w_uqqr_npu = npu_inputs["deq_scale_w_uqqr"].npu() if npu_inputs["deq_scale_w_uqqr"] is not None else None
-    deq_scale_w_dkvkr_npu = npu_inputs["deq_scale_w_dkvkr"].npu() if npu_inputs["deq_scale_w_dkvkr"] is not None else None
-    quant_scale_ckv_npu = npu_inputs["quant_scale_ckv"].npu() if npu_inputs["quant_scale_ckv"] is not None else None
-    quant_scale_ckr_npu = npu_inputs["quant_scale_ckr"].npu() if npu_inputs["quant_scale_ckr"] is not None else None
-    smooth_scales_cq_npu = npu_inputs["smooth_scales_cq"].npu() if npu_inputs["smooth_scales_cq"] is not None else None
-    k_nope_clip_alpha_npu = npu_inputs["k_nope_clip_alpha"].npu() if npu_inputs["k_nope_clip_alpha"] is not None else None
-    actual_seq_len_npu = npu_inputs["actual_seq_len"].npu() if npu_inputs["actual_seq_len"] is not None else None
+        # Optional inputs
+        cache_index_npu = npu_inputs["cache_index"].npu() if npu_inputs["cache_index"] is not None else None
+        deq_scale_x_npu = npu_inputs["deq_scale_x"].npu() if npu_inputs["deq_scale_x"] is not None else None
+        deq_scale_w_dq_npu = npu_inputs["deq_scale_w_dq"].npu() if npu_inputs["deq_scale_w_dq"] is not None else None
+        deq_scale_w_uqqr_npu = npu_inputs["deq_scale_w_uqqr"].npu() if npu_inputs["deq_scale_w_uqqr"] is not None else None
+        deq_scale_w_dkvkr_npu = npu_inputs["deq_scale_w_dkvkr"].npu() if npu_inputs["deq_scale_w_dkvkr"] is not None else None
+        quant_scale_ckv_npu = npu_inputs["quant_scale_ckv"].npu() if npu_inputs["quant_scale_ckv"] is not None else None
+        quant_scale_ckr_npu = npu_inputs["quant_scale_ckr"].npu() if npu_inputs["quant_scale_ckr"] is not None else None
+        smooth_scales_cq_npu = npu_inputs["smooth_scales_cq"].npu() if npu_inputs["smooth_scales_cq"] is not None else None
+        k_nope_clip_alpha_npu = npu_inputs["k_nope_clip_alpha"].npu() if npu_inputs["k_nope_clip_alpha"] is not None else None
+        actual_seq_len_npu = npu_inputs["actual_seq_len"].npu() if npu_inputs["actual_seq_len"] is not None else None
 
-    weight_quant_mode = params['weight_quant_mode']
-    kv_quant_mode = params['kv_cache_quant_mode']
-    query_quant_mode = params['query_quant_mode']
-    ckvkr_repo_mode = params['ckvkr_repo_mode']
-    quant_scale_repo_mode = params['quant_scale_repo_mode']
-    cache_mode = params['cache_mode']
-    block_size = params['block_size']
-    qnorm_flag = params.get('query_norm_flag', False)
-    tile_size = params.get('tile_size', 128)
-    qc_qr_scale = params.get('qc_qr_scale', 1.0)
-    kc_scale = params.get('kc_scale', 1.0)
-    epsilon_cq = params.get('epsilon_cq', 1e-5)
-    epsilon_ckv = params.get('epsilon_ckv', 1e-5)
+        weight_quant_mode = params['weight_quant_mode']
+        kv_quant_mode = params['kv_cache_quant_mode']
+        query_quant_mode = params['query_quant_mode']
+        ckvkr_repo_mode = params['ckvkr_repo_mode']
+        quant_scale_repo_mode = params['quant_scale_repo_mode']
+        cache_mode = params['cache_mode']
+        block_size = params['block_size']
+        qnorm_flag = params.get('query_norm_flag', False)
+        tile_size = params.get('tile_size', 128)
+        qc_qr_scale = params.get('qc_qr_scale', 1.0)
+        kc_scale = params.get('kc_scale', 1.0)
+        epsilon_cq = params.get('epsilon_cq', 1e-5)
+        epsilon_ckv = params.get('epsilon_ckv', 1e-5)
 
-    result = torch_npu.npu_mla_prolog_v3(
-        token_x_npu, w_dq_cast, w_uq_qr_cast,
-        w_uk_npu, w_dkv_kr_cast,
-        gamma_cq_npu, gamma_ckv_npu,
-        rope_sin_npu, rope_cos_npu,
-        kv_cache_npu, kr_cache_npu,
-        cache_index=cache_index_npu,
-        dequant_scale_x=deq_scale_x_npu,
-        dequant_scale_w_dq=deq_scale_w_dq_npu,
-        dequant_scale_w_uq_qr=deq_scale_w_uqqr_npu,
-        dequant_scale_w_dkv_kr=deq_scale_w_dkvkr_npu,
-        quant_scale_ckv=quant_scale_ckv_npu,
-        quant_scale_ckr=quant_scale_ckr_npu,
-        smooth_scales_cq=smooth_scales_cq_npu,
-        actual_seq_len=actual_seq_len_npu,
-        k_nope_clip_alpha=k_nope_clip_alpha_npu,
-        rmsnorm_epsilon_cq=epsilon_cq,
-        rmsnorm_epsilon_ckv=epsilon_ckv,
-        cache_mode=cache_mode,
-        query_norm_flag=qnorm_flag,
-        weight_quant_mode=weight_quant_mode,
-        kv_cache_quant_mode=kv_quant_mode,
-        query_quant_mode=query_quant_mode,
-        ckvkr_repo_mode=ckvkr_repo_mode,
-        quant_scale_repo_mode=quant_scale_repo_mode,
-        tile_size=tile_size,
-        qc_qr_scale=qc_qr_scale,
-        kc_scale=kc_scale,
-    )
+        result = torch_npu.npu_mla_prolog_v3(
+            token_x_npu, w_dq_cast, w_uq_qr_cast,
+            w_uk_npu, w_dkv_kr_cast,
+            gamma_cq_npu, gamma_ckv_npu,
+            rope_sin_npu, rope_cos_npu,
+            kv_cache_npu, kr_cache_npu,
+            cache_index=cache_index_npu,
+            dequant_scale_x=deq_scale_x_npu,
+            dequant_scale_w_dq=deq_scale_w_dq_npu,
+            dequant_scale_w_uq_qr=deq_scale_w_uqqr_npu,
+            dequant_scale_w_dkv_kr=deq_scale_w_dkvkr_npu,
+            quant_scale_ckv=quant_scale_ckv_npu,
+            quant_scale_ckr=quant_scale_ckr_npu,
+            smooth_scales_cq=smooth_scales_cq_npu,
+            actual_seq_len=actual_seq_len_npu,
+            k_nope_clip_alpha=k_nope_clip_alpha_npu,
+            rmsnorm_epsilon_cq=epsilon_cq,
+            rmsnorm_epsilon_ckv=epsilon_ckv,
+            cache_mode=cache_mode,
+            query_norm_flag=qnorm_flag,
+            weight_quant_mode=weight_quant_mode,
+            kv_cache_quant_mode=kv_quant_mode,
+            query_quant_mode=query_quant_mode,
+            ckvkr_repo_mode=ckvkr_repo_mode,
+            quant_scale_repo_mode=quant_scale_repo_mode,
+            tile_size=tile_size,
+            qc_qr_scale=qc_qr_scale,
+            kc_scale=kc_scale,
+        )
 
-    torch.npu.synchronize()
+        torch.npu.synchronize()
 
-    # kv_cache and kr_cache are updated in-place by the NPU operator.
-    # The returned tuple only contains: (queryOut, queryRopeOut, [deqScaleQNope], [queryNorm], [deqScaleQNorm]).
-    # We insert the in-place-updated caches at positions [2] and [3] to match the CPU golden order:
-    # (out1, out2, out3=kv_cache, out4=kr_cache, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
-    npu_outputs = list(result) if isinstance(result, (tuple, list)) else [result]
-    result_list = npu_outputs[:2] + [kv_cache_npu, kr_cache_npu] + npu_outputs[2:]
+        # kv_cache and kr_cache are updated in-place by the NPU operator.
+        # The returned tuple only contains: (queryOut, queryRopeOut, [deqScaleQNope], [queryNorm], [deqScaleQNorm]).
+        # We insert the in-place-updated caches at positions [2] and [3] to match the CPU golden order:
+        # (out1, out2, out3=kv_cache, out4=kr_cache, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
+        npu_outputs = list(result) if isinstance(result, (tuple, list)) else [result]
+        result_list = npu_outputs[:2] + [kv_cache_npu, kr_cache_npu] + npu_outputs[2:]
+    except Exception:
+        try:
+            torch.npu.synchronize()
+        except Exception:
+            pass
+        raise
 
     # CPU golden: (out1, out2, out3, out4, deq_scale_q_nope, out_qnorm, out_deq_qnorm)
     # Empty tensors are used for unused optional outputs.
