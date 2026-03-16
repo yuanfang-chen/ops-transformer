@@ -2,40 +2,6 @@
 
 请您在学习QuickStart或各类教程操作之前，请先参考下面步骤完成基础环境搭建。
 
-注意本文提到的编译态和运行态场景含义如下，请按需安装：
-
-- 编译态：针对仅编译不运行本项目的场景，只需安装前置依赖和CANN toolkit包。
-- 运行态：针对运行本项目的场景（编译运行或纯运行），除了安装前置依赖和CANN toolkit包，还需安装驱动与固件、CANN ops包。
-
-## 前提条件
-
-编译本项目前，请确保编译环境的基础库依赖、NPU驱动和固件已安装。
-
-1. **安装依赖**
-
-   - python >= 3.7.0（建议版本 <= 3.10） 
-   - gcc >= 7.3.0
-   - cmake >= 3.16.0
-   - pigz（可选，安装后可提升打包速度，建议版本 >= 2.4）
-   - dos2unix
-   - gawk
-   - make
-   - googletest（仅执行UT时依赖，建议版本 [release-1.11.0](https://github.com/google/googletest/releases/tag/release-1.11.0)）
-   
-   上述依赖包请注意版本号，也可通过项目根目录install\_deps.sh一键安装，命令如下，若遇到不支持系统，请参考该文件自行适配。
-   
-   ```bash
-   bash install_deps.sh
-   ```
-
-2. **安装驱动与固件**（运行态依赖）
-
-   运行算子时必须安装驱动与固件，若仅编译算子，可跳过本操作。
-
-   单击[下载链接](https://www.hiascend.com/hardware/firmware-drivers/community)，根据实际产品型号和环境架构，获取对应的`Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run`、`Ascend-hdk-<chip_type>-npu-firmware_<version>.run`包。
-
-   安装指导详见《[CANN 软件安装指南](https://www.hiascend.com/document/redirect/CannCommunityInstSoftware)》。
-
 ## 环境准备
 
 本项目提供了多种CANN包（`Ascend-cann-toolkit`和`Ascend-cann-ops`）安装方式，请按需选择。
@@ -67,7 +33,7 @@
 1.**下载镜像**
 
 - 步骤1：以root用户登录宿主机。确保宿主机已安装Docker引擎（版本1.11.2及以上）。
-- 步骤2：从[昇腾镜像仓库](https://www.hiascend.com/developer/ascendhub/detail/17da20d1c2b6493cb38765adeba85884)拉取已预集成CANN软件包及`ops-math`所需依赖的镜像。命令如下，根据实际架构选择：
+- 步骤2：从[昇腾镜像仓库](https://www.hiascend.com/developer/ascendhub/detail/17da20d1c2b6493cb38765adeba85884)拉取已预集成CANN软件包及`ops-transformer`所需依赖的镜像。命令如下，根据实际架构选择：
 
     ```bash
     # 示例：拉取ARM架构的CANN开发镜像
@@ -83,7 +49,6 @@
 ```bash
 docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi -v /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/ -v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info -v /etc/ascend_install.info:/etc/ascend_install.info -it swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops bash
 ```
-
 | 参数 | 说明 | 注意事项 |
 | :--- | :--- | :--- |
 | `--name cann_container` | 为容器指定名称，便于管理。 | 可自定义。 |
@@ -102,7 +67,47 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 
 ### 方式3：手动安装CANN
 
-对于有昇腾设备的开发者，若您想手动安装CANN包，请根据下述描述，选择对应的安装指导。	 
+对于有昇腾设备的开发者，若您想手动安装CANN包，请根据下述描述，选择对应的安装指导。 
+注意下文提到的编译态和运行态含义如下，请按需安装：
+
+- 编译态：针对仅编译不运行本项目的场景，只需安装前置依赖和CANN toolkit包。
+- 运行态：针对运行本项目的场景（编译运行或纯运行），除了安装前置依赖和CANN toolkit包，还需安装驱动与固件、CANN ops包。
+
+**前提条件**
+
+请先确保编译环境的基础库依赖、NPU驱动和固件已安装。
+
+1. ***安装依赖***
+
+   - python >= 3.7.0（建议版本 <= 3.10） 
+   - gcc >= 7.3.0
+   - cmake >= 3.16.0
+   - pigz（可选，安装后可提升打包速度，建议版本 >= 2.4）
+   - dos2unix
+   - gawk
+   - make
+   - patch
+   - googletest（仅执行UT时依赖，建议版本 [release-1.11.0](https://github.com/google/googletest/releases/tag/release-1.11.0)）
+   
+   上述依赖包请注意版本号，也可通过项目根目录install\_deps.sh一键安装，命令如下，若遇到不支持系统，请参考该文件自行适配。
+   
+   ```bash
+   bash install_deps.sh
+   ```
+
+   完成上述依赖安装后，通过项目根目录requirements.txt继续安装python三方库依赖，命令如下。
+
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+
+2. ***安装驱动与固件***（运行态依赖）
+
+   运行算子时必须安装驱动与固件，若仅编译算子，可跳过本操作。
+   
+   单击[下载链接](https://www.hiascend.com/hardware/firmware-drivers/community)，根据实际产品型号和环境架构，获取对应的`Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run`、`Ascend-hdk-<chip_type>-npu-firmware_<version>.run`包。
+
+   安装指导详见《[CANN 软件安装指南](https://www.hiascend.com/document/redirect/CannCommunityInstSoftware)》中“安装指南 > 安装NPU驱动和固件”。
 
 **场景1：已发布版本**
 
@@ -156,7 +161,6 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 ## 环境变量配置
 
 按需选择合适的命令使环境变量生效。
-
 ```bash
 # 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
 source /usr/local/Ascend/cann/set_env.sh
@@ -174,13 +178,6 @@ git clone -b ${tag_version} https://gitcode.com/cann/ops-transformer.git
 ```
 
 对于WebIDE或Docker环境，已默认提供最新商发版本的项目源码，如需获取其他版本的源码，也需通过上述命令下载源码。
-
-对于手动安装CANN场景，安装CANN包和下载源码后，还需额外安装python基础库依赖。
-
-```bash
-# 安装根目录requirements.txt依赖
-pip3 install -r requirements.txt
-```
 
 > [!NOTE] 注意
 >
