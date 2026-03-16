@@ -98,9 +98,6 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
         yShape->SetDim(i, xShape->GetDim(i));
     }
 
-    ShowInputShapeInfo(context, xShape);
-    ShowOutputShapeInfo(context, yShape);
-
     OP_LOGD(context, "End to do MhcSinkhornInfershape.");
 
     return GRAPH_SUCCESS; 
