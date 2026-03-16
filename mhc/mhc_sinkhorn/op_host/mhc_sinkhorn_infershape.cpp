@@ -36,9 +36,9 @@ namespace ops {
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
     OP_LOGD(context, "Begin to do MhcSinkhornInfershape.");
-    const gert::Shape* x_shape = context->GetInputShape(X_INDEX);
+    const gert::Shape* xshape = context->GetInputShape(X_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, x_shape);
-    gert::Shape* y_shape = context->GetOutputShape(Y_INDEX);
+    gert::Shape* yshape = context->GetOutputShape(Y_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, y_shape);
     auto attr_ptr = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attr_ptr);
