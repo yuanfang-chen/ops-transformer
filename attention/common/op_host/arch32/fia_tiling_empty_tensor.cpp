@@ -88,15 +88,9 @@ void FiaTilingEmptyTensor::FillTiling()
         totalOutputSize = totalOutputSize / 2UL;
     }
     singleCoreSize = (totalOutputSize + (2UL * usedCoreNum_) - 1UL) / (2UL * usedCoreNum_);
-    if (fiaInfo_->softmaxLseFlag) {
-        totalLseSize = tSize * fiaInfo_->n1Size;
-        if (totalLseSize > fiaInfo_->totalLseSize) {
-            totalLseSize = fiaInfo_->totalLseSize;
-        }
-        singleCoreLseSize = (totalLseSize + (2UL * usedCoreNum_) - 1UL) / (2UL * usedCoreNum_);
-    }
+
     
-    tilingData_.set_softmaxLseFlag(fiaInfo_->softmaxLseFlag ? 1 : 0);
+
     tilingData_.set_headDim(fiaInfo_->vHeadDim);
     tilingData_.set_totalOutputSize(totalOutputSize);
     tilingData_.set_singleCoreSize(singleCoreSize);

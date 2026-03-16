@@ -37,7 +37,7 @@ const std::string KEY_ROPE_ANTIQUANT_SCALE_NAME = "the key_rope's dequant scale"
 const std::string KV_HEADS_NUM_NAME = "the key/value's heads num";
 const std::string NEXT_TOKENS_NAME = "next_tokens";
 const std::string PRE_TOKENS_NAME = "pre_tokens";
-\
+
 const std::string QUANT_OFFSET2_NAME = "the output's dequant offset";
 const std::string QUANT_SCALE2_NAME = "the output's dequant scale";
 const std::string QUERY_NAME = "query";
@@ -60,7 +60,7 @@ const std::string KEY_SHARED_PREFIX_NAME = "key_shared_prefix";
 const std::string KV_PADDING_SIZE_NAME = "kv_padding_size";
 const std::string QUANT_SCALE1_NAME = "quant_scale1";
 const std::string QUERY_PADDING_SIZE_NAME = "query_padding_size";
-const std::string SOFTMAX_LSE_NAME = "softmax_lse";
+
 const std::string VALUE_SHARED_PREFIX_NAME = "value_shared_prefix";
 const std::string ACTUAL_SHARED_PREFIX_LEN_NAME = "actual_shared_prefix_len";
 const std::string LEARNABLE_SINK_NAME = "learnable_sink";
@@ -220,7 +220,7 @@ struct FIAParaInfo {
     const int32_t *blockSize = nullptr;
     const int32_t *innerPrecise = nullptr;
     const int64_t *antiquantMode = nullptr;
-    const bool *softmaxLseFlag = nullptr;
+
     const int64_t *keyAntiquantMode = nullptr;
     const int64_t *valueAntiquantMode = nullptr;
     const int32_t *sparseMode = nullptr;
@@ -311,7 +311,7 @@ public:
     bool batchContinuousFlag = true;
     bool kvPaddingSizeFlag = false;
     bool qPaddingSizeFlag = false;
-    bool softmaxLseFlag = false;
+
     bool quantFlag = false;
     bool isMaxWorkspace = false;
     bool isLegacyIfa = false;
