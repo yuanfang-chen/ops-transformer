@@ -18,6 +18,7 @@
 #include "platform/platform_info.h"
 #include "runtime/rt_external_base.h"
 #include "platform/soc_spec.h"
+#include "util/shape_util.h"
 
 using namespace ge;
 using namespace std;
