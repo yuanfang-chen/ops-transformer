@@ -10,12 +10,12 @@
 
 /*!
  * \file chunk_gated_delta_rule_recurrence.cpp
- * \brief Kernel entry point for ChunkGatedDeltaRuleRecurrence
+ * \brief Fused Cube+Vector kernel entry point for ChunkGatedDeltaRuleRecurrence
  */
 #include "chunk_gated_delta_rule_recurrence.h"
 
 using namespace AscendC;
-using namespace ChunkGatedDeltaRuleRecurrence;
+using namespace matmul;
 
 extern "C" __global__ __aicore__ void chunk_gated_delta_rule_recurrence(
     __gm__ uint8_t *initialState,
@@ -31,12 +31,22 @@ extern "C" __global__ __aicore__ void chunk_gated_delta_rule_recurrence(
     __gm__ uint8_t *workspace,
     __gm__ uint8_t *tiling)
 {
-    REGISTER_TILING_DEFAULT(ChunkGatedDeltaRuleRecurrenceTilingData);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    REGISTER_TILING_DEFAULT(ChunkGatedDeltaRuleRecurrence::ChunkGatedDeltaRuleRecurrenceTilingData);
     GET_TILING_DATA(tilingData, tiling);
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+
+    using aT  = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+    using bT  = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+    using cT  = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+    using MmT = MatmulImpl<aT, bT, cT>;
+
     TPipe pipe;
-    CGDR op(&tilingData);
+    MmT mmC12;
+    MmT mmC3;
+
+    ChunkGatedDeltaRuleRecurrence::CGDR<MmT> op(mmC12, mmC3, &tilingData);
+    op.SetCubeTilings(tilingData.cubeTilingC12, tilingData.cubeTilingC3);
     op.Init(initialStateOut, kgexp, value, kCumdecay, qgexp, gexp,
-            cuSeqlens, attnInterOut, vNewOut, &pipe);
+            cuSeqlens, attnInterOut, vNewOut, workspace, &pipe);
     op.Process();
 }

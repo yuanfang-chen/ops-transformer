@@ -26,7 +26,10 @@ using namespace ChunkGatedDeltaRuleRecurrence;
 
 struct ChunkGatedDeltaRuleRecurrenceCompileInfo {
     uint64_t aivNum{0UL};
+    uint64_t aicNum{0UL};
     uint64_t ubSize{0UL};
+    uint64_t l1Size{0UL};
+    uint64_t l0cSize{0UL};
 };
 
 struct ChunkGatedDeltaRuleRecurrenceInfo {
@@ -62,12 +65,16 @@ protected:
     ge::graphStatus AnalyzeShapes();
     ge::graphStatus GetScaleAttr();
     ge::graphStatus CalDvTile();
+    ge::graphStatus CalCubeTiling();
 
     bool CheckDim(const gert::Shape &shape, size_t expected, const std::string &name);
 
     ChunkGatedDeltaRuleRecurrenceCompileInfo compileInfo_;
     ChunkGatedDeltaRuleRecurrenceTilingData  tilingData_;
     ChunkGatedDeltaRuleRecurrenceInfo        inputParams_;
+
+    matmul_tiling::MultiCoreMatmulTiling mm12_;  // tiling for C1/C2
+    matmul_tiling::MultiCoreMatmulTiling mm3_;   // tiling for C3
 };
 
 } // namespace optiling

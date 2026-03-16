@@ -46,8 +46,8 @@ const size_t CHUNK4D_DIM_NUM = 4; // [hv, n_chunks, cs, dk/dv]
 const size_t GEXP_DIM_NUM    = 4; // [hv, n_chunks, cs, 1]
 const size_t CSEQ_DIM_NUM    = 1; // [b+1]
 
-// System workspace (16 MB)
-const int64_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024;
+// Cube tile-size caps for matmul tiling (per dimension)
+const uint32_t MM_BASE_CAP = 128U;
 
 // ──────────────────────────────────────────────────────────────────────────
 void ChunkGatedDeltaRuleRecurrenceTiling::InitCompileInfo()
@@ -58,13 +58,18 @@ void ChunkGatedDeltaRuleRecurrenceTiling::InitCompileInfo()
         return;
     }
     const auto &plat = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    plat.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo_.ubSize);
+    plat.GetCoreMemSize(platform_ascendc::CoreMemType::UB,  compileInfo_.ubSize);
+    plat.GetCoreMemSize(platform_ascendc::CoreMemType::L1,  compileInfo_.l1Size);
+    plat.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfo_.l0cSize);
     compileInfo_.aivNum = plat.GetCoreNumAiv();
-    if (compileInfo_.aivNum == 0) {
-        OP_LOGE(context_->GetNodeName(), "aivNum == 0");
+    compileInfo_.aicNum = plat.GetCoreNumAic();
+    if (compileInfo_.aivNum == 0 || compileInfo_.aicNum == 0) {
+        OP_LOGE(context_->GetNodeName(), "aivNum=%lu or aicNum=%lu is 0",
+                compileInfo_.aivNum, compileInfo_.aicNum);
         return;
     }
-    tilingData_.coreNum = static_cast<uint32_t>(compileInfo_.aivNum);
+    tilingData_.coreNum    = static_cast<uint32_t>(compileInfo_.aivNum);
+    tilingData_.coreNumAic = static_cast<uint32_t>(compileInfo_.aicNum);
 }
 
 ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::GetPlatformInfo()
@@ -94,6 +99,9 @@ ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::DoOpTiling()
     OP_CHECK_IF(CalDvTile() != ge::GRAPH_SUCCESS,
                 OP_LOGE(inputParams_.opName, "CalDvTile failed"),
                 return ge::GRAPH_FAILED);
+    OP_CHECK_IF(CalCubeTiling() != ge::GRAPH_SUCCESS,
+                OP_LOGE(inputParams_.opName, "CalCubeTiling failed"),
+                return ge::GRAPH_FAILED);
     PrintTilingData();
     return ge::GRAPH_SUCCESS;
 }
@@ -111,13 +119,29 @@ uint64_t ChunkGatedDeltaRuleRecurrenceTiling::GetTilingKey() const
 
 ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::GetWorkspaceSize()
 {
-    workspaceSize_ = SYS_WORKSPACE_SIZE;
+    // Per-group workspace: vPrimeNewWs [cs×dv] + attnWs [cs×dv] + deltaWs [dv×dk]
+    uint32_t wsPerGroup = 2U * tilingData_.realChunkSize * tilingData_.realDv
+                        + tilingData_.realDv * tilingData_.realDk;
+    tilingData_.wsPerGroup = wsPerGroup;
+
+    // User data comes first; system workspace (for matmul lib internals) follows at the end
+    auto platformInfoPtr = context_->GetPlatformInfo();
+    uint32_t sysWsSize = 0U;
+    if (platformInfoPtr != nullptr) {
+        const auto &plat = platform_ascendc::PlatformAscendC(platformInfoPtr);
+        sysWsSize = plat.GetLibApiWorkSpaceSize();
+    }
+    workspaceSize_ = static_cast<size_t>(tilingData_.coreNumAic)
+                     * static_cast<size_t>(wsPerGroup) * sizeof(float)
+                   + static_cast<size_t>(sysWsSize);
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::PostTiling()
 {
-    context_->SetBlockDim(tilingData_.coreNum);
+    // Mixed kernel: 1 AIC + 2 AIV per group → total cores = aicNum + aivNum
+    uint32_t totalCores = tilingData_.coreNumAic + tilingData_.coreNum;
+    context_->SetBlockDim(totalCores);
     auto tilingDataSize = sizeof(ChunkGatedDeltaRuleRecurrenceTilingData);
     errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(),
                            context_->GetRawTilingData()->GetCapacity(),
@@ -214,7 +238,7 @@ ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::AnalyzeShapes()
     tilingData_.realDk  = static_cast<uint32_t>(stateShape.GetDim(DIM_3));
 
     // value: [hv, n_chunks, cs, dv]
-    tilingData_.nChunks      = static_cast<uint32_t>(valueShape.GetDim(DIM_1));
+    tilingData_.nChunks       = static_cast<uint32_t>(valueShape.GetDim(DIM_1));
     tilingData_.realChunkSize = static_cast<uint32_t>(valueShape.GetDim(DIM_2));
 
     // Align to FP32_PER_BLOCK=8 (32-byte boundary)
@@ -233,8 +257,9 @@ ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::AnalyzeShapes()
                 return ge::GRAPH_FAILED);
 
     tilingData_.totalTasks  = tilingData_.b * tilingData_.hv;
+    // Tasks are dispatched to AIC cores (each AIC core handles one task at a time)
     tilingData_.tasksPerCore = Ops::Base::CeilDiv(tilingData_.totalTasks,
-                                                  tilingData_.coreNum);
+                                                  tilingData_.coreNumAic);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -252,43 +277,38 @@ ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::GetScaleAttr()
 
 ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::CalDvTile()
 {
-    // UB budget (bytes):
-    //   Fixed   = 3 * alignCs * alignDk * 4   (kCumdecay + qgexp + kgexp queues)
-    //           + alignDk * 4                  (scratchUb_ in tmpBuf_)
-    //   Per-dvTile = (3*alignCs + alignDk) * dvTile * 4
-    //                (valueQ + attnOutQ + vNewOutQ queues  +  stateUb_ in tmpBuf_)
-    //   Reserve = 256
+    // AIV UB budget per dvTile iteration:
+    //   Phase V1:      2 × alignCs × dvTile × 4 bytes  (vPrime slice + value slice)
+    //   Phase attn:    1 × alignCs × dvTile × 4 bytes  (fits within V1 budget)
+    //   Phase V0+Vadd: 2 × dvTile × alignDk × 4 bytes  (state slice + delta slice)
+    //
+    // Share a single TBuf: size = max(2×alignCs, 2×alignDk) × dvTile × 4
+    // Dominant dimension: max(alignCs, alignDk)
+    // dvTile = floor(ubSize / (2 × max(alignCs, alignDk) × 4))  rounded to multiple of 8
     uint64_t ubSize  = compileInfo_.ubSize;
     uint64_t alignCs = tilingData_.alignChunkSize;
     uint64_t alignDk = tilingData_.alignDk;
-    uint64_t fixed   = 3UL * alignCs * alignDk * 4UL + alignDk * 4UL;
+    uint64_t maxDim  = (alignDk > alignCs) ? alignDk : alignCs;
     uint64_t reserve = 256UL;
 
-    if (fixed + reserve >= ubSize) {
+    if (2UL * maxDim * sizeof(float) + reserve >= ubSize) {
         OP_LOGE(context_->GetNodeName(),
-                "UB too small for fixed buffers: ubSize=%lu fixed=%lu",
-                ubSize, fixed);
+                "UB too small: ubSize=%lu maxDim=%lu", ubSize, maxDim);
         return ge::GRAPH_FAILED;
     }
 
-    uint64_t available = ubSize - fixed - reserve;
-    uint64_t perUnit   = (3UL * alignCs + alignDk) * 4UL;
-    if (perUnit == 0) {
-        OP_LOGE(context_->GetNodeName(),
-                "perUnit is 0 (alignCs=%lu alignDk=%lu)", alignCs, alignDk);
-        return ge::GRAPH_FAILED;
-    }
-
-    // dvTile must be a multiple of 8 (32-byte alignment for float)
-    uint64_t dvTile = (available / perUnit / 8UL) * 8UL;
+    uint64_t available = ubSize - reserve;
+    uint64_t perUnit   = 2UL * maxDim * sizeof(float);
+    uint64_t dvTile    = (available / perUnit / 8UL) * 8UL;
     if (dvTile < 8UL) {
         dvTile = 8UL;
-        OP_LOGW(context_->GetNodeName(), "dvTile clamped to minimum 8 — shapes may be large");
+        OP_LOGW(context_->GetNodeName(), "dvTile clamped to minimum 8");
     }
     if (dvTile > tilingData_.alignDv) {
         dvTile = tilingData_.alignDv;
     }
-    // Balance the number of dvTile rounds to keep each round the same size
+
+    // Balance rounds to keep each the same size
     uint64_t nRounds = Ops::Base::CeilDiv(tilingData_.realDv, static_cast<uint32_t>(dvTile));
     dvTile = Ops::Base::CeilAlign(
         Ops::Base::CeilDiv(tilingData_.realDv, static_cast<uint32_t>(nRounds)),
@@ -301,17 +321,77 @@ ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::CalDvTile()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus ChunkGatedDeltaRuleRecurrenceTiling::CalCubeTiling()
+{
+    uint32_t cs = tilingData_.realChunkSize;
+    uint32_t dk = tilingData_.realDk;
+    uint32_t dv = tilingData_.realDv;
+
+    // Cap base sizes to MM_BASE_CAP
+    auto capBase = [](uint32_t dim) -> uint32_t {
+        return (dim < MM_BASE_CAP) ? dim : MM_BASE_CAP;
+    };
+
+    uint64_t l1   = compileInfo_.l1Size;
+    uint64_t l0c  = compileInfo_.l0cSize;
+    uint64_t ub   = compileInfo_.ubSize;
+
+    // ── C12: A=[cs,dk] × B=[dv,dk]^T = [cs,dv]  (M=cs, N=dv, K=dk, transposeB=true) ──
+    mm12_.SetBufferSpace(static_cast<int64_t>(l1),
+                         static_cast<int64_t>(l0c),
+                         static_cast<int64_t>(ub));
+    mm12_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                   matmul_tiling::DataType::DT_FLOAT, false /*transposeA*/);
+    mm12_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                   matmul_tiling::DataType::DT_FLOAT, true  /*transposeB*/);
+    mm12_.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                   matmul_tiling::DataType::DT_FLOAT);
+    mm12_.SetBias(false);
+    mm12_.SetDim(1);
+    mm12_.SetShape(cs, dv, dk);
+    mm12_.SetOrgShape(cs, dv, dk);
+    mm12_.SetFixSplit(capBase(cs), capBase(dv), capBase(dk));
+    if (mm12_.GetTiling(tilingData_.cubeTilingC12) == -1) {
+        OP_LOGE(context_->GetNodeName(), "CalCubeTiling: C12 GetTiling failed");
+        return ge::GRAPH_FAILED;
+    }
+
+    // ── C3: A=[cs,dv]^T × B=[cs,dk] = [dv,dk]  (M=dv, N=dk, K=cs, transposeA=true) ──
+    mm3_.SetBufferSpace(static_cast<int64_t>(l1),
+                        static_cast<int64_t>(l0c),
+                        static_cast<int64_t>(ub));
+    mm3_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                  matmul_tiling::DataType::DT_FLOAT, true  /*transposeA*/);
+    mm3_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                  matmul_tiling::DataType::DT_FLOAT, false /*transposeB*/);
+    mm3_.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                  matmul_tiling::DataType::DT_FLOAT);
+    mm3_.SetBias(false);
+    mm3_.SetDim(1);
+    mm3_.SetShape(dv, dk, cs);
+    mm3_.SetOrgShape(dv, dk, cs);
+    mm3_.SetFixSplit(capBase(dv), capBase(dk), capBase(cs));
+    if (mm3_.GetTiling(tilingData_.cubeTilingC3) == -1) {
+        OP_LOGE(context_->GetNodeName(), "CalCubeTiling: C3 GetTiling failed");
+        return ge::GRAPH_FAILED;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 void ChunkGatedDeltaRuleRecurrenceTiling::PrintTilingData()
 {
-    OP_LOGD(context_->GetNodeName(), "coreNum=%u b=%u hv=%u realDk=%u alignDk=%u "
-            "realDv=%u alignDv=%u nChunks=%u realCs=%u alignCs=%u dvTile=%u "
-            "totalTasks=%u tasksPerCore=%u scaleValue=%f",
-            tilingData_.coreNum, tilingData_.b, tilingData_.hv,
+    OP_LOGD(context_->GetNodeName(), "coreNum=%u coreNumAic=%u b=%u hv=%u "
+            "realDk=%u alignDk=%u realDv=%u alignDv=%u nChunks=%u "
+            "realCs=%u alignCs=%u dvTile=%u totalTasks=%u tasksPerCore=%u "
+            "wsPerGroup=%u scaleValue=%f",
+            tilingData_.coreNum, tilingData_.coreNumAic,
+            tilingData_.b, tilingData_.hv,
             tilingData_.realDk, tilingData_.alignDk,
             tilingData_.realDv, tilingData_.alignDv,
             tilingData_.nChunks, tilingData_.realChunkSize, tilingData_.alignChunkSize,
             tilingData_.dvTile, tilingData_.totalTasks, tilingData_.tasksPerCore,
-            tilingData_.scaleValue);
+            tilingData_.wsPerGroup, tilingData_.scaleValue);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
