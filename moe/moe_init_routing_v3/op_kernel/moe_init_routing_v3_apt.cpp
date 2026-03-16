@@ -19,6 +19,7 @@
 #include "arch35/moe_v3_expert_tokens_count.h"
 #include "arch35/moe_v3_row_idx_gather.h"
 #include "arch35/moe_v3_gather_out.h"
+#include "arch35/moe_v3_gather_static_quant.h"
 #include "arch35/moe_v3_gather_dynamic_quant.h"
 #include "arch35/moe_v3_gather_mxfp8_quant.h"
 #include "arch35/moe_v3_gather_hif8_pertensor_quant.h"
@@ -32,6 +33,14 @@
 #define MOE_INIT_ROUTING_V3_SORTONECORE_SCATTER 1001000   // 单核排序、非量化、SCATTER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_GATHER 1100000  // 多核排序、非量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_SCATTER 1101000 // 多核排序、非量化、SCATTER索引
+
+/*
+ * 静态量化
+ */
+#define MOE_INIT_ROUTING_V3SortONECORE_STATICQUANT_GATHER 1010000     // 单核排序、静态量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_SCATTER 1011000   // 单核排序、静态量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER 1110000  // 多核排序、静态量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_SCATTER 1111000 // 多核排序、静态量化、SCATTER索引
 
 /*
  * 动态量化
@@ -106,6 +115,8 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
     TPipe sortPipe;
     if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_SCATTER) ||
+        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_GATHER) ||
+        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_SCATTER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_DYNAMICQUANT_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_DYNAMICQUANT_SCATTER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP8QUANT_GATHER) ||
@@ -122,6 +133,8 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         op.Process();
     } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_SCATTER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_SCATTER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_SCATTER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP8QUANT_GATHER) ||
@@ -149,6 +162,8 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
     // 3.若rowIdxType=0(Gather)，映射计算输出expandedRowIdx；否则该输出在阶段1就被写出
     if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_GATHER) ||
+        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_GATHER) ||
+        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_DYNAMICQUANT_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_GATHER) ||
         TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP8QUANT_GATHER) ||
@@ -178,6 +193,18 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         gatherOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
         gatherOp.Process();
         gatherPipe.Destroy();
+    } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_SCATTER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_SCATTER)) {
+        // 静态量化
+        if constexpr (!IsSameType<DTYPE_X, int8_t>::value) {
+            TPipe gatherPipe;
+            MoeGatherOutStaticQuant<DTYPE_X> gatherStaticQuantOp;
+            gatherStaticQuantOp.Init(x, scale, offset, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
+            gatherStaticQuantOp.Process();
+            gatherPipe.Destroy();
+        }
     } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_DYNAMICQUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_DYNAMICQUANT_SCATTER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_GATHER) ||
