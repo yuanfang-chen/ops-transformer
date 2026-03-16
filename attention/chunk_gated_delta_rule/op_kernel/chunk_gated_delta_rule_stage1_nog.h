@@ -288,11 +288,12 @@ private:
         fp32OutQueue_.EnQue(tmpTensor);
         tmpTensor = fp32OutQueue_.DeQue<float>();
 
+        uint32_t srcStride = (dk_aligned_ - dk_) * sizeof(float) / DATA_BLOCK_SIZE;
         DataCopyExtParams outParams{static_cast<uint16_t>(rows),
-                                    static_cast<uint32_t>(dk_ * sizeof(float)), 0, 0, 0};
+                                    static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
         if (kgFlag) {
-            DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);
+            DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);  // 存疑
         }
         fp32OutQueue_.FreeTensor(tmpTensor);
     }
@@ -339,7 +340,7 @@ private:
 
         InverseAIV(subOffset_, INVERSE_SHAPE);
         fp32OutQueue_.EnQue(inverseLocal);
-        DataCopyOutFp32(chunkSize_, halfChunkSize_, AttnWsGm_[subBlockIdx_ * curVecLen]);
+        DataCopyOutFp32(chunkSize_, halfChunkSize_, halfChunkSize_, AttnWsGm_[subBlockIdx_ * curVecLen]);
     }
 
     __aicore__ inline void InverseAIV(uint64_t offset, uint32_t inverseVecLen)
@@ -397,7 +398,7 @@ private:
         Mul(gBKLocal, gBKLocal, kUbFloatCon, halfChunkSize_ * dk_aligned_);
         fp32OutQueue_.EnQue<float>(gBKLocal);
         uint64_t GBKBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, GBKWsGm_[GBKBeginOffset]);
+        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, GBKWsGm_[GBKBeginOffset]);
         PipeBarrier<PIPE_V>();
     }
 
@@ -429,7 +430,7 @@ private:
         Mul(vBetaLocal, valueUbFloat, vBetaLocal, halfChunkSize_ * dv_aligned_);
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(vBetaLocal);
-        DataCopyOutFp32(halfChunkSize_, dv_, vBetaWsGm_[subOffset_ * dv_]);
+        DataCopyOutFp32(halfChunkSize_, dv_, dv_aligned_, vBetaWsGm_[subOffset_ * dv_]);
     }
 
     __aicore__ inline void QPrimeCompute()
@@ -443,7 +444,7 @@ private:
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(qPrimeLocal);
         uint64_t qgBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, outQPrimeGm_[qgBeginOffset]);  // stage1 out
+        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, outQPrimeGm_[qgBeginOffset]);  // stage1 out
         PipeBarrier<PIPE_V>();
     }
 
@@ -512,11 +513,12 @@ private:
         fp32InQueue_.EnQue<bfloat16_t>(bf16InLocal);
     }
 
-    __aicore__ inline void DataCopyOutFp32(uint32_t rows, 
-                                                uint32_t cols, GlobalTensor<float> y)
+    __aicore__ inline void DataCopyOutFp32(uint32_t rows, uint32_t cols,
+                                                uint32_t colsAligned, GlobalTensor<float> y)
     {
         fp32OutLocal = fp32OutQueue_.DeQue<float>();
-        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), static_cast<uint16_t>(cols * sizeof(float)), 0, 0, 0};
+        uint32_t srcStride = (colsAligned - cols) * sizeof(float) / DATA_BLOCK_SIZE;
+        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), static_cast<uint16_t>(cols * sizeof(float)), static_cast<uint16_t>(srcStride), 0, 0};
         DataCopyPad(y, fp32OutLocal, yGMParams);
         fp32OutQueue_.FreeTensor(fp32OutLocal);
     }
