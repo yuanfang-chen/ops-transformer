@@ -161,8 +161,8 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 
     matM_ = totalLength_;
     matN_ = phiTensor->GetStorageShape().GetDim(0);
-    chunkTSize_ = (((totalLength_ + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR) + CHUNK_T_CALC_FACTOR - 1)
-                  * CHUNK_T_CALC_FACTOR;
+    chunkTSize_ = (((totalLength_ + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR) + CHUNK_T_CALC_FACTOR - 1) *
+                  CHUNK_T_CALC_FACTOR;
     if (chunkTSize_ > CHUNK_T_MAX) {
         chunkTSize_ = CHUNK_T_MAX;
     }
@@ -288,9 +288,10 @@ void MhcPreBaseTiling::FillTilingData()
 
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
-    size_t userWorkspaceSize = (WORKSPACE_MULT_A * WORKSPACE_MULT_B * WORKSPACE_DIM_M +
-                                WORKSPACE_MULT_A * WORKSPACE_MULT_B * (KERNEL_WIDTH * KERNEL_WIDTH + WORKSPACE_MULT_A * KERNEL_WIDTH))
-                                * sizeof(float) * blockDim_;
+    size_t userWorkspaceSize =
+        (WORKSPACE_MULT_A * WORKSPACE_MULT_B * WORKSPACE_DIM_M +
+         WORKSPACE_MULT_A * WORKSPACE_MULT_B * (KERNEL_WIDTH * KERNEL_WIDTH + WORKSPACE_MULT_A * KERNEL_WIDTH)) *
+        sizeof(float) * blockDim_;
     size_t systemWorkspaceSize = SYSTEM_WORKSPACE;
 
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, false);
@@ -301,8 +302,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     mm_.SetShape(matM_, matN_, matK_);
     mm_.SetOrgShape(matM_, matN_, matK_);
     if (mm_.GetTiling(tilingData_.matmulTiling) == -1) {
-        OP_LOGE(context_->GetNodeName(), "MhcPre Tiling get tiling failed, batch: %lu, m: %lu",
-                totalLength_, matM_);
+        OP_LOGE(context_->GetNodeName(), "MhcPre Tiling get tiling failed, batch: %lu, m: %lu", totalLength_, matM_);
         return ge::GRAPH_FAILED;
     }
 
@@ -346,7 +346,7 @@ void MhcPreBaseTiling::PrintTilingData()
     OP_LOGD(context_->GetNodeName(), "N: [%d]", tilingData_.get_N());
     OP_LOGD(context_->GetNodeName(), "D: [%d]", tilingData_.get_D());
     OP_LOGD(context_->GetNodeName(), "normEps: [%f]", tilingData_.get_normEps());
-    OP_LOGD(context_->GetNodeName(), "hcEps: [%d]", tilingData_.get_hcEps());
+    OP_LOGD(context_->GetNodeName(), "hcEps: [%f]", tilingData_.get_hcEps());
     OP_LOGD(context_->GetNodeName(), "outFlag: [%d]", tilingData_.get_outFlag());
     OP_LOGD(context_->GetNodeName(), "hasGamma: [%d]", tilingData_.get_hasGamma());
     OP_LOGD(context_->GetNodeName(), "chunkTSize: [%d]", tilingData_.get_chunkTSize());
@@ -416,5 +416,7 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MhcPre).Tiling(TilingFunc4mHCPre).TilingParse<MhcPreCompileInfo>(TilingPrepare4mHCPre);
+IMPL_OP_OPTILING(MhcPre)
+    .Tiling(TilingFunc4mHCPre)
+    .TilingParse<MhcPreCompileInfo>(TilingPrepare4mHCPre);
 } // namespace optiling

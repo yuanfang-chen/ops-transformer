@@ -1064,7 +1064,6 @@ __aicore__ inline void MhcPreKernel<T, P>::HMixCopyIn(uint64_t offset, uint64_t 
 
     DataCopyPad(hMixLocal, hMixGm_[offset], copyParams, copyPadParams);
 
-    // TODO
     xInQueue_.EnQue(hMixLocal);
 }
 
