@@ -19,7 +19,7 @@
 
 #ifdef BUILD_OPEN_PROJECT
 #include "op_graph/mc2_gen_task_ops_utils.h"
-#include "matmul_all_reduce_gen_task_ops_utils.h" // in transformer dev
+#include "op_graph/matmul_all_reduce_gen_task_ops_utils.h" // in transformer dev
 #include "graph/arg_desc_info.h"
 #include "graph/kernel_launch_info.h"
 #include "register/op_impl_registry.h"
