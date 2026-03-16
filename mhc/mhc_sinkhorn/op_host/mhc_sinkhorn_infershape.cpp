@@ -13,10 +13,12 @@
  * \brief mhc_sinkhorn_infershape
  */
 
-#include <vector>
-#include "register/op_impl_registry.h"
 #include "log/log.h"
-#include "util/shape_util.h"
+#include "register/op_impl_registry.h"
+#include "platform/platform_info.h"
+#include "runtime/rt_external_base.h"
+#include "platform/soc_spec.h"
+
 using namespace ge;
 using namespace std;
 
@@ -33,6 +35,29 @@ constexpr size_t TNN_DIMS = 3;
 } // namespace
 
 namespace ops {
+
+void SetUnknownRank(gert::Shape &shape)
+{
+    shape.SetDimNum(0);
+    shape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
+}
+
+bool IsUnknownRank(const gert::Shape &shape)
+{
+    return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
+}
+
+bool IsUnknownShape(const gert::Shape &shape)
+{
+    size_t dimNum = shape.GetDimNum();
+    for (size_t i = 0; i < dimNum; i++) {
+        if (shape.GetDim(i) == UNKNOWN_DIM_VALUE) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
     OP_LOGD(context, "Begin to do MhcSinkhornInfershape.");
