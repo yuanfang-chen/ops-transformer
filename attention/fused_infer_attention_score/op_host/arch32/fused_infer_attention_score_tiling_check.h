@@ -239,7 +239,9 @@ private:
     ge::graphStatus CheckAttentionMask();
     ge::graphStatus CheckTokens();
     ge::graphStatus CheckMask();
-
+    ge::graphStatus CheckSoftmaxLseShape();
+    ge::graphStatus CheckSoftmaxLseDType();
+    ge::graphStatus CheckSoftmaxLse();
     ge::graphStatus CheckPostQuant();
     ge::graphStatus CheckMultiParaConsistency();
     ge::graphStatus CheckSystemPrefix();
