@@ -12,8 +12,8 @@
  * \file mhc_pre_tiling.h
  * \brief
  */
-#ifndef __OP_HOST_CHUNK_GATED_DELTA_RULE_INVERSE_H__
-#define __OP_HOST_CHUNK_GATED_DELTA_RULE_INVERSE_H__
+#ifndef __OP_HOST_MHC_PRE_TILING_H__
+#define __OP_HOST_MHC_PRE_TILING_H__
 
 #include <tiling/tiling_api.h>
 #include "register/tilingdata_base.h"
@@ -128,4 +128,4 @@ protected:
 };
 
 } // namespace optiling
-#endif // __OP_HOST_CHUNK_GATED_DELTA_RULE_INVERSE_H__
+#endif // __OP_HOST_MHC_PRE_TILING_H__

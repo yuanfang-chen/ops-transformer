@@ -9,7 +9,7 @@
  */
 
 /* !
- * \file chunk_gated_delta_rule_inverse.cc
+ * \file mhc_pre_infershape.cpp
  * \brief
  */
 #include <map>
@@ -147,9 +147,12 @@ static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
 
 static graphStatus InferDataType4mHCPre(gert::InferDataTypeContext *context)
 {
-    context->SetOutputDataType(0, DataType::DT_FLOAT);
-    context->SetOutputDataType(0, DataType::DT_FLOAT);
-    context->SetOutputDataType(0, DataType::DT_FLOAT);
+    context->SetOutputDataType(OUT_H_IN_INDEX, DataType::DT_FLOAT16);
+    context->SetOutputDataType(OUT_H_POST_INDEX, DataType::DT_FLOAT);
+    context->SetOutputDataType(OUT_H_RES_INDEX, DataType::DT_FLOAT);
+    context->SetOutputDataType(OUT_INV_RMS_INDEX, DataType::DT_FLOAT);
+    context->SetOutputDataType(OUT_MM_RES_INDEX, DataType::DT_FLOAT);
+    context->SetOutputDataType(OUT_H_PRE_INDEX, DataType::DT_FLOAT);
     return GRAPH_SUCCESS;
 }
 
