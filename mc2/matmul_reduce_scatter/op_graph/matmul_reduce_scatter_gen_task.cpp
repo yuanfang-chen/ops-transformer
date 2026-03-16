@@ -24,7 +24,7 @@
 #include "graph/arg_desc_info.h"
 #include "register/op_impl_registry.h"
 #else
-#include "mc2_gen_task_utils.h"
+#include "op_graph/mc2_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"
 #endif
 
