@@ -681,6 +681,7 @@ def cal_mlaprolog(mla_param):
     deq_scale_qcqr = None
     enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (wqm == 2 or wqm == 3) else False
     quant_scale_ckv = mla_param["quant_scale_ckv_tensor"]
+    quant_scale_ckr = mla_param["quant_scale_ckr_tensor"]
     actual_seq_lengths = mla_param["actual_seq_len"]
     if enable_quant_output:
         out_deqq_shape_shape = mla_param['out_deqq_shape']
@@ -894,7 +895,7 @@ def cal_mlaprolog(mla_param):
     out2 = (q * expanded_cos) + (rotate_half(q) * expanded_sin)
     if enable_quant_output:
         out2 = out2.to(torch.bfloat16).to(torch.float32)
-        out2 = dequant(out2, deq_scale_q_nope, quant_scale_ckv)
+        out2 = dequant(out2, deq_scale_q_nope, quant_scale_ckr)
     out2 = out2 if mla_param["t_flag"] else out2.reshape(B, S1, N1, Dr)
     out2_shape = "(T,N1,Dr)" if mla_param["t_flag"] else "(B,S1,N1,Dr)"
 
@@ -1348,9 +1349,14 @@ def build_mla_param(params):
         # smooth_scale_cq for dynamic_quant
         smo_scale_cq = torch.rand(1, HCQ, dtype=torch.float32) + 0.5
 
-    if kv_quant_mode in [1, 2]:
+    if kv_quant_mode == 1:
+        # Per-tensor: scalar scale, same for kv and kr cache
         quant_scale_ckv = torch.tensor([1.0 / 127.0], dtype=torch.float32)
         quant_scale_ckr = torch.tensor([1.0 / 127.0], dtype=torch.float32)
+    elif kv_quant_mode == 2:
+        # Per-channel: (1, Hckv) for kv cache, (1, Dr) for kr cache
+        quant_scale_ckv = torch.rand(1, HCKV, dtype=torch.float32) + 0.01
+        quant_scale_ckr = torch.rand(1, DR, dtype=torch.float32) + 0.01
 
     if kv_quant_mode == 3:
         k_nope_clip_alpha = torch.tensor([1.0], dtype=torch.float32)
@@ -1376,7 +1382,7 @@ def build_mla_param(params):
 
     # --- actual_seq_len for PA_BLK modes ---
     # Cumulative format: [S1, 2*S1, ..., B*S1] — required by scatter functions
-    if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ"):
+    if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ") and t_flag:
         actual_seq_len = torch.tensor([S1 * (i + 1) for i in range(B)], dtype=torch.int32)
     else:
         actual_seq_len = None
@@ -1452,8 +1458,8 @@ def build_mla_param(params):
         "deq_scale_w_dq": deq_scale_w_dq if weight_quant_mode in [2, 3] else None,
         "deq_scale_w_uqqr": deq_scale_w_uqqr if weight_quant_mode in [1, 2, 3] else None,
         "deq_scale_w_dkvkr": deq_scale_w_dkvkr if weight_quant_mode in [2, 3] else None,
-        "quant_scale_ckv": quant_scale_ckv if kv_quant_mode in [1, 2, 3] else None,
-        "quant_scale_ckr": quant_scale_ckr if kv_quant_mode in [1, 2] else None,
+        "quant_scale_ckv": quant_scale_ckv if kv_quant_mode in [1, 2] else None,
+        "quant_scale_ckr": quant_scale_ckr if kv_quant_mode == 2 else None,
         "smooth_scales_cq": smo_scale_cq,
         "k_nope_clip_alpha": k_nope_clip_alpha if kv_quant_mode == 3 else None,
         "actual_seq_len": actual_seq_len,
