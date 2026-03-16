@@ -125,6 +125,14 @@ private:
     // 一次性加载元数据到 UB
     __aicore__ inline void LoadMetaData();
 
+    template <HardEvent event>
+    __aicore__ inline void SetWaitFlag(HardEvent evt)
+    {
+        event_t eventId = static_cast<event_t>(GetTPipePtr()->FetchEventID(evt));
+        SetFlag<event>(eventId);
+        WaitFlag<event>(eventId);
+    }
+
     // 辅助：向上对齐到 align 字节
     static __aicore__ inline uint32_t AlignUp(uint32_t n, uint32_t align) {
         return (n + align - 1) / align * align;
@@ -208,7 +216,7 @@ private:
     //   xQueue         : maxUbBS × maxUbDim × sizeof(T)，BUF_NUM=2（双缓冲，y 复用）
     // -------------------------------------------------------------------------
     TQue<QuePosition::VECIN, 1>        weightInQueue_;
-    TQueBind<TPosition::VECIN, TPosition::VECOUT, 1> cacheQueue_;
+    TQue<QuePosition::VECIN, 1>        cacheQueue_;
     TQue<QuePosition::VECIN, 1>        startLocInQueue_;
     TQue<QuePosition::VECIN, 1>        indicesInQueue_;
     TQue<QuePosition::VECIN, 1>        hasInitInQueue_;
@@ -306,7 +314,6 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     if (tailBlockubFactorDim_     > maxUbDim) maxUbDim = tailBlockubFactorDim_;
     if (tailBlockubTailFactorDim_ > maxUbDim) maxUbDim = tailBlockubTailFactorDim_;
 
-
     // --- 绑定 GM ---
     // xGM_ 从 validSeqStart_ 开始，这样 bsStart=0 对应有效序列的起始位置
     xGM_.SetGlobalBuffer((__gm__ T*)x + validSeqStart_ * xStride_, (uint64_t)tiling->validSeqLen * dim_);
@@ -378,8 +385,6 @@ __aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
         hasInitInQueue_.EnQue(tmp);
         hasInitLocal_ = hasInitInQueue_.DeQue<int32_t>();
     }
-    // 等待所有 MTE2 搬运完成，确保后续 GetValue (PIPE_S) 能正确读取数据
-    PipeBarrier<PIPE_ALL>();
 }
 
 // ============================================================================
@@ -451,15 +456,15 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
     xQueue_.EnQue(xLocal);
     xLocal = xQueue_.DeQue<T>();
 
-    // 等待 MTE2 搬运完成，确保 weight 和 x 数据就绪
-    PipeBarrier<PIPE_ALL>();
-
     // 主循环：遍历 UB 块中的 token
     uint32_t i = iStart;
     while (i < N) {
         int32_t hasInitState = hasInitLocal_.GetValue(curBatchIdx);
         int64_t cIdx = cacheIdxLocal_.GetValue(curBatchIdx);
-        PipeBarrier<PIPE_ALL>();
+
+        SetWaitFlag<HardEvent::S_V>(HardEvent::S_V);
+        SetWaitFlag<HardEvent::S_MTE3>(HardEvent::S_MTE3);
+        SetWaitFlag<HardEvent::S_MTE2>(HardEvent::S_MTE2);
         uint16_t step = 0;
         bool reachBatchEnd = false;
 
@@ -476,7 +481,6 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
                 batchStart, curBatchLen, curSequenceIdx,
                 cIdx, curBatchIdx, reachBatchEnd);
         }
-
         // 更新索引
         i += step;
         curSequenceIdx += step;
@@ -489,10 +493,8 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
             curBatchLen  = (uint32_t)(batchEnd - batchStart);
             curSequenceIdx = 0;
         }
+        SetWaitFlag<HardEvent::MTE3_V>(HardEvent::MTE3_V);
     }
-
-    // 等待所有操作完成后再释放 buffer
-    PipeBarrier<PIPE_ALL>();
 
     // 释放 buffer
     weightInQueue_.FreeTensor(weightLocal);
@@ -535,26 +537,27 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
 
     // 等待 cacheLocal 数据就绪
     // hasInitState==1: MTE2 搬运; 否则: Duplicate (PIPE_V)
-    PipeBarrier<PIPE_ALL>();
+    
 
     // 如果 batch 长度 < K 且到达 batch 末尾，回写 cache
     if (curBatchLen < K && reachBatchEnd) {
-        WriteCacheShortBatch(cacheLocal, xLocal, i, dimSize, dimBlocks, dimStart,
+        WriteCacheShortBatch(cacheLocal, xLocal, i - curSequenceIdx, dimSize, dimBlocks, dimStart,
                              cacheSkipBlocks, curBatchLen, cIdx, curBatchIdx);
     }
+    
     // 卷积计算（hasInitState == 2 时跳过）
     if (hasInitState != 2) {
         for (uint32_t j = 0; j < step; j++) {
             uint32_t seqPos = curSequenceIdx + j;
             uint32_t stateSLen = K - 1 - seqPos;
             uint32_t xSLen = seqPos + 1;
-            // LocalTensor<T> xSlice = xLocal[i * dimSize];
             LocalTensor<T> xSlice = xLocal[(i - curSequenceIdx) * dimSize];
             LocalTensor<T> stateSlice = cacheLocal[seqPos * dimSize];
+            SetWaitFlag<HardEvent::MTE3_V>(HardEvent::MTE3_V);
             Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSize, residualConnection_);
             // 每次 VF 计算后同步，确保写入完成
         }
-        PipeBarrier<PIPE_ALL>();
+        SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
         // 写回 y
         uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
         DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
@@ -570,6 +573,7 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
                                   0, ySkipBlocks * ALIGN_BYTES, 0};
             DataCopyPad(yGM_[yGmOffset], xLocal[i * dimSize], ycp);
         } else {
+            SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
             // residualConnection_ == 0，需要把 y 置 0，cacheLocal 已填充 0，直接搬出
             uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
             DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
@@ -577,8 +581,6 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
             DataCopyPad(yGM_[yGmOffset], cacheLocal[curSequenceIdx * dimSize], ycp);
         }
     }
-    // 等待 MTE3 写 GM 完成
-    PipeBarrier<PIPE_ALL>();
     cacheQueue_.FreeTensor(cacheLocal);
     return step;
 }
@@ -611,17 +613,15 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
     // 卷积计算
     uint32_t xStartIdx = i - (K - 1);
     LocalTensor<T> xSlice = xLocal[xStartIdx * dimSize];
+    SetWaitFlag<HardEvent::MTE3_V>(HardEvent::MTE3_V);
     Conv1dNoNeedState(xSlice, weightLocal, xSlice, step, dimSize, residualConnection_);
-    PipeBarrier<PIPE_ALL>();
-
+    
     // 写回 y
+    SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
     uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
     DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
                           0, ySkipBlocks * ALIGN_BYTES, 0};
     DataCopyPad(yGM_[yGmOffset], xLocal[(i - K + 1) * dimSize], ycp);
-
-    // 等待 MTE3 写 GM 完成
-    PipeBarrier<PIPE_ALL>();
 
     return step;
 }
@@ -642,7 +642,6 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
     bool needDeferredWrite = (curBatchIdx == firstBatchIdx_ && !firstBatchComplete_);
 
     // 等待 cacheLocal 数据就绪（可能由 Duplicate 填充）
-    PipeBarrier<PIPE_ALL>();
     if (needDeferredWrite) {
         // 延迟写回：SyncAll 后再从 GM 原始数据重建 cache
         firstBatchNeedsDeferredWrite_ = true;
@@ -650,7 +649,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
     }
 
     uint64_t csOffset = (uint64_t)cIdx * (K - 1) * cacheStride_ + dimStart;
-
+    SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
     if (cacheRowsToKeep > 0) {
         DataCopyExtParams wcp{static_cast<uint16_t>(cacheRowsToKeep),
                               static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
@@ -662,10 +661,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
                                static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
                                0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
         DataCopyPad(cacheStatesGM_[csOffset + cacheRowsToKeep * cacheStride_], xLocal[i * dimSize], wcp2);
-    }
-
-    // 等待 MTE3 写 GM 完成
-    PipeBarrier<PIPE_ALL>();
+    } 
 }
 
 // ============================================================================
@@ -693,9 +689,6 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
                           static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
                           0, static_cast<uint16_t>(cacheSkipBlocks * ALIGN_BYTES), 0};
     DataCopyPad(cacheStatesGM_[csOffset], xLocal[lastK1Start * dimSize], wcp);
-
-    // 等待 MTE3 写 GM 完成
-    PipeBarrier<PIPE_ALL>();
 }
 
 // ============================================================================
@@ -717,20 +710,13 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
     uint64_t globalBsStart = bsStart + validSeqStart_;
 
     // 只在核开始时调用一次 FindBatchIdx（传入全局位置）
+    SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
     uint32_t curBatchIdx = FindBatchIdx(globalBsStart);
-    // -------------------------------------------------------------------------
-    // 初始化第一个 batch 的跟踪信息
-    // -------------------------------------------------------------------------
-    firstBatchIdx_   = curBatchIdx;
-    firstBatchCIdx_  = cacheIdxLocal_.GetValue(curBatchIdx);
-    // 判断第一个 batch 是否完整：bsIdx_ == 0 时肯定完整，否则检查 globalBsStart == batch 起始位置
-    uint64_t firstBatchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
-    firstBatchComplete_   = (bsIdx_ == 0) || (globalBsStart == firstBatchStart);
-    firstBatchNeedsDeferredWrite_ = false;
 
     // iStart：只有 bsIdx_ == 0 的核的第一个 BS 循环从 0 开始，其余从 K-1 开始
     bool isBsFirstCore = (bsIdx_ == 0);
     uint32_t iStart = isBsFirstCore ? 0 : (K - 1);
+    firstBatchNeedsDeferredWrite_ = false;
 
     uint64_t curBsOff = 0;  // 相对于 bsStart 的偏移
 
@@ -750,6 +736,14 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
         // 计算 curSequenceIdx（基于实际开始位置）
         uint64_t batchStart = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
         uint32_t curSequenceIdx = (uint32_t)(actualStart - batchStart);
+
+        // 初始化第一个 batch 的跟踪信息（仅第一次 BS 迭代）
+        // 必须在 while 循环推进 curBatchIdx 之后，确保指向实际处理的第一个 batch
+        if (bsLoop == 0) {
+            firstBatchIdx_      = curBatchIdx;
+            firstBatchCIdx_     = cacheIdxLocal_.GetValue(curBatchIdx);
+            firstBatchComplete_ = isBsFirstCore || (curSequenceIdx == 0);
+        }
 
         uint32_t dimOff = (uint32_t)dimStart;
         uint32_t batchIdxForDim = curBatchIdx;
@@ -862,9 +856,6 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
     xQueue_.EnQue(tmpBuf);
     tmpBuf = xQueue_.DeQue<T>();
 
-    // 等待数据就绪
-    PipeBarrier<PIPE_ALL>();
-
     // 写回 cacheStates
     uint64_t csDstOffset = (uint64_t)cIdx * rows * cacheStride_ + dimStart;
     {
@@ -873,9 +864,6 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
                               0, static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0};
         DataCopyPad(cacheStatesGM_[csDstOffset], tmpBuf, wcp);
     }
-
-    // 等待 MTE3 写 GM 完成
-    PipeBarrier<PIPE_ALL>();
 
     xQueue_.FreeTensor(tmpBuf);
 }
