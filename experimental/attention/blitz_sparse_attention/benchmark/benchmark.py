@@ -8,7 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 """
-Benchmark driver for torch_bsa.npu_blitz_sparse_attention.
+Benchmark driver for torch_bsa.blitz_sparse_attention.
 
 Measures:
 *  latency (usec) - NPU timer
@@ -53,7 +53,7 @@ N_WARMUP = 2
 ATTENTION_MATRIX = "blocks_optimized_batched"
 
 # For (block / vertical / band) mask - fraction of attention elements that is retained for computation
-SPARSITY_VALS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+SPARSITY_VALS = [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 # For the block mask
 BLOCK_SIZE_Q = 128
@@ -491,7 +491,7 @@ def gen_pfa_inputs(
     device: str = "npu:0", dtype: torch.dtype = DTYPE
 ):
     """
-    Generate random inputs for npu_blitz_sparse_attention.
+    Generate common inputs for blitz_sparse_attention or prompt_flash_attention.
     """
     q = torch.randn(batch_size, num_heads, s_q, head_dim, dtype=dtype, device=device)
     k = torch.randn(batch_size, num_heads, s_kv, head_dim, dtype=dtype, device=device)
@@ -613,7 +613,7 @@ def _fmt_or_na(value, width, spec=".2f"):
 
 def _make_our_fn(sabi, h, scale, npu_atten_mask, sm, pre_tok, post_tok):
     def fn(q, k, v, seq, seqkv):
-        return torch_bsa.npu_blitz_sparse_attention(
+        return torch_bsa.blitz_sparse_attention(
             q, k, v,
             sabi=sabi, actual_seq_lengths=seq,
             actual_seq_lengths_kv=seqkv, num_heads=h, num_key_value_heads=h,
@@ -635,7 +635,7 @@ def _make_ref_fn(h, scale, atten_mask, run_ref_sparsity_0):
 
 
 def benchmark_blitz_sparse_attention():
-    run_our = True          # npu_blitz_sparse_attention
+    run_our = True          # blitz_sparse_attention
     run_ref = RUN_REFERENCE # PyTorch reference
     n_warmup = N_WARMUP
     n_repeat = N_REPEATS

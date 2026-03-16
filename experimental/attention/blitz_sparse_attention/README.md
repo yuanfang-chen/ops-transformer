@@ -21,18 +21,19 @@ The test should be all green, and the benchmark result on Ascend910B2 should be:
 ==========================================================================================
   DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'  ATTENTION_MATRIX='blocks_optimized_batched'
 ==========================================================================================
-  H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]
+  H   B    s_q   s_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]
 ------------------------------------------------------------------------------------------
-  3   1 118806 118806  128      0.00             yes          155943.42          169732.65
-  3   1 118806 118806  128      0.10             N/A                N/A          150703.21
-  3   1 118806 118806  128      0.20             N/A                N/A          134570.58
-  3   1 118806 118806  128      0.30             N/A                N/A          118403.67
-  3   1 118806 118806  128      0.40             N/A                N/A          102711.17
-  3   1 118806 118806  128      0.50             N/A                N/A           86022.60
-  3   1 118806 118806  128      0.60             N/A                N/A           70152.18
-  3   1 118806 118806  128      0.70             N/A                N/A           54201.78
-  3   1 118806 118806  128      0.80             N/A                N/A           38237.87
-  3   1 118806 118806  128      0.90             N/A                N/A           22129.09
+  3   1 118806 118806  128      0.00             yes          157663.17          169537.33
+  3   1 118806 118806  128      0.05             N/A                N/A          155995.83
+  3   1 118806 118806  128      0.10             N/A                N/A          148569.81
+  3   1 118806 118806  128      0.20             N/A                N/A          132693.53
+  3   1 118806 118806  128      0.30             N/A                N/A          116889.01
+  3   1 118806 118806  128      0.40             N/A                N/A          101534.06
+  3   1 118806 118806  128      0.50             N/A                N/A           84899.79
+  3   1 118806 118806  128      0.60             N/A                N/A           69480.71
+  3   1 118806 118806  128      0.70             N/A                N/A           53176.09
+  3   1 118806 118806  128      0.80             N/A                N/A           38088.18
+  3   1 118806 118806  128      0.90             N/A                N/A           21708.31
 ==========================================================================================
 ```
 more explanation about benchmarking is [here](benchmark/README.md). 
@@ -41,7 +42,7 @@ To invoke our block-sparse prompt flash attention kernel from python, use a call
 ```python
 import torch
 import torch_bsa
-out = torch_bsa.npu_blitz_sparse_attention(
+out = torch_bsa.blitz_sparse_attention(
     q,
     k,
     v,

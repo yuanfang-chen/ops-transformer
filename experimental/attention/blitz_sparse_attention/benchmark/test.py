@@ -47,7 +47,7 @@ SHAPES = list(itertools.product(B_VALS, H_VALS, S_VALS, D_VALS))
 @pytest.mark.parametrize("shape", SHAPES, ids=lambda s: f"b{s[0]}-h{s[1]}-s{s[2]}-d{s[3]}")
 @pytest.mark.parametrize("sparsity", SPARSITY_VALS)
 def test_blitz_sparse_attention_correctness(torch_ref, a, shape, sparsity):
-    """Test correctness of torch_bsa.npu_blitz_sparse_attention vs reference implementation"""
+    """Test correctness of torch_bsa.blitz_sparse_attention vs reference implementation"""
     b, h, s_kv, d = shape
 
     # Set random seed for reproducible test inputs
@@ -70,7 +70,7 @@ def test_blitz_sparse_attention_correctness(torch_ref, a, shape, sparsity):
     )
     
     # Run our implementation
-    out_our = torch_bsa.npu_blitz_sparse_attention(q, k, v,
+    out_our = torch_bsa.blitz_sparse_attention(q, k, v,
         sabi=sabi,
         actual_seq_lengths=actseqlen, actual_seq_lengths_kv=actseqlenkv, 
         num_heads=h, num_key_value_heads=h, input_layout=INPUT_LAYOUT,

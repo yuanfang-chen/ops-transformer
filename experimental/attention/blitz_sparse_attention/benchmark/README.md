@@ -20,7 +20,7 @@ Using the CAPITAL_LETTERS variables at the top of the file you can ru all the th
 * `D_VALS`: head dimensions
 * `N_REPEATS`: how many runs to do to estimate time
 * `N_WARMUP`: how many warmup runs before running `N_REPEATS` calls
-* `ATTENTION_MATRIX`: what kind of attention matrix to use. By chosing this value, you create the matrix you want and you also automatically set all the parameters as they are required accordingly by torch_npu.npu_blitz_sparse_attention. The possible values are (only the first few ones are probably interesting for you):
+* `ATTENTION_MATRIX`: what kind of attention matrix to use. By chosing this value, you create the matrix you want and you also automatically set all the parameters as they are required accordingly by torch_npu.npu_prompt_flash_attention. The possible values are (only the first few ones are probably interesting for you):
     * `blocks_optimized_batched`: our optimized block-sparse kernel. There is a batch dimension, but please keep it 1 for now.
     * `blocks_optimized`: same, without batch dimension (you can use either this or the other)
     * `dense`: all tokens are attended by all tokens

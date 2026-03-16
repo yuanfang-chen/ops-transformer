@@ -74,7 +74,7 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
  * @returns output tensor with attention results
  */
 
-at::Tensor npu_blitz_sparse_attention(
+at::Tensor blitz_sparse_attention(
     const at::Tensor &query,
     const at::Tensor &key, 
     const at::Tensor &value,
@@ -213,7 +213,7 @@ at::Tensor npu_blitz_sparse_attention(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("npu_blitz_sparse_attention", &npu_blitz_sparse_attention,
+    m.def("blitz_sparse_attention", &blitz_sparse_attention,
         R"DOC(
         Interface to the `aclnnBlitzSparseAttention` kernel which performs 
         flash attention computation with prompt support.
@@ -223,6 +223,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             key (torch.Tensor): Key tensor of shape [B, N, T, D] (fp16/bf16)
             value (torch.Tensor): Value tensor of shape [B, N, T, D] (fp16/bf16)
             atten_mask (torch.Tensor, optional): Attention mask of shape [B, N, S, T] (bool)
+            sabi (torch.Tensor, optional): Sparse Attention Block Indices, shape [B, N, S / Qtile_size, sparsity * T / KVTileSize] (uint16, padded with 65535, optional)
             actual_seq_lengths (list, optional): Actual sequence lengths
             actual_seq_lengths_kv (list, optional): Actual sequence lengths for key/value
             num_heads (int, optional): Number of attention heads. Default: 1
