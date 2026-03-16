@@ -56,6 +56,14 @@ constexpr uint32_t M_N_TWO_DIMS = 2U;
 constexpr float EPSILON = 1e-6f;
 constexpr float ONE = 1;
 constexpr static uint64_t SYNC_AIC_TO_AIV = 5;
+constexpr static uint64_t WIN_DATA_INNER_OFFSET = 30UL * 1024UL * 1024UL;   // 0/1区内，当前算子数据区起始偏移，30MB
+constexpr static uint64_t SINGLE_ZERONE_DATA_ZONE_SIZE = 100UL * 1024UL * 1024UL;   // 数据区0区或者1区的大小，100MB
+constexpr static uint64_t WIN_STATUS_INNER_OFFSET = 200UL * 1024UL;   // 0/1区内，当前算子状态区起始位置偏移，200KB
+constexpr static uint64_t SINGLE_ZERONE_STATUS_ZONE_SIZE = 400UL * 1024UL;   // 状态区0区或者1区的大小，400KB
+constexpr static uint64_t ZERONE_STATUS_OFFSET = 900UL * 1024UL;   // 0/1状态位区起始位置偏移，900KB
+constexpr static uint64_t ZERONE_STATUS_ALIGN = 512UL;   // 0/1状态位512B对齐
+constexpr static uint64_t ZERONE_STATUS_POS = 0UL;   // 0/1状态位具体下标
+
 
 template <AscendC::HardEvent event>
 __aicore__ inline void SyncFunc() {
@@ -98,9 +106,12 @@ public:
 protected:
     __aicore__ inline void InitTilingData(const QbmmReduceScatterAddRmsNormCastTilingData *tilingData);
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId);
-    __aicore__ inline void SplitToCore(const uint32_t curSendCnt, const uint32_t curUseAivNum, const uint32_t coreId, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
+    __aicore__ inline void SplitToCore(const uint32_t curSendCnt, const uint32_t curUseAivNum, const uint32_t coreId,
+                                       uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId);
-    __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col);
+    __aicore__ inline GM_ADDR GetStatusDataSpaceGmByRankId(const int32_t rankId);
+    __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint32_t curAicM, uint32_t curAicN,
+                                          uint64_t row, uint64_t col);
     __aicore__ inline void ReadRemoteDataAdd();
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
@@ -125,6 +136,7 @@ protected:
     TBuf<> resetStateBuf_;
     TBuf<> sumFp32Buf_;
     TBuf<> tokenFp32Buf_;
+    TBuf<> winFlagsBuf_;
 
     // addrmsnormcast
     TBuf<> tokenBuf_;
@@ -158,14 +170,15 @@ protected:
     GlobalTensor<GammaType> gammaGM_;
     GlobalTensor<int32_t> mmOutGm_;
     GlobalTensor<ScaleType> scaleGMTensor_;
+    GlobalTensor<uint32_t> selfWinFlagGMTensor_;
     GM_ADDR workspaceAddr_;
     GM_ADDR perTokenScaleAddr_;
 
-    // LocalTensor<bfloat16_t> tmpTensor_;
     LocalTensor<int32_t> srcLocalTensor_;
     LocalTensor<YType> tokenTensor_;
     LocalTensor<float> rowTmpFloatLocal_;
     LocalTensor<float> mulBufLocal_;
+    LocalTensor<uint32_t> winFlagLocalTensor_;
 
     uint32_t singleTpSize_;
     uint32_t singleM_;
@@ -176,7 +189,7 @@ protected:
     uint32_t rankId_{0};
     uint32_t aicNum_{0};
     uint32_t aivNum_{0};
-
+    uint32_t winFlag_{0};
     uint32_t coreVid_{0};
     uint32_t coreCid_{0};
 
@@ -272,6 +285,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     tpipe_->InitBuffer(writeStateBuf_, STATE_ALIGN_BYTES);
     tpipe_->InitBuffer(readStateBuf_, STATE_ALIGN_BYTES);
     tpipe_->InitBuffer(resetStateBuf_, STATE_ALIGN_BYTES);
+    tpipe_->InitBuffer(winFlagsBuf_, UB_ALIGN_BYTES);
     
     winContext_ = (__gm__ HcclOpResParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
@@ -282,6 +296,13 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
     bf16UbToGmData_ = baseN_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES;
     bf16UbToGmStride_ = n_ * sizeof(bfloat16_t) / UB_ALIGN_BYTES - bf16UbToGmData_;
+
+    if ASCEND_IS_AIV {
+        // 0/1标志位只在V核使用
+        uint64_t curCoreFlagAddr = (uint64_t)GetStatusDataSpaceGmByRankId(rankId_) + coreVid_ * ZERONE_STATUS_ALIGN;
+        selfWinFlagGMTensor_.SetGlobalBuffer((__gm__ uint32_t*)curCoreFlagAddr);
+        winFlagLocalTensor_ = winFlagsBuf_.Get<uint32_t>(); // 获取当前标志位
+    }
 }
 
 template<TemplateMC2TypeClass>
@@ -308,18 +329,30 @@ template<TemplateMC2TypeClass>
 __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::GetWindAddrByRankId(const int32_t rankId)
 {
     if (rankId == rankId_) {
-        return (GM_ADDR)(winContext_->localWindowsIn);
+        return (GM_ADDR)(winContext_->localWindowsIn + WIN_DATA_INNER_OFFSET + winFlag_ * SINGLE_ZERONE_DATA_ZONE_SIZE);
     }
-    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsIn);   // 先找到某个rank的首地址，然后再偏移到具体的处理data的地方
+    // 先找到某个rank的首地址，然后再偏移到具体的处理data的地方
+    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsIn
+        + WIN_DATA_INNER_OFFSET + winFlag_ * SINGLE_ZERONE_DATA_ZONE_SIZE);   // 先找到某个rank的首地址，然后再偏移到具体的处理data的地方
 }
 
 template<TemplateMC2TypeClass>
 __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::GetWindStateAddrByRankId(const int32_t rankId)
 {
     if (rankId == rankId_) {
-        return (GM_ADDR)(winContext_->localWindowsExp);
+        return (GM_ADDR)(winContext_->localWindowsExp + WIN_STATUS_INNER_OFFSET + winFlag_ * SINGLE_ZERONE_STATUS_ZONE_SIZE);
     }
-    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsExp);
+    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsExp
+        + WIN_STATUS_INNER_OFFSET + winFlag_ * SINGLE_ZERONE_STATUS_ZONE_SIZE);
+}
+
+template<TemplateMC2TypeClass>
+__aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::GetStatusDataSpaceGmByRankId(const int32_t rankId)
+{
+    if (rankId == rankId_) {
+        return (GM_ADDR)(winContext_->localWindowsExp + ZERONE_STATUS_OFFSET);
+    }
+    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsExp + ZERONE_STATUS_OFFSET);
 }
 
 template<TemplateMC2TypeClass>
@@ -353,6 +386,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     stateGMTensor.SetGlobalBuffer((__gm__ float*)remoteWinStateGM);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy(stateGMTensor[curOffset], statusTensor, FLOAT_UB_ALIGN_NUM);
+    DataCopy(selfWinFlagGMTensor_, winFlagLocalTensor_, UB_ALIGN_BYTES / sizeof(uint32_t));
 }
 
 template<TemplateMC2TypeClass>
@@ -376,14 +410,12 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     float maxTarget = (float)1.5;
     // 读取statusCnt个数据求和
     while ((flag < minTarget) || (flag > maxTarget)) {
-        SyncFunc<AscendC::HardEvent::S_MTE2>();
         DataCopy(statusTensor, selfStateWinTensor[offset], statusCnt);
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         flag = statusTensor(0);
     }   
     // reset state
     SyncFunc<AscendC::HardEvent::V_MTE3>();
-    SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
     DataCopy(selfStateWinTensor[offset], resetStatusTensor, statusCnt);
 }
 
@@ -422,7 +454,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         
         uint32_t curAicAivOffset = offsetC_ + GetSubBlockIdx() * curAicM * n_  + mUbLoopIdx * ubCalcM_ * n_;
         DataCopy(srcLocal, mmOutGm_[curAicAivOffset], gm2UbParams);
-        SyncFunc<AscendC::HardEvent::MTE2_V>();
+        DataCopy(winFlagLocalTensor_, selfWinFlagGMTensor_, UB_ALIGN_BYTES / sizeof(uint32_t));
         LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
         DataCopy(scaleLocal, scaleGMTensor_[nOffset_], curAivN);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
@@ -462,6 +494,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         vecQueSrc_.FreeTensor(srcLocal);
 
         // 计算当前正处于的TP域
+        SyncFunc<AscendC::HardEvent::MTE2_S>();
+        winFlag_ = winFlagLocalTensor_.GetValue(ZERONE_STATUS_POS);    // 获取状态区标志位
         if (moffset_end <= tp_end){
             int32_t remoteRankId = curAicAivOffset / (m_ * n_ / tpWorldSize_);
             GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
@@ -571,7 +605,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     GlobalTensor<YType> localWinTensor;
     localWinTensor.SetGlobalBuffer((__gm__ YType*)GetWindAddrByRankId(rankId_));
 
-    DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(bfloat16_t)), 0U, 0U, 0U};
+    DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(YType)), 0U, 0U, 0U};
     DataCopyExtParams gammaCopyParams{1U, static_cast<uint32_t>(n_ * sizeof(GammaType)), 0U, 0U, 0U};
     const DataCopyPadExtParams<YType> copyPadXTypeParams{false, 0U, 0U, 0U};
     const DataCopyPadExtParams<GammaType> copyPadFloatParams{false, 0U, 0U, 0U};
@@ -676,7 +710,6 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
     for (uint32_t i = 0; i < mLoops; ++i) {
-        // uint32_t singleM = singleTimeM_;
         CalcMAxisOffset(mCoreIndex, nLoops);
         for (uint32_t j = 0; j < nLoops; ++j) {
             singleN_ = baseN_;
@@ -721,10 +754,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
         for (uint32_t i = 0; i < mLoops; ++i) {
-            // uint32_t singleM = singleTimeM_;
             CalcMAxisOffset(mCoreIndex, nLoops);
             for (uint32_t j = 0; j < nLoops; ++j) {
-                // uint32_t singleN = singleTimeN_;
                 CalcNAxisOffset(j);
                 uint32_t singleN = baseN_;
                 CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
@@ -733,6 +764,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         }
         SyncAll<true>();
         // 当前die的数据已经发完
+        winFlagLocalTensor_.SetValue(ZERONE_STATUS_POS, 1 - winFlag_);  // 翻转标志位
         WriteStatusToWin();
         ReadStatus();
         SyncAll<true>();    //确保前4个核都等到了状态，即数据区完全ready
@@ -740,7 +772,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         tpipe_->InitBuffer(tokenQueue_, BUFFER_NUM, n_ * sizeof(float));   //涉及到Cast的src和dst记得，小cast大要分配大的空间
         tpipe_->InitBuffer(sumFp32Buf_, n_ * sizeof(float));
         tpipe_->InitBuffer(tokenFp32Buf_, n_ * sizeof(float));
-        tpipe_->InitBuffer(tokenBuf_, n_ * sizeof(bfloat16_t));
+        tpipe_->InitBuffer(tokenBuf_, n_ * sizeof(YType));
         tpipe_->InitBuffer(rowTmpFloatBuf_, n_ * sizeof(float));
         tpipe_->InitBuffer(mulBuf_, n_ * sizeof(float));
         tpipe_->InitBuffer(reduceFp32Buf_, REDUCE_BUF_BYTES);
