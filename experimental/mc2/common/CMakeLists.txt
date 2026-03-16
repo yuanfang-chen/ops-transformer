@@ -15,7 +15,7 @@
    op_graph/matmul_all_reduce_gen_task_ops_utils.cpp
    op_tiling/matmul_formulaic_tiling.cpp
    op_tiling/matmul_performance.cpp
-   op_graph/mc2_common_infershape.cpp
+   op_host/mc2_common_infershape.cpp
    op_graph/mc2_gen_task_ops_utils.cpp
    mc2_hcom_topo_info.cpp
    mc2_log.cpp
