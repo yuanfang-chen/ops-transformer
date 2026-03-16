@@ -17,7 +17,7 @@
 
 #pragma once
 #include "graph/ge_error_codes.h"
-#include "../../op_kernel/kernel_dependency/mc2_tiling_struct.h"
+#include "mc2_tiling_struct.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 
