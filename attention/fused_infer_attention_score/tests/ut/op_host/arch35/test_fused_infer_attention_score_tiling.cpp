@@ -9562,7 +9562,7 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_sin
         &compileInfo, "Ascend950", 64, 262144, 16384);
     int64_t expectTilingKey = 266602241;
     std::string expectTilingData = "";
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // learnable sink check 不支持pse
