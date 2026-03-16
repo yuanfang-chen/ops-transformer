@@ -43,8 +43,9 @@ namespace MoeDistributeCombineV2Impl {
 using namespace MoeDistributeV2Base;
 using namespace Mc2Kernel;
 
-#define CombineMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant, bool HasAddRmsNorm
-#define CombineMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant, HasAddRmsNorm
+
+#define CombineMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, int32_t QuantMode, bool HasAddRmsNorm
+#define CombineMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, QuantMode, HasAddRmsNorm
 
 using namespace AscendC;
 template <CombineMC2TypeClass>
@@ -219,6 +220,7 @@ private:
     uint32_t hFloatAlign32Size_{0};
     uint32_t hFloatAlign256Size_{0};
     uint32_t hExpandXAlign32Size_{0};
+    uint32_t hExpandXAlignSize_{0};
     uint32_t hAlignWinSize_{0};
     uint32_t hAlignWinCnt_{0};
     uint32_t tokenScaleCnt_{0};
@@ -493,9 +495,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::Init(
     }
     InitAttrs(mc2Context, tilingData);
 
-    if constexpr (IsInt8Quant) {
-        quantInst_.SetQuantInitParams(axisH_);
-        quantInst_.InitInt8Quant(scaleNum_, hExpandXAlign32Size_, hFloatAlign256Size_, tokenScaleCnt_);
+    if constexpr (QuantMode > UNQUANT) {
+        quantInst_.QuantInit(scaleNum_, hExpandXAlign32Size_, hExpandXAlignSize_, hFloatAlign256Size_, tokenScaleCnt_, axisH_);
     }
 
     PipeBarrier<PIPE_ALL>();
@@ -559,8 +560,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::BuffInit()
             gmTpSendCountFloatTensor_ = gmTpSendCountFloatBuf_.Get<float>();
         }
     } else {
-        tpipe_->InitBuffer(gmTpSendCountQueue_, BUFFER_NUM, hExpandXAlign32Size_);   // 28K 存储搬入token
-        if constexpr (IsInt8Quant) {
+        tpipe_->InitBuffer(gmTpSendCountQueue_, BUFFER_NUM, hExpandXAlignSize_);   // 28K 存储搬入token
+        if constexpr (QuantMode > UNQUANT) {
             uint32_t tokenScaleAlign32Size = Ceil(tokenScaleCnt_ * sizeof(ExpandXType), UB_ALIGN) * UB_ALIGN;
             tpipe_->InitBuffer(xOutQueue_, BUFFER_NUM, tokenScaleAlign32Size);              // 28K 输出token搬运
             tpipe_->InitBuffer(xAbsBuf_, hFloatAlign256Size_);                              // 28K blockReduceMax计算及后续Cast计算，256对齐
@@ -575,6 +576,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::BuffInit()
             scaleDupLocalTensor_ = xScaleMulBuf_.Get<float>();
             fp16CastTensor_ = xAbsBuf_.Get<half>();
             Duplicate(absFloatTensor_, float(0), hFloatAlign256Cnt); // 统一写0
+            quantInst_.SetQuantInitParams(winTpSendCountFloatTensor_, fp16CastTensor_, absFloatTensor_,
+                reduceMaxFloatTensor_, scaleDupLocalTensor_);
         }
         if (isScalingDownFlag_) {
             elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
@@ -712,13 +715,14 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AlltoAllBuffI
     stateResetTensor_ = stateResetBuf_.Get<float>();
     Duplicate<float>(stateResetTensor_, (float)0.0, static_cast<uint32_t>(flagRcvCount_ * FLOAT_PER_UB_ALIGN));
     SyncFunc<AscendC::HardEvent::V_MTE3>();
-    if constexpr (IsInt8Quant) {
+    if constexpr (QuantMode > UNQUANT) {
         scaleNumAlignSize_ = Ceil(scaleNum_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
         tpipe_->InitBuffer(xAbsBuf_, scaleNumAlignSize_);
         fp16CastTensor_ = mulBuf_.Get<half>();
         absFloatTensor_ = rowTmpFloatBuf_.Get<float>();
         scaleDupLocalTensor_ = mulBuf_.Get<float>();
         scaleDivFloatTensor_ = xAbsBuf_.Get<float>();
+        quantInst_.SetDeQuantInitParams(fp16CastTensor_, absFloatTensor_, scaleDupLocalTensor_, scaleDivFloatTensor_);
     }
     if (isInputTokenMaskFlag_) {
         axisBsAlignSize_ = Ceil(axisBS_ * sizeof(bool), UB_ALIGN) * UB_ALIGN;
@@ -923,14 +927,20 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ExpertAlltoAl
         DataCopyPad(rankWindow_, outTensor_, expandXCopyParams);
         xOutQueue_.FreeTensor<ExpandXType>(outTensor_);
     } else {
-        if constexpr (IsInt8Quant) {
+        if constexpr (QuantMode > UNQUANT) {
             gmTpSendCountTensor_ = gmTpSendCountQueue_.AllocTensor<ExpandXType>();
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+            LocalTensor<uint8_t> singleByteTok = gmTpSendCountTensor_.template ReinterpretCast<uint8_t>();
+            // 由于MX量化在计算scales时每次搬入256字节数据，所以在token搬入前需要对空间填0，避免引入脏数据
+            if constexpr ((QuantMode == MXFP8_E5M2_COMM_QUANT) || (QuantMode == MXFP8_E4M3_COMM_QUANT)) {
+                Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(ExpandXType));
+            }
+#endif
             DataCopyPad(gmTpSendCountTensor_, expandXGM_[tokenGMOffset], expandXCopyParams, copyPadExtParams);
             gmTpSendCountQueue_.EnQue(gmTpSendCountTensor_);
             gmTpSendCountTensor_ = gmTpSendCountQueue_.DeQue<ExpandXType>();
             sendLocalTensor_ = xOutQueue_.AllocTensor<ExpandXType>();
-            quantInst_.Int8QuantProcess(sendLocalTensor_, winTpSendCountFloatTensor_, gmTpSendCountTensor_, 
-                                             fp16CastTensor_, absFloatTensor_, reduceMaxFloatTensor_, scaleDupLocalTensor_);
+            quantInst_.QuantProcess(sendLocalTensor_, gmTpSendCountTensor_);
             xOutQueue_.EnQue(sendLocalTensor_);
             sendLocalTensor_ = xOutQueue_.DeQue<ExpandXType>();
             DataCopyPad(rankWindow_, sendLocalTensor_, xScaleCopyParams);
@@ -1226,17 +1236,21 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessMoeExp
     GM_ADDR wAddr = (__gm__ uint8_t*)(epWindowGM_) + (tokenIndexOffset + topkId) * hAlignWinSize_;
     rowTmpGlobal_.SetGlobalBuffer((__gm__ XType*)wAddr);
     LocalTensor<XType> tmpUb = moeSumQueue_.AllocTensor<XType>();
-    if constexpr (IsInt8Quant) {
+    if constexpr (QuantMode > UNQUANT) {
         DataCopyPad(tmpUb, rowTmpGlobal_, xScaleCopyParams, copyPadExtParams);
     } else {
         DataCopyPad(tmpUb, rowTmpGlobal_, expandXCopyParams, copyPadExtParams);
     }
     moeSumQueue_.EnQue(tmpUb);
     tmpUb = moeSumQueue_.DeQue<XType>();
-    if constexpr (IsInt8Quant) {
-        quantInst_.Int8DequantProcess(tmpUb, scaleDivFloatTensor_, fp16CastTensor_, absFloatTensor_, scaleDupLocalTensor_);
+    LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
+    if constexpr (QuantMode > UNQUANT) {
+        quantInst_.DeQuantProcess(tmpUb, outLocalTensor);
+        Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+    } else {
+        Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
     }
-    Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
+
     PipeBarrier<PIPE_V>();
     AscendC::Muls(mulBufLocal_, rowTmpFloatLocal_, scaleVal, processLen);
     PipeBarrier<PIPE_V>();
@@ -1327,17 +1341,20 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessExpert
         wAddr = (__gm__ uint8_t*)(epWindowGM_) + (tokenIndexOffset + topkId) * hAlignWinSize_;
         rowTmpGlobal_.SetGlobalBuffer((__gm__ XType*)wAddr);
         tmpUb = moeSumQueue_.AllocTensor<XType>();
-        if constexpr (IsInt8Quant) {
+        if constexpr (QuantMode > UNQUANT) {
             DataCopyPad(tmpUb, rowTmpGlobal_, xScaleCopyParams, copyPadExtParams);
         } else {
             DataCopyPad(tmpUb, rowTmpGlobal_, expandXCopyParams, copyPadExtParams);
         }
         moeSumQueue_.EnQue(tmpUb);
         tmpUb = moeSumQueue_.DeQue<XType>();
-        if constexpr (IsInt8Quant) {
-            quantInst_.Int8DequantProcess(tmpUb, scaleDivFloatTensor_, fp16CastTensor_, absFloatTensor_, scaleDupLocalTensor_);
+        LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
+        if constexpr (QuantMode > UNQUANT) {
+            quantInst_.DeQuantProcess(tmpUb, outLocalTensor);
+            Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+        } else {
+            Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
         }
-        Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
         PipeBarrier<PIPE_V>();
         AscendC::Add(sumFloatBufLocal_, sumFloatBufLocal_, rowTmpFloatLocal_, processLen);
         PipeBarrier<PIPE_V>();
