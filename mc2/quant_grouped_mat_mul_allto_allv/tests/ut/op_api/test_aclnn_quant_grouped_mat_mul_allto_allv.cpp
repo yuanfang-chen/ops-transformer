@@ -36,6 +36,25 @@ protected:
     }
 };
 
+namespace {
+constexpr int64_t kEpWorldSize = 8;
+constexpr int64_t kE = 4;
+constexpr int64_t kBS = 4096;
+constexpr int64_t kTopK = 2;
+constexpr int64_t kA = kBS * kTopK;   // gmmX dim0
+constexpr int64_t kH1 = 7168;
+constexpr int64_t kN1 = 4096;
+constexpr int64_t kH2 = 7168;
+constexpr int64_t kN2 = 1024;
+constexpr int64_t kGroupSize = 0;     // 先不测 group_size，固定背景值
+constexpr const char *kGroupName = "test_grouped_mat_mul_allto_allv_ep_group";
+
+std::vector<int64_t> MakeCounts()
+{
+    return std::vector<int64_t>(kEpWorldSize * kE, kA / (kEpWorldSize * kE));
+}
+}  // namespace
+
 struct QuantGroupedMatmulAlltoAllvAclnnTestParam {
     // 用例名
     string case_name;
