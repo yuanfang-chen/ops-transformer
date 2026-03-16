@@ -51,8 +51,8 @@ static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
     OP_CHECK_NULL_WITH_CONTEXT(context, outFlagPtr);
 
     if (Ops::Base::IsUnknownRank(*xShape)) {
-        yShape.SetDimNum(0);
-        yShape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
+        yShape->SetDimNum(0);
+        yShape->AppendDim(UNKNOWN_RANK_DIM_VALUE);
         OP_LOGD(context->GetNodeName(), "MhcSinkhorn infershape handles unknown rank.");
         return ge::GRAPH_SUCCESS;
     }
