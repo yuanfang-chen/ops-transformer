@@ -14,7 +14,7 @@
  */
 #include <vector>
 
-#include "op_mc2.h"
+#include "common/op_mc2.h"
 #include "platform/platform_info.h"
 
 #ifdef BUILD_OPEN_PROJECT
