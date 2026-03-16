@@ -143,7 +143,7 @@ class GeneralizedSFAQuant:
                     attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = v2_res
         return attn_out
 
-    def gather_cmp_kv(self, k_tensor, topk_id, i_B, i_N2, i_S1, cur_act_kv, cur_act_q, mask_mode, ori_topk_length_bnsd, cmp_ratio, sparse_block_size = 1):
+    def gather_cmp_kv(self, k_tensor, topk_id, i_B, i_N2, i_S1, cur_act_kv, cur_act_q, mask_mode, topk_length_bnsd, cmp_ratio, sparse_block_size = 1):
         s2_sparse = list()
         cur_cmp_act_kv = math.floor(cur_act_kv / cmp_ratio)
         threshold = 0
@@ -151,8 +151,8 @@ class GeneralizedSFAQuant:
             threshold = math.floor((cur_act_kv - cur_act_q + i_S1 + 1) / cmp_ratio)
         elif mask_mode == 0:
             threshold = math.floor(cur_act_kv / cmp_ratio)
-        if ori_topk_length_bnsd != None:
-            valid_count = min(ori_topk_length_bnsd[i_B, 0, i_S1, 0], math.ceil(threshold / sparse_block_size))
+        if topk_length_bnsd != None:
+            valid_count = min(topk_length_bnsd[i_B, 0, 0, 0], math.ceil(threshold / sparse_block_size))
         else:
             valid_count = min(self.K, math.ceil(threshold / sparse_block_size))
         for i_valid in range(valid_count):
@@ -231,25 +231,32 @@ class GeneralizedSFAQuant:
     def trans_topk_length_shape_to_bnsd(self, tensor, shape, layout, act_seq=None):
         if layout in ["BSND"]:
             B = shape[0]
-            S = shape[1]
-            tensor = tensor.reshape(B, 1, S, 1)
-            return tensor, [B, 1, S, 1]
+            # S = shape[1]
+            # tensor = tensor.reshape(B, 1, S, 1)
+            # return tensor, [B, 1, S, 1]
+            tensor = tensor.reshape(B, 1, 1, 1)
+            return tensor, [B, 1, 1, 1]
         elif layout in ["TND"]:
             T = shape[0]
             B = len(act_seq) - 1  # TND act_q is cumulative
-            max_s1 = get_max_adjacent_diff(act_seq)
-            act_seq_per_batch = prefix_sum_to_original(act_seq)
-            new_tensor = torch.zeros((B, 1, max_s1, 1), dtype=tensor.dtype)
-            t_start = 0
-            for b_index in range(B):
-                cur_act_seq = act_seq_per_batch[b_index]
-                t_end = t_start + cur_act_seq
-                if cur_act_seq == 0:
-                    continue
-                for n_index in range(1):
-                    new_tensor[b_index, 0, 0:cur_act_seq, :] = tensor[t_start:t_end, :]
-                t_start += cur_act_seq
-            return new_tensor, [B, 1, max_s1, 1]
+            tensor = tensor.reshape(B, 1, 1, 1)
+            return tensor, [B, 1, 1, 1]
+        # elif layout in ["TND"]:
+        #     T = shape[0]
+        #     B = len(act_seq) - 1  # TND act_q is cumulative
+        #     max_s1 = get_max_adjacent_diff(act_seq)
+        #     act_seq_per_batch = prefix_sum_to_original(act_seq)
+        #     new_tensor = torch.zeros((B, 1, max_s1, 1), dtype=tensor.dtype)
+        #     t_start = 0
+        #     for b_index in range(B):
+        #         cur_act_seq = act_seq_per_batch[b_index]
+        #         t_end = t_start + cur_act_seq
+        #         if cur_act_seq == 0:
+        #             continue
+        #         for n_index in range(1):
+        #             new_tensor[b_index, 0, 0:cur_act_seq, :] = tensor[t_start:t_end, :]
+        #         t_start += cur_act_seq
+        #    return new_tensor, [B, 1, max_s1, 1]
         else:
             return tensor, shape
 
