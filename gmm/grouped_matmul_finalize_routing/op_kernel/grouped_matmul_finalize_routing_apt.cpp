@@ -13,8 +13,8 @@
  * \brief
  */
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
-#if defined(ORIG_DTYPE_X) && defined(ORIG_DTYPE_WEIGHT)
-#if (ORIG_DTYPE_X == DT_FLOAT8_E4M3FN && (ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1T))
+#if defined(ORIG_DTYPE_X) && defined(ORIG_DTYPE_W)
+#if (ORIG_DTYPE_X == DT_FLOAT8_E4M3FN && (ORIG_DTYPE_W == DT_FLOAT4_E2M1))
     #define V310_GMM_ANTI_QUANT
 #endif
 #endif
@@ -28,11 +28,16 @@
 #endif
 
 #if defined (V310_GMM_ANTI_QUANT)
-// 伪量化场景
-#include "arch35/wweight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
-#include "arch35/wweight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
+// Weight Quantization scenario (伪量化场景)
+// Include all headers directly from source directory to avoid broken paths in copied files
+#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
+#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
+#include "../../../../../../gmm/grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_basic_block.h"
+#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
+#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
+#include "../../../../../../gmm/grouped_matmul_finalize_routing/op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
 #else
-// 全量化场景
+// Full Quantization scenario (全量化场景)
 #include "lib/matmul_intf.h"
 #include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
 #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
@@ -50,12 +55,29 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
                                 GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     TPipe pipe;
-    #if defined (V310_GMM_ANTI_QUANT)
-    // 伪量化场景
-    #else
-    // 全量化场景
+#if defined (V310_GMM_ANTI_QUANT)
+    // Weight Quantization scenario - Use GMMFRWeightQuantResplitController
+    // Define VecAntiQuantConfig for FP8+FP4 MX weight quantization
+    static constexpr WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
+    
+    REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData);
+    GET_TILING_DATA_WITH_STRUCT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData, tilingData, tilingGM);
+    const GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData *tiling = &tilingData;
+    
+    // Use pre-defined MXA8W4_NZNK config for FP8+FP4 MX (Microscaling) format
+    // Config values: aTrans=false, bTrans=true, antiQuantType=MX, hasAntiQuantOffset=false, quantType=NONE, weightFormat=NZ
+    GROUPED_MATMUL_FINALIZE_ROUTING::GMMFRWeightQuantResplitController<
+        DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
+        WeightQuantBatchMatmulV2::Arch35::WQFRVcvMatmulBasicBlock,
+        WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK, 
+        VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
+    
+    controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, tiling);
+    controller.Process();
+#else
+    // Full Quantization scenario
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-    #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
+#if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
     if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
         grouped_matmul_finalize_routing<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor>(
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
@@ -66,7 +88,7 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }
-    #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
+#elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
     if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
         grouped_matmul_finalize_routing_pertoken_dequant<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz>(
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
@@ -77,8 +99,7 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }
-    #endif
-    
-    #endif
+#endif
+#endif
 }
 #endif

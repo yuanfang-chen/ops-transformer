@@ -15,7 +15,7 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_VCV_BASIC_BLOCK_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_VCV_BASIC_BLOCK_H
 
-#include "basic_block_config.h"
+#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else
@@ -23,10 +23,10 @@
 #include "kernel_operator_intf.h"
 #endif
 #include "lib/matmul_intf.h"
-#include "tool.h"
-#include "weight_quant_cube_compute.h"
+#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/tool.h"
+#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_cube_compute.h"
 #include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_api/weight_quant_basic_api_v1.h"
-#include "weight_quant_vcv_basic_block_base.h"
+#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
 #include "weight_quant_vec_compute.h"
 
 using AscendC::GetSubBlockIdx;
@@ -139,7 +139,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t
     if ASCEND_IS_AIC {
         cubeCompute_.MxA8W4Init(l1RemainSize, l1StartSize, biasL1DbOffset_, biasL1_);
     } else {
-        vecCompute_.Init(hasBias_);
+        vecCompute_.Init(GetTPipePtr(), hasBias_);
     }
     cvLoopIdx_ = 0;
 }
@@ -153,7 +153,11 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::UpdateGlobalAddr(
     if ASCEND_IS_AIC {
         cubeCompute_.UpdateGlobalAddr(x, y, bias, scale, nullptr, perTokenScale, hasBias);
     } else {
-        vecCompute_.UpdateGlobalAddr(weight, antiquantScale, nullptr, perTokenScale, scale, bias, weightL2Cacheable);
+        // For MX A8W4: scale is perChannelScale (float*), perTokenScale is also float*
+        vecCompute_.UpdateGlobalAddr(weight, antiquantScale, antiquantOffset, 
+                                     reinterpret_cast<__gm__ float*>(perTokenScale),
+                                     reinterpret_cast<__gm__ float*>(scale), 
+                                     bias, weightL2Cacheable);
     }
 }
 
@@ -164,7 +168,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::ComputeBasicBlock(const Bas
     if ASCEND_IS_AIV {
         ComputeBasicBlockAivNzNk(curOffsetParam, lastOffsetParam);
     } else {
-        IterateNzNkWithKAic(curOffsetParam);
+        IterateNzKnWithKAic(curOffsetParam);
     }
 }
 
@@ -192,7 +196,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::ComputeBasicBlockAivNzNk(
 
         SetAivToAic<PIPE_MTE3>(SYNC_AIV_MTE3_AIC_FIX_FLAG);
         WaitAicToAiv<PIPE_V>(SYNC_AIC_FIX_AIV_VF_FLAG);
-        vecCompute_.MulLogits(lastOffsetParam.nL1Size, lastBasicBlockMSize);
+        // MulLogits not needed for weight quant - skipping
         vecCompute_.CopyYUbToGm(lastOffsetParam.nL1Size, lastBasicBlockMSize,
                                 reinterpret_cast<__gm__ half *>(lastOffsetParam.yGmAddr), lastOffsetParam,
                                 lastBasicBlockMOffset);
@@ -285,7 +289,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::End(const BasicBlockOffsetP
             uint64_t lastBasicBlockMOffset = GetSubBlockIdx() == 0 ? 0 : lastBasicBlockMSize;
             lastBasicBlockMSize = GetSubBlockIdx() == 0 ? lastBasicBlockMSize : (curOffsetParam.mL1Size >> 1);
             WaitAicToAiv<PIPE_V>(SYNC_AIC_FIX_AIV_VF_FLAG);
-            vecCompute_.MulLogits(curOffsetParam.nL1Size, lastBasicBlockMSize);
+            // MulLogits not needed for weight quant - skipping
             vecCompute_.CopyYUbToGm(curOffsetParam.nL1Size, lastBasicBlockMSize,
                                     reinterpret_cast<__gm__ half *>(curOffsetParam.yGmAddr), curOffsetParam,
                                     lastBasicBlockMOffset);

@@ -17,7 +17,11 @@
 
 #include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
 #include "./grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
+#include "./weight_quant_finalize_routing_vcv_basic_block.h"
 
+using AscendC::CeilAlign;
+using AscendC::SyncAll;
+using GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData;
 using WeightQuantBatchMatmulV2::Arch35::A_L1_MAX_SIZE_WITH_BIAS_QUANT;
 using WeightQuantBatchMatmulV2::Arch35::BASIC_BLOCK_PROCESS_NUM;
 using WeightQuantBatchMatmulV2::Arch35::BasicBlockControlParam;
@@ -30,14 +34,21 @@ using WeightQuantBatchMatmulV2::Arch35::QuantType;
 using WeightQuantBatchMatmulV2::Arch35::SCALE_FACTOR_B_BIT;
 using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantVcvMatmulBasicBlockBaseClass;
+using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
 using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
+using WeightQuantBatchMatmulV2::Arch35::WQFRVcvMatmulBasicBlock;
 using GMMFRTiling = GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData;
 
 namespace GROUPED_MATMUL_FINALIZE_ROUTING {
+#define GMMFR_WQ_BASIC_BLOCK_TEMPLATE_CLASS                                                                      \
+    template <typename xType0, typename wType0, typename antiQuantScaleType0, typename scaleType0,             \
+              typename perTokenScaleType0, typename biasType0, typename yType0, const WqmmConfig &wqmmConfig0, \
+              const VecAntiQuantConfig &vecConfig0>                                                            \
+    class
 #define GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM                                               \
     template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, \
               typename perTokenScaleType, typename biasType, typename yType,                   \
-              GMM_WQ_BASIC_BLOCK_TEMPLATE_CLASS BasicBlock, const WqmmConfig &wqmmConfig,      \
+              GMMFR_WQ_BASIC_BLOCK_TEMPLATE_CLASS BasicBlock, const WqmmConfig &wqmmConfig,      \
               const VecAntiQuantConfig &vecConfig>
 
 #define GMMFR_WQ_RESPLIT_CONTROLLER_CLASS                                                                              \
@@ -137,8 +148,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Process()
         if (ctrlParam.mSize > 0 && offsetParam[ctrlParam.processId].nSize > 0) {
             uint64_t mBlkNum = CeilDivide(ctrlParam.mSize, M_L1);
             ctrlParam.mL1Size = CeilDivide(ctrlParam.mSize, mBlkNum);
-            basicBlock_.UpdateGlobalAddr(xGm_, weightGm_, scaleGm_,
-                                         perTokenScaleGm_, biasGm_, yGm_, tiling_->hasBias,
+            basicBlock_.UpdateGlobalAddr(xGm_, weightGm_, antiquantScaleGm_, antiquantOffsetGm_,
+                                         scaleGm_, perTokenScaleGm_, biasGm_, yGm_, tiling_->hasBias,
                                          ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned);
             ctrlParam.curBasicBlockId =
                 cubeBlockIdx >= startBasicBlockId ? cubeBlockIdx : cubeBlockIdx + tiling_->coreNum;
