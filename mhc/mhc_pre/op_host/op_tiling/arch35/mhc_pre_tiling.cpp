@@ -18,6 +18,7 @@
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "err/ops_err.h"
+#include "op_kernel/arch35/mhc_pre_tiling_key.h"
 
 namespace optiling {
 
@@ -367,8 +368,6 @@ ge::graphStatus MhcPreBaseTiling::DoOpTiling()
         return ge::GRAPH_FAILED;
     }
 
-    tilingKey_ = static_cast<uint64_t>(tilingMode_);
-
     if (TilingProcess() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -398,7 +397,7 @@ void MhcPreBaseTiling::PrintTilingData()
 
 uint64_t MhcPreBaseTiling::GetTilingKey() const
 {
-    return tilingKey_;
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(tilingMode_));
 }
 
 ge::graphStatus MhcPreBaseTiling::PostTiling()

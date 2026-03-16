@@ -15,12 +15,14 @@
 
 #include "arch35/mhc_pre_prefill.h"
 #include "arch35/mhc_pre_decode.h"
+#include "arch35/mhc_pre_tiling_key.h"
 
 using namespace AscendC;
 using namespace matmul;
 using namespace MhcPre;
 
-extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR alpha, GM_ADDR bias, GM_ADDR gamma,
+template <int8_t TILING_MODE>
+__global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR alpha, GM_ADDR bias, GM_ADDR gamma,
                                               GM_ADDR hin, GM_ADDR h_post, GM_ADDR h_res, GM_ADDR inv_rms,
                                               GM_ADDR h_mix, GM_ADDR h_pre, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
@@ -29,7 +31,7 @@ extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR al
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-    if (TILING_KEY_IS(0UL)) {
+    if constexpr (TILING_MODE == MHC_PRE_PREFILL) {
         InitParams initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
                               h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
@@ -37,7 +39,7 @@ extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR al
         MhcPreKernelPrefill<DTYPE_X, float32_t> op(mm);
         op.Init(initParams);
         op.Process();
-    } else if (TILING_KEY_IS(1UL)) {
+    } else if constexpr (TILING_MODE == MHC_PRE_DECODE) {
         InitParamsDecode initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
                                      h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
