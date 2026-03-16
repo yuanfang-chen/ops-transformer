@@ -478,6 +478,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetInputTensorsInfo()
 
     MIRV3_CHECK_GE_RET(GetTensorShapeDtype<true>(xShape_, xDtype_, INPUT_X_INDEX));
     inputXDtypeSize_ = static_cast<int64_t>(ge::GetSizeByDataType(xDtype_));
+    OP_LOGD(context_, "2333333333333333: inputXDtypeSize_=%ld\n", inputXDtypeSize_);
     MIRV3_CHECK_GE_RET(GetTensorShapeDtype<true>(expertIdxShape_, expertIdxDtype_, INPUT_EXPERT_IDX_INDEX));
     // 可选输入scale
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(scaleShape_, scaleDtype_, isInputScale_, INPUT_SCALE_INDEX));
@@ -631,7 +632,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     using ge::DataType;
     using std::unordered_set;
     static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
-                                                                     DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
+                                                                     DataType::DT_BF16, DataType::DT_INT8, 
+                                                                     DataType::DT_HIFLOAT8, DataType::DT_FLOAT4_E2M1};
     static const unordered_set<DataType> DYNAMIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                      DataType::DT_BF16, DataType::DT_INT8};
     static const std::unordered_set<DataType> MX_OR_HIF8_QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
@@ -709,9 +711,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
                             expectedDim1, quantMode_, dim1),
                     return ge::GRAPH_FAILED);
     }
-    OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT,
-                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d).", xDtype_,
-                        ge::DataType::DT_FLOAT),
+    OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT && scaleDtype_ != ge::DataType::DT_FLOAT8_E8M0,
+                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d) or DT_FLOAT8_E8M0(%d).", xDtype_,
+                        ge::DataType::DT_FLOAT, ge::DataType::DT_FLOAT8_E8M0),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -1165,14 +1167,29 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
     } else {
+        OP_LOGD(context_, "----------------23333333333333333333333 here!-------------------\n");
+        OP_LOGD(context_, "23333333333333333333333:  availUbSize_=%ld\n perLoopParams.perLoopCols=%ld\n inputXDtypeSize_=%ld\n",
+                availUbSize_, perLoopParams.perLoopCols, inputXDtypeSize_);
+        OP_LOGD(context_, "23333333333333333333333:  Align(perLoopParams.perLoopCols, inputXDtypeSize_)=%ld multipleParams.colMultiple=%ld\n", 
+                Align(perLoopParams.perLoopCols, inputXDtypeSize_), multipleParams.colMultiple);
+        OP_LOGD(context_, "23333333333333333333333:  UB_BLOCK_SIZE%ld\n multipleParams.rowMultiple", 
+                UB_BLOCK_SIZE, multipleParams.rowMultiple);
+
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
             UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+
+        OP_LOGD(context_, "23333333333333333333333:  perLoopParams.perLoopMaxIndicesElements=%ld\n", 
+            perLoopParams.perLoopMaxIndicesElements);
+
         while (perLoopParams.perLoopMaxIndicesElements <= 0) {
             perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);
+            OP_LOGD(context_, "2333333333333333333: perLoopParams.perLoopCols\n", perLoopParams.perLoopCols);
             perLoopParams.perLoopMaxIndicesElements =
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
                 UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+            OP_LOGD(context_, "2333333333333333333: perLoopParams.perLoopMaxIndicesElements\n", 
+                perLoopParams.perLoopMaxIndicesElements);
         }
     }
     return perLoopParams;
@@ -1195,13 +1212,21 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     PerLoopParams perLoopParams = GetPerLoopParams(multipleParams);
     
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopParams.perLoopCols);
+    OP_LOGD(context_, "colsLoops=%ld\n", colsLoops);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopParams.perLoopCols;
+    OP_LOGD(context_, "lastLoopCols=%ld\n", lastLoopCols);
     gatherOutTiling->needCoreNum = needCoreNum;
+    OP_LOGD(context_, "gatherOutTiling->needCoreNum=%ld\n", gatherOutTiling->needCoreNum);
     gatherOutTiling->perCoreIndicesElements = perCoreIndicesElements;
+    OP_LOGD(context_, "gatherOutTiling->perCoreIndicesElements=%ld\n", gatherOutTiling->perCoreIndicesElements);
     gatherOutTiling->lastCoreIndicesElements = lastCoreIndicesElements;
+    OP_LOGD(context_, "gatherOutTiling->lastCoreIndicesElements=%ld\n", gatherOutTiling->lastCoreIndicesElements);
     gatherOutTiling->colsLoops = colsLoops;
+    OP_LOGD(context_, "gatherOutTiling->colsLoops=%ld\n", gatherOutTiling->colsLoops);
     gatherOutTiling->perLoopCols = perLoopParams.perLoopCols;
+    OP_LOGD(context_, "gatherOutTiling->perLoopCols=%ld\n", gatherOutTiling->perLoopCols);
     gatherOutTiling->lastLoopCols = lastLoopCols;
+    OP_LOGD(context_, "gatherOutTiling->lastLoopCols=%ld\n", gatherOutTiling->lastLoopCols);
 
     int64_t perCorePerLoopIndicesElements = std::min(perLoopParams.perLoopMaxIndicesElements, perCoreIndicesElements);
     int64_t perCoreIndicesLoops = Ops::Base::CeilDiv(perCoreIndicesElements, perCorePerLoopIndicesElements);
