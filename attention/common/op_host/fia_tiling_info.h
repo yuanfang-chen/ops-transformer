@@ -302,10 +302,7 @@ public:
     int64_t preToken = 0;
     int64_t nextToken = 0;
 
-    // PostQuant
-    bool isOutQuantPerChnOut = false;
-    bool isOutQuantTypeBf16 = false;
-    bool isOutQuantEnable = false;
+
 
     // Others Flag
     bool batchContinuousFlag = true;
