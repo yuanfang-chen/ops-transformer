@@ -29,15 +29,17 @@ extern "C" __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR al
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-    InitParams initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
-                          h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
     if (TILING_KEY_IS(0UL)) {
+        InitParams initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
+                              h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
         MhcPreKernelPrefill<DTYPE_X, float32_t> op(mm);
         op.Init(initParams);
         op.Process();
     } else if (TILING_KEY_IS(1UL)) {
+        InitParamsDecode initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
+                                     h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
         MhcPreKernelDecode<DTYPE_X, float32_t> op(mm);
