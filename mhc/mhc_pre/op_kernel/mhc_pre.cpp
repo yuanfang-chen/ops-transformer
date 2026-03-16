@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "arch35/mhc_pre.h"
+#include "arch35/mhc_pre_prefill.h"
 
 using namespace AscendC;
 using namespace matmul;
