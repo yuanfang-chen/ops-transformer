@@ -22,29 +22,23 @@
 using namespace ge;
 using namespace std;
 
-namespace {
-constexpr size_t X_INDEX = 0;
-constexpr size_t Y_INDEX = 0;
-
-constexpr size_t INDEX_EPS = 0;
-constexpr size_t INDEX_NUM_ITERS = 1;
-constexpr size_t INDEX_OUT_FLAG = 2;
-
-constexpr size_t BSNN_DIMS = 4;
-constexpr size_t TNN_DIMS = 3;
-} // namespace
-
 namespace ops {
+static constexpr size_t X_INDEX = 0;
+static constexpr size_t Y_INDEX = 0;
+
+static constexpr size_t INDEX_EPS = 0;
+static constexpr size_t INDEX_NUM_ITERS = 1;
+static constexpr size_t INDEX_OUT_FLAG = 2;
+
+static constexpr size_t BSNN_DIMS = 4;
+static constexpr size_t TNN_DIMS = 3;
+static constexpr int64_t UNKNOWN_RANK_DIM_VALUE = -2LL;
+static constexpr int64_t UNKNOWN_DIM_VALUE = -1LL;
 
 void SetUnknownRank(gert::Shape &shape)
 {
     shape.SetDimNum(0);
     shape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
-}
-
-bool IsUnknownRank(const gert::Shape &shape)
-{
-    return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
 }
 
 bool IsUnknownShape(const gert::Shape &shape)
@@ -56,6 +50,11 @@ bool IsUnknownShape(const gert::Shape &shape)
         }
     }
     return false;
+}
+
+bool IsUnknownRank(const gert::Shape &shape)
+{
+    return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
 }
 
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
