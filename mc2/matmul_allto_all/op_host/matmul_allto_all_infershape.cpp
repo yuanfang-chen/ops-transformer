@@ -17,7 +17,7 @@
 #include "util/math_util.h"
 #include "mc2_log.h"
 #include "op_mc2.h"
-#include "mc2_common_infershape.h"
+#include "op_host/mc2_common_infershape.h"
 
 namespace ops {
 
