@@ -146,6 +146,7 @@ if (BUILD_OPEN_PROJECT)
         $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
     )
     target_include_directories(cust_opmaster PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_tiling
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
