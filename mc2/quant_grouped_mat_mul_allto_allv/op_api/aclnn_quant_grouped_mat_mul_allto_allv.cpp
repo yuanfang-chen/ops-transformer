@@ -345,8 +345,8 @@ static bool CheckMxDType(const aclTensor *x, const aclTensor *weight, const aclT
                 op::ToString(weightScale->GetDataType()).GetString());
         return false;
     }
-    if (!CheckType(y->GetDataType(), MX_INPUT_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In Mx QuantMode, y support DT_FLOAT16 and DT_BF16, but got %s.",
+    if (!CheckType(y->GetDataType(), MX_OUTPUT_DTYPE_SUPPORT_LIST)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In Mx QuantMode, y support DT_FLOAT16 or DT_BF16, but got %s.",
                 op::ToString(y->GetDataType()).GetString());
         return false;
     }
