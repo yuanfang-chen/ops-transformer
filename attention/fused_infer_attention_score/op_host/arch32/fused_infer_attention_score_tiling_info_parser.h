@@ -81,7 +81,6 @@ public:
     ge::graphStatus GetActualSeqInfo();
     ge::graphStatus GetPreNextToken();
     ge::graphStatus GetSystemPrefix();
-     ge::graphStatus GetPseShiftFlag();
     ge::graphStatus GetPostQuantInfo();
     ge::graphStatus GetOldIfaGqaFlag();
     TilingKeyLayout MapStringToLayout(FiaLayout &layoutString) const;
@@ -149,10 +148,7 @@ public:
     uint32_t attenMaskStride_ = 0;
     bool kvPaddingSizeFlag_ = false;
     bool qPaddingSizeFlag_ = false;
-    bool pseShiftFlag_ = false;
-    bool pseShiftByBatch_ = false;
-    uint32_t pseShiftS1_ = 0;
-    uint32_t pseShiftS2_ = 0;
+
     int64_t maxActualseq_ = 0;
     bool isMaxWorkspace_ = false;
     bool isLegacyIfa_ = false;

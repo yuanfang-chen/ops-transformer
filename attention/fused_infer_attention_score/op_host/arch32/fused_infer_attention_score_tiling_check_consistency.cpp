@@ -572,60 +572,10 @@ ge::graphStatus FiaTilingCheck::CheckTokens()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckSoftmaxLse()
-{
-    if (!fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
-        return ge::GRAPH_SUCCESS;
-    }
 
-    if (fiaInfo_.softmaxLseFlag && opParamInfo_.lseOut.desc == nullptr) {
-        OP_LOGE(opName_, "when %s is enabled, softmaxlse should not be NULL.",
-            SOFTMAX_LSE_NAME.c_str()); 
-        return ge::GRAPH_FAILED;
-    }
 
-    if (ge::GRAPH_SUCCESS != CheckSoftmaxLseDType() ||
-        ge::GRAPH_SUCCESS != CheckSoftmaxLseShape()) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSoftmaxLseDType() 
-{
-    if (opParamInfo_.lseOut.desc->GetDataType() != ge::DT_FLOAT) { 
-        OP_LOGE(opName_, "only support dtype FP32, but got %s",
-            FusedDataTypeToSerialString(opParamInfo_.lseOut.desc->GetDataType()).c_str());
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 
-ge::graphStatus FiaTilingCheck::CheckSoftmaxLseShape()
-{
-    if (outLayout_ == FiaLayout::TND || outLayout_ == FiaLayout::NTD) {
-        softmaxLseLayout_ = FiaLayout::TN1;
-    } else {
-        softmaxLseLayout_ = FiaLayout::BNS11;
-    }
-    softmaxLseShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(opParamInfo_.lseOut.shape->GetStorageShape(),
-         softmaxLseLayout_, SOFTMAX_LSE_NAME, opName_);
-
-    FiaTilingShapeCompareParam shapeParams;
-    if (fiaInfo_.softmaxLseFlag && softmaxLseLayout_ == FiaLayout::TN1) {
-        shapeParams.T = static_cast<int64_t>(qTSize_);
-        shapeParams.N = static_cast<int64_t>(n1Size_);
-        shapeParams.CONST = 1;
-    } else if (fiaInfo_.softmaxLseFlag && softmaxLseLayout_ == FiaLayout::BNS11) {
-        shapeParams.B = static_cast<int64_t>(bSize_);
-        shapeParams.N = static_cast<int64_t>(n1Size_);
-        shapeParams.S1 = static_cast<int64_t>(s1Size_);
-        shapeParams.CONST = 1;
-    } else if (!fiaInfo_.softmaxLseFlag) {
-        return ge::GRAPH_SUCCESS;
-    }
-    return softmaxLseShapeCmp_->CompareShape(shapeParams, __func__);
-}
 
 ge::graphStatus FiaTilingCheck::CheckPostQuant()
 {
@@ -689,7 +639,6 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
-        ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||
         ge::GRAPH_SUCCESS != CheckPostQuant()) {
         return ge::GRAPH_FAILED;

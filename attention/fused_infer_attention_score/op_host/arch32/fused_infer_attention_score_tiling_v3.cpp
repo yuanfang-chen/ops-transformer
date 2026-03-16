@@ -945,12 +945,7 @@ bool IsEmptyTensor(const gert::TilingContext *context)
         return true;
     }
 
-    bool softmaxLseFlag = context->GetAttrs()->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
-    if (softmaxLseFlag) {
-        auto softmaxLseShape = context->GetInputShape(SOFTMAX_LSE_INDEX);
-        if ((softmaxLseShape != nullptr) && (softmaxLseShape->GetStorageShape().GetShapeSize() == 0)) {
-            return true;
-        }
+
     }
 
     uint32_t keyBIdx = 0;
