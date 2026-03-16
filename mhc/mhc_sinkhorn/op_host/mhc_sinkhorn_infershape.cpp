@@ -36,18 +36,18 @@ namespace ops {
 static ge::graphStatus InferShape4MhcSinkhorn(gert::InferShapeContext* context)
 {
     OP_LOGD(context, "Begin to do MhcSinkhornInfershape.");
-    const gert::Shape* xshape = context->GetInputShape(X_INDEX);
-    OP_CHECK_NULL_WITH_CONTEXT(context, x_shape);
-    gert::Shape* yshape = context->GetOutputShape(Y_INDEX);
-    OP_CHECK_NULL_WITH_CONTEXT(context, y_shape);
-    auto attr_ptr = context->GetAttrs();
-    OP_CHECK_NULL_WITH_CONTEXT(context, attr_ptr);
-    auto eps_ptr = attr_ptr->GetAttrPointer<gert::ContinuousVector>(INDEX_EPS);
-    OP_CHECK_NULL_WITH_CONTEXT(context, eps_ptr);
-    auto num_iters_ptr = attr_ptr->GetAttrPointer<gert::ContinuousVector>(INDEX_NUM_ITERS);
-    OP_CHECK_NULL_WITH_CONTEXT(context, num_iters_ptr);
-    auto out_flag_ptr = attr_ptr->GetAttrPointer<gert::ContinuousVector>(INDEX_OUT_FLAG);
-    OP_CHECK_NULL_WITH_CONTEXT(context, out_flag_ptr);
+    const gert::Shape* xShape = context->GetInputShape(X_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, xShape);
+    gert::Shape* yShape = context->GetOutputShape(Y_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context, yShape);
+    auto attrPtr = context->GetAttrs();
+    OP_CHECK_NULL_WITH_CONTEXT(context, attrPtr);
+    auto epsPtr = attrPtr->GetAttrPointer<gert::ContinuousVector>(INDEX_EPS);
+    OP_CHECK_NULL_WITH_CONTEXT(context, epsPtr);
+    auto numItersPtr = attrPtr->GetAttrPointer<gert::ContinuousVector>(INDEX_NUM_ITERS);
+    OP_CHECK_NULL_WITH_CONTEXT(context, numItersPtr);
+    auto outFlagPtr = attrPtr->GetAttrPointer<gert::ContinuousVector>(INDEX_OUT_FLAG);
+    OP_CHECK_NULL_WITH_CONTEXT(context, outFlagPtr);
 
     if (IsUnknownRank(*xShape)) {
         SetUnknownRank(*yShape);
