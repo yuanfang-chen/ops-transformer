@@ -219,8 +219,6 @@ ge::graphStatus FiaInfoParser::GetNpuInfo()
 void FiaInfoParser::GetOptionalInputParaInfo()
 {
     // actualSeqLengthsQ和queryPaddingSize在GetUpdateInfo()中获取
-    opParamInfo_.pseShift.tensor = context_->GetOptionalInputTensor(PSE_SHIFT_INDEX);
-    opParamInfo_.pseShift.desc = context_->GetOptionalInputDesc(PSE_SHIFT_INDEX);
     opParamInfo_.attenMask.tensor = context_->GetOptionalInputTensor(ATTEN_MASK_INDEX);
     opParamInfo_.attenMask.desc = context_->GetOptionalInputDesc(ATTEN_MASK_INDEX);
     opParamInfo_.actualSeqLengths.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
@@ -864,19 +862,7 @@ ge::graphStatus FiaInfoParser::GetMaskFlag()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetPseShiftFlag()
-{
-    const gert::StorageShape *pseShiftShape = context_->GetOptionalInputShape(PSE_SHIFT_INDEX);
-    if ((pseShiftShape == nullptr) || ((pseShiftShape != nullptr) && (pseShiftShape->GetStorageShape().GetShapeSize() == 0))) {
-        pseShiftFlag_ = false;
-    } else {
-        pseShiftFlag_ = true;
-        pseShiftByBatch_ = (pseShiftShape->GetStorageShape().GetDim(0) != 1U);
-        pseShiftS1_ = pseShiftShape->GetStorageShape().GetDim(PSE_SHIFT_S1_INDEX);
-        pseShiftS2_ = pseShiftShape->GetStorageShape().GetDim(PSE_SHIFT_S2_INDEX);
-    }
-    return ge::GRAPH_SUCCESS;
-}
+
 
 ge::graphStatus FiaInfoParser::GetSystemPrefix()
 {
@@ -989,11 +975,7 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     // inner precise
     fiaInfo.innerPrecise = *opParamInfo_.innerPrecise;
 
-    //pse shift
-    fiaInfo.pseShiftFlag = pseShiftFlag_;
-    fiaInfo.pseShiftByBatch = pseShiftByBatch_;
-    fiaInfo.pseShiftS1 = pseShiftS1_;
-    fiaInfo.pseShiftS2 = pseShiftS2_;
+
 
     // atten mask
     fiaInfo.attenMaskFlag = attenMaskFlag_;
@@ -1164,7 +1146,6 @@ ge::graphStatus FiaInfoParser::ParseFeatureInfo()
         ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag() ||
         ge::GRAPH_SUCCESS != GetActualSeqInfo() ||
         ge::GRAPH_SUCCESS != GetSystemPrefix() ||
-        ge::GRAPH_SUCCESS != GetPseShiftFlag()||
         ge::GRAPH_SUCCESS != GetPostQuantInfo()) {
         return ge::GRAPH_FAILED;
     }
