@@ -387,8 +387,8 @@ public:
     uint32_t qTSize_ = 0;
     uint32_t qkHeadDim_ = 0;
     int64_t sparseBlockSize_ = 0;
-    int64_t oriSparseBlockCount_ = 0;
-    int64_t cmpSparseBlockCount_ = 0;
+    int64_t oriSparseBlockCount_ = 128;
+    int64_t cmpSparseBlockCount_ = 512;
     uint32_t maxActualseq_ = 0;
     bool isSameSeqAllKVTensor_ = true;
     uint32_t actualLenDimsKV_ = 0;

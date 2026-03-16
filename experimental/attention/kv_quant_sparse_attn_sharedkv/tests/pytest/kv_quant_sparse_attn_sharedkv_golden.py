@@ -759,15 +759,15 @@ def gen_cmp_kv_quant_1(q_type, layout_q, cmp_kv_type, B, S1, T1, N2, D, K, rope_
     if (template_run_mode == "SCFA" or template_run_mode == "ALL_SCFA") and cmp_max_s2 != 0:
         if topk_value_mode == 1:
             if layout_q == "BSND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_bsnd(cmp_ratio, B, S1, N2, K, seqused_kv, cmp_mask_mode, cmp_topk_length)
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_bsnd(cmp_ratio, B, S1, N2, cmp_max_s2, seqused_kv, cmp_mask_mode, cmp_topk_length)
             elif layout_q == "TND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_tnd(cmp_ratio, B, T1, N2, K, cu_seqlens_q, seqused_kv, cmp_mask_mode, cmp_topk_length)
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_tnd(cmp_ratio, B, T1, N2, cmp_max_s2, cu_seqlens_q, seqused_kv, cmp_mask_mode, cmp_topk_length)
         else:
             if layout_q == "BSND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_bsnd(cmp_ratio, B, S1, N2, K, d_aligned_128, seqused_kv, cmp_mask_mode, cmp_topk_length, \
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_bsnd(cmp_ratio, B, S1, N2, cmp_max_s2, d_aligned_128, seqused_kv, cmp_mask_mode, cmp_topk_length, \
                     cmp_block_table, cmp_max_block_num_per_batch, block_size2)
             elif layout_q == "TND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_tnd(cmp_ratio, B, T1, N2, K, d_aligned_128, cu_seqlens_q, seqused_kv, \
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_tnd(cmp_ratio, B, T1, N2, cmp_max_s2, d_aligned_128, cu_seqlens_q, seqused_kv, \
                     cmp_mask_mode, cmp_topk_length, cmp_block_table, cmp_max_block_num_per_batch, block_size2)
 
     # if topk_value_mode == 1:
@@ -887,15 +887,15 @@ def gen_cmp_kv(q_type, layout_q, cmp_kv_type, B, S1, T1, N2, D, K, rope_head_dim
     if (template_run_mode == "SCFA" or template_run_mode == "ALL_SCFA") and cmp_max_s2 != 0:
         if topk_value_mode == 1:
             if layout_q == "BSND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_bsnd(cmp_ratio, B, S1, N2, K, seqused_kv, cmp_mask_mode, cmp_topk_length)
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_bsnd(cmp_ratio, B, S1, N2, cmp_max_s2, seqused_kv, cmp_mask_mode, cmp_topk_length)
             elif layout_q == "TND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_tnd(cmp_ratio, B, T1, N2, K, cu_seqlens_q, seqused_kv, cmp_mask_mode, cmp_topk_length)
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_indices_tnd(cmp_ratio, B, T1, N2, cmp_max_s2, cu_seqlens_q, seqused_kv, cmp_mask_mode, cmp_topk_length)
         else:
             if layout_q == "BSND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_bsnd(cmp_ratio, B, S1, N2, K, d_combined + pad_d, seqused_kv, cmp_mask_mode, cmp_topk_length, \
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_bsnd(cmp_ratio, B, S1, N2, cmp_max_s2, d_combined + pad_d, seqused_kv, cmp_mask_mode, cmp_topk_length, \
                     cmp_block_table, cmp_max_block_num_per_batch, block_size2)
             elif layout_q == "TND":
-                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_tnd(cmp_ratio, B, T1, N2, K, d_combined + pad_d, cu_seqlens_q, seqused_kv, \
+                cmp_sparse_data, cmp_sparse_indices = gen_sparse_offset_tnd(cmp_ratio, B, T1, N2, cmp_max_s2, d_combined + pad_d, cu_seqlens_q, seqused_kv, \
                     cmp_mask_mode, cmp_topk_length, cmp_block_table, cmp_max_block_num_per_batch, block_size2)
 
     # if topk_value_mode == 1:

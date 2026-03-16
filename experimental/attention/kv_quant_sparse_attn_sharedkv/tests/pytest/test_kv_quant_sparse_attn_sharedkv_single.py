@@ -173,7 +173,7 @@ def sas(param_combinations):   # 初始化参数和tensor
                 raise ValueError(f"layout_q is not support {layout_q}")
         elif ori_kv_topk_mode == "random":
             if layout_q == "TND" or layout_q == "BSND":
-                ori_topk_length = torch.tensor(np.random.uniform(0, K, (B, 1))).to(torch.int32)
+                ori_topk_length = torch.tensor(np.random.uniform(1, K, (B, 1))).to(torch.int32)
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
         else:
@@ -183,14 +183,15 @@ def sas(param_combinations):   # 初始化参数和tensor
 
     # 生成cmp_kv_topk
     if template_run_mode == "SCFA" or template_run_mode == "ALL_SCFA":
+        cmp_topK = 512 if cmp_ratio == 4 else S2 // cmp_ratio
         if cmp_kv_topk_mode == "full":
             if layout_q == "TND" or layout_q == "BSND":
-                cmp_topk_length = torch.tensor(np.random.uniform(K, K, (B, 1))).to(torch.int32)
+                cmp_topk_length = torch.tensor(np.random.uniform(cmp_topK, cmp_topK, (B, 1))).to(torch.int32)
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
         elif cmp_kv_topk_mode == "random":
             if layout_q == "TND" or layout_q == "BSND":
-                cmp_topk_length = torch.tensor(np.random.uniform(0, K, (B, 1))).to(torch.int32)
+                cmp_topk_length = torch.tensor(np.random.uniform(1, cmp_topK, (B, 1))).to(torch.int32)
             else:
                 raise ValueError(f"layout_q is not support {layout_q}")
         else:
