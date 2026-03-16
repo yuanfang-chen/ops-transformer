@@ -82,7 +82,8 @@ public:
         sTP_ = initParams;
         pipe_ = sTP_->pipe_;
         chunkSize_ = sTP_->cg->chunkSize;
-        Sp_ = (sTP_->cg->length + chunkSize_ - 1) / chunkSize_  * chunkSize_;
+        seqLength_ = sTP_->cg->length;
+        Sp_ = (seqLength_ + chunkSize_ - 1) / chunkSize_  * chunkSize_;
         chunkNum_ = Sp_ / chunkSize_;
         coreNum_ = coreNum;
         Nv_ = sTP_->Nv_;
@@ -111,10 +112,7 @@ public:
         // Nv Nc 融合
         int64_t totalChunks = Nv_ * chunkNum_;
         int64_t chunksPerCore = (totalChunks + coreNum_ -1) / coreNum_;
-        int64_t lastChunkSize = chunkSize_;
-        if (sTP_->cg->length % chunkSize_ != 0) {
-            lastChunkSize = sTP_->cg->length % chunkSize_;
-        }
+        int64_t lastChunkSize = seqLength_ % chunkSize_ == 0 ? chunkSize_ : seqLength_ % chunkSize_;
         int coreId = GetBlockIdx();
         if ASCEND_IS_AIV {
             coreId /= 2;
@@ -126,8 +124,6 @@ public:
             int64_t chunkId = idx % chunkNum_;
             int64_t chunkPos = chunkId * chunkSize_;    // 当前chunk起始位置
             curChunkSize_ = (chunkId == chunkNum_ - 1) ? lastChunkSize : chunkSize_; // 尾块
-            // printf("============   nvId:%ld, chunkId: %ld, chunkPos: %ld, startChunk: %ld, endChunk: %ld, curChunkSize_: %ld \n",
-            //     nvId, chunkId, chunkPos, startChunk, endChunk, curChunkSize_);
             if ASCEND_IS_AIV {
                 if (GetSubBlockIdx() == 0) {
                     CalMaskedQKT(cCFloatGM_[coreId * chunkSize_ * chunkSize_], nvId, chunkPos);
@@ -135,7 +131,7 @@ public:
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(0x4);
                 CrossCoreWaitFlag(0x3);
                 if (GetSubBlockIdx() == 0) {
-                    ReadAttnOut(sTP_->attnInter_[nvId * Sp_ * Dv_ + chunkPos * Dv_]);
+                    ReadAttnOut(sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_]);
                 }
                 if (idx < endChunk - 1) {
                     CrossCoreSetFlag<0x2, PIPE_MTE2>(0x5);
@@ -152,53 +148,62 @@ public:
                 CrossCoreWaitFlag(0x4);
                 mm3Params<float, float> params{
                     cCFloatGM_[coreId * chunkSize_ * chunkSize_],
-                    sTP_->vInner_[nvId * Sp_ * Dv_ + chunkPos * Dv_],
-                    sTP_->attnInter_[nvId * Sp_ * Dv_ + chunkPos * Dv_],
-                    chunkSize_, Dv_, chunkSize_, chunkSize_, Dv_, chunkSize_};
+                    sTP_->vInner_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
+                    sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
+                    curChunkSize_, Dv_, curChunkSize_, curChunkSize_, Dv_, curChunkSize_};
                 AICProcess<float, float>(params, 1, false, false);
+
                 CrossCoreSetFlag<0x2, PIPE_FIX>(0x3);
             }
-            // SyncAll<false>();
         }
     }
     
     __aicore__ inline void CalMaskedQKT(GlobalTensor<float> outGM, int nvId, int chunkPos)
     {
         // g_cum_exp
-        CopyIn<float>(sTP_->gCumExp_[nvId * Sp_ + chunkPos], 1, chunkSize_);
+        CopyIn<float>(sTP_->gCumExp_[nvId * seqLength_ + chunkPos], 1, curChunkSize_);
         auto g_cum_exp = inQueue_.DeQue<float>();
+        int64_t paddingChunkSize = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float));
         // broadcast
-        const uint32_t srcShape1[] = {static_cast<uint32_t>(chunkSize_), static_cast<uint32_t>(1)};
-        const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(chunkSize_)};
-        const uint32_t dstShape[] = {static_cast<uint32_t>(chunkSize_), static_cast<uint32_t>(chunkSize_)};
+        const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
+        const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(paddingChunkSize)};
+        const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(paddingChunkSize)};
         Broadcast<float, 2, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
         Broadcast<float, 2, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
         PipeBarrier<PIPE_V>();
-
-        Div(cCFloat_, cCFloat_, cCFloat2_, chunkSize_ * chunkSize_);
+        Div(cCFloat_, cCFloat_, cCFloat2_, curChunkSize_ * paddingChunkSize);
         inQueue_.FreeTensor(g_cum_exp);
-        
         // qkt
-        CopyIn<float>(sTP_->qkt_[nvId * Sp_ * chunkSize_ + chunkPos * chunkSize_], chunkSize_, chunkSize_);
+        CopyIn<float>(sTP_->qkt_[nvId * seqLength_ * chunkSize_ + chunkPos * chunkSize_], curChunkSize_, curChunkSize_);
         auto qkt = inQueue_.DeQue<float>();
         auto scale_qkt = outQueue_.AllocTensor<float>();
-        Muls(scale_qkt, qkt, sTP_->scale_, chunkSize_ * chunkSize_);
-        Mul(scale_qkt, scale_qkt, cCFloat_, chunkSize_ * chunkSize_);
+        Muls(scale_qkt, qkt, sTP_->scale_, curChunkSize_ * paddingChunkSize);
+        outQueue_.EnQue(scale_qkt);
+        CopyOut<float>(outGM, curChunkSize_, curChunkSize_);
+        int64_t len = curChunkSize_ * curChunkSize_;
+        Mul(scale_qkt, scale_qkt, cCFloat_, curChunkSize_ * paddingChunkSize);
         inQueue_.FreeTensor(qkt);
         
         // mask
-        CopyIn<float>(sTP_->maskTensor_, chunkSize_, chunkSize_);
+        LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
+        DataCopyExtParams inParams{static_cast<uint16_t>(curChunkSize_),
+                                   static_cast<uint32_t>(curChunkSize_ * sizeof(float)),
+                                   static_cast<uint32_t>((chunkSize_ - curChunkSize_) * sizeof(float)), 
+                                   0, 0};
+        int padding = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float)) - curChunkSize_;
+        DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
+        DataCopyPad(inLocal, sTP_->maskTensor_, inParams, copyPadParams);
+        inQueue_.EnQue(inLocal);
         auto lower = inQueue_.DeQue<float>();
-        Mul(scale_qkt, scale_qkt, lower, chunkSize_ * chunkSize_);
-
+        Mul(scale_qkt, scale_qkt, lower, curChunkSize_ * paddingChunkSize);
         outQueue_.EnQue(scale_qkt);
-        CopyOut<float>(outGM, chunkSize_, chunkSize_);   // 处理非对齐内容
+        CopyOut<float>(outGM, curChunkSize_, curChunkSize_);
         inQueue_.FreeTensor(lower);
     }
 
     __aicore__ inline void ReadAttnOut(GlobalTensor<float> inTensor)
     {
-        AttnCopyIn(inTensor, chunkSize_, sTP_->Dv_);
+        AttnCopyIn(inTensor, curChunkSize_, sTP_->Dv_);
     }
 
     __aicore__ inline void CalAttnOut(GlobalTensor<bfloat16_t> outTensor)
@@ -206,7 +211,7 @@ public:
         curDv_ = Ceil(sTP_->Dv_, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t));
         auto out = inQueue_.DeQue<float>();
         auto attn_out = outQueue_.AllocTensor<bfloat16_t>();
-        Cast(attn_out, out, RoundMode::CAST_RINT, chunkSize_ * curDv_);
+        Cast(attn_out, out, RoundMode::CAST_RINT, curChunkSize_ * curDv_);
         outQueue_.EnQue(attn_out);
         AttnCopyOut(outTensor);
         inQueue_.FreeTensor(out);
@@ -263,14 +268,13 @@ public:
     __aicore__ inline void AttnCopyIn(GlobalTensor<float> tmpGM, int32_t row, int32_t col)
     {
         LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
-        DataCopyPadExtParams<float> padParams;
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
                                     static_cast<uint32_t>(col * sizeof(float)),                // 非对齐情况需要补0
                                     static_cast<uint32_t>(0), 
                                     0, 0};
         int padding = Ceil(col, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t)) - col;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
-        DataCopyPad(inLocal, tmpGM, inParams, padParams);
+        DataCopyPad(inLocal, tmpGM, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
     }
 
@@ -301,8 +305,9 @@ private:
     LocalTensor<float> cCFloat2_;
     int32_t curDk_; // Dk非对齐时补齐后长度
     int32_t curDv_; // Dv非对齐时补齐后长度
-    int32_t curChunkSize_; // Dv非对齐时补齐后长度
-    int32_t chunkSize_; // Dk非对齐时补齐后长度
+    int32_t curChunkSize_; 
+    int32_t chunkSize_;
+    int64_t seqLength_;
     int64_t Sp_;    // S非对齐时补齐后长度
     int32_t chunkNum_;    // S非对齐时补齐后Chunk个数
     int32_t coreNum_;    // S非对齐时补齐后Chunk个数
