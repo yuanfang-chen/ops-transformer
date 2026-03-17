@@ -24,7 +24,7 @@ class AllGatherMatmulFullMesh : public AllGatherMatmulBase<A_TYPE, B_TYPE, C_TYP
 public:
     __aicore__ inline AllGatherMatmulFullMesh() {}
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR gatherGM,
-        GM_ADDR workspaceGM, GM_ADDR contextGM, AllGatherMatmulTilingData *tilingData, __gm__ void* mc2InitTiling,
+        GM_ADDR workspaceGM, GM_ADDR contextGM, Mc2Tiling::AllGatherMatmulTilingData *tilingData, __gm__ void* mc2InitTiling,
         __gm__ void* mc2CcTiling, TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -50,7 +50,7 @@ private:
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>
 __aicore__ inline void AllGatherMatmulFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Float>::Init(GM_ADDR aGM,
     GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR contextGM,
-    AllGatherMatmulTilingData *tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe *tPipe)
+    Mc2Tiling::AllGatherMatmulTilingData *tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe *tPipe)
 {
     this->InitBase(aGM, bGM, biasGM, cGM, gatherGM, workspaceGM, contextGM, tilingData, tPipe);
     hccl_.Init(contextGM, mc2InitTiling);
