@@ -113,13 +113,13 @@ int main() {
     auto ret = Init(deviceId, &stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Init acl failed. ERROR: %d\n", ret); return ret);
 
-    // 2. 设置核心参数 (以 BNSD Layout 为例，对应你的 Python 单测边界条件)
+    // 2. 设置核心参数 (以 BNSD Layout 为例)
     int32_t batch = 1;
-    int32_t numHeads = 2;
-    int32_t numKvHeads = 2;
+    int32_t numHeads = 1;
+    int32_t numKvHeads = 1;
     int32_t qSeqlen = 128;
     int32_t kvSeqlen = 128;
-    int32_t headDim = 64;
+    int32_t headDim = 128;
     int32_t blockShapeX = 64;
     int32_t blockShapeY = 64;
 
@@ -136,16 +136,19 @@ int main() {
     // 4. 分配并初始化 Host 数据
     int64_t qSize = GetShapeSize(qShape);
     int64_t kvSize = GetShapeSize(kvShape);
+
+    // 将 Q, K, V 初始化为 0.1f 等较小的数
+    std::vector<op::fp16_t> qData(qSize, 0.1f);
+    std::vector<op::fp16_t> kData(kvSize, 0.1f);
+    std::vector<op::fp16_t> vData(kvSize, 0.1f);
     
-    std::vector<op::fp16_t> qData(qSize, 1.0f);
-    std::vector<op::fp16_t> kData(kvSize, 1.0f);
-    std::vector<op::fp16_t> vData(kvSize, 1.0f);
-    std::vector<op::fp16_t> doutData(qSize, 0.5f);
-    std::vector<op::fp16_t> outData(qSize, 0.5f);
+    // 梯度初始值可以给一个小正数
+    std::vector<op::fp16_t> doutData(qSize, 0.01f);
+    std::vector<op::fp16_t> outData(qSize, 0.1f);
     
-    // 注意：根据之前的约束，softmaxLse 必须是 FP32，mask 必须是 UINT8
-    std::vector<float> lseData(GetShapeSize(lseShape), 0.0f);
-    std::vector<uint8_t> maskData(GetShapeSize(maskShape), 1); // 全部置为有效块
+    // LSE 给一个合理的正数，比如 5.0f，这样 exp(S - LSE) 就是一个非常安全的负指数，绝对不会溢出
+    std::vector<float> lseData(GetShapeSize(lseShape), 5.0f);
+    std::vector<uint8_t> maskData(GetShapeSize(maskShape), 1);
 
     // 创建所有的前向输入/输出 aclTensor
     void *qAddr = nullptr, *kAddr = nullptr, *vAddr = nullptr;
