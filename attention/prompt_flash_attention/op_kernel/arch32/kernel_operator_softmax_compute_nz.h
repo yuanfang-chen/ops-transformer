@@ -27,7 +27,7 @@
 #endif
 #include "kernel_pop_stack_buffer.h"
 #include "kernel_tiling/kernel_tiling.h"
-
+// test
 #pragma begin_pipe(V)
 namespace AscendC {
 constexpr bool SOFTMAX_EXP_FAST = true;
