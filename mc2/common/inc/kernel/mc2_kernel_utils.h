@@ -18,11 +18,31 @@
 
 namespace AscendC {
 
+static constexpr uint16_t SYNC_AIC_ONLY_ALL_DET_FLAG = 4; // 用于 AIC 核间同步的 flagId
+static constexpr uint16_t SYNC_AIC_AIV_DET_FLAG = 8; // 用于 AIC 与 AIV 核间同步的 flagId
+static constexpr uint64_t SYNC_MODE0 = 0; // 核间同步模式 0
+static constexpr uint64_t SYNC_MODE2 = 2; // 核间同步模式 2
+
 template<AscendC::HardEvent event>
 __aicore__ inline void SyncFunc() {
     AscendC::TEventID eventID = GetTPipePtr()->FetchEventID(event);
     AscendC::SetFlag<event>(eventID);
     AscendC::WaitFlag<event>(eventID);
+}
+
+__aicore__ inline void CubeNotifyVector()
+{
+    // 先全 AIC 同步一次
+    CrossCoreSetFlag<SYNC_MODE0, PIPE_FIX>(SYNC_AIC_ONLY_ALL_DET_FLAG);
+    CrossCoreWaitFlag(SYNC_AIC_ONLY_ALL_DET_FLAG);
+    // 通知 AIV
+    CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_AIC_AIV_DET_FLAG);
+}
+
+__aicore__ inline void VecWaitCube()
+{
+    // 等待 AIC 完成
+    CrossCoreWaitFlag<SYNC_MODE2, PIPE_MTE2>(SYNC_AIC_AIV_DET_FLAG);
 }
 
 }
