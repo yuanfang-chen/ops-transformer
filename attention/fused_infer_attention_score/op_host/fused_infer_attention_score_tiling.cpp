@@ -1156,8 +1156,8 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
             tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
             cacheBlockSize = tempK->GetStorageShape().GetDim(DIM_1);
         } else if (tempk->GetStorageShape().GetDim() == 5U) {
-            tempKD = (tempK->GetStorageShape().GetDim(DIM_1)) * 16;
-            tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) * 16;
+            tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) * 16;
+            tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) * 16;
             cacheBlockSize = tempK->GetStorageShape().GetDim(DIM_3);
         }
         OP_CHECK_IF(inputBlockSize != cacheBlockSize,
@@ -1461,8 +1461,8 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
                 usingFAI = true;
             }
         } else if (kvDimNum == 5U) {
-            int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_1)) * 16;
-            int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_1)) * 16;
+            int64_t tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) * 16;
+            int64_t tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) * 16;
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_3);
             bool isFAIDSize = (tempD <= 256U && tempKD <= 256 && tempVD <= 256) &&
                     (tempD == tempKD && tempD == tempVD) && (blockSize % BLOCK_SIZE_ALIGN_16 == 0);
