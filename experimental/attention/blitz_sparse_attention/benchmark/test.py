@@ -17,8 +17,8 @@ python test.py
 """
 
 import itertools
-import pytest
 from typing import Tuple
+import pytest
 import torch
 import torch_npu
 import torch_bsa

@@ -616,6 +616,7 @@ def _fmt_or_na(value, width, spec=".2f"):
 
 def _make_our_fn(sabi, h, scale, atten_mask, sparsity_params):
     sm, pre_tok, post_tok = sparsity_params
+    
     def fn(q, k, v, seq, seqkv):
         return torch_bsa.blitz_sparse_attention(
             q, k, v,
