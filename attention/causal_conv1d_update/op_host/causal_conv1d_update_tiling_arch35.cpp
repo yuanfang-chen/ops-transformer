@@ -529,29 +529,21 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
 
 ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
 {
-    OP_LOGI(context_->GetNodeName(), "into ComputeValidBatchRange...");
+
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
 
     const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
     if (cacheIndicesTensor != nullptr) {
-        OP_LOGI(context_->GetNodeName(), "cacheIndicesTensor != nullptr\n");
         int64_t shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
-        OP_LOGI(context_->GetNodeName(), "shapeSize = %ld\n", shapeSize);
         const int64_t* dataPtr = cacheIndicesTensor->GetData<int64_t>();
         if (dataPtr != nullptr) {
-            OP_LOGI(context_->GetNodeName(), "dataPtr != nullptr\n");
             auto shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
             for (size_t i = 0; i < shapeSize; i++) {
-                OP_LOGI(context_->GetNodeName(), "dataPtr[%ld] = %ld\n", i, static_cast<int64_t>(dataPtr[shapeSize]));
+                OP_LOGI(context_->GetNodeName(), "dataPtr[%ld] = %ld\n", i, static_cast<int64_t>(dataPtr[i]));
             }
-        } else {
-            OP_LOGI(context_->GetNodeName(), "dataPtr = nullptr\n");
-        }
-    } else {
-        OP_LOGI(context_->GetNodeName(), "cacheIndicesTensor = nullptr\n");
-    }
-
+        } 
+    } 
 
     inValidBatchNum_ = invalidBatchAtStart + invalidBatchAtEnd;
     validBatchStart_ = invalidBatchAtStart;
