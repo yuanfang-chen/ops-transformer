@@ -35,7 +35,7 @@ class QuantGroupedMatmul {
 public:
     __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR weightScaleGM, GM_ADDR yGM,
         GM_ADDR workspaceGM, const TilingDataType *tilingData, const GmmTilingDataType *gmmTilingData,
-        TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe, bool isA2avGmmFlag)
+        TilingType *gmmArrayAddrIn, TPipe *tPipe, bool isA2avGmmFlag)
     {
         if ASCEND_IS_AIV {
             return ;
@@ -175,7 +175,7 @@ private:
     uint64_t bs_;
     uint64_t a_;
     const GmmTilingDataType *gmmTilingData_;
-    TILING_TYPE *gmmArrayAddrIn_;
+    TilingType *gmmArrayAddrIn_;
 };
 } // namespace MC2KernelTemplate
 #endif

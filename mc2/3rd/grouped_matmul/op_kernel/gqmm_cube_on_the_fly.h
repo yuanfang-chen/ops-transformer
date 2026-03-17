@@ -30,12 +30,12 @@ public:
     __aicore__ inline Mc2GmmASWKernel() {}
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList,
         GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR workspace, const GMMQuantParams *__restrict gmmBaseParamsIn,
-        const TCubeTiling *__restrict mmTilingDataIn, TILING_TYPE *gmmArrayAddrIn, TPipe *que);
+        const TCubeTiling *__restrict mmTilingDataIn, TilingType *gmmArrayAddrIn, TPipe *que);
     __aicore__ inline void Process();
 
 protected:
     __aicore__ inline void InitAddrAndParams(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList,
-        GM_ADDR perTokenScale, GM_ADDR y, TILING_TYPE *gmmArrayAddrIn);
+        GM_ADDR perTokenScale, GM_ADDR y, TilingType *gmmArrayAddrIn);
     __aicore__ inline void UpdateMMGlobalAddr(uint32_t groupIdx);
     __aicore__ inline void SetMNK(uint32_t groupIdx, int32_t &mSize, int32_t &nSize, int32_t &kSize);
     __aicore__ inline void CalcTailTile(uint64_t mTail, uint64_t nTail);
@@ -52,9 +52,9 @@ protected:
     const TCubeTiling *__restrict mmTilingData_;
     const GMMQuantParams *__restrict gmmQuantParams_;
 
-    TILING_TYPE *mListGm_;
-    TILING_TYPE *kListGm_;
-    TILING_TYPE *nListGm_;
+    TilingType *mListGm_;
+    TilingType *kListGm_;
+    TilingType *nListGm_;
 
     GlobalTensor<xType> xGlobal_;
     GlobalTensor<wType> wGlobal_;
@@ -95,7 +95,7 @@ LOCAL_TEMPLATE_CLASS_PARAMS
 __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     GM_ADDR scale, GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR workspace,
     const GMMQuantParams *__restrict gmmBaseParamsIn, const TCubeTiling *__restrict mmTilingDataIn,
-    TILING_TYPE *gmmArrayAddrIn, TPipe *que)
+    TilingType *gmmArrayAddrIn, TPipe *que)
 {
     if ASCEND_IS_AIV {
         return;
@@ -110,7 +110,7 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR
 
 LOCAL_TEMPLATE_CLASS_PARAMS
 __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndParams(GM_ADDR x, GM_ADDR weight,
-    GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, TILING_TYPE *gmmArrayAddrIn)
+    GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, TilingType *gmmArrayAddrIn)
 {
     groupNum_ = gmmQuantParams_->groupNum;
     groupType_ = gmmQuantParams_->groupType;

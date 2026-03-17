@@ -449,7 +449,6 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckQuantMode() const
 
 ge::graphStatus AlltoAllvGmmQuantTiling::CheckScaleShape() const
 {
-    
     OP_LOGD(context_->GetNodeName(), "start CheckScaleShape.");
     // check gmmXScale shape
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX) == nullptr,
