@@ -78,6 +78,11 @@ namespace optiling{
     TILING_DATA_FIELD_DEF(uint64_t, splitOTotalSize)
     TILING_DATA_FIELD_DEF(uint32_t, totalSplitNodeNum)
     TILING_DATA_FIELD_DEF(uint32_t, needCoreNum)
+    TILING_DATA_FIELD_DEF(uint32_t, mainLoopTaskNum)
+    TILING_DATA_FIELD_DEF(uint32_t, tailLoopTaskNum)
+    TILING_DATA_FIELD_DEF(uint32_t, tailStartBatch)
+    TILING_DATA_FIELD_DEF(uint32_t, tailStartN2)
+    TILING_DATA_FIELD_DEF(uint32_t, tailKvNBlockTile)
     TILING_DATA_FIELD_DEF_STRUCT(coreNode, coreInfo)
     TILING_DATA_FIELD_DEF_STRUCT(splitNode, splitInfo)
     END_TILING_DATA_DEF
@@ -627,6 +632,8 @@ namespace optiling{
     {
         uint32_t totalTaskNum = 0;
         uint32_t groupSize = faInfo_.numHeads / faInfo_.kvHeads;
+        std::vector<uint32_t> taskNumPerBatchVec(faInfo_.batch, 0);
+        std::vector<uint32_t> kvNBlockTilePerBatchVec(faInfo_.batch, 0);
 
         for (int32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
             uint32_t qSeqlen = *(faInfo_.qSeqlenList + batchIdx);
@@ -645,9 +652,74 @@ namespace optiling{
             if (batchIdx == 0) {
                 faTilingData.set_firstBatchTaskNum(curTaskNum);
             }
+            taskNumPerBatchVec[batchIdx] = curTaskNum;
+            kvNBlockTilePerBatchVec[batchIdx] = curKvNBlockTile;
             totalTaskNum += curTaskNum;
         }
         faTilingData.set_totalTaskNum(totalTaskNum);
+
+        uint32_t mainLoopCount = totalTaskNum / coreNum;
+        uint32_t mainLoopTaskNum = mainLoopCount * coreNum;
+        uint32_t tailLoopTaskNum = totalTaskNum - mainLoopTaskNum;
+        uint32_t tailStartBatch = 0;
+        uint32_t tailStartN2 = 0;
+        {
+            uint32_t accTaskNum = 0;
+            for (int32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
+                if (accTaskNum + taskNumPerBatchVec[batchIdx] > mainLoopTaskNum) {
+                    tailStartBatch = batchIdx;
+                    uint32_t remainInBatch = mainLoopTaskNum - accTaskNum;
+                    tailStartN2 = remainInBatch * kvNBlockTilePerBatchVec[batchIdx];
+                    break;
+                }
+                accTaskNum += taskNumPerBatchVec[batchIdx];
+                if (accTaskNum == mainLoopTaskNum) {
+                    tailStartBatch = batchIdx + 1;
+                    tailStartN2 = 0;
+                    break;
+                }
+            }
+        }
+
+        uint32_t tailKvNBlockTile = 0;
+        uint32_t tailLoopTaskNumRework = tailLoopTaskNum;
+
+        if (tailLoopTaskNum > 0 && tailLoopTaskNum <= coreNum / 2) {
+            tailKvNBlockTile = 1;
+            tailLoopTaskNumRework = 0;
+            for (int32_t batchIdx = tailStartBatch; batchIdx < faInfo_.batch; batchIdx++) {
+                uint32_t qSeqlen = *(faInfo_.qSeqlenList + batchIdx);
+                if (batchIdx > 0 && faInfo_.layout == "TND") {
+                    uint64_t prevQSeqlenSum = *(faInfo_.qSeqlenList + batchIdx - 1);
+                    qSeqlen = qSeqlen - prevQSeqlenSum;
+                }
+                uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
+                uint32_t curGBlockNum = (groupSize + curGBlockTile - 1) / curGBlockTile;
+                uint32_t curQSBlockTile = GetQSBlockTile(qSeqlen);
+                uint32_t curQSBlockNum = (qSeqlen + curQSBlockTile - 1) / curQSBlockTile;
+
+                uint32_t kvHeadsForBatch;
+                if (batchIdx == static_cast<int32_t>(tailStartBatch)) {
+                    kvHeadsForBatch = faInfo_.kvHeads - tailStartN2;
+                } else {
+                    kvHeadsForBatch = faInfo_.kvHeads;
+                }
+                uint32_t curTailKvNBlockNum = (kvHeadsForBatch + tailKvNBlockTile - 1) / tailKvNBlockTile;
+                tailLoopTaskNumRework += curGBlockNum * curQSBlockNum * curTailKvNBlockNum;
+            }
+        } else if (tailLoopTaskNum > 0) {
+            tailKvNBlockTile = 0;
+            tailLoopTaskNumRework = tailLoopTaskNum;
+        } else {
+            tailKvNBlockTile = 0;
+            tailLoopTaskNumRework = 0;
+        }
+        
+        faTilingData.set_mainLoopTaskNum(mainLoopTaskNum);
+        faTilingData.set_tailLoopTaskNum(tailLoopTaskNumRework);
+        faTilingData.set_tailStartBatch(tailStartBatch);
+        faTilingData.set_tailStartN2(tailStartN2);
+        faTilingData.set_tailKvNBlockTile(tailKvNBlockTile);
     }
 
     ge::graphStatus FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
