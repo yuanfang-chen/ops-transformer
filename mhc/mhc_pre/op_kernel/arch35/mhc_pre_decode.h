@@ -116,6 +116,7 @@ private:
     GlobalTensor<P> hResGm_;   // 输出 h_res
     GlobalTensor<P> invRmsGm_; // 输出 inv_rms
     GlobalTensor<P> mmResGm_;  // 输出 mm_res
+    GlobalTensor<P> tempMMResGm_;  // 输出 mm_res
     GlobalTensor<P> hPreGm_;   // 输出 h_pre
     GlobalTensor<P> xFloatGm_;
 
@@ -175,7 +176,7 @@ private:
     uint32_t V0_BASE_T = 1;      // V0 的 T 维分块
     uint64_t V1_BASE_T = 8;      // V1 的 T 维分块 TODO
     uint64_t V1_BASE_D = 32;     // V1 的 D 维分块 TODO
-    uint32_t ND_LENGTH = 1024;   // nD 分块长度
+    uint32_t ND_LENGTH = 2048;   // nD 分块长度
 };
 
 template <class T, class P>
@@ -241,16 +242,18 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
     mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
     curSingleM_ = chunTSize_;
 
+    constexpr uint64_t kWorkspaceAlignBytes = 32UL;
+    uint64_t xFloatWorkspaceBytes = totalLength_ * matrixInfo_.nD * sizeof(P);
+    xFloatWorkspaceBytes = (xFloatWorkspaceBytes + kWorkspaceAlignBytes - 1UL) /
+                        kWorkspaceAlignBytes * kWorkspaceAlignBytes;
     if (outFlag_) {
         mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_mix));
+        tempMMResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
     }
     else {
-        constexpr uint64_t kWorkspaceAlignBytes = 32UL;
-        uint64_t xFloatWorkspaceBytes = totalLength_ * matrixInfo_.nD * sizeof(P);
-        xFloatWorkspaceBytes = (xFloatWorkspaceBytes + kWorkspaceAlignBytes - 1UL) /
-                            kWorkspaceAlignBytes * kWorkspaceAlignBytes;
         // 保持 mmRes workspace 偏移与xFloat 一致.
         mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
+        tempMMResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
     }
 
     // 3. 申请 UB
@@ -397,7 +400,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AICProcess()
     mm.SetTensorA(xFloatGm_[Offset]);
     mm.SetTensorB(phiGm_[Offset], true);
 
-    mm.IterateAll(mmResGm_[outOffset], 0);
+    mm.IterateAll(tempMMResGm_[outOffset], 0);
     mm.End();
 
     AscendC::CrossCoreSetFlag<0x0, PIPE_FIX>(SYNC_CtoC);
@@ -912,7 +915,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::HMixProcess(uint64_t offsetT, u
     copyParams.srcStride = uint32_t((mnConfig_.curSingleCoreM * mnConfig_.curSingleCoreN - lenT * mnConfig_.n) * sizeof(P)); // 相邻块的间隔
     copyParams.dstStride = uint32_t(0);                                                   // 相邻块的间隔
     DataCopyPadExtParams<P> copyPadParams{true, 0, 0, 0};
-    DataCopyPad(hMixLocal, mmResGm_[HMixOffset], copyParams, copyPadParams);
+    DataCopyPad(hMixLocal, tempMMResGm_[HMixOffset], copyParams, copyPadParams);
     xInQueue_.EnQue(hMixLocal);
     hMixLocal = xInQueue_.DeQue<P>();
 
@@ -959,7 +962,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::DataCopyOutToWorkSpace(LocalTen
     // outQueue_.EnQue<P>(x);
     // x = outQueue_.DeQue<P>();
     
-    DataCopyParams copyParams;
+    DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
     copyParams.blockLen = uint32_t(curNdLen * sizeof(P));
     copyParams.srcStride = uint32_t(0);
