@@ -1,12 +1,12 @@
 # aclnnFusedInferAttentionScore
 
-**该接口后续版本会废弃，请使用最新接口[aclnnFusedInferAttentionScoreV5](./aclnnFusedInferAttentionScoreV5.md)。
+**须知：该接口后续版本会废弃，请使用最新接口[aclnnFusedInferAttentionScoreV5](./aclnnFusedInferAttentionScoreV5.md)。**
 
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
@@ -262,7 +262,8 @@ aclnnStatus aclnnFusedInferAttentionScore(
         <td><ul><li>不支持空tensor。</li>
         <li>支持per-tensor，per-channel，per-token。 </li>
             <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+            <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>1-4</td>
@@ -276,7 +277,8 @@ aclnnStatus aclnnFusedInferAttentionScore(
         <li>支持per-tensor，per-channel，per-token。 </li>
             <li>使用时，shape必须与antiquantScale保持一致。</li>
             <li>不使用该功能时可传入nullptr。</li>
-            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+            <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>1-4</td>
@@ -418,7 +420,8 @@ aclnnStatus aclnnFusedInferAttentionScore(
           <td><ul><li>传入0时表示为per-channel（per-channel包含per-tensor）。</li>
               <li>传入1时表示per-token。</li>
               <li>不特意指定时建议传入0。</li>
-              <li>Q_S等于1时，传入0和1之外的其他值会执行异常。Q_S大于等于2时该参数无效。</li></ul></td>
+              <li>Q_S等于1时，传入0和1之外的其他值会执行异常。Q_S大于等于2时该参数无效。</li>
+              <li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -602,12 +605,13 @@ aclnnStatus aclnnFusedInferAttentionScore(
   - 非对称量化模式下， antiquantScale和antiquantOffset参数需同时存在。
   - 对称量化模式下，antiquantOffset可以为空（即nullptr）；当antiquantOffset参数为空时，执行对称量化，否则执行非对称量化。
   - Q_S大于等于2时只支持FLOAT16和FLOAT32（FLOAT32仅PageAttention场景下支持）
+  - 建议使用KV伪量化参数分离模式。
 
 - inputLayout：用于标识输入query、key、value的数据排布格式，当前支持BSH、BSND、BNSD、BNSD_BSND(输入为BNSD时，输出格式为BSND，仅支持Q_S大于1)。用户不特意指定时建议传入"BSH"。
 
   - 说明： query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
 
-- numKeyValueHeads使用限制：需要满足numHeads整除numKeyValueHeads，numHeads与numKeyValueHeads的比值不能大于64。在BSND、BNSD、BNSD_BSND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。
+- numKeyValueHeads使用限制：需要满足numHeads整除numKeyValueHeads。在BSND、BNSD、BNSD_BSND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。
 
 - sparseMode使用限制如下：
 
@@ -800,7 +804,7 @@ aclnnStatus aclnnFusedInferAttentionScore(
   - 参数sparseMode当前仅支持值为0、1、2、3、4的场景，取其它值时会报错。
 
     - sparseMode = 0时，attenMask如果为空指针，或者在左padding场景传入attenMask，则忽略入参preTokens、nextTokens。
-    - sparseMode = 2、3、4时，attenMask的shape需要为S,S或1,S,S或1,1,S,S,其中S的值需要固定为2048，且需要用户保证传入的attenMask为下三角，不传入attenMask或者传入的shape不正确报错。
+    - sparseMode = 2、3、4时，attenMask的shape需要为S,S或1,S,S或1,1,S,S,其中S的值需要固定为2048，且需要用户保证传入的attenMask为下三角，attenMask为nullptr或者传入的shape不正确报错。
     - sparseMode = 1、2、3的场景忽略入参preTokens、nextTokens并按照相关规则赋值。
     
   - kvCache反量化的合成参数场景仅支持query为FLOAT16时，将INT8类型的key和value反量化到FLOAT16。入参key/value的datarange与入参antiquantScale的datarange乘积范围在（-1，1）范围内，高性能模式可以保证精度，否则需要开启高精度模式来保证精度。

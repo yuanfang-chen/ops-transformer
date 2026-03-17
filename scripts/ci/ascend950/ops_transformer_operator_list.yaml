@@ -16,6 +16,8 @@ operator_group_1:
   - scatter_pa_kv_cache
   - attention_update
   - fused_infer_attention_score,10-7
+  - mhc_post
+  - mhc_sinkhorn
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
@@ -39,6 +41,8 @@ operator_group_4:
   - moe_init_routing_v2
   - moe_init_routing_v2_grad
   - moe_init_routing_v3
+  - moe_token_permute_with_routing_map_grad
+  - moe_token_unpermute_with_routing_map
   - rope_with_sin_cos_cache
   - moe_re_routing
   - moe_compute_expert_tokens
@@ -55,6 +59,8 @@ operator_group_6:
   - sparse_lightning_indexer_grad_kl_loss
   - prompt_flash_attention
   - kv_quant_sparse_flash_attention
+  - quant_lightning_indexer
+  - kv_quant_sparse_flash_attention_pioneer
 operator_group_7:
   - fused_infer_attention_score,10-0
 operator_group_8:
@@ -64,31 +70,25 @@ operator_group_9:
   - norm_rope_concat
   - norm_rope_concat_grad
 operator_group_10:
-  
+  - allto_allv_grouped_mat_mul
   - grouped_mat_mul_allto_allv
-  
+  - all_gather_matmul_v2
   - all_gather_matmul
   - allto_all_matmul
-  
+  - matmul_allto_all
   - matmul_reduce_scatter
-  
+  - matmul_reduce_scatter_v2
   - matmul_all_reduce
   - moe_distribute_combine
-  
+  - moe_distribute_combine_v2
   - moe_distribute_combine_add_rms_norm
-  
+  - moe_distribute_dispatch
   - moe_distribute_dispatch_v2
   - quant_all_reduce
   - quant_reduce_scatter
   - moe_update_expert
   - distribute_barrier
 operator_group_11:
-  - matmul_allto_all
-  - all_gather_matmul_v2 # from 10 -> 11
-  - allto_allv_grouped_mat_mul # from 10 -> 11
-  - matmul_reduce_scatter_v2
-  - moe_distribute_combine_v2
-  - moe_distribute_dispatch
   - fused_infer_attention_score,10-3
 operator_group_12:
   - fused_infer_attention_score,10-4

@@ -167,12 +167,14 @@ __aicore__ inline void InitSortOutBuf(const LocalTensor<float> &src, int64_t ele
     for (int i = 0; i < forLoop; i++) {
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>(), NEG_INF, mask1, VEC_REPEAT_MAX, 1,
                            B32_VEC_REPEAT_STRIDE);
+        AscendC::PipeBarrier<PIPE_V>();
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>(), INVALID_INDEX, mask0, VEC_REPEAT_MAX, 1,
                            B32_VEC_REPEAT_STRIDE);
     }
     if (forRemain > 0) {
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>()[forLoop * VEC_REPEAT_MAX * B32_VEC_ELM_NUM], NEG_INF,
                            mask1, forRemain, 1, B32_VEC_REPEAT_STRIDE);
+        AscendC::PipeBarrier<PIPE_V>();
         AscendC::Duplicate(src.template ReinterpretCast<int32_t>()[forLoop * VEC_REPEAT_MAX * B32_VEC_ELM_NUM],
                            INVALID_INDEX, mask0, forRemain, 1, B32_VEC_REPEAT_STRIDE);
     }
@@ -230,6 +232,7 @@ __aicore__ inline void SortAll(LocalTensor<float> &src, LocalTensor<float> &tmp,
             }
             AscendC::MrgSort<float>(dstTensor, srcList, params);
             i += 1;
+            AscendC::PipeBarrier<PIPE_V>();
             break;
         } else {
             params.repeatTimes = mrgGroups / MRG_BLOCK_4;
@@ -271,10 +274,10 @@ __aicore__ inline void SortAll(LocalTensor<float> &dst, LocalTensor<float> &srcV
 __aicore__ inline void MergeSort(const LocalTensor<float> &mrgDst, int32_t mrgDstNum, LocalTensor<float> &mrgSrc,
                                  int32_t mrgSrcNum, LocalTensor<float> &tmpTensor)
 {
-    if (mrgDstNum <= 3072) {
+    if (mrgDstNum <= 3072) { // 3072: threshold of data size for different processing strategy
         AscendC::MrgSort4Info params;
-        params.elementLengths[0] = mrgSrcNum;
-        params.elementLengths[1] = mrgDstNum;
+        params.elementLengths[MRG_QUE_0] = mrgSrcNum;
+        params.elementLengths[MRG_QUE_1] = mrgDstNum;
         params.ifExhaustedSuspension = false;
         params.validBit = 0b0011;
         params.repeatTimes = 1;
@@ -295,10 +298,10 @@ __aicore__ inline void MergeSort(const LocalTensor<float> &mrgDst, int32_t mrgDs
         int64_t mrgQuelen_3 = segNum - mrgQuelen_1 - mrgQuelen_2;
 
         AscendC::MrgSort4Info params;
-        params.elementLengths[0] = mrgQuelen_1 * unitElements;
-        params.elementLengths[1] = mrgQuelen_2 * unitElements;
-        params.elementLengths[2] = mrgQuelen_3 * unitElements;
-        params.elementLengths[3] = mrgSrcNum;
+        params.elementLengths[MRG_QUE_0] = mrgQuelen_1 * unitElements;
+        params.elementLengths[MRG_QUE_1] = mrgQuelen_2 * unitElements;
+        params.elementLengths[MRG_QUE_2] = mrgQuelen_3 * unitElements;
+        params.elementLengths[MRG_QUE_3] = mrgSrcNum;
 
         params.ifExhaustedSuspension = false;
         params.validBit = 0b1111;
@@ -388,6 +391,7 @@ __aicore__ inline void SparseTopK(const LocalTensor<float> &dst, const LocalTens
     srcList.src2 = needsMerging;
     // 执行合并排序
     AscendC::MrgSort<float>(tmp, srcList, params);
+    AscendC::PipeBarrier<PIPE_V>();
     // 将结果复制到目标张量
     AscendC::DataCopy(dst, tmp, topk * VALUE_AND_INDEX_NUM);
 }

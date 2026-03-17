@@ -21,7 +21,7 @@ using namespace ge;
 using namespace gert;
 
 // 参数范围
-const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16};
+const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16};
 constexpr uint64_t K_MAX_VALUE = 65535UL;
 constexpr uint64_t MAX_INT32_VALUE = 2147483647UL;
 constexpr size_t MAX_GROUP_NAME_LEN = 127;
@@ -128,6 +128,8 @@ struct TilingInferredInfo {
         0UL; // 重排空间大小,对于AlltoAllMatmul来说，当alltoAllout存在时，就有一个额外的alltoall地址传递给kernel侧，不需要额外分配
     uint64_t x1ScaleOptionalLen = 0UL; // 存储x1ScaleOptional的地址大小
     uint64_t quantOutLen = 0UL;        // 存储quantOut的空间
+    uint64_t commScaleLen = 0UL;      // 存储Scale通信的空间
+    uint64_t permuteScaleLen = 0UL;   // 存储Scale重排的空间
     uint32_t biasLen = 0UL;            // 存储偏移的地址大小
     uint32_t tileM = 0UL;              // 头块大小
     uint32_t tileCnt = 0UL;            // 头块数量

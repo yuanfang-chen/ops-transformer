@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -7,6 +7,11 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file flash_attention_infer_tiling.h
+ * \brief
+ */
 
 #ifndef FLASH_ATTN_INFER_TILING_H
 #define FLASH_ATTN_INFER_TILING_H
@@ -63,8 +68,8 @@ namespace optiling{
     TILING_DATA_FIELD_DEF(uint64_t, UpdateSize)
     TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize)
     TILING_DATA_FIELD_DEF(float, scaleValue)
-    TILING_DATA_FIELD_DEF(uint64_t, padding1)
-    TILING_DATA_FIELD_DEF(uint64_t, padding2)
+    TILING_DATA_FIELD_DEF(uint64_t, pseQ)
+    TILING_DATA_FIELD_DEF(uint64_t, pseKv)
     TILING_DATA_FIELD_DEF(uint32_t, padding3)
     TILING_DATA_FIELD_DEF(int64_t, preToken)
     TILING_DATA_FIELD_DEF(int64_t, nextToken)
@@ -90,7 +95,8 @@ namespace optiling{
     enum class MaskType : uint32_t {
         NO_MASK = 0,
         MASK_SPEC = 1,
-        SWA_MASK = 3
+        SWA_MASK = 3,
+        FULL_MASK = 4
     };
 
     enum class DataType : uint32_t {
@@ -122,6 +128,8 @@ namespace optiling{
         int32_t innerPrecise = 0;
         int64_t maxQSeqlen = 0;
         int64_t maxKvSeqlen = 0;
+        int64_t pseQ = 0;
+        int64_t pseKv = 0;
         int64_t preToken = 0;
         int64_t nextToken = 0;
         int32_t sparseMode = 0;
@@ -137,6 +145,7 @@ namespace optiling{
         bool learnableSinkFlag = false;
         bool isTilingSink = false;
         bool flashDecodeFlag = false;
+        bool decodingFlag = false;
         string layout;
     };
 
@@ -156,10 +165,13 @@ namespace optiling{
         void FillSplitCoreTilingData(FAInferTilingData &tilingdata);
         void FillWorkSpaceTilingData(FAInferTilingData &faTilingData);
         uint32_t GetQSBlockTile(int64_t kvSeqlen);
+        uint32_t GetQSBlockTileDecode(int64_t qSeqlen);
+        uint32_t GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead);
         uint32_t GetKSBlockTile(int64_t kvSeqlen);
         uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize);
         void FillBasicTilingData(FAInferTilingData &faTilingData);
         void splitBN2S1GS2(FAInferTilingData &faTilingData);
+        void SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData);
         BatchParams getBatchParams(uint32_t bIdx, uint32_t groupSize);
         void fillCoreInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize, uint64_t perCoreTaskNum);
         void fillSplitInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize);
@@ -184,6 +196,21 @@ namespace optiling{
     {
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
+    }
+
+    uint32_t FAInferTiling::GetQSBlockTileDecode(int64_t qSeqlen)
+    {
+        uint32_t qSBlockTile = std::min(Q_TILE_CEIL, static_cast<uint32_t>(qSeqlen));
+        return qSBlockTile;
+    }
+
+    uint32_t FAInferTiling::GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead)
+    {
+        uint32_t rowNumCeilPerQSGKvNTile = Q_TILE_CEIL;
+        uint32_t kvNBlockTile = rowNumCeilPerQSGKvNTile / rowNumPerQSGTile;
+        kvNBlockTile = std::min(kvNBlockTile, kvHead);
+        kvNBlockTile = std::max(kvNBlockTile, static_cast<uint32_t>(1));
+        return kvNBlockTile;
     }
     uint32_t FAInferTiling::GetKSBlockTile(int64_t kvSeqlen)
     {
@@ -213,6 +240,8 @@ namespace optiling{
         faTilingData.set_sparseMode(faInfo_.sparseMode);
         faTilingData.set_preToken(static_cast<int64_t>(faInfo_.preToken));
         faTilingData.set_nextToken(static_cast<int64_t>(faInfo_.nextToken));
+        faTilingData.set_pseQ(faInfo_.pseQ);
+        faTilingData.set_pseKv(faInfo_.pseKv);
     }
 
     uint64_t FAInferTiling::GetTilingKey() 
@@ -221,6 +250,7 @@ namespace optiling{
         constexpr uint64_t PAGED_CACHE_KEY = 10000000;
         constexpr uint64_t COMP_CAUSAL_MASK_KEY = 3;
         constexpr uint64_t COMP_SWA_MASK_KEY = 5;
+        constexpr uint64_t FULL_MASK_KEY = 6;
         constexpr uint64_t LAYOUTQ_TND_KEY = 200000;
         constexpr uint64_t DTYPE_FP16_KEY = 100;
         constexpr uint64_t DTYPE_BF16_KEY = 200;
@@ -228,6 +258,7 @@ namespace optiling{
         constexpr uint64_t INNER_LOW_PREC_KEY = 10000;
         constexpr uint64_t LEARNABLE_SINK_KEY = 100000000;
         constexpr uint64_t FLASH_DECODE_KEY = 100000000000000000;
+        constexpr uint64_t DECODING_KEY = 200000000000000000;
         uint64_t tilingKey = SPLIT_FUSE_BASE_KEY;
         if (faInfo_.pagedCacheFlag) {
             tilingKey += static_cast<uint64_t>(PAGED_CACHE_KEY);
@@ -236,6 +267,8 @@ namespace optiling{
             tilingKey += static_cast<uint64_t>(COMP_CAUSAL_MASK_KEY);
         } else if (faInfo_.maskType == MaskType::SWA_MASK) {
             tilingKey += static_cast<uint64_t>(COMP_SWA_MASK_KEY);
+        } else if (faInfo_.maskType == MaskType::FULL_MASK) {
+            tilingKey += static_cast<uint64_t>(FULL_MASK_KEY); 
         }
         if (faInfo_.layout == "TND") {
             tilingKey += static_cast<uint64_t>(LAYOUTQ_TND_KEY);
@@ -256,6 +289,8 @@ namespace optiling{
         }
         if ((faInfo_.pagedCacheFlag) && !(faInfo_.maskType == MaskType::SWA_MASK) && !faInfo_.lseFlag && !faInfo_.learnableSinkFlag && !(faInfo_.innerPrecise == 1) && faInfo_.flashDecodeFlag) {
             tilingKey += static_cast<uint64_t>(FLASH_DECODE_KEY);
+        } else if (faInfo_.decodingFlag) {
+            tilingKey += static_cast<uint64_t>(DECODING_KEY);
         }
         return tilingKey;
     }
@@ -588,6 +623,33 @@ namespace optiling{
         fillSplitInfoForFlashDecode(faTilingData, groupSize);
     }    
 
+    void FAInferTiling::SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData)
+    {
+        uint32_t totalTaskNum = 0;
+        uint32_t groupSize = faInfo_.numHeads / faInfo_.kvHeads;
+
+        for (int32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
+            uint32_t qSeqlen = *(faInfo_.qSeqlenList + batchIdx);
+            if (batchIdx > 0 && faInfo_.layout == "TND") {
+                uint64_t prevQSeqlenSum = *(faInfo_.qSeqlenList + batchIdx - 1);
+                qSeqlen = qSeqlen - prevQSeqlenSum;
+            }
+            uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
+            uint32_t curGBlockNum = (groupSize + curGBlockTile - 1) / curGBlockTile;
+            uint32_t curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
+            uint32_t curQSBlockNum = (qSeqlen + curQSBlockTile - 1) / curQSBlockTile;
+            uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
+            uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, faInfo_.kvHeads);
+            uint32_t curKvNBlockNum = (faInfo_.kvHeads + curKvNBlockTile - 1) / curKvNBlockTile;
+            uint32_t curTaskNum = curGBlockNum * curQSBlockNum * curKvNBlockNum;
+            if (batchIdx == 0) {
+                faTilingData.set_firstBatchTaskNum(curTaskNum);
+            }
+            totalTaskNum += curTaskNum;
+        }
+        faTilingData.set_totalTaskNum(totalTaskNum);
+    }
+
     ge::graphStatus FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
     {
         FillBasicTilingData(tilingdata);
@@ -595,6 +657,8 @@ namespace optiling{
             FillSplitCoreTilingData(tilingdata);
             if (faInfo_.flashDecodeFlag) {
                 splitBN2S1GS2(tilingdata);
+            } else if (faInfo_.decodingFlag) {
+                SplitCoreDecodeBS1GN2(tilingdata);
             }
         }
         FillWorkSpaceTilingData(tilingdata);

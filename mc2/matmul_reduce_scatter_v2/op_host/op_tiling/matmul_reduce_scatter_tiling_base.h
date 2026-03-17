@@ -80,9 +80,13 @@ protected:
                          ::TCubeTiling &tailTiling, uint32_t& debugMode, uint32_t& dataType);
     void SetMsgDataInfo(Mc2Tiling::RCSTiling &rcsCfg, ::TCubeTiling &mmTiling, 
                         ::TCubeTiling &tailTiling, uint32_t debugMode);
+    ge::graphStatus CheckHCCLSize();
+    ge::graphStatus AdjustHCCLLimit(Mc2Tiling::RCSTiling &rcsCfg, mc2tiling::Mc2QuantMode quantMmMode);
+
     mc2tiling::TilingArgs args_;
     platform_ascendc::SocVersion socVersion_;
     NpuArch npuArch_;
+    bool isA2APath_;
     const char* opName_ = nullptr;
     int64_t rankSize_{0};
     uint64_t tileMValue_{0};   // mc2 切块后主块M的大小；

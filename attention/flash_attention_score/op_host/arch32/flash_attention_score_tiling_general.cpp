@@ -1997,6 +1997,7 @@ ge::graphStatus FlashAttentionScoreTilingBase::PostTiling()
     if (inputParams.get_needDropMaskOp() == 1) {
         blockDim = CalcTschBlockDim(aivNum, aicNum, aivNum);
         context_->SetBlockDim(blockDim);
+        context_->SetScheduleMode(1);
 
         int64_t shapeTotalSize = inputParams.get_bSize() * inputParams.get_n2Size() * inputParams.get_gSize() *
                                  inputParams.get_s1Size() * inputParams.get_s2Size();
@@ -2384,7 +2385,7 @@ bool FlashAttentionScoreTilingBase::SetSparseStartIdx(const std::vector<int64_t>
         sparseStartIdx[idx] = lastValidPartitionResult[idx];
     }
 
-    if (AlogCheckDebugLevel(OP, DLOG_DEBUG) == 1) {
+    if (CheckLogLevel(OP, DLOG_DEBUG) == 1) {
         PrintSparseMaxMinLoadPerCore(sparseValidArray, sparseStartIdx, validCoreNum,
                                      CeilDivision(loadTotal, validCoreNum));
     }
@@ -3513,7 +3514,11 @@ protected:
         multiCoreParams.set_splitFactorSize(CeilDivision(totalSize, actualUsedAicNum));
         multiCoreParams.set_splitFactorTailSize(CalcTailSize(totalSize, multiCoreParams.get_splitFactorSize()));
         actualUsedAicNum = CeilDivision(totalSize, multiCoreParams.get_splitFactorSize());
-        multiCoreParams.set_coreNum(static_cast<int32_t>(actualUsedAicNum * AIV_AIC_NUM_RATIO));
+        if (totalSize > aicNum){
+            multiCoreParams.set_coreNum(static_cast<int32_t>(aicNum * AIV_AIC_NUM_RATIO));
+        }else{
+            multiCoreParams.set_coreNum(static_cast<int32_t>(actualUsedAicNum * AIV_AIC_NUM_RATIO));
+        }
     }
 
     bool IsSpecialShape()

@@ -89,8 +89,8 @@ int32_t GetValueFromMKNConditionMapAllGather(int32_t m, int32_t k, int32_t n, in
 
 static void GetTilingKey(uint64_t &tilingKey, const AllGatherMatmulAIVModeInfo &info, const gert::TilingContext *context)
 {
-    const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
-    bool isBias = (matrix_bias == nullptr) ? false : true;
+    const gert::StorageShape *matrixBias = context->GetOptionalInputShape(BIAS_INDEX);
+    bool isBias = (matrixBias == nullptr) ? false : true;
     tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeX1, info.isTransposeX2);
 }
 
@@ -285,7 +285,7 @@ static ge::graphStatus AllGatherMatmulAIVModeCheckAttrAndSetTiling(gert::TilingC
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "AivMode attrs is null."), return ge::GRAPH_FAILED);
 
-    // todo：Attr相关tilingdata的设置、校验、打印
+    // Attr相关tilingdata的设置、校验、打印
     auto groupPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
     auto isTransposeX1 = attrs->GetAttrPointer<bool>(ATTR_IS_TRANS_X1);
     auto isTransposeX2 = attrs->GetAttrPointer<bool>(ATTR_IS_TRANS_X2);
@@ -325,7 +325,7 @@ static ge::graphStatus AllGatherMatmulAIVModeCheckShapeAndSetTiling(gert::Tiling
         N = cShape->GetOriginShape().GetDim(1);
     }
 
-    // todo shape相关校验与约束写在这里
+    // shape相关校验与约束写在这里
     info.M = M;
     info.N = N;
     info.K = K;
@@ -498,8 +498,8 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     OP_LOGI("Enter AllGatherMatmulAIVMode tiling func.");
     
     // 涉及SyncAll，设置batch mode模式，所有核同时启动
-    uint32_t batch_mode = 1U;
-    auto ret = context->SetScheduleMode(batch_mode);
+    uint32_t batchMode = 1U;
+    auto ret = context->SetScheduleMode(batchMode);
     GE_ASSERT_GRAPH_SUCCESS(ret); 
 
     // 1. tilingData

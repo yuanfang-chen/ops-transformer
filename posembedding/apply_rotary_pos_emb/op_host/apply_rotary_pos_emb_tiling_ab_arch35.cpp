@@ -64,7 +64,8 @@ ge::graphStatus ApplyRotaryPosEmbTilingAB::DoOpTiling()
         OP_LOGE(context_->GetNodeName(), "dSplitCoef_ can't be 0 or typeSize can't be 0.");
         return ge::GRAPH_FAILED;
     }
-    dAlign_ = Ops::Base::CeilAlign(d_ / dSplitCoef_, blockSize_ / typeSize) * dSplitCoef_;
+
+    dAlign_ = Ops::Base::CeilAlign(reald_ / dSplitCoef_, blockSize_ / typeSize) * dSplitCoef_;
     blockFactor_ = Ops::Base::CeilDiv(bs, int64_t(aicoreParams_.numBlocks));
     blockNum_ = Ops::Base::CeilDiv(bs, blockFactor_);
     blockTail_ = bs - (blockNum_ - 1) * blockFactor_;
@@ -104,6 +105,8 @@ ge::graphStatus ApplyRotaryPosEmbTilingAB::PostTiling()
     tilingData_.set_ubFactorN(ubFactor_);
     tilingData_.set_ubTailN(ubTail_);
     tilingData_.set_rotaryMode(static_cast<int64_t>(rotaryMode_));
+    tilingData_.set_realDim(reald_);
+    tilingData_.set_isPartialRope(isPartialRope_);
 
     context_->SetTilingKey(GetTilingKey());
     context_->SetBlockDim(blockNum_);
@@ -116,12 +119,12 @@ ge::graphStatus ApplyRotaryPosEmbTilingAB::PostTiling()
             "ApplyRotaryPosEmbAB tilingData is B: %ld, CosB: %ld, S: %ld, D: %ld, QN: %ld, KN: %ld, kAlign: %ld, "
             "dSplitCoef: %ld, BlockNum: %ld, BlockFactor: %ld, BlockTail: %ld, ubFactorBS: %ld, UBLoop: %ld, UBFactor: "
             "%ld, "
-            "UBTail: %ld, RotaryMode: %ld, TilingKey: %lu.",
+            "UBTail: %ld, RotaryMode: %ld, TilingKey: %lu, isPartialRope: %ld.",
             tilingData_.get_B(), tilingData_.get_CosB(), tilingData_.get_S(), tilingData_.get_D(), tilingData_.get_QN(),
             tilingData_.get_KN(), tilingData_.get_dAlign(), tilingData_.get_dSplitCoef(), tilingData_.get_blockNumBS(),
             tilingData_.get_blockFactorBS(), tilingData_.get_blockTailBS(), tilingData_.get_ubFactorBS(),
             tilingData_.get_ubLoopN(), tilingData_.get_ubFactorN(), tilingData_.get_ubTailN(),
-            tilingData_.get_rotaryMode(), GetTilingKey());
+            tilingData_.get_rotaryMode(), GetTilingKey(), tilingData_.get_isPartialRope());
 
     return ge::GRAPH_SUCCESS;
 }
@@ -137,10 +140,11 @@ bool ApplyRotaryPosEmbTilingAB::IsCapable()
         return false;
     }
 
-    // 1. qk:bsnd, cos:bs1d 2. qk:sbnd, cos:sb1d 3. qk:sbnd, cos:s11d
+    // 1. qk:bsnd, cos:bs1d 2. qk:sbnd, cos:sb1d 3. qk:sbnd, cos:s11d 4. qk:tnd, cos:t1d
     if ((layout_ == ApplyRotaryPosEmbLayout::BSND && cosb_ == b_) ||
         (layout_ == ApplyRotaryPosEmbLayout::SBND && cosb_ == b_) ||
-        (layout_ == ApplyRotaryPosEmbLayout::SBND && cosb_ == 1)) {
+        (layout_ == ApplyRotaryPosEmbLayout::SBND && cosb_ == 1)  ||
+        (layout_ == ApplyRotaryPosEmbLayout::TND && cosb_ == b_ && cosb_ == 1)) {
         return true;
     }
     return false;

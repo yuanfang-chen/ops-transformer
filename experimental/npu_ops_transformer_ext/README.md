@@ -27,13 +27,12 @@ NpuOpsTransformerExt 是一个轻量级，高性能的算子开发工程模板�
 *   CANN Ascend Toolkit
 *   PyTorch: 2.1.0+
 *   PyTorchAdapter
-*   gcc: 9.0.0+
 
 ## 环境准备 | Preparation
 
 1. **安装社区版CANN toolkit包**
 
-    根据实际环境，下载对应`Ascend-cann-toolkit_${cann_version}_linux-${arch}.run`包，下载链接为[x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/8.5.0.alpha001/Ascend-cann-toolkit_8.5.0.alpha001_linux-x86_64.run)、[aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/8.5.0.alpha001/Ascend-cann-toolkit_8.5.0.alpha001_linux-aarch64.run)。
+    根据实际环境，下载对应`Ascend-cann-toolkit_${cann_version}_linux-${arch}.run`包，下载链接为[x86_64包](https://ascend.devcloud.huaweicloud.com/artifactory/cann-run-release/software/master/20260213000325157/x86_64/Ascend-cann-toolkit_9.0.0_linux-x86_64.run)、[aarch64包](https://ascend.devcloud.huaweicloud.com/artifactory/cann-run-release/software/master/20260213000325157/aarch64/Ascend-cann-toolkit_9.0.0_linux-aarch64.run)。
     
     安装命令如下：
 
@@ -67,19 +66,22 @@ NpuOpsTransformerExt 是一个轻量级，高性能的算子开发工程模板�
     pip install torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl
     ```
 
-   根据实际环境，安装对应torch-npu包: `torch_npu-${torch_version}-${python_version}-linux_${arch}.whl` 下载链接为:[官网地址](https://gitcode.com/Ascend/pytorch/releases)
+   根据实际环境，安装对应torch-npu包: `torch_npu-${torch_version}-${python_version}-linux_${arch}.whl`
 
-   安装命令如下：
+   可以直接使用pip命令下载安装，命令如下：
 
     ```sh
-    pip install torch_npu-${torch_version}-${python_version}-linux_${arch}.whl
+    pip install torch_npu
     ```
     
     - \$\{torch\_version\}：表示torch包版本号。
     - \$\{python\_version\}：表示python版本号。
     - \$\{arch\}：表示CPU架构，如aarch64、x86_64。
 
+
     注：目前torch_npu支持RunOpApiV2接口的版本包括2.1.0、2.4.0+。
+
+
 
 ## 安装步骤 | Installation
 
@@ -171,6 +173,11 @@ NpuOpsTransformerExt 是一个轻量级，高性能的算子开发工程模板�
         return()
     endif()
     ```
+    2.1 在`experimental/npu_ops_transformer_ext/CMakeLists.txt`中添加`my_ops`至`NPU_EXT_OPERATOR_LIST`
+    ```cmake
+    set(NPU_EXT_OPERATOR_LIST "typhoon_mla;score_normalize;rope_matrix;select_attention_operators;my_ops")
+    ```
+    
 
 3. 在 `npu_ops_transformer_ext/npu_ops_def.cpp`中添加TORCH_LIBRARY_IMPL定义
    
