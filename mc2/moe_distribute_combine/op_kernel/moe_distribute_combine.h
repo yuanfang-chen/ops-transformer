@@ -144,6 +144,12 @@ private:
     LocalTensor<float> winTpSendCountFloatTensor_;
     LocalTensor<float> gmTpSendCountFloatTensor_;
     LocalTensor<ExpandIdxType> epSendCountLocal_;
+    LocalTensor<ExpandIdxType> expertIdsLocal_;
+    LocalTensor<float> expandScalesLocal_;
+    LocalTensor<float> rowTmpFloatLocal_;
+    LocalTensor<float> mulBufLocal_;
+    LocalTensor<float> sumFloatBufLocal_;
+    LocalTensor<ExpandIdxType> indexCountsLocal_;
 
     // tiling侧已确保数据上限， 相乘不会越界，因此统一采用uin32_t进行处理
     uint32_t axisBS_{0};
@@ -875,7 +881,12 @@ __aicore__ inline void MoeDistributeCombine<TemplateCombineTypeFunc>::ProcessExp
     rowTmpGlobal_.SetGlobalBuffer((__gm__ ExpandXType *)wAddr);
     LocalTensor<ExpandXType> tmpUb = moeSumQueue_.AllocTensor<ExpandXType>();
     
-    uint32_t copyLen = constexpr (IsQuant) ? (axisH_ / 2U + scaleLen_) : processLen;
+    uint32_t copyLen = 0;
+    if constexpr (IsQuant) {
+        copyLen = axisH_ / 2U + scaleLen_;
+    } else {
+        copyLen = processLen;
+    }
     DataCopy(tmpUb, rowTmpGlobal_, copyLen);
     
     if constexpr (!IsQuant) {
