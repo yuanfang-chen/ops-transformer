@@ -1,3 +1,11 @@
+/*
+ * @Author: j60100428 jingsong5@h-partners.com
+ * @Date: 2026-03-17 09:47:18
+ * @LastEditors: j60100428 jingsong5@h-partners.com
+ * @LastEditTime: 2026-03-17 09:48:18
+ * @FilePath: \ops-transformer_0317\attention\lightning_indexer\op_host\lightning_indexer_def.cpp
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 /**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
@@ -64,7 +72,8 @@ public:
         this->Attr("sparse_mode").AttrType(OPTIONAL).Int(3);       // 3:默认值，只计算下三角
         this->Attr("pre_tokens").AttrType(OPTIONAL).Int(INT64_MAX);
         this->Attr("next_tokens").AttrType(OPTIONAL).Int(INT64_MAX);
-        this->Attr("return_values").AttrType(OPTIONAL).Bool(false);
+        111
+        this->Attr("return_value").AttrType(OPTIONAL).Bool(false);
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
