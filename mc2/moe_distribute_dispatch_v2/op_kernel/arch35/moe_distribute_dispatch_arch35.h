@@ -764,7 +764,6 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
     if (rankPerAiv == 0) {
         return;
     }
-
     TBuf<> sizeBuf;
     TBuf<> sendSizeBuf;
     TBuf<> countBuf;
@@ -786,16 +785,13 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
             count += cnt;
             cntLT(idx * rankCnt + j) = cnt;
         }
-
         uint32_t sendSize = count * perTokenCommSize_ + COUNT_OFFSET;
         uint32_t halfSize = static_cast<uint32_t>(sendSize / HALF_DATA_SIZE_DIV);
         sizeLT(idx) = halfSize;
         sizeLT(idx + secondOffset) = sendSize - halfSize;
-
         sendOffsetLT(idx) = (i + sharedExpertRankNum_) * perRankDataSize_;
         sendOffsetLT(idx + secondOffset) = (i + sharedExpertRankNum_) * perRankDataSize_ + halfSize;
     }
-
     SyncFunc<HardEvent::S_MTE3>();
     GlobalTensor<uint64_t> sendGT;
     sendGT.SetGlobalBuffer((__gm__ uint64_t*)(sendSizeGM_ + (startRank + sharedExpertRankNum_) * sizeof(uint64_t)));
@@ -805,12 +801,10 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
     DataCopyPad(sendGT, sizeLT, params);
     sendGT.SetGlobalBuffer((__gm__ uint64_t*)(sendOffsetGM_ + (startRank + sharedExpertRankNum_) * sizeof(uint64_t)));
     DataCopyPad(sendGT, sendOffsetLT, params);
-
     GlobalTensor<uint32_t> sendCntGT;
     sendCntGT.SetGlobalBuffer((__gm__ uint32_t*)(sendBufGM_ + (startRank + sharedExpertRankNum_) * perRankDataSize_));
     uint32_t cpSize2 = sizeof(uint32_t) * localExpertNum_;
-    DataCopyExtParams cntParams = {static_cast<uint16_t>(rankPerAiv), cpSize2, rankCntSize - cpSize2,
-                                  perRankDataSize_ - cpSize2, 0};
+    DataCopyExtParams cntParams = {static_cast<uint16_t>(rankPerAiv), cpSize2, rankCntSize - cpSize2, perRankDataSize_ - cpSize2, 0};
     DataCopyPad(sendCntGT, cntLT, cntParams);
 }
 

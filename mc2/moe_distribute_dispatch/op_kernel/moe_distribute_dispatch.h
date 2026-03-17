@@ -74,14 +74,14 @@ private:
     __aicore__ inline void InitTilingParams(const MoeDistributeDispatchTilingData *tilingData);
     __aicore__ inline void InitGlobalTensors(GM_ADDR x, GM_ADDR expertIds, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expertTokenNumsOut);
     __aicore__ inline void InitTpContext();
-    __aicore__ inline void InitStatusParams(GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut);
+    __aicore__ inline void InitStatusParams(GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut);
     __aicore__ inline void InitStatusBuffers(GM_ADDR scales);
-    __aicore__ inline void InitBufferAndStatus(GM_ADDR scales, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut);
+    __aicore__ inline void InitStatus(GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut);
     __aicore__ inline void SendToSharedExpert();
     __aicore__ inline void SendToMoeExpert();
     __aicore__ inline void AlltoAllDispatch();
     __aicore__ inline void CalcExpertRange(uint32_t totalMoeExpert);
-    __aicore__ inline void PrepareCumSum(LocalTensor<int32_t>& outCountLocal);
+    __aicore__ inline void PrepareCumSum(LocalTensor<int32_t>& outCountLocal, uint32_t totalMoeExpert);
     __aicore__ inline void ProcessSingleExpertLoop(uint32_t index, uint32_t &beginIdx, LocalTensor<int32_t>& outCountLocal);
     __aicore__ inline void CopyExpertData(GM_ADDR wAddr, uint32_t count, uint32_t beginIdx);
     __aicore__ inline void FinalizeCounts(uint32_t totalMoeExpert, uint32_t beginIdx, LocalTensor<int32_t>& outCountLocal);
@@ -94,7 +94,7 @@ private:
     __aicore__ inline void AllGatherSetStatusAndWait();
     __aicore__ inline void ResetStatus();
     __aicore__ inline void QuantInit(GM_ADDR scales);
-    __aicore__ inline void AllgatherExecute();
+    __aicore__ inline void AllgatherExecute(uint32_t coreGatherCount, uint32_t preCount);
     __aicore__ inline void AllgatherProcessOut();
     __aicore__ inline void UpdateMultiMoeTokenNumsOut();
     __aicore__ inline void UpdateTokenNumsOut();
@@ -333,7 +333,7 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitTpCo
 
 template <TemplateDispatchTypeClass>
 __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitStatusParams(
-    GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut)
+    GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut)
 {
     expandXOutGM_ = expandXOut;
     expandIdxOutGM_ = expandIdxOut; // 无GlobalTensor
@@ -407,14 +407,14 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitStat
 }
 
 template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitBufferAndStatus(
+__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitStatus(
     GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandIdxOut)
 {
     // 初始化状态空间和基础参数计算
     tpipe_->InitBuffer(statusBuf_, Ceil(recvWinBlockNum_, 8) * 8 * UB_ALIGN); // Ceil(expertNum, 8) * 8 * 32B
     statusTensor_ = statusBuf_.Get<int32_t>(); // 保存发送数据量及flag，同时用于计算windows中的偏移
     
-    InitStatusParams(scales, expandXOut, sendCountsOut, tpSendCountsOut, expandIdxOut);
+    InitStatusParams(expandXOut, sendCountsOut, tpSendCountsOut, expandIdxOut);
     InitStatusBuffers(scales);
 }
 
@@ -433,7 +433,7 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Init(
     InitTilingParams(tilingData);
     InitGlobalTensors(x, expertIds, expandXOut, dynamicScalesOut, expertTokenNumsOut);
     InitTpContext();
-    InitBufferAndStatus(scales, expandXOut, sendCountsOut, tpSendCountsOut, expandIdxOut);
+    InitStatus(scales, expandXOut, sendCountsOut, tpSendCountsOut, expandIdxOut);
 }
 
 template <TemplateDispatchTypeClass>
@@ -986,7 +986,7 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllGathe
 }
 
 template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllgatherExecute()
+__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllgatherExecute(uint32_t coreGatherCount, uint32_t preCount)
 {
     GlobalTensor<ExpandXOutType> tokGlobal;
     GlobalTensor<ExpandXOutType> expandXOutGlobal;
@@ -1044,7 +1044,7 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
         return;
     }
 
-    AllgatherExecute();
+    AllgatherExecute(coreGatherCount, preCount);
 
 }
 
