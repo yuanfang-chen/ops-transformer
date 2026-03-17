@@ -487,7 +487,7 @@ def execute_repack_process(xmlconfig: XmlConfig,
                 CommLog.cilog_error("generate hash command %s failed!", get_target_name(item))
                 return FAIL
 
-    softlink_before_package(xmlconfig.pkg_soft_links, release_dir)
+    softlink_before_package(xmlconfig.pkg_softlinks, release_dir)
 
     # 校验包中文件或目录大小
     if pkg_args.check_size == "True":
