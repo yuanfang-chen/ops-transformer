@@ -30,7 +30,7 @@ namespace optiling {
 // Run mode constants
 constexpr int64_t RUN_MODE_FN = 0;      // Fn mode: 2D input [cu_seq_len, dim]
 constexpr int64_t RUN_MODE_UPDATE = 1;  // Update mode: 2D/3D input [batch, seq_len, dim] or [cu_seq_len, dim]
-constexpr int64_t CACHE_INDICES_INDEX = 4;
+// constexpr int64_t CACHE_INDICES_INDEX = 4;
 
 // Unified CompileInfo structure
 struct CausalConv1dCompileInfo {
