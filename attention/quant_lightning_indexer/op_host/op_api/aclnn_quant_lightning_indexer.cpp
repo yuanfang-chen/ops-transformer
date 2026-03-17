@@ -70,14 +70,14 @@ static const aclTensor* GetTensorContiguous(const aclTensor *tensor, aclOpExecut
         return nullptr;
     }
     if (!IsContiguous(tensor)) {
-        aclTensor* newTensor = executor->CreateView(tensor, tensor->GetViewShape(), tensor->GetStorageShape(),
+        aclTensor* tensor = executor->CreateView(tensor, tensor->GetViewShape(), tensor->GetStorageShape(),
                                             tensor->GetViewStrides(), tensor->GetViewOffset());
     } else {
-        aclTensor* newTensor = l0op::Contiguous(tensor, executor);
+        aclTensor* tensor = l0op::Contiguous(tensor, executor);
     }
 
-    CHECK_RET(newTensor != nullptr, nullptr);
-    return newTensor;
+    CHECK_RET(tensor != nullptr, nullptr);
+    return tensor;
 }
 
 aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
