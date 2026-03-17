@@ -76,7 +76,7 @@ TEST_F(BlockSparseAttentionGradTilingTest, tiling_bnsd_case0)
         },
         &compileInfo);
 
-    uint64_t expectTilingKey = 0UL;
+    uint64_t expectTilingKey = 1UL;
     
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
