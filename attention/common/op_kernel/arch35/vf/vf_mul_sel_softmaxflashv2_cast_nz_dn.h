@@ -124,7 +124,8 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
 
 
     if constexpr ((IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                    IsSameType<T2, hifloat8_t>::value) && hasAtten) {
+                    IsSameType<T2, hifloat8_t>::value || IsSameType<T2, bfloat16_t>::value ||
+                    IsSameType<T2, half>::value) && hasAtten) {
         if (needAtten) {
             for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
                 LoadAlign(src0, src_ub0 + iter_m * m * 4);
