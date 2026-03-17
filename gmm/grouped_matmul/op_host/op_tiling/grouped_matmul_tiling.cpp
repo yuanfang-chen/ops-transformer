@@ -101,7 +101,7 @@ constexpr int64_t A4W4OPTIMIZE_K_LOWER = 1024L;
 constexpr int64_t A4W4OPTIMIZE_K_UPPER = 16384L;
 // A4W4优化N的范围
 constexpr int64_t A4W4OPTIMIZE_N_LOWER = 128L;
-constexpr int64_t A4W4OPTIMIZE_N_UPPER = 32768L;
+constexpr int64_t A4W4OPTIMIZE_N_UPPER = 16384L;
 // A4W4优化group_num的范围
 constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_LOWER = 1;
 constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_UPPER = 256;
@@ -492,8 +492,8 @@ ge::graphStatus GMMTiling::Init(const gert::TilingContext* context) {
     tilingData.gmmBaseParams.set_k(maxK_);
     tilingData.gmmBaseParams.set_n(maxN_);
     tilingData.gmmBaseParams.set_quantGroupNum(quantGroupNum);
-    bool isA4W4Optimize = IsA4W4OptimizeCondition();
-    if (isA4W4Optimize) {
+    isA4W4Optimize_ = IsA4W4OptimizeCondition();
+    if (isA4W4Optimize_) {
       tilingData.gmmBaseParams.set_isA4W4Optimize(1);
     }
   }
@@ -795,8 +795,14 @@ ge::graphStatus GMMTiling::SetWorkspscesPerTokenQuant(const uint32_t aicNum, siz
     tilingData.gmmBaseParams.set_singleN(bestSingleN);
   }
   if (isA4W4_) {
-    // 4： when do cv parallelism, four pieces of workspace are used for storing four cycles of matmul output
-    workspaces[0] += 4UL * baseM_ * baseN_ * usedCoreNum_ * sizeof(short); // a4w4 mmout dtype is half
+    if (isA4W4Optimize_) {
+      constexpr uint32_t BASEM_OPTIMIZE = 128;
+      workspaces[0] += 2UL * BASEM_OPTIMIZE * BEST_BASEN * usedCoreNum_ * sizeof(short); // a4w4 mmout dtype is half
+    } else {
+      // 4： when do cv parallelism, four pieces of workspace are used for storing four cycles of matmul output
+      workspaces[0] += 4UL * baseM_ * baseN_ * usedCoreNum_ * sizeof(short); // a4w4 mmout dtype is half
+    }
+    
   } else {
     // 4： when do cv parallelism, four pieces of workspace are used for storing four cycles of matmul output
     workspaces[0] += 4UL * baseM_ * baseN_ * usedCoreNum_ * sizeof(int32_t);
