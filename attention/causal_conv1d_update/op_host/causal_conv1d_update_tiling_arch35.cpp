@@ -541,9 +541,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
                 return ge::GRAPH_FAILED);
         const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
         if (dataPtr != nullptr) {
-            // auto shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
             for (size_t i = 0; i < batchSize_; i++) {
-                // OP_LOGI(context_->GetNodeName(), "dataPtr[%d] = %d\n", i, static_cast<int32_t>(dataPtr[i]));
                 if (padSlotId_ == static_cast<int32_t>(dataPtr[i])) {
                     invalidBatchAtStart++;
                 } else {
