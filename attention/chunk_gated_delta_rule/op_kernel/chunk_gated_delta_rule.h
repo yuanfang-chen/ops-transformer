@@ -139,7 +139,6 @@ public:
 
     __aicore__ inline void Init(const CGDRInitParams &initParams, GM_ADDR user)
     {
-        gOptional_ = initParams.gOptional;
         uint64_t dataSize = tiling_->t * tiling_->nk * tiling_->dk;
         query_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.query), dataSize);
         key_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.key), dataSize);
@@ -313,7 +312,6 @@ private:
     GlobalTensor<highType> stageOneMask_;          // (Nv, maxGroupLength, C)
     GlobalTensor<highType> stageThreeMask_;          // (Nv, maxGroupLength, C)
     GM_ADDR stageWsAddr_;                 // temporary space addr for stages
-    GM_ADDR gOptional_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;  // 构造mask矩阵
 
