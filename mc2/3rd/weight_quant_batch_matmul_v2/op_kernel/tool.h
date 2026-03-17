@@ -19,10 +19,7 @@
 #include "kernel_operator.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
-#else
-#include "kernel_operator.h"
 #endif
-#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 
 using AscendC::AIC;
