@@ -37,7 +37,7 @@
 /*
  * 静态量化
  */
-#define MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_GATHER 1010000     // 单核排序、静态量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_GATHER 1010000    // 单核排序、静态量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTONECORE_STATICQUANT_SCATTER 1011000   // 单核排序、静态量化、SCATTER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER 1110000  // 多核排序、静态量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_SCATTER 1111000 // 多核排序、静态量化、SCATTER索引
@@ -69,18 +69,22 @@
 /*
  * HIF8 PENTENSOR量化
  */
-#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_GATHER 1080000    // 单核排序、HIF8 PENTENSOR量化、GATHER索引
-#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_SCATTER 1081000   // 单核排序、HIF8 PENTENSOR量化、SCATTER索引
-#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_GATHER 1180000  // 多核排序、HIF8 PENTENSOR量化、GATHER索引
-#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_SCATTER 1181000 // 多核排序、HIF8 PENTENSOR量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_GATHER 1080000 // 单核排序、HIF8 PENTENSOR量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_SCATTER                                                   \
+    1081000 // 单核排序、HIF8 PENTENSOR量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_GATHER                                                  \
+    1180000 // 多核排序、HIF8 PENTENSOR量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_SCATTER                                                 \
+    1181000 // 多核排序、HIF8 PENTENSOR量化、SCATTER索引
 
 /*
  * HIF8 PENTEOKEN量化
  */
-#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTOKEN_QUANT_GATHER 1090000    // 单核排序、HIF8 PENTEOKEN量化、GATHER索引
-#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTOKEN_QUANT_SCATTER 1091000   // 单核排序、HIF8 PENTEOKEN量化、SCATTER索引
-#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_GATHER 1190000  // 多核排序、HIF8 PENTEOKEN量化、GATHER索引
-#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_SCATTER 1191000 // 多核排序、HIF8 PENTEOKEN量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTOKEN_QUANT_GATHER 1090000  // 单核排序、HIF8 PENTEOKEN量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTOKEN_QUANT_SCATTER 1091000 // 单核排序、HIF8 PENTEOKEN量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_GATHER 1190000 // 多核排序、HIF8 PENTEOKEN量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_SCATTER                                                  \
+    1191000 // 多核排序、HIF8 PENTEOKEN量化、SCATTER索引
 
 using namespace AscendC;
 using namespace MoeInitRoutingV3;
@@ -198,10 +202,11 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_STATICQUANT_SCATTER)) {
         // 静态量化
-        if constexpr (!IsSameType<DTYPE_X, int8_t>::value) {
+        if constexpr (IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value ||
+                      IsSameType<DTYPE_X, float>::value) {
             TPipe gatherPipe;
-            MoeGatherOutStaticQuant<DTYPE_X> gatherStaticQuantOp;
-            gatherStaticQuantOp.Init(x, scale, offset, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
+            MoeV3GatherStaticQuant<DTYPE_X> gatherStaticQuantOp;
+            gatherStaticQuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, offset, t, &gatherPipe);
             gatherStaticQuantOp.Process();
             gatherPipe.Destroy();
         }
@@ -231,10 +236,11 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
             gatherPipe.Destroy();
         }
     } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_HIF8CAST_GATHER) ||
-        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_HIF8CAST_SCATTER) ||
-        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8CAST_GATHER) ||
-        TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8CAST_SCATTER)) {
-        if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) && IsSameType<DTYPE_EXPANDED_X, hifloat8_t>::value) {
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_HIF8CAST_SCATTER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8CAST_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8CAST_SCATTER)) {
+        if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) &&
+                      IsSameType<DTYPE_EXPANDED_X, hifloat8_t>::value) {
             TPipe gatherPipe;
             MoeGatherOutHif8Quant<DTYPE_X> gatherHif8QuantOp;
             gatherHif8QuantOp.Init(x, userWS, expandedRowIdx, expandedX, t, &gatherPipe);
