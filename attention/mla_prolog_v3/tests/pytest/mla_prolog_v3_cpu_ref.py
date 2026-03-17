@@ -1677,4 +1677,12 @@ def test_mla_prolog_v3(params):
     # Empty tensors are used for unused optional outputs.
     expect_list = list(expect)
 
+    # Match CPU golden dtypes to NPU output dtypes for comparison
+    for i in range(min(len(expect_list), len(result_list))):
+        if expect_list[i].numel() == 0 or result_list[i].numel() == 0:
+            continue
+        npu_dtype = result_list[i].dtype
+        if expect_list[i].dtype != npu_dtype:
+            expect_list[i] = expect_list[i].to(npu_dtype)
+
     return expect_list, result_list
