@@ -23,7 +23,7 @@
  #include "stub_def.h"
  #include "stub_fun.h"
  #else
- #include "kernel_macros.h"
+ #include "kernel_tpipe.h"
  #endif
  
  template <uint32_t ALIGN, typename T = uint32_t>
