@@ -205,27 +205,6 @@ bool IsAll2AllOut(const aclTensor *alltoAllOut)
     return true;
 }
 
-// 检查预留参数是否为合法值，若为预设之外的值会提示Warning
-bool CheckReservedParams(const aclTensor *commScaleOptional, const aclTensor* x1OffsetOptional,
-                         const aclTensor* x2OffsetOptional, int64_t commQuantMode, int64_t commQuantDtype) {
-    if (commScaleOptional != nullptr) {
-        OP_LOGW("commScaleOptional is a reserved param, it should be null.");
-    }
-    if (x1OffsetOptional != nullptr) {
-        OP_LOGW("x1OffsetOptional is a reserved param, it should be null.");
-    }
-    if (x2OffsetOptional != nullptr) {
-        OP_LOGW("x2OffsetOptional is a reserved param, it should be null.");
-    }
-    if (static_cast<QuantModeType>(commQuantMode) != QuantModeType::NO_QUANT) {
-        OP_LOGW("commQuantMode is a reserved param, it should be 0, indicates no quantization mode.");
-    }
-    if (commQuantDtype != ACL_DT_UNDEFINED) {
-        OP_LOGW("commQuantDtype is a reserved param, it should be -1, indicates undefined type.");
-    }
-    return true;
-}
-
 // 处理支持转置的tensor物理排布不连续问题
 aclTensor *TransX2Tensor(const aclTensor *x2)
 {
