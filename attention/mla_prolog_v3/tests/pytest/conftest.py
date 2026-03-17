@@ -6,12 +6,11 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(autouse=True)
 def npu_device_cleanup():
-    """Best-effort NPU cleanup between tests.
+    """Drain NPU error state between tests to prevent cascading failures.
 
-    The primary isolation mechanism is subprocess forking in
-    _run_npu_isolated() — each NPU invocation runs in a child process
-    whose device state dies with it.  This fixture is a secondary safety
-    net for any direct NPU usage that bypasses the subprocess wrapper.
+    CANN uses a sticky error model: a device-side kernel failure puts the
+    device into an error state that persists until explicitly drained.
+    Without this fixture, one test failure would cascade to all remaining tests.
     """
     yield
     try:
