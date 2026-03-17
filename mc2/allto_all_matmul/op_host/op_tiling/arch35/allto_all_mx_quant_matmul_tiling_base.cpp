@@ -633,7 +633,6 @@ void AllToAllMxQuantMatmulTilingBase::PrintAlltoAllMxQuantMatmulTilingInfo(const
     OP_LOGD(opName, "TilingInfo.rankN: %u", tilingInfo.rankN);
     OP_LOGD(opName, "TilingInfo.rankK: %u", tilingInfo.rankK);
     OP_LOGD(opName, "TilingInfo.commLen: %u", tilingInfo.commLen);
-    OP_LOGD(opName, "TilingInfo.biasLen: %u", tilingInfo.biasLen);
     OP_LOGD(opName, "TilingInfo.permuteLen: %u", tilingInfo.permuteLen);
     OP_LOGD(opName, "TilingInfo.hcclDataType: %u", tilingInfo.hcclDataType);
 }
@@ -701,7 +700,6 @@ void AllToAllMxQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.rankN = contextInfo.args_.nValue;
     tilingInfo.rankM = contextInfo.args_.orgMValue;
     tilingInfo.commLen = inferredInfo.commLen;
-    tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
@@ -733,12 +731,12 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
     uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + 
-                             inferredInfo.biasLen + inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
+                             inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
-        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu",
-        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen);
+        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu",
+        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -762,10 +760,6 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
     // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，不需要申请这块
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
-    }
-    if (contextInfo.args_.isBias) {
-        inferredInfo.biasLen =
-            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
     inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.rankDim *
                                 Ops::Base::CeilDiv((contextInfo.args_.kValue / contextInfo.args_.rankDim),
