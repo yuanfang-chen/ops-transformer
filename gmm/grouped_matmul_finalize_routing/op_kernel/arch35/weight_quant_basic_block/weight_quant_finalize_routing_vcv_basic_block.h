@@ -50,7 +50,7 @@ class WQFRVcvMatmulBasicBlock : public WeightQuantVcvMatmulBasicBlockBaseClass {
 public:
     __aicore__ inline WQFRVcvMatmulBasicBlock(){};
     __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize);
-    __aicore__ inline void InitAtomicGm() {}
+    __aicore__ inline void InitAtomicGm();
     __aicore__ inline void UpdateGlobalAddr(__gm__ xType *x, __gm__ wType *weight,
                                             __gm__ antiQuantScaleType *antiquantScale, __gm__ xType *antiquantOffset,
                                             __gm__ scaleType *scale, __gm__ perTokenScaleType *perTokenScale,
@@ -61,6 +61,7 @@ public:
     __aicore__ inline void End(const BasicBlockOffsetParam &curOffsetParam);
 
 protected:
+    __aicore__ inline void InitGmZeroWithIterate(uint64_t & yGmStartOffset, uint64_t yGmEndOffset, uint64_t sharedInputStartSize, uint64_t sharedInputSize);
     __aicore__ inline void ComputeBasicBlockAivNzNk(const BasicBlockOffsetParam &curOffsetParam,
                                                     const BasicBlockOffsetParam &lastOffsetParam);
     __aicore__ inline void IterateNzNkWithKAiv(uint64_t &kMte2Offset, uint64_t kMte2Limit, uint64_t mte2RealN,
@@ -142,6 +143,50 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t
         vecCompute_.Init(GetTPipePtr(), hasBias_);
     }
     cvLoopIdx_ = 0;
+}
+
+GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
+__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize)
+{
+    // 首4轮的mte3写出
+    constexpr initZeroBufferSize = vecCompute_.UB_BUFFER_INFO.highBitDataUbSingleBufferSize / sizeof(float);
+    uint64_t yGmOffset = GetBlockIdx() * initZeroBufferSize;
+    InitGmZeroWithIterate(yGmOffset, Min(QUADRUPLE_BUFFER_NUM * GetBlockNum() * initZeroBufferSize, initSize), sharedInputStartSize, sharedInputSize);
+
+    // shared input mte3写出
+    constexpr mte2BufferSize =
+        GetGmmFRMxA8W4BufferInfo<vecConfig>().weightInputLowBitUbSingleBufferSize / sizeof(float);
+    for (uint64_t sharedInputGmOffset = GetBlockIdx() * mte2BufferSize; sharedInputGmOffset <= sharedInputSize;
+         sharedInputGmOffset += GetBlockNum() * mte2BufferSize) {
+        uint64_t initSharedInputRealSize = sharedInputGmOffset + mte2BufferSize > sharedInputSize ?
+                                               sharedInputSize - sharedInputGmOffset :
+                                               mte2BufferSize;
+        vecCompute_.WaitVToMTE2();
+        vecCompute_.CopyShareInputGmToUb(sharedInputGmOffset, initSharedInputRealSize);
+
+        vecCompute_.CopyShareInputUbToGm(sharedInputGmOffset, initSharedInputRealSize);
+        vecCompute_.SetVToMTE2();
+    }
+    // 剩余部分的mte3写出
+    InitGmZeroWithIterate(yGmOffset, initSize, sharedInputStartSize, sharedInputSize);
+}
+
+GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
+__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitGmZeroWithIterate(uint64_t & yGmStartOffset, uint64_t yGmEndOffset, uint64_t sharedInputStartSize, uint64_t sharedInputSize){
+    constexpr initZeroBufferSize = vecCompute_.UB_BUFFER_INFO.highBitDataUbSingleBufferSize / sizeof(float);
+    for (; yGmOffset <= yGmEndOffset; yGmOffset += GetBlockNum() * bufferSize){
+        uint64_t initZeroRealSize = yGmOffset + bufferSize > yGmEndOffset ? yGmEndOffset - yGmOffset : bufferSize;
+        if (yGmOffset > sharedInputStartSize) {
+            vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroRealSize);
+        } else if (yGmOffset + bufferSize <= sharedInputStartSize) {
+            vecCompute_.InitGmToZero(yGmOffset, initZeroRealSize);
+        }else {
+            uint64_t initZeroFirstTail = sharedInputStartSize - yGmOffset;
+            vecCompute_.InitGmToZero(yGmOffset, initZeroFirstTail);
+            uint64_t initZeroSecondTail = initZeroRealSize - initZeroFirstTail;
+            vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroSecondTail);
+        }
+    }
 }
 
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM

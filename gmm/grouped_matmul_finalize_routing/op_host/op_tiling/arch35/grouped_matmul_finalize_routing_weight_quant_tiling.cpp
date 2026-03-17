@@ -88,6 +88,16 @@ ge::graphStatus GMMFRWeightQuantTiling::DoOpTiling()
 
     tilingData_.kSize = inputParams_.kSize;
     tilingData_.nSize = inputParams_.nSize;
+
+    // Calculate initSize: if shared_input exists, initSize = shared_input_offset * n + (outputBs - shared_input.m) * n
+    // if shared_input does not exist, initSize = outputBs * n
+    if (inputParams_.sharedInputLen == 0) {
+        tilingData_.initSize = inputParams_.outputBS * inputParams_.nSize;
+    } else {
+        tilingData_.initSize = inputParams_.shareInputOffset * inputParams_.nSize + 
+                               (inputParams_.outputBS - inputParams_.sharedInputLen) * inputParams_.nSize;
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 

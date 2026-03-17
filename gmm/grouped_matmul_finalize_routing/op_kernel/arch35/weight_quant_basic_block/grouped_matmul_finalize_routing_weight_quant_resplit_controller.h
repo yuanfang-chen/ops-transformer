@@ -40,20 +40,15 @@ using WeightQuantBatchMatmulV2::Arch35::WQFRVcvMatmulBasicBlock;
 using GMMFRTiling = GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData;
 
 namespace GROUPED_MATMUL_FINALIZE_ROUTING {
-#define GMMFR_WQ_BASIC_BLOCK_TEMPLATE_CLASS                                                                      \
-    template <typename xType0, typename wType0, typename antiQuantScaleType0, typename scaleType0,             \
-              typename perTokenScaleType0, typename biasType0, typename yType0, const WqmmConfig &wqmmConfig0, \
-              const VecAntiQuantConfig &vecConfig0>                                                            \
-    class
 #define GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM                                               \
     template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, \
               typename perTokenScaleType, typename biasType, typename yType,                   \
-              GMMFR_WQ_BASIC_BLOCK_TEMPLATE_CLASS BasicBlock, const WqmmConfig &wqmmConfig,      \
+              const WqmmConfig &wqmmConfig,      \
               const VecAntiQuantConfig &vecConfig>
 
 #define GMMFR_WQ_RESPLIT_CONTROLLER_CLASS                                                                              \
     GMMFRWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, \
-                                    BasicBlock, wqmmConfig, vecConfig>
+                                    wqmmConfig, vecConfig>
 
 GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
 class GMMFRWeightQuantResplitController {
@@ -85,7 +80,7 @@ private:
     __gm__ perTokenScaleType *perTokenScaleGm_;
     __gm__ scaleType *scaleGm_;
     GlobalTensor<int64_t> groupListGm_;
-    BasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
+    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
         basicBlock_;
 
     uint64_t preOffset_ = 0;
@@ -216,6 +211,7 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
                 MX_A8W4_L1_K_CONFIG_256;
         offsetParam[ctrlParam.processId].kaL1Size =
             offsetParam[ctrlParam.processId].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
+        // todo kaL1优化
         basicBlock_.ComputeBasicBlock(offsetParam[ctrlParam.processId], offsetParam[GetSwitchedProcessId(ctrlParam)]);
         ctrlParam.processId = GetSwitchedProcessId(ctrlParam);
     }

@@ -23,7 +23,7 @@
 
 namespace GMMFinalizeRoutingArch35Tiling {
 #pragma pack(push, 8)
-struct GMMFinalizeRoutingWeightQuantTilingData {\
+struct GMMFinalizeRoutingWeightQuantTilingData {
     uint8_t groupListType = 0;
     uint8_t hasBias = 0;
     uint16_t reserve1 = 0;
@@ -38,6 +38,7 @@ struct GMMFinalizeRoutingWeightQuantTilingData {\
 
     uint64_t kSize = 0;
     uint64_t nSize = 0;
+    uint64_t initSize = 0;
 };
 #pragma pack(pop)
 } // namespace GMMFinalizeRoutingArch35Tiling

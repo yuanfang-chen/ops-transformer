@@ -57,9 +57,6 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
     TPipe pipe;
 #if defined (V310_GMM_ANTI_QUANT)
     // Weight Quantization scenario - Use GMMFRWeightQuantResplitController
-    // Define VecAntiQuantConfig for FP8+FP4 MX weight quantization
-    static constexpr WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
-    
     REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData);
     GET_TILING_DATA_WITH_STRUCT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData, tilingData, tilingGM);
     const GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData *tiling = &tilingData;
@@ -68,7 +65,6 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
     // Config values: aTrans=false, bTrans=true, antiQuantType=MX, hasAntiQuantOffset=false, quantType=NONE, weightFormat=NZ
     GROUPED_MATMUL_FINALIZE_ROUTING::GMMFRWeightQuantResplitController<
         DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
-        WeightQuantBatchMatmulV2::Arch35::WQFRVcvMatmulBasicBlock,
         WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK, 
         VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
     
