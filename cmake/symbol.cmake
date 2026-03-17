@@ -81,7 +81,7 @@ function(gen_es_transformer_lib_builtin)
     OUTPUT_PATH ${CMAKE_BINARY_DIR}/es_packages
   )
   install(
-    FILE ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer.so
+    FILES ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer.so
     DESTINATION ${VERSION_INFO_INSTALL_DIR}/lib64
     OPTIONAL
   )
