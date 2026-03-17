@@ -86,6 +86,6 @@ static ge::graphStatus TilingPrepareCausalConv1d(gert::TilingParseContext* conte
 IMPL_OP_OPTILING(CausalConv1d)
     .Tiling(TilingCausalConv1d)
     .TilingParse<CausalConv1dCompileInfo>(TilingPrepareCausalConv1d)
-    .TilingInputsDataDependency({CACHE_INDICES_INDEX});
+    .TilingInputsDataDependency({QUERY_START_LOC_INDEX, CACHE_INDICES_INDEX});
 
 } // namespace optiling
