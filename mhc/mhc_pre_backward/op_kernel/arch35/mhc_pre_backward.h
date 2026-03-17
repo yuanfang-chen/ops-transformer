@@ -210,6 +210,7 @@ public:
     __aicore__ inline void ProcessV1(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf);
     template <bool isFirstBS>
     __aicore__ inline void VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, __ubuf__ P *invRmsGradDst, uint16_t dealBSSize);
+    __aicore__ inline void VFDoV1ProcessBiasGrad(__ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize);
     __aicore__ inline void InitCube();
     __aicore__ inline void AICProcess(GlobalTensor<P> x, GlobalTensor<P> y, GlobalTensor<P> z, uint64_t m, uint64_t n, uint64_t k);
     __aicore__ inline void ProcessC0C1Pipeline();
@@ -762,13 +763,15 @@ template <class T, class P>
 __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf)
 {
-    uint32_t shapeBiasGrad[] = { runBSEnd - runBSStart, fusionSize_};
+    uint32_t curBSSize = runBSEnd - runBSStart;
+    uint32_t shapeBiasGrad[] = { curBSSize, fusionSize_};
     constexpr bool isReuse = false;
 
     LocalTensor<P> hMixBuf;
     AscendC::LocalTensor<P> fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
-    ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(fp32OutBuf, buffers.gatherFusionBuf,
-        buffers.brcbTmpBuf, shapeBiasGrad, true);
+    VFDoV1ProcessBiasGrad((__ubuf__ P *)fp32OutBuf.GetPhyAddr(), (__ubuf__ P *)buffers.gatherFusionBuf.GetPhyAddr(), curBSSize);
+    // ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(fp32OutBuf, buffers.gatherFusionBuf,
+    //     buffers.brcbTmpBuf, shapeBiasGrad, true);
     bf16OutQueue_.EnQue(fp32OutBuf);
     LocalTensor<P> BiasOutBuf = bf16OutQueue_.DeQue<P>();
 
@@ -786,7 +789,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 
     LocalTensor<P> invRmsGradUb = fp32OutQueue_.AllocTensor<P>();
     auto h1GradBuf = buffers.calcTmpBuf;
-    int64_t remainDealBsSize = (runBSEnd - runBSStart);
+    int64_t remainDealBsSize = (curBSSize);
     uint32_t bsOffset = 0;
     while (remainDealBsSize > 0) {
         fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
@@ -821,7 +824,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 
         // hmix * h_1_grad, prepare for inv rms grad
         // Mul(h1GradBuf[bsOffset * fusionSize_], h1GradBuf[bsOffset * fusionSize_], hMixBuf, dealBSSize * fusionSize_);
-        if (remainDealBsSize == (runBSEnd - runBSStart)) {
+        if (remainDealBsSize == curBSSize) {
             VFDoV1ProcessInvRmsGrad<true>((__ubuf__ P *)h1GradBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), (__ubuf__ P *)invRmsGradUb.GetPhyAddr(), dealBSSize);
         }
         else {
@@ -875,6 +878,30 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         Add(sumBuf, h1GradBuf, sumBuf, fusionSize_);
     }
     PipeBarrier<PIPE_V>();
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGrad(__ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize)
+{
+    uint32_t regCapacityFP32 = 64; // 256B / sizeof(P)
+    uint16_t fSLoopCnt = Ceil(fusionSize_, regCapacityFP32);
+    uint32_t curElemCnt = fusionSize_;
+
+    __VEC_SCOPE__
+    {
+        for (uint16_t vfBlockIdx = 0; vfBlockIdx < fSLoopCnt; ++vfBlockIdx) {
+            MicroAPI::RegTensor<P> sumReg;
+            MicroAPI::Duplicate(sumReg, 0);
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
+            for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(curBSSize); ++bsIdx) {
+                uint32_t elemOffset = bsIdx * fusionSize_ + vfBlockIdx * regCapacityFP32;
+                MicroAPI::RegTensor<P> gatherReg;
+                MicroAPI::LoadAlign(gatherReg, gatherFusion + elemOffset);
+                MicroAPI::Add(sumReg, sumReg, gatherReg, mask);
+            }
+            MicroAPI::StoreAlign(outBufDst + vfBlockIdx * regCapacityFP32, sumReg, mask);
+        }
+    }
 }
 
 template <class T, class P>
