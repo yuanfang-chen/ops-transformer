@@ -610,7 +610,8 @@ uint32_t FlashAttentionScoreGradTilingNormalRegbase::GetDeterSparseTilingKey()
                fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::NO_MASK)) {
         return static_cast<uint32_t>(DeterSparseType::DETER_BAND);
     }
-    return fBaseParams.d <= static_cast<uint32_t>(ConstAxisTemplateNum::NUM512) ? static_cast<uint32_t>(DeterSparseType::DETER_OLD) : static_cast<uint32_t>(DeterSparseType::NO_DETER);
+    // return fBaseParams.d <= static_cast<uint32_t>(ConstAxisTemplateNum::NUM512) ? static_cast<uint32_t>(DeterSparseType::DETER_OLD) : static_cast<uint32_t>(DeterSparseType::NO_DETER);
+    return fBaseParams.d <= static_cast<uint32_t>(ConstAxisTemplateNum::NUM768) ? static_cast<uint32_t>(DeterSparseType::DETER_OLD) : static_cast<uint32_t>(DeterSparseType::NO_DETER);
 }
 
 uint8_t FlashAttentionScoreGradTilingNormalRegbase::GetSparseType()
@@ -1043,13 +1044,13 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::GetWorkspaceSize()
         if (fBaseParams.queryType != ge::DT_FLOAT) {
             postTilingData_->set_dqWorkSpaceOffset(workspaceSize);
             // matmal3 q
-            workspaceSize = (workspaceSize + static_cast<size_t>(qSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
+            workspaceSize = (workspaceSize + static_cast<size_t>(qSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN * 2;
             postTilingData_->set_dkWorkSpaceOffset(workspaceSize);
             // matmal3 k
-            workspaceSize = (workspaceSize + static_cast<size_t>(kSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
+            workspaceSize = (workspaceSize + static_cast<size_t>(kSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN * 2;
             postTilingData_->set_dvWorkSpaceOffset(workspaceSize);
             // matmal3 v
-            workspaceSize = (workspaceSize + static_cast<size_t>(vSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
+            workspaceSize = (workspaceSize + static_cast<size_t>(vSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN * 2;
         }
         // fp8 vScaleDs
         if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
