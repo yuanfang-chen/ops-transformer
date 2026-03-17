@@ -522,7 +522,13 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                             this->constInfo);
                     } else {
                         // if !hassink || s2loopcpunt > 0 todo
-                        if (!isFd || s2LoopCount > 0){
+                        if (isFd && s2LoopCount == 0){
+                            auto outputL1 = this->l1RightBuffers.Get();
+                            outputL1.WaitCrossCore();
+                            outputL1.SetCrossCore();
+                            outputL1.WaitCrossCore();
+                            outputL1.SetCrossCore();
+                        }else {
                             this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
                         }
                     }
