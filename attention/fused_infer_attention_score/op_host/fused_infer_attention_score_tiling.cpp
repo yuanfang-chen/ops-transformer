@@ -1019,6 +1019,10 @@ ge::graphStatus CheckFAIIsTND(gert::TilingContext *context, bool isPageAttention
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "When input layout is TND and paged cache and kvnz is used, the K and V must have five dims"),
                 return ge::GRAPH_FAILED);
+         OP_CHECK_IF(keyShape->GetStorageShape().GetDim(DIM_2) % 16 != 0 || valueShape->GetStorageShape().GetDim(DIM_2) % 16 != 0,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                "When input layout is TND and paged cache and kvnz is used, the DK and DV must be divisible by 16"),
+                return ge::GRAPH_FAILED);
     }
 
     const gert::Tensor* actSeqLenData = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
