@@ -34,11 +34,6 @@ namespace MatmulReduceScatterV2Impl {
 using namespace AscendC;
 using namespace AiVReduceSumCastFp32Impl;
 
-static constexpr uint16_t SYNC_AIC_ONLY_ALL_DET_FLAG = 4; // 用于 AIC 核间同步的 flagId
-static constexpr uint16_t SYNC_AIC_AIV_DET_FLAG = 8; // 用于 AIC 与 AIV 核间同步的 flagId
-static constexpr uint64_t SYNC_MODE0 = 0; // 核间同步模式 0
-static constexpr uint64_t SYNC_MODE2 = 2; // 核间同步模式 2
-
 TEMPLATE_CLASS_PARAMS
 class QuantBmmA2AVecReduceFP8HiF8 {
 public:
@@ -68,9 +63,6 @@ private:
     __aicore__ inline void ExecuteAivCommReducePipeline(GM_ADDR recvGM, GM_ADDR sendGM, 
                                                         const uint32_t count, const bool isTail,
                                                         DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling);
-    __aicore__ inline void CubeNotifyVector();
-    __aicore__ inline void VecWaitCube();
-
 private:
     ReduceSumForAlltoAll<CType> reduceSum_; // AIV ReduceSum 相关实现
 
@@ -558,26 +550,6 @@ QuantBmmA2AVecReduceFP8HiF8<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatter(
         MatMulComputReduceScatterPertensor(recvGM, qBmmTiling, count, sendGM, isLast, isTail);
     }
 }
-
-TEMPLATE_CLASS_PARAMS
-__aicore__ inline void
-QuantBmmA2AVecReduceFP8HiF8<TEMPLATE_FUNC_PARAMS>::CubeNotifyVector()
-{
-    // 先全 AIC 同步一次
-    CrossCoreSetFlag<SYNC_MODE0, PIPE_FIX>(SYNC_AIC_ONLY_ALL_DET_FLAG);
-    CrossCoreWaitFlag(SYNC_AIC_ONLY_ALL_DET_FLAG);
-    // 通知 AIV
-    CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_AIC_AIV_DET_FLAG);
-}
-
-TEMPLATE_CLASS_PARAMS
-__aicore__ inline void
-QuantBmmA2AVecReduceFP8HiF8<TEMPLATE_FUNC_PARAMS>::VecWaitCube()
-{
-    // 等待 AIC 完成
-    CrossCoreWaitFlag<SYNC_MODE2, PIPE_MTE2>(SYNC_AIC_AIV_DET_FLAG);
-}
-
 }  // namespace MatmulReduceScatterV2Impl
 
 #endif  // QUANT_BMM_A2A_VEC_REDUCE_FP8_HIF8_H
