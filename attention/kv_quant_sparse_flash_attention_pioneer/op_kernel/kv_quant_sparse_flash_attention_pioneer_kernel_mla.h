@@ -101,7 +101,7 @@ private:
     /* GM信息 */
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
-    __gm__ int32_t *keySinkAddr = nullptr;
+    __gm__ uint8_t *keySinkAddr = nullptr;
 
     GlobalTensor<int32_t> actualSeqLengthsQGm;
     uint32_t usedCoreNum = 0U;
