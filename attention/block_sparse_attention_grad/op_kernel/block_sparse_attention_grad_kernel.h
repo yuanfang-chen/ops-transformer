@@ -449,6 +449,7 @@ namespace BSA {
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
+            // AscendC::SyncAll<false>();
             WaitFlag();
         }
 
@@ -471,7 +472,7 @@ namespace BSA {
             PipeBarrier<PIPE_ALL>();
 
             AscendC::WaitEvent(CUBE2POST);
-            AscendC::SyncAll();
+            // AscendC::SyncAll<false>();
 
             // post
             VecPost(params);
@@ -543,6 +544,7 @@ namespace BSA {
                 TaskInfo curInfo = taskInfo[i % 2];
 
                 uint64_t kvBlockOffset = 0;
+                uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
                     uint64_t kvBlockBasicOffset = 0;
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
@@ -553,12 +555,14 @@ namespace BSA {
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
                             curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
                             if (inputLayout == 0) {
-                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * kvHeads * headDim;
+                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * kvHeads * headDim;
                             } else {
-                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * headDim;
+                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * headDim;
                             }
 
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
+                            uint64_t vector16Soffset = curInfo.sOffset * sizeof(ElementInput);
+                            uint64_t vector32Soffset = curInfo.sOffset * sizeof(float);
 
                             uint64_t actualRow = curInfo.curCalQSize;
                             uint64_t actualCol = curInfo.curCalKVSize;
@@ -573,16 +577,16 @@ namespace BSA {
                             uint64_t dKOutSize = tilingData->dKOutSize;
                             uint64_t dVOutSize = tilingData->dVOutSize;
 
-                            GM_ADDR s = params.workspace + curInfo.sOffset;
+                            GM_ADDR s = params.workspace + vector32Soffset;
                             GM_ADDR softmaxLse = params.softmaxLse;
-                            GM_ADDR dp = params.workspace + sOutSize + curInfo.sOffset;
+                            GM_ADDR dp = params.workspace + sOutSize + vector32Soffset;
                             // GM_ADDR dp = s; // 测试用
                             GM_ADDR blockSparseMask = softmaxLse; // 不需要
                             GM_ADDR actualSeqQlen = params.actualQseqlen;
                             GM_ADDR actualSeqKvlen = params.actualKvseqlen;
                             GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
-                            GM_ADDR pWorkspace = params.workspace + curInfo.sOffset; // 连续
-                            GM_ADDR dsWorkspace = params.workspace + sOutSize + curInfo.sOffset; // 连续
+                            GM_ADDR pWorkspace = params.workspace + vector16Soffset; // 连续
+                            GM_ADDR dsWorkspace = params.workspace + sOutSize + vector16Soffset; // 连续
                             GM_ADDR tiling = params.tiling;
 
                             AscendC::WaitEvent(CUBE2VEC);
@@ -590,8 +594,9 @@ namespace BSA {
                                                 actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
                             EpilogueFAGOp sStmOp(sfmParams);
                             sStmOp();
-                            AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(VEC2CUBE);
                             PipeBarrier<PIPE_ALL>();
+                            AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(VEC2CUBE);
+
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
                             // break;
