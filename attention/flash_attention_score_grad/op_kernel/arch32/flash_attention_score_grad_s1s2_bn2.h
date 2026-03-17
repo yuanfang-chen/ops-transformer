@@ -400,7 +400,8 @@ protected:
     __aicore__ inline void Cube1CopyOut(GlobalTensor<float> dstTensor,
                                         LocalTensor<float> srcTensor,
                                         const int32_t mSize,
-                                        const int32_t nSize);
+                                        const int32_t nSize,
+                                        const int32_t singleMSize);
     __aicore__ inline void LoadBaseDataB(LocalTensor<T1> &tscmTensor,
                                     const GlobalTensor<T1> &globalTensor,
                                     int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
