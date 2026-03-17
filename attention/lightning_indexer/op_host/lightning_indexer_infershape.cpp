@@ -81,6 +81,9 @@ static ge::graphStatus InferShapeLightningIndexer(gert::InferShapeContext *conte
     const bool *return_value = attrs->GetAttrPointer<bool>(ATTR_RETURN_VALUE_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, return_value);
     bool returnValueFlag = (return_value != nullptr) ? *return_value : false;
+    printf("infershape return_value: %d\n", *return_value);
+    printf("infershape returnValueFlag: %d\n", returnValueFlag);
+
     if (returnValueFlag) {
         *sparseValuesShape = *sparseIndicesShape;
     } else {
