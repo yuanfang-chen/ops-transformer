@@ -622,7 +622,15 @@ static AlltoAllQuantMatmulAclnnTestParam MXQuant_cases_params[] = {
     {"AAQMM_MX-error38", 2, 190, 3, {256, 64}, {256, 128}, {256}, {256, 1, 2}, {256, 2, 2}, {128, 256}, {128, 128},
         ACL_FLOAT8_E5M2, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT8_E5M2,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
-        0, MX_GROUP_SIZE, {-2, -1}, "ut_test_allto_all_quant_matmul", false, true, ACLNN_ERR_PARAM_INVALID} // 异常场景：quantmode组合非法，不是（6,6）
+        0, MX_GROUP_SIZE, {-2, -1}, "ut_test_allto_all_quant_matmul", false, true, ACLNN_ERR_PARAM_INVALID}, // 异常场景：quantmode组合非法，不是（6,6）
+    {"AAQMM_MXFP4-error39", 2, 6, 6, {256, 64}, {256, 128}, {256}, {256, 1, 2}, {256, 2, 2}, {128, 256}, {128, 128},
+        ACL_FLOAT4_E2M1, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT4_E2M1,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        0, MX_GROUP_SIZE, {-2, -1}, "ut_test_allto_all_quant_matmul", false, true, ACLNN_ERR_PARAM_INVALID}, // 异常场景：x1是fp4_e2m1但x2不是
+    {"AAQMM_MXFP4-error40", 2, 6, 6, {256, 64}, {256, 128}, {256}, {256, 1, 2}, {256, 2, 2}, {128, 256}, {128, 128},
+        ACL_FLOAT8_E5M2, ACL_FLOAT4_E2M1, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT8_E5M2,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        0, MX_GROUP_SIZE, {-2, -1}, "ut_test_allto_all_quant_matmul", false, true, ACLNN_ERR_PARAM_INVALID}, // 异常场景：x2是fp4_e2m1但x1不是
 };
 
 static void TestOneParamCase(const AlltoAllQuantMatmulAclnnTestParam& param)
