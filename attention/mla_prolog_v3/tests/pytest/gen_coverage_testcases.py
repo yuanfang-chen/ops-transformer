@@ -23,7 +23,7 @@ import itertools
 import torch
 
 # wqm=3 requires torch.float8_e8m0 (PyTorch 2.6+)
-HAS_FLOAT8_E8M0 = hasattr(torch, 'float8_e8m0')
+HAS_FLOAT8_E8M0 = hasattr(torch, 'float8_e8m0fnu')
 
 # ---------------------------------------------------------------------------
 # 量化组合 (weight_quant_mode, kv_cache_quant_mode, query_quant_mode)

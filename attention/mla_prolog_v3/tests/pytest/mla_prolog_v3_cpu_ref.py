@@ -669,7 +669,7 @@ def cal_mlaprolog(mla_param):
     if wqm == 3 and is_bm:
         deq_scale_q_nope = torch.empty(0, dtype=torch.float32)
         out_qnorm = torch.empty(0, dtype=torch.float8_e4m3fn)
-        out_deq_qnorm = torch.empty(0, dtype=torch.float8_e8m0)
+        out_deq_qnorm = torch.empty(0, dtype=torch.float8_e8m0fnu)
     elif wqm in [1, 2] and is_bm:
         deq_scale_q_nope = torch.empty(0, dtype=torch.float32)
         out_qnorm = torch.empty(0, dtype=torch.int8)
