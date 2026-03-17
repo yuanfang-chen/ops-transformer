@@ -176,7 +176,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
             <td>输入</td>
             <td>权重。</td>
             <td>-</td>
-            <td>FLOAT16、BFLOAT16</td>
+            <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
             <td>(B,S1,Nidx1)、(T1,Nidx1)</td>
             <td>x</td>
@@ -194,7 +194,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         <tr>
             <td>softmaxMax</td>
             <td>输入</td>
-            <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+            <td>注意力正向计算的中间输出。</td>
             <td>-</td>
             <td>FLOAT32</td>
             <td>ND</td>
@@ -204,7 +204,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         <tr>
             <td>softmaxSum</td>
             <td>输入</td>
-            <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+            <td>注意力正向计算的中间输出。</td>
             <td>-</td>
             <td>FLOAT32</td>
             <td>ND</td>
@@ -342,7 +342,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
             <td>输出</td>
             <td>Weights的梯度。</td>
             <td>-</td>
-            <td>FLOAT16、BFLOAT16</td>
+            <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
             <td>(B,S1,Nidx1)、(T1,Nidx1)</td>
             <td>x</td>
@@ -542,7 +542,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         </tr>
         <tr>
             <td>N1</td>
-            <td>64、128</td>
+            <td>32、64、128</td>
             <td>SparseFA为MQA。</td>
         </tr>
         <tr>

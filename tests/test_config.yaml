@@ -57,12 +57,28 @@ global_config:
     - mc2/common
     - attention/common/op_kernel
 
+examples:
+    mc2:
+      all_gather_add:
+        module: True
+        src:
+          - examples/mc2/all_gather_add
+          - cmake/custom_build.cmake
+          - build.sh
+        exclude:
+          - examples/mc2/all_gather_add/README.md
+        ut_cov_exclude:
+          - examples/mc2/all_gather_add
+        test:
+          ut: False
+        options:
+          - all_gather_add
+
 attention:
   flash_attention_score:
     module: True
     src:
       - attention/flash_attention_score
-      - attention/common
     exclude:
       - attention/flash_attention_score/docs
       - attention/flash_attention_score/README.md
@@ -75,7 +91,6 @@ attention:
     module: True
     src:
       - attention/flash_attention_score_grad
-      - attention/common
     exclude:
       - attention/flash_attention_score_grad/docs
       - attention/flash_attention_score_grad/README.md
@@ -1384,3 +1399,28 @@ mc2:
         examples: False
       options:
         - attention_to_ffn
+
+mhc:
+  mhc_sinkhorn:
+    module: True
+    src:
+      - mhc/mhc_sinkhorn
+    exclude:
+      - mhc/mhc_sinkhorn/docs
+      - mhc/mhc_sinkhorn/README.md
+    ut_cov_exclude:
+      - mhc/mhc_sinkhorn/examples
+      - mhc/mhc_sinkhorn/tests
+  mhc_post:
+    module: True
+    src:
+      - mhc/mhc_post
+    exclude:
+      - mhc/mhc_post/docs
+      - mhc/mhc_post/README.md
+    ut_cov_exclude:
+      - mhc/mhc_post/examples
+      - mhc/mhc_post/tests
+    test:
+      examples: False
+      ut: True

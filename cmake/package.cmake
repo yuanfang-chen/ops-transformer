@@ -115,9 +115,12 @@ function(pack_built_in)
   set(CONF_FILES
       ${CMAKE_SOURCE_DIR}/scripts/package/common/cfg/path.cfg
   )
-  install(FILES ${CMAKE_SOURCE_DIR}/version.info
-      DESTINATION share/info/ops_transformer
-  )
+  foreach(components ${CANN_VERSION_PACKAGES})
+      install(FILES ${CMAKE_BINARY_DIR}/version.${components}.info
+          DESTINATION share/info/ops_transformer
+          RENAME version.info
+      )
+  endforeach()
   install(FILES ${CONF_FILES}
       DESTINATION ops_transformer/conf
   )
@@ -130,6 +133,19 @@ function(pack_built_in)
   install(DIRECTORY ${CMAKE_SOURCE_DIR}/scripts/package/latest_manager/scripts/
       DESTINATION latest_manager
   )
+
+  # 打包 npu_ops_transformer whl 文件
+  set(WHL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/torch_extension/dist")
+  file(GLOB WHL_FILES "${WHL_SOURCE_DIR}/npu_ops_transformer-*.whl")
+
+  if(WHL_FILES)
+      install(FILES ${WHL_FILES}
+          DESTINATION python/site-packages
+      )
+      message(STATUS "Including whl package: ${WHL_FILES}")
+  else()
+      message(WARNING "Whl package not found in ${WHL_SOURCE_DIR}")
+  endif()
 
   string(FIND "${ASCEND_COMPUTE_UNIT}" ";" SEMICOLON_INDEX)
   if (SEMICOLON_INDEX GREATER -1)
