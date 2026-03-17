@@ -272,8 +272,8 @@ ge::graphStatus QLIInfoParser::GetAndCheckInOutDataType()
             OP_CHECK_IF((weightsType_ != ge::DT_BF16 || inputQueryScaleType_ != ge::DT_FLOAT) && 
                         (weightsType_ != ge::DT_FLOAT16|| inputQueryScaleType_ != ge::DT_FLOAT16),
                 OP_LOGE(opName_, "When input query and key are float8_e4m3, ",
-                        " the data type of the input weights, query_dequant_scale and key_dequant_scale ",
-                        " must be (bfloat16, float32, float32) or (float16, float16, float16)."),
+                        "the data type of the input weights, query_dequant_scale and key_dequant_scale ",
+                        "must be (bfloat16, float32, float32) or (float16, float16, float16)."),
                 return ge::GRAPH_FAILED);
         } else if (inputKType_ == ge::DT_HIFLOAT8){
             OP_CHECK_IF(weightsType_ != ge::DT_BF16 || inputQueryScaleType_ != ge::DT_FLOAT,

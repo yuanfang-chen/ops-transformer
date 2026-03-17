@@ -374,7 +374,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
 
     static_assert(std::is_same_v<uint16_t, uint16_t>);
     auto outBase = vec1OutUB_[pingpong * (UB_BANK_STRIDE / sizeof(uint16_t))];
-    auto weightBase = weightFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(W_T))];
+    auto weightBase = weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(W_T))];
     auto qScaleBase = qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(SCALE_T))];
     auto kScaleBase = kScaleUB_[pingpong * s2BaseSize_];
     auto qScaleFloatBase = qScaleFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
