@@ -139,7 +139,6 @@ public:
 
     __aicore__ inline void Init(const CGDRInitParams &initParams, GM_ADDR user)
     {
-        gOptional_ = initParams.gOptional;
         uint64_t dataSize = tiling_->t * tiling_->nk * tiling_->dk;
         query_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.query), dataSize);
         key_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.key), dataSize);
@@ -253,7 +252,7 @@ private:
         StageTwoParams initStageTwoParams{
             qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
             attnInter_, stageWsAddr_, &stage2MT_, pipe_, &cg,
-            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk, gFlag_};
         stageTwoOp.Init(&initStageTwoParams, tiling_->aiCoreNum);
         stageTwoOp.Process();
         pipe_->Reset();
@@ -267,7 +266,7 @@ private:
             stageThreeMask_[int(GetBlockIdx() / 2) * tiling_->chunkSize * tiling_->chunkSize],
             stageWsAddr_, out_[cg.startPos * tiling_->nv * tiling_->dv],
             &stage3MT_, pipe_, &cg, tiling_->scale,
-            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk, gFlag_};
         stageThreeOp.Init(&initStageThreeParams, tiling_->aiCoreNum);
         stageThreeOp.Process();
         pipe_->Reset();
@@ -314,7 +313,6 @@ private:
     GlobalTensor<highType> stageOneMask_;          // (Nv, maxGroupLength, C)
     GlobalTensor<highType> stageThreeMask_;          // (Nv, maxGroupLength, C)
     GM_ADDR stageWsAddr_;                 // temporary space addr for stages
-    GM_ADDR gOptional_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;  // 构造mask矩阵
 

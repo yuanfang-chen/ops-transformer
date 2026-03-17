@@ -72,6 +72,8 @@ struct StageThreeParams {
     int64_t Nk_;
     int64_t Dv_;
     int64_t Dk_;
+
+    bool gOptional;
 };
 
 class Stage3 {
@@ -88,6 +90,7 @@ public:
         Nk_ = sTP_->Nk_;
         Dv_ = sTP_->Dv_;
         Dk_ = sTP_->Dk_;
+        gOptional_ = sTP_->gOptional;
 
         uint64_t workSpaceOffset = 0;
         cCFloatGM_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams->ws + workSpaceOffset + coreNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
@@ -150,20 +153,25 @@ public:
     
     __aicore__ inline void CalMaskedQKT(GlobalTensor<float> outGM, int nvId, int chunkPos)
     {
-        // g_cum_exp
-        CopyIn<float>(sTP_->gCumExp_[nvId * seqLength_ + chunkPos], 1, curChunkSize_);
-        
-        auto g_cum_exp = inQueue_.DeQue<float>();
-        int64_t paddingChunkSize = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float));
-        // broadcast
-        const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
-        const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(paddingChunkSize)};
-        const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(paddingChunkSize)};
-        Broadcast<float, 2, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
-        Broadcast<float, 2, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
-        PipeBarrier<PIPE_V>();
-        Div(cCFloat_, cCFloat_, cCFloat2_, curChunkSize_ * paddingChunkSize);
-        inQueue_.FreeTensor(g_cum_exp);
+        int64_t paddingChunkSize = Ceil(curChunkSize_, DATA_BLOCK_SIZE / sizeof(float)) * (DATA_BLOCK_SIZE / sizeof(float));
+ 
+        if (gOptional_) {
+            CopyIn<float>(sTP_->gCumExp_[nvId * seqLength_ + chunkPos], 1, curChunkSize_);
+
+            auto g_cum_exp = inQueue_.DeQue<float>();
+            const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
+            const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(paddingChunkSize)};
+            const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(paddingChunkSize)};
+            Broadcast<float, 2, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
+            Broadcast<float, 2, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
+            PipeBarrier<PIPE_V>();
+            Div(cCFloat_, cCFloat_, cCFloat2_, curChunkSize_ * paddingChunkSize);
+            inQueue_.FreeTensor(g_cum_exp);
+        } else {
+            Duplicate(cCFloat_, static_cast<float>(1.0f), curChunkSize_ * paddingChunkSize);
+            PipeBarrier<PIPE_V>();
+        }
+ 
         // qkt
         CopyIn<float>(sTP_->qkt_[nvId * seqLength_ * chunkSize_ + chunkPos * chunkSize_], curChunkSize_, curChunkSize_);
         auto qkt = inQueue_.DeQue<float>();
@@ -171,12 +179,12 @@ public:
         Muls(scale_qkt, qkt, sTP_->scale_, curChunkSize_ * paddingChunkSize);
         Mul(scale_qkt, scale_qkt, cCFloat_, curChunkSize_ * paddingChunkSize);
         inQueue_.FreeTensor(qkt);
-        
+ 
         // mask
         LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
         DataCopyExtParams inParams{static_cast<uint16_t>(curChunkSize_),
                                    static_cast<uint32_t>(curChunkSize_ * sizeof(float)),
-                                   static_cast<uint32_t>((chunkSize_ - curChunkSize_) * sizeof(float)), 
+                                   static_cast<uint32_t>((chunkSize_ - curChunkSize_) * sizeof(float)),
                                    0, 0};
         int padding = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float)) - curChunkSize_;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
@@ -302,6 +310,7 @@ private:
     int64_t Nk_;
     int64_t Dv_;
     int64_t Dk_;
+    bool gOptional_;
 };
 
 } // namespace ChunkGatedDeltaRule

@@ -56,6 +56,8 @@ struct StageTwoParams {
     int64_t Nk_;
     int64_t Dv_;
     int64_t Dk_;
+
+    bool gOptional;
 };
 
 template <typename inType, typename outType>
@@ -88,6 +90,7 @@ public:
         Dk_ = sTP_->Dk_;
         curDk_ = Ceil(sTP_->Dk_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float));
         curChunkSize_ = chunkSize_;
+        gOptional_ = sTP_->gOptional;
         InitLocalBuffers();
     }
 
@@ -147,7 +150,7 @@ public:
 
     __aicore__ inline void CalGCumExp(GlobalTensor<float> stateNew, GlobalTensor<float> gCumExp)
     {
-        float last_g_cum_exp = gCumExp.GetValue(curChunkSize_ - 1);
+        float last_g_cum_exp = gOptional_? gCumExp.GetValue(curChunkSize_ - 1) : 1.0f;
         auto state_in = inQueue_.DeQue<float>();
         auto state_out = outQueue_.AllocTensor<float>();
         SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
@@ -252,6 +255,7 @@ private:
     int64_t Sp_;
     int32_t chunkNum_;
     int32_t coreNum_;
+    bool gOptional_;
 };
 } // namespace ChunkGatedDeltaRule
 #endif
