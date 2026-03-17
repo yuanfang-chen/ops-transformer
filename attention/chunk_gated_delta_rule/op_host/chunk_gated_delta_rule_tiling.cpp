@@ -143,29 +143,36 @@ namespace optiling {
         uint32_t baseN = MATMUL_BASE_N;
 
         // ========== MT_FP32: FP32 -> FP32 ==========
-        // 直接设置 tilingData_.matmulTilingFp32 的各个字段
-        tilingData_.matmulTilingFp32.usedCoreNum = static_cast<int32_t>(compileInfo_.aicNum);
-        tilingData_.matmulTilingFp32.singleCoreM = static_cast<int32_t>(baseM);
-        tilingData_.matmulTilingFp32.singleCoreN = static_cast<int32_t>(baseN);
-        tilingData_.matmulTilingFp32.singleCoreK = static_cast<int32_t>(baseK);
-        tilingData_.matmulTilingFp32.baseM = static_cast<int32_t>(baseM);
-        tilingData_.matmulTilingFp32.baseN = static_cast<int32_t>(baseN);
-        tilingData_.matmulTilingFp32.baseK = static_cast<int32_t>(baseK);
-        tilingData_.matmulTilingFp32.depthA1 = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.depthB1 = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.stepM = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.stepN = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.stepKa = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.stepKb = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.iterateOrder = static_cast<int32_t>(0);
-        tilingData_.matmulTilingFp32.dbL0C = static_cast<int32_t>(1);
-        tilingData_.matmulTilingFp32.M = static_cast<int32_t>(baseM);
-        tilingData_.matmulTilingFp32.N = static_cast<int32_t>(baseM);
-        tilingData_.matmulTilingFp32.Ka = static_cast<int32_t>(baseK);
-        tilingData_.matmulTilingFp32.Kb = static_cast<int32_t>(baseK);
-
-        OP_LOGD(context_->GetNodeName(), "MT_FP32 tiling: baseM=%u, baseN=%u, baseK=%u", baseM, baseN, baseK);
-
+        matmul_tiling::MultiCoreMatmulTiling mm_;
+        const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
+        const auto aicNum = ascendcPlatform.GetCoreNumAic();
+        uint64_t ubSize;
+        uint64_t l1Size;
+        uint64_t l0CSize;
+        ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
+        ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size);
+        ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, l0CSize);
+        mm_.SetBufferSpace(l1Size, l0CSize, ubSize);
+        mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, true);
+        mm_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, true);
+        mm_.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT);
+        mm_.SetBias(false);
+        mm_.SetDim(1);
+        mm_.SetShape(baseM, baseN, baseK);
+        mm_.SetOrgShape(baseM, baseN, baseK);
+        mm_.SetFixSplit(baseM, baseN, baseK);
+        if (mm_.GetTiling(tilingData_.matmulTilingFp32) == -1) {
+            OP_LOGE(context->GetNodeName(), "CGDR: Get Tiling Failed!");
+            return ge::GRAPH_FAILED;
+        }
+        OP_LOGD(context->GetNodeName(), "CGDR: baseM is %d, baseK is %d, baseN is %d.", baseM, baseK, baseN);
+        tilingData_.matmulTilingFp32.dbL0C = 1;
+        tilingData_.matmulTilingFp32.stepKa = 1;
+        tilingData_.matmulTilingFp32.stepKb = 1;
+        tilingData_.matmulTilingFp32.depthA1 = 1;
+        tilingData_.matmulTilingFp32.depthB1 = 1;
+        tilingData_.matmulTilingFp32.stepM = 1;
+        tilingData_.matmulTilingFp32.stepN = 1;
         return ge::GRAPH_SUCCESS;
     }
 

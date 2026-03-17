@@ -106,6 +106,8 @@ public:
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
             mmFp32_.Init(&tiling_->matmulTilingFp32, pipe_);
+            stage2MT_.Init(&tiling_->matmulTilingFp32, pipe_);
+            stage3MT_.Init(&tiling_->matmulTilingFp32, pipe_);
         }
     }
 
@@ -254,10 +256,6 @@ private:
 
     __aicore__ inline void RunStage2(ChunkGroup& cg, GlobalTensor<highType> state)
     {
-        if ASCEND_IS_AIC {
-            // 使用 tiling 中的 matmul tiling 数据初始化
-            stage2MT_.Init(&tiling_->matmulTilingFp32, pipe_);
-        }
         Stage2 stageTwoOp;
         StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
                                           attnInter_, stageWsAddr_, &stage2MT_, pipe_, &cg,
@@ -269,10 +267,6 @@ private:
 
     __aicore__ inline void RunStage3(ChunkGroup& cg, int seqStart)
     {
-        if ASCEND_IS_AIC {
-            // 使用 tiling 中的 matmul tiling 数据初始化
-            stage3MT_.Init(&tiling_->matmulTilingFp32, pipe_);
-        }
         Stage3 stageThreeOp;
         StageThreeParams initStageThreeParams{
             qkt_, gCumExp_, attnInter_, vInner_,
@@ -338,8 +332,6 @@ private:
     // Stage operators
     GDRStageOne stageOneOp_;
     GDRStageOneNoG stageOneNoGOp_;
-    Stage2 stageTwoOp_;
-
 };
 
 } // namespace ChunkGatedDeltaRule
