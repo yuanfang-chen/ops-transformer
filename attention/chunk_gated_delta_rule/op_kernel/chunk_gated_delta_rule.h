@@ -228,7 +228,7 @@ public:
                 RunStage2(cg, curState);
                 SyncAll<false>();
 
-                RunStage3(cg, seqStart);
+                RunStage3(cg, pos);
                 SyncAll<false>();
             }
         }
@@ -265,13 +265,13 @@ private:
         pipe_->Reset();
     }
 
-    __aicore__ inline void RunStage3(ChunkGroup& cg, int seqStart)
+    __aicore__ inline void RunStage3(ChunkGroup& cg, int pos)
     {
         Stage3 stageThreeOp;
         StageThreeParams initStageThreeParams{
             qkt_, gCumExp_, attnInter_, vInner_,
             stageThreeMask_[int(GetBlockIdx() / 2) * tiling_->chunkSize * tiling_->chunkSize], stageWsAddr_,
-            out_[seqStart * tiling_->nv * tiling_->dv],
+            out_[pos * tiling_->nv * tiling_->dv],
             &stage2MT_, pipe_, &cg, tiling_->scale,
             tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
         stageThreeOp.Init(&initStageThreeParams, tiling_->aiCoreNum);

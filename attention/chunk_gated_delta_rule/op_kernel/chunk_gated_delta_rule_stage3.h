@@ -82,8 +82,7 @@ public:
         pipe_ = sTP_->pipe_;
         chunkSize_ = sTP_->cg->chunkSize;
         seqLength_ = sTP_->cg->length;
-        Sp_ = (seqLength_ + chunkSize_ - 1) / chunkSize_  * chunkSize_;
-        chunkNum_ = Sp_ / chunkSize_;
+        chunkNum_ = (seqLength_ + chunkSize_ - 1) / chunkSize_ ;
         coreNum_ = coreNum;
         Nv_ = sTP_->Nv_;
         Nk_ = sTP_->Nk_;
@@ -297,7 +296,6 @@ private:
     int32_t curChunkSize_; 
     int32_t chunkSize_;
     int64_t seqLength_;
-    int64_t Sp_;
     int32_t chunkNum_;
     int32_t coreNum_;
     int64_t Nv_;
