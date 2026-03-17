@@ -163,6 +163,7 @@ public:
         ConstInfo<isInfer, hasRope> &constInfo);
     __aicore__ inline void InitDequantParams(__gm__ uint8_t *deqScaleQ,
         __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV);
+    __aicore__ inline void Uninit();
 
 private:
     __aicore__ inline void InitLocalBuffer();
@@ -338,6 +339,17 @@ __aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitLocalBuffer()
     } else {
         mmL0CBuffers.Init(l0cBufferManager, (L0C_SIZE / NUM_2) * KB_TO_BYTES);
     }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::UnInit()
+{
+    l1QBuffers.Init(*l1BufferManagerPtr);
+    l1KBuffers.Init(*l1BufferManagerPtr);
+    l1VBuffers.Init(*l1BufferManagerPtr);
+    mmL0ABuffers.Init(l0aBufferManager);
+    mmL0BBuffers.Init(l0bBufferManager);
+    mmL0CBuffers.Init(l0cBufferManager);
 }
 
 /* 初始化GmTensor,设置shape信息并计算strides */
@@ -1222,6 +1234,7 @@ public:
         ConstInfo<isInfer, hasRope> &constInfo) {}
     __aicore__ inline void InitDequantParams(__gm__ uint8_t *deqScaleQ,
         __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV) {}
+        __aicore__ inline void Uninit() {}
 };
 
 template <typename T>
