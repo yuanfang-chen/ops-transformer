@@ -864,8 +864,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::Init(
         aiCoreIdx = tmpBlockIdx;
     }
 
-    AscendC::printf("------------JY Init --------------\n");
-
     // init tiling data
     tilingData = tiling;
 
@@ -1963,13 +1961,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyFo
         actualSeqQ = info.actS1Size;
     }
 
-    AscendC::printf("------------JY AttenMaskCopyForTree: s1Start=%u, s1End=%u, s1Count=%u, actualSeqQ=%u, attenMaskSizeAlign=%u-----------\n",
-        s1StartIdx, s1EndIdx, s1Count, actualSeqQ, Align(info.actualSingleProcessSInnerSize, 32U));
 
     attenMaskSizeAlign = Align(info.actualSingleProcessSInnerSize, 32U);
     // 第一步，将mask的 ub空间赋值为0
     // 申请的16k空间，前8k给从GM拷贝到Ub时使用，后8k用来在拓展G轴时使用
-    // 这里好像没使用double buffer???
     attenMaskUb = inputQue2.AllocTensor<bool>();
     LocalTensor<int16_t> mask16_0 = attenMaskUb.template ReinterpretCast<int16_t>();
     AscendC::Duplicate(mask16_0, static_cast<int16_t>(0), s1Count * attenMaskSizeAlign / sizeof(int16_t));
@@ -2121,7 +2116,6 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ElewiseCompute(const ExtraInfoMla &inf
                 attenMaskUb = attenMaskUbDst;
             } else { // BSH/BSND/TND
                 if (sparseMode == 9U) {
-                    AscendC::printf("------------JY sparseMode9 -> AttenMaskCopyForTree, startRow=%u, dealRowCount=%u-----------\n", startRow, dealRowCount);
                     AttenMaskCopyForTree(info, attenMaskUb, startRow, dealRowCount);
                 } else {
                     AttenMaskCopyForSplitG(info, attenMaskUb, startRow, dealRowCount);
@@ -3821,8 +3815,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::Process()
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessBalance()
 {
-    AscendC::printf("------------JY ProcessBalance enter, sparseMode=%u-----------\n", sparseMode);
-
     ExtraInfoMla extraInfo[IFA_PRELOAD_TASK_CACHE_SIZE];
     TaskContext taskContext[PRE_LOAD_NUM_MLA];
 
