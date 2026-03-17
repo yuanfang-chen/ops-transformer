@@ -77,6 +77,7 @@ public:
     __aicore__ inline QSFAMatmulService() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
+    __aicore__ inline void SetSinkKvAddr(__gm__ uint8_t *key_sink)
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo);
@@ -145,6 +146,17 @@ QSFAMatmulService<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_t *actualSeqLengths
 {
     if ASCEND_IS_AIC {
         InitGmTensor(actualSeqLengthsQ, constInfo);
+    }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void
+QSFAMatmulService<TEMPLATE_ARGS>::SetSinkKvAddr(__gm__ uint8_t *key_sink)
+{
+    if ASCEND_IS_AIC {
+        if constexpr (isFd) {
+            keySinkGm.SetGlobalBuffer((__gm__ Q_T *)key_sink);
+        }
     }
 }
 
