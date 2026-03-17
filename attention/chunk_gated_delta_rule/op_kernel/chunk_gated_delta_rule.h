@@ -198,6 +198,7 @@ public:
 
         InitMatmul();
         InitGlobalTensor();
+        SyncAll<false>();
     }
 
     __aicore__ inline void Process()
