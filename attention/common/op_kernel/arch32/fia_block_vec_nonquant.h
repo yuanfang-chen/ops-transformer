@@ -1039,7 +1039,7 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo
     bool isInvalidRows = fa_base_vector::IsExistInvalidRows(info.nextTokensPerBatch, info.preTokensPerBatch, 
         constInfo.sparseMode, constInfo.attenMaskFlag, constInfo.isRowInvalid);
 
-    for (uint32_t row = 0; row < dealRowCount; ++row) {
+    for (int64_t row = 0; row < dealRowCount; ++row) {
         if constexpr ((Q_FORMAT == GmFormat::BSNGD) || (Q_FORMAT == GmFormat::TNGD)) { //内存按照S1G排布
             gIdx = (info.gS1Idx + wsMStart + row) % constInfo.gSize;
             s1Idx = (info.gS1Idx + wsMStart + row) / constInfo.gSize;
