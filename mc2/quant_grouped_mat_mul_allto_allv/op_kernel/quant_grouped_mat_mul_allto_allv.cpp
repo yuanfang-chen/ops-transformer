@@ -39,9 +39,9 @@ using namespace MC2KernelTemplate;
 using namespace Mc2GroupedMatmulTilingData;
 
 #if defined(CONST_TILING)
-#define TILING_TYPE const int32_t
+#define TilingType const int32_t
 #else
-#define TILING_TYPE __gm__ int32_t
+#define TilingType __gm__ int32_t
 #endif
 
 template <typename X_T, const bool IS_OPT_MM, const bool IS_GMM_WEIGHT_TRANS, const bool IS_OPT_WEIGHT_TRANS>

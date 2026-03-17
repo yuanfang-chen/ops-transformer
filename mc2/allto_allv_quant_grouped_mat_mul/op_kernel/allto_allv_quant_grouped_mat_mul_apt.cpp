@@ -30,18 +30,18 @@ using namespace Mc2GroupedMatmulTilingData;
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     const outerType *outerPtr##var = (const outerType *)(tiling);                                       \
     const innerType *innerPtr##var = &(outerPtr##var->outerPtr##var);                                   \
-    const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));
+    const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));  // 添加分号
 #else
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
     size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
-    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);
+    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);  // 添加分号
 #endif
 
 #if defined(CONST_TILING)
-#define TILING_TYPE const int32_t
+using TilingType = const int32_t;
 #else
-#define TILING_TYPE __gm__ int32_t
+using TilingType = __gm__ int32_t;
 #endif
 
 #define INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL()                                                                 \
@@ -75,7 +75,7 @@ __global__ __aicore__ void allto_allv_quant_grouped_mat_mul(GM_ADDR gmmxGM, GM_A
         float, DTYPE_GMM_Y, CubeFormat::ND, false, TILINGKEY_MM_WEIGHT_TRANSPOSE,
         true, true>; // isLocal=true, isA2avGmm=true
     A2avGmmScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, true>, ComputeOpType, LocalComputeOpType,
-        QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TILING_TYPE, TILINGKEY_MM>
+        QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TilingType, TILINGKEY_MM>
         a2avGmmScheduler;
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, gmmQuantTilingData,
         gmmArray, gmmArrayAddr_, tilingGM);
