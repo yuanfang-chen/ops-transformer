@@ -536,14 +536,29 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
     const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
     if (cacheIndicesTensor != nullptr) {
         int64_t shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
-        const int64_t* dataPtr = cacheIndicesTensor->GetData<int64_t>();
+        OP_CHECK_IF(shapeSize != batchSize_,
+                OP_LOGE(context_->GetNodeName(), "The batch size of cacheIndices %ld is not equal to X batch %ld", shapeSize, batchSize_),
+                return ge::GRAPH_FAILED);
+        const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
         if (dataPtr != nullptr) {
-            auto shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
-            for (size_t i = 0; i < shapeSize; i++) {
-                OP_LOGI(context_->GetNodeName(), "dataPtr[%ld] = %ld\n", i, static_cast<int64_t>(dataPtr[i]));
+            // auto shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
+            for (size_t i = 0; i < batchSize_; i++) {
+                // OP_LOGI(context_->GetNodeName(), "dataPtr[%d] = %d\n", i, static_cast<int32_t>(dataPtr[i]));
+                if (padSlotId_ == static_cast<int32_t>(dataPtr[i])) {
+                    invalidBatchAtStart++;
+                } else {
+                    break;
+                }
+            }
+            for (int64_t i = batchSize_ - 1; i >= invalidBatchAtStart; i--) {
+                if (padSlotId_ == static_cast<int32_t>(dataPtr[i])) {
+                    invalidBatchAtEnd++;
+                } else {
+                    break;
+                }
             }
         } 
-    } 
+    }
 
     inValidBatchNum_ = invalidBatchAtStart + invalidBatchAtEnd;
     validBatchStart_ = invalidBatchAtStart;
