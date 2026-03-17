@@ -16,16 +16,12 @@
 #include <platform/platform_info.h>
 #include "op_mc2.h"
 
-#ifdef BUILD_OPEN_PROJECT
 #include "mc2_gen_task_ops_utils.h"
 #include "register/op_impl_registry.h"
 #include "mc2_gen_task_ops_utils_arch35.h"
 #include "mc2_log.h"
-#endif
 
 namespace ops {
-
-#ifdef BUILD_OPEN_PROJECT
 
 ge::Status MatmulAlltoAllGenTaskCallback(const gert::ExeResGenerationContext *context, std::vector<std::vector<uint8_t>> &tasks)
 {
@@ -52,6 +48,4 @@ static ge::Status MatmulAlltoAllGenTaskFunc(const gert::ExeResGenerationContext 
 }
 
 IMPL_OP(MatmulAlltoAll).CalcOpParam(MatmulAlltoAllCalcOpParamFunc).GenerateTask(MatmulAlltoAllGenTaskFunc);
- 	 
-#endif
 }
