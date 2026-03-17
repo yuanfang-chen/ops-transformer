@@ -9,16 +9,19 @@
  */
 
 /*!
- * \file causal_conv1d_update_apt.cpp
+ * \file causal_conv1d_apt.cpp
  * \brief CausalConv1dUpdate kernel entry point
  */
 
-#include "./arch35/causal_conv1d_update.h"
+// #include "./arch35/causal_conv1d_update.h"
+#include "./arch35/causal_conv1d_fn.h"
 
+#define TILING_KEY_FN_BF16 10000
+#define TILING_KEY_FN_FP16 10001
+#define TILING_KEY_UPDATE_FP16 20000
 
-#define TILING_KEY_UPDATE_BF16 20000
-#define TILING_KEY_UPDATE_FP16 20001
-extern "C" __global__ __aicore__ void causal_conv1d_update(
+using namespace CausalConv1dFnNs;
+extern "C" __global__ __aicore__ void causal_conv1d(
     GM_ADDR x,                    // 输入0: x
     GM_ADDR weight,               // 输入1: weight
     GM_ADDR convStates,           // 输入2: convStates
@@ -32,18 +35,33 @@ extern "C" __global__ __aicore__ void causal_conv1d_update(
     GM_ADDR workspace,            // workspace
     GM_ADDR tiling)               // tiling
 {
-    REGISTER_TILING_DEFAULT(CausalConv1dUpdateTilingData);
-    GET_TILING_DATA_WITH_STRUCT(CausalConv1dUpdateTilingData, tilingData, tiling);
+    REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
     TPipe pipe;
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
     if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
-        CausalConv1dUpdateKernel<half> op(&pipe);
-        op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
+        // REGISTER_TILING_DEFAULT(CausalConv1dUpdateTilingData);
+        //GET_TILING_DATA_WITH_STRUCT(CausalConv1dUpdateTilingData, tilingData, tiling);
+        // CausalConv1dUpdateKernel<half> op(&pipe);
+        // op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
+        // op.Process();
+    }
+
+    if (TILING_KEY_IS(TILING_KEY_FN_BF16)) {
+        // REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
+        GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
+        CausalConv1dFn<bfloat16_t> op;
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
+                initialStateMode, y, workspace, &tilingData);
         op.Process();
-    } else if(TILING_KEY_IS(TILING_KEY_UPDATE_BF16)) {
-        CausalConv1dUpdateKernel<bfloat16_t> op(&pipe);
-        op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
+    }
+
+    if (TILING_KEY_IS(TILING_KEY_FN_FP16))  {
+        // REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
+        GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
+        CausalConv1dFn<half> op;
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
+                initialStateMode, y, workspace, &tilingData);
         op.Process();
     }
 }
