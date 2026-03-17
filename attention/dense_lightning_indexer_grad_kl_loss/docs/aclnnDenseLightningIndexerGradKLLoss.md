@@ -417,7 +417,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
       <tr>
        <td>ACLNN_ERR_INNER_TILING_ERROR</td>
        <td>561002</td>
-       <td>多个输入tensor之间的shape信息不匹配（详见参数说明）。</td>
+       <td>多个输入tensor之间的shape不匹配（详见参数说明）。</td>
       </tr>
       </tbody>
   </table>
