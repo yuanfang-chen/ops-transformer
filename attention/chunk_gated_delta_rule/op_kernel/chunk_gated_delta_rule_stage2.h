@@ -31,7 +31,7 @@ using cT2 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using StageTwoMT = matmul::MatmulImpl<aT2, bT2, cT2>;
 
 constexpr uint64_t BUFFER_NUM = 1;
-constexpr uint64_t BLOCK_SIZE = 32;
+constexpr uint64_t BLOCK_SIZE = BLOCK_SIZE;
 static constexpr uint64_t V_MTE3_EVENT = 0;
 static constexpr uint64_t MTE2_V_EVENT = 2;
 static constexpr uint64_t MTE3_MTE2_EVENT = 4;
@@ -45,19 +45,14 @@ struct StageTwoParams {
     GlobalTensor<float> curState_;  // (Nv, Dv, Dk)
     GlobalTensor<float> kg_;
     GlobalTensor<float> attnInter_;
-
     GM_ADDR ws;
-
     StageTwoMT *mm1_;
-
     TPipe *pipe_;
-
     ChunkGroup *cg;
     int64_t Nv_;
     int64_t Nk_;
     int64_t Dv_;
     int64_t Dk_;
-
     bool gOptional;
 };
 
@@ -214,7 +209,7 @@ public:
                                    static_cast<uint32_t>(col * sizeof(inType)),                // 非对齐情况需要补0
                                    static_cast<uint32_t>(0), 
                                    0, 0};
-        int padding = Ceil(col, 32 / sizeof(inType)) * (32 / sizeof(inType)) - col;
+        int padding = Ceil(col, BLOCK_SIZE / sizeof(inType)) * (BLOCK_SIZE / sizeof(inType)) - col;
         DataCopyPadExtParams<inType> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
         DataCopyPad(inLocal, tmpGM, inParams, padParams);
         inQueue_.EnQue(inLocal);

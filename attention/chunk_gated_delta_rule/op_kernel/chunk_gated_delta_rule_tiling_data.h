@@ -20,6 +20,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 
 namespace ChunkGatedDeltaRule {
+    uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
 
     #pragma pack(push, 8)
     struct alignas(8) ChunkGatedDeltaRuleTilingData {

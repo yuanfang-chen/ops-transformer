@@ -186,7 +186,7 @@ public:
                                    static_cast<uint32_t>(curChunkSize_ * sizeof(float)),
                                    static_cast<uint32_t>((chunkSize_ - curChunkSize_) * sizeof(float)),
                                    0, 0};
-        int padding = Ceil(curChunkSize_, 32 / sizeof(float)) * (32 / sizeof(float)) - curChunkSize_;
+        int padding = Ceil(curChunkSize_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float)) - curChunkSize_;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
         DataCopyPad(inLocal, sTP_->maskTensor_, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
@@ -204,7 +204,7 @@ public:
 
     __aicore__ inline void CalAttnOut(GlobalTensor<bfloat16_t> outTensor)
     {
-        curDv_ = Ceil(sTP_->Dv_, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t));
+        curDv_ = Ceil(sTP_->Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
         auto out = inQueue_.DeQue<float>();
         auto attn_out = outQueue_.AllocTensor<bfloat16_t>();
         Cast(attn_out, out, RoundMode::CAST_RINT, curChunkSize_ * curDv_);
@@ -236,7 +236,7 @@ public:
                                     static_cast<uint32_t>(col * sizeof(inType)),
                                     static_cast<uint32_t>(0), 
                                     0, 0};
-        int padding = Ceil(col, 32 / sizeof(inType)) * (32 / sizeof(inType)) - col;
+        int padding = Ceil(col, BLOCK_SIZE / sizeof(inType)) * (BLOCK_SIZE / sizeof(inType)) - col;
         DataCopyPadExtParams<inType> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
         DataCopyPad(inLocal, tmpGM, inParams, padParams);
         inQueue_.EnQue(inLocal);
@@ -268,7 +268,7 @@ public:
                                     static_cast<uint32_t>(col * sizeof(float)),
                                     static_cast<uint32_t>(0), 
                                     0, 0};
-        int padding = Ceil(col, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t)) - col;
+        int padding = Ceil(col, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t)) - col;
         DataCopyPadExtParams<float> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
         DataCopyPad(inLocal, tmpGM, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
