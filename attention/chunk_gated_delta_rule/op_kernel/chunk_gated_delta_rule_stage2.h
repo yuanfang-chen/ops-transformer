@@ -35,6 +35,7 @@ constexpr uint64_t BLOCK_SIZE = 32;
 static constexpr uint64_t V_MTE3_EVENT = 0;
 static constexpr uint64_t MTE2_V_EVENT = 2;
 static constexpr uint64_t MTE3_MTE2_EVENT = 4;
+static constexpr uint64_t FIX_MTE2_EVENT = 6;
 
 struct StageTwoParams {
     GlobalTensor<float> qPrime_;    // (Nv, Sp, Dk)
@@ -137,13 +138,14 @@ public:
                 if ASCEND_IS_AIC {
                     int mm_offset0 = nvId * seqLength_ * Dk_ + length * Dk_;
                     int mm_offset1 = nvId * seqLength_ * Dv_ + length * Dv_;
-                    PipeBarrier<PIPE_ALL>();
                     CalVPrime(sTP_->kCumdecay_[mm_offset0], curState, sTP_->vInner_[mm_offset1]);
                     CalAttnInter(sTP_->qPrime_[mm_offset0], curState, sTP_->attnInter_[mm_offset1]);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x2);   // 读完之前AIV不能写
                     CrossCoreWaitFlag(0x3);
                     CalStateNew(sTP_->vInner_[mm_offset1], sTP_->kg_[mm_offset0], curState);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x4);
+                    SetFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
+                    WaitFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
                 }
             }
         }
