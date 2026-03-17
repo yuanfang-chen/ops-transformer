@@ -95,8 +95,9 @@ public:
     static_assert(std::is_same_v<LayoutC, layout::RowMajor>, "LayoutC only support RowMajor yet!");
 
     __aicore__ inline
-    BlockMmad(Arch::Resource<ArchTag> &resource, uint32_t l1BufAddrStart = 0, uint32_t pingpongFlagOffset = 2)
+    BlockMmad(Arch::Resource<ArchTag> &resource, uint32_t l1BufAddrStart = 0, uint32_t pingpongFlagOffset = 0, bool isAtomicAdd_ = false)
     {
+        isAtomicAdd = isAtomicAdd_;
         PINGPONG_FLAG_OFFSET = pingpongFlagOffset;
         for (uint32_t i = 0; i < STAGES; i++) {
             l1ATensor[i] = resource.l1Buf.template GetBufferByByte<ElementA>(l1BufAddrStart + L1A_SIZE * i);
@@ -155,12 +156,17 @@ public:
         // copy block out
         auto blockShape = MakeCoord(actualShape.m(), actualShape.n());
         auto layoutInL0C = LayoutCInL0::MakeLayoutInL0C(blockShape);
-        AscendC::SetAtomicAdd<ElementC>();
-        copyL0CToGm(gC, l0CTensor[pingpongFlag], layoutC, layoutInL0C);
-        AscendC::SetAtomicNone();
+        if (isAtomicAdd) {
+            AscendC::SetAtomicAdd<ElementC>();
+            copyL0CToGm(gC, l0CTensor[pingpongFlag], layoutC, layoutInL0C);
+            AscendC::SetAtomicNone();
+        } else {
+            copyL0CToGm(gC, l0CTensor[pingpongFlag], layoutC, layoutInL0C);
+        }
+
         AscendC::SetFlag<AscendC::HardEvent::FIX_M>(pingpongFlag);
         
-        pingpongFlag = 1 - pingpongFlag;
+        // pingpongFlag = 1 - pingpongFlag;
     }
 
 protected:
@@ -183,7 +189,8 @@ protected:
     uint32_t l1BPingPongFlag = 0;
     uint32_t l0CPingPongFlag = 0;
     uint32_t l0ABPingPongFlag = 0;
-    uint32_t PINGPONG_FLAG_OFFSET = 2;
+    uint32_t PINGPONG_FLAG_OFFSET = 0;
+    bool isAtomicAdd = false;
 };
 
 ////////////////////////////////////////////////////////////////////

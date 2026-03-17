@@ -65,7 +65,7 @@ constexpr uint64_t WORKSPACE_NUM_ALIGN = 256;
 namespace optiling {
 
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
-constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
+constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2 * 2;
 constexpr uint32_t NUM3 = 3;
 constexpr uint32_t ONEBLOCK_FLOAT_NUM = 32 / sizeof(float);  // 基本块32字节的float数目
 static inline uint32_t CeilDiv(uint32_t n1, uint32_t n2)

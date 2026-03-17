@@ -41,8 +41,8 @@ namespace BSA {
     constexpr uint32_t CUBE2POST = 9;
 
     constexpr int32_t PRE_LAUNCH = 2;
-    constexpr uint64_t WORKSPACE_BLOCK_SIZE = 128 * 128;
-    constexpr uint64_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
+    constexpr uint64_t WORKSPACE_BLOCK_SIZE = 128 * 128 * 2;
+    constexpr uint64_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2 * 2;
     constexpr uint64_t L1_SIZE_OFFSET = 131072;
     constexpr uint32_t PINGPONG_OFFSET_2 = 2;
     constexpr uint32_t PINGPONG_OFFSET_4 = 4;
@@ -366,8 +366,8 @@ namespace BSA {
             }
 
             BlockMmadBSAG1 blockMmad1(resource);
-            BlockMmadBSAG2 blockMmad2(resource, L1_SIZE_OFFSET, PINGPONG_OFFSET_2);
-            BlockMmadBSAG3 blockMmad3(resource, L1_SIZE_OFFSET * 2, PINGPONG_OFFSET_4);
+            BlockMmadBSAG2 blockMmad2(resource, L1_SIZE_OFFSET, PINGPONG_OFFSET_2, true);
+            BlockMmadBSAG3 blockMmad3(resource, L1_SIZE_OFFSET * 2, PINGPONG_OFFSET_4, true);
             uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
@@ -375,11 +375,10 @@ namespace BSA {
             SetFlag();
             for (uint32_t i = 0; i < taskLength; i++) {
                 TaskInfo curInfo = taskInfo[i % 2];
-                LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
-                blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
-                blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
+                // LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
+                // AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+                // blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
+                // blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
 
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
@@ -398,11 +397,12 @@ namespace BSA {
                                 curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * headDim;
                             }
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
+                            LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
                             LayoutB1 layoutB1(curInfo.curCalKVSize, headDim);
                             LayoutC1 layoutC1(curInfo.curCalQSize, curInfo.curCalKVSize);
                             GemmCoord actualShape1{curInfo.curCalQSize, curInfo.curCalKVSize, headDim};
-                            blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 0);
-                            blockMmad1(gDout[curInfo.qOffset], gV[curInfo.kvOffset], gDp[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 1);
+                            blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1);
+                            blockMmad1(gDout[curInfo.qOffset], gV[curInfo.kvOffset], gDp[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1);
                             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
                             if (count > 0) {
                                 AscendC::WaitEvent(VEC2CUBE);
@@ -427,8 +427,7 @@ namespace BSA {
                     }
                     kvBlockOffset += blockShapeY;
                 }
-                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
-                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+                // AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
                 if (i != taskLength - 1) {
                     updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
                         blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
