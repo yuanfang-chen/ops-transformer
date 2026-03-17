@@ -70,10 +70,10 @@ static const aclTensor* GetTensorContiguous(const aclTensor *tensor, aclOpExecut
         return nullptr;
     }
     if (!IsContiguous(tensor)) {
-        aclTensor* tensor = executor->CreateView(tensor, tensor->GetViewShape(), tensor->GetStorageShape(),
+        tensor = executor->CreateView(tensor, tensor->GetViewShape(), tensor->GetStorageShape(),
                                             tensor->GetViewStrides(), tensor->GetViewOffset());
     } else {
-        aclTensor* tensor = l0op::Contiguous(tensor, executor);
+        tensor = l0op::Contiguous(tensor, executor);
     }
 
     CHECK_RET(tensor != nullptr, nullptr);
