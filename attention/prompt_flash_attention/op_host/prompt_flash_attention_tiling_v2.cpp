@@ -4236,9 +4236,11 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
         curWorkspaceSize = static_cast<size_t>((bmm2Bytes + vec2Bytes) * 3 *
             coreNum) + sysWorkspaceSize + accumOutSize + logSumExpSize;
         if (enableSplitCoreBalance) {
-            uint32_t faTmpAttenGmSize = s1BasicBlock * dSize * 4;
-            uint32_t fatmpReslseGmSize = s1BasicBlock * 8 * 4;
-            curWorkspaceSize += (faTmpAttenGmSize + fatmpReslseGmSize) * coreNum;
+            uint32_t faTmpAttenGmSize = s1BasicBlock * dSize * 4 * coreNum;
+            uint32_t fatmpReslseGmSize = s1BasicBlock * 8 * 4 * coreNum;
+            curWorkspaceSize += (faTmpAttenGmSize + fatmpReslseGmSize * 2);
+            faTilingAdapter->inputParamsRegbase.set_accumOutSize(faTmpAttenGmSize);
+            faTilingAdapter->inputParamsRegbase.set_logSumExpSize(fatmpReslseGmSize);
         }
     }
     if (enablePA) {

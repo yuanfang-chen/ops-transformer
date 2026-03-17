@@ -653,6 +653,34 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
     }
     this->ComputeBmm1Tail(runInfo, runParam);
     GetDerived()->InitUniqueRunInfo(runParam, runInfo);
+
+    if constexpr (isInfer) {
+        if ASCEND_IS_AIV {
+            runInfo.isS2SplitCore = false;
+            runInfo.faTmpResGMPos = 0;
+            if (sharedParams.bN2StartIdx == sharedParams.bN2EndIdx && sharedParams.gS1StartIdx == sharedParams.gS1EndIdx) {
+                // 所有任务属于同一个S1G
+                runInfo.isS2SplitCore = true;
+                runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
+            } else {
+                if ((bN2Cur == sharedParams.bN2StartIdx) && (gS1Cur == sharedParams.gS1StartIdx)) {
+                    // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
+                    runInfo.isS2SplitCore = (sharedParams.s2StartIdx != runParam.s2LineStartIdx);
+                    runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
+                } else if ((bN2Cur == sharedParams.bN2EndIdx) && (gS1Cur == sharedParams.gS1EndIdx)) {
+                    // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
+                    runInfo.isS2SplitCore = (sharedParams.s2EndIdx > 0U) ? true : false;
+                    runInfo.faTmpResGMPos = 0;
+                }
+            }
+
+            if constexpr (isFd && enableSplitCoreBalance) {
+                if (runInfo.isS2SplitCore) {
+                    CalcAccumOffset(runInfo, constInfo);
+                }
+            }
+        }
+    }
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>

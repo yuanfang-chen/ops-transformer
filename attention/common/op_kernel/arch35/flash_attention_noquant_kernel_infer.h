@@ -56,7 +56,7 @@ template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
 FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueConstInfo()
 {
-    if constexpr (isFd) {
+    if constexpr (isFd && enableSplitCoreBalance) {
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
         this->constInfo.sInnerLoopSize = CeilDiv(this->constInfo.s2Size, this->constInfo.splitKVNum);
     }
@@ -108,6 +108,8 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Init
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
+// TODO，isFD分支需要判断是老FD还是新FD，新FD是否需要这段逻辑
+
 template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
 FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ProcessMainLoopBalance()
@@ -121,19 +123,18 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
     RunInfo<isInfer> runInfo[4];
     RunParamStr<isInfer> runParam;
 
-    int32_t bN2Start = this->sharedParams.bN2StartIdx;
-    int32_t bN2End = this->sharedParams.bN2EndIdx;
-    int32_t gS1Start = this->sharedParams.gS1StartIdx;
-    int32_t gS1End = this->sharedParams.gS1EndIdx;
-    int32_t s2Start = this->sharedParams.s2StartIdx;
-    int32_t s2End = this->sharedParams.s2EndIdx;
+    int32_t bN2StartIdx = this->sharedParams.bnStartIdx;
+    int32_t bN2EndIdx = this->sharedParams.bnEndIdx;
+    int32_t gS1StartIdx = this->sharedParams.gS1StartIdx;
+    int32_t gS1EndIdx = this->sharedParams.gS1EndIdx;
+    int32_t s2StartIdx = this->sharedParams.s2StartIdx;
+    int32_t s2EndIdx = this->sharedParams.s2EndIdx;
 
     // 注意这里不等于0是因为，推理的在SetRunInfo中第一次也需要赋值runInfo.s1oIdx，boIdx，n2oIdx，goIdx
     // 训练这些值在multiCoreInnerIdx = 0的时候都是0，两边不统一
     int64_t multiCoreInnerIdx = 1;
-    for (int32_t bnIdx = bN2Start; bnIdx <= bN2End; ++bnIdx) {
-        // todo: 这里是bnIdx <= bN2End，而非负载均衡则是bnIdx < bN2EndIdx，要确认
-        bool lastBN = (bnIdx == bN2End);
+    for (int32_t bnIdx = bN2StartIdx; bnIdx <= bN2EndIdx; ++bnIdx) {
+        bool lastBN = (bnIdx == bN2EndIdx);
         runParam.boIdx = bnIdx / this->constInfo.n2Size;
         runParam.n2oIdx = bnIdx % this->constInfo.n2Size;
         ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, this->attenMaskInfo,
@@ -146,9 +147,10 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
         } else {
             runParam.s1LoopTimes = CeilDiv(this->constInfo.gS1, gS1BaseSize);
         }
-        int32_t tempGS1End = lastBN ? gS1End : Max(runParam.s1LoopTimes - 1, 0);
 
-        for (int32_t gS1Index = gS1Start; gS1Index <= tempGS1End; ++gS1Index) {
+        int32_t tempGS1Start = (bnIdx == bN2StartIdx) ? gS1StartIdx : 0;
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(runParam.s1LoopTimes - 1, 0);
+        for (int32_t gS1Index = tempGS1Start; gS1Index <= tempGS1End; ++gS1Index) {
             bool lastGS1 = (gS1Index == tempGS1End);
             // if (notLastThreeLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
@@ -165,16 +167,17 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
             //     s2LoopLimit = 0;
             // }
 
+            int32_t tempS2Start = (bnIdx == bN2StartIdx) && (gS1Index == gS1StartIdx) ? s2StartIdx : runParam.s2LineStartIdx;
             int32_t tempS2End, extraLoopTimes;
             if (unlikely(lastBN && lastGS1)) {
-                tempS2End = s2End;
+                tempS2End = s2EndIdx;
                 extraLoopTimes = 3;
             } else {
                 tempS2End = runParam.s2LoopEndIdx;
                 extraLoopTimes = 0;
             }
 
-            for (int32_t s2Idx = s2Start; s2Idx < tempS2End + extraLoopTimes; ++s2Idx) {
+            for (int32_t s2Idx = s2StartIdx; s2Idx < tempS2End + extraLoopTimes; ++s2Idx) {
                 bool notLastThreeLoop = s2Idx < tempS2End;
                 bool notLastTwoLoop = s2Idx < tempS2End + 1;
                 bool notLast = s2Idx < tempS2End + 2;
@@ -218,9 +221,7 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
                 ++taskId;
             }
             ++multiCoreInnerIdx;
-            s2Start = 0;
         }
-        gS1Start = 0;
     }
 }
 
