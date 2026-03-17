@@ -918,7 +918,6 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
     for (uint32_t expertIdx = 0; expertIdx < moeExpertNumPerRank_; expertIdx++) {
         if (statusTensor_((preExpertNum + expertIdx) * 8 + 1) > 0){
             GlobalTensor<YOutType> srcAddr_T;
-            uint32_t length = statusTensor_((preExpertNum + expertIdx) * 8 + 1) * (hOutSizeAlign_);
             uint64_t addr = reinterpret_cast<uint64_t>(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_);
             srcAddr_T.SetGlobalBuffer((__gm__ YOutType*)(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_));
             LocalTensor<YOutType> tmpToken = tmpTokenBuf_.Get<YOutType>();
@@ -1014,7 +1013,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
                                                         (expertPerSizeOnWin_ * // expert大小
                                                         (epRankId_ * moeExpertNumPerRank_ + expertIdx))); // 当前卡id * 每张卡的moe数目 + 在当前卡的moe的相对位置
                     uint64_t rmtAddr = reinterpret_cast<uint64_t>(rankGM);
-                    uint32_t length = statusTensor_((preExpertNum + expertIdx) * 8 + 1) * (hOutSizeAlign_);
+                    uint32_t length = statusTensor_((preExpertNum + expertIdx) * 8 + 1) * (hAlignWinSize_);
                     // 复制1份WQE模板
                     SyncFunc<AscendC::HardEvent::S_V>();
                     DataCopy(tokenSqeU8[WRITE_SQE_SIZE * tokenSqeNum], templateSqeU8, WRITE_SQE_SIZE);
