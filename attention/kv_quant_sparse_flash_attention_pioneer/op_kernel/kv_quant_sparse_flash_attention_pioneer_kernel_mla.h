@@ -101,6 +101,7 @@ private:
     /* GM信息 */
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
+    __gm__ int32_t *keySinkADddr = nullptr;
 
     GlobalTensor<int32_t> actualSeqLengthsQGm;
     uint32_t usedCoreNum = 0U;
@@ -141,6 +142,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     constInfo.s2BaseSize = 128;
 
     this->pipe = tPipe;
+    this->keySinkAddr = key_sink;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, actualSeqLengthsQ, actualSeqLengths);
     if ASCEND_IS_AIV {
         constInfo.bSize = this->sharedParams.bSize;
@@ -166,6 +168,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     this->ComputeConstexpr();
     this->InitGlobalBuffer(query, key, value, sparseIndices, blockTable, actualSeqLengthsQ, actualSeqLengths,
         workspace, tiling, tPipe); // gm设置
+    cubeBlock.SetSinkKvAddr(this->keySinkAddr);
     this->InitCalcParamsEach();
     this->InitLocalBuffer();
 }
@@ -511,6 +514,10 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                     RunInfo &runInfo1 = runInfo[taskId % 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
+                        if constexpr (isFd) {
+                            auto sinkL1Buf = this->l1RightBuffers.Get();
+                            this->cubeBlock.CopySinkKvToL1(sinkL1Buf, runInfo1, this->constInfo);
+                        }
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
                             this->constInfo);
                     } else {

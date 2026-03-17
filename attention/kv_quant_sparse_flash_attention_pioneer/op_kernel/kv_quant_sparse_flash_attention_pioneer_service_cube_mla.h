@@ -77,7 +77,10 @@ public:
     __aicore__ inline QSFAMatmulService() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
-    __aicore__ inline void SetSinkKvAddr(__gm__ uint8_t *key_sink)
+    __aicore__ inline void SetSinkKvAddr(__gm__ uint8_t *key_sink);
+    __aicore__ inline void CopySinkKvToL1(
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo);
@@ -154,10 +157,21 @@ __aicore__ inline void
 QSFAMatmulService<TEMPLATE_ARGS>::SetSinkKvAddr(__gm__ uint8_t *key_sink)
 {
     if ASCEND_IS_AIC {
-        if constexpr (isFd) {
+        if (key_sink != nullptr) {
             keySinkGm.SetGlobalBuffer((__gm__ Q_T *)key_sink);
         }
     }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void
+QSFAMatmulService<TEMPLATE_ARGS>::CopySinkKvToL1(
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        RunInfo &runInfo, ConstInfo &constInfo)
+{
+    outputL1.WaitCrossCore();
+    LocalTensor<Q_T> l1RightTensor = outputL1.GetTensor<Q_T>();
+    CopyToL1Nd2Nz<Q_T>(l1RightTensor, this->keySinkGm, sink_num, constInfo.dSize, constInfo.mm1Ka);//todo
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -231,14 +245,14 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>
         inputLeftBuf = l1QBuffers.Get();
         inputLeftBuf.Wait<HardEvent::MTE1_MTE2>(); // 占用L1A
         LocalTensor<Q_T> inputLeftTensor = inputLeftBuf.GetTensor<Q_T>();
-        LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
+        // LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
         CopyToL1Nd2Nz<Q_T>(inputLeftTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.mRealSize, constInfo.dSize,
             constInfo.mm1Ka);
 
         inputLeftBuf.Set<HardEvent::MTE2_MTE1>(); // 通知
-        if constexpr (isFd) {
-            CopyToL1Nd2Nz<Q_T>(inputRightTensor, this->keySinkGm, sink_num, constInfo.dSize, constInfo.mm1Ka);//todo
-        }
+        // if constexpr (isFd) {
+        //     CopyToL1Nd2Nz<Q_T>(inputRightTensor, this->keySinkGm, sink_num, constInfo.dSize, constInfo.mm1Ka);//todo
+        // }
     } else { // 非S2的第一次循环直接复用Q
         inputLeftBuf = l1QBuffers.GetPre();
         // 左矩阵复用时，sinner循环内不需要MTE2同步等待
@@ -337,6 +351,10 @@ public:
     __aicore__ inline QSFAMatmulServiceDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo) {}
+    __aicore__ inline void SetSinkKvAddr(__gm__ uint8_t *key_sink) {}
+    __aicore__ inline void CopySinkKvToL1(
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        RunInfo &runInfo, ConstInfo &constInfo){}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo) {}
