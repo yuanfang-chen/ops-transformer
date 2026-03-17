@@ -106,6 +106,7 @@ public:
         nvEnd = nvEnd > Nv_ ? Nv_ : nvEnd;
         int64_t lastChunkSize = seqLength_ % chunkSize_ == 0 ? chunkSize_ : seqLength_ % chunkSize_;
         for (int64_t nvId = nvStart; nvId < nvEnd; nvId++) {
+            curChunkSize_ = chunkSize_;
             auto curState = sTP_->curState_[nvId * Dv_ * Dk_];
             for (int64_t cId = 0; cId < chunkNum_; cId++) {
                 int64_t length = cId * chunkSize_;

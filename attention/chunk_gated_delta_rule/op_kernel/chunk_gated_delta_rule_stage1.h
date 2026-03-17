@@ -195,6 +195,7 @@ public:
         }
 
         for (int32_t task_id = start; task_id < end; ++task_id) {
+            validLen_ = chunkSize_;
             uint64_t nid   = task_id % nv_;
             uint64_t cg_id = task_id / nv_;
             // 尾chunk处理
