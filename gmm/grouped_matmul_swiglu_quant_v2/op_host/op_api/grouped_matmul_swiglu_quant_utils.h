@@ -311,7 +311,11 @@ protected:
                     "Contiguous weight failed.");
         CHECK_COND(DataContiguous(gmmDsqParams_.weightScale) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR,
                     "Contiguous weightScale failed.");
-
+        if(gmmDsqParams_.weightAssistMatrix != nullptr && gmmDsqParams_.weightAssistMatrix->size() != 0){
+            CHECK_COND(DataContiguous(gmmDsqParams_.emptyWeightAssistMatrixList) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR,
+                    "Contiguous weightAssistMatrix failed.");
+        }
+        
         gmmDsqParams_.x = l0op::Contiguous(gmmDsqParams_.x, l0Executor_);
         CHECK_COND(gmmDsqParams_.x != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
         gmmDsqParams_.xScale = l0op::Contiguous(gmmDsqParams_.xScale, l0Executor_);
