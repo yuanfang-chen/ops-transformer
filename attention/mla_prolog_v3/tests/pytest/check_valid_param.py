@@ -187,6 +187,13 @@ def check_single_output(name, expect, result, prec_params, pct_thd_override=None
         prec_params:      OUTPUT_PRECISION_PARAMS 中对应的精度参数字典。
         pct_thd_override: 若设置，覆盖 prec_params['pct_thd']（用于调试）。
     """
+    # Convert float8_e8m0fnu to uint8 for byte-level comparison
+    if hasattr(torch, 'float8_e8m0fnu'):
+        if result.dtype == torch.float8_e8m0fnu:
+            result = result.view(torch.uint8)
+        if expect.dtype == torch.float8_e8m0fnu:
+            expect = expect.view(torch.uint8)
+
     native_dtype = expect.dtype
     diff_thd     = prec_params['diff_thd']
     pct_thd      = prec_params['pct_thd'] if pct_thd_override is None else pct_thd_override
