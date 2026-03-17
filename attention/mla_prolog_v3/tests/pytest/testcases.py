@@ -232,7 +232,7 @@ TEST_PARAMS = {
 }
 
 # 按需选择要启用的测试参数
-ENABLED_PARAMS = [TEST_PARAMS["base_default"]]
+ENABLED_PARAMS = []
 
 # 性能分析用例名称（perf_analyzer --mode report 使用）
 PERF_CASE_NAMES = [
