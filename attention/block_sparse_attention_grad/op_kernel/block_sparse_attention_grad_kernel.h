@@ -449,7 +449,6 @@ namespace BSA {
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
-            // AscendC::SyncAll<false>();
             WaitFlag();
         }
 
@@ -472,7 +471,7 @@ namespace BSA {
             PipeBarrier<PIPE_ALL>();
 
             AscendC::WaitEvent(CUBE2POST);
-            // AscendC::SyncAll<false>();
+            AscendC::SyncAll();
 
             // post
             VecPost(params);
