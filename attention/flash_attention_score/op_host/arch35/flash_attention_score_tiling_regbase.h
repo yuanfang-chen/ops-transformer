@@ -389,7 +389,7 @@ protected:
     virtual void CalcDBasicBlock() = 0;
     virtual void CalcDVBasicBlock();
     virtual int64_t CalcTotalSize();
-
+    virtual void AnalyzeOptionalDn() {}
     virtual ge::graphStatus SetQKVStartIdx();
     virtual void SetOutputDtype();
     virtual void SetSplitCoreModeParam();
@@ -486,6 +486,7 @@ protected:
     bool dropMaskOuter = false;
     bool regbase = false;
     bool hasRope = false;
+    bool optionalDn = false;
 
     DTemplateType dTemplateType = DTemplateType::DTEMPLATEBOTTOM;
     DTemplateType dVTemplateType = DTemplateType::DTEMPLATEBOTTOM;
