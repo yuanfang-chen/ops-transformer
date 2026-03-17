@@ -137,6 +137,7 @@ public:
                 if ASCEND_IS_AIC {
                     int mm_offset0 = nvId * seqLength_ * Dk_ + length * Dk_;
                     int mm_offset1 = nvId * seqLength_ * Dv_ + length * Dv_;
+                    PipeBarrier<PIPE_ALL>();
                     CalVPrime(sTP_->kCumdecay_[mm_offset0], curState, sTP_->vInner_[mm_offset1]);
                     CalAttnInter(sTP_->qPrime_[mm_offset0], curState, sTP_->attnInter_[mm_offset1]);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x2);   // 读完之前AIV不能写
