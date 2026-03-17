@@ -71,6 +71,10 @@ endif ()
 
 string(STRIP "${CPACK_PACKAGE_PARAM_NAME}" PKG_NAME)
 
+# 修改Version文件路径
+set(CPACK_VERSION_DEST "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h")
+set(CPACK_VERSION_IS_FILE TRUE)
+
 # --- 1. 默认值处理 ---
 
 # 默认 Scene 目录：share/info/<包名>
@@ -138,6 +142,17 @@ if(DEFINED CPACK_EXTRA_VERSION_FILES)
     endforeach()
 endif()
 
+# 统一设置安装的文件权限为550
+execute_process(
+    COMMAND find ${STAGING_DIR} -type f -exec chmod 550 {} \;
+    RESULT_VARIABLE CHMOD_RESULT
+)
+file(CHMOD ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h
+    PERMISSIONS OWNER_READ GROUP_READ
+)
+file(CHMOD ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg
+    PERMISSIONS OWNER_READ GROUP_READ
+)
 # makeself打包
 file(STRINGS ${CPACK_CMAKE_BINARY_DIR}/makeself.txt script_output)
 string(REPLACE " " ";" makeself_param_string "${script_output}")
