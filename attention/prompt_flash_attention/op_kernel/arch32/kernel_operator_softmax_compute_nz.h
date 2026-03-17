@@ -25,7 +25,7 @@
 #else
 #include "kernel_operator.h"
 #endif
-#include "kernel_pop_stack_buffer.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 // test
 #pragma begin_pipe(V)
