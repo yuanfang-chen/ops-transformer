@@ -140,15 +140,15 @@ uint64_t HCCLPerformanceModel::GetMaxStepSize() {
 
 uint64_t HCCLPerformanceModel::GetLinearThresholdLen() {
   uint64_t resultLen =
-      HCCL_MIN_TILE_LEN / (commTypeInfo_.commMatrixLen * lookUpTileNum_ *
-                           commTypeInfo_.commDtypeSize);
+      static_cast<uint64_t>(HCCL_MIN_TILE_LEN / (commTypeInfo_.commMatrixLen * lookUpTileNum_ *
+                           GetRealDtypeSizes()));
   return resultLen;
 }
 
 uint64_t HCCLPerformanceModel::GetLinearThresholdLenCoarse() {
-  uint64_t resultLen = HCCL_MIN_TILE_LEN_COARSE /
+  uint64_t resultLen = static_cast<uint64_t>(HCCL_MIN_TILE_LEN_COARSE /
                        (commTypeInfo_.commMatrixLen * commTypeInfo_.rankDim *
-                        commTypeInfo_.commDtypeSize);
+                        GetRealDtypeSizes()));
   return resultLen;
 }
 
@@ -163,8 +163,8 @@ void HCCLPerformanceModel::GetCommEstimateParameters() {
 }
 
 double HCCLPerformanceModel::CommTime(uint64_t mSize) const {
-  uint64_t commDataSize = mSize * commTypeInfo_.commMatrixLen * lookUpTileNum_ *
-                          commTypeInfo_.commDtypeSize;
+  uint64_t commDataSize = static_cast<uint64_t>(mSize * commTypeInfo_.commMatrixLen * lookUpTileNum_ *
+                          GetRealDtypeSizes());
   double tmpSize = static_cast<double>(commDataSize) / ONE_MBYTE;
   double result = commEstimatePar_.timeToSizeBoundary1;
   if (tmpSize > commEstimatePar_.sizeToTimeBoundary2) {
@@ -204,6 +204,6 @@ uint64_t HCCLPerformanceModel::InverseCommTime(double targetTime) const {
     }
   }
   return static_cast<uint64_t>(tmpSize * ONE_MBYTE) /
-         (commTypeInfo_.commMatrixLen * lookUpTileNum_ *
-          commTypeInfo_.commDtypeSize);
+         static_cast<uint64_t>((commTypeInfo_.commMatrixLen * lookUpTileNum_ *
+          GetRealDtypeSizes()));
 }
