@@ -79,6 +79,13 @@ explicit HCCLPerformanceModel(uint32_t inputRankDim, KernelType inputKernelType,
     {
         commTypeInfo_.commDtypeSize = dTypeSize;
     }
+    void SetCommDtypeSizeExpansionFraction(uint64_t number)
+    {
+        commTypeInfo_.commDtypeSizeExpansionFraction = number;
+    }
+    double GetRealDtypeSizes() {
+        return commTypeInfo_.commMatrixLen / commTypeInfo_.commDtypeSizeExpansionFraction;
+    }
     uint64_t GetCommDTypeSize()
     {
         return commTypeInfo_.commDtypeSize;
