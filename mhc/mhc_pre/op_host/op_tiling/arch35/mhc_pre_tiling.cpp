@@ -324,12 +324,11 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
                                     DECODE_WORKSPACE_ALIGN * DECODE_WORKSPACE_ALIGN;
         size_t mmResWorkspaceSize = 0;
 
-        if (outFlag_ == 0U) {
-            uint64_t chunkNd = (matK_ + blockDim_ - 1) / blockDim_;
-            uint64_t mmResBlockNum = (matK_ + chunkNd - 1) / chunkNd;
-            mmResWorkspaceSize = static_cast<size_t>(mmResBlockNum) * static_cast<size_t>(matM_) *
-                                static_cast<size_t>(matN_) * sizeof(float);
-        }
+        uint64_t chunkNd = (matK_ + blockDim_ - 1) / blockDim_;
+        uint64_t mmResBlockNum = (matK_ + chunkNd - 1) / chunkNd;
+        mmResWorkspaceSize = static_cast<size_t>(mmResBlockNum) * static_cast<size_t>(matM_) *
+                            static_cast<size_t>(matN_) * sizeof(float);
+        
         userWorkspaceSize = xFloatWorkspaceSize + mmResWorkspaceSize;
     } else {
         userWorkspaceSize =
