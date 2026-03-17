@@ -334,49 +334,47 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     validSeqLen_ = cuSeqLen_;
 
     // 如果有 padSlotId，需要读取 cacheIndices 来确定有效 batch 范围
-    if (padSlotId_ >= 0) {
-        // 尝试读取 cacheIndices 数据 (OPTIONAL)
-        const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(INPUT_CACHE_INDICES_INDEX);
-        if (cacheIndicesTensor != nullptr && cacheIndicesTensor->GetData<int32_t>() != nullptr) {
-            // 获取 cacheIndices tensor (batch 个 int32 元素)
-            const int32_t* cacheIndices = cacheIndicesTensor->GetData<int32_t>();
+    // 尝试读取 cacheIndices 数据 (OPTIONAL)
+    const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(INPUT_CACHE_INDICES_INDEX);
+    if (cacheIndicesTensor != nullptr && cacheIndicesTensor->GetData<int32_t>() != nullptr) {
+        // 获取 cacheIndices tensor (batch 个 int32 元素)
+        const int32_t* cacheIndices = cacheIndicesTensor->GetData<int32_t>();
 
-            // 从前往后找第一个不等于 padSlotId 的位置
-            uint64_t validStart = batch_;  // 默认全是padding
-            for (uint64_t i = 0; i < batch_; i++) {
-                if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
-                    validStart = i;
-                    break;
-                }
+        // 从前往后找第一个不等于 padSlotId 的位置
+        uint64_t validStart = batch_;  // 默认全是padding
+        for (uint64_t i = 0; i < batch_; i++) {
+            if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
+                validStart = i;
+                break;
             }
+        }
 
-            // 从后往前找最后一个不等于 padSlotId 的位置
-            uint64_t validEnd = 0;
-            for (int64_t i = static_cast<int64_t>(batch_) - 1; i >= 0; i--) {
-                if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
-                    validEnd = static_cast<uint64_t>(i);
-                    break;
-                }
+        // 从后往前找最后一个不等于 padSlotId 的位置
+        uint64_t validEnd = 0;
+        for (int64_t i = static_cast<int64_t>(batch_) - 1; i >= 0; i--) {
+            if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
+                validEnd = static_cast<uint64_t>(i);
+                break;
             }
+        }
 
-            // 计算有效 batch 数量
-            if (validStart <= validEnd && validStart < batch_) {
-                validBatchStart_ = validStart;
-                validBatchCount_ = validEnd - validStart + 1;
+        // 计算有效 batch 数量
+        if (validStart <= validEnd && validStart < batch_) {
+            validBatchStart_ = validStart;
+            validBatchCount_ = validEnd - validStart + 1;
 
-                // 读取 queryStartLoc 计算有效序列范围 (OPTIONAL)
-                const gert::Tensor* queryStartLocTensor = context_->GetOptionalInputTensor(INPUT_QUERY_START_LOC_INDEX);
-                if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
-                    const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
-                    validSeqStart_ = static_cast<uint64_t>(queryStartLoc[validBatchStart_]);
-                    uint64_t validSeqEnd = static_cast<uint64_t>(queryStartLoc[validEnd + 1]);
-                    validSeqLen_ = validSeqEnd - validSeqStart_;
-                }
-            } else {
-                // 所有 batch 都是 padding，设置为 0
-                validBatchCount_ = 0;
-                validSeqLen_ = 0;
+            // 读取 queryStartLoc 计算有效序列范围 (OPTIONAL)
+            const gert::Tensor* queryStartLocTensor = context_->GetOptionalInputTensor(INPUT_QUERY_START_LOC_INDEX);
+            if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
+                const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
+                validSeqStart_ = static_cast<uint64_t>(queryStartLoc[validBatchStart_]);
+                uint64_t validSeqEnd = static_cast<uint64_t>(queryStartLoc[validEnd + 1]);
+                validSeqLen_ = validSeqEnd - validSeqStart_;
             }
+        } else {
+            // 所有 batch 都是 padding，设置为 0
+            validBatchCount_ = 0;
+            validSeqLen_ = 0;
         }
     }
 
