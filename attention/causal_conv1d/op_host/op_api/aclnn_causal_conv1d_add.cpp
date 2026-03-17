@@ -44,10 +44,9 @@ aclnnStatus CausalConv1dCommonProcess(const aclTensor *x, const aclTensor *weigh
         uniqueExecutor->CreateView(x, x->GetViewShape(), x->GetStorageShape(), x->GetViewStrides(), x->GetViewOffset());
     CHECK_COND(xFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for x failed.");
 
-    aclTensor *convStatesFinal =
-        uniqueExecutor->CreateView(convStates, convStates->GetViewShape(), convStates->GetStorageShape(),
-                                   convStates->GetViewStrides(), convStates->GetViewOffset());
-    CHECK_COND(convStatesFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for convStatesFinal failed.");
+    convStates = uniqueExecutor->CreateView(convStates, convStates->GetViewShape(), convStates->GetStorageShape(),
+                                            convStates->GetViewStrides(), convStates->GetViewOffset());
+    CHECK_COND(convStates != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for convStates failed.");
 
     weight = l0op::Contiguous(weight, uniqueExecutor.get());
     CHECK_COND(weight != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous weight failed.");
@@ -74,11 +73,9 @@ aclnnStatus CausalConv1dCommonProcess(const aclTensor *x, const aclTensor *weigh
         CHECK_COND(numAcceptedTokens != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous numAcceptedTokens failed.");
     }
 
-    // convStates is an in-place update: the same tensor serves as both input and
-    // output. y is always contiguous. Both are passed directly to l0op.
-    bool ok = l0op::CausalConv1d(xFinal, weight, convStatesFinal, queryStartLoc, cacheIndices, initialStateMode, bias,
-                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
-                                 uniqueExecutor.get());
+    bool ok = l0op::CausalConv1d(xFinal, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias,
+                                    numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
+                                    uniqueExecutor.get());
     CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
