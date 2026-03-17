@@ -21,6 +21,7 @@
 #include <tiling/platform/platform_ascendc.h>
 #include "register/tilingdata_base.h"
 #include "exe_graph/runtime/tiling_context.h"
+#include "platform/soc_spec.h"
 
 namespace optiling {
 // ------------------算子原型索引常量定义----------------
@@ -164,6 +165,8 @@ TILING_DATA_FIELD_DEF(uint32_t, outputLayout)
 TILING_DATA_FIELD_DEF(uint32_t, sparseMode)
 TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, sparseBlockCount)
+TILING_DATA_FIELD_DEF(int64_t, dSizeVInput)
+
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseFlashAttentionBaseParamsMlaOp, KvQuantSparseFlashAttentionBaseParamsMla)
 
@@ -298,6 +301,7 @@ struct QSFATilingInfo {
     ge::DataType inputKRopeType = ge::DT_FLOAT16;
 
     uint64_t l2CacheSize = 0;
+    int64_t dSizeVInput = 0;
 };
 
 // ---------------算子Tiling类---------------
@@ -550,6 +554,7 @@ public:
     ge::graphStatus GetS2SizeForPageAttention();
     ge::graphStatus GetS2Size();
     ge::graphStatus GetValueHeadDim();
+    ge::graphStatus GetDSizeKV();
     ge::graphStatus GetRopeHeadDim();
     ge::graphStatus GetQueryAndOutLayout();
     ge::graphStatus GetTopkLayout();
@@ -583,6 +588,7 @@ public:
     uint32_t kHeadDim_ = 0;
     uint32_t vHeadDim_ = 0;
     int32_t ropeHeadDim_ = 0;
+    int64_t dSizeKV_ = 0;
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;

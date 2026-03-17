@@ -28,7 +28,8 @@
 #include "level0/zero_op.h"
 #ifdef BUILD_OPEN_PROJECT_API
     #include "../../../moe/3rd/moe_masked_scatter/op_host/op_api/moe_masked_scatter.h"
-    #include "../../../moe/3rd/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add.h"
+    #include "../../../moe/3rd/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add_with_sorted.h"
+    #include "../../../moe/3rd/moe_inplace_index_add/op_host/op_api/moe_inplace_index_add.h"
 #else
     #include "level0/masked_scatter.h"
     #include "level0/inplace_index_add.h"
@@ -185,6 +186,44 @@ static bool CheckShapeValid(
     return true;
 }
 
+static void CheckFormatValid(
+    const aclTensor* permutedTokenOutputGrad, const aclTensor* permutedProbsOutputGradOptional,
+    const aclTensor* sortedIndices, const aclTensor* routingMapOptional)
+{
+    // 检查输入张量的格式是否为 ND 格式
+    if (permutedTokenOutputGrad != nullptr) {
+        op::Format format = permutedTokenOutputGrad->GetStorageFormat();
+        if (IsPrivateFormat(format)) {
+            OP_LOGW("Format of permutedTokenOutputGrad gets [%s], this format may lead to precision failure",
+                    op::ToString(format).GetString());
+        }
+    }
+    
+    if (permutedProbsOutputGradOptional != nullptr) {
+        op::Format format = permutedProbsOutputGradOptional->GetStorageFormat();
+        if (IsPrivateFormat(format)) {
+            OP_LOGW("Format of permutedProbsOutputGradOptional gets [%s], this format may lead to precision failure",
+                    op::ToString(format).GetString());
+        }
+    }
+    
+    if (sortedIndices != nullptr) {
+        op::Format format = sortedIndices->GetStorageFormat();
+        if (IsPrivateFormat(format)) {
+            OP_LOGW("Format of sortedIndices gets [%s], this format may lead to precision failure",
+                    op::ToString(format).GetString());
+        }
+    }
+    
+    if (routingMapOptional != nullptr) {
+        op::Format format = routingMapOptional->GetStorageFormat();
+        if (IsPrivateFormat(format)) {
+            OP_LOGW("Format of routingMapOptional gets [%s], this format may lead to precision failure",
+                    op::ToString(format).GetString());
+        }
+    }
+}
+
 static bool checkAttrValid(int64_t numExperts, int64_t tokensNum)
 {
     if (numExperts <= 0) {
@@ -221,6 +260,8 @@ static aclnnStatus CheckParams(
     CHECK_RET(
         CheckShapeValid(permutedTokenOutputGrad, routingMapOptional, permutedProbsOutputGradOptional),
         ACLNN_ERR_PARAM_INVALID);
+    // 4. 检查输入张量的格式是否为 ND 格式
+    CheckFormatValid(permutedTokenOutputGrad, permutedProbsOutputGradOptional, sortedIndices, routingMapOptional);
 
     (void)dropAndPad;
     return ACLNN_SUCCESS;

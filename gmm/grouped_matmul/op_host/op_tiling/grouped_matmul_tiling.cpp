@@ -235,7 +235,7 @@ ge::graphStatus GMMTiling::PrepareTilingData(const gert::TilingContext* context)
     }
     return SeparatedXSeparatedWeight(context);
   }
-  OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%d, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
+  OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%ld, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
             groupType_, isSingleWeight_, isSingleX_, isSingleY_);
   return ge::GRAPH_FAILED;
 }
@@ -260,7 +260,7 @@ ge::graphStatus GMMTiling::GMMGetTensorShapeSplitM(const gert::TilingContext* co
     if (!isSingleX_ && !isSingleWeight_ && !isSingleY_) {  // split M, m-m-m
       return SeparatedXSeparatedWeight(context);
     }
-    OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%d, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
+    OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%ld, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
               groupType_, isSingleWeight_, isSingleX_, isSingleY_);
     return ge::GRAPH_FAILED;
 }
@@ -276,7 +276,7 @@ ge::graphStatus GMMTiling::GMMGetTensorShapeSplitK(const gert::TilingContext* co
     if (!isSingleX_ && isSingleWeight_) {  // splitK, m-s-m/m-s-s
       return SeparatedXSingleWeight(context, wShape);
     }
-    OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%d, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
+    OP_LOGE(context->GetNodeName(), "GMM_tiling: not support groupType_=%ld, isSingleWeight_=%d, isSingleX_=%d, isSingleY_=%d",
               groupType_, isSingleWeight_, isSingleX_, isSingleY_);
     return ge::GRAPH_FAILED;
 }
@@ -557,7 +557,9 @@ void GMMTiling::DivideUbAndSetWorkspaceAntiquant(size_t* workspaces, const uint3
 }
 
 int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
-  if(maxN_ < baseN_ || tuningConfig_ <= 0|| xDType_ != ge::DT_INT8 || weightDtype_ != ge::DT_INT8) {
+  uint64_t quantGroupNum = tilingData.gmmBaseParams.get_quantGroupNum();
+  // A8W8模式以及A4W4 Perchannel模式支持动态分块
+  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8_ || (isA4W4_ && quantGroupNum == 1)) ) {
     return baseN_;
   }
   int32_t mDim = CeilDiv(tuningConfig_ , baseM_);
@@ -594,9 +596,10 @@ int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
 
 bool GMMTiling::TryFullLoadA(int32_t baseM,const GMMCompileInfo *compileInfoPtr) {
   auto l1Size = compileInfoPtr->l1Size;
-  //暂时只支持A8W8
-  float sizeofweightDtype = 1.0f;
-  float sizeofxDtype = 1.0f;
+  //暂时只支持A8W8和A4W4Perchannel模式
+  float sizeofweightDtype = weightDtype_ == ge::DT_INT4 ? 0.5f : 1.0f;
+  float sizeofxDtype = xDType_ == ge::DT_INT4 ? 0.5f : 1.0f;
+
   auto matBl1Size = static_cast<int32_t>(tilingData.mmTilingData.get_depthB1() * baseN_ * baseK_ * sizeofweightDtype);
   auto remainL1Size = l1Size - matBl1Size;
   if(hasBias_) {
@@ -1105,7 +1108,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
   OP_CHECK_NULL_WITH_CONTEXT(context, attr);  // check attr is not null
   const bool* transposeWeightPtr = attr->GetAttrPointer<bool>(ATTR_INDEX_TRANS_W);
   const bool* transposeXPtr = attr->GetAttrPointer<bool>(ATTR_INDEX_TRANS_X);
-  const int32_t* groupTypePtr = attr->GetAttrPointer<int32_t>(ATTR_INDEX_GROUPTYPE);
+  const int64_t* groupTypePtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_GROUPTYPE);
   const int64_t* splitItemPtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_SPLIT_ITEM);
   const int64_t* actTypePtr = attr->GetAttrPointer<int64_t>(ATTR_INDEX_ACT_TYPE);
   const uint32_t* groupListTypePtr = attr->GetAttrPointer<uint32_t>(ATTR_INDEX_GROUP_LIST_TYPE);
@@ -1151,7 +1154,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(groupType_ != SPLIT_M,
                OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-                                           "When groupListType is 2 only support groupType 0, but get groupType %d",
+                                           "When groupListType is 2 only support groupType 0, but get groupType %ld",
                                            groupType_),
                return ge::GRAPH_FAILED);
   }
@@ -1384,9 +1387,15 @@ ge::graphStatus GMMTiling::GMMSetMMTiling(const gert::TilingContext* context, co
   mm.SetShape(mInMM, baseN_, maxK_);
   mm.SetFixSplit(baseM_, baseN_, baseK_);
   mm.SetBufferSpace(compileInfoPtr->l1Size, compileInfoPtr->l0CSize, ubSize_);
-  OP_CHECK_IF(mm.GetTiling(tilingData.mmTilingData) == -1,
-             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "matmul getTiling failed."),
-             return ge::GRAPH_FAILED);
+  if(groupType_ == SPLIT_K && maxK_ == 0) {
+    //切K场景K轴为0时不需要使用高阶API，无需tiling，kernel需要做清零处理，此处无需tiling
+    OP_LOGD("GMM SplitK,and K == 0, no need tiling");
+  } else {
+    OP_CHECK_IF(mm.GetTiling(tilingData.mmTilingData) == -1,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "matmul getTiling failed."),
+            return ge::GRAPH_FAILED);
+  }
+
 
   uint32_t mmStepKa = 1;
   uint32_t mmStepKb = 1;
@@ -1869,6 +1878,15 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         const int is_in_a8w4_white_list = ((tuningConfig !=0 &&tuningConfig <= 64) || (A8W4_PRETILING_WHITE_LIST.count(mKNList)))
               && quantGroupNum != 0 && k / quantGroupNum == 256 && k % quantGroupNum == 0
               && withOffset == 0 && k%64==0 && n%64==0; // 256: 新方案只支持256 pergroup
+		uint32_t calc_m = 1U;
+        if (groupNum != 0U) {
+          calc_m = m / groupNum;
+        }
+        const uint32_t avg_m = tuningConfig != 0L ? static_cast<uint32_t>(tuningConfig) : calc_m;
+		uint32_t enableCV11 = 0;
+		if (avg_m <= 128 && groupNum <= 4 && k <= 8192 && n <= 8192) {
+            enableCV11 = 1;
+        }
 
         tilingDataA8W4.gmmBaseParams.set_coreNum(aicNum);
         tilingDataA8W4.gmmBaseParams.set_groupNum(groupNum);
@@ -1904,11 +1922,6 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         InitPlatformInfo(compileInfoPtr, platformInfo);
         matmul_tiling::MultiCoreMatmulTiling mm(platformInfo);
 
-        uint32_t calc_m = 1U;
-        if (groupNum != 0U) {
-          calc_m = m / groupNum;
-        }
-        const uint32_t avg_m = tuningConfig != 0L ? static_cast<uint32_t>(tuningConfig) : calc_m;
         const bool isPerchannel = quantGroupNum == 1U;
         const bool isMSD = tuningConfig == 0L || avg_m == 0U || n / avg_m > 4U || withOffset == true;
         if (!isMSD) {
@@ -2006,11 +2019,19 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           if (is_in_a8w4_white_list) {
             a8w4KernelTemplate = static_cast<uint32_t>(GROUPED_MATMUL_A8W4_KERNEL_TEMPLATE_MSD_VECTOR_DEQUANT);
           }
-          context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
+          if (enableCV11){
+			context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
+                                                   GROUPED_MATMUL_GROUP_LIST_TYPE_COUNT, 0,
+                                                   a8w4KernelTemplate,
+                                                   GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE,
+                                                   GROUPED_MATMUL_AIV_AIC_RATIO_1, 0));
+		  } else {
+			context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,
                                                    GROUPED_MATMUL_GROUP_LIST_TYPE_COUNT, 0,
                                                    a8w4KernelTemplate,
                                                    GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE,
                                                    GROUPED_MATMUL_AIV_AIC_RATIO_2, 0));
+		  }
           tilingDataA8W4.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
           context->GetRawTilingData()->SetDataSize(tilingDataA8W4.GetDataSize());
 
