@@ -167,7 +167,7 @@ ge::graphStatus CheckAttenMaskShape(FuzzyBaseInfoParamsRegbase& fBaseParams)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantScaleShapeValidCheck(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+ge::graphStatus QuantScaleShapeValidCheck(gert::TilingContext *context_, const FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     auto deqScaleQShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_Q));
     auto deqScaleKShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_K));
@@ -262,7 +262,7 @@ ge::graphStatus QuantScaleShapeValidCheck(gert::TilingContext *context_, FuzzyBa
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantScaleDtypeValidCheck(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+ge::graphStatus QuantScaleDtypeValidCheck(gert::TilingContext *context_, const FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     auto yInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::ATTENTION_IN));
     auto deqScaleQInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_Q));
@@ -296,7 +296,7 @@ ge::graphStatus QuantScaleDtypeValidCheck(gert::TilingContext *context_, FuzzyBa
     return ge::GRAPH_SUCCESS;
 }
 
-bool CheckIsLargeInvalidBlk(FuzzyBaseInfoParamsRegbase& fBaseParams)
+bool CheckIsLargeInvalidBlk(const FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     if ((fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::LEFT_UP_CAUSAL)) &&
         (fBaseParams.s1Outer >= 0 && fBaseParams.s2Outer >= 0) &&
@@ -485,9 +485,9 @@ int64_t GetTotalPerBatchNum(FuzzyBaseInfoParamsRegbase& fBaseParams, uint8_t spa
         for (int64_t s2oIdx = 0; s2oIdx < fBaseParams.s2Outer; s2oIdx++) {
             int64_t xMin = (s2oIdx - q) > 0 ? (s2oIdx - q) : 0;
             int64_t xMax = (fBaseParams.s1Outer - 1) > (s2oIdx + p) ? (s2oIdx + p) : (fBaseParams.s1Outer - 1);
-            int64_t length = xMax - xMin + 1;
+            int64_t length = (xMax >= xMin) ? (xMax - xMin + 1) : 0;
             if (length > 0) {
-                totalPerBatchNum += (xMax - xMin + 1);   
+                totalPerBatchNum += length;   
             }
         }
     }
@@ -592,7 +592,7 @@ int64_t FindBandIdx(FuzzyBaseInfoParamsRegbase& fBaseParams)
     return 0;
 }
 
-bool IsNewDeter(FuzzyBaseInfoParamsRegbase& fBaseParams)
+bool IsNewDeter(const FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     return fBaseParams.deterSparseType >= static_cast<uint32_t>(DeterSparseType::DETER_DENSE) &&
            fBaseParams.deterSparseType <= static_cast<uint32_t>(DeterSparseType::DETER_BAND) && 
@@ -721,7 +721,7 @@ void CalcleCausalDeterParam(FuzzyBaseInfoParamsRegbase& fBaseParams)
     fBaseParams.deterMaxRound = rUpper;
 }
 
-void SetSparsePrefixBlockInterval(FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t bIdx,
+void SetSparsePrefixBlockInterval(const FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t bIdx,
     int64_t nIdx, std::vector<std::vector<std::pair<int64_t, int64_t>>> &s1ValidIdx,
     int64_t (&blockStarts)[CORE_LIST_NUM], int64_t (&blockEnds)[CORE_LIST_NUM], uint32_t &coreNum, int64_t &tmepBlock)
 {
@@ -823,7 +823,7 @@ void GetCommS1S2OuterInfo(FuzzyBaseInfoParamsRegbase& fBaseParams,
     }
 }
 
-void GetCommonS1S2OuterIndex(FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t (*parseInfo)[ARRAY_LENGTH],
+void GetCommonS1S2OuterIndex(const FuzzyBaseInfoParamsRegbase& fBaseParams, int64_t (*parseInfo)[ARRAY_LENGTH],
     int64_t gTail, int64_t& s1oIdx, int64_t& s2oIdx)
 {
     int64_t preSize = 0;
@@ -917,7 +917,7 @@ ge::graphStatus ProcessOptionalInput(gert::TilingContext *context_, FuzzyBaseInf
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
-    ret = ProcessTokensInfo(context_, fBaseParams);
+    ret = ProcessTokensInfo(fBaseParams);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
@@ -950,7 +950,7 @@ ge::graphStatus ProcessOptionalInput(gert::TilingContext *context_, FuzzyBaseInf
                CheckShapeValid(context_, fBaseParams.b, fBaseParams.n1, fBaseParams.s1, fBaseParams.d);
 }
 
-void ProcessDropoutIsDivisibleBy8(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+void ProcessDropoutIsDivisibleBy8(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     const char *inputLayout = context_->GetAttrs()->GetAttrPointer<char>(LAYOUT_ATTR_IDX);
     if (strcmp(inputLayout, "TND") == 0) {
@@ -1009,19 +1009,46 @@ ge::graphStatus ProcessDropoutInfo(gert::TilingContext *context_, FuzzyBaseInfoP
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus ProcessQuantInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+ge::graphStatus QuantShapeValidCheck(gert::TilingContext *context_, const FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
-    DetermineMode(fBaseParams);
-    if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
-        fBaseParams.queryType == ge::DT_UINT8 || fBaseParams.queryType == ge::DT_INT8 ||
-        fBaseParams.queryType == ge::DT_QINT8) {
-        auto queryDType = context_->GetInputDesc(0)->GetDataType();
-        OP_LOGE("ProcessQuantInfo", "In the 8-bit scenario, only HIFP8 is supported, but got %s",
-                ge::TypeUtils::DataTypeToSerialString(queryDType).c_str());
-        return ge::GRAPH_FAILED;
-    }
-    // hifp8 shape whitelist
     if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        auto queryShape = context_->GetInputShape(static_cast<size_t>(InputIndex::QUERY));
+        auto keyShape = context_->GetInputShape(static_cast<size_t>(InputIndex::KEY));
+        auto valueShape = context_->GetInputShape(static_cast<size_t>(InputIndex::VALUE));
+        auto dyShape = context_->GetInputShape(static_cast<size_t>(InputIndex::DY));
+        auto attentionInShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::ATTENTION_IN));
+        if (queryShape == nullptr || keyShape == nullptr ||
+            valueShape == nullptr || dyShape == nullptr || 
+            attentionInShape == nullptr) {
+            OP_LOGE(context_, "Scenario HIFP8, q, k, v, dy or y must not be null.");
+            return ge::GRAPH_FAILED;
+        }
+        auto attentionInShapeDim = attentionInShape->GetStorageShape().GetDimNum();
+        auto queryShapeDim = queryShape->GetStorageShape().GetDimNum();
+        auto dyShapeDim = dyShape->GetStorageShape().GetDimNum();
+        auto keyShapeDim = keyShape->GetStorageShape().GetDimNum();
+        auto valueShapeDim = valueShape->GetStorageShape().GetDimNum();
+        if (attentionInShapeDim != queryShapeDim || dyShapeDim != queryShapeDim || keyShapeDim != queryShapeDim ||
+            valueShapeDim != queryShapeDim) {
+            OP_LOGE(context_, "Scenario HIFP8, The dimnum of y %zu, dy %zu, key %zu, value %zu, should be equal to query %zu",
+                    attentionInShapeDim, dyShapeDim, keyShapeDim, valueShapeDim, queryShapeDim);
+            return ge::GRAPH_FAILED;
+        }
+        for (uint32_t dimIdx = 0; dimIdx < queryShapeDim; dimIdx++) {
+            if ((queryShape->GetStorageShape().GetDim(dimIdx) != dyShape->GetStorageShape().GetDim(dimIdx)) ||
+                (queryShape->GetStorageShape().GetDim(dimIdx) != attentionInShape->GetStorageShape().GetDim(dimIdx))) {
+                OP_LOGE(context_, "Scenario HIFP8, The y[%u] : %zu, dy[%u] : %zu, should be equal to query[%u] : %zu",
+                    dimIdx, attentionInShape->GetStorageShape().GetDim(dimIdx), dimIdx,
+                    dyShape->GetStorageShape().GetDim(dimIdx), dimIdx, queryShape->GetStorageShape().GetDim(dimIdx));
+                return ge::GRAPH_FAILED;
+            }
+            if ((keyShape->GetStorageShape().GetDim(dimIdx) != valueShape->GetStorageShape().GetDim(dimIdx))) {
+                OP_LOGE(context_, "Scenario HIFP8, The key[%u] : %zu, should be equal to value[%u] : %zu",
+                    dimIdx, keyShape->GetStorageShape().GetDim(dimIdx), dimIdx,
+                    valueShape->GetStorageShape().GetDim(dimIdx));
+                return ge::GRAPH_FAILED;
+            }
+        }
         const char *inputLayout = context_->GetAttrs()->GetAttrPointer<char>(LAYOUT_ATTR_IDX);
         OP_CHECK_IF(inputLayout == nullptr,
             OP_LOGE(context_, "Scenario HIFP8, inputLayout is null."),
@@ -1044,6 +1071,26 @@ ge::graphStatus ProcessQuantInfo(gert::TilingContext *context_, FuzzyBaseInfoPar
             OP_LOGE(context_, "Scenario HIFP8, query & key shape only support{[1, 54000, 5, 128], [1, 54000, 5, 128]}, {[1, 9360, 40, 128], [1, 9360, 40, 128]}, {[1, 54000, 10, 128], [1, 54000, 10, 128]}, {[1, 9360, 80, 128], [1, 9360, 80, 128]}, {[1, 57600, 5, 128], [1, 57600, 5, 128]}, {[1, 7200, 40, 128], [1, 512, 40, 128]}.");
             return ge::GRAPH_FAILED;
         }
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+
+ge::graphStatus ProcessQuantInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+{
+    DetermineMode(fBaseParams);
+    if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
+        fBaseParams.queryType == ge::DT_UINT8 || fBaseParams.queryType == ge::DT_INT8 ||
+        fBaseParams.queryType == ge::DT_QINT8) {
+        auto queryDType = context_->GetInputDesc(0)->GetDataType();
+        OP_LOGE("ProcessQuantInfo", "In the 8-bit scenario, only HIFP8 is supported, but got %s",
+                ge::TypeUtils::DataTypeToSerialString(queryDType).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    // hifp8 shape whitelist
+    auto quantShapeRet = QuantShapeValidCheck(context_, fBaseParams);
+    if (quantShapeRet != ge::GRAPH_SUCCESS) {
+        return quantShapeRet;
     }
     fBaseParams.outDtype = fBaseParams.inputDtype;
     if (context_->GetAttrs()->GetAttrNum() > OUTDTYPE_ATTR_IDX &&
@@ -1071,7 +1118,7 @@ ge::graphStatus ProcessQuantInfo(gert::TilingContext *context_, FuzzyBaseInfoPar
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus ProcessSparseModeInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+ge::graphStatus ProcessSparseModeInfo(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     // 新增SPARSE_MODE属性，上库兼容处理
     auto attrs = context_->GetAttrs();
@@ -1139,7 +1186,7 @@ ge::graphStatus ProcessSparseModeInfo(gert::TilingContext *context_, FuzzyBaseIn
 }
 
 // 以下场景对外部输入token屏蔽，重新设置token值并做校验
-ge::graphStatus ProcessTokensInfo(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+ge::graphStatus ProcessTokensInfo(FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     OP_LOGD("ProcessTokensInfo", " Before correction ,the value of s1Token = %ld and the value of s2Token %ld.",
               fBaseParams.s1Token, fBaseParams.s2Token);
@@ -1408,7 +1455,7 @@ bool SetSparseParams(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& 
     return false;
 }
 
-void SetSplitAxis(gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
+void SetSplitAxis(const gert::TilingContext *context_, FuzzyBaseInfoParamsRegbase& fBaseParams)
 {
     fBaseParams.isBn2 = (fBaseParams.s1 <= BN2_MAX_S && fBaseParams.s2 <= BN2_MAX_S) &&
                         (fBaseParams.n1 == fBaseParams.n2) &&
@@ -1484,17 +1531,17 @@ void DetermineMode(FuzzyBaseInfoParamsRegbase& fBaseParams)
     } else if (fBaseParams.queryType == ge::DT_BF16) {
         fBaseParams.inputDtype = DtypeEnum::BFLOAT16;
     } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2) {
-        fBaseParams.inputDtype = (optiling::DtypeEnum)4;    // DtypeEnum::FLOAT8_E5M2
+        fBaseParams.inputDtype = static_cast<optiling::DtypeEnum>(DTYPE_ENUM_INDEX_4);    // DtypeEnum::FLOAT8_E5M2
     } else if (fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
-        fBaseParams.inputDtype = (optiling::DtypeEnum)5;    // DtypeEnum::FLOAT8_E4M3
+        fBaseParams.inputDtype = static_cast<optiling::DtypeEnum>(DTYPE_ENUM_INDEX_5);    // DtypeEnum::FLOAT8_E4M3
     } else if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
-        fBaseParams.inputDtype = (optiling::DtypeEnum)6;    // DtypeEnum::HIFLOAT8
+        fBaseParams.inputDtype = static_cast<optiling::DtypeEnum>(DTYPE_ENUM_INDEX_6);    // DtypeEnum::HIFLOAT8
     } else {
         fBaseParams.inputDtype = DtypeEnum::FLOAT16_PRECISION;
     }
 }
 
-bool SupportTrans2BS2N2GD(FuzzyBaseInfoParamsRegbase& fBaseParams) {
+bool SupportTrans2BS2N2GD(const FuzzyBaseInfoParamsRegbase& fBaseParams) {
     return (fBaseParams.sparseMode <= static_cast<uint32_t>(SparseMode::PREFIX_COMPRESS)) && fBaseParams.isAllSame &&
          (fBaseParams.layoutType == INPUT_FORMAT_TND);
 }
@@ -1607,8 +1654,8 @@ bool SetPrefixSparseParams(gert::TilingContext *context_, FuzzyBaseInfoParamsReg
         OP_LOGW(context_, "FAG Us1s2Bbn2gs1s2 sparseMode is prefix, but prefixN data is null pointer!");
         return false;
     }
-    const size_t shapeSize = prefixNTensor->GetShapeSize();
-    for (size_t i = 0; i < shapeSize; i++) {
+    const int64_t shapeSize = prefixNTensor->GetShapeSize();
+    for (int64_t i = 0; i < shapeSize; i++) {
         prefixN.push_back(value[i]);
     }
 

@@ -89,7 +89,6 @@ NpuArch MlaPrologTilingCheck::GetCurNpuArch() const
 bool MlaPrologTilingCheck::CheckAttrsRange() const
 {
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
-
         if (GetCurNpuArch() == NpuArch::DAV_3510) {
             const std::set<uint32_t> supportedWeightQuantMode {0U, 1U, 2U, 3U};
             OP_CHECK_IF(supportedWeightQuantMode.find(*context_.weightQuantMode) == supportedWeightQuantMode.end(),
@@ -246,10 +245,16 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
         if (*(context_.quantScaleRepoMode) == static_cast<int>(QUANT_SCALE_REPO_MODE::COMBINE)) {
             supportedDtileSize += baseShapeInfo_.hckvSize / static_cast<uint32_t>(*(context_.tileSize)) * (DTYPE_TO_SIZE.at(ge::DT_FLOAT) / DTYPE_TO_SIZE.at(ge::DT_INT8));
         }
-        OP_CHECK_IF(baseShapeInfo_.dtileSize != supportedDtileSize,
-            OP_LOGE(context_.opName, "DtileSize allows only %u, got %u.",
-                supportedDtileSize, baseShapeInfo_.dtileSize),
-            return ge::GRAPH_FAILED);
+        if (baseShapeInfo_.dtileSize != supportedDtileSize) {
+            if (*(context_.kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                OP_LOGE(context_.opName, "When kvQuantMode is PER_TILE, dtileSize allows only %u, got %u.",
+                    supportedDtileSize, baseShapeInfo_.dtileSize);
+            } else {
+                OP_LOGE(context_.opName, "When kvQuantMode is in {NO_QUANT, PER_TENSOR, PER_CHANNEL}, dtileSize allows only %u, got %u.",
+                    supportedDtileSize, baseShapeInfo_.dtileSize);
+            }
+            return ge::GRAPH_FAILED;
+        }
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -659,12 +664,12 @@ ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
         // 校验所有维度的乘积是否为0
         if(context_.krCache.shape->GetStorageShape().GetShapeSize() != 0) {
             isCorrect = ge::GRAPH_FAILED;
-            OP_LOGE(context_.opName, "KrCache %s is not an empty tensor.",
+            OP_LOGE(context_.opName, "When ckvkrRepoMode is COMBINE, KrCache should be empty tensor, but got %s.",
                 GetShapeStr(context_.krCache.shape->GetStorageShape()).c_str());
         }
         if(context_.krCacheOut.shape->GetStorageShape().GetShapeSize() != 0) {
             isCorrect = ge::GRAPH_FAILED;
-            OP_LOGE(context_.opName, "KrCacheOut %s is not an empty tensor.",
+            OP_LOGE(context_.opName, "When ckvkrRepoMode is COMBINE, KrCacheOut should be empty tensor, but got %s.",
                 GetShapeStr(context_.krCacheOut.shape->GetStorageShape()).c_str());
         }    
     }
@@ -923,7 +928,7 @@ bool MlaPrologTilingCheck::CheckKvCache() const
 {
     if (GetCurNpuArch() == NpuArch::DAV_3510) {
         if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0){
-            return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
+            return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
         } else {
             return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
         } 
@@ -942,10 +947,9 @@ bool MlaPrologTilingCheck::CheckKrCache() const
         return IsSingleParamValid(
             context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
     } else {
-    return (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0 &&
+        return (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0 &&
                 *(context_.ckvkrRepoMode) == static_cast<int>(CKVKR_REPO_MODE::COMBINE)) ||
-            IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8},
-                {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
+                IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
     }
 }
 

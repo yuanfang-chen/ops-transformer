@@ -260,7 +260,6 @@ bool GroupedMatmulSwigluQuantV2Tiling950::CheckDims() const
         OP_LOGE(inputParams_.opName, "When inputs are FLOAT4, x and weight inner axis element number should be even."),
         return false);
 
-
     // MXFP4场景不支持K=2
     OP_CHECK_IF(IsFp4Input() && inputParams_.kSize == MXFP4_K_MIN_VALUE,
                 OP_LOGE(inputParams_.opName,
@@ -295,11 +294,11 @@ bool GroupedMatmulSwigluQuantV2Tiling950::AnalyzeInputs()
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
     auto wStorageShape = context_->GetDynamicInputShape(WEIGHT_INDEX, 0);
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "wStorageShape is nullptr."), return false);
-    const gert::Shape &wShape = wStorageShape->GetStorageShape();
+    const gert::Shape &wShape = wStorageShape->GetOriginShape();
     auto scaleStorageShape = context_->GetDynamicInputShape(SCALE_INDEX, 0);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "scaleStorageShape is nullptr."),
                 return false);
-    const gert::Shape &wScaleShape = scaleStorageShape->GetStorageShape();
+    const gert::Shape &wScaleShape = scaleStorageShape->GetOriginShape();
     auto scaleDimNum = wScaleShape.GetDimNum();
     OP_CHECK_IF(
         scaleDimNum != MX_WEIGHT_SCALE_DIM,
