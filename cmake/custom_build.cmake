@@ -281,6 +281,7 @@ if(ENABLE_EXPERIMENTAL)
     # genop新增experimental算子分类
     # add_subdirectory(${op_class})
     add_subdirectory(experimental/attention)
+    add_subdirectory(experimental/svd/ascendc)
 else()
     # genop新增非experimental算子分类
     # add_subdirectory(${op_class})
