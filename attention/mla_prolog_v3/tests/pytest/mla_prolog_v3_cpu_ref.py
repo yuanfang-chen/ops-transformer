@@ -609,7 +609,7 @@ def convert_dict_values_to_torch(input_dict):
             if value.dtype == numpy_float8_e4m3fn():
                 output_dict[key] = torch.tensor(value.astype(np.float32)).to(torch.float8_e4m3fn)
             elif float8_e8m0 is not None and value.dtype == float8_e8m0:
-                output_dict[key] = torch.tensor(value.astype(np.uint8)).view(torch.float8_e8m0fnu)
+                output_dict[key] = torch.tensor(value.astype(np.int8))
             else:
                 output_dict[key] = torch.from_numpy(value)
         else:
@@ -1341,11 +1341,11 @@ def build_mla_param(params):
         deq_scale_w_uqqr = torch.rand(1, N1 * (D + DR), dtype=torch.float32) + 0.01
         deq_scale_w_dkvkr = torch.rand(1, HCKV + DR, dtype=torch.float32) + 0.01
     elif weight_quant_mode == 3:
-        # MXFP8: block-scaled e8m0 format — create as uint8, view as float8_e8m0fnu
-        deq_scale_x = torch.randint(100, 150, (T, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
-        deq_scale_w_dq = torch.randint(100, 150, (HCQ, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
-        deq_scale_w_uqqr = torch.randint(100, 150, (N1 * (D + DR), HCQ // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
-        deq_scale_w_dkvkr = torch.randint(100, 150, (HCKV + DR, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
+        # MXFP8: block-scaled e8m0 format (uint8 for CPU golden, view as float8_e8m0fnu for NPU)
+        deq_scale_x = torch.randint(100, 150, (T, He // grp_size), dtype=torch.uint8)
+        deq_scale_w_dq = torch.randint(100, 150, (HCQ, He // grp_size), dtype=torch.uint8)
+        deq_scale_w_uqqr = torch.randint(100, 150, (N1 * (D + DR), HCQ // grp_size), dtype=torch.uint8)
+        deq_scale_w_dkvkr = torch.randint(100, 150, (HCKV + DR, He // grp_size), dtype=torch.uint8)
 
     if weight_quant_mode in [1, 2]:
         # smooth_scale_cq for dynamic_quant
@@ -1456,10 +1456,14 @@ def build_mla_param(params):
         "kv_cache": copy.deepcopy(kv_cache),
         "kr_cache": copy.deepcopy(kr_cache),
         "cache_index": cache_index,
-        "deq_scale_x": deq_scale_x if weight_quant_mode in [2, 3] else None,
-        "deq_scale_w_dq": deq_scale_w_dq if weight_quant_mode in [2, 3] else None,
-        "deq_scale_w_uqqr": deq_scale_w_uqqr if weight_quant_mode in [1, 2, 3] else None,
-        "deq_scale_w_dkvkr": deq_scale_w_dkvkr if weight_quant_mode in [2, 3] else None,
+        "deq_scale_x": deq_scale_x.view(torch.float8_e8m0fnu) if weight_quant_mode == 3
+                       else deq_scale_x if weight_quant_mode == 2 else None,
+        "deq_scale_w_dq": deq_scale_w_dq.view(torch.float8_e8m0fnu) if weight_quant_mode == 3
+                          else deq_scale_w_dq if weight_quant_mode == 2 else None,
+        "deq_scale_w_uqqr": deq_scale_w_uqqr.view(torch.float8_e8m0fnu) if weight_quant_mode == 3
+                            else deq_scale_w_uqqr if weight_quant_mode in [1, 2] else None,
+        "deq_scale_w_dkvkr": deq_scale_w_dkvkr.view(torch.float8_e8m0fnu) if weight_quant_mode == 3
+                             else deq_scale_w_dkvkr if weight_quant_mode == 2 else None,
         "quant_scale_ckv": quant_scale_ckv if kv_quant_mode in [1, 2] else None,
         "quant_scale_ckr": quant_scale_ckr if kv_quant_mode == 2 else None,
         "smooth_scales_cq": smo_scale_cq,
