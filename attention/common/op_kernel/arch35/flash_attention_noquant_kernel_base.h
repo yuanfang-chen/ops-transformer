@@ -75,8 +75,9 @@ public:
     __aicore__ inline void InitMMResBuf();
     __aicore__ inline void InitActualKVPrefixLen(__gm__ uint8_t *actualSharedPrefixLen);
     __aicore__ inline void ComputeConstexpr();
-    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount,
-                                      int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
+    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int32_t bN2Cur, int64_t gS1Cur,
+                                      int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
+    __aicore__ inline void CalcAccumOffset(RunInfo<isInfer> &runInfo);
     __aicore__ inline void ComputeAxisIdx(int64_t multiCoreInnerIdx, RunParamStr<isInfer> &runParam);
     __aicore__ inline void ComputeBmm1Tail(RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam);
     __aicore__ inline void GetSeqQlenKvlenByBoidx(int64_t boIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvLen);
@@ -611,7 +612,8 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetRunInfo(
-    RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
+    RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int32_t bN2Cur, int64_t gS1Cur,
+    int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     runInfo.s2StartIdx = runParam.s2LineStartIdx;
     runInfo.s2EndIdx = runParam.s2LineEndIdx;
@@ -683,6 +685,24 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
             }
         }
     }
+}
+
+template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType, VecBlockType>::CalcAccumOffset(RunInfo<isInfer> &runInfo)
+{
+    auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+    const uint32_t *bN2IdxOfFdHead = outerSplitParams.fdRes.fdBN2Idx;
+    const uint32_t *gS1IdxOfFdHead = outerSplitParams.fdRes.fdMIdx;
+    const uint32_t *s2SplitNumOfFdHead = outerSplitParams.fdRes.fdS2SplitNum;
+    uint64_t accumTmpOutNum = 0;
+    uint32_t taskId = 0;
+    uint32_t curbN2Idx = runInfo.boIdx * constInfo.n2Size + runInfo.n2oIdx;
+    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != runInfo.gS1Idx)) {
+        // OBP里使用的是tilingData->outerSplitParams.usedCoreNum，这里改用了constInfo.aivIdx，不清楚是否相同
+        accumTmpOutNum += s2SplitNumOfFdHead[taskId]; // 计算前面的workspace数
+        taskId++;
+    }
+    runInfo.accumTmpOutNum = accumTmpOutNum;
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>

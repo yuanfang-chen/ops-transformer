@@ -103,8 +103,9 @@ __aicore__ inline void
 FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
-    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, runInfo);
-    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
+    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam, runInfo);
+    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam, this->constInfo,
+        runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
 // TODO，isFD分支需要判断是老FD还是新FD，新FD是否需要这段逻辑
@@ -136,8 +137,8 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
         bool lastBN = (bnIdx == bN2EndIdx);
         runParam.boIdx = bnIdx / this->constInfo.n2Size;
         runParam.n2oIdx = bnIdx % this->constInfo.n2Size;
-        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, this->attenMaskInfo,
-            this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam,
+            this->constInfo, this->attenMaskInfo, this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
         // 计算s1LoopTimes，未考虑acutalSeq，pre/nextToken
         constexpr int32_t gS1BaseSize = static_cast<int32_t>(s1TemplateType);
         if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
@@ -153,10 +154,10 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
             bool lastGS1 = (gS1Index == tempGS1End);
             // if (notLastThreeLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
-                bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(
+                bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(
                     runParam, this->constInfo, gS1Index, this->actualSeqQlenAddr, this->pseInfo);
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
@@ -183,7 +184,7 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Proc
 
                 if (notLastThreeLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2Idx, tempS2End - 1, multiCoreInnerIdx);
+                    this->SetRunInfo(runInfo1, runParam, taskId, bnIdx, gS1Index, s2Idx, tempS2End - 1, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
                     }
@@ -281,10 +282,10 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
             runParam.boIdx = bnIdx / (this->constInfo.n2Size * this->constInfo.headNumRatio);
             runParam.n2oIdx = (bnIdx / this->constInfo.headNumRatio) % this->constInfo.n2Size;
         }
-        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, this->attenMaskInfo,
-            this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
-        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, lastBN,
-                                                                      nextGs1Idx);
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam,
+            this->constInfo, this->attenMaskInfo, this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
+        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam,
+            this->constInfo, lastBN, nextGs1Idx);
         if constexpr (isFd) {
             if (this->constInfo.sInnerLoopSize * (this->aicIdx % this->constInfo.splitKVNum) >
                 runParam.actualS2Size) {
@@ -327,10 +328,10 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
             }
             if (notLastThreeLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
-                bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(
+                bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(
                     runParam, this->constInfo, gS1Index, this->actualSeqQlenAddr, this->pseInfo);
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix, enableSplitCoreBalance>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
@@ -343,7 +344,7 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
                 if (notLastThreeLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
+                    this->SetRunInfo(runInfo1, runParam, taskId, bnIdx, gS1Index, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
                     }
