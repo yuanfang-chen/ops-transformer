@@ -81,9 +81,7 @@ constexpr int64_t FIXAXISMOVE_K2 = 7168L;
 constexpr int64_t FIXAXISMOVE_N1 = 7168L;
 constexpr int64_t FIXAXISMOVE_N2 = 4096L;
 // 定轴搬移算法group_num的范围
-// constexpr int32_t FIXAXISMOVE_GROUP_NUM = 4;
-constexpr int32_t FIXAXISMOVE_GROUP_NUM_LOWER = 1;
-constexpr int32_t FIXAXISMOVE_GROUP_NUM_UPPER = 256;
+constexpr int32_t FIXAXISMOVE_GROUP_NUM = 4;
 // 定轴搬移算法每个专家M的范围
 constexpr int64_t FIXAXISMOVE_PERM_LOWER = 128L;
 constexpr int64_t FIXAXISMOVE_PERM_UPPER = 512L;
