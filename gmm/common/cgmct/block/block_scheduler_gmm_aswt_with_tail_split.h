@@ -136,25 +136,24 @@ public:
 
     __aicore__ inline void UpdateTailTile()
     {
-        // 计算可切分数，不切为1
+        // calc the splittable counr, set to 1 if no split
         int64_t remainTile = (AscendC::GetBlockNum() - endBlockIdx_ - 1) / GetTailTileCnt() + 1;
         if (remainTile <= 1) {
             return;
         }
 
-        // 初始化最小 tile 大小
+        // init minimum tile size
         int64_t mMin = AscendC::BLOCK_CUBE;
         int64_t nMin = AscendC::BLOCK_CUBE;
 
-        // 根据矩阵是否转置调整最小 tile 大小
+        // adjust minimum tile size based on whether transA is T or transB is F.
         if constexpr (TransA_) {
-            mMin = INNER_AXIS_MIN_SPLIT_VAL; // 内轴至少128B
+            mMin = INNER_AXIS_MIN_SPLIT_VAL;
         }
         if constexpr (!TransB_) {
-            nMin = INNER_AXIS_MIN_SPLIT_VAL; // 内轴至少128B
+            nMin = INNER_AXIS_MIN_SPLIT_VAL;
         }
 
-        // 计算 mTile 和 nTile，尽可能让m,n方向切分数一致
         int64_t mTile = Min(CeilDiv(mBaseTail_, mMin), remainTile);
         int64_t nTile = Min(CeilDiv(nBaseTail_, nMin), remainTile);
         while (mTile * nTile > remainTile) {

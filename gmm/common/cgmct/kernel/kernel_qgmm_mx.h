@@ -278,11 +278,11 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOffset
         }
     }
 
-    if constexpr (transA) { // split k, x1Scale:(k/gs+g, m, 2) x2Scale:(k/gs+g, n, 2)
+    if constexpr (transA) { // split k, x1Scale:(k/64+g, m, 2) x2Scale:(k/64+g, n, 2)
         int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / MXFP_DIVISOR_SIZE + groupIdx) * MXFP_MULTI_BASE_SIZE;
         Get<IDX_X1SCALE_OFFSET>(baseOffset_) = m * scaleK;
         Get<IDX_X2SCALE_OFFSET>(baseOffset_) = n * scaleK;
-    } else { // split m, x1Scale:(m, ceil(k/gs)) x2Scale:(g, n, ceil(k/gs)) or (g, ceil(k/gs), ceil(n/gs))
+    } else { // split m, x1Scale:(m, ceil(k/64), 2) x2Scale:(g, n, ceil(k/64), 2) or (g, ceil(k/64), n, 2)
         int64_t scaleK = CeilDiv(k, MXFP_DIVISOR_SIZE) * MXFP_MULTI_BASE_SIZE;
         Get<IDX_X1SCALE_OFFSET>(baseOffset_) += m * scaleK;
         Get<IDX_X2SCALE_OFFSET>(baseOffset_) += n * scaleK;
@@ -350,7 +350,6 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMMGlob
     yGlobal_.SetGlobalBuffer(GetTensorAddr<CType>(0, yTensorPtr_) + Get<IDX_C_OFFSET>(baseOffset_));
 }
 
-// TODO: grouplisttype=2
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline int32_t KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
 {
