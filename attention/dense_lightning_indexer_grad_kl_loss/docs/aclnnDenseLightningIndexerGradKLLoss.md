@@ -467,6 +467,10 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
 
 ## 约束说明
 
+- 参数query、key、queryIndex、keyIndex的数据类型应保持一致。
+
+- 参数weights不为float32时，参数query、key、queryIndex、keyIndex、weights的数据类型应保持一致。
+
 - 公共约束
 
   - 确定性计算：
@@ -568,17 +572,17 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
       <tr>
        <td>Nidx1</td>
        <td>8、16、32、64</td>
-       <td>SparseFA为MQA。</td>
+       <td>-</td>
       </tr>
       <tr>
        <td>N2</td>
        <td>32、64、128</td>
-       <td>DenseFA为MHA，N2=N1。</td>
+       <td>-</td>
       </tr>
       <tr>
        <td>Nidx2</td>
        <td>1</td>
-       <td>Indexer部分为MQA，Nidx2=1。</td>
+       <td>-</td>
       </tr>
       <tr>
        <td>D</td>
