@@ -426,7 +426,7 @@ private:
 
         InverseAIV(subOffset_, INVERSE_SHAPE);
         fp32OutQueue_.EnQue(inverseLocal);
-        DataCopyOutFp32(chunkSize_, halfChunkSize_, halfChunkSize_, AttnWsGm_[subBlockIdx_ * curVecLen]);
+        DataCopyOutFp32(halfChunkSize_, chunkSize_, chunkSize_, AttnWsGm_[subOffset_ * chunkSize_]);
     }
 
     __aicore__ inline void InverseAIV(uint64_t offset, uint32_t inverseVecLen)
