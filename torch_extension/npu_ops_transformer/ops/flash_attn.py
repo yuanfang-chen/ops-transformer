@@ -14,9 +14,9 @@ from npu_ops_transformer.op_builder.builder import OpBuilder
 from npu_ops_transformer.op_builder.builder import AS_LIBRARY
 
 
-class MoeDistributeCombineV3OpBuilder(OpBuilder):
+class FlashAttenOpBuilder(OpBuilder):
     def __init__(self):
-        super(MoeDistributeCombineV3OpBuilder, self).__init__("npu_flash_attn")
+        super(FlashAttenOpBuilder, self).__init__("npu_flash_attn")
 
     def sources(self):
         """Path to C++ source code."""
@@ -56,7 +56,7 @@ class MoeDistributeCombineV3OpBuilder(OpBuilder):
 
 
 # Instantiate the builder
-flash_attn_op_builder = MoeDistributeCombineV3OpBuilder()
+flash_attn_op_builder = FlashAttenOpBuilder()
 op_module = flash_attn_op_builder.load()  # Compiles/loads the .so file
 
 
