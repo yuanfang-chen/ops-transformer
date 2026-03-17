@@ -1575,7 +1575,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     uint16_t m_modify = (m_mad_ == 1) ? 2 : m_mad_;
     commonMadParams.m = m_modify;
     commonMadParams.n = n_mad_;
-    commonMadParams.k = dimDAlign;
+    commonMadParams.k = dimD;
     commonMadParams.unitFlag = 3;
     commonMadParams.cmatrixInitVal = true;
     AscendC::Mmad(dstCTensor, srcATensor, srcBTensor, commonMadParams);
@@ -1589,14 +1589,15 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                                LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::Cube1CopyOut(GlobalTensor<float> dstTensor,
                                                                                      LocalTensor<float> srcTensor,
                                                                                      const int32_t mSize,
-                                                                                     const int32_t nSize)
+                                                                                     const int32_t nSize,
+                                                                                     const int32_t singleMSize)
 {
     int32_t mSizeAlign = RoundUp(mSize, SIZE_16);
     int32_t nSizeAlign = RoundUp(nSize, SIZE_16);
     commonFixpipeParamsV220.mSize = mSize;
     commonFixpipeParamsV220.nSize = nSizeAlign;
     commonFixpipeParamsV220.srcStride = mSizeAlign;
-    commonFixpipeParamsV220.dstStride = mSize * 2;
+    commonFixpipeParamsV220.dstStride = singleMSize * 2;
     AscendC::Fixpipe<float, float, AscendC::CFG_NZ>(dstTensor, srcTensor, commonFixpipeParamsV220);
 }
 
@@ -1703,7 +1704,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                 cOffset = curCol * mm1BaseN + curRow * n * mm1BaseM;
             }
 
-            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct);
+            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct, org_m);
 
             ping_pong_flag_l0_a_ = 1 - ping_pong_flag_l0_a_;
             ping_pong_flag_l0_b_ = 1 - ping_pong_flag_l0_b_;
@@ -2027,7 +2028,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                 cOffset = curCol * mm1BaseN + curRow * n * mm1BaseM;
             }
 
-            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct);
+            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct, org_m);
             ping_pong_flag_l0_a_ = 1 - ping_pong_flag_l0_a_;
             ping_pong_flag_l0_b_ = 1 - ping_pong_flag_l0_b_;
             ping_pong_flag_l0_c_ = 1 - ping_pong_flag_l0_c_;
