@@ -1969,7 +1969,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyFo
     LocalTensor<int16_t> mask16_0 = attenMaskUb.template ReinterpretCast<int16_t>();
     AscendC::Duplicate(mask16_0, static_cast<int16_t>(0), s1Count * attenMaskSizeAlign / sizeof(int16_t));
     attenMaskUb = mask16_0.template ReinterpretCast<bool>();
-    PipeBarrier<PIPE_V>();
+    // V→MTE2 跨流水线同步：确保 V pipeline 的 Duplicate 完成后，MTE2 的 DataCopyPad 才能写入
+    event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+    SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
+    WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
 
     // 第二步，计算偏移 从Gm上把mask拷过来
     AttenMaskCopyNoFull(attenMaskUb, info, s1StartIdx, s1EndIdx + 1);
