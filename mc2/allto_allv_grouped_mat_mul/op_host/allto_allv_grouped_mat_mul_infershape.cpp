@@ -221,18 +221,15 @@ static ge::graphStatus InferShapeAlltoAllvGroupedMatMul(gert::InferShapeContext*
     int64_t a = 0;
     int64_t h = gmmXShape->GetDim(DIM_1);
     int64_t n1 = *transGmmWeightPtr ? gmmWeightShape->GetDim(DIM_1) : gmmWeightShape->GetDim(DIM_2);
-    
     ge::graphStatus ret = InferGMMOutputShape(context, gmmYShape, epWorldSizePtr,
                                               recvCountsPtr, sendCountsPtr, e, a, n1);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
-
     ret = InferMMOutputShape(context, mmXShape, mmWeightShape, transMmWeightPtr, mmYShape);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
-
     ret = InferPermuteOutputShape(context, permuteOutFlagPtr, e, a, h, permuteOutShape);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
