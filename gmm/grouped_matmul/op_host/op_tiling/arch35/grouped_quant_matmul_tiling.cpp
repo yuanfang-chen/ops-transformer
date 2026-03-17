@@ -1055,6 +1055,9 @@ ge::graphStatus GroupedQmmTiling::CalL1Tiling()
     basicTiling_.iterateOrder = 0U;
     basicTiling_.dbL0c =
         (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
+    if (basicTiling_.baseK == 0) {
+        return ge::GRAPH_SUCCESS;
+    }
     uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t singleCoreScaleSize = inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE &&
                                            inputParams_.kernelType == 0 && inputParams_.cDtype != ge::DT_INT32 ?
