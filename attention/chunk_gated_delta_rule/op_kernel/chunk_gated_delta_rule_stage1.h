@@ -297,7 +297,7 @@ private:
 
 
     __aicore__ inline void QKPreProcessCompute(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
-                                                LocalTensor<float>& dstBuffer)
+                                                LocalTensor<float>& dstBuffer, bool kgFlag = false)
     {
         uint32_t rows = halfChunkSize_;
         uint64_t validRow = halfChunkSize_;
@@ -330,7 +330,7 @@ private:
         DataCopyExtParams outParams{static_cast<uint16_t>(rows),
                                     static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
-        if (gOptional_){
+        if (!gOptional_ && kgFlag){
             DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);
         }
         fp32OutQueue_.FreeTensor(tmpTensor);
@@ -342,7 +342,7 @@ private:
         }
         uint64_t outOffset = subOffset_ * dk_;
         QKPreProcessCompute(queryGm_, queryContinousGm_[outOffset], qUbFloatCon);
-        QKPreProcessCompute(keyGm_, keyContinousGm_[outOffset], kUbFloatCon);
+        QKPreProcessCompute(keyGm_, keyContinousGm_[outOffset], kUbFloatCon, true);
     }
 
     __aicore__ inline void GCumExpCompute()

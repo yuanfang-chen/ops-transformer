@@ -251,7 +251,7 @@ private:
         Stage2 stageTwoOp;
         StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, state, kg_,
                                           attnInter_, stageWsAddr_, &stage2MT_, pipe_, &cg,
-                                          tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+                                          tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk, gFlag_};
         stageTwoOp.Init(&initStageTwoParams, tiling_->aiCoreNum);
         stageTwoOp.Process();
         pipe_->Reset();
@@ -265,7 +265,7 @@ private:
             stageThreeMask_[int(GetBlockIdx() / 2) * tiling_->chunkSize * tiling_->chunkSize], stageWsAddr_,
             out_[pos * tiling_->nv * tiling_->dv],
             &stage2MT_, pipe_, &cg, tiling_->scale,
-            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+            tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk, gFlag_};
         stageThreeOp.Init(&initStageThreeParams, tiling_->aiCoreNum);
         stageThreeOp.Process();
         pipe_->Reset();
