@@ -59,7 +59,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::GetShapeAttrsInfo()
         return ge::GRAPH_FAILED;
     }
     OP_TILING_CHECK((opName_ == nullptr),
-        OP_LOGE("quantGMMALLTOALLV", "The opName_ is null."), return ge::GRAPH_FAILED);
+        OP_LOGE("QUANTGMMALLTOALLV", "The opName_ is null."), return ge::GRAPH_FAILED);
     
     localParams_.opName = opName_;
     return ge::GRAPH_SUCCESS;

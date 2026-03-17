@@ -565,8 +565,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -587,8 +587,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -606,8 +606,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -625,8 +625,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmYShape
@@ -644,8 +644,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -663,8 +663,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -684,8 +684,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -703,8 +703,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -722,8 +722,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -741,8 +741,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -760,8 +760,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -781,8 +781,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -800,8 +800,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -819,8 +819,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -838,8 +838,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -857,8 +857,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -876,8 +876,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {0, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -895,8 +895,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 0}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -916,8 +916,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -935,8 +935,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -954,8 +954,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {8192, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight     mm不为空时mmX和mmWeight的K轴不匹配，mmX的K=7168，mmWeight的K=8192
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -975,8 +975,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -996,8 +996,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1017,8 +1017,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts                   // 数组个数超长
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1036,8 +1036,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts                   // 数组个数超长
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1057,8 +1057,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1076,8 +1076,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1097,8 +1097,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1118,8 +1118,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1139,8 +1139,8 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
         {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
         {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
-        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
-        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025}, // sendCounts       总和为8193，不等于gmmX的第一维大小8192
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
@@ -1165,6 +1165,26 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmYShape
         6, 6, 6, 6, 32, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode group_size
+        false, false, // gmmTrans mmTrans
+        2, 2, 0, // worldSize epWorldSize graphType
+        ge::GRAPH_FAILED, 0 // expectedStatus expectTilingKey
+    },
+    //group_size异常
+    {
+        "gmmalltoallv_mxfp8_quant_exception_group_size",
+        {8192, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // gmmX
+        {4, 7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // gmmWeight 
+        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmXScale
+        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // gmmWeightScale
+        {4096, 7168}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmX
+        {7168, 4096}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND, // mmWeight
+        {4, 4096, 112, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmXScale
+        {4, 112, 4096, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND, // mmWeightScale
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025}, // sendCounts
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1023}, // recvCounts
+        {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
+        {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmYShape
+        6, 6, 6, 6, 30, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode group_size   group_size为30
         false, false, // gmmTrans mmTrans
         2, 2, 0, // worldSize epWorldSize graphType
         ge::GRAPH_FAILED, 0 // expectedStatus expectTilingKey
@@ -1228,7 +1248,12 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // gmmXScaleStorageShape
     gert::StorageShape gmmXScaleStorageShape;
     if (param.gmmXScaleShape.size() > 0 && param.gmmXScaleShape[0] > 0) {
-        gmmXScaleStorageShape = {{param.gmmXScaleShape[0]}, {param.gmmXScaleShape[0]}};
+        if (param.gmmXScaleShape.size() > 3) {
+            gmmXScaleStorageShape = {{param.gmmXScaleShape[0], param.gmmXScaleShape[1], param.gmmXScaleShape[2], param.gmmXScaleShape[3]}, {param.gmmXScaleShape[0], param.gmmXScaleShape[1], param.gmmXScaleShape[2], param.gmmXScaleShape[3]}};
+        }
+        else {
+            gmmXScaleStorageShape = {{param.gmmXScaleShape[0]}, {param.gmmXScaleShape[0]}};
+        }
     } else {
         gmmXScaleStorageShape = {};
     }
@@ -1236,7 +1261,12 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // gmmWeightScaleStorageShape
     gert::StorageShape gmmWeightScaleStorageShape;
     if (param.gmmWeightScaleShape.size() > 0 && param.gmmWeightScaleShape[0] > 0) {
-        gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0]}, {param.gmmWeightScaleShape[0]}};
+        if (param.gmmXScaleShape.size() > 3) {
+            gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0], param.gmmWeightScaleShape[1], param.gmmWeightScaleShape[2], param.gmmWeightScaleShape[3]}, {param.gmmWeightScaleShape[0], param.gmmWeightScaleShape[1], param.gmmWeightScaleShape[2], param.gmmWeightScaleShape[3]}};
+        }
+        else {
+            gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0]}, {param.gmmWeightScaleShape[0]}};
+        }
     } else {
         gmmWeightScaleStorageShape = {};
     }
@@ -1244,7 +1274,11 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // mmXScaleStorageShape
     gert::StorageShape mmXScaleStorageShape;
     if (param.mmXScaleShape.size() > 0 && param.mmXScaleShape[0] > 0) {
-        mmXScaleStorageShape = {{param.mmXScaleShape[0]}, {param.mmXScaleShape[0]}};
+        if (param.mmXScaleShape.size() > 2) {
+            mmXScaleStorageShape = {{param.mmXScaleShape[0], param.mmXScaleShape[1], param.mmXScaleShape[2]}, {param.mmXScaleShape[0], param.mmXScaleShape[1], param.mmXScaleShape[2]}};
+        } else {
+            mmXScaleStorageShape = {{param.mmXScaleShape[0]}, {param.mmXScaleShape[0]}};
+        }
     } else {
         mmXScaleStorageShape = {};
     }
@@ -1252,7 +1286,11 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // mmWeightScaleStorageShape
     gert::StorageShape mmWeightScaleStorageShape;
     if (param.mmWeightScaleShape.size() > 0 && param.mmWeightScaleShape[0] > 0) {
-        mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0]}, {param.mmWeightScaleShape[0]}};
+        if (param.gmmXScaleShape.size() > 2) {
+            mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0], param.mmWeightScaleShape[1], param.mmWeightScaleShape[2]}, {param.mmWeightScaleShape[0], param.mmWeightScaleShape[1], param.mmWeightScaleShape[2]}};
+        } else {
+            mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0]}, {param.mmWeightScaleShape[0]}};
+        }
     } else {
         mmWeightScaleStorageShape = {};
     }

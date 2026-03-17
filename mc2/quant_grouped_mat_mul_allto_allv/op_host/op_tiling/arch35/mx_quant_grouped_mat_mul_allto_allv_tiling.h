@@ -31,6 +31,14 @@
 
 namespace optiling {
 namespace Mc2GroupedMatmul {
+    
+constexpr uint64_t GROUP_M_OFFSET = 32;
+constexpr uint64_t GROUP_N_OFFSET = 16;
+constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
+constexpr uint64_t MX_GROUP_SIZE_K = 32;
+constexpr uint64_t MX_GROUP_SIZE_M = 1;
+constexpr uint64_t MX_GROUP_SIZE_N = 1;
+
 class MxQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
 public:
     explicit MxQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
@@ -47,21 +55,11 @@ protected:
     ge::graphStatus CheckAndSetInputOutputInfo();
     ge::graphStatus SetGmmA2avWorkspaceInfo();
 
-    // ge::graphStatus CheckOpInputSingleParamsTensorNotSupport();
-    // ge::graphStatus CheckOpInputSingleParamsTensorSupport();
-    // ge::graphStatus CheckFormat();
-    // ge::graphStatus CheckOpInputSingleParamsTensorMM();
-    // ge::graphStatus CheckOpInputSingleParamsTensor();
-    // ge::graphStatus CheckAndSetLocalParamsGmm();
-    // ge::graphStatus CheckAndSetLocalParamsMm();
-    // ge::graphStatus CheckAndSetLocalParamsAttr();
-    // ge::graphStatus CheckAndSetLocalParams();
-    // ge::graphStatus CheckParamsRelationGmm();
-    // ge::graphStatus CheckParamsRelationMm();
-    // ge::graphStatus CheckParamsAttrEpAndSetLocalParams();
-    // ge::graphStatus CheckAndSetSendRecvCountsAttr();
-    // ge::graphStatus CheckLocalParams();
-    // ge::graphStatus CheckParamsRelationAndSetLocalParams();
+    ge::graphStatus CheckAndSetLocalParamsGmm() override;
+    ge::graphStatus CheckAndSetLocalParamsMm() override;
+    ge::graphStatus CheckParamsRelationGmm() override;
+    ge::graphStatus CheckParamsRelationMm() override;
+    ge::graphStatus CheckParamsAttrEpAndSetLocalParams() override;
 };
 
 } // namespace Mc2GroupedMatmul
