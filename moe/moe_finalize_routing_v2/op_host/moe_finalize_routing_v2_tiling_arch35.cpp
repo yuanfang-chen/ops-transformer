@@ -25,6 +25,10 @@ static constexpr int64_t X2_IDX = 3;
 static constexpr int64_t BIAS_IDX = 4;
 static constexpr int64_t SCALES_IDX = 5;
 static constexpr int64_t EXPERTIDX_IDX = 6;
+static constexpr int64_t X_IDX = 7;
+static constexpr int64_t CONST_EXPERT_ALPHA1_IDX = 8;
+static constexpr int64_t CONST_EXPERT_ALPHA2_IDX = 9;
+static constexpr int64_t CONST_EXPERT_V_IDX = 10;
 static constexpr int64_t BIAS_DIM_NUM = 2;
 static constexpr int64_t SCALES_DIM_NUM = 2;
 static constexpr int64_t DROPLESS_EXPANDED_X_DIM_NUM = 2;
@@ -34,7 +38,8 @@ static constexpr int64_t DROP_LESS_COL = 0;
 static constexpr int64_t DROP_PAD_COL = 1;
 static constexpr int64_t DROP_LESS_ROW = 2;
 static constexpr int64_t DROP_PAD_ROW = 3;
-static constexpr int64_t INPUT_BUFFER_NUM = 4;  // expaned_x bias x1 x2
+static constexpr int64_t INPUT_BUFFER_NUM = 8;  // expaned_x bias x1 x2
+static constexpr int64_t CONST_EXPERT_BUFFER_NUM = 3;  // expaned_x bias x1 x2
 static constexpr int64_t OUTPUT_BUFFER_NUM = 1; // y
 static constexpr uint64_t FULL_LOAD_H_BASE_TILING_KEY = 10000;
 static constexpr uint64_t SPLIT_H_BASE_TILING_KEY = 20000;
@@ -47,6 +52,11 @@ static constexpr uint64_t DROPPAD_ROW_TILING_KEY = 30;
 static constexpr uint64_t FLOAT16_TILING_KEY = 1;
 static constexpr uint64_t BFLOAT16_TILING_KEY = 2;
 static constexpr size_t WORKSPACE_RESERVED = 16 * 1024 * 1024;
+
+const static int64_t ATTR_DROP_PAD_MODE = 0LL;
+const static int64_t ATTR_ZERO_EXPERT_RANGE = 1LL;
+const static int64_t ATTR_COPY_EXPERT_RANGE = 2LL;
+const static int64_t ATTR_CONSTANT_EXPERT_RANGE = 3LL;
 
 class MoeFinalizeRoutingV2Regbase : public MoeFinalizeRoutingTilingV2
 {
@@ -93,6 +103,8 @@ protected:
     bool hasX2_{false};
     bool hasScales_{false};
     bool hasBias_{false};
+    bool hasX_{false};   // 有x输入，且constantEnd - constantStart >= 0
+    bool hasConstantExpert_{false};
     bool rowKHFullLoad_{false};
     bool kHFullLoad_{false};
     bool hFullLoad_{false};
@@ -112,6 +124,14 @@ protected:
     int64_t h{0};
     int64_t hAligned{0};
     int64_t dim0OfExpandedX{0};
+    // 新增判断零专家、拷贝专家以及常量专家的范围
+    int64_t zeroExpertStart{-1};
+    int64_t zeroExpertEnd{-1};
+    int64_t copyExpertStart{-1};
+    int64_t copyExpertEnd{-1};
+    int64_t constantExpertStart{-1};
+    int64_t constantExpertEnd{-1};
+    int64_t constExpertRangeNum{-1};
     MoeFinalizeRoutingV2RegbaseTilingData* tilingData{nullptr};
 };
 
@@ -333,6 +353,66 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
             scaleDtypeKey = BFLOAT16_TILING_KEY;
         }
     }
+
+    // const_expert_alpha等的shape信息要与const_expert_range_num一致
+    constExpertRangeNum = constantExpertEnd - constantExpertStart;
+    auto constExpertAlpha1Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA1_IDX);
+    if (constExpertAlpha1Desc) {
+        OP_CHECK_IF(
+            constExpertAlpha1Desc->GetDataType() != dtype,
+            OP_LOGE(context_->GetNodeName(), "dtype of const expert alpha1 is invalid."),
+            return ge::GRAPH_FAILED);
+    }
+    auto constExpertAlpha1Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALPHA1_IDX);
+    if (constExpertAlpha1Shape) {
+        OP_CHECK_IF(
+            constExpertAlpha1Shape->GetStorageShape().GetDim(1) != h,
+            OP_LOGE(context_->GetNodeName(), "dim 1 of of const expert alpha1 should be h."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            constExpertAlpha1Shape->GetStorageShape().GetDim(0) != constExpertRangeNum,
+            OP_LOGE(context_->GetNodeName(), "dim 0 of of  expert alpha1 should be constExpertRangeNum."),
+            return ge::GRAPH_FAILED);
+    }
+    
+    auto constExpertAlpha2Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA2_IDX);
+    if (constExpertAlpha2Desc) {
+        OP_CHECK_IF(
+            constExpertAlpha2Desc->GetDataType() != dtype,
+            OP_LOGE(context_->GetNodeName(), "dtype of const expert alpha2 is invalid."),
+            return ge::GRAPH_FAILED);
+    }
+    auto constExpertAlpha2Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALPHA2_IDX);
+    if (constExpertAlpha2Shape) {
+        OP_CHECK_IF(
+            constExpertAlpha2Shape->GetStorageShape().GetDim(1) != h,
+            OP_LOGE(context_->GetNodeName(), "dim 1 of of const expert alpha2 should be h."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            constExpertAlpha2Shape->GetStorageShape().GetDim(0) != constExpertRangeNum,
+            OP_LOGE(context_->GetNodeName(), "dim 0 of of  expert alpha2 should be constExpertRangeNum."),
+            return ge::GRAPH_FAILED);
+    }
+
+    auto vDesc = context_->GetOptionalInputDesc(CONST_EXPERT_V_IDX);
+    if (vDesc) {
+        OP_CHECK_IF(
+            vDesc->GetDataType() != dtype,
+            OP_LOGE(context_->GetNodeName(), "dtype of v is invalid."),
+            return ge::GRAPH_FAILED);
+    }
+
+    auto vShape = context_->GetOptionalInputShape(CONST_EXPERT_V_IDX);
+    if (vShape) {
+        OP_CHECK_IF(
+            vShape->GetStorageShape().GetDim(1) != h,
+            OP_LOGE(context_->GetNodeName(), "dim 1 of of v should be h."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            vShape->GetStorageShape().GetDim(0) != constExpertRangeNum,
+            OP_LOGE(context_->GetNodeName(), "dim 0 of of v should be constExpertRangeNum."),
+            return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -364,6 +444,21 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
             return ge::GRAPH_FAILED);
     }
 
+    // 判断x的shape信息要与（ROW_NUM, H）一致
+    auto xDesc = context_->GetOptionalInputDesc(X_IDX);
+    if (xDesc) {
+        auto xShape = context_->GetOptionalInputShape(X_IDX);
+        OP_CHECK_IF(
+            xDesc->GetDataType() != dtype,
+            OP_LOGE(context_->GetNodeName(), "dtype of x is invalid."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            xShape->GetStorageShape() != bsh,
+            OP_LOGE(context_->GetNodeName(), "shape of x must be (bs,h)."),
+            return ge::GRAPH_FAILED);
+    }
+
+
     auto yDesc = context_->GetOutputDesc(0);
     OP_CHECK_NULL_WITH_CONTEXT(context_, yDesc);
     auto yShape = context_->GetOutputShape(0);
@@ -380,9 +475,10 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
 {
+    // attr的实现
     auto attrsPtr = context_->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context_, attrsPtr);
-    auto dropPadModePtr = attrsPtr->GetAttrPointer<int64_t>(0);
+    auto dropPadModePtr = attrsPtr->GetAttrPointer<int64_t>(ATTR_DROP_PAD_MODE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, dropPadModePtr);
     dropPadMode = *dropPadModePtr;
     OP_CHECK_IF(
@@ -391,6 +487,34 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
         OP_LOGE(context_->GetNodeName(), "drop pad mode only supports 0 or 1 or 2."),
         return ge::GRAPH_FAILED);
 
+    const auto *zeroPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_ZERO_EXPERT_RANGE);
+    if (zeroPtr != nullptr && zeroPtr->GetSize() == 2) {
+        const int64_t *zeroList = reinterpret_cast<const int64_t *>(zeroPtr->GetData());
+        zeroExpertStart = zeroList[0];
+        zeroExpertEnd = zeroList[1];
+        OP_LOGD(context_, "Extracted input attrs zeroExpertStart = %ld, zeroExpertEnd = %ld.",
+            zeroExpertStart, zeroExpertEnd);
+    }
+
+    const auto *copyPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_COPY_EXPERT_RANGE);
+    if (copyPtr != nullptr && copyPtr->GetSize() == 2) {
+        const int64_t *copyList = reinterpret_cast<const int64_t *>(copyPtr->GetData());
+        copyExpertStart = copyList[0];
+        copyExpertEnd = copyList[1];
+        OP_LOGD(context_, "Extracted input attrs copyExpertStart = %ld, copyExpertEnd = %ld.",
+            copyExpertStart, copyExpertEnd);
+    }
+
+    const auto *constantPtr = attrsPtr->GetAttrPointer<gert::ContinuousVector>(ATTR_CONSTANT_EXPERT_RANGE);
+    if (constantPtr != nullptr && constantPtr->GetSize() == 2) {
+        const int64_t *constList = reinterpret_cast<const int64_t *>(constantPtr->GetData());
+        constantExpertStart = constList[0];
+        constantExpertEnd = constList[1];
+        OP_LOGD(context_, "Extracted input attrs constantExpertStart = %ld, constantExpertEnd = %ld.",
+            constantExpertStart, constantExpertEnd);
+    }
+
+    // 输入数据
     auto expandedXDesc = context_->GetInputDesc(EXPANDED_X_IDX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, expandedXDesc);
     dtype = expandedXDesc->GetDataType();
@@ -425,7 +549,14 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
     OP_CHECK_IF(
         hasX2_ && !hasX1_, OP_LOGE(context_->GetNodeName(), "has x2 but x1 not exist."),
         return ge::GRAPH_FAILED);
-
+    
+    // 新增x， shape与bias一致
+    auto xDesc = context_->GetOptionalInputDesc(X_IDX);
+    hasX_ = xDesc != nullptr;
+    auto constExpertAlpha1Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA1_IDX);
+    auto constExpertAlpha2Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA2_IDX);
+    auto constExpertVDesc = context_->GetOptionalInputDesc(CONST_EXPERT_V_IDX);
+    hasConstantExpert_ =  constExpertVDesc != nullptr && constExpertAlpha1Desc != nullptr && constExpertAlpha2Desc != nullptr;
     OP_CHECK_IF(
         CheckShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
         OP_LOGE(context_->GetNodeName(), "check shapes and dtype are invalid."),
@@ -436,8 +567,10 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInUb)
 {
-    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) *
+    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
+           (hasConstantExpert_ ? 1 : 0) * 3 *
+                Ops::Base::CeilDiv(static_cast<uint64_t>(h * dtypeSize), blockSize_) * blockSize_ +
            (scalesInUb && hasScales_ ? 1 : 0) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * scaleDtypeSize), blockSize_) * blockSize_ +
            /* y */ Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * sizeof(float)), blockSize_) * blockSize_;
@@ -445,11 +578,12 @@ int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInU
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSizeForKHFullLoad(int64_t rowFactor, bool scalesInUb)
 {
-    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) *
+    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
            (scalesInUb && hasScales_ ? 1 : 0) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * scaleDtypeSize), blockSize_) * blockSize_ +
            (hasBias_ ? 1 : 0) * rowFactor * k * hAligned * dtypeSize + 
+           (hasConstantExpert_ ? 1 : 0) * constExpertRangeNum * hAligned * dtypeSize * 3 +
                rowFactor * k * hAligned * dtypeSize +
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_ +
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_ +
@@ -513,6 +647,7 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     tilingData->rowLoopOfFormerBlock = rowLoopOfFormerBlock;
     tilingData->rowLoopOfTailBlock = rowLoopOfTailBlock;
     tilingData->rowFactor = rowFactor;
+    tilingData->constExpertRangeFactor = std::min(constExpertRangeNum, rowFactor);
     tilingData->tailRowFactorOfFormerBlock = tailRowFactorOfFormerBlock;
     tilingData->tailRowFactorOfTailBlock = tailRowFactorOfTailBlock;
     tilingData->hLoop = 1;
@@ -522,8 +657,17 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     tilingData->kFactor = 1;
     tilingData->tailKFactor = 1;
     tilingData->activeNum = dim0OfExpandedX;
+
+    tilingData->zeroExpertStart = zeroExpertStart;
+    tilingData->zeroExpertEnd = zeroExpertEnd;
+    tilingData->copyExpertStart = copyExpertStart;
+    tilingData->copyExpertEnd = copyExpertEnd;
+    tilingData->constantExpertStart = constantExpertStart;
+    tilingData->constantExpertEnd = constantExpertEnd;
+    tilingData->constExpertRangeNum = constExpertRangeNum;
 }
 
+// 切分的地方需要修改
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
     int64_t expandedXAlignedByte;
@@ -548,7 +692,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfF
         rowFactor = CalcRowFactorForKHFullLoad(ubSizeRemained, true);
     } else {
         int64_t kHAlignedByte = k * hAligned * dtypeSize;	
-        int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;	
+        int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;
         int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER - kHAlignedByte - hasBiasvalue;
         rowFactor = CalcRowFactor(ubSizeRemained, true);
     }
@@ -591,7 +735,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFo
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
-                             static_cast<int64_t>(!hasBias_);
+                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_) - static_cast<int64_t>(!hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM;
     int64_t totalBufferNum = actualInputNum + OUTPUT_BUFFER_NUM + (dtype != ge::DataType::DT_FLOAT ? 1 : 0);
     int64_t hFactor = ubSize_ / DOUBLE_BUFFER / dtypeSize / totalBufferNum;
     int64_t hLoop = Ops::Base::CeilDiv(h, hFactor);
@@ -606,6 +750,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfForme
     tilingData->hFactor = hFactor;
     tilingData->tailHFactor = tailHFactor;
     tilingData->activeNum = dim0OfExpandedX;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -616,11 +761,14 @@ void MoeFinalizeRoutingV2Regbase::PrintTilingData()
         "MoeFinalizeRoutingV2 tiling data: numBlocks[%ld] row[%ld] e[%ld] c[%ld] h[%ld] hAligned[%ld] k[%ld]"
         "rowOfFormerBlock[%ld] rowOfTailBlock[%ld] rowLoopOfFormerBlock[%ld] rowLoopOfTailBlock[%ld] "
         "rowFactor[%ld] tailRowFactorOfFormerBlock[%ld] tailRowFactorOfTailBlock[%ld] "
-        "hLoop[%ld] hFactor[%ld] tailHFactor[%ld]",
+        "hLoop[%ld] hFactor[%ld] tailHFactor[%ld] zeroExpertStart[%ld] zeroExpertEnd[%ld] copyExpertStart[%ld] "
+        "copyExpertEnd[%ld] constantExpertStart[%ld] constantExpertEnd[%ld] constExpertRangeNum[%ld]",
         usedCoreNum_, tilingData->row, tilingData->e, tilingData->c, tilingData->h, tilingData->hAligned, tilingData->k,
         tilingData->rowOfFormerBlock, tilingData->rowOfTailBlock, tilingData->rowLoopOfFormerBlock,
         tilingData->rowLoopOfTailBlock, tilingData->rowFactor, tilingData->tailRowFactorOfFormerBlock,
-        tilingData->tailRowFactorOfTailBlock, tilingData->hLoop, tilingData->hFactor, tilingData->tailHFactor);
+        tilingData->tailRowFactorOfTailBlock, tilingData->hLoop, tilingData->hFactor, tilingData->tailHFactor,
+        tilingData->zeroExpertStart, tilingData->zeroExpertEnd, tilingData->copyExpertStart, tilingData->copyExpertEnd,
+        tilingData->constantExpertStart, tilingData->constantExpertEnd, tilingData->constExpertRangeNum);
 }
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
@@ -641,6 +789,14 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
     tilingData->rowOfFormerBlock = rowPerCore;
     tilingData->rowOfTailBlock = rowOfTailBlock;
 
+    tilingData->zeroExpertStart = zeroExpertStart;
+    tilingData->zeroExpertEnd = zeroExpertEnd;
+    tilingData->copyExpertStart = copyExpertStart;
+    tilingData->copyExpertEnd = copyExpertEnd;
+    tilingData->constantExpertStart = constantExpertStart;
+    tilingData->constantExpertEnd = constantExpertEnd;
+
+    // 切分
     ge::graphStatus ret;
     if (rowKHFullLoad_) {
         ret = DoOpTilingRowKHFullLoad(rowPerCore, rowOfTailBlock);
@@ -651,6 +807,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
     } else {
         ret = DoOpTilingSplitH(rowPerCore, rowOfTailBlock);
     }
+
     OP_CHECK_IF(
         ret != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "failed to do tiling"),
         return ge::GRAPH_FAILED);
@@ -675,8 +832,10 @@ bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
     int64_t hasScalevalue = hasScales_ ? scalesAlignedByte : 0;
     int64_t totalSize =
         expandedXAlignedByte + hasBiasvalue +
-        DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
+        DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) +
+        static_cast<int64_t>(hasX_) + static_cast<int64_t>(hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM) * hAlignedByte +
                          hAligned32Byte * OUTPUT_BUFFER_NUM);
+
     return totalSize <= ubSize_;
 }
 
@@ -695,10 +854,11 @@ bool MoeFinalizeRoutingV2Regbase::IsKHFullLoad()
     int64_t expertIdxAlignedByte = 
         Ops::Base::CeilDiv(static_cast<uint64_t>(k * sizeof(int32_t)), blockSize_) * blockSize_;
     int64_t hasExpertIdxValue = (hasBias_ && k == 1) ? expertIdxAlignedByte : 0;
-    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue + hasExpandedRowIdxValue +
-                                        hasExpertIdxValue +
-                                        (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
+    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue + hasExpandedRowIdxValue + hasExpertIdxValue +
+                                        (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_) + 
+                                        static_cast<int64_t>(hasConstantExpert_) * 3) * hAlignedByte +
                                         hAligned32Byte * OUTPUT_BUFFER_NUM);
+
     return totalSize <= ubSize_;
 }
 
@@ -709,10 +869,11 @@ bool MoeFinalizeRoutingV2Regbase::IsHFullLoad()
     hAligned = hAlignedByte / dtypeSize;
     int64_t hAligned32Byte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * sizeof(float)), blockSize_) * blockSize_;
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
-                             static_cast<int64_t>(!hasBias_);
+                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_) - static_cast<int64_t>(!hasConstantExpert_) * 3;
     int64_t hasScalevalue = hasScales_ ? oneKAlignedByte : 0;
     int64_t totalSize =
         DOUBLE_BUFFER * (hAlignedByte * actualInputNum + hasScalevalue + hAligned32Byte * OUTPUT_BUFFER_NUM);
+
     return totalSize <= ubSize_;
 }
 
@@ -721,7 +882,7 @@ bool MoeFinalizeRoutingV2Regbase::IsCapable()
     if (!Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
         return false;
     }
-
+    // IsRowKHFullLoad（全维度）→ IsKHFullLoad（K-H 维度）→ IsHFullLoad（仅 H 维度），粒度由粗到细，适配不同 MoE 子任务；
     rowKHFullLoad_ = IsRowKHFullLoad();
     if (rowKHFullLoad_) {
         return true;
@@ -732,6 +893,7 @@ bool MoeFinalizeRoutingV2Regbase::IsCapable()
         return true;
     }
     hFullLoad_ = IsHFullLoad();
+
     return true;
 }
 
@@ -758,8 +920,6 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcTilingKey()
     }
 
     tilingKey_ += scaleDtypeKey;
-
-    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2 get tiling key: %lx", tilingKey_);
 
     return ge::GRAPH_SUCCESS;
 }
