@@ -51,10 +51,12 @@ public:
     static constexpr bool isFp8 = IsSameType<INPUT_T, fp8_e5m2_t>::value ||
                                   IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
                                   IsSameType<INPUT_T, hifloat8_t>::value;
+    static constexpr bool isBf16Fp16 = IsSameType<INPUT_T, bfloat16_t>::value ||
+                                  IsSameType<INPUT_T, half>::value;
     static constexpr bool isMlaFullQuant = isFp8 && hasRope;
     static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
-    static constexpr bool useDn = IsDn(((IsSameType<INPUT_T, float>::value) || isFp8), (isFp8 && (s2BaseSize == 256)), pseMode, hasAtten, hasDrop,
-                                       s1BaseSize == 64, dTemplateType, hasRope, enableKVPrefix, isInfer, IsSameType<INPUT_T, hifloat8_t>::value);
+    static constexpr bool useDn = optionalDn || IsDn(((IsSameType<INPUT_T, float>::value) || isFp8), (isFp8 && (s2BaseSize == 256)), pseMode, hasAtten,
+                                hasDrop, s1BaseSize == 64, dTemplateType, hasRope, enableKVPrefix, isInfer, IsSameType<INPUT_T, hifloat8_t>::value);
     static constexpr bool useNz = IsSameType<INPUT_T, hifloat8_t>::value && !isInfer;
     static constexpr bool hasPse = pseMode != PseTypeEnum::PSE_NONE_TYPE;
     static constexpr bool hasPseOuter = (pseMode == PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) ||
@@ -351,7 +353,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
 {
     bmm1ResBuf.WaitCrossCore();
     LocalTensor<uint8_t> attenMaskUb;
-    if constexpr (isFp8 && hasAtten) {
+    if constexpr ((isFp8 || isBf16Fp16) && hasAtten) {
         AttenMaskCopyInDn<hasAtten>(this->attenMaskInQue[0], this->attenMaskGmInt,
                                     runInfo, constInfo, *attenMaskInfoPtr,
                                     (runInfo.s2EndIdx - s1BaseSize < s2BaseSize) ||
@@ -393,7 +395,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
     if (unlikely(runInfo.s2LoopCount == 0)) {
-        if constexpr (isFp8) {
+        if constexpr (isFp8 || isBf16Fp16) {
             FaVectorApi::ProcessVec1VfDn<T, INPUT_T, false, hasAtten, s2BaseSize>(
                 stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
                 ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize, runInfo.s2RealSize,
@@ -407,7 +409,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
                 negativeFloatScalar, constInfo.keepProb, false);
         }
     } else {
-        if constexpr (isFp8) {
+        if constexpr (isFp8 || isBf16Fp16) {
             FaVectorApi::ProcessVec1VfDn<T, INPUT_T, true, hasAtten, s2BaseSize>(
                 stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
                 ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize, runInfo.s2RealSize,
@@ -422,7 +424,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
         }
     }
     bmm1ResBuf.SetCrossCore();
-    if constexpr (isFp8 && hasAtten) {
+    if constexpr ((isFp8 || isBf16Fp16) && hasAtten) {
         this->attenMaskInQue[0].template FreeTensor(attenMaskUb);
     }
     this->stage1OutQue[stage1Offset].template EnQue(stage1CastTensor);

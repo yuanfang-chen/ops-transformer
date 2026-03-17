@@ -74,6 +74,7 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
     X(hasAtten, bool, false) \
     X(hasDrop, bool, false) \
     X(hasRope, bool, false) \
+    X(optionalDn, bool, false) \
     X(isInfer, bool, false) \
     X(isPa, bool, false) \
     X(isFd, bool, false) \
@@ -95,6 +96,7 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
     X(hasAtten, bool, false) \
     X(hasDrop, bool, false) \
     X(hasRope, bool, false) \
+    X(optionalDn, bool, false) \
     X(isInfer, bool, false) \
     X(isPa, bool, false) \
     X(isFd, bool, false) \
