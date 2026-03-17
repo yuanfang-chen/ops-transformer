@@ -193,9 +193,9 @@ bool CheckMxA8W4NzInputPtr(gert::TilingContext *contex) {
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input wStorageShape is nullptr."),
                 return false);
 
-    auto scaleDesc = contex->GetInputDesc(SCALE_INDEX);
+    auto scaleDesc = contex->GetOptionalInputDesc(SCALE_INDEX);
     OP_CHECK_IF(scaleDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input scaleDesc is nullptr."), return false);
-    auto scaleStorageShape = contex->GetInputShape(SCALE_INDEX);
+    auto scaleStorageShape = contex->GetOptionalInputShape(SCALE_INDEX);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input scaleStorageShape is nullptr."),
                 return false);
 
@@ -251,7 +251,7 @@ bool CheckMxA8W4NzAttrPtr(gert::TilingContext *contex) {
         return false);
 
     // offset must be nullptr in MxA8W4 weight Nz scenario
-    auto offsetDesc = contex->GetInputDesc(OFFSET_INDEX);
+    auto offsetDesc = contex->GetOptionalInputDesc(OFFSET_INDEX);
     OP_CHECK_IF(offsetDesc != nullptr,
                 OP_LOGE(contex->GetNodeName(), "offset must be nullptr in MxA8W4 weight Nz scenario."),
                 return false);
@@ -269,7 +269,7 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     auto wDimNum = wShape.GetDimNum();
 
-    auto scaleStorageShape = contex->GetInputShape(SCALE_INDEX);
+    auto scaleStorageShape = contex->GetOptionalInputShape(SCALE_INDEX);
     const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
     auto scaleDimNum = scaleShape.GetDimNum();
 
@@ -364,7 +364,7 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
     if (biasDesc != nullptr) {
         // Try GetInputShape first (for provided inputs including empty shapes)
-        auto biasStorageShape = contex->GetInputShape(BIAS_INDEX);
+        auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
         // Skip validation if bias shape is null - treat as optional
         if (biasStorageShape != nullptr) {
             const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
@@ -554,8 +554,8 @@ bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
 
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
     if (biasDesc != nullptr) {
-        // Try GetInputShape first (for provided inputs including empty shapes)
-        auto biasStorageShape = contex->GetInputShape(BIAS_INDEX);
+        // Try GetOptionalInputShape first (for provided inputs including empty shapes)
+        auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
         // Check if shape is valid and not empty
         if (biasStorageShape != nullptr) {
             const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
@@ -568,9 +568,9 @@ bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
         inputParams.hasBias = false;
     }
     
-    auto sharedInputDesc = contex->GetInputDesc(SHARE_INPUT_INDEX);
+    auto sharedInputDesc = contex->GetOptionalInputDesc(SHARE_INPUT_INDEX);
     if (sharedInputDesc != nullptr) {
-        auto sharedInputStorageShape = contex->GetInputShape(SHARE_INPUT_INDEX);
+        auto sharedInputStorageShape = contex->GetOptionalInputShape(SHARE_INPUT_INDEX);
         OP_CHECK_IF(sharedInputStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input sharedInputStorageShape is nullptr."), return false);
         inputParams.sharedInputLen = sharedInputStorageShape->GetOriginShape().GetDim(0);
     } else {
