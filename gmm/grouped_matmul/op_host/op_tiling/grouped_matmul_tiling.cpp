@@ -803,7 +803,6 @@ ge::graphStatus GMMTiling::SetWorkspscesPerTokenQuant(const uint32_t aicNum, siz
       // 4： when do cv parallelism, four pieces of workspace are used for storing four cycles of matmul output
       workspaces[0] += 4UL * baseM_ * baseN_ * usedCoreNum_ * sizeof(short); // a4w4 mmout dtype is half
     }
-    
   } else {
     // 4： when do cv parallelism, four pieces of workspace are used for storing four cycles of matmul output
     workspaces[0] += 4UL * baseM_ * baseN_ * usedCoreNum_ * sizeof(int32_t);
