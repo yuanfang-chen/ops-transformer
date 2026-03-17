@@ -25,6 +25,8 @@ import copy
 import random
 import numpy as np
 import torch
+import torch.nn as nn
+import torch._dynamo
 import torch_npu
 
 try:
@@ -607,7 +609,7 @@ def convert_dict_values_to_torch(input_dict):
             if value.dtype == numpy_float8_e4m3fn():
                 output_dict[key] = torch.tensor(value.astype(np.float32)).to(torch.float8_e4m3fn)
             elif float8_e8m0 is not None and value.dtype == float8_e8m0:
-                output_dict[key] = torch.tensor(value.astype(np.int8))
+                output_dict[key] = torch.tensor(value.astype(np.uint8)).view(torch.float8_e8m0fnu)
             else:
                 output_dict[key] = torch.from_numpy(value)
         else:
@@ -1339,11 +1341,11 @@ def build_mla_param(params):
         deq_scale_w_uqqr = torch.rand(1, N1 * (D + DR), dtype=torch.float32) + 0.01
         deq_scale_w_dkvkr = torch.rand(1, HCKV + DR, dtype=torch.float32) + 0.01
     elif weight_quant_mode == 3:
-        # MXFP8: block-scaled e8m0 format
-        deq_scale_x = torch.randint(100, 150, (T, He // grp_size), dtype=torch.uint8)
-        deq_scale_w_dq = torch.randint(100, 150, (HCQ, He // grp_size), dtype=torch.uint8)
-        deq_scale_w_uqqr = torch.randint(100, 150, (N1 * (D + DR), HCQ // grp_size), dtype=torch.uint8)
-        deq_scale_w_dkvkr = torch.randint(100, 150, (HCKV + DR, He // grp_size), dtype=torch.uint8)
+        # MXFP8: block-scaled e8m0 format — create as uint8, view as float8_e8m0fnu
+        deq_scale_x = torch.randint(100, 150, (T, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
+        deq_scale_w_dq = torch.randint(100, 150, (HCQ, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
+        deq_scale_w_uqqr = torch.randint(100, 150, (N1 * (D + DR), HCQ // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
+        deq_scale_w_dkvkr = torch.randint(100, 150, (HCKV + DR, He // grp_size), dtype=torch.uint8).view(torch.float8_e8m0fnu)
 
     if weight_quant_mode in [1, 2]:
         # smooth_scale_cq for dynamic_quant
@@ -1468,6 +1470,46 @@ def build_mla_param(params):
     return mla_param, npu_inputs
 
 
+class NetworkV3(nn.Module):
+    """Wrapper for npu_mla_prolog_v3 to enable torch.compile graph mode."""
+
+    def forward(self, x, w_dq, w_uq_qr, w_uk, w_dkv_kr, gamma_cq, gamma_ckv,
+                sin, cos, kv_cache, kr_cache, cache_index,
+                deq_scale_x=None, deq_scale_w_dq=None, deq_scale_w_uqqr=None,
+                deq_scale_w_dkvkr=None, quant_scale_ckv=None, quant_scale_ckr=None,
+                smo_scale_cq=None, actual_seq=None,
+                epsilon_cq=1e-5, epsilon_ckv=1e-5, cache_mode="PA_BSND",
+                qnorm_flag=0, weight_quant_mode=0, kv_cache_quant_mode=0,
+                query_quant_mode=0, ckvkr_repo_mode=0, quant_scale_repo_mode=0,
+                tile_size=128, k_nope_clip_alpha=None, qc_qr_scale=1, kc_scale=1):
+        return torch_npu.npu_mla_prolog_v3(
+            x, w_dq, w_uq_qr, w_uk, w_dkv_kr, gamma_cq, gamma_ckv,
+            sin, cos, kv_cache, kr_cache,
+            cache_index=cache_index,
+            dequant_scale_x=deq_scale_x,
+            dequant_scale_w_dq=deq_scale_w_dq,
+            dequant_scale_w_uq_qr=deq_scale_w_uqqr,
+            dequant_scale_w_dkv_kr=deq_scale_w_dkvkr,
+            quant_scale_ckv=quant_scale_ckv,
+            quant_scale_ckr=quant_scale_ckr,
+            smooth_scales_cq=smo_scale_cq,
+            actual_seq_len=actual_seq,
+            rmsnorm_epsilon_cq=epsilon_cq,
+            rmsnorm_epsilon_ckv=epsilon_ckv,
+            cache_mode=cache_mode,
+            query_norm_flag=qnorm_flag,
+            weight_quant_mode=weight_quant_mode,
+            kv_cache_quant_mode=kv_cache_quant_mode,
+            query_quant_mode=query_quant_mode,
+            ckvkr_repo_mode=ckvkr_repo_mode,
+            quant_scale_repo_mode=quant_scale_repo_mode,
+            tile_size=tile_size,
+            k_nope_clip_alpha=k_nope_clip_alpha,
+            qc_qr_scale=qc_qr_scale,
+            kc_scale=kc_scale,
+        )
+
+
 def test_mla_prolog_v3(params):
     """Run MLA Prolog V3: CPU golden reference + NPU operator.
 
@@ -1531,35 +1573,84 @@ def test_mla_prolog_v3(params):
         epsilon_cq = params.get('epsilon_cq', 1e-5)
         epsilon_ckv = params.get('epsilon_ckv', 1e-5)
 
-        result = torch_npu.npu_mla_prolog_v3(
-            token_x_npu, w_dq_cast, w_uq_qr_cast,
-            w_uk_npu, w_dkv_kr_cast,
-            gamma_cq_npu, gamma_ckv_npu,
-            rope_sin_npu, rope_cos_npu,
-            kv_cache_npu, kr_cache_npu,
+        # Common kwargs for both execution paths
+        op_kwargs = dict(
             cache_index=cache_index_npu,
-            dequant_scale_x=deq_scale_x_npu,
-            dequant_scale_w_dq=deq_scale_w_dq_npu,
-            dequant_scale_w_uq_qr=deq_scale_w_uqqr_npu,
-            dequant_scale_w_dkv_kr=deq_scale_w_dkvkr_npu,
+            deq_scale_x=deq_scale_x_npu,
+            deq_scale_w_dq=deq_scale_w_dq_npu,
+            deq_scale_w_uqqr=deq_scale_w_uqqr_npu,
+            deq_scale_w_dkvkr=deq_scale_w_dkvkr_npu,
             quant_scale_ckv=quant_scale_ckv_npu,
             quant_scale_ckr=quant_scale_ckr_npu,
-            smooth_scales_cq=smooth_scales_cq_npu,
-            actual_seq_len=actual_seq_len_npu,
-            k_nope_clip_alpha=k_nope_clip_alpha_npu,
-            rmsnorm_epsilon_cq=epsilon_cq,
-            rmsnorm_epsilon_ckv=epsilon_ckv,
+            smo_scale_cq=smooth_scales_cq_npu,
+            actual_seq=actual_seq_len_npu,
+            epsilon_cq=epsilon_cq,
+            epsilon_ckv=epsilon_ckv,
             cache_mode=cache_mode,
-            query_norm_flag=qnorm_flag,
+            qnorm_flag=qnorm_flag,
             weight_quant_mode=weight_quant_mode,
             kv_cache_quant_mode=kv_quant_mode,
             query_quant_mode=query_quant_mode,
             ckvkr_repo_mode=ckvkr_repo_mode,
             quant_scale_repo_mode=quant_scale_repo_mode,
             tile_size=tile_size,
+            k_nope_clip_alpha=k_nope_clip_alpha_npu,
             qc_qr_scale=qc_qr_scale,
             kc_scale=kc_scale,
         )
+
+        graph_path = params.get('graph_path', '7')
+
+        if graph_path == '7':
+            # Path 7: acl_graph mode via torchair
+            import torchair as tng
+            from torchair.configs.compiler_config import CompilerConfig
+            torch._dynamo.reset()
+            os.environ["ENABLE_ACLNN"] = "false"
+            config = CompilerConfig()
+            config.mode = "reduce-overhead"
+            config.debug.aclgraph.clone_input = False
+            npu_backend = tng.get_npu_backend(compiler_config=config)
+            model = torch.compile(NetworkV3(), fullgraph=True, backend=npu_backend, dynamic=False)
+            result = model(
+                token_x_npu, w_dq_cast, w_uq_qr_cast,
+                w_uk_npu, w_dkv_kr_cast,
+                gamma_cq_npu, gamma_ckv_npu,
+                rope_sin_npu, rope_cos_npu,
+                kv_cache_npu, kr_cache_npu,
+                **op_kwargs,
+            )
+        else:
+            # Path 0: eager mode — direct operator call
+            result = torch_npu.npu_mla_prolog_v3(
+                token_x_npu, w_dq_cast, w_uq_qr_cast,
+                w_uk_npu, w_dkv_kr_cast,
+                gamma_cq_npu, gamma_ckv_npu,
+                rope_sin_npu, rope_cos_npu,
+                kv_cache_npu, kr_cache_npu,
+                cache_index=cache_index_npu,
+                dequant_scale_x=deq_scale_x_npu,
+                dequant_scale_w_dq=deq_scale_w_dq_npu,
+                dequant_scale_w_uq_qr=deq_scale_w_uqqr_npu,
+                dequant_scale_w_dkv_kr=deq_scale_w_dkvkr_npu,
+                quant_scale_ckv=quant_scale_ckv_npu,
+                quant_scale_ckr=quant_scale_ckr_npu,
+                smooth_scales_cq=smooth_scales_cq_npu,
+                actual_seq_len=actual_seq_len_npu,
+                k_nope_clip_alpha=k_nope_clip_alpha_npu,
+                rmsnorm_epsilon_cq=epsilon_cq,
+                rmsnorm_epsilon_ckv=epsilon_ckv,
+                cache_mode=cache_mode,
+                query_norm_flag=qnorm_flag,
+                weight_quant_mode=weight_quant_mode,
+                kv_cache_quant_mode=kv_quant_mode,
+                query_quant_mode=query_quant_mode,
+                ckvkr_repo_mode=ckvkr_repo_mode,
+                quant_scale_repo_mode=quant_scale_repo_mode,
+                tile_size=tile_size,
+                qc_qr_scale=qc_qr_scale,
+                kc_scale=kc_scale,
+            )
 
         torch.npu.synchronize()
 
