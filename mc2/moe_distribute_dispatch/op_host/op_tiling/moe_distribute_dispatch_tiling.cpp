@@ -870,7 +870,7 @@ static ge::graphStatus MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(gert::
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
     info.aivNum = aivNum;
     info.totalUbSize = ubSize;
-    OP_LOGD("MoeDistributeDispatch GetPlatformInfo And SetTiling finished");   
+    
     OP_LOGD(K_INNER_DEBUG, "aivNum=%d", info.aivNum);
     OP_LOGD(K_INNER_DEBUG, "ubSize=%lu", info.totalUbSize);
 
@@ -918,7 +918,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
     auto groupEp = context->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
     uint64_t hcclBuffSize = 0ULL;
     auto ret = mc2tiling::GetCclBufferSize(groupEp, &hcclBuffSize, nodeName);
-    OP_LOGD("MoeDistributeDispatch", "HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
+    OP_LOGD(nodeName, "HCCL_BUFFSIZE = %lu Bytes (%lu MB).", hcclBuffSize, ops::CeilDiv(hcclBuffSize, MB_SIZE));
     OP_TILING_CHECK(ret != ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Get Ep hcclBuffSize failed.", hcclBuffSize),
                     return ge::GRAPH_FAILED);
     uint32_t epWorldSize = info.epWorldSize;
@@ -935,7 +935,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         const uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
         minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE("MoeDistributeDispatch", 
+            OP_LOGE(nodeName,
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * maxBs "
                     "* (h * 2 + 16 * ((k + 7) / 8 * 8)) / 1MB + 6MB) = %luMB, actual HCCL_BUFFSIZE = %luMB, "
                     "moeExpertNum = %u, maxBs = %lu, h = %u, k = %u.",
@@ -949,7 +949,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         const uint64_t maxRecvTokenNum = maxBs * epWorldSize * std::min(localMoeExpertNum, info.k);
         minHcclBuffSize = BUFFER_NUM * (maxRecvTokenNum * perTokenSize + extraBuffSize);
         if (minHcclBuffSize > hcclBuffSize) {
-            OP_LOGE("MoeDistributeDispatch", 
+            OP_LOGE(nodeName,
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE (%lu * (maxBs * epWorldSize * "
                     "min(localMoeExpertNum, k) * h * 2 / 1MB + 2MB)) = %luMB, actual HCCL_BUFFSIZE = %luMB, maxBs = "
                     "%lu, epWorldSize = %u, localMoeExpertNum = %u, k = %u, h = %u.",
