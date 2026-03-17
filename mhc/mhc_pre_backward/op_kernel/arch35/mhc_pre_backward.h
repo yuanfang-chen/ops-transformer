@@ -208,7 +208,8 @@ public:
     __aicore__ inline void AllocV0V1Buffers(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers);
     __aicore__ inline void ProcessV0(uint32_t runBSStart, V0V1Buffers<P> &buffers);
     __aicore__ inline void ProcessV1(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf);
-    __aicore__ inline void VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, uint16_t dealBSSize);
+    template <bool isFirstBS>
+    __aicore__ inline void VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, __ubuf__ P *invRmsGradDst, uint16_t dealBSSize);
     __aicore__ inline void InitCube();
     __aicore__ inline void AICProcess(GlobalTensor<P> x, GlobalTensor<P> y, GlobalTensor<P> z, uint64_t m, uint64_t n, uint64_t k);
     __aicore__ inline void ProcessC0C1Pipeline();
@@ -783,6 +784,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     PipeBarrier<PIPE_V>();
     bf16OutQueue_.FreeTensor(BiasOutBuf);
 
+    LocalTensor<P> invRmsGradUb = fp32OutQueue_.AllocTensor<P>();
     auto h1GradBuf = buffers.calcTmpBuf;
     int64_t remainDealBsSize = (runBSEnd - runBSStart);
     uint32_t bsOffset = 0;
@@ -819,7 +821,13 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 
         // hmix * h_1_grad, prepare for inv rms grad
         // Mul(h1GradBuf[bsOffset * fusionSize_], h1GradBuf[bsOffset * fusionSize_], hMixBuf, dealBSSize * fusionSize_);
-        VFDoV1ProcessInvRmsGrad((__ubuf__ P *)h1GradBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), dealBSSize);
+        if (remainDealBsSize == (runBSEnd - runBSStart)) {
+            VFDoV1ProcessInvRmsGrad<true>((__ubuf__ P *)h1GradBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), (__ubuf__ P *)invRmsGradUb.GetPhyAddr(), dealBSSize);
+        }
+        else {
+            VFDoV1ProcessInvRmsGrad<false>((__ubuf__ P *)h1GradBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), (__ubuf__ P *)invRmsGradUb.GetPhyAddr(), dealBSSize);
+        }
+        
         PipeBarrier<PIPE_V>();
 
         // TODO
@@ -836,19 +844,22 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         bsOffset += dealBSSize;
         bf16OutQueue_.FreeTensor(hMixGradOutBuf);
     }
-    fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
+    // fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
 
     uint32_t shape[] = { (runBSEnd - runBSStart), fusionSize_};
     // inv rms grad
     // TODO 暂时存储在invRmsBuf中，后续直接拼接好后搬运出
-    ReduceSum<float, AscendC::Pattern::Reduce::AR, isReuse>(fp32OutBuf, h1GradBuf,
-        buffers.brcbTmpBuf, shape, true);
+    // ReduceSum<float, AscendC::Pattern::Reduce::AR, isReuse>(fp32OutBuf, h1GradBuf,
+    //     buffers.brcbTmpBuf, shape, true);
     PipeBarrier<PIPE_V>();
-    bf16OutQueue_.EnQue(fp32OutBuf);
-    LocalTensor<P> invRmsOutBuf = bf16OutQueue_.DeQue<P>();
+    // bf16OutQueue_.EnQue(fp32OutBuf);
+    // LocalTensor<P> invRmsOutBuf = bf16OutQueue_.DeQue<P>();
+    fp32OutQueue_.EnQue(invRmsGradUb);
+    invRmsGradUb = fp32OutQueue_.DeQue<P>();
 
     dataCopyParams_.blockLen = (runBSEnd - runBSStart) * sizeof(P);
-    DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsOutBuf, dataCopyParams_);
+    // DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsOutBuf, dataCopyParams_);
+    DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsGradUb, dataCopyParams_);
     PipeBarrier<PIPE_V>();
     bf16OutQueue_.FreeTensor(invRmsOutBuf);
 
@@ -866,27 +877,36 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, uint16_t dealBSSize)
+template <bool isFirstBS>
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, __ubuf__ P *invRmsGradDst, uint16_t dealBSSize)
 {
-    uint32_t totalElem = dealBSSize * fusionSize_;
     uint32_t regCapacityFP32 = 64; // 256B / sizeof(P)
-    uint16_t nLoopCnt = Ceil(totalElem, regCapacityFP32);
-    uint32_t curElemCnt = totalElem;
+    uint16_t nLoopCnt = Ceil(fusionSize_, regCapacityFP32);
 
     __VEC_SCOPE__
     {
-        for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; ++vfBlockIdx) {
-            uint32_t elemOffset = vfBlockIdx * regCapacityFP32;
-            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
-            MicroAPI::RegTensor<P> h1GradBuf, hMixReg;
-            MicroAPI::RegTensor<P> hMulReg;
+        for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(dealBSSize); ++bsIdx) {
+            MicroAPI::RegTensor<P> sumReg;
+            if constexpr (isFirstBS) {
+                MicroAPI::Duplicate(sumReg, 0);
+            } else {
+                MicroAPI::Load(sumReg, invRmsGradDst + bsIdx);
+            }
+            uint32_t curElemCnt = fusionSize_;
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; ++vfBlockIdx) {
+                uint32_t elemOffset = bsIdx * fusionSize_ + vfBlockIdx * regCapacityFP32;
+                MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
+                MicroAPI::RegTensor<P> hMixReg, h1GradBuf;
+                MicroAPI::RegTensor<P> hMulReg, tmpSumReg;
 
-            MicroAPI::LoadAlign(h1GradBuf, h1GradIn + elemOffset);
-            MicroAPI::LoadAlign(hMixReg, hMixIn + elemOffset);
+                MicroAPI::LoadAlign(h1GradBuf, h1GradIn + elemOffset);
+                MicroAPI::LoadAlign(hMixReg, hMixIn + elemOffset);
 
-            MicroAPI::Mul(hMulReg, h1GradBuf, hMixReg, mask);
-
-            MicroAPI::StoreAlign(h1GradIn + elemOffset, hMulReg, mask);
+                MicroAPI::Mul(hMulReg, h1GradBuf, hMixReg, mask);
+                MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, hMulReg, mask);
+                MicroAPI::Add(sumReg, sumReg, tmpSumReg, mask);
+            }
+            MicroAPI::Store(invRmsGradDst + bsIdx, sumReg, 1);
         }
     }
 }
