@@ -113,7 +113,6 @@ aclnnStatus aclnnSparseFlashAttentionGetWorkspaceSize(
         }
     } else {
         if (softmaxMax == nullptr && softmaxSum == nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "进入 softmaxMax == nullptr && softmaxSum == nullptr 分支.");
             auto softmaxMaxHolder = TensorHolder(softmaxMax, aclDataType::ACL_FLOAT, std::string("softmaxMax"));
             auto softmaxSumHolder = TensorHolder(softmaxSum, aclDataType::ACL_FLOAT, std::string("softmaxSum"));
             if (softmaxMax == nullptr) {
@@ -124,9 +123,6 @@ aclnnStatus aclnnSparseFlashAttentionGetWorkspaceSize(
                 OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor softmaxSum!");
                 return ge::GRAPH_FAILED;
             }
-        }
-        else {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "进入其他分支.");
         }
     }
     return aclnnInnerSparseFlashAttentionGetWorkspaceSize(
