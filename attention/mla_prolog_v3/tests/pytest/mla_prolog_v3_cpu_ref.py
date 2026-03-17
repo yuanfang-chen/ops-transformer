@@ -1366,7 +1366,7 @@ def build_mla_param(params):
     # --- Flaglist ---
     flaglist = [0] * 25
     # flag[19]: quantize kr_cache separately
-    flaglist[19] = 1 if (kv_quant_mode in [1, 2] and ckvkr_repo_mode == 0) else 0
+    flaglist[19] = 1 if (kv_quant_mode == 2 and ckvkr_repo_mode == 0) else 0
     # flag[20]: smooth_scale_cq present
     flaglist[20] = 1 if weight_quant_mode in [1, 2] else 0
     # flag[21]: deq_scale_q_nope output
@@ -1376,7 +1376,7 @@ def build_mla_param(params):
     # flag[23]: deq_scale_q_norm output
     flaglist[23] = 1 if (qnorm_flag and weight_quant_mode in [1, 2, 3]) else 0
     # flag[24]: actual_seq_len (needed for PA_BLK modes)
-    flaglist[24] = 1 if cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ") else 0
+    flaglist[24] = 1 if (cache_mode in ("PA_BLK_BSND", "PA_BLK_NZ") and t_flag) else 0
     flaglist_bool = str_to_bool_list(flaglist)
 
     # --- PA flag ---
@@ -1682,7 +1682,7 @@ def test_mla_prolog_v3(params):
         if expect_list[i].numel() == 0 or result_list[i].numel() == 0:
             continue
         npu_dtype = result_list[i].dtype
-        if expect_list[i].dtype != npu_dtype:
-            expect_list[i] = expect_list[i].to(npu_dtype)
+        if expect_list[i].dtype != npu_dtype and npu_dtype != torch.float8_e8m0fnu:
+                expect_list[i] = expect_list[i].view(npu_dtype)
 
     return expect_list, result_list
