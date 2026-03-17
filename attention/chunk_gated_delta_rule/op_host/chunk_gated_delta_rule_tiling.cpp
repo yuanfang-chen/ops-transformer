@@ -51,7 +51,7 @@ namespace optiling {
     // Matmul tiling 相关常量
     constexpr uint32_t MATMUL_BASE_M = 128;
     constexpr uint32_t MATMUL_BASE_K = 128;
-    constexpr uint32_t MATMUL_BASE_N = 256;
+    constexpr uint32_t MATMUL_BASE_N = 128;
 
     // 初始化编译信息：读取平台信息，获取 aivNum/ubSize，并写入 tilingData_ 的 core 数
     void ChunkGatedDeltaRuleTiling::InitCompileInfo() {
