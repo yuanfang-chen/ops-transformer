@@ -914,6 +914,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoOpTiling()
     CalcDBasicBlock();
     CalcDVBasicBlock();
     CalcS1S2BasicBlock();
+    AnalyzeOptionalDn();
     SparseEnum sparseType = SparseEnum::ALL;
     OP_CHECK_IF(!GetSparseInfo(sparseType), OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to get sparse info."),
                return ge::GRAPH_FAILED);
