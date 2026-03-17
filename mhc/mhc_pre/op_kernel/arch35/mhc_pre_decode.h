@@ -176,7 +176,7 @@ private:
     uint32_t V0_BASE_T = 1;      // V0 的 T 维分块
     uint64_t V1_BASE_T = 8;      // V1 的 T 维分块 TODO
     uint64_t V1_BASE_D = 32;     // V1 的 D 维分块 TODO
-    uint32_t ND_LENGTH = 1024;   // nD 分块长度
+    uint32_t ND_LENGTH = 2048;   // nD 分块长度
 };
 
 template <class T, class P>
