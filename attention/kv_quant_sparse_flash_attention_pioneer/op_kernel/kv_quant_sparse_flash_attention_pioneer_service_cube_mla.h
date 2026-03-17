@@ -72,6 +72,7 @@ public:
     static constexpr uint32_t s2BaseSize = 128;
     static constexpr uint32_t dBaseSize = 576;
     static constexpr uint32_t dBaseMatmulSize = 128;
+    static constexpr uint32_t sink_num = 128;
 
     __aicore__ inline QSFAMatmulService() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
@@ -218,10 +219,14 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>
         inputLeftBuf = l1QBuffers.Get();
         inputLeftBuf.Wait<HardEvent::MTE1_MTE2>(); // 占用L1A
         LocalTensor<Q_T> inputLeftTensor = inputLeftBuf.GetTensor<Q_T>();
+        LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
         CopyToL1Nd2Nz<Q_T>(inputLeftTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.mRealSize, constInfo.dSize,
             constInfo.mm1Ka);
 
         inputLeftBuf.Set<HardEvent::MTE2_MTE1>(); // 通知
+        if constexpr (isFd) {
+            CopyToL1Nd2Nz<Q_T>(inputRightTensor, this->keySinkGm, sink_num, constInfo.dSize, constInfo.mm1Ka);//todo
+        }
     } else { // 非S2的第一次循环直接复用Q
         inputLeftBuf = l1QBuffers.GetPre();
         // 左矩阵复用时，sinner循环内不需要MTE2同步等待

@@ -497,6 +497,10 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
                 }
+                if constexpr (isFd) {
+                    runParam.s2LoopEndIdx += 1;
+                    runParam.oriKvLoopEndIdx += 1;
+                }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
             } else {
                 s2LoopLimit = 0;
@@ -510,7 +514,10 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
                             this->constInfo);
                     } else {
-                        this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
+                        // if !hassink || s2loopcpunt > 0 todo
+                        if (!isFd || s2LoopCount > 0){
+                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
+                        }
                     }
                 }
                 if (taskId > 0 && notLast) {
