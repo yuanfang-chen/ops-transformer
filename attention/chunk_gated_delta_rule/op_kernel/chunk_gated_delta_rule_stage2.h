@@ -242,8 +242,6 @@ private:
     TQue<QuePosition::VECIN, BUFFER_NUM> inQueue_;
     TQue<QuePosition::VECOUT, BUFFER_NUM> outQueue_;
     TBuf<TPosition::VECCALC> tmpBuff_;
-    GlobalTensor<float> curStateGM_;
-    LocalTensor<float> DvDkFloat_;
     int64_t Nk_;
     int64_t Nv_;
     int64_t Dk_;

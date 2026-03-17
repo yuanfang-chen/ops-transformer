@@ -296,10 +296,8 @@ private:
     TQue<QuePosition::VECOUT, BUFFER_NUM> outQueue_;
     TBuf<TPosition::VECCALC> tmpBuff_;
     GlobalTensor<float> cCFloatGM_;
-    GlobalTensor<float> cDvFloatGM_;
     LocalTensor<float> cCFloat_;
     LocalTensor<float> cCFloat2_;
-    int32_t curDk_;
     int32_t curDv_;
     int32_t curChunkSize_; 
     int32_t chunkSize_;
