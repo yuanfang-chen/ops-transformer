@@ -1019,10 +1019,6 @@ ge::graphStatus CheckFAIIsTND(gert::TilingContext *context, bool isPageAttention
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "When input layout is TND and paged cache and kvnz is used, the K and V must have five dims"),
                 return ge::GRAPH_FAILED);
-         OP_CHECK_IF(keyShape->GetStorageShape().GetDim(DIM_2) % 16 != 0 || valueShape->GetStorageShape().GetDim(DIM_2) % 16 != 0,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-                "When input layout is TND and paged cache and kvnz is used, the DK and DV must be divisible by 16"),
-                return ge::GRAPH_FAILED);
     }
 
     const gert::Tensor* actSeqLenData = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
@@ -1151,11 +1147,11 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
         int32_t kvHeadNum = *(attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX));
         int32_t inputBlockSize = *(attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX));
         int64_t cacheBlockSize = 0;
-        if (tempk->GetStorageShape().GetDim() == 3U) {
+        if (tempK->GetStorageShape().GetDimNum() == 3U) {
             tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
             tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
             cacheBlockSize = tempK->GetStorageShape().GetDim(DIM_1);
-        } else if (tempk->GetStorageShape().GetDim() == 5U) {
+        } else if (tempK->GetStorageShape().GetDimNum() == 5U) {
             tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) * 16;
             tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) * 16;
             cacheBlockSize = tempK->GetStorageShape().GetDim(DIM_3);
@@ -1332,7 +1328,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     faInfo.learnableSinkFlag = learnableSinkFlag;
     faInfo.innerPrecise = innerPrecise;
     if (faInfo.pagedCacheFlag) {
-        if (tempK->GetStorageShape().GetDimNum() == 5U && tempV->GetStorageShape().GetDim() == 5U) {
+        if (tempK->GetStorageShape().GetDimNum() == 5U && tempV->GetStorageShape().GetDimNum() == 5U) {
             faInfo.kvcacheNzFlag = true;
         }
         faInfo.maxNumBlocksPerBatch = blockTable->GetStorageShape().GetDim(DIM_1);
