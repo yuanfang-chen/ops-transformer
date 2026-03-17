@@ -35,7 +35,7 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
     template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, ImplModeEnum implMode,    \
     LayOutTypeEnum layout, S1TemplateType s1TemplateType, S2TemplateType s2TemplateType,    \
     DTemplateType dTemplateType, DTemplateType dVTemplateType, PseTypeEnum pseMode, AntiquantTypeEnum antiquantMode,\
-    bool hasAtten, bool hasDrop, bool hasRope, bool isInfer, bool isPa, bool isFd, bool enableKVPrefix>
+    bool hasAtten, bool hasDrop, bool hasRope, bool isInfer, bool isPa, bool isFd, bool enableKVPrefix, bool enableSplitCoreBalance>
 
 #define CHILD_SPEC_TEMPLATE_ARGS \
     INPUT_T, T, implMode, layout, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, \
@@ -44,17 +44,17 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
 // 伪量化模板参数列表
 #define CHILD_SPEC_TEMPLATE_ARGS_ANTI \
     Q_T, KV_T, T, OUTPUT_T, implMode, layout, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, \
-    pseMode, antiquantMode, hasAtten, hasDrop, hasRope, isInfer, isPa, isFd, enableKVPrefix
+    pseMode, antiquantMode, hasAtten, hasDrop, hasRope, isInfer, isPa, isFd, enableKVPrefix, enableSplitCoreBalance
 
 #define TEMPLATE_INTF \
     template <typename INPUT_T, typename T, ImplModeEnum implMode, LayOutTypeEnum layout, \
     S1TemplateType s1TemplateType, S2TemplateType s2TemplateType, DTemplateType dTemplateType, \
     DTemplateType dVTemplateType, PseTypeEnum pseMode, bool hasAtten, bool hasDrop, bool hasRope,\
-    typename OUTPUT_T, bool isInfer, bool isPa, bool isFd, bool useDn, bool enableKVPrefix>
+    typename OUTPUT_T, bool isInfer, bool isPa, bool isFd, bool useDn, bool enableKVPrefix, bool enableSplitCoreBalance>
 
 #define TEMPLATE_INTF_ARGS \
     INPUT_T, T, implMode, layout, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, \
-    pseMode, hasAtten, hasDrop, hasRope, OUTPUT_T, isInfer, isPa, isFd, useDn, enableKVPrefix
+    pseMode, hasAtten, hasDrop, hasRope, OUTPUT_T, isInfer, isPa, isFd, useDn, enableKVPrefix, enableSplitCoreBalance
 
 #define ANTIQUANT_CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
     X(Q_T) \
@@ -77,7 +77,8 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
     X(isInfer, bool, false) \
     X(isPa, bool, false) \
     X(isFd, bool, false) \
-    X(enableKVPrefix, bool, false)
+    X(enableKVPrefix, bool, false) \
+    X(enableSplitCoreBalance, bool, false)
 
 #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
     X(INPUT_T) \
@@ -98,7 +99,8 @@ constexpr static int64_t SPARSE_MODE_INT_DEFAULT = 2147483647;
     X(isInfer, bool, false) \
     X(isPa, bool, false) \
     X(isFd, bool, false) \
-    X(enableKVPrefix, bool, false)
+    X(enableKVPrefix, bool, false) \
+    X(enableSplitCoreBalance, bool, false)
 
 /* 1. 生成带默认值的模版Template */
 #define GEN_TYPE_PARAM(name) typename name,
