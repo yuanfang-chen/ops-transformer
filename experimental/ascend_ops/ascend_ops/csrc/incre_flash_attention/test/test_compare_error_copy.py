@@ -13,9 +13,9 @@ import torch
 import torch_npu
 import numpy as np
 import json
-from typing import Dict, Any
 import ascend_ops
-
+from typing import Dict, Any, List, Optional, Tuple
+import pandas as pd
 # -----------------------------
 # 工具函数：打印张量 shape
 # -----------------------------
@@ -26,7 +26,20 @@ def print_tensor_shape(tensor, name):
     device_str = str(tensor.device)
     print(f"{name:15} | shape: {shape_str:20} | dtype: {dtype_str:15} | device: {device_str}")
 
-
+def convert_str2tuple(s: Any) -> Tuple[int, ...]:
+    """
+    将 '8,8' 或 '8, 8' 转成 tuple(int)
+    """
+    if isinstance(s, tuple):
+        return s
+    if isinstance(s, list):
+        return tuple(map(int, s))
+    if isinstance(s, str):
+        s = s.strip()
+        if not s:
+            return tuple()
+        return tuple(map(int, s.split(',')))
+    raise ValueError(f"无法转换为 tuple: {s}")
 # -----------------------------
 # 工具函数：对比两个输出
 # -----------------------------
@@ -126,109 +139,105 @@ def main():
     print("\n" + "="*60)
     print("🚀 开始对比两个 NPU Attention 算子输出")
     print("="*60)
-
+    df = pd.read_excel("GQA伪量化.xlsx")
+    test_cases = df.to_dict(orient="records")
+    case = test_cases[0]
     # -----------------------------
     # 参数配置
     # -----------------------------
-    batch_size = 18
-    q_head_num = 64
-    kv_head_num = 1
-    q_seq = 1
-    block_size = 128
-    head_dim = 128
-    kv_seq_length = 8192
-    block_num = batch_size * (kv_seq_length // block_size + 1)
-    max_block_num_prebatch = kv_seq_length // block_size + 1
+    batch_size = case['B']
+    q_seq = case['Q_S']
+    kv_seq_length = case['KV_S']
+    head_dim = case['Q_D']
+    input_layout = case['inputLayout']
+    q_head_num = case['numHeads']
+    kv_head_num = case['numKeyValueHeads']
+    block_size = case['blockSize']
 
-    # -----------------------------
-    # 创建并打印各张量 shape
-    # -----------------------------
-    print("=== 张量初始化与 Shape 打印 ===\n")
-
-    # Query Key Value (QKV)
-    qkv = torch.randn(batch_size, q_head_num, q_seq, head_dim, dtype=torch.bfloat16).npu()
-    print_tensor_shape(qkv, "qkv")
-
+    # Query
+    q = torch.randn(convert_str2tuple(case['q_shape']), dtype=torch.bfloat16).npu()
+    print_tensor_shape(q, "q")
     # Block Table
-    kv_block_table = torch.arange(batch_size * max_block_num_prebatch, dtype=torch.int32).view(batch_size, max_block_num_prebatch).npu()
+    block_table_shape = convert_str2tuple(case['blockTable_shape'])
+    kv_block_table = (
+        torch.arange(torch.prod(torch.tensor(block_table_shape)))
+        .view(*block_table_shape)
+        .to(dtype=torch.int32)
+        .npu()
+    )
     print_tensor_shape(kv_block_table, "kv_block_table")
 
-    # Key Cache (Int8 Quantized)
+    # Key Cache
+    k_range = convert_str2tuple(case['k_datarange'])
+    k_shape = convert_str2tuple(case['k_cache_shape'])
     key_cache_npu = torch.randint(
-        -128, 128,
-        (block_num, kv_head_num, head_dim // 32, block_size, 32),
+        low=k_range[0],
+        high=k_range[1] + 1,
+        size=k_shape,
         dtype=torch.int8,
         device="npu"
     )
-    # key_cache_npu = torch.randint(block_num, kv_head_num, head_dim // 32, block_size, 32, dtype=torch.int8).npu()
     print_tensor_shape(key_cache_npu, "key_cache_npu")
-
-    # Value Cache (Int8 Quantized)
+    # Value Cache
+    v_range = convert_str2tuple(case['v_datarange'])
+    v_shape = convert_str2tuple(case['v_cache_shape'])
     value_cache_npu = torch.randint(
-        -128, 128,
-        (block_num, kv_head_num, head_dim // 32, block_size, 32),
+        low=v_range[0],
+        high=v_range[1] + 1,
+        size=v_shape,
         dtype=torch.int8,
         device="npu"
     )
-    # value_cache_npu = torch.randint(block_num, kv_head_num, head_dim // 32, block_size, 32, dtype=torch.int8).npu()
     print_tensor_shape(value_cache_npu, "value_cache_npu")
-
     # Sequence Lengths
-    q_len = torch.tensor([q_seq] * batch_size, dtype=torch.int64).npu()
-    qkv_len = torch.tensor([kv_seq_length] * batch_size, dtype=torch.int64).npu()
-
-    # ✅ 修复：打印前 5 个长度值
-    print(f"{'q_len':15} | length: {len(q_len):2d} | values: {q_len[:5]}...")
-    print(f"{'qkv_len':15} | length: {len(qkv_len):2d} | values: {qkv_len[:5]}...")
-
-    # Antiquantization Scales
-    key_antiquant_scale = torch.randn(kv_head_num, 1, head_dim, dtype=torch.bfloat16).npu()
-    value_antiquant_scale = torch.randn(kv_head_num, 1, head_dim, dtype=torch.bfloat16).npu()
+    kv_len = convert_str2tuple(case['actual_seq_lengths_kv'])
+    print(f"kv len : {kv_len}")
+    # Dequant Scale
+    scale_dtype = torch.bfloat16 if case['v_antiquantScale_dtype'] == 'BF16' else torch.float32
+    key_antiquant_scale = torch.randn(
+        convert_str2tuple(case['k_antiquantScale_shape']),
+        dtype=scale_dtype
+    ).npu()
+    value_antiquant_scale = torch.randn(
+        convert_str2tuple(case['v_antiquantScale_shape']),
+        dtype=scale_dtype
+    ).npu()
     print_tensor_shape(key_antiquant_scale, "key_antiquant_scale")
     print_tensor_shape(value_antiquant_scale, "value_antiquant_scale")
-
-    # -----------------------------
-    # 推理参数配置
-    # -----------------------------
-    scale_num = 1 / (head_dim ** 0.5)
-
-    kv_len = [kv_seq_length] * batch_size
-    infer_kwargs1 = dict(
-        query=qkv,
+    # Mask
+    sparse_mode = int(case['sparse'])
+    mask = None
+    if sparse_mode == 3:
+        mask = torch.triu(
+            torch.ones(convert_str2tuple(case['m_shape']), dtype=torch.bool),
+            diagonal=0
+        )
+        mask_type = case['m_dtype']
+        if mask_type == 'BOOL':
+            mask = mask.to(dtype=torch.bool).npu()
+        elif mask_type == 'INT8':
+            mask = mask.to(dtype=torch.int8).npu()
+        elif mask_type == 'UINT8':
+            mask = mask.to(dtype=torch.uint8).npu()
+    # print(mask)
+    infer_kwargs = dict(
+        query=q,
         key=key_cache_npu,
         value=value_cache_npu,
         actual_seq_kvlen=kv_len,
-        input_layout="BNSD",
-        softmax_scale=scale_num,
+        atten_mask=mask,
+        sparse_mode=sparse_mode,
+        input_layout=input_layout,
+        softmax_scale=1 / (head_dim ** 0.5),
         block_size=block_size,
         block_table=kv_block_table,
-        num_query_heads=q_head_num,
-        num_key_value_heads=kv_head_num,
-        sparse_mode=0,
-        inner_precise=1,
+        num_query_heads=int(q_head_num),
+        num_key_value_heads=int(kv_head_num),
+        inner_precise=int(case['innerprecise']),
         dequant_scale_key=key_antiquant_scale,
         dequant_scale_value=value_antiquant_scale,
-        key_quant_mode=0,
-        value_quant_mode=0
-    )
-
-    infer_kwargs2 = dict(
-        query=qkv,
-        key=key_cache_npu,
-        value=value_cache_npu,
-        actual_seq_kvlen=qkv_len,
-        input_layout="BNSD",
-        softmax_scale=scale_num,
-        block_size=block_size,
-        block_table=kv_block_table,
-        num_query_heads=q_head_num,
-        num_key_value_heads=kv_head_num,
-        sparse_mode=0,
-        inner_precise=1,
-        dequant_scale_key=key_antiquant_scale,
-        dequant_scale_value=value_antiquant_scale,
-        key_quant_mode=0,
-        value_quant_mode=0
+        key_quant_mode=int(case['k_antiquantMode']),
+        value_quant_mode=int(case['v_antiquantMode']),
     )
 
     # -----------------------------
@@ -238,13 +247,12 @@ def main():
 
     try:
         print("➡️  调用 torch_npu.npu_fused_infer_attention_score_v2")
-        result1, _ = torch_npu.npu_fused_infer_attention_score_v2(**infer_kwargs1)
-        # result2 = result1
+        result1, _ = torch_npu.npu_fused_infer_attention_score_v2(**infer_kwargs)
+
         print("➡️  调用 torch.ops.custom.npu_fused_infer_attention_score")
-        result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs2)
-        # result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs2)
+        result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs)
         # result1 = result2
-        
+
     except Exception as e:
         print(f"❌ 调用算子失败: {e}")
         raise
@@ -284,11 +292,11 @@ def main():
     # -----------------------------
     # 可选：打印部分结果（CPU）
     # -----------------------------
-    print("\n=== 输出结果部分值 (CPU) ===\n")
-    print("result1 (first few values):")
-    print(result1.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2]) 
-    print("\nresult2 (first few values):")
-    print(result2.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2])
+    # print("\n=== 输出结果部分值 (CPU) ===\n")
+    # print("result1 (first few values):")
+    # print(result1.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2]) 
+    # print("\nresult2 (first few values):")
+    # print(result2.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2])
 
 
 # -----------------------------

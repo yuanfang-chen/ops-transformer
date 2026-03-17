@@ -111,8 +111,8 @@ struct IFAContext {
     int64_t windowSize;
 
     size_t workSpaceSize = 0;
-    std::vector<at::IntArrayRef*> kCache = {nullptr};
-    std::vector<at::IntArrayRef*> vCache = {nullptr};
+    std::vector<at::IntArrayRef> kCache;
+    std::vector<at::IntArrayRef> vCache;
     uint64_t tilingKey = 0;
     uint32_t numBlocks = 0;
     IncreFlashAttentionTilingDataV2 tilingData;

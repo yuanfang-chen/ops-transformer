@@ -145,16 +145,20 @@ custom::graphStatus IFATiling::GetNpuInfo()
 custom::graphStatus IFATiling::PreProcess()
 {
     if (ProcessBaseInputs() != custom::graphStatus::GRAPH_SUCCESS) {
+        OP_LOGE(ifaContext_->opName, "ggggggggggggggggggggggggg");
         return custom::graphStatus::GRAPH_FAILED;
     }
+    OP_LOGE(ifaContext_->opName, "vvvvvvvvvvvvvvvvvvvvvvvvvvv");
     bool ret = CheckIfRollBack();
     if (ret) {
         passToOldTiling_ = true;
         return custom::graphStatus::GRAPH_FAILED;
     }
     if (ProcessOptionalTensors() != custom::graphStatus::GRAPH_SUCCESS) {
+        OP_LOGE(ifaContext_->opName, "ttttttttttttttttttttttt");
         return custom::graphStatus::GRAPH_FAILED;
     }
+    OP_LOGE(ifaContext_->opName, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
     SetupPerfMode();
     // IsFdBalanceCase();
     balanceModeFlag_ = IsBalanceSplitCore();
@@ -355,7 +359,7 @@ custom::graphStatus IFATiling::SetL2CacheFlag()
         kvSize = ifaContext_->key.GetShapeSize();
     } else if (batchOfQuery != batchOfKey) { /* kv noncontinuous */
         for (int64_t size = 0; size < batchOfQuery; ++size) {
-            auto keyTensorInList = *(ifaContext_->kCache[size]);
+            auto keyTensorInList = ifaContext_->kCache[size];
             kvSize += GetShapeSize(keyTensorInList);
         }
     } else {
@@ -793,8 +797,8 @@ custom::graphStatus IFATiling::KvShapePostProcess()
 
     uint32_t tmpSeqSize = 0U;
     for (size_t i = 0U; i < ifaContext_->kCache.size(); i++) {
-        auto keyShape = *(ifaContext_->kCache[i]);
-        auto valueShape = *(ifaContext_->vCache[i]);
+        auto keyShape = ifaContext_->kCache[i];
+        auto valueShape = ifaContext_->vCache[i];
 
         if ((keyShape.empty()) || (valueShape.empty())) {
             OP_LOGE(ifaContext_->opName,
@@ -1717,6 +1721,7 @@ custom::graphStatus IFATiling::ProcessAntiQuantMode()
 
 custom::graphStatus IFATiling::ProcessBlockTable()
 {
+    OP_LOGE(ifaContext_->opName, "xxxxxxxxxxxxxxxxx");
     if (!pageAttentionFlag_) {
         return custom::graphStatus::GRAPH_SUCCESS;
     }
@@ -1744,7 +1749,7 @@ custom::graphStatus IFATiling::ProcessBlockTable()
         return custom::graphStatus::GRAPH_FAILED;
     }
 
-    totalBlockNum_ = (*ifaContext_->kCache[0])[0];
+    totalBlockNum_ = ifaContext_->kCache[0][0];
     OP_CHECK_IF(
         maxActualseq_ > blockSize_ * maxBlockNumPerBatch_,
         OP_LOGE(ifaContext_->opName,
@@ -3053,13 +3058,13 @@ custom::graphStatus IFATiling::GetInputLayoutVal(uint8_t &layoutVal) const
 {
     switch (inputLayout_) {
         case IfaLayout::TND:
-            layoutVal = 2U;      // 2:TND
+            layoutVal = 3U;      // 2:TND
             break;
         case IfaLayout::BSH_BSND:
-            layoutVal = 1U;
+            layoutVal = 0U;
             break;
         case IfaLayout::BNSD:
-            layoutVal = 0U;
+            layoutVal = 1U;
             break;
         default:
             OP_LOGE(ifaContext_->opName, "not support inputLayout%u", static_cast<uint32_t>(inputLayout_));
@@ -3313,21 +3318,21 @@ custom::graphStatus IFATiling::RunBigKernelTiling(IFAContext &context,
     //     this->isWorkspace_ = true;
     //     OP_LOGI(ifaContext_->opName, "IFA tiling sink.");
     // }
-
     if ((GetNpuInfo() != custom::graphStatus::GRAPH_SUCCESS) || (PreProcess() != custom::graphStatus::GRAPH_SUCCESS)) {
         return custom::graphStatus::GRAPH_FAILED;
     }
-    // user prompt tiling
+
     if ((ZeroTensorProcess() != custom::graphStatus::GRAPH_SUCCESS) ||
         (Split() != custom::graphStatus::GRAPH_SUCCESS) ||
         (FillTiling() != custom::graphStatus::GRAPH_SUCCESS) ||
         (CalcWorkSpace() != custom::graphStatus::GRAPH_SUCCESS) ||
         (CalcNumBlocks() != custom::graphStatus::GRAPH_SUCCESS)) {
+            OP_LOGE(ifaContext_->opName, "ccccccccccccccccccccccccccc");
         return custom::graphStatus::GRAPH_FAILED;
     }
-    // if (sysPrefixFlag_ && SharedPrefixTiling() != custom::graphStatus::GRAPH_SUCCESS) {
-    //     return custom::graphStatus::GRAPH_FAILED;
-    // }
+    if (sysPrefixFlag_ && SharedPrefixTiling() != custom::graphStatus::GRAPH_SUCCESS) {
+        return custom::graphStatus::GRAPH_FAILED;
+    }
     return GenTilingKey();
 }
 

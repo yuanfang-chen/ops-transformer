@@ -95,7 +95,7 @@ class CMakeBuild(build_ext):
         build_args = ["--config", build_type]
 
         cpu_count = os.cpu_count() or 1
-        parallel_jobs = max(16, cpu_count // 2)
+        parallel_jobs = cpu_count // 2
         build_args += ["--", f"-j{parallel_jobs}"]
 
         build_temp = Path(self.build_temp) / ext.name

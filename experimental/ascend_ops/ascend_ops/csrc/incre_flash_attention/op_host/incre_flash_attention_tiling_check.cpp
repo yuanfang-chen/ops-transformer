@@ -1295,6 +1295,7 @@ custom::graphStatus IFATiling::CheckPseShiftDataType() const
 
 custom::graphStatus IFATiling::ProcessPseShift()
 {
+    OP_LOGE(ifaContext_->opName, "rrrrrrrrrrrrrrrrrrrrrrr");
     // get pse shift data
     if (!ifaContext_->pseShift.hasValue) {
         return custom::graphStatus::GRAPH_SUCCESS;
@@ -1411,6 +1412,7 @@ custom::graphStatus IFATiling::CheckAttenMaskShape()
 
 custom::graphStatus IFATiling::ProcessAttenMask()
 {
+    OP_LOGE(ifaContext_->opName, "ddddddddddddddddddddddd");
     // 与pfa保持一致，先判断sparsemode
     sparseMode_ = ifaContext_->sparseMode;
 

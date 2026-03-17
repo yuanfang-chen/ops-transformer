@@ -130,10 +130,10 @@ def main():
     # -----------------------------
     # 参数配置
     # -----------------------------
-    batch_size = 18
-    q_head_num = 64
+    batch_size = 15
+    q_head_num = 16
     kv_head_num = 1
-    q_seq = 1
+    q_seq = 14
     block_size = 128
     head_dim = 128
     kv_seq_length = 8192
@@ -146,17 +146,17 @@ def main():
     print("=== 张量初始化与 Shape 打印 ===\n")
 
     # Query Key Value (QKV)
-    qkv = torch.randn(batch_size, q_head_num, q_seq, head_dim, dtype=torch.bfloat16).npu()
+    qkv = torch.randn(batch_size, q_seq, q_head_num*head_dim, dtype=torch.bfloat16).npu()
     print_tensor_shape(qkv, "qkv")
 
     # Block Table
-    kv_block_table = torch.arange(batch_size * max_block_num_prebatch, dtype=torch.int32).view(batch_size, max_block_num_prebatch).npu()
+    kv_block_table = torch.arange(batch_size * 512, dtype=torch.int32).view(batch_size, 512).npu()
     print_tensor_shape(kv_block_table, "kv_block_table")
 
     # Key Cache (Int8 Quantized)
     key_cache_npu = torch.randint(
-        -128, 128,
-        (block_num, kv_head_num, head_dim // 32, block_size, 32),
+        -10, 10,
+        (4015, 1, 4, block_size, 32),
         dtype=torch.int8,
         device="npu"
     )
@@ -165,8 +165,8 @@ def main():
 
     # Value Cache (Int8 Quantized)
     value_cache_npu = torch.randint(
-        -128, 128,
-        (block_num, kv_head_num, head_dim // 32, block_size, 32),
+        -10, 10,
+        (4015, 1, 4, block_size, 32),
         dtype=torch.int8,
         device="npu"
     )
@@ -182,8 +182,8 @@ def main():
     print(f"{'qkv_len':15} | length: {len(qkv_len):2d} | values: {qkv_len[:5]}...")
 
     # Antiquantization Scales
-    key_antiquant_scale = torch.randn(kv_head_num, 1, head_dim, dtype=torch.bfloat16).npu()
-    value_antiquant_scale = torch.randn(kv_head_num, 1, head_dim, dtype=torch.bfloat16).npu()
+    key_antiquant_scale = torch.randn(15, 65536, dtype=torch.float32).npu()
+    value_antiquant_scale = torch.randn(15, 65536, dtype=torch.float32).npu()
     print_tensor_shape(key_antiquant_scale, "key_antiquant_scale")
     print_tensor_shape(value_antiquant_scale, "value_antiquant_scale")
 
@@ -192,24 +192,30 @@ def main():
     # -----------------------------
     scale_num = 1 / (head_dim ** 0.5)
 
-    kv_len = [kv_seq_length] * batch_size
+    kv_len = [22171,44841,6507,1750,35576,17574,43587,30678,63729,6328,46595,34842,48407,44156,65536,61148,6340,10200,65125,54386,33780,49966,27672]
+    mask = torch.triu(
+            torch.ones((2048,2048), dtype=torch.bool),
+            diagonal=0)
+    print(mask)
+    mask = mask.npu()
     infer_kwargs1 = dict(
         query=qkv,
         key=key_cache_npu,
         value=value_cache_npu,
+        atten_mask = mask,
         actual_seq_kvlen=kv_len,
-        input_layout="BNSD",
+        input_layout="BSH",
         softmax_scale=scale_num,
         block_size=block_size,
         block_table=kv_block_table,
         num_query_heads=q_head_num,
         num_key_value_heads=kv_head_num,
-        sparse_mode=0,
+        sparse_mode=3,
         inner_precise=1,
         dequant_scale_key=key_antiquant_scale,
         dequant_scale_value=value_antiquant_scale,
-        key_quant_mode=0,
-        value_quant_mode=0
+        key_quant_mode=1,
+        value_quant_mode=1
     )
 
     infer_kwargs2 = dict(
@@ -239,12 +245,10 @@ def main():
     try:
         print("➡️  调用 torch_npu.npu_fused_infer_attention_score_v2")
         result1, _ = torch_npu.npu_fused_infer_attention_score_v2(**infer_kwargs1)
-        # result2 = result1
+
         print("➡️  调用 torch.ops.custom.npu_fused_infer_attention_score")
-        result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs2)
-        # result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs2)
-        # result1 = result2
-        
+        result2, _ = torch.ops.custom.npu_fused_infer_attention_score(**infer_kwargs1)
+
     except Exception as e:
         print(f"❌ 调用算子失败: {e}")
         raise
@@ -284,11 +288,11 @@ def main():
     # -----------------------------
     # 可选：打印部分结果（CPU）
     # -----------------------------
-    print("\n=== 输出结果部分值 (CPU) ===\n")
-    print("result1 (first few values):")
-    print(result1.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2]) 
-    print("\nresult2 (first few values):")
-    print(result2.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2])
+    # print("\n=== 输出结果部分值 (CPU) ===\n")
+    # print("result1 (first few values):")
+    # print(result1.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2]) 
+    # print("\nresult2 (first few values):")
+    # print(result2.detach().to(torch.float32).cpu().numpy()[:2, :2, :2, :2])
 
 
 # -----------------------------

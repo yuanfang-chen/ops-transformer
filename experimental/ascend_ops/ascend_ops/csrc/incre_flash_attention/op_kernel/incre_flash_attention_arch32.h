@@ -61,10 +61,9 @@ __global__ __mix__(1, 2) void incre_flash_attention(
     __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen,
     __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *keyRopeAntiquantScale,
     __gm__ uint8_t *dequantScaleQuery, __gm__ uint8_t *metaData, 
-    __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
-    __gm__ uint8_t *workspace, optiling::IncreFlashAttentionTilingData tiling)
+    __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace,
+    optiling::IncreFlashAttentionTilingData tiling)
 {
-    printf("WWw FA ENTRY SUCCESSFUL!!!\n");
     TPipe tPipe;
     __gm__ uint8_t *user = workspace; 
 

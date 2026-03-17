@@ -148,7 +148,7 @@ void print(const optiling::IncreFlashAttentionTilingData& data) {
         (GM_ADDR)(metadata.has_value() ? metadata->data_ptr() : nullptr),            \
         (GM_ADDR)(output.data_ptr()),                                                                      \
         (GM_ADDR)(softmax_lse.data_ptr()),                                                                 \
-        (GM_ADDR)(workspaceTensor.data_ptr()),                                                             \
+        (GM_ADDR)(workspaceTensor.data_ptr()),                                                                        \
         tilingData)
 
 const static int FLASH_THRESHOLD = 512;
@@ -356,60 +356,59 @@ void ConvertContextToParamsIFA(
     ifaContext.key = ToRequiredParaInfo(key);
     ifaContext.value = ToRequiredParaInfo(value);
     // optional input
-    ifaContext.pseShift = ToOptionalTensorParaInfo(pse_shift);                           //
-    ifaContext.attenMask = ToOptionalTensorParaInfo(atten_mask);                         //
-    ifaContext.actualSeqLengthsQ = ToOptionalTensorParaInfo(actual_seq_qlen);             //
-    ifaContext.actualSeqLengths = ToOptionalTensorParaInfo(actual_seq_kvlen);             //
-    ifaContext.deqScale1 = ToOptionalTensorParaInfo(c10::nullopt);                       //
-    ifaContext.quantScale1 = ToOptionalTensorParaInfo(c10::nullopt);                     //
-    ifaContext.deqScale2 = ToOptionalTensorParaInfo(c10::nullopt);                       //
-    ifaContext.quantScale2 = ToOptionalTensorParaInfo(quant_scale_out);                  //
-    ifaContext.quantOffset2 = ToOptionalTensorParaInfo(quant_offset_out);                //
-    ifaContext.antiquantScale = ToOptionalTensorParaInfo(c10::nullopt);                  //
-    ifaContext.antiquantOffset = ToOptionalTensorParaInfo(c10::nullopt);                 //
-    ifaContext.blockTable = ToOptionalTensorParaInfo(block_table);                       //
-    ifaContext.queryPaddingSize = ToOptionalTensorParaInfo(c10::nullopt);                //
-    ifaContext.kvPaddingSize = ToOptionalTensorParaInfo(c10::nullopt);                   //
-    ifaContext.keyAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_key);          //
-    ifaContext.keyAntiquantOffset = ToOptionalTensorParaInfo(dequant_offset_key);        //
-    ifaContext.valueAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_value);      //
-    ifaContext.valueAntiquantOffset = ToOptionalTensorParaInfo(dequant_offset_value);    //
-    ifaContext.keySharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);                 //
-    ifaContext.valueSharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);               //
-    ifaContext.actualSharedPrefixLen = ToOptionalTensorParaInfo(c10::nullopt);            //?
-    ifaContext.queryRope = ToOptionalTensorParaInfo(query_rope);                         //
-    ifaContext.keyRope = ToOptionalTensorParaInfo(key_rope);                             //
-    ifaContext.keyRopeAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_key_rope); //
-    ifaContext.dequantScaleQuery = ToOptionalTensorParaInfo(dequant_scale_query);        //
-    ifaContext.qStartIdx = ToOptionalTensorParaInfo(c10::nullopt);                       //
-    ifaContext.kvStartIdx = ToOptionalTensorParaInfo(c10::nullopt);                      //
+    ifaContext.pseShift = ToOptionalTensorParaInfo(pse_shift);                           
+    ifaContext.attenMask = ToOptionalTensorParaInfo(atten_mask);                         
+    ifaContext.actualSeqLengthsQ = ToOptionalTensorParaInfo(actual_seq_qlen);             
+    ifaContext.actualSeqLengths = ToOptionalTensorParaInfo(actual_seq_kvlen);             
+    ifaContext.deqScale1 = ToOptionalTensorParaInfo(c10::nullopt);                       
+    ifaContext.quantScale1 = ToOptionalTensorParaInfo(c10::nullopt);                     
+    ifaContext.deqScale2 = ToOptionalTensorParaInfo(c10::nullopt);                       
+    ifaContext.quantScale2 = ToOptionalTensorParaInfo(quant_scale_out);                  
+    ifaContext.quantOffset2 = ToOptionalTensorParaInfo(quant_offset_out);                
+    ifaContext.antiquantScale = ToOptionalTensorParaInfo(c10::nullopt);                  
+    ifaContext.antiquantOffset = ToOptionalTensorParaInfo(c10::nullopt);                 
+    ifaContext.blockTable = ToOptionalTensorParaInfo(block_table);                       
+    ifaContext.queryPaddingSize = ToOptionalTensorParaInfo(c10::nullopt);                
+    ifaContext.kvPaddingSize = ToOptionalTensorParaInfo(c10::nullopt);                   
+    ifaContext.keyAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_key);          
+    ifaContext.keyAntiquantOffset = ToOptionalTensorParaInfo(dequant_offset_key);        
+    ifaContext.valueAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_value);      
+    ifaContext.valueAntiquantOffset = ToOptionalTensorParaInfo(dequant_offset_value);    
+    ifaContext.keySharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);                 
+    ifaContext.valueSharedPrefix = ToOptionalTensorParaInfo(c10::nullopt);               
+    ifaContext.actualSharedPrefixLen = ToOptionalTensorParaInfo(c10::nullopt);            
+    ifaContext.queryRope = ToOptionalTensorParaInfo(query_rope);                         
+    ifaContext.keyRope = ToOptionalTensorParaInfo(key_rope);                             
+    ifaContext.keyRopeAntiquantScale = ToOptionalTensorParaInfo(dequant_scale_key_rope); 
+    ifaContext.dequantScaleQuery = ToOptionalTensorParaInfo(dequant_scale_query);        
+    ifaContext.qStartIdx = ToOptionalTensorParaInfo(c10::nullopt);                       
+    ifaContext.kvStartIdx = ToOptionalTensorParaInfo(c10::nullopt);                      
     // attr
-    ifaContext.numHeads = num_query_heads;            //
-    ifaContext.preToken = pre_tokens;                 //
-    ifaContext.nextToken = next_tokens;               //
-    ifaContext.scaleValue = softmax_scale;            //
-    ifaContext.kvHeadNums = num_key_value_heads;      //
-    ifaContext.layOut = input_layout;                 //
-    ifaContext.blockSize = block_size;                //
-    ifaContext.innerPrecise = inner_precise;          //
-    ifaContext.antiquantMode = 0;                     //
-    ifaContext.softmaxLseFlag = return_softmax_lse;   //
-    ifaContext.keyAntiquantMode = key_quant_mode;     //
-    ifaContext.valueAntiquantMode = value_quant_mode; //
-    ifaContext.sparseMode = sparse_mode;              //
-    ifaContext.queryQuantMode = query_quant_mode;     //
-    ifaContext.pseType = 0;                           //
-    ifaContext.windowSize = 0;                        //
+    ifaContext.numHeads = num_query_heads;            
+    ifaContext.preToken = pre_tokens;                 
+    ifaContext.nextToken = next_tokens;               
+    ifaContext.scaleValue = softmax_scale;            
+    ifaContext.kvHeadNums = num_key_value_heads;      
+    ifaContext.layOut = input_layout;                 
+    ifaContext.blockSize = block_size;                
+    ifaContext.innerPrecise = inner_precise;          
+    ifaContext.antiquantMode = 0;                     
+    ifaContext.softmaxLseFlag = return_softmax_lse;   
+    ifaContext.keyAntiquantMode = key_quant_mode;     
+    ifaContext.valueAntiquantMode = value_quant_mode; 
+    ifaContext.sparseMode = sparse_mode;              
+    ifaContext.queryQuantMode = query_quant_mode;     
+    ifaContext.pseType = 0;                           
+    ifaContext.windowSize = 0;                        
     // output
-    ifaContext.attenOut = ToRequiredParaInfo(attenOut); //
-    ifaContext.lseOut = ToRequiredParaInfo(lseOut);     //
+    ifaContext.attenOut = ToRequiredParaInfo(attenOut); 
+    ifaContext.lseOut = ToRequiredParaInfo(lseOut);     
 
     ifaContext.kCache.resize(1);
     ifaContext.vCache.resize(1);
-    at::IntArrayRef keyShapeRef = key.sizes();
-    ifaContext.kCache[0] = &keyShapeRef;
-    at::IntArrayRef valueShapeRef = value.sizes();
-    ifaContext.vCache[0] = &valueShapeRef;
+    at::IntArrayRef keyShapeRef = 
+    ifaContext.kCache[0] = key.sizes();
+    ifaContext.vCache[0] = value.sizes();
 }
 
 std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
@@ -459,19 +458,76 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     printf("covert params end\n");
     IFATiling ifaTiling;
     ifaTiling.DoSubOpTiling(ifaContext);
-    // stream
+    // // stream
     int devidx = query.device().index();
     c10_npu::NPUStream stream = c10_npu::getCurrentNPUStream(devidx);
     void *aclstream = stream.stream(false);
     // workspace
+    printf("workspacesize set to %d\n",ifaContext.workSpaceSize);
+
+    // uint8_t *workspaceDevice;
+    // aclrtMalloc((void **)&workspaceDevice, static_cast<long>(ifaContext.workSpaceSize), ACL_MEM_MALLOC_HUGE_FIRST);
     auto workspaceTensor =
         at::empty({static_cast<long>(ifaContext.workSpaceSize)}, at::TensorOptions().dtype(at::kByte).device(query.options().device()));
     // tilingdata
     optiling::IncreFlashAttentionTilingData &tilingData = ifaContext.tilingData.tilingBase;
 
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[0] = 0;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[1] = 2;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[2] = 3;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[3] = 4;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[4] = 9;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[5] = 11;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[6] = 13;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[7] = 14;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[8] = 15;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[9] = 16;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[10] = 17;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[11] = 18;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[12] = 21;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[13] = 22;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[14] = 23;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[15] = 24;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[16] = 25;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[17] = 26;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[18] = 27;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[19] = 28;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[20] = 29;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[21] = 29;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[22] = 29;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[23] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[24] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[25] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[26] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[27] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[28] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[29] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[30] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[31] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[32] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[33] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[34] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[35] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[36] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[37] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[38] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[39] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[40] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[41] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[42] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[43] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[44] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[45] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[46] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[47] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[48] = 30;
+    // tilingData.increFlashAttentionCoreParams.coreSidxEnd[49] = 30;
+    
     uint8_t fdFlag = ifaContext.fdFlag;
     uint8_t layoutVal = ifaContext.layoutVal;
     uint8_t antiquantMode = ifaContext.antiquantMode_;
+    printf("invalid flags: fd=%d layout=%d antiquantMode=%d\n",
+                fdFlag, layoutVal, antiquantMode);
     // blockdim
     uint32_t blockDim = tilingData.increFlashAttentionSingleCoreParams.get_usedCoreNum();
     printf("blockDim set to :%d\n", blockDim);
@@ -500,7 +556,9 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
         }
         return 0;
     };
-    at_npu::native::OpCommand::RunOpApi("FA", aclCal);
+    at_npu::native::OpCommand::RunOpApiV2("FA", aclCal);
+    aclrtSynchronizeStream(aclstream);
+    // aclrtFree(workspaceDevice);
 
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
