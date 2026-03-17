@@ -91,6 +91,8 @@ public:
     __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo &runInfo, ConstInfo &constInfo);
+    __aicore__ inline void ProcessVec0Sink(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo);
@@ -171,6 +173,9 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
             runInfo.s1oIdx * constInfo.sparseBlockCount; // B, S1, N2(1), K
     }
     int64_t cmpS2LoopCnt = runInfo.s2LoopCount;
+    if constexpr (hasSink) {
+        cmpS2LoopCnt = runInfo.s2LoopCount - 1;  // Sink 占用 s2LoopCount=0，稀疏迭代从 1 开始
+    }
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token0Idx = -1;
@@ -436,6 +441,15 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     ProcessSparseKv(outputL1, runInfo, constInfo);
 
     outputL1.SetCrossCore(); // 核间同步
+}
+
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0Sink(
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo)
+{
+    // Sink 迭代中，AIV 不需要加载/反量化 KV 数据（AIC 直接搬运）
+    // 仅需维护核间同步协议
+    outputL1.WaitCrossCore();  // 等待 AIC 释放 L1 buffer
+    outputL1.SetCrossCore();   // 通知 AIC：L1 buffer 可用
 }
 
 TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessSparseKv(
@@ -793,6 +807,8 @@ public:
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseFlashAttentionPioneerTilingDataMla *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo) {}
+    __aicore__ inline void ProcessVec0Sink(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        const RunInfo &runInfo, ConstInfo &constInfo) {}
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo) {}

@@ -76,6 +76,7 @@ public:
     __aicore__ inline QSFAMatmulService() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
+    __aicore__ inline void InitSinkKv(__gm__ uint8_t *keySink, const ConstInfo& constInfo);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo);
@@ -103,6 +104,7 @@ private:
     /* =====================GM变量==================== */
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
     FaGmTensor<Q_T, Q_FORMAT> queryGm;
+    GlobalTensor<Q_T> keySinkGm;  // Sink Key GM tensor
 
     /* =====================运行时变量==================== */
     CubeCoordInfo coordInfo[3];
@@ -144,6 +146,17 @@ QSFAMatmulService<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_t *actualSeqLengths
 {
     if ASCEND_IS_AIC {
         InitGmTensor(actualSeqLengthsQ, constInfo);
+    }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void
+QSFAMatmulService<TEMPLATE_ARGS>::InitSinkKv(__gm__ uint8_t *keySink, const ConstInfo& constInfo)
+{
+    if ASCEND_IS_AIC {
+        if (keySink != nullptr) {
+            keySinkGm.SetGlobalBuffer((__gm__ Q_T *)keySink);
+        }
     }
 }
 
@@ -230,6 +243,17 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>
 
     // 加载当前轮的右矩阵到L1
     inputRightBuf.WaitCrossCore();    // 核间同步，这里需要根据V0操作处理同步，确保取tensor时，数据已经准备好
+
+    // Sink KV 搬运：AIC 直接加载 BF16 sink KV 到 L1
+    if constexpr (hasSink) {
+        if (unlikely(runInfo.s2LoopCount == 0)) {
+            // key_sink shape: [B, 128, 1, 576], 按 batch 偏移
+            int64_t sinkOffset = runInfo.boIdx * SINK_TOKEN_NUM * dBaseSize;
+            LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
+            CopyToL1Nd2Nz<Q_T>(inputRightTensor, keySinkGm[sinkOffset],
+                SINK_TOKEN_NUM, dBaseSize, constInfo.mm1Ka);
+        }
+    }
 
     inputLeftBuf.Wait<HardEvent::MTE2_MTE1>(); // 等待L1A
     Buffer<BufferType::L0C> mm1ResL0C = mmL0CBuffers.Get();
@@ -320,6 +344,7 @@ public:
     __aicore__ inline QSFAMatmulServiceDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo) {}
+    __aicore__ inline void InitSinkKv(__gm__ uint8_t *keySink, const ConstInfo& constInfo) {}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo) {}

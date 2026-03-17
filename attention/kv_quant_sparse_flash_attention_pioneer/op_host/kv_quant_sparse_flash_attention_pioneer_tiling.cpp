@@ -237,9 +237,10 @@ void QSFAPMlaTiling::GenTilingKey()
     uint32_t layoutQuery = static_cast<uint32_t>(sfaaInfo_->qLayout);
     uint32_t layoutKV = static_cast<uint32_t>(sfaaInfo_->kvLayout);
 
-    tilingKey_ = GET_TPL_TILING_KEY(0U, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
+    uint32_t hasSink = (sfaaInfo_->opParamInfo.keySink.tensor != nullptr) ? 1U : 0U;
+    tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
 
-    OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu.", tilingKey_);
+    OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu, hasSink: %u.", tilingKey_, hasSink);
 }
 
 void QSFAPMlaTiling::ZeroTensorProcess() const
@@ -1234,6 +1235,52 @@ ge::graphStatus QSFAPTilingCheck::CheckFeature() const
     return CheckFeatureMla();
 }
 
+ge::graphStatus QSFAPTilingCheck::CheckKeySink() const
+{
+    bool hasKeySink = (opParamInfo_.keySink.tensor != nullptr);
+    bool hasValueSink = (opParamInfo_.valueSink.tensor != nullptr);
+
+    // key_sink 和 value_sink 必须同时存在或同时为空
+    OP_CHECK_IF(hasKeySink != hasValueSink,
+        OP_LOGE(opName_, "key_sink and value_sink must be both present or both absent"),
+        return ge::GRAPH_FAILED);
+
+    if (!hasKeySink) {
+        return ge::GRAPH_SUCCESS;
+    }
+
+    // 仅 PA_BSND 布局支持 sink
+    OP_CHECK_IF(kvStorageMode_ != KvStorageMode::PAGE_ATTENTION,
+        OP_LOGE(opName_, "param_sink is only supported when kv_layout is PA_BSND"),
+        return ge::GRAPH_FAILED);
+
+    // 校验 key_sink shape: [B, 128, 1, 576]
+    auto keySinkShape = opParamInfo_.keySink.tensor->GetStorageShape();
+    OP_CHECK_IF(keySinkShape.GetDim(1) != 128,
+        OP_LOGE(opName_, "key_sink dim[1](%ld) must be 128", keySinkShape.GetDim(1)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShape.GetDim(2) != 1,
+        OP_LOGE(opName_, "key_sink dim[2](%ld) must be 1", keySinkShape.GetDim(2)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShape.GetDim(3) != 576,
+        OP_LOGE(opName_, "key_sink dim[3](%ld) must be 576", keySinkShape.GetDim(3)),
+        return ge::GRAPH_FAILED);
+
+    // 校验 value_sink shape: [B, 128, 1, 512]
+    auto valueSinkShape = opParamInfo_.valueSink.tensor->GetStorageShape();
+    OP_CHECK_IF(valueSinkShape.GetDim(1) != 128,
+        OP_LOGE(opName_, "value_sink dim[1](%ld) must be 128", valueSinkShape.GetDim(1)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShape.GetDim(2) != 1,
+        OP_LOGE(opName_, "value_sink dim[2](%ld) must be 1", valueSinkShape.GetDim(2)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShape.GetDim(3) != 512,
+        OP_LOGE(opName_, "value_sink dim[3](%ld) must be 512", valueSinkShape.GetDim(3)),
+        return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 void QSFAPTilingCheck::Init()
 {
     opName_ = sfaaInfo_.opName;
@@ -1286,6 +1333,7 @@ ge::graphStatus QSFAPTilingCheck::Process()
     if (CheckSinglePara() != ge::GRAPH_SUCCESS ||
         CheckParaExistence() != ge::GRAPH_SUCCESS ||
         CheckFeature() != ge::GRAPH_SUCCESS ||
+        CheckKeySink() != ge::GRAPH_SUCCESS ||
         CheckMultiParaConsistency() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -1443,6 +1491,8 @@ void QSFAPInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.actualSeqLengths.desc = context_->GetOptionalInputDesc(ACT_SEQ_LEN_KV_INPUT_INDEX);
     opParamInfo_.keyDequantScale.tensor = context_->GetOptionalInputTensor(KEY_DEQUANT_SCALE_INPUT_INDEX);
     opParamInfo_.valueDequantScale.tensor = context_->GetOptionalInputTensor(VALUE_DEQUANT_SCALE_INPUT_INDEX);
+    opParamInfo_.keySink.tensor = context_->GetOptionalInputTensor(KEY_SINK_INPUT_INDEX);
+    opParamInfo_.valueSink.tensor = context_->GetOptionalInputTensor(VALUE_SINK_INPUT_INDEX);
 }
 
 void QSFAPInfoParser::GetInputParaInfo()

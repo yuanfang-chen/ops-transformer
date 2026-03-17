@@ -107,6 +107,12 @@ protected:
 
     ConstInfo constInfo_;
 
+    // 动态buffer offset，基于实际mBaseSize计算，替代硬编码的M_BASIC_BLOCK常量
+    // 修复N1=16(mBaseSize=64 < M_BASIC_BLOCK=96)时buffer溢出问题
+    uint64_t queryL1Offset_ = 0;
+    uint64_t queryL0Offset_ = 0;
+    uint64_t l0cOffset_ = 0;
+
 private:
     static constexpr bool PAGE_ATTENTION = QLIT::pageAttention;
 };
@@ -120,6 +126,11 @@ __aicore__ inline void QLIMatmul<QLIT>::InitParams(const ConstInfo &constInfo)
 template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::InitBuffers(TPipe *pipe)
 {
+    // 基于实际mBaseSize计算buffer offset，而非硬编码M_BASIC_BLOCK(96)
+    queryL1Offset_ = constInfo_.mBaseSize * D_BASIC_BLOCK;
+    queryL0Offset_ = constInfo_.mBaseSize * D_BASIC_BLOCK_L0;
+    l0cOffset_ = constInfo_.mBaseSize * S2_BASIC_BLOCK_L0;
+
     pipe->InitBuffer(bufUB_, 2 * CeilDiv(constInfo_.mBaseSize, 2) * constInfo_.s2BaseSize * sizeof(float));  //大小：2(开dB) * 2 * 64 * 128 * 4 = 128KB
     mm1ResUB_ = bufUB_.Get<float>();
     pipe->InitBuffer(bufQL1_, QUERY_BUF_NUM * constInfo_.mBaseSize * D_BASIC_BLOCK * sizeof(Q_T));
@@ -284,7 +295,7 @@ __aicore__ inline void QLIMatmul<QLIT>::QueryNd2Nz(uint64_t s1gL1RealSize, uint6
     nd2nzPara.srcNdMatrixStride = 0;
     nd2nzPara.dstNzMatrixStride = 0;
     // 默认一块buf最多放两份
-    DataCopy(queryL1_[(queryL1Mte2BufIdx_ % QUERY_BUF_NUM) * QUERY_BUFFER_OFFSET],
+    DataCopy(queryL1_[(queryL1Mte2BufIdx_ % QUERY_BUF_NUM) * queryL1Offset_],
              queryGm_[runInfo.tensorQueryOffset + s1gGmOffset * constInfo_.headDim], nd2nzPara);
 }
 
@@ -301,8 +312,8 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gGmOffset, uin
     loadData2DParamsV2.dstStride = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.ifTranspose = false;
     
-    LoadData(queryL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET],
-             queryL1_[(queryL1Mte1BufIdx_ % QUERY_BUF_NUM) * QUERY_BUFFER_OFFSET], loadData2DParamsV2);
+    LoadData(queryL0_[(l0BufIdx_ % L0_BUF_NUM) * queryL0Offset_],
+             queryL1_[(queryL1Mte1BufIdx_ % QUERY_BUF_NUM) * queryL1Offset_], loadData2DParamsV2);
 }
 
 template <typename QLIT>
@@ -332,7 +343,7 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeL0c(uint64_t s1gL0RealSize, uint6
     mmadParams.k = constInfo_.headDim;
     mmadParams.cmatrixInitVal = true;
     mmadParams.cmatrixSource = false;
-    Mmad(cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], queryL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET],
+    Mmad(cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cOffset_], queryL0_[(l0BufIdx_ % L0_BUF_NUM) * queryL0Offset_],
          keyL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET], mmadParams);
     if ((mmadParams.m / 16) * (mmadParams.n / 16) < 10) {
         PipeBarrier<PIPE_M>();
@@ -374,7 +385,7 @@ __aicore__ inline void QLIMatmul<QLIT>::Fixp(uint64_t s1gGmOffset, uint64_t s2Gm
             fixpipeParams.params.dstNdStride = constInfo_.s2BaseSize * constInfo_.mBaseSize / 2; // S2_BASIC_BLOCK * M_BASE_SIZE / 2
         }
         Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * constInfo_.s2BaseSize / 2], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
+                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cOffset_], fixpipeParams); // 将matmul结果从L0C搬运到UB
     } else {
         // nSize * sizeof(QT) <= 256B, 小于一个UB bank大小(VL)
         uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3; // 8个元素（32B)对齐
@@ -393,11 +404,11 @@ __aicore__ inline void QLIMatmul<QLIT>::Fixp(uint64_t s1gGmOffset, uint64_t s2Gm
         fixpipeParams.reluEn = true; // ReLU激活
         fixpipeParams.subBlockId = 0;
         Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * (UB_BANK_STRIDE / sizeof(float))], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
+                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cOffset_], fixpipeParams); // 将matmul结果从L0C搬运到UB
 
         fixpipeParams.subBlockId = 1;
         Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * (UB_BANK_STRIDE / sizeof(float))], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET + mSize / 2 * 16], fixpipeParams); // 将matmul结果从L0C搬运到UB
+                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cOffset_ + mSize / 2 * 16], fixpipeParams); // 将matmul结果从L0C搬运到UB
     }
 }
 

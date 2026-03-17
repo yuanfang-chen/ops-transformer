@@ -465,6 +465,7 @@ private:
     ge::graphStatus CheckFeatureMlaAntiquant() const;
     ge::graphStatus CheckFeatureMla() const;
     ge::graphStatus CheckFeature() const;
+    ge::graphStatus CheckKeySink() const;
 
 private:
     const char *opName_;
