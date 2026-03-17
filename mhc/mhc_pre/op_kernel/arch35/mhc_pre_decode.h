@@ -611,11 +611,11 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1Prologue(uint64_t offsetT, 
     }
     HMixProcess(offsetT, lenT);
 
-    // FIX：重新搬进来
-    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
+    // // FIX：重新搬进来
+    // SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
+    // WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 
-    HMixCopyIn(HMixOffset, lenT);
+    // HMixCopyIn(HMixOffset, lenT);
     matmulRes_ = xInQueue_.DeQue<P>(); 
     
     __ubuf__ P* matmulPtr = (__ubuf__ P*)matmulRes_.GetPhyAddr();
@@ -935,8 +935,8 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::HMixProcess(uint64_t offsetT, u
     MixOutCopyParams.srcStride = uint32_t(0); // 相邻块的间隔
     MixOutCopyParams.dstStride = uint32_t(0);                                                   // 相邻块的间隔
     DataCopyPad(mmResGm_[HMixOffset], hMixLocal, MixOutCopyParams);
-    // xInQueue_.EnQue(hMixLocal);
-    xInQueue_.FreeTensor(hMixLocal);
+    xInQueue_.EnQue(hMixLocal);
+    // xInQueue_.FreeTensor(hMixLocal);
 }
 
 template <class T, class P>
