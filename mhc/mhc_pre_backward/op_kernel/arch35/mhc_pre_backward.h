@@ -861,7 +861,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     // DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsOutBuf, dataCopyParams_);
     DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsGradUb, dataCopyParams_);
     PipeBarrier<PIPE_V>();
-    bf16OutQueue_.FreeTensor(invRmsOutBuf);
+    // bf16OutQueue_.FreeTensor(invRmsOutBuf);
+    fp32OutQueue_.FreeTensor(invRmsGradUb);
 
     // alpha grad (inv rms 梯度计算完成，复用h1GradBuf)
     ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(h1GradBuf, buffers.hFusionBuf1,
