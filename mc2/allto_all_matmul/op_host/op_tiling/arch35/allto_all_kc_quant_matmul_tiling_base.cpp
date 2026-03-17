@@ -423,7 +423,6 @@ void AllToAllKcQuantMatmulTilingBase::PrintAlltoAllKcQuantMatmulTilingInfo(const
     OP_LOGD(opName, "TilingInfo.rankM: %u", tilingInfo.rankM);
     OP_LOGD(opName, "TilingInfo.rankN: %u", tilingInfo.rankN);
     OP_LOGD(opName, "TilingInfo.rankK: %u", tilingInfo.rankK);
-    OP_LOGD(opName, "TilingInfo.biasLen: %u", tilingInfo.biasLen);
     OP_LOGD(opName, "TilingInfo.commLen: %u", tilingInfo.commLen);
     OP_LOGD(opName, "TilingInfo.permuteLen: %u", tilingInfo.permuteLen);
     OP_LOGD(opName, "tilingInfo.x1ScaleOptionalLen: %u", tilingInfo.x1ScaleOptionalLen);
@@ -492,7 +491,6 @@ void AllToAllKcQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.rankN = contextInfo.args_.nValue;
     tilingInfo.rankM = contextInfo.args_.orgMValue;
     tilingInfo.rankK = contextInfo.args_.orgKValue;
-    tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.commLen = inferredInfo.commLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.x1ScaleOptionalLen = inferredInfo.x1ScaleOptionalLen;
@@ -530,13 +528,13 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
     uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen +
-                             inferredInfo.biasLen + +inferredInfo.x1ScaleOptionalLen + inferredInfo.quantOutLen;
+                             + inferredInfo.x1ScaleOptionalLen + inferredInfo.quantOutLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
-        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu, x1ScaleOptionalLen=%zu, quantOutLen=%zu",
-        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen,
-        inferredInfo.x1ScaleOptionalLen, inferredInfo.quantOutLen);
+        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, x1ScaleOptionalLen=%zu, quantOutLen=%zu",
+        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.x1ScaleOptionalLen,
+        inferredInfo.quantOutLen);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -555,11 +553,6 @@ void AllToAllKcQuantMatmulTilingBase::SetUserWorkSpace()
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
     }
-    if (contextInfo.args_.isBias) {
-        inferredInfo.biasLen =
-            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
-    }
-
     inferredInfo.x1ScaleOptionalLen = mc2tiling::AlignUp(contextInfo.args_.mValue * sizeof(float), alignAddrLen);
     // 量化后的结果为fp8
     inferredInfo.quantOutLen = mc2tiling::AlignUp(contextInfo.args_.mValue * contextInfo.args_.kValue, alignAddrLen);
