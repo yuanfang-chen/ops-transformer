@@ -275,8 +275,6 @@ public:
             Arch::CrossCoreWaitFlag(flagAivFinishComputeList[aivComputeStageId]);
             --stageUsed;
         }
-
-        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     template <>
@@ -352,8 +350,6 @@ public:
 
             startCoreIdx = (startCoreIdx + coreLoops) % coreNum;
         }
-
-        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
 private:

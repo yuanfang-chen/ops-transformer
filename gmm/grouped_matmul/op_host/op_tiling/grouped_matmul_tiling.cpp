@@ -96,26 +96,27 @@ constexpr size_t TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX = 0;
 constexpr size_t TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX = 1;
 constexpr size_t TUNING_CONFIG_ALLOW_WORKSPACE_INDEX = 2;
 constexpr int64_t SPLITK_M_N_RATIO_THRESHOLD_2 = 2L;
-// A4W4优化K的范围
+// A4W4访存优化,合轴发送算法K的范围
+// A4W4该优化点只支持CV比例1:2，没有做1:1的适配
 constexpr int64_t A4W4OPTIMIZE_K_LOWER = 1024L;
 constexpr int64_t A4W4OPTIMIZE_K_UPPER = 16384L;
-// A4W4优化N的范围
+// A4W4访存优化,合轴发送算法N的范围
 constexpr int64_t A4W4OPTIMIZE_N_LOWER = 128L;
 constexpr int64_t A4W4OPTIMIZE_N_UPPER = 16384L;
-// A4W4优化group_num的范围
+// A4W4访存优化,合轴发送算法group_num的范围
 constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_LOWER = 1;
 constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_UPPER = 256;
-// A4W4优化每个专家M的范围
+// A4W4访存优化,合轴发送算法每个专家M的范围
 constexpr int64_t A4W4OPTIMIZE_PERM_LOWER = 16L;
 constexpr int64_t A4W4OPTIMIZE_PERM_UPPER = 10240L;
-// A4W4优化split_item的范围
+// A4W4访存优化,合轴发送算法split_item的范围
 constexpr int64_t A4W4OPTIMIZE_SPLIT_ITEM2 = 2L;
 constexpr int64_t A4W4OPTIMIZE_SPLIT_ITEM3 = 3L;
-// A4W4优化group_list_type的范围
+// A4W4访存优化,合轴发送算法group_list_type的范围
 constexpr int64_t A4W4OPTIMIZE_GROUP_LIST_TYPE = 0L;
-// A4W4优化group_type的范围
+// AA4W4访存优化,合轴发送算法group_type的范围
 constexpr int64_t A4W4OPTIMIZE_GROUP_TYPE = 0L;
-// A4W4优化quantGroupSize的范围
+// A4W4访存优化,合轴发送算法quantGroupSize的范围
 constexpr int64_t A4W4OPTIMIZE_QUANT_GROUP_SIZE = 256L;
 
 
@@ -1073,22 +1074,23 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
            isDataTypeCorrect && isConfigCorrect && isWorkspaceValid && !hasBias_ && isFormatValid;
 }
 
+// A4W4该优化点只支持CV比例1:2，没有做1:1的适配
 bool GMMTiling::IsA4W4OptimizeCondition() {
-    bool isKCorrect = (maxK_ >= A4W4OPTIMIZE_K_LOWER && maxK_ <= A4W4OPTIMIZE_K_UPPER);
-    bool isNCorrect = (maxK_ >= A4W4OPTIMIZE_N_LOWER && maxK_ <= A4W4OPTIMIZE_N_UPPER);
-    bool isGroupCorrect = (groupNum_ >= A4W4OPTIMIZE_GROUP_NUM_LOWER && groupNum_ <= A4W4OPTIMIZE_GROUP_NUM_UPPER);
+    bool isKInRange = (maxK_ >= A4W4OPTIMIZE_K_LOWER && maxK_ <= A4W4OPTIMIZE_K_UPPER);
+    bool isNInRange = (maxN_ >= A4W4OPTIMIZE_N_LOWER && maxN_ <= A4W4OPTIMIZE_N_UPPER);
+    bool isGroupInRange = (groupNum_ >= A4W4OPTIMIZE_GROUP_NUM_LOWER && groupNum_ <= A4W4OPTIMIZE_GROUP_NUM_UPPER);
     bool isTuningInRange = (tuningConfig_ >= A4W4OPTIMIZE_PERM_LOWER) &&
                           (tuningConfig_ <= A4W4OPTIMIZE_PERM_UPPER);
-    bool isPerGroupCorrect = isPerGroup_ && quantGroupSize_ == A4W4OPTIMIZE_QUANT_GROUP_SIZE;
-    bool isDataTypeCorrect = yDtype_ == ge::DT_BF16 && scaleDtype_ == ge::DT_UINT64 && perTokenScaleDtype_ == ge::DT_FLOAT;
-    bool isConfigCorrect = !transposeX_ && (splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM2 || splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM3)
+    bool isPerGroupValid = isPerGroup_ && quantGroupSize_ == A4W4OPTIMIZE_QUANT_GROUP_SIZE;
+    bool isDataTypeValid = yDtype_ == ge::DT_BF16 && scaleDtype_ == ge::DT_UINT64 && perTokenScaleDtype_ == ge::DT_FLOAT;
+    bool isConfigValid = !transposeX_ && (splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM2 || splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM3)
                           && (groupListType_ == A4W4OPTIMIZE_GROUP_LIST_TYPE)
                           && (groupType_ == A4W4OPTIMIZE_GROUP_TYPE) && (actType_ == 0)
                           && !transposeWeight_;
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
-    return isKCorrect && isNCorrect && isTuningInRange && isGroupCorrect && isPerGroupCorrect && isA4W4_ &&
-           isDataTypeCorrect && isConfigCorrect && !hasBias_ && isFormatValid;
+    return isKInRange && isNInRange && isTuningInRange && isGroupInRange && isPerGroupValid && isA4W4_ &&
+           isDataTypeValid && isConfigValid && !hasBias_ && isFormatValid;
 }
 
 bool GMMTiling::IsIntDataType() {

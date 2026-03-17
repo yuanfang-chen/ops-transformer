@@ -489,15 +489,8 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
             if (gmmBaseParams_.isA4W4Optimize) {
                 tPipe.Destroy();
                 AscendC::SetMMLayoutTransform(true);
-                using XDType = AscendC::int4b_t;
-                using WeightDType = AscendC::int4b_t;
-                using CDType = half;
-                using ScaleDType = uint64_t;
-                using GrouplistDType = int64_t;
-                using PerTokenScaleDType = float;
-                using YDType = bfloat16_t;
 #ifndef __CCE_KT_TEST__
-                Catlass::grouped_matmul_a4w4_catlass<XDType, WeightDType, CDType, ScaleDType, GrouplistDType, PerTokenScaleDType, YDType>(
+                Catlass::grouped_matmul_a4w4_catlass(
                     gmmBaseParams_.m, gmmBaseParams_.k, gmmBaseParams_.n, gmmBaseParams_.groupNum, gmmBaseParams_.quantGroupNum,
                     x, weight, scale, groupList, perTokenScale, y, user1, gmmBaseParams_.coreNum);
 #endif
