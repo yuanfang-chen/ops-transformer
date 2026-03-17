@@ -16,8 +16,8 @@
 #include "./arch35/causal_conv1d_update.h"
 
 
-#define TILING_KEY_UPDATE_FP16 20000
-#define TILING_KEY_UPDATE_BF16 20001
+#define TILING_KEY_UPDATE_BF16 20000
+#define TILING_KEY_UPDATE_FP16 20001
 extern "C" __global__ __aicore__ void causal_conv1d_update(
     GM_ADDR x,                    // 输入0: x
     GM_ADDR weight,               // 输入1: weight
