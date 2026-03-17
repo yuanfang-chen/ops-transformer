@@ -286,13 +286,13 @@ ge::graphStatus QLIInfoParser::GetAndCheckInOutDataType()
                 OP_LOGE(opName_, "When inputQType is hifloat8, the data types of the input weights must be bfloat16, and the data types of inputQueryScaleType_ must be float16."),
                 return ge::GRAPH_FAILED);
         }
-        OP_CHECK_IF(weightsType_ != ge::DT_BF16,
-                OP_LOGE(opName_, "The data types of the input weights must be bfloat16."), return ge::GRAPH_FAILED);
+        // OP_CHECK_IF(weightsType_ != ge::DT_BF16,
+        //         OP_LOGE(opName_, "The data types of the input weights must be bfloat16."), return ge::GRAPH_FAILED);
 
-        OP_CHECK_IF(
-            inputQueryScaleType_ != ge::DT_FLOAT,
-            OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float."),
-            return ge::GRAPH_FAILED);
+        // OP_CHECK_IF(
+        //     inputQueryScaleType_ != ge::DT_FLOAT,
+        //     OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float."),
+        //     return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(inputQType_ != ge::DT_INT8,
                 OP_LOGE(opName_, "The data types of the input query and key must be int8."), return ge::GRAPH_FAILED);

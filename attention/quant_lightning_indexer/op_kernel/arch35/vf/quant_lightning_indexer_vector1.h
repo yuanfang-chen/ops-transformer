@@ -260,7 +260,7 @@ __aicore__ inline void CastWeightAndScaleType(const LocalTensor<half> &weight_,
         for(uint16_t j = (uint16_t)(0); j < uint16_t(2); j++){
             AscendC::MicroAPI::LoadAlign<half, AscendC::MicroAPI::LoadDist::DIST_UNPACK_B16>(regKScaleFP16, kScale + j * 64);   
             AscendC::MicroAPI::Cast<float, half, castTraitFP16ToFP32>(regKScale, regKScaleFP16, maskAllB16);
-            AscendC::MjcroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(kScaleFloat + j * 64, regKScale, maskAllB32);  
+            AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(kScaleFloat + j * 64, regKScale, maskAllB32);  
         }
                                                                                                                         
         for (uint16_t i = (uint16_t)(0); i < uint16_t(batch); i++){
@@ -458,13 +458,13 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
     }
 }
 
-template<typename QK_T, typename WEIGHTS_T, typename SCALE_T, typename SCORE_T>
+template<typename QK_T, typename W_T, typename SCALE_T, typename SCORE_T>
 __aicore__ inline void BatchMulWeightAndReduceSum(const LocalTensor<SCORE_T> &out_,   // out    [S2Base]     [128   ]
                                                   uint32_t outStride,
                                                   const LocalTensor<QK_T> &qk_,       // q*k^t  [G, S2Base]  [64 128]
                                                   uint32_t qkVLStride,
                                                   uint32_t qkStride,
-                                                  const LocalTensor<WEIGHTS_T> &weight_,   // w      [G]          [64    ]
+                                                  const LocalTensor<W_T> &weight_,   // w      [G]          [64    ]
                                                   uint32_t weightStride,
                                                   const LocalTensor<float> &weightFloat_,
                                                   const LocalTensor<SCALE_T> &kScale_,   // kScale [S2Base]     [128   ]
@@ -481,7 +481,7 @@ __aicore__ inline void BatchMulWeightAndReduceSum(const LocalTensor<SCORE_T> &ou
         return;
     }
 
-    if (WEIGHTS_T == bfloat16_t) {
+    if constexpr (sizeof(SCALE_T) == sizeof(float)) {
         CastWeightType(weight_, weightStride, weightFloat_, batch);
     } else {
         CastWeightAndScaleType(weight_, weightStride, weightFloat_, kScale_, kScaleStride, kScaleFloat_, qScale_, qScaleStride, qScaleFloat_, batch);
