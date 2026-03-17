@@ -231,6 +231,7 @@ private:
     int32_t nzFactor_;  // for weight nz format
     int64_t quantGroupSize_ = 0;
     bool isPerGroup_ = false;
+    bool isA4W4Optimize_ = false;
 };
 }  // namespace optiling
 
