@@ -30,7 +30,7 @@ using bT3 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using cT3 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using StageThreeMT = matmul::MatmulImpl<aT3, bT3, cT3>;
 
-#define BUFFER_NUM 1
+#define BUFFER_NUM_ONE 1
 
 template <typename inType, typename outType>
 struct mm3Params {
@@ -99,8 +99,8 @@ public:
             return;
         }
 
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM, chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
-        pipe_->InitBuffer(outQueue_, BUFFER_NUM, chunkSize_ * sTP_->Dv_ * sizeof(float));
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
+        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ * sTP_->Dv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (4 * chunkSize_ * chunkSize_ * sizeof(float)));
         uint32_t buffOffset = 0;
         cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
@@ -292,8 +292,8 @@ public:
 private:
     StageThreeParams *sTP_;
     TPipe *pipe_;
-    TQue<QuePosition::VECIN, BUFFER_NUM> inQueue_;
-    TQue<QuePosition::VECOUT, BUFFER_NUM> outQueue_;
+    TQue<QuePosition::VECIN, BUFFER_NUM_ONE> inQueue_;
+    TQue<QuePosition::VECOUT, BUFFER_NUM_ONE> outQueue_;
     TBuf<TPosition::VECCALC> tmpBuff_;
     GlobalTensor<float> cCFloatGM_;
     LocalTensor<float> cCFloat_;

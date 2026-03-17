@@ -20,7 +20,14 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 
 namespace ChunkGatedDeltaRule {
-    uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
+    constexpr uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
+    constexpr uint64_t BUFFER_NUM_ONE = 1;
+
+    // 同步信号
+    constexpr uint64_t V_MTE3_EVENT = 0;
+    constexpr uint64_t MTE2_V_EVENT = 2;
+    constexpr uint64_t MTE3_MTE2_EVENT = 4;
+    constexpr uint64_t FIX_MTE2_EVENT = 6;
 
     #pragma pack(push, 8)
     struct alignas(8) ChunkGatedDeltaRuleTilingData {

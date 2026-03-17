@@ -30,13 +30,6 @@ using bT2 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using cT2 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using StageTwoMT = matmul::MatmulImpl<aT2, bT2, cT2>;
 
-constexpr uint64_t BUFFER_NUM = 1;
-constexpr uint64_t BLOCK_SIZE = BLOCK_SIZE;
-static constexpr uint64_t V_MTE3_EVENT = 0;
-static constexpr uint64_t MTE2_V_EVENT = 2;
-static constexpr uint64_t MTE3_MTE2_EVENT = 4;
-static constexpr uint64_t FIX_MTE2_EVENT = 6;
-
 struct StageTwoParams {
     GlobalTensor<float> qPrime_;    // (Nv, Sp, Dk)
     GlobalTensor<float> vInner_;    // (Nv, Sp, Dv)
@@ -95,9 +88,9 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM, chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
         uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float), (uint64_t)Dv_ * curDk_ * sizeof(bfloat16_t));
-        pipe_->InitBuffer(outQueue_, BUFFER_NUM, outQueueSize);
+        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, outQueueSize);
         pipe_->InitBuffer(tmpBuff_, (chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float)));
     }
 
@@ -237,8 +230,8 @@ public:
 private:
     StageTwoParams *sTP_;
     TPipe *pipe_;
-    TQue<QuePosition::VECIN, BUFFER_NUM> inQueue_;
-    TQue<QuePosition::VECOUT, BUFFER_NUM> outQueue_;
+    TQue<QuePosition::VECIN, BUFFER_NUM_ONE> inQueue_;
+    TQue<QuePosition::VECOUT, BUFFER_NUM_ONE> outQueue_;
     TBuf<TPosition::VECCALC> tmpBuff_;
     int64_t Nk_;
     int64_t Nv_;
