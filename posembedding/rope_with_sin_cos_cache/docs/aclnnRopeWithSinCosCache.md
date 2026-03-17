@@ -134,7 +134,7 @@
     $$
 
     $$
-    query = torch.cat((queryRot, queryPass), dim=-1)
+    query = torch.cat((queryRot, queryPass), dim=-1) 
     $$
 
     2、**rope模式**：positions的shape输入是[numTokens]：
