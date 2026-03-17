@@ -83,7 +83,6 @@ public:
     constexpr static float FP8_MAX = IsSameType<INPUT_TYPE, fp8_e5m2_t>::value ? 57344 : IsSameType<INPUT_TYPE, fp8_e4m3fn_t>::value ? 448 : 32768;
     constexpr static uint32_t BITS_EACH_UINT64 = 64;
     constexpr static uint32_t MAX_BITS_IN_TILING = 32 * BITS_EACH_UINT64;
-    constexpr static uint32_t INT64_BLOCK_NUM = 32 / sizeof(int64_t);
     constexpr static uint32_t DETER_OFFSET_UB_SIZE = 1024 * 3;
     constexpr static uint32_t CUBE_BASEM = (uint32_t)s1TemplateType;
     constexpr static uint32_t CUBE_BASEN = (uint32_t)s2TemplateType;
@@ -94,7 +93,6 @@ public:
     constexpr static uint32_t INPUT_BLOCK_NUM_FOR_FP8 = 32 / sizeof(OUTDTYPE);
     constexpr static uint32_t BASE_DQ_SIZE = CUBE_BASEM * HEAD_DIM_ALIGN;
     constexpr static uint32_t BASE_DKV_SIZE = CUBE_BASEN * HEAD_DIM_ALIGN;
-    constexpr static int64_t OUTINDEX = -1;
     constexpr static uint32_t FRACTAL_NZ_C0_SIZE = 32 / sizeof(INPUT_TYPE);
     constexpr static uint32_t DETER_DQ_UB_SIZE_FP16 = 32 * 1024;
     constexpr static uint32_t DETER_DQ_UB_SIZE_FP32_D256 = 16 * 1024;
@@ -102,7 +100,6 @@ public:
     constexpr static uint32_t DETER_DQ_UB_SIZE =
         IS_FP32_INPUT ? (HEAD_DIM_ALIGN > 256 ? DETER_DQ_UB_SIZE_FP32_D512 : DETER_DQ_UB_SIZE_FP32_D256) :
                         DETER_DQ_UB_SIZE_FP16;
-    constexpr static uint32_t DETER_DKV_UB_SIZE = VECTOR_BASEM * VECTOR_BASEN * sizeof(CALC_TYPE);
  
     constexpr static bool IS_DQ_RES_EXCEED_UB = HEAD_DIM_ALIGN > VECTOR_BASEN;
     constexpr static bool IS_DKV_RES_EXCEED_UB =
@@ -628,6 +625,8 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
             static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
         constInfo.deterConstInfo.eventIDMte2ToMte3 =
             static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE3));
+        constInfo.mm3Ka = constInfo.mm2Ka;
+        constInfo.mm4Kb = constInfo.mm2Kb;
         if constexpr (IS_ROPE) {
             constInfo.mm2Ka = constInfo.mm2Ka / 3 << 1;
             constInfo.mm2Kb = constInfo.mm2Kb / 3 << 1;
@@ -1042,11 +1041,11 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
     }
     GetDerived()->SetUniqueRunInfo(runInfo);
 
-    if constexpr (SPLIT_AXIS == BN2GS1S2) {
-        if ASCEND_IS_AIV {
-            return;
-        }
-    }
+    // if constexpr (SPLIT_AXIS == BN2GS1S2) {
+    //     if ASCEND_IS_AIV {
+    //         return;
+    //     }
+    // }
 
     // preload next query and dy offset for l1 preload
     if (taskId == 0) {
@@ -1068,7 +1067,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
         runInfo.commonRunInfo.valueOffset = GetValueOffset(runInfo);
     }
 
-    if ASCEND_IS_AIC {
+    // if ASCEND_IS_AIC { // deter old 场景， aiv也需要获取相应值
         runInfo.queryOffsetWithRope = runInfo.commonRunInfo.queryOffset;
         runInfo.keyOffsetWithRope = runInfo.commonRunInfo.keyOffset;
         // Rope场景后面三个mm的GM offset不能和前面两个mm共用，因此需要重新计算
@@ -1080,7 +1079,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
             runInfo.commonRunInfo.qRopeOffset = GetQueryRopeOffset(runInfo);
             runInfo.commonRunInfo.kRopeOffset = GetKeyRopeOffset(runInfo);
         }
-    }
+    // }
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
