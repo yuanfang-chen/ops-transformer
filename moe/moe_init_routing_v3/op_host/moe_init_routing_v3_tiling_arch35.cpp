@@ -207,7 +207,7 @@ private:
 
     // 各阶段TilingData计算函数
     MultipleParams GetMultipleParams();
-    PerLoopParams GetPerLoopParams(MultipleParams& multipleParams);
+    PerLoopParams GetPerLoopParams(MultipleParams& multipleParams, int64_t perCoreIndicesElements);
     void Tiling4GatherOutCompute();
     void Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
