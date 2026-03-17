@@ -1888,7 +1888,7 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         return false);
     enableIFA = false;
     enableIFAMask = false;
-    // enablePFAMerge = false;
+    enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
     } else {
@@ -2312,9 +2312,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                 "Actual_seq_lengths[%u](%ld) must be in range[0, %u]!", i, actSeqTmp, queryShapeInfo.s),
                 return false);
             // query act seq len padding情况下不支持合轴
-            // if (actSeqTmp < queryShapeInfo.s) {
-                // enablePFAMerge = false;
-            // }
+            if (actSeqTmp < queryShapeInfo.s) {
+                enablePFAMerge = false;
+            }
         }
         t1Size = actSeqLen->GetData<int64_t>()[actSeqLengthSize - 1];
     }
@@ -3437,17 +3437,17 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_DOUBLE;
             softmaxSOuterFactor = SOUTER_FACTOR_SUB;
-        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge) {
-            minFactor = SOUTER_FACTOR_SUB;
-            rectangleFactor = SINNER_FACTOR_DOUBLE;
+        // } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge) {
+        //     minFactor = SOUTER_FACTOR_SUB;
+        //     rectangleFactor = SINNER_FACTOR_DOUBLE;
         }
     } else if (tilingData.promptAttentionBaseParams.get_vHeadSize() > 128 && !enableIFAMLA && !enableIFA) { // 128 : D size
         if (!faRunFlag_) {
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_SUB;
-        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
-            minFactor = SOUTER_FACTOR_SUB;
-            rectangleFactor = SINNER_FACTOR_DOUBLE;
+        // } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
+        //     minFactor = SOUTER_FACTOR_SUB;
+        //     rectangleFactor = SINNER_FACTOR_DOUBLE;
         } else {
             minFactor = SOUTER_FACTOR_DEFAULT;
             rectangleFactor = SINNER_FACTOR_DEFAULT;

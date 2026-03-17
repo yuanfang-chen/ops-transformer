@@ -273,9 +273,15 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
         bmm2ResGmBuffers.Init(gmBufferManager, mm2Offset);
         workspace += (totalOffset + mm2Offset * 3);
     }
-    vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, pScale, postQuantScale, postQuantOffset,
-        prefix, attenMask, queryPaddingSize, kvPaddingSize, learnableSink, softmaxMax, softmaxSum, workspace, singleCoreOffset,
-        this->aicIdx, constInfo);
+    if constexpr (isInfer) {
+        vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, pScale, postQuantScale, postQuantOffset,
+            prefix, attenMask, queryPaddingSize, kvPaddingSize, learnableSink, softmaxMax, softmaxSum, workspace, singleCoreOffset,
+            this->aicIdx, constInfo, actualSeqLengths, actualSeqLengthsKv);
+    } else {
+        vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, pScale, postQuantScale, postQuantOffset,
+            prefix, attenMask, queryPaddingSize, kvPaddingSize, learnableSink, softmaxMax, softmaxSum, workspace, singleCoreOffset,
+            this->aicIdx, constInfo);
+    }
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND && !isInfer) {
         if ASCEND_IS_AIV {
             int64_t actualS1Len;
