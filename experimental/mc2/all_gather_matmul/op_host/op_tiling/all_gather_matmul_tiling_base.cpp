@@ -243,13 +243,6 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
     return args.mValue;
 }
 
-CutResult AllGatherMatmulTilingBase::GetTilingResult()
-{
-   
-    AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
-    return tileFormulate.GetTiling();
-}
-
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
 {
         OP_LOGI(opName_, "enabelSplik is True.");
