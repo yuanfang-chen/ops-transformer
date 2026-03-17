@@ -233,8 +233,7 @@ private:
             gGm_ = gBaseGm_[bgOffset];
         }
 
-        uint64_t cgLen_pad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
-        uint64_t cb = nid * cgLen_pad + local_cid * chunkSize_;
+        uint64_t cb = nid * cg_.length + local_cid * chunkSize_;
 
         outGCumExpGm_ = outGCumExpBaseGm_[cb];
         outKCumdecayGm_ = outKCumdecayBaseGm_[cb * dk_];
