@@ -1243,9 +1243,8 @@ static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV
         "localMoeExpertNum * epWorldSize must be less than or equal to 2048, and localMoeExpertNum must be greater than 0, "
         "but got localMoeExpertNum * epWorldSize = %u, localMoeExpertNum = %u", localMoeExpertNum * epWorldSize, localMoeExpertNum), return false);
     // 校验tp=2时单个moe卡上专家数是否等于1
-    OP_TILING_CHECK((localMoeExpertNum > 1) && (tpWorldSize > 1),
-        OP_LOGE(nodeName, "Cannot support multi-moeExpert %u in a rank when tpWorldSize = %u > 1",
-        localMoeExpertNum, tpWorldSize), return false);
+    OP_TILING_CHECK((localMoeExpertNum > 1) && (tpWorldSize > 1), OP_LOGE(nodeName, "Cannot support multi-moeExpert %u "
+        "in a rank when tpWorldSize = %u > 1", localMoeExpertNum, tpWorldSize), return false);
     OP_TILING_CHECK((tpWorldSize > 1) && (tilingData.moeDistributeCombineV2Info.hasElasticInfo), OP_LOGE(nodeName, "Cannot support elasticInfo "
         "when tpWorldSize = %u > 1", tpWorldSize), return false);
     tilingData.moeDistributeCombineV2Info.moeExpertPerRankNum = localMoeExpertNum;
@@ -1254,9 +1253,8 @@ static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV
     const gert::StorageShape *expertIdsStorageShape = context->GetInputShape(config.expertIdsIndex);
     int64_t expertIdsDim0 = expertIdsStorageShape->GetStorageShape().GetDim(0);
     int64_t bsUpperBound = isLayered ? BS_UPPER_BOUND_LAYERED : BS_UPPER_BOUND;
-    OP_TILING_CHECK((expertIdsDim0 <= 0) || (expertIdsDim0 > bsUpperBound),
-        OP_LOGE(nodeName, "Invalid expertIds dims0(BS) %ld. Should be between [1, %ld].",
-        expertIdsDim0, bsUpperBound), return false);
+    OP_TILING_CHECK((expertIdsDim0 <= 0) || (expertIdsDim0 > bsUpperBound), OP_LOGE(nodeName, "Invalid expertIds dims0(BS) %ld. "
+        "Should be between [1, %ld].", expertIdsDim0, bsUpperBound), return false);
     tilingData.moeDistributeCombineV2Info.bs = static_cast<uint32_t>(expertIdsDim0);
 
     // 校验globalBS
@@ -1531,20 +1529,13 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext*
     OP_LOGD(nodeName, "Enter MoeDistributeCombineV2 Tiling func");
     MoeDistributeCombineV2TilingData *tilingData = context->GetTilingData<MoeDistributeCombineV2TilingData>();
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr."), return ge::GRAPH_FAILED);
-    std::string groupEp = "";
-    std::string groupTp = "";
-    bool isShared = true;
-    uint32_t localMoeExpertNum = 1;
-    bool isActiveMask = false;
-    bool isLayered = false;
-    uint32_t commQuantMode = 0U;
-    bool hasElasticInfo = false;
-    bool isPerformance = false;
+    std::string groupEp = "", groupTp = "";
+    bool isShared = true, isLayered = false, isActiveMask = false, hasElasticInfo = false, isPerformance = false;
+    uint32_t localMoeExpertNum = 1, commQuantMode = 0U;
 
     // 获取入参属性
     OP_TILING_CHECK(GetAttrAndSetTilingData(context, *tilingData, nodeName, groupEp, groupTp, commQuantMode, config, isLayered) == ge::GRAPH_FAILED,
         OP_LOGE(nodeName, "Getting attr failed."), return ge::GRAPH_FAILED);
-
     const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(config.xActiveMaskIndex);
     isActiveMask = (xActiveMaskStorageShape != nullptr);
     tilingData->moeDistributeCombineV2Info.isTokenMask = ((isActiveMask) &&
@@ -1556,7 +1547,6 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext*
     const gert::StorageShape *elasticInfoStorageShape = context->GetOptionalInputShape(config.elasticInfoIndex);
     hasElasticInfo = (elasticInfoStorageShape != nullptr);
     tilingData->moeDistributeCombineV2Info.hasElasticInfo = hasElasticInfo;
-
     // 获取performanceInfo
     const gert::StorageShape *performanceInfoStorageShape = context->GetOptionalInputShape(config.performanceInfoIndex);
     isPerformance = (performanceInfoStorageShape != nullptr);
@@ -1574,7 +1564,6 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext*
 
     uint32_t sharedExpertRankNum = tilingData->moeDistributeCombineV2Info.sharedExpertRankNum;
     uint32_t epRankId = tilingData->moeDistributeCombineV2Info.epRankId;
-
     isShared = (epRankId < sharedExpertRankNum);
 
     // 检查shape各维度并赋值h,k
@@ -1650,15 +1639,15 @@ static ge::graphStatus MoeDistributeCombineA2CheckAttrAndSetTiling(const gert::T
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(K_INNER_DEBUG, "attrs is null."), return ge::GRAPH_FAILED);
 
     auto groupEpPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
-    auto epRankIdPtr = attrs->GetAttrPointer<int>(ATTR_EP_RANK_ID_INDEX);
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int>(ATTR_MOE_EXPERT_NUM_INDEX);
-    auto tpWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_TP_WORLD_SIZE_INDEX);
-    auto tpRankIdPtr = attrs->GetAttrPointer<int>(ATTR_TP_RANK_ID_INDEX);
-    auto expertSharedTypePtr = attrs->GetAttrPointer<int>(ATTR_EXPERT_SHARD_TYPE_INDEX);
-    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
-    auto globalBsPtr = attrs->GetAttrPointer<int>(ATTR_GLOBAL_BS_INDEX);
-    auto commQuantModePtr = attrs->GetAttrPointer<int>(ATTR_COMM_QUANT_MODE_INDEX);
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
+    auto tpWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_TP_WORLD_SIZE_INDEX);
+    auto tpRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_TP_RANK_ID_INDEX);
+    auto expertSharedTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_EXPERT_SHARD_TYPE_INDEX);
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
+    auto globalBsPtr = attrs->GetAttrPointer<int64_t>(ATTR_GLOBAL_BS_INDEX);
+    auto commQuantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_QUANT_MODE_INDEX);
 
     auto zeroExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrZeroExpertNumIndex));
     auto copyExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrCopyExpertNumIndex));
@@ -1764,7 +1753,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckShapeAndSetTiling(const gert::
 
     uint32_t k = expertIdStorageShape->GetStorageShape().GetDim(1);
     auto attrs = context->GetAttrs();
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int>(ATTR_MOE_EXPERT_NUM_INDEX);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     auto zeroExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrZeroExpertNumIndex));
     auto copyExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrCopyExpertNumIndex));
     auto constExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrConstExpertNumIndex));
@@ -1899,7 +1888,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckShapeAndSetTiling(const gert::
         OP_LOGE(K_INNER_DEBUG, "When performanceInfo is not null, it needs to be one-dimensional."), return GRAPH_FAILED);
     attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(K_INNER_DEBUG, "attrs is null."), return ge::GRAPH_FAILED);
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     OP_TILING_CHECK(performanceInfoStorageShape != nullptr && performanceInfoStorageShape->GetStorageShape().GetDim(0) != static_cast<int64_t>(*epWorldSizePtr),
         OP_LOGE(
             K_INNER_DEBUG,
@@ -1948,7 +1937,7 @@ static ge::graphStatus MoeDistributeCombineCheckCommAlg(const gert::TilingContex
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(K_INNER_DEBUG, "attrs is null."), return ge::GRAPH_FAILED);
     auto commAlg = attrs->GetAttrPointer<char>(static_cast<int>((config.attrCommAlgIndex)));
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>((config.attrEpWorldSizeIndex));
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>((config.attrEpWorldSizeIndex));
     if ((epWorldSizePtr != nullptr) && (*epWorldSizePtr <= RANK_NUM_PER_NODE_A2)) {
         isLayered = false;
         OP_LOGD(K_INNER_DEBUG, "epWorldSize <= 8, use default fullmesh algorithm.");
@@ -2110,7 +2099,7 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
     uint32_t opType = 18; // DispatchCombine
 
