@@ -106,7 +106,6 @@ public:
     void init(Arch::Resource<ArchTag> &resource,uint32_t nDyn, uint32_t kDyn, uint32_t l1BufAddrStart = 0)
     {
         uint32_t l1BStartOffset = l1BufAddrStart + L1TileShape::M * kDyn * sizeof(ElementA) * STAGES;
-        AscendC::printf("nDyn: %d, kDyn: %d, L1TileShape::N: %d, L1TileShape::K: %d\n", nDyn, kDyn, L1TileShape::N, L1TileShape::K);
         for (uint32_t i = 0; i < STAGES; i++) {
             l1ATensor[i] = resource.l1Buf.template GetBufferByByte<ElementA>(l1BufAddrStart +
                 L1TileShape::M * kDyn * sizeof(ElementA) * i);
