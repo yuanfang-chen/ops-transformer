@@ -14,7 +14,6 @@
  */
 #include <vector>
 
-#ifdef BUILD_OPEN_PROJECT
 #include "op_graph/mc2_gen_task_ops_utils.h"
 #include "op_graph/matmul_all_reduce_gen_task_ops_utils.h" //in transformer dev
 #include "op_graph/mc2_gen_task_ops_utils_arch35.h"
@@ -29,7 +28,6 @@
 #endif
 
 namespace ops {
-#ifdef BUILD_OPEN_PROJECT
 ge::Status MatmulAllReduceCalcParamFunc(gert::ExeResGenerationContext *context)
 {
     if (IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
@@ -53,27 +51,4 @@ ge::Status MatmulAllReduceGenTaskFunc(const gert::ExeResGenerationContext *conte
 
 // new ver
 IMPL_OP(MatmulAllReduce).CalcOpParam(MatmulAllReduceCalcParamFunc).GenerateTask(MatmulAllReduceGenTaskFunc);
-#else // mc2 gen task utils
-ge::Status MatmulAllReduceCalcParamFunc(gert::ExeResGenerationContext *context)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
-        return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
-    }
-    const ge::AscendString name = "aicpu kfc server";
-    const ge::AscendString reuseKey = "kfc_stream";
-    return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, name, reuseKey);
-}
-
-ge::Status MatmulAllReduceGenTaskFunc(const gert::ExeResGenerationContext *context,
-                                      std::vector<std::vector<uint8_t>> &tasks)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
-        return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
-    }
-    return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks,
-                                                MatmulAllReduceGenTaskUtils::MatmulAllReduceGenTaskCallback);
-}
-
-IMPL_OP_CT(MatmulAllReduce).CalcOpParam(MatmulAllReduceCalcParamFunc).GenerateTask(MatmulAllReduceGenTaskFunc);
-#endif
 } // namespace ops

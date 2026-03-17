@@ -14,7 +14,6 @@
  */
 #include <vector>
 
-#ifdef BUILD_OPEN_PROJECT
 #include "register/op_impl_registry.h"
 #include "mc2_log.h"
 #include "op_graph/mc2_gen_task_ops_utils.h"
@@ -29,7 +28,6 @@
 #endif
 
 namespace ops {
-#ifdef BUILD_OPEN_PROJECT
 ge::Status QuantGroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
 {
     if (IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
@@ -55,28 +53,4 @@ ge::Status QuantGroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationCo
 IMPL_OP(QuantGroupedMatMulAlltoAllv)
     .CalcOpParam(QuantGroupedMatMulAlltoAllvCalcParamFunc)
     .GenerateTask(QuantGroupedMatMulAlltoAllvGenTaskFunc);
-#else // mc2 gen task utils
-ge::Status QuantGroupedMatMulAlltoAllvCalcParamFunc(gert::ExeResGenerationContext *context)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
-        return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
-    }
-    const ge::AscendString name = "aicpu kfc server";
-    const ge::AscendString reuseKey = "kfc_stream";
-    return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, name, reuseKey);
-}
-
-ge::Status QuantGroupedMatMulAlltoAllvGenTaskFunc(const gert::ExeResGenerationContext *context,
-                                             std::vector<std::vector<uint8_t>> &tasks)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
-        return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
-    }
-    return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskTraining::Mc2TrainingGenTaskCallback);
-}
-
-IMPL_OP_CT(QuantGroupedMatMulAlltoAllv)
-    .CalcOpParam(QuantGroupedMatMulAlltoAllvCalcParamFunc)
-    .GenerateTask(QuantGroupedMatMulAlltoAllvGenTaskFunc);
-#endif
 } // namespace ops
