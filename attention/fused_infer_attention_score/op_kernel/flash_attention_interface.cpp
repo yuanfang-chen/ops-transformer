@@ -122,6 +122,8 @@ namespace SplitFuse {
 
     // 新增：专门用于 pagedCacheFlag == true && qSeqlen == 1 的 Decoding 场景
     template <
+        class LAYOUT_K = layout::ColumnMajor,
+        class LAYOUT_V = layout::RowMajor,
         typename InputDtypeQ = half,
         typename InputDtypeKv = half,
         typename IntermCalcPrec = float,
