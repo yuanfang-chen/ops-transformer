@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -95,7 +95,6 @@ private:
 
     // mm2左矩阵P
     BufferManager<BufferType::L1> l1BufferManager;
-    // BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1PBuffers;
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1RightBuffers;
     CVSharedParams sharedParams;
     /* GM信息 */
@@ -145,7 +144,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
+        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
@@ -181,7 +180,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     for (uint32_t bIdx = 0; bIdx < constInfo.bSize; bIdx++) {
         uint32_t actBatchS1 = GetBalanceActualSeqLengths(actualSeqLengthsQGm, bIdx); //不切S2，只关注S1
         if (actBatchS1 < constInfo.s1Size) {
-            constInfo.needInit = true; //TODO
+            constInfo.needInit = true;
         }
         totalBaseNum += actBatchS1*actBatchS2;
     }
@@ -349,7 +348,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
+        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
     }
     constInfo.n2Size = sharedParams.n2Size;

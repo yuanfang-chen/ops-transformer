@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file kv_quant_sparse_attn_sharedkv_kvcache.h
+ * \file kv_quant_sparse_flash_attention_kvcache.h
  * \brief
  */
-#ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H
-#define KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_KVCACHE_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_KVCACHE_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -98,7 +98,7 @@ TEMPLATE_INTF
 __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo, bool lastBN,
     int64_t nextGs1Idx, int64_t gS1StartIdx)
 {
-    runParam.qSNumInOneBlock = 1; // 不切G轴, 计算每个基本快可以拷贝多少行s
+    runParam.qSNumInOneBlock = 1; // 不切G轴, 计算每个基本块可以拷贝多少行s
     runParam.gs1LoopStartIdx = gS1StartIdx;
     if (runParam.nextTokensPerBatch < 0) {
         int64_t gs1LoopStartIdx = runParam.nextTokensPerBatch * (-1) / runParam.qSNumInOneBlock * runParam.qSNumInOneBlock;
@@ -107,14 +107,8 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo 
         }
     }
 
-    int32_t gs1LoopEndIdx = 0;
-    // TODO
-    if constexpr (1) { // tmplatemode先写死
-        gs1LoopEndIdx = runParam.actualS1Size; // 对于QSFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
-    } else { // SWA/CFA
-        // 不需要取topk, 每次计算gSize行, 循环qs次
-        gs1LoopEndIdx = (runParam.actualS1Size + runParam.qSNumInOneBlock - 1) / runParam.qSNumInOneBlock;
-    }
+    int32_t gs1LoopEndIdx = runParam.actualS1Size; // 对于QSFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
+
     // 不是最后一个bn, 赋值souterBlockNum
     if (!lastBN) {
         runParam.gs1LoopEndIdx = gs1LoopEndIdx;
@@ -176,7 +170,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstIn
                 runParam.goIdx * constInfo.dSizeV;
         }
         if (constInfo.subBlockIdx == 1) {
-            runParam.attentionOutOffset += runParam.halfMRealSize * constInfo.dSizeV;
+            runParam.attentionOutOffset += runParam.firstHalfMRealSize * constInfo.dSizeV;
         }
     } else {
         if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
