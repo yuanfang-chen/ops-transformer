@@ -227,7 +227,7 @@ public:
                 RunStage2(cg, curState);
                 SyncAll<false>();
 
-                RunStage3(cg, pos);
+                RunStage3(cg);
                 SyncAll<false>();
             }
         }
