@@ -59,6 +59,7 @@ explicit HCCLPerformanceModel(uint32_t inputRankDim, KernelType inputKernelType,
     {
         commTypeInfo_.kernelType = inputKernelType; // 区分哪个MC2算子
         commTypeInfo_.rankDim = std::max(static_cast<uint64_t>(inputRankDim), MIN_COMM_RANKDIM); // 并行维度最小为2
+        commTypeInfo_.commDtypeSizeExpansionFraction = 1;
         SetCommParametersBaseSocType(inputSocVersion);
         SetMaxStepSize();
         keyToFittingMap_ = GetCommMethodString(inputSocVersion);
