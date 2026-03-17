@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- 算子功能：训练场景下计算注意力的反向输出，即FlashAttentionScore的反向计算：
+- 算子功能：训练场景下计算注意力的反向输出，即BlockSparseAttention的反向计算：
 
   - pseType=1时，需要先add再mul。
   - pseType≠1时，需要先mul再add。
