@@ -64,26 +64,20 @@ aclnnStatus quantLightningIndexerContiguous(
     return ACLNN_SUCCESS;
 }
 
-static const aclTensor* calNoContiguous(const aclTensor *self, aclOpExecutor *executor)
-{
-    aclTensor* newSelf = executor->CreateView(self, self->GetViewShape(), self->GetStorageShape(),
-                                                self->GetViewStrides(), self->GetViewOffset());
-    CHECK_RET(newSelf != nullptr, nullptr);
-    return newSelf;
-}
-
 static const aclTensor* GetTensorContiguous(const aclTensor *tensor, aclOpExecutor *executor, const char *tensorName)
 {
     if (tensor == nullptr) {
         return nullptr;
     }
     if (!IsContiguous(tensor)) {
-        return calNoContiguous(tensor, executor);
+        aclTensor* newTensor = executor->CreateView(tensor, tensor->GetViewShape(), tensor->GetStorageShape(),
+                                            tensor->GetViewStrides(), tensor->GetViewOffset());
+    } else {
+        aclTensor* newTensor = l0op::Contiguous(tensor, executor);
     }
-    tensor = l0op::Contiguous(tensor, executor);
-    CHECK_RET(tensor != nullptr, nullptr);
 
-    return tensor;
+    CHECK_RET(newTensor != nullptr, nullptr);
+    return newTensor;
 }
 
 aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
@@ -108,10 +102,10 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
     aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(aclnnQuantLightningIndexer,
-                    DFX_IN(query, key, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional, 
+                DFX_IN(query, key, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional, 
                     actualSeqLengthsKeyOptional, blockTableOptional, queryQuantMode, keyQuantMode, layoutQueryOptional,
                     layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens),
-                    DFX_OUT(out));
+                DFX_OUT(out));
 
     // 获取executor
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -131,16 +125,11 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
     const aclTensor *newKey = GetTensorContiguous(key, l0Executor, "key");
     const aclTensor *newKeyDequantScale = GetTensorContiguous(keyDequantScale, l0Executor, "keyDequantScale");
 
-    auto blockStrides = newKey->GetViewStrides();
-    int64_t blockStride = blockStrides[0];
-    auto scaleStrides = newKeyDequantScale->GetViewStrides();
-    int64_t scaleStride = scaleStrides[0];
-
     // 调用L0接口获得输出
     auto l0QuantLightningIndexerOuts = l0op::QuantLightningIndexer(
             query, newKey, weights, queryDequantScale, newKeyDequantScale, actualSeqLengthsQueryOptional,
             actualSeqLengthsKeyOptional, blockTableOptional, queryQuantMode, keyQuantMode, layoutQueryOptional,
-            layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens, blockStride, scaleStride, l0Executor);
+            layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens, l0Executor);
 
     // 检查输出
     if (l0QuantLightningIndexerOuts == nullptr) {

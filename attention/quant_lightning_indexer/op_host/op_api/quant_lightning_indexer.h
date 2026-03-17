@@ -31,8 +31,6 @@ namespace l0op {
             int64_t sparseMode,
             int64_t preTokens,
             int64_t nextTokens,
-            int64_t blockStride,
-            int64_t scaleStride,
             aclOpExecutor *executor);
 }
 
