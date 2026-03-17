@@ -81,10 +81,6 @@ private:
     __aicore__ inline void ProcessExpert(uint32_t tokenIndex, uint32_t processLen);
     __aicore__ inline void ExpertScaleCopy(const uint32_t beginIndex, const uint32_t endIndex, const uint32_t tokenPerAivNum);
     __aicore__ inline void CalConstExpertAlpha(GlobalTensor<ExpandXType> constExpertAlphaGM, uint32_t const_expert_idx, float &alphaFloat);
-    __aicore__ inline void ProcessTokensLoop(uint32_t beginIndex, uint32_t endIndex, 
-                                            uint32_t tokenPerAivNum, LocalTensor& tokenStatusTensor);
-    __aicore__ inline void InitLocalWindowResources(uint32_t& beginIndex, uint32_t& endIndex, 
-                                                    uint32_t& tokenPerAivNum, LocalTensor& tokenStatusTensor);
     __aicore__ inline void LocalWindowCopy();
     __aicore__ inline void BuffInit();
     __aicore__ inline void SplitCoreCal();
@@ -1360,11 +1356,19 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessExpert
 }
 
 template <CombineMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitLocalWindowResources(
-    uint32_t& beginIndex, uint32_t& endIndex, uint32_t& tokenPerAivNum, LocalTensor& tokenStatusTensor)
+__aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCopy()
 {
-    tokenPerAivNum = activeMaskBsCnt_ / aivNum_;
+    if (activeMaskBsCnt_ == 0U) {
+        return;
+    }
+    uint32_t beginIndex = 0U;
+    uint32_t endIndex = 0U;
+    uint32_t processLen = 0U;
+    uint32_t tokenOffset = 0U;
+    uint32_t statePos = 1U;
+    uint32_t tokenPerAivNum = activeMaskBsCnt_ / aivNum_;
     uint32_t remainderToken = activeMaskBsCnt_ % aivNum_;
+
     beginIndex = tokenPerAivNum * coreIdx_;
     if (coreIdx_ < remainderToken) {
         tokenPerAivNum++;
@@ -1373,8 +1377,10 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitLocalWind
         beginIndex += remainderToken;
     }
     endIndex = beginIndex + tokenPerAivNum;
-
-    uint32_t processLen = axisH_;
+    if (tokenPerAivNum == 0U) {
+        return;
+    }
+    processLen = axisH_;
     TBuf<> opPosDfxBuf;
     tpipe_->InitBuffer(opPosDfxBuf, UB_ALIGN);
     dataStateLocalTensor_ = opPosDfxBuf.Get<uint32_t>();
@@ -1382,6 +1388,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitLocalWind
     mulBufLocal_ = mulBuf_.Get<float>();
     sumFloatBufLocal_ = sumFloatBuf_.Get<float>();
     const DataCopyPadExtParams<XType> copyPadXTypeParams{false, 0U, 0U, 0U};
+    DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
     const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
     LocalTensor<XType> gammaLocal;
     if constexpr (HasAddRmsNorm) {
@@ -1392,9 +1399,9 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitLocalWind
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
     TBuf<> tokenStatusBuf;
     tpipe_->InitBuffer(tokenStatusBuf, Ceil(tokenPerAivNum * sizeof(int32_t), UB_ALIGN) * UB_ALIGN);
-    tokenStatusTensor = tokenStatusBuf.Get<int32_t>();
+    LocalTensor tokenStatusTensor = tokenStatusBuf.Get<int32_t>();
     Duplicate<int32_t>(tokenStatusTensor, static_cast<int32_t>(0), tokenPerAivNum);
-
+    uint32_t tokenNumCompleted = static_cast<uint32_t>(0);
     if (isScalingDownFlag_) {
         elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
     }
@@ -1405,81 +1412,47 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitLocalWind
         firstRecordTensor_ = firstRecordBuf_.Get<int32_t>();
         Duplicate<int32_t>(firstRecordTensor_, static_cast<int32_t>(0), tokenPerAivNum * flagRcvCount_);
     }
-}
-
-template <CombineMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessTokensLoop(
-    uint32_t beginIndex, uint32_t endIndex, uint32_t tokenPerAivNum, LocalTensor& tokenStatusTensor)
-{
-    uint32_t tokenNumCompleted = 0U, statePos = 1U, tokenOffset = 0U, processLen = axisH_;
-    const DataCopyPadExtParams<XType> copyPadXTypeParams{false, 0U, 0U, 0U};
-    const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
-    DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
-
     SyncFunc<AscendC::HardEvent::V_S>();
     uint64_t performanceTimeStart = static_cast<uint64_t>(GetSystemCycle());
-
     while (tokenNumCompleted != tokenPerAivNum) {
         for (uint32_t curIdx = beginIndex; curIdx < endIndex; curIdx++) {
-            if (tokenStatusTensor(curIdx - beginIndex) == 1) continue;
-
-            // 获取真实Token索引并等待调度
+            if (tokenStatusTensor(curIdx - beginIndex) == 1) {
+                continue;
+            }
             uint32_t tokenIndex = curIdx;
-            if (isInputExpertMaskFlag_) tokenIndex = validBsIndexTensor_.GetValue(curIdx);
+            if (isInputExpertMaskFlag_) {
+                tokenIndex = validBsIndexTensor_.GetValue(curIdx);
+            }
             uint32_t copyCount = flagRcvCount_ * FLOAT_PER_UB_ALIGN;
-            if (!WaitDispatch(tokenIndex, performanceTimeStart, copyCount, beginIndex)) continue;
-
-            // 标记Token已处理并更新状态
+            if (!WaitDispatch(tokenIndex, performanceTimeStart, copyCount, beginIndex)) {
+                continue;
+            }
             tokenNumCompleted++;
             tokenStatusTensor.SetValue(curIdx - beginIndex, 1);
+
             statePos++;
             dataStateLocalTensor_.SetValue(0, statePos);
-
-            // 处理Expert逻辑+结果搬出
             SyncFunc<AscendC::HardEvent::S_MTE3>();
             DataCopyPad(selfDataStatusGMTensor_[1], dataStateLocalTensor_, dataStateParams);
             ProcessExpert(tokenIndex, processLen);
 
             if constexpr (HasAddRmsNorm) {
-                AddRmsNormAddCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, rowTmpFloatLocal_, 
-                                    sumFloatBufLocal_, expandXCopyParams, copyPadXTypeParams);
+                AddRmsNormAddCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, rowTmpFloatLocal_, sumFloatBufLocal_,
+                                expandXCopyParams, copyPadXTypeParams);
             }
-
             // 结果搬出
             PipeBarrier<PIPE_V>();
             LocalTensor<XType> sumBufLocal = tokenBuf_.Get<XType>();
             Cast(sumBufLocal, sumFloatBufLocal_, AscendC::RoundMode::CAST_RINT, processLen);
             SyncFunc<AscendC::HardEvent::V_MTE3>();
             DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
-            
             if constexpr (HasAddRmsNorm) {
                 SyncFunc<AscendC::HardEvent::MTE3_V>();
-                LocalTensor<XType> gammaLocal = gammaBuf_.Get<XType>();
-                AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, 
-                                        gammaLocal, expandXCopyParams);
+                AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal,
+                                expandXCopyParams);
             }
         }
     }
-}
-
-template <CombineMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCopy()
-{
-    if (activeMaskBsCnt_ == 0U) {
-        return;
-    }
-
-    // 1. 初始化资源（Token范围、缓冲区、参数等）
-    uint32_t beginIndex = 0U, endIndex = 0U, tokenPerAivNum = 0U;
-    LocalTensor tokenStatusTensor;
-    InitLocalWindowResources(beginIndex, endIndex, tokenPerAivNum, tokenStatusTensor);
-    if (tokenPerAivNum == 0U) {
-        return;
-    }
-
-    // 2. 核心处理：循环处理所有Token
-    ProcessTokensLoop(beginIndex, endIndex, tokenPerAivNum, tokenStatusTensor);
-
     if (isPerformanceFlag_) {
         SyncFunc<AscendC::HardEvent::V_MTE3>();
         SetAtomicMax<int32_t>();
