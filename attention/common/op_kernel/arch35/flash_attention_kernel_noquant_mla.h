@@ -450,7 +450,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         runParam.boIdx = bnIdx / constInfo.n2Size;
         runParam.n2oIdx = bnIdx % constInfo.n2Size;
 
-        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo,
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo, this->attenMaskInfo,
             keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
 
         int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, static_cast<int32_t>(s1TemplateType));
@@ -459,10 +459,10 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
         for (int64_t gS1Index = tempGS1Start; gS1Index <= tempGS1End; gS1Index++) {
             bool lastGS1 = (gS1Index == tempGS1End);
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
-            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
+            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo,
                 gS1Index, actualSeqQlenAddr, this->pseInfo);
-            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo);
-            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam,
+            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo);
+            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam,
                 actualSeqQlenAddr);
             if (((s1NoNeedCalc || s2NoNeedCalc) && !lastGS1) || lastBnNoNeedCalc) {
                 continue;
@@ -645,8 +645,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockTy
 
     this->ComputeBmm1Tail(runInfo, runParam);
     runInfo.qRopeOffset = runParam.qRopeNBGOffset;
-    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
-    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
+    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, runInfo);
+    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
         / s2BaseSize, runInfo);
 
     if ASCEND_IS_AIV {

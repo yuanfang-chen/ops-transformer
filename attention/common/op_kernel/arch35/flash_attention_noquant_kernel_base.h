@@ -639,8 +639,10 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
     runInfo.taskIdMod3 = taskId % 3;
     runInfo.s2LoopLimit = s2LoopLimit;
 
-    if constexpr (isFd) {
+    if constexpr (isFd && !enableSplitCoreBalance) {
         runInfo.flashDecodeS2Idx = this->aicIdx % constInfo.splitKVNum;
+    } else {
+        runInfo.flashDecodeS2Idx = 0;
     }
     runInfo.actualS1Size = runParam.actualS1Size;
     runInfo.actualS2Size = runParam.actualS2Size;
