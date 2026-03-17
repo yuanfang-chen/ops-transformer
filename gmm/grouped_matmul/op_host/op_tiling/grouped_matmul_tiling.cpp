@@ -81,7 +81,9 @@ constexpr int64_t FIXAXISMOVE_K2 = 7168L;
 constexpr int64_t FIXAXISMOVE_N1 = 7168L;
 constexpr int64_t FIXAXISMOVE_N2 = 4096L;
 // 定轴搬移算法group_num的范围
-constexpr int32_t FIXAXISMOVE_GROUP_NUM = 4;
+// constexpr int32_t FIXAXISMOVE_GROUP_NUM = 4;
+constexpr int32_t FIXAXISMOVE_GROUP_NUM_LOWER = 1;
+constexpr int32_t FIXAXISMOVE_GROUP_NUM_UPPER = 256;
 // 定轴搬移算法每个专家M的范围
 constexpr int64_t FIXAXISMOVE_PERM_LOWER = 128L;
 constexpr int64_t FIXAXISMOVE_PERM_UPPER = 512L;
@@ -97,13 +99,14 @@ constexpr size_t TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX = 1;
 constexpr size_t TUNING_CONFIG_ALLOW_WORKSPACE_INDEX = 2;
 constexpr int64_t SPLITK_M_N_RATIO_THRESHOLD_2 = 2L;
 // A4W4优化K的范围
-constexpr int64_t A4W4OPTIMIZE_K1 = 2048L;
-constexpr int64_t A4W4OPTIMIZE_K2 = 7168L;
+constexpr int64_t A4W4OPTIMIZE_K_LOWER = 1024L;
+constexpr int64_t A4W4OPTIMIZE_K_UPPER = 16384L;
 // A4W4优化N的范围
-constexpr int64_t A4W4OPTIMIZE_N1 = 7168L;
-constexpr int64_t A4W4OPTIMIZE_N2 = 4096L;
+constexpr int64_t A4W4OPTIMIZE_N_LOWER = 128L;
+constexpr int64_t A4W4OPTIMIZE_N_UPPER = 32768L;
 // A4W4优化group_num的范围
-constexpr int32_t A4W4OPTIMIZE_GROUP_NUM = 4;
+constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_LOWER = 1;
+constexpr int32_t A4W4OPTIMIZE_GROUP_NUM_UPPER = 256;
 // A4W4优化每个专家M的范围
 constexpr int64_t A4W4OPTIMIZE_PERM_LOWER = 16L;
 constexpr int64_t A4W4OPTIMIZE_PERM_UPPER = 10240L;
@@ -1067,9 +1070,9 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
 }
 
 bool GMMTiling::IsA4W4OptimizeCondition() {
-    bool isCorrectShape = (maxK_ == A4W4OPTIMIZE_K1 && maxN_ == A4W4OPTIMIZE_N1) ||
-                          (maxK_ == A4W4OPTIMIZE_K2 && maxN_ == A4W4OPTIMIZE_N2);
-    bool isGroupCorrect = (groupNum_ == A4W4OPTIMIZE_GROUP_NUM);
+    bool isKCorrect = (maxK_ >= A4W4OPTIMIZE_K_LOWER && maxK_ <= A4W4OPTIMIZE_K_UPPER);
+    bool isNCorrect = (maxK_ >= A4W4OPTIMIZE_N_LOWER && maxK_ <= A4W4OPTIMIZE_N_UPPER);
+    bool isGroupCorrect = (groupNum_ >= A4W4OPTIMIZE_GROUP_NUM_LOWER && groupNum_ <= A4W4OPTIMIZE_GROUP_NUM_UPPER);
     bool isTuningInRange = (tuningConfig_ >= A4W4OPTIMIZE_PERM_LOWER) &&
                           (tuningConfig_ <= A4W4OPTIMIZE_PERM_UPPER);
     bool isPerGroupCorrect = isPerGroup_ && quantGroupSize_ == A4W4OPTIMIZE_QUANT_GROUP_SIZE;
@@ -1080,7 +1083,7 @@ bool GMMTiling::IsA4W4OptimizeCondition() {
                           && !transposeWeight_;
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
-    return isCorrectShape && isTuningInRange && isGroupCorrect && isPerGroupCorrect && isA4W4_ &&
+    return isKCorrect && isNCorrect && isTuningInRange && isGroupCorrect && isPerGroupCorrect && isA4W4_ &&
            isDataTypeCorrect && isConfigCorrect && !hasBias_ && isFormatValid;
 }
 
