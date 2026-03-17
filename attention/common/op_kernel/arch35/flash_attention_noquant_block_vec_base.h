@@ -1689,7 +1689,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Gs1MergeDataCo
         };
         GlobalTensor<uint64_t> actualSeqQLen;
         actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr);
-        outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize, actualSeqQLen, constInfo.actualSeqLenSize);
+        outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize, actualSeqQLen, constInfo.actualSeqLenSize);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::TNGD, UbFormat::S1G> copyAttenOutUbToGm;
         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord, runInfo.attentionOutOffset);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
