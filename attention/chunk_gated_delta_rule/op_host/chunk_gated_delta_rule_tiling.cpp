@@ -145,7 +145,6 @@ namespace optiling {
         // ========== MT_FP32: FP32 -> FP32 ==========
         matmul_tiling::MultiCoreMatmulTiling mm_;
         const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-        const auto aicNum = ascendcPlatform.GetCoreNumAic();
         uint64_t ubSize;
         uint64_t l1Size;
         uint64_t l0CSize;
@@ -162,10 +161,10 @@ namespace optiling {
         mm_.SetOrgShape(baseM, baseN, baseK);
         mm_.SetFixSplit(baseM, baseN, baseK);
         if (mm_.GetTiling(tilingData_.matmulTilingFp32) == -1) {
-            OP_LOGE(context->GetNodeName(), "CGDR: Get Tiling Failed!");
+            OP_LOGE(context_->GetNodeName(), "CGDR: Get Tiling Failed!");
             return ge::GRAPH_FAILED;
         }
-        OP_LOGD(context->GetNodeName(), "CGDR: baseM is %d, baseK is %d, baseN is %d.", baseM, baseK, baseN);
+        OP_LOGD(context_->GetNodeName(), "CGDR: baseM is %d, baseK is %d, baseN is %d.", baseM, baseK, baseN);
         tilingData_.matmulTilingFp32.dbL0C = 1;
         tilingData_.matmulTilingFp32.stepKa = 1;
         tilingData_.matmulTilingFp32.stepKb = 1;
