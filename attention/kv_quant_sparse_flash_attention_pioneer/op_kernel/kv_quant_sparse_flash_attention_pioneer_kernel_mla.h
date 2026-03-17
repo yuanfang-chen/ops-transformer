@@ -10,7 +10,6 @@
 
 /*!
  * \file kv_quant_sparse_flash_attention_pioneer_kernel_mla.h
- * \brief
  */
 
 #ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_PIONEER_KERNEL_MLA_H
