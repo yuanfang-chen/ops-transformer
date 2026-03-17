@@ -18,7 +18,8 @@
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
-#include "recurrent_gated_delta_rule_tiling_data.h"
+#include "vf_vec_mul_mat.h"
+#include "../recurrent_gated_delta_rule_tiling_data.h"
 
 namespace RecurrentGatedDeltaRule {
 
@@ -264,7 +265,8 @@ private:
             Muls(stateInUb, stateInUb, gama_, alignK_ * curSingleV);
         }
         if (hasGamaK_) {
-            MatVecMul(stateInUb, gamaKInUb[curQKOffset], stateInUb, curSingleV, false);
+            MatVecMulVF<float>(stateInUb, gamaKInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), alignK_, alignK_);
+            // MatVecMul(stateInUb, gamaKInUb[curQKOffset], stateInUb, curSingleV, false);
         }
         AscendC::PipeBarrier<PIPE_V>();
         MatVecMul(stateInUb, kInUb[curQKOffset], broadTmpInUb, curSingleV, false);
