@@ -25,32 +25,32 @@ using namespace AscendC;
 
 #if (__CCE_AICORE__ == 310)
 #if defined(__DAV_C310_CUBE__)
-#define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                         \
-    do {                                                                                          \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+#define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                                 \
+    do {                                                                                                  \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                       \
             BaseApi::QSFAMatmulService<__VA_ARGS__>, BaseApi::QSFAMatmulServiceDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
-            BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                            \
-        op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,               \
-            actualSeqLengthsQuery, actualSeqLengthsKV,                                            \
-	    attentionOut, user, nullptr, &tPipe);                                         \
-        op.Process();                                                                             \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                        \
+            BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType> op;                                                    \
+        op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
+            actualSeqLengthsQuery, actualSeqLengthsKV,                                                    \
+	    attentionOut, user, nullptr, &tPipe);                                                             \
+        op.Process();                                                                                     \
     } while (0)
 #else
-#define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
-    do {                                                                                          \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+#define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                                 \
+    do {                                                                                                  \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                       \
             BaseApi::QSFAMatmulService<__VA_ARGS__>, BaseApi::QSFAMatmulServiceDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
-            BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                            \
-        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                       \
-        const tilingdataClass *__restrict tilingData = &tilingDataIn;                             \
-        op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,               \
-            actualSeqLengthsQuery, actualSeqLengthsKV,                                            \
-	    attentionOut, user, tilingData, &tPipe); \
-        op.Process();                                                                             \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                        \
+            BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType> op;                                                    \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                               \
+        const tilingdataClass *__restrict tilingData = &tilingDataIn;                                     \
+        op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
+            actualSeqLengthsQuery, actualSeqLengthsKV,                                                    \
+	    attentionOut, user, tilingData, &tPipe);                                                          \
+        op.Process();                                                                                     \
     } while (0)
 #endif
 #else
@@ -89,6 +89,16 @@ kv_quant_sparse_flash_attention(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm
                   ORIG_DTYPE_ATTENTION_OUT == DT_BF16) { 
         QSFA_OP_IMPL(BaseApi::KvQuantSparseFlashAttentionMla, KvQuantSparseFlashAttentionTilingDataMla, bfloat16_t, hifloat8_t,
             float, bfloat16_t, FLASH_DECODE, PAGE_ATTENTION, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
+            static_cast<QSFATemplateMode>(TEMPLATE_MODE));
+    } else if constexpr (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_FLOAT8_E4M3FN &&
+                  ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) {
+        QSFA_OP_IMPL(BaseApi::KvQuantSparseFlashAttentionMla, KvQuantSparseFlashAttentionTilingDataMla, half, fp8_e4m3fn_t,
+            float, half, FLASH_DECODE, PAGE_ATTENTION, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
+            static_cast<QSFATemplateMode>(TEMPLATE_MODE));
+    } else if constexpr (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_HIFLOAT8 &&
+                  ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) { 
+        QSFA_OP_IMPL(BaseApi::KvQuantSparseFlashAttentionMla, KvQuantSparseFlashAttentionTilingDataMla, half, hifloat8_t,
+            float, half, FLASH_DECODE, PAGE_ATTENTION, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
             static_cast<QSFATemplateMode>(TEMPLATE_MODE));
     }
 #else
