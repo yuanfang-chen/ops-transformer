@@ -104,7 +104,7 @@ private:
     /* =====================GM变量==================== */
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
     FaGmTensor<Q_T, Q_FORMAT> queryGm;
-    GlobalTensor<Q_T> keySinkGm
+    GlobalTensor<Q_T> keySinkGm;
     /* =====================运行时变量==================== */
     CubeCoordInfo coordInfo[3];
 
