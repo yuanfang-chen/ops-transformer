@@ -269,30 +269,19 @@ ge::graphStatus QLIInfoParser::GetAndCheckInOutDataType()
                OP_LOGE(opName_, "The data types of the input query and key must be float8_e4m3 or hifloat8."), return ge::GRAPH_FAILED);
         // hifloat8只支持bf16的weights和fp32的scale
         if (inputQType_ == ge::DT_FLOAT8_E4M3FN) {
-            OP_CHECK_IF(weightsType_ != ge::DT_BF16 && weightsType_ != ge::DT_FLOAT16,
-                OP_LOGE(opName_, "When inputQType is float8_e4m3, the data types of the input weights must be bfloat16 or float16."),
+            OP_CHECK_IF((weightsType_ != ge::DT_BF16 || inputQueryScaleType_ != ge::DT_FLOAT) && 
+                        (weightsType_ != ge::DT_FLOAT16|| inputQueryScaleType_ != ge::DT_FLOAT16),
+                OP_LOGE(opName_, "When input query and key are float8_e4m3, ",
+                        " the data type of the input weights, query_dequant_scale and key_dequant_scale ",
+                        " must be (bfloat16, float32, float32) or (float16, float16, float16)."),
                 return ge::GRAPH_FAILED);
-            OP_CHECK_IF(inputQueryScaleType_ != ge::DT_FLOAT && inputQueryScaleType_ != ge::DT_FLOAT16,
-                OP_LOGE(opName_, "When inputQType is float8_e4m3, the data types of the inputQueryScale must be float or float16."),
-                return ge::GRAPH_FAILED);
-            OP_CHECK_IF(weightsType_ == ge::DT_FLOAT16 && inputQueryScaleType_ != ge::DT_FLOAT16,
-                OP_LOGE(opName_, "When weightType is float16, the data types of the inputQueryScale must be float16."),
-                return ge::GRAPH_FAILED);
-            OP_CHECK_IF(weightsType_ == ge::DT_BF16 && inputQueryScaleType_ != ge::DT_FLOAT,
-                OP_LOGE(opName_, "When weightsType is bfloat16, the data types of the inputQueryScale must be float."),
-                return ge::GRAPH_FAILED);
-        } else {
+        } else if (inputKType_ == ge::DT_HIFLOAT8){
             OP_CHECK_IF(weightsType_ != ge::DT_BF16 || inputQueryScaleType_ != ge::DT_FLOAT,
-                OP_LOGE(opName_, "When inputQType is hifloat8, the data types of the input weights must be bfloat16, and the data types of inputQueryScaleType_ must be float16."),
+                OP_LOGE(opName_, "When input query and key are hifloat8, ", 
+                        "the data types of the input weights, queryScale and keyScale ",
+                        "must be (bfloat16, float32, float32)."),
                 return ge::GRAPH_FAILED);
         }
-        // OP_CHECK_IF(weightsType_ != ge::DT_BF16,
-        //         OP_LOGE(opName_, "The data types of the input weights must be bfloat16."), return ge::GRAPH_FAILED);
-
-        // OP_CHECK_IF(
-        //     inputQueryScaleType_ != ge::DT_FLOAT,
-        //     OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float."),
-        //     return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(inputQType_ != ge::DT_INT8,
                 OP_LOGE(opName_, "The data types of the input query and key must be int8."), return ge::GRAPH_FAILED);
