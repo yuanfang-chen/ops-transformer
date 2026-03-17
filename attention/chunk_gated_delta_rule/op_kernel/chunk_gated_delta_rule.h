@@ -21,7 +21,6 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 #include "chunk_gated_delta_rule_stage1.h"
-#include "chunk_gated_delta_rule_stage1_nog.h"
 #include "chunk_gated_delta_rule_stage2.h"
 #include "chunk_gated_delta_rule_stage3.h"
 
@@ -95,7 +94,7 @@ template <typename lowType, typename highType>
 class CGDR {
 public:
     __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
-        : stageOneOp_(mmFp32_), stageOneNoGOp_(mmFp32_)
+        : stageOneOp_(stage1MT_)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -105,7 +104,7 @@ public:
     {
         if ASCEND_IS_AIC {
             // 使用 tiling 中的 matmul tiling 数据初始化
-            mmFp32_.Init(&tiling_->matmulTilingFp32, pipe_);
+            stage1MT_.Init(&tiling_->matmulTilingFp32, pipe_);
             stage2MT_.Init(&tiling_->matmulTilingFp32, pipe_);
             stage3MT_.Init(&tiling_->matmulTilingFp32, pipe_);
         }
@@ -153,6 +152,7 @@ public:
         beta_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.beta), dataSize);
         if (initParams.gOptional != nullptr) {
             g_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(initParams.gOptional), dataSize);
+            gFlag_ = true;
         }
 
         dataSize = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
@@ -238,18 +238,11 @@ public:
 private:
     __aicore__ inline void RunStage1(const ChunkGroup& cg)
     {
-        // todo: stage1, release ub resource after computing
-        if (gOptional_ != nullptr) {
-            GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
-                                                    gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
-            stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
-            stageOneOp_.Process();
-        } else {
-            GDRStageOneNoGInitParams initStageOneParams {query_, key_, value_, beta_,
-                                                    gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
-            stageOneNoGOp_.Init(initStageOneParams, pipe_, tiling_);
-            stageOneNoGOp_.Process();
-        }
+        GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
+                                                gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_,
+                                                stageWsAddr_, stageOneMask_, cg, gFlag_};
+        stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
+        stageOneOp_.Process();
         pipe_->Reset();
     }
     
@@ -325,13 +318,13 @@ private:
     TBuf<TPosition::VECCALC> tmpBuff_;  // 构造mask矩阵
 
     // Matmul objects
-    MT_FP32 mmFp32_;
+    StageOneMT stage1MT_;
     StageTwoMT stage2MT_;
     StageThreeMT stage3MT_;
 
     // Stage operators
     GDRStageOne stageOneOp_;
-    GDRStageOneNoG stageOneNoGOp_;
+    bool gFlag_ = false;
 };
 
 } // namespace ChunkGatedDeltaRule
