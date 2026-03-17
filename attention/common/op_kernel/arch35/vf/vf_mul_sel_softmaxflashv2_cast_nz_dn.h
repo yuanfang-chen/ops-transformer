@@ -23,7 +23,8 @@ using namespace MicroAPI;
 #define VMULSCVT false
 #define DROPOUT false
 
-template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128, bool hasSink = false>
+template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128,
+    bool hasSink = false, bool hasInvalidLine = false>
 __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float *input_x_local_UB,
     __ubuf__ float *exp_max_fp32, __ubuf__ float *new_global_sum, __ubuf__ float *new_global_max,
     __ubuf__ uint32_t *maskUb, __ubuf__ uint8_t *indexesUb, const uint32_t m, const uint32_t n,
@@ -132,13 +133,20 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
 
 
     if constexpr ((IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                    IsSameType<T2, hifloat8_t>::value) && hasAtten) {
+                    IsSameType<T2, hifloat8_t>::value || IsSameType<T2, bfloat16_t>::value ||
+                    IsSameType<T2, half>::value) && hasAtten) {
         if (needAtten) {
             for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
                 LoadAlign(src0, src_ub0 + iter_m * m * 4);
                 LoadAlign(src1, src_ub1 + iter_m * m * 4);
                 LoadAlign(src2, src_ub2 + iter_m * m * 4);
                 LoadAlign(src3, src_ub3 + iter_m * m * 4);
+                if constexpr (hasInvalidLine){
+                    Muls(src0, src0, dScale, preg_108);
+                    Muls(src1, src1, dScale, preg_108);
+                    Muls(src2, src2, dScale, preg_108);
+                    Muls(src3, src3, dScale, preg_108);
+                }
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare0, mask_ub0 + iter_m * m);
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare1, mask_ub1 + iter_m * m);
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare2, mask_ub2 + iter_m * m);
@@ -162,6 +170,16 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
                 LoadAlign(src1, src_ub1 + iter_m * m * 4);
                 LoadAlign(src2, src_ub2 + iter_m * m * 4);
                 LoadAlign(src3, src_ub3 + iter_m * m * 4);
+                if constexpr (hasInvalidLine){
+                    Muls(src0, src0, dScale, preg_108);
+                    Muls(src1, src1, dScale, preg_108);
+                    Muls(src2, src2, dScale, preg_108);
+                    Muls(src3, src3, dScale, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+                }
                 Max(max0, max0, src0, preg_108);
                 Max(max1, max1, src1, preg_108);
                 Max(max2, max2, src2, preg_108);
@@ -174,6 +192,16 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
             LoadAlign(src1, src_ub1 + iter_m * m * 4);
             LoadAlign(src2, src_ub2 + iter_m * m * 4);
             LoadAlign(src3, src_ub3 + iter_m * m * 4);
+            if constexpr (hasInvalidLine){
+                Muls(src0, src0, dScale, preg_108);
+                Muls(src1, src1, dScale, preg_108);
+                Muls(src2, src2, dScale, preg_108);
+                Muls(src3, src3, dScale, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+            }
             Max(max0, max0, src0, preg_108);
             Max(max1, max1, src1, preg_108);
             Max(max2, max2, src2, preg_108);
@@ -184,8 +212,9 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
     Max(max0, max0, max2, preg_108);
     Max(max1, max1, max3, preg_108);
     Max(max0, max0, max1, preg_108);
-    Muls(max0, max0, dScale, preg_108);
-
+    if constexpr (!hasInvalidLine) {
+        Muls(max0, max0, dScale, preg_108);
+    }
     if constexpr (hasSink) {
         Max(max0, max0, vreg_sink_input, preg_108);
     }
@@ -213,7 +242,9 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
     } else {
         loopNum = ubN / 4;
     }
-
+    if constexpr (hasAtten == true) {
+        LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
+    }
     for (uint16_t i0 = 0; i0 < loopNum; ++i0) {
         if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
             IsSameType<T2, hifloat8_t>::value) {
@@ -232,12 +263,12 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
             LoadAlign(vreg_x_f32_2, input_x_local_UB + ubN * m / 2 + i0 * m);
             LoadAlign(vreg_x_f32_3, input_x_local_UB + ubN * m / 2 + ubN * m / 4 + i0 * m);
         }
-
-        Muls(vreg_x_f32_0, vreg_x_f32_0, dScale, preg_108);
-        Muls(vreg_x_f32_1, vreg_x_f32_1, dScale, preg_108);
-        Muls(vreg_x_f32_2, vreg_x_f32_2, dScale, preg_108);
-        Muls(vreg_x_f32_3, vreg_x_f32_3, dScale, preg_108);
-
+        if constexpr (!hasInvalidLine) {
+            Muls(vreg_x_f32_0, vreg_x_f32_0, dScale, preg_108);
+            Muls(vreg_x_f32_1, vreg_x_f32_1, dScale, preg_108);
+            Muls(vreg_x_f32_2, vreg_x_f32_2, dScale, preg_108);
+            Muls(vreg_x_f32_3, vreg_x_f32_3, dScale, preg_108); 
+        }
         FusedExpSub(vreg_x_exp_0, vreg_x_f32_0, max0, preg_134);
         FusedExpSub(vreg_x_exp_1, vreg_x_f32_1, max0, preg_134);
         FusedExpSub(vreg_x_exp_2, vreg_x_f32_2, max0, preg_134);
@@ -245,11 +276,12 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
 
         if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
             IsSameType<T2, hifloat8_t>::value) {
-            Muls(vreg_x_f32_4, vreg_x_f32_4, dScale, preg_108);
-            Muls(vreg_x_f32_5, vreg_x_f32_5, dScale, preg_108);
-            Muls(vreg_x_f32_6, vreg_x_f32_6, dScale, preg_108);
-            Muls(vreg_x_f32_7, vreg_x_f32_7, dScale, preg_108);
-
+            if constexpr (!hasInvalidLine) {
+                Muls(vreg_x_f32_4, vreg_x_f32_4, dScale, preg_108);
+                Muls(vreg_x_f32_5, vreg_x_f32_5, dScale, preg_108);
+                Muls(vreg_x_f32_6, vreg_x_f32_6, dScale, preg_108);
+                Muls(vreg_x_f32_7, vreg_x_f32_7, dScale, preg_108);
+            }
             FusedExpSub(vreg_x_exp_4, vreg_x_f32_4, max0, preg_134);
             FusedExpSub(vreg_x_exp_5, vreg_x_f32_5, max0, preg_134);
             FusedExpSub(vreg_x_exp_6, vreg_x_f32_6, max0, preg_134);
@@ -362,7 +394,8 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ flo
         (__ubuf__ T *&)new_global_sum, vreg_x_sum0, preg_134);
 }
 
-template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128, bool hasSink = false>
+template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128,
+    bool hasSink = false, bool hasInvalidLine = false>
 __aicore__ inline void ProcessVec1DnNoUpdate(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expMaxTensor, const LocalTensor<uint8_t> &vselrIndexesBuf,
@@ -397,7 +430,8 @@ __aicore__ inline void ProcessVec1DnNoUpdate(
         keepProb, needAtten, dScale, blockStride, repeatStride, pScale, sinkValue);
 }
 
-template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128, bool hasSink = false>
+template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128,
+    bool hasSink = false, bool hasInvalidLine = false>
 __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float *input_x_local_UB,
     __ubuf__ float *exp_max_fp32, __ubuf__ float *new_global_sum, __ubuf__ float *new_global_max,
     __ubuf__ uint32_t *maskUb, __ubuf__ uint8_t *indexesUb, const uint32_t m, const uint32_t n,
@@ -506,13 +540,20 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
     mem_bar(VST_VLD);
 
     if constexpr ((IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                    IsSameType<T2, hifloat8_t>::value) && hasAtten) {
+                    IsSameType<T2, hifloat8_t>::value || IsSameType<T2, bfloat16_t>::value ||
+                    IsSameType<T2, half>::value) && hasAtten) {
         if (needAtten) {
             for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
                 LoadAlign(src0, src_ub0 + iter_m * m * 4);
                 LoadAlign(src1, src_ub1 + iter_m * m * 4);
                 LoadAlign(src2, src_ub2 + iter_m * m * 4);
                 LoadAlign(src3, src_ub3 + iter_m * m * 4);
+                if constexpr (hasInvalidLine){
+                    Muls(src0, src0, dScale, preg_108);
+                    Muls(src1, src1, dScale, preg_108);
+                    Muls(src2, src2, dScale, preg_108);
+                    Muls(src3, src3, dScale, preg_108);
+                }
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare0, mask_ub0 + iter_m * m);
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare1, mask_ub1 + iter_m * m);
                 LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare2, mask_ub2 + iter_m * m);
@@ -536,6 +577,16 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
                 LoadAlign(src1, src_ub1 + iter_m * m * 4);
                 LoadAlign(src2, src_ub2 + iter_m * m * 4);
                 LoadAlign(src3, src_ub3 + iter_m * m * 4);
+                if constexpr (hasInvalidLine){
+                    Muls(src0, src0, dScale, preg_108);
+                    Muls(src1, src1, dScale, preg_108);
+                    Muls(src2, src2, dScale, preg_108);
+                    Muls(src3, src3, dScale, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+                    StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+                }
                 Max(max0, max0, src0, preg_108);
                 Max(max1, max1, src1, preg_108);
                 Max(max2, max2, src2, preg_108);
@@ -548,6 +599,16 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
             LoadAlign(src1, src_ub1 + iter_m * m * 4);
             LoadAlign(src2, src_ub2 + iter_m * m * 4);
             LoadAlign(src3, src_ub3 + iter_m * m * 4);
+            if constexpr (hasInvalidLine){
+                Muls(src0, src0, dScale, preg_108);
+                Muls(src1, src1, dScale, preg_108);
+                Muls(src2, src2, dScale, preg_108);
+                Muls(src3, src3, dScale, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+            }
             Max(max0, max0, src0, preg_108);
             Max(max1, max1, src1, preg_108);
             Max(max2, max2, src2, preg_108);
@@ -559,7 +620,9 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
     Max(max0, max0, max2, preg_108);
     Max(max1, max1, max3, preg_108);
     Max(max0, max0, max1, preg_108);
-    Muls(max0, max0, dScale, preg_108);
+    if constexpr (!hasInvalidLine) {
+        Muls(max0, max0, dScale, preg_108);
+    }
     if constexpr (hasSink) {
         Max(max0, max0, vreg_sink_input, preg_108);
     }
@@ -592,7 +655,9 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
     } else {
         loopNum = ubN / 4;
     }
-
+    if constexpr (hasAtten == true) {
+        LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
+    }
     for (uint16_t i0 = 0; i0 < loopNum; ++i0) {
         if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
             IsSameType<T2, hifloat8_t>::value) {
@@ -611,12 +676,12 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
             LoadAlign(vreg_x_f32_2, input_x_local_UB + ubN * m / 2 + i0 * m);
             LoadAlign(vreg_x_f32_3, input_x_local_UB + ubN * m / 2 + ubN * m / 4 + i0 * m);
         }
-
-        Muls(vreg_x_f32_0, vreg_x_f32_0, dScale, preg_108);
-        Muls(vreg_x_f32_1, vreg_x_f32_1, dScale, preg_108);
-        Muls(vreg_x_f32_2, vreg_x_f32_2, dScale, preg_108);
-        Muls(vreg_x_f32_3, vreg_x_f32_3, dScale, preg_108);
-
+        if constexpr (!hasInvalidLine) {
+            Muls(vreg_x_f32_0, vreg_x_f32_0, dScale, preg_108);
+            Muls(vreg_x_f32_1, vreg_x_f32_1, dScale, preg_108);
+            Muls(vreg_x_f32_2, vreg_x_f32_2, dScale, preg_108);
+            Muls(vreg_x_f32_3, vreg_x_f32_3, dScale, preg_108); 
+        }
         FusedExpSub(vreg_x_exp_0, vreg_x_f32_0, max0, preg_134);
         FusedExpSub(vreg_x_exp_1, vreg_x_f32_1, max0, preg_134);
         FusedExpSub(vreg_x_exp_2, vreg_x_f32_2, max0, preg_134);
@@ -624,11 +689,12 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
 
         if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
             IsSameType<T2, hifloat8_t>::value) {
-            Muls(vreg_x_f32_4, vreg_x_f32_4, dScale, preg_108);
-            Muls(vreg_x_f32_5, vreg_x_f32_5, dScale, preg_108);
-            Muls(vreg_x_f32_6, vreg_x_f32_6, dScale, preg_108);
-            Muls(vreg_x_f32_7, vreg_x_f32_7, dScale, preg_108);
-
+            if constexpr (!hasInvalidLine) {
+                Muls(vreg_x_f32_4, vreg_x_f32_4, dScale, preg_108);
+                Muls(vreg_x_f32_5, vreg_x_f32_5, dScale, preg_108);
+                Muls(vreg_x_f32_6, vreg_x_f32_6, dScale, preg_108);
+                Muls(vreg_x_f32_7, vreg_x_f32_7, dScale, preg_108);
+            }
             FusedExpSub(vreg_x_exp_4, vreg_x_f32_4, max0, preg_134);
             FusedExpSub(vreg_x_exp_5, vreg_x_f32_5, max0, preg_134);
             FusedExpSub(vreg_x_exp_6, vreg_x_f32_6, max0, preg_134);
@@ -744,7 +810,8 @@ __simd_vf__ inline void ProcessVec1DnUpdateVF(__ubuf__ T2 *x_exp, __ubuf__ float
         (__ubuf__ T *&)new_global_sum, vreg_l0, preg_134);
 }
 
-template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128, bool hasSink = false>
+template <typename T, typename T2, bool hasAtten = false, uint16_t ubN = 128,
+    bool hasSink = false, bool hasInvalidLine = false>
 __aicore__ inline void ProcessVec1DnUpdate(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expMaxTensor, const LocalTensor<uint8_t> &vselrIndexesBuf,
@@ -798,7 +865,7 @@ __aicore__ inline void ProcessVec1DnUpdate(
  */
 
 template <typename T, typename T2, bool isUpdate = false, bool hasAtten = false, uint16_t ubN = 256,
-    bool hasSink = false>
+    bool hasSink = false, bool hasInvalidLine = false>
 __aicore__ inline void ProcessVec1VfDn(const LocalTensor<T2>& dstTensor, const LocalTensor<T>& expSumTensor,
                                        const LocalTensor<T>& maxTensor, const LocalTensor<T>& srcTensor,
                                        const LocalTensor<T>& expMaxTensor, TBuf<> *vselrIndexesBuf,
