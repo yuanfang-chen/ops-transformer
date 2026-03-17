@@ -303,7 +303,7 @@ private:
     __gm__ HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
     __gm__ Mc2MoeContext* mc2Context_{nullptr};
 
-    DataCopyExtParams hCopyParams_;
+    DataCopyParams hCopyParams_;
     DataCopyParams dataStateParams_{1U, sizeof(uint32_t), 0U, 0U};
 
     MoeDistributeDispatchV2Quant<TemplateMC2TypeFullmeshFunc> quantInst_;
