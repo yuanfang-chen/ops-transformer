@@ -658,6 +658,7 @@ namespace optiling{
         }
         faTilingData.set_totalTaskNum(totalTaskNum);
 
+        uint32_t coreNum = this->blockNum_;
         uint32_t mainLoopCount = totalTaskNum / coreNum;
         uint32_t mainLoopTaskNum = mainLoopCount * coreNum;
         uint32_t tailLoopTaskNum = totalTaskNum - mainLoopTaskNum;

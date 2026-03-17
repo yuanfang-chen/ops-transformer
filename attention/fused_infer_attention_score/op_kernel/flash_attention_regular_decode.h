@@ -496,7 +496,7 @@ namespace SplitFuse {
                 for (uint32_t b = 0; b < tailStartBatch; b++) {
                     uint32_t bQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(b));
                     uint32_t bKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(b));
-                    if constexpr(INPUT_LAYOUT == FaiKenel::inputLayout::TND) {
+                    if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
                         uint32_t prevQSum = (b == 0) ?
                             0 : static_cast<uint32_t>(gActualQseqlen.GetValue(b - 1));
                         bQSeqlen = bQSeqlen - prevQSum;
@@ -521,7 +521,7 @@ namespace SplitFuse {
                 uint32_t tailPreTotalTaskNum = 0;
                 uint32_t tailQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch));
                 uint32_t tailKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch));
-                if constexpr(INPUT_LAYOUT == FaiKenel::inputLayout::TND) {
+                if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
                     uint32_t prevQSum = (tailCurBatch == 0) ?
                         0 : static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch - 1));
                     tailQSeqlen = tailQSeqlen - prevQSum;
@@ -559,7 +559,7 @@ namespace SplitFuse {
 
                         tailQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch));
                         tailKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch));
-                        if constexpr(INPUT_LAYOUT == FaiKenel::inputLayout::TND) {
+                        if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
                             uint32_t prevQSum = (tailCurBatch == 0) ?
                                 0 : static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch - 1));
                             tailQSeqlen = tailQSeqlen - prevQSum;
@@ -597,7 +597,7 @@ namespace SplitFuse {
                         tailKvNBlockSize = tailAvailableKvHeads - tailKvNBlockIdx * tailKvNBlockTile;
                     }
                     uint32_t rowNum = tailQSBlockSize * tailGBlockSize;
-                    uint32_t rowNumRound = RoundUp(rowNum, FaiKenel::BLOCK_SIZE);
+                    uint32_t rowNumRound = RoundUp(rowNum, FaiKernel::BLOCK_SIZE);
 
                     uint64_t qSOffset = static_cast<uint64_t>(tailQSBlockIdx * tailCurQSBlockTile) * strideQ;
                     uint64_t qNStartOffset = static_cast<uint64_t>(tailQNStartIdx * embed);
@@ -811,6 +811,7 @@ namespace SplitFuse {
                         stackSeqCount++;
                     }
                 }
+            }
 #ifdef __DAV_C220_CUBE__
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
