@@ -35,7 +35,6 @@ constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
 constexpr uint32_t DATA_BLOCK_SIZE = 32;
-constexpr uint64_t STAGEONE_BUFFER_NUM = 1;
 
 struct GDRStageOneInitParams {
     // input
@@ -104,10 +103,10 @@ public:
             return;
         }
         uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv_aligned_ / 2, dk_aligned_ / 2), chunkSize_);
-        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));  // 16KB  maxLen=64
-        pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));  // 16KB
+        pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB  maxLen=64
+        pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB
         if (gOptional_){
-            pipe_->InitBuffer(gOutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * sizeof(float));  // 1KB
+            pipe_->InitBuffer(gOutQueue_, BUFFER_NUM_ONE, chunkSize_ * sizeof(float));  // 1KB
         }
 
         pipe_->InitBuffer(tmpBuff, UB_REST_BYTES);
