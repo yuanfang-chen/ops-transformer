@@ -20,31 +20,42 @@
 #include "./infer_flash_attention_comm.h"
 #include "./infer_flash_attention_kvcache.h"
 #include "./infer_flash_attention_sparse.h"
+#include "./flash_attention_noquant_block_vec_flashdecode_VF.h"
 
 namespace BaseApi {
-template <typename CubeBlockType, typename VecBlockType>
-class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>, CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-    using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
+
+    using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>, CubeBlockType, VecBlockType>;
     /* =====================UB变量==================== */
     __aicore__ inline void InitUniqueConstInfo();
     __aicore__ inline void InitUniqueRunInfo(const RunParamStr<isInfer> &runParam, 
         RunInfo<isInfer> &runInfo);
     __aicore__ inline void Process();
+    __aicore__ inline void ProcessMainLoopBalance();
     __aicore__ inline void ProcessMainLoop();
+    __aicore__ inline void FlashDecode();
+    /* =====================GM变量========================== */
+    GlobalTensor<uint64_t> actualSeqLengthsGmQ;
+    GlobalTensor<uint64_t> actualSeqLengthsGm;
 
 private:
+    FdBlockType fdService;
+    static constexpr int64_t fdPrefetchLen = 2;
+
+
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndex, int64_t gS1Index,
                                                     RunParamStr<isInfer> &runParam);
 };
 
-template <typename CubeBlockType, typename VecBlockType>
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueConstInfo()
 {
-    if constexpr (isFd) {
+    if constexpr (isFd && enableSplitCoreBalance) {
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
         this->constInfo.sInnerLoopSize = CeilDiv(this->constInfo.s2Size, this->constInfo.splitKVNum);
     }
@@ -87,17 +98,134 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstIn
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, runInfo);
     ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ProcessMainLoop()
+// TODO，isFD分支需要判断是老FD还是新FD，新FD是否需要这段逻辑
+
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void
+FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ProcessMainLoopBalance()
+{
+    int32_t actualCoreNums = this->sharedParams.coreNum;
+    if (this->aicIdx >= actualCoreNums) {
+        return;
+    }
+
+    int64_t taskId = 0;
+    RunInfo<isInfer> runInfo[4];
+    RunParamStr<isInfer> runParam;
+
+    int32_t bN2StartIdx = this->sharedParams.bnStartIdx;
+    int32_t bN2EndIdx = this->sharedParams.bnEndIdx;
+    int32_t gS1StartIdx = this->sharedParams.gS1StartIdx;
+    int32_t gS1EndIdx = this->sharedParams.gS1EndIdx;
+    int32_t s2StartIdx = this->sharedParams.s2StartIdx;
+    int32_t s2EndIdx = this->sharedParams.s2EndIdx;
+
+    // 注意这里不等于0是因为，推理的在SetRunInfo中第一次也需要赋值runInfo.s1oIdx，boIdx，n2oIdx，goIdx
+    // 训练这些值在multiCoreInnerIdx = 0的时候都是0，两边不统一
+    int64_t multiCoreInnerIdx = 1;
+    for (int32_t bnIdx = bN2StartIdx; bnIdx <= bN2EndIdx; ++bnIdx) {
+        bool lastBN = (bnIdx == bN2EndIdx);
+        runParam.boIdx = bnIdx / this->constInfo.n2Size;
+        runParam.n2oIdx = bnIdx % this->constInfo.n2Size;
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo, this->attenMaskInfo,
+            this->keyGm, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
+        // 计算s1LoopTimes，未考虑acutalSeq，pre/nextToken
+        constexpr int32_t gS1BaseSize = static_cast<int32_t>(s1TemplateType);
+        if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
+            int64_t s1Size = (runParam.boIdx == 0) ? this->actualSeqQlenAddr[0] : this->actualSeqQlenAddr[runParam.boIdx] - this->actualSeqQlenAddr[runParam.boIdx - 1];
+            runParam.s1LoopTimes = CeilDiv(s1Size * this->constInfo.gSize, gS1BaseSize);
+        } else {
+            runParam.s1LoopTimes = CeilDiv(this->constInfo.gS1, gS1BaseSize);
+        }
+
+        int32_t tempGS1Start = (bnIdx == bN2StartIdx) ? gS1StartIdx : 0;
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(runParam.s1LoopTimes - 1, 0);
+        for (int32_t gS1Index = tempGS1Start; gS1Index <= tempGS1End; ++gS1Index) {
+            bool lastGS1 = (gS1Index == tempGS1End);
+            // if (notLastThreeLoop) {
+                this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
+                bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(
+                    runParam, this->constInfo, gS1Index, this->actualSeqQlenAddr, this->pseInfo);
+                bool s2NoNeedCalc =
+                    ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, this->constInfo);
+                // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
+                if (s1NoNeedCalc || s2NoNeedCalc) {
+                    continue;
+                }
+            //     s2LoopLimit = runParam.s2LoopEndIdx - 1;
+            // } else {
+            //     s2LoopLimit = 0;
+            // }
+
+            int32_t tempS2Start = (bnIdx == bN2StartIdx) && (gS1Index == gS1StartIdx) ? s2StartIdx : runParam.s2LineStartIdx;
+            int32_t tempS2End, extraLoopTimes;
+            if (unlikely(lastBN && lastGS1)) {
+                tempS2End = s2EndIdx;
+                extraLoopTimes = 3;
+            } else {
+                tempS2End = runParam.s2LoopEndIdx;
+                extraLoopTimes = 0;
+            }
+
+            for (int32_t s2Idx = s2StartIdx; s2Idx < tempS2End + extraLoopTimes; ++s2Idx) {
+                bool notLastThreeLoop = s2Idx < tempS2End;
+                bool notLastTwoLoop = s2Idx < tempS2End + 1;
+                bool notLast = s2Idx < tempS2End + 2;
+
+                if (notLastThreeLoop) {
+                    RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
+                    this->SetRunInfo(runInfo1, runParam, taskId, s2Idx, tempS2End - 1, multiCoreInnerIdx);
+                    if ASCEND_IS_AIC {
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
+                    }
+                }
+                if (taskId > 0 && notLastTwoLoop) {
+                    if ASCEND_IS_AIV {
+                        auto &runInfo3 = runInfo[(taskId + 3) & 3];
+                        this->vecBlock.ProcessVec1(this->l1PBuffers.Get(), this->bmm1Buffers.Get(), runInfo3,
+                            this->constInfo);
+                    }
+                }
+                if (taskId > 1 && notLast) {
+                    if ASCEND_IS_AIC {
+                        RunInfo<isInfer> &runInfo2 = runInfo[(taskId + 2) & 3];
+                        if constexpr (BaseClass::bmm2Write2Ub) {
+                            this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, runInfo2,
+                                this->constInfo);
+                        } else {
+                            this->cubeBlock.IterateBmm2(this->bmm2ResGmBuffers.Get(), this->l1PBuffers, runInfo2,
+                                this->constInfo);
+                        }
+                    }
+                }
+                if (taskId > 2) {
+                    if ASCEND_IS_AIV {
+                        RunInfo<isInfer> &runInfo3 = runInfo[(taskId + 1) & 3];
+                        if constexpr (BaseClass::bmm2Write2Ub) {
+                            this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
+                        } else {
+                            this->vecBlock.ProcessVec2(this->bmm2ResGmBuffers.Get(), runInfo3, this->constInfo);
+                        }
+                    }
+                }
+                ++taskId;
+            }
+            ++multiCoreInnerIdx;
+        }
+    }
+}
+
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ProcessMainLoop()
 {
     int32_t actualCoreNums = this->sharedParams.coreNum;
     if constexpr (isFd) {
@@ -109,26 +237,26 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
     }
     // 确定核内切分起点
     int64_t gS1StartIdx;
-    uint32_t bnStartIdx;
-    uint32_t bnEndIdx;
+    uint32_t bN2StartIdx;
+    uint32_t bN2EndIdx;
     int64_t s2LoopLimit;
     int64_t nextGs1Idx = this->sharedParams.multiCoreInnerLimit;
     if constexpr (!isFd) {
-        bnStartIdx = this->sharedParams.bnStartIdx;
+        bN2StartIdx = this->sharedParams.bN2StartIdx;
         gS1StartIdx = this->sharedParams.multiCoreInnerOffset;
         if (likely((this->sharedParams.coreNum - 1) > this->aicIdx)) {
-            bnEndIdx = this->sharedParams.bnEndIdx;
+            bN2EndIdx = this->sharedParams.bN2EndIdx;
             if (nextGs1Idx != 0) {
-                bnEndIdx++;
+                bN2EndIdx++;
             }
         } else {
-            bnEndIdx = this->sharedParams.bSize * this->constInfo.n2Size *
+            bN2EndIdx = this->sharedParams.bSize * this->constInfo.n2Size *
                 this->constInfo.headNumRatio;
         }
     } else {
         gS1StartIdx = 0;
-        bnStartIdx = 0;
-        bnEndIdx = 1;
+        bN2StartIdx = 0;
+        bN2EndIdx = 1;
         s2LoopLimit = 0;
     }
     int64_t taskId = 0;
@@ -141,14 +269,14 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
     if constexpr (isFd) {
         runParam.boIdx = this->aicIdx / (this->constInfo.n2Size * this->constInfo.splitKVNum);
         runParam.n2oIdx = (this->aicIdx / this->constInfo.splitKVNum) % this->constInfo.n2Size;
-        bnStartIdx = runParam.boIdx * this->constInfo.n2Size + runParam.n2oIdx;
-        bnEndIdx = bnStartIdx + 1;
+        bN2StartIdx = runParam.boIdx * this->constInfo.n2Size + runParam.n2oIdx;
+        bN2EndIdx = bN2StartIdx + 1;
     }
     // 注意这里不等于0是因为，推理的在SetRunInfo中第一次也需要赋值runInfo.s1oIdx，boIdx，n2oIdx，goIdx
     // 训练这些值在multiCoreInnerIdx = 0的时候都是0，两边不统一
     int64_t multiCoreInnerIdx = 1;
-    for (uint32_t bnIdx = bnStartIdx; bnIdx < bnEndIdx; ++bnIdx) {
-        bool lastBN = (bnIdx == bnEndIdx - 1);
+    for (uint32_t bnIdx = bN2StartIdx; bnIdx < bN2EndIdx; ++bnIdx) {
+        bool lastBN = (bnIdx == bN2EndIdx - 1);
         if constexpr (!isFd) {
             runParam.boIdx = bnIdx / (this->constInfo.n2Size * this->constInfo.headNumRatio);
             runParam.n2oIdx = (bnIdx / this->constInfo.headNumRatio) % this->constInfo.n2Size;
@@ -257,26 +385,93 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::Process()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
         SyncAll<false>();
     }
-    ProcessMainLoop();
+    if constexpr (enableSplitCoreBalance) {
+        ProcessMainLoopBalance();
+    } else {
+        ProcessMainLoop();
+    }
     if constexpr (isFd) {
         if ASCEND_IS_AIV {
-            SyncAll();
-            this->vecBlock.InitFDBuffers(this->constInfo);
-            this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+            // SyncAll();
+            // this->vecBlock.InitFDBuffers(this->constInfo);
+            // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+            FlashDecode();
         }
     }
 }
 
+template <typename CubeBlockType, typename VecBlockType,typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::FlashDecode()
+{
+    SyncAll();
+    // this->vecBlock.InitFDBuffers(this->constInfo);
+    // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+    this->constInfo.bSize = this->sharedParams.bSize;
+    fdService.InitParams(this->constInfo);
+    if (this->constInfo.actualSeqLenSize != 0) {
+        actualSeqLengthsGmQ.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr, this->constInfo.actualSeqLenSize);
+    }
+    if (this->constInfo.actualSeqLenKVSize != 0) {
+        actualSeqLengthsGm.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqKvlenAddr, this->constInfo.actualSeqLenKVSize);
+    }
+    fdService.InitGlobalTensor(this->vecBlock.softmaxFDMaxGm, this->vecBlock.softmaxFDSumGm, this->vecBlock.accumOutGm, this->vecBlock.attentionOutGm, 
+                                this->actualSeqLengthsGmQ, this->actualSeqLengthsGm);
+    // fdService.InitSoftmaxLseGm(softmaxLseGm);
+    fdService.InitBuffers(this->pipe);
+    AscendC::ICachePreLoad(fdPrefetchLen);
+
+    #ifdef ASCENDC_CPU_DEBUG
+        const uint32_t *fdBN2Idx = this->tilingData->outerSplitParams.fdRes.fdBN2Idx;
+        const uint32_t *fdMIdx = this->tilingData->outerSplitParams.fdRes.fdMIdx;
+        const uint32_t *fdS2SplitNum = this->tilingData->outerSplitParams.fdRes.fdS2SplitNum;
+        const uint32_t *fdBalanceMSplitNum = this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum;
+        const uint32_t *fdBalanceMTailSize = this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize;
+        const uint32_t *fdBalanceEndIdx1 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1;
+        const uint32_t *fdBalanceEndIdx2 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2;
+    #else
+        uint32_t fdBN2Idx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBN2Idx)];
+        uint32_t fdMIdx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdMIdx)];
+        uint32_t fdS2SplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum)];
+        uint32_t fdBalanceMSplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum)];
+        uint32_t fdBalanceMTailSize[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize)];
+        uint32_t fdBalanceEndIdx1[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1)];
+        uint32_t fdBalanceEndIdx2[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2)];
+        copy_data_align64((uint8_t *)fdBN2Idx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBN2Idx),
+                    sizeof(fdBN2Idx));
+        copy_data_align64((uint8_t *)fdMIdx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdMIdx),
+                    sizeof(fdMIdx));
+        copy_data_align64((uint8_t *)fdS2SplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum),
+                    sizeof(fdS2SplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMSplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum),
+                    sizeof(fdBalanceMSplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMTailSize,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize),
+                    sizeof(fdBalanceMTailSize));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx1, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1),
+                    sizeof(fdBalanceEndIdx1));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx2,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2),
+                    sizeof(fdBalanceEndIdx2));
+    #endif
+
+    FDparams fdParams = {fdBN2Idx, fdMIdx, fdS2SplitNum, fdBalanceMSplitNum, fdBalanceMTailSize, fdBalanceEndIdx1, fdBalanceEndIdx2,
+            this->tilingData->outerSplitParams.fdRes.fdUsedVecNum,this->tilingData->outerSplitParams.fdRes.fdBalanceMBaseSize};
+    fdService.AllocEventID();
+    fdService.InitDecodeParams();
+    fdService.FlashDecode(fdParams);
+    fdService.FreeEventID();
+}
+
 // =========================================== private functions ===========================================
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType, FdBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr<isInfer> &runParam)
 {
     constexpr uint64_t fp8QBlockSize = 128U; // 128 is SOuterSize

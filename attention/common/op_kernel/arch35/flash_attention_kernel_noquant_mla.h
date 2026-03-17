@@ -20,10 +20,11 @@
 #include "pse.h"
 #include "flash_attention_block_cube_noquant_mla.h"
 #include "flash_attention_noquant_block_vec_infer.h"
+#include "./flash_attention_noquant_block_vec_flashdecode_VF.h"
 
 using namespace fa_base_matmul;
 
-template <typename CubeBlockType, typename VecBlockType>
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 class FAKernelNoquantMla {
 public:
     ARGS_TRAITS;
@@ -47,11 +48,17 @@ private:
     __aicore__ inline void SetFlag3Buffer();
     __aicore__ inline void InitBuffer();
     __aicore__ inline void ComputeConstexpr();
-    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
+    __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam, int64_t taskId,
+        int32_t bN2Cur, int64_t gS1Cur, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndx, int64_t gS1Index, int64_t &multiCoreInnerIdx, RunParamStr<isInfer>& runParam);
     __aicore__ inline void GetSeqQlenKvlenByBoidx(int64_t boIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvLen);
     __aicore__ inline void ComputeBmm1Tail(RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam);
+    __aicore__ inline void CalcAccumOffset(RunInfo<isInfer> &runInfo);
     __aicore__ inline bool IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx);
+    __aicore__ inline void FlashDecode();
+    /* =====================GM变量========================== */
+    GlobalTensor<uint64_t> actualSeqLengthsGmQ;
+    GlobalTensor<uint64_t> actualSeqLengthsGm;
 
 private:
     const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = nullptr;
@@ -68,14 +75,18 @@ private:
     /* Block */
     CubeBlockType cubeBlock;
     VecBlockType vecBlock;
+    FdBlockType fdService;
+    
 
     /* Public Variable */
     __gm__ uint8_t *currentKey;
     __gm__ uint8_t *currentValue;
     GlobalTensor<INPUT_T> keyGm;
     GlobalTensor<INPUT_T> valueGm;
-
+    
     static constexpr bool useDn = false;
+    static constexpr int64_t fdPrefetchLen = 2;
+    
 
     /*========核Index信息========*/
     int32_t aicIdx;
@@ -101,8 +112,8 @@ private:
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm12Bmm2AL1Buffers;
 };
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Init(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse,
     __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
@@ -137,8 +148,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Init(
     InitBuffer();
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitMMResBuf()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::InitMMResBuf()
 {
     constexpr uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
     constexpr uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
@@ -165,8 +176,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitMMRe
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetFlag3Buffer()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::SetFlag3Buffer()
 {
     mm12Bmm2AL1Buffers.Get().SetEventID();
     mm12Bmm2AL1Buffers.Get().SetEventID();
@@ -176,8 +187,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetFlag3
     SetFlag<HardEvent::MTE1_MTE2>(mm12Bmm2AL1Buffers.Get().GetEventID<HardEvent::MTE1_MTE2>());
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitInput(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::InitInput(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse,
     __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
@@ -209,20 +220,21 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitInpu
         nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, 0, this->aicIdx, constInfo);
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitBuffer()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::InitBuffer()
 {
     if ASCEND_IS_AIV {
         this->vecBlock.InitLocalBuffer(this->tPipe, constInfo);
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeConstexpr()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::ComputeConstexpr()
 {
     constInfo.s1BaseSize = s1BaseSize;
     constInfo.s2BaseSize = s2BaseSize;
 
+    // TODO，这里cube访问了tilingData，会导致cube scalar开销增加，待优化
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
 
     constInfo.bSize = inputParamsRegbase.bSize;
@@ -405,10 +417,15 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
         constInfo.isPostQuantPerChnl = inputParamsRegbase.isPostQuantPerChnl;
         constInfo.isPostQuantBF16 = inputParamsRegbase.isPostQuantBF16;
     }
+
+    if ASCEND_IS_AIV {
+        auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+        constInfo.headFdDataIdx = outerSplitParams.headFdDataIdx[this->aicIdx];
+    }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Process()
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::Process()
 {
     int32_t actualCoreNums = this->tilingData->multiCoreParamsRegbase.coreNum;
     if (aicIdx >= actualCoreNums) {
@@ -416,70 +433,58 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Process(
     }
 
     // 确定核内切分起点
-    int64_t gS1StartIdx = 0;
-    int64_t gS1EndIdx = 1;
-    uint32_t bnStartIdx = 0;
-    uint32_t bnEndIdx = 1;
-    int64_t s2LoopStart = 0;
-    int64_t s2LoopLimit = 0;
+    int32_t bN2StartIdx = this->sharedParams.bN2StartIdx;
+    int32_t bN2EndIdx = this->sharedParams.bN2EndIdx;
+    int32_t gS1StartIdx = this->sharedParams.gS1StartIdx;
+    int32_t gS1EndIdx = this->sharedParams.gS1EndIdx;
+    int32_t s2StartIdx = this->sharedParams.s2StartIdx;
+    int32_t s2EndIdx = this->sharedParams.s2EndIdx;
 
-    if constexpr (!isFd) {
-        bnStartIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx];
-        gS1StartIdx = this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx];
-        if (likely((this->tilingData->multiCoreParamsRegbase.coreNum - 1) > aicIdx)) {
-            bnEndIdx = this->tilingData->multiCoreParamsRegbase.bnStartIdx[aicIdx + 1];
-            // 下一个核从0开始gs1循环，当前核bn不需要多计算一个，否则需要多计算一个bn
-            if (this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1] != 0) {
-                bnEndIdx++;
-            }
-        } else {
-            bnEndIdx = this->tilingData->inputParamsRegbase.bSize * constInfo.n2Size;
-        }
-    }
     int64_t taskId = 0;
-    bool isLastBmm1 = false;
     RunInfo<isInfer> runInfo[NUM_4];
     RunParamStr<isInfer> runParam;
 
-    int64_t multiCoreInnerIdx = 0;
-    for (uint32_t bnIdx = bnStartIdx; bnIdx < bnEndIdx; bnIdx++) {
-        bool lastBN = IsLastBN(bnIdx, bnEndIdx);
-        if constexpr (!isFd) {
-            runParam.boIdx = bnIdx / constInfo.n2Size;
-            runParam.n2oIdx = bnIdx % constInfo.n2Size;
-        }
-        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo,
-            keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
-        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, lastBN,
-            this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
+    int64_t multiCoreInnerIdx = 0;      // TODO，确认这个变量
+    for (uint32_t bnIdx = bN2StartIdx; bnIdx <= bN2EndIdx; bnIdx++) {
+        bool lastBN = IsLastBN(bnIdx, bN2EndIdx);
+        runParam.boIdx = bnIdx / constInfo.n2Size;
+        runParam.n2oIdx = bnIdx % constInfo.n2Size;
 
-        gS1EndIdx = runParam.s1LoopTimes;
-        for (int64_t gS1Index = gS1StartIdx; gS1Index <runParam.s1LoopTimes; gS1Index++) {
-            s2LoopLimit = 0;
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo, this->attenMaskInfo,
+            keyGm, actualSeqQlenAddr, actualSeqKvlenAddr);
+
+        int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, static_cast<int32_t>(s1TemplateType));
+        int32_t tempGS1Start = (bnIdx == bN2StartIdx) ? gS1StartIdx : 0;
+        int32_t tempGS1End = lastBN ? gS1EndIdx : Max(s1LoopTimes - 1, 0);
+        for (int64_t gS1Index = tempGS1Start; gS1Index <= tempGS1End; gS1Index++) {
+            bool lastGS1 = (gS1Index == tempGS1End);
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
-            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo,
+            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo,
                 gS1Index, actualSeqQlenAddr, this->pseInfo);
-            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo);
-            bool lastLoopThisCore = lastBN && (gS1Index == runParam.s1LoopTimes - 1);
-            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam,
+            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo);
+            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam,
                 actualSeqQlenAddr);
-            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastLoopThisCore) || lastBnNoNeedCalc) {
+            if (((s1NoNeedCalc || s2NoNeedCalc) && !lastGS1) || lastBnNoNeedCalc) {
                 continue;
             }
-            // s2轴循环计数，支持sparse和非sparse场景
-            s2LoopLimit = runParam.s2LoopEndIdx - 1;
-            if (lastLoopThisCore) {
-                isLastBmm1 = true;
-                s2LoopLimit += PRELOAD_N;
+
+            int32_t tempS2Start = (bnIdx == bN2StartIdx) && (gS1Index == gS1StartIdx) ? s2StartIdx : runParam.s2LineStartIdx;
+            int32_t tempS2End, extraLoopTimes;
+            if (unlikely(lastBN && lastGS1)) {
+                tempS2End = s2EndIdx;
+                extraLoopTimes = PRELOAD_N;
+            } else {
+                tempS2End = runParam.s2LoopEndIdx;
+                extraLoopTimes = 0;
             }
-            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
+
+            for (int64_t s2LoopCount = tempS2Start; s2LoopCount < tempS2End + extraLoopTimes; s2LoopCount++) {
                 if (s2LoopCount < runParam.s2LoopEndIdx) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                    this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, runParam.s2LoopEndIdx - 1,
+                    this->SetRunInfo(runInfo1, runParam, taskId, bnIdx, gS1Index, s2LoopCount, tempS2End - 1,
                         multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
-                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, isLastBmm1 &&
-                            (s2LoopCount == (runParam.s2LoopEndIdx - 1)), constInfo);
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, runParam, false, constInfo);     // TODO，后续删除
                     }
                     if ASCEND_IS_AIV {
                         this->vecBlock.ProcessVec1(this->mm12Bmm2AL1Buffers.Get(), this->bmm1Buffers.Get(), runInfo1,
@@ -498,12 +503,82 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Process(
                 taskId++;
             }
         }
-        gS1StartIdx = 0;
+    }
+
+    if constexpr (isFd) {
+        if ASCEND_IS_AIV {
+            // SyncAll();
+            // this->vecBlock.InitFDBuffers(this->constInfo);
+            // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+            FlashDecode();
+        }
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
+template <typename CubeBlockType, typename VecBlockType,typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::FlashDecode()
+{
+    SyncAll();
+    // this->vecBlock.InitFDBuffers(this->constInfo);
+    // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
+    this->constInfo.bSize = this->sharedParams.bSize;
+    fdService.InitParams(this->constInfo);
+    if (this->constInfo.actualSeqLenSize != 0) {
+        actualSeqLengthsGmQ.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr, this->constInfo.actualSeqLenSize);
+    }
+    if (this->constInfo.actualSeqLenKVSize != 0) {
+        actualSeqLengthsGm.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqKvlenAddr, this->constInfo.actualSeqLenKVSize);
+    }
+    fdService.InitGlobalTensor(this->vecBlock.softmaxFDMaxGm, this->vecBlock.softmaxFDSumGm, this->vecBlock.accumOutGm, this->vecBlock.attentionOutGm, 
+                                this->actualSeqLengthsGmQ, this->actualSeqLengthsGm);
+    // fdService.InitSoftmaxLseGm(softmaxLseGm);
+    fdService.InitBuffers(this->pipe);
+    AscendC::ICachePreLoad(fdPrefetchLen);
+
+    #ifdef ASCENDC_CPU_DEBUG
+        const uint32_t *fdBN2Idx = this->tilingData->outerSplitParams.fdRes.fdBN2Idx;
+        const uint32_t *fdMIdx = this->tilingData->outerSplitParams.fdRes.fdMIdx;
+        const uint32_t *fdS2SplitNum = this->tilingData->outerSplitParams.fdRes.fdS2SplitNum;
+        const uint32_t *fdBalanceMSplitNum = this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum;
+        const uint32_t *fdBalanceMTailSize = this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize;
+        const uint32_t *fdBalanceEndIdx1 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1;
+        const uint32_t *fdBalanceEndIdx2 = this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2;
+    #else
+        uint32_t fdBN2Idx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBN2Idx)];
+        uint32_t fdMIdx[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdMIdx)];
+        uint32_t fdS2SplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum)];
+        uint32_t fdBalanceMSplitNum[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum)];
+        uint32_t fdBalanceMTailSize[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize)];
+        uint32_t fdBalanceEndIdx1[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1)];
+        uint32_t fdBalanceEndIdx2[ARRAY_SIZE(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2)];
+        copy_data_align64((uint8_t *)fdBN2Idx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBN2Idx),
+                    sizeof(fdBN2Idx));
+        copy_data_align64((uint8_t *)fdMIdx, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdMIdx),
+                    sizeof(fdMIdx));
+        copy_data_align64((uint8_t *)fdS2SplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdS2SplitNum),
+                    sizeof(fdS2SplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMSplitNum, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMSplitNum),
+                    sizeof(fdBalanceMSplitNum));
+        copy_data_align64((uint8_t *)fdBalanceMTailSize,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceMTailSize),
+                    sizeof(fdBalanceMTailSize));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx1, (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx1),
+                    sizeof(fdBalanceEndIdx1));
+        copy_data_align64((uint8_t *)fdBalanceEndIdx2,
+                    (uint8_t *)(this->tilingData->outerSplitParams.fdRes.fdBalanceEndIdx2),
+                    sizeof(fdBalanceEndIdx2));
+    #endif
+
+    FDparams fdParams = {fdBN2Idx, fdMIdx, fdS2SplitNum, fdBalanceMSplitNum, fdBalanceMTailSize, fdBalanceEndIdx1, fdBalanceEndIdx2,
+            this->tilingData->outerSplitParams.fdRes.fdUsedVecNum,this->tilingData->outerSplitParams.fdRes.fdBalanceMBaseSize};
+    fdService.AllocEventID();
+    fdService.InitDecodeParams();
+    fdService.FlashDecode(fdParams);
+    fdService.FreeEventID();
+}
+
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndx, int64_t gS1Index, int64_t &multiCoreInnerIdx, RunParamStr<isInfer>& runParam)
 {
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
@@ -527,9 +602,10 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeA
     multiCoreInnerIdx++;
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetRunInfo(RunInfo<isInfer> &runInfo,
-    RunParamStr<isInfer>& runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::SetRunInfo(RunInfo<isInfer> &runInfo,
+    RunParamStr<isInfer>& runParam, int64_t taskId, int32_t bN2Cur, int64_t gS1Cur, int64_t s2LoopCount,
+    int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
     runInfo.sOuterOffset = runParam.sOuterOffset;
@@ -569,13 +645,39 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetRunIn
 
     this->ComputeBmm1Tail(runInfo, runParam);
     runInfo.qRopeOffset = runParam.qRopeNBGOffset;
-    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
-    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
+    InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, runInfo);
+    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix, enableSplitCoreBalance>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
         / s2BaseSize, runInfo);
+
+    if ASCEND_IS_AIV {
+        runInfo.isS2SplitCore = false;
+        runInfo.faTmpResGMPos = 0;
+        if (sharedParams.bN2StartIdx == sharedParams.bN2EndIdx && sharedParams.gS1StartIdx == sharedParams.gS1EndIdx) {
+            // 所有任务属于同一个S1G
+            runInfo.isS2SplitCore = true;
+            runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
+        } else {
+            if ((bN2Cur == sharedParams.bN2StartIdx) && (gS1Cur == sharedParams.gS1StartIdx)) {
+                // 当前任务属于第一个S1G, 并且第一个S1G的S2被切分了
+                runInfo.isS2SplitCore = (sharedParams.s2StartIdx != runParam.s2LineStartIdx);
+                runInfo.faTmpResGMPos = constInfo.headFdDataIdx;
+            } else if ((bN2Cur == sharedParams.bN2EndIdx) && (gS1Cur == sharedParams.gS1EndIdx)) {
+                // 当前任务属于最后一个S1G, 并且最后一个S1G的S2被切分了
+                runInfo.isS2SplitCore = (sharedParams.s2EndIdx > 0U) ? true : false;
+                runInfo.faTmpResGMPos = 0;
+            }
+        }
+
+        if constexpr (isFd) {
+            if (runInfo.isS2SplitCore) {
+                CalcAccumOffset(runInfo);
+            }
+        }
+    }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::GetSeqQlenKvlenByBoidx(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::GetSeqQlenKvlenByBoidx(
     int64_t boIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvLen)
 {
     if (unlikely(boIdx == 0)) {
@@ -592,8 +694,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::GetSeqQl
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeBmm1Tail(
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::ComputeBmm1Tail(
     RunInfo<isInfer> &runInfo, RunParamStr<isInfer>& runParam)
 {
     // -----------S1 Base Related----------------
@@ -611,23 +713,45 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeB
     }
 }
 
-template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline bool FAKernelNoquantMla<CubeBlockType, VecBlockType>::IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx)
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::CalcAccumOffset(RunInfo<isInfer> &runInfo)
 {
-    if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
-        return bnStartIdx == bnEndIdx - 1;
+    auto &outerSplitParams = reinterpret_cast<const optiling::FusedInferAttentionScoreTilingData*>(this->tilingData)->outerSplitParams;
+    const uint32_t *bN2IdxOfFdHead = outerSplitParams.fdRes.fdBN2Idx;
+    const uint32_t *gS1IdxOfFdHead = outerSplitParams.fdRes.fdMIdx;
+    const uint32_t *s2SplitNumOfFdHead = outerSplitParams.fdRes.fdS2SplitNum;
+    uint64_t accumTmpOutNum = 0;
+    uint32_t taskId = 0;
+    uint32_t curbN2Idx = runInfo.boIdx * constInfo.n2Size + runInfo.n2oIdx;
+    while (taskId < constInfo.aivIdx && (bN2IdxOfFdHead[taskId] != curbN2Idx || gS1IdxOfFdHead[taskId] != runInfo.gS1Idx)) {
+        // OBP里使用的是tilingData->outerSplitParams.usedCoreNum，这里改用了constInfo.aivIdx，不清楚是否相同
+        accumTmpOutNum += s2SplitNumOfFdHead[taskId]; // 计算前面的workspace数
+        taskId++;
     }
-    // TND
-    if (bnStartIdx != bnEndIdx - 1) {
-        for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
-            uint32_t boIdx = bnIdx / constInfo.n2Size;
-            uint32_t boStart = bnStartIdx / constInfo.n2Size;
-            if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
-                return false;
-            }
-        }
-    }
-    return true;
+    runInfo.accumTmpOutNum = accumTmpOutNum;
+}
+
+template <typename CubeBlockType, typename VecBlockType, typename FdBlockType>
+__aicore__ inline bool FAKernelNoquantMla<CubeBlockType, VecBlockType, FdBlockType>::IsLastBN(uint32_t bnStartIdx, uint32_t bnEndIdx)
+{
+    return bnStartIdx == bnEndIdx;
+
+
+    // if constexpr(layout != LayOutTypeEnum::LAYOUT_TND) {
+    //     return bnStartIdx == bnEndIdx - 1;
+    // }
+    // // TODO：下面这个逻辑是在干嘛
+    // // TND
+    // if (bnStartIdx != bnEndIdx - 1) {
+    //     for (uint32_t bnIdx = bnStartIdx + 1; bnIdx < bnEndIdx; bnIdx++) {
+    //         uint32_t boIdx = bnIdx / constInfo.n2Size;
+    //         uint32_t boStart = bnStartIdx / constInfo.n2Size;
+    //         if (actualSeqQlenAddr[boIdx] != actualSeqQlenAddr[boStart]) {
+    //             return false;
+    //         }
+    //     }
+    // }
+    // return true;
 }
 
 #endif
