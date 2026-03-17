@@ -131,12 +131,6 @@ namespace optiling {
     }
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::DoMatmulTiling() {
-        // 获取 matmul 相关的 shape 信息
-        // stage1 中的 matmul 主要是 (c, c) 和 (c, dk/dv) 的形状
-        int64_t c = tilingData_.chunkSize;   // chunk size
-        int64_t dk = tilingData_.dk;
-        int64_t dv = tilingData_.dv;
-
         // 计算 baseM, baseN, baseK
         uint32_t baseM = MATMUL_BASE_M;
         uint32_t baseK = MATMUL_BASE_K;
