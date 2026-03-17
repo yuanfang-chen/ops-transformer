@@ -560,7 +560,7 @@ void RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignC
 }
 
 void LogAssignContext(const char* phase, const AssignContext &assignContext) {
-    OP_LOGD("assignContext", "[%s] curCoreIdx: %u, unassignedCost: %ld, "
+    OP_LOGD("aaassignContext", "[%s] curCoreIdx: %u, unassignedCost: %ld, "
     "bIdx: %u, bN2Idx: %u, s1GIdx: %u, s2Idx: %u, "
     "bN2Cost: %ld, bN2Block: %u, "
     "s1GBlock: %u, s2Start: %u, s2End: %u",
