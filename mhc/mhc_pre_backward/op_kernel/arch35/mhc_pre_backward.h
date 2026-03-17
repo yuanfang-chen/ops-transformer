@@ -883,6 +883,82 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV0ProcessHPostGrad(__ubuf
 }
 
 // ？把这一整块放到vf函数中，是否有性能提升
+__aicore__ inline void MhcPreBackwardKernel<T, P>::AIV02Process(
+    V0V1Buffers<P> &buffers, LocalTensor<P> &h1GradBuf, uint64_t currentDealBsNum)
+{
+    //从gm搬运到ub，这里已经在ub所以判断不需要这一步，那么需要的就是创建regtensor
+    //先获取ub地址，进入__VEC_SCOPE__后创建regtensor
+    //获取ub地址
+    __ubuf__ P *hPreBufAddr = (__ubuf__ P *)buffers.hPreBufS1.GetPhyAddr();
+    __ubuf__ P *hPostBufAddr = (__ubuf__ P *)buffers.hPostBufS1.GetPhyAddr();
+    __ubuf__ P *hCombBufAddr = (__ubuf__ P *)buffers.hCombBufS1.GetPhyAddr();
+    __ubuf__ P *gatherFusionBufAddr = (__ubuf__ P *)buffers.gatherFusionBuf.GetPhyAddr();
+    __ubuf__ P *h1GradBufAddr = (__ubuf__ P *)h1GradBuf.GetPhyAddr();
+
+    //定义三个块的长度 n来决定还是之前计算好的hPreMaxBufLen_来决定呢？
+    uint32_t blockLenPre = N_;
+    uint32_t blockLenPost = N_;
+    uint32_t blockLenComb = N_ * N_;
+    uint32_t totalBlockLen = blockLenPre + blockLenPost + blockLenComb; //加法溢出？
+
+    //分bs块处理
+    for (uint32_t bsIdx = 0; bsIdx < currentDealBsNum; bsIdx++) {
+        //n循环处理 blockLenPre
+        uint32_t vfloopCntPre = (blockLenPre + eleNumPerVf_ - 1) / eleNumPerVf_;
+        uint32_t curLenPre = blockLenPre;
+        //n循环处理 blockLenPost
+        uint32_t vfloopCntPost = (blockLenPost + eleNumPerVf_ - 1) / eleNumPerVf_;
+        uint32_t curLenPost = blockLenPost;
+        //n²循环处理 blockLenComb
+        uint32_t vfloopCntComb = (blockLenComb + eleNumPerVf_ - 1) / eleNumPerVf_;
+        uint32_t curLenComb = blockLenComb;
+        //总偏移
+        uint32_t bsFusionOffset = bsIdx * totalBlockLen;
+    
+        __VEC_SCOPE__
+        {
+            MicroAPI::RegTensor<P> gatherReg;
+            MicroAPI::RegTensor<P> h1gradReg;
+
+            //从三个源buff获取数据拼接到gatherFusionBufAddr，完成gather操作
+            //同时乘以alpha，写入h1GradBufAddr
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < static_cast<uint16_t>(vfloopCntPre); vfBlockIdx++) {
+                uint32_t elemOffset = vfBlockIdx * eleNumPerVf_;
+                uint32_t srcOffset = bsIdx * blockLenPre + elemOffset;
+                uint32_t dstOffset = bsFusionOffset + elemOffset;
+                MicroAPI::MaskReg maskPre = MicroAPI::UpdateMask<P>(curLenPre);
+                MicroAPI::Load<P>(gatherReg, hPreBufAddr + srcOffset);
+                MicroAPI::Store<P>(gatherFusionBufAddr + dstOffset, gatherReg);
+
+                MicroAPI::Muls(h1gradReg, gatherReg, alphaGm_.GetValue(0), maskPre);
+                MicroAPI::Store<P>(h1GradBufAddr + dstOffset, h1gradReg);
+            }
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < static_cast<uint16_t>(vfloopCntPost); vfBlockIdx++) {
+                uint32_t elemOffset = vfBlockIdx * eleNumPerVf_;
+                uint32_t srcOffset = bsIdx * blockLenPre + elemOffset;
+                uint32_t dstOffset = bsFusionOffset + elemOffset;
+                MicroAPI::MaskReg maskPost = MicroAPI::UpdateMask<P>(curLenPost);
+                MicroAPI::Load<P>(gatherReg, hPreBufAddr + srcOffset);
+                MicroAPI::Store<P>(gatherFusionBufAddr + dstOffset + blockLenPre, gatherReg);
+
+                MicroAPI::Muls(h1gradReg, gatherReg, alphaGm_.GetValue(1), maskPost);
+                MicroAPI::Store<P>(h1GradBufAddr + dstOffset + blockLenPre, h1gradReg);
+            }
+
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < static_cast<uint16_t>(vfloopCntComb); vfBlockIdx++) {
+                uint32_t elemOffset = vfBlockIdx * eleNumPerVf_;
+                uint32_t srcOffset = bsIdx * blockLenComb + elemOffset;
+                uint32_t dstOffset = bsFusionOffset + elemOffset + blockLenPre + blockLenPost;
+                MicroAPI::MaskReg maskComb = MicroAPI::UpdateMask<P>(curLenComb);
+                MicroAPI::Load<P>(gatherReg, hCombBufAddr + srcOffset);
+                MicroAPI::Store<P>(gatherFusionBufAddr + dstOffset, gatherReg);
+                MicroAPI::Muls(h1gradReg, gatherReg, alphaGm_.GetValue(2), maskComb);
+                MicroAPI::Store<P>(h1GradBufAddr + dstOffset, h1gradReg);
+            }
+
+        }
+    }
+}
 template <class T, class P>
 __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf)
@@ -915,6 +991,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     // 因为参与该计算过程的变量的尾轴为n^2 + 2 * n，所以存在onceDealMixBSNum_ < remainDealBsSize(最大为chunk)，这个循环主要处理该情况
     // onceDealMixBSNum_ = INOUT_QUEUE_SIZE / (fusionSize_ * sizeof(P));
     while (remainDealBsSize > 0) {
+        // 处理inv_ms
         fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
         uint32_t dealBSSize = (remainDealBsSize > onceDealMixBSNum_) ? onceDealMixBSNum_ : remainDealBsSize;
         dataCopyParams_.blockLen = dealBSSize * sizeof(P);
@@ -923,6 +1000,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         fp32InQueue_.EnQue(fp32InputBuf);
         LocalTensor<P> invRmsBufLocal = fp32InQueue_.DeQue<P>();
 
+        //regbase start
         const uint32_t xRowSumBroadCastDst[2] = {dealBSSize, fusionSize_};
         const uint32_t xRowSumBroadCastSrc[2] = {dealBSSize, 1};
         BroadCast<float, 2, 1>(buffers.invRmsBuf, invRmsBufLocal, xRowSumBroadCastDst, xRowSumBroadCastSrc,
@@ -938,8 +1016,10 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         bf16OutQueue_.EnQue(fp32OutBuf);
         LocalTensor<P> hMixGradOutBuf = bf16OutQueue_.DeQue<P>();
         dataCopyParams_.blockLen = dealBSSize * fusionSize_ * sizeof(P);
-        DataCopyPad(workSpaceGm_[workspaceBuf_.GetHMixGradOffset(runBSStart + bsOffset)], hMixGradOutBuf, dataCopyParams_);
-        // PipeBarrier<PIPE_V>(); // ？这为什么需要插PIPE_V同步
+        DataCopyPad(workSpaceGm_[workspaceBuf_.GetHMixGradOffset(runBSStart + bsOffset)], hMixGradOutBuf,
+                    dataCopyParams_);
+        PipeBarrier<PIPE_V>();
+        // 结束inv_ms
 
         bf16InQueue_.AllocTensor<P>(hMixBuf);
         DataCopyPad(hMixBuf, mmResGm_[(runBSStart + bsOffset) * fusionSize_], dataCopyParams_, dataCopyPadParams_);
