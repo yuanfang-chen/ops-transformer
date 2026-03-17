@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@ from npu_ops_transformer.op_builder.builder import OpBuilder
 from npu_ops_transformer.op_builder.builder import AS_LIBRARY
 
 
-class MoeDistributeCombineV3OpBuilder(OpBuilder):
+class FlashAttenOpBuilder(OpBuilder):
     def __init__(self):
-        super(MoeDistributeCombineV3OpBuilder, self).__init__("npu_flash_attn")
+        super(FlashAttenOpBuilder, self).__init__("npu_flash_attn")
 
     def sources(self):
         """Path to C++ source code."""
@@ -56,7 +56,7 @@ class MoeDistributeCombineV3OpBuilder(OpBuilder):
 
 
 # Instantiate the builder
-flash_attn_op_builder = MoeDistributeCombineV3OpBuilder()
+flash_attn_op_builder = FlashAttenOpBuilder()
 op_module = flash_attn_op_builder.load()  # Compiles/loads the .so file
 
 
