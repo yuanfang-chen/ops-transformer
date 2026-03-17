@@ -168,9 +168,9 @@ public:
         dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dkWrk + dkvOffset);
         dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dvWrk + dkvOffset);
 
-        dqGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dq);
-        dkGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dk);
-        dvGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dv);
+        dqGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dq + dqOffset);
+        dkGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dk + dkvOffset);
+        dvGm.SetGlobalBuffer((__gm__ OutputDtype_ *)params.dv + dkvOffset);
 
         ubBasePreBufferSize = ubBaseSize/ BUFFER_NUM / BASE_BLOCK_BYTE * BASE_BLOCK_BYTE; // double buffer 
         for (uint64_t i = 0; i < BUFFER_NUM; i++) {
