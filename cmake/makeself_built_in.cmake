@@ -150,9 +150,7 @@ execute_process(
 file(CHMOD ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h
     PERMISSIONS OWNER_READ GROUP_READ
 )
-file(CHMOD ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg
-    PERMISSIONS OWNER_READ GROUP_READ
-)
+
 # makeself打包
 file(STRINGS ${CPACK_CMAKE_BINARY_DIR}/makeself.txt script_output)
 string(REPLACE " " ";" makeself_param_string "${script_output}")
