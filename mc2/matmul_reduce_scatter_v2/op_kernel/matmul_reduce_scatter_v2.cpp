@@ -48,9 +48,9 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
     REGISTER_TILING_DEFAULT(MatmulReduceScatterV2AivModeTilingData);
     if constexpr (!TPL_IS_SMALLM) {
         INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL( \
-            MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B, void);
+            MatmulReduceScatterAivMode, TPL_ISBIAS, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B, void);
     } else if constexpr (TPL_IS_SMALLM) {
         INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL( \
-            MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B);
+            MatmulReduceScatterAivModeSmallM, TPL_ISBIAS, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B);
     }
 }
