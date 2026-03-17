@@ -1,0 +1,166 @@
+/**
+ * This program is free software, you can redistribute it and/or modify it.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+#include <cmath>
+#include <utility>
+#include "tsqr_tiling.h"
+
+using namespace ge;
+
+namespace optiling {
+
+thread_local static TsqrTilingData tilingData;
+
+struct TsqrCompileInfo {};
+
+class TsqrTiling {
+public:
+    TsqrTiling() {}
+    ~TsqrTiling() {}
+    ge::graphStatus RunBigKernelTiling(gert::TilingContext* context);
+};
+
+std::pair<int, int> getTmpSize(int M, int N, int blockSize, int numLevels) {
+    int numBlocks = M / blockSize;
+    int numPairs = numBlocks / 2;
+    int tail = (numBlocks % 2 > 0);
+    int aOffset = 0;
+    int qOffset = numBlocks * blockSize * N;
+    int rOffset = numBlocks;
+    int localM = numBlocks * N;
+    for (int lvl = 0; lvl < numLevels - 1; lvl++) {
+        aOffset += numBlocks;
+        qOffset += (numPairs * 2 + tail) * N * N;
+        rOffset += (numPairs + tail);
+        numBlocks = numPairs + tail;
+        numPairs = numBlocks / 2;
+        tail = (numBlocks % 2 > 0);
+        localM = numBlocks * N;
+    }
+    qOffset += 2 * N * N;
+    return { qOffset, rOffset * N * N };
+}
+
+
+ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
+    auto platformInfo = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+
+    uint64_t ubSize;
+    platformInfo.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
+
+    // Last 2 dimentions in the shape are {..., M, N} and all previous numbers accumulated to batch size
+    const gert::StorageShape* inputShape = context->GetInputShape(0);
+    int32_t dimIdx = (int32_t)inputShape->GetOriginShape().GetDimNum() - 1;
+    int32_t N = static_cast<int32_t>(inputShape->GetStorageShape().GetDim(dimIdx--));
+    int32_t M = static_cast<int32_t>(inputShape->GetStorageShape().GetDim(dimIdx--));
+    int32_t batchSize = 1;
+    while (dimIdx >= 0) {
+        int32_t dim = static_cast<int32_t>(inputShape->GetStorageShape().GetDim(dimIdx--));
+        batchSize *= dim > 0 ? dim : 1;
+    }
+
+    int32_t coreNum = 20;
+    int32_t blockSize = 0;
+    auto attrs = context->GetAttrs();
+    if (attrs) {
+        auto blockSizePtr = attrs->GetAttrPointer<int64_t>(0);
+        blockSize = *blockSizePtr;
+    }
+    if (!blockSize) {
+        blockSize = 16;
+        if (blockSize < N * 2) blockSize = N * 2;
+        if (M / 4 > 1024) blockSize = 1024;
+    }
+
+    tilingData.set_batchSize(batchSize);
+    tilingData.set_m(M);
+    tilingData.set_n(N);
+    tilingData.set_blockSize(blockSize);
+
+    int32_t numBlocks = M / blockSize;
+    int32_t numLevels = (int32_t)(std::ceil(std::log2(numBlocks)));
+
+    auto tmpSize = getTmpSize(M, N, blockSize, numLevels);
+    int64_t tmpQSize = tmpSize.first + 2 * N * N;
+    int64_t tmpRSize = tmpSize.second;
+    int64_t bufferQSize = M * N;
+    int64_t maxQrWorkspace = N * blockSize;
+    int64_t totalWorkspaceSize = tmpQSize * (batchSize > 1 ? 2 : 1) + bufferQSize + tmpRSize + maxQrWorkspace * coreNum * 2;
+
+    tilingData.set_numBlocks(numBlocks);
+    tilingData.set_numLevels(numLevels);
+    tilingData.set_tmpQSize(tmpQSize);
+    tilingData.set_tmpRSize(tmpRSize);
+    tilingData.set_bufferQSize(bufferQSize);
+    tilingData.set_ubSize(ubSize);
+    tilingData.set_maxQrWorkspace(maxQrWorkspace);
+
+    int singleM = 2 * N;
+    int singleN = N;
+    int singleK = N;
+    int K = N;
+
+    matmul_tiling::MultiCoreMatmulTiling mmTiling(platformInfo);
+    mmTiling.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT), true);
+    mmTiling.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT), true);
+    mmTiling.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT));
+    mmTiling.SetBias(false);
+    mmTiling.SetSingleShape(singleM, singleN, singleK);
+    mmTiling.SetOrgShape(M, N, K);
+    mmTiling.SetBufferSpace(-1, -1, 0, -1);
+    mmTiling.SetDim(coreNum);
+
+    if (mmTiling.GetTiling(tilingData.mmTilingData) == -1) {
+        std::cout << "Matmul tiling data is None" << std::endl;
+        return ge::GRAPH_FAILED;
+    }
+
+    matmul_tiling::MultiCoreMatmulTiling mmTilingF(platformInfo);
+    mmTilingF.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT), true);
+    mmTilingF.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT), false);
+    mmTilingF.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, static_cast<matmul_tiling::DataType>(ge::DT_FLOAT));
+    mmTilingF.SetBias(false);
+    mmTilingF.SetSingleShape(singleM, singleN, singleK);
+    mmTilingF.SetOrgShape(M, N, K);
+    mmTilingF.SetBufferSpace(-1, -1, 0, -1);
+    mmTilingF.SetDim(coreNum);
+
+    if (mmTilingF.GetTiling(tilingData.mmTilingDataF) == -1) {
+        std::cout << "Matmul tiling data F is None" << std::endl;
+        return ge::GRAPH_FAILED;
+    }
+
+    tilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
+    context->GetRawTilingData()->SetDataSize(tilingData.GetDataSize());
+    context->SetBlockDim(coreNum);
+
+    size_t userWorkspaceSize = totalWorkspaceSize * sizeof(float);
+    size_t systemWorkspaceSize = static_cast<size_t>(platformInfo.GetLibApiWorkSpaceSize());
+    size_t* currentWorkspace = context->GetWorkspaceSizes(1);
+    currentWorkspace[0] = userWorkspaceSize + systemWorkspaceSize;
+
+    return ge::graphStatus();
+}
+
+ge::graphStatus TilingTsqr(gert::TilingContext* context) {
+    TsqrTiling tsqrTiling;
+    auto ret = tsqrTiling.RunBigKernelTiling(context);
+    return ret;
+}
+
+ge::graphStatus TilingPrepareForTsqr(gert::TilingParseContext* context) {
+    return ge::GRAPH_SUCCESS;
+}
+
+IMPL_OP(Tsqr)
+.Tiling(TilingTsqr)
+.TilingParse<TsqrCompileInfo>(TilingPrepareForTsqr);
+
+} // namespace optiling
