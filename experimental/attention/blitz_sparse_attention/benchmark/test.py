@@ -18,6 +18,7 @@ python test.py
 
 import itertools
 import pytest
+from typing import Tuple
 import torch
 import torch_npu
 import torch_bsa
@@ -79,9 +80,8 @@ def test_blitz_sparse_attention_correctness(torch_ref, a, shape, sparsity):
     )
     
     # Run reference implementation
-    out_ref = ref_blitz_sparse_attention_launcher(torch_ref, q, k, v, head_num=h, 
-                                                  scale=scale, atten_mask=pfa_atten_mask, 
-                                                  input_layout=INPUT_LAYOUT, 
+    out_ref = ref_blitz_sparse_attention_launcher(torch_reference=torch_ref, 
+                                                  pfa_inputs=(q, k, v, h, scale, pfa_atten_mask, INPUT_LAYOUT), 
                                                   force_dense_sm=(sparsity == 0))   
     
     # Compare results (moved to CPU for comparison)

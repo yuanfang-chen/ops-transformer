@@ -18,8 +18,7 @@ Measures:
 import math
 import itertools
 import logging
-from typing import Callable, List
-
+from typing import Callable, List, Tuple
 import torch
 import torch_npu
 import torch_bsa
@@ -85,9 +84,11 @@ torch.set_printoptions(
 )
 
 
-def ref_blitz_sparse_attention_launcher(torch_reference: bool, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, 
-                                        head_num: int, scale: float, atten_mask: torch.Tensor, input_layout: str, 
-                                        force_dense_sm: bool) -> torch.Tensor:
+def ref_blitz_sparse_attention_launcher(
+    torch_reference: bool, 
+    pfa_inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, float, torch.Tensor, str],
+    force_dense_sm: bool
+) -> torch.Tensor:
     """
     runs a reference prompt_flash attention, for correctness comparisons and for baseline time measurements.
     torch_reference = True - launch our custom pythonic model "ref_blitz_sparse_attention_fp32" 
@@ -97,10 +98,11 @@ def ref_blitz_sparse_attention_launcher(torch_reference: bool, q: torch.Tensor, 
                       False - apply sparse mode 1 (sparse token mask) and use the provided atten_mask
      
     """
+    q, k, v, head_num, scale, atten_mask, input_layout = pfa_inputs
     if torch_reference: # use our custom pythonic model
         return ref_blitz_sparse_attention_fp32(q, k, v, scale, atten_mask=atten_mask)
     else:
-        return torch_npu.npu_fusion_attention(q, k, v, head_num=head_num, input_layout=INPUT_LAYOUT, 
+        return torch_npu.npu_fusion_attention(q, k, v, head_num=head_num, input_layout=input_layout, 
                                               scale=scale, pre_tockens=0, next_tockens=0, 
                                               atten_mask=atten_mask,
                                               sparse_mode=0 if force_dense_sm else 1)[0]    
@@ -536,7 +538,8 @@ def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix, device
         if emit_atten_mask and sparsity > 0:
             per_head_block_ids = generate_sparse_blocks_by_row_per_head(s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, 
                                                                             sparsity, h, BLOCK_MASK_SEED)
-            pfa_atten_mask = make_block_mask_per_head(s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_ids, device)
+            pfa_atten_mask = make_block_mask_per_head(s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_ids, 
+                                                      device)
             sabi = torch.tensor(per_head_block_ids, dtype=torch.uint16, device=device)
     elif attention_matrix == "blocks_optimized_batched":
         per_batch_head_block_indices = [
@@ -611,7 +614,8 @@ def _fmt_or_na(value, width, spec=".2f"):
     return f"{value:{width}{spec}}"
 
 
-def _make_our_fn(sabi, h, scale, atten_mask, sm, pre_tok, post_tok):
+def _make_our_fn(sabi, h, scale, atten_mask, sparsity_params):
+    sm, pre_tok, post_tok = sparsity_params
     def fn(q, k, v, seq, seqkv):
         return torch_bsa.blitz_sparse_attention(
             q, k, v,
@@ -627,10 +631,10 @@ def _make_our_fn(sabi, h, scale, atten_mask, sm, pre_tok, post_tok):
 def _make_ref_fn(h, scale, atten_mask, run_ref_sparsity_0):
     def fn(q, k, v, seq, seqkv):
         return ref_blitz_sparse_attention_launcher(
-            TORCH_REFERENCE, q, k, v, head_num=h, scale=scale,
-            atten_mask=atten_mask, input_layout=INPUT_LAYOUT,
-            force_dense_sm=run_ref_sparsity_0,
-        )
+                torch_reference=TORCH_REFERENCE, 
+                pfa_inputs=(q, k, v, h, scale, atten_mask, INPUT_LAYOUT),
+                force_dense_sm=run_ref_sparsity_0,
+            )
     return fn
 
 
@@ -667,7 +671,7 @@ def benchmark_blitz_sparse_attention():
         # When sparsity=0, always run reference as a dense baseline for sanity check
         run_ref_sparsity_0 = sparsity == 0
 
-        our_fn = _make_our_fn(sabi, h, scale, bsa_atten_mask, sm, pre_tok, post_tok)
+        our_fn = _make_our_fn(sabi, h, scale, bsa_atten_mask, (sm, pre_tok, post_tok))
         ref_fn = _make_ref_fn(h, scale, pfa_atten_mask, run_ref_sparsity_0)
 
         # Correctness: compare our output vs reference on shared inputs
