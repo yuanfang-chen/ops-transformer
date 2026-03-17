@@ -118,14 +118,14 @@ public:
                     }
                     CrossCoreWaitFlag(0x2);
                     if (GetSubBlockIdx() == 0) {
-                        CalGCumExp(curState, sTP_->gCumExp_[nvId * seqLength_ + length]);
+                        CalGCumExp(curState, sTP_->gCumExp_[nvId * Sp_ + length]);
                     }
                     CrossCoreSetFlag<0x2, PIPE_MTE3>(0x3);  // 当前state非空，无法直接原子累加，需要覆盖写完通知AIC
                     CrossCoreWaitFlag(0x4);
                 }
                 if ASCEND_IS_AIC {
-                    int mm_offset0 = nvId * seqLength_ * Dk_ + length * Dk_;
-                    int mm_offset1 = nvId * seqLength_ * Dv_ + length * Dv_;
+                    int mm_offset0 = nvId * Sp_ * Dk_ + length * Dk_;
+                    int mm_offset1 = nvId * Sp_ * Dv_ + length * Dv_;
                     CalVPrime(sTP_->kCumdecay_[mm_offset0], curState, sTP_->vInner_[mm_offset1]);
                     CalAttnInter(sTP_->qPrime_[mm_offset0], curState, sTP_->attnInter_[mm_offset1]);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x2);   // 读完之前AIV不能写

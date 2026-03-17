@@ -84,6 +84,7 @@ public:
         pipe_ = sTP_->pipe_;
         chunkSize_ = sTP_->cg->chunkSize;
         seqLength_ = sTP_->cg->length;
+        Sp_ = (seqLength_ + chunkSize_ - 1) / chunkSize_  * chunkSize_;
         chunkNum_ = (seqLength_ + chunkSize_ - 1) / chunkSize_ ;
         coreNum_ = coreNum;
         Nv_ = sTP_->Nv_;
@@ -132,7 +133,7 @@ public:
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(0x4);
                 CrossCoreWaitFlag(0x3);
                 if (GetSubBlockIdx() == 0) {
-                    ReadAttnOut(sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_]);
+                    ReadAttnOut(sTP_->attnInter_[nvId * Sp_ * Dv_ + chunkPos * Dv_]);
                     CalAttnOut(sTP_->attnOut_[chunkPos * Nv_ * Dv_ + nvId * Dv_]);
                 }
             }
@@ -142,8 +143,8 @@ public:
                 // masked_qkt @ v_inner
                 mm3Params<float, float> params{
                     cCFloatGM_[coreId * chunkSize_ * chunkSize_],
-                    sTP_->vInner_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
-                    sTP_->attnInter_[nvId * seqLength_ * Dv_ + chunkPos * Dv_],
+                    sTP_->vInner_[nvId * Sp_ * Dv_ + chunkPos * Dv_],
+                    sTP_->attnInter_[nvId * Sp_ * Dv_ + chunkPos * Dv_],
                     curChunkSize_, Dv_, curChunkSize_, curChunkSize_, Dv_, curChunkSize_};
                 AICProcess<float, float>(params, 1, false, false);
                 CrossCoreSetFlag<0x2, PIPE_FIX>(0x3);
@@ -156,7 +157,7 @@ public:
         int64_t paddingChunkSize = Ceil(curChunkSize_, DATA_BLOCK_SIZE / sizeof(float)) * (DATA_BLOCK_SIZE / sizeof(float));
  
         if (gOptional_) {
-            CopyIn<float>(sTP_->gCumExp_[nvId * seqLength_ + chunkPos], 1, curChunkSize_);
+            CopyIn<float>(sTP_->gCumExp_[nvId * Sp_ + chunkPos], 1, curChunkSize_);
 
             auto g_cum_exp = inQueue_.DeQue<float>();
             const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
@@ -173,7 +174,7 @@ public:
         }
  
         // qkt
-        CopyIn<float>(sTP_->qkt_[nvId * seqLength_ * chunkSize_ + chunkPos * chunkSize_], curChunkSize_, curChunkSize_);
+        CopyIn<float>(sTP_->qkt_[nvId * Sp_ * chunkSize_ + chunkPos * chunkSize_], curChunkSize_, curChunkSize_);
         auto qkt = inQueue_.DeQue<float>();
         auto scale_qkt = outQueue_.AllocTensor<float>();
         Muls(scale_qkt, qkt, sTP_->scale_, curChunkSize_ * paddingChunkSize);
@@ -302,6 +303,7 @@ private:
     int32_t curChunkSize_; 
     int32_t chunkSize_;
     int64_t seqLength_;
+    int64_t Sp_;
     int32_t chunkNum_;
     int32_t coreNum_;
     int64_t Nv_;
