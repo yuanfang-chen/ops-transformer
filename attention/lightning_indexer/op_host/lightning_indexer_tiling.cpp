@@ -151,6 +151,9 @@ ge::graphStatus LIInfoParser::GetAndCheckAttrParaInfo()
     opParamInfo_.preTokens = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKENS_INDEX);
     opParamInfo_.nextTokens = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKENS_INDEX);
     opParamInfo_.returnValue = attrs->GetAttrPointer<bool>(ATTR_RETURN_VALUE_INDEX);
+    printf("tiling return value is:%d\n", *opParamInfo_.returnValue);
+    OP_LOGI(context_->GetNodeName(), "return value is:%d", *opParamInfo_.returnValue);
+
     if (opParamInfo_.layOut != nullptr) {
         OP_LOGI(context_->GetNodeName(), "layout_query is:%s", opParamInfo_.layOut);
     }
@@ -194,8 +197,8 @@ ge::graphStatus LIInfoParser::GetAndCheckAttrParaInfo()
                OP_LOGE(opName_, "input attr pre_tokens only supported INT64_MAX."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*opParamInfo_.nextTokens != INT64_MAX,
                OP_LOGE(opName_, "input attr nextTokens only supported INT64_MAX."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(*opParamInfo_.returnValue && std::string(opParamInfo_.layOutKey) == "PA_BSND",
-               OP_LOGE(opName_, "when return_value is true, key layout do not support PA_BSND."), return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(*opParamInfo_.returnValue && std::string(opParamInfo_.layOutKey) == "PA_BSND",
+    //            OP_LOGE(opName_, "when return_value is true, key layout do not support PA_BSND."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -535,6 +538,8 @@ ge::graphStatus LIInfoParser::ValidateInputShapesMatchQtnd()
                 OP_LOGE(opName_, "TND case input query and sparse_values dim 0 are %u, %ld respectively, they must be same.",
                     qTsize, opParamInfo_.valuesOut.shape->GetStorageShape().GetDim(0)),
                 return ge::GRAPH_FAILED);
+    printf("tiling return value is:%d\n", *opParamInfo_.returnValue);
+    OP_LOGI(context_->GetNodeName(), "return value is:%d", *opParamInfo_.returnValue);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -588,6 +593,8 @@ ge::graphStatus LIInfoParser::ValidateInputShapesMatchQbsnd()
                 OP_LOGE(opName_, "BSND case input query and sparse_values dim 1 are %u, %ld, they must be same.",
                     s1Size_, opParamInfo_.valuesOut.shape->GetStorageShape().GetDim(1)),
                 return ge::GRAPH_FAILED);
+    printf("tiling return value is:%d\n", *opParamInfo_.returnValue);
+    OP_LOGI(context_->GetNodeName(), "return value is:%d", *opParamInfo_.returnValue);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -689,6 +696,9 @@ void LIInfoParser::GenerateInfo(LITilingInfo &liInfo)
     liInfo.preTokens = *opParamInfo_.preTokens;
     liInfo.nextTokens = *opParamInfo_.nextTokens;
     liInfo.returnValue = *opParamInfo_.returnValue;
+
+    printf("tiling return value is:%d\n", *opParamInfo_.returnValue);
+    OP_LOGI(context_->GetNodeName(), "return value is:%d", *opParamInfo_.returnValue);
 
     liInfo.inputQLayout = qLayout_;
     liInfo.inputKLayout = kLayout_;
