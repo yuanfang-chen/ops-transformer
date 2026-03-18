@@ -17,17 +17,7 @@
 #define MX_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
 
 #pragma once
-#include "securec.h"
-#include "tiling/tiling_api.h"
-#include "op_host/op_tiling/mc2_tiling_utils.h"
-#include "tiling_base/tiling_base.h"
-#include "tiling_base/tiling_templates_registry.h"
-#include "mc2_matmul_tiling_cfg.h"
-#include "op_host/op_tiling/new_mc2_tiling_utils.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_base.h"
-#include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-#include "../../../op_kernel/quant_grouped_mat_mul_allto_allv_tiling_key.h"
-#include "register/tilingdata_base.h"
 
 namespace optiling {
 namespace Mc2GroupedMatmul {
@@ -52,8 +42,8 @@ protected:
     bool IsCapable() override;
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
-    ge::graphStatus CheckAndSetInputOutputInfo();
-    ge::graphStatus SetGmmA2avWorkspaceInfo();
+    ge::graphStatus CheckAndSetInputOutputInfo() override;
+    ge::graphStatus SetGmmA2avWorkspaceInfo() override;
 
     ge::graphStatus CheckAndSetLocalParamsGmm() override;
     ge::graphStatus CheckAndSetLocalParamsMm() override;

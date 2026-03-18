@@ -28,14 +28,6 @@ using namespace optiling::Mc2GroupedMatmul;
 
 // namespace Mc2GroupedMatmul {
 
-const std::vector<uint32_t> QUANT_GMM_X_DTYPE_LIST = {ge::DT_HIFLOAT8,};
-const std::vector<uint32_t> QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_HIFLOAT8,};
-const std::vector<uint32_t> QUANT_GMM_X_SCALE_DTYPE_LIST = {ge::DT_FLOAT,};
-const std::vector<uint32_t> QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST = {ge::DT_FLOAT,};
-const std::vector<uint32_t> QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16};
-const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
-constexpr int64_t RANK_DEFAULT_NUM = -1;
-
 static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
     return std::count(list.begin(), list.end(), value) > 0;
@@ -61,40 +53,6 @@ bool TTQuantGroupedMatmulAllToAllvTiling::IsCapable()
     }
     OP_LOGI(opName_, "Skip TTQuantGroupedMatmulAllToAllvTiling TT.");
     return false;
-}
-
-ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
-{
-    auto status = CheckOpInputSingleParamsTensor();
-    if (status != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-    status = CheckAndSetLocalParams();
-    if (status != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-    status = CheckParamsRelationAndSetLocalParams();
-    if (status != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
-{
-    constexpr uint64_t alignAddrLen = 512;
-    auto gmmYDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
-    inferredInfo_.gmmResultLen = mc2tiling::AlignUp(
-        localParams_.A * localParams_.N1 * gmmYDtypeSize, alignAddrLen);
-    localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo_.gmmResultLen;
-    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo_.gmmResultLen +
-        localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
-        localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
-
-    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
