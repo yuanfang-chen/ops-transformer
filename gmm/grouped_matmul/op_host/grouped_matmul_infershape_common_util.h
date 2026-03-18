@@ -45,6 +45,7 @@ constexpr int64_t GMM_NO_SPLIT = -1L;
 constexpr int64_t GMM_SPLIT_M = 0L;
 constexpr int64_t GMM_SPLIT_N = 1L;
 constexpr int64_t GMM_SPLIT_K = 2L;
+constexpr int64_t GMM_BLOCK_SIZE = 32UL;
 
 constexpr int64_t GMM_OUT_DTYPE_INT32 = 2L;
 
