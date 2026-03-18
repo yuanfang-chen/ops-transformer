@@ -66,6 +66,24 @@ def test_mla_prolog_v3_coverage(params):
     check_valid_param.check_result(expect_list, result_list)
 
 
+# ---------- 成对覆盖测试 (eager mode) ----------
+
+@pytest.mark.ci
+@pytest.mark.coverage
+@pytest.mark.eager
+@pytest.mark.parametrize("params", COVERAGE_PARAMS,
+                          ids=[f"cov_eager_{i}" for i in range(len(COVERAGE_PARAMS))])
+def test_mla_prolog_v3_coverage_eager(params):
+    """Coverage test with eager mode (path 0)."""
+    try:
+        check_valid_param.validate_config(params)
+    except ValueError as e:
+        pytest.skip(f"参数校验失败: {e}")
+    eager_params = {**params, "graph_path": "0"}
+    expect_list, result_list = mla_prolog_v3_cpu_ref.test_mla_prolog_v3(eager_params)
+    check_valid_param.check_result(expect_list, result_list)
+
+
 # ---------- Fuzz 测试 ----------
 
 @pytest.mark.fuzz
