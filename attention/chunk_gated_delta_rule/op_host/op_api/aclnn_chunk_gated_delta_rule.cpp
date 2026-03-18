@@ -72,7 +72,7 @@ namespace {
     }
 
     // 校验函数：做 dtype 校验
-    static inline bool CheckDtypeVaild(const ChunkGatedDeltaRuleParams &params) {
+    static inline bool CheckDtypeValid(const ChunkGatedDeltaRuleParams &params) {
         OP_CHECK_DTYPE_NOT_SUPPORT(params.query, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.key, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.value, QKV_TYPE_SUPPORT_LIST, return false);
@@ -93,7 +93,7 @@ namespace {
 
     // 校验函数：这里校验 dtype，shape/rank 约束由 tiling 侧保证
     static aclnnStatus CheckParams(ChunkGatedDeltaRuleParams &params) {
-        CHECK_RET(CheckDtypeVaild(params), ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
         OP_LOGD("ChunkGatedDeltaRule check params success.");
 
         return ACLNN_SUCCESS;

@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_ACLNN_CHUNK_GETED_DELTA_RULE_H
-#define OP_API_ACLNN_CHUNK_GETED_DELTA_RULE_H
+#ifndef OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
+#define OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
 
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
@@ -51,9 +51,9 @@ ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
 /**
  * @brief 
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
- * @param [in] workspace_size: 在npu
+ * @param [in] workspaceSize: 在npu
  * device侧申请的workspace大小，由第一段接口aclnnRecurrentGatedDeltaRuleGetWorkspaceSize获取。
- * @param [in] exector: op执行器，包含了算子计算流程。
+ * @param [in] executor: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
@@ -67,5 +67,5 @@ ACLNN_API aclnnStatus aclnnChunkGatedDeltaRule(
 }
 #endif
 
-#endif // OP_API_ACLNN_CHUNK_GETED_DELTA_RULE_H
+#endif // OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
 

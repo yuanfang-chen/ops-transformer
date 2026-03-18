@@ -293,7 +293,7 @@ namespace optiling {
         const std::string &dimDesc) 
     {
         if (shape.GetDimNum() != dim) {
-            OP_LOGE(context_->GetNodeName(), "The number of dimensons of %s should be %zu, but it is %zu",
+            OP_LOGE(context_->GetNodeName(), "The number of dimensions of %s should be %zu, but it is %zu",
                 dimDesc.c_str(), dim, shape.GetDimNum());
             return false;
         }
@@ -386,8 +386,8 @@ namespace optiling {
             }
 
         if (context_->GetOptionalInputDesc(G_INDEX) != nullptr) {
-            auto gamaFormat = context_->GetOptionalInputDesc(G_INDEX)->GetStorageFormat();
-            OP_CHECK_IF(gamaFormat == ge::FORMAT_FRACTAL_NZ, OP_LOGE(context_->GetNodeName(), "gama format not support NZ"),
+            auto gammaFormat = context_->GetOptionalInputDesc(G_INDEX)->GetStorageFormat();
+            OP_CHECK_IF(gammaFormat == ge::FORMAT_FRACTAL_NZ, OP_LOGE(context_->GetNodeName(), "gama format not support NZ"),
                 return ge::GRAPH_FAILED);
             }
 
