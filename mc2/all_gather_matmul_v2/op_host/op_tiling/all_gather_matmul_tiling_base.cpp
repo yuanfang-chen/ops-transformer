@@ -30,7 +30,7 @@
 #include "tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
 #include "all_gather_formulaic_tiling.h"
-#include "arch35/all_gather_fit_balance_tiling.h"
+#include "all_gather_fit_balance_tiling.h"
 #include "all_gather_matmul_tiling_base.h"
 #include "../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
 
