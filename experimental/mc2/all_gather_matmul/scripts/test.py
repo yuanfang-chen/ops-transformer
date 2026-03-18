@@ -48,7 +48,6 @@ def gen_npu(x1, x2, world_size, rank, queue):
     x2 = x2.npu()
     output_npu, gather_output_npu = torch_npu.npu_all_gather_base_mm(x1, x2, hcom_name, world_size, gather_output=True)
     queue.put((rank, output_npu.cpu().numpy(), gather_output_npu.cpu().numpy()))
-    dist.barrier()
 
 def cal_relativediff_numpy(data_check, data_exepect, diff_thd):
     a = np.abs(np.subtract(data_check, data_exepect))
