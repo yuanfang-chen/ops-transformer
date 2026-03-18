@@ -15,6 +15,8 @@
 
 #ifndef TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
 #define TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#ifndef TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#define TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
 
 #pragma once
 #include "securec.h"
@@ -32,7 +34,9 @@
 namespace optiling {
 namespace Mc2GroupedMatmul {
 class TTQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
+class TTQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
 public:
+    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
     explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
