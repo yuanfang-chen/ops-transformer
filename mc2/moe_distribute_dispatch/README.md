@@ -191,7 +191,7 @@
 <td>dynamicScales</td>
 <td>输出</td>
 <td>量化场景下，表示本卡输出Token的量化系数。</td>
-<td>FLOAT32、FLOAT32_E8M0</td>
+<td>FLOAT32、FLOAT8_E8M0</td>
 <td>ND</td>
 </tr>
 <tr>
@@ -233,14 +233,14 @@
 </table>
 
 * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    * 不支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`、`FLOAT32_E8M0`数据类型。
+    * 不支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`、`FLOAT8_E8M0`数据类型。
     * `quantMode`属性仅支持0和2。
     * 不支持共享专家场景，不支持`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`属性。
     * 仅支持EP域，无TP域，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，`tpRecvCounts`为无效内容。
     * 仅设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0时，`expandScales`内容有效。
 
 * <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-    * 不支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`、`FLOAT32_E8M0`数据类型。
+    * 不支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`、`FLOAT8_E8M0`数据类型。
     * `quantMode`属性仅支持0和2。
     * 不支持`expandScales`。
 
