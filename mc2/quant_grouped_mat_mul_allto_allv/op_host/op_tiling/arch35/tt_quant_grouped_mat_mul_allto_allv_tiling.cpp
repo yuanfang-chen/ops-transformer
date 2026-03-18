@@ -501,7 +501,7 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
             OP_LOGE(opName_, "experts(ep * epWorldSize) max is 256, but now is %lu !", expertNum),
             return ge::GRAPH_FAILED);
     } else {
-        OP_LOGE(opName_, "E_ep[%ld] should be in (0, 32]!!", localParams_.ep);
+        OP_LOGE(opName_, "E_ep[%lu] should be in (0, 32]!", localParams_.ep);
         return ge::GRAPH_FAILED;
     }
 
