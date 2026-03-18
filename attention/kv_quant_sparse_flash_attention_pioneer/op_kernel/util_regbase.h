@@ -115,6 +115,8 @@ struct RunInfo {
     int64_t qSNumInOneBlock;
     int64_t oriKvLoopEndIdx;
     int64_t cmpKvLoopEndIdx;
+
+    bool isSinkIter = false;  // 当前是否为 Sink 迭代
 };
 
 #define COMMON_CONST_INFO \

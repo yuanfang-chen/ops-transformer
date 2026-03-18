@@ -59,6 +59,7 @@ constexpr size_t DIM_NUM_THREE = 3;
 constexpr size_t DIM_NUM_FOUR = 4;
 // 常量
 constexpr uint32_t MAX_BLOCK_SIZE = 1024;
+constexpr uint32_t SINK_TOKEN_NUM = 128;
 constexpr uint32_t COPYND2NZ_SRC_STRIDE_LIMITATION = 65535;
 constexpr uint32_t NUM_BYTES_FLOAT = 4;
 constexpr uint32_t NUM_BYTES_FLOAT16 = 2;
@@ -463,6 +464,7 @@ private:
     ge::graphStatus CheckFeatureMlaAntiquantAttr() const;
     ge::graphStatus CheckFeatureMlaAntiquantPa() const;
     ge::graphStatus CheckFeatureMlaAntiquant() const;
+    ge::graphStatus CheckFeatureSinkParams() const;
     ge::graphStatus CheckFeatureMla() const;
     ge::graphStatus CheckFeature() const;
 
