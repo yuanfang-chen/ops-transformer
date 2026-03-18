@@ -1,10 +1,10 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -102,7 +102,7 @@ static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
     MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + nIdx * lenD + dIdx * eleNumPerVf_); \
     MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask); \
     MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue##nIdx, mask); \
-    MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+    MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask)
 
 template <class T, class P>
 class MhcPreKernelPrefill {
@@ -117,8 +117,6 @@ public:
     __aicore__ inline void InitHMixBuffer(InitParams initParams);
     __aicore__ inline void InitPipeAndCoreIdx(TPipe *pipe);
     __aicore__ inline void Process();
-    __aicore__ inline void ProcessSingleBlock(uint64_t curblock, uint32_t tBlockNum);
-    __aicore__ inline void ProcessNdLoop(uint64_t outOffset);
     __aicore__ inline void InitBlockParams(uint64_t curblock, uint32_t tBlockNum);
     __aicore__ inline void AICProcess(uint32_t offsetNd, uint32_t outOffset);
     __aicore__ inline void InitUbBuffers();
@@ -868,9 +866,6 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1Prologue(uint64_t offsetT,
             }
         }
     }
-
-    // SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
-    // WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
 
     Gather(hPreBuff_, matmulRes_, preOffsetBuf_, uint32_t(0), lenT * N_);
     Gather(hPostBuff_, matmulRes_, postOffsetBuf_, uint32_t(0), lenT * N_);

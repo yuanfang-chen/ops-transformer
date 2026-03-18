@@ -1,10 +1,10 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -97,7 +97,6 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
     hasGamma_ = (gammaTensor == nullptr) ? 0 : 1;
 
     auto xDims = xTensor->GetStorageShape().GetDimNum();
-
     if (xDims == BSND_DIM_NUM) {
         return ParseBsndFormat(xTensor);
     } else if (xDims == TND_DIM_NUM) {
@@ -140,7 +139,6 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 {
     auto phiTensor = context_->GetDynamicInputTensor(PHI_INDEX, 0);
     auto phiDims = phiTensor->GetStorageShape().GetDimNum();
-
     if (phiDims < 2) {
         OP_LOGE(context_->GetNodeName(), "Phi dims[%u] is invalid", phiDims);
         return ge::GRAPH_FAILED;
@@ -166,24 +164,6 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 
     matM_ = totalLength_;
     matN_ = phiTensor->GetStorageShape().GetDim(0);
-
-    if (totalLength_ <= DECODE_BS_THRESHOLD) {
-        tilingMode_ = TilingMode::DECODE;
-    } else {
-        tilingMode_ = TilingMode::PREFILL;
-    }
-    
-    if (tilingMode_ == TilingMode::DECODE) {
-        chunkTSize_ = DECODE_CHUNK_T_SIZE;
-        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
-    } else {
-        chunkTSize_ = (((totalLength_ + blockDim_ - 1) / blockDim_) + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR *
-                      CHUNK_T_CALC_FACTOR;
-        if (chunkTSize_ > CHUNK_T_MAX) {
-            chunkTSize_ = CHUNK_T_MAX;
-        }
-        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
-    }
 
     uint64_t phiSecondDim = phiTensor->GetStorageShape().GetDim(1);
     if (phiSecondDim != matK_) {
@@ -315,6 +295,24 @@ void MhcPreBaseTiling::FillTilingData()
 
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
+    if (totalLength_ <= DECODE_BS_THRESHOLD) {
+        tilingMode_ = TilingMode::DECODE;
+    } else {
+        tilingMode_ = TilingMode::PREFILL;
+    }
+    
+    if (tilingMode_ == TilingMode::DECODE) {
+        chunkTSize_ = DECODE_CHUNK_T_SIZE;
+        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
+    } else {
+        chunkTSize_ = (((totalLength_ + blockDim_ - 1) / blockDim_) + CHUNK_T_CALC_FACTOR - 1) / CHUNK_T_CALC_FACTOR *
+                      CHUNK_T_CALC_FACTOR;
+        if (chunkTSize_ > CHUNK_T_MAX) {
+            chunkTSize_ = CHUNK_T_MAX;
+        }
+        v1ChunkDSize_ = V1_CHUNK_D_SIZE;
+    }
+
     size_t userWorkspaceSize;
     size_t systemWorkspaceSize = SYSTEM_WORKSPACE;
 
@@ -336,6 +334,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
              WORKSPACE_MULT_A * WORKSPACE_MULT_B * (KERNEL_WIDTH * KERNEL_WIDTH + WORKSPACE_MULT_A * KERNEL_WIDTH)) *
             sizeof(float) * blockDim_;
     }
+    workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
 
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, false);
     mm_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, true);
@@ -348,8 +347,6 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
         OP_LOGE(context_->GetNodeName(), "MhcPre Tiling get tiling failed, batch: %lu, m: %lu", totalLength_, matM_);
         return ge::GRAPH_FAILED;
     }
-
-    workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
 
     return ge::GRAPH_SUCCESS;
 }

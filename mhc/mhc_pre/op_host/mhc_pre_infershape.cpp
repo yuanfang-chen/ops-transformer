@@ -1,10 +1,10 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -45,7 +45,7 @@ const constexpr int64_t TND_DIM_NUM = 3;
 const constexpr int64_t INDEX_B_BSND = 0;
 const constexpr int64_t INDEX_S_BSND = 1;
 const constexpr int64_t INDEX_N_BSND = 2;
-const constexpr int64_t IEDEX_D_BSND = 3;
+const constexpr int64_t INDEX_D_BSND = 3;
 
 const constexpr int64_t INDEX_T_TND = 0;
 const constexpr int64_t INDEX_N_TND = 1;
@@ -60,7 +60,7 @@ static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
         OP_CHECK_NULL_WITH_CONTEXT(context, phiShape);
 
     int64_t xShapeDim = xShape->GetDimNum();
-    int64_t phiShapeDim = xShape->GetDimNum();
+    int64_t phiShapeDim = phiShape->GetDimNum();
     auto outHinShape = context->GetOutputShape(OUT_H_IN_INDEX);
     auto outHpostShape = context->GetOutputShape(OUT_H_POST_INDEX);
     auto outHresShape = context->GetOutputShape(OUT_H_RES_INDEX);
@@ -79,7 +79,7 @@ static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
         uint64_t batch = xShape->GetDim(INDEX_B_BSND);
         uint64_t sequence = xShape->GetDim(INDEX_S_BSND);
         uint64_t numsResidual = xShape->GetDim(INDEX_N_BSND);
-        uint64_t dimen = xShape->GetDim(IEDEX_D_BSND);
+        uint64_t dimen = xShape->GetDim(INDEX_D_BSND);
 
         outHinShape->SetDimNum(BSND_DIM_NUM - 1);
         outHinShape->SetDim(0, batch);
@@ -110,7 +110,6 @@ static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
         outHpreShape->SetDim(0, batch);
         outHpreShape->SetDim(1, sequence);
         outHpreShape->SetDim(2, numsResidual);
-
     } else if (xShapeDim == TND_DIM_NUM) {
         uint64_t t = xShape->GetDim(INDEX_T_TND);
         uint64_t numsResidual = xShape->GetDim(INDEX_N_TND);

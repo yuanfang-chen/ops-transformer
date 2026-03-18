@@ -1,10 +1,10 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -174,8 +174,8 @@ private:
     uint32_t minT_ = 1;
     uint32_t vectorCoreNum = 2;
     uint32_t V0_BASE_T = 1;      // V0 的 T 维分块
-    uint64_t V1_BASE_T = 8;      // V1 的 T 维分块 TODO
-    uint64_t V1_BASE_D = 32;     // V1 的 D 维分块 TODO
+    uint64_t V1_BASE_T = 8;      // V1 的 T 维分块
+    uint64_t V1_BASE_D = 32;     // V1 的 D 维分块
     uint32_t ND_LENGTH = 2048;   // nD 分块长度
 };
 
@@ -212,7 +212,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
     outFlag_ = (tiling_->outFlag != 0);
     scaleMean_ = tiling_->scaleMean;
     chunTSize_ = tiling_->chunkTSize;
-    // chunNDSize_ = tiling_->chunkNDSize;
     v1ChunkDSize_ = tiling_->v1ChunkDSize;
     hasGamma_ = (tiling_->hasGamma != 0);
 
@@ -225,11 +224,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
 
     chunNDSize_ = Ceil(matrixInfo_.nD, coreNum_);
     chunTSize_ = Ceil(totalLength_, coreNum_);
-
-    // V0_BASE_T = chunTSize_ / vectorCoreNum;      // V0 的 T 维分块
-    // V1_BASE_T = chunTSize_ / vectorCoreNum;       // V1 的 T 维分块 TODO
-    // V1_BASE_D = 32;     // V1 的 D 维分块 TODO
-    // ND_LENGTH = (((8 * 1024) / V0_BASE_T) / 1024) * 1024;   // nD 分块长度
 
     mnConfig_.m = matrixInfo_.totalLength;
     mnConfig_.n = matrixInfo_.fusionSize;
@@ -251,7 +245,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
         tempMMResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
     }
     else {
-        // 保持 mmRes workspace 偏移与xFloat 一致.
         mmResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
         tempMMResGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.workspace + xFloatWorkspaceBytes));
     }
@@ -263,9 +256,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Init(InitParamsDecode initParam
 
     if ASCEND_IS_AIV {
         InitLocalBuffers();
-        // 需移除：Duplicate<float>(oneUb_, 1.0f, curSingleM_ / 2);
-        // 新增：oneUb_按Ceil(curSingleM_/2)长度填充，避免奇数长度时Div越界读取。
-        // Duplicate<float>(oneUb_, 1.0f, Ceil(curSingleM_, 2)); // 全为1的tensor，用于计算倒数
     }
 
     SyncAll<false>();
@@ -283,7 +273,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::InitLocalBuffers()
         pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P));
     }
     
-    pipe_->InitBuffer(tmpBuff_, 20 * 1024); // 40KB
+    pipe_->InitBuffer(tmpBuff_, 20 * 1024);
 
     pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P));
     pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P));
@@ -302,21 +292,9 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::InitLocalBuffers()
     buffOffset += N_ * N_ * V1_BASE_T * sizeof(uint32_t);
     buffOffset = Ceil(buffOffset, 32) * 32;
 
-    // oneUb_ = tmpBuff_.GetWithOffset<float>(Ceil(curSingleM_, 2), buffOffset);
-    // buffOffset += Ceil(curSingleM_, 2) * sizeof(float);
-    // buffOffset = Ceil(buffOffset, 32) * 32;
-
     hPreBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
     buffOffset = Ceil(buffOffset, 32) * 32;
-    
-    // inputBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T * V1_BASE_D), buffOffset);
-    // buffOffset += mnConfig_.n * V1_BASE_T * V1_BASE_D * sizeof(P);
-    // buffOffset = Ceil(buffOffset, 32) * 32;
-
-    // broadCastTmpUb_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T), buffOffset);
-    // buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
-    // buffOffset = Ceil(buffOffset, 32) * 32;
 
     hPostBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
@@ -353,7 +331,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::Process()
     }
 
     if ASCEND_IS_AIV {
-        // V0PostProcess();
         invRmsOutQueue_.FreeTensor(invRmsUb_);
         biasInQue_.FreeTensor(biasInUb_);
     }
@@ -381,7 +358,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1GetHSliceOffset()
             curOffset++;
         }
     }
-
 }
 template <class T, class P>
 __aicore__ inline void MhcPreKernelDecode<T, P>::AICProcess()
@@ -657,8 +633,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1Prologue(uint64_t offsetT, 
         }
     }
 
-    
-
     Gather(hPreBuff_, matmulRes_, preOffsetBuf_, uint32_t(0), lenT * N_);
     Gather(hPostBuff_, matmulRes_, postOffsetBuf_, uint32_t(0), lenT * N_);
     Gather(hResOutLocal, matmulRes_, resOffsetBuf_, uint32_t(0), lenT * N_ * N_);
@@ -712,7 +686,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1ProcessHPre(uint64_t offset
 template <class T, class P>
 __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
 {
-    // auto hInDealBuf = inputBuff_;
     for (uint32_t tIdx = 0; tIdx < lenT; tIdx++) { 
         for (int offsetD = 0; offsetD < D_; offsetD += v1ChunkDSize_) { 
             
@@ -752,7 +725,7 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::AIV1ProcessHIn(uint64_t offsetT
             hinOut = outQueue_.DeQue<T>();
             DataCopyExtParams copyParams;
             copyParams.blockCount = 1;
-            copyParams.blockCount = 1; // 行数
+            copyParams.blockCount = 1; 
             copyParams.blockLen = uint32_t(lenD * sizeof(T));
             copyParams.srcStride = 0;
             copyParams.dstStride = 0;
@@ -858,7 +831,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::HMixCopyIn(uint64_t offset, uin
 
     DataCopyPad(hMixLocal, mmResGm_[offset], copyParams, copyPadParams);
 
-    // TODO
     xInQueue_.EnQue(hMixLocal);
 }
 
@@ -953,9 +925,6 @@ __aicore__ inline void MhcPreKernelDecode<T, P>::DataCopyOutInvRmsUb(uint32_t cu
 template <class T, class P>
 __aicore__ inline void MhcPreKernelDecode<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
 {
-    // outQueue_.EnQue<P>(x);
-    // x = outQueue_.DeQue<P>();
-    
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
     copyParams.blockLen = uint32_t(curNdLen * sizeof(P));
