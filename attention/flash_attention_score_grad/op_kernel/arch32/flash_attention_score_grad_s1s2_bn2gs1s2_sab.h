@@ -20,6 +20,7 @@
 #include "lib/matmul_intf.h"
 #include "pse.h"
 #include "dropmask.h"
+#include "custom_sab_vec.h"
 
 using namespace matmul;
 
@@ -28,32 +29,32 @@ constexpr inline MatmulConfig SAB_NORM_DISABLE_INIT = {true,  false, false, 0,  
                                                    0,     0,     true,  false, false, false, false, false};
 constexpr MatmulConfig CFG_DIS_UNIT_FLAG_EXCEED = GetNormalConfig(true, false, false, BatchMode::BATCH_LESS_THAN_L1, true, IterateOrder::UNDEF, ScheduleType::INNER_PRODUCT, false);
 
-struct DBParams {
-  int64_t blockId;
-  int64_t taskId;
-  int64_t bIdx;
-  int64_t n2Idx;
-  int64_t s2oIdx;
-  int64_t gIdx;
-  int64_t s1oIdx;
-  int32_t s1CvExtend;
-  int32_t s2CvExtend;
-  int32_t s1CvExtendAlign;
-  int32_t s2CvExtendAlign;
-  int64_t aTensorOffsetCv{0};
-  int64_t aTensorOffsetCv_rope{0};
-  int64_t bTensorOffsetCv{0};
-  int64_t bTensorOffsetCv_rope{0};
-  int64_t actualS1Len{0};
-  int64_t actualS2Len{0};
-  int64_t s1Stride;
-  int64_t s2Stride;
-  int64_t blockIdArr[24];  //确定性计算预留
-  int32_t s1CvExtendArr[24];
-  int32_t s2CvExtendArr[24];
-  int8_t dqGroupId[24];
-  int8_t kvGroupId[24];
-};
+// struct DBParams {
+//   int64_t blockId;
+//   int64_t taskId;
+//   int64_t bIdx;
+//   int64_t n2Idx;
+//   int64_t s2oIdx;
+//   int64_t gIdx;
+//   int64_t s1oIdx;
+//   int32_t s1CvExtend;
+//   int32_t s2CvExtend;
+//   int32_t s1CvExtendAlign;
+//   int32_t s2CvExtendAlign;
+//   int64_t aTensorOffsetCv{0};
+//   int64_t aTensorOffsetCv_rope{0};
+//   int64_t bTensorOffsetCv{0};
+//   int64_t bTensorOffsetCv_rope{0};
+//   int64_t actualS1Len{0};
+//   int64_t actualS2Len{0};
+//   int64_t s1Stride;
+//   int64_t s2Stride;
+//   int64_t blockIdArr[24];  //确定性计算预留
+//   int32_t s1CvExtendArr[24];
+//   int32_t s2CvExtendArr[24];
+//   int8_t dqGroupId[24];
+//   int8_t kvGroupId[24];
+// };
 
 struct IndexParams {
     int64_t bIdx;
@@ -63,47 +64,8 @@ struct IndexParams {
     int64_t s1oIdx;
 };
 
-__aicore__ inline void DataCopyOutForNz(const __gm__ void *gm, const LocalTensor<int8_t> &co1Local,
-                                   const void *dataCopyOutParams, const uint64_t tilingPtr, const uint64_t dataPtr)
-{
-    const DataCopyOutParams *param = reinterpret_cast<const DataCopyOutParams *>(dataCopyOutParams);
-    uint64_t dstStride = tilingPtr * 16 / 8 - param->burstLen;
-    FixpipeParams<float> fixpipeParams(param->cBurstNum, param->burstLen, param->srcStride,
-                                       static_cast<uint32_t>(dstStride));
 
-    if (param->enUnitFlag) {
-        fixpipeParams.unitFlag = 3;
-    }
-    LocalTensor<float> tmpLocal = co1Local.template ReinterpretCast<float>();
-    GlobalTensor<float> tmpGm;
-    tmpGm.SetGlobalBuffer((__gm__ float *)(gm));
-    Fixpipe(tmpGm, tmpLocal, fixpipeParams);
-}
 
-// FAGType define
-template <typename T1, typename T2, const uint32_t IS_ATTEN_MASK = 0, const uint32_t IS_PSE = 1,
-          const uint32_t IS_DROP = 1, const CubeFormat MM_OUT_FORMAT = CubeFormat::ND, const uint32_t INPUT_LAYOUT = 0,
-          const CubeFormat MM2_OUT_FORMAT = CubeFormat::NZ, const uint32_t IS_DTM = 0,
-          const STemplateType S1TEMPLATETYPE = STemplateType::NotAligned,
-          const STemplateType S2TEMPLATETYPE = STemplateType::NotAligned,
-          const DTemplateType DTEMPLATETYPE = DTemplateType::NotAligned,
-          const uint32_t HAS_ROPE = 0,
-          typename... Args>
-struct FAGType {
-    using t1 = T1;
-    using t2 = T2;
-    static constexpr uint32_t isAttenMask = IS_ATTEN_MASK;
-    static constexpr uint32_t isPse = IS_PSE;
-    static constexpr uint32_t isDrop = IS_DROP;
-    static constexpr CubeFormat mmOutFormat = MM_OUT_FORMAT;
-    static constexpr uint32_t inputLayout = INPUT_LAYOUT;
-    static constexpr CubeFormat mm2OutFormat = MM2_OUT_FORMAT;
-    static constexpr uint32_t isDtm = IS_DTM;
-    static constexpr STemplateType s1TemplateType = S1TEMPLATETYPE;
-    static constexpr STemplateType s2TemplateType = S2TEMPLATETYPE;
-    static constexpr DTemplateType dTemplateType = DTEMPLATETYPE;
-    static constexpr uint32_t hasRope = HAS_ROPE;
-};
 
 template <typename FAGT>
 class FlashAttentionScoreGradS1s2Bn2gs1s2SameAB {
@@ -258,6 +220,8 @@ protected:
     uint32_t vecBlockNum;
 
     const FlashAttentionScoreGradTilingDataS1s2Bn2gs1s2SameAb *__restrict TilingData;
+    cutom_sab_vec<FAGT> customSabVecOp;
+
 
     // input
     GlobalTensor<T1> keyGm, valueGm, dxGm, queryGm, forwardResGm, pseGm;
@@ -443,6 +407,18 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::Init(
                           __gm__ uint8_t *workspace,
                           const FlashAttentionScoreGradTilingDataS1s2Bn2gs1s2SameAb *__restrict ordTilingData)
 {
+    if ASCEND_IS_AIV {
+        AscendC::PRINTF("za::FlashAttentionScoreGradS1s2Bn2gs1s2SameAB init begain");
+        // 初始化 cutom_sab_vec 成员变量
+        customSabVecOp.Init(key, keyRope, value, dx, query, queryRope,
+                            pse_shift, drop_mask, atten_mask,
+                            forward_res, softmax_max, softmax_sum, sink,
+                            prefixN, actual_seq_qlen, actual_seq_kvlen,
+                            dq, dqRope, dk, dkRope, dv, dpse, dsink,
+                            workspace, ordTilingData);  
+        AscendC::PRINTF("za::FlashAttentionScoreGradS1s2Bn2gs1s2SameAB init end");
+    }
+
     keyGm.SetGlobalBuffer((__gm__ T1 *)key);
     valueGm.SetGlobalBuffer((__gm__ T1 *)value);
     dxGm.SetGlobalBuffer((__gm__ T1 *)dx);
@@ -661,7 +637,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::InitBuff
 {
     pipe = pipe_in;
     if ASCEND_IS_AIV {
-        pipe->InitBuffer(unifiedBuffer, TOTAL_SIZE);
+        customSabVecOp.InitBuffer(pipe);
         if constexpr (IS_PSE == ENABLE) {
             uint32_t pseShapeType = TilingData->s1s2BNGS1S2BaseParams.pseShapeType;
             pseInfo.s2Size = s2;
@@ -3692,134 +3668,11 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
 
 template <typename FAGT>
 __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeVec(DBParams& dbParam)
-{
-    int64_t actualS1Len;
-    int64_t actualS2Len;
+{                                                                                                                                                           \
+    AscendC::PRINTF("za::FlashAttentionScoreGradS1s2Bn2gs1s2SameAB ComputeVec begain");
 
-    s2VecSize = dbParam.s2CvExtend > VEC_S2_LEN ? VEC_S2_LEN : dbParam.s2CvExtend;
-    s2VecLoop = s2VecSize == 0 ? 0 : CeilDiv(dbParam.s2CvExtend, s2VecSize);
-   if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        if (dbParam.s2CvExtend < VEC_S2_LEN * 2) {
-            s2VecSize = AlignUp(CeilDiv(dbParam.s2CvExtend, 2), C0_SIZE);
-            s2VecLoop = 2;
-        }
-        if (dbParam.s2CvExtend <= C0_SIZE) {
-            s2VecSize = dbParam.s2CvExtend;
-            s2VecLoop = 1;
-        }
-    }
-    uint32_t s2AlignFactor = BLOCK_SIZE / 2;   // float32 also align to 16.
-    if constexpr (IS_DROP == ENABLE || IS_ATTEN_MASK == ENABLE) {
-        // last dim 32B align
-        s2AlignFactor = BLOCK_SIZE / sizeof(uint8_t);
-    }
-
-    s1VecSize = baseMN / AlignUp(s2VecSize, s2AlignFactor);
-    s1VecSize = s1VecSize > dbParam.s1CvExtend ? dbParam.s1CvExtend : s1VecSize;
-    s1VecSize = s1VecSize > 128 ? 128 : s1VecSize;
-    s1VecLoop = s1VecSize == 0 ? 0 : CeilDiv(dbParam.s1CvExtend, s1VecSize);
-    dropMaskInfo.splitS1BaseSize = s1VecSize;
-    if constexpr (INPUT_LAYOUT == TND) {
-        UpdateToken(dbParam.bIdx);
-        GetSeqQlenKvlenByBidx(dbParam.bIdx, dbParam.actualS1Len, dbParam.actualS2Len);
-        dropMaskInfo.s2TotalSize = dbParam.actualS2Len;
-        int64_t bSSOffset = 0;
-        int64_t s2Accu = 0;
-        for (int64_t bidx = 0; bidx < dbParam.bIdx; bidx++) {
-            GetSeqQlenKvlenByBidx(bidx, actualS1Len, actualS2Len);
-            bSSOffset += actualS1Len * actualS2Len;
-            s2Accu += actualS2Len;
-        }
-        dropMaskInfo.bSSOffset = bSSOffset;
-        dropMaskInfo.s1Size = dbParam.actualS1Len;
-        dropMaskInfo.s2Size = dbParam.actualS2Len;
-        pseInfo.bSSOffset = bSSOffset;
-        pseInfo.s2SizeAcc = s2Accu;
-        pseInfo.s1Size = dropMaskInfo.s1Size;
-        pseInfo.s2Size = dropMaskInfo.s2Size;
-    } else {
-        dropMaskInfo.s2TotalSize = s2;
-        dropMaskInfo.bSSOffset = dbParam.bIdx * s1 * s2;
-        pseInfo.s2SizeAcc = dbParam.bIdx * s2;
-        pseInfo.bSSOffset = dropMaskInfo.bSSOffset;
-    }
-    // for compute dropout mask offset
-    dropMaskInfo.gOutIdx = dbParam.gIdx;
-    dropMaskInfo.n2OutIdx = dbParam.n2Idx;
-    dropMaskInfo.s1OutIdx = dbParam.s1oIdx;
-
-    ///////////////////////////////////////////////////////////////
-    // SoftmaxGradFront
-    ///////////////////////////////////////////////////////////////
-    sfmgOffset = 0;
-    if constexpr(INPUT_LAYOUT == TND) {
-        if (dbParam.bIdx > 0) {
-            sfmgOffset = n2 * g * ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * 8;
-        }
-        sfmgOffset += ((dbParam.n2Idx * g + dbParam.gIdx) * dbParam.actualS1Len + dbParam.s1oIdx * s1CvInner) * 8;
-    } else {
-        sfmgOffset = (((dbParam.bIdx * n2 + dbParam.n2Idx) * g + dbParam.gIdx) * s1 + dbParam.s1oIdx * s1CvInner) * 8;
-    }
-    int32_t loopSize = s1VecLoop * s2VecLoop;
-    int32_t halfLoop = 0;
-    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        halfLoop = (s2VecLoop / 2) * s1VecLoop;
-    } else {
-        halfLoop = (s1VecLoop / 2) * s2VecLoop;
-    }
-
-    vecLoopStart = cSubIdx ? halfLoop : 0;
-    vecLoopEnd = cSubIdx ? loopSize : halfLoop;
-    preS1Idx = -1;
-    event_t mte2WaitMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-    AscendC::SetFlag<HardEvent::MTE3_MTE2>(static_cast<int32_t>(mte2WaitMte3));
-    AscendC::WaitFlag<HardEvent::MTE3_MTE2>(static_cast<int32_t>(mte2WaitMte3));
-    float dsinkSumLocal = 0.0f;
-    for (int32_t i = vecLoopStart, loopCnt = 0; i < vecLoopEnd; i++, loopCnt++) {
-        int32_t curS1Idx;
-        int32_t curS2Idx;
-        if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-            curS1Idx = i % s1VecLoop;
-            curS2Idx = i / s1VecLoop;
-        } else {
-            curS1Idx = i / s2VecLoop;
-            curS2Idx = i % s2VecLoop;
-        }
-        s1ExtendSubGraph = (curS1Idx == s1VecLoop - 1) ? (dbParam.s1CvExtend - (s1VecLoop - 1) * s1VecSize) : s1VecSize;
-        dropMaskInfo.s1CopySize = s1ExtendSubGraph;
-        // for compute dropout mask offset
-        dropMaskInfo.s1InnerIdx = curS1Idx;
-        // for compute dropout mask
-        dropMaskInfo.firstAxis = s1ExtendSubGraph;
-
-        
-        event_t mte2WaitMte3A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
-        event_t mte2WaitMte3B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
-        SubGrapA(loopCnt, curS1Idx, curS2Idx, dbParam, mte2WaitMte3A);
-        SubGrapB(loopCnt, s1VecLoop, s2VecLoop, curS1Idx, curS2Idx, dbParam, mte2WaitMte3B, &dsinkSumLocal);
-
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3A);
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3B);
-    }
-
-    // workspace is n1 * b * s1Outer * s2Outer * subcore
-    if (unlikely(TilingData->s1s2BNGS1S2BaseParams.sink == 1)) {
-        int32_t s1Pad = (TilingData->postTilingData.s1 + 255) / 256 * 256;
-        int32_t s2Pad = (TilingData->postTilingData.s2 + 255) / 256 * 256;
-        int32_t dataSizePerS1S2 = s1Pad * s2Pad / TilingData->postTilingData.baseMN;
-        int32_t dataSizePerN1 = TilingData->postTilingData.b * dataSizePerS1S2;
-        int32_t dsinksumLoc = cSubIdx;
-        dsinksumLoc += dbParam.s2oIdx * 2;
-        dsinksumLoc += dbParam.s1oIdx * s2Pad / 256 * 2;
-        dsinksumLoc += (dbParam.gIdx + g * dbParam.n2Idx) * dataSizePerN1 + dbParam.bIdx * dataSizePerS1S2;
-
-        LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
-        AscendC::PipeBarrier<PIPE_ALL>();
-        localDsink.SetValue(0, dsinkSumLocal);
-        AscendC::PipeBarrier<PIPE_ALL>();
-        DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1, sizeof(float), 0, 0});
-        AscendC::PipeBarrier<PIPE_ALL>();
-    }
+    customSabVecOp.ComputeVec(dbParam);    
+    AscendC::PRINTF("za::FlashAttentionScoreGradS1s2Bn2gs1s2SameAB ComputeVec end");    
 }
 
 template <typename FAGT>
