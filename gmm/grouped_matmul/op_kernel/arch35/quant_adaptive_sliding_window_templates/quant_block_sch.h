@@ -178,7 +178,12 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
                 scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
                 params_.xScaleGroupAddrOffset += params_.m * scaleK;
-                params_.wScaleGroupAddrOffset += params_.n * scaleK;
+                // grouplisttype==2 且 M 轴分组：权重按 group 索引连续存放，scale 也需按 groupIdx 直接索引
+                if (isSparseM) {
+                    params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * scaleK;
+                } else {
+                    params_.wScaleGroupAddrOffset += params_.n * scaleK;
+                }
             } else if constexpr (aTrans && !bTrans) { // mx (k / 64 + G, m, 2)
                 // scaleK from (k0 + k1 + k2 + ... + k_{i - 1}) / 64 + Gi, cumsum
                 // n在host侧已保证不会为0
@@ -188,9 +193,19 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             }
         } else { // 当perChannel/perToken（重点场景）计算offset，kernel侧在perTensor场景下直接使用groupIdx偏移，减少分支判断
             params_.xScaleGroupAddrOffset += params_.m;
-            params_.wScaleGroupAddrOffset += params_.n;
+            // grouplisttype==2 且 M 轴分组：B 的 perchannel scale 与 B 一样按 groupIdx 直接索引
+            if (isSparseM) {
+                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
+            } else {
+                params_.wScaleGroupAddrOffset += params_.n;
+            }
         }
-        params_.biasGroupAddrOffset += params_.n;
+        // bias 跟随 weight 的分组方式（若为 sparse M 则同样按 groupIdx 直接索引）
+        if (isSparseM) {
+            params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
+        } else {
+            params_.biasGroupAddrOffset += params_.n;
+        }
     }
 
     // 需要kernel传参m,n,k, 兼容group_type=0,2和多tensor情况

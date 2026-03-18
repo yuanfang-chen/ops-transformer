@@ -60,10 +60,10 @@ protected:
         AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT,
         AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_TRUNC};
     constexpr static AscendC::MicroAPI::CastTrait castTraitF32tofp8 = {
-        AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT,
+        AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::SAT,
         AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
     constexpr static AscendC::MicroAPI::CastTrait castTraitF32toh8 = {
-        AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT,
+        AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::SAT,
         AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_ROUND};
 
     template <typename T>
@@ -396,9 +396,12 @@ Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::CalculateScale
         AscendC::MicroAPI::MaskReg preg1 = AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
         AscendC::MicroAPI::UnalignReg ureg0;
 
-        AscendC::MicroAPI::Duplicate(vregReduceMax, maxValue, preg1);
-        // 1. 计算scale: reduceMax / fp8MaxLimit
-        AscendC::MicroAPI::Muls(vregScale, vregReduceMax, this->recipFP8MaxLimit_, preg1);
+        // Avoid 0 scale causing 0/0 or x/0 (INF/NaN) in quantization.
+        float safeMaxValue = (maxValue > 0.0f) ? maxValue : 0.0f;
+        float safeScale = (safeMaxValue == 0.0f) ? 1.0f : (safeMaxValue * this->recipFP8MaxLimit_);
+        AscendC::MicroAPI::Duplicate(vregReduceMax, safeMaxValue, preg1);
+        // 1. scale = max / fp8MaxLimit (or 1.0 when max==0)
+        AscendC::MicroAPI::Duplicate(vregScale, safeScale, preg1);
         // 2. 存储scale到内存（用于反量化）
         AscendC::MicroAPI::DataCopyUnAlign<float, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             scaleAddr, vregScale, ureg0, 1);

@@ -363,7 +363,8 @@ __aicore__ inline void BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_
             AscendC::MicroAPI::Compare<uint16_t, AscendC::CMPMODE::NE>(cmpResult, vdMaxExp, expMask,
                                                                        preMaskScale); // INF/NAN
             AscendC::MicroAPI::Compare<uint16_t, AscendC::CMPMODE::NE>(zeroMask, vdMaxExp, zeroRegTensor, preMaskScale);
-            AscendC::MicroAPI::Compare<uint16_t, AscendC::CMPMODE::LE>(invalidDataMask, vdMaxExp, maxExpValue,
+            // Clamp exponent to fpEmax_ when it exceeds fpEmax_ (avoid over-clamping normal values).
+            AscendC::MicroAPI::Compare<uint16_t, AscendC::CMPMODE::GT>(invalidDataMask, vdMaxExp, maxExpValue,
                                                                        preMaskScale);
             AscendC::MicroAPI::Select<uint16_t>(vdMaxExp, maxExpValue, vdMaxExp, invalidDataMask);
             AscendC::MicroAPI::Sub(sharedExp, vdMaxExp, maxExpValue, preMaskScale);
