@@ -38,7 +38,6 @@ constexpr int64_t PSE_INNER_MUL_ADD_TYPE = 2;
 constexpr int64_t PSE_INNER_MUL_ADD_SQRT_TYPE = 3;
 constexpr int64_t PSE_NONE_TYPE = 9;
 
-// 公共校验函数
 // singlepara
 ge::graphStatus PSEChecker::CheckPseType(const FiaTilingInfo &fiaInfo)
 {

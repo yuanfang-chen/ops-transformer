@@ -480,14 +480,6 @@ ge::graphStatus PagedAttentionChecker::CheckSinglePara(const FiaTilingInfo &fiaI
         ge::GRAPH_SUCCESS != CheckQDtypeSupport(fiaInfo)) {
             return ge::GRAPH_FAILED;
     }
-
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -502,14 +494,6 @@ ge::graphStatus PagedAttentionChecker::CheckParaExistence(const FiaTilingInfo &f
         ge::GRAPH_SUCCESS != CheckSeqLengthKVExistence(fiaInfo)) {
             return ge::GRAPH_FAILED;
     }
-
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -522,13 +506,6 @@ ge::graphStatus PagedAttentionChecker::CheckFeature(const FiaTilingInfo &fiaInfo
             return ge::GRAPH_FAILED;
     }
 
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -542,14 +519,6 @@ ge::graphStatus PagedAttentionChecker::CheckMultiPara(const FiaTilingInfo &fiaIn
         ge::GRAPH_SUCCESS != CheckPADimNum(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckBlockTableShape(fiaInfo)) {
             return ge::GRAPH_FAILED;
-        }
-
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }

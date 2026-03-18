@@ -2103,9 +2103,7 @@ ge::graphStatus DequantChecker::CheckVScaleShapeForPerTokenMode(const FiaTilingI
 
 ge::graphStatus DequantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
+    if (enableFullQuant_) {
         // 量化方式
         if (fiaInfo.ropeMode == RopeMode::ROPE_SPLIT) {
             enableIFAMLAFullQuant_ = true;
@@ -2150,9 +2148,7 @@ ge::graphStatus DequantChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus DequantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
+    if (enableFullQuant_) {
         if (ge::GRAPH_SUCCESS != CheckFeaturePertensorFullquant(fiaInfo) ||
             ge::GRAPH_SUCCESS != CheckFeaturePerblockFullquant(fiaInfo) ||
             ge::GRAPH_SUCCESS != CheckFeatureMLAFullquant(fiaInfo)) {
@@ -2175,11 +2171,7 @@ ge::graphStatus DequantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus DequantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
+    if (enableAntiQuant_) {
         if (CheckMultiParaForAntiquant(fiaInfo) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }

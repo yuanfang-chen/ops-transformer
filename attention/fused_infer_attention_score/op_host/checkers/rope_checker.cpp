@@ -30,7 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
 // check rope dtype
 ge::graphStatus RopeChecker::CheckRopeDtype(const FiaTilingInfo &fiaInfo)
 {
@@ -391,13 +390,6 @@ ge::graphStatus RopeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
         ge::GRAPH_SUCCESS != CheckRopeDSizeSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -405,14 +397,6 @@ ge::graphStatus RopeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckRopeExistence(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -433,11 +417,7 @@ ge::graphStatus RopeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
     }
 
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
+    if (enableAntiQuant_) {
         if (ge::GRAPH_SUCCESS != CheckFeatureAntiQuant(fiaInfo)) {
             return ge::GRAPH_FAILED;
         };
@@ -450,14 +430,6 @@ ge::graphStatus RopeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.ropeMode != RopeMode::ROPE_SPLIT) {
         return ge::GRAPH_SUCCESS;
-    }
-   
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }

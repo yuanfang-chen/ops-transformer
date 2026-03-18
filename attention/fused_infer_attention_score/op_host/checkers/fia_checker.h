@@ -13,7 +13,6 @@
  * \brief
  */
 
-
 #ifndef FIA_CHECKER_H
 #define FIA_CHECKER_H
 

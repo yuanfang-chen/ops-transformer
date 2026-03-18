@@ -31,7 +31,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
 // singlepara
 ge::graphStatus SystemPrefixChecker::CheckSharedPrefixDim(const FiaTilingInfo &fiaInfo)
 {

@@ -13,7 +13,6 @@
  * \brief
  */
 
-
 #ifndef ROPE_CHECKER_H
 #define ROPE_CHECKER_H
 

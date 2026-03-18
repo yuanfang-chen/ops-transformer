@@ -12,7 +12,6 @@
  * \brief
  */
 
-
 #ifndef DEQUANT_CHECKER_H
 #define DEQUANT_CHECKER_H
 
@@ -35,8 +34,6 @@ public:
     ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
-    // 公共校验函数
-
     // enableNonQuant 相关校验函数
     ge::graphStatus CheckExistenceNoquant(const FiaTilingInfo &fiaInfo);
 

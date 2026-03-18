@@ -13,7 +13,6 @@
  * \brief
  */
 
-
 #ifndef SYSTEM_REPFIX_CHECKER_H
 #define SYSTEM_REPFIX_CHECKER_H
 

@@ -30,7 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
-// 公共校验函数
 
 // CheckSingle
 ge::graphStatus PostQuantChecker::CheckSingleDtype(const FiaTilingInfo &fiaInfo)
@@ -187,7 +186,6 @@ ge::graphStatus PostQuantChecker::CheckFeatureRowVaild(const FiaTilingInfo &fiaI
 ge::graphStatus PostQuantChecker::CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo)
 {
     // Scale2 and offset2 should have same dtype and shape
-
     if (fiaInfo.isOutQuantEnable && fiaInfo.opParamInfo.quantOffset2.tensor != nullptr &&
         fiaInfo.opParamInfo.quantOffset2.desc != nullptr) {
         const ge::DataType quantScale2Type = fiaInfo.opParamInfo.quantScale2.tensor->GetDataType();
@@ -214,7 +212,6 @@ ge::graphStatus PostQuantChecker::CheckMultiParaQuantOffset2(const FiaTilingInfo
 ge::graphStatus PostQuantChecker::CheckMultiParaDtype(const FiaTilingInfo &fiaInfo)
 {
     // Post-quant scale dtype must be FP32. BF16 is allowed only if the query is BF16.
-
     if (fiaInfo.isOutQuantEnable) {
         const ge::DataType quantScale2Type = fiaInfo.opParamInfo.quantScale2.tensor->GetDataType();
         OP_CHECK_IF(
@@ -233,7 +230,6 @@ ge::graphStatus PostQuantChecker::CheckMultiParaShape(const FiaTilingInfo &fiaIn
 {
     // For post quant per-tensor, quant scale/offset only support [1].
     // For post quant per-channel, quant scale/offset dim multiply result only support qN * vD.
-
     if (fiaInfo.isOutQuantEnable) {
         int64_t quantScale2ShapeSize = fiaInfo.opParamInfo.quantScale2.tensor->GetShapeSize();
         size_t quantScale2Dim = fiaInfo.opParamInfo.quantScale2.tensor->GetStorageShape().GetDimNum();
@@ -275,23 +271,11 @@ ge::graphStatus PostQuantChecker::CheckMultiParaShape(const FiaTilingInfo &fiaIn
     }
     return ge::GRAPH_SUCCESS;
 }
-// enableNonQuant 相关校验函数
-
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
 
 ge::graphStatus PostQuantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckSingleDtype(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -300,13 +284,6 @@ ge::graphStatus PostQuantChecker::CheckParaExistence(const FiaTilingInfo &fiaInf
 {
     if (ge::GRAPH_SUCCESS != CheckExistenceQuantScale2(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -322,8 +299,6 @@ ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
                  return ge::GRAPH_FAILED;
             }
         }
-    } else if (enableFullQuant_) {
-        ;
     } else if (enableAntiQuant_) {
         if (ge::GRAPH_SUCCESS != CheckFeatureOutputEqual(fiaInfo)) {
             return ge::GRAPH_FAILED;
@@ -337,13 +312,6 @@ ge::graphStatus PostQuantChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
     if (ge::GRAPH_SUCCESS != CheckMultiParaQuantOffset2(fiaInfo) || ge::GRAPH_SUCCESS != CheckMultiParaDtype(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckMultiParaShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }

@@ -13,7 +13,6 @@
  * \brief
  */
 
-
 #ifndef POST_QUANT_CHECKER_H
 #define POST_QUANT_CHECKER_H
 
@@ -46,12 +45,6 @@ private:
     ge::graphStatus CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckMultiParaDtype(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckMultiParaShape(const FiaTilingInfo &fiaInfo);
-
-    // enableNonQuant 相关校验函数
-
-    // enableFullQuant 相关校验函数
-
-    // enableAntiQuant 相关校验函数
 
 private:
 };

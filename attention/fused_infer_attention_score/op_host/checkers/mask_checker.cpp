@@ -110,8 +110,6 @@ ge::graphStatus MaskChecker::CheckQKVDDifferent(const FiaTilingInfo &fiaInfo)
     return ge::GRAPH_SUCCESS;
 }
 
-// CheckMultiPara
-
 ge::graphStatus MaskChecker::CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
 {
     // In PFA mode, the values of pretoken and nexttoken must ensure the mask range remains valid.
@@ -300,36 +298,17 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
     }
     return ge::GRAPH_SUCCESS;
 }
-// enableNonQuant 相关校验函数
-
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
 
 ge::graphStatus MaskChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckDtypeAndFormat(fiaInfo) || ge::GRAPH_SUCCESS != CheckSparseMode(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -343,8 +322,6 @@ ge::graphStatus MaskChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
         if (ge::GRAPH_SUCCESS != CheckFullQuantIFAMLA(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -353,13 +330,6 @@ ge::graphStatus MaskChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckPretokenAndNexttoken(fiaInfo) || ge::GRAPH_SUCCESS != CheckDimAndShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }

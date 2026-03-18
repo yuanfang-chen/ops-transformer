@@ -30,9 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
-
-// CheckSinglePara
 // check sink dtype
 ge::graphStatus LearnableSinkChecker::CheckSinkDtypeSupport(const FiaTilingInfo &fiaInfo)
 {
@@ -130,37 +127,17 @@ ge::graphStatus LearnableSinkChecker::CheckAxisSupport(const FiaTilingInfo &fiaI
     return ge::GRAPH_SUCCESS;
 }
 
-// enableNonQuant 相关校验函数
-
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
-
 ge::graphStatus LearnableSinkChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckSinkDtypeSupport(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckSinkShapeSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -171,25 +148,11 @@ ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
         return ge::GRAPH_FAILED;
     }
 
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LearnableSinkChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 

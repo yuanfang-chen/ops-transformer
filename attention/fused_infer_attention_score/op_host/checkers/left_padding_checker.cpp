@@ -30,8 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
-
 // Utility functions for common checkers.
 ge::graphStatus LeftPaddingChecker::CheckShapeSupport(const gert::Tensor *tensor,
                                                       const std::vector<int64_t> &expectShapeList) const
@@ -138,7 +136,6 @@ ge::graphStatus LeftPaddingChecker::CheckFeaturePageAttention(const FiaTilingInf
     return ge::GRAPH_SUCCESS;
 }
 
-// enableNonQuant 相关校验函数
 // CheckMuiltPara
 ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo)
 {
@@ -165,34 +162,16 @@ ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInf
     return ge::GRAPH_SUCCESS;
 }
 
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
-
 ge::graphStatus LeftPaddingChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckSingleDesc(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LeftPaddingChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -201,13 +180,6 @@ ge::graphStatus LeftPaddingChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     if (ge::GRAPH_SUCCESS != CheckFeatureActualLen(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeatureLayout(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckFeatureAlibiPse(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeaturePageAttention(fiaInfo)) {
         return ge::GRAPH_FAILED;
-    }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -218,10 +190,6 @@ ge::graphStatus LeftPaddingChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
         if (ge::GRAPH_SUCCESS != CheckMultiParaShapeAndDim(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }

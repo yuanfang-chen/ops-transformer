@@ -1060,10 +1060,6 @@ bool ShapeChecker::CheckTransposeLayoutCrossover(const FiaTilingInfo &fiaInfo)
     return true;
 }
 
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
-
 ge::graphStatus ShapeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (enableNonQuant_) {
@@ -1072,10 +1068,6 @@ ge::graphStatus ShapeChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
             CheckNonQuantAttr(fiaInfo) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1084,14 +1076,6 @@ ge::graphStatus ShapeChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
     if (CheckParaExistenceImpl(fiaInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
-    }
-
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1119,10 +1103,6 @@ ge::graphStatus ShapeChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
         if (!CheckTNDLayoutCrossover(fiaInfo) || !CheckNTDLayoutCrossover(fiaInfo) || !CheckTransposeLayoutCrossover(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1140,10 +1120,6 @@ ge::graphStatus ShapeChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
             CheckMultiAttr(fiaInfo) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
     return ge::GRAPH_SUCCESS;
 }
