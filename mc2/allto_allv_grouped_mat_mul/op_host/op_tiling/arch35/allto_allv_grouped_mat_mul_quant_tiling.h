@@ -30,9 +30,9 @@ constexpr uint64_t DB_SIZE = 2UL;
 
 class AlltoAllvGmmQuantTiling : public AlltoAllvGmmTilingBase {
 public:
-    explicit AlltoAllvGmmQuantTiling(gert::TilingContext *context) : AlltoAllvGmmTilingBase(context){
-        tilingData = context->GetTilingData<QuantAlltoAllvGroupedMatmulTilingData>();
-    };
+    explicit AlltoAllvGmmQuantTiling(gert::TilingContext *context)
+        : AlltoAllvGmmTilingBase(context),
+          tilingData(context->GetTilingData<QuantAlltoAllvGroupedMatmulTilingData>()){};
     QuantAlltoAllvGroupedMatmulTilingData *tilingData;
 
 protected:
@@ -51,10 +51,12 @@ private:
     ge::graphStatus CheckQuantMode() const;
     ge::graphStatus SetHcclTiling() const;
     void SetGMMQuantParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
-    void SetTilingArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const;
-    void SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const;
+    void SetTilingArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N,
+        uint64_t K) const;
+    void SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N,
+        uint64_t K) const;
     void PrintGMMQuantTilingData(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &data) const;
-    void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo& taskTilingInfo) const;
+    void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo) const;
 };
-}  // namespace optiling
-#endif  // ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
+} // namespace optiling
+#endif // ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H

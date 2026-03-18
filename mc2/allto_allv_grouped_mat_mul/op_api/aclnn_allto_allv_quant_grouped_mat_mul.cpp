@@ -187,38 +187,6 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
     return true;
 }
 
-
-// 检查是否有空tensor
-static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
-{
-    if(gmmX->GetViewShape().GetDim(0) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
-        return false;
-    }
-    if(gmmX->GetViewShape().GetDim(1) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(0) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(1) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(2) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
-        return false;
-    }
-    return true;
-}
-
-bool is_power_of_two(int64_t n)
-{
-    return n > 0 && (n & (n - 1)) == 0 && n >= 2 && n <= 128;
-}
-
 // 检查所有要用到的输入format是否为ND，如果内部不为ND格式，会打印warning日志
 static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale,
                         const aclTensor *gmmWeightScale, const aclTensor *mmXOptional,
@@ -316,7 +284,7 @@ static const aclTensor *TransGmmWeightTensor(const aclTensor *gmmWeight)
         viewDim[i] = gmmWeight->GetViewShape().GetDim(i);
     }
     // transpose the viewshape last two dimensions
-    viewDim[1] = gmmWeight->GetViewShape().GetDim(2);
+    viewDim[1] = gmmWeight->GetViewShape().GetDim(TWO_DIMS);
     viewDim[2] = gmmWeight->GetViewShape().GetDim(1);
 
     aclDataType dataType = aclDataType::ACL_DT_UNDEFINED;
@@ -396,8 +364,8 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
                                const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
                                const aclTensor *mmWeightScaleOptional, const aclTensor *mmXOffsetOptional,
                                const aclTensor *mmWeightOffsetOptional, int64_t gmmXQuantMode,
-                               int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-                               const char *group, int64_t epWorldSize, bool permuteOutFlag, const aclTensor *gmmY,
+                               int64_t gmmWeightQuantMode,
+                               const char *group, bool permuteOutFlag, const aclTensor *gmmY,
                                const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
     // 检查空状态
@@ -413,8 +381,6 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(
         CheckNotSupportNull(gmmXOffsetOptional, gmmWeightOffsetOptional, mmXOffsetOptional, mmWeightOffsetOptional),
         ACLNN_ERR_PARAM_INVALID);
-    // 检查空tensor
-    CHECK_RET(CheckEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
     // 检查所有输入/量化数据类型
     CHECK_RET(CheckDtypesValid(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                                mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, permuteOutOptional),
@@ -454,7 +420,6 @@ extern "C" aclnnStatus InnerAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     int64_t mmWeightQuantMode, int64_t groupSize, const aclTensor *gmmY, const aclTensor *mmYOptional,
     const aclTensor *permuteOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-
     int64_t yDtype = gmmY->GetDataType();
     int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
 
@@ -493,7 +458,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
         transposeGmmWeight = TransGmmWeightTensor(gmmWeight);
         CHECK_RET(transposeGmmWeight != nullptr, ACLNN_ERR_INNER_NULLPTR);
         OP_LOGD("gmmWeight is a non-contiguous tensor. The original dim1 is %ld, and dim2 is %ld. After processing, transposeGmmWeight dim1 is %ld, and dim2 is %ld.",
-            gmmWeight->GetViewShape().GetDim(1), gmmWeight->GetViewShape().GetDim(2), transposeGmmWeight->GetViewShape().GetDim(1), transposeGmmWeight->GetViewShape().GetDim(2));
+            gmmWeight->GetViewShape().GetDim(1), gmmWeight->GetViewShape().GetDim(TWO_DIMS), transposeGmmWeight->GetViewShape().GetDim(1), transposeGmmWeight->GetViewShape().GetDim(TWO_DIMS));
     }
 
     // 处理非连续Tensor，目前支持转置的mmWeightOptional涉及该处理
@@ -522,7 +487,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
         gmmX, transposeGmmWeight, gmmXScale, gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional,
         sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, gmmXQuantMode, gmmWeightQuantMode,
-        mmXQuantMode, mmWeightQuantMode, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
+        group, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
     auto ret_send_and_recv = Mc2AlltoAllvGMMChecker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);

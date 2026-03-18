@@ -535,7 +535,7 @@ namespace{
 }
 
 namespace optiling {
-static ge::graphStatus MatmulReduceScatterV2CheckAttrAndSetTiling(gert::TilingContext *context,
+static ge::graphStatus MatmulReduceScatterV2CheckAttrAndSetTiling(const gert::TilingContext *context,
                                                                   MatmulReduceScatterV2AivModeInfo &info)
 {
     auto attrs = context->GetAttrs();
@@ -700,26 +700,26 @@ void CalTilingParam(CoCTiling &cocTilingData,
     }
 }
 
-void ReduceScatterV2DecodeTilingData(int32_t code, CoCTiling &tilingData, MatmulReduceScatterV2AivModeInfo &info)
+void ReduceScatterV2DecodeTilingData(int32_t code, CoCTiling &tilingData, const MatmulReduceScatterV2AivModeInfo &info)
 {
     int32_t m = static_cast<int32_t>(info.M);
     int32_t k = static_cast<int32_t>(info.K);
     int32_t n = static_cast<int32_t>(info.N);
-    tilingData.commDataSplit = code & COMMDATASPLIT_MASK;
-    code >>= COMMDATASPLIT_BNUM;
-    tilingData.commNpuSplit = code & COMMNPUSPLIT_MASK;
-    code >>= COMMNPUSPLIT_BNUM;
-    tilingData.commDirect = code & COMMDIRECT_MASK;
-    code >>= COMMDIRECT_BNUM;
-    tilingData.ubMoveNum = (code & UBMOVENUM_MASK) * HALF_KBYTE;
-    code >>= UBMOVENUM_BNUM;
-    tilingData.pValue = code & PVALUE_MASK;
-    code >>= PVALUE_BNUM;
-    tilingData.swizzlCount = code & SWIZZLCOUNT_MASK;
-    code >>= SWIZZLCOUNT_BNUM;
-    tilingData.swizzlDirect = code & SWIZZLDIRECT_MASK;
-    code >>= SWIZZLDIRECT_BNUM;
-    tilingData.m0 = (code & M0_MASK) * DEFAULT_ROW + DEFAULT_ROW;
+    tilingData.commDataSplit = static_cast<uint32_t>(code) & COMMDATASPLIT_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> COMMDATASPLIT_BNUM);
+    tilingData.commNpuSplit = static_cast<uint32_t>(code) & COMMNPUSPLIT_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> COMMNPUSPLIT_BNUM);
+    tilingData.commDirect = static_cast<uint32_t>(code) & COMMDIRECT_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> COMMDIRECT_BNUM);
+    tilingData.ubMoveNum = (static_cast<uint32_t>(code) & UBMOVENUM_MASK) * HALF_KBYTE;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> UBMOVENUM_BNUM);
+    tilingData.pValue = static_cast<uint32_t>(code) & PVALUE_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> PVALUE_BNUM);
+    tilingData.swizzlCount = static_cast<uint32_t>(code) & SWIZZLCOUNT_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> SWIZZLCOUNT_BNUM);
+    tilingData.swizzlDirect = static_cast<uint32_t>(code) & SWIZZLDIRECT_MASK;
+    code = static_cast<int32_t>(static_cast<uint32_t>(code) >> SWIZZLDIRECT_BNUM);
+    tilingData.m0 = (static_cast<uint32_t>(code) & M0_MASK) * DEFAULT_ROW + DEFAULT_ROW;
     tilingData.k0 = DEFAULT_COL;
     tilingData.n0 = tilingData.m0 == DEFAULT_ROW ? DEFAULT_COL : DEFAULT_ROW;
     tilingData.mLoop = CeilDev(m, tilingData.m0);
@@ -910,7 +910,7 @@ void SetTilingData_SmallM(CoCTiling &cocTilingData, MatmulReduceScatterV2AivMode
 }
 
 inline ge::graphStatus checkAndResetTilingData_SmallM(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info,
-                                                      gert::TilingContext *context, int64_t rankSize)
+                                                      const gert::TilingContext *context, int64_t rankSize)
 {
     OP_TILING_CHECK(cocTilingData.m0 != 128 && cocTilingData.m0 != 256,
                     VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "m0 is invalid."), return ge::GRAPH_FAILED);
@@ -949,9 +949,9 @@ inline ge::graphStatus checkAndResetTilingData_SmallM(CoCTiling &cocTilingData, 
     OP_TILING_CHECK(coreNum == 0,
                     VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "ascendcPlatform.GetCoreNumAic() return 0 cores."),
                     return ge::GRAPH_FAILED);
-    int32_t count_m_tile = cocTilingData.swizzlDirect ?
-                               ((coreNum * (cocTilingData.pValue)) / cocTilingData.swizzlCount) :
-                               cocTilingData.swizzlCount;
+    int32_t count_m_tile = (cocTilingData.swizzlDirect != 0) ?
+        ((coreNum * (cocTilingData.pValue)) / cocTilingData.swizzlCount) :
+        cocTilingData.swizzlCount;
 
     auto cType = context->GetOutputDesc(0)->GetDataType();
     uint32_t elementSize = D_TYPE_SIZE_MAP.at(cType);

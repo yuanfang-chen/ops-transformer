@@ -58,10 +58,8 @@ struct SetMMTilingParams {
 
 class AlltoAllvGmmNoQuantTiling : public AlltoAllvGmmTilingBase {
 public:
-    explicit AlltoAllvGmmNoQuantTiling(gert::TilingContext *context) : AlltoAllvGmmTilingBase(context){
-        tilingData = context->GetTilingData<AlltoAllvGmmTilingData>();
-    };
-
+    explicit AlltoAllvGmmNoQuantTiling(gert::TilingContext *context) : AlltoAllvGmmTilingBase(context),
+        tilingData(context->GetTilingData<AlltoAllvGmmTilingData>()){};
     AlltoAllvGmmTilingData *tilingData;
 
 protected:
