@@ -54,6 +54,7 @@ private:
     GM_ADDR commOutGM_;
     GM_ADDR transX1ScaleGM1_;
     GM_ADDR transOutGM_;
+    uint64_t rankForComm_;
 private:
     static constexpr uint64_t MXFP_GROUP_SIZE = 64UL;
  	static constexpr uint64_t NUM_TWO = 2UL;
@@ -90,6 +91,11 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     transOutGM_ = all2all_out;
     if (all2all_out == nullptr) {
         transOutGM_ = transX1ScaleGM1_ + x1ScaleLen;
+    }
+    if constexpr (IsMxFp4) {
+        rankForComm_ = (tilingData_->alltoAllQuantMatmulTilingInfo.rankK + 1) / 2 ;
+    } else {
+        rankForComm_ = tilingData_->alltoAllQuantMatmulTilingInfo.rankK;
     }
 
     // 初始化流水线
@@ -159,7 +165,7 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
 {
     auto &&mc2Tiling_ = tilingData_->alltoAllQuantMatmulTilingInfo;
     // 复用的变量
-    uint64_t tileMMultiRankK = (uint64_t)mc2Tiling_.tileM * (uint64_t)mc2Tiling_.rankK;
+    uint64_t tileMMultiRankK = (uint64_t)mc2Tiling_.tileM * rankForComm_;
 
     // 通信相关地址和偏移
     pipeLineContext_.communicationContext->taskCnt = mc2Tiling_.tileCnt;
@@ -169,7 +175,7 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.communicationContext->recvOffset = pipeLineContext_.communicationContext->sendOffset;
     pipeLineContext_.communicationContext->sendCount = tileMMultiRankK;
     pipeLineContext_.communicationContext->strideCount =
-        (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankK / (uint64_t)mc2Tiling_.rankDim;
+        (uint64_t)mc2Tiling_.rankM * rankForComm_ / mc2Tiling_.rankDim;
     pipeLineContext_.communicationContext->hcclDataType = mc2Tiling_.hcclDataType;
 
     // 转置相关地址和偏移
@@ -177,15 +183,15 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.transposeContext->transposeDstAddr = transOutGM_;
     pipeLineContext_.transposeContext->transposeSrcOffset = tileMMultiRankK * sizeof(DTYPE_X1);
     pipeLineContext_.transposeContext->transposeDstOffset =
-        tileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
+        tileMMultiRankK * mc2Tiling_.rankDim * sizeof(DTYPE_X1);
     pipeLineContext_.transposeContext->nextSrcBlockOffset =
-        (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankK / (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.transposeContext->nextDstBlockOffset = (uint64_t)mc2Tiling_.rankK;
+        (uint64_t)mc2Tiling_.rankM * rankForComm_ / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->nextDstBlockOffset = rankForComm_;
     pipeLineContext_.transposeContext->rankCnt = (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.transposeContext->innerAxis = (uint64_t)mc2Tiling_.rankK;
+    pipeLineContext_.transposeContext->innerAxis = rankForComm_;
     pipeLineContext_.transposeContext->transM = (uint64_t)mc2Tiling_.tileM;
-    pipeLineContext_.transposeContext->innerOffsetIn = (uint64_t)mc2Tiling_.rankK;
-    pipeLineContext_.transposeContext->innerOffsetOut = (uint64_t)mc2Tiling_.rankK * mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->innerOffsetIn = rankForComm_;
+    pipeLineContext_.transposeContext->innerOffsetOut = rankForComm_ * mc2Tiling_.rankDim;
 
     // quantMatmul相关的地址和偏移
     pipeLineContext_.computationContext->baseData.aGM = transOutGM_;
@@ -212,9 +218,9 @@ __aicore__ inline void
 AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingDataType, IsMxFp4>::ProcessTail(uint32_t taskCnt)
 {
     auto &&mc2Tiling_ = tilingData_->alltoAllQuantMatmulTilingInfo;
-    uint64_t tailMMultiRankK = (uint64_t)mc2Tiling_.tailM * (uint64_t)mc2Tiling_.rankK;
+    uint64_t tailMMultiRankK = (uint64_t)mc2Tiling_.tailM * rankForComm_;
     uint64_t tileCntMultitileMMultiRankK =
-        (uint64_t)mc2Tiling_.tileCnt * (uint64_t)mc2Tiling_.tileM * (uint64_t)mc2Tiling_.rankK;
+        (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * rankForComm_;
 
     // 通信相关地址和偏移
     pipeLineContext_.communicationContext->taskCnt = mc2Tiling_.tailCnt;
@@ -224,6 +230,7 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.communicationContext->recvOffset = pipeLineContext_.communicationContext->sendOffset;
     pipeLineContext_.communicationContext->sendCount = tailMMultiRankK;
 
+    // 转置相关地址和偏移
     pipeLineContext_.transposeContext->transposeSrcAddr = commOutGM_ + tileCntMultitileMMultiRankK * sizeof(DTYPE_X1);
     pipeLineContext_.transposeContext->transposeDstAddr =
         transOutGM_ + tileCntMultitileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
@@ -231,6 +238,7 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.transposeContext->transposeDstOffset = tailMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
     pipeLineContext_.transposeContext->transM = (uint64_t)mc2Tiling_.tailM;
 
+    // 计算相关地址和偏移
     pipeLineContext_.computationContext->baseData.aGM =
         transOutGM_ + tileCntMultitileMMultiRankK * sizeof(DTYPE_X1) * mc2Tiling_.rankDim;
     pipeLineContext_.computationContext->baseData.bGM = x2_;
