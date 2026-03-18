@@ -214,7 +214,7 @@ private:
     __aicore__ inline void MlaBnsdWithActqDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
         LocalTensor<OUTPUT_T> &attenOut, DataCopyExtParams &dataCopyParams);
     __aicore__ inline void Gs1MergeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-        LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount);
+        LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount, int64_t index);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
@@ -1661,7 +1661,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithAct
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Gs1MergeDataCopyOut(
-    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount)
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount, int64_t index)
 {
     FaUbTensor<OUTPUT_T> ubTensor {
         .tensor = attenOut,
@@ -1671,7 +1671,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Gs1MergeDataCo
     GmCoord gmCoord {
         .bIdx = static_cast<uint32_t>(runInfo.boIdx),
         .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
+        .gS1Idx = static_cast<uint32_t>(index),
         .dIdx = 0,
         .gS1DealSize = static_cast<uint32_t>(runInfo.vec2S1RealSize),
         .dDealSize = static_cast<uint32_t>(constInfo.dSize)
