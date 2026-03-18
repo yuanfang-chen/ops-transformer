@@ -33,16 +33,6 @@ static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
     return std::count(list.begin(), list.end(), value) > 0;
 }
 
-static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
-    const char *opName_)
-{
-    uint64_t dimNum = shape->GetStorageShape().GetDimNum();
-    OP_TILING_CHECK((dimNum != dims),
-        OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
-
-    return ge::GRAPH_SUCCESS;
-}
-
 bool TTQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
