@@ -30,11 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// enableNonQuant 相关校验函数
-
-// enableFullQuant 相关校验函数
-// Input Dtype
-
 // check Q, KV, OUT 类型 全量化
 ge::graphStatus DequantChecker::CheckDataTypeFullquant(const FiaTilingInfo &fiaInfo)
 {

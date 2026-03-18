@@ -21,7 +21,6 @@
 #include "base_checker.h"
 
 namespace optiling {
-
 class DequantChecker : public BaseChecker {
 public:
     DequantChecker(bool enableNonQuant, bool enableFullQuant, bool enableAntiQuant) :
@@ -53,7 +52,7 @@ private:
         const std::string &quantModeName, const std::string &inputName);
     ge::graphStatus CheckTensorNotExistFullquant(const FiaTilingInfo &fiaInfo, const gert::Tensor *tensor,
         const std::string &quantModeName, const std::string &inputName);
-   ge::graphStatus CheckExistencePertensorFullquant(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckExistencePertensorFullquant(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckExistenceMLAFullquant(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckExistencePerblockFullquant(const FiaTilingInfo &fiaInfo);
 

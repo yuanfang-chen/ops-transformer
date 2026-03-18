@@ -36,7 +36,6 @@
 #include "./system_prefix_checker.h"
 
 namespace optiling {
-
 class FIAChecker {
 public:
     FIAChecker() = default;

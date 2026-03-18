@@ -30,7 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
 // single para
 ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenQDim(const FiaTilingInfo &fiaInfo)
 {

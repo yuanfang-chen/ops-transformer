@@ -22,7 +22,6 @@
 #include "../fused_infer_attention_score_tiling_constants.h"
 #include "system_prefix_checker.h"
 
-
 namespace optiling {
 using std::map;
 using std::string;

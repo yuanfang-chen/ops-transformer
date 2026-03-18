@@ -15,10 +15,8 @@
 
 #include "fused_infer_attention_score_tiling_v4.h"
 #include "fused_infer_attention_score_tiling_impl.h"
-
 #include "../fused_infer_attention_score_tiling_info_parser.h"
 #include "../checkers/fia_checker.h"
-
 
 #include "log/log.h"
 #include "log/error_code.h"
@@ -30,7 +28,6 @@
 
 using namespace ge;
 using namespace AscendC;
-// using namespace optiling::v2;
 namespace optiling {
 ge::graphStatus TilingFusedInferAttentionScoreV4(gert::TilingContext *context) {
     // Parse -> Check -> DoOpTiling
@@ -44,7 +41,6 @@ ge::graphStatus TilingFusedInferAttentionScoreV4(gert::TilingContext *context) {
     FIAChecker fiaChecker;
     fiaChecker.Init(fiaInfo);
     // Check函数只做校验，不能修改fiaInfo中的信息
-
     if (fiaChecker.Process(fiaInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
