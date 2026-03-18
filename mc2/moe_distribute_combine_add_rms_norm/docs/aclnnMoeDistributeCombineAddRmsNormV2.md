@@ -281,7 +281,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>elasticInfoOptional</td>
     <td>输入</td>
     <td>EP通信域动态缩容信息。</td>
-    <td>当前版本不支持。</td>
+    <td>当前版本不支持，传空指针即可。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>-</td>
