@@ -744,6 +744,7 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.stateLen = stateLen_;
     tilingData_.xStride = 0;
     tilingData_.cacheStride = 0;
+    tilingData_.padSlotId = padSlotId_;
     tilingData_.xInputMode = xInputMode_;
     tilingData_.hasAcceptTokenNum = hasAcceptTokenNum_;
     tilingData_.residualConnection = residualConnection_;
@@ -806,6 +807,7 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "stateLen: %ld", tilingData_.stateLen);
     OP_LOGI(context_->GetNodeName(), "xStride: %ld", tilingData_.xStride);
     OP_LOGI(context_->GetNodeName(), "cacheStride: %ld", tilingData_.cacheStride);
+    OP_LOGI(context_->GetNodeName(), "padSlotId: %ld", tilingData_.padSlotId);
     OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", tilingData_.xInputMode);
     OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", tilingData_.hasAcceptTokenNum);
     OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", tilingData_.residualConnection);
