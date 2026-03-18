@@ -514,23 +514,11 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                     RunInfo &runInfo1 = runInfo[taskId % 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
-                        if constexpr (isFd) {
-                            auto sinkL1Buf = this->l1RightBuffers.Get();
-                            this->cubeBlock.CopySinkKvToL1(sinkL1Buf, runInfo1, this->constInfo);
-                        }
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
                             this->constInfo);
                     } else {
                         // if !hassink || s2loopcpunt > 0 todo
-                        if (isFd && s2LoopCount == 0){
-                            auto outputL1 = this->l1RightBuffers.Get();
-                            outputL1.WaitCrossCore();
-                            outputL1.SetCrossCore();
-                            outputL1.WaitCrossCore();
-                            outputL1.SetCrossCore();
-                        }else {
-                            this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
-                        }
+                        this->vecBlock.ProcessVec0(this->l1RightBuffers.Get(), runInfo1, this->constInfo);
                     }
                 }
                 if (taskId > 0 && notLast) {
@@ -629,6 +617,9 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
     int64_t curS2LoopCnt = (runInfo.s2LoopCount >= runParam.oriKvLoopEndIdx) ? (runInfo.s2LoopCount - runParam.oriKvLoopEndIdx) : runInfo.s2LoopCount;
+    if constexpr (isFd) {
+        curS2LoopCnt -= 1;
+    }
     if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
         runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
