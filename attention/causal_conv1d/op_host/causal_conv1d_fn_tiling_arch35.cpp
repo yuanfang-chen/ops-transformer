@@ -543,10 +543,10 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
     // 优先尝试dim切分多的方案（从N向下遍历所有可能值，允许不均匀切分）
 
     // 初始化为 dc=1 的情况（所有核给BS方向）
-    uint64_t bestDimCores = 1;
-    uint64_t bestBSCores = 1;
-    uint64_t bestUsed = 1;
-    CuSeqLenSplitInfo bestBSSplitInfo;
+    uint64_t bestDimCores = 0;
+    uint64_t bestBSCores = 0;
+    uint64_t bestUsed = 0;
+    CuSeqLenSplitInfo bestBSSplitInfo = {};
 
     // 从大到小遍历 [1, N] 的所有值（允许不均匀切分）
     for (uint64_t dc = N; dc >= 1; --dc) {
@@ -581,6 +581,12 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
         if (bestUsed == totalCoreNum_) {
             break;
         }
+    }
+
+    // 安全检查：确保找到了有效的切分方案
+    if (bestUsed == 0) {
+        OP_LOGE(context_->GetNodeName(), "Failed to find valid tiling strategy");
+        return ge::GRAPH_FAILED;
     }
 
     // 步骤3：计算dim方向不均匀分配参数
