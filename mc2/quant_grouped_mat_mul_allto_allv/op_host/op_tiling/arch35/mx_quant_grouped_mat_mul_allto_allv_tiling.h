@@ -31,7 +31,7 @@
 
 namespace optiling {
 namespace Mc2GroupedMatmul {
-    
+
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
@@ -60,6 +60,9 @@ protected:
     ge::graphStatus CheckParamsRelationGmm() override;
     ge::graphStatus CheckParamsRelationMm() override;
     ge::graphStatus CheckParamsAttrEpAndSetLocalParams() override;
+
+    ge::graphStatus CheckMxQuantGmmScaleShapes();
+    ge::graphStatus CheckMxQuantMmScaleShapes();
 };
 
 } // namespace Mc2GroupedMatmul

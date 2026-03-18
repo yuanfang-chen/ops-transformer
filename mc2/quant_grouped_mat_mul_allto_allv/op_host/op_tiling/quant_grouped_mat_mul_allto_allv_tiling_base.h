@@ -110,6 +110,8 @@ constexpr int64_t BEST_BASEN = 256;
 constexpr int64_t BEST_L1_PARTA = 256 * 1024;
 constexpr int64_t BEST_L1_PARTB = 128 * 1024;
 
+constexpr uint64_t MX_SCALE_GROUP = 64;
+constexpr uint64_t EVEN_ALIGN = 2;
 constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
 constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
 constexpr uint32_t UB_DIVIDE_NUM = 2;
