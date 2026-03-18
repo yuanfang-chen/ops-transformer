@@ -53,234 +53,7 @@ std::vector<int64_t> MakeCounts()
 {
     return std::vector<int64_t>(kEpWorldSize * kE, kA / (kEpWorldSize * kE));
 }
-}  // namespace
-
-struct QuantGroupedMatmulAlltoAllvAclnnTestParam {
-    // 用例名
-    string case_name;
-    // gmmX
-    vector<int64_t> gmmX;
-    aclDataType gmmX_dtype;
-    aclFormat gmmX_format;
-
-    // gmmWeight
-    vector<int64_t> gmmWeight;
-    aclDataType gmmWeight_dtype;
-    aclFormat gmmWeight_format;
-
-    // mm
-    vector<int64_t> mmX;
-    aclDataType mmX_dtype;
-    aclFormat mmX_format;
-
-    // mmweight
-    vector<int64_t> mmWeight;
-    aclDataType mmWeight_dtype;
-    aclFormat mmWeight_format;
-
-    // y
-    vector<int64_t> y;
-    aclDataType y_dtype;
-    aclFormat y_format;
-
-    // mmY
-    vector<int64_t> mmYOptional;
-    aclDataType mmYOptional_dtype;
-    aclFormat mmYOptional_format;
-
-    char *group;
-    bool send;
-    bool recv;
-    bool transGmmWeight;
-    bool transMmWeight;
-    aclnnStatus aclnn_status;
-};
-
-static QuantGroupedMatmulAlltoAllvAclnnTestParam quant_cases_params[] = {
-// float16 正常用例
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_00",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_SUCCESS},
-
-// 异常 sendCounts null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_01",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            true, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// recvCounts null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_02",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, true, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// gmmx null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_03",
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// gmmWeight null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_04",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// y null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_05",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-// group ep null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_06",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "", 
-            false, false, false, false, ACLNN_ERR_PARAM_NULLPTR},
-
-// group ep invalid
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_07",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group_"
-            "test_grouped_mat_mul_allto_allv_ep_group_"
-            "test_grouped_mat_mul_allto_allv_ep_group_"
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// mmx not_null mmweight null mmy null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_08",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {1024, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// mmx null mmweight not_null mmy null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_09",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {7168, 1024}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-
-// mmx null mmweight null mmy not_null
-    {"test_quant_allto_allv_grouped_mat_mul_test_float16_10",
-            {4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {}, ACL_FLOAT16,  ACL_FORMAT_ND,
-            {4096,4096}, ACL_FLOAT16, ACL_FORMAT_ND,
-            {1024}, ACL_FLOAT16, ACL_FORMAT_ND,
-            "test_grouped_mat_mul_allto_allv_ep_group", 
-            false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-};
-
-static void TestQuantParamCase(const QuantGroupedMatmulAlltoAllvAclnnTestParam &param)
-{
-    std::cout << "run case " << param.case_name << std::endl;
-    TensorDesc gmmX_ = TensorDesc(param.gmmX, param.gmmX_dtype, param.gmmX_format);
-    TensorDesc gmmWeight_ = TensorDesc(param.gmmWeight, param.gmmWeight_dtype, param.gmmWeight_format);
-    TensorDesc mmX_ = TensorDesc(param.mmX, param.mmX_dtype, param.mmX_format);
-    TensorDesc mmWeight_ = TensorDesc(param.mmWeight, param.mmWeight_dtype, param.mmWeight_format);
-    TensorDesc y_ = TensorDesc(param.y, param.y_dtype, param.y_format);
-    TensorDesc mmY_ = TensorDesc(param.mmYOptional, param.mmYOptional_dtype, param.mmYOptional_format);
-
-    const char *group = param.group;
-    bool send_ = param.send;
-    bool recv_ = param.recv;
-    bool transGmmWeight = param.transGmmWeight;
-    bool transMmWeight = param.transMmWeight;
-
-    aclnnStatus retStatus = param.aclnn_status;
-
-    constexpr int64_t epWorldSize = 8;
-    constexpr int64_t BS = 4096;
-    constexpr int64_t K = 2;
-    constexpr int64_t H = 7168;
-    constexpr int64_t e = 4;
-    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
-    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
-    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
-    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-    uint64_t workspace_size = 0;
-    aclOpExecutor *executor = nullptr;
-
-    if (send_)
-    sendCounts = nullptr;
-    if (recv_)
-    recvCounts = nullptr;
-
-    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
-                        INPUT(gmmX_, gmmWeight_, 
-                        nullptr, nullptr,       // scale
-                        nullptr, nullptr,       // counts tensor
-                        mmX_, mmWeight_,            
-                        nullptr, nullptr,       // mm scale
-                        nullptr,                // commQuantScale
-                        0, 0, 0, 0, 0,          // quantmode
-                        -1, 0, group, epWorldSize, sendCounts,
-                        recvCounts, transGmmWeight, transMmWeight),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, retStatus);
-    std::cout << "end case " << param.case_name << std::endl;
-}
-
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, quant_cases_params)
-{
-    if (std::size(quant_cases_params) != 0) {
-    uint64_t numCases = sizeof(quant_cases_params) / sizeof(quant_cases_params[0]);
-    for (size_t idx = 0; idx < numCases; idx += 1) {
-        TestQuantParamCase(quant_cases_params[idx]);
-        }
-    }
-}
+}  // namespac
 
 // ============================================================================
 // Group 1: QuantMode/Scale 一致性 (CheckQuantMode)
@@ -763,7 +536,10 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_sendRecvCounts_all_zero)
     TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
+    TensorDesc gmmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
     constexpr int64_t epWorldSize = 8;
     constexpr int64_t e = 4;
     std::vector<int64_t> sendCountsList(epWorldSize * e, 0);
@@ -775,12 +551,12 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_sendRecvCounts_all_zero)
 
     auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
                         INPUT(gmmX_, gmmWeight_,
-                        nullptr, nullptr,        // scale
+                        gmmXScale_, gmmWeightScale_,        // scale
                         nullptr, nullptr,        // counts tensor
                         mmX_, mmWeight_,
-                        nullptr, nullptr,        // mm scale
+                        mmXScale_, mmWeightScale_,        // mm scale
                         nullptr,                 // commQuantScale
-                        0, 0, 0, 0, 0,
+                        1, 1, 1, 1, 0,
                         -1, 0,
                         "test_grouped_mat_mul_allto_allv_ep_group",
                         epWorldSize, sendCounts,
@@ -845,7 +621,10 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_sendRecvCounts_partial_z
     TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
+    TensorDesc gmmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
     constexpr int64_t epWorldSize = 8;
     constexpr int64_t e = 4;
     // 部分为 0，部分非 0
@@ -864,12 +643,12 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_sendRecvCounts_partial_z
 
     auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
                         INPUT(gmmX_, gmmWeight_,
-                        nullptr, nullptr,        // scale
+                        gmmXScale_, gmmWeightScale_,        // scale
                         nullptr, nullptr,        // counts tensor
                         mmX_, mmWeight_,
-                        nullptr, nullptr,        // mm scale
+                        mmXScale_, mmWeightScale_,        // mm scale
                         nullptr,                 // commQuantScale
-                        0, 0, 0, 0, 0,
+                        1, 1, 1, 1, 0,
                         -1, 0,
                         "test_grouped_mat_mul_allto_allv_ep_group",
                         epWorldSize, sendCounts,
@@ -917,7 +696,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_commQuantMode_nonzero)
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// TT 量化正常路径：gmmXQM=1, gmmWQM=1, 提供 scale → 实测确认
+// TT 量化异常：gmmXQM=1, gmmWQM=1, mmXQM=0, mmWQM=0
 TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_tt_quant_normal)
 {
     TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
@@ -954,9 +733,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_tt_quant_normal)
                         recvCounts, false, false),
                         OUTPUT(y_, mmY_));
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    // TT 量化正常路径，CheckParams 应通过
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
 // ============================================================================
@@ -1272,33 +1049,27 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmX_dim0_zero)
 
 // ============================================================================
 // Group: MX quant UT
-// 约定：
-// 1) 当前沿用既有 UT 风格：mmX_({}) / mmWeight_({}) / mmY_({}) 表示无 mm 分支
-// 2) 当前若库上 MX dtype 枚举尚未接入，此处先沿用 ACL_FLOAT16 / ACL_FLOAT 写法，
-//    聚焦 GetWorkspaceSize 的参数检查路径；后续若 dtype 校验落库，再替换成真实 fp8/fp8_e8m0 dtype。
 // ============================================================================
 
-
-// ----------------------------------------------------------------------------
-// 1) MX gmm-only 正常路径：gmmXQM=6, gmmWQM=6，双 scale 合法，mm 关闭
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmm_only_normal)
+// MX合法：无共享专家，y=float16
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmm_only_fp16_valid)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);      // MX shape
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND); // MX shape
-
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1306,45 +1077,45 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmm_only_normal
                         INPUT(gmmX_, gmmWeight_,
                               gmmXScale_, gmmWeightScale_,
                               nullptr, nullptr,
-                              mmX_, mmWeight_,
+                              nullptr, nullptr,
                               nullptr, nullptr,
                               nullptr,
                               6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, nullptr));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
-// ----------------------------------------------------------------------------
-// 2) MX gmm+mm 正常路径：gmm/mm 都是 MX_QUANT，四个 scale 全合法
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmm_mm_normal)
+// MX合法：有共享专家，量化模式全为6
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_with_mm_notrans_valid)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({1024, kH2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({kH2, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmXScale_({1024, kH2 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc mmWeightScale_({kH2 / 64, kN2, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({1024, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1354,118 +1125,40 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmm_mm_normal)
                               nullptr, nullptr,
                               mmX_, mmWeight_,
                               mmXScale_, mmWeightScale_,
-                              nullptr, nullptr,
                               nullptr,
                               6, 6, 6, 6, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, nullptr));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
-// ----------------------------------------------------------------------------
-// 3) gmmXQuantMode=6 但 gmmXScale=nullptr -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmmX_without_scale)
+// 异常场景:mmX_, mmWeight_非空时，mmXScale为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmx_dtype_invalid)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_BF16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_BF16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
-    uint64_t workspace_size = 0;
-    aclOpExecutor *executor = nullptr;
-
-    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
-                        INPUT(gmmX_, gmmWeight_,
-                              nullptr, gmmWeightScale_,
-                              nullptr, nullptr,
-                              mmX_, mmWeight_,
-                              nullptr, nullptr,
-                              nullptr,
-                              6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
-
-// ----------------------------------------------------------------------------
-// 4) gmmWeightQuantMode=6 但 gmmWeightScale=nullptr -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmmWeight_without_scale)
-{
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
-    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
-    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
-    uint64_t workspace_size = 0;
-    aclOpExecutor *executor = nullptr;
-
-    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
-                        INPUT(gmmX_, gmmWeight_,
-                              gmmXScale_, nullptr,
-                              nullptr, nullptr,
-                              mmX_, mmWeight_,
-                              nullptr, nullptr,
-                              nullptr,
-                              6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
-
-// ----------------------------------------------------------------------------
-// 5) gmmXQuantMode=6, gmmWeightQuantMode=0 -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mode_mismatch)
-{
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
-    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
-    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1476,38 +1169,532 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mode_mismatch)
                               mmX_, mmWeight_,
                               nullptr, nullptr,
                               nullptr,
-                              6, 0, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, true, true),
                         OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// ----------------------------------------------------------------------------
-// 6) mm 存在，mmXQuantMode=6，但 mmXScale=nullptr -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mmX_without_scale)
+// MX异常：gmmX为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmX_nullptr)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({1024, kH2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({kH2, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeightScale_({kH2 / 64, kN2, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({1024, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
 
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(nullptr, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+}
+
+// MX异常：gmmWeight为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmWeight_nullptr)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, nullptr,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+}
+
+// MX异常：y为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_y_nullptr)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(nullptr, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+}
+
+// MX异常：gmmX dtype 非法
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmX_dtype_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：gmmWeight dtype 非法
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmWeight_dtype_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_BF16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_BF16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, true, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：y dtype 非法
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_y_dtype_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：gmmX format 非ND
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmX_format_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_NCHW);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：gmmXScale为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmXScale_null)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              nullptr, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：gmmWeightScale为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmWeightScale_null)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_BF16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_BF16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, nullptr,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, true, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：mm存在但量化模式为(6,6,0,0)，非法
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_mm_mode_noquant_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 0, 0, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：mm存在但量化模式与gmm不一致，例如(6,6,1,1)
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_mm_mode_mismatch_invalid)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+
+    TensorDesc y_({8192, 4096}, ACL_BF16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_BF16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                              gmmXScale_, gmmWeightScale_,
+                              nullptr, nullptr,
+                              mmX_, mmWeight_,
+                              mmXScale_, mmWeightScale_,
+                              nullptr,
+                              6, 6, 1, 1, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, true, true),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// MX异常：mm存在但mmXScale为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_mmXScale_null)
+{
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({4096, 7168}, ACL_FLOAT8_E5M2, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+
+    TensorDesc y_({8192, 4096}, ACL_BF16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_BF16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1519,37 +1706,40 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mmX_without_sca
                               nullptr, mmWeightScale_,
                               nullptr,
                               6, 6, 6, 6, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, true, true),
                         OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// ----------------------------------------------------------------------------
-// 7) mm 存在，mmWeightQuantMode=6，但 mmWeightScale=nullptr -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mmWeight_without_scale)
+// MX异常：mm存在但mmWeightScale为空
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_mmWeightScale_null)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({1024, kH2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({kH2, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmXScale_({1024, kH2 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({1024, kN2}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1561,37 +1751,37 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mmWeight_withou
                               mmXScale_, nullptr,
                               nullptr,
                               6, 6, 6, 6, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
                         OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// ----------------------------------------------------------------------------
-// 8) mm 不存在，但 mmXScale 非空 -> PARAM_INVALID
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mm_null_with_scale)
+// MX异常：sendCounts长度非法
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_sendCounts_size_invalid)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmXScale_({1024, kH2 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({1}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(7, 1024);
+    std::vector<int64_t> recvCountsList(8, 1024);
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1600,39 +1790,44 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_mm_null_with_sc
                               gmmXScale_, gmmWeightScale_,
                               nullptr, nullptr,
                               mmX_, mmWeight_,
-                              mmXScale_, nullptr,
+                              mmXScale_, mmWeightScale_,
                               nullptr,
                               6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
                         OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// ----------------------------------------------------------------------------
-// 9) gmmXScale shape 非法 -> PARAM_INVALID
-// 正确应为 (M, ceil(K,64), 2) = (8192, 112, 2)，这里故意把中间维写错
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmmXScale_shape_invalid)
+// MX异常：group字符串长度超过128
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_group_str_len_size_invalid)
 {
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, 111, 2}, ACL_FLOAT, ACL_FORMAT_ND);           // wrong
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 2}, ACL_FLOAT, ACL_FORMAT_ND);
+    TensorDesc gmmX_({8192, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({4096, 7168}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({7168, 4096}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
 
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
+    TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 2;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    constexpr int64_t groupSize = 32;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
     aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
     aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
     uint64_t workspace_size = 0;
     aclOpExecutor *executor = nullptr;
 
@@ -1641,55 +1836,15 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmmXScale_shape
                               gmmXScale_, gmmWeightScale_,
                               nullptr, nullptr,
                               mmX_, mmWeight_,
-                              nullptr, nullptr,
+                              mmXScale_, mmWeightScale_,
                               nullptr,
-                              6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
-
-// ----------------------------------------------------------------------------
-// 10) gmmWeightScale shape 非法 -> PARAM_INVALID
-// 正确应为 (ceil(K,64), N, 2) = (112, 4096, 2)，这里故意把最后一维写错
-// ----------------------------------------------------------------------------
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_quant_gmmWeightScale_shape_invalid)
-{
-    TensorDesc gmmX_({kA, kH1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({kE, kH1, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmXScale_({kA, kH1 / 64, 2}, ACL_FLOAT, ACL_FORMAT_ND);
-    TensorDesc gmmWeightScale_({kH1 / 64, kN1, 1}, ACL_FLOAT, ACL_FORMAT_ND); // wrong
-
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({kA, kN1}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
-    auto sendCountsList = MakeCounts();
-    auto recvCountsList = MakeCounts();
-    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
-    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-
-    uint64_t workspace_size = 0;
-    aclOpExecutor *executor = nullptr;
-
-    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
-                        INPUT(gmmX_, gmmWeight_,
-                              gmmXScale_, gmmWeightScale_,
-                              nullptr, nullptr,
-                              mmX_, mmWeight_,
-                              nullptr, nullptr,
-                              nullptr,
-                              6, 6, 0, 0, 0,
-                              -1, kGroupSize,
-                              kGroupName,
-                              kEpWorldSize, sendCounts, recvCounts,
-                              false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+                              6, 6, 6, 6, 0,
+                              -1, groupSize,
+                              "test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group",
+                              epWorldSize, sendCounts,
+                              recvCounts, false, false),
+                        OUTPUT(y_, nullptr));
+    aclnnStatus aclRet =
+        ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
