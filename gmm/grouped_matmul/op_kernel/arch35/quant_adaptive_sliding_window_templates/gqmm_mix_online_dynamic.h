@@ -66,7 +66,7 @@ protected:
     __aicore__ inline void InitAddrAndParams(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList,
                                              GM_ADDR perTokenScale, GM_ADDR y, TILING_TYPE *gmmArrayAddrIn);
     __aicore__ inline void UpdateMMGlobalAddr(uint32_t groupIdx);
-    __aicore__ inline void SetMNK(uint32_t groupIdx, int32_t &mSize, int32_t &nSize, int32_t &kSize);
+    __aicore__ inline void SetMNK(uint32_t loopIdx, uint32_t groupIdx, int32_t &mSize, int32_t &nSize, int32_t &kSize);
     __aicore__ inline void CalcTailTile(uint64_t mTail, uint64_t nTail);
     __aicore__ inline bool IsLastGroupAndNeedSplit(uint32_t groupIdx);
     __aicore__ inline bool IsLastGroupAndRound(uint32_t groupIdx, uint64_t roundIdx);
@@ -287,11 +287,12 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Upd
 }
 // zzznote : mListGm_是写在哪里呢？这里可能要求确认哪里写了mListGm_
 LOCAL_TEMPLATE_CLASS_MIX_PARAMS
-__aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::SetMNK(uint32_t groupIdx, int32_t &mSize,
-                                                                                    int32_t &nSize, int32_t &kSize)
+__aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::SetMNK(uint32_t loopIdx, uint32_t groupIdx,
+                                                                                    int32_t &mSize, int32_t &nSize,
+                                                                                    int32_t &kSize)
 {
     int32_t splitValue =
-        QuantUtils::GetSplitValueFromGroupList(groupIdx, preOffset_, groupType_, groupListType_, groupListGlobal_);
+        QuantUtils::GetSplitValueFromGroupList(loopIdx, preOffset_, groupType_, groupListType_, groupListGlobal_);
     switch (groupType_) {
         case (QuantUtils::SPLIT_M):
             {
@@ -389,8 +390,10 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Pro
         int32_t nSize;
         int32_t kSize;
         // 更新group内的输入参数M,N,K
-        SetMNK(loopIdx, mSize, nSize, kSize);
-        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx,loopIdx);
+        SetMNK(loopIdx, groupIdx, mSize, nSize, kSize);
+        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx,
+                                                                                    loopIdx, groupListType_,
+                                                                                    groupType_);
         if (mSize <= 0 || nSize <= 0) {
             if (groupListType_ == QuantUtils::GROUP_LIST_TYPE_SPARSE && mSize <= 0) {
                 break;
