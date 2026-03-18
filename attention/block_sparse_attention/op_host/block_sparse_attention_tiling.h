@@ -144,6 +144,7 @@ private:
     ge::graphStatus ParseSparsePattern(gert::TilingContext *bsaContext);
     ge::graphStatus ParseAttenMask(gert::TilingContext *bsaContext);
     ge::graphStatus ParseBlockTable(gert::TilingContext *bsaContext);
+    ge::graphStatus CheckSparsePattern(gert::TilingContext *bsaContext, const int64_t defaultShape);
     ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *bsaContext);
     // 910 exclusive
     ge::graphStatus CalculateTaskSplit(gert::TilingContext *bsaContext);

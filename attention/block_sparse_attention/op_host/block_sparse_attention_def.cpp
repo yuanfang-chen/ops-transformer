@@ -67,7 +67,7 @@ public:
         this->Attr("maskType").AttrType(OPTIONAL).Int(0);
         this->Attr("scaleValue").AttrType(OPTIONAL).Float(0.0);
         this->Attr("innerPrecise").AttrType(OPTIONAL).Int(1);  // 0=float32 softmax, 1=fp16 softmax（推理优先）
-        this->Attr("blockSize").AttrType(OPTIONAL).Int(128);
+        this->Attr("blockSize").AttrType(OPTIONAL).Int(0);
         this->Attr("preTokens").AttrType(OPTIONAL).Int(2147483647);
         this->Attr("nextTokens").AttrType(OPTIONAL).Int(2147483647);
         this->Attr("softmaxLseFlag").AttrType(OPTIONAL).Int(0);
