@@ -349,8 +349,8 @@ install_es_whl() {
  	install_es_whl_package "${es_whl_path}" "${python_es_whl_name}" "${whl_install_dir_path}"
 
   if [ -d "${TARGET_VERSION_DIR}/ops_transformer" ]; then
-    rm -rf "${TARGET_VERSION_DIR}/ops_transformer"
-  fi
+ 	  rm -rf "${TARGET_VERSION_DIR}/ops_transformer"
+ 	fi
 }
 
 add_init_py() {
