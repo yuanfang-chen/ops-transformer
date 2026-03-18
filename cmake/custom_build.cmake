@@ -289,9 +289,9 @@ if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
 endif()
 
 # 编译AICPU算子
-if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")	 
-     add_subdirectory(examples/add_example)	 
-     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})	 
+if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")
+     add_subdirectory(examples/add_example)
+     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
 # 编译examples目录下算子
@@ -425,6 +425,7 @@ endfunction()
 if (base_aclnn_srcs)
     add_parent_path_aclnn("${ACLNN_EXTRA_HEADERS}" PARENT_ACLNN_EXTRA_HEADERS)
     list(APPEND generate_aclnn_headers ${PARENT_ACLNN_EXTRA_HEADERS})
+    set(excluded_headers "quant_lightning_indexer" "kv_quant_sparse_flash_attention")
     foreach (_src ${base_aclnn_srcs})
         string(REGEX MATCH "^${CMAKE_CURRENT_SOURCE_DIR}" is_match "${_src}")
         if (is_match)
@@ -432,7 +433,17 @@ if (base_aclnn_srcs)
 
             string(REGEX REPLACE "_def$" "" _op_name ${name_without_ext})
             list(APPEND generate_aclnn_srcs ${base_aclnn_binary_dir}/aclnn_${_op_name}.cpp)
-            list(APPEND generate_aclnn_headers ${base_aclnn_binary_dir}/aclnn_${_op_name}.h)
+            set(exclude_header FALSE)
+            foreach(excluded ${excluded_headers})
+                if("${_op_name}" STREQUAL "${excluded}")
+                    set(exclude_header TRUE)
+                    message(STATUS "Excluding header for: ${_op_name}")
+                    break()
+                endif()
+            endforeach()
+            if(NOT exclude_header)
+                list(APPEND generate_aclnn_headers ${base_aclnn_binary_dir}/aclnn_${_op_name}.h)
+            endif()
 
             set(filtered_list)
             filter_op_files(${_op_name} ACLNN_EXTRA_SRCS "aclnn" filtered_list)
@@ -548,7 +559,7 @@ if (BUILD_OPEN_PROJECT)
             "mc2"
         )
         set(update_proto_srcs)
-        
+
         foreach(OP_DIR ${OP_DIR_LIST})
             # filter op dir to be updated
             set(need_update_proto FALSE)
@@ -556,7 +567,7 @@ if (BUILD_OPEN_PROJECT)
                 if(${OP_DIR} MATCHES ".*${filter_op_frag}.*")
                     set(need_update_proto TRUE)
                     break()
-                endif()        
+                endif()
             endforeach()
             if(NOT need_update_proto)
                 message(STATUS "Skip proto update: ${OP_DIR}")
@@ -626,7 +637,7 @@ if (BUILD_OPEN_PROJECT)
 
         set(generate_proto_srcs ${generate_proto_srcs_filtered})
     endif()
-    
+
     set_source_files_properties(${generate_proto_srcs}
             PROPERTIES GENERATED TRUE
     )
@@ -861,7 +872,7 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/3rd
 )
-        
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")
