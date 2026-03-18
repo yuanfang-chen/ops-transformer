@@ -77,10 +77,18 @@ public:
         CalcGMAddr();
     }
 
+    __aicore__ inline uint64_t CalcCeilAlignGMSize(uint64_t mnValue, uint64_t count)
+    {
+        // 向指定字节对齐所需要额外占用GM Buffer的大小
+        // 默认向512字节对齐
+        return (CeilAlign(mnValue, FIVE_ONE_TWO) - mnValue) * count;
+    }
+
     __aicore__ inline void CalcGMAddr()
     {
         tileAndTailNum_ = paramInTiling_->tileCnt + paramInTiling_->tailCnt;
-        uint64_t padLen = tileAndTailNum_ * FIVE_ONE_TWO;
+        uint64_t padLen = CalcCeilAlignGMSize(tileInfo_.cOffset, paramInTiling_->tileCnt) + 
+                          CalcCeilAlignGMSize(tailInfo_.cOffset, paramInTiling_->tailCnt);
         uint64_t padAddrSize = padLen * sizeof(YType);
         cgmAddr_ = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + tailInfo_.cAddrOffset * paramInTiling_->tailCnt;
         cgmLen_ = tileInfo_.cOffset * paramInTiling_->tileCnt + tailInfo_.cOffset * paramInTiling_->tailCnt;
@@ -94,8 +102,8 @@ public:
         } else {
             allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + padAddrSize) / rankNum_; // reduceSum结果
         }
-        tileAlign_ = CeilAlign(tileInfo_.cOffset, FIVE_ONE_TWO / sizeof(YType));
-        tailAlign_ = CeilAlign(tailInfo_.cOffset, FIVE_ONE_TWO / sizeof(YType));
+        tileAlign_ = CeilAlign(tileInfo_.cOffset, FIVE_ONE_TWO);
+        tailAlign_ = CeilAlign(tailInfo_.cOffset, FIVE_ONE_TWO);
         tileAddrAlign_ = tileAlign_ * sizeof(YType);
         tailAddrAlign_ = tailAlign_ * sizeof(YType);
         aivNum_ = GetBlockNum() * GetTaskRation();
