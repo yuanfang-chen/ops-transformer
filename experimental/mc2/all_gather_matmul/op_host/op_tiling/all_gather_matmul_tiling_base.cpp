@@ -29,6 +29,7 @@
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
+#include "all_gather_fit_balance_tiling.h"
 #include "all_gather_matmul_tiling_base.h"
 #include "../../op_kernel/all_gather_matmul_apt_tiling_key.h"
 
@@ -243,12 +244,48 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
     return args.mValue;
 }
 
+CutResult AllGatherMatmulTilingBase::GetTilingResult()
+{
+   
+    AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
+    return tileFormulate.GetTiling();
+}
+
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
 {
+    // cmdType = HCCL_CMD_ALLGATHER, 是允许切K
+    if (args_.enableSplitK) {  // 只有1份
         OP_LOGI(opName_, "enabelSplik is True.");
         rcfCfg.tileCnt = 1;
         rcfCfg.tailCnt = 0;
         rcfCfg.tailM = 0;
+    } else if (args_.commTurn != 0) {
+        OP_LOGI(opName_, "commTurn is %lu.", args_.commTurn);
+        uint64_t splite = AllGatherSplitM(args_);
+
+        // 现在找到1个合适的切分
+        auto tileCnt = args_.mValue / splite;   // 切的份数
+        auto tileTail = args_.mValue % splite;  // 尾巴
+
+        rcfCfg.tileCnt = tileCnt;
+        tileMValue_ = splite;
+        rcfCfg.tailCnt = 0;
+        rcfCfg.tailM = tileTail;
+        if (tileTail != 0) {
+            tailMValue_ = tileTail;
+        }
+    } else {
+        CutResult mCutAllgather = GetTilingResult();
+        rcfCfg.tileCnt = mCutAllgather.numLongTile;
+        tileMValue_ = mCutAllgather.longTileLen;
+        rcfCfg.tailCnt = 0;
+        rcfCfg.tailM = 0;
+        if (mCutAllgather.numShortTile > 0) {
+            rcfCfg.tailM = mCutAllgather.shortTileLen;
+            tailMValue_ = mCutAllgather.shortTileLen;
+            rcfCfg.tailCnt = mCutAllgather.numShortTile;
+        }
+    }
 }
 
 void AllGatherMatmulTilingBase::Reset()

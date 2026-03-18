@@ -94,6 +94,9 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
         gatherAddr_ = workspaceGM_;
         workspaceGM_ += cfg.gatherLen;
     }
+    if ASCEND_IS_AIC {
+        notifyFlag_ = true;
+    }
 }
 
 template <typename AType, typename BType, typename BiasType, typename CType>
