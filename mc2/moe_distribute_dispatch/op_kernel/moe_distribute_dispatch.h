@@ -511,6 +511,7 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SendToMo
         uint32_t dstExpertId = expertIdsTensor_(tokenIndex);
         int32_t curExpertCnt = 0;
         if (tokenIndex > 0) {
+            SyncFunc<AscendC::HardEvent::S_V>();
             CalTokenSendExpertCnt(dstExpertId, tokenIndex, curExpertCnt);
         }
         expertCountTensor_(tokenIndex - startTokenId) = curExpertCnt;
