@@ -354,6 +354,27 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParams()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmmTransShape()
+{
+    if (localParams_.isGmmWeightTrans) {
+        OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
+            OP_LOGE(opName_, "gmmX shape K %lu not match gmmWeight shape K %lu !", localParams_.H1, localParams_.gmmWeightDim2),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim1,
+            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim1),
+            return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim1,
+            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !", localParams_.H1, localParams_.gmmWeightDim1),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim2,
+            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim2),
+            return ge::GRAPH_FAILED);
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 {
     localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
@@ -378,6 +399,8 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_PERTENSOR,
         OP_LOGE(opName_, "gmmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
+    localParams_.gmmQuantSuit = QUANT_PAIR_TT;
+
     ge::graphStatus status = CheckShapeDimensions(gmmXScaleStorageShape, DIM_ONE, "gmmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
     status = CheckShapeDimensions(gmmWeightScaleStorageShape, DIM_ONE, "gmmWeightScaleShape", opName_);
@@ -390,20 +413,27 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     OP_TILING_CHECK(gmmWeightScaleDim0 != 1, OP_LOGE(opName_, "TT Quant gmmWeightScale shape must be 1, but now is %ld!", gmmWeightScaleDim0),
         return ge::GRAPH_FAILED);
 
-    localParams_.gmmQuantSuit = QUANT_PAIR_TT;
-    if (localParams_.isGmmWeightTrans) {
-        OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "gmmX shape K %lu not match gmmWeight shape K %lu !", localParams_.H1, localParams_.gmmWeightDim2),
+    status = CheckParamsRelationGmmTransShape();
+    OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMmTransShape()
+{
+    if (localParams_.isMmWeightTrans) {
+        OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
+            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim1,
-            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim1),
+        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim0,
+            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim0),
             return ge::GRAPH_FAILED);
     } else {
-        OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim1,
-            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !", localParams_.H1, localParams_.gmmWeightDim1),
+        OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim0,
+            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim0),
             return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim2),
+        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim1,
+            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
     }
 
@@ -439,6 +469,8 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_PERTENSOR,
         OP_LOGE(opName_, "mmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
+
+    localParams_.mmQuantSuit = QUANT_PAIR_TT;
     ge::graphStatus status = CheckShapeDimensions(mmXScaleStorageShape, DIM_ONE, "mmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
     status = CheckShapeDimensions(mmWeightScaleStorageShape, DIM_ONE, "mmWeightScaleShape", opName_);
@@ -451,22 +483,8 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     OP_TILING_CHECK(mmWeightScaleDim0 != 1, OP_LOGE(opName_, "TT Quant mmWeightScale shape must be 1, but now is %ld!", mmWeightScaleDim0),
         return ge::GRAPH_FAILED);
 
-    localParams_.mmQuantSuit = QUANT_PAIR_TT;
-    if (localParams_.isMmWeightTrans) {
-        OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
-            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim1),
-            return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim0,
-            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim0),
-            return ge::GRAPH_FAILED);
-    } else {
-        OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim0,
-            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim0),
-            return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim1,
-            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim1),
-            return ge::GRAPH_FAILED);
-    }
+    status = CheckParamsRelationMmTransShape();
+    OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
