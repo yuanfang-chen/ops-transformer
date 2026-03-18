@@ -36,16 +36,17 @@ public:
 
 private:
     // 公共校验函数
-    bool CheckDimSupport(const FiaTilingInfo &fiaInfo);
-    bool CheckRopeDimSupport(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckQDsizeSupport(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckRopeDSizeSupport(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckRopeDtype(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckRopeDtypeConsistency(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckQKAndQKRopeShapeConsistency(const FiaTilingInfo &fiaInfo,
         const gert::Shape shape, const gert::Shape ropeShape, const std::string &inputName);
     ge::graphStatus CheckPAKeyAndKeyRopeShapeConsistency(const FiaTilingInfo &fiaInfo,
         const gert::Shape &keyShape, const gert::Shape &keyRopeShape);
     ge::graphStatus CheckTensorlistKeyAndKeyRopeShapeConsistency(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckRopeExistence(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureExistence(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckFeatureDecodeMLA(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureSupport(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureAntiQuant(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckShapeSupport(const FiaTilingInfo &fiaInfo);

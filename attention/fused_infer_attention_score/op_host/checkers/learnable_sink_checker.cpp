@@ -55,9 +55,8 @@ ge::graphStatus LearnableSinkChecker::CheckSinkDtypeSupport(const FiaTilingInfo 
     return ge::GRAPH_SUCCESS;
 }
 
-
-// CheckParaExistence
-ge::graphStatus LearnableSinkChecker::CheckFeatureExistence(const FiaTilingInfo &fiaInfo)
+// CheckFeature
+ge::graphStatus LearnableSinkChecker::CheckFeatureSupport(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.learnableSinkFlag) {
         return ge::GRAPH_SUCCESS;
@@ -86,16 +85,6 @@ ge::graphStatus LearnableSinkChecker::CheckFeatureExistence(const FiaTilingInfo 
         OP_LOGE(fiaInfo.opName, "When learnable sink enable, post qunat is not supported."),
         return ge::GRAPH_FAILED);
 
-    return ge::GRAPH_SUCCESS;
-}
-
-// CheckFeature
-ge::graphStatus LearnableSinkChecker::CheckFeatureSupport(const FiaTilingInfo &fiaInfo)
-{
-    if (!fiaInfo.learnableSinkFlag) {
-        return ge::GRAPH_SUCCESS;
-    }
-
     OP_CHECK_IF(fiaInfo.innerPrecise != HIGH_PRECISION,
         OP_LOGE(fiaInfo.opName,
                 "When learnable sink enable, innerPrecise(%u) only support %u.", fiaInfo.innerPrecise, HIGH_PRECISION),
@@ -109,7 +98,6 @@ ge::graphStatus LearnableSinkChecker::CheckFeatureSupport(const FiaTilingInfo &f
     return ge::GRAPH_SUCCESS;
 }
 
-// CheckMultiPara
 // check sink shape
 ge::graphStatus LearnableSinkChecker::CheckSinkShapeSupport(const FiaTilingInfo &fiaInfo)
 {
@@ -150,7 +138,8 @@ ge::graphStatus LearnableSinkChecker::CheckAxisSupport(const FiaTilingInfo &fiaI
 
 ge::graphStatus LearnableSinkChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckSinkDtypeSupport(fiaInfo)) {
+    if (ge::GRAPH_SUCCESS != CheckSinkDtypeSupport(fiaInfo) ||
+        ge::GRAPH_SUCCESS != CheckSinkShapeSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
     if (enableNonQuant_) {
@@ -165,10 +154,6 @@ ge::graphStatus LearnableSinkChecker::CheckSinglePara(const FiaTilingInfo &fiaIn
 
 ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckFeatureExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
-    }
-
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {
@@ -181,7 +166,8 @@ ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fi
 
 ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo)) {
+    if (ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo) ||
+        ge::GRAPH_SUCCESS != CheckAxisSupport(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
 
@@ -197,11 +183,6 @@ ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 
 ge::graphStatus LearnableSinkChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckSinkShapeSupport(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckAxisSupport(fiaInfo)) {
-        return ge::GRAPH_FAILED;
-    }
-
     if (enableNonQuant_) {
         ;
     } else if (enableFullQuant_) {

@@ -88,13 +88,26 @@ ge::graphStatus LeftPaddingChecker::CheckFeatureActualLen(const FiaTilingInfo &f
 
 ge::graphStatus LeftPaddingChecker::CheckFeatureLayout(const FiaTilingInfo &fiaInfo)
 {
-    // When left-padding is enabled for Query and Key/Value, TND/NTD scenarios are not supported.
+    // When left-padding is enabled for Query and Key/Value, BSH_BNSD/BSND_BNSD/TND/NTD/NTD_TND/TND_NTD scenarios are not supported.
+    std::string layoutStr(fiaInfo.opParamInfo.layOut);
     if (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag) {
-        OP_CHECK_IF(fiaInfo.qLayout == FiaLayout::TND,
+        OP_CHECK_IF(layoutStr == "BSH_BNSD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout BSH_BNSD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "BSND_BNSD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout BSND_BNSD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "TND",
                     OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout TND!"),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(fiaInfo.qLayout == FiaLayout::NTD,
+        OP_CHECK_IF(layoutStr == "NTD",
                     OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout NTD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "NTD_TND",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout NTD_TND!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "TND_NTD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout TND_NTD!"),
                     return ge::GRAPH_FAILED);
     }
 

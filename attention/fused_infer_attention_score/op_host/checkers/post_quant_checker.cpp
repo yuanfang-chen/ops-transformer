@@ -29,7 +29,7 @@ using std::pair;
 using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
-
+constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
 // 公共校验函数
 
 // CheckSingle
@@ -106,6 +106,83 @@ ge::graphStatus PostQuantChecker::CheckFeaturePrefix(const FiaTilingInfo &fiaInf
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus PostQuantChecker::CheckFeatureRowVaild(const FiaTilingInfo &fiaInfo)
+{
+    if (!fiaInfo.isOutQuantEnable) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (fiaInfo.s1Size > 1) {
+        bool checkPostQuantOffset =
+            (fiaInfo.outputType == ge::DT_INT8) &&
+            (fiaInfo.opParamInfo.quantOffset2.tensor != nullptr && fiaInfo.opParamInfo.quantOffset2.desc != nullptr) &&
+            (fiaInfo.opParamInfo.quantOffset2.tensor->GetStorageShape().GetShapeSize() != 0);
+        if (!fiaInfo.isMaxWorkspace) {
+            std::vector<int64_t> actualSeqLengthsKV{};
+            std::vector<int64_t> actualSeqLengths{};
+            actualSeqLengthsKV.resize(fiaInfo.bSize);
+            actualSeqLengths.resize(fiaInfo.bSize);
+
+            const gert::Tensor *tempData = fiaInfo.opParamInfo.actualSeqLengthsQ.tensor;
+            const gert::Tensor *tempDataKV = fiaInfo.opParamInfo.actualSeqLengths.tensor;
+            const int64_t *preTokens = fiaInfo.opParamInfo.preToken;
+            const int64_t *nextTokens = fiaInfo.opParamInfo.nextToken;
+            uint32_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
+            uint32_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
+            for (uint32_t i = 0; i < fiaInfo.bSize; i++) {
+                if ((actualLenDims == 0) || (tempData == nullptr) || (tempData->GetData<int64_t>() == nullptr)) {
+                    actualSeqLengths[i] = fiaInfo.s1Size;
+                } else {
+                    actualSeqLengths[i] = (actualLenDims > 1) ? static_cast<uint32_t>(tempData->GetData<int64_t>()[i]) :
+                                                                static_cast<uint32_t>(tempData->GetData<int64_t>()[0]);
+                }
+                if ((actualLenDimsKV == 0) || (tempDataKV == nullptr) ||
+                    (tempDataKV->GetData<int64_t>() == nullptr)) { // The user did not input act_seq_kv
+                    if (fiaInfo.kvStorageMode == KvStorageMode::BATCH_CONTINUOUS) {
+                        actualSeqLengthsKV[i] = fiaInfo.s2Size;
+                    } else {
+                        actualSeqLengthsKV[i] = fiaInfo.kvListSeqLens[i];
+                    }
+                } else {
+                    actualSeqLengthsKV[i] = (actualLenDimsKV > 1) ?
+                                                static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[i]) :
+                                                static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[0]);
+                }
+                int64_t preTokensPerbatch = 0;
+                int64_t nextTokensPerbatch = 0;
+                if (fiaInfo.sparseMode == SPARSE_MODE_RIGHT_DOWN) {
+                    preTokensPerbatch = static_cast<int64_t>(SPARSE_MODE_INT_MAX);
+                    nextTokensPerbatch =
+                        actualSeqLengthsKV[i] + static_cast<int64_t>(fiaInfo.systemPrefixLen) - actualSeqLengths[i];
+                } else if (fiaInfo.sparseMode == SPARSE_MODE_BAND) {
+                    preTokensPerbatch = fiaInfo.preToken - actualSeqLengthsKV[i] -
+                                        static_cast<int64_t>(fiaInfo.systemPrefixLen) + actualSeqLengths[i];
+                    nextTokensPerbatch = fiaInfo.nextToken + actualSeqLengthsKV[i] +
+                                         static_cast<int64_t>(fiaInfo.systemPrefixLen) - actualSeqLengths[i];
+                } else {
+                    preTokensPerbatch = fiaInfo.preToken;
+                    nextTokensPerbatch = fiaInfo.nextToken;
+                }
+                OP_CHECK_IF((checkPostQuantOffset &&
+                             ((preTokensPerbatch + actualSeqLengthsKV[i] +
+                                   static_cast<int64_t>(fiaInfo.systemPrefixLen) - actualSeqLengths[i] <
+                               0) ||
+                              (nextTokensPerbatch < 0))),
+                            OPS_REPORT_VECTOR_INNER_ERR(
+                                fiaInfo.opName,
+                                "When sparse mode = %d, output dtype is int8, the output's dequant offset "
+                                "is not null or empty tensor, "
+                                "preTokens = %ld and nextTokens = %ld, some rows of the matrix do not "
+                                "participate in the calculation, "
+                                "the accuracy of the final result will be incorrect. Please see the "
+                                "documentation for more details.",
+                                fiaInfo.sparseMode, *preTokens, *nextTokens),
+                            return ge::GRAPH_FAILED);
+            }
+        }
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 // CheckCheckMultiPara
 ge::graphStatus PostQuantChecker::CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo)
 {
@@ -168,7 +245,7 @@ ge::graphStatus PostQuantChecker::CheckMultiParaShape(const FiaTilingInfo &fiaIn
             static_cast<uint64_t>(numHeads) * static_cast<uint64_t>(fiaInfo.qkHeadDim);
         // per-tensor or per-channel verification
         if (quantScale2Dim == 1) {
-            if (static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel) {
+            if (static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel || !isSupportedLayout) {
                 OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
                             OP_LOGE(fiaInfo.opName,
                                     "For post quant per-tensor, quant scale/offset only support [1], now is [%d]",
@@ -239,6 +316,11 @@ ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     if (enableNonQuant_) {
         if (ge::GRAPH_SUCCESS != CheckFeatureOutput(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeaturePrefix(fiaInfo)) {
             return ge::GRAPH_FAILED;
+        }
+        if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B) {
+            if (ge::GRAPH_SUCCESS != CheckFeatureRowVaild(fiaInfo)) {
+                 return ge::GRAPH_FAILED;
+            }
         }
     } else if (enableFullQuant_) {
         ;
