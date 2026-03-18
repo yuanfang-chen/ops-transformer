@@ -109,7 +109,7 @@ static inline uint32_t GetQBlocks(int32_t qseqlen, int32_t x)
     return qBlocksInX * completeXBlocks + remainingBlocks;
 }
 
-static inline uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize)
+static inline uint32_t GetQNBlockTile()
 {
     uint32_t qNBlockTile = 1;
     return qNBlockTile;
@@ -376,37 +376,16 @@ ge::graphStatus BSATiling::ParseSeqlens(gert::TilingContext *bsaContext)
     return ret;
 }
 
-ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
+ge::graphStatus BSATiling::CheckSparsePattern(gert::TilingContext *bsaContext, const int64_t defaultShape)
 {
-    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
-    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
-    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
-    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
-    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
     const auto *blockSparseMaskShape = bsaContext->GetInputShape(BLOCK_SPARSE_MASK_INDEX);
-    if (blockSparseMaskTensor == nullptr) {
-        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
-        return ge::GRAPH_FAILED;
-    }
-    if (blockShapeTensor != nullptr) {
-        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
-        if (blockShapeElemNum != 2) {
-            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
-            return ge::GRAPH_FAILED;
-        }
-        blockShapeList = blockShapeTensor->GetData<int64_t>();
-        if (blockShapeList != nullptr) {
-            blockShapeX_ = blockShapeList[0];
-            blockShapeY_ = blockShapeList[1];
-        }
-    }
     if (blockShapeX_ <= 0 || blockShapeY_ <= 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elems must be greater than 0, "
             "but got elem0: %ld, elem1: %ld.", blockShapeX_, blockShapeY_);
         return ge::GRAPH_FAILED;
     }
     // temporary regulation of blockShapeY
-    if (blockShapeY_ % DEFAULT_BLOCK_SHAPE != 0) {
+    if (blockShapeY_ % defaultShape != 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem1 must be a multiple of 128 so far, "
             "but got elem1: %ld.", blockShapeY_);
         return ge::GRAPH_FAILED;
@@ -426,6 +405,36 @@ ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
         OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask must have consistent numHeads with context,"
             "but got BlockSparseMask numHeads(dim1): %u, context numHeads: %u.", bsmNumHead, numHeads_);
         return ge::GRAPH_FAILED; 
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
+{
+    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
+    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
+    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
+    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
+    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
+    
+    if (blockSparseMaskTensor == nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
+        return ge::GRAPH_FAILED;
+    }
+    if (blockShapeTensor != nullptr) {
+        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
+        if (blockShapeElemNum != 2) {
+            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
+            return ge::GRAPH_FAILED;
+        }
+        blockShapeList = blockShapeTensor->GetData<int64_t>();
+        if (blockShapeList != nullptr) {
+            blockShapeX_ = blockShapeList[0];
+            blockShapeY_ = blockShapeList[1];
+        }
+    }
+    if (CheckSparsePattern(bsaContext, DEFAULT_BLOCK_SHAPE) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -510,18 +519,23 @@ ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
     }
     auto softmaxLsePtr = bsaContext->GetAttrs()->GetAttrPointer<int64_t>(SOFTMAX_LSE_FLAG_INDEX);
     if (softmaxLsePtr == nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "Attr softmaxLseFlag is nullptr.");
+        return ge::GRAPH_FAILED;
+    } else if (*softmaxLsePtr == LSE_OUT) {
+        softmaxLseFlag_ = true;
+    } else if (*softmaxLsePtr == LSE_NO_OUT) {
         softmaxLseFlag_ = false;
     } else {
-        softmaxLseFlag_ = *softmaxLsePtr == 1 ? true : false;
+        OP_LOGE(bsaContext->GetNodeName(), "Attr softmaxLseFlag must be 0 or 1, but got: %ld.", *softmaxLsePtr);
+        return ge::GRAPH_FAILED;
     }
-    
     return ge::GRAPH_SUCCESS;
 }
 
 void BSATiling::CalculateBatchTaskSplit(int64_t qSeqlen, uint32_t groupSize,
                                         uint32_t &curTaskNum, uint32_t &curQBlockNum)
 {
-    uint32_t curQBlockTile = GetQNBlockTile(qSeqlen, groupSize);
+    uint32_t curQBlockTile = GetQNBlockTile();
     uint32_t qNBlockNumPerGroup = CeilDiv(groupSize, curQBlockTile);
     uint32_t curQNBlockNum = qNBlockNumPerGroup * kvHeads_;
     curTaskNum = GetQBlocks(qSeqlen, blockShapeX_) * curQNBlockNum;

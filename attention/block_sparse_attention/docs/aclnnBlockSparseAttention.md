@@ -4,13 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾 950 AI处理器</term>|      ×     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 
 ## 功能说明
@@ -185,7 +184,7 @@ aclnnStatus aclnnBlockSparseAttention(
           <li>当配置了blockSparseMaskOptional时：如配置此输入，算子会从中获取稀疏块尺寸；如不配置此输入，算子将默认稀疏块尺寸为[128,128]。</li>
           <li>当未配置blockSparseMaskOptional时：无论此项如何配置，算子均将忽略。</li>
         </ul>
-        当配置此输入时：必须包含至少两个元素[blockShapeX, blockShapeY]
+        当配置此输入时：必须包含两个元素[blockShapeX, blockShapeY]
         <ul>
           <li>blockShapeX: Q方向块大小，值必须大于0。</li>
           <li>blockShapeY: KV方向块大小，值必须大于0且为128的倍数。</li>
@@ -297,10 +296,10 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>输入</td>
       <td>Host侧的int64_t，Softmax计算采取的精度级别。</td>
       <td>
-        当前只支持传0或1
+        控制online softmax阶段以及rescale阶段运算使用的数据类型。当前只支持传0或1
         <ul>
-          <li>0：表示高精度softmax计算，中间值全部采取fp32数据类型，适合追求计算精度的场景使用。</li>
-          <li>1：表示低精度softmax计算，中间值全部采取fp16数据类型，性能更好，但精度较低，适合追求极致性能的场景使用。</li>
+          <li>0：表示online softmax和rescale全部采取fp32数据类型，适合追求计算精度的场景使用。</li>
+          <li>1：仅支持输入的query、key、value均为fp16数据类型时配置，表示online softmax和rescale全部采取fp16数据类型，性能更好，但精度较低，且可能发生计算时的数值溢出，使用者需根据值域范围自行判断是否使用。</li>
         </ul>
       </td>
       <td>INT64</td>
@@ -503,6 +502,7 @@ aclnnStatus aclnnBlockSparseAttention(
 - blockSparseMaskOptional当前必须传入，且shape必须为[batch, headNum, ceilDiv(maxQS, blockShapeX), ceilDiv(maxKVS, blockShapeY)]。
 - attentionMaskOptional当前只支持传入nullptr。
 - actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
+- actualSeqLengthsOptional与actualSeqLengthsKvOptional当前必须同时配置或同时不配置，仅配置其中之一的行为将被算子拦截。
 - blockTableOptional当前只支持传入nullptr，表示不开启PagedAttention特性。
 - innerPrecise必须为0（float32 softmax）或1（fp16 softmax），query输入为BFLOAT16时，只能配置为0。
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
