@@ -31,7 +31,6 @@ public:
     {
         if (isCommunicationBefore) {
             // 如果是AllToAllMatmul，设置CommShapeLen为k轴的长度
-            commPerf_.SetCommDtypeSizeExpansionFraction(1);
             commPerf_.SetCommShapeLen(clusterInfo_.kValue);
             commPerf_.SetCommDTypeSize(clusterInfo_.inMatrixADtypeSize);
         } else {
