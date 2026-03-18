@@ -543,23 +543,6 @@ __aicore__ inline void cutom_sab_vec<FAGT>::Init(
         dvDtmWsGm.SetGlobalBuffer((__gm__ float *)(workspace + workspaceOffsets));
     }
 
-    if constexpr (IS_DROP == ENABLE) {
-        if constexpr (INPUT_LAYOUT != TND) {
-            // for compute dropout mask offset
-            dropMaskInfo.s1Size = s1;
-            dropMaskInfo.s2Size = s2;
-        }
-
-        // for compute dropout mask offset
-        dropMaskInfo.n2G = n2 * g;
-        dropMaskInfo.gSize = g;
-        dropMaskInfo.s2Idx = 1;
-        dropMaskInfo.s1BaseSize = s1CvInner;
-
-        // for copy and compute in dropout mask
-        dropMaskInfo.boolMode = dropBitMode ? false : true;
-        dropMaskInfo.keepProb = keepProb;
-    }
 }
 
 
