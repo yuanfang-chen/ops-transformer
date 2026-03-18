@@ -397,7 +397,7 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
     // 按量化模式分支校验
     switch (xMode) {
         case QuantModeType::NO_QUANT:
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template unsupport NO_QUANT_MODE.");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template unsupport NO_QUAN mode.");
             return false;
         case QuantModeType::PERTENSOR_QUANT:
             return CheckPerTensorQuantMode(XScaleOptional, WeightScaleOptional, xName, weightName);
@@ -415,22 +415,58 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
     }
 }
 
-static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmX,
-                             const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
-                             const aclTensor *gmmWeightScaleOptional, const aclTensor *y, int64_t mmXQuantMode,
-                             int64_t mmWeightQuantMode, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
-                             const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
-                             const aclTensor *mmYOptional)
+static bool CheckMmConsistency(const aclTensor *gmmX, const aclTensor *gmmWeight,
+                                     const aclTensor *mmXOptional, const aclTensor *mmWeightOptional)
 {
-    if (!CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional, gmmX, gmmWeight,
-                        y, "gmmX", "gmmWeight")) {
+    if (mmXOptional == nullptr || mmWeightOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "mmX and mmWeight should both be set or both be nullptr.");
         return false;
     }
-    if (mmXOptional != nullptr && mmWeightOptional != nullptr) {
-        if (!CheckQuantMode(mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional, mmXOptional,
-                            mmWeightOptional, mmYOptional, "mmX", "mmWeight")) {
-            return false;
-        }
+    if (mmXOptional->GetDataType() != gmmX->GetDataType()) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "mmX dtype should be the same as gmmX dtype.");
+        return false;
+    }
+    if (mmWeightOptional->GetDataType() != gmmWeight->GetDataType()) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "mmWeight dtype should be the same as gmmWeight dtype.");
+        return false;
+    }
+    return true;
+}
+
+static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmX,
+                             const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
+                             const aclTensor *gmmWeightScaleOptional, const aclTensor *y,
+                             int64_t mmXQuantMode, int64_t mmWeightQuantMode, const aclTensor *mmXOptional,
+                             const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
+                             const aclTensor *mmWeightScaleOptional, const aclTensor *mmYOptional)
+{
+    // 1) gmm 一定要有量化模式，且当前只支持 TT(1) / MX(6)
+    if (!CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional,
+                        gmmX, gmmWeight, y, "gmmX", "gmmWeight", false)) {
+        return false;
+    }
+    // 2) mm 不存在时，允许没有量化模式
+    if (mmXOptional == nullptr && mmWeightOptional == nullptr) {
+        return true;
+    }
+    // 3) 共享专家强校验：输入类型、转置配置必须与 gmm 一致
+    if (!CheckMmConsistency(gmmX, gmmWeight, mmXOptional, mmWeightOptional)) {
+        return false;
+    }
+    // 4) mm 存在时，mm 不能是非量化，且必须与 gmm 保持完全一致
+    if (mmXQuantMode != gmmXQuantMode || mmWeightQuantMode != gmmWeightQuantMode) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "When mm inputs are set, mm quant modes should be exactly the same as gmm quant modes. "
+                "Expect (%ld, %ld), but got (%ld, %ld).",
+                gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode);
+        return false;
+    }
+    if (!CheckQuantMode(mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional,
+                        mmXOptional, mmWeightOptional, mmYOptional, "mmX", "mmWeight", false)) {
+        return false;
     }
     return true;
 }
@@ -499,7 +535,6 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
     int64_t yDtype = y->GetDataType();
     int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
-
 
     aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
