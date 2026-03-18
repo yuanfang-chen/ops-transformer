@@ -9,25 +9,26 @@
  */
 
 /*!
- * \file weight_quant_matmul_all_reduce_add_rms_norm_tiling.h
+ * \file matmul_all_reduce_add_rms_norm_tiling.h
  * \brief
  */
-#ifndef _WEIGHT_QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
-#define _WEIGHT_QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
-#include <memory>
-#include "../../../matmul_all_reduce/op_host/op_tiling/arch32/weight_quant_matmul_all_reduce_tiling.h"
+
+#ifndef _MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
+#define _MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
+#include "../../../../matmul_all_reduce/op_host/op_tiling/arch32/matmul_all_reduce_tiling_910.h"
 #include "common_add_rms_norm_tiling.h"
 #include "context_transfer.h"
-#include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
+#include "../../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
+
 namespace optiling {
-class WeightQuantMMNTilingTransferHelper;
-class WeightQuantMatmulAllReduceAddRmsNormTiling : public TilingBaseClass
+class MMNTilingTransferHelper;
+class MatmulAllReduceAddRmsNormTiling : public TilingBaseClass
 {
-    friend class WeightQuantMMNTilingTransferHelper;
+    friend class MMNTilingTransferHelper;
 
 public:
-    explicit WeightQuantMatmulAllReduceAddRmsNormTiling(gert::TilingContext* context);
-    ~WeightQuantMatmulAllReduceAddRmsNormTiling() override = default;
+    explicit MatmulAllReduceAddRmsNormTiling(gert::TilingContext* context);
+    ~MatmulAllReduceAddRmsNormTiling() override = default;
 
 protected:
     ge::graphStatus GetPlatformInfo() override;
@@ -43,24 +44,24 @@ protected:
 private:
     bool HasTail() const;
     MRNCtxInfo mrnCtxInfo_;
-    Mc2Tiling::WeightQuantMatmulAllReduceAddRmsNormTilingData tilingData_;
+    Mc2Tiling::MatmulAllReduceAddRmsNormTilingData tilingData_;
     bool hasTail_;
     TilingOut tilingOutAddRmsNormTile_;
     TilingOut tilingOutAddRmsNormTail_;
-    std::unique_ptr<WeightQuantMMNTilingTransferHelper> helper_;
+    std::unique_ptr<MMNTilingTransferHelper> helper_;
 };
 
-class WeightQuantMMNTilingTransferHelper : public WeightQuantMatmulAllReduceTiling
+class MMNTilingTransferHelper : public MatmulAllReduceTiling910
 {
 public:
-    WeightQuantMMNTilingTransferHelper(
-        WeightQuantMatmulAllReduceAddRmsNormTiling& weightQuantMatmulAllReduceAddRmsNormTiling,
-        Mc2Tiling::WeightQuantMatmulAllReduceTilingData& data);
+    MMNTilingTransferHelper(
+        MatmulAllReduceAddRmsNormTiling& MatmulAllReduceAddRmsNormTiling,
+        Mc2Tiling::MatmulAllReduce910TilingData& data);
     ge::graphStatus GetShapeAttrsInfo() override;
 
 private:
-    WeightQuantMatmulAllReduceAddRmsNormTiling& tilingProcesser_;
+    MatmulAllReduceAddRmsNormTiling& tilingProcesser_;
 };
 } // namespace optiling
 
-#endif // _WEIGHT_QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
+#endif // _MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_

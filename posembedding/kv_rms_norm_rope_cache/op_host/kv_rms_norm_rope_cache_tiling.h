@@ -20,6 +20,8 @@
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
 
+set a compile error here
+
 namespace optiling {
 using namespace Ops::Base;
 // DS
