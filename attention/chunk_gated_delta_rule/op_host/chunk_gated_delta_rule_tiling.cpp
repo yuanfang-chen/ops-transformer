@@ -117,7 +117,6 @@ namespace optiling {
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // vInner
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // qPrime
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // attnInter
-        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // vNew
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kg
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * c;   // qkt
         tilingData_.interWorkspaceSz += sizeHigh * b * nv * dv * dk;    // highState
@@ -381,6 +380,7 @@ namespace optiling {
             !CheckFormat(context_->GetInputDesc(KEY_INDEX)->GetStorageFormat(), "key") ||
             !CheckFormat(context_->GetInputDesc(VALUE_INDEX)->GetStorageFormat(), "value") ||
             !CheckFormat(context_->GetInputDesc(STATE_INDEX)->GetStorageFormat(), "state") ||
+            !CheckFormat(context_->GetInputDesc(BETA_INDEX)->GetStorageFormat(), "beta") ||
             !CheckFormat(context_->GetInputDesc(CUSEQLENS_INDEX)->GetStorageFormat(), "actual_seq_lengths")) {
                 return ge::GRAPH_FAILED;
             }
@@ -396,9 +396,10 @@ namespace optiling {
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::GetScale() {
         auto attrs = context_->GetAttrs();
-        float scaleValue = *attrs->GetAttrPointer<float>(0);
-        tilingData_.scale = scaleValue;
-
+        OP_CHECK_IF(attrs == nullptr, OP_LOGE(context_->GetNodeName(), "attrs is null"), return ge::GRAPH_FAILED);
+        auto scalePtr = attrs->GetAttrPointer<float>(0);
+        OP_CHECK_IF(scalePtr == nullptr, OP_LOGE(context_->GetNodeName(), "scale attr is null"), return ge::GRAPH_FAILED);
+        tilingData_.scale = *scalePtr;
         return ge::GRAPH_SUCCESS;
     }
 

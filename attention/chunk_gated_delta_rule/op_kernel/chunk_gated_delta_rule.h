@@ -10,7 +10,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
  */
 
 /*!
- * \file grouped_matmul_finalize_routing.h
+ * \file chunk_gated_delta_rule.h
  * \brief
  */
 #ifndef __CHUNK_GATED_DELTA_RULE_H_
@@ -176,9 +176,6 @@ public:
         attnInter_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
-        vNew_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
-
         kg_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
@@ -306,7 +303,6 @@ private:
     GlobalTensor<highType> vInner_;       // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> qPrime_;        // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> attnInter_;    // (Nv, maxGroupLength, Dv)
-    GlobalTensor<highType> vNew_;         // (Nv, maxGroupLength, Dv)
     GlobalTensor<highType> kg_;           // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> qkt_;          // (Nv, maxGroupLength, C)
     GlobalTensor<highType> highState_;

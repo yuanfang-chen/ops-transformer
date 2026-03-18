@@ -10,7 +10,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
  */
 
 /*!
- * \file grouped_matmul_finalize_routing.h
+ * \file chunk_gated_delta_rule.cpp
  * \brief
  */
 
