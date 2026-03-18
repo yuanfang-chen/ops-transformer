@@ -659,7 +659,9 @@ private:
     {
         fp32OutLocal = fp32OutQueue_.DeQue<float>();
         uint32_t srcStride = (colsAligned - cols) * sizeof(float) / DATA_BLOCK_SIZE;
-        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), static_cast<uint16_t>(cols * sizeof(float)), static_cast<uint16_t>(srcStride), 0, 0};
+        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), 
+                                    static_cast<uint32_t>(cols * sizeof(float)),
+                                    static_cast<uint32_t>(srcStride), 0, 0};
         DataCopyPad(y, fp32OutLocal, yGMParams);
         fp32OutQueue_.FreeTensor(fp32OutLocal);
     }
@@ -669,8 +671,8 @@ private:
         gCumExpUbFloat = gOutQueue_.DeQue<float>();
         if (subBlockIdx_ == 0){
             DataCopyExtParams params{static_cast<uint16_t>(1),
-                                    static_cast<uint16_t>(length * sizeof(float)),
-                                    0, 0, 0};
+                                     static_cast<uint32_t>(length * sizeof(float)),
+                                     0, 0, 0};
             DataCopyPad(outGCumExpGm_, gCumExpUbFloat, params);  // stage1 out
         }
     }
@@ -680,17 +682,20 @@ private:
         uint64_t leftDown = chunkSize_ * curLen;
         uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(AttnWsGm_[leftDown], AttnWsGm_, AttnWsGm_[leftDown], chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        AICProcess(AttnWsGm_[leftDown], AttnWsGm_, AttnWsGm_[leftDown], 
+                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(AttnWsGm_[rightDown], AttnWsGm_[leftDown], AttnWsGm_[leftDown], chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        AICProcess(AttnWsGm_[rightDown], AttnWsGm_[leftDown], AttnWsGm_[leftDown], 
+                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z, 
-                                      uint64_t m, uint64_t n, uint64_t k, uint64_t sm, uint64_t sn, uint64_t sk, bool transB=false)
+                                      uint64_t m, uint64_t n, uint64_t k,
+                                      uint64_t sm, uint64_t sn, uint64_t sk, bool transB=false)
     {
         mmFp32.SetOrgShape(m, n, k);
         mmFp32.SetSingleShape(sm, sn, sk);

@@ -232,14 +232,13 @@ public:
     __aicore__ inline void CopyIn(GlobalTensor<inType> tmpGM, int32_t row, int32_t col)
     {
         LocalTensor<inType> inLocal = inQueue_.AllocTensor<inType>();
-        DataCopyPadExtParams<inType> padParams;
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
                                     static_cast<uint32_t>(col * sizeof(inType)),
                                     static_cast<uint32_t>(0), 
                                     0, 0};
         int padding = Ceil(col, BLOCK_SIZE / sizeof(inType)) * (BLOCK_SIZE / sizeof(inType)) - col;
         DataCopyPadExtParams<inType> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
-        DataCopyPad(inLocal, tmpGM, inParams, padParams);
+        DataCopyPad(inLocal, tmpGM, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
     }
 
