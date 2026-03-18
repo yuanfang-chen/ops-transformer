@@ -86,7 +86,7 @@ protected:
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
     void PostDoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg, mc2tiling::Mc2QuantMode quantMmMode);
-    CutResult GetTilingResult();
+    virtual CutResult GetTilingResult();
     virtual ge::graphStatus CheckInput()
     {
         return ge::GRAPH_SUCCESS;
