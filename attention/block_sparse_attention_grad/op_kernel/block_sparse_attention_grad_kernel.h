@@ -398,7 +398,7 @@ namespace BSA {
                             }
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
                             LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
-                            LayoutB1 layoutB1(curInfo.curCalKVSize, headDim);
+                            LayoutB1 layoutB1(headDim, curInfo.curCalKVSize);
                             LayoutC1 layoutC1(curInfo.curCalQSize, curInfo.curCalKVSize);
                             GemmCoord actualShape1{curInfo.curCalQSize, curInfo.curCalKVSize, headDim};
                             blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1);
