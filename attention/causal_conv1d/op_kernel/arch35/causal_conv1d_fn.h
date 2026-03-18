@@ -180,10 +180,7 @@ private:
     uint32_t cacheStride_;       // cacheStates 的行 stride（>= dim_）
     uint32_t residualConnection_; // 是否加残差：0-不需要，1-需要
 
-    // 有效 batch 范围（tiling 已过滤掉头尾的无效 batch）
-    uint32_t validBatchStart_;   // 有效 batch 的起始索引
-    uint32_t validBatchEnd_;     // 有效 batch 的结束索引
-    uint32_t validSeqStart_;     // 有效序列在 x 中的起始位置
+    int64_t padSlotId_;          // 无效 batch 标记值
 
     // 运行时辅助：当前核的二维索引
     uint32_t bsIdx_;             // BS 方向的核索引
@@ -292,9 +289,7 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     residualConnection_        = tiling->residualConnection;
 
     // 有效 batch 范围
-    validBatchStart_           = tiling->validBatchStart;
-    validBatchEnd_             = validBatchStart_ + tiling->validBatchCount;
-    validSeqStart_             = tiling->validSeqStart;
+    padSlotId_                 = tiling->padSlotId;
 
     // 计算当前核的二维索引
     uint32_t blockIdx = GetBlockIdx();
@@ -315,8 +310,8 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     if (tailBlockubTailFactorDim_ > maxUbDim) maxUbDim = tailBlockubTailFactorDim_;
 
     // --- 绑定 GM ---
-    // xGM_ 从 validSeqStart_ 开始，这样 bsStart=0 对应有效序列的起始位置
-    xGM_.SetGlobalBuffer((__gm__ T*)x + validSeqStart_ * xStride_, (uint64_t)tiling->validSeqLen * dim_);
+    // xGM_ 从 x 起始地址开始，bsStart 就是全局 token 位置
+    xGM_.SetGlobalBuffer((__gm__ T*)x, (uint64_t)tiling->cuSeqLen * dim_);
     weightGM_.SetGlobalBuffer((__gm__ T*)weight, kernelWidth_ * dim_);
     cacheStatesGM_.SetGlobalBuffer((__gm__ T*)convStates);
     cacheIndicesGM_.SetGlobalBuffer((__gm__ int32_t*)cacheIndices, batchSize_);
@@ -390,13 +385,13 @@ __aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
 // ============================================================================
 // FindBatchIdx：二分查找 globalSeqIdx 所在 batch
 // 保证：seqStartLocal_[result] <= globalSeqIdx < seqStartLocal_[result+1]
-// 搜索范围限定在 [validBatchStart_, validBatchEnd_)
+// 搜索范围为 [0, batchSize_)
 // ============================================================================
 template <typename T>
 __aicore__ inline uint32_t CausalConv1dFn<T>::FindBatchIdx(uint64_t globalSeqIdx)
 {
-    uint32_t lo = validBatchStart_;
-    uint32_t hi = validBatchEnd_ - 1;
+    uint32_t lo = 0;
+    uint32_t hi = batchSize_ - 1;
     while (lo < hi) {
         uint32_t mid = (lo + hi + 1) / 2;
         if ((uint64_t)seqStartLocal_.GetValue(mid) <= globalSeqIdx) {
@@ -459,8 +454,26 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
     // 主循环：遍历 UB 块中的 token
     uint32_t i = iStart;
     while (i < N) {
-        int32_t hasInitState = hasInitLocal_.GetValue(curBatchIdx);
         int64_t cIdx = cacheIdxLocal_.GetValue(curBatchIdx);
+
+        // 跳过 padSlotId 标记的无效 batch
+        if (cIdx == padSlotId_) {
+            uint32_t remainInBatch = curBatchLen - curSequenceIdx;
+            uint16_t skip = (N - i < remainInBatch) ? (N - i) : remainInBatch;
+            i += skip;
+            curSequenceIdx += skip;
+            bool reachEnd = (skip == remainInBatch);
+            if (reachEnd && curBatchIdx + 1 < batchSize_) {
+                curBatchIdx++;
+                batchStart   = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
+                batchEnd     = (uint64_t)seqStartLocal_.GetValue(curBatchIdx + 1);
+                curBatchLen  = (uint32_t)(batchEnd - batchStart);
+                curSequenceIdx = 0;
+            }
+            continue;
+        }
+
+        int32_t hasInitState = hasInitLocal_.GetValue(curBatchIdx);
 
         SetWaitFlag<HardEvent::S_V>(HardEvent::S_V);
         SetWaitFlag<HardEvent::S_MTE3>(HardEvent::S_MTE3);
@@ -486,7 +499,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
         curSequenceIdx += step;
 
         // 如果到达 batch 末尾，更新 batch 索引
-        if (reachBatchEnd && curBatchIdx + 1 < validBatchEnd_) {
+        if (reachBatchEnd && curBatchIdx + 1 < batchSize_) {
             curBatchIdx++;
             batchStart   = (uint64_t)seqStartLocal_.GetValue(curBatchIdx);
             batchEnd     = (uint64_t)seqStartLocal_.GetValue(curBatchIdx + 1);
@@ -706,8 +719,8 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
     uint32_t K    = kernelWidth_;
     uint16_t step = (ubFactorBS > K - 1) ? (ubFactorBS - (K - 1)) : 1;
 
-    // bsStart 是相对于有效序列的偏移，需要转换为全局位置用于 batch 边界判断
-    uint64_t globalBsStart = bsStart + validSeqStart_;
+    // bsStart 就是全局 token 位置，直接用于 batch 边界判断
+    uint64_t globalBsStart = bsStart;
 
     // 只在核开始时调用一次 FindBatchIdx（传入全局位置）
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
@@ -725,10 +738,10 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
         uint64_t curBsStart = bsStart + curBsOff;
 
         // 计算实际开始处理的全局位置（非重叠部分的第一个 token）
-        uint64_t actualStart = curBsStart + iStart + validSeqStart_;
+        uint64_t actualStart = curBsStart + iStart;
 
         // 更新 curBatchIdx 到 actualStart 所在的 batch（大多数情况下不执行，因为上一轮已更新）
-        while (curBatchIdx + 1 < validBatchEnd_ &&
+        while (curBatchIdx + 1 < batchSize_ &&
                actualStart >= (uint64_t)seqStartLocal_.GetValue(curBatchIdx + 1)) {
             curBatchIdx++;
         }
@@ -781,6 +794,9 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
     if (!firstBatchNeedsDeferredWrite_) {
         return;
     }
+    if (firstBatchCIdx_ == padSlotId_) {
+        return;
+    }
 
     uint32_t K    = kernelWidth_;
     uint32_t rows = K - 1;
@@ -814,8 +830,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
 
     if (curBatchLen >= K) {
         // Long batch：从 xGM 读取 batch 最后 K-1 行
-        uint64_t localBatchEnd = batchEnd - validSeqStart_;
-        uint64_t xSrcOffset = (localBatchEnd - rows) * xStride_ + dimStart;
+        uint64_t xSrcOffset = (batchEnd - rows) * xStride_ + dimStart;
         DataCopyExtParams rcp{static_cast<uint16_t>(rows),
                               static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
                               static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
@@ -843,8 +858,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
         }
         if (curBatchLen > 0) {
             // 从 xGM 读取该 batch 的全部 x 行
-            uint64_t localBatchStart = batchStart - validSeqStart_;
-            uint64_t xSrcOffset = localBatchStart * xStride_ + dimStart;
+            uint64_t xSrcOffset = batchStart * xStride_ + dimStart;
             DataCopyExtParams rcp{static_cast<uint16_t>(curBatchLen),
                                   static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
                                   static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
