@@ -34,11 +34,9 @@ public:
             // 如果是AllToAllMatmul，设置CommShapeLen为k轴的长度
             uint64_t commShapeLen = 0;
             if (args.geAType == ge::DT_FLOAT4_E2M1) {
-                commShapeLen = clusterInfo_.kValue / DIV_NUM;
-            } else {
-                commShapeLen = clusterInfo_.kValue;
+                commPerf_.SetCommDtypeSizeExpansionFraction(DIV_NUM);
             }
-            commPerf_.SetCommShapeLen(commShapeLen);
+            commPerf_.SetCommShapeLen(clusterInfo_.kValue);
             commPerf_.SetCommDTypeSize(clusterInfo_.inMatrixADtypeSize);
         } else {
             // 设置CommShapeLen为N轴的长度(FOR MMAlltoAll)
