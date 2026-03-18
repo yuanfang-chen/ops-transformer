@@ -26,13 +26,13 @@ constexpr int ACL_UINT8 = 4;
 constexpr int OUTPUT_INDEX = 3;
 constexpr int ONE = 1;
 
-static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const NodeProto* node) {
-  int input_size = node->input_size();
-  int output_size = node->output_size();
+static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const ge::Operator& op_src) {
+  int input_size = op_src.GetInputsSize();
+  int output_size = op_src.GetOutputsSize();
   op_dest.DynamicInputRegister("x", input_size);
   op_dest.DynamicOutputRegister("y", output_size);
-  op_dest.SetAttr("name", node->name());
-  op_dest.SetAttr("original_type", "npu::1::MultiHeadAttention");
+  op_dest.SetAttr("name", node.GetName());
+  op_dest.SetAttr("original_type", "com.microsoft::MultiHeadAttention");
 }
 static Status GetOriNameFromOperator(const ge::Operator& op, std::string& ori_name) {
   if (op.GetAttr("name", ori_name) != SUCCESS) {
@@ -63,25 +63,23 @@ static Status GetFinalDimsByOperator(const ge::Operator& op, int head_num, vecto
 }
 }
 
-static Status ParseParamsMultiHeadAttention(const Message* op_src, ge::Operator& op_dest) {
-  const NodeProto* node = dynamic_cast<const NodeProto*>(op_src);
-  if (node == nullptr) {
-    OP_LOGE("FlashAttention", "Dynamic cast op_src to NodeProto failed.");
-    return FAILED;
-  }
-  int32_t head_num = 0;
-  float scale = 1.0f;
-  for (const auto& attr : node->attribute()) {
-    if (attr.name() == "head_num" && attr.type() == ge::onnx::AttributeProto::INT) {
-        head_num = attr.i();
+static Status ParseParamsMultiHeadAttention(const ge::Operator& op_src, ge::Operator& op_dest) {
+  AscendString attrs_string;
+  int attrCount = 0;
+  if (op_src.GetAttr("attribute", attrs_string) == ge::GRAPH_SUCCESS) {
+    json attrs = json::parse(attrs_string.GetString());
+    for (json& attr : attrs["attribute"]) {
+      if (attr["name"] == "head_num") {
+        int head_num = attr["i"];
+        op_dest.SetAttr("head_num", head_num);
+      }
+      if (attr["name"] == "scale") {
+        float scale = attr["f"];
+        op_dest.SetAttr("scale", scale);
+      }
     }
-    if (attr.name() == "scale" && attr.type() == ge::onnx::AttributeProto::FLOAT) {
-        scale = attr.f();
-    }
   }
-  UpdateFlashAttentionByNode(op_dest, node);
-  op_dest.SetAttr("head_num", head_num);
-  op_dest.SetAttr("scale", scale);
+  UpdateFlashAttentionByNode(op_dest, op_src);
   return SUCCESS;
 }
 
@@ -141,7 +139,7 @@ REGISTER_CUSTOM_OP("PartitionedCall")
                    ge::AscendString("com.microsoft::16::MultiHeadAttention"),
                    ge::AscendString("com.microsoft::17::MultiHeadAttention"),
                    ge::AscendString("com.microsoft::18::MultiHeadAttention")})
-    .ParseParamsFn(ParseParamsMultiHeadAttention)
+    .ParseParamsByOperatorFn(ParseParamsMultiHeadAttention)
     .ParseOpToGraphFn(ParseOpToGraphMultiHeadAttention)
     .ImplyType(ImplyType::TVM);
 }
