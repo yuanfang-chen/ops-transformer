@@ -56,6 +56,7 @@ ASCENDC_TPL_ARGS_DECL(mla_prolog,  // 算子唯一标识，与opType保持一致
     // 6-MMCqCkvkr量化+MMQcQr量化+KVcache pertile量化
     // 7-Mxfp8量化+MMCqCkvkr量化+MMQcQr量化 8-Mxfp8量化+MMCqCkvkr量化+MMQcQr量化+KVcache量化
     // 9-Mxfp8量化+MMCqCkvkr量化+MMQcQr量化+KVcache pertile量化
+    // 补注释
     ASCENDC_TPL_UINT_DECL(QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13),
     // bit:10 反量化使能：0-关闭 1-开启
     ASCENDC_TPL_BOOL_DECL(ENABLE_DEQUANT_OPTIONAL, 0, 1),
