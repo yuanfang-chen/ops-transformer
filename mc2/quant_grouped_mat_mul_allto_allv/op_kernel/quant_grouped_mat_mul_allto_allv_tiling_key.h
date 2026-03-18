@@ -20,7 +20,7 @@
 // 量化模式宏定义
 #define QUANT_MODE_NONE 0 // 无量化
 #define QUANT_MODE_TT 1   // TT
-#define QUANT_MODE_MX 2   // MX量化
+#define QUANT_MODE_MX 6   // MX
 
 // 通信量化模式宏定义
 #define COMM_QUANT_MODE_NONE 0 // 不量化
