@@ -116,7 +116,6 @@ private:
     int64_t CalculateLimitedCoreNum();
 
     // Helpers function for DoOpTiling
-    ge::graphStatus ComputeValidBatchRange();
     ge::graphStatus ComputeInterCoreSplit();    //核间切分
     ge::graphStatus ComputeIntraCoreUbTiling(); // 核内切分
     void ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
@@ -153,7 +152,6 @@ private:
     int64_t activationMode_ = 0;
     int64_t padSlotId_ = -1;
     int64_t runMode_ = 0;
-    int64_t inValidBatchNum_ = 0;
     int64_t xInputMode_ = 0;            // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
     int64_t hasAcceptTokenNum_ = 0;     // Whether acceptTokenNum input is provided: 0 for false, 1 for true
     int64_t residualConnection_ = 0;    // Whether use residual connection: 0 for false, 1 for true
@@ -171,8 +169,6 @@ private:
     int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores
     int64_t mainCoreBatchNum_ = 0;        // Batch size for big cores
     int64_t tailCoreBatchNum_ = 0;    // Batch size for small cores
-    int64_t validBatchStart_ = 0;     // First valid batch index
-    int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
 
     // Intra-core tiling parameters UB loop
     int64_t loopNumBS_ = 0;                // Loops in BS direction for big cores

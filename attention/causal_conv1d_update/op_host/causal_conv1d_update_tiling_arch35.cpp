@@ -512,59 +512,12 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
 
 ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
 {
-    OP_CHECK_IF(ComputeValidBatchRange() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "ComputeValidBatchRange failed"),
-                return ge::GRAPH_FAILED);
-
     OP_CHECK_IF(ComputeInterCoreSplit() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"),
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(ComputeIntraCoreUbTiling() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "ComputeIntraCoreUbTiling failed"),
-                return ge::GRAPH_FAILED);
-
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus CausalConv1dUpdateTiling::ComputeValidBatchRange()
-{
-
-    int64_t invalidBatchAtStart = 0;
-    int64_t invalidBatchAtEnd = 0;
-
-    const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
-    if (cacheIndicesTensor != nullptr) {
-        int64_t shapeSize = static_cast<size_t>(cacheIndicesTensor->GetShapeSize());
-        OP_CHECK_IF(shapeSize != batchSize_,
-                OP_LOGE(context_->GetNodeName(), "The batch size of cacheIndices %ld is not equal to X batch %ld", shapeSize, batchSize_),
-                return ge::GRAPH_FAILED);
-        const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
-        if (dataPtr != nullptr) {
-            for (size_t i = 0; i < batchSize_; i++) {
-                if (padSlotId_ == static_cast<int32_t>(dataPtr[i])) {
-                    invalidBatchAtStart++;
-                } else {
-                    break;
-                }
-            }
-            for (int64_t i = batchSize_ - 1; i >= invalidBatchAtStart; i--) {
-                if (padSlotId_ == static_cast<int32_t>(dataPtr[i])) {
-                    invalidBatchAtEnd++;
-                } else {
-                    break;
-                }
-            }
-        } 
-    }
-
-    inValidBatchNum_ = invalidBatchAtStart + invalidBatchAtEnd;
-    validBatchStart_ = invalidBatchAtStart;
-    validBatchEnd_ = batchSize_ - 1 - invalidBatchAtEnd;
-
-    int64_t validBatch = batchSize_ - inValidBatchNum_;
-    OP_CHECK_IF(validBatch <= 0,
-                OP_LOGE(context_->GetNodeName(), "Valid batch must be positive, but got %ld", validBatch),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -583,8 +536,6 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
     limitedCoreNum_ = CalculateLimitedCoreNum();
     int64_t maxCoresAvailable = std::min<int64_t>(totalCoreNum_, limitedCoreNum_);
 
-    int64_t validBatch = batchSize_ - inValidBatchNum_;
-
     // Greedy search best (dimCores, bsCores), prioritize more dim splits
     int64_t bestDimCores = 1;
     int64_t bestBSCores = 1;
@@ -593,7 +544,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
     for (int64_t dc = N; dc >= 1; --dc) {
         int64_t maxAllowedBSByCore = maxCoresAvailable / dc;
         if (maxAllowedBSByCore == 0) continue;
-        int64_t actualBS = std::min<int64_t>(validBatch, maxAllowedBSByCore);
+        int64_t actualBS = std::min<int64_t>(batchSize_, maxAllowedBSByCore);
         if (actualBS <= 0) continue;
         int64_t usedCores = dc * actualBS;
         if (usedCores > bestUsed || (usedCores == bestUsed && dc > bestDimCores)) {
@@ -628,8 +579,8 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
 
     // Derive batch non-uniform parameters
     batchCoreCnt_ = bestBSCores;
-    int64_t bsBase = validBatch / batchCoreCnt_;
-    int64_t bsRemainder = validBatch % batchCoreCnt_;
+    int64_t bsBase = batchSize_ / batchCoreCnt_;
+    int64_t bsRemainder = batchSize_ % batchCoreCnt_;
     if (bsRemainder == 0) {
         // Even split on batch: treat as only main cores, no tail cores
         batchMainCoreCnt_ = batchCoreCnt_;
@@ -769,8 +720,6 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.batchTailCoreCnt = batchTailCoreCnt_;
     tilingData_.mainCoreBatchNum = mainCoreBatchNum_;
     tilingData_.tailCoreBatchNum = tailCoreBatchNum_;
-    tilingData_.validBatchStart = validBatchStart_;
-    tilingData_.validBatchEnd = validBatchEnd_;
 
     // Intra-core tiling parameters (UB loop, big/tail blocks)
     tilingData_.loopNumBS = loopNumBS_;
@@ -833,8 +782,6 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "batchTailCoreCnt: %ld", tilingData_.batchTailCoreCnt);
     OP_LOGI(context_->GetNodeName(), "mainCoreBatchNum: %ld", tilingData_.mainCoreBatchNum);
     OP_LOGI(context_->GetNodeName(), "tailCoreBatchNum: %ld", tilingData_.tailCoreBatchNum);
-    OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", tilingData_.validBatchStart);
-    OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", tilingData_.validBatchEnd);
 
     // Intra-core tiling parameters (UB loop, big/tail blocks)
     OP_LOGI(context_->GetNodeName(), "loopNumBS: %ld", tilingData_.loopNumBS);

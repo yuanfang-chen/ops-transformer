@@ -34,8 +34,6 @@ int64_t batchMainCoreCnt;         // Number of big batch cores
 int64_t batchTailCoreCnt;         // Number of small batch cores
 int64_t mainCoreBatchNum;             // Batch size for big cores
 int64_t tailCoreBatchNum;         // Batch size for small cores
-int64_t validBatchStart;          // First valid batch index
-int64_t validBatchEnd;            // Last valid batch index inclusive
 
 // Intra-core tiling parameters UB loop
 int64_t loopNumBS;                // Loops in BS direction for big cores
