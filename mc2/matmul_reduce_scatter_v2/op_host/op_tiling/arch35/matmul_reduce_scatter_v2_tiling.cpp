@@ -28,6 +28,8 @@
 #include "op_host/op_tiling/mc2_tiling_utils.h"
 #include "op_host/op_tiling/new_mc2_tiling_utils.h"
 #include "tiling_base/tiling_templates_registry.h"
+#include "reduce_scatter_fit_balance_tiling.h"
+#include "../reduce_scatter_formulaic_tiling.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -199,6 +201,20 @@ ge::graphStatus MatmulReduceScatterV2Tiling::PostTiling()
     context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
 }
+
+CutResult MatmulReduceScatterV2Tiling::GetTilingResult()
+{
+    if (mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)) {
+        MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::REDUCE_SCATTER_VIA_ALL_TO_ALL);
+        return scatterTiling.GetTiling();
+    } else {
+        SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
+        MMPlusReduceScatter scatterTiling(args_, args_.rankDim, KernelType::REDUCE_SCATTER, inputSocVersion);
+        scatterTiling.GetTiling();
+        return scatterTiling.tilingM_.cutRes;
+    }
+}
+
 //注册Tiling类
 REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
                                    static_cast<int32_t>(NpuArch::DAV_3510), 0);
