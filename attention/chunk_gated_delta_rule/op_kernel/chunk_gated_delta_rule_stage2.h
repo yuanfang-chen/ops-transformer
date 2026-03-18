@@ -145,7 +145,7 @@ public:
         // 刷新cache
         DataCacheCleanAndInvalid<float,
                                  CacheLine::SINGLE_CACHE_LINE,
-                                 DcciDst::CAHELINE_OUT>(gCumExp[curChunkSize_ - 1]);
+                                 DcciDst::CACHELINE_OUT>(gCumExp[curChunkSize_ - 1]);
         float last_g_cum_exp = gOptional_? gCumExp.GetValue(curChunkSize_ - 1) : 1.0f;
         auto state_in = inQueue_.DeQue<float>();
         auto state_out = outQueue_.AllocTensor<float>();
