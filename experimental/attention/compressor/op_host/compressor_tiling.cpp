@@ -154,7 +154,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     coff = static_cast<uint8_t>(*context_->coff);
     baseParams_->stateCacheStrideDim0 = static_cast<uint64_t>(*context_->stateCacheStrideDim0);
     baseParams_->nSize = 2; // 2:每个核处理两个基本块后做全核同步
-
+        baseParams_->usedCoreNum = aicNum_;
      OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u, stateCacheStrideDim0:%u", \
  	    baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff, baseParams_->stateCacheStrideDim0);
     
@@ -174,13 +174,14 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 
 ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 {
-    workspaceParams_->preMm1ResSize = 0;
-    if (coff == 2) { // 2:需要做overlap
-        workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
+    workspaceParams_->dbWorkspaceRatio = 2;
+    workspaceParams_->mm1KvResSize = innerSplitParams_->mBaseSize * baseParams_->headDim * coff;
+    workspaceParams_->mm1ScoreResSize = innerSplitParams_->mBaseSize * baseParams_->headDim * coff;
+    if (coff == 2) {
+        workspaceParams_->vec1TailCacheSize = baseParams_->cmpRatio * baseParams_->headDim;
     }
-    workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
     if (context_->templateId == TemplateId::PERF) {
-        workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * baseParams_->nSize;
+        workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize * baseParams_->headDim * baseParams_->nSize;
     } else {
         workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize / baseParams_->cmpRatio * innerSplitParams_->dBaseSize * baseParams_->nSize;
     }
@@ -199,6 +200,10 @@ ge::graphStatus CompressorTiling::SetTemplateId()
         return ge::GRAPH_SUCCESS;
     }
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+        if (context_->layout == LayoutType::LAYOUT_BSH &&
+            baseParams_->seqSize <= 4 && baseParams_->tokenSize <= 256) {
+            context_->templateId = TemplateId::PERF;
+        }
         return ge::GRAPH_SUCCESS;
     }
     // 设置高性能模板
@@ -208,18 +213,49 @@ ge::graphStatus CompressorTiling::SetTemplateId()
 
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
-    innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
-    innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
-    if (context_->templateId == TemplateId::PERF) {
-        if (coff == 2) {
-            innerSplitParams_->mBaseSize = 128;
-        } else {
-            innerSplitParams_->mBaseSize = 256;
+    if (context_->templateId = TemplateId::PERF) {
+        innerSplitParams_->mBaseSize = 256;                 // 256:核间切分，M轴基本块大小
+        innerSplitParams_->dBaseSize = 256 / (coff * 2);    // nBase = dBase * coff * 2
+        uint32_t dBaseNum = baseParams_->headDim / innerSplitParams_->dBaseSize;
+        uint32_t mBaseNum = (baseParams_->tokenSize + innerSplitParams_->mBaseSize - 1) / innerSplitParams_->mBaseSize;
+        baseParams_->coreGroupNum = baseParams_->usedCoreNum / dBaseNum;
+        baseParams_->kBaseNum = 1;
+        baseParams_->kBaseSize = baseParams_->hiddenSize;
+        if ((dBaseNum * mBaseNum) < baseParams_->usedCoreNum) {
+            baseParams_->kBaseNum = baseParams_->usedCoreNum / dBaseNum;
+            baseParams_->kBaseSize = (baseParams_->hiddenSize + baseParams_->kBaseNum - 1) / baseParams_->kBaseNum;
         }
-        innerSplitParams_->dBaseSize = 64;
+        for (uint32_t i = 0; i < baseParams_->usedCoreNum; i++) {
+            baseParams_->splitCoreParam[i].nStart = (i % dBaseNum) * innerSplitParams_->dBaseSize;
+            baseParams_->splitCoreParam[i].nEnd = baseParams_->splitCoreParam[i].nStart + innerSplitParams_->dBaseSize;
+            if (baseParams_->kBaseNum > 1) {
+                baseParams_->splitCoreParam[i].kStart = (i / dBaseNum) * baseParams_->kBaseSize;
+                baseParams_->splitCoreParam[i].kEnd = baseParams_->splitCoreParam[i].kStart + baseParams_->kBaseSize;
+                baseParams_->splitCoreParam[i].mStart = 0;
+                baseParams_->splitCoreParam[i].mEnd = baseParams_->tokenSize;
+                baseParams_->mLoopNum = 1;
+            } else {
+                baseParams_->splitCoreParam[i].kStart = 0;
+                baseParams_->splitCoreParam[i].kEnd = baseParams_->splitCoreParam[i].kStart + baseParams_->kBaseSize;
+                baseParams_->splitCoreParam[i].mStart = (i / dBaseNum) * innerSplitParams_->mBaseSize;
+                baseParams_->splitCoreParam[i].mEnd = baseParams_->splitCoreParam[i].mStart + innerSplitParams_->mBaseSize;
+                baseParams_->mLoopNum = mBaseNum / baseParams_->coreGroupNum;
+            }
+        }
     } else {
         innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
         innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
+        if (context_->templateId == TemplateId::PERF) {
+            if (coff == 2) {
+                innerSplitParams_->mBaseSize = 128;
+            } else {
+                innerSplitParams_->mBaseSize = 256;
+            }
+            innerSplitParams_->dBaseSize = 64;
+        } else {
+            innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
+            innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
+        }
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -228,10 +264,12 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 {
     constexpr uint32_t MM1_RES_ELEM_SIZE = 4;      // 4: fp32
     constexpr uint32_t V1_RES_ELEM_SIZE = 4;       // 4: fp32
+    uint32_t maxGroupNum = aicNum_ / (baseParams_->headDim / innerSplitParams_->dBaseSize);
     workspaceSize_ = libapiSize_;
-    workspaceSize_ += aicNum_ * workspaceParams_->preMm1ResSize * MM1_RES_ELEM_SIZE;
-    workspaceSize_ += aicNum_ * workspaceParams_->curMm1ResSize * MM1_RES_ELEM_SIZE;
-    workspaceSize_ += aicNum_ * workspaceParams_->vec1ResSize * V1_RES_ELEM_SIZE;
+    workspaceSize_ += workspaceParams_->mm1KvResSize * maxGroupNum * MM1_RES_ELEM_SIZE * workspaceParams_->dbWorkspaceRatio;
+    workspaceSize_ += workspaceParams_->mm1ScoreResSize * maxGroupNum * MM1_RES_ELEM_SIZE * workspaceParams_->dbWorkspaceRatio;
+    workspaceSize_ += workspaceParams_->vec1TailCacheSize * MM1_RES_ELEM_SIZE * workspaceParams_->dbWorkspaceRatio * 2;   // 2 kv和score
+    workspaceSize_ += workspaceParams_->vec1ResSize * maxGroupNum * V1_RES_ELEM_SIZE * workspaceParams_->dbWorkspaceRatio;
     
     if (context_->workSpaces) {
         context_->workSpaces[0] = workspaceSize_;
@@ -311,8 +349,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
             return ge::GRAPH_FAILED;
         }
     }
-
-    baseParams_->usedCoreNum = aicNum_;
 
     context_->blockDim = aicNum_;
 

@@ -104,8 +104,17 @@ struct ConstInfo {
     uint32_t coreGroupNum = 0;
     uint32_t singleCoreDealTcBasicNum = 0;
     uint32_t dIdx = 0;
+    uint32_t mStart = 0;
+    uint32_t mEnd = 0;
+    uint32_t nStart = 0;
+    uint32_t nEnd = 0;
+    uint32_t kStart = 0;
+    uint32_t kEnd = 0;
+    uint32_t mLoopNum = 0;
     uint32_t bIdxOfLastTc = 0;
     uint32_t sIdxOfLastTc = 0;
+    uint32_t mGroupNum = 0;
+    uint32_t mCurGroupIdx = 0;
 
     // shape及参数
     uint32_t batchSize = 0;

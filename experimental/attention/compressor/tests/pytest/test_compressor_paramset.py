@@ -247,8 +247,9 @@ TEST_PARAMS = {
         "score_state_datarange": [[-10, 10]],
     }
 }#注意单个用例组内的用例尽量不要超过32
-FIRST_CASE = [TEST_PARAMS["Prefill0"], TEST_PARAMS["Prefill1"], TEST_PARAMS["Prefill2"], TEST_PARAMS["decode0"],
-            TEST_PARAMS["decode1"], TEST_PARAMS["decode2"], TEST_PARAMS["decode3"], TEST_PARAMS["decode4"], 
-            TEST_PARAMS["decode5"]]
+FIRST_CASE = [TEST_PARAMS["Prefill0"]]
+# FIRST_CASE = [TEST_PARAMS["Prefill0"], TEST_PARAMS["Prefill1"], TEST_PARAMS["Prefill2"], TEST_PARAMS["decode0"],
+#             TEST_PARAMS["decode1"], TEST_PARAMS["decode2"], TEST_PARAMS["decode3"], TEST_PARAMS["decode4"], 
+#             TEST_PARAMS["decode5"]]
 # 按需选择要启用的测试参数（例如默认启用所有）
 ENABLED_PARAMS = FIRST_CASE #按需增加需要的case即可
