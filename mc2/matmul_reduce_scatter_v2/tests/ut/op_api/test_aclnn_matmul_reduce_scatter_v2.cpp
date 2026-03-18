@@ -14,11 +14,52 @@
 #include "op_api_ut_common/op_api_ut.h"
 #include "opdev/platform.h"
 #include "platform/platform_info.h"
+#include "test_matmul_reduce_scatter_v2_api_ut_param.h"
 
 using namespace op;
 using namespace std;
 
-namespace {
+namespace MatmulReduceScatterV2UT {
+
+class AclnnMatmulReduceScatterV2Test : public testing::TestWithParam<MatmulReduceScatterV2ApiUtParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        std::cout << "MatmulReduceScatterV2 AclnnMatmulReduceScatterV2Test SetUp" << std::endl;
+    }
+
+    static void TearDownTestCase()
+    {
+        std::cout << "MatmulReduceScatterV2 AclnnMatmulReduceScatterV2Test TearDown" << std::endl;
+    }
+};
+
+TEST_P(AclnnMatmulReduceScatterV2Test, param)
+{
+    auto param = GetParam();
+    op::SetPlatformSocVersion(param.soc);
+    auto ut = OP_API_UT(
+        aclnnMatmulReduceScatterV2,
+        INPUT(param.x1, param.x2, param.bias, param.x1Scale, param.x2Scale, param.quantScale, param.blockSize, param.group.c_str(),
+            param.reduceOp.c_str(), param.commTurn, param.streamMode, param.groupSize, param.commMode.c_str()),
+        OUTPUT(param.output, nullptr)
+    );
+    uint64_t workspace_size = 0;
+    aclOpExecutor* executor = nullptr;
+    auto aclnnRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    if (param.expectResult == ACLNN_SUCCESS) {
+        EXPECT_NE(ACLNN_ERR_PARAM_INVALID, aclnnRet);
+    } else {
+        EXPECT_EQ(param.expectResult, aclnnRet);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MatmulReduceScatterV2,
+    AclnnMatmulReduceScatterV2Test,
+    testing::ValuesIn(GetCasesFromCsv<MatmulReduceScatterV2ApiUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    PrintCaseInfoString<MatmulReduceScatterV2ApiUtParam>
+);
 
 class MatmulReduceScatterV2AclnnTest : public testing::Test {
 protected:

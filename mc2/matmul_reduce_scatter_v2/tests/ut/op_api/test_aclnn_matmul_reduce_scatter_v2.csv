@@ -1,0 +1,6 @@
+case_name,soc,expect_result,x1_shape,x1_dtype,x1_format,x2_shape,x2_dtype,x2_format,bias_shape,bias_dtype,bias_format,x1_scale_shape,x1_scale_dtype,x1_scale_format,x2_scale_shape,x2_scale_dtype,x2_scale_format,quantScale_shape,quantScale_dtype,quantScale_format,output_shape,output_dtype,output_format,amaxOutOptional_shape,amaxOutOptional_dtype,amaxOutOptional_format,blockSize,group,reduceOp,comm_turn,stream_mode,group_size,commMode
+opapi_test1,Ascend910B,SUCCESS,256 256,FLOAT16,ND,256 256,FLOAT16,ND,256,FLOAT16,ND,,,,,,,,,,1024 256,FLOAT16,ND,,,,0,test_group,,8,1,0,aicpu
+opapi_test2,Ascend910B,SUCCESS,256 256,FLOAT16,ND,256 256,FLOAT16,FRACTAL_NZ,256,FLOAT16,ND,,,,,,,,,,1024 256,FLOAT16,ND,,,,0,test_group,,8,1,0,aicpu
+opapi_test3,Ascend950,SUCCESS,16 256,FLOAT16,ND,256 16,FLOAT16,ND,32,FLOAT16,ND,16 256,FLOAT16,ND,256 16,FLOAT16,ND,32,FLOAT16,ND,16 16,FLOAT16,ND,16 16,FLOAT16,ND,0,test_group,sum ,8,1,0,aicpu
+opapi_test4,Ascend950,SUCCESS,16 256,FLOAT16,ND,256 16,FLOAT16,ND,32,FLOAT16,ND,16 256,FLOAT16,ND,256 16,FLOAT16,ND,32,FLOAT16,ND,16 16,FLOAT16,ND,,,,0,test_group,sum ,8,1,0,aicpu
+opapi_test5,Ascend950,SUCCESS,16 256,FLOAT8_E4M3FN,ND,256 16,FLOAT8_E4M3FN,ND,32,FLOAT16,ND,16 256,FLOAT16,ND,256 16,FLOAT16,ND,32,FLOAT16,ND,16 16,FLOAT16,ND,,,,0,test_group,sum ,8,1,0,aicpu
