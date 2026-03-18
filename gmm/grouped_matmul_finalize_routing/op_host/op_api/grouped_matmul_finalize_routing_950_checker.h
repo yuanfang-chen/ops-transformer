@@ -171,6 +171,17 @@ public:
                     "When the M or N value is not 0, the K value should be positive, but got %ld.", k);
             return false;
         }
+        if (!CheckRequiredShapes(m, k, n, e, outputBS)) {
+            return false;
+        }
+        if (!CheckOptionalShapes(m, k, e, n)) {
+            return false;
+        }
+        return true;
+    }
+
+    bool CheckRequiredShapes(int64_t m, int64_t k, int64_t n, int64_t e, int64_t outputBS)
+    {
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape weightScaleExpectShape =
@@ -196,6 +207,11 @@ public:
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.logit, logitExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.rowIndex, rowindexExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.out, outputExpectShape, return false);
+        return true;
+    }
+
+    bool CheckOptionalShapes(int64_t m, int64_t k, int64_t e, int64_t n)
+    {
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             op::Shape xScaleExpectShape =
                 quantMode_ == QuantMode::MX ? op::Shape{m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} : op::Shape{m};
@@ -203,13 +219,11 @@ public:
                                                         return false);
         }
         if (gmmParams_.bias != nullptr) {
-            // bias的shape期望为[E, N]
             op::Shape biasExpectShape = {e, n};
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.bias, biasExpectShape, return false);
         }
         if (gmmParams_.shareInput != nullptr) {
-            // shareInput的shape期望为[bsdp, N]
-            int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
+            int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0);
             op::Shape shareInputExpectShape = {bsdp, n};
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.shareInput, shareInputExpectShape, return false);
         }
@@ -357,6 +371,17 @@ public:
 
     bool CheckFormat()
     {
+        if (!CheckXAndWeightFormat()) {
+            return false;
+        }
+        if (!CheckOtherTensorFormats()) {
+            return false;
+        }
+        return true;
+    }
+
+    bool CheckXAndWeightFormat()
+    {
         if (op::IsPrivateFormat(gmmParams_.x1->GetStorageFormat()) ||
             (gmmParams_.pertokenScaleOptional != nullptr &&
              op::IsPrivateFormat(gmmParams_.pertokenScaleOptional->GetStorageFormat()))) {
@@ -378,6 +403,11 @@ public:
                 return false;
             }
         }
+        return true;
+    }
+
+    bool CheckOtherTensorFormats()
+    {
         if (op::IsPrivateFormat(gmmParams_.scale->GetStorageFormat())) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of scale should be ND, current format is %s.",
                     op::ToString(gmmParams_.scale->GetStorageFormat()).GetString());
