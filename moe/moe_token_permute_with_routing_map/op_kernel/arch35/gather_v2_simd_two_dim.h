@@ -192,6 +192,7 @@ __aicore__ inline void Gatherv2SimdTwoDim<INDICES_T>::NoSplitColProcess(int64_t 
     }
 }
 
+
 template <typename INDICES_T>
 __aicore__ inline void Gatherv2SimdTwoDim<INDICES_T>::SplitColProcess(int64_t colsAlign)
 {

@@ -24,6 +24,7 @@
 
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 #include "arch35/gather_v2_simd_two_dim.h"
+#include "arch35/gather_v2_simt_two_dim.h"
 #endif
 
 #if !defined(DTYPE_TOKENS)
@@ -120,6 +121,11 @@ extern "C" __global__ __aicore__ void moe_token_permute_with_routing_map(
         GENERAL_PAD_OP_IMPL(MoeSortMultiCore, MoeSortMultiCore, MoeindexCopySplitDOp, DTYPE_TOKENS, true);
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         GATHER_IMPL(); // __NPU_ARCH__ == 3510 上在算子内部进行gather
+        } else if (TILING_KEY_IS(19)) {
+        GENERAL_PAD_OP_IMPL(MoeSortMultiCore, MoeSortMultiCore, MoeindexCopySplitDOp, DTYPE_TOKENS, true);
+        gatherv2::Gatherv2SimtTwoDim<DTYPE_TOKENS, int32_t, uint32_t> gatherv2Op();
+        gatherv2Op.Init(tokens, sortedIndices, permuteTokens, t);
+        gatherv2Op.Process();
 #endif
     }
 }
