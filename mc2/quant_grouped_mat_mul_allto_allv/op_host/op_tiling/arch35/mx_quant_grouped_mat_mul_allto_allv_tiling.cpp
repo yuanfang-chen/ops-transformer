@@ -193,7 +193,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_MX,
         OP_LOGE(opName_, "gmmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
-    ge::graphStatus status = CheckShapeDimensions(gmmXScaleStorageShape, DIM_FOUR, "gmmXScaleShape", opName_);
+    ge::graphStatus status = CheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
     status = CheckShapeDimensions(gmmWeightScaleStorageShape, DIM_FOUR, "gmmWeightScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
@@ -318,11 +318,112 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
                     ((groupSizeK != MX_GROUP_SIZE_K) && (groupSizeK != 0)),
         CUBE_INNER_ERR_REPORT(
             opName_,
-            "GroupSizeM, groupSizeN and groupSizeK should be 0 or 32 in mxfp scene,"
+            "GroupSizeM, groupSizeN should be 0 or 1, and groupSizeK should be 0 or 32 in mxfp scene,"
             " but actual is groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu.",
             groupSizeM, groupSizeN, groupSizeK),
         return ge::GRAPH_FAILED);
 
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes()
+{
+    bool TransGmmWeightFlag = false;
+    const gert::RuntimeAttrs *attrs = context_->GetAttrs();
+    const bool *isTransGmmWeight = attrs->GetAttrPointer<bool>(ATTR_TRANS_GMM_WEIGHT_INDEX);
+    if (isTransGmmWeight) {
+        TransGmmWeightFlag = *isTransGmmWeight;
+    }
+    const gert::StorageShape *gmmXScaleShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
+    const gert::StorageShape *gmmWeightScaleShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    uint64_t gmmXScaleDim0 = gmmXScaleShape->GetStorageShape().GetDim(0);
+    uint64_t gmmXScaleDim1 = gmmXScaleShape->GetStorageShape().GetDim(1);
+    uint64_t gmmXScaleDim2 = gmmXScaleShape->GetStorageShape().GetDim(2);
+    uint64_t gmmWeightScaleDim0 = gmmWeightScaleShape->GetStorageShape().GetDim(0);
+    uint64_t gmmWeightScaleDim1 = gmmWeightScaleShape->GetStorageShape().GetDim(1);
+    uint64_t gmmWeightScaleDim2 = gmmWeightScaleShape->GetStorageShape().GetDim(2);
+    uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(3);
+    
+    OP_LOGE(opName_, "A is:%lu\n H1 is:%lu\n ep is:%lu\n BsK is:%lu\n N1 is:%lu\n Bs is:%lu\n H2 is:%lu\n N2 is:%lu\n.",
+            localParams_.A, localParams_.H1, localParams_.ep, localParams_.BsK, localParams_.N1, localParams_.Bs, localParams_.H2, localParams_.N2);
+
+    uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
+    OP_TILING_CHECK((localParams_.A != gmmXScaleDim0) || (gmmxDivH1 != gmmXScaleDim1) || (gmmXScaleDim2 != EVEN_ALIGN),
+        OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of gmmXScale! "
+            "gmmXScaleDim0 should be equal to gmmXDim0(%lu), "
+            "gmmXScaleDim1 should be equal to (gmmXDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu), gmmXScaleDim2 should be equal to 2, "
+            "Expected Shape of gmmXScale = (%lu, %lu, %lu), Actual Shape of gmmXScale = (%lu, %lu, %lu).",
+            localParams_.A, gmmxDivH1, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.A, gmmxDivH1, EVEN_ALIGN, 
+            gmmXScaleDim0, gmmXScaleDim1, gmmXScaleDim2), return ge::GRAPH_FAILED);
+
+    if (localParams_.isGmmWeightTrans){ // Transposed Scenario
+        OP_TILING_CHECK((gmmWeightScaleDim0 != localParams_.ep) || (gmmWeightScaleDim1 != localParams_.N1) || (gmmWeightScaleDim2 != gmmxDivH1) || (gmmWeightScaleDim3 != EVEN_ALIGN),
+            OP_LOGE(opName_, "In the Transposed Scenario, Wrong shape of gmmWeightScale! "
+                "gmmWeightScaleDim0 should be equal to gmmWeightDim0(%lu), "
+                "gmmWeightScaleDim1 should be equal to gmmWeightDim1(%lu), "
+                "gmmWeightScaleDim2 should be equal to (gmmWeightDim2(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu), gmmWeightScaleDim3 should be equal to 2, "
+                "Expected Shape of gmmWeightScale = (%lu, %lu, %lu, %lu), Actual Shape of gmmWeightScale = (%lu, %lu, %lu, %lu).",
+                localParams_.ep, localParams_.N1, gmmxDivH1, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.ep, localParams_.N1, gmmxDivH1, EVEN_ALIGN, 
+                gmmWeightScaleDim0, gmmWeightScaleDim1, gmmWeightScaleDim2, gmmWeightScaleDim3), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK((gmmWeightScaleDim0 != localParams_.ep) || (gmmWeightScaleDim1 != gmmxDivH1) || (gmmWeightScaleDim2 != localParams_.N1) || (gmmWeightScaleDim3 != EVEN_ALIGN),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of gmmWeightScale! "
+                "gmmWeightScaleDim0 should be equal to gmmWeightDim0(%lu), "
+                "gmmWeightScaleDim1 should be equal to (gmmWeightDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu),"
+                "gmmWeightScaleDim2 should be equal to gmmWeightDim2(%lu), gmmWeightScaleDim3 should be equal to 2, "
+                "Expected Shape of gmmWeightScale = (%lu, %lu, %lu, %lu), Actual Shape of gmmWeightScale = (%lu, %lu, %lu, %lu).",
+                localParams_.ep, gmmxDivH1, localParams_.N1, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.ep, gmmxDivH1, localParams_.N1, EVEN_ALIGN, 
+                gmmWeightScaleDim0, gmmWeightScaleDim1, gmmWeightScaleDim2, gmmWeightScaleDim3), return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
+{
+    bool TransmmWeightFlag = false;
+    const gert::RuntimeAttrs *attrs = context_->GetAttrs();
+    const bool *isTransmmWeight = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
+    if (isTransmmWeight) {
+        TransmmWeightFlag = *isTransmmWeight;
+    }
+    const gert::StorageShape *mmXScaleShape = context_->GetOptionalInputShape(MM_X_SCALE_OPTIONAL_INDEX);
+    const gert::StorageShape *mmWeightScaleShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    uint64_t mmXScaleDim0 = mmXScaleShape->GetStorageShape().GetDim(0);
+    uint64_t mmXScaleDim1 = mmXScaleShape->GetStorageShape().GetDim(1);
+    uint64_t mmXScaleDim2 = mmXScaleShape->GetStorageShape().GetDim(2);
+    uint64_t mmWeightScaleDim0 = mmWeightScaleShape->GetStorageShape().GetDim(0);
+    uint64_t mmWeightScaleDim1 = mmWeightScaleShape->GetStorageShape().GetDim(1);
+    uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(2);
+    
+    OP_LOGE(opName_, "A is:%lu\n H1 is:%lu\n ep is:%lu\n BsK is:%lu\n N1 is:%lu\n Bs is:%lu\n H2 is:%lu\n N2 is:%lu\n.",
+            localParams_.A, localParams_.H1, localParams_.ep, localParams_.BsK, localParams_.N1, localParams_.Bs, localParams_.H2, localParams_.N2);
+
+    uint64_t mmxDivH2 = (localParams_.H2 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
+    OP_TILING_CHECK((localParams_.Bs != mmXScaleDim0) || (mmxDivH2 != mmXScaleDim1) || (mmXScaleDim2 != EVEN_ALIGN),
+        OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of mmXScale! "
+            "mmXScaleDim0 should be equal to mmXDim0(%lu), "
+            "mmXScaleDim1 should be equal to (mmXDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu), mmXScaleDim2 should be equal to 2, "
+            "Expected Shape of mmXScale = (%lu, %lu, %lu), Actual Shape of mmXScale = (%lu, %lu, %lu).",
+            localParams_.Bs, mmxDivH2, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.Bs, mmxDivH2, EVEN_ALIGN, 
+            mmXScaleDim0, mmXScaleDim1, mmXScaleDim2), return ge::GRAPH_FAILED);
+
+    if (localParams_.isMmWeightTrans){ // Transposed Scenario
+        OP_TILING_CHECK((mmWeightScaleDim0 != localParams_.N1) || (mmWeightScaleDim1 != mmxDivH2) || (mmWeightScaleDim2 != EVEN_ALIGN),
+            OP_LOGE(opName_, "In the Transposed Scenario, Wrong shape of mmWeightScale! "
+                "mmWeightScaleDim0 should be equal to mmWeightDim0(%lu), "
+                "mmWeightScaleDim1 should be equal to (mmWeightDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu), mmWeightScaleDim2 should be equal to 2, "
+                "Expected Shape of mmWeightScale = (%lu, %lu, %lu), Actual Shape of mmWeightScale = (%lu, %lu, %lu).",
+                localParams_.N1, mmxDivH2, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.N1, mmxDivH2, EVEN_ALIGN, 
+                mmWeightScaleDim0, mmWeightScaleDim1, mmWeightScaleDim2), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK((mmWeightScaleDim0 != mmxDivH2) || (mmWeightScaleDim1 != localParams_.N1) || (mmWeightScaleDim2 != EVEN_ALIGN),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of mmWeightScale! "
+                "mmWeightScaleDim0 should be equal to (mmWeightDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu),"
+                "mmWeightScaleDim1 should be equal to mmWeightDim2(%lu), mmWeightScaleDim2 should be equal to 2, "
+                "Expected Shape of mmWeightScale = (%lu, %lu, %lu), Actual Shape of mmWeightScale = (%lu, %lu, %lu).",
+                mmxDivH2, localParams_.N1, MX_SCALE_GROUP, MX_SCALE_GROUP,mmxDivH2, localParams_.N1, EVEN_ALIGN, 
+                mmWeightScaleDim0, mmWeightScaleDim1, mmWeightScaleDim2), return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -340,10 +441,14 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     if (status != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    // status = CheckMxQuantScaleShapes();
-    // if (status != ge::GRAPH_SUCCESS) {
-    //     return ge::GRAPH_FAILED;
-    // }
+    status = CheckMxQuantGmmScaleShapes();
+    if (status != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    status = CheckMxQuantMmScaleShapes();
+    if (status != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
 
     return ge::GRAPH_SUCCESS;
 }
