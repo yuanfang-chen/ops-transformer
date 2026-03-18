@@ -1090,7 +1090,7 @@ public:
     }
 
     CATLASS_DEVICE
-    void ComputeVec(DBParams& dbParam)
+    void operator(DBParams& dbParam)
     {
         int64_t actualS1Len;
         int64_t actualS2Len;
@@ -1153,26 +1153,6 @@ public:
             GetTPipePtr()->ReleaseEventID<AscendC::HardEvent::MTE3_MTE2>(mte2WaitMte3A);
             GetTPipePtr()->ReleaseEventID<AscendC::HardEvent::MTE3_MTE2>(mte2WaitMte3B);
         }
-    }
-
-    CATLASS_DEVICE
-    void operator()()
-    {
-        DBParams dbParam;
-        dbParam.taskId = 0;
-        dbParam.bIdx = 0;
-        dbParam.n2Idx = 0;
-        dbParam.gIdx = 0;
-        dbParam.s1oIdx = 0;
-        dbParam.s2oIdx = 0;
-        dbParam.s1CvExtend = s1CvInner;
-        dbParam.s2CvExtend = s2CvInner;
-        dbParam.s1CvExtendAlign = (s1CvInner + 15) / 16 * 16;
-        dbParam.s2CvExtendAlign = (s2CvInner + 15) / 16 * 16;
-        dbParam.actualS1Len = s1;
-        dbParam.actualS2Len = s2;
-
-        ComputeVec(dbParam);
     }
 };
 
