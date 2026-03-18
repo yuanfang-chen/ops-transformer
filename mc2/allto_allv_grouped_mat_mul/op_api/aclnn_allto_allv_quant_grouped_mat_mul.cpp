@@ -187,33 +187,6 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
     return true;
 }
 
-
-// 检查是否有空tensor
-static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
-{
-    if(gmmX->GetViewShape().GetDim(0) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
-        return false;
-    }
-    if(gmmX->GetViewShape().GetDim(1) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(0) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(1) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
-        return false;
-    }
-    if(gmmWeight->GetViewShape().GetDim(TWO_DIMS) == ZERO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
-        return false;
-    }
-    return true;
-}
-
 // 检查所有要用到的输入format是否为ND，如果内部不为ND格式，会打印warning日志
 static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale,
                         const aclTensor *gmmWeightScale, const aclTensor *mmXOptional,
@@ -408,8 +381,6 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(
         CheckNotSupportNull(gmmXOffsetOptional, gmmWeightOffsetOptional, mmXOffsetOptional, mmWeightOffsetOptional),
         ACLNN_ERR_PARAM_INVALID);
-    // 检查空tensor
-    CHECK_RET(CheckEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
     // 检查所有输入/量化数据类型
     CHECK_RET(CheckDtypesValid(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                                mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, permuteOutOptional),
