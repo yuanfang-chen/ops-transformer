@@ -34,7 +34,6 @@ constexpr uint64_t UB_REST_BYTES = 100 * 1024;  // 100KB
 constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
-constexpr uint32_t DATA_BLOCK_SIZE = 32;
 
 struct GDRStageOneInitParams {
     // input
@@ -183,7 +182,7 @@ public:
     {
         uint32_t totalChunk = nv_ * NumChunk_;
         uint32_t tailChunkNum = totalChunk / coreNum_;   // tail核处理的块数
-        uint32_t formerChunkNum = tailChunkNum + 1;     // former核处理的块数
+        uint32_t formerChunkNum = tailChunkNum + 1;      // former核处理的块数
         uint32_t formerCoreNum = totalChunk % coreNum_;  // former核数量
         uint32_t start, end;
         if(coreIdx_ < formerCoreNum){
@@ -242,8 +241,6 @@ private:
         outKgGm_ = outKgBaseGm_[cb * dk_];
         outVInnerGm_ = outVInnerBaseGm_[cb * dv_];
         outQkGm_ = outQkBaseGm_[cb * chunkSize_];
-
-
     }
 
     __aicore__ inline void ProcessOneChunk()
@@ -326,7 +323,7 @@ private:
         fp32OutQueue_.EnQue(tmpTensor);
         tmpTensor = fp32OutQueue_.DeQue<float>();
 
-        uint32_t srcStride = (dk_aligned_ - dk_) * sizeof(float) / DATA_BLOCK_SIZE;
+        uint32_t srcStride = (dk_aligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
         DataCopyExtParams outParams{static_cast<uint16_t>(rows),
                                     static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
@@ -658,7 +655,7 @@ private:
                                                 uint32_t colsAligned, GlobalTensor<float> y)
     {
         fp32OutLocal = fp32OutQueue_.DeQue<float>();
-        uint32_t srcStride = (colsAligned - cols) * sizeof(float) / DATA_BLOCK_SIZE;
+        uint32_t srcStride = (colsAligned - cols) * sizeof(float) / BLOCK_SIZE;
         DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), static_cast<uint16_t>(cols * sizeof(float)), static_cast<uint16_t>(srcStride), 0, 0};
         DataCopyPad(y, fp32OutLocal, yGMParams);
         fp32OutQueue_.FreeTensor(fp32OutLocal);

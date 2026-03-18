@@ -154,7 +154,7 @@ public:
     
     __aicore__ inline void CalMaskedQKT(GlobalTensor<float> outGM, int nvId, int chunkPos)
     {
-        int64_t paddingChunkSize = Ceil(curChunkSize_, DATA_BLOCK_SIZE / sizeof(float)) * (DATA_BLOCK_SIZE / sizeof(float));
+        int64_t paddingChunkSize = Ceil(curChunkSize_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float));
  
         if (gOptional_) {
             CopyIn<float>(sTP_->gCumExp_[nvId * Sp_ + chunkPos], 1, curChunkSize_);
