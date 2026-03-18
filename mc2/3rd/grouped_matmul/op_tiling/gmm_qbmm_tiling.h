@@ -156,6 +156,11 @@ public:
     {
         Reset();
     }
+    Mc2GroupedQbmmTiling(gert::TilingContext *context, Mc2GroupedMatmulTilingData::GMMQuantTilingData* out)
+        : Ops::Transformer::OpTiling::TilingBaseClass(context), tilingData_(*out)
+    {
+        Reset();
+    }
     ~Mc2GroupedQbmmTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
