@@ -1,5 +1,5 @@
 # 基于CCU通信的AllGatherMatmul算子样例
-本篇文档提供如何跑通基于CCU通信方式的AllGatherMatmul通信算子用例
+本篇文档提供如何跑通基于CCU通信方式的AllGatherMatmul通信算子用例。
 ## 🚀 快速开始
 
 ### 步骤1：环境检查
@@ -36,8 +36,24 @@ chmod +x *.run
 ./*.run --install-path=/usr/local/Ascend/cann
 ```
 
-#### 2.4 执行测试脚本
+#### 2.4 torch_npu编包及安装
+拉取目标版本的pytorch仓代码到本地，进入到op-plugin仓
+```
+git clone https://gitcode.com/Ascend/pytorch.git -b v2.7.1 --recursive
+```
+修改`AllGatherBaseMatmulKernelOpApi.cpp`，调用的aclnn函数名及入参修改如下：
+```
+EXEC_NPU_CMD(aclnnAllGatherMatmul, self, x2, bias_real, hcom_ptr,
+            gather_index, comm_turn, stream_mode, comm_mode_ptr, out_gather_mm, out_gather);
 
+```
+编译torch_npu包并安装在测试环境下。
+
+#### 2.5 执行测试脚本
+```
+cd script
+python test.py
+```
 
 > 💡 **提示**：如果遇到环境配置问题，请确保：
 > 1. `ASCEND_HOME_PATH`环境变量已正确设置
