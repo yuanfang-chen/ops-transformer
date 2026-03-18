@@ -50,6 +50,7 @@ static constexpr int64_t L1_SIZE = 512;
 // 参数约束定义
 static constexpr uint64_t MX_GROUPSIZE = 32;
 static constexpr uint64_t VEC_MAX_ELEM_B16 = VECTOR_REG_WIDTH / sizeof(half);
+static constexpr uint64_t VEC_MAX_ELEM_B32 = VECTOR_REG_WIDTH / sizeof(float);
 static constexpr uint32_t FP32_BLOCK_SIZE = 8;
 static constexpr int32_t C0_SIZE_B8 = 32;
 

@@ -89,6 +89,8 @@ public:
                                        const BasicBlockOffsetParam &offsetParam, uint64_t aivMOffset);
     __aicore__ inline void End();
 
+    constexpr static UbBufferInfo UB_BUFFER_INFO = GetBufferConfig<xType, wqmmConfig, vecConfig>();
+
 private:
     __aicore__ inline void InitMx();
     __aicore__ inline void CopyWeightGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
@@ -192,7 +194,6 @@ private:
 
     TEventID vecEventIdAntiQuantYVToMte2_[UB_ANTI_QUANT_Y_BUFFER_NUM];
 
-    constexpr static UbBufferInfo UB_BUFFER_INFO = GetBufferConfig<xType, wqmmConfig, vecConfig>();
     constexpr static VfConfig VF_CONFIG = GetVfConfig<xType, wqmmConfig, vecConfig>();
 
     constexpr static uint64_t ANTIQUANT_Y_STANDARD_N_SIZE = VECTOR_REG_WIDTH / sizeof(int32_t);
@@ -209,7 +210,7 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlo
     if constexpr (IsSameType<xType, int8_t>::value) {
         antiQuantYPerTokenScaleGlobal_.SetGlobalBuffer(perTokenScale);
         antiQuantYPerChannelScaleGlobal_.SetGlobalBuffer(perChannelScale);
-        antiQuantYBiasGlobal_.SetGlobalBuffer(bias);
+        antiQuantYBiasGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(bias));
     } else {
         antiQuantOffsetGlobal_.SetGlobalBuffer(antiQuantOffset);
     }
@@ -483,7 +484,7 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyMxAnt
             .template ReinterpretCast<fp8_e8m0_t>();
     if constexpr (wqmmConfig.bTrans) {
         DataCopyPad2D(ubAntiQuantScaleBuffer,
-                      antiQuantScaleGlobal_[ubMte2NOffset * mxGroupNum + CeilDivide(ubMte2KOffset, MX_GROUPSIZE)],
+                      antiQuantScaleGlobal_.template ReinterpretCast<fp8_e8m0_t>()[ubMte2NOffset * mxGroupNum + CeilDivide(ubMte2KOffset, MX_GROUPSIZE)],
                       ubMte2NSize, CeilDivide(ubMte2KSize, MX_GROUPSIZE),
                       CeilDivide(vecConfig.ubMte2InnerSize, MX_GROUPSIZE), mxGroupNum);
     } else {
@@ -492,7 +493,7 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyMxAnt
                                       : 128UL;  // nz场景当前不会合并，固定对齐到128即可
         DataCopyPad2D(
             ubAntiQuantScaleBuffer,
-            antiQuantScaleGlobal_[CeilDivide(ubMte2KOffset, MX_GROUPSIZE) * offsetParam.nSize + ubMte2NOffset],
+            antiQuantScaleGlobal_.template ReinterpretCast<fp8_e8m0_t>()[CeilDivide(ubMte2KOffset, MX_GROUPSIZE) * offsetParam.nSize + ubMte2NOffset],
             CeilDivide(ubMte2KSize, MX_GROUPSIZE), ubMte2NSize, scaleInnerSize, offsetParam.nSize);
     }
 
