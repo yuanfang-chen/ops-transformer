@@ -594,13 +594,12 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         LocalTensor<bool> maskUb = inputQue2.AllocTensor<bool>();
         LocalTensor<bool> attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2];
         LocalTensor<uint8_t> ubWorkSpace = tmpBuf.Get<uint8_t>();
-        
+        event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
         if (maskInfo.sparseMode == fa_base_vector::TREE) {
             LocalTensor<int16_t> mask16 = maskUb.template ReinterpretCast<int16_t>();
             uint32_t zeroCount  = BUFFER_SIZE_BYTE_8K / sizeof(int16_t);
             Duplicate(mask16, static_cast<int16_t>(0), zeroCount);
             maskUb = mask16.template ReinterpretCast<bool>();
-            event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
             SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
             WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
             // 修改attenMaskStride、attenMaskBatchStride值
@@ -615,13 +614,17 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         }
 
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
+            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
             AscendC::PipeBarrier<PIPE_V>();
             fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
+            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
         }
         if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
+            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
             fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
+            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
         }
         inputQue2.FreeTensor(maskUb);
     }
