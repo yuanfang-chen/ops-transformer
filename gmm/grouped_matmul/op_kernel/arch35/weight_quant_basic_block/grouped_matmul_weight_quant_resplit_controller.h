@@ -226,17 +226,16 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
                  offsetParam[ctrlParam.processId].nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
                     MX_A8W4_L1_K_CONFIG_512 :
                     MX_A8W4_L1_K_CONFIG_256;
-            if (offsetParam[ctrlParam.processId].mL1Size < offsetParam[ctrlParam.processId].nL1Size) {
-                // L1的空间，在有Bias时，预留124 Kb, 其他场景预留128 Kb
-                uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>();
-                uint64_t mL1Align = CeilAlign(offsetParam[ctrlParam.processId].mL1Size, BLOCK_CUBE);
-                // 当前切分mL1比nL1小的场景，可以尝试L1上多倍载入kaL1,提升A矩阵载入效率 
-                offsetParam[ctrlParam.processId].kaL1Size = aL1Size /
-                                                            (mL1Align * offsetParam[ctrlParam.processId].kbL1Size) *
-                                                            offsetParam[ctrlParam.processId].kbL1Size;
-            } else {
-                offsetParam[ctrlParam.processId].kaL1Size = offsetParam[ctrlParam.processId].kbL1Size;
+            uint64_t mL1Align = CeilAlign(offsetParam[ctrlParam.processId].mL1Size, BLOCK_CUBE);
+            // 实际A矩阵通过ND2NZb搬运实现，B矩阵通过MOVE_ALIGN搬运实现，两者效率不同。为了平衡两者的搬运效率，折算系数2简化计算。
+            uint64_t kaDepth = CeilDivide(offsetParam[ctrlParam.processId].nL1Size, mL1Align * 2);
+            // L1的空间，在有Bias时，预留124 Kb, 其他场景预留128 Kb
+            uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>(); 
+            uint64_t maxKaDepth = aL1Size / (mL1Align * offsetParam[ctrlParam.processId].kbL1Size);
+            if (kaDepth > maxKaDepth) {
+                kaDepth = maxKaDepth;
             }
+            offsetParam[ctrlParam.processId].kaL1Size = kaDepth * offsetParam[ctrlParam.processId].kbL1Size;
         }
         basicBlock_.ComputeBasicBlock(offsetParam[ctrlParam.processId], offsetParam[GetSwitchedProcessId(ctrlParam)]);
         ctrlParam.processId = GetSwitchedProcessId(ctrlParam);
