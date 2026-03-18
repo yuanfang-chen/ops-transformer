@@ -12,10 +12,10 @@
  * \file basic_block_vf_mx.h
  * \brief
  */
-#ifndef GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
-#define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
+#ifndef GMM_FR_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
+#define GMM_FR_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 
-#include "basic_block_config.h"
+#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else
@@ -34,7 +34,7 @@ namespace WeightQuantBatchMatmulV2::Arch35 {
 
 __simd_vf__ inline void InitZeroVf(__ubuf__ float * ubAddr, uint16_t loopCount)
 {
-    MicroAPI::RegTensor<float> zeroReg;
+    MicroAPI::RegTensor<float> zeroVreg;
     MicroAPI::Duplicate(zeroVreg, 0);
     MicroAPI::MaskReg preg = MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
     for (uint16_t loopIdx = 0; loopIdx < loopCount; loopIdx++) {
@@ -52,22 +52,23 @@ static constexpr MicroAPI::CastTrait CAST_B16_TO_B32_TRAIT = {
 template <typename sharedInputType>
 __simd_vf__ inline void CastAndMulWithSharedWeightVf(__ubuf__ float * dstAddr, __ubuf__ sharedInputType * srcAddr, uint16_t loopCount, float weight)
 {
-    MicroAPI::RegTensor<sharedInputType> sharedInputB16Vreg, 
+    MicroAPI::RegTensor<sharedInputType> sharedInputB16Vreg;
     MicroAPI::RegTensor<float> sharedInputB32Vreg;
     MaskReg maskAll = MicroAPI::CreateMask<uint8_t, AscendC::MicroAPI::MaskPattern::ALL>();
     for (uint16_t loopIdx = 0; loopIdx < loopCount; loopIdx ++) {
-        MicroAPI::AddrReg sharedInputAreg = MicroAPI::CreateAddrReg<sharedInputType>(loopBiasIdx, VEC_MAX_ELEM_B16);
+        MicroAPI::AddrReg sharedInputAreg = MicroAPI::CreateAddrReg<sharedInputType>(loopIdx, VEC_MAX_ELEM_B16);
         MicroAPI::LoadAlign<sharedInputType, MicroAPI::LoadDist::DIST_UNPACK_B16>(sharedInputB16Vreg, srcAddr,
                                                                         sharedInputAreg);
         MicroAPI::Cast<float, sharedInputType, CAST_B16_TO_B32_TRAIT>(
             sharedInputB32Vreg, sharedInputB16Vreg, maskAll);
-        MicroAPI::Muls<float, AscendC::MicroAPI::MaskMergeMode::ZEROING>(sharedInputB32Vreg, sharedInputB32Vreg, weight,
+        MicroAPI::Muls(sharedInputB32Vreg, sharedInputB32Vreg, weight,
                                                                                 maskAll);
         MicroAPI::AddrReg outAddrReg = MicroAPI::CreateAddrReg<float>(
             loopIdx, QUADRUPLE_BUFFER_NUM * VEC_MAX_ELEM_B32);
         MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_NORM_B32>(
-            dstAddr, sharedInputB32Vreg, outAddrReg, preg);
+            dstAddr, sharedInputB32Vreg, outAddrReg, maskAll);
 
     }
 }
 }
+#endif

@@ -27,7 +27,7 @@
 #include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_cube_compute.h"
 #include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_api/weight_quant_basic_api_v1.h"
 #include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
-#include "weight_quant_vec_compute.h"
+#include "gmm_fr_weight_quant_vec_compute.h"
 
 using AscendC::GetSubBlockIdx;
 using AscendC::LocalTensor;
@@ -38,19 +38,18 @@ using AscendC::TPosition;
 namespace WeightQuantBatchMatmulV2::Arch35 {
 #define GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM                                                              \
     template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType,             \
-              typename perTokenScaleType, typename biasType, typename yType, const WqmmConfig &wqmmConfig, \
+              typename perTokenScaleType, typename biasType, typename yType, typename sharedInputDType, const WqmmConfig &wqmmConfig, \
               const VecAntiQuantConfig &vecConfig>
 
 #define GMM_WQ_VCV_BASIC_BLOCK_CLASS                                                                                \
-    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, \
-                                   wqmmConfig, vecConfig>
-
+    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, sharedInputDType,\
+                                   wqmmConfig, vecConfig>                
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
-class WQFRVcvMatmulBasicBlock : public WeightQuantVcvMatmulBasicBlockBaseClass {
+class WQFRVcvMatmulBasicBlock {
 public:
     __aicore__ inline WQFRVcvMatmulBasicBlock(){};
     __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize);
-    __aicore__ inline void InitAtomicGm();
+    __aicore__ inline void InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize, __gm__ sharedInputDType *shareInputAddr);
     __aicore__ inline void UpdateGlobalAddr(__gm__ xType *x, __gm__ wType *weight,
                                             __gm__ antiQuantScaleType *antiquantScale, __gm__ xType *antiquantOffset,
                                             __gm__ scaleType *scale, __gm__ perTokenScaleType *perTokenScale,
@@ -102,7 +101,7 @@ protected:
 #endif
     };
 
-    BasicBlockLibVectorAntiQuantCompute<xType, wType, antiQuantScaleType, biasType, yType, wqmmConfig, vecConfig>
+    GmmFrVecCompute<xType, wType, antiQuantScaleType, biasType, yType, sharedInputDType, wqmmConfig, vecConfig>
         vecCompute_;
     WeightQuantBatchMatmulV2CubeCompute<xType, int32_t, antiQuantScaleType, perTokenScaleType, int32_t, wqmmConfig,
                                         WqbmmBasicApiV1<xType, biasType, yType, wqmmConfig.aTrans, wqmmConfig.bTrans>>
@@ -146,24 +145,23 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t
 }
 
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize)
+__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize, __gm__ sharedInputDType *shareInputAddr)
 {
     // 首4轮的mte3写出
-    constexpr initZeroBufferSize = vecCompute_.UB_BUFFER_INFO.highBitDataUbSingleBufferSize / sizeof(float);
+    constexpr uint64_t initZeroBufferSize = GetGmmFRMxA8W4BufferInfo<vecConfig>().highBitDataUbSingleBufferSize / sizeof(float);
     uint64_t yGmOffset = GetBlockIdx() * initZeroBufferSize;
-    InitGmZeroWithIterate(yGmOffset, Min(QUADRUPLE_BUFFER_NUM * GetBlockNum() * initZeroBufferSize, initSize), sharedInputStartSize, sharedInputSize);
+    InitGmZeroWithIterate(yGmOffset, Min(QUADRUPLE_BUFFER_NUM * AscendC::GetBlockNum() * initZeroBufferSize, initSize), sharedInputStartSize, sharedInputSize);
 
     // shared input mte3写出
-    constexpr mte2BufferSize =
-        GetGmmFRMxA8W4BufferInfo<vecConfig>().weightInputLowBitUbSingleBufferSize / sizeof(float);
-    for (uint64_t sharedInputGmOffset = GetBlockIdx() * mte2BufferSize; sharedInputGmOffset <= sharedInputSize;
-         sharedInputGmOffset += GetBlockNum() * mte2BufferSize) {
+    constexpr uint64_t mte2BufferSize =
+        WeightQuantBatchMatmulV2::Arch35::GetMxA8W4NzBufferInfo<vecConfig>().weightInputLowBitUbSingleBufferSize / sizeof(float);
+    for (uint64_t sharedInputGmOffset = AscendC::GetBlockIdx() * mte2BufferSize; sharedInputGmOffset <= sharedInputSize;
+         sharedInputGmOffset += AscendC::GetBlockNum() * mte2BufferSize) {
         uint64_t initSharedInputRealSize = sharedInputGmOffset + mte2BufferSize > sharedInputSize ?
                                                sharedInputSize - sharedInputGmOffset :
                                                mte2BufferSize;
         vecCompute_.WaitVToMTE2();
-        vecCompute_.CopyShareInputGmToUb(sharedInputGmOffset, initSharedInputRealSize);
-
+        vecCompute_.CopyShareInputGmToUb(sharedInputGmOffset, initSharedInputRealSize, shareInputAddr);
         vecCompute_.CopyShareInputUbToGm(sharedInputGmOffset, initSharedInputRealSize);
         vecCompute_.SetVToMTE2();
     }
@@ -173,8 +171,9 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitAtomicGm(uint64_t initS
 
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitGmZeroWithIterate(uint64_t & yGmStartOffset, uint64_t yGmEndOffset, uint64_t sharedInputStartSize, uint64_t sharedInputSize){
-    constexpr initZeroBufferSize = vecCompute_.UB_BUFFER_INFO.highBitDataUbSingleBufferSize / sizeof(float);
-    for (; yGmOffset <= yGmEndOffset; yGmOffset += GetBlockNum() * bufferSize){
+    constexpr uint64_t initZeroBufferSize = GetGmmFRMxA8W4BufferInfo<vecConfig>().highBitDataUbSingleBufferSize / sizeof(float);
+    uint64_t bufferSize = initZeroBufferSize;
+    for (uint64_t yGmOffset = yGmStartOffset; yGmOffset <= yGmEndOffset; yGmOffset += AscendC::GetBlockNum() * bufferSize){
         uint64_t initZeroRealSize = yGmOffset + bufferSize > yGmEndOffset ? yGmEndOffset - yGmOffset : bufferSize;
         if (yGmOffset > sharedInputStartSize) {
             vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroRealSize);
@@ -200,9 +199,9 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::UpdateGlobalAddr(
     } else {
         // For MX A8W4: scale is perChannelScale (float*), perTokenScale is also float*
         vecCompute_.UpdateGlobalAddr(weight, antiquantScale, antiquantOffset, 
-                                     reinterpret_cast<__gm__ float*>(perTokenScale),
-                                     reinterpret_cast<__gm__ float*>(scale), 
-                                     bias, weightL2Cacheable);
+                                     nullptr,
+                                     nullptr, 
+                                     bias, y, weightL2Cacheable);
     }
 }
 

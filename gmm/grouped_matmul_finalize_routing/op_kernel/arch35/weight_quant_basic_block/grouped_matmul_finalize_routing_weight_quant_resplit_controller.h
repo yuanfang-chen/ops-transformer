@@ -42,12 +42,12 @@ using GMMFRTiling = GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuan
 namespace GROUPED_MATMUL_FINALIZE_ROUTING {
 #define GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM                                               \
     template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, \
-              typename perTokenScaleType, typename biasType, typename yType,                   \
+              typename perTokenScaleType, typename biasType, typename yType, typename sharedInputDType,                  \
               const WqmmConfig &wqmmConfig,      \
               const VecAntiQuantConfig &vecConfig>
 
 #define GMMFR_WQ_RESPLIT_CONTROLLER_CLASS                                                                              \
-    GMMFRWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, \
+    GMMFRWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, sharedInputDType, \
                                     wqmmConfig, vecConfig>
 
 GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
@@ -56,7 +56,7 @@ public:
     __aicore__ inline GMMFRWeightQuantResplitController(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR antiquantScale,
                                 GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
-                                GM_ADDR y, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling);
+                                GM_ADDR y, GM_ADDR shareInput, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling);
     __aicore__ inline void Process();
 
 private:
@@ -79,8 +79,9 @@ private:
     __gm__ yType *yGm_;
     __gm__ perTokenScaleType *perTokenScaleGm_;
     __gm__ scaleType *scaleGm_;
+    __gm__ sharedInputDType *shareInputAddr_;
     GlobalTensor<int64_t> groupListGm_;
-    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
+    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, sharedInputDType, wqmmConfig, vecConfig>
         basicBlock_;
 
     uint64_t preOffset_ = 0;
@@ -98,7 +99,7 @@ GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
 __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR antiquantScale,
     GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
-    GM_ADDR y, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling)
+    GM_ADDR y, GM_ADDR shareInput, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling)
 {
     tiling_ = baseTiling;
 
@@ -110,6 +111,7 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
     antiquantOffsetGm_ = reinterpret_cast<__gm__ xType *>(antiquantOffset);
     perTokenScaleGm_ = reinterpret_cast<__gm__ perTokenScaleType *>(perTokenScale);
     yGm_ = reinterpret_cast<__gm__ yType *>(y);
+    shareInputAddr_ = reinterpret_cast<__gm__ sharedInputDType *>(shareInput);
     groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t *>(groupList));
     basicBlock_.Init(tiling_->hasBias, tiling_->groupSize);
     mxA8W4L1KDynamicConfigMThreshold_ = tiling_->hasBias ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
@@ -133,7 +135,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Process()
         isCacheLineUnaligned = offsetParam[0].kSize % 256 != 0;  // 缓存大小128B，对应4bit为256个元素
     }
 
-    basicBlock_.InitAtomicGm();
+    basicBlock_.InitAtomicGm(tiling_->initSize, tiling_->sharedInputOffset * tiling_->nSize, tiling_->sharedInputLen * tiling_->nSize,
+        shareInputAddr_);
     SyncAll();
     
     BasicBlockControlParam ctrlParam;
@@ -269,8 +272,8 @@ __aicore__ inline uint64_t GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::GetSwitchedProcess
 {
     // vcv流水0/1倒换，vc流水ctrlParam.processId始终取0
     if constexpr (std::is_base_of_v<WeightQuantVcvMatmulBasicBlockBaseClass,
-                                    BasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType,
-                                               yType, wqmmConfig, vecConfig>>) {
+                                    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType,
+                                               yType, sharedInputDType, wqmmConfig, vecConfig>>) {
         return 1 - ctrlParam.processId;
     } else {
         return ctrlParam.processId;

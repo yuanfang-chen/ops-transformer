@@ -64,11 +64,11 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
     // Use pre-defined MXA8W4_NZNK config for FP8+FP4 MX (Microscaling) format
     // Config values: aTrans=false, bTrans=true, antiQuantType=MX, hasAntiQuantOffset=false, quantType=NONE, weightFormat=NZ
     GROUPED_MATMUL_FINALIZE_ROUTING::GMMFRWeightQuantResplitController<
-        DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
+        DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y, bfloat16_t,
         WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK, 
-        VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
+        WeightQuantBatchMatmulV2::Arch35::VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
     
-    controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, tiling);
+    controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, share_input, tiling);
     controller.Process();
 #else
     // Full Quantization scenario
