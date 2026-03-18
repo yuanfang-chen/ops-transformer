@@ -28,7 +28,7 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if("${CONDITION_UNIT}" STREQUAL "ascend950")
+if("${CONDITION_UNIT}" IN_LIST "ascend950")
     set(grouped_matmul_depends gmm/common CACHE INTERNAL "Dependencies for grouped_matmul")
     add_ops_compile_options(
         OP_NAME GroupedMatmul

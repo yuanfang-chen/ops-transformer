@@ -25,7 +25,7 @@ add_ops_compile_options(
 )
 
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if("${CONDITION_UNIT}" STREQUAL "ascend950")
+if("${CONDITION_UNIT}" IN_LIST "ascend950")
     add_ops_compile_options(
         OP_NAME PromptFlashAttention
         COMPUTE_UNIT Ascend950PR_9599
@@ -34,7 +34,7 @@ if("${CONDITION_UNIT}" STREQUAL "ascend950")
 endif()
 
 if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    if("${CONDITION_UNIT}" IN_LIST "ascend950")
         set(prompt_flash_attention_apt_depends attention/flash_attention_score attention/common CACHE INTERNAL "Dependencies for prompt_flash_attention")
     else()
         set(prompt_flash_attention_depends attention/flash_attention_score attention/common CACHE INTERNAL "Dependencies for prompt_flash_attention")
@@ -45,7 +45,7 @@ else()
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL) #
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    if("${CONDITION_UNIT}" IN_LIST "ascend950")
         set(prompt_flash_attention_apt_depends attention/common CACHE INTERNAL "Dependencies for prompt_flash_attention")
     else()
         set(prompt_flash_attention_depends attention/common CACHE INTERNAL "Dependencies for prompt_flash_attention")

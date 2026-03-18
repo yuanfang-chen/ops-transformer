@@ -16,7 +16,7 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if("${CONDITION_UNIT}" STREQUAL "ascend950")
+if("${CONDITION_UNIT}" IN_LIST "ascend950")
     set(sparse_flash_attention_grad_depends attention/common CACHE INTERNAL "Dependencies for sparse_flash_attention_grad")
     add_ops_compile_options(
         OP_NAME sparse_flash_attention_grad

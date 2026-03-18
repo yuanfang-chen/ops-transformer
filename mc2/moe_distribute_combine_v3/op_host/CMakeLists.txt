@@ -23,17 +23,17 @@ if (BUILD_OPEN_PROJECT)  # custom
 
     # --cce-auto-sync=off：指定CCE编译器是否自动执行线程间或模块间的同步操作
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+    if("${CONDITION_UNIT}" IN_LIST "ascend910_93")
         add_ops_compile_options(
             OP_NAME MoeDistributeCombineV3
             OPTIONS --cce-auto-sync=off
         )
-    elseif("${CONDITION_UNIT}" STREQUAL "ascend910b")
+    elseif("${CONDITION_UNIT}" IN_LIST "ascend910b")
         add_ops_compile_options(
             OP_NAME MoeDistributeCombineV3
             OPTIONS --cce-auto-sync=off
         )
-    elseif("${CONDITION_UNIT}" STREQUAL "ascend950")  # 考虑多版本兼容dump功能
+    elseif("${CONDITION_UNIT}" IN_LIST "ascend950")  # 考虑多版本兼容dump功能
         add_definitions(-DMC2_EXCEPTION_HANDLER)
     endif()
 else() # 回黄host

@@ -18,7 +18,7 @@ if (BUILD_OPEN_PROJECT)
     )
 endif()
 
-if("${CONDITION_UNIT}" STREQUAL "ascend950")
+if("${CONDITION_UNIT}" IN_LIST "ascend950")
     add_ops_compile_options(
         OP_NAME FusedInferAttentionScore
         COMPUTE_UNIT Ascend950PR_9599

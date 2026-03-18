@@ -23,7 +23,7 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(allto_all_matmul_apt_depends mc2/common mc2/3rd mc2/matmul_allto_all PARENT_SCOPE)
     
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    if("${CONDITION_UNIT}" IN_LIST "ascend950")
         add_ops_compile_options(
             OP_NAME AlltoAllMatmul
             COMPUTE_UNIT Ascend950PR_9599
@@ -32,7 +32,7 @@ if (BUILD_OPEN_PROJECT)  # custom
                     -cce-aicore-dcci-before-kernel-end=false
                     -DENABLE_CV_COMM_VIA_SSBUF=true
         )
-    elseif("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+    elseif("${CONDITION_UNIT}" IN_LIST "ascend910_93")
         add_ops_compile_options(
             OP_NAME AlltoAllMatmul
             OPTIONS --cce-auto-sync=off

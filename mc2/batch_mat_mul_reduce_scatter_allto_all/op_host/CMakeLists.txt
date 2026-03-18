@@ -24,7 +24,7 @@ if (BUILD_OPEN_PROJECT)  # custom
     # --cce-auto-sync=off：指定CCE编译器是否自动执行线程间或模块间的同步操作
     # -DAICORE_EXCEPTION_RESTART：启用AI Core在发生异常时的自动重启机制
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+    if("${CONDITION_UNIT}" IN_LIST "ascend910_93")
         add_ops_compile_options(
             OP_NAME BatchMatMulReduceScatterAlltoAll
             OPTIONS --cce-auto-sync=off

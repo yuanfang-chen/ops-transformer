@@ -25,13 +25,13 @@ if (BUILD_OPEN_PROJECT)  # custom
     # -mllvm -cce-aicore-dcci-before-kernel-end=false：禁用在kernel函数结束前插入DCCI指令
     # -DAICORE_EXCEPTION_RESTART：启用AI Core在发生异常时的自动重启机制
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    if("${CONDITION_UNIT}" IN_LIST "ascend950")
         add_ops_compile_options(
             OP_NAME QuantGroupedMatMulAlltoAllv
             OPTIONS --cce-auto-sync=off
                     -mllvm -cce-aicore-dcci-before-kernel-end=false
         )
-    elseif("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+    elseif("${CONDITION_UNIT}" IN_LIST "ascend910_93")
         add_ops_compile_options(
             OP_NAME QuantGroupedMatMulAlltoAllv
             OPTIONS --cce-auto-sync=off
