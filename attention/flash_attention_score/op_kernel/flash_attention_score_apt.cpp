@@ -73,3 +73,4 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
             workspace, tiling);
     }
 }
+
