@@ -578,6 +578,13 @@ ge::graphStatus AllGatherQuantBmmTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+CutResult AllGatherQuantBmmTiling::GetTilingResult()
+{
+    AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
+    return tileFormulate.GetTiling();
+}
+
+
 Mc2Tiling::RCSTiling& AllGatherQuantBmmTiling::MutableRCSTilingDataA5()
 {
     return allGatherMatmulTilingDataFp8_->param;
