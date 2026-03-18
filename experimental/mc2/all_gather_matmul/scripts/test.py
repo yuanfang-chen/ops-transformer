@@ -41,14 +41,13 @@ def gen_npu(x1, x2, world_size, rank, queue):
     master_ip = '127.0.0.1'
     print(f'[INFO] device_{rank} 创建HCCL通信链路')
     dist.init_process_group(backend="hccl", rank=rank, world_size=world_size, init_method=f'tcp://{master_ip}:50001')
-    print(f"device_{rank} init_process_group success")
+    print(f"[INFO] device_{rank} init_process_group success")
     group = dist.distributed_c10d._get_default_group()
     hcom_name = group._get_backend(torch.device('npu')).get_hccl_comm_name(rank)
     x1 = x1.npu()
     x2 = x2.npu()
     output_npu, gather_output_npu = torch_npu.npu_all_gather_base_mm(x1, x2, hcom_name, world_size, gather_output=True)
     queue.put((rank, output_npu.cpu().numpy(), gather_output_npu.cpu().numpy()))
-    dist.barrier()
 
 def cal_relativediff_numpy(data_check, data_exepect, diff_thd):
     a = np.abs(np.subtract(data_check, data_exepect))
@@ -62,7 +61,7 @@ def data_compare(data_check, data_exepect, diff_thd=0.005, pct_thd=0.005):
     npu_shape = data_check.shape
     expect_shape = data_exepect.shape
     if npu_shape != expect_shape:
-        print("============ out_shape is not equal expect!")
+        print("[ERROR] ============ out_shape is not equal expect!")
         return False
     data_check = data_check.flatten()
     data_exepect = data_exepect.flatten()
@@ -83,18 +82,17 @@ def verify_result(gather_out, out, golden_gather_out, golden_out):
         golden = golden_out[i]
 
         if not data_compare(npu_gather_out, golden_gather_out):
-            print("============ rank{} gather_out precession check failed", i)
+            print("[ERROR] ============ rank{} gather_out precision check failed", i)
             return False
         if not data_compare(npu_out, golden):
-            print("============ rank{} out precession check failed", i)
+            print("[ERROR] ============ rank{} out precision check failed", i)
             return False
 
-    print("test pass")
     return True
 
 if __name__ == "__main__":
     # 生成输入数据
-    world_size = 2
+    world_size = 2 
     m, k, n = 5, 256, 5
     x1_list = []
     x2_list = []
@@ -110,8 +108,8 @@ if __name__ == "__main__":
     # 执行Npu任务
     output_npu, gather_output_npu = test_multiprocess([x1_list, x2_list, world_size])
         
-    # 比较结果
+    # 结果比对
     if verify_result(gather_output_npu, output_npu, golden_gather_out, golden_out):
-        print("精度通过")
+        print("[INFO] Precision PASS")
     else:
-        print("精度失败")
+        print("[ERROR] Precision FAILED!")

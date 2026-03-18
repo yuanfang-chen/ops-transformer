@@ -45,8 +45,5 @@ __global__ __aicore__ void all_gather_matmul(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR b
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
-    if constexpr (SCALETYPE == SCALE_TYPE_NOT_IS_MX && INPUT_IS_BF16FP16 && \
-                OUTPUTDTYPE == OUTPUT_TYPE_IS_FP16_BF16) {    // full mesh+ no nd2nz +biasNoNeedCast
-        INVOKE_ALLGATHERMM_FP16_BF16_OP_IMPL(AllGatherMatmulFP16BF16, TRANS_B);
-    }
+    INVOKE_ALLGATHERMM_FP16_BF16_OP_IMPL(AllGatherMatmulFP16BF16, TRANS_B);
 }
