@@ -166,28 +166,28 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <tr>
     <td>gmmXQuantMode</td>
     <td>输入</td>
-    <td>gmmX的量化模式，当前版本仅支持1。</td>
+    <td>gmmX的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>gmmWeightQuantMode</td>
     <td>输入</td>
-    <td>gmmWeight的量化模式，当前版本仅支持1。</td>
+    <td>gmmWeight的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmXQuantMode</td>
     <td>输入</td>
-    <td>mmX的量化模式，当前版本仅支持1。</td>
+    <td>mmX的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmWeightQuantMode</td>
     <td>输入</td>
-    <td>mmWeight的量化模式，当前版本仅支持1。</td>
+    <td>mmWeight的量化模式，当前版本支持1，不支持传入nullptr。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
