@@ -350,7 +350,7 @@ install_es_whl() {
 
   if [ -d "${TARGET_VERSION_DIR}/ops_transformer" ]; then
     rm -rf "${TARGET_VERSION_DIR}/ops_transformer"
-  f
+  fi
 }
 
 add_init_py() {
