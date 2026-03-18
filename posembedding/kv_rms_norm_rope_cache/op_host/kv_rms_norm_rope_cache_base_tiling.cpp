@@ -20,6 +20,8 @@
 #include "op_common/op_host/util/platform_util.h"
 #include "tiling_base/tiling_util.h"
 
+set a compile error here
+
 namespace optiling {
 std::tuple<int64_t, int64_t, int64_t, int64_t> KvRmsNormRopeCacheTilingBase::GetShapeTuple(
     const gert::TilingContext* context, const int64_t index)
