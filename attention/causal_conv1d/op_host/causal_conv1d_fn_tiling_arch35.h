@@ -90,10 +90,6 @@ private:
 
     // padding相关信息
     int64_t padSlotId_ = -1;
-    uint64_t validBatchStart_ = 0;
-    uint64_t validBatchCount_ = 0;
-    uint64_t validSeqStart_ = 0;
-    uint64_t validSeqLen_ = 0;
     uint64_t residualConnection_ = 0;
 
     // ===== dim方向核间切分信息 =====

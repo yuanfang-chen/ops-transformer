@@ -50,10 +50,7 @@ struct CausalConv1dFnTilingData {
     uint64_t cuSeqLen;          // cu_seq_len 大小
     uint64_t dim;               // 特征维度大小
     uint64_t batch;             // batch大小
-    uint64_t validBatchStart;   // 有效 batch 的起始索引（在原始 cacheIndices 中）
-    uint64_t validBatchCount;   // 有效 batch 的数量
-    uint64_t validSeqStart;     // 有效序列的起始位置（在原始 x 中的行偏移）
-    uint64_t validSeqLen;       // 有效序列的总长度
+    int64_t padSlotId;          // padding slot ID，用于 kernel 中跳过 padding batch
     uint64_t xStride;           // x 的 stride（即 dim）
     uint64_t cacheStride;       // convStates 的 stride（即 dim）
     uint64_t residualConnection;// 是否做残差连接

@@ -44,7 +44,6 @@ public:
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
-            .ValueDepend(OPTIONAL)
             .AutoContiguous();
         this->Input("initialStateMode")
             .ParamType((OPTIONAL))

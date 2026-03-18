@@ -327,58 +327,8 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
         residualConnection_ = *(context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX));
     }
 
-    // 初始化有效 batch 范围（默认为全部 batch）
-    validBatchStart_ = 0;
-    validBatchCount_ = batch_;
-    validSeqStart_ = 0;
-    validSeqLen_ = cuSeqLen_;
-
-    // 如果有 padSlotId，需要读取 cacheIndices 来确定有效 batch 范围
-    if (padSlotId_ >= 0) {
-        // 尝试读取 cacheIndices 数据 (OPTIONAL)
-        const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(INPUT_CACHE_INDICES_INDEX);
-        if (cacheIndicesTensor != nullptr && cacheIndicesTensor->GetData<int32_t>() != nullptr) {
-            // 获取 cacheIndices tensor (batch 个 int32 元素)
-            const int32_t* cacheIndices = cacheIndicesTensor->GetData<int32_t>();
-
-            // 从前往后找第一个不等于 padSlotId 的位置
-            uint64_t validStart = batch_;  // 默认全是padding
-            for (uint64_t i = 0; i < batch_; i++) {
-                if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
-                    validStart = i;
-                    break;
-                }
-            }
-
-            // 从后往前找最后一个不等于 padSlotId 的位置
-            uint64_t validEnd = 0;
-            for (int64_t i = static_cast<int64_t>(batch_) - 1; i >= 0; i--) {
-                if (static_cast<int64_t>(cacheIndices[i]) != padSlotId_) {
-                    validEnd = static_cast<uint64_t>(i);
-                    break;
-                }
-            }
-
-            // 计算有效 batch 数量
-            if (validStart <= validEnd && validStart < batch_) {
-                validBatchStart_ = validStart;
-                validBatchCount_ = validEnd - validStart + 1;
-
-                // 读取 queryStartLoc 计算有效序列范围 (OPTIONAL)
-                const gert::Tensor* queryStartLocTensor = context_->GetOptionalInputTensor(INPUT_QUERY_START_LOC_INDEX);
-                if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
-                    const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
-                    validSeqStart_ = static_cast<uint64_t>(queryStartLoc[validBatchStart_]);
-                    uint64_t validSeqEnd = static_cast<uint64_t>(queryStartLoc[validEnd + 1]);
-                    validSeqLen_ = validSeqEnd - validSeqStart_;
-                }
-            } else {
-                // 所有 batch 都是 padding，设置为 0
-                validBatchCount_ = 0;
-                validSeqLen_ = 0;
-            }
-        }
-    }
+    // 注意：不再在 tiling 阶段读取 cacheIndices 和 queryStartLoc 的实际数据
+    // padding 优化逻辑移到 kernel 中动态处理，tiling 使用完整的 cuSeqLen 进行切分
 
     // 检查输入和输出参数
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
@@ -608,12 +558,12 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
         uint64_t maxAllowedBSByCore = totalCoreNum_ / dc;
         if (maxAllowedBSByCore == 0) continue;  // 跳过（dim切太多，没有剩余核给BS）
 
-        // BS方向的约束：n <= validSeqLen - overlap（保证每个核至少输出1个元素）
-        uint64_t maxAllowedBSBySeqLen = (validSeqLen_ > bsOverlap) ? (validSeqLen_ - bsOverlap) : 1;
+        // BS方向的约束：n <= cuSeqLen - overlap（保证每个核至少输出1个元素）
+        uint64_t maxAllowedBSBySeqLen = (cuSeqLen_ > bsOverlap) ? (cuSeqLen_ - bsOverlap) : 1;
         uint64_t maxAllowedBS = std::min(maxAllowedBSByCore, maxAllowedBSBySeqLen);
 
         // 考虑因果重叠，计算BS方向实际能用的核数
-        auto splitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, maxAllowedBS);
+        auto splitInfo = CalculateCuSeqLenSplitInfo(cuSeqLen_, bsOverlap, maxAllowedBS);
         uint64_t actualBS = splitInfo.realCoreNum;
 
         // 总使用核数
@@ -737,10 +687,7 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.cuSeqLen = cuSeqLen_;
     tilingData_.dim = dim_;
     tilingData_.batch = batch_;
-    tilingData_.validBatchStart = validBatchStart_;
-    tilingData_.validBatchCount = validBatchCount_;
-    tilingData_.validSeqStart = validSeqStart_;
-    tilingData_.validSeqLen = validSeqLen_;
+    tilingData_.padSlotId = padSlotId_;
     tilingData_.xStride = dim_;
     tilingData_.cacheStride = dim_;
     tilingData_.residualConnection = residualConnection_;
@@ -767,10 +714,6 @@ void CausalConv1dFnTiling::DumpTilingInfo()
     info << "kernelWidth: " << kernelWidth_ << std::endl;
     info << "batch: " << batch_ << std::endl;
     info << "padSlotId: " << padSlotId_ << std::endl;
-    info << "validBatchStart: " << validBatchStart_ << std::endl;
-    info << "validBatchCount: " << validBatchCount_ << std::endl;
-    info << "validSeqStart: " << validSeqStart_ << std::endl;
-    info << "validSeqLen: " << validSeqLen_ << std::endl;
 
     // dim方向核间切分信息
     info << "dimCoreNum: " << dimCoreNum_ << std::endl;
