@@ -115,3 +115,21 @@ void MMAllReduceFitBalanceTiling::AdjustLongShortTileLen()
         tilingM_.cutRes.numLongTile++;
     }
 }
+
+CutResult MMAllReduceFitBalanceTiling::GetTilingResult()
+{
+    CutResult mCutAllreduce;
+    SocVersion inputSocVersion = SocVersion::SOC910_B;
+    SetMCutSocVersion(inputSocVersion);
+    const gert::StorageShape* commQuantScaleShape1 = mmrCtxInfo_.comm_quant_scale_1_shape;
+    const gert::StorageShape* commQuantScaleShape2 = mmrCtxInfo_.comm_quant_scale_2_shape;
+    if (mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)) {
+        MMAllReduceFitBalanceTiling allReduceTilingHccl(args_, KernelType::ALL_REDUCE_VIA_TWO_SHOT, TopoType::STANDARD_CARD);
+        mCutAllreduce = allReduceTilingHccl.GetTiling();
+    } else {
+        MMPlusAllReduce allReduceTilingHccl(args_, args_.rankDim, KernelType::ALL_REDUCE, inputSocVersion, isPerBlock_);
+        allReduceTilingHccl.GetTiling();
+        mCutAllreduce = allReduceTilingHccl.tilingM_.cutRes;
+    }
+    return mCutAllreduce;
+}

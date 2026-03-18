@@ -37,6 +37,7 @@ public:
     void SetShortTileLen() override;
     void AdjustLongShortTileLen() override;
     void SetLongTileLen() override;
+    CutResult GetTilingResult() override;
     void SetCommBoundTile();
     uint64_t Align256(uint64_t value);
 };

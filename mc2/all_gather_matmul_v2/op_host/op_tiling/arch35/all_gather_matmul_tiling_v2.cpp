@@ -122,6 +122,12 @@ ge::graphStatus AllGatherMatmulTilingV2::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+CutResult AllGatherMatmulTilingV2::GetTilingResult()
+{
+    AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
+    return tileFormulate.GetTiling();
+}
+
 ge::graphStatus AllGatherMatmulTilingV2::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg, Mc2MMRegisterCfg& registerCfg,
                                                           Mc2MatMulV3TilingData& tilingData)
 {
