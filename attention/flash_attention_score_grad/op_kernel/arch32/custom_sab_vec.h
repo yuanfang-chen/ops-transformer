@@ -883,34 +883,6 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
 
     LocalTensor<T1> pseUbT1 = unifiedBuffer.GetWithOffset<T1>(16 * 1024 / sizeof(T1), ubBufferOffset + T1Begin);
     LocalTensor<half> pseUb = pseUbT1.template ReinterpretCast<half>();
-    // if constexpr (IS_PSE == ENABLE) {
-    //     pseInfo.bSSOffset = dbParam.bIdx * s1 * s2;
-    //     pseInfo.s2SizeAcc = dbParam.bIdx * s2;
-    //     pseInfo.boIdx = dbParam.bIdx;
-    //     pseInfo.n2oIdx = dbParam.n2Idx;
-    //     pseInfo.goIdx = dbParam.gIdx;
-    //     pseInfo.s1oIdx = dbParam.s1oIdx;
-    //     pseInfo.loopIdx = curS1Idx;
-    //     pseInfo.vec1S1BaseSize = s1VecSize;
-    //     pseInfo.vec1S1RealSize = s1ExtendSubGraph;
-    //     pseInfo.s1BaseSize = s1CvInner;
-    //     pseInfo.s2RealSize = s2Extend;
-    //     pseInfo.s2AlignedSize = s2ExtendAlign;
-    //     pseInfo.s2StartIdx = s2VBegin;
-    //     LocalTensor<T2> noCastedPseUb = unifiedBuffer.GetWithOffset<T2>(0 / sizeof(T2), 0);
-    //     if (pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-    //         pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-    //         PseSlopeCopyIn<T2, true>(noCastedPseUb, pseUb, pseSlope, this->pseAlibiGm, pseInfo);
-    //     } else {
-    //         if constexpr (!IsSameType<T1, float>::value) {
-    //             if constexpr (INPUT_LAYOUT == TND) {
-    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
-    //             } else {
-    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
-    //             }
-    //         }
-    //     }
-    // }
 
     LocalTensor<uint8_t> attenMaskUbuint8 =
         unifiedBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + BoolBegin);
@@ -970,48 +942,6 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
         NZ2ND(vecClc2Buffer, tmpTensor, s1VecSize, s2ExtendAlign);
     }
 
-    ///////////////////////////////////////////////////////////////
-    // pse + muls
-    ///////////////////////////////////////////////////////////////
-    // pse shape  0--BN2G1S2    1--BN2GS1S2
-    // if constexpr (IS_PSE == ENABLE) {
-    //     if (TilingData->s1s2BNGS1S2BaseParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-    //     AscendC::PipeBarrier<PIPE_V>();
-    //     Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
-    //         s1ExtendSubGraph * s2ExtendAlign);
-    //     }
-    //     uint16_t repeatTimes = static_cast<uint16_t>(s1ExtendSubGraph);
-    //     if (TilingData->s1s2BNGS1S2BaseParams.pseShapeType == 1) {
-    //         repeatTimes = 1;
-    //     }
-    //     LocalTensor<T2> castTensor = unifiedBuffer.GetWithOffset<T2>(TMP_UB_SIZE / sizeof(T2), TMP_UB_OFFSET);
-    //     if (!(pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-    //         pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE)) {
-
-    //         if constexpr (!IsSameType<T1, float>::value) {
-    //             uint32_t calculateRowsAlign = (s2Extend + input_block_num - 1) / input_block_num * input_block_num;
-    //             Cast(castTensor, pseUbT1, RoundMode::CAST_NONE, repeatTimes * calculateRowsAlign);
-    //             AscendC::PipeBarrier<PIPE_V>();
-    //         } else {
-    //             event_t mte2WaitV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
-    //             AscendC::SetFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
-    //             AscendC::WaitFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
-    //             if constexpr (INPUT_LAYOUT == TND) {
-    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(castTensor, castTensor, this->pseGm, pseInfo);
-    //             } else {
-    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(castTensor, castTensor, this->pseGm, pseInfo);
-    //             }
-    //             event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-    //             AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-    //             AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-    //         }
-    //     } else {
-    //         PseSlopeCast<T2, true>(castTensor, pseUb, pseSlope, pseInfo);
-    //     }
-    //     AscendC::PipeBarrier<PIPE_V>();
-    //     PseCompute<T2, true>(vecClc2Buffer, castTensor, pseInfo);
-    //     AscendC::PipeBarrier<PIPE_V>();
-    // }
     if (TilingData->s1s2BNGS1S2BaseParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
         AscendC::PipeBarrier<PIPE_V>();
         Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
