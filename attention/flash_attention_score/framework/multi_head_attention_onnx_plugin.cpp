@@ -133,14 +133,14 @@ static Status ParseOpToGraphMultiHeadAttention(const ge::Operator& op, ge::Graph
 // register npu_flash_attention_score op info to GE
 REGISTER_CUSTOM_OP("PartitionedCall")
     .FrameworkType(ONNX)
-    .OriginOpType({ge::AscendString("ai.onnx::11::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::12::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::13::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::14::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::15::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::16::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::17::MultiHeadAttention"),
-                   ge::AscendString("ai.onnx::18::MultiHeadAttention")})
+    .OriginOpType({ge::AscendString("com.microsoft::11::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::12::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::13::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::14::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::15::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::16::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::17::MultiHeadAttention"),
+                   ge::AscendString("com.microsoft::18::MultiHeadAttention")})
     .ParseParamsFn(ParseParamsMultiHeadAttention)
     .ParseOpToGraphFn(ParseOpToGraphMultiHeadAttention)
     .ImplyType(ImplyType::TVM);
