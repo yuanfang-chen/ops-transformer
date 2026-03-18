@@ -124,9 +124,9 @@
 #endif
 
 #if defined(CONST_TILING)
-#define TILING_TYPE const int32_t
+using TilingType = const int32_t;
 #else
-#define TILING_TYPE __gm__ int32_t
+using TilingType = __gm__ int32_t;
 #endif
 
 #if defined(CONST_TILING)

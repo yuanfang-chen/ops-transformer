@@ -15,12 +15,10 @@
 #ifndef __ALL_TO_ALLV_GROUPED_MAT_MUL_TILING_H__
 #define __ALL_TO_ALLV_GROUPED_MAT_MUL_TILING_H__
 
-#include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
 #include "mc2_templates/common/a2av_common_tiling.h"
 
 #pragma pack(push, 8)
-struct QuantAlltoAllvGroupedMatmulTilingData {
+struct AlltoAllvQuantGroupedMatmulTilingData {
     MC2KernelTemplate::HcclA2avTilingInfo hcclA2avTilingInfo;
     MC2KernelTemplate::TaskTilingInfo taskTilingInfo;
     bool isPermuteOut = false;
