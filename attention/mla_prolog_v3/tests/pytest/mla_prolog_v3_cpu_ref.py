@@ -1327,7 +1327,7 @@ def build_mla_param(params):
     quant_scale_ckv = torch.ones(1, dtype=torch.float32)
     quant_scale_ckr = torch.ones(1, dtype=torch.float32)
     smo_scale_cq = None
-    k_nope_clip_alpha = torch.ones(1, dtype=torch.float32) if (weight_quant_mode == 1 and kv_quant_mode == 3) else None
+    k_nope_clip_alpha = None
 
     grp_size = 32
 
@@ -1360,7 +1360,7 @@ def build_mla_param(params):
         quant_scale_ckv = torch.rand(1, HCKV, dtype=torch.float32) + 0.01
         quant_scale_ckr = torch.rand(1, DR, dtype=torch.float32) + 0.01
 
-    if kv_quant_mode == 3:
+    if kv_quant_mode == 3 and weight_quant_mode in [1, 2]:
         k_nope_clip_alpha = torch.tensor([1.0], dtype=torch.float32)
 
     # --- Flaglist ---
@@ -1436,7 +1436,7 @@ def build_mla_param(params):
         "pa_flag": pa_flag,
         "t_flag": t_flag,
         "device": "cpu",
-        "action_type": "bm_output_gold",
+        "action_type": "bm",
         # Output shape hints
         "enable_quant_output": enable_quant_output,
         "out_deqq_shape": out_deqq_shape,
@@ -1683,6 +1683,6 @@ def test_mla_prolog_v3(params):
             continue
         npu_dtype = result_list[i].dtype
         if expect_list[i].dtype != npu_dtype and npu_dtype != torch.float8_e8m0fnu:
-                expect_list[i] = expect_list[i].view(npu_dtype)
+                expect_list[i] = expect_list[i].to(npu_dtype)
 
     return expect_list, result_list
