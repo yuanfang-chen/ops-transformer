@@ -78,7 +78,7 @@ public:
         }
 
         uint64_t workSpaceOffset = 0;
-        GBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+        gBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * dk_ * sizeof(float);
         kkWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
@@ -87,7 +87,7 @@ public:
         vBetaWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dv_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * dv_ * sizeof(float);
-        AttnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
+        attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * chunkSize_ * sizeof(float);
         queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
@@ -223,7 +223,7 @@ private:
         queryGm_ = queryBaseGm_[qk_base];
         keyGm_   = keyBaseGm_[qk_base];
 
-        uint64_t vOffset = chunk_start_row * nv_ * dv_ + nid * dv_;
+        uint64_t vOffset = chunk_start_row * v_row_stride_ + nid * dv_;
         valueGm_ = valueBaseGm_[vOffset];
 
         uint64_t bgOffset = chunk_start_row * nv_ + nid;
@@ -259,10 +259,10 @@ private:
             AttnInverseMMCompute(INVERSE_SHAPE);
             AscendC::CrossCoreWaitFlag(0x6);  //同步3
             // attn @ k_cumdecay
-            AICProcess(AttnWsGm_, GBKWsGm_, outKCumdecayGm_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
+            AICProcess(attnWsGm_, gBKWsGm_, outKCumdecayGm_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
             // attn @ v_beta    stage1 out
-            AICProcess(AttnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
+            AICProcess(attnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
         }
         if ASCEND_IS_AIV {
             // 获取连续QK
@@ -423,7 +423,7 @@ private:
 
         InverseAIV(subOffset_, INVERSE_SHAPE);
         fp32OutQueue_.EnQue(inverseLocal);
-        DataCopyOutFp32(halfChunkSize_, chunkSize_, chunkSize_, AttnWsGm_[subOffset_ * chunkSize_]);
+        DataCopyOutFp32(halfChunkSize_, chunkSize_, chunkSize_, attnWsGm_[subOffset_ * chunkSize_]);
     }
 
     __aicore__ inline void InverseAIV(uint64_t offset, uint32_t inverseVecLen)
@@ -490,7 +490,7 @@ private:
         Mul(gBKLocal, gBKLocal, kUbFloatCon, halfChunkSize_ * dk_aligned_);
         fp32OutQueue_.EnQue<float>(gBKLocal);
         uint64_t GBKBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, GBKWsGm_[GBKBeginOffset]);
+        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, gBKWsGm_[GBKBeginOffset]);
         PipeBarrier<PIPE_V>();
         if (gOptional_){
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
@@ -679,12 +679,12 @@ private:
         uint64_t leftDown = chunkSize_ * curLen;
         uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(AttnWsGm_[leftDown], AttnWsGm_, AttnWsGm_[leftDown], 
+        AICProcess(attnWsGm_[leftDown], attnWsGm_, attnWsGm_[leftDown], 
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(AttnWsGm_[rightDown], AttnWsGm_[leftDown], AttnWsGm_[leftDown], 
+        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown], 
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
@@ -748,8 +748,8 @@ private:
 
     GlobalTensor<float> vBetaWsGm_;
     GlobalTensor<float> kkWsGm_;
-    GlobalTensor<float> AttnWsGm_;
-    GlobalTensor<float> GBKWsGm_;
+    GlobalTensor<float> attnWsGm_;
+    GlobalTensor<float> gBKWsGm_;
     GlobalTensor<float> queryContinousGm_;
     GlobalTensor<float> keyContinousGm_;
     GlobalTensor<float> querytmpGm_;
