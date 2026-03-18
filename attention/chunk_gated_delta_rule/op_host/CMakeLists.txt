@@ -16,22 +16,5 @@ if (BUILD_OPEN_PROJECT)
     )
 endif()
 
-if (BUILD_OPS_RTY_KERNEL)
-    add_ops_compile_options(
-        OP_NAME ChunkGatedDeltaRule
-        OPTIONS
-            --cce-auto-sync=on
-            -Wno-deprecated-declarations
-            -Werror
-    )
-    if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend910_95")
-        add_ops_compile_options(
-            OP_NAME ChunkGatedDeltaRule
-            COMPUTE_UNIT ascend910_9599
-            OPTIONS
-                -mllvm -cce-aicore-dcci-before-kernel-end=false
-        )
-    endif()
-else()
-    add_modules_sources(OPTYPE chunk_gated_delta_rule ACLNNTYPE aclnn_exclude)
-endif()
+add_modules_sources(OPTYPE chunk_gated_delta_rule ACLNNTYPE aclnn_exclude)
+
