@@ -91,6 +91,8 @@ REG_OP(QuantGroupedMatMulAlltoAllv)
       .ATTR(comm_quant_mode, Int, 0)
       .ATTR(group_size, Int, 0)
       .ATTR(comm_quant_dtype, Int, 0)
+      .ATTR(y_dtype, Int, 28)
+      .ATTR(mm_dtype, Int, 28)
       .OP_END_FACTORY_REG(QuantGroupedMatMulAlltoAllv)
 
 
