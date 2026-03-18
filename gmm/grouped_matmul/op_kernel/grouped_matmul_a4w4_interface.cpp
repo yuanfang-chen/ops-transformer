@@ -50,8 +50,7 @@ struct TileCopyGMMPTD : public Catlass::Gemm::Tile::QuantTileCopy<ArchTag, AType
     using CopyGmToL1Scale = typename Base::CopyGmToL1Scale;
     using CopyL1ToFP = typename Base::CopyL1ToFP;
 };
-template <typename XDType,                                                                                                                                                                                                                                   
-          typename WeightDType, typename CDType, typename ScaleDType, typename GrouplistDType,                                                                                                                                                               
+template <typename WeightDType, typename CDType, typename ScaleDType, typename GrouplistDType,                                                                                                                                                               
           typename PerTokenScaleDType, typename YDType>
 CATLASS_DEVICE void grouped_matmul_a4w4_catlass(uint32_t m, uint32_t k, uint32_t n, uint32_t groupNum, uint64_t quantGroupNum,
                                         GM_ADDR gmA, GM_ADDR gmB, GM_ADDR gmScale, GM_ADDR group_list, 
@@ -59,6 +58,7 @@ CATLASS_DEVICE void grouped_matmul_a4w4_catlass(uint32_t m, uint32_t k, uint32_t
     using LayoutA = Catlass::layout::RowMajor;
     using LayoutB = Catlass::layout::zN;
     using LayoutD = Catlass::layout::RowMajor;
+    using XDType = AscendC::int4b_t;
     LayoutA layoutA{m, k};
     LayoutB layoutB = LayoutB::template MakeLayout<WeightDType>(k, n);
     Catlass::layout::VectorLayout layoutScale{n};

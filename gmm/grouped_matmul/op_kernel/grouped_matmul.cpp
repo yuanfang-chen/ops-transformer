@@ -488,8 +488,7 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
             GET_TILING_DATA_MEMBER(GMMTilingData, gmmBaseParams, gmmBaseParams_, tiling);
             if (gmmBaseParams_.isA4W4Optimize) {
                 tPipe.Destroy();
-                AscendC::SetMMLayoutTransform(true);
-                using XDType = AscendC::int4b_t;                                                                                                                                                                                                             
+                AscendC::SetMMLayoutTransform(true);                                                                                                                                                                                                         
                 using WeightDType = AscendC::int4b_t;                                                                                                                                                                                                        
                 using CDType = half;                                                                                                                                                                                                                         
                 using ScaleDType = uint64_t;                                                                                                                                                                                                                 
@@ -497,7 +496,7 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
                 using PerTokenScaleDType = float;                                                                                                                                                                                                            
                 using YDType = bfloat16_t;
 #ifndef __CCE_KT_TEST__
-                Catlass::grouped_matmul_a4w4_catlass<XDType, WeightDType, CDType, ScaleDType, GrouplistDType, PerTokenScaleDType, YDType>(
+                Catlass::grouped_matmul_a4w4_catlass<WeightDType, CDType, ScaleDType, GrouplistDType, PerTokenScaleDType, YDType>(
                     gmmBaseParams_.m, gmmBaseParams_.k, gmmBaseParams_.n, gmmBaseParams_.groupNum, gmmBaseParams_.quantGroupNum,
                     x, weight, scale, groupList, perTokenScale, y, user1, gmmBaseParams_.coreNum);
 #endif
