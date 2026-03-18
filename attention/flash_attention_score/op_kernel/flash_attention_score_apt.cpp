@@ -74,22 +74,3 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
     }
 }
 
-
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "myprovider": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "volcengine",
-      "options": {
-        "baseURL": "https://ark.cn-beijing.volces.com/api/v3",
-        "apiKey": "12345678-b001-1234-9cca-13141234567f"
-      },
-      "models": {
-        "ep-20260212220102-12345": {
-          "name": "GLM-4-7-ep-20260212220102-12345"
-        }
-      }
-    }
-  }
-}
