@@ -35,6 +35,8 @@ __aicore__ inline void CalculateQueryOffset(RunParamStr& runParam,
 {
     if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
         runParam.qBOffset = (bIdx == 0) ? 0 : actualSeqQlenAddr[bIdx - 1] * constInfo.gSize * 576;
+    } else {
+        runParam.qBOffset = bIdx * constInfo.s1Size * constInfo.n2GD;
     }
 }
 
