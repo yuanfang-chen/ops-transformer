@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "common/utils/op_mc2.h"
+#include "op_mc2.h"
 #include "mc2_log.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_base.h"
 
@@ -114,12 +114,16 @@ QuantModePair QuantGmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContex
     if (gmmXQuantMode == QUANT_NONE && gmmWeightQuantMode == QUANT_NONE) {
         return QUANT_PAIR_NONE;
     }
+
     if (gmmXQuantMode == QUANT_PERTENSOR && gmmWeightQuantMode == QUANT_PERTENSOR) {
         return QUANT_PAIR_TT;
+    }
+
+    if (gmmXQuantMode == QUANT_MX && gmmWeightQuantMode == QUANT_MX) {
+        return QUANT_PAIR_MX;
     } else {
         OP_LOGD(opName,
-                "Quantization mode error, TT quantization gmmXQuantMode should be one, gmmWeightQuantMode should be one."
-                "currently gmmXQuantMode=%d, gmmWeightQuantMode=%d.",
+                "Quantization mode error, currently gmmXQuantMode=%d, gmmWeightQuantMode=%d.",
                 gmmXQuantMode, gmmWeightQuantMode);
     }
     return QUANT_PAIR_ERROR;
