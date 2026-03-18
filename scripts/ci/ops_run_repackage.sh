@@ -15,6 +15,7 @@ RUN_PKG_SAVE_PATH=""
 OS_ARCH=$(uname -m)
 PKG_NAME=""
 SOC=""
+OPP_PREFIX="opp"
 
 # -----------------------------
 # 函数定义
@@ -207,12 +208,12 @@ for runfile in kernel_*.run; do
 
     if $first_run; then
         # 第一个文件：拷贝整个 kernel 目录
-        target_kernel_dir="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME/"
+        target_kernel_dir="$HOST_EXTRACT_DIR/$OPP_PREFIX/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME/"
         ensure_dir $target_kernel_dir
         cp -rf "$kernel_src_dir"/* "./$target_kernel_dir" || \
             die "Failed to copy first kernel files"
         log "First run: copied full kernel to $target_kernel_dir"
-        dest_conf_ascend_first="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
+        dest_conf_ascend_first="$HOST_EXTRACT_DIR/$OPP_PREFIX/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
         ensure_dir $dest_conf_ascend_first
         # config文件拷贝
         cp -v $config_src_dir/* $dest_conf_ascend_first/
@@ -221,14 +222,14 @@ for runfile in kernel_*.run; do
         # 非第一个文件：增量合并
 
         # a. 拷贝 kernel/$ascend/* 到 host/.../kernel/$ascend/
-        dest_kern_ascend="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME"
+        dest_kern_ascend="$HOST_EXTRACT_DIR/$OPP_PREFIX/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME"
         ensure_dir "$dest_kern_ascend"
         cp -rf "$kernel_src_dir"/* "$dest_kern_ascend"/ || \
             die "Failed to copy kernel ascend files"
 
         # b. 处理 config/$ascend/ 下的 JSON 文件
         src_conf_ascend=$config_src_dir
-        dest_conf_ascend="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
+        dest_conf_ascend="$HOST_EXTRACT_DIR/$OPP_PREFIX/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
 
         # 遍历所有 JSON 文件
         for json_file in "$src_conf_ascend"/*.json; do

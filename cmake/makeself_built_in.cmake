@@ -147,10 +147,12 @@ execute_process(
     COMMAND find ${STAGING_DIR} -type f -exec chmod 550 {} \;
     RESULT_VARIABLE CHMOD_RESULT
 )
-file(CHMOD ${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h
-    PERMISSIONS OWNER_READ GROUP_READ
-)
-
+if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/{PKG_NAME}_version.h")
+    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/{PKG_NAME}_version.h")
+endif()
+if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
+    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
+endif() 
 # makeself打包
 file(STRINGS ${CPACK_CMAKE_BINARY_DIR}/makeself.txt script_output)
 string(REPLACE " " ";" makeself_param_string "${script_output}")
