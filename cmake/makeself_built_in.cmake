@@ -147,8 +147,8 @@ execute_process(
     COMMAND find ${STAGING_DIR} -type f -exec chmod 550 {} \;
     RESULT_VARIABLE CHMOD_RESULT
 )
-if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/{PKG_NAME}_version.h")
-    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/{PKG_NAME}_version.h")
+if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h")
+    execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/include/version/${PKG_NAME}_version.h")
 endif()
 if(EXISTS "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
     execute_process(COMMAND chmod 440 "${STAGING_DIR}/${CMAKE_SYSTEM_PROCESSOR}-linux/conf/path.cfg")
