@@ -883,34 +883,34 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
 
     LocalTensor<T1> pseUbT1 = unifiedBuffer.GetWithOffset<T1>(16 * 1024 / sizeof(T1), ubBufferOffset + T1Begin);
     LocalTensor<half> pseUb = pseUbT1.template ReinterpretCast<half>();
-    if constexpr (IS_PSE == ENABLE) {
-        pseInfo.bSSOffset = dbParam.bIdx * s1 * s2;
-        pseInfo.s2SizeAcc = dbParam.bIdx * s2;
-        pseInfo.boIdx = dbParam.bIdx;
-        pseInfo.n2oIdx = dbParam.n2Idx;
-        pseInfo.goIdx = dbParam.gIdx;
-        pseInfo.s1oIdx = dbParam.s1oIdx;
-        pseInfo.loopIdx = curS1Idx;
-        pseInfo.vec1S1BaseSize = s1VecSize;
-        pseInfo.vec1S1RealSize = s1ExtendSubGraph;
-        pseInfo.s1BaseSize = s1CvInner;
-        pseInfo.s2RealSize = s2Extend;
-        pseInfo.s2AlignedSize = s2ExtendAlign;
-        pseInfo.s2StartIdx = s2VBegin;
-        LocalTensor<T2> noCastedPseUb = unifiedBuffer.GetWithOffset<T2>(0 / sizeof(T2), 0);
-        if (pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-            pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-            PseSlopeCopyIn<T2, true>(noCastedPseUb, pseUb, pseSlope, this->pseAlibiGm, pseInfo);
-        } else {
-            if constexpr (!IsSameType<T1, float>::value) {
-                if constexpr (INPUT_LAYOUT == TND) {
-                    PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
-                } else {
-                    PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
-                }
-            }
-        }
-    }
+    // if constexpr (IS_PSE == ENABLE) {
+    //     pseInfo.bSSOffset = dbParam.bIdx * s1 * s2;
+    //     pseInfo.s2SizeAcc = dbParam.bIdx * s2;
+    //     pseInfo.boIdx = dbParam.bIdx;
+    //     pseInfo.n2oIdx = dbParam.n2Idx;
+    //     pseInfo.goIdx = dbParam.gIdx;
+    //     pseInfo.s1oIdx = dbParam.s1oIdx;
+    //     pseInfo.loopIdx = curS1Idx;
+    //     pseInfo.vec1S1BaseSize = s1VecSize;
+    //     pseInfo.vec1S1RealSize = s1ExtendSubGraph;
+    //     pseInfo.s1BaseSize = s1CvInner;
+    //     pseInfo.s2RealSize = s2Extend;
+    //     pseInfo.s2AlignedSize = s2ExtendAlign;
+    //     pseInfo.s2StartIdx = s2VBegin;
+    //     LocalTensor<T2> noCastedPseUb = unifiedBuffer.GetWithOffset<T2>(0 / sizeof(T2), 0);
+    //     if (pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
+    //         pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
+    //         PseSlopeCopyIn<T2, true>(noCastedPseUb, pseUb, pseSlope, this->pseAlibiGm, pseInfo);
+    //     } else {
+    //         if constexpr (!IsSameType<T1, float>::value) {
+    //             if constexpr (INPUT_LAYOUT == TND) {
+    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
+    //             } else {
+    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(noCastedPseUb, pseUbT1, this->pseGm, pseInfo);
+    //             }
+    //         }
+    //     }
+    // }
 
     LocalTensor<uint8_t> attenMaskUbuint8 =
         unifiedBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + BoolBegin);
@@ -974,44 +974,44 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
     // pse + muls
     ///////////////////////////////////////////////////////////////
     // pse shape  0--BN2G1S2    1--BN2GS1S2
-    if constexpr (IS_PSE == ENABLE) {
-        if (TilingData->s1s2BNGS1S2BaseParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-        AscendC::PipeBarrier<PIPE_V>();
-        Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
-            s1ExtendSubGraph * s2ExtendAlign);
-        }
-        uint16_t repeatTimes = static_cast<uint16_t>(s1ExtendSubGraph);
-        if (TilingData->s1s2BNGS1S2BaseParams.pseShapeType == 1) {
-            repeatTimes = 1;
-        }
-        LocalTensor<T2> castTensor = unifiedBuffer.GetWithOffset<T2>(TMP_UB_SIZE / sizeof(T2), TMP_UB_OFFSET);
-        if (!(pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-            pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE)) {
+    // if constexpr (IS_PSE == ENABLE) {
+    //     if (TilingData->s1s2BNGS1S2BaseParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
+    //         s1ExtendSubGraph * s2ExtendAlign);
+    //     }
+    //     uint16_t repeatTimes = static_cast<uint16_t>(s1ExtendSubGraph);
+    //     if (TilingData->s1s2BNGS1S2BaseParams.pseShapeType == 1) {
+    //         repeatTimes = 1;
+    //     }
+    //     LocalTensor<T2> castTensor = unifiedBuffer.GetWithOffset<T2>(TMP_UB_SIZE / sizeof(T2), TMP_UB_OFFSET);
+    //     if (!(pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
+    //         pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE)) {
 
-            if constexpr (!IsSameType<T1, float>::value) {
-                uint32_t calculateRowsAlign = (s2Extend + input_block_num - 1) / input_block_num * input_block_num;
-                Cast(castTensor, pseUbT1, RoundMode::CAST_NONE, repeatTimes * calculateRowsAlign);
-                AscendC::PipeBarrier<PIPE_V>();
-            } else {
-                event_t mte2WaitV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
-                AscendC::SetFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
-                AscendC::WaitFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
-                if constexpr (INPUT_LAYOUT == TND) {
-                    PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(castTensor, castTensor, this->pseGm, pseInfo);
-                } else {
-                    PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(castTensor, castTensor, this->pseGm, pseInfo);
-                }
-                event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-                AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-                AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-            }
-        } else {
-            PseSlopeCast<T2, true>(castTensor, pseUb, pseSlope, pseInfo);
-        }
-        AscendC::PipeBarrier<PIPE_V>();
-        PseCompute<T2, true>(vecClc2Buffer, castTensor, pseInfo);
-        AscendC::PipeBarrier<PIPE_V>();
-    }
+    //         if constexpr (!IsSameType<T1, float>::value) {
+    //             uint32_t calculateRowsAlign = (s2Extend + input_block_num - 1) / input_block_num * input_block_num;
+    //             Cast(castTensor, pseUbT1, RoundMode::CAST_NONE, repeatTimes * calculateRowsAlign);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //         } else {
+    //             event_t mte2WaitV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+    //             AscendC::SetFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
+    //             AscendC::WaitFlag<HardEvent::V_MTE2>(static_cast<int32_t>(mte2WaitV));
+    //             if constexpr (INPUT_LAYOUT == TND) {
+    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(castTensor, castTensor, this->pseGm, pseInfo);
+    //             } else {
+    //                 PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(castTensor, castTensor, this->pseGm, pseInfo);
+    //             }
+    //             event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+    //             AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
+    //             AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
+    //         }
+    //     } else {
+    //         PseSlopeCast<T2, true>(castTensor, pseUb, pseSlope, pseInfo);
+    //     }
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     PseCompute<T2, true>(vecClc2Buffer, castTensor, pseInfo);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    // }
     if (TilingData->s1s2BNGS1S2BaseParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
         AscendC::PipeBarrier<PIPE_V>();
         Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
@@ -1170,7 +1170,6 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
     LocalTensor<T2> vecClc1Buffer = unifiedBuffer.GetWithOffset<T2>(33 * 1024 / sizeof(T2), ubBufferOffset + T1Begin);
     // copyIn dyv
     LocalTensor<T2> dyvBuffer = unifiedBuffer.GetWithOffset<T2>(33 * 1024 / sizeof(T2), TMP_UB_OFFSET);
-    bool has_sink = (TilingData->s1s2BNGS1S2BaseParams.sink == 1);
     if constexpr (MM_OUT_FORMAT == CubeFormat::ND) {
         if (s2VecLoop == 1) {
             DataCopy(vecClc1Buffer, mm1WorkspaceGm[pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * s2ExtendAlign],
@@ -1199,21 +1198,10 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
     ///////////////////////////////////////////////////////////////
     // ss
     ///////////////////////////////////////////////////////////////
-    if constexpr (IS_DROP == ENABLE) {
-        LocalTensor<uint8_t> tmpDropBuffer = unifiedBuffer.GetWithOffset<uint8_t>(32 * 1024 / sizeof(uint8_t), TMP_UB_OFFSET);
 
-        // for compute dropout mask
-        dropMaskInfo.lstAxis = s2ExtendAlign;
-        dropMaskInfo.maskLstAxis = s2ExtendAlign;
-        ComputeDropMask<T2, true>(vecClc1Buffer, vecClc1Buffer, vecInDropBuffer, tmpDropBuffer, this->dropMaskInfo);
-    }
     AscendC::PipeBarrier<PIPE_V>();
 
-    if (unlikely(has_sink)) {
-        AscendC::PipeBarrier<PIPE_ALL>();
-        DataCopy(dyvBuffer, vecClc1Buffer, s1ExtendSubGraph * s2ExtendAlign);
-        AscendC::PipeBarrier<PIPE_ALL>();
-    }
+
     //
     ///////////////////////////////////////////////////////////////
     // sub to improve
@@ -1243,84 +1231,7 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
         Cast(vecCopyOutBuffer, vecClc1Buffer, RoundMode::CAST_ROUND, s1ExtendSubGraph * s2ExtendAlign);
     }
 
-    if (unlikely(has_sink)) {
-        // SubGrapSink
-        AscendC::PipeBarrier<PIPE_V>();
-        for (int32_t tmpS1Idx = 0; tmpS1Idx < s1ExtendSubGraph; tmpS1Idx++) {
-            for (int32_t tmpS2Idx = s2Extend; tmpS2Idx < s2ExtendAlign; tmpS2Idx++) {
-                simpleSoftmaxResBuf.SetValue(tmpS1Idx * s2ExtendAlign + tmpS2Idx, static_cast<float>(0.0));
-                dyvBuffer.SetValue(tmpS1Idx * s2ExtendAlign + tmpS2Idx, static_cast<float>(0.0));
-            }
-        }
-        AscendC::PipeBarrier<PIPE_ALL>();
-        Mul(dyvBuffer, dyvBuffer, simpleSoftmaxResBuf, s1ExtendSubGraph * s2ExtendAlign);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        // Simple_softmax for sink
-        LocalTensor<float> learnable_sink = unifiedBuffer.GetWithOffset<float>(s1ExtendSubGraph * 8, DbBegin);
-
-        AscendC::PipeBarrier<PIPE_ALL>();
-        float getsink = sinkGm.GetValue(dbParam.n2Idx * g + dbParam.gIdx);
-        AscendC::PipeBarrier<PIPE_ALL>();
-
-        Duplicate(learnable_sink, static_cast<float> (getsink), s1ExtendSubGraph * 8);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        LocalTensor<float> vecInBuffer3 = unifiedBuffer.GetWithOffset<float>(8 * 1024 / sizeof(float), T2BlockBegin);
-        int64_t softMaxOffset = 0;
-        if constexpr (INPUT_LAYOUT == TND) {
-            if(tndSoftmaxIn){
-                int64_t innerRowOffsetLeft = unlikely(dbParam.bIdx == 0) ? 0 : ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * 32 / sizeof(float);
-                int64_t originInnerBatchOffset = ((dbParam.n2Idx * g + dbParam.gIdx) * dbParam.actualS1Len +
-                                dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
-                softMaxOffset = ((((__gm__ int64_t *)actual_seq_qlen_addr)[b - 1] * 32 / sizeof(float)) * (dbParam.n2Idx * g + dbParam.gIdx) + innerRowOffsetLeft + originInnerBatchOffset % (dbParam.actualS1Len * 32 / sizeof(float)));
-            }else {
-                if (dbParam.bIdx > 0) {
-                    softMaxOffset = ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * n2 * g * 32 / sizeof(float);
-                }
-                softMaxOffset += ((dbParam.n2Idx * g + dbParam.gIdx) * dbParam.actualS1Len +
-                                dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
-            }
-        } else {
-            softMaxOffset = (((dbParam.bIdx * n2 + dbParam.n2Idx) * g + dbParam.gIdx) * s1 + dbParam.s1oIdx * s1CvInner +
-                            curS1Idx * s1VecSize) * 32 / sizeof(float);
-        }
-        CopyInSoftMax(vecInBuffer3, s1ExtendSubGraph, softMaxOffset);
-
-        // simple softmax
-        AscendC::PipeBarrier<PIPE_V>();
-        Sub(learnable_sink, learnable_sink, vecInBuffer3[s1ExtendSubGraph*8], s1ExtendSubGraph*8);
-        AscendC::PipeBarrier<PIPE_V>();
-        Exp(learnable_sink, learnable_sink, s1ExtendSubGraph*8);
-        AscendC::PipeBarrier<PIPE_V>();
-        Div(learnable_sink, learnable_sink, vecInBuffer3, s1ExtendSubGraph*8);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        for (int i =0; i < s2ExtendAlign / 8; i ++){
-            uint8_t dstRepStride = s2ExtendAlign / 8;
-            Mul(dyvBuffer[8*i], dyvBuffer[8*i], learnable_sink, 8, s1ExtendSubGraph, {1, 1, 1, dstRepStride, dstRepStride, 1});
-            AscendC::PipeBarrier<PIPE_V>();
-        }
-
-        // Sum
-        LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
-        Duplicate(localDsink, static_cast<float> (0.0), 8);
-
-        LocalTensor<float> localDsinkSum = unifiedBuffer.GetWithOffset<float>(s1ExtendSubGraph * s2ExtendAlign, DbBegin + 1024 + 8);
-        AscendC::ReduceSum<float>(localDsink, dyvBuffer, localDsinkSum,  s1ExtendSubGraph * s2ExtendAlign);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        int s1Pad = (TilingData->s1s2BNGS1S2BaseParams.s1 + 255)/256*256;
-        int s2Pad = (TilingData->s1s2BNGS1S2BaseParams.s2 + 255)/256*256; 
-
-        int dataSizePerN1 = b * s2Outer * s1Outer;
-
-        AscendC::PipeBarrier<PIPE_ALL>();
-        dsinksumDataSizeGm.SetValue(0, dataSizePerN1 * n2 * g);
-        AscendC::PipeBarrier<PIPE_ALL>();
-        *dsinkSumLocal += localDsink.GetValue(0);
-        AscendC::PipeBarrier<PIPE_ALL>();
-    }
+    
     
     int64_t copyOutOffset = 0;
     DataCopyParams copyOutParam;
