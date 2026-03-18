@@ -327,8 +327,35 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
         residualConnection_ = *(context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX));
     }
 
-    // 注意：不再在 tiling 阶段读取 cacheIndices 和 queryStartLoc 的实际数据
-    // padding 优化逻辑移到 kernel 中动态处理，tiling 使用完整的 cuSeqLen 进行切分
+    // 获取 x 的 stride
+    bool xIsView = context_->InputIsView(INPUT_X_INDEX);
+    if (xIsView) {
+        auto* xStride = context_->GetInputStride(INPUT_X_INDEX);
+        OP_CHECK_IF(xStride == nullptr || xStride->GetDimNum() == 0,
+                    OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(xStride->GetDimNum() != xShape_.GetDimNum(),
+                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must match that of x shape."),
+                    return ge::GRAPH_FAILED);
+        xStride_ = xStride->GetStride(DIM_0);
+    } else {
+        xStride_ = dim_;
+    }
+
+    // 获取 cacheStates 的 stride
+    bool cacheIsView = context_->InputIsView(INPUT_CACHE_STATES_INDEX);
+    if (cacheIsView) {
+        auto* cacheStride = context_->GetInputStride(INPUT_CACHE_STATES_INDEX);
+        OP_CHECK_IF(cacheStride == nullptr || cacheStride->GetDimNum() == 0,
+                    OP_LOGE(context_->GetNodeName(), "cache_states stride is invalid."),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(cacheStride->GetDimNum() != cacheStatesShape_.GetDimNum(),
+                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in cache_states stride must match that of cache_states shape."),
+                    return ge::GRAPH_FAILED);
+        cacheStride_ = cacheStride->GetStride(DIM_1);
+    } else {
+        cacheStride_ = dim_;
+    }
 
     // 检查输入和输出参数
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
@@ -694,8 +721,8 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.dim = dim_;
     tilingData_.batch = batch_;
     tilingData_.padSlotId = padSlotId_;
-    tilingData_.xStride = dim_;
-    tilingData_.cacheStride = dim_;
+    tilingData_.xStride = xStride_;
+    tilingData_.cacheStride = cacheStride_;
     tilingData_.residualConnection = residualConnection_;
 
     // Save tiling data to buffer
@@ -750,6 +777,8 @@ void CausalConv1dFnTiling::DumpTilingInfo()
     info << "tailBlockubFactorDim: " << tailBlockubFactorDim_ << std::endl;
     info << "tailBlockubTailFactorDim: " << tailBlockubTailFactorDim_ << std::endl;
     info << "residualConnection: " << residualConnection_ << std::endl;
+    info << "xStride: " << xStride_ << std::endl;
+    info << "cacheStride: " << cacheStride_ << std::endl;
 
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }
