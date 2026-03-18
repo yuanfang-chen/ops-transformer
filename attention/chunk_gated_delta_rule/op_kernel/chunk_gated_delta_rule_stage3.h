@@ -30,8 +30,6 @@ using bT3 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
 using cT3 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using StageThreeMT = matmul::MatmulImpl<aT3, bT3, cT3>;
 
-#define BUFFER_NUM_ONE 1
-
 template <typename inType, typename outType>
 struct mm3Params {
     GlobalTensor<inType> x;
