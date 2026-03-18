@@ -788,8 +788,6 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
         ret = HcclGetCommName(args.hcclEpComm, hcomEpName);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpCommName failed, ret %d\n", ret); return -1);
         char hcomTpName[128] = {0};
-        //ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
-        //CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
         LOG_PRINT(
             "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, dispatchStream = %p, combineStream = %p, context = %p\n",
             args.rankId, hcomEpName, hcomTpName, args.dispatchStream, args.combineStream, args.context
@@ -949,11 +947,6 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
         std::vector<int16_t> residualXHostData(residualXShapeSize, 1);
         std::vector<int16_t> sharedExpertXHostData(sharedExpertXShapeSize, 1);
         std::vector<int16_t> gammaHostData(gammaShapeSize, 1);
-
-        int32_t isElastic = 1;
-        int32_t rankNumAfterElastic = 4;
-        int32_t sharedExpertRankNumAfterElastic = 0;
-        int32_t moeExpertNumAfterElastic = 4;
 
         std::vector<int16_t> oriXHostData(oriXSize, 1);
         std::vector<int16_t> constExpertAlpha1HostData(constExpertAlpha1Size, 0);
