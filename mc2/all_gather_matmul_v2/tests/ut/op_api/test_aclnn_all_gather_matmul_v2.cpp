@@ -14,11 +14,54 @@
 #include "op_api_ut_common/op_api_ut.h"
 #include "opdev/platform.h"
 #include "platform/platform_info.h"
+#include "test_all_gather_matmul_v2_api_ut_param.h"
 
 using namespace op;
 using namespace std;
 
-namespace {
+namespace AllGatherMatmulV2UT {
+
+class AclnnAllGatherMatmulV2Test : public testing::TestWithParam<AllGatherMatmulV2ApiUtParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        std::cout << "AllGatherMatmulV2 AclnnAllGatherMatmulV2Test SetUp" << std::endl;
+    }
+
+    static void TearDownTestCase()
+    {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        std::cout << "AllGatherMatmulV2 AclnnAllGatherMatmulV2Test TearDown" << std::endl;
+    }
+};
+
+TEST_P(AclnnAllGatherMatmulV2Test, param)
+{
+    auto param = GetParam();
+    op::SetPlatformSocVersion(param.soc);
+    auto ut = OP_API_UT(
+        aclnnAllGatherMatmulV2,
+        INPUT(param.x1, param.x2, param.bias, param.x1Scale, param.x2Scale, param.quantScale, param.blockSize, param.group.c_str(),
+		      param.gatherIndex, param.commTurn, param.streamMode, param.groupSize, param.commMode.c_str()),
+        OUTPUT(param.output, param.gatherOut, param.amaxOut)
+    );
+    uint64_t workspace_size = 0;
+    aclOpExecutor* executor = nullptr;
+    auto aclnnRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    if (param.expectResult == ACLNN_SUCCESS) {
+        EXPECT_NE(ACLNN_ERR_PARAM_INVALID, aclnnRet);
+    } else {
+        EXPECT_EQ(param.expectResult, aclnnRet);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllGatherMatmulV2,
+    AclnnAllGatherMatmulV2Test,
+    testing::ValuesIn(GetCasesFromCsv<AllGatherMatmulV2ApiUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    PrintCaseInfoString<AllGatherMatmulV2ApiUtParam>
+);
+
 
 class AllGatherMatmulV2AclnnTest : public testing::Test {
 protected:
