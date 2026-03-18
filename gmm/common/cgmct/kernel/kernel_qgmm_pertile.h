@@ -164,19 +164,36 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     Init(params);
     bool isKZeroInit = false;
     BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
+    // sparse_m 场景可能存在前置 size==0 的 entry，会被跳过；offset 累加只能基于“已实际执行过的上一组”
+    uint32_t processedValidGroups = 0;
     for (uint32_t loopIdx = 0; loopIdx < groupNum_; ++loopIdx) {
         uint32_t groupIdx = loopIdx;
         if (groupListType_ == GROUP_LIST_TYPE_SPARSE) {
             groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2));
         }
-        UpdateOffset(loopIdx, groupIdx);
-        // Update input parameters M, N, K within the group
-        SetMNK(loopIdx);
-        if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_N>(problemShape_) <= 0) {
-            if (groupListType_ == GROUP_LIST_TYPE_SPARSE && Get<MNK_M>(problemShape_) <= 0) {
+        // 先取 splitValue 判定是否为有效组；避免在 size==0 的 entry 上误做 offset 累加
+        int32_t splitValue = GetSplitValueFromGroupList(loopIdx);
+        int64_t nextM = Get<MNK_M>(problemShape_);
+        int64_t nextN = Get<MNK_N>(problemShape_);
+        int64_t nextK = Get<MNK_K>(problemShape_);
+        if (groupType_ == GMM_SPLIT_M) {
+            nextM = splitValue;
+        } else if (groupType_ == GMM_SPLIT_K) {
+            nextK = splitValue;
+        }
+        if (nextM <= 0 || nextN <= 0) {
+            if (groupListType_ == GROUP_LIST_TYPE_SPARSE && nextM <= 0) {
                 break;
             }
             continue;
+        }
+        // 仅在“将要执行”的有效组前，基于上一有效组尺寸更新 offset；首个有效组不累加
+        UpdateOffset(processedValidGroups == 0 ? 0U : 1U, groupIdx);
+        // Update input parameters M, N, K within the group
+        if (groupType_ == GMM_SPLIT_M) {
+            Get<MNK_M>(problemShape_) = splitValue;
+        } else if (groupType_ == GMM_SPLIT_K) {
+            Get<MNK_K>(problemShape_) = splitValue;
         }
         if (Get<MNK_K>(problemShape_) <= 0) {
             // With K-axis grouping: output (m,n) required. int8 inputs disable K-axis grouping.
@@ -205,6 +222,7 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 
         UpdateMMGlobalAddr();
         ProcessSingleGroup(params, bs, groupIdx);
+        processedValidGroups++;
     }
     End();
 }

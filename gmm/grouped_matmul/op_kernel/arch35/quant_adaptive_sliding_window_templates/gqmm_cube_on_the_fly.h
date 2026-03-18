@@ -284,6 +284,8 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
         preOffset_ = 0;
     }
 
+    // sparse_m 可能有前置 size==0 的 entry 被跳过；offset 累加只能基于“已实际执行过的上一组”
+    uint32_t processedValidGroups = 0;
     for (uint32_t loopIdx = 0; loopIdx < groupNum_; ++loopIdx) {
         uint32_t groupIdx = loopIdx;
         if (groupListType_ == QuantUtils::GROUP_LIST_TYPE_SPARSE) {
@@ -294,15 +296,17 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
         int32_t kSize;
         // 更新group内的输入参数M,N,K
         SetMNK(loopIdx, groupIdx, mSize, nSize, kSize);
-        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx,
-                                                                                     loopIdx, groupListType_,
-                                                                                     groupType_);
         if (mSize <= 0 || kSize <= 0 || nSize <= 0) {
             if (groupListType_ == QuantUtils::GROUP_LIST_TYPE_SPARSE && mSize <= 0) {
                 break;
             }
             continue;
         }
+        // 仅对有效组更新 offset；首个有效组不累加
+        uint32_t effectiveLoopIdx = (processedValidGroups == 0) ? 0U : 1U;
+        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx,
+                                                                                     effectiveLoopIdx, groupListType_,
+                                                                                     groupType_);
         block_.template UpdateGroupParams<true>();
         // 最后一个group最后一轮是否进一步切分以使用更多的核数
         if (IsLastGroupAndNeedSplit(groupIdx)) {
@@ -324,6 +328,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
             // 3. set offset and compute
             SetMMParaAndCompute();
         }
+        processedValidGroups++;
     }
 }
 
