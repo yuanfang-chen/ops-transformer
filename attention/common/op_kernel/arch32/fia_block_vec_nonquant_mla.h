@@ -470,7 +470,7 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ElewiseCompute(
             if (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
                 maskInfo.attenMaskStride = info.actS1Size;
                 maskInfo.attenMaskBatchStride = 0;
-                for (int i = 0; i < maskInfo.batchIdx; i++) {
+                for (int32_t i = 0; i < maskInfo.batchIdx; i++) {
                     maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
                 }
             }

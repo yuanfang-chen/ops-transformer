@@ -588,7 +588,7 @@ ge::graphStatus IFATiling::QKVPreProcess4TND(const std::string layout)
         std::vector<int64_t> actualSeqQ(actualLenQDims_);
         int64_t tmpQSeqSize = 0;
 
-        for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
+        for (int32_t b = 0; b < static_cast<int>(actualLenQDims_); b++) {
             actualSeqQ[b] = (b <= 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
             OP_CHECK_IF((actualSeqQ[b] < 0) || (actualSeqQ[b] > 32), // 32 MTP最大QS
                        OP_LOGE(ifaContext_->opName, "%s QS(%ld) of batch(%d) computed by the query's actual sequence lengths should be in range [0, 32].", layout.c_str(), actualSeqQ[b], b),

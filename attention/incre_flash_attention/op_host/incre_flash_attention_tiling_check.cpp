@@ -1424,7 +1424,7 @@ ge::graphStatus IFATiling::CheckTreeSparseMaskShape()
         attenMaskFlag_ = true;
     } else {
         OP_CHECK_IF(maskShape == nullptr,
-            OP_LOGE(ifaContext_->opName, "when sparse = 9, atten_mask should not be null."), return ge::GRAPH_FAILED);
+            OP_LOGE(ifaContext_->opName, "When sparse = 9, atten_mask should not be null."), return ge::GRAPH_FAILED);
 
         auto shape = ifaContext_->attenMask.tensor->GetStorageShape();
         OP_CHECK_IF(shape.GetDimNum() != 3U || shape.GetDim(0) != batchSize_ || shape.GetDim(1) != qSeqSize_ || shape.GetDim(2) != qSeqSize_ ,

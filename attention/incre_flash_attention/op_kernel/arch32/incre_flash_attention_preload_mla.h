@@ -1991,8 +1991,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyFo
     } else {
         headGCount = dealRowCount;
     }
-    uint32_t dstMaskOffset = 0;
-    uint32_t srcMaskBaseOffset = 0;
+    uint64_t dstMaskOffset = 0;
+    uint64_t srcMaskBaseOffset = 0;
     // head
     SetMaskCount();
     SetVectorMask<int16_t, MaskMode::COUNTER>(attenMaskSizeAlign / 2);

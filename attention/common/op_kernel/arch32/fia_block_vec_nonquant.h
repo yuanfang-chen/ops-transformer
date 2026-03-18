@@ -600,12 +600,15 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
             uint32_t zeroCount  = BUFFER_SIZE_BYTE_8K / sizeof(int16_t);
             Duplicate(mask16, static_cast<int16_t>(0), zeroCount);
             maskUb = mask16.template ReinterpretCast<bool>();
+            event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
+            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
             // 修改attenMaskStride、attenMaskBatchStride值
             maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
             if (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
                 maskInfo.attenMaskStride = info.actS1Size;
                 maskInfo.attenMaskBatchStride = 0;
-                for (int i = 0; i < maskInfo.batchIdx; i++) {
+                for (int32_t i = 0; i < maskInfo.batchIdx; i++) {
                     maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
                 }
             }
@@ -622,7 +625,6 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         }
         inputQue2.FreeTensor(maskUb);
     }
-
 }
 
 template <typename FIAT>
