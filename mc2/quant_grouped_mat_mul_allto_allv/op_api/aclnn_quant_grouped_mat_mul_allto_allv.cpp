@@ -450,7 +450,7 @@ static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, 
 {
     // 1) gmm 一定要有量化模式，且当前只支持 TT(1) / MX(6)
     if (!CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional,
-                        gmmX, gmmWeight, y, "gmmX", "gmmWeight", false)) {
+                        gmmX, gmmWeight, y, "gmmX", "gmmWeight")) {
         return false;
     }
     // 2) mm 不存在时，允许没有量化模式
@@ -470,7 +470,7 @@ static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, 
         return false;
     }
     if (!CheckQuantMode(mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional,
-                        mmXOptional, mmWeightOptional, mmYOptional, "mmX", "mmWeight", false)) {
+                        mmXOptional, mmWeightOptional, mmYOptional, "mmX", "mmWeight")) {
         return false;
     }
     return true;
