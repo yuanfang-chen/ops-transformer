@@ -9,34 +9,36 @@
 */
 
 /*!
- * \file all_gather_fit_balance_tiling.h
+ * \file all_reduce_fit_balance_tiling.h
  * \brief
  */
-#ifndef __ALL_GATHER_FIT_BALANCE_TILING_H__
-#define __ALL_GATHER_FIT_BALANCE_TILING_H__
+#ifndef __ALL_REDUCE_FIT_BALANCE_TILING_H__
+#define __ALL_REDUCE_FIT_BALANCE_TILING_H__
 
 #pragma once
 #include "tiling/mc2_fit_based_balance_tiling.h"
 
-class AllGatherMMFitBalanceTiling : public Mc2FitBasedBalanceTiling
+class MMAllReduceFitBalanceTiling : public Mc2FitBasedBalanceTiling
 {
 public:
-    double frontMMTime_ = 0;
 
-    explicit AllGatherMMFitBalanceTiling(const mc2tiling::TilingArgs& args, KernelType kernelType,
+    explicit MMAllReduceFitBalanceTiling(const mc2tiling::TilingArgs& args, KernelType kernelType,
         TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950) :
         Mc2FitBasedBalanceTiling(args, kernelType, topoType, socVersion)
     {
-        commPerf_.SetCommShapeLen(mmInfo_.kValue);
-        commPerf_.SetCommDTypeSize(mmInfo_.inMatrixADtypeSize);
+        commPerf_.SetCommShapeLen(args.nValue);
+        commPerf_.SetCommDTypeSize(mmInfo_.outMatrixCDtypeSize);
+
         tilingM_.SetMinLenByMax(matmulPerf_.GetBaseM());
         tilingM_.SetAlignLength(matmulPerf_.GetBaseM());
     }
 
     void EstimateMMCommTime() override;
     void SetShortTileLen() override;
-    void SetLongTileLen() override;
     void AdjustLongShortTileLen() override;
+    void SetLongTileLen() override;
+    void SetCommBoundTile();
+    uint64_t Align256(uint64_t value);
 };
 
-#endif // __ALL_GATHER_FIT_BALANCE_TILING_H__
+#endif // __ALL_REDUCE_FIT_BALANCE_TILING_H__
