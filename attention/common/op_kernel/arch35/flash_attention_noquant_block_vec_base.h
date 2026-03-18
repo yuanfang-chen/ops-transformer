@@ -1789,7 +1789,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOu
     if constexpr (isInfer && !isMlaNoQuant) {
         if ((constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) ||constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND) ||
             constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BNSD)) && constInfo.isPfaGS1Merge) {
-            Gs1MergeDataCopyOut(runInfo, constInfo, attenOut, dSizeAligned64);
+            Gs1MergeDataCopyOut(runInfo, constInfo, attenOut, dSizeAligned64, vec2S1Idx);
         }
         else if (dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
             for(int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++){
