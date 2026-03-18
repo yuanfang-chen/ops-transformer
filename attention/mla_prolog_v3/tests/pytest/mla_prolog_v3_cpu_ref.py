@@ -1225,7 +1225,7 @@ def build_mla_param(params):
         kv_cache_dtype_str = 'bfloat16'
         kr_cache_dtype = torch.bfloat16
         kr_cache_dtype_str = 'bfloat16'
-    elif kv_quant_mode == 1:  # kv_quant_mode == 3
+    elif kv_quant_mode in [1, 3]:  # kv_quant_mode == 3
         if weight_quant_mode == 3:
             kv_cache_dtype = torch.float8_e4m3fn
             kv_cache_dtype_str = 'float8_e4m3fn'
