@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_INC_QUANT_GROUPED_MATMUL_FINALIZE_ROUTING_950_CHECKER_H
-#define OP_API_INC_QUANT_GROUPED_MATMUL_FINALIZE_ROUTING_950_CHECKER_H
+#ifndef OP_API_INC_GROUPED_MATMUL_FINALIZE_ROUTING_950_CHECKER_H
+#define OP_API_INC_GROUPED_MATMUL_FINALIZE_ROUTING_950_CHECKER_H
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "quant_grouped_matmul_finalize_routing_util.h"
@@ -28,8 +28,8 @@ constexpr int64_t GMMFR_SPLIT_FACTOR = 2L;
 constexpr int64_t MOD2 = 2L;
 constexpr int64_t MAX_NUM_EXPERTS = 1024L;
 
-const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
-                                                                 op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MX = {
+    op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_FLOAT4_E2M1};
 const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_FP4 = {op::DataType::DT_FLOAT4_E2M1};
 const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_FP8 = {op::DataType::DT_FLOAT4_E2M1};
 static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
@@ -61,7 +61,7 @@ public:
         gmmParams_ = gmmParams;
         // 0. 进入判断逻辑之前先判断是哪种量化
         CHECK_COND(gmmParams_.scale != nullptr, ACLNN_ERR_PARAM_NULLPTR,
-                   "In MX quant, scaleOptional should not be nullptr.");
+                   "scaleOptional should not be nullptr.");
         DataType scaleDtype = gmmParams_.scale->GetDataType();
         if (CheckType(scaleDtype, SCALE_TYPE_SUPPORT_LIST_MX)) {
             quantMode_ = QuantMode::MX;
@@ -134,7 +134,7 @@ public:
         CHECK_COND(rowindexDimNumber == ONE_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of rowindex should be equal 1, current dim is %lu.", rowindexDimNumber);
         CHECK_COND(outDimNumber == TWO_DIM, ACLNN_ERR_PARAM_INVALID,
-                   "The dim num of out should be equal 1, current dim is %lu.", outDimNumber);
+                   "The dim num of out should be equal 2, current dim is %lu.", outDimNumber);
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             auto xScaleDimNumber = gmmParams_.pertokenScaleOptional->GetViewShape().GetDimNum();
             CHECK_COND(xScaleDimNumber == xscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
@@ -236,7 +236,9 @@ public:
             return false;
         }
         if (e > MAX_NUM_EXPERTS) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4/MXFP8, e must be less than 1024. But got %ld.", e);
+            const char* quantModeStr = (quantMode_ == QuantMode::MX) ? "MX quant" : "pertoken quant";
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In %s, e must be less than or equal to 1024. But got %ld.",
+                    quantModeStr, e);
             return false;
         }
         return true;
