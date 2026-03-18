@@ -642,7 +642,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::GetNumOfInputs(const gert::Infe
 ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorListSizeMultiScenario(
     const gert::InferShapeContext *context, const GMMInputParamsInfo &paramsInputInfo) const
 {
-    // 检测 bias antiquantScale antiquantOffset的 tensorListsize 需要等于 weightSize
+    // 检测 bias antiquantScale antiquantOffset的 tensorListsize 需要等于 weightSize   
     if (hasBias_) {
         OP_CHECK_IF(
             paramsInputInfo.numBias != paramsInputInfo.numWeight,
