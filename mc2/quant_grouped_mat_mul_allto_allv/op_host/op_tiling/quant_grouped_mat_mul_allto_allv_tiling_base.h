@@ -74,6 +74,7 @@ enum QuantModePair {
     QUANT_PAIR_NONE = 0,   // 不量化
     QUANT_PAIR_TT = 1,     // pertensor - pertensor
     QUANT_PAIR_KC = 2,     // pertoken - perchannel
+    QUANT_PAIR_MX = 6,     // mxfp8
     QUANT_PAIR_ERROR = 255
 };
 
