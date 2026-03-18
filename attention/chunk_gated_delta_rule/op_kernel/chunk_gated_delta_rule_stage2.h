@@ -142,17 +142,9 @@ public:
 
     __aicore__ inline void CalGCumExp(GlobalTensor<float> stateNew, GlobalTensor<float> gCumExp)
     {
-        float last_g_cum_exp = 1.0f;
-        if (gOptional_) {
-            auto tmpLocal = tmpBuff_.Get<float>();
-            DataCopyExtParams copyParams{1, static_cast<uint32_t>(curChunkSize_ * sizeof(float)), 0, 0, 0};
-            DataCopyPadExtParams<float> padParams{false, 0, 0, 0};
-            DataCopyPad(tmpLocal, gCumExp, copyParams, padParams);
-            SetFlag<HardEvent::MTE2_S>(EVENT_ID0);
-            WaitFlag<HardEvent::MTE2_S>(EVENT_ID0);
-            last_g_cum_exp = tmpLocal.GetValue(curChunkSize_ - 1);
-        }
-
+        // 刷新cache
+        AscendC::DataCacheCleanAndInvalid<float, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CAHELINE_OUT>(gCumExp[curChunkSize_ - 1]);
+        float last_g_cum_exp = gOptional_? gCumExp.GetValue(curChunkSize_ - 1) : 1.0f;
         auto state_in = inQueue_.DeQue<float>();
         auto state_out = outQueue_.AllocTensor<float>();
         SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
