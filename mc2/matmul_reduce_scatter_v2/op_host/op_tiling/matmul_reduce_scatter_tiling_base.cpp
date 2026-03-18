@@ -133,8 +133,8 @@ ge::graphStatus MatmulReduceScatterTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTil
     rcsCfg.tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
     rcsCfg.tailM = args_.mValue - rcsCfg.tileCnt * tileMValue_;
     tailMValue_ = rcsCfg.tailM;
-    rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
-    tailMValue_ = rcfCfg.tailM;
+    rcsCfg.tailM = args_.mValue - rcsCfg.tileCnt * tileMValue_;
+    tailMValue_ = rcsCfg.tailM;
     if (tailMValue_ == 0) {
         rcsCfg.tailCnt = 0;
     } else {
