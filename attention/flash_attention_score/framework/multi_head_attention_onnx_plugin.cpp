@@ -13,11 +13,12 @@
  * \brief
  */
 
-#include "onnx_common.h"
 #include "attention/flash_attention_score/op_graph/flash_attention_score_proto.h"
+#include "nlohmann/json.hpp"
+#include "onnx_common.h"
 
 namespace domi {
-using NodeProto = ge::onnx::NodeProto;
+using json = nlohmann::json;
 namespace {
 constexpr int ALIGN_NUM = 128;
 constexpr int ONE_BYTE_BITS = 8;
@@ -26,28 +27,38 @@ constexpr int ACL_UINT8 = 4;
 constexpr int OUTPUT_INDEX = 3;
 constexpr int ONE = 1;
 
-static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const NodeProto* node) {
-  int input_size = node->input_size();
-  int output_size = node->output_size();
-  op_dest.DynamicInputRegister("x", input_size);
-  op_dest.DynamicOutputRegister("y", output_size);
-  op_dest.SetAttr("name", node->name());
-  op_dest.SetAttr("original_type", "npu::1::MultiHeadAttention");
+static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const ge::Operator& op_src) {
+  std::vector<ge::AscendString> input_strings;
+  if (op_src.GetAttr("input", input_strings) == ge::GRAPH_SUCCESS) {
+    int input_size = 0;
+    for (const auto &input : input_strings) {
+      if (!std::string(input_strings[i].GetString()).empty()) {
+        input_size++;
+      }
+    }
+    op_dest.DynamicInputRegister("x", input_size);
+  }
+  std::vector<ge::AscendString> output_strings;
+  if (op_src.GetAttr("output", output_strings) == ge::GRAPH_SUCCESS) {
+    op_dest.DynamicOutputRegister("y", output_strings.size());
+  }
+  op_dest.SetAttr("name", op_src.GetName());
+  op_dest.SetAttr("original_type", "com.microsoft::11::MultiHeadAttention");
 }
 static Status GetOriNameFromOperator(const ge::Operator& op, std::string& ori_name) {
   if (op.GetAttr("name", ori_name) != SUCCESS) {
-    OP_LOGE(GetOpName(op).c_str(), "get name from op failed.");
+    OP_LOGE(op.GetName().c_str(), "get name from op failed.");
     return FAILED;
   }
   return SUCCESS;
 }
 static Status GetAttr(const ge::Operator& op, int& head_num, float& scale) {
   if (op.GetAttr("head_num", head_num) != SUCCESS) {
-    OP_LOGE(GetOpName(op).c_str(), "get head_num from op failed");
+    OP_LOGE(op.GetName().c_str(), "get head_num from op failed");
     return FAILED;
   }
-  if (op.GetAttr("scale", scale) != SUCCESS) {
-    OP_LOGE(GetOpName(op).c_str(), "get scale from op failed");
+  if (op.GetAttr("scale_value", scale) != SUCCESS) {
+    OP_LOGE(op.GetName().c_str(), "get scale from op failed");
     return FAILED;
   }
   return SUCCESS;
@@ -63,25 +74,23 @@ static Status GetFinalDimsByOperator(const ge::Operator& op, int head_num, vecto
 }
 }
 
-static Status ParseParamsMultiHeadAttention(const Message* op_src, ge::Operator& op_dest) {
-  const NodeProto* node = dynamic_cast<const NodeProto*>(op_src);
-  if (node == nullptr) {
-    OP_LOGE("FlashAttention", "Dynamic cast op_src to NodeProto failed.");
-    return FAILED;
-  }
-  int32_t head_num = 0;
-  float scale = 1.0f;
-  for (const auto& attr : node->attribute()) {
-    if (attr.name() == "head_num" && attr.type() == ge::onnx::AttributeProto::INT) {
-        head_num = attr.i();
+static Status ParseParamsMultiHeadAttention(const ge::Operator& op_src, ge::Operator& op_dest) {
+  ge::AscendString attrs_string;
+  if (op_src.GetAttr("attribute", attrs_string) == ge::GRAPH_SUCCESS) {
+    json attrs = json::parse(attrs_string.GetString());
+    for (json& attr : attrs["attribute"]) {
+      if (attr["name"] == "num_heads") {
+        int head_num = attr["i"];
+        op_dest.SetAttr("head_num", head_num);
+      }
+      if (attr["name"] == "scale") {
+        std::string scale_str = attr["f"];
+        float scale = std::stof(scale_str);
+        op_dest.SetAttr("scale_value", scale);
+      }
     }
-    if (attr.name() == "scale" && attr.type() == ge::onnx::AttributeProto::FLOAT) {
-        scale = attr.f();
-    }
   }
-  UpdateFlashAttentionByNode(op_dest, node);
-  op_dest.SetAttr("head_num", head_num);
-  op_dest.SetAttr("scale", scale);
+  UpdateFlashAttentionByNode(op_dest, op_src);
   return SUCCESS;
 }
 
@@ -116,7 +125,7 @@ static Status ParseOpToGraphMultiHeadAttention(const ge::Operator& op, ge::Graph
                                                                             .set_attr_dst_type(ACL_UINT8);
   std::string input_layout = "BSH";
   int sparse_mode = 1;
-  auto AttentionScore = ge::op::FlashAttentionScore((ori_name + "_FlashAttentionScore").c_str())
+  auto attention_score = ge::op::FlashAttentionScore((ori_name + "_FlashAttentionScore").c_str())
       .set_input_query(data0).set_input_key(data1).set_input_value(data2)
       .set_input_atten_mask(data3)
       .set_input_drop_mask(cast_drop_mask).set_attr_scale_value(scale)
@@ -125,7 +134,7 @@ static Status ParseOpToGraphMultiHeadAttention(const ge::Operator& op, ge::Graph
       .set_attr_head_num(head_num);
   std::vector<ge::Operator> inputs{data0, data1, data2, data3};
   std::vector<std::pair<ge::Operator, std::vector<size_t>>> outputs;
-  outputs.emplace_back(AttentionScore, std::vector<std::size_t>{OUTPUT_INDEX});
+  outputs.emplace_back(attention_score, std::vector<std::size_t>{OUTPUT_INDEX});
   graph.SetInputs(inputs).SetOutputs(outputs);
   return SUCCESS;
 }
@@ -141,7 +150,7 @@ REGISTER_CUSTOM_OP("PartitionedCall")
                    ge::AscendString("com.microsoft::16::MultiHeadAttention"),
                    ge::AscendString("com.microsoft::17::MultiHeadAttention"),
                    ge::AscendString("com.microsoft::18::MultiHeadAttention")})
-    .ParseParamsFn(ParseParamsMultiHeadAttention)
+    .ParseParamsByOperatorFn(ParseParamsMultiHeadAttention)
     .ParseOpToGraphFn(ParseOpToGraphMultiHeadAttention)
     .ImplyType(ImplyType::TVM);
 }
