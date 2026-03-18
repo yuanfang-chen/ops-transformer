@@ -107,7 +107,7 @@ inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::End()
         Mc2MatmulV3TilingData,\
         Mc2MatmulBaseKernel<\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\
-            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X2, X2TRANSPOSE>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X2, ALLTO_ALL_MM_TRANSPOSE_X2>,\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_Y>,\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DtypeBias>,\
             Mc2MatmulBaseBlock, MM_CFG_NO_PRELOAD>>
