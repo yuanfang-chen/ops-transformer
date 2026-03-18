@@ -2383,6 +2383,12 @@ aclnnStatus CheckCommonParam(const aclTensorList *x , const aclTensorList *weigh
              "Only surpport x, y, weight not separated case with groupType is 0 on ASCEND310P.");
   CHECK_COND(PreCheckGroupType(splitItem, groupType) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "PreCheckGroupType failed, groupType is invalid.");
+  if (groupListOptional != nullptr) {
+      auto shape = groupListOptional->GetViewShape();
+      for (size_t i = 0; i < shape.GetDimNum(); ++i) {
+          OP_LOGI("zzzlog dim %d %d", i, shape.GetDim(i));
+      }
+  }
   // sparse group list shape [e, 2]
   size_t validGroupTensorDimNum = (groupListType == gmm::GROUP_LIST_SPARSE_M) ? 2UL: 1UL;
   CHECK_COND(groupListOptional == nullptr || groupListOptional->GetViewShape().GetDimNum() == validGroupTensorDimNum,
@@ -2397,7 +2403,7 @@ aclnnStatus CheckCommonParam(const aclTensorList *x , const aclTensorList *weigh
                "Activation function only support RELU/GELU_TANH/FASTGELU/SILU.");
   }
   if (groupListType == gmm::GROUP_LIST_SPARSE_M) {
-    CHECK_COND(npuArch == NpuArch::DAV_2201, ACLNN_ERR_PARAM_INVALID,
+    CHECK_COND(npuArch == NpuArch::DAV_2201 || npuArch == NpuArch::DAV_3510 , ACLNN_ERR_PARAM_INVALID,
       "This platform not support groupListType is 2.");
     CHECK_COND(groupType == gmm::SPLIT_M, ACLNN_ERR_PARAM_INVALID,
       "When groupListType is 2 only support groupType 0, but get groupType %ld.", groupType);
