@@ -124,10 +124,10 @@ public:
     }
 
 private:
-    __aicore__ inline void SetMNK(uint32_t groupIdx);
+    __aicore__ inline void SetMNK(uint32_t loopIdx);
     __aicore__ inline void ProcessSingleGroup(const Params& params, BlockSchedulerOp& bs, uint32_t groupIdx);
     __aicore__ inline void UpdateOffset(uint32_t loopIdx, uint32_t groupIdx);
-    __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx);
+    __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t loopIdx);
     __aicore__ inline void UpdateMMGlobalAddr();
     __aicore__ inline void Iterate(int64_t singleCoreM, int64_t singleCoreN);
     __aicore__ inline void End();
@@ -257,6 +257,21 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 {
     // baseOffset is 0 when loopIdx = 0
     if (loopIdx == 0) {
+        // sparse_m 下 groupIdx 可能不为 0，B/scale 需要按 groupIdx 绝对定位，否则第一个 group 会读错权重/scale
+        if (groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M) {
+            const int64_t n = Get<MNK_N>(problemShape_);
+            const int64_t k = Get<MNK_K>(problemShape_);
+            Get<IDX_B_OFFSET>(baseOffset_) = n * k * static_cast<int64_t>(groupIdx);
+            if constexpr (transA) { // split k
+                // sparse_m 下 B_OFFSET 已按 groupIdx 绝对定位（= n*k*groupIdx），再 +groupIdx 会导致 scale 索引额外偏移一组
+                int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / PER_BLOCK_SIZE);
+                Get<IDX_X2SCALE_OFFSET>(baseOffset_) = CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+            } else { // split m
+                int64_t scaleK = CeilDiv(k, PER_BLOCK_SIZE);
+                Get<IDX_X2SCALE_OFFSET>(baseOffset_) =
+                    static_cast<int64_t>(groupIdx) * CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+            }
+        }
         return;
     }
     int64_t m = Get<MNK_M>(problemShape_);
@@ -272,7 +287,10 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     }
     // G-B
     if constexpr (transA) { // split k, x1Scale:(k/gs+g, m) x2Scale:(k/gs+g, ceil(n/gs))
-        int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / PER_BLOCK_SIZE + groupIdx);
+        int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / PER_BLOCK_SIZE);
+        if (!(groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M)) {
+            scaleK += groupIdx;
+        }
         Get<IDX_X1SCALE_OFFSET>(baseOffset_) = m * scaleK;
         Get<IDX_X2SCALE_OFFSET>(baseOffset_) = CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
     } else { // split m, x1Scale:(m, ceil(k/gs)) x2Scale:(g, ceil(n/gs), ceil(k/gs)) or (g, ceil(k/gs), ceil(n/gs))
@@ -328,9 +346,9 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 }
 
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::SetMNK(uint32_t groupIdx)
+__aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::SetMNK(uint32_t loopIdx)
 {
-    int32_t splitValue = GetSplitValueFromGroupList(groupIdx);
+    int32_t splitValue = GetSplitValueFromGroupList(loopIdx);
     if (groupType_ == GMM_SPLIT_M) {
         Get<MNK_M>(problemShape_) = splitValue;
     } else {
@@ -365,19 +383,19 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline int32_t
-QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
+QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t loopIdx)
 {
     int32_t splitValue = 0;
     if (likely(groupType_ != -1)) { // -1: no  need to split
         if (groupListType_ == 0) {
-            int32_t offset = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx));
+            int32_t offset = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx));
             splitValue = offset - preOffset_;
             preOffset_ = offset;
         } else if (groupListType_ == 1) {
-            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx));
+            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx));
         } else {
             // groupListType 为2的情况, shape为[e,2]
-            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx * 2 + 1));
+            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2 + 1));
         }
     }
     return splitValue;

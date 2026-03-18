@@ -131,87 +131,100 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
     const bool isSparseM = (groupListType == QuantUtils::GROUP_LIST_TYPE_SPARSE && groupType == QuantUtils::SPLIT_M);
-    if (loopIdx > 0) { // loopIdx==0时，起始点均为0，无需计算，减少scalar
-        if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
-            params_.aGroupAddrOffset += params_.m * params_.k / 2;
-            if (isSparseM) {
-                params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * params_.k / 2;
-            } else {
-                params_.bGroupAddrOffset += params_.n * params_.k / 2;
-            }
-        } else {
-            params_.aGroupAddrOffset += params_.m * params_.k;
-            if (isSparseM) {
-                // grouplisttype==2 且 M 轴分组：权重按 group 索引连续存放，B 偏移按 groupIdx 计算
-                if constexpr (wFormat == CubeFormat::NZ) {
-                    if constexpr (bTrans) {
-                        params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
-                            QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
-                            QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) *
-                            QuantUtils::WEIGHTNZ_N0_K0;
-                    } else {
-                        params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
-                            QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_32) *
-                            QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) *
-                            QuantUtils::WEIGHTNZ_N0_K0;
-                    }
-                } else {
-                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * params_.k;
-                }
-            } else if constexpr (wFormat == CubeFormat::NZ) {
-                if constexpr (bTrans) {
-                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
-                                                QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) *
-                                                QuantUtils::WEIGHTNZ_N0_K0;
-                } else {
-                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_32) *
-                                                QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) *
-                                                QuantUtils::WEIGHTNZ_N0_K0;
-                }
-            } else {
-                params_.bGroupAddrOffset += params_.n * params_.k;
-            }
-        }
-        params_.cGroupAddrOffset += params_.m * params_.n;
-        if constexpr (QuantUtils::IsMxType<scaleType>()) {
-            uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
-            if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
-                scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
-                params_.xScaleGroupAddrOffset += params_.m * scaleK;
-                // grouplisttype==2 且 M 轴分组：权重按 group 索引连续存放，scale 也需按 groupIdx 直接索引
-                if (isSparseM) {
-                    params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * scaleK;
-                } else {
-                    params_.wScaleGroupAddrOffset += params_.n * scaleK;
-                }
-            } else if constexpr (aTrans && !bTrans) { // mx (k / 64 + G, m, 2)
-                // scaleK from (k0 + k1 + k2 + ... + k_{i - 1}) / 64 + Gi, cumsum
-                // n在host侧已保证不会为0
-                scaleK *= (params_.bGroupAddrOffset / params_.n / QuantUtils::MXFP_DIVISOR_SIZE + groupIdx);
-                params_.xScaleGroupAddrOffset = params_.m * scaleK;
-                params_.wScaleGroupAddrOffset = params_.n * scaleK;
-            }
-        } else { // 当perChannel/perToken（重点场景）计算offset，kernel侧在perTensor场景下直接使用groupIdx偏移，减少分支判断
-            params_.xScaleGroupAddrOffset += params_.m;
-            // grouplisttype==2 且 M 轴分组：B 的 perchannel scale 与 B 一样按 groupIdx 直接索引
-            if (isSparseM) {
-                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
-            } else {
-                params_.wScaleGroupAddrOffset += params_.n;
-            }
-        }
-        // bias 跟随 weight 的分组方式（若为 sparse M 则同样按 groupIdx 直接索引）
-        if (isSparseM) {
-            params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
-        } else {
-            params_.biasGroupAddrOffset += params_.n;
-        }
-    }
-
+    // 先记录上一组的形状，用于累加 A/C/XScale 偏移；再写入当前组形状
+    const uint64_t prevM = params_.m;
+    const uint64_t prevN = params_.n;
+    const uint64_t prevK = params_.k;
     // 需要kernel传参m,n,k, 兼容group_type=0,2和多tensor情况
     params_.m = m;
     params_.n = n;
     params_.k = k;
+
+    // A/C/XScale 仍按 loop 顺序累加；sparse_m 下 B/WScale/Bias 按 groupIdx 绝对定位（包含 loopIdx==0）
+    if (loopIdx > 0) { // loopIdx==0时，起始点均为0，无需计算，减少scalar
+        if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
+            params_.aGroupAddrOffset += prevM * prevK / 2;
+        } else {
+            params_.aGroupAddrOffset += prevM * prevK;
+        }
+        params_.cGroupAddrOffset += prevM * prevN;
+
+        if constexpr (QuantUtils::IsMxType<scaleType>()) {
+            uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
+            if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
+                scaleK *= QuantUtils::CeilDiv(prevK, QuantUtils::MXFP_DIVISOR_SIZE);
+                params_.xScaleGroupAddrOffset += prevM * scaleK;
+            }
+        } else {
+            params_.xScaleGroupAddrOffset += prevM;
+        }
+    }
+
+    // B 偏移
+    if (isSparseM) {
+        if constexpr (QuantUtils::IsFp4<xType>()) { // fp4: half byte
+            params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * params_.k / 2;
+        } else {
+            if constexpr (wFormat == CubeFormat::NZ) {
+                if constexpr (bTrans) {
+                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
+                        QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
+                        QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) *
+                        QuantUtils::WEIGHTNZ_N0_K0;
+                } else {
+                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
+                        QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_32) *
+                        QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) *
+                        QuantUtils::WEIGHTNZ_N0_K0;
+                }
+            } else {
+                params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * params_.k;
+            }
+        }
+    } else if (loopIdx > 0) {
+        if constexpr (QuantUtils::IsFp4<xType>()) { // fp4: half byte
+            params_.bGroupAddrOffset += prevN * prevK / 2;
+        } else {
+            if constexpr (wFormat == CubeFormat::NZ) {
+                if constexpr (bTrans) {
+                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(prevK, QuantUtils::WEIGHTNZ_K0_32) *
+                                                QuantUtils::CeilDiv(prevN, QuantUtils::WEIGHTNZ_N0_16) *
+                                                QuantUtils::WEIGHTNZ_N0_K0;
+                } else {
+                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(prevN, QuantUtils::WEIGHTNZ_N0_32) *
+                                                QuantUtils::CeilDiv(prevK, QuantUtils::WEIGHTNZ_K0_16) *
+                                                QuantUtils::WEIGHTNZ_N0_K0;
+                }
+            } else {
+                params_.bGroupAddrOffset += prevN * prevK;
+            }
+        }
+    }
+
+    // WScale/Bias 偏移（跟随 weight 的分组方式）
+    if constexpr (QuantUtils::IsMxType<scaleType>()) {
+        if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
+            uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE * QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
+            if (isSparseM) {
+                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * scaleK;
+            } else if (loopIdx > 0) {
+                uint64_t prevScaleK = QuantUtils::MXFP_MULTI_BASE_SIZE * QuantUtils::CeilDiv(prevK, QuantUtils::MXFP_DIVISOR_SIZE);
+                params_.wScaleGroupAddrOffset += prevN * prevScaleK;
+            }
+        }
+    } else {
+        if (isSparseM) {
+            params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
+        } else if (loopIdx > 0) {
+            params_.wScaleGroupAddrOffset += prevN;
+        }
+    }
+
+    if (isSparseM) {
+        params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
+    } else if (loopIdx > 0) {
+        params_.biasGroupAddrOffset += prevN;
+    }
 }
 
 // 兼容GMM和MM的更新
