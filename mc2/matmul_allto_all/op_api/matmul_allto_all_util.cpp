@@ -11,8 +11,8 @@
 #include "matmul_allto_all_util.h"
 #include "securec.h"
 #include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/utils/op_mc2.h"
+#include "common/utils/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
@@ -20,7 +20,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
-#include "hccl_util.h"
+#include "common/utils/hccl_util.h"
 
 // 量化与非量化共用的方法和常量、枚举值
 namespace matmul_allto_all_check {
@@ -131,6 +131,10 @@ bool CheckShapeMMAA(const aclTensor* x1, const aclTensor* x2, const aclTensor* b
     }
     auto kdimX1 = x1->GetViewShape().GetDim(1);
     auto kdimX2 = transposeX2 ? x2->GetViewShape().GetDim(1) : x2->GetViewShape().GetDim(0);
+
+    OP_LOGI("The input transposeX2 is: %d, x1 dim0 is: %ld, x1 dim1 is: %ld, x2 dim0 is: %ld, x2 dim1 is: %ld",
+            transposeX2, x1->GetViewShape().GetDim(0), x1->GetViewShape().GetDim(1), x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1));
+
     if (kdimX1 != kdimX2) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
         "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kdimX1, kdimX2);
@@ -154,24 +158,6 @@ bool CheckShapeAAMM(const aclTensor* x1, const aclTensor* x2, const aclTensor* b
     }
     auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
     return CheckBiasShape(biasOptional, nVal);
-}
-
-// 检查groupSize是否合法，仅在组量化（MX）场景下需要取值，其它场景默认为0
-bool CheckGroupSizeValid(int64_t groupSize, int64_t x1QuantMode, int64_t x2QuantMode) {
-    if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
-        if (groupSize != MX_QUANT_GROUP_SIZE) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
-                "In the MX quantization scenario, groupSize should be 4295032864, but now it is %ld.", groupSize);
-            return false;
-        }
-    } else {
-        if (groupSize != ZERO) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
-                    "This is not MX quantization scenario, the groupSize is a reserved parameter that should be 0, but it is %ld.", groupSize);
-            return false;
-        }
-    }
-    return true;
 }
 
 // 检查tensor是否连续

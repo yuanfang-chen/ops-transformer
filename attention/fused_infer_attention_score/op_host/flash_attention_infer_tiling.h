@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -7,6 +7,11 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file flash_attention_infer_tiling.h
+ * \brief
+ */
 
 #ifndef FLASH_ATTN_INFER_TILING_H
 #define FLASH_ATTN_INFER_TILING_H
@@ -140,6 +145,7 @@ namespace optiling{
         bool learnableSinkFlag = false;
         bool isTilingSink = false;
         bool flashDecodeFlag = false;
+        bool decodingFlag = false;
         string layout;
     };
 
@@ -159,10 +165,13 @@ namespace optiling{
         void FillSplitCoreTilingData(FAInferTilingData &tilingdata);
         void FillWorkSpaceTilingData(FAInferTilingData &faTilingData);
         uint32_t GetQSBlockTile(int64_t kvSeqlen);
+        uint32_t GetQSBlockTileDecode(int64_t qSeqlen);
+        uint32_t GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead);
         uint32_t GetKSBlockTile(int64_t kvSeqlen);
         uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize);
         void FillBasicTilingData(FAInferTilingData &faTilingData);
         void splitBN2S1GS2(FAInferTilingData &faTilingData);
+        void SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData);
         BatchParams getBatchParams(uint32_t bIdx, uint32_t groupSize);
         void fillCoreInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize, uint64_t perCoreTaskNum);
         void fillSplitInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize);
@@ -187,6 +196,21 @@ namespace optiling{
     {
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
+    }
+
+    uint32_t FAInferTiling::GetQSBlockTileDecode(int64_t qSeqlen)
+    {
+        uint32_t qSBlockTile = std::min(Q_TILE_CEIL, static_cast<uint32_t>(qSeqlen));
+        return qSBlockTile;
+    }
+
+    uint32_t FAInferTiling::GetKvNBlockTile(uint32_t rowNumPerQSGTile, uint32_t kvHead)
+    {
+        uint32_t rowNumCeilPerQSGKvNTile = Q_TILE_CEIL;
+        uint32_t kvNBlockTile = rowNumCeilPerQSGKvNTile / rowNumPerQSGTile;
+        kvNBlockTile = std::min(kvNBlockTile, kvHead);
+        kvNBlockTile = std::max(kvNBlockTile, static_cast<uint32_t>(1));
+        return kvNBlockTile;
     }
     uint32_t FAInferTiling::GetKSBlockTile(int64_t kvSeqlen)
     {
@@ -234,6 +258,7 @@ namespace optiling{
         constexpr uint64_t INNER_LOW_PREC_KEY = 10000;
         constexpr uint64_t LEARNABLE_SINK_KEY = 100000000;
         constexpr uint64_t FLASH_DECODE_KEY = 100000000000000000;
+        constexpr uint64_t DECODING_KEY = 200000000000000000;
         uint64_t tilingKey = SPLIT_FUSE_BASE_KEY;
         if (faInfo_.pagedCacheFlag) {
             tilingKey += static_cast<uint64_t>(PAGED_CACHE_KEY);
@@ -264,6 +289,8 @@ namespace optiling{
         }
         if ((faInfo_.pagedCacheFlag) && !(faInfo_.maskType == MaskType::SWA_MASK) && !faInfo_.lseFlag && !faInfo_.learnableSinkFlag && !(faInfo_.innerPrecise == 1) && faInfo_.flashDecodeFlag) {
             tilingKey += static_cast<uint64_t>(FLASH_DECODE_KEY);
+        } else if (faInfo_.decodingFlag) {
+            tilingKey += static_cast<uint64_t>(DECODING_KEY);
         }
         return tilingKey;
     }
@@ -596,6 +623,33 @@ namespace optiling{
         fillSplitInfoForFlashDecode(faTilingData, groupSize);
     }    
 
+    void FAInferTiling::SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData)
+    {
+        uint32_t totalTaskNum = 0;
+        uint32_t groupSize = faInfo_.numHeads / faInfo_.kvHeads;
+
+        for (int32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
+            uint32_t qSeqlen = *(faInfo_.qSeqlenList + batchIdx);
+            if (batchIdx > 0 && faInfo_.layout == "TND") {
+                uint64_t prevQSeqlenSum = *(faInfo_.qSeqlenList + batchIdx - 1);
+                qSeqlen = qSeqlen - prevQSeqlenSum;
+            }
+            uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
+            uint32_t curGBlockNum = (groupSize + curGBlockTile - 1) / curGBlockTile;
+            uint32_t curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
+            uint32_t curQSBlockNum = (qSeqlen + curQSBlockTile - 1) / curQSBlockTile;
+            uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
+            uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, faInfo_.kvHeads);
+            uint32_t curKvNBlockNum = (faInfo_.kvHeads + curKvNBlockTile - 1) / curKvNBlockTile;
+            uint32_t curTaskNum = curGBlockNum * curQSBlockNum * curKvNBlockNum;
+            if (batchIdx == 0) {
+                faTilingData.set_firstBatchTaskNum(curTaskNum);
+            }
+            totalTaskNum += curTaskNum;
+        }
+        faTilingData.set_totalTaskNum(totalTaskNum);
+    }
+
     ge::graphStatus FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
     {
         FillBasicTilingData(tilingdata);
@@ -603,6 +657,8 @@ namespace optiling{
             FillSplitCoreTilingData(tilingdata);
             if (faInfo_.flashDecodeFlag) {
                 splitBN2S1GS2(tilingdata);
+            } else if (faInfo_.decodingFlag) {
+                SplitCoreDecodeBS1GN2(tilingdata);
             }
         }
         FillWorkSpaceTilingData(tilingdata);

@@ -19,7 +19,7 @@
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_impl_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_host/op_tiling/mc2_tiling_utils.h"
 
 using namespace ge;
 using namespace AscendC;
@@ -312,7 +312,7 @@ ge::graphStatus GMMAllReduceTiling::Init(const gert::TilingContext* context)
     splitItem_ = *context->GetAttrs()->GetAttrPointer<int64_t>(index++);
     group_ = context->GetAttrs()->GetAttrPointer<char>(index++);
     reduceOp_ = context->GetAttrs()->GetAttrPointer<char>(index++);
-    commTurn_ = *context->GetAttrs()->GetAttrPointer<int>(index++);
+    commTurn_ = *context->GetAttrs()->GetAttrPointer<int64_t>(index++);
     if (commTurn_ == 0) {
         commTurn_ = COMM_TILE;
     } // set default value
