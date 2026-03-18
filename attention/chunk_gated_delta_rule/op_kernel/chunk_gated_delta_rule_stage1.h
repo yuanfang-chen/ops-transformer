@@ -158,7 +158,7 @@ public:
         chunkSize_ = tiling_->chunkSize;
         dk_ = tiling_->dk;
         dv_ = tiling_->dv;
-        dk_aligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE; // 按bf16对齐
+        dk_aligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         dv_aligned_ = (dv_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         scale_ = tiling_->scale;
         coreNum_ = tiling_->aiCoreNum;
@@ -590,7 +590,7 @@ private:
         }
         DataCopyInBf16WithStride(validRow, 1, betaGm_[betaBeginOffset], nv_);
         betaLocal = fp32InQueue_.DeQue<bfloat16_t>();
-        constexpr uint32_t slot = 32 / sizeof(bfloat16_t);
+        constexpr uint32_t slot = BLOCK_SIZE / sizeof(bfloat16_t);
         for (uint32_t i = 0; i < validRow; ++i) {
             betaUbBfloat16.SetValue(i, betaLocal.GetValue(i * slot));
         }
@@ -604,7 +604,7 @@ private:
 
     __aicore__ inline void GCopyInWithStride()
     {
-        constexpr uint32_t slot = 32 / sizeof(float);
+        constexpr uint32_t slot = BLOCK_SIZE / sizeof(float);
         uint64_t validRow = validLen_;
         DataCopyInFp32WithStride(validRow, 1, gGm_, nv_);
         gLocal = fp32InQueue_.DeQue<float>();
