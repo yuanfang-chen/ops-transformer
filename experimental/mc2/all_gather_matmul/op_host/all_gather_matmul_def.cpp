@@ -48,8 +48,6 @@ class AllGatherMatmul : public OpDef {
     this->Attr("gather_index").AttrType(OPTIONAL).Int(0);
     this->Attr("comm_turn").AttrType(OPTIONAL).Int(0);
     this->Attr("rank_size").AttrType(OPTIONAL).Int(0);
-    this->Attr("block_size").AttrType(OPTIONAL).Int(0);
-    this->Attr("group_size").AttrType(OPTIONAL).Int(0);
     this->Attr("is_gather_out").AttrType(OPTIONAL).Bool(true);
     this->Attr("is_amax_out").AttrType(OPTIONAL).Bool(false);
     this->Attr("y_dtype").AttrType(OPTIONAL).Int(static_cast<int>(ge::DT_UNDEFINED));
