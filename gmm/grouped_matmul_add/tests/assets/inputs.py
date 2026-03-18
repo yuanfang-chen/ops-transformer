@@ -21,15 +21,13 @@ def grouped_matmul_add_inputs(x, weight, group_list, y, transpose_x: bool = True
                               group_type: int = 2, group_list_type: int = 0, **kwargs):
     x1 = x
     x2 = weight
-    group_list = []
-    print(kwargs)
-    # group_list_expect = context.other_compilation_params.get("group_list_expect", [])
-    # if group_list_expect: 
-    #     group_list = group_list_expect
-    # print("GMM INPUT FUNC, group_list: ", group_list)
-    # group_list_tmp = group_list
-    # if group_list_type == 1:
-    #     group_list_tmp = np.cumsum(group_list)
-    # if group_list_tmp[-1] > x1.shape[0]:
-    #     raise Exception('sum of grouplist: ({}) can not be greater than x1[0]: ({})'.format(group_list_tmp[-1], x1.shape[0]))
+    if 'group_list_expect' in kwargs:
+        group_list_expect = kwargs['group_list_expect']
+        group_list = group_list_expect
+    print("GMM INPUT FUNC, group_list: ", group_list)
+    group_list_tmp = group_list
+    if group_list_type == 1:
+        group_list_tmp = np.cumsum(group_list)
+    if group_list_tmp[-1] > x1.shape[0]:
+        raise Exception('sum of grouplist: ({}) can not be greater than x1[0]: ({})'.format(group_list_tmp[-1], x1.shape[0]))
     return x1, x2, np.array(group_list), y
