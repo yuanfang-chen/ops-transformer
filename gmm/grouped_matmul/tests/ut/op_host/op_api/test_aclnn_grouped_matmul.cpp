@@ -1458,7 +1458,7 @@ TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_fp8e4m3fn_weightNz_succe
     auto activationFeatureOutOptional = nullptr;
     auto dynQuantScaleOutOptional = nullptr;
 
-    auto out = TensorListDesc(1,TensorDesc({M,N}, ACL_FLOAT16x, ACL_FORMAT_ND));
+    auto out = TensorListDesc(1,TensorDesc({M,N}, ACL_FLOAT16, ACL_FORMAT_ND));
     int64_t split_item = 3;
     int64_t dtype = 0;
     bool paddedNum = true;
