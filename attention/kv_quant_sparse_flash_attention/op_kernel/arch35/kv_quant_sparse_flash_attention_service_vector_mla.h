@@ -197,7 +197,12 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline int64_t QSFAVectorService<TEMPLATE_AR
             static_cast<int64_t>(blockSize) * constInfo.dSizeVInput +
             blkTableOffset * constInfo.dSizeVInput; // BlockNum, BlockSize, N(1), D
     } else {
-        realkeyOffset = runInfo.boIdx * constInfo.s2Size + s2Idx; // BSN(1)D
+        if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
+            realkeyOffset = (runInfo.boIdx * constInfo.s2Size + s2Idx) * constInfo.dSizeVInput; // BSN(1)D
+        } else if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+            int64_t batchKvStart = (runInfo.boIdx == 0) ? 0 : actualSeqLengthsKVGm.GetValue(runInfo.boIdx - 1);
+            realkeyOffset = (batchKvStart + s2Idx) * constInfo.dSizeVInput;
+        }
     }
     return realkeyOffset;
 }
@@ -743,7 +748,13 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 
     sharedParams.needInit = 0;
     for (uint32_t bIdx = 0; bIdx < sharedParams.bSize; bIdx++) {
-        int64_t s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
+        int64_t s2Size;
+        if constexpr (KV_LAYOUT_T == QSFA_LAYOUT::TND) {
+            s2Size = bIdx == 0 ? actualSeqLengthsKVGm.GetValue(bIdx) : actualSeqLengthsKVGm.GetValue(bIdx) - actualSeqLengthsKVGm.GetValue(bIdx - 1);
+        } else {
+            s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
+        }
+        
         int64_t s1Size;
         if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
             s1Size = bIdx == 0 ? cuSeqlensQGm.GetValue(bIdx) : cuSeqlensQGm.GetValue(bIdx) - cuSeqlensQGm.GetValue(bIdx - 1);

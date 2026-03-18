@@ -65,15 +65,23 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     if (constInfo.isActualLenDimsKVNull) {
         actualS2Size = constInfo.s2Size;
     } else {
-        if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
-            actualS2Size = actualSeqKvlenAddr[sIdx];
-            if ((sIdx > 0) && (!isPa)) {
-                actualS2Size -= actualSeqKvlenAddr[sIdx - 1];
+        if constexpr (isPa) {
+            if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+                actualS2Size = actualSeqKvlenAddr[sIdx];
+            } else {
+                actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
+                    actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
             }
         } else {
-            actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
-                actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
+            if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+                actualS2Size = (sIdx == 0) ? actualSeqKvlenAddr[0] :
+                    actualSeqKvlenAddr[sIdx] - actualSeqKvlenAddr[sIdx - 1];;
+            } else {
+                actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
+                    actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
+            }
         }
+
     }
 
     runParam.actualS1Size = actualS1Size;
