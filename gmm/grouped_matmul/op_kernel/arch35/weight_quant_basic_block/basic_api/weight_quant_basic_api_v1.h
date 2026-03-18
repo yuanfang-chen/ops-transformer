@@ -82,6 +82,7 @@ private:
     static constexpr uint64_t BIAS_TABLE_OFFSET_B32 = 2 * 256;
     static constexpr uint64_t MX_GROUP_SIZE = 32;
     static constexpr uint64_t MX_UNIT_BYTES = 32 / AscendC::BLOCK_CUBE;
+    static constexpr uint64_t L0C_BUF_SIZE = 256 * 256;
 
     // unitFlag: 2表示累加中, 3表示累加结束
     static constexpr uint16_t UNIT_FLAG_ENABLE = 2;
@@ -96,6 +97,7 @@ private:
     LocalTensor<L0DataType> l0b_{TPosition::B2, 0, 64 * GetKBUnit<int8_t>() / sizeof(L0DataType)};
     LocalTensor<float> l0c_{TPosition::CO1, 0, 256 * GetKBUnit<int8_t>() / sizeof(float)};
     LocalTensor<float> biasTable_{TPosition::C2, 0, 4 * GetKBUnit<int8_t>() / sizeof(float)};
+    uint64_t l0cOffset_ = 0;
 };
 
 WQBMM_BASIC_API_V1_TEMPLATE_PARAM
@@ -115,6 +117,13 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::Iterate(bool isLastGmK, bool is
                                                          const LocalTensor<biasType> &biasL1,
                                                          const BasicApiParamsV1 &basicApiParams)
 {
+    if (isFirstGmK) {
+        uint64_t nextL0cBufSize = CeilAlign(basicApiParams.l0MSize, static_cast<int64_t>(BLOCK_CUBE)) *
+                                  CeilAlign(basicApiParams.l0NSize, static_cast<int64_t>(BLOCK_CUBE));
+        if (l0cOffset_ + nextL0cBufSize > L0C_BUF_SIZE) {
+            l0cOffset_ = 0;
+        }
+    }
     uint64_t l0KSize = (basicApiParams.l0MSize <= 128 && basicApiParams.l0NSize <= 128) ? 256 : 128;
     for (uint64_t l1KOffset = 0; l1KOffset < basicApiParams.l1KbSize; l1KOffset += l0KSize) {
         bool isLastL1K = l1KOffset + l0KSize >= basicApiParams.l1KbSize;
@@ -211,11 +220,11 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::Mmad(bool isLastK, bool isFirst
     WaitFlag<HardEvent::MTE1_M>(eventIdMte1ToM_);
     if (basicApiParams.isBias && isFirstK) {
         mmadParams.cmatrixInitVal = false;
-        AscendC::Mmad(l0c_, l0a_[loopId * L0_BUF_OFFSET_B8], l0b_[loopId * L0_BUF_OFFSET_B8],
+        AscendC::Mmad(l0c_[l0cOffset_], l0a_[loopId * L0_BUF_OFFSET_B8], l0b_[loopId * L0_BUF_OFFSET_B8],
                       biasTable_[loopId * BIAS_TABLE_OFFSET_B32], mmadParams);
     } else {
         mmadParams.cmatrixInitVal = isFirstK;
-        AscendC::Mmad(l0c_, l0a_[loopId * L0_BUF_OFFSET_B8], l0b_[loopId * L0_BUF_OFFSET_B8], mmadParams);
+        AscendC::Mmad(l0c_[l0cOffset_], l0a_[loopId * L0_BUF_OFFSET_B8], l0b_[loopId * L0_BUF_OFFSET_B8], mmadParams);
     }
 }
 
@@ -239,7 +248,8 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::GetTensorC(uint64_t mL0Size, ui
     fixParams.deqScalar = FP32_64_AS_UINT64;
     fixParams.unitFlag = UNIT_FLAG_ENABLE_AUTO_CLOSE;
     fixParams.params.ndNum = 1;
-    AscendC::Fixpipe<yType, float, AscendC::CFG_ROW_MAJOR>(yGm, l0c_, fixParams);
+    AscendC::Fixpipe<yType, float, AscendC::CFG_ROW_MAJOR>(yGm, l0c_[l0cOffset_], fixParams);
+    l0cOffset_ += fixParams.srcStride * CeilAlign(nL0Size, static_cast<int64_t>(BLOCK_CUBE));
 }
 
 WQBMM_BASIC_API_V1_TEMPLATE_PARAM
