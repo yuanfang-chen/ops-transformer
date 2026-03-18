@@ -1,4 +1,4 @@
-# aclnnAlltoAllvQuantGroupedMatMul
+# AlltoAllvQuantGroupedMatMul
 
 ## 产品支持情况
 
