@@ -75,7 +75,7 @@ function(gen_aclnn_classify host_obj prefix ori_out_srcs ori_out_headers opbuild
   set(in_srcs)
   set(out_srcs)
   set(out_headers)
-  set(excluded_headers "aclnn_quant_lightning_indexer" "aclnn_kv_quant_sparse_flash_attention")
+  set(excluded_headers "quant_lightning_indexer" "kv_quant_sparse_flash_attention")
   if(module_sources)
     foreach(file ${module_sources})
       get_filename_component(name_without_ext ${file} NAME_WE)
