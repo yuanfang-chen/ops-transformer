@@ -255,8 +255,25 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t loopIdx, uint32_t groupIdx)
 {
-    // baseOffset is 0 when loopIdx = 0
+    // baseOffset is 0 when loopIdx = 0.
+    // For groupListType==2 (sparse [groupIdx, groupSize]) with M-split, loopIdx==0 does NOT guarantee groupIdx==0.
+    // In that case, A/C remain at 0 (token side is compacted by loop order), but B/scale/bias must jump to groupIdx.
     if (loopIdx == 0) {
+        if (groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M && groupIdx != 0) {
+            const int64_t n = Get<MNK_N>(problemShape_);
+            const int64_t k = Get<MNK_K>(problemShape_);
+            Get<IDX_B_OFFSET>(baseOffset_) = n * k * static_cast<int64_t>(groupIdx);
+            if constexpr (transA) {
+                const int64_t m = Get<MNK_M>(problemShape_);
+                int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / PER_BLOCK_SIZE + groupIdx);
+                Get<IDX_X1SCALE_OFFSET>(baseOffset_) = m * scaleK;
+                Get<IDX_X2SCALE_OFFSET>(baseOffset_) = CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+            } else {
+                const int64_t scaleK = CeilDiv(k, PER_BLOCK_SIZE);
+                Get<IDX_X2SCALE_OFFSET>(baseOffset_) =
+                    static_cast<int64_t>(groupIdx) * CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+            }
+        }
         return;
     }
     int64_t m = Get<MNK_M>(problemShape_);
