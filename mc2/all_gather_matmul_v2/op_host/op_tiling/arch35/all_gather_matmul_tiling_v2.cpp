@@ -31,6 +31,7 @@
 #include "mc2_log.h"
 #include "op_host/op_tiling/new_mc2_tiling_utils.h"
 #include "all_gather_matmul_tiling_v2.h"
+#include "all_gather_fit_balance_tiling.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -120,6 +121,12 @@ ge::graphStatus AllGatherMatmulTilingV2::PostTiling()
     // 独占全核，设置以后会让所有核空闲以后才启动，有多核同步指令需要设置避免出现网络挂死
     context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
+}
+
+CutResult AllGatherMatmulTilingV2::GetTilingResult()
+{
+    AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
+    return tileFormulate.GetTiling();
 }
 
 ge::graphStatus AllGatherMatmulTilingV2::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg, Mc2MMRegisterCfg& registerCfg,
