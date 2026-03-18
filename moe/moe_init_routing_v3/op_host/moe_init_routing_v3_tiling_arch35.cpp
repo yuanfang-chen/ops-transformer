@@ -205,9 +205,9 @@ private:
 
     // 各阶段TilingData计算函数
     MultipleParams GetMultipleParams();
-    PerLoopParams GetPerLoopParams(MultipleParams &multipleParams);
-    void Tiling4GatherOutCompute();
-    void Tiling4GatherOutMxQuant();
+    ge::graphStatus GetPerLoopParams(MultipleParams &multipleParams, PerLoopParams &perLoopParams);
+    ge::graphStatus Tiling4GatherOutCompute();
+    ge::graphStatus Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
     void Tiling4VMSMiddleCompute();
     void Tiling4VBSCompute();
@@ -399,9 +399,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::DoOpTiling()
     Tiling4SortOutCompute();
     Tiling4ExpertTokensCountCompute();
     if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN) {
-        Tiling4GatherOutMxQuant();
+        MIRV3_CHECK_GE_RET(Tiling4GatherOutMxQuant());
     } else {
-        Tiling4GatherOutCompute();
+        MIRV3_CHECK_GE_RET(Tiling4GatherOutCompute());
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -440,6 +440,13 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
         quantMode_ != QUANT_MODE_HIF8_PERTENSOR) {
         // DYNAMIC_QUANT、MXFP8_E5M2_QUANT、MXFP8_E4M3FN_QUANT
         workspaceSize_ += quantTempWorkspaceSize;
+    } else if (quantMode_ == QUANT_MODE_STATIC) {
+        // STATIC_QUANT: 需要为expandedRowIdxIndexGm_分配空间
+        // 偏移量计算: Align(totalLength_) * 2 + Align(expertNum_) + perCoreRow_ * coreNum
+        int64_t staticQuantWorkspaceSize = AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t))) * NUM_TWO +
+                                           AlignBytes(expertNum_, static_cast<int64_t>(sizeof(int32_t))) +
+                                           AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
+        workspaceSize_ += staticQuantWorkspaceSize;
     }
     // 这里workspaceSize_除了计算必要的，还会加上16M的AscendC框架用大小
     workspaceSize_ += SIZE_16 * LENGTH_1024 * LENGTH_1024;
@@ -1235,9 +1242,9 @@ MultipleParams MoeInitRoutingV3Arch35TilingClass::GetMultipleParams()
     return params;
 }
 
-PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams &multipleParams)
+ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams &multipleParams,
+                                                                    PerLoopParams &perLoopParams)
 {
-    PerLoopParams perLoopParams;
     perLoopParams.perLoopCols = tilingDataPtr_->cols;
     if (quantMode_ == QUANT_MODE_HIF8_PERTENSOR) {
         perLoopParams.perLoopMaxIndicesElements =
@@ -1262,16 +1269,16 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
     }
-    // 如果perLoopCols已经减到1但仍不满足条件，强制设置为1并继续
+    // 如果perLoopCols已经减到1但仍不满足条件，返回错误
     if (perLoopParams.perLoopMaxIndicesElements <= 0) {
-        perLoopParams.perLoopCols = 1;
-        perLoopParams.perLoopMaxIndicesElements = 1; // 强制设置为最小值避免死循环
-        OP_LOGW(context_, "Warning: UB space may be insufficient for static quantization. Forcing perLoopCols=1.");
+        OP_LOGE(context_, "UB space insufficient for quantization. availUbSize=%ld, cols=%ld, colMultiple=%ld",
+                availUbSize_, tilingDataPtr_->cols, multipleParams.colMultiple);
+        return ge::GRAPH_FAILED;
     }
-    return perLoopParams;
+    return ge::GRAPH_SUCCESS;
 }
 
-void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
+ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()");
 
@@ -1279,13 +1286,14 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     int64_t perCoreIndicesElements = Ops::Base::CeilDiv(totalLength_, aivCoreNum_);
     if (perCoreIndicesElements <= 0) {
         gatherOutTiling->needCoreNum = 0;
-        return;
+        return ge::GRAPH_SUCCESS;
     }
     int64_t needCoreNum = Ops::Base::CeilDiv(totalLength_, perCoreIndicesElements);
     int64_t lastCoreIndicesElements = totalLength_ - (needCoreNum - 1) * perCoreIndicesElements;
 
     MultipleParams multipleParams = GetMultipleParams();
-    PerLoopParams perLoopParams = GetPerLoopParams(multipleParams);
+    PerLoopParams perLoopParams;
+    MIRV3_CHECK_GE_RET(GetPerLoopParams(multipleParams, perLoopParams));
 
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopParams.perLoopCols);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopParams.perLoopCols;
@@ -1313,6 +1321,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     gatherOutTiling->lastCoreLastLoopIndicesElements = lastCoreLastLoopIndicesElements;
 
     LogGatherOutTilingData();
+    return ge::GRAPH_SUCCESS;
 }
 
 int64_t MoeInitRoutingV3Arch35TilingClass::CalcMaxRowIdxPerLoopMxQuant(int64_t perLoopCols)
@@ -1330,7 +1339,7 @@ int64_t MoeInitRoutingV3Arch35TilingClass::CalcMaxRowIdxPerLoopMxQuant(int64_t p
     return (availUbSize_ - (xInSize + scaleSize + xOutSize)) / static_cast<int64_t>(sizeof(int32_t));
 }
 
-void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
+ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()");
 
@@ -1338,7 +1347,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
     int64_t perCoreIndicesElements = Ops::Base::CeilDiv(totalLength_, aivCoreNum_);
     if (perCoreIndicesElements <= 0) {
         gatherOutTiling->needCoreNum = 0;
-        return;
+        return ge::GRAPH_SUCCESS;
     }
     int64_t needCoreNum = Ops::Base::CeilDiv(totalLength_, perCoreIndicesElements);
     int64_t lastCoreIndicesElements = totalLength_ - (needCoreNum - 1) * perCoreIndicesElements;
@@ -1349,11 +1358,11 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
         perLoopCols = Ops::Base::CeilAlign(Ops::Base::CeilDiv(perLoopCols, NUM_TWO), MX_QUANT_BLOCK_SIZE);
         perLoopMaxIndicesElements = CalcMaxRowIdxPerLoopMxQuant(perLoopCols);
     }
-    // 如果已经减到MX_QUANT_BLOCK_SIZE仍不满足条件，强制设置为MX_QUANT_BLOCK_SIZE并继续
+    // 如果已经减到MX_QUANT_BLOCK_SIZE仍不满足条件，返回错误
     if (perLoopMaxIndicesElements <= 0) {
-        perLoopCols = MX_QUANT_BLOCK_SIZE;
-        perLoopMaxIndicesElements = 1; // 强制设置为最小值避免死循环
-        OP_LOGW(context_, "Warning: UB space may be insufficient for MX quantization. Forcing perLoopCols=32.");
+        OP_LOGE(context_, "UB space insufficient for MX quantization. availUbSize=%ld, cols=%ld", availUbSize_,
+                tilingDataPtr_->cols);
+        return ge::GRAPH_FAILED;
     }
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopCols);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopCols;
@@ -1387,6 +1396,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
         lastCoreLastLoopIndicesElements; // 没用这个，kernel根据读取到的expertTotalCount重新计算tiling相关值
 
     LogGatherOutTilingData();
+    return ge::GRAPH_SUCCESS;
 }
 
 REGISTER_OPS_TILING_TEMPLATE(MoeInitRoutingV3, MoeInitRoutingV3Arch35TilingClass,

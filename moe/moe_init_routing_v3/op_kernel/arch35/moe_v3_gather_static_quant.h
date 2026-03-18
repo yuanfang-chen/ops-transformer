@@ -178,6 +178,7 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Compute()
     }
 
     inputXCopyOutQueue_.EnQue(outLocal);
+    inputXCopyInQueue_.FreeTensor(inLocal);
     floatQueue_.FreeTensor(floatLocal);
     halfQueue_.FreeTensor(halfLocal);
 }
