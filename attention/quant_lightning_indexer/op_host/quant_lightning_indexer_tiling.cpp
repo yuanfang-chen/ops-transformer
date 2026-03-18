@@ -161,6 +161,7 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context_->GetNodeName(), "attrs got from ge is nullptr"),
                return ge::GRAPH_FAILED);
+    size_t attrNum = attrs->GetAttrNum();
 
     OP_LOGI(context_->GetNodeName(), "GetAttrParaInfo start");
     opParamInfo_.layOutQuery = attrs->GetStr(ATTR_QUERY_LAYOUT_INDEX);
@@ -174,7 +175,9 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     opParamInfo_.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
     opParamInfo_.preTokens = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKENS_INDEX);
     opParamInfo_.nextTokens = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKENS_INDEX);
-    opParamInfo_.keyBlockStride = attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_STRIDE_INDEX);
+    if (attrNum > ATTR_BLOCK_STRIDE_INDEX) {
+        opParamInfo_.blockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_STRIDE_INDEX));
+    }
 
     if (opParamInfo_.layOutQuery != nullptr) {
         OP_LOGI(context_->GetNodeName(), "layout_query is:%s", opParamInfo_.layOutQuery);
@@ -193,9 +196,6 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     }
     if (opParamInfo_.nextTokens != nullptr) {
         OP_LOGI(context_->GetNodeName(), "nextTokens is:%d", *opParamInfo_.nextTokens);
-    }
-    if (opParamInfo_.keyBlockStride != nullptr) {
-        OP_LOGI(context_->GetNodeName(), "keyBlockStride is:%d", *opParamInfo_.keyBlockStride);
     }
     if (opParamInfo_.queryQuantMode != nullptr) {
         OP_LOGI(context_->GetNodeName(), "query_quant_mode mode is:%d", *opParamInfo_.queryQuantMode);
@@ -237,9 +237,9 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
     OP_CHECK_IF(*opParamInfo_.nextTokens != 9223372036854775807,
                 OP_LOGE(opName_, "input attr nextTokens only supported 9223372036854775807, but now nextTokens is %ld.",
                 *opParamInfo_.nextTokens), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(!(*opParamInfo_.keyBlockStride >= 0),
+    OP_CHECK_IF(opParamInfo_.blockStride < 0,
                 OP_LOGE(opName_, "input attr block_strides must >= 0, but now block_strides is %u",
-                       *opParamInfo_.keyBlockStride),return ge::GRAPH_FAILED);
+                       *opParamInfo_.blockStride),return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(*opParamInfo_.queryQuantMode != 0, OP_LOGE(opName_, "input attr query_quant_mode only supported 0."),
                return ge::GRAPH_FAILED);
@@ -376,7 +376,7 @@ ge::graphStatus QLIInfoParser::GetAndCheckOptionalInput()
 
 size_t QLIInfoParser::GetTensorDimNum(const uint32_t tensorIdx)
 {
-    if (*opParamInfo_.keyBlockStride == 0) {
+    if (opParamInfo_.blockStride == 0) {
         return context_->GetInputShape(tensorIdx)->GetStorageShape().GetDimNum();
     }
     return context_->GetInputShape(tensorIdx)->GetShape().GetDimNum();
@@ -384,7 +384,7 @@ size_t QLIInfoParser::GetTensorDimNum(const uint32_t tensorIdx)
 
 int64_t QLIInfoParser::GetTensorDim(const uint32_t tensorIdx, const size_t idx)
 {
-    if (*opParamInfo_.keyBlockStride == 0) {
+    if (opParamInfo_.blockStride == 0) {
         return context_->GetInputShape(tensorIdx)->GetStorageShape().GetDim(idx);
     }
     return context_->GetInputShape(tensorIdx)->GetShape().GetDim(idx);
@@ -779,9 +779,9 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     QLIInfo.preTokens = *opParamInfo_.preTokens;
     QLIInfo.nextTokens = *opParamInfo_.nextTokens;
 
-    if (*opParamInfo_.keyBlockStride != 0) {
-        QLIInfo.keyBlockStride = *opParamInfo_.keyBlockStride;
-        QLIInfo.keyScaleBlockStride = *opParamInfo_.keyBlockStride;
+    if (opParamInfo_.blockStride != 0) {
+        QLIInfo.keyBlockStride = opParamInfo_.blockStride;
+        QLIInfo.keyScaleBlockStride = opParamInfo_.blockStride;
     } else {
         QLIInfo.keyBlockStride = blockSize_ * n2Size_ * headDim_;
         QLIInfo.keyScaleBlockStride = blockSize_;

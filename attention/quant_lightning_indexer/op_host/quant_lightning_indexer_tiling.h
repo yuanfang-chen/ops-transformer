@@ -23,7 +23,6 @@
 #include "register/tilingdata_base.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "tiling/tiling_api.h"
-#include <cstdint>
 
 namespace optiling {
 // ------------------公共定义--------------------------
@@ -64,7 +63,6 @@ constexpr uint32_t ATTR_SPARSE_MODE_INDEX = 5;
 constexpr uint32_t ATTR_PRE_TOKENS_INDEX = 6;
 constexpr uint32_t ATTR_NEXT_TOKENS_INDEX = 7;
 constexpr uint32_t ATTR_BLOCK_STRIDE_INDEX = 8;
-constexpr uint32_t ATTR_SCALE_STRIDE_INDEX = 9;
 // Dim Index
 constexpr uint32_t DIM_IDX_ZERO = 0;
 constexpr uint32_t DIM_IDX_ONE = 1;
@@ -126,8 +124,7 @@ struct QLIParaInfo {
     const int32_t *sparseCount = nullptr;
     const int64_t *preTokens = nullptr;
     const int64_t *nextTokens = nullptr;
-    const int64_t *keyBlockStride = nullptr;
-    const int64_t *keyScaleBlockStride = nullptr;
+    int64_t blockStride = 0;
 };
 
 // -----------算子Tiling入参信息类---------------
