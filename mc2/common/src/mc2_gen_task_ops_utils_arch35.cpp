@@ -20,6 +20,7 @@ namespace ops {
 ge::Status Mc2Arch35GenTaskOpsUtils::CreateCCUFusionTask(const gert::ExeResGenerationContext *context,
                                                          std::vector<std::vector<uint8_t>> &tasks)
 {
+#if defined(__NPU_ARCH__) && ((__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 3101))
     // 填充groupinfo
     GroupInfo groupInfo;
     if (!GetGroupInfo(context, groupInfo)) {
@@ -85,7 +86,7 @@ ge::Status Mc2Arch35GenTaskOpsUtils::CreateCCUFusionTask(const gert::ExeResGener
 
     // 序列化fusion task
     tasks.back() = fusionTask.Serialize();
-
+#endif
     return ge::GRAPH_SUCCESS;
 }
 
