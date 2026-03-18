@@ -1039,14 +1039,14 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNz(void *workspace, uint64_t 
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-static inline aclnnStatus CheckNullptrForXAndweight(const aclTensor *x1, const aclTensor *x2)
+static inline aclnnStatus CheckNullptrForXAndweight(const aclTensor *x, const aclTensor *weight)
 {
-    if (x1 == nullptr) {
+    if (x == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "GroupedMatmulFinalizeRoutingWeightNzV2: x should not be nullptr.");
         return ACLNN_ERR_PARAM_NULLPTR;
     }
-    if (x2 == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "GroupedMatmulFinalizeRoutingWeightNzV2: x2 should not be nullptr.");
+    if (weight == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "GroupedMatmulFinalizeRoutingWeightNzV2: weight should not be nullptr.");
         return ACLNN_ERR_PARAM_NULLPTR;
     }
     return ACLNN_SUCCESS;
