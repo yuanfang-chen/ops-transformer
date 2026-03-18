@@ -101,7 +101,7 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv_aligned_ / 2, dk_aligned_ / 2), chunkSize_);
+        uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
         pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB  maxLen=64
         pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB
         if (gOptional_){
@@ -137,11 +137,11 @@ public:
         gCumExpBroadUbFloat = gTransBroadUbFloat;
         buffOffset += chunkSize_ * maxLen * sizeof(float);
 
-        qUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_aligned_), buffOffset);  // 8KB
-        buffOffset += halfChunkSize_ * dk_aligned_ * sizeof(float);
+        qUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);  // 8KB
+        buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float);
 
-        kUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_aligned_), buffOffset);  // 8KB
-        buffOffset += halfChunkSize_ * dk_aligned_ * sizeof(float);
+        kUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);  // 8KB
+        buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float);
 
         inverseUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
         buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
@@ -158,15 +158,15 @@ public:
         chunkSize_ = tiling_->chunkSize;
         dk_ = tiling_->dk;
         dv_ = tiling_->dv;
-        dk_aligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
-        dv_aligned_ = (dv_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
+        dkAligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
+        dvAligned_ = (dv_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         scale_ = tiling_->scale;
         coreNum_ = tiling_->aiCoreNum;
         cg_ = initParams.cg;
         gOptional_ = initParams.gOptional;
         validLen_ = chunkSize_;
-        v_row_stride_ = nv_ * dv_;
-        NumChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
+        vRowStride_ = nv_ * dv_;
+        numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
         halfChunkSize_ = chunkSize_ / 2;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
@@ -180,7 +180,7 @@ public:
 
     __aicore__ inline void Process() 
     {
-        uint32_t totalChunk = nv_ * NumChunk_;
+        uint32_t totalChunk = nv_ * numChunk_;
         uint32_t tailChunkNum = totalChunk / coreNum_;   // tail核处理的块数
         uint32_t formerChunkNum = tailChunkNum + 1;      // former核处理的块数
         uint32_t formerCoreNum = totalChunk % coreNum_;  // former核数量
@@ -198,12 +198,12 @@ public:
             uint64_t nid   = task_id % nv_;
             uint64_t cg_id = task_id / nv_;
             // 尾chunk处理
-            if (cg_id == NumChunk_ - 1 && cg_.length % chunkSize_ != 0) {
+            if (cg_id == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
                 validLen_ = cg_.length % chunkSize_;
             }
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
-            uint64_t chunk_start_row = cg_.startPos + cg_id * chunkSize_;
-            SetChunkTensors(nid, cg_id, chunk_start_row);
+            uint64_t chunkStartRow = cg_.startPos + cg_id * chunkSize_;
+            SetChunkTensors(nid, cg_id, chunkStartRow);
             ProcessOneChunk();
         }
     }
@@ -213,20 +213,20 @@ private:
     // SetChunkTensors
     //   nid       : head 编号 (Nv 维度)
     //   local_cid : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
-    //   chunk_start_row   : 当前 chunk 在全局 T 上的起始行
+    //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
     // ----------------------------------------------------------
-   __aicore__ inline void SetChunkTensors(uint64_t nid, uint64_t local_cid, uint64_t chunk_start_row)
+   __aicore__ inline void SetChunkTensors(uint64_t nid, uint64_t local_cid, uint64_t chunkStartRow)
     {
         uint64_t kid = nid * nk_ / nv_;
-        uint64_t sub_row = chunk_start_row + subOffset_;
-        uint64_t qk_base = sub_row * nk_ * dk_ + kid * dk_;
+        uint64_t subRow = chunkStartRow + subOffset_;
+        uint64_t qk_base = subRow * nk_ * dk_ + kid * dk_;
         queryGm_ = queryBaseGm_[qk_base];
         keyGm_   = keyBaseGm_[qk_base];
 
-        uint64_t vOffset = chunk_start_row * v_row_stride_ + nid * dv_;
+        uint64_t vOffset = chunkStartRow * vRowStride_ + nid * dv_;
         valueGm_ = valueBaseGm_[vOffset];
 
-        uint64_t bgOffset = chunk_start_row * nv_ + nid;
+        uint64_t bgOffset = chunkStartRow * nv_ + nid;
         betaGm_ = betaBaseGm_[bgOffset];
         if (gOptional_){
             gGm_ = gBaseGm_[bgOffset];
@@ -285,7 +285,7 @@ private:
             GBKCompute();
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x6);  //同步3
             // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
-            vBetaCompute();
+            VBetaCompute();
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5);  //同步4
             // q_prime = query * scale_ * g_cum_exp[:, None]       # (C, Dk)
             QPrimeCompute();
@@ -308,22 +308,22 @@ private:
         DataCopyInBf16WithStride(validRow, dk_, srcGm, nk_ * dk_);
         // compute
         LocalTensor<bfloat16_t> bf16Tensor = fp32InQueue_.DeQue<bfloat16_t>();
-        Cast(dstBuffer, bf16Tensor, AscendC::RoundMode::CAST_NONE, validRow * dk_aligned_);
+        Cast(dstBuffer, bf16Tensor, AscendC::RoundMode::CAST_NONE, validRow * dkAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(bf16Tensor);
 
         if (validRow < rows) {
-            Duplicate(dstBuffer[validRow * dk_aligned_], static_cast<float>(0.0f), (halfChunkSize_ - validRow) * dk_aligned_);
+            Duplicate(dstBuffer[validRow * dkAligned_], static_cast<float>(0.0f), (halfChunkSize_ - validRow) * dkAligned_);
             PipeBarrier<PIPE_V>();
         }
 
         // copyOut
         tmpTensor = fp32OutQueue_.AllocTensor<float>();
-        DataCopy(tmpTensor, dstBuffer, rows * dk_aligned_);
+        DataCopy(tmpTensor, dstBuffer, rows * dkAligned_);
         fp32OutQueue_.EnQue(tmpTensor);
         tmpTensor = fp32OutQueue_.DeQue<float>();
 
-        uint32_t srcStride = (dk_aligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
+        uint32_t srcStride = (dkAligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
         DataCopyExtParams outParams{static_cast<uint16_t>(rows),
                                     static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
@@ -334,9 +334,6 @@ private:
     }
 
     __aicore__ inline void QKPreProcess(){
-        if ASCEND_IS_AIC {
-            return;
-        }
         uint64_t outOffset = subOffset_ * dk_;
         QKPreProcessCompute(queryGm_, queryContinousGm_[outOffset], qUbFloatCon);
         QKPreProcessCompute(keyGm_, keyContinousGm_[outOffset], kUbFloatCon, true);
@@ -344,9 +341,6 @@ private:
 
     __aicore__ inline void GCumExpCompute()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         // Copy g
         GCopyInWithStride();
         // CumSum计算
@@ -365,9 +359,6 @@ private:
 
     __aicore__ inline void GammaCompute()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         // BroadCast
         uint32_t divShape[2] = {chunkSize_, chunkSize_};
         uint32_t gShape[2] = {chunkSize_, 1};
@@ -468,9 +459,6 @@ private:
 
     __aicore__ inline void GBKCompute()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         if (gOptional_){
             // tmp = -1.0 * beta * g_cum_exp
             Mul(gBUbFloat, betaUbFloat, gCumExpUbFloat[subOffset_], halfChunkSize_);
@@ -483,14 +471,14 @@ private:
         PipeBarrier<PIPE_V>();
         // k_cumdecay = k * tmp =  -1.0 * k * beta * g_cum_exp
         uint32_t betaShape[2] = {halfChunkSize_, 1};
-        uint32_t kShape[2] = {halfChunkSize_, dk_aligned_};
+        uint32_t kShape[2] = {halfChunkSize_, dkAligned_};
         gBKLocal = fp32OutQueue_.AllocTensor<float>();
         Broadcast<float, 2, 1>(gBKLocal, gBUbFloat, kShape, betaShape);
         PipeBarrier<PIPE_V>();
-        Mul(gBKLocal, gBKLocal, kUbFloatCon, halfChunkSize_ * dk_aligned_);
+        Mul(gBKLocal, gBKLocal, kUbFloatCon, halfChunkSize_ * dkAligned_);
         fp32OutQueue_.EnQue<float>(gBKLocal);
-        uint64_t GBKBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, gBKWsGm_[GBKBeginOffset]);
+        uint64_t gBKBeginOffset = subOffset_ * dk_;
+        DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, gBKWsGm_[gBKBeginOffset]);
         PipeBarrier<PIPE_V>();
         if (gOptional_){
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
@@ -503,70 +491,67 @@ private:
             kgLocal = fp32OutQueue_.AllocTensor<float>();
             Broadcast<float, 2, 1>(kgLocal, gEndBroadUbFloat, kShape, gBroadShape);
             PipeBarrier<PIPE_V>();
-            Mul(kgLocal, kgLocal, kUbFloatCon, halfChunkSize_ * dk_aligned_);
+            Mul(kgLocal, kgLocal, kUbFloatCon, halfChunkSize_ * dkAligned_);
             PipeBarrier<PIPE_V>();
             fp32OutQueue_.EnQue<float>(kgLocal);
             uint64_t kgBeginOffset = subOffset_ * dk_;
-            DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, outKgGm_[kgBeginOffset]);  // stage1 out
+            DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, outKgGm_[kgBeginOffset]);  // stage1 out
         }
     }
 
-    __aicore__ inline void vBetaCompute()
+    __aicore__ inline void VBetaCompute()
     {
         uint32_t valueLength = halfChunkSize_ * dv_;
-        uint64_t vBeginOffset = subOffset_ * v_row_stride_;
+        uint64_t vBeginOffset = subOffset_ * vRowStride_;
         uint64_t validRow = halfChunkSize_;
         if (validLen_ < halfChunkSize_) {
             validRow = (subBlockIdx_ == 0) ? validLen_ : 0;
         } else {
             validRow = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
         }
-        DataCopyInBf16WithStride(validRow, dv_, valueGm_[vBeginOffset], v_row_stride_);
+        DataCopyInBf16WithStride(validRow, dv_, valueGm_[vBeginOffset], vRowStride_);
         valueLocal = fp32InQueue_.DeQue<bfloat16_t>();
         vBetaLocal = fp32OutQueue_.AllocTensor<float>();
-        Cast(valueUbFloat, valueLocal, AscendC::RoundMode::CAST_NONE, validRow * dv_aligned_);
+        Cast(valueUbFloat, valueLocal, AscendC::RoundMode::CAST_NONE, validRow * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(valueLocal);
         if (validLen_ < halfChunkSize_) {
-            Duplicate(valueUbFloat[validLen_ * dv_aligned_], static_cast<float>(0.0f),
-                      (halfChunkSize_ - validLen_) * dv_aligned_);
+            Duplicate(valueUbFloat[validLen_ * dvAligned_], static_cast<float>(0.0f),
+                      (halfChunkSize_ - validLen_) * dvAligned_);
             PipeBarrier<PIPE_V>();
         }
         uint32_t betaShape[2] = {halfChunkSize_, 1};
-        uint32_t vShape[2] = {halfChunkSize_, dv_aligned_};
+        uint32_t vShape[2] = {halfChunkSize_, dvAligned_};
         Broadcast<float, 2, 1>(vBetaLocal, betaUbFloat, vShape, betaShape);
         PipeBarrier<PIPE_V>();
-        Mul(vBetaLocal, valueUbFloat, vBetaLocal, halfChunkSize_ * dv_aligned_);
+        Mul(vBetaLocal, valueUbFloat, vBetaLocal, halfChunkSize_ * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(vBetaLocal);
-        DataCopyOutFp32(halfChunkSize_, dv_, dv_aligned_, vBetaWsGm_[subOffset_ * dv_]);
+        DataCopyOutFp32(halfChunkSize_, dv_, dvAligned_, vBetaWsGm_[subOffset_ * dv_]);
     }
 
     __aicore__ inline void QPrimeCompute()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         qPrimeLocal = fp32OutQueue_.AllocTensor<float>();
         // query * scale
         if (gOptional_){
-            Muls(qUbFloat, qUbFloatCon, scale_, halfChunkSize_ * dk_aligned_);
+            Muls(qUbFloat, qUbFloatCon, scale_, halfChunkSize_ * dkAligned_);
             PipeBarrier<PIPE_V>();
             uint32_t gCumExpShape[2] = {halfChunkSize_, 1};
-            uint32_t qShape[2] = {halfChunkSize_, dk_aligned_};
+            uint32_t qShape[2] = {halfChunkSize_, dkAligned_};
             Broadcast<float, 2, 1>(gCumExpBroadUbFloat, gCumExpUbFloat[subOffset_], qShape, gCumExpShape);
             PipeBarrier<PIPE_V>();
             // query * scale * g_cum_exp[:, None]       # (C, Dk)
-            Mul(qPrimeLocal, qUbFloat, gCumExpBroadUbFloat, halfChunkSize_ * dk_aligned_);
+            Mul(qPrimeLocal, qUbFloat, gCumExpBroadUbFloat, halfChunkSize_ * dkAligned_);
             gOutQueue_.FreeTensor(gCumExpUbFloat);
         }
         else {
-            Muls(qPrimeLocal, qUbFloatCon, scale_, halfChunkSize_ * dk_aligned_);
+            Muls(qPrimeLocal, qUbFloatCon, scale_, halfChunkSize_ * dkAligned_);
         }
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(qPrimeLocal);
         uint64_t qgBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, dk_aligned_, outQPrimeGm_[qgBeginOffset]);  // stage1 out
+        DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, outQPrimeGm_[qgBeginOffset]);  // stage1 out
         PipeBarrier<PIPE_V>();
     }
 
@@ -710,10 +695,10 @@ private:
     uint32_t nv_;
     uint32_t dk_;
     uint32_t dv_;
-    uint32_t dk_aligned_;
-    uint32_t dv_aligned_;
-    uint32_t NumChunk_;
-    uint64_t v_row_stride_;
+    uint32_t dkAligned_;
+    uint32_t dvAligned_;
+    uint32_t numChunk_;
+    uint64_t vRowStride_;
     uint32_t halfChunkSize_;
     uint32_t subBlockIdx_;
     uint32_t subOffset_;
