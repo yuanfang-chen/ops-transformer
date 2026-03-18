@@ -115,9 +115,9 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::InitParams(const ConstInfo &constInfo)
 {
     constInfo_ = constInfo;
-    uint64_t queryBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK;
-    uint64_t l0abBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK_L0;
-    uint64_t l0cBufferOffset_ = constInfo.mBaseSize * S2_BASIC_BLOCK_L0;
+    queryBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK;
+    l0abBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK_L0;
+    l0cBufferOffset_ = constInfo.mBaseSize * S2_BASIC_BLOCK_L0;
 }
 
 template <typename QLIT>
