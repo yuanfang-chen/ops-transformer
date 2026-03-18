@@ -30,7 +30,6 @@
 #include "op_host/op_tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
 #include "all_gather_formulaic_tiling.h"
-#include "arch35/all_gather_fit_balance_tiling.h"
 #include "all_gather_matmul_tiling_base.h"
 #include "../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
 
@@ -512,15 +511,11 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
 
 CutResult AllGatherMatmulTilingBase::GetTilingResult()
 {
-    SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
-    if (inputSocVersion == SocVersion::SOC950) {
-        AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
-        return tileFormulate.GetTiling();
-    } else {
-        AllGatherPlusMMV2 tileFormulate(args_, args_.rankDim, KernelType::ALL_GATHER, SocVersion::SOC910_B);
-        tileFormulate.GetTiling();
-        return tileFormulate.tilingM_.cutRes;
-    }
+    SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;	 
+    OP_LOGD(opName_, "Start to find proper tileCnt by formulaic tiling."); 
+    AllGatherPlusMMV2 tileFormulate(args_, args_.rankDim, KernelType::ALL_GATHER, inputSocVersion); 
+    tileFormulate.GetTiling(); 
+    return tileFormulate.tilingM_.cutRes;
 }
 
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
