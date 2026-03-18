@@ -9,36 +9,44 @@
  */
 
 /*!
- * \file tt_quant_grouped_mat_mul_allto_allv_gmm_tiling.h
+ * \file mx_quant_grouped_mat_mul_allto_allv_gmm_tiling.h
  * \brief
  */
 
-#ifndef TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
-#define TT_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#ifndef MX_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
+#define MX_QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H
 
 #pragma once
 #include "securec.h"
 #include "tiling/tiling_api.h"
-#include "op_host/op_tiling/mc2_tiling_utils.h"
+#include "tiling/mc2_tiling_utils.h"
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_matmul_tiling_cfg.h"
-#include "op_host/op_tiling/new_mc2_tiling_utils.h"
-#include "../quant_grouped_mat_mul_allto_allv_tiling_base.h"
+#include "tiling/new_mc2_tiling_utils.h"
+#include "quant_grouped_mat_mul_allto_allv_tiling_base.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "../../../op_kernel/quant_grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 namespace optiling {
 namespace Mc2GroupedMatmul {
-class TTQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
+    
+constexpr uint64_t GROUP_M_OFFSET = 32;
+constexpr uint64_t GROUP_N_OFFSET = 16;
+constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
+constexpr uint64_t MX_GROUP_SIZE_K = 32;
+constexpr uint64_t MX_GROUP_SIZE_M = 1;
+constexpr uint64_t MX_GROUP_SIZE_N = 1;
+
+class MxQuantGroupedMatmulAllToAllvTiling : public QuantGroupedMatmulAllToAllvTilingBase {
 public:
-    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
+    explicit MxQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGroupedMatmulAllToAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
         TilingBaseClass::Reset(context);
     }
-    ~TTQuantGroupedMatmulAllToAllvTiling() override = default;
+    ~MxQuantGroupedMatmulAllToAllvTiling() override = default;
 protected:
     void Reset();
     bool IsCapable() override;
@@ -46,6 +54,12 @@ protected:
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckAndSetInputOutputInfo();
     ge::graphStatus SetGmmA2avWorkspaceInfo();
+
+    ge::graphStatus CheckAndSetLocalParamsGmm() override;
+    ge::graphStatus CheckAndSetLocalParamsMm() override;
+    ge::graphStatus CheckParamsRelationGmm() override;
+    ge::graphStatus CheckParamsRelationMm() override;
+    ge::graphStatus CheckParamsAttrEpAndSetLocalParams() override;
 };
 
 } // namespace Mc2GroupedMatmul
