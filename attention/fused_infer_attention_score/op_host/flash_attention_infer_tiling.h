@@ -379,10 +379,10 @@ namespace optiling{
     }
 
     void FAInferTiling::fillCoreInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize, uint64_t perCoreTaskNum) {
-        int32_t nowBIdx = 0;
-        int32_t nowN1Idx = 0;
-        int32_t nowS1Idx = 0;
-        int32_t nowS2Idx = 0;
+        uint32_t nowBIdx = 0;
+        uint32_t nowN1Idx = 0;
+        uint32_t nowS1Idx = 0;
+        uint32_t nowS2Idx = 0;
         
         for (uint32_t coreIdx = 0; coreIdx < blockNum_; coreIdx++) {
             faTilingData.coreInfo.get_startBIdx()[coreIdx] = 0;
@@ -405,7 +405,7 @@ namespace optiling{
         };
 
         for (uint32_t coreIdx = 0; coreIdx < blockNum_; coreIdx++) {
-            int32_t resTaskNum = perCoreTaskNum;
+            int64_t resTaskNum = perCoreTaskNum;
             faTilingData.coreInfo.get_startBIdx()[coreIdx] = nowBIdx;
             faTilingData.coreInfo.get_startN1Idx()[coreIdx] = nowN1Idx;
             faTilingData.coreInfo.get_startS1Idx()[coreIdx] = nowS1Idx;
@@ -436,16 +436,16 @@ namespace optiling{
             }
             
             advanceCounters();
-            if (nowBIdx < faInfo_.batch && resTaskNum <= 0) continue;
-            if (nowBIdx == faInfo_.batch) { finishBatch(coreIdx); break; }
+            if (nowBIdx < static_cast<uint32_t>(faInfo_.batch) && resTaskNum <= 0) continue;
+            if (nowBIdx == static_cast<uint32_t>(faInfo_.batch)) { finishBatch(coreIdx); break; }
 
-            while (nowBIdx < faInfo_.batch && resTaskNum > 0) {
+            while (nowBIdx < static_cast<uint32_t>(faInfo_.batch) && resTaskNum > 0) {
                 p = getBatchParams(nowBIdx, groupSize);
                 uint32_t remainingQ = p.qSeqlen * (faInfo_.numHeads - p.curQNBlockTile * nowN1Idx) - nowS1Idx * p.curQSBlockTile;
                 uint32_t remainingKV = p.kvSeqlen;
                 uint32_t remainingInBatch = remainingQ * remainingKV;
 
-                if (resTaskNum >= remainingInBatch) {
+                if (resTaskNum >= static_cast<int64_t>(remainingInBatch)) {
                     resTaskNum -= remainingInBatch;
                     nowBIdx++; nowN1Idx = 0; nowS1Idx = 0; nowS2Idx = 0;
                 } else {
@@ -453,13 +453,13 @@ namespace optiling{
                 }
             }
 
-            if (nowBIdx == faInfo_.batch) { finishBatch(coreIdx); break; }
+            if (nowBIdx == static_cast<uint32_t>(faInfo_.batch)) { finishBatch(coreIdx); break; }
             p = getBatchParams(nowBIdx, groupSize);
 
             while (nowN1Idx < p.curQNBlockNum && resTaskNum > 0) {
                 uint32_t remainingQ = p.qSeqlen * p.curQNBlockTile - nowS1Idx * p.curQSBlockTile;
                 uint32_t remainingInN1 = remainingQ * p.kvSeqlen;
-                if (resTaskNum >= remainingInN1) {
+                if (resTaskNum >= static_cast<int64_t>(remainingInN1)) {
                     resTaskNum -= remainingInN1;
                     nowN1Idx++; nowS1Idx = 0; nowS2Idx = 0;
                 } else {
@@ -468,13 +468,13 @@ namespace optiling{
             }
             
             advanceCounters();
-            if (nowBIdx == faInfo_.batch) { finishBatch(coreIdx); break; }
+            if (nowBIdx == static_cast<uint32_t>(faInfo_.batch)) { finishBatch(coreIdx); break; }
             p = getBatchParams(nowBIdx, groupSize);
 
             while (nowS1Idx < p.curQSBlockNum && resTaskNum > 0) {
                 uint32_t remainingQ = (nowS1Idx < p.curQSBlockNum - 1) ? p.curQSBlockTile : (p.qSeqlen - nowS1Idx * p.curQSBlockTile) * p.curQNBlockTile;
                 uint64_t remainingInS1 = remainingQ * p.kvSeqlen;
-                if (resTaskNum >= remainingInS1) {
+                if (resTaskNum >= static_cast<int64_t>(remainingInS1)) {
                     resTaskNum -= remainingInS1;
                     nowS1Idx++; nowS2Idx = 0;
                 } else {
@@ -483,7 +483,7 @@ namespace optiling{
             }
 
             advanceCounters();
-            if (nowBIdx == faInfo_.batch) { finishBatch(coreIdx); break; }
+            if (nowBIdx == static_cast<uint32_t>(faInfo_.batch)) { finishBatch(coreIdx); break; }
             p = getBatchParams(nowBIdx, groupSize);
 
             while (nowS2Idx < p.curKSBlockNum && resTaskNum > 0) {
@@ -494,7 +494,7 @@ namespace optiling{
                 nowS2Idx += 1;
             }
 
-            if (nowBIdx == faInfo_.batch) { finishBatch(coreIdx); break; }
+            if (nowBIdx == static_cast<uint32_t>(faInfo_.batch)) { finishBatch(coreIdx); break; }
             
             faTilingData.coreInfo.get_endBIdx()[coreIdx] = nowBIdx;
             faTilingData.coreInfo.get_endN1Idx()[coreIdx] = nowN1Idx;
@@ -553,7 +553,7 @@ namespace optiling{
                         int curStartS2 = (BIdx == startBIdx && N1Idx == startN1Idx && S1Idx == startS1Idx) ? startS2Idx : 0;
                         int curEndS2 = (BIdx == endBIdx && N1Idx == endN1Idx && S1Idx == endS1Idx) ? endS2Idx : p.curKSBlockNum;
 
-                        int coveredS2 = curEndS2 - curStartS2;
+                        uint32_t coveredS2 = curEndS2 - curStartS2;
                         bool isSplitKV = (coveredS2 > 0 && coveredS2 < p.curKSBlockNum);
 
                         int64_t tmpLseOffset = currentLseTaskOffset;
@@ -573,7 +573,7 @@ namespace optiling{
                         if (isSplitKV) {
                             if (BIdx != prevBIdx || N1Idx != prevN1Idx || S1Idx != prevS1Idx) {
                                 splitIdx++;
-                                if (splitIdx < blockNum_ + 1) {
+                                if (splitIdx >= 0 && splitIdx < (int32_t)(blockNum_ + 1)) {
                                     faTilingData.splitInfo.get_batchIdx()[splitIdx] = BIdx;
                                     faTilingData.splitInfo.get_splitNum()[splitIdx] = 0;
                                     faTilingData.splitInfo.get_headStartIdx()[splitIdx] = currentHeadStart;
@@ -587,7 +587,7 @@ namespace optiling{
                                 prevN1Idx = N1Idx; 
                                 prevS1Idx = S1Idx;
                             }
-                            if (splitIdx >= 0 && splitIdx < blockNum_ + 1) {
+                            if (splitIdx >= 0 && splitIdx < (int32_t)(blockNum_ + 1)) {
                                 faTilingData.splitInfo.get_splitNum()[splitIdx]++;
                                 currentLseTaskOffset += (int64_t)headLen * qLen;
                                 currentOTaskOffset += (int64_t)headLen * qLen * faInfo_.embeddingSizeV;
@@ -614,7 +614,7 @@ namespace optiling{
         uint64_t totalTaskNum = 0;
         uint32_t groupSize = faInfo_.numHeads / faInfo_.kvHeads;
 
-        for (uint32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
+        for (int32_t batchIdx = 0; batchIdx < faInfo_.batch; batchIdx++) {
             BatchParams p = getBatchParams(batchIdx, groupSize);
             totalTaskNum += faInfo_.numHeads * p.qSeqlen * p.kvSeqlen;
         }
