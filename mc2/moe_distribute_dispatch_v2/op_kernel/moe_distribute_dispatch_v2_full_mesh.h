@@ -80,8 +80,13 @@ using namespace MoeDistributeV2Base;
 template <TemplateMC2TypeFullmeshClass>
 class MoeDistributeDispatchV2FullMesh {
 public:
+    using XInType = typename std::conditional<
+            (Std::IsSame<XType, fp4x2_e2m1_t>::value) || (Std::IsSame<XType, fp4x2_e1m2_t>::value),
+            uint8_t,
+            XType
+        >::type;
     using XOutType = typename std::conditional<
-            (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value) || (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value),
+            (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value) || (Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value),
             uint8_t,
             ExpandXOutType
         >::type;
@@ -156,7 +161,7 @@ private:
     }
 
     TPipe *tpipe_{nullptr};
-    GlobalTensor<XType> xGMTensor_;
+    GlobalTensor<XInType> xGMTensor_;
     GlobalTensor<int32_t> expertIdsGMTensor_;
     GlobalTensor<float> scalesGMTensor_;
     GlobalTensor<uint8_t> dynamicScalesOutGMTensor_;
@@ -311,7 +316,7 @@ private:
     DataCopyParams hCopyParams_;
     DataCopyParams dataStateParams_{1U, sizeof(uint32_t), 0U, 0U};
 
-    MoeDistributeDispatchV2Quant<XType, ExpandXOutType, XOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> quantInst_;
+    MoeDistributeDispatchV2Quant<XInType, ExpandXOutType, XOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> quantInst_;
 };
 
 template <TemplateMC2TypeFullmeshClass>
@@ -428,7 +433,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     TBuf<> dataStateBuf;
     tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
     dataState_ = InitWinState(selfDataStatusGMTensor_, epRankIdHccl, epWorldSizeHccl, epRankIdOriginal_, moeExpertNum_, epWorldSizeOriginal_, globalBS_, dataStateBuf);
-    uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
+    uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XInType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     winDataSizeOffset_ = dataState_ * (totalWinSize_ / BUFFER_NUM)
                          + axisMaxBS_ * (axisK_ + sharedExpertNum_) * hSizeAlignCombine;
 }
@@ -454,7 +459,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         auto realWinSize = GetWinSize(winContext_[COMM_EP_IDX]);
         CheckWindowSize(totalWinSize_, realWinSize, tpipe_, expandXOut);
     }
-    xGMTensor_.SetGlobalBuffer((__gm__ XType*)x);
+    xGMTensor_.SetGlobalBuffer((__gm__ XInType*)x);
     xActiveMaskGMTensor_.SetGlobalBuffer((__gm__ bool*)xActiveMask);
     expertIdsGMTensor_.SetGlobalBuffer((__gm__ int32_t*)expertIds);
     dynamicScalesOutGMTensor_.SetGlobalBuffer((__gm__ uint8_t*)dynamicScalesOut);
@@ -479,7 +484,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         Std::IsSame<XType, fp4x2_e1m2_t>::value) {
         hCopyParams_ = {1U, static_cast<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE)), 0U, 0U};
     } else {
-        hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U};
+        hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XInType)), 0U, 0U};
     }
     dataStateParams_ = {1U, sizeof(uint32_t), 0U, 0U};
     expertIdsSize_ = Ceil(expertIdsCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
@@ -502,18 +507,18 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     TQue<QuePosition::VECIN, 1> inQueue, uint32_t srcTokenIndex, uint32_t fillExpertIdx, uint32_t quantExpertIdx)
 {
     DataCopyPadParams copyPadParams{true, 0U, 0U, 0U};
-    LocalTensor<XType> xInTensor = inQueue.AllocTensor<XType>();
+    LocalTensor<XInType> xInTensor = inQueue.AllocTensor<XInType>();
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     LocalTensor<uint8_t> singleByteTok = xInTensor.template ReinterpretCast<uint8_t>();
     // 由于MX以及PERGROUP量化在计算scales时每次搬入256字节数据，所以在token搬入前需要对空间填0，避免引入脏数据
     if constexpr ((QuantMode == MX_QUANT) || (QuantMode == PERGROUP_DYNAMIC_QUANT)) {
-        Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(XType));
+        Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(XInType));
     }
 #endif
     SyncFunc<HardEvent::V_MTE2>();
     DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadParams);
     inQueue.EnQue(xInTensor);
-    xInTensor = inQueue.DeQue<XType>();
+    xInTensor = inQueue.DeQue<XInType>();
     if constexpr (QuantMode > UNQUANT) {
         quantInst_.QuantProcess(tempTensor_, xInTensor, quantExpertIdx, scalesCount_, scalesGMTensor_);
     }
@@ -524,7 +529,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     }
 #endif
     FillTriple(tempTensor_, srcTokenIndex, fillExpertIdx);
-    inQueue.FreeTensor<XType>(xInTensor);
+    inQueue.FreeTensor<XInType>(xInTensor);
     SyncFunc<AscendC::HardEvent::S_V>();
     LocalTensor<int32_t> tempTensorInt32 = tempTensor_.template ReinterpretCast<int32_t>();
     LocalTensor<int32_t> outTensorInt32 = outTensor_.template ReinterpretCast<int32_t>();
@@ -543,7 +548,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     TQue<QuePosition::VECIN, 1> inQueue, uint32_t srcTokenIndex, uint32_t toExpertIndex)
 {
     DataCopyPadParams copyPadParams{false, 0U, 0U, 0U};
-    LocalTensor<XType> xInTensor = inQueue.AllocTensor<XType>();
+    LocalTensor<XInType> xInTensor = inQueue.AllocTensor<XInType>();
     if constexpr (!IsSmoothScaleExist) {
         DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadParams);
     }
@@ -565,7 +570,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     }
 #endif
     inQueue.EnQue(xInTensor);
-    xInTensor = inQueue.DeQue<XType>();
+    xInTensor = inQueue.DeQue<XInType>();
     FillTriple(xInTensor, srcTokenIndex, toExpertIndex);
     SyncFunc<AscendC::HardEvent::S_V>();
     LocalTensor<int32_t> xInTensorInt32 = xInTensor.template ReinterpretCast<int32_t>();
@@ -577,7 +582,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(dstWinGMTensor, outTensor_[flagPadOffset_ / sizeof(XOutType)], axisHCommu_);
     flagPadOffset_ = hCommuSize_ - flagPadOffset_;
-    inQueue.FreeTensor<XType>(xInTensor);
+    inQueue.FreeTensor<XInType>(xInTensor);
 }
 
 template <TemplateMC2TypeFullmeshClass>

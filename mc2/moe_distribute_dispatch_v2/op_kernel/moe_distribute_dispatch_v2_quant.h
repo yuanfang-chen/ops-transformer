@@ -27,7 +27,7 @@ namespace Mc2Kernel {
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
 
-template <typename XType, typename ExpandXOutType, typename XOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
+template <typename XInType, typename ExpandXOutType, typename XOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
 class MoeDistributeDispatchV2Quant{
 public:
     uint32_t axisH_{0};
@@ -62,7 +62,7 @@ public:
     {
         axisH_ = axisH;
         hOutSizeAlign_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN; // scale起始放置偏移
-        hAlignSize_ = Ceil(axisH_ * sizeof(XType), UB_ALIGN) * UB_ALIGN; //用于搬入token数据xInQueue_大小申请
+        hAlignSize_ = Ceil(axisH_ * sizeof(XInType), UB_ALIGN) * UB_ALIGN; //用于搬入token数据xInQueue_大小申请
         if constexpr ((QuantMode == UNQUANT) && IsSmoothScaleExist) {
             hOutSizeAlign_ += scaleInBytes_;
             hAlignSize_ += scaleInBytes_;
@@ -79,12 +79,12 @@ public:
             } else {
                 hOutSizeAlign_ = Align256(axisH_) * sizeof(XOutType);
             }
-            hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
+            hAlignSize_ = Align128(axisH_) * sizeof(XInType); // MX量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
             scaleOutBytes = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             hOutSizeAlign_ = Align128(axisH_) * sizeof(XOutType);
-            hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
+            hAlignSize_ = Align128(axisH_) * sizeof(XInType); // PERGROUP量化计算scale时每次搬入128个数据
             hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
             scaleOutBytes = Ceil128(axisH_) * sizeof(float); // PERGROUP量化每128个值生成一个scale
         }
@@ -95,7 +95,7 @@ public:
         hScaleIdxSize_ = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
     }
 
-    __aicore__ inline void QuantProcess(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex,
+    __aicore__ inline void QuantProcess(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, uint32_t expertIndex,
                                         uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (QuantMode == STATIC_QUANT) {
@@ -112,7 +112,7 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantStatic(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, uint32_t expertIndex, 
+    __aicore__ inline void QuantStatic(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, uint32_t expertIndex, 
                                        uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         Cast(floatLocalTemp_, inLocal, RoundMode::CAST_NONE, axisH_);
@@ -148,7 +148,7 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, 
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         float dynamicScale = 0.0;
@@ -200,7 +200,7 @@ public:
     }
 
     #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
-    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, 
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
@@ -210,21 +210,21 @@ public:
                 SyncFunc<AscendC::HardEvent::MTE2_V>();
             }
 
-            __ubuf__ XType* srcAddr = (__ubuf__ XType*)inLocal.GetPhyAddr();
+            __ubuf__ XInType* srcAddr = (__ubuf__ XInType*)inLocal.GetPhyAddr();
             __ubuf__ float* smoothLocalAddr = (__ubuf__ float*)smoothScalesTensor_.GetPhyAddr();
             __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
             __ubuf__ float* scaleOutLocalAddr = (__ubuf__ float*)outLocal[Align128<uint32_t>(axisH_)].GetPhyAddr();
 
-            quant::ComputePerTileDynamic<XType, ExpandXOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(srcAddr,
+            quant::ComputePerTileDynamic<XInType, ExpandXOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(srcAddr,
                 smoothLocalAddr, scaleOutLocalAddr, outLocalAddr, axisH_);
         }
     }
 
-    __aicore__ inline void QuantDynamicMx(LocalTensor<XOutType>& outLocal, LocalTensor<XType>& inLocal)
+    __aicore__ inline void QuantDynamicMx(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal)
     {
         
         uint32_t mxScaleNum = Align2(Ceil32(axisH_));
-        __ubuf__ XType* srcAddr = (__ubuf__ XType*)inLocal.GetPhyAddr();
+        __ubuf__ XInType* srcAddr = (__ubuf__ XInType*)inLocal.GetPhyAddr();
         __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
         __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
         __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
@@ -238,10 +238,10 @@ public:
         quant::ComputeScale<ExpandXOutType>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
-            quant::ComputeFp8Data<XType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
+            quant::ComputeFp8Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         } else {
-            quant::ComputeFp4Data<XType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
+            quant::ComputeFp4Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         }
     }
