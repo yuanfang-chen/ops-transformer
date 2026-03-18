@@ -1327,7 +1327,7 @@ def build_mla_param(params):
     quant_scale_ckv = torch.ones(1, dtype=torch.float32)
     quant_scale_ckr = torch.ones(1, dtype=torch.float32)
     smo_scale_cq = None
-    k_nope_clip_alpha = torch.ones(1, dtype=torch.float32)
+    k_nope_clip_alpha = torch.ones(1, dtype=torch.float32) if (weight_quant_mode == 1 and kv_quant_mode == 3) else None
 
     grp_size = 32
 
