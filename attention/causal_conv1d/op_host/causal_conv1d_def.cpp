@@ -30,22 +30,22 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("convStates")
+        this->Input("conv_states")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("queryStartLoc")
+        this->Input("query_start_loc")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("cacheIndices")
+        this->Input("cache_indices")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("initialStateMode")
+        this->Input("initial_state_mode")
             .ParamType((OPTIONAL))
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
@@ -55,7 +55,7 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("numAcceptedToken")
+        this->Input("num_accepted_tokens")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
@@ -66,16 +66,16 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Output("convStates")
+        this->Output("conv_states")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
 
-        this->Attr("activationMode").AttrType(OPTIONAL).Int(0);
-        this->Attr("padSlotId").AttrType(OPTIONAL).Int(-1);
-        this->Attr("runMode").AttrType(OPTIONAL).Int(0);
-        this->Attr("residualConnection").AttrType(OPTIONAL).Int(0);
+        this->Attr("activation_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("pad_slot_id").AttrType(OPTIONAL).Int(-1);
+        this->Attr("run_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("residual_connection").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig config_950;
         config_950.DynamicCompileStaticFlag(true)
