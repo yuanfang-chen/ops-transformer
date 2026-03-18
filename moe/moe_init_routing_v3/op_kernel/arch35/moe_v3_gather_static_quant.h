@@ -299,9 +299,7 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     activateRows_ = gatherOutTilingData_->activeNum;
     rowIdxType_ = tilingData->rowIdxType;
 
-    if (dropPadMode_ == DROP_PAD_MODE) {
-    }
-
+    // 初始化每核处理的行数
     perCoreRow_ = Ceil(totalLength_, tilingData->coreNum);
 
     if (blockIdx_ == gatherOutTilingData_->needCoreNum - 1) {
@@ -338,7 +336,7 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
 
     expandedRowIdxIndexGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + Align(totalLength_, sizeof(int32_t)) * 2 +
                                                Align(expertNum_, sizeof(int32_t)) + blockIdx_ * perCoreRow_,
-                                           0);
+                                           coreRows_ + 1);
 
     pipe_->InitBuffer(inputXCopyInQueue_, BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(inputXCopyOutQueue_, BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(int8_t)));
