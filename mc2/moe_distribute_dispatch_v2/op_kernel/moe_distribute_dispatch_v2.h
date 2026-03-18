@@ -47,6 +47,7 @@ using namespace Mc2Kernel;
 template <TemplateDispatchV2TypeClass>
 class MoeDistributeDispatchV2 {
 public:
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     using XInType = typename std::conditional<
             (Std::IsSame<XType, fp4x2_e2m1_t>::value) || (Std::IsSame<XType, fp4x2_e1m2_t>::value),
             uint8_t,
@@ -57,6 +58,10 @@ public:
             uint8_t,
             ExpandXOutType
         >::type;
+#else
+    using XInType = XType;
+    using XOutType = ExpandXOutType;
+#endif
     __aicore__ inline MoeDistributeDispatchV2() {};
     __aicore__ inline void Init(GM_ADDR mc2Context, GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, 
                                 GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, 
@@ -279,6 +284,8 @@ private:
     uint32_t sendToSharedExpTokenCnt_{0};
     uint32_t maxSize_{0};
     uint32_t bufferNum_{0};
+    uint32_t copyInAxisH_{0};
+    uint32_t copyOutAxisH_{0};
     __gm__ Mc2Kernel::HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
 
     // Using Mc2Context instead of hccl context
@@ -335,6 +342,19 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     globalBS_ = tilingData->moeDistributeDispatchV2Info.globalBs;
     scaleInBytes_ = tilingData->moeDistributeDispatchV2Info.scalesCol * tilingData->moeDistributeDispatchV2Info.scalesTypeSize;
     scalesCount_ = tilingData->moeDistributeDispatchV2Info.scalesCount;
+
+    copyInAxisH_ = axisH_;
+    copyOutAxisH_ = axisH_;
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+    if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+        Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
+        copyOutAxisH_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
+    }
+    if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
+        Std::IsSame<XType, fp4x2_e1m2_t>::value) {
+        copyInAxisH_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
+    }
+#endif
 
     TBuf<> dataStateBuf;
     tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
@@ -396,12 +416,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     sendTpCountOutGM_ = tpSendCountsOut;
     recvCntWorkspaceGM_ = workspaceGM;
 
-    if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
-        Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
-        hOutSize_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
-    } else {
-        hOutSize_ = axisH_ * sizeof(XOutType);
-    }
+    hOutSize_ = copyOutAxisH_ * sizeof(XOutType);
     quantInst_.QuantInit(hAlignSize_, hOutSize_, scaleInBytes_, tokenQuantAlign_, hScaleIdxSize_, scaleOutBytes_, axisH_);
     hAlignWinSize_ = Ceil(hScaleIdxSize_, WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN; // win区token起始地址对齐512
     hAlignWinCnt_ = hAlignWinSize_ / sizeof(XOutType);
@@ -549,12 +564,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     subExpIdTensor_ = subExpBuf_.Get<int32_t>();
 
     uint32_t axisHCommu = hScaleIdxSize_ / sizeof(XOutType); // 有效搬运长度
-    if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
-        Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-        xCopyParams_ = {1U, static_cast<uint16_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE)), 0U, 0U};
-    } else {
-        xCopyParams_ = {1U, static_cast<uint16_t>(axisH_ * sizeof(XInType)), 0U, 0U};
-    }
+    xCopyParams_ = {1U, static_cast<uint16_t>(copyInAxisH_ * sizeof(XInType)), 0U, 0U};
     hCommuCopyOutParams_ = {1U, static_cast<uint16_t>(axisHCommu * sizeof(XOutType)), 0U, 0U};
     expandXCopyParams_ = {1U, static_cast<uint16_t>(hOutSize_), 0U, 0U};
     scaleOutParams_ = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U, 0U};
@@ -639,16 +649,9 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else {
             auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
-            if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
-                Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-                DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * Ceil(axisH_, FP4_ELEMS_PER_BYTE)], xCopyParams_, padParams);
-                DataCopyPad(xTmpTensor_[Align32(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>(),
-                    tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
-            } else {
-                DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * axisH_], xCopyParams_, padParams);
-                DataCopyPad(xTmpTensor_[Align32(axisH_)].template ReinterpretCast<uint8_t>(),
-                    tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
-            }
+            DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * copyInAxisH_], xCopyParams_, padParams);
+            DataCopyPad(xTmpTensor_[Align32(copyInAxisH_)].template ReinterpretCast<uint8_t>(),
+                tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
         }
 #endif
         xQueue_.EnQue(xTmpTensor_);

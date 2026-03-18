@@ -82,6 +82,7 @@ using namespace MoeDistributeV2Base;
 template <TemplateMC2TypeFullmeshClass>
 class MoeDistributeDispatchV2FullMesh {
 public:
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     using XInType = typename std::conditional<
             (Std::IsSame<XType, fp4x2_e2m1_t>::value) || (Std::IsSame<XType, fp4x2_e1m2_t>::value),
             uint8_t,
@@ -92,6 +93,10 @@ public:
             uint8_t,
             ExpandXOutType
         >::type;
+#else
+    using XInType = XType;
+    using XOutType = ExpandXOutType;
+#endif
     __aicore__ inline MoeDistributeDispatchV2FullMesh() {};
     __aicore__ inline void Init(GM_ADDR mc2Context, GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR performanceInfo,
                                 GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut,
@@ -313,6 +318,8 @@ private:
     uint32_t maxSize_{0};
     uint32_t expertIdsSize_{0};
     uint32_t globalBS_{0};
+    uint32_t copyInAxisH_{0};
+    uint32_t copyOutAxisH_{0};
     __gm__ HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
     __gm__ Mc2MoeContext* mc2Context_{nullptr};
 
@@ -376,6 +383,18 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     const MoeDistributeDispatchV2TilingData *tilingData)
 {
     SetTilingData(tilingData);
+    copyInAxisH_ = axisH_;
+    copyOutAxisH_ = axisH_;
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+    if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
+        Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
+        copyOutAxisH_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
+    }
+    if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
+        Std::IsSame<XType, fp4x2_e1m2_t>::value) {
+        copyInAxisH_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
+    }
+#endif
     if (hasElasticInfoFlag_) {
         InitElasticInfo();
     }
@@ -386,12 +405,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     moeExpertRankNum_ = epWorldSize_ - sharedExpertRankNum_;
     moeExpertNumPerRank_ = moeExpertNum_ / moeExpertRankNum_;
     expertIdsCnt_ = axisBS_ * axisK_;
-    if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
-        Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
-        hOutSize_ = Ceil(axisH_, FP4_ELEMS_PER_BYTE);
-    } else {
-        hOutSize_ = axisH_ * sizeof(XOutType);
-    }
+    hOutSize_ = copyOutAxisH_ * sizeof(XOutType);
     quantInst_.QuantInit(hAlignSize_, hOutSize_, scaleInBytes_, 
                          tokenQuantAlign_, hOutSizeAlign_, scaleOutBytes_, axisH_);
     // 因为与V2中预留给三元组的大小不一致，需要重新计算
@@ -483,12 +497,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGM_));
     selfRankWinInGMTensor_.SetGlobalBuffer((__gm__ float*)(statusDataSpaceGM_));
     windowGM_ = GetWindAddrByRankId(epRankIdOriginal_);
-    if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
-        Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-        hCopyParams_ = {1U, static_cast<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE)), 0U, 0U};
-    } else {
-        hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XInType)), 0U, 0U};
-    }
+    hCopyParams_ = {1U, static_cast<uint32_t>(copyInAxisH_ * sizeof(XInType)), 0U, 0U};
     dataStateParams_ = {1U, sizeof(uint32_t), 0U, 0U};
     expertIdsSize_ = Ceil(expertIdsCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
 }
@@ -560,16 +569,9 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         DataCopyParams scaleInParams = {1U, static_cast<uint16_t>(scaleInBytes_), 0U, 0U};
         DataCopyPadParams padParams = {true, 0, 0, 0};
         auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
-        if constexpr (Std::IsSame<XType, fp4x2_e2m1_t>::value ||
-            Std::IsSame<XType, fp4x2_e1m2_t>::value) {
-            DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * Ceil(axisH_, FP4_ELEMS_PER_BYTE)], hCopyParams_, copyPadParams);
-            DataCopyPad(xInTensor[Align32(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>(),
-                tmp[srcTokenIndex * scaleInBytes_], scaleInParams, padParams);
-        } else {
-            DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * axisH_], hCopyParams_, copyPadParams);
-            DataCopyPad(xInTensor[Align32(axisH_)].template ReinterpretCast<uint8_t>(),
-                tmp[srcTokenIndex * scaleInBytes_], scaleInParams, padParams);
-        }
+        DataCopyPad(xInTensor, xGMTensor_[srcTokenIndex * copyInAxisH_], hCopyParams_, copyPadParams);
+        DataCopyPad(xInTensor[Align32(copyInAxisH_)].template ReinterpretCast<uint8_t>(),
+            tmp[srcTokenIndex * scaleInBytes_], scaleInParams, padParams);
     }
 #endif
     inQueue.EnQue(xInTensor);
