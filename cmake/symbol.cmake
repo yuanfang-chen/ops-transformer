@@ -378,7 +378,6 @@ function(gen_onnx_plugin_symbol)
 endfunction()
 
 function(gen_norm_symbol)
-  gen_common_symbol()
 
   if (ENABLE_OPS_HOST)
     gen_ophost_symbol()
