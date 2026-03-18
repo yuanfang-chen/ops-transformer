@@ -78,10 +78,10 @@ public:
 
     __aicore__ inline void CalcGMAddr()
     {
-        uint64_t tileAndTailNum = paramInTiling_->tileCnt + paramInTiling_->tailCnt;
-        uint64_t padLen = tileAndTailNum * rankNum_;
+        tileAndTailNum_ = paramInTiling_->tileCnt + paramInTiling_->tailCnt;
+        uint64_t padLen = tileAndTailNum_ * rankNum_;
         uint64_t padAddrSize = padLen * sizeof(YType);
-        cgmAddr_ = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + tailInfo_.cAddrOffset * paramInTiling_->tailCnt;
+        cgmAddr_ = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + c.cAddrOffset * paramInTiling_->tailCnt;
         cgmLen_ = tileInfo_.cOffset * paramInTiling_->tileCnt + tailInfo_.cOffset * paramInTiling_->tailCnt;
         all2allInGM_ = addrs_->cGM;
         all2allOutGM_ = all2allInGM_ + cgmAddr_ + padAddrSize;       // MM结果
@@ -93,16 +93,17 @@ public:
         } else {
             allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + padAddrSize) / rankNum_; // reduceSum结果
         }
-        tileAlign_ = CeilAlign();
-        tailAlign_ = CeilAlign();
+        tileAlign_ = CeilAlign(tileInfo_.cOffset, 512 / sizeof(YType));
+        tailAlign_ = CeilAlign(tailInfo_.cOffset, 512 / sizeof(YType));
         tileAddrAlign_ = tileAlign_ * sizeof(YType);
         tailAddrAlign_ = tailAlign_ * sizeof(YType);
+        aivNum_ = GetBlockNum() * GetTaskRation();
         PrePareHCCL();
     }
 
     __aicore__ inline void PrePareHCCL()
     {
-        for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++){
+        for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++) {
             uint64_t indexOffsetTile = tileInfo_.cAddrOffset * i;
             uint64_t alignedIndexOffsetTile = tileAddrAlign_ * i;
             all2allSendGM_[i] = all2allInGM_ + indexOffsetTile;                         // all2allSendBuff 切块之间是连续的
@@ -115,7 +116,7 @@ public:
                 all2allSendGM_[i], all2allRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE);
         }
 
-        for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++){
+        for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++) {
             uint64_t indexOffsetTail = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + tailInfo_.cAddrOffset * i;
             uint64_t alignedIndexOffsetTail = tileAddrAlign_ * paramInTiling_->tileCnt 
                                             + tailAddrAlign_ * i;
@@ -130,13 +131,13 @@ public:
                 all2allSendGM_[index], all2allRecvGM_[index], ceilDataCount, HCCL_DATA_TYPE);
         }
 
-        for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++){
+        for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++) {
             uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
             allgatherHandleId_[i] = hccl_.AllGather<false>(
                 allgatherSendGM_[i], allgatherRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE, 0, 1);
         }
 
-        for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++){
+        for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++) {
             const uint64_t index = paramInTiling_->tileCnt + i;
             uint64_t ceilDataCount = CeilDiv(tailInfo_.cOffset, rankNum_);
             allgatherHandleId_[index] = hccl_.AllGather<false>(
@@ -168,11 +169,22 @@ protected:
             hccl_.Commit(all2allHandleId_[index]);
         }
     }
-    __aicore__ inline void WaitAlltoAllEachTurn(bool tailFlag, uint32_t turnCnt){
-        if (notifyFlag_) {
+    __aicore__ inline void WaitAlltoAllEachTurn(bool tailFlag, uint32_t turnCnt)
+    {
+        if ASCEND_IS_AIV {
             for (uint32_t i = 0U; i < turnCnt; ++i) {
                 const uint64_t index = tailFlag ? i + paramInTiling_->tileCnt : i;
-                hccl_.Wait(all2allHandleId_[index]);
+                if (!isOneTileFlag_ && index == tileAndTailNum_ - 1) {
+                    tPipe_->Reset();
+                    uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
+                    reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum_, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                    reduceSum_.ExecuteReduceSum();
+                    reduceSumInGM_ += tileAddrAlign_;                       // reduceSumIn 切块之间是非连续的
+                    reduceSumOutGM_ += tileAddrAlign_ / rankNum_;           // reduceSumOut 切块之间是非连续的
+                }
+                if (notifyFlag_) {
+                    hccl_.Wait(all2allHandleId_[index]);
+                }
             }
         }
         SyncAll();
@@ -181,30 +193,39 @@ protected:
     __aicore__ inline void ReduceSumAndAllGather()
     {
         if ASCEND_IS_AIV {
-            // ReduceSum计算
-            uint64_t aivNum = GetBlockNum() * GetTaskRation();
-            for (int i = 0; i < paramInTiling_->tileCnt; i++){
-                tPipe_->Reset();
-                uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
-                reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
-                reduceSum_.ExecuteReduceSum();
-                reduceSumInGM_ += tileAddrAlign_;                       // reduceSumIn 切块之间是非连续的
-                reduceSumOutGM_ += tileAddrAlign_ / rankNum_;           // reduceSumOut 切块之间是非连续的
+            for (int i = 0; i < paramInTiling_->tileCnt; i++) {
+                if (notifyFlag_) {
+                    if (i >= 1) {
+                        // 第一块ReduceSum会和A2A掩盖
+                        // 除第一块外，当前ReduceSum会和AG掩盖
+                        hccl_.Commit(allgatherHandleId_[i - 1]);
+                    }
+                }
+                if (isOneTileFlag_ || (!isOneTileFlag_ && i >= 1)) {
+                    // 如果只有一轮计算，无任何掩盖可能，串行计算
+                    // 第一轮ReuceSum已和A2A掩盖
+                    tPipe_->Reset();
+                    uint64_t ceilDataCount = CeilDiv(tileInfo_.cOffset, rankNum_);
+                    reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum_, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                    reduceSum_.ExecuteReduceSum();
+                    reduceSumInGM_ += tileAddrAlign_;                       // reduceSumIn 切块之间是非连续的
+                    reduceSumOutGM_ += tileAddrAlign_ / rankNum_;           // reduceSumOut 切块之间是非连续的
+                }
             }
-
-            for (int i = 0; i < paramInTiling_->tailCnt; i++){
+            for (int i = 0; i < paramInTiling_->tailCnt; i++) {
+                if (notifyFlag_) {
+                    uint64_t index = paramInTiling_->tileCnt + i;
+                    hccl_.Commit(allgatherHandleId_[index - 1]);
+                }
                 tPipe_->Reset();
                 uint64_t ceilDataCount = CeilDiv(tailInfo_.cOffset, rankNum_);
-                reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum_, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailAddrAlign_;                       // reduceSumIn 切块之间是非连续的
                 reduceSumOutGM_ += tailAddrAlign_ / rankNum_;           // reduceSumOut 切块之间是非连续的s
             }
-        }
-        SyncAll();
-        if (notifyFlag_) {
-            for (int i = 0; i < paramInTiling_->tileCnt + paramInTiling_->tailCnt; i++) {
-                hccl_.Commit(allgatherHandleId_[i]);
+            if (notifyFlag_) {
+                hccl_.Commit(allgatherHandleId_[tileAndTailNum_ - 1]);
             }
         }
     }
@@ -212,18 +233,17 @@ protected:
     __aicore__ inline void HcclFinalize()
     {
         if (notifyFlag_) {
-            for (int i = 0; i < paramInTiling_->tileCnt + paramInTiling_->tailCnt; i++) {
+            for (int i = 0; i < tileAndTailNum_; i++) {
                 hccl_.Wait(allgatherHandleId_[i]);
             }
         }
 
-        if (needPad_){
+        if (needPad_) {
             if ASCEND_IS_AIV {
-                uint64_t aivNum = GetBlockNum() * GetTaskRation();
                 // DataCopy
                 SyncAll();
                 tPipe_->Reset();
-                dataCopy_.Init(cgmLen_, aivNum, allgatherOutGM_, addrs_->outputGM, tPipe_);
+                dataCopy_.Init(cgmLen_, aivNum_, allgatherOutGM_, addrs_->outputGM, tPipe_);
                 dataCopy_.Process();
                 SyncAll();
             }
@@ -239,7 +259,8 @@ protected:
     uint64_t tailAlign_ = 0UL;
     uint64_t tileAddrAlign_ = 0UL;
     uint64_t tailAddrAlign_ = 0UL;
-
+    uint64_t aivNum_ = 0UL;
+    uint64_t tileAndTailNum_ = 0UL;
     bool notifyFlag_;
     bool tailFlag_;
     bool isOneTileFlag_;
