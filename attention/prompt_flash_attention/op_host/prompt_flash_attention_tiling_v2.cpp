@@ -1084,7 +1084,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
         if (isMaxWorkspace) return true;
         OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.n) ||
                     (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b) ||
-                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, static_cast<int64_t>(fp8QBlockSize))),
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8QBlockSize)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u].",
                 layoutStr.c_str(), queryShapeInfo.n, queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b, CeilDivision(queryShapeInfo.d, fp8KVBlockSize),
@@ -1121,21 +1121,21 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             return false);
         OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
                     (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, static_cast<int64_t>(fp8QBlockSize))) ||   // 2 is the dim of dequantscale along s1.
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize))) ||   // 2 is the dim of dequantscale along s1.
                     (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 1U),  // 3 is the dim of dequantscale along d.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "dequantScaleQueryShape must be [%u, %u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u, %u].",
-                queryShapeInfo.b, queryShapeInfo.n, CeilDivision(queryShapeInfo.s, static_cast<int64_t>(fp8QBlockSize)), 1,
+                queryShapeInfo.b, queryShapeInfo.n, CeilDivision(queryShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize)), 1,
                 dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
                 dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
             return false); 
         OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
                     (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-                    (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, static_cast<int64_t>(fp8QBlockSize))) || //  2 is the dim of dequantscale along s2.
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize))) || //  2 is the dim of dequantscale along s2.
                     (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "keyAntiquantScaleShape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
-                keyShapeInfo.b, keyShapeInfo.n, CeilDivision(keyShapeInfo.s, static_cast<int64_t>(fp8QBlockSize)), 1,
+                keyShapeInfo.b, keyShapeInfo.n, CeilDivision(keyShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize)), 1,
                 keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
                 keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3)),
             return false);
@@ -1145,7 +1145,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
                     (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "valueAntiquantScaleshape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
-                valueShapeInfo.b, valueShapeInfo.n, CeilDivision(valueShapeInfo.s, static_cast<int64_t>(fp8QBlockSize)), 1,
+                valueShapeInfo.b, valueShapeInfo.n, CeilDivision(valueShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize)), 1,
                 valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
                 valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3)),
             return false); 

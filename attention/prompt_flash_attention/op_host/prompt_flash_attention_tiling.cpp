@@ -2613,8 +2613,8 @@ void PromptFlashAttentionTiling::Align(uint32_t &num) {
 
 // Code for ut, no pratical to use.
 ge::graphStatus PromptFlashAttentionTiling::GetBasicShape310P(uint32_t &b,
-    uint32_t &bKV, uint32_t &s, uint32_t &h, uint32_t &seqInnerSize, const gert::StorageShape *queryShape,
-    const gert::StorageShape *keyShape, const uint32_t n, size_t actualLenDims, size_t actualLenDimsKV) {
+    uint32_t &bKV, uint32_t &s, uint64_t &h, uint32_t &seqInnerSize, const gert::StorageShape *queryShape,
+    const gert::StorageShape *keyShape, const uint64_t n, size_t actualLenDims, size_t actualLenDimsKV) {
     if (n == 0U) {
         return ge::GRAPH_FAILED;
     }

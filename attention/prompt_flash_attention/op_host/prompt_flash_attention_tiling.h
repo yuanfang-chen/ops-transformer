@@ -36,18 +36,18 @@ namespace optiling {
 
 struct PFAShapeInfo {
     uint32_t b = 0;
-    uint32_t n = 0;
-    uint32_t s = 0;
+    uint64_t n = 0;
+    uint64_t s = 0;
     uint32_t d = 0;
-    uint32_t h = 0;
+    uint64_t h = 0;
     uint32_t t = 0;
 };
 
 BEGIN_TILING_DATA_DEF(PromptAttentionBaseParams)
     TILING_DATA_FIELD_DEF(uint32_t, batchSize);
-    TILING_DATA_FIELD_DEF(uint32_t, headNumSize);
+    TILING_DATA_FIELD_DEF(uint64_t, headNumSize);
     TILING_DATA_FIELD_DEF(uint32_t, seqSize);
-    TILING_DATA_FIELD_DEF(uint32_t, headSize);
+    TILING_DATA_FIELD_DEF(uint64_t, headSize);
     TILING_DATA_FIELD_DEF(float, scaleValue);
     TILING_DATA_FIELD_DEF(int32_t, preTokens);
     TILING_DATA_FIELD_DEF(int32_t, nextTokens);
@@ -60,7 +60,7 @@ BEGIN_TILING_DATA_DEF(PromptAttentionBaseParams)
     TILING_DATA_FIELD_DEF(uint32_t, prefixSeqInnerSize);
     TILING_DATA_FIELD_DEF(uint32_t, usePseShift);
     TILING_DATA_FIELD_DEF(uint32_t, useMask);
-    TILING_DATA_FIELD_DEF(uint32_t, headNumRatio);
+    TILING_DATA_FIELD_DEF(uint64_t, headNumRatio);
     TILING_DATA_FIELD_DEF(uint32_t, attenMaskElemType);
     TILING_DATA_FIELD_DEF(uint32_t, pseShiftTypeByteNum);
     TILING_DATA_FIELD_DEF(uint32_t, pseMaskMaxSize);
@@ -111,12 +111,12 @@ REGISTER_TILING_DATA_CLASS(PromptAttentionBaseParamsOp, PromptAttentionBaseParam
 
 BEGIN_TILING_DATA_DEF(PromptAttentionBaseApiBaseParams)
     TILING_DATA_FIELD_DEF(uint32_t, batchSize);
-    TILING_DATA_FIELD_DEF(uint32_t, headNumSize);
-    TILING_DATA_FIELD_DEF(uint32_t, headSize);
+    TILING_DATA_FIELD_DEF(uint64_t, headNumSize);
+    TILING_DATA_FIELD_DEF(uint64_t, headSize);
     TILING_DATA_FIELD_DEF(uint32_t, maskTypeByteNum);
     
     TILING_DATA_FIELD_DEF(uint32_t, inputLayoutType);
-    TILING_DATA_FIELD_DEF(uint32_t, kvHeadNumSize);
+    TILING_DATA_FIELD_DEF(uint64_t, kvHeadNumSize);
     TILING_DATA_FIELD_DEF(uint32_t, maxSeqLen);
     TILING_DATA_FIELD_DEF(uint32_t, maxKvSeqLen);
     TILING_DATA_FIELD_DEF(uint32_t, totalQBlkNum);
@@ -599,8 +599,8 @@ protected:
     void Align(uint32_t &num);
     ge::graphStatus GetBasicShape(uint32_t &b, uint32_t &s, uint32_t &h, uint32_t &seqInnerSize,
                                 const gert::StorageShape *queryShape, const gert::StorageShape *keyShape, const uint32_t n);
-    ge::graphStatus GetBasicShape310P(uint32_t &b, uint32_t &bKV, uint32_t &s, uint32_t &h, uint32_t &seqInnerSize,
-                                      const gert::StorageShape *queryShape, const gert::StorageShape *keyShape, const uint32_t n,
+    ge::graphStatus GetBasicShape310P(uint32_t &b, uint32_t &bKV, uint32_t &s, uint64_t &h, uint32_t &seqInnerSize,
+                                      const gert::StorageShape *queryShape, const gert::StorageShape *keyShape, const uint64_t n,
                                       size_t actualLenDims, size_t actualLenDimsKV);
     ge::graphStatus GetBasicShape910B(uint32_t &b, uint32_t &s, uint32_t &h, uint32_t &seqInnerSize,
                                       const gert::StorageShape *queryShape, const gert::StorageShape *keyShape, const uint32_t n);
