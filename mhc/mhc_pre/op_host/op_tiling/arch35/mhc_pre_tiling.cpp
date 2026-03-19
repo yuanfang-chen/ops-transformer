@@ -221,7 +221,6 @@ ge::graphStatus MhcPreBaseTiling::CheckOutputShapeConsistency()
     auto xShapePtr = context_->GetInputShape(X_INDEX);
     auto xShape = &xShapePtr->GetStorageShape();
     size_t xDimNum = xShape->GetDimNum();
-
     if (xDimNum == BSND_DIM_NUM) {
         uint64_t b = xShape->GetDim(DIM_0);
         uint64_t s = xShape->GetDim(DIM_1);
