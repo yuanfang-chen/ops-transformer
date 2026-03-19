@@ -144,8 +144,8 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
+        constInfo.dSizeV = 512;
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
     /* cube侧不依赖sharedParams的scalar前置 */
