@@ -265,9 +265,7 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
     auto xDimNum = xShape.GetDimNum();
 
-    auto wStorageShape = contex->GetInputShape(W_INDEX);
-    const gert::Shape &wShape = wStorageShape->GetOriginShape();
-    auto wDimNum = wShape.GetDimNum();
+    auto wShape = contex->GetInputShape(W_INDEX);
 
     auto scaleStorageShape = contex->GetOptionalInputShape(SCALE_INDEX);
     const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
@@ -294,30 +292,32 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
     // 2. Validate w shape
     // For FRACTAL_NZ format: OriginalShape is [E, CeilDiv(K,32), CeilDiv(N,16), 16, 32] (5D)
     // StorageShape is [E, N, K] (3D)
+    const gert::Shape &wStorageShape = wShape->GetStorageShape();
+    auto wStorageDimNum = wStorageShape.GetDimNum();
     if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
-        OP_CHECK_IF(wDimNum != DIM_NUM_WEIGHT_NZ,
+        OP_CHECK_IF(wStorageDimNum != DIM_NUM_WEIGHT_NZ,
                     OP_LOGE(contex->GetNodeName(), "The dimension of w (FRACTAL_NZ) must be %u, actual is %zu", 
-                            DIM_NUM_WEIGHT_NZ, wDimNum),
+                            DIM_NUM_WEIGHT_NZ, wStorageDimNum),
                     return false);
     } else {
-        OP_CHECK_IF(wDimNum != DIM_NUM_WEIGHT,
-                    OP_LOGE(contex->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wDimNum),
+        OP_CHECK_IF(wStorageDimNum != DIM_NUM_WEIGHT,
+                    OP_LOGE(contex->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wStorageDimNum),
                     return false);
     }
     
     // For FRACTAL_NZ: Get N and K from StorageShape [E, N, K]
     // For ND: Get N and K from OriginShape [E, N, K]
-    int64_t eFromW = wShape.GetDim(0);
+    int64_t eFromW = wStorageShape.GetDim(0);
     int64_t nSize;
     int64_t kFromW;
     if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
         // StorageShape is 3D: [E, N, K]
-        const gert::Shape &wStorageShapeActual = wStorageShape->GetStorageShape();
+        const gert::Shape &wStorageShapeActual = wShape->GetOriginShape();
         nSize = wStorageShapeActual.GetDim(1);
         kFromW = wStorageShapeActual.GetDim(2);
     } else {
-        nSize = wShape.GetDim(1);
-        kFromW = wShape.GetDim(2);
+        nSize = wStorageShape.GetDim(1);
+        kFromW = wStorageShape.GetDim(2);
     }
 
     // Validate K consistency between x and w
