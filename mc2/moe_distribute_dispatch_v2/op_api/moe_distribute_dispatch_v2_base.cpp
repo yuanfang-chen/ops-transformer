@@ -250,7 +250,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
             return ACLNN_ERR_INNER;
         }
-        mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint32_t>(tempBuffer);
+        mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
     }
     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
