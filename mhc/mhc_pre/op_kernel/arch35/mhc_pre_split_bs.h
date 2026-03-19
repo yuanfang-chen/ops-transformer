@@ -34,9 +34,9 @@ constexpr MicroAPI::CastTrait ctHalf2Fp32Zero = {MicroAPI::RegLayout::ZERO, Micr
                                                  MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
 constexpr MicroAPI::DivSpecificMode divMode = {MicroAPI::MaskMergeMode::ZEROING, true};
 
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32>;
-using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32, true>;
-using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32>;
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+using bT = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
+using cT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
 #endif  // MHC_PRE_COMMON_DEFINED
 
@@ -105,9 +105,9 @@ static constexpr uint32_t DEFAULT_V1_CHUNK_D_SIZE = 5120;
     MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask)
 
 template <class T, class P>
-class MhcPreKernelPrefill {
+class MhcPreKernelSplitBS {
 public:
-    __aicore__ inline MhcPreKernelPrefill(MT &matmul) : mm(matmul)
+    __aicore__ inline MhcPreKernelSplitBS(MT &matmul) : mm(matmul)
     {
     }
     __aicore__ inline void Init(InitParams initParams);
@@ -221,7 +221,7 @@ private:
 };
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::Init(InitParams initParams)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::Init(InitParams initParams)
 {
     BindGlobalTensors(initParams);
     InitFromTilingData(initParams.tilingData);
@@ -238,7 +238,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::Init(InitParams initParams)
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::BindGlobalTensors(InitParams initParams)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::BindGlobalTensors(InitParams initParams)
 {
     xGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.x));
     phiGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.phi));
@@ -254,7 +254,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::BindGlobalTensors(InitParams i
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitFromTilingData(const MhcPreTilingData *tilingData)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitFromTilingData(const MhcPreTilingData *tilingData)
 {
     tiling_ = tilingData;
     matrixInfo_.totalLength = tiling_->totalLength;
@@ -275,7 +275,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitFromTilingData(const MhcPr
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitMNConfig()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitMNConfig()
 {
     mnConfig_.m = matrixInfo_.totalLength;
     mnConfig_.n = matrixInfo_.fusionSize;
@@ -290,7 +290,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitMNConfig()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitHMixBuffer(InitParams initParams)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitHMixBuffer(InitParams initParams)
 {
     if (outFlag_) {
         hMixGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.h_mix));
@@ -302,7 +302,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitHMixBuffer(InitParams init
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitPipeAndCoreIdx(TPipe *pipe)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitPipeAndCoreIdx(TPipe *pipe)
 {
     pipe_ = pipe;
     coreIdx_ = GetBlockIdx();
@@ -310,7 +310,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitPipeAndCoreIdx(TPipe *pipe
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitUbBuffers()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitUbBuffers()
 {
     if ASCEND_IS_NOT_AIV {
         return;
@@ -345,7 +345,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitUbBuffers()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::Process()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::Process()
 {
     uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
 
@@ -399,7 +399,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::Process()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1GetHSliceOffset()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1GetHSliceOffset()
 {
     uint32_t offset1 = 0;
     uint32_t offset2 = 0;
@@ -423,7 +423,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1GetHSliceOffset()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::InitBlockParams(uint64_t curblock, uint32_t tBlockNum)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::InitBlockParams(uint64_t curblock, uint32_t tBlockNum)
 {
     globalOffsetM_ = curblock * chunTSize_;
     curSingleT_ = chunTSize_;
@@ -437,7 +437,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::InitBlockParams(uint64_t curbl
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AICProcess(uint32_t offsetNd, uint32_t outOffset)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AICProcess(uint32_t offsetNd, uint32_t outOffset)
 {
     if (offsetNd + mnConfig_.singleCoreK > mnConfig_.k) {
         mnConfig_.curSingleCoreK = mnConfig_.k - offsetNd;
@@ -455,7 +455,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AICProcess(uint32_t offsetNd, 
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VectorComputeOffset()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VectorComputeOffset()
 {
     uint64_t aliginSingleM = Ceil(curSingleT_ / 2, 8) * 8;
     vectorOffset_.singleCoreM = aliginSingleM < curSingleT_ ? aliginSingleM : curSingleT_;
@@ -471,7 +471,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VectorComputeOffset()
 
 template <class T, class P>
 template <bool hasGamma, bool isFirstND>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn,
                                                             __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize)
 {
     // 计算两种数据类型经32B对齐后的Size
@@ -522,7 +522,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV0ProcessXIn(__ubuf__ P *x
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean,
                                                                float normEps)
 {
     uint32_t nUbAligned = MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(P)));
@@ -547,7 +547,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV0ProcessInvRms(__ubuf__ P
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::V0Proluge(uint32_t curNdLen, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::V0Proluge(uint32_t curNdLen, uint32_t offsetNd)
 {
     for (uint32_t offsetM = vectorOffset_.offsetMStart; offsetM < vectorOffset_.offsetMEnd; offsetM += V0_BASE_T) {
         uint32_t curMLen = V0_BASE_T;
@@ -598,7 +598,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::V0Proluge(uint32_t curNdLen, u
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::V0PostProcess(uint32_t curblock, uint32_t tBlockNum)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::V0PostProcess(uint32_t curblock, uint32_t tBlockNum)
 {
     VFDoV0ProcessInvRms((__ubuf__ P *)invRmsUb_.GetPhyAddr(), vectorOffset_.singleCoreM, scaleMean_,
                         matrixInfo_.normEps);
@@ -606,7 +606,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::V0PostProcess(uint32_t curbloc
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1Process(uint64_t curBlock, uint64_t tBlockNum)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1Process(uint64_t curBlock, uint64_t tBlockNum)
 {
     if (vectorOffset_.singleCoreM <= 0) {
         return;
@@ -631,7 +631,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1Process(uint64_t curBlock,
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
 {
     auto hInDealBuf = inputBuff_;
     // x[t,n,d] hpre[t,n] -> h_in[t,d]
@@ -691,7 +691,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHIn(uint64_t offset
 
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
     uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
@@ -725,7 +725,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN4(__ubuf__
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
     uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
@@ -763,7 +763,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN6(__ubuf__
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T *xInAddr, __ubuf__ T *hinOutAddr,
                                                                  uint32_t lenD, uint32_t tIdx)
 {
     uint16_t dLoopCnt = (lenD + eleNumPerVf_ - 1) / eleNumPerVf_;
@@ -804,7 +804,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::VFDoV1ProcessHinForN8(__ubuf__
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset)
 {
     uint64_t offset = globalOffsetM_ + offsetT;
     uint64_t HMixOffset = 0;
@@ -886,7 +886,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1Prologue(uint64_t offsetT,
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT)
 {
     __ubuf__ P *hPreBuffAddr = (__ubuf__ P *)hPreBuff_.GetPhyAddr();
     uint32_t totalElem = lenT * N_;
@@ -919,7 +919,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHPre(uint64_t offse
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyOutHPre(uint64_t offset, uint32_t totalElem)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::DataCopyOutHPre(uint64_t offset, uint32_t totalElem)
 {
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(1);
@@ -932,7 +932,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyOutHPre(uint64_t offse
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT)
 {
     uint64_t offset = globalOffsetM_ + offsetT;
     LocalTensor<P> hPostOutLocal = outQueue_.AllocTensor<P>();
@@ -976,7 +976,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIV1ProcessHPost(uint64_t offs
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::AIVPreLoad()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::AIVPreLoad()
 {
     invRmsUb_ = invRmsOutQueue_.AllocTensor<P>();
     AIV1GetHSliceOffset();
@@ -996,7 +996,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::AIVPreLoad()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::BiasCopyIn()
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::BiasCopyIn()
 {
     LocalTensor<P> biasLocal = biasInQue_.AllocTensor<P>();
 
@@ -1012,7 +1012,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::BiasCopyIn()
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM,
                                                      uint32_t offsetNd)
 {
     DataCopyExtParams copyParams;
@@ -1031,7 +1031,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyX(uint32_t curMLen, ui
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd)
 {
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(1);
@@ -1049,7 +1049,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyGamma(uint32_t curNdLe
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::HMixCopyIn(uint64_t offset, uint64_t lenT)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::HMixCopyIn(uint64_t offset, uint64_t lenT)
 {
     LocalTensor<P> hMixLocal = xInQueue_.AllocTensor<P>();
 
@@ -1066,7 +1066,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::HMixCopyIn(uint64_t offset, ui
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM)
 {
     invRmsOutQueue_.EnQue<P>(invRmsUb_);
     invRmsUb_ = invRmsOutQueue_.DeQue<P>();
@@ -1083,7 +1083,7 @@ __aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyOutInvRmsUb(uint32_t c
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelPrefill<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen,
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen,
                                                                   uint32_t curNdLen, uint32_t offsetM,
                                                                   uint32_t offsetNd)
 {
