@@ -179,11 +179,11 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
             //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
         }
         else{
-            channelDesc[index-1].remoteRank = index;
-            channelDesc[index-1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-            channelDesc[index-1].notifyNum =3;
-            channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
-            channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
+            channelDesc[index - 1].remoteRank = index;
+            channelDesc[index - 1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+            channelDesc[index - 1].notifyNum = 3;
+            channelDesc[index - 1].localEndpoint = links->srcEndpointDesc;
+            channelDesc[index - 1].remoteEndpoint = links->dstEndpointDesc;
             //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
         }
     }
@@ -250,7 +250,10 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
             return ACLNN_ERR_INNER;
         }
+        OP_LOGD("PRINT CreatMc2Context buffersize:%ld",buffersize);
+        OP_LOGD("PRINT CreatMc2Context buffersize:%p",tempBuffer);
         mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
+        OP_LOGD("PRINT CreatMc2Context buffersize:%ld",mc2_context->epHcclBuffer_[index]);
     }
     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
