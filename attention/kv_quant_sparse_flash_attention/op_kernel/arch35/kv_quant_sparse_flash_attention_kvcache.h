@@ -75,7 +75,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
         } else {
             if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
                 actualS2Size = (sIdx == 0) ? actualSeqKvlenAddr[0] :
-                    actualSeqKvlenAddr[sIdx] - actualSeqKvlenAddr[sIdx - 1];;
+                    actualSeqKvlenAddr[sIdx] - actualSeqKvlenAddr[sIdx - 1];
             } else {
                 actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
                     actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
@@ -88,7 +88,6 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     runParam.actualS2Size = actualS2Size;
     runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
     runParam.preTokensPerBatch = runParam.actualS1Size;
-    runParam.preTokensPerBatch = Min(runParam.preTokensPerBatch, runParam.actualS1Size);
 
     CalculateQueryOffset<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, actualSeqQlenAddr);
 }
