@@ -31,40 +31,6 @@ namespace Compressor {
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 
-<<<<<<< HEAD
-=======
-struct LoopInfo {
-    uint32_t groupSize = 0U;
-    uint32_t groupNum = 0U;
-    uint32_t coreRowIdx = 0U;
-    uint32_t coreColIdx = 0U;
-    uint32_t dLoopIdx = 0U;
-    bool isCoreRowFirst = false;
-    bool isCoreRowLast = false;
-    bool isCoreLoopFirst = false;
-    bool isCoreLoopLast = false;
-};
-
-struct Vec1SplitInfo {
-    uint32_t dealSeqStartIdx = 0;
-    uint32_t dealSeqCnt = 0;
-    uint32_t dBaseSize = 0;
-    uint32_t vec1GroupSize = 0;
-    uint32_t vec1GroupNum = 0;
-    uint32_t dealTcNum = 0;
-    uint32_t dealBatchNum = 0;
-    uint32_t preDealBatchNum = 0;
-    uint32_t curBStart = 0;
-    uint32_t curSStart = 0;
-    uint32_t preCompressedCnt = 0;
-    uint32_t totalCompressedCnt = 0;
-    uint32_t tcSplitSize = 0;
-    uint32_t dSplitSize = 0;
-    uint32_t dLoopCount = 0;
-};
-
-
->>>>>>> 0b5afde7f2104b01e0055502f1c503b1cd19f181
 template <typename COMP>
 class CompressorBlockVectorPerf {
 public:
@@ -1367,7 +1333,6 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec1(const Vec1Ru
             splitInfo.dealTcNum +=
                 CeilDivT(startPos + seqLength, constInfo_.cmpRatio) - (startPos / constInfo_.cmpRatio);
             curLoopCompressedCnt += (startPos + seqLength) / constInfo_.cmpRatio - startPos / constInfo_.cmpRatio;
-<<<<<<< HEAD
         }
         for (uint32_t dLoopIdx = 0; dLoopIdx < splitInfo.dLoopCount; dLoopIdx++) {
             uint64_t dBaseOffset = baseOffset + dLoopIdx * splitInfo.dSplitSize;
@@ -1389,29 +1354,6 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec1(const Vec1Ru
                                   splitInfo.dSplitSize, splitInfo.dBaseSize, splitInfo.dealSeqStartIdx);
             }
         }
-=======
-        }
-        for (uint32_t dLoopIdx = 0; dLoopIdx < splitInfo.dLoopCount; dLoopIdx++) {
-            uint64_t dBaseOffset = baseOffset + dLoopIdx * splitInfo.dSplitSize;
-            loopInfo.dLoopIdx = dLoopIdx;
-
-            CopyInApe(apeUb, dBaseOffset, splitInfo.dSplitSize);
-
-            sliceIterator.Reset(splitInfo.curBStart, splitInfo.curSStart, 0U, 0U);
-            compressedCnt_ = splitInfo.preCompressedCnt;
-            for (uint32_t tcIdx = 0; tcIdx < splitInfo.dealTcNum; tcIdx += splitInfo.tcSplitSize) {
-                uint32_t actDealTcSize = min(splitInfo.tcSplitSize, splitInfo.dealTcNum - tcIdx);
-
-                loopInfo.isCoreLoopFirst = tcIdx == 0;
-                loopInfo.isCoreLoopLast = tcIdx + splitInfo.tcSplitSize >= splitInfo.dealTcNum;
-                // 处理单个切块
-                sliceIterator.SetNeedDealTcSize(actDealTcSize);
-                sliceIterator.SetDealedTcCnt(0U);
-                DealVec1BaseBlock(info, sliceIterator, loopInfo, baseOffset, dLoopIdx * splitInfo.dSplitSize,
-                                  splitInfo.dSplitSize, splitInfo.dBaseSize, splitInfo.dealSeqStartIdx);
-            }
-        }
->>>>>>> 0b5afde7f2104b01e0055502f1c503b1cd19f181
         inputQue1.FreeTensor(scoreUb);
         splitInfo.curBStart += curLoopBatchNum;
         splitInfo.dealSeqStartIdx += curLoopBatchNum * constInfo_.sSize;
