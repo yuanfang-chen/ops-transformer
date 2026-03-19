@@ -14,7 +14,6 @@
  * \brief
  */
 #include <algorithm>
-#include <iostream>
 
 #include "register/op_impl_registry.h"
 #include "log/log.h"
@@ -1362,39 +1361,33 @@ static ge::graphStatus XSingleYSeparated(gert::InferShapeContext* context,
 }
 
 static ge::graphStatus CheckShapeIfWeightNZ(gert::InferShapeContext* context, const GMMParamsInfo& paramsInfo, GMMAttrs& gmmAttrs) {
-    std::cout << "yangtao get in CheckShapeIfWeightNZ" << std::endl;
     if (paramsInfo.platform != PlatformID::ASCEND950) {
         return GRAPH_SUCCESS;
     }
-    std::cout << "=========1=======" << std::endl;
     auto weightDesc = context->GetDynamicInputDesc(GMM_INDEX_IN_WEIGHT, 0);
-    std::cout << "=========2=======" << std::endl;
     OP_CHECK_NULL_WITH_CONTEXT(context, weightDesc);
-    std::cout << "=========3=======" << std::endl;
     DataType weightDtype = weightDesc->GetDataType();
-    std::cout << "=========4=======" << std::endl;
     auto wFormat0 = static_cast<ge::Format>(ge::GetPrimaryFormat(weightDesc->GetStorageFormat()));
-    std::cout << "=========5=======" << std::endl;
     bool weightNzFlag_ = wFormat0 == ge::FORMAT_FRACTAL_NZ;
-    std::cout << "=========6=======" << std::endl;
-    std::cout << "weightNzFlag_: " << weightNzFlag_ << std::endl;
     if (weightNzFlag_) {
-        std::cout << "=========7=======" << std::endl;
-        uint64_t numInOneBlk = GMM_BLOCK_SIZE / std::max(1, GetSizeByDataType(weightDtype));
-        std::cout << "numInOneBlk: " << numInOneBlk << std::endl;
-        uint32_t i = 0;
+        size_t numInOneBlk = GMM_BLOCK_SIZE / std::max(1, GetSizeByDataType(weightDtype));
+        size_t i = 0;
         while (true) {
             const gert::Shape* weightShape = context->GetDynamicInputShape(GMM_INDEX_IN_WEIGHT, i++);
             if (weightShape == nullptr) { break; }
             OP_CHECK_NULL_WITH_CONTEXT(context, weightShape);
-            int64_t kValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 1 : 2));
-            int64_t nValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 2 : 1));
-            std::cout << "kValue: " << kValue << std::endl;
-            std::cout << "nValue: " << nValue << std::endl;
+            size_t kValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 1 : 2));
+            size_t nValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 2 : 1));
+            if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) {
+                OP_LOGE(context->GetNodeName(),
+                        "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
+                        "but n value is %zu, k value is %zu.", nValue, kValue);
+                return GRAPH_FAILED;
+            }
             OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
                         OP_LOGE(context->GetNodeName(),
                         "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-                        "but n value is %ld, k value is %ld.", nValue, kValue),
+                        "but n value is %zu, k value is %zu.", nValue, kValue),
                         return GRAPH_FAILED);
         }
     }

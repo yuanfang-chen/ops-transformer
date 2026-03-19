@@ -14,7 +14,6 @@
  */
 #include "grouped_no_quant_matmul_tiling.h"
 #include "../../../op_kernel/arch35/non_quant/grouped_matmul_tiling_key.h"
-#include <iostream>
 
 enum class GmmTrans {
     NoTrans = 0,
@@ -221,9 +220,13 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
             weightNDim_ = transposeWeight_ ? wDimNum - DIM_THREE : wDimNum - DIM_FOUR;
             nzFactor_ = transposeWeight_ ? BASIC_BLOCK_SIZE_16 : static_cast<int64_t>(c0);
         }
-        OP_CHECK_IF(CheckWeightNZShape(context, static_cast<int64_t>(c0)),
-                    OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid."),
-                    return false);
+        if (!CheckWeightNZShape(context, static_cast<int64_t>(c0))) {
+            OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid.");
+            return false;
+        }
+        // OP_CHECK_IF(CheckWeightNZShape(context, static_cast<int64_t>(c0)),
+        //             OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid."),
+        //             return false);
     }
 
     if (groupType_ == SPLIT_K) {
@@ -246,29 +249,20 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
 
 bool GroupedNoQuantMatmulTiling::CheckWeightNZShape(const gert::TilingContext *context, int64_t numInOneBlk)
 {
-    std::cout << "yangtao get in CheckWeightNZShape" << std::endl;
     OP_CHECK_IF(numInOneBlk <= 0, OP_LOGE(context->GetNodeName(), "the value of numInOneBlk is invalid, %ld", numInOneBlk), return false);
     uint32_t i = 0;
     while (true) {
         auto wTensor = context->GetDynamicInputTensor(INDEX_WEIGHT, i++);
         if (wTensor == nullptr) { break; }
         auto wShape = wTensor->GetOriginShape();
-    // int64_t lastDimValue = wShape.GetDim(wShape.GetDimNum() - DIM_ONE);
-    // int64_t secondLastDimValue = wShape.GetDim(wShape.GetDimNum() - DIM_TWO);
-    // OP_CHECK_IF((lastDimValue % numInOneBlk != 0 || secondLastDimValue % numInOneBlk != 0),
-    //            OP_LOGE(context->GetNodeName(),
-    //            "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-    //            "but actual last dim value is %ld, second last dim value is %ld.", lastDimValue, secondLastDimValue),
-    //            return false);
-        int64_t kValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 1 : 2));
-        int64_t nValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 2 : 1));
-        std::cout << "kValue: " << kValue << std::endl;
-        std::cout << "nValue: " << nValue << std::endl;
-        OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
-                    OP_LOGE(context->GetNodeName(),
-                    "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-                    "but n value is %ld, k value is %ld.", nValue, kValue),
-                    return false);
+        size_t kValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 1 : 2));
+        size_t nValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 2 : 1));
+        if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) { return false; }
+        // OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
+        //             OP_LOGE(context->GetNodeName(),
+        //             "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
+        //             "but n value is %ld, k value is %ld.", nValue, kValue),
+        //             return false);
     }
     return true;
 }
