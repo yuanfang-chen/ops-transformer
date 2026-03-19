@@ -203,11 +203,11 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         OP_CHECK_IF(cacheStride->GetDimNum() != DIM_3,
                     OP_LOGE(context_->GetNodeName(), "The number of dimensions in conv_states stride must be 3."),
                     return ge::GRAPH_FAILED);
-        cacheStride0 = cacheStride->GetStride(DIM_0);
-        cacheStride1 = cacheStride->GetStride(DIM_1);
+        cacheStride0_ = cacheStride->GetStride(DIM_0);
+        cacheStride1_ = cacheStride->GetStride(DIM_1);
     } else {
-        cacheStride0 = dim_ * stateLen_;
-        cacheStride1 = dim_;
+        cacheStride0_ = dim_ * stateLen_;
+        cacheStride1_ = dim_;
     }
 
     return ge::GRAPH_SUCCESS;
