@@ -101,6 +101,7 @@ public:
     int64_t keepProbUint8;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    uint8_t tndSoftmaxOut;
 
     // PFA
     uint8_t deqScaleFlag;  // 0: uint64  1: float32
@@ -284,6 +285,8 @@ public:
     void set_antiquantPerHeadFlag(uint16_t antiquantPerHeadFlagParam) {this->antiquantPerHeadFlag = antiquantPerHeadFlagParam;}
     uint32_t get_antiquantParaSeqSize() const {return antiquantParaSeqSize;}
     void set_antiquantParaSeqSize(uint32_t antiquantParaSeqSizeParam) {this->antiquantParaSeqSize = antiquantParaSeqSizeParam;}
+    uint8_t get_tndSoftmaxOut() const {return tndSoftmaxOut;}
+    void set_tndSoftmaxOut(uint8_t tndSoftmaxOutParam) {this->tndSoftmaxOut = tndSoftmaxOutParam;}
 };
 
 class MultiCoreParamsRegbase {
