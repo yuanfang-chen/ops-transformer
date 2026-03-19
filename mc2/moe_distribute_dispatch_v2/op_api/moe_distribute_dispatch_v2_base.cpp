@@ -125,6 +125,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
     OP_LOGD("PRINT HcomGetCommHandleByGroup success");
     OP_LOGD("PRINT hcclHandle end :%p",hcclHandle);
     ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+    OP_LOGD("PRINT HcclRankGraphGetLayers netLayers:%d",netLayerNum);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
         return ACLNN_ERR_INNER;
@@ -187,7 +188,9 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
             //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
         }
     }
-
+    for (uint32_t i =0 ;i<rankDim - 1;i++) {
+        OP_LOGD("PRINT HcclChannelAcquire index%d srcRankId %d channelDesc[%d].remoteRank:%d", i, srcRankId, channelDesc[i].remoteRank);
+    }
     ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim - 1, channeles.data());
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel get channel failed.");
@@ -203,7 +206,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     uint64_t ctxSize = sizeof(Mc2MoeContext);
     void * tempBuffer = nullptr;
     uint64_t buffersize = 0;
-    uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
+    uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0 TODO:
     HcclResult ret;
     aclnnStatus res;
     std::vector<ChannelHandle> channeles;
