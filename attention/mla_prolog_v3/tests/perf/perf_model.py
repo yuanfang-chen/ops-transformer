@@ -705,7 +705,94 @@ def _estimate_full_load(
 
 
 # ---------------------------------------------------------------------------
-# Cross-core K-split model (for MM2 with small N)
+# Generalized 2D split (N×K) model
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SplitKNSpec:
+    """2D core split: n_groups cores on N axis × k_groups cores on K axis."""
+    name: str
+    n_groups: int
+    k_groups: int
+    single_n: int        # N per N-group
+    single_k: int        # K per K-group
+
+    @property
+    def total_cores(self) -> int:
+        return self.n_groups * self.k_groups
+
+
+def estimate_matmul_split_kn(
+    name: str, M: int, K: int, N: int,
+    spec: SplitKNSpec,
+    hw: AscendHWSpec,
+    block: MatmulBlockSpec,
+    a_reused: bool,
+    vec_cores: int,
+    out_size: int = 2,
+) -> Tuple[MatMulTiming, VectorOpTiming]:
+    """Model matmul with 2D split: N-axis × K-axis across cores.
+
+    Cores are organized as (n_groups × k_groups) grid.
+    - n_groups cores split N: each handles single_n columns
+    - k_groups cores split K: each handles single_k of K reduction
+    - If k_groups > 1: FixPipe outputs float32, vector accumulates partial sums
+    - A matrix: within same K-group, n_groups cores share A slice (L2 reuse)
+    """
+    K_per_core = spec.single_k
+    N_per_core = spec.single_n
+    total_cores = spec.total_cores
+
+    # Cube: override block for reduced K and N, float output if K-split
+    c_size = 4 if spec.k_groups > 1 else out_size
+    block_kn = MatmulBlockSpec(
+        name, block.baseM, block.baseN, block.baseK, block.stepK,
+        mode="split_k",
+        dtype_a_size=block.dtype_a_size,
+        dtype_b_size=block.dtype_b_size,
+        dtype_c_size=c_size,
+    )
+    # Re-derive stepK for the reduced K
+    derived = derive_stepK(block_kn, K_per_core, hw, N_per_core, M=M)
+    if derived > 0:
+        block_kn.stepK = derived
+
+    # All total_cores contend on HBM, but within a K-group the n_groups cores
+    # share the same A slice via L2. Model: pass total_cores for contention,
+    # a_reused reflects cross-matmul reuse (e.g., MM2 reuses tokenX from MM1).
+    # Within a K-group, A is loaded once from HBM and reused via L2 by n_groups-1
+    # other cores. We model this by treating A as L2-reused when n_groups > 1.
+    a_is_l2 = a_reused or spec.n_groups > 1
+
+    cube_timing = estimate_matmul_detailed(
+        name, M, K_per_core, N_per_core * spec.n_groups,
+        active_cores=total_cores, hw=hw, block=block_kn, a_reused=a_is_l2,
+    )
+
+    # Vector accumulation (if k_groups > 1)
+    if spec.k_groups > 1:
+        # Per N-group: load k_groups partial sums, reduce, store
+        # All n_groups accumulations run in parallel on different vec cores
+        per_group_load = spec.k_groups * M * N_per_core * 4
+        per_group_compute = M * N_per_core * (spec.k_groups - 1)
+        per_group_store = M * N_per_core * out_size
+        # vec_cores shared across n_groups
+        cores_per_group = max(vec_cores // spec.n_groups, 1)
+        accum_timing = estimate_vector_op(
+            f"Accum{name.split('_')[0]}",
+            load_bytes=per_group_load,
+            compute_elements=per_group_compute,
+            store_bytes=per_group_store,
+            hw=hw, active_cores=cores_per_group,
+        )
+    else:
+        accum_timing = VectorOpTiming(name=f"Accum{name.split('_')[0]}")
+
+    return cube_timing, accum_timing
+
+
+# ---------------------------------------------------------------------------
+# Cross-core K-split model (for MM2 with small N) — legacy wrapper
 # ---------------------------------------------------------------------------
 
 def estimate_mm2_split_k_cross_core(
@@ -916,15 +1003,18 @@ class OperatorParams:
 
 
 def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
-                        block_specs=None, mm2_split_k_cores: int = 0):
+                        block_specs=None, mm2_split_k_cores: int = 0,
+                        mm1_split_kn: 'SplitKNSpec' = None,
+                        mm2_split_kn: 'SplitKNSpec' = None):
     """Estimate timing for all matmul and vector stages.
 
     When hw.has_cycle_spec is True, uses the detailed inner-loop model.
     Otherwise falls back to the chip-total estimate_matmul().
 
     Args:
-        mm2_split_k_cores: If > 0, use cross-core K-split for MM2 with this
-            many cores. Adds an "AccumCkvKr" vector stage for partial sum reduction.
+        mm2_split_k_cores: If > 0, use pure K-split for MM2 (legacy).
+        mm1_split_kn: If set, use 2D N×K split for MM1.
+        mm2_split_kn: If set, use 2D N×K split for MM2 (overrides mm2_split_k_cores).
     """
     T = tiling.step_batch_size
     He = params.He
@@ -947,13 +1037,32 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
 
     if use_detailed:
         # MM1: tokenX[T, He] x weightDq[He, Hcq] -> Cq[T, Hcq]
-        stages["MM1_Cq"] = estimate_matmul_detailed(
-            "MM1_Cq", T, He, Hcq,
-            active_cores=tiling.mm1_block_num,
-            hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
-        )
+        if mm1_split_kn and hw.has_cycle_spec:
+            cube_t, accum_t = estimate_matmul_split_kn(
+                "MM1_Cq", T, He, Hcq, mm1_split_kn,
+                hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
+                vec_cores=tiling.vector_block_num, out_size=out_size,
+            )
+            stages["MM1_Cq"] = cube_t
+            if accum_t.total_us > 0:
+                stages["AccumCq"] = accum_t
+        else:
+            stages["MM1_Cq"] = estimate_matmul_detailed(
+                "MM1_Cq", T, He, Hcq,
+                active_cores=tiling.mm1_block_num,
+                hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
+            )
         # MM2: tokenX reused from MM1 (L2 warm)
-        if mm2_split_k_cores > 0 and hw.has_cycle_spec:
+        if mm2_split_kn and hw.has_cycle_spec:
+            cube_t, accum_t = estimate_matmul_split_kn(
+                "MM2_CkvKr", T, He, Hckv + Dr, mm2_split_kn,
+                hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+                vec_cores=tiling.vector_block_num, out_size=out_size,
+            )
+            stages["MM2_CkvKr"] = cube_t
+            if accum_t.total_us > 0:
+                stages["AccumCkvKr"] = accum_t
+        elif mm2_split_k_cores > 0 and hw.has_cycle_spec:
             cube_t, accum_t = estimate_mm2_split_k_cross_core(
                 T, He, Hckv + Dr, mm2_split_k_cores,
                 hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,

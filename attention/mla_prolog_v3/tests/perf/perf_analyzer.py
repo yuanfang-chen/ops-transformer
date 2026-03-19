@@ -25,10 +25,12 @@ from perf_model import (
     AscendHWSpec, ASCEND_910B, ASCEND_950, CHIP_REGISTRY,
     OperatorParams, MatMulTiming, VectorOpTiming,
     estimate_all_stages, is_full_quant, is_int8_quant, is_mxfp8,
+    SplitKNSpec, get_default_block_specs,
 )
 from tiling_sim import (
     TilingConfig, compute_tiling, search_best_tiling,
     search_all_matmul_blocks, search_mm2_split_k,
+    search_split_kn, SplitKNResult,
 )
 from pipeline_model import (
     build_pipeline_dag, estimate_kernel_time, format_timeline, PipelineResult,
@@ -441,6 +443,52 @@ def mode_block_search(params: OperatorParams, tiling: TilingConfig, hw: AscendHW
                   f"baseM={b.baseM}, baseN={b.baseN}, baseK={b.baseK}, stepK={b.stepK}")
 
 
+def mode_split_kn(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
+    """Search 2D N×K split configs with full pipeline evaluation."""
+    print_header("2D SPLIT (N×K) SEARCH — Full Pipeline Evaluation")
+
+    if not hw.has_cycle_spec:
+        print("  Requires per-cycle HW spec. Use --chip 950.")
+        return
+
+    results = search_split_kn(params, tiling, hw)
+    if not results:
+        print("  No valid configurations found.")
+        return
+
+    baseline = next((r for r in results if r.label == "baseline"), results[-1])
+
+    # Summary header
+    print(f"  Parameters: T={tiling.step_batch_size}, He={params.He}, N={params.N}")
+    print(f"  Baseline pipeline: {baseline.pipeline_us:.2f} us "
+          f"(MM1={baseline.mm1_cube_us:.2f} MM2={baseline.mm2_cube_us:.2f} "
+          f"MM3={baseline.mm3_cube_us:.2f} MM4={baseline.mm4_cube_us:.2f})")
+    print()
+
+    # Full results table
+    header = (f"  {'Rank':>4} {'Config':<28} | {'Pipeline':>8} {'MM1':>7} {'MM2':>7} "
+              f"{'MM3':>7} {'MM4':>7} {'Accum':>7} | {'CubeUtil':>8} {'AIC':>7} {'AIV':>7}")
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+
+    for i, r in enumerate(results[:15], 1):
+        marker = " <--" if i == 1 else ""
+        accum = r.mm1_accum_us + r.mm2_accum_us
+        print(f"  {i:>4} {r.label:<28} | {r.pipeline_us:>7.2f} {r.mm1_cube_us:>6.2f} "
+              f"{r.mm2_cube_us:>6.2f} {r.mm3_cube_us:>6.2f} {r.mm4_cube_us:>6.2f} "
+              f"{accum:>6.2f} | {r.cube_utilization:>7.1%} {r.aic_busy_us:>6.2f} "
+              f"{r.aiv_busy_us:>6.2f}{marker}")
+
+    best = results[0]
+    if best.label != "baseline":
+        delta = baseline.pipeline_us - best.pipeline_us
+        pct = delta / baseline.pipeline_us * 100
+        print(f"\n  Best: {best.label} -> {best.pipeline_us:.2f} us "
+              f"(saves {delta:.2f} us / {pct:.1f}% vs baseline)")
+    else:
+        print(f"\n  Baseline is already optimal at {baseline.pipeline_us:.2f} us")
+
+
 def build_hw(args) -> AscendHWSpec:
     """Build hardware spec from CLI arguments."""
     import dataclasses
@@ -485,7 +533,7 @@ def main():
     # Analysis mode
     parser.add_argument("--mode", type=str, default="full",
                         choices=["bound", "pipeline", "estimate", "advice",
-                                 "search", "report", "roofline", "block-search", "full"],
+                                 "search", "report", "roofline", "block-search", "split-kn", "full"],
                         help="Analysis mode (default: full = all modes)")
 
     # Hardware
@@ -563,6 +611,7 @@ def main():
         "advice": mode_advice,
         "roofline": mode_roofline,
         "block-search": mode_block_search,
+        "split-kn": mode_split_kn,
     }
 
     if args.mode == "full":
@@ -572,6 +621,7 @@ def main():
         if hw.has_cycle_spec:
             mode_roofline(params, tiling, hw)
             mode_block_search(params, tiling, hw)
+            mode_split_kn(params, tiling, hw)
     else:
         modes[args.mode](params, tiling, hw)
 

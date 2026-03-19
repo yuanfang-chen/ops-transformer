@@ -123,9 +123,19 @@ def build_pipeline_dag(
         "aiv_wait_CQ", "AIV", sync_us,
         depends_on=["CopyInSinCos", "sync_signal_CQ"])
 
+    # If K-split is used for MM1, add vector accumulation before RmsNorm
+    has_accum_cq = "AccumCq" in stage_timings
+    if has_accum_cq:
+        stages["AccumCq"] = PipelineStage(
+            "AccumCq", "AIV", get_us("AccumCq"),
+            depends_on=["aiv_wait_CQ"])
+        rmsnorm_cq_dep = "AccumCq"
+    else:
+        rmsnorm_cq_dep = "aiv_wait_CQ"
+
     stages["RmsNormCq"] = PipelineStage(
         "RmsNormCq", "AIV", get_us("RmsNormCq"),
-        depends_on=["aiv_wait_CQ"])
+        depends_on=[rmsnorm_cq_dep])
 
     stages["sync_signal_RMSNORM_CQ"] = PipelineStage(
         "sync_signal_RMSNORM_CQ", "AIV", sync_us,
