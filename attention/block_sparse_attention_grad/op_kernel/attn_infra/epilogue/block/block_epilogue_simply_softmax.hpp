@@ -131,8 +131,6 @@ public:
     uint64_t n1 = 0; // q_n
     uint64_t transpseStride = 0;
 
-    // uint64_t s2 = 0;     // q_s 
-    uint64_t processNums = 0;
     uint64_t usedVecCoreNums = 0;
     uint64_t p16BaseBufLen = 0;
     uint64_t p32BaseBufLen = 0;
@@ -152,10 +150,11 @@ public:
     LocalTensor<float> lseTensor[STAGES];
     LocalTensor<float> lseBrocTensor[STAGES];
     LocalTensor<float> pFp32Tensor[STAGES];
-    LocalTensor<InputDType> pTensor[STAGES];
+    LocalTensor<InputDType> p16Tensor[STAGES];
     LocalTensor<float> dpFp32Tensor[STAGES];
     LocalTensor<float> softmaxGradTensor[STAGES];
     LocalTensor<float> dsTensor[STAGES];
+    LocalTensor<InputDType> ds16Tensor[STAGES];
 
     __aicore__ inline
     SimpltSoftmax(Params const &params)
@@ -185,7 +184,6 @@ public:
         scaleValue = tilingData->scaleValue;
 
         uint64_t s2 = ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch];
-        uint64_t curCoreProcessNum = params.processNums;
         uint64_t ubSize = tilingData->ubSize;
         uint64_t ubSizeEeachStage = ubSize  / STAGES / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE; // 32字节对齐
 
@@ -199,69 +197,40 @@ public:
         if (row <= 0) {
             return;
         }
-        processNums = row * col;
         if constexpr(INPUT_LAYOUT == TND) {
             transpseStride = (n1 * 1 - 1) * sizeof(float);
         } else if constexpr(INPUT_LAYOUT == BNSD){
             transpseStride = 0;
         }
-        // 默认 s2 > 8
-        // 计算 simply_softmax p32 = (exp(S - L)) buffer 大小 记得广播
-        // s 一份最大 128 * 128 float, p32 cast为p16
-        // 设S buffer 2x, l broc buffer 8 * 2x / s2, 则2x + 8 * 2x / s2 + x = 192*1024 / stage
-        // x 需保持32字节对齐
-        // 计算 ds = p * (dp - D)  buffer 大小
-        // 设D buffer 2y * 8 / s2, dp 为  2y, p 为 2y, 则2y *2 + y +  8 * 2y / s2 = 192*1024 / stage
-        // y 需要保持32字节对齐
-        //  x > y ? y : x 理论上要保持x = y 
-        // uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (3 + (float)8.0 / s2));
-        uint64_t xBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (3 + 16 / s2));
 
-        // 字节对齐
-        xBufferLen = (xBufferLen * BRCB_BASE_NUM) / s2 / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE * s2 / BRCB_BASE_NUM;
-        xBufferLen = xBufferLen / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE;
-        // uint64_t yBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (2 + (float)8.0 / s2));
+        // 分核 一个core 最大 128 * 128 一个vec 64 * 128
+        uint64_t sBufferLen = 64 * 128 * sizeof(float); // max
+        uint64_t lBufferLen = 64 * sizeof(float); // max
+        uint64_t lBrobBufferLen = BRCB_BASE_NUM * 64 * sizeof(float);  // max
+        uint64_t p32BufferLen = 64 * 128 * sizeof(float);
+        uint64_t dpBufLen = sBufferLen;
+        uint64_t p16BufLen = 64 * 128 * sizeof(InputDType);
+        uint64_t ds16BufLen = p16BufLen;
+        uint64_t dBufLen = BRCB_BASE_NUM * 64 * sizeof(float);
+        p16BaseBufLen = p16BufLen;
+        p32BaseBufLen = p32BufferLen;
 
-        uint64_t yBufferLen = static_cast<uint64_t>(ubSizeEeachStage / (5 + 16 / s2));
-        // 字节对齐
-        yBufferLen =  (BRCB_BASE_NUM * yBufferLen) / s2 / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE * s2 / BRCB_BASE_NUM;
-        xBufferLen = yBufferLen / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE;
-
-        p16BaseBufLen = xBufferLen > yBufferLen ? yBufferLen : xBufferLen;
-        // 保持8元素对齐
-        p16BaseBufLen = (p16BaseBufLen / (sizeof(float) / 2) / s2)  / BRCB_BASE_NUM * BRCB_BASE_NUM * s2 * (sizeof(float) / 2);
-
-        p32BaseBufLen = 2 * p16BaseBufLen;
-
-        // 空间大小计算
-        uint64_t sBufferLen = p32BaseBufLen;
-        uint64_t lBufferLen = p32BaseBufLen / s2;
-        uint64_t lBrobBufferLen = BRCB_BASE_NUM * p32BaseBufLen / s2; 
-        uint64_t p32BufferLen = p32BaseBufLen;
-        uint64_t dpBufLen = p32BaseBufLen;
-        uint64_t pBufLen = p32BaseBufLen;
-        uint64_t dBufLen = BRCB_BASE_NUM * p32BaseBufLen / s2;
-  
         for (uint64_t i = 0; i < STAGES; i++) {
-            uint64_t stageOffset = ubSizeEeachStage * i;
             // 第一轮 softmax 计算空间划分
-            sTensor[i] = resource.ubBuf.template GetBufferByByte<float>(stageOffset);
+            sTensor[i] = resource.ubBuf.template GetBufferByByte<float>((sBufferLen / 2) * i);
             pFp32Tensor[i] = sTensor[i]; // 复用s
-            lseTensor[i] = sTensor[i]; // 复用s
-            pTensor[i] = resource.ubBuf.template GetBufferByByte<InputDType>(sBufferLen + stageOffset);
-            lseBrocTensor[i] = resource.ubBuf.template GetBufferByByte<float>(sBufferLen + p16BaseBufLen + stageOffset);
+            lseTensor[i] = resource.ubBuf.template GetBufferByByte<float>((lBufferLen / 2) * i); // 复用s
+            p16Tensor[i] = resource.ubBuf.template GetBufferByByte<InputDType>(sBufferLen + (p16BufLen / 2) * i);
+            lseBrocTensor[i] = resource.ubBuf.template GetBufferByByte<float>(
+                sBufferLen + p16BufLen + (lBrobBufferLen / 2) * i);
 
             // 第二轮 ds 计算空间划分
             dpFp32Tensor[i] = 
-                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + p16BaseBufLen + stageOffset);
+                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + p16BufLen + (dpBufLen / 2) * i);
             softmaxGradTensor[i] = 
-                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + p16BaseBufLen + stageOffset + dpBufLen);
+                resource.ubBuf.template GetBufferByByte<float>(p32BufferLen + p16BufLen + dpBufLen + (dBufLen / 2) * i);
             dsTensor[i] = pFp32Tensor[i]; // 复用s
-        }
-
-        uint64_t coreOffset = 0; // ai core 的每个vectore 的偏移
-        if (vecCoreIdx % 2 != 0) {
-            coreOffset += (params.actualRow / 2 + params.actualRow % 2) * params.actualCol;
+            ds16Tensor[i] = p16Tensor[i]; // 复用p16
         }
 
         // 初始化 GM
@@ -299,9 +268,10 @@ public:
         
         // col <= 128
         // 计算单loop的计算量及loop次数
-        uint64_t eleBaseBuffNum = p32BaseBufLen / sizeof(float); // 基本buffer块的元素数量
+        uint64_t eleBaseBuffNum = p32BaseBufLen / STAGES / sizeof(float); // 基本buffer块的元素数量
         // uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
-        uint64_t bufferRows = eleBaseBuffNum / alignCol == 0 ? 1 :  eleBaseBuffNum / alignCol; // 一次lopp可以执行的row行数
+        // uint64_t bufferRows = eleBaseBuffNum / alignCol == 0 ? 1 :  eleBaseBuffNum / alignCol; // 一次lopp可以执行的row行数
+        uint64_t bufferRows = 64 / STAGES; // 一次lopp可以执行的最多row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
         uint64_t ping = 0;
@@ -312,7 +282,7 @@ public:
             uint64_t curS1 = curCoreS1Idx + i * bufferRows;
             int32_t gmRowOffset = i * bufferRows * col;
             compute(gmRowOffset, bufferRows, col, curS1, ping);
-            gmRowOffset += bufferRows * col;
+            // gmRowOffset += bufferRows * col;
       
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
@@ -325,9 +295,8 @@ public:
             uint64_t curS1 = curCoreS1Idx + rowLoopTimes * bufferRows;
             int32_t gmOffset =  rowLoopTimes * bufferRows * col;
             uint64_t tempRow = tailRowNum;
-            uint64_t tempCol = col;
-            compute(gmOffset, tempRow, tempCol, curS1, ping);
-            gmOffset += tempRow * tempCol;
+            compute(gmOffset, tempRow, col, curS1, ping);
+            // gmOffset += tempRow * col;
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
             }
@@ -337,8 +306,8 @@ public:
     __aicore__ inline
     void compute(int32_t gmOffset, uint64_t row, uint64_t col, uint64_t curS1, uint64_t ping)
     {
-        struct SimplySoftMaxInfo<InputDType> runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pFp32Tensor[ping], pTensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
-        struct CalDsInfo<InputDType> runDsInfo = {dpFp32Tensor[ping], softmaxGradTensor[ping], pFp32Tensor[ping], pTensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
+        struct SimplySoftMaxInfo<InputDType> runSftInfo = {sTensor[ping], lseTensor[ping], lseBrocTensor[ping], pFp32Tensor[ping], p16Tensor[ping], sGm[gmOffset], softmaxLseGm, pWorkspaceGm[gmOffset]};
+        struct CalDsInfo<InputDType> runDsInfo = {dpFp32Tensor[ping], softmaxGradTensor[ping], pFp32Tensor[ping], ds16Tensor[ping], dpGm[gmOffset], softGradworkspaceGm, dsWorkspaceGm[gmOffset]};
         SimplySoftmax(runSftInfo, row, col, curS1);
         CalDs(runDsInfo, row, col, curS1 );
     }
