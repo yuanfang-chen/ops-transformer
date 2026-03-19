@@ -14,32 +14,24 @@
  * \brief
  */
 
-#define Py_LIMITED_API_VERSION 0x03080000
 #include <Python.h>
-#include <ATen/Operators.h>
-#include <torch/all.h>
-#include <torch/library.h>
-#include "acl/acl.h"
 
-#include <vector>
-
-extern "C" {
-PyObject *PyInit__C(void)
+extern "C"
 {
-    static struct PyModuleDef module_def = {
-        PyModuleDef_HEAD_INIT, "_C", NULL, -1, NULL,
-    };
-    return PyModule_Create(&module_def);
+    /* Creates a dummy empty _C module that can be imported from Python.
+       The import from Python will load the .so consisting of this file
+       in this extension, so that the TORCH_LIBRARY static initializers
+       below are run. */
+    PyObject *PyInit__C(void)
+    {
+        static struct PyModuleDef module_def = {
+            PyModuleDef_HEAD_INIT,
+            "_C", /* name of module */
+            NULL, /* module documentation, may be NULL */
+            -1,   /* size of per-interpreter state of the module,
+                     or -1 if the module keeps state in global variables. */
+            NULL, /* methods */
+        };
+        return PyModule_Create(&module_def);
+    }
 }
-}
-
-namespace ascend_ops {
-
-TORCH_LIBRARY(ascend_ops, m)
-{
-    m.def("groupedmatmul(Tensor[] x, Tensor[] weight, Tensor[]? bias, Tensor[]? scale, Tensor[]? offset, Tensor[]? "
-          "antiquantScale, Tensor[]? antiquantOffset, Tensor? groupList, Tensor[]? perTokenScale, int splitItem, int "
-          "groupType, int groupListType, int actType,int[]? tuningConfigOptional) -> Tensor");
-}
-
-} // namespace ascend_ops
