@@ -83,8 +83,7 @@ public:
                 .DynamicRankSupportFlag(true)
                 .DynamicShapeSupportFlag(true)
                 .NeedCheckSupportFlag(false)
-                .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
-                .ExtendCfgInfo("opFile.value","mhc_pre_apt");
+                .ExtendCfgInfo("aclnnSupport.value", "support_aclnn");
         this->AICore().AddConfig("ascend950", aicConfig);
 
         this->Attr("out_flag").AttrType(OPTIONAL).Int(0);
