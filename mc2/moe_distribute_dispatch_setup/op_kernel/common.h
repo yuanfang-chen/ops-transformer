@@ -16,6 +16,7 @@
 #ifndef MC2_MOE_DISPATCH_COMM_H
 #define MC2_MOE_DISPATCH_COMM_H
 
+namespace Mc2Kernel{
 constexpr uint32_t NEED_ONE_HUNDRED_AND_TWENTY_SEVEN = 127;
 constexpr uint32_t RIGHT_SHIFT_BIT_7 = 7;
 constexpr uint32_t NEED_THIRTY_FIRST = 31;
@@ -28,6 +29,7 @@ constexpr uint32_t ALIGN_UP_TO_512 = 511;
 constexpr uint32_t RIGHT_SHIFT_BIT_5 = 5;
 constexpr uint32_t FIVE_HUNDRED_AND_ELEVEN = 511;
 constexpr uint32_t RIGHT_SHIFT_BIT_NINE = 9;
+}
 
 namespace AscendC {
 template <typename T1, typename T2>

@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_teardown.h
+ * \file moe_distribute_dispatch_teardown_arch35.h
  * \brief
  */
 
@@ -24,6 +24,16 @@
 #include "../../moe_distribute_combine_setup/op_kernel/moe_distribute_base.h"
 #endif
 #include "../moe_distribute_dispatch_teardown_tiling.h"
+#if __has_include("../../moe_distribute_dispatch_setup/common.h")
+#include "../../moe_distribute_dispatch_setup/common.h"
+#else
+#include "../../moe_distribute_dispatch_setup/op_kernel/common.h"
+#endif
+#if __has_include("../../common/inc/kernel/mc2_kernel_utils.h")
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
 
 namespace MoeDistributeDispatchTeardownImpl {
 constexpr uint8_t BUFFER_NUM = 2;       // 多buf
@@ -46,44 +56,6 @@ constexpr uint32_t STATIC_QUANT = 1;
 constexpr uint32_t PERTOKEN_DYNAMIC_QUANT = 2;
 constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
-
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
-
-template <typename T>
-__aicore__ inline T Ceil32(T x)
-{
-    return (x + NEED_THIRTY_FIRST) >> RIGHT_SHIFT_BIT_FIVE;
-}
-
-template <typename T>
-__aicore__ inline T Ceil128(T x)
-{
-    return (x + NEED_ONE_HUNDRED_AND_TWENTY_SEVEN) >> RIGHT_SHIFT_BIT_SEVEN;
-}
-
-template <typename T>
-__aicore__ inline T Align2(T x)
-{
-    return (x + ALIGN_UP_TO_2_MASK) & (~ALIGN_UP_TO_2_MASK);
-}
-
-template <typename T>
-__aicore__ inline T Align128(T x)
-{
-    return (x + ALIGN_UP_TO_128_MASK) & (~ALIGN_UP_TO_128_MASK);
-}
-
-template <typename T>
-__aicore__ inline T Align256(T x)
-{
-    return (x + ALIGN_UP_TO_256_MASK) & (~ALIGN_UP_TO_256_MASK);
-}
 
 #define TemplateMC2TypeClass                                                                               \
     typename XType, typename ExpandXOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsShareExpertRank

@@ -26,6 +26,11 @@
 #include "../../moe_distribute_dispatch_v2/op_kernel/quantize_functions.h"
 #endif
 #include "common.h"
+#if __has_include("../../common/inc/kernel/mc2_kernel_utils.h")
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
 
 #define FLOAT_OVERFLOW_MODE_CTRL 60
 namespace MoeDistributeDispatchSetupImpl {
@@ -61,14 +66,6 @@ struct BatchWriteItem {
     uint32_t dstAddrHigh;
     uint32_t res2[4];
 };
-
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeClass \
     typename XType, typename YOutType, int32_t QuantMode, bool IsSmoothScaleExist
