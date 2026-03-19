@@ -15,6 +15,27 @@ project(cann_ops-transformer)
 set(CMAKE_C_FLAGS_RELEASE "")
 set(CMAKE_CXX_FLAGS_RELEASE "")
 
+# 安全编译选项
+# 启用 Fortify Source 用于检测缓冲区溢出
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
+
+# 启用堆栈保护
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all")
+
+# 启用格式化字符串安全检查
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat-security")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat-security")
+
+# 启用位置独立执行(PIE)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIE")
+
+# 链接时启用 RELRO 保护
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro,-z,now")
+
 
 option(BUILD_OPEN_PROJECT         "Build open ascend ops project."  ON)
 option(BUILD_OPS_RTY_KERNEL       "Build return yellow kernel."     OFF)

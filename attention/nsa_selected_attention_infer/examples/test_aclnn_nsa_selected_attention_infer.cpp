@@ -166,8 +166,8 @@ int main(int argc, char **argv)
     int64_t sparseMod = 0;
     int64_t numHeads= static_cast<int64_t>(n2 * g);
     std::string sLayerOut = "BSND";
-    char layOut[sLayerOut.length()];
-    std::strcpy(layOut, sLayerOut.c_str());
+    char layOut[16] = {0};
+    strcpy_s(layOut, sizeof(layOut), sLayerOut.c_str());
 
     void *queryDeviceAddr = nullptr;
     void *keyDeviceAddr = nullptr;
