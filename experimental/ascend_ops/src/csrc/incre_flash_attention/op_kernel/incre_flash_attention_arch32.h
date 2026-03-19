@@ -28,7 +28,6 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
     wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
     copy_data_align64((uint8_t*)metadata, (__ubuf__ uint8_t *)metadata_in_ub, all_bytes);
 #endif
-
 }
 
 #define INVOKE_IFA_NO_KFC_DD_OP_IMPL(templateClass, ...)                                                               \
