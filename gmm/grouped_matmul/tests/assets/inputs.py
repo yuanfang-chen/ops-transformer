@@ -33,7 +33,7 @@ def grouped_matmul_inputs(x, weight, bias, scale, offset, antiquant_scale, antiq
     else:
         input_deq_scale = None
     
-    if len(per_token_scale) == 0
+    if len(per_token_scale) == 0:
         per_token_scale = None
 
 
