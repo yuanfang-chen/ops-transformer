@@ -83,7 +83,7 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     // MX场景下，通信数据的存储顺序是commX1Scale、commX1、transX1Scale_、transOut
     commX1ScaleGM1_ = workspaceGM;
     uint64_t x1ScaleLen = CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO *
-                  (uint64_t)mc2Tiling_.rankM * sizeof(AscendC::fp8_e8m0_t);
+                 (uint64_t)mc2Tiling_.rankM * sizeof(AscendC::fp8_e8m0_t);
     x1ScaleLen = CeilDiv(x1ScaleLen, ALIGN_NUM) * ALIGN_NUM; // 对齐
     commOutGM_ = workspaceGM + x1ScaleLen;
     transX1ScaleGM1_ = commOutGM_ + mc2Tiling_.commLen;

@@ -41,6 +41,7 @@ constexpr uint64_t MX_SCALE_BLOCK_N = 1;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
+constexpr uint64_t BIT_NUMBER = 1;
 class AllToAllMxQuantMatmulTilingBase : public AllToAllMatmulTilingBase {
     friend class AlltoAllMxQuantMatmulHelper;
 public:
