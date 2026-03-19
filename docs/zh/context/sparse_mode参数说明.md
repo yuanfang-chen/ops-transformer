@@ -159,7 +159,7 @@ sparseMode为9时，代表treeMask模式，用于推测解码（speculative deco
 - 下三角位置（s1>s2）：值为0或1，由树结构决定部分注意力关系。
 
 attenMask输入格式：
-- inputLayout为BSND或BNSD时：attenMask的shape为(B, S1, S1)，每个batch传入S1×S1大小的tree mask。
+- inputLayout为BSH、BSND或BNSD时：attenMask的shape为(B, S1, S1)，每个batch传入S1×S1大小的tree mask。
 
   ![原理图](../figures/sparsemode为9_BSND_BNSD示意图.png)
 
