@@ -277,7 +277,7 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
 
 // 临时判断是否为标卡4p形态(4卡，950)
 inline bool IsStandardCard4P(const uint32_t rankDim, const NpuArch npuArch) {
-    return ((rankDim == STANDARD_CARD_8P) && (npuArch == NpuArch::DAV_3510));
+    return ((rankDim == STANDARD_CARD_4P) && (npuArch == NpuArch::DAV_3510));
 }
 }  // namespace mc2tiling
 

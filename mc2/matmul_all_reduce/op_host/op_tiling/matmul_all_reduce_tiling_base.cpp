@@ -322,7 +322,8 @@ void MatmulAllReduceTilingBase::DoSplitMTiling()
     auto&& param = MutableRCSTilingData();
     bool isNotBatchOne = (args_.batchValue != 1ULL);
     bool is128Aligned = ((args_.orgMValue / args_.batchValue) & 127ULL) == 0; // 判断原始输入m是否128对齐,batch默认值为1
-    if (args_.enableSplitK || isKZero_ || (isPerBlock_ && isNotBatchOne && !is128Aligned) ||
+    printf("************* CHUGUOWEI no splitM for any shape");
+    if (true || args_.enableSplitK || isKZero_ || (isPerBlock_ && isNotBatchOne && !is128Aligned) ||
         ((scenario_ == AllReduceScenario::MXFP8) && isNotBatchOne) || 
         ((scenario_ == AllReduceScenario::MXFP4) && isNotBatchOne)) {
         tileMValue_ = args_.orgMValue;

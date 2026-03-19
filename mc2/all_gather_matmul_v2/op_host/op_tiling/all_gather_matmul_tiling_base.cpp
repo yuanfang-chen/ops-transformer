@@ -409,9 +409,11 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
         return ge::GRAPH_SUCCESS;
     }
     
-    OPS_LOG_I(opName_, "The result of formulaic tiling result does not meet the hccl restriction,"
+    printf("************* CHUGUOWEI The result of formulaic tiling result does not meet the hccl restriction,"
      " current splitting: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld]. start re-splitM.",
         tileMValue_, rcfCfg.tileCnt, tailMValue_, rcfCfg.tailCnt);
+
+    printf("************* CHUGUOWEI ge::GetSizeByDataType(args_.geAType) [%ld], args_.rankDim [%ld]", ge::GetSizeByDataType(args_.geAType), args_.rankDim);
     
     OP_TILING_CHECK((quantMmMode == mc2tiling::Mc2QuantMode::PERBLOCK_MODE),
         OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting, the size still exceeds 256MB."), 
@@ -420,7 +422,8 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
     uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * ge::GetSizeByDataType(args_.geAType) * args_.rankDim,
                             mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
     tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
-    rcfCfg.tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
+    uint64_t tileCntTmp = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
+    rcfCfg.tileCnt = tileCntTmp;
     rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
     tailMValue_ = rcfCfg.tailM;
     if (tailMValue_ == 0) {
@@ -428,10 +431,11 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
     } else {
         rcfCfg.tailCnt = 1;
     }
-    OPS_LOG_I(opName_, "Because the result of formulaic tiling result does not meet the hccl restriction,"
-     " the re-splitM result: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld]. end re-splitM.",
-        tileMValue_, rcfCfg.tileCnt, tailMValue_, rcfCfg.tailCnt);
-    return ge::GRAPH_SUCCESS;
+
+    printf("************* CHUGUOWEI Because the result of formulaic tiling result does not meet the hccl restriction,"
+     " the re-splitM result: minSplitPart [%ld], tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld]. end re-splitM.",
+        minSplitPart, tileMValue_, tileCntTmp, tailMValue_, rcfCfg.tailCnt);
+    return ge::GRAPH_FAILED;
 }
 
 // tiling
