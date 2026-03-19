@@ -1,12 +1,12 @@
 /**
- * This program is free software, you can redistribute it and/or modify it.
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file jacobi_tiling.cpp
@@ -27,7 +27,7 @@ using namespace AscendC;
 #define TO_CHAR(X) #X
 #define MIN(A, B) ((A)>(B))?(B):(A);
 #define MAX(A, B) ((A)<=(B))?(B):(A);
-// #define DEBUG_MODE
+
 #ifdef DEBUG_MODE
 #define PRINT_VAL(x) std::cout << #x << " = " << x << std::endl
 #else
@@ -241,53 +241,29 @@ ge::graphStatus JMTiling::InitMemInfo()
     jmData_.memInfo.vecReservedMemory = RESERVED_VECTOR_MEMORY_SIZE;
     uint32_t ubSize = jmData_.memInfo.ubSize;
     uint32_t nSize = jmData_.shapeInfo.nSize;
-    // uint32_t nSize = 1024;
-    uint32_t rowSize = nSize * sizeof(float);
-    bool isAlignedBy32Bytes = nSize <= MASK32_BYTES;
-    // uint8_t mask = (isAlignedBy32Bytes)?MASK32_BYTES:MASK256_BYTES;
-    uint8_t mask = MASK256_BYTES;
-    uint32_t numElemntsInRowAlignedUp = (((nSize + mask - 1) / mask) * mask);
-    uint8_t tailSize = nSize % mask;
-    uint8_t numRepeats = numElemntsInRowAlignedUp / mask;
-    uint32_t rowSizeAligned = numElemntsInRowAlignedUp * sizeof(float);
+    jmData_.memInfo.rowSize = nSize * sizeof(float);
+    jmData_.memInfo.nMaskSize = MASK256_BYTES;
+    jmData_.memInfo.nSizeAligned = (((nSize + jmData_.memInfo.nMaskSize - 1) / jmData_.memInfo.nMaskSize) * jmData_.memInfo.nMaskSize);
+    jmData_.memInfo.nTailSize = nSize % jmData_.memInfo.nMaskSize;
+    jmData_.memInfo.nRepeatsNum = jmData_.memInfo.nSizeAligned / jmData_.memInfo.nMaskSize;
+    jmData_.memInfo.rowSizeAligned = jmData_.memInfo.nSizeAligned * sizeof(float);
 
     uint32_t uNSize = jmData_.shapeInfo.uDim2;
-    uint32_t uRowSize = uNSize * sizeof(float);
-    uint32_t uNSizeAligned = (((uNSize + mask - 1) / mask) * mask);
-    uint8_t uNumRepeats = uNSizeAligned / mask;
-    uint32_t uRowSizeAligned = uNSizeAligned * sizeof(float);
-    uint8_t uTailSize = uNSize % mask;
+    jmData_.memInfo.uRowSize = uNSize * sizeof(float);
+    jmData_.memInfo.uNSizeAligned = (((uNSize + jmData_.memInfo.nMaskSize - 1) / jmData_.memInfo.nMaskSize) * jmData_.memInfo.nMaskSize);
+    jmData_.memInfo.uNumRepeats = jmData_.memInfo.uNSizeAligned / jmData_.memInfo.nMaskSize;
+    uint32_t uRowSizeAligned = jmData_.memInfo.uNSizeAligned * sizeof(float);
+    jmData_.memInfo.uTailSize = uNSize % jmData_.memInfo.nMaskSize;
 
-    uint32_t recordSize = nSize + uNSize;
-    uint32_t recordSizeAligned = numElemntsInRowAlignedUp + uNSizeAligned;
-    uint32_t recordASize = MAX(nSize, uNSize);
-    uint32_t recordASizeAligned = MAX(numElemntsInRowAlignedUp, uNSizeAligned);
-    uint32_t recordMemSize = recordSizeAligned * sizeof(float);
+    jmData_.memInfo.recordSize = nSize + uNSize;
+    jmData_.memInfo.recordSizeAligned = jmData_.memInfo.nSizeAligned + jmData_.memInfo.uNSizeAligned;
+    jmData_.memInfo.tmpRowSize = MAX(nSize, uNSize);
+    jmData_.memInfo.tmpRowSizeAligned = MAX(jmData_.memInfo.nSizeAligned, jmData_.memInfo.uNSizeAligned);
+    jmData_.memInfo.recordMemSize = jmData_.memInfo.recordSizeAligned * sizeof(float);
 
 
-    jmData_.memInfo.nSizeAligned = numElemntsInRowAlignedUp;
-    jmData_.memInfo.rowSize = rowSize;
-    jmData_.memInfo.rowSizeAligned = rowSizeAligned;
-
-    jmData_.memInfo.nMaskSize = mask;
-    jmData_.memInfo.nRepeatsNum = numRepeats;
-    jmData_.memInfo.nTailSize = tailSize;
-
-    jmData_.memInfo.uNSizeAligned = uNSizeAligned;
-    jmData_.memInfo.uRowSize = uRowSize;
-    jmData_.memInfo.rowSizeAligned = rowSizeAligned;
-    jmData_.memInfo.uNumRepeats = uNumRepeats;
-    jmData_.memInfo.uTailSize = uTailSize;
-    jmData_.memInfo.tmpRowSize = recordASize;
-    jmData_.memInfo.tmpRowSizeAligned = recordASizeAligned;
-
-    jmData_.memInfo.recordSize = recordSize;
-    jmData_.memInfo.recordSizeAligned = recordSizeAligned;
-    jmData_.memInfo.recordMemSize = recordMemSize;
-
-    jmData_.shapeInfo.vDim2Aligned = numElemntsInRowAlignedUp;
+    jmData_.shapeInfo.vDim2Aligned = jmData_.memInfo.nSizeAligned;
     jmData_.shapeInfo.uDim2Aligned = (((jmData_.shapeInfo.uDim2 + mask - 1) / mask) * mask);
-
 
     int bucketSize = (ubSize - RESERVED_VECTOR_MEMORY_SIZE) / (3 * recordMemSize + 2 * recordASizeAligned * sizeof(float) + 2 * mask * sizeof(float));
     PRINT_VAL(bucketSize);
@@ -386,10 +362,8 @@ ge::graphStatus JMTiling::DoTiling()
 
 ge::graphStatus TilingForJacobi(gert::TilingContext* context)
 {
-    // OPS_LOG_D(context->GetNodeName(), "TILING FINISHED SUCCESS FOR JACOBI!!!!");
     JMTiling jmTiling(context);
     return jmTiling.DoTiling();
-    //  return ge::GRAPH_SUCCESS;
 }
 
 // --------------------------Registering the Tiling and TilingPrepare Functions--------
