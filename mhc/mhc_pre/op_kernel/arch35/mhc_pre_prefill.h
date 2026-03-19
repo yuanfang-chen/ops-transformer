@@ -34,9 +34,9 @@ constexpr MicroAPI::CastTrait ctHalf2Fp32Zero = {MicroAPI::RegLayout::ZERO, Micr
                                                  MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
 constexpr MicroAPI::DivSpecificMode divMode = {MicroAPI::MaskMergeMode::ZEROING, true};
 
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
-using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
-using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32>;
+using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32, true>;
+using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
 #endif  // MHC_PRE_COMMON_DEFINED
 
