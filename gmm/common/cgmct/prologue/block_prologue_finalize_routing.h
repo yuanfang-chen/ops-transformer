@@ -174,6 +174,8 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
     // singleCount smaller than UB_INIT_REZO_LEN, just copy one time
     if (singleCount <= UB_INIT_REZO_LEN) {
         CopyOutShareInput(initWithZero_, baseOffset, singleCount);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
         return;
     }
     // once copy size
@@ -184,6 +186,8 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
         }
         CopyOutShareInput(initWithZero_, baseOffset + offset, ubOnceCopyLen);
     }
+    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
 }
 
 BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
