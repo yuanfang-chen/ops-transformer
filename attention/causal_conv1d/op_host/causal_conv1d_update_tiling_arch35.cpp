@@ -178,7 +178,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
                     OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
                     return ge::GRAPH_FAILED);
         
-        if (xInputMode_ = X_INPUT_3D) {
+        if (xInputMode_ == X_INPUT_3D) {
             OP_CHECK_IF(xStride->GetDimNum() != DIM_3,
                     OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 3."),
                     return ge::GRAPH_FAILED);
