@@ -24,7 +24,6 @@
 #include "opdev/op_dfx.h"
 #include "opdev/make_op_executor.h"
 #include "aclnn_allto_allv_quant_grouped_mat_mul.h"
-#include "allto_allv_quant_grouped_mat_mul_checker.h"
 
 namespace {
 using namespace op;
