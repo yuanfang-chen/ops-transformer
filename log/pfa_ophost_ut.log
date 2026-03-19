@@ -1,0 +1,340 @@
+json found in /home/j60100428/ops-transformer_0319/third_party/json, and not force rebuild cann third_party
+GTEST_INSTALL_PATH=/home/j60100428/ops-transformer_0319/third_party/gtest
+gtest found:TRUE
+gtest found in /home/j60100428/ops-transformer_0319/third_party/gtest, and not force rebuild cann third_party
+[2026-03-24 17:46:19] Warning: The current environment is configured for ascend910b, Please use Atlas A2 series hardware for optimal performance.
+[2026-03-24 17:46:20] ----------------------------------------------------------------
+[2026-03-24 17:46:20] Start to build ut
+[2026-03-24 17:46:20] -- The C compiler identification is GNU 9.4.0
+[2026-03-24 17:46:20] -- The CXX compiler identification is GNU 9.4.0
+[2026-03-24 17:46:20] -- Check for working C compiler: /usr/bin/cc
+[2026-03-24 17:46:21] -- Check for working C compiler: /usr/bin/cc -- works
+[2026-03-24 17:46:21] -- Detecting C compiler ABI info
+[2026-03-24 17:46:21] -- Detecting C compiler ABI info - done
+[2026-03-24 17:46:21] -- Detecting C compile features
+[2026-03-24 17:46:21] -- Detecting C compile features - done
+[2026-03-24 17:46:21] -- Check for working CXX compiler: /usr/bin/c++
+[2026-03-24 17:46:21] -- Check for working CXX compiler: /usr/bin/c++ -- works
+[2026-03-24 17:46:21] -- Detecting CXX compiler ABI info
+[2026-03-24 17:46:21] -- Detecting CXX compiler ABI info - done
+[2026-03-24 17:46:21] -- Detecting CXX compile features
+[2026-03-24 17:46:21] -- Detecting CXX compile features - done
+[2026-03-24 17:46:21] -- ASCEND_CANN_PACKAGE_PATH=/home/j60100428/Ascend_0318/cann-9.0.0
+[2026-03-24 17:46:21] -- compile project with library
+[2026-03-24 17:46:21] -- Find opbase source dir: /home/j60100428/ops-transformer_0319/third_party/opbase
+[2026-03-24 17:46:22] -- Found Python3: /root/miniconda3/envs/py38/bin/python3.8 (found version "3.8.20") found components: Interpreter 
+[2026-03-24 17:46:22] -- ENABLE_CCACHE=ON, CUSTOM_CCACHE=
+[2026-03-24 17:46:22] -- CCACHE_PROGRAM=CCACHE_PROGRAM-NOTFOUND
+[2026-03-24 17:46:22] -- ASCEND_COMPUTE_UNIT=ascend910b;
+[2026-03-24 17:46:22] -- ASCEND_OP_NAME=prompt_flash_attention
+[2026-03-24 17:46:22] -- TILING_KEY=
+[2026-03-24 17:46:22] -- TESTS_UT_OPS_TEST=prompt_flash_attention
+[2026-03-24 17:46:22] -- TESTS_EXAMPLE_OPS_TEST=
+[2026-03-24 17:46:22] -- CMAKE_BUILD_TYPE=Debug
+[2026-03-24 17:46:22] -- VERSION=
+[2026-03-24 17:46:22] -- CMAKE_CXX_COMPILER_ID=GNU
+[2026-03-24 17:46:22] -- Found json: /home/j60100428/ops-transformer_0319/third_party/json/include  
+[2026-03-24 17:46:22] -- Found gtest: /home/j60100428/ops-transformer_0319/third_party/gtest/include  
+[2026-03-24 17:46:22] -- Start building custom package.
+[2026-03-24 17:46:22] -- Search libs under install path /home/j60100428/Ascend_0318/cann-9.0.0
+[2026-03-24 17:46:22] -- CMAKE_MODULE_PATH            :/home/j60100428/ops-transformer_0319/cmake/modules;/home/j60100428/Ascend_0318/cann-9.0.0/include/ge/cmake
+[2026-03-24 17:46:22] -- compile option:  -O0 -g -Wall -Wextra -Wshadow -Wformat=2 -fno-common -fPIC -Wformat-signedness -Wno-missing-include-dirs -Wno-write-strings
+[2026-03-24 17:46:22] -- Found dlog: /home/j60100428/Ascend_0318/cann-9.0.0/pkg_inc/base  
+[2026-03-24 17:46:22] -- Transformer Variables in dlog module:
+[2026-03-24 17:46:22] -- dlog_TRANSFORMER_INCLUDE_DIR="/home/j60100428/Ascend_0318/cann-9.0.0/pkg_inc/base"
+[2026-03-24 17:46:22] -- dlog_SHARED_LIBRARY="/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] -- 
+[2026-03-24 17:46:22]  Properties for TARGET dlog:
+[2026-03-24 17:46:22]    dlog.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:46:22]    dlog.INTERFACE_LINK_LIBRARIES = "dlog_headers"
+[2026-03-24 17:46:22]    dlog.IMPORTED_LOCATION = "/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] 
+[2026-03-24 17:46:22] -- 
+[2026-03-24 17:46:22]  Properties for TARGET dlog_headers:
+[2026-03-24 17:46:22]    dlog_headers.INTERFACE_INCLUDE_DIRECTORIES = "/home/j60100428/Ascend_0318/cann-9.0.0/pkg_inc/base"
+[2026-03-24 17:46:22] 
+[2026-03-24 17:46:22] -- Found securec: /home/j60100428/Ascend_0318/cann-9.0.0/include  
+[2026-03-24 17:46:22] -- Found OPBASE: /home/j60100428/ops-transformer_0319/third_party/opbase/pkg_inc  
+[2026-03-24 17:46:22] -- Found OPABSE include:/home/j60100428/ops-transformer_0319/third_party/opbase/pkg_inc
+[2026-03-24 17:46:22] -- Found OPABSE lib:
+[2026-03-24 17:46:22] -- Found platform: /home/j60100428/Ascend_0318/cann-9.0.0/include  
+[2026-03-24 17:46:22] -- Found platform include:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:46:22] -- Found register library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libregister.so
+[2026-03-24 17:46:22] -- Found opp_registry library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libopp_registry.so
+[2026-03-24 17:46:22] -- Found exe_graph library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libexe_graph.so
+[2026-03-24 17:46:22] -- Found graph_base library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libgraph_base.so
+[2026-03-24 17:46:22] -- Found error_manager library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/liberror_manager.so
+[2026-03-24 17:46:22] -- Found metadef library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libmetadef.so
+[2026-03-24 17:46:22] -- Found rt2_registry library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/librt2_registry.a
+[2026-03-24 17:46:22] -- Found metadef: /home/j60100428/Ascend_0318/cann-9.0.0/include  
+[2026-03-24 17:46:22] -- Found source metadef include dir:  /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/exe_graph
+[2026-03-24 17:46:22] -- Found graph library:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libgraph.so
+[2026-03-24 17:46:22] -- Found source acl include dir:  /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:46:22] -- [transformer]Found source npuruntime include dir: /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/runtime
+[2026-03-24 17:46:22] -- Found aclnn include dir:  /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:46:22] -- Found opdev include dir:  /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/aclnn
+[2026-03-24 17:46:22] -- Found tilingapi include:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:46:22] -- TILINGAPI_INC_DIRS: /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc/include;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/lib;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/impl;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/tiling
+[2026-03-24 17:46:22] -- Found tilingapi lib:/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/lib64/libtiling_api.a
+[2026-03-24 17:46:22] -- Using AICPU include dirs: /home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/experiment;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/experiment/cce;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/experiment/msprof;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/common;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/cpu_proto;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/utils;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/aicpu_common/context;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/aicpu_common/context/common;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/aicpu_common/context/cpu_proto;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/aicpu_common/context/utils;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/experiment/datagw/aicpu/common;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/include/experiment/datagw/aicpu/common;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc;/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/pkg_inc/aicpu
+[2026-03-24 17:46:22] -- Finding gen es pkg
+[2026-03-24 17:46:22The eigen package needs to be downloaded.
+] -- [add_es_library] Module loaded from: /home/j60100428/Ascend_0318/cann-9.0.0/include/ge/cmake
+[2026-03-24 17:46:22] -- Downloading eigen from https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0-h0.trunk/eigen-5.0.0.tar.gz
+[2026-03-24 17:46:22] -- Could NOT find abseil-cpp (missing: ABSL_SOURCE_DIR) 
+[2026-03-24 17:46:22] -- [ThirdPartyLib][abseil-cpp] https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz not found, need download.
+[2026-03-24 17:46:22] -- Could NOT find ascend_protobuf_build_transformer (missing: ASCEND_PROTOBUF_SHARED_INCLUDE) 
+[2026-03-24 17:46:22] -- [ThirdPartyLib][ascend protobuf] ascend protobuf shared not found, finding binary file.
+[2026-03-24 17:46:22] -- [ThirdPartyLib][ascend protobuf] https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz not found, need download.
+[2026-03-24 17:46:22] -- Found alog: /home/j60100428/Ascend_0318/cann-9.0.0/include  
+[2026-03-24 17:46:22] -- Variables in alog module:
+[2026-03-24 17:46:22] -- alog_a_INCLUDE_DIR="/home/j60100428/Ascend_0318/cann-9.0.0/include"
+[2026-03-24 17:46:22] -- slog_a_SHARED_LIBRARY="/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] -- alog_a_SHARED_LIBRARY="/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] -- 
+[2026-03-24 17:46:22]  Properties for TARGET slog_a:
+[2026-03-24 17:46:22]    slog_a.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:46:22]    slog_a.INTERFACE_LINK_LIBRARIES = "alog_headers"
+[2026-03-24 17:46:22]    slog_a.IMPORTED_LOCATION = "/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] 
+[2026-03-24 17:46:22] -- 
+[2026-03-24 17:46:22]  Properties for TARGET alog_a:
+[2026-03-24 17:46:22]    alog_a.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:46:22]    alog_a.INTERFACE_LINK_LIBRARIES = "alog_headers"
+[2026-03-24 17:46:22]    alog_a.IMPORTED_LOCATION = "/home/j60100428/Ascend_0318/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:46:22] 
+[2026-03-24 17:46:22] -- 
+[2026-03-24 17:46:22]  Properties for TARGET alog_headers:
+[2026-03-24 17:46:22]    alog_headers.INTERFACE_INCLUDE_DIRECTORIES = "/home/j60100428/Ascend_0318/cann-9.0.0/include;/home/j60100428/Ascend_0318/cann-9.0.0/include/base"
+[2026-03-24 17:46:22] 
+[2026-03-24 17:46:22] -- Could NOT find unified_dlog (missing: _INCLUDE_ROOT_DIR) 
+[2026-03-24 17:46:23] -- === Debug: start ops.ops-transformer.attention.prompt_flash_attention.tests.CMakeLists.txt 
+[2026-03-24 17:46:23] -- === Debug: CURRENT_DIRS =CMakeLists.txt;st;ut 
+[2026-03-24 17:46:23] -- === Debug: CURRENT_DIRS =CMakeLists.txt;op_api;op_host 
+[2026-03-24 17:46:23] -- _OpsTestUt_UTestCaseLibraries      = .
+[2026-03-24 17:46:23] -- _OpsTestUt_UTestAclnnCaseLibraries = 
+[2026-03-24 17:46:23] -- _OpsTestUt_UTestCaseLibraries and _OpsTestUt_UTestAclnnCaseLibraries both empty.
+[2026-03-24 17:46:23] -- aicpu or host aicpu no need aclnn.
+[2026-03-24 17:46:23] -- Skip proto update: /home/j60100428/ops-transformer_0319/attention/prompt_flash_attention
+[2026-03-24 17:46:23] -- Start Generating es transformer for custom pkg
+[2026-03-24 17:46:23] -- Generated helper script: /home/j60100428/ops-transformer_0319/build/cmake/run_gen_esb_with_lock.sh
+[2026-03-24 17:46:23] -- _add_es_library_impl: EXCLUDE_OPS is not provided
+[2026-03-24 17:46:23] -- add_es_package: Using default output directory: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:46:23] -- add_es_package: OPP_PROTO_TARGET output directory: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:46:23] -- add_es_package: Derived ASCEND_OPP_PATH: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:46:23] --   - Created standard OPP path: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:46:23] -- _add_es_library_impl: gen_esb target not found, searching in environment...
+[2026-03-24 17:46:23] --     Found gen_esb in PATH (environment variables configured)
+[2026-03-24 17:46:23] --     - gen_esb path: /home/j60100428/Ascend_0318/cann-9.0.0/bin/gen_esb
+[2026-03-24 17:46:23] --     - library path: /home/j60100428/Ascend_0318/cann-9.0.0/lib64
+[2026-03-24 17:46:23] -- Using proto library path (derived from OPP_PROTO_TARGET): /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:46:23] -- add_es_package: Module name for gen_esb: transformer_cust
+[2026-03-24 17:46:23] -- [add_es_library] No history registry found at /home/j60100428/Ascend_0318/cann-9.0.0/opp/history_registry/transformer_cust, skipping
+[2026-03-24 17:46:23] -- Trying to locate eager_style_graph_builder_base library from run package...
+[2026-03-24 17:46:23] --   Found library in run package: /home/j60100428/Ascend_0318/cann-9.0.0/lib64/libeager_style_graph_builder_base.so
+[2026-03-24 17:46:23] -- Configuring ES package: es_transformer_cust
+[2026-03-24 17:46:23] --   - Exported target: es_transformer_cust (public interface)
+[2026-03-24 17:46:23] --   - Internal .obj target: es_transformer_cust_obj (compile once)
+[2026-03-24 17:46:23] --   - Internal .so target: es_transformer_cust_so
+[2026-03-24 17:46:23] --   - Internal .a target: es_transformer_cust_a
+[2026-03-24 17:46:23] --   - Module name (for gen_esb): transformer_cust
+[2026-03-24 17:46:23] --   - OPP proto target: proto_transformer_cust
+[2026-03-24 17:46:23] --   - OPP proto path: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:46:23] --   - Output path: /home/j60100428/ops-transformer_0319/build/es_packages
+[2026-03-24 17:46:23] --   - Library files: libes_transformer_cust.so, libes_transformer_cust.a
+[2026-03-24 17:46:23] --   - Python package: es_transformer_cust
+[2026-03-24 17:46:23] -- ES package 'es_transformer_cust' using single-file compilation mode
+[2026-03-24 17:46:23] --   - Wrapper file: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/generated_code/es_transformer_cust_all_in_one.cpp
+[2026-03-24 17:46:23] --   - Module name: transformer_cust
+[2026-03-24 17:46:23] -- add_es_library: Using default compile options: -fPIC;-Wall;-fstack-protector-all;-std=c++17;-D_GLIBCXX_USE_CXX11_ABI=0;-O2;-Wno-free-nonheap-object
+[2026-03-24 17:46:23] -- add_es_library: Set _GLIBCXX_USE_CXX11_ABI=0 for ABI compatibility
+[2026-03-24 17:46:23] -- add_es_library: Deduced header base path from cmake file: /home/j60100428/Ascend_0318/cann-9.0.0
+[2026-03-24 17:46:23] -- add_es_library: metadef_headers target not found, skipping
+[2026-03-24 17:46:23] -- add_es_library: Found c_sec target
+[2026-03-24 17:46:23] -- add_es_library: Linking with CANN libraries: c_sec
+[2026-03-24 17:46:23] -- add_es_package: 'build_es_transformer_cust' is the first ES package (will be built first)
+[2026-03-24 17:46:23] -- ES package 'es_transformer_cust' configured successfully (single-file mode):
+[2026-03-24 17:46:23] --   - Exported target (for linking): es_transformer_cust
+[2026-03-24 17:46:23] --   - Build target: build_es_transformer_cust
+[2026-03-24 17:46:23] --   - Wrapper file: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/generated_code/es_transformer_cust_all_in_one.cpp
+[2026-03-24 17:46:23] --   - Internal targets:
+[2026-03-24 17:46:23] --     * Code generation: generate_es_transformer_cust_code
+[2026-03-24 17:46:23] --     * Object library: es_transformer_cust_obj (compiled once)
+[2026-03-24 17:46:23] --     * Shared library: es_transformer_cust_so
+[2026-03-24 17:46:23] --     * Static library: es_transformer_cust_a
+[2026-03-24 17:46:23] --     * Wheel generation: generate_es_transformer_cust_whl
+[2026-03-24 17:46:23] --     * Install: install_es_transformer_cust
+[2026-03-24 17:46:23] --   - Library files: libes_transformer_cust.so, libes_transformer_cust.a
+[2026-03-24 17:46:23] --   - Python package: es_transformer_cust
+[2026-03-24 17:46:23] --   - ES base library: /home/j60100428/Ascend_0318/cann-9.0.0/lib64/libeager_style_graph_builder_base.so (from library)
+[2026-03-24 17:46:23] -- 
+[2026-03-24 17:46:23] -- Build mode: Single-file compilation (no reconfiguration needed)
+[2026-03-24 17:46:23] -- 
+[2026-03-24 17:46:23] -- Quick start:
+[2026-03-24 17:46:23] --   1. Link:    target_link_libraries(your_target PRIVATE es_transformer_cust)
+[2026-03-24 17:46:23] --   2. Build:   make your_target  (recommended, triggers automatically)
+[2026-03-24 17:46:23] -- 
+[2026-03-24 17:46:23] -- custom cust proto to es
+[2026-03-24 17:46:23] -- Detected architecture: x86_64
+[2026-03-24 17:46:23] -- End building custom package.
+[2026-03-24 17:46:23] -- create aclnn master header file: /home/j60100428/ops-transformer_0319/build/aclnn_ops_transformer_custom.h
+[2026-03-24 17:46:23] -- no operator info to generate
+[2026-03-24 17:46:23] -- Start building custom package.
+[2026-03-24 17:46:23] -- No aicpu json files to merge, skipping.
+[2026-03-24 17:46:23] -- No aicpu cust obj targets found, skipping.
+[2026-03-24 17:46:23] -- Configuring done
+[2026-03-24 17:46:23] -- Generating done
+[2026-03-24 17:46:23] -- Build files have been written to: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:46:23] ... transformer_op_host_ut
+[2026-03-24 17:46:23] Building target: transformer_op_host_ut.
+[2026-03-24 17:46:24] Scanning dependencies of target transformer_op_infershape_ut_cases_obj
+[2026-03-24 17:46:24] Scanning dependencies of target opbase_infer_objs
+[2026-03-24 17:46:24] Scanning dependencies of target softmax_tiling_ut_stub
+[2026-03-24 17:46:24] Scanning dependencies of target common_transformer_obj
+[2026-03-24 17:46:24] Scanning dependencies of target transformer_op_infershape_ut_common_obj
+[2026-03-24 17:46:24] Scanning dependencies of target transformer_op_tiling_ut_common_obj
+[2026-03-24 17:46:24] Scanning dependencies of target transformer_op_tiling_ut_cases_obj
+[2026-03-24 17:46:24] [  3%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_infershape_ut_cases_obj.dir/__/empty.cpp.o
+[2026-03-24 17:46:24] [  7%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/softmax_tiling_ut_stub.dir/__/__/__/tests/ut/framework_normal/common/softmax_tiling_mocker.cpp.o
+[2026-03-24 17:46:24] [ 11%] Building CXX object attention/common/op_host/CMakeFiles/opbase_infer_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/infershape_broadcast_util.cpp.o
+[2026-03-24 17:46:24] [ 11%] Building CXX object common/CMakeFiles/common_transformer_obj.dir/src/fallback_comm.cpp.o
+[2026-03-24 17:46:24] [ 14%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_infershape_ut_common_obj.dir/__/common/infer_datatype_context_faker.cpp.o
+[2026-03-24 17:46:24] [ 18%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_tiling_ut_common_obj.dir/__/common/tiling_case_executor.cpp.o
+[2026-03-24 17:46:24] [ 18%] Building CXX object attention/prompt_flash_attention/tests/ut/op_host/arch32/CMakeFiles/transformer_op_tiling_ut_cases_obj.dir/test_prompt_flash_attention_tiling.cpp.o
+[2026-03-24 17:46:24] Scanning dependencies of target ophost_transformer_tiling_obj
+[2026-03-24 17:46:24] [ 18%] Built target transformer_op_infershape_ut_cases_obj
+[2026-03-24 17:46:24] [ 22%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_infershape_ut_common_obj.dir/__/common/infer_shape_case_executor.cpp.o
+[2026-03-24 17:46:24] [ 25%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/fallback_prompt_flash_attention.cpp.o
+[2026-03-24 17:46:26] [ 25%] Linking CXX shared library libsoftmax_tiling_ut_stub.so
+[2026-03-24 17:46:27] [ 25%] Built target softmax_tiling_ut_stub
+[2026-03-24 17:46:27] [ 25%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/prompt_flash_attention_tiling.cpp.o
+[2026-03-24 17:46:28] [ 29%] Building CXX object common/CMakeFiles/common_transformer_obj.dir/src/fallback_comm_2stages.cpp.o
+[2026-03-24 17:46:28] [ 29%] Building CXX object attention/common/op_host/CMakeFiles/opbase_infer_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/infershape_elewise_util.cpp.o
+[2026-03-24 17:46:29] [ 29%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_infershape_ut_common_obj.dir/__/common/infer_shape_context_faker.cpp.o
+[2026-03-24 17:46:30] [ 33%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_infershape_ut_common_obj.dir/__/common/infer_shaperange_context_faker.cpp.o
+[2026-03-24 17:46:31] [ 37%] Building CXX object attention/common/op_host/CMakeFiles/opbase_infer_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/infershape_reduce_util.cpp.o
+[2026-03-24 17:46:31] [ 40%] Building CXX object common/CMakeFiles/common_transformer_obj.dir/src/tiling_base/tiling_util.cpp.o
+[2026-03-24 17:46:33] [ 44%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/prompt_flash_attention_tiling_arch38.cpp.o
+[2026-03-24 17:46:34] [ 44%] Built target opbase_infer_objs
+[2026-03-24 17:46:34] Scanning dependencies of target ophost_transformer_infer_obj
+[2026-03-24 17:46:34] [ 48%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_infer_obj.dir/prompt_flash_attention_infershape.cpp.o
+[2026-03-24 17:46:35] [ 48%] Built target common_transformer_obj
+[2026-03-24 17:46:35] Scanning dependencies of target opbase_util_objs
+[2026-03-24 17:46:35] [ 48%] Building CXX object attention/common/op_host/CMakeFiles/opbase_util_objs.dir/__/__/__/third_party/opbase/src/op_common/log/log.cpp.o
+[2026-03-24 17:46:35] [ 48%] Built target transformer_op_infershape_ut_common_obj
+[2026-03-24 17:46:35] Scanning dependencies of target opbase_tiling_objs
+[2026-03-24 17:46:35] [ 51%] Building CXX object attention/common/op_host/CMakeFiles/opbase_tiling_objs.dir/__/__/__/third_party/opbase/src/op_common/atvoss/broadcast/broadcast_tiling.cpp.o
+[2026-03-24 17:46:37] [ 55%] Building CXX object attention/common/op_host/CMakeFiles/opbase_util_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/util/fp16.cpp.o
+[2026-03-24 17:46:39] [ 59%] Building CXX object attention/common/op_host/CMakeFiles/opbase_util_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/util/math_util.cpp.o
+[2026-03-24 17:46:40] [ 59%] Building CXX object attention/common/op_host/CMakeFiles/opbase_util_objs.dir/__/__/__/third_party/opbase/src/op_common/op_host/util/shape_util.cpp.o
+[2026-03-24 17:46:40] [ 59%] Building CXX object attention/common/op_host/CMakeFiles/opbase_tiling_objs.dir/__/__/__/third_party/opbase/src/op_common/atvoss/broadcast/broadcast_tiling_base.cpp.o
+[2026-03-24 17:46:41] [ 59%] Built target opbase_util_objs
+[2026-03-24 17:46:41] Scanning dependencies of target transformer_op_infershape_ut_cases
+[2026-03-24 17:46:41] [ 59%] Linking CXX static library libtransformer_op_infershape_ut_cases.a
+[2026-03-24 17:46:42] [ 59%] Built target transformer_op_infershape_ut_cases
+[2026-03-24 17:46:42] [ 62%] Building CXX object attention/common/op_host/CMakeFiles/opbase_tiling_objs.dir/__/__/__/third_party/opbase/src/op_common/atvoss/broadcast/broadcast_tiling_noncontiguous.cpp.o
+[2026-03-24 17:46:42] [ 66%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_tiling_ut_common_obj.dir/__/common/tiling_context_faker.cpp.o
+[2026-03-24 17:46:43] [ 70%] Building CXX object attention/common/op_host/CMakeFiles/opbase_tiling_objs.dir/__/__/__/third_party/opbase/src/op_common/atvoss/elewise/elewise_tiling.cpp.o
+[2026-03-24 17:46:44] [ 70%] Built target transformer_op_tiling_ut_cases_obj
+[2026-03-24 17:46:44] [ 74%] Building CXX object attention/common/op_host/CMakeFiles/opbase_tiling_objs.dir/__/__/__/third_party/opbase/src/op_common/atvoss/reduce/reduce_tiling.cpp.o
+[2026-03-24 17:46:45] [ 74%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_infer_obj.dir/__/__/common/op_host/proto_stub.cpp.o
+[2026-03-24 17:46:45] [ 74%] Built target ophost_transformer_infer_obj
+[2026-03-24 17:46:45] [ 77%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/prompt_flash_attention_tiling_register.cpp.o
+[2026-03-24 17:46:46] [ 77%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/prompt_flash_attention_tiling_v2.cpp.o
+[2026-03-24 17:46:46] [ 77%] Built target transformer_op_tiling_ut_common_obj
+[2026-03-24 17:46:46] Scanning dependencies of target transformer_op_tiling_ut_cases
+[2026-03-24 17:46:46] [ 81%] Linking CXX static library libtransformer_op_tiling_ut_cases.a
+[2026-03-24 17:46:46] [ 81%] Built target transformer_op_tiling_ut_cases
+[2026-03-24 17:46:46] [ 85%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/__/__/common/op_host/fia_tiling_info.cpp.o
+[2026-03-24 17:46:48] [ 88%] Building CXX object attention/prompt_flash_attention/op_host/CMakeFiles/ophost_transformer_tiling_obj.dir/__/__/common/op_host/fia_tiling_shape.cpp.o
+[2026-03-24 17:46:51] [ 88%] Built target opbase_tiling_objs
+[2026-03-24 17:48:56] [ 88%] Built target ophost_transformer_tiling_obj
+[2026-03-24 17:48:56] Scanning dependencies of target ophost_transformer_ut
+[2026-03-24 17:48:56] [ 92%] Linking CXX shared library libophost_transformer_ut.so
+[2026-03-24 17:48:59] [ 92%] Built target ophost_transformer_ut
+[2026-03-24 17:48:59] Scanning dependencies of target transformer_op_host_ut
+[2026-03-24 17:48:59] [ 96%] Building CXX object tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_host_ut.dir/test_op_host_main.cpp.o
+[2026-03-24 17:49:04] [100%] Linking CXX executable transformer_op_host_ut
+[2026-03-24 17:49:06] Run ops op_host utest with asan
+[2026-03-24 17:49:06] [==========] Running 1 test from 1 test suite.
+[2026-03-24 17:49:06] [----------] Global test environment set-up.
+[2026-03-24 17:49:06] Global Environment SetpUp.
+[2026-03-24 17:49:06] 20260320 j60100428 ops-transformer OptionalInfos Init
+[2026-03-24 17:49:06] 20260320 j60100428 ops-transformer OptionalInfos SetSocVersion
+[2026-03-24 17:49:06] [----------] 1 test from PromptFlashAttentionTiling
+[2026-03-24 17:49:06] PromptFlashAttentionTiling SetUp
+[2026-03-24 17:49:06] [ RUN      ] PromptFlashAttentionTiling.PromptFlashAttention_910b_tiling_0
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.611.764 [task_fail_callback_data_manager.cc:93] 75471 TaskFailCallBackManager: Constructor.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.611.949 [xpu_task_fail_callback_data_manager.cc:59] 75471 XpuTaskFailCallBackManager: XpuTaskFailCallBackManager Constructor.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.616.459 [runtime_keeper.cc:184] 75471 CreateRuntimeImpl: Open libruntime_v100.so successfully
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.617.672 [stream_mem_pool.cc:380] 75471 ~PoolRegistry: SOMA PoolRegistry destructor.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.617.819 [runtime_adapt.cc:56] 75471 ~Runtime: runtime destructor.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.617.869 [runtime.cc:1369] 75471 WaitMonitorExit: wait monitor success, used count=0.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.622.816 [xpu_task_fail_callback_data_manager.cc:64] 75471 ~XpuTaskFailCallBackManager: XpuTaskFailCallBackManager Destructor.
+[2026-03-24 17:49:06] [INFO] RUNTIME(75471,transformer_op_host_ut):2026-03-24-17:49:06.625.406 [task_fail_callback_data_manager.cc:98] 75471 ~TaskFailCallBackManager: Destructor.
+[2026-03-24 17:49:06] [ERROR] FE(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.347 [platform_info.cpp:110]75471 LoadIniFile:Failed to open conf file, it does not exist or is already opened.
+[2026-03-24 17:49:06] [ERROR] FE(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.484 [platform_info.cpp:1169]75471 InitRuntimePlatformInfos:Failed to load ini file[/home/j60100428/Ascend_0318/cann-9.0.0/x86_64-linux/data/platform_config/UnknowSocType.ini].
+[2026-03-24 17:49:06] [ERROR] FE(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.589 [platform_info.cpp:1006]75471 GetPlatformInfos:Cannot find platform_info by SoCVersion UnknowSocType.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.623 [platform_ascendc.cpp:75][SocVersionStrMap] get platform failed, convertMap do not find soc  version
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.644 [platform_ascendc.cpp:525][PlatformAscendCInit] Invalid SocVersion.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.661 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.734 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.780 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.818 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.866 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.907 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.930 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.953 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.813.998 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.040 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.074 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.114 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.163 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.212 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.243 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.295 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.364 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.403 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.455 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.487 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.530 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.563 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.597 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.635 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.670 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.709 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.742 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.758 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.772 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.796 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.809 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:141][GetSoftMaxMinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] ASCENDCKERNEL(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.826 [../../../../impl/adv_api/tiling/activation/softmax_tiling.cpp:631][GetSoftMaxFlashV2MinTmpSize] Failed to get PlatformAscendC.
+[2026-03-24 17:49:06] [ERROR] OP(75471,transformer_op_host_ut):2026-03-24-17:49:06.814.838 [/home/j60100428/ops-transformer_0319/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling.cpp:6281][OPS_BASE][FindOptimalTilingSouter][75471] OpName:[PromptFlashAttention] cannot find valid sOuterFacmake[3]: *** [tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_host_ut.dir/build.make:104: tests/ut/framework_normal/op_host/transformer_op_host_ut] Error 1
+make[3]: *** Deleting file 'tests/ut/framework_normal/op_host/transformer_op_host_ut'
+make[2]: *** [CMakeFiles/Makefile2:2118: tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_host_ut.dir/all] Error 2
+make[1]: *** [CMakeFiles/Makefile2:2125: tests/ut/framework_normal/op_host/CMakeFiles/transformer_op_host_ut.dir/rule] Error 2
+make: *** [Makefile:862: transformer_op_host_ut] Error 2
+tor, sInnerFactor and softmaxSOuterFactor!
+[2026-03-24 17:49:06] [ERROR] OP(75471,transformer_op_host_ut):2026-03-24-17:49:06.854.653 [/home/j60100428/ops-transformer_0319/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling.cpp:6155][OPS_BASE][PromptFlashAttentionComputeCVDiffParams][75471] OpName:[PromptFlashAttention] FindOptimalTilingBasicBLock failed!
+[2026-03-24 17:49:06] [ERROR] OP(75471,transformer_op_host_ut):2026-03-24-17:49:06.854.857 [/home/j60100428/ops-transformer_0319/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling.cpp:6478][OPS_BASE][AdjustCVTilingCVDiff][75471] OpName:[PromptFlashAttention] PromptFlashAttentionComputeCVDiffParams failed!
+[2026-03-24 17:49:06] [ERROR] OP(75471,transformer_op_host_ut):2026-03-24-17:49:06.854.943 [/home/j60100428/ops-transformer_0319/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling.cpp:4975][OPS_BASE][RunBigKernelTilingWithParams][75471] OpName:[PromptFlashAttention] adjust tiling cv diff fail
+[2026-03-24 17:49:06] /home/j60100428/ops-transformer_0319/tests/ut/framework_normal/common/tiling_case_executor.cpp:311: Failure
+[2026-03-24 17:49:06] Expected equality of these values:
+[2026-03-24 17:49:06]   tilingRet
+[2026-03-24 17:49:06]     Which is: 4294967295
+[2026-03-24 17:49:06]   expectResult
+[2026-03-24 17:49:06]     Which is: 0
+[2026-03-24 17:49:06] 
+[2026-03-24 17:49:06] [  FAILED  ] PromptFlashAttentionTiling.PromptFlashAttention_910b_tiling_0 (250 ms)
+[2026-03-24 17:49:06] PromptFlashAttentionTiling TearDown
+[2026-03-24 17:49:06] [----------] 1 test from PromptFlashAttentionTiling (250 ms total)
+[2026-03-24 17:49:06] 
+[2026-03-24 17:49:06] [----------] Global test environment tear-down
+[2026-03-24 17:49:06] Global Environment TearDown
+[2026-03-24 17:49:06] [==========] 1 test from 1 test suite ran. (554 ms total)
+[2026-03-24 17:49:06] [  PASSED  ] 0 tests.
+[2026-03-24 17:49:06] [  FAILED  ] 1 test, listed below:
+[2026-03-24 17:49:06] [  FAILED  ] PromptFlashAttentionTiling.PromptFlashAttention_910b_tiling_0
+[2026-03-24 17:49:06] 
+[2026-03-24 17:49:06]  1 FAILED TEST
+[2026-03-24 17:49:06] [ERROR] Build failed for target: transformer_op_host_ut.
