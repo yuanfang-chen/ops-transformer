@@ -156,8 +156,7 @@ private:
     int64_t kernelSize_;     // 卷积核大小（K=3）
     int64_t cacheLen_;       // cache_state第二维
     int64_t xInputMode_;     // 输入模式：0=3D, 1=2D
-    int32_t xStride_;
-    int32_t cacheStride_;
+    int64_t xStride_;
 
     // ========== 运行时计算参数 ==========
     int32_t blockIdx_;           // 当前核的索引
@@ -168,8 +167,9 @@ private:
     int32_t dimOffset_;          // 当前核处理的Dim起始偏移（元素）
     int32_t coreDimLen_;     // 当前核处理的Dim大小
     int64_t hasAcceptTokenNum_;     // 是否提供了acceptTokenNum输入
-    int32_t dimSum_;
-    int32_t cacheLenSum_;
+    int64_t dimSum_;           //x每个token间的stride
+    int64_t cacheLenSum_;     //cache每个token间的stride
+    int64_t cacheBatchLenSum_;   //cache每个bacth间的stride
     int32_t batchNumInLoop_;
     int32_t dimSizeInLoop_;
     int32_t dimOffsetInLoop_;
@@ -211,8 +211,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     cacheLen_ = tilingData->stateLen;
     hasAcceptTokenNum_ = tilingData->hasAcceptTokenNum;
     xInputMode_ = tilingData->xInputMode;
-    xStride_ = tilingData->xStride;
-    cacheStride_ = tilingData->cacheStride;
+    xStride_ = tilingData->xStride;  
     isresidualConnection_ = tilingData ->residualConnection;
 
     // === 当前核的ub循环的参数 ===
@@ -251,8 +250,8 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 
     // === 完整的dim和cacheLen的大小 ===
     dimSum_ = dim_ + xStride_;
-    cacheLenSum_ = dim_ + cacheStride_;
-    
+    cacheLenSum_ = dim_ + tilingData->cacheStride1;
+    cacheBatchLenSum_ = cacheLen_ * cacheLenSum_ + tilingData->cacheStride0;    
 
     // === 7. 设置Global Memory buffers ===
     if(xInputMode_ == 0) {
@@ -422,7 +421,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             continue;
         }
         int32_t acceptToken = acceptTokenLocal.GetValue(curBatchIdx);
-        int32_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimOffsetInLoop_;
+        int32_t convStatesGmOffset = convStatesIdx * cacheBatchLenSum_ + dimOffset_ + dimOffsetInLoop_;
         
         // === 拷贝convStates数据：[, dimSizeInLoop] ===
         DataCopyParams cacheCopyParams;
@@ -488,7 +487,7 @@ template <typename T>
 __aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
     int32_t acceptToken, int32_t curBatchUbOffset, int64_t convStatesIdx, int32_t curBatchSeq)
 {
-    int64_t convStatesGmOffset = convStatesIdx * cacheLen_ * cacheLenSum_ + dimOffset_ + dimOffsetInLoop_;
+    int64_t convStatesGmOffset = convStatesIdx * cacheBatchLenSum_ + dimOffset_ + dimOffsetInLoop_;
     uint32_t blockLen = dimSizeInLoop_ * sizeof(T);
     uint32_t dstStrideBytes = (cacheLenSum_ - dimSizeInLoop_) * sizeof(T);
     // === 步骤1：拷贝旧cache state的后cacheLen - seqLen_行（如果需要） ===
