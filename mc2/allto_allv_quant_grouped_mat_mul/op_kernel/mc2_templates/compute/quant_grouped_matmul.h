@@ -60,13 +60,21 @@ public:
 
         uint64_t permuteOutSize = tilingData_->isPermuteOut ? 0 : (a_ * h1_);
         // 将 permuteOutSize 对齐到 512 字节
-        const uint64_t tensorListSize = 512;
-        if (permuteOutSize % tensorListSize != 0) {
-            permuteOutSize = (permuteOutSize + tensorListSize - 1) & ~(tensorListSize - 1);
-        }
+        permuteOutSize = AlignTo512(permuteOutSize);
+        uint64_t permuteXScaleSize = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
+                Mc2QuantUtils::CeilDiv(a_ * h1_, static_cast<uint64_t>(Mc2QuantUtils::MXFP_DIVISOR_SIZE));
+        // permuteXScaleSize 对齐到512字节        
+        permuteXScaleSize = AlignTo512(permuteXScaleSize);       
         uint64_t groupListSize = sizeof(int64_t) * expertNumInOneRank_; // GMM计算所需的groupList GM空间大小
         if (isA2avGmmFlag) {
-            groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ : workspaceGM_ + permuteOutSize;
+            uint64_t offset = 0;
+            if (!tilingData_->isPermuteOut) {
+                offset += permuteOutSize;
+            }
+            if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+                offset += permuteXScaleSize;
+            }
+            groupListGm_ = workspaceGM_ + offset;
         } else {
             groupListGm_ = workspaceGM_;
         }

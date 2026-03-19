@@ -43,6 +43,14 @@ public:
                         offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
         commOutGm = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm);
+
+        // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用（待确认）
+        if IsFp8<DTYPE_GMM_X>() {
+            uint64_t commOutLen = AlignTo512((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1));
+            gmmxScalecommOutGM = workspaceGM + commOutLen;
+            scaleCommOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, 
+                        gmmxScaleGM, gmmxScalecommOutGM);
+        }
         if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe, isA2avGmmFlag);
@@ -59,9 +67,17 @@ public:
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Launch(expertIdx, 1);
+            // MXFP8量化：同时启动xscale的alltoallv
+            if IsFp8<DTYPE_GMM_X>() {
+                scaleCommOp.LaunchScale(expertIdx, 1);
+            }
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
+            // MXFP8量化：等待xscale的alltoallv完成
+            if IsFp8<DTYPE_GMM_X>() {
+                scaleCommOp.Wait(expertIdx);
+            }
             SyncAll<false>();
             computeOp.Process(expertIdx);
         }
@@ -78,9 +94,10 @@ protected:
 
 private:
     CommOpType commOp;
+    CommOpType scaleCommOp;  // xscale的通信操作
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
-    GM_ADDR commOutGm = nullptr;
+    GM_ADDR gmmxScaleCommOutGm = nullptr;
     const TilingDataType *tilingData_ = nullptr;
     uint32_t e_ = 0U;
 };
