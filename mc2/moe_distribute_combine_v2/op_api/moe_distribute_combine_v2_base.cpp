@@ -113,6 +113,16 @@ inline aclnnStatus CheckHccl(HcclResult res, aclnnStatus err, const char *msg)
 
 } // namespace
 
+namespace {
+constexpr CommEngine commEngine = CommEngine::COMM_ENGINE_AIV; // 默认AIV引擎
+std::string opName = "moe_distribute_combine_v2";
+bool isCcu = false;
+enum Mc2TopoType : uint32_t {
+    MC2_TOPO_AIV_DPU = 0,
+    MC2_TOPO_HOST_KFC = 1,
+};
+} // namespace
+
 bool CombineCheckNotNull(const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine,
                          const aclTensor* epSendCounts, const aclTensor* expertScales,
                          const char* groupEp, aclTensor* x)
@@ -229,7 +239,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
         res = HcclGetHcclBuffer(hcclHandle, &hcclBuffer, &hcclBuffSize);
         CHECK_HCCL(res, ACLNN_ERR_INNER, "Get HcclBuffer Failed.");
         if (mc2Context.epRankId < 1024) {
-            mc2Context.epHcclBuffer[mc2Context.epRankId] = (uint64_t)hcclBuffer;
+            mc2Context.epHcclBuffer_[mc2Context.epRankId] = (uint64_t)hcclBuffer;
         }
 
         uint32_t *netLayers = nullptr;
@@ -283,7 +293,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                 CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Get HcclBuffer Failed.");
                 uint32_t remoteRank = channelDesc[i].remoteRank;
                 if (remoteRank < 1024) {
-                    mc2Context.epHcclBuffer[remoteRank] = (uint64_t)bufAddr;
+                    mc2Context.epHcclBuffer_[remoteRank] = (uint64_t)bufAddr;
                 }
             }
         }
@@ -352,6 +362,7 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
 
     const aclTensor* performanceInfoOptionalCombineV2Temp = performanceInfoOptional;
+    const aclTensor *mc2Context = nullptr;
     const char* groupTpCombineV2Temp = groupTp;
     if (is910B) {
         groupTpCombineV2Temp = "";
@@ -386,7 +397,7 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
         CHECK_RET(res == ACLNN_SUCCESS, res);
         int64_t hcclTopoType = (topoType == Mc2TopoType::MC2_TOPO_AIV_DPU) ? Mc2TopoType::MC2_TOPO_AIV_DPU :
                                                                              Mc2TopoType::MC2_TOPO_HOST_KFC;
-        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV3GetWorkspaceSize(
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV3GetWorkspaceSize(
             mc2Context, expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales, tpSendCountsOptional, xActiveMaskOptional,
             activationScaleOptional, weightScaleOptional, groupListOptional, expandScalesOptional, sharedExpertXOptional,
             elasticInfoOptional, oriXOptional, constExpertAlpha1Optional, constExpertAlpha2Optional,
