@@ -8,25 +8,12 @@ import time
 import numpy as np
 import os
 import ascend_ops
-# import logging
-# import torch
-# torch._dynamo.reset()
-# torch._dynamo.config.verbose = True
-# torch._dynamo.config.suppress_errors = False
-# # 新版日志接口
-# torch._logging.set_logs(dynamo=logging.DEBUG)
 
 class Network(nn.Module):
     def __init__(self):
         super(Network, self).__init__()
 
     def forward(self, param: dict):
-        # for k,v in param.items():
-        #     if isinstance(v, torch.Tensor):
-        #         print(k, v.device, v.dtype, tuple(v.shape), type(v))
-        #     else:
-        #         print(k, type(v), v)
-        # return torch.ops.npu.npu_fused_infer_attention_score_v2(**param)
         return torch.ops.custom.npu_fused_infer_attention_score(**param)
 
 os.environ["ENABLE_ACLNN"] = "false"  
@@ -63,25 +50,6 @@ value_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloa
 
 scaleValue = 1 / (head_dim**0.5)
 m_tensor = ~torch.tril(torch.ones(2048, 2048, dtype=torch.bool)).unsqueeze(0).unsqueeze(0).npu()
-
-# if q_tensor is not None:
-#     torch._dynamo.mark_static(q_tensor)
-# if k_tensor is not None:
-#     torch._dynamo.mark_static(k_tensor)
-# if v_tensor is not None:
-#     torch._dynamo.mark_static(v_tensor)
-# if m_tensor is not None:
-#     torch._dynamo.mark_static(m_tensor)
-# if blockTable is not None:
-#     torch._dynamo.mark_static(blockTable)
-# if key_antiquant_scale is not None:
-#     torch._dynamo.mark_static(key_antiquant_scale)
-# if value_antiquant_scale is not None:
-#     torch._dynamo.mark_static(value_antiquant_scale)
-# if actualSeqLengthqs is not None:
-#     torch._dynamo.mark_static(actualSeqLengthqs)
-# if actualSeqLengthkvs is not None:
-#     torch._dynamo.mark_static(actualSeqLengthkvs)
 
 param = dict(
         query = q_tensor,
