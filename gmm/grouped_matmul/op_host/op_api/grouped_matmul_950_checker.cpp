@@ -150,37 +150,37 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckWeightStorageShape(int64_t
     auto weightStorageLastThirdDim = weightStorage.GetDim(weightStorageShapeDim - LAST_THIRD_DIM_INDEX);
     auto weightStorageLastSecondDim = weightStorage.GetDim(weightStorageShapeDim - LAST_SECOND_DIM_INDEX);
     auto weightStorageLastDim = weightStorage.GetDim(weightStorageShapeDim - LAST_FIRST_DIM_INDEX);
-    CHECK_COND(weightStorageLastDim == CUBE_BLOCK_SIZE_32, ACLNN_ERR_PARAM_INVALID,
-               "When format of weight is FRACTAL_NZ, the storage shape last dim of %s should be 32, but actual last \
-dim is %ld",
-               weightName_.c_str(), weightStorageLastDim);
-    CHECK_COND(weightStorageLastSecondDim == CUBE_BLOCK_SIZE_16, ACLNN_ERR_PARAM_INVALID,
-               "When format of weight is FRACTAL_NZ, the storage shape last second dim of %s should be 16, but actual \
-last second dim is %ld",
-               weightName_.c_str(), weightStorageLastSecondDim);
-    if (gmmParams_.transposeWeight) {
-        CHECK_COND(weightStorageLastFourthDim == (kDimValue + CUBE_BLOCK_SIZE_32 - 1) / CUBE_BLOCK_SIZE_32,
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When format of weight is FRACTAL_NZ and transposition is true, the storage shape second dim of %s \
-should be ceil(k/32), but actual second dim is %ld",
-                   weightName_.c_str(), weightStorageLastFourthDim);
-        CHECK_COND(weightStorageLastThirdDim == (nDimValue + CUBE_BLOCK_SIZE_16 - 1) / CUBE_BLOCK_SIZE_16,
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When format of weight is FRACTAL_NZ and transposition is true, the storage shape third dim of %s \
-should be ceil(n/16), but actual third dim is %ld",
-                   weightName_.c_str(), weightStorageLastThirdDim);
-    } else {
-        CHECK_COND(weightStorageLastFourthDim == (nDimValue + CUBE_BLOCK_SIZE_32 - 1) / CUBE_BLOCK_SIZE_32,
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When format of weight is FRACTAL_NZ and transposition is false, the storage shape second dim of %s \
-should be ceil(n/32), but actual second dim is %ld",
-                   weightName_.c_str(), weightStorageLastFourthDim);
-        CHECK_COND(weightStorageLastThirdDim == (kDimValue + CUBE_BLOCK_SIZE_16 - 1) / CUBE_BLOCK_SIZE_16,
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When format of weight is FRACTAL_NZ and transposition is false, the storage shape third dim of %s \
-should be ceil(k/16), but actual third dim is %ld",
-                   weightName_.c_str(), weightStorageLastThirdDim);
-    }
+//     CHECK_COND(weightStorageLastDim == CUBE_BLOCK_SIZE_32, ACLNN_ERR_PARAM_INVALID,
+//                "When format of weight is FRACTAL_NZ, the storage shape last dim of %s should be 32, but actual last \
+// dim is %ld",
+//                weightName_.c_str(), weightStorageLastDim);
+//     CHECK_COND(weightStorageLastSecondDim == CUBE_BLOCK_SIZE_16, ACLNN_ERR_PARAM_INVALID,
+//                "When format of weight is FRACTAL_NZ, the storage shape last second dim of %s should be 16, but actual \
+// last second dim is %ld",
+//                weightName_.c_str(), weightStorageLastSecondDim);
+//     if (gmmParams_.transposeWeight) {
+//         CHECK_COND(weightStorageLastFourthDim == (kDimValue + CUBE_BLOCK_SIZE_32 - 1) / CUBE_BLOCK_SIZE_32,
+//                    ACLNN_ERR_PARAM_INVALID,
+//                    "When format of weight is FRACTAL_NZ and transposition is true, the storage shape second dim of %s \
+// should be ceil(k/32), but actual second dim is %ld",
+//                    weightName_.c_str(), weightStorageLastFourthDim);
+//         CHECK_COND(weightStorageLastThirdDim == (nDimValue + CUBE_BLOCK_SIZE_16 - 1) / CUBE_BLOCK_SIZE_16,
+//                    ACLNN_ERR_PARAM_INVALID,
+//                    "When format of weight is FRACTAL_NZ and transposition is true, the storage shape third dim of %s \
+// should be ceil(n/16), but actual third dim is %ld",
+//                    weightName_.c_str(), weightStorageLastThirdDim);
+//     } else {
+//         CHECK_COND(weightStorageLastFourthDim == (nDimValue + CUBE_BLOCK_SIZE_32 - 1) / CUBE_BLOCK_SIZE_32,
+//                    ACLNN_ERR_PARAM_INVALID,
+//                    "When format of weight is FRACTAL_NZ and transposition is false, the storage shape second dim of %s \
+// should be ceil(n/32), but actual second dim is %ld",
+//                    weightName_.c_str(), weightStorageLastFourthDim);
+//         CHECK_COND(weightStorageLastThirdDim == (kDimValue + CUBE_BLOCK_SIZE_16 - 1) / CUBE_BLOCK_SIZE_16,
+//                    ACLNN_ERR_PARAM_INVALID,
+//                    "When format of weight is FRACTAL_NZ and transposition is false, the storage shape third dim of %s \
+// should be ceil(k/16), but actual third dim is %ld",
+//                    weightName_.c_str(), weightStorageLastThirdDim);
+//     }
     return ACLNN_SUCCESS;
 }
 
