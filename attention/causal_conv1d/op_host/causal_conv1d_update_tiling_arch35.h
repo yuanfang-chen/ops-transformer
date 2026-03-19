@@ -114,6 +114,7 @@ protected:
 private:
     // Tiling calculation functions
     int64_t CalculateLimitedCoreNum();
+    ge::graphStatus GetStrideInfo();
 
     // Helpers function for DoOpTiling
     ge::graphStatus ComputeInterCoreSplit();    //核间切分
@@ -150,6 +151,9 @@ private:
 
     // Attribute values
     int64_t activationMode_ = 0;
+    int64_t xStride_;     
+    int64_t cacheStride0_;
+    int64_t cacheStride1_;
     int64_t padSlotId_ = -1;
     int64_t runMode_ = 0;
     int64_t xInputMode_ = 0;            // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]

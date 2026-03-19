@@ -56,8 +56,9 @@ int64_t cuSeqLen;                 // Cumulative sequence length for 2D input
 int64_t dim;                      // Dimension size
 int64_t kernelSize;               // Kernel size K
 int64_t stateLen;                 // State length: second dimension of cacheState (K-1+m)
-int64_t xStride;                  // Stride for x tensor
-int64_t cacheStride;              // Stride for cacheState tensor
+int64_t xStride;                  // Stride for x tensor - seqLen
+int64_t cacheStride0;             // Stride for cacheState tensor - batch
+int64_t cacheStride1;             // Stride for cacheState tensor - stateLen
 int64_t padSlotId;               // padding batch which will not be calculated
 int64_t xInputMode;               // Input mode: 0 for 3D 1 for 2D
 int64_t hasAcceptTokenNum;        // Whether acceptTokenNum input is provided: 0 for false, 1 for true
