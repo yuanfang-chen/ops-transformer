@@ -2032,14 +2032,15 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
         return ge::GRAPH_FAILED);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE + info.moeExpertNum * sizeof(uint32_t) * 2U; // SYSTEM_NEED_WORKSPACE + userWorkspaceSize
+    // SYSTEM_NEED_WORKSPACE + userWorkspaceSize
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + static_cast<size_t>(info.moeExpertNum * sizeof(uint32_t) * 2U);
 
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
     auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
     std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, 18, algConfig); // opType=18
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(18), algConfig); // opType=18
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
         OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
@@ -2092,82 +2093,82 @@ ge::graphStatus MoeDistributeCombineV2TilingFuncNew(gert::TilingContext* context
     return ret;
 }
 
-void MoeDistributeCombineV2ConfigIndexSet(CombineV2Config& config)
+static void MoeDistributeCombineV2ConfigIndexSet(CombineV2Config& config)
 {
-    config.tpSendCountsIndex = 5; // 根据combineV2算子原型标志位设置tpSendCounts索引为5
-    config.xActiveMaskIndex = 6; // 根据combineV2算子原型标志位设置xActiveMask索引为6
-    config.activationScaleIndex = 7; // 根据combineV2算子原型标志位设置activationScale索引为7
-    config.weightScaleIndex = 8; // 根据combineV2算子原型标志位设置weightScale索引为8
-    config.groupListIndex = 9; // 根据combineV2算子原型标志位设置groupList索引为9
-    config.sharedExpertXIndex = 11; // 根据combineV2算子原型标志位设置sharedExpertX索引为11
-    config.elasticInfoIndex = 12; // 根据combineV2算子原型标志位设置elasticInfo索引为12
-    config.oriXIndex = 13; // 根据combineV2算子原型标志位设置oriX索引为13
+    config.tpSendCountsIndex = 5;       // 根据combineV2算子原型标志位设置tpSendCounts索引为5
+    config.xActiveMaskIndex = 6;        // 根据combineV2算子原型标志位设置xActiveMask索引为6
+    config.activationScaleIndex = 7;    // 根据combineV2算子原型标志位设置activationScale索引为7
+    config.weightScaleIndex = 8;        // 根据combineV2算子原型标志位设置weightScale索引为8
+    config.groupListIndex = 9;          // 根据combineV2算子原型标志位设置groupList索引为9
+    config.sharedExpertXIndex = 11;     // 根据combineV2算子原型标志位设置sharedExpertX索引为11
+    config.elasticInfoIndex = 12;       // 根据combineV2算子原型标志位设置elasticInfo索引为12
+    config.oriXIndex = 13;              // 根据combineV2算子原型标志位设置oriX索引为13
     config.constExpertAlpha1Index = 14; // 根据combineV2算子原型标志位设置constExpertAlpha1索引为14
     config.constExpertAlpha2Index = 15; // 根据combineV2算子原型标志位设置constExpertAlpha2索引为15
-    config.constExpertVIndex = 16; // 根据combineV2算子原型标志位设置constExpertV索引为16
-    config.performanceInfoIndex = 17; // 根据combineV2算子原型标志位设置performanceInfo索引为17
-    config.outputXIndex = 0; // 根据combineV2算子原型标志位设置outputX索引为0
-    config.attrGroupEpIndex = 0;  // 0: 根据combineV2算子原型标志位初始化groupEp索引
-    config.attrEpWorldSizeIndex = 1;  // 1: 根据combineV2算子原型标志位初始化epWorldSize索引
-    config.attrEpRankIdIndex = 2; // 2: 根据combineV2算子原型标志位初始化epRankId索引
-    config.attrMoeExpertNumIndex = 3; // 3: 根据combineV2算子原型标志位初始化moeExpertNum索引
-    config.attrGroupTpIndex = 4; // 4: 根据combineV2算子原型标志位初始化attrGroupTpIndex索引
-    config.attrTpWorldSizeIndex = 5; // 5: 根据combineV2算子原型标志位初始化attrTpWorldSizeIndex索引
-    config.attrTpRankIdIndex = 6; // 6: 根据combineV2算子原型标志位初始化attrTpRankIdIndex索引
-    config.attrExpertSharedTypeIndex = 7; // 7: 根据combineV2算子原型标志位初始化attrExpertSharedTypeIndex索引
-    config.attrSharedExpertNumIndex = 8; // 8: 根据combineV2算子原型标志位初始化attrSharedExpertNumIndex索引
-    config.attrSharedExpertRankNumIndex = 9; // 9: 根据combineV2算子原型标志位初始化attrSharedExpertRankNumIndex索引
-    config.attrGlobalBsIndex  = 10; // 10: 根据combineV2算子原型标志位初始化attrGlobalBsIndex索引
-    config.attrOutDTypeIndex = 11; // 11: 根据combineV2算子原型标志位初始化attrOutDTypeIndex索引
-    config.attrCommQuantModeIndex = 12; // 12: 根据combineV2算子原型标志位初始化attrCommQuantModeIndex索引
-    config.attrGroupListTypeIndex = 13; // 13: 根据combineV2算子原型标志位初始化attrGroupListTypeIndex索引
-    config.attrCommAlgIndex = 14; // 14: 根据combineV2算子原型标志位初始化attrCommAlgIndex索引
-    config.attrZeroExpertNumIndex = 15; // 根据combineV2算子原型标志位设置attrZeroExpertNum索引为15
-    config.attrCopyExpertNumIndex = 16; // 根据combineV2算子原型标志位设置attrCopyExpertNum索引为16
-    config.attrConstExpertNumIndex = 17; // 根据combineV2算子原型标志位设置attrConstExpertNum索引为17
+    config.constExpertVIndex = 16;      // 根据combineV2算子原型标志位设置constExpertV索引为16
+    config.performanceInfoIndex = 17;   // 根据combineV2算子原型标志位设置performanceInfo索引为17
+    config.outputXIndex = 0;            // 根据combineV2算子原型标志位设置outputX索引为0
+    config.attrGroupEpIndex = 0;             // 根据combineV2算子原型标志位初始化属性groupEp索引为0
+    config.attrEpWorldSizeIndex = 1;         // 根据combineV2算子原型标志位初始化属性epWorldSize索引为1
+    config.attrEpRankIdIndex = 2;            // 根据combineV2算子原型标志位初始化属性epRankId索引为2
+    config.attrMoeExpertNumIndex = 3;        // 根据combineV2算子原型标志位初始化属性moeExpertNum索引为3
+    config.attrGroupTpIndex = 4;             // 根据combineV2算子原型标志位初始化属性attrGroupTpIndex索引为4
+    config.attrTpWorldSizeIndex = 5;         // 根据combineV2算子原型标志位初始化属性attrTpWorldSizeIndex索引为5
+    config.attrTpRankIdIndex = 6;            // 根据combineV2算子原型标志位初始化属性attrTpRankIdIndex索引为6
+    config.attrExpertSharedTypeIndex = 7;    // 根据combineV2算子原型标志位初始化属性attrExpertSharedTypeIndex索引为7
+    config.attrSharedExpertNumIndex = 8;     // 根据combineV2算子原型标志位初始化属性attrSharedExpertNumIndex索引为8
+    config.attrSharedExpertRankNumIndex = 9; // 根据combineV2算子原型标志位初始化属性attrSharedExpertRankNumIndex索引为9
+    config.attrGlobalBsIndex  = 10;      // 根据combineV2算子原型标志位初始化属性attrGlobalBsIndex索引为10
+    config.attrOutDTypeIndex = 11;       // 根据combineV2算子原型标志位初始化属性attrOutDTypeIndex索引为11
+    config.attrCommQuantModeIndex = 12;  // 根据combineV2算子原型标志位初始化属性attrCommQuantModeIndex索引为12
+    config.attrGroupListTypeIndex = 13;  // 根据combineV2算子原型标志位初始化属性attrGroupListTypeIndex索引为13
+    config.attrCommAlgIndex = 14;        // 根据combineV2算子原型标志位初始化属性attrCommAlgIndex索引为14
+    config.attrZeroExpertNumIndex = 15;  // 根据combineV2算子原型标志位设置属性attrZeroExpertNum索引为15
+    config.attrCopyExpertNumIndex = 16;  // 根据combineV2算子原型标志位设置属性attrCopyExpertNum索引为16
+    config.attrConstExpertNumIndex = 17; // 根据combineV2算子原型标志位设置属性attrConstExpertNum索引为17
     config.hasAddRmsNorm = false;
 
     return;
 }
 
-void MoeDistributeCombineARNConfigIndexSet(CombineV2Config& config)
+static void MoeDistributeCombineARNConfigIndexSet(CombineV2Config& config)
 {
-    config.residualXIndex = 5; // 根据combineARN算子原型标志位设置residualX索引为5
-    config.gammaIndex = 6; // 根据combineARN算子原型标志位设置gamma索引为6
-    config.tpSendCountsIndex = 7; // 根据combineARN算子原型标志位设置tpSendCounts索引为7
-    config.xActiveMaskIndex = 8; // 根据combineARN算子原型标志位设置xActiveMask索引为8
+    config.residualXIndex = 5;       // 根据combineARN算子原型标志位设置residualX索引为5
+    config.gammaIndex = 6;           // 根据combineARN算子原型标志位设置gamma索引为6
+    config.tpSendCountsIndex = 7;    // 根据combineARN算子原型标志位设置tpSendCounts索引为7
+    config.xActiveMaskIndex = 8;     // 根据combineARN算子原型标志位设置xActiveMask索引为8
     config.activationScaleIndex = 9; // 根据combineARN算子原型标志位设置activationScale索引为9
-    config.weightScaleIndex = 10; // 根据combineARN算子原型标志位设置weightScale索引为10
-    config.groupListIndex = 11; // 根据combineARN算子原型标志位设置groupList索引为11
-    config.sharedExpertXIndex = 13; // 根据combineARN算子原型标志位设置sharedExpertX索引为13
-    config.elasticInfoIndex = 14; // 根据combineARN算子原型标志位设置elasticInfo索引为14
-    config.oriXIndex = 15; // 根据combineARN算子原型标志位设置oriX索引为15
+    config.weightScaleIndex = 10;    // 根据combineARN算子原型标志位设置weightScale索引为10
+    config.groupListIndex = 11;      // 根据combineARN算子原型标志位设置groupList索引为11
+    config.sharedExpertXIndex = 13;  // 根据combineARN算子原型标志位设置sharedExpertX索引为13
+    config.elasticInfoIndex = 14;    // 根据combineARN算子原型标志位设置elasticInfo索引为14
+    config.oriXIndex = 15;           // 根据combineARN算子原型标志位设置oriX索引为15
     config.constExpertAlpha1Index = 16; // 根据combineARN算子原型标志位设置constExpertAlpha1索引为16
     config.constExpertAlpha2Index = 17; // 根据combineARN算子原型标志位设置constExpertAlpha2索引为17
-    config.constExpertVIndex = 18; // 根据combineARN算子原型标志位设置constExpertV索引为18
-    config.performanceInfoIndex =19; // combineARN算子原型没有传入performanceInfoIndex设置虚拟索引为19
-    config.outputYIndex = 0; // 根据combineARN算子原型标志位设置outputY索引为0
-    config.outputRstdIndex = 1; // 根据combineARN算子原型标志位设置outputRstd索引为1
-    config.outputXIndex = 2; // 根据combineARN算子原型标志位设置outputX索引为2
-    config.attrGroupEpIndex = 0;  // 0: 根据combineV2算子原型标志位初始化groupEp索引
-    config.attrEpWorldSizeIndex = 1;  // 1: 根据combineV2算子原型标志位初始化epWorldSize索引
-    config.attrEpRankIdIndex = 2; // 2: 根据combineV2算子原型标志位初始化epRankId索引
-    config.attrMoeExpertNumIndex = 3; // 3: 根据combineV2算子原型标志位初始化moeExpertNum索引
-    config.attrGroupTpIndex = 4; // 4: 根据combineV2算子原型标志位初始化attrGroupTpIndex索引
-    config.attrTpWorldSizeIndex = 5; // 5: 根据combineV2算子原型标志位初始化attrTpWorldSizeIndex索引
-    config.attrTpRankIdIndex = 6; // 6: 根据combineV2算子原型标志位初始化attrTpRankIdIndex索引
-    config.attrExpertSharedTypeIndex = 7; // 7: 根据combineV2算子原型标志位初始化attrExpertSharedTypeIndex索引
-    config.attrSharedExpertNumIndex = 8; // 8: 根据combineV2算子原型标志位初始化attrSharedExpertNumIndex索引
-    config.attrSharedExpertRankNumIndex = 9; // 9: 根据combineV2算子原型标志位初始化attrSharedExpertRankNumIndex索引
-    config.attrGlobalBsIndex  = 10; // 10: 根据combineV2算子原型标志位初始化attrGlobalBsIndex索引
-    config.attrOutDTypeIndex = 11; // 11: 根据combineV2算子原型标志位初始化attrOutDTypeIndex索引
-    config.attrCommQuantModeIndex = 12; // 12: 根据combineV2算子原型标志位初始化attrCommQuantModeIndex索引
-    config.attrGroupListTypeIndex = 13; // 13: 根据combineV2算子原型标志位初始化attrGroupListTypeIndex索引
-    config.attrCommAlgIndex = 14; // 14: 根据combineV2算子原型标志位初始化attrCommAlgIndex索引
-    config.attrNormEpsIndex = 15; // 根据combineARN算子原型标志位设置attrNormEps索引为15
-    config.attrZeroExpertNumIndex = 16; // 根据combineARN算子原型标志位设置attrZeroExpertNum索引为16
-    config.attrCopyExpertNumIndex = 17; // 根据combineARN算子原型标志位设置attrCopyExpertNum索引为17
-    config.attrConstExpertNumIndex = 18; // 根据combineARN算子原型标志位设置attrConstExpertNum索引为18
+    config.constExpertVIndex = 18;      // 根据combineARN算子原型标志位设置constExpertV索引为18
+    config.performanceInfoIndex =19;     // combineARN算子原型没有传入performanceInfoIndex设置虚拟索引为19
+    config.outputYIndex = 0;         // 根据combineARN算子原型标志位设置outputY索引为0
+    config.outputRstdIndex = 1;      // 根据combineARN算子原型标志位设置outputRstd索引为1
+    config.outputXIndex = 2;         // 根据combineARN算子原型标志位设置outputX索引为2
+    config.attrGroupEpIndex = 0;      // 根据combineARN算子原型标志位初始化groupEp属性索引为0
+    config.attrEpWorldSizeIndex = 1;  // 根据combineARN算子原型标志位初始化epWorldSize属性索引为1
+    config.attrEpRankIdIndex = 2;     // 根据combineARN算子原型标志位初始化epRankId属性索引为2
+    config.attrMoeExpertNumIndex = 3; // 根据combineARN算子原型标志位初始化moeExpertNum属性索引为3
+    config.attrGroupTpIndex = 4;      // 根据combineARN算子原型标志位初始化attrGroupTpIndex属性索引为4
+    config.attrTpWorldSizeIndex = 5;  // 根据combineARN算子原型标志位初始化attrTpWorldSizeIndex属性索引为5
+    config.attrTpRankIdIndex = 6;         // 根据combineARN算子原型标志位初始化attrTpRankIdIndex属性索引为6
+    config.attrExpertSharedTypeIndex = 7; // 根据combineARN算子原型标志位初始化attrExpertSharedTypeIndex属性索引为7
+    config.attrSharedExpertNumIndex = 8;  // 根据combineARN算子原型标志位初始化attrSharedExpertNumIndex属性索引为8
+    config.attrSharedExpertRankNumIndex = 9; // 根据combineARN算子原型标志位初始化attrSharedExpertRankNumIndex属性索引为9
+    config.attrGlobalBsIndex  = 10;          // 根据combineARN算子原型标志位初始化attrGlobalBsIndex属性索引为10
+    config.attrOutDTypeIndex = 11;           // 根据combineARN算子原型标志位初始化attrOutDTypeIndex属性索引为11
+    config.attrCommQuantModeIndex = 12; // 根据combineARN算子原型标志位初始化attrCommQuantModeIndex属性索引为12
+    config.attrGroupListTypeIndex = 13; // 根据combineARN算子原型标志位初始化attrGroupListTypeIndex属性索引为13
+    config.attrCommAlgIndex = 14;        // 根据combineARN算子原型标志位初始化attrCommAlgIndex属性索引为14
+    config.attrNormEpsIndex = 15;        // 根据combineARN算子原型标志位设置attrNormEps属性索引为15
+    config.attrZeroExpertNumIndex = 16;  // 根据combineARN算子原型标志位设置attrZeroExpertNum属性索引为16
+    config.attrCopyExpertNumIndex = 17;  // 根据combineARN算子原型标志位设置attrCopyExpertNum属性索引为17
+    config.attrConstExpertNumIndex = 18; // 根据combineARN算子原型标志位设置attrConstExpertNum属性索引为18
     config.hasAddRmsNorm = true;
 
     return;
