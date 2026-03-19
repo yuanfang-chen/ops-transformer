@@ -582,6 +582,8 @@ public:
         uint32_t softmaxTmpSize = GetSoftMaxMinTmpSize(shape, td_->opInfo.get_vecCalcDTypeSize(), true);
         uint32_t dropoutTmpSize = GetDropOutMinTmpSize(shape, td_->opInfo.get_vecCalcDTypeSize(), true);
 
+        printf(" softmaxTmpSize :%d\n", softmaxTmpSize);
+
         return std::max(softmaxTmpSize, dropoutTmpSize);
     }
 
@@ -1109,6 +1111,8 @@ public:
             {td_->singleCoreParams.get_nIn() * td_->opInfo.get_g() * td_->opInfo.get_sQ(), td_->opInfo.get_sKVAlign()});
 
         int64_t softmaxTmpSize = GetSoftMaxMinTmpSize(softmaxShape, sizeof(float), true);
+
+        printf(" softmaxTmpSize :%d\n", softmaxTmpSize);
 
         auto softmaxGradShape = Shape({td_->singleCoreParams.get_nIn() * td_->opInfo.get_g() * td_->opInfo.get_sQ(),
                                        td_->singleCoreParams.get_splitedDAlign()});

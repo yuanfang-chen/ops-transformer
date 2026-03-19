@@ -448,6 +448,8 @@ bool FusedFloydAttentionGradTilingS1s2Bn2gs1s2::CheckFuzzyArgsLegal(uint32_t s1I
         ge::Shape({s1VecSize, (s2VSize + BOOL_BLOCK_NUMS - 1) / BOOL_BLOCK_NUMS * BOOL_BLOCK_NUMS});
     uint32_t softmaxTmpSize = AscendC::GetSoftMaxMinTmpSize(softmaxShape, fBaseParams.calTypeSize, true);
     uint32_t dropoutTmpSize = AscendC::GetDropOutMinTmpSize(dropoutShape, fBaseParams.calTypeSize, true);
+
+    printf(" softmaxTmpSize :%d\n", softmaxTmpSize);
     uint32_t selectWithBytesMaskTmpSize = 0;
     uint32_t minValue = 0;
     uint32_t maxValue = 0;
