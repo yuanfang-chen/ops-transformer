@@ -2244,6 +2244,16 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
     params.groupTensorOptional = uniqueExecutor->ConvertToTensor(params.groupListOptional, op::ToOpDataType(ACL_INT64));
   }
   auto perTokenScaleOptional = (*params.perTokenScaleOptional)[0]->IsEmpty() ? nullptr : (*params.perTokenScaleOptional)[0];
+  OP_LOGE(ACLNN_ERR_PARAM_INVALID, "(*params.perTokenScaleOptional)[0]->IsEmpty():%d", (*params.perTokenScaleOptional)[0]->IsEmpty());
+  if(perTokenScaleOptional != nullptr) {
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "perTokenScaleOptional is not nullptr, addr is %p", perTokenScaleOptional);
+      op::Shape perTokenScaleOptionalStorageShape = (*params.perTokenScaleOptional)[0]->GetStorageShape();
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "perTokenScaleOptionalStorageShape[0] is %d", perTokenScaleOptionalStorageShape[0]);
+      op::Shape perTokenScaleOptionalViewShape = (*params.perTokenScaleOptional)[0]->GetViewShape();
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "perTokenScaleOptionalViewShape[0] is %d", perTokenScaleOptionalViewShape[0]);
+    } else {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "perTokenScaleOptional is nullptr");
+  }
   // Invoke l0 operator GroupedMatmul for calculation.
   auto result = l0op::GroupedMatmul(params.x, params.weight, params.biasOptional, params.scaleOptional,
                   params.offsetOptional, params.antiquantScaleOptional, params.antiquantOffsetOptional,
