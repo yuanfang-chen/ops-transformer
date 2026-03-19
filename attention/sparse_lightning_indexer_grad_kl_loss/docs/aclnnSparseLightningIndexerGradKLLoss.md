@@ -176,7 +176,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
             <td>输入</td>
             <td>权重。</td>
             <td>-</td>
-            <td>FLOAT16、BFLOAT16</td>
+            <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
             <td>(B,S1,Nidx1)、(T1,Nidx1)</td>
             <td>x</td>
@@ -194,7 +194,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         <tr>
             <td>softmaxMax</td>
             <td>输入</td>
-            <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+            <td>注意力正向计算的中间输出。</td>
             <td>-</td>
             <td>FLOAT32</td>
             <td>ND</td>
@@ -204,7 +204,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         <tr>
             <td>softmaxSum</td>
             <td>输入</td>
-            <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+            <td>注意力正向计算的中间输出。</td>
             <td>-</td>
             <td>FLOAT32</td>
             <td>ND</td>
@@ -342,7 +342,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
             <td>输出</td>
             <td>Weights的梯度。</td>
             <td>-</td>
-            <td>FLOAT16、BFLOAT16</td>
+            <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
             <td>(B,S1,Nidx1)、(T1,Nidx1)</td>
             <td>x</td>
@@ -444,6 +444,8 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
 - 确定性计算：
   - aclnnSparseLightningIndexerKLLoss默认非确定性实现，不支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 公共约束
+    - 参数query、key、queryIndex、keyIndex的数据类型应保持一致。
+    - 参数weights不为float32时，参数query、key、queryIndex、keyIndex、weights的数据类型应保持一致。
     - 入参为空的场景处理：
         - query为空Tensor：直接返回。
         - 公共约束里入参为空的场景和FAG保持一致。
@@ -542,7 +544,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         </tr>
         <tr>
             <td>N1</td>
-            <td>64、128</td>
+            <td>32、64、128</td>
             <td>SparseFA为MQA。</td>
         </tr>
         <tr>

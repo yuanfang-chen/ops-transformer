@@ -280,14 +280,18 @@ template <> __aicore__ inline uint32_t AlignUp<32, uint32_t>(uint32_t a)
     return (a + 31) & ~31; // & ~31: set last five bits of (a+31) to be zero}
 }
 
-template <typename T> __aicore__ inline __gm__ T *GetTensorAddr(uint16_t index, GM_ADDR tensorPtr)
-{
-    return (__gm__ T *)tensorPtr;
+template <typename T>
+__aicore__ inline __gm__ T* GetTensorAddr(uint16_t index, GM_ADDR tensorPtr) {
+    __gm__ uint64_t* dataAddr = reinterpret_cast<__gm__ uint64_t*>(tensorPtr);
+    uint64_t tensorPtrOffset = *dataAddr;  // The offset of the data address from the first address.
+    // Moving 3 bits to the right means dividing by sizeof(uint64 t).
+    __gm__ uint64_t* retPtr = dataAddr + (tensorPtrOffset >> 3);
+    return reinterpret_cast<__gm__ T*>(*(retPtr + index));
 }
 
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ != 310
 __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx, int32_t &preOffset,
-    const GMMBaseParams *__restrict &gmmBaseParams, const GlobalTensor<int64_t> &groupListGm)
+    const MC2GMMBaseParams *__restrict &gmmBaseParams, const GlobalTensor<int64_t> &groupListGm)
 {
     int32_t splitValue = 0;
     if (likely(gmmBaseParams->groupType != -1)) { // -1: no  need to split

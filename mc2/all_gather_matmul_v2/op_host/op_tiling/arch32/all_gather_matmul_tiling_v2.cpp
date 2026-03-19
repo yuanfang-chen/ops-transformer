@@ -25,11 +25,11 @@
 #include <vector>
 
 #include "mc2_hcom_topo_info.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_host/op_tiling/matmul_formulaic_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "mc2_log.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "op_host/op_tiling/new_mc2_tiling_utils.h"
 #include "all_gather_matmul_tiling_v2.h"
 
 using namespace Mc2Log;
@@ -60,6 +60,7 @@ ge::graphStatus AllGatherMatmulTilingV2::SetRawTilingData()
 
 ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     GE_ASSERT_GRAPH_SUCCESS(SetRawTilingData());
     OP_TILING_CHECK(SetMc2Hcomm(MutableRCSTilingData()) != ge::GRAPH_SUCCESS,
@@ -67,6 +68,7 @@ ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
                     return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingData());
     DoSplitMTiling(MutableRCSTilingData());
+    GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingData(), mc2tiling::Mc2QuantMode::DEFAULT));
     GE_ASSERT_GRAPH_SUCCESS(DoVersion2Tiling());
     DoAllGatherTiling(MutableRCSTilingData(), MutableMC2MatmulV3TileTilingData().tCubeTiling,
                       MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingDataV2_->debugMode, 

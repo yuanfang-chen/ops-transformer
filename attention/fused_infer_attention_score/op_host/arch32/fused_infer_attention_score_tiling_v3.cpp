@@ -411,7 +411,7 @@ constexpr uint32_t NZ_D1_IDX = 2;
 constexpr uint32_t NZ_D0_IDX = 4;
 constexpr uint32_t TND_NTD_D_IDX = 2;
 constexpr int64_t HEAD_DIM_192 = 192;
-
+constexpr int64_t HEAD_DIM_64 = 64;
 
 FIA_EXTERN_C ge::graphStatus TilingFusedInferAttentionScoreV3(gert::TilingContext *context)
 {
@@ -676,19 +676,29 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
     int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
     
-    bool isLayoutSupported = (inputLayoutStr == "TND") ? true : false;
-    bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
-    bool isLearnableSink = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
-    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3);
+    bool isLayoutSupported = (inputLayoutStr == "TND");
+    bool isPageAttention = (context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr);
+    bool isLearnableSink = (context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr);
+    bool isLearnableSinkFlag = true;
+    if (isLearnableSink && isLayoutSupported) {
+        int64_t tempQHeadDim = tempQ->GetStorageShape().GetDim(DIM_2);
+        auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+        if (tempQHeadDim == HEAD_DIM_64 && sinkDataType == ge::DT_BF16) {
+            isLearnableSinkFlag = false;
+        }
+    }
+
+    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
-    bool mhaConditions = isMha && (tempAttnMaskShape == nullptr) &&
-        (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
+    bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) && 
+        !((sparseMode == 0) && (tempAttnMaskShape != nullptr));
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
     bool specConditionFlag = false;
-    if (isLayoutSupported && !isLearnableSink && !isRopeSplitMla && sparseModeSupported &&
-        (nonMhaConditions || mhaConditions)) {
+    bool quantScale2Flag = context->GetOptionalInputTensor(QUANT_SCALE2_INDEX) != nullptr ? true : false;
+    if (isLayoutSupported && isLearnableSinkFlag && !isRopeSplitMla && sparseModeSupported &&
+        (nonMhaConditions || mhaConditions) && !quantScale2Flag) {
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);

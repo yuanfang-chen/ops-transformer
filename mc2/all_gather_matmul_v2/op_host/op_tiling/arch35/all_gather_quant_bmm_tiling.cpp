@@ -14,7 +14,7 @@
  */
 #ifndef _ALL_GATHER_QUANT_BMM_TILING_CPP_
 #define _ALL_GATHER_QUANT_BMM_TILING_CPP_
-#include "op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "mc2_log.h"
 #include "all_gather_quant_bmm_tiling.h"
 #include "../../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
@@ -415,14 +415,17 @@ ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
 ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     SetTilingKeyParams();
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
       OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingDataA5());
     DoSplitMTiling(MutableRCSTilingDataA5());
+    GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingDataA5(), GetQuantScene()));
     GE_ASSERT_GRAPH_SUCCESS(DoAdaptSlidWindowTiling());
     DoAllGatherTiling(MutableRCSTilingDataA5(), MutableTCubeTileTilingData(), MutableTCubeTailTilingData(),
                       allGatherMatmulTilingDataFp8_->debugMode, allGatherMatmulTilingDataFp8_->dataType);

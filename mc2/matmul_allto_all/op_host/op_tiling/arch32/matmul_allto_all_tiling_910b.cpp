@@ -15,9 +15,9 @@
 #include "vector"
 #include "tiling/tiling_api.h"
 #include "mc2_log.h"
-#include "op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "mc2_hcom_topo_info.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_host/op_tiling/mc2_tiling_utils.h"
 #include <map>
 #include "matmul_allto_all_tiling_910b.h"
 
@@ -285,8 +285,21 @@ namespace MC2Tiling {
 
 bool MatmulAlltoAllTiling910B::IsCapable()
 {
-    OP_LOGI(opName_, "Start with MatmulAllToAll tiling.");
-    return true;
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,         \
+ 	    OP_LOGE(opName_, "fail to get platform info"),  \
+ 	    return false);
+ 	fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+ 	std::string socVersionStr;
+ 	(void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+ 	OP_LOGD(opName_, "Current SocVersion is : %s", socVersionStr.c_str());
+ 	QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+ 	if (socVersionStr == "Ascend910B") {
+ 	    OP_LOGI(opName_, "Start with MatmulAllToAll tiling.");
+ 	    return true;
+ 	}
+ 	OP_LOGD(opName_, "Skip MatmulAlltoAllTiling910b tiling when the SocVersion is unsupported.");
+ 	return false;
 }
 
 /**

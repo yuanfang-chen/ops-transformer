@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -83,6 +83,18 @@ REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201200, FAInfer
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201203, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201200, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200106, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200106, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201106, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201106, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200206, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200206, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201206, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201206, FAInferTilingData)
+
+// Decoding 场景 (pagedCacheFlag == true && qSeqlen == 1 && NO_MASK && !lseFlag)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5200000000010200100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5200000000010200200, FAInferTilingData)
 
 // Test purposes - using old key
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, IncreFlashAttentionTilingDataV2)
@@ -1252,12 +1264,19 @@ ge::graphStatus CheckFAIAvailability(gert::TilingContext *context)
 
 static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, FAInferContext& faInfo, uint32_t aicoreNum)
 {
+    constexpr int64_t KV_ACTUAL_SEQ_LEN_1024 = 1024;
+ 	constexpr int64_t QUERY_ACTUAL_SEQ_LEN_16 = 16;
+ 	constexpr int64_t QUERY_ACTUAL_SEQ_LEN_0 = 0;
+ 	constexpr int32_t EMBEDDING_SIZE_128 = 128;
+ 	constexpr int64_t GROUP_SIZE_128 = 128;
+
     auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
     auto tempQ = context->GetInputShape(QUERY_INDEX);
     auto tempK = context->GetInputShape(KEY_INDEX);
     auto actualQSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     auto actualKvSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     auto blockTable = context->GetOptionalInputShape(BLOCK_TABLE_INDEX);
+    auto pseShift = context->GetOptionalInputShape(PSE_SHIFT_INDEX);
     auto attrs = context->GetAttrs();
     faInfo.pagedCacheFlag = blockTable != nullptr;
     faInfo.numHeads = *(attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX));
@@ -1302,7 +1321,13 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         faInfo.embeddingSize = tempQ->GetStorageShape().GetDim(DIM_2);
         faInfo.embeddingSizeV = faInfo.embeddingSize;
     }
-    faInfo.maskType = sparseMode == DIM_4 ? MaskType::SWA_MASK : static_cast<MaskType>(sparseMode == DIM_3);
+    if (pseShift != nullptr) {
+        faInfo.maskType = MaskType::FULL_MASK;
+        faInfo.pseQ = pseShift->GetStorageShape().GetDim(DIM_2);
+        faInfo.pseKv = pseShift->GetStorageShape().GetDim(DIM_3);
+    } else {
+        faInfo.maskType = sparseMode == DIM_4 ? MaskType::SWA_MASK : static_cast<MaskType>(sparseMode == DIM_3);
+    }
     faInfo.dataType = static_cast<DataType>(qDataType == ge::DT_BF16);
     int32_t batch = actualQSeq->GetShapeSize();
     faInfo.batch = batch;
@@ -1341,10 +1366,15 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         uint32_t numTasks = faInfo.batch * faInfo.kvHeads;
         bool isLongSeq = (numTasks <= 0.8 * aicoreNum) && (minKVSeqlen >= aicoreNum * 512);
         bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 1024);
-        if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
-            (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && 
+        if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::FULL_MASK) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
+            (faInfo.embeddingSize <= EMBEDDING_SIZE_128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= GROUP_SIZE_128) && (maxQSeqlen <= QUERY_ACTUAL_SEQ_LEN_16) && (minKVSeqlen >= KV_ACTUAL_SEQ_LEN_1024) && (minQSeqlen > QUERY_ACTUAL_SEQ_LEN_0) && 
             (isLongSeq || isShortSeq)) {
             faInfo.flashDecodeFlag = true; 
+        }
+        if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1 && faInfo.maskType == MaskType::NO_MASK &&
+            !faInfo.lseFlag && !faInfo.learnableSinkFlag && (faInfo.innerPrecise == 0) && (aicoreNum != 0) &&
+            (faInfo.batch % aicoreNum == 0)) {
+            faInfo.decodingFlag = true;
         }
     } else {
         faInfo.isTilingSink = true;
@@ -1367,18 +1397,29 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
     bool isLearnableSink = context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
+    bool isLearnableSinkFlag = true;
+    constexpr int64_t QUERY_HEAD_DIM_64 = 64;
+    if (isLearnableSink && inputLayoutStr == "TND") {
+        auto tempQ = context.GetInputShape(QUERY_INDEX);
+        int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
+        auto sinkDataType = context.GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+        if (tempQD == QUERY_HEAD_DIM_64 && sinkDataType == ge::DT_BF16) {
+            isLearnableSinkFlag = false;
+        }
+    }
+
     auto qRope = context.GetOptionalInputTensor(QUERY_ROPE_INDEX);
     auto kRope = context.GetOptionalInputTensor(KEY_ROPE_INDEX);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
     bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) && 
-        (tempAttnMaskShape == nullptr);
+        !((sparseMode == 0) && (tempAttnMaskShape != nullptr));
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
 
     bool usingFAI = false;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    if (inputLayoutStr == "TND" && !isRopeSplitMla &&
+    if (inputLayoutStr == "TND" && isLearnableSinkFlag && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
@@ -1989,6 +2030,7 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     if (RouteToFia(context)) {
         return TilingFusedInferAttentionScoreV3(context);
     }
+    
     OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
     auto attrs = context->GetAttrs();
