@@ -266,6 +266,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const ger
     uint64_t x2ScaleDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((x1Dim1 % MX_SCALE_ALIGN != 0), OP_LOGE(opName, "The mx quant input x1 dim(k) should be divisible by 64, but actual value is %lu.", x1Dim1),
                     return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2Dim1 % MX_SCALE_ALIGN != 0), OP_LOGE(opName, "The mx quant input x2 dim(k) should be divisible by 64, but actual value is %lu.", x2Dim1),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x1ScaleDimNum != DIM_THREE), OP_LOGE(opName, "The mx quant input x1scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x1ScaleDimNum),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x2ScaleDimNum != DIM_THREE), OP_LOGE(opName, "The mx quant input x2scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x2ScaleDimNum),
@@ -325,7 +327,7 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetMxDataTypeInfo(const gert::T
 
     contextInfo.args_.outputDtypeSize = mc2tiling::GetDataTypeSize(opName, cType);
     // 设置为x1的数据类型
-    contextInfo.args_.inputDtypeSize = MX_SCALE_BLOCK_M;
+    contextInfo.args_.inputDtypeSize = BIT_NUMBER;
     contextInfo.args_.isBias = isBias;
     contextInfo.args_.geCType = cType;
     contextInfo.args_.geBiasType = biasType;
