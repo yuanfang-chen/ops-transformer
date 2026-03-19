@@ -11,6 +11,8 @@
 #include <gtest/gtest.h>
 #include "platform/platform_info.h"
 #include "base/registry/op_impl_space_registry_v2.h"
+// #include "tiling/tiling_api.h"
+// #include "tiling/platform/platform_ascendc.h"
 
 using namespace std;
 
@@ -22,8 +24,11 @@ public:
 
         fe::OptionalInfos opti_compilation_infos_ge;
         opti_compilation_infos_ge.Init();
-        opti_compilation_infos_ge.SetSocVersion("soc_version");
+        cout << "20260320 j60100428 ops-transformer OptionalInfos Init" << endl;
+        opti_compilation_infos_ge.SetSocVersion("Ascend910B");
+        cout << "20260320 j60100428 ops-transformer OptionalInfos SetSocVersion" << endl;
         fe::PlatformInfoManager::GeInstance().SetOptionalCompilationInfo(opti_compilation_infos_ge);
+        // auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance("Ascend910B");
 
         /* load libophost.so for init tiling funcs and infershape funcs */
         const char* buildPath = std::getenv("BUILD_PATH");
