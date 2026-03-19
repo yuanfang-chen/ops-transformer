@@ -22,7 +22,9 @@ public:
 
         fe::OptionalInfos opti_compilation_infos_ge;
         opti_compilation_infos_ge.Init();
+        cout << "20260320 j60100428 ops-transformer OptionalInfos Init" << endl;
         opti_compilation_infos_ge.SetSocVersion("soc_version");
+        cout << "20260320 j60100428 ops-transformer OptionalInfos SetSocVersion" << endl;
         fe::PlatformInfoManager::GeInstance().SetOptionalCompilationInfo(opti_compilation_infos_ge);
 
         /* load libophost.so for init tiling funcs and infershape funcs */
