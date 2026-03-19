@@ -1380,15 +1380,13 @@ static ge::graphStatus CheckShapeIfWeightNZ(gert::InferShapeContext* context, co
             size_t nValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 2 : 1));
             if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) {
                 OP_LOGE(context->GetNodeName(),
-                        "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-                        "but n value is %zu, k value is %zu.", nValue, kValue);
+                        "the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %zu, k value is %zu.", nValue, kValue);
                 return GRAPH_FAILED;
             }
-            OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
-                        OP_LOGE(context->GetNodeName(),
-                        "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-                        "but n value is %zu, k value is %zu.", nValue, kValue),
-                        return GRAPH_FAILED);
+            // OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
+            //             OP_LOGE(context->GetNodeName(),
+            //             "the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %zu, k value is %zu.", nValue, kValue),
+            //             return GRAPH_FAILED);
         }
     }
     return GRAPH_SUCCESS;

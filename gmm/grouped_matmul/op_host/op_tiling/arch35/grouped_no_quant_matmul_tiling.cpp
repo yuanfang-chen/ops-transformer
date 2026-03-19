@@ -257,11 +257,13 @@ bool GroupedNoQuantMatmulTiling::CheckWeightNZShape(const gert::TilingContext *c
         auto wShape = wTensor->GetOriginShape();
         size_t kValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 1 : 2));
         size_t nValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 2 : 1));
-        if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) { return false; }
+        if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) {
+            OP_LOGE(context->GetNodeName(),"the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %zu, k value is %zu.", nValue, kValue);
+            return false;
+        }
         // OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
         //             OP_LOGE(context->GetNodeName(),
-        //             "the value of dim n, k is expected to be a multiple of 32B when NZ weight, "
-        //             "but n value is %ld, k value is %ld.", nValue, kValue),
+        //             "the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %ld, k value is %ld.", nValue, kValue),
         //             return false);
     }
     return true;
