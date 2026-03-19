@@ -19,7 +19,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> construct_svd_output_tensor(const
 {
     auto xShape = x.sizes();
     int64_t nd = xShape.size();
-    // int64_t batchSize = xShape[0];
     int64_t mSize = xShape[nd - 2];
     int64_t nSize = xShape[nd - 1];
     int64_t minDim = std::min(mSize, nSize);
