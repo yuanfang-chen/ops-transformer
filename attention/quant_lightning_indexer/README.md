@@ -62,9 +62,9 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
 
 -   **next\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`，仅支持默认值2^63-1。
   
--   **query\_dtype**（`typename`）：可选参数，用于支持query为hifloat8数据类型。默认值为None。如果传入的query数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
+-   **query\_dtype**（`typename`）：可选参数，用于支持query为hifloat8数据类型。默认值为None。如果query的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
 
--   **key\_dtype**（`typename`）：可选参数，用于支持key为hifloat8数据类型。默认值为None。如果传入的query数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
+-   **key\_dtype**（`typename`）：可选参数，用于支持key为hifloat8数据类型。默认值为None。如果key的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
 
 ## 返回值说明
 `Tensor`
