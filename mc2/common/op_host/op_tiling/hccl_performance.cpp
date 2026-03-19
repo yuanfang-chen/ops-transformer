@@ -163,9 +163,9 @@ void HCCLPerformanceModel::GetCommEstimateParameters() {
 }
 
 double HCCLPerformanceModel::CommTime(uint64_t mSize) const {
-  uint64_t commDataSize = static_cast<uint64_t>(mSize * commTypeInfo_.commMatrixLen * lookUpTileNum_ *
-                          GetRealDtypeSizes());
-  double tmpSize = static_cast<double>(commDataSize) / ONE_MBYTE;
+  double commDataSize = mSize * commTypeInfo_.commMatrixLen * lookUpTileNum_ *
+                        GetRealDtypeSizes();
+  double tmpSize = commDataSize / ONE_MBYTE;
   double result = commEstimatePar_.timeToSizeBoundary1;
   if (tmpSize > commEstimatePar_.sizeToTimeBoundary2) {
     result = commEstimatePar_.sizeToTimeLinearGradient * tmpSize +
@@ -203,7 +203,7 @@ uint64_t HCCLPerformanceModel::InverseCommTime(double targetTime) const {
       }
     }
   }
-  return static_cast<uint64_t>(tmpSize * ONE_MBYTE) /
-         static_cast<uint64_t>((commTypeInfo_.commMatrixLen * lookUpTileNum_ *
+  return static_cast<uint64_t>(tmpSize * ONE_MBYTE /
+         (commTypeInfo_.commMatrixLen * lookUpTileNum_ *
           GetRealDtypeSizes()));
 }
