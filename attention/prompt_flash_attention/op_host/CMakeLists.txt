@@ -33,6 +33,16 @@ if("${CONDITION_UNIT}" STREQUAL "ascend950")
     )
 endif()
 
+if(UT_TEST_ALL OR OP_HOST_UT)
+    add_library(softmax_tiling_ut_stub SHARED
+        ${UT_COMMON_INC}/softmax_tiling_mocker.cpp
+    )
+    target_include_directories(softmax_tiling_ut_stub PRIVATE
+        ${UT_COMMON_INC}
+        ${ASCEND_DIR}/include/tiling
+    )
+endif()
+
 if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
     if("${CONDITION_UNIT}" STREQUAL "ascend950")
         set(prompt_flash_attention_apt_depends attention/flash_attention_score attention/common CACHE INTERNAL "Dependencies for prompt_flash_attention")
