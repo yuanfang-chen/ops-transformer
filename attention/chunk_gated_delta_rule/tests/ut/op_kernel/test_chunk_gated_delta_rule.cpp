@@ -100,14 +100,14 @@ void InitInputData(uint8_t* queryGm, size_t shapeQ,
                    uint8_t* seqlensGm, size_t b,
                    uint8_t* outGm, size_t shapeOut,
                    uint8_t* finalState, size_t shapeFs) {
-    memset(queryGm, 0, shapeQ);
-    memset(keyGm, 0, shapeK);
-    memset(valueGm, 0, shapeV);
-    memset(betaGm, 0, shapeBeta);
-    memset(stateGm, 0, shapeState);
-    memset(gammaGm, 0, shapeGamma);
-    memset(outGm, 0, shapeOut);
-    memset(finalState, 0, shapeFs);
+    memset_s(queryGm, shapeQ, 0, shapeQ);
+    memset_s(keyGm, shapeK, 0, shapeK);
+    memset_s(valueGm, shapeV, 0, shapeV);
+    memset_s(betaGm, shapeBeta, 0, shapeBeta);
+    memset_s(stateGm, shapeState, 0, shapeState);
+    memset_s(gammaGm, shapeGamma, 0, shapeGamma);
+    memset_s(outGm, shapeOut, 0, shapeOut);
+    memset_s(finalState, shapeFs, 0, shapeFs);
 
     int32_t* seqlens = reinterpret_cast<int32_t*>(seqlensGm);
     for (size_t i = 0; i < b; ++i) {

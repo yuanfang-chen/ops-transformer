@@ -57,6 +57,37 @@ public:
     TensorDesc out;
     TensorDesc finalState;
 
+    void ApplyInvalidDtype(int validIdx, int32_t low, int32_t high)
+    {
+        const std::array<std::function<void()>, 10> cases = {
+            []() {},
+            [this, low, high]() {
+                initialState = TensorDesc({bs, nv, dv, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() {
+                query = TensorDesc({t, nk, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() { key = TensorDesc({t, nk, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high); },
+            [this, low, high]() {
+                value = TensorDesc({t, nv, dv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() { beta = TensorDesc({t, nv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high); },
+            [this, low, high]() {
+                actualSeqLengths = TensorDesc({bs}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() {
+                gOptional = TensorDesc({t, nv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() {
+                out = TensorDesc({t, nv, dv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+            [this, low, high]() {
+                finalState = TensorDesc({bs, nv, dv, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(low, high);
+            },
+        };
+        if (validIdx >= 0 && validIdx < static_cast<int>(cases.size())) { cases[validIdx](); }
+    }
+
     void ChunkGatedDeltaRuleTestCase(int validIdx, int nullIdx)
     {
         constexpr int32_t kValueLow = 0;
@@ -76,42 +107,7 @@ public:
         gOptional = TensorDesc({t, nv}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
         out = TensorDesc({t, nv, dv}, ACL_BF16, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
         finalState = TensorDesc({t, nv, dv, dk}, ACL_BF16, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-
-        // 非法 dtype 注入映射：index=0 表示全部 dtype 合法（序号与 validIdx 对应）
-        const std::array<std::function<void()>, 10> invalidDtypeCases = {
-            []() {}, // 0: 不修改（全部 dtype 合法）
-            [this, kValueLow, kValueHigh]() { // 1: initialState -> ACL_INT8
-                initialState = TensorDesc({bs, nv, dv, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 2: query -> ACL_INT8
-                query = TensorDesc({t, nk, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 3: key -> ACL_INT8
-                key = TensorDesc({t, nk, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 4: value -> ACL_INT8
-                value = TensorDesc({t, nv, dv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 5: beta -> ACL_INT8
-                beta = TensorDesc({t, nv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 6: actualSeqLengths -> ACL_INT8
-                actualSeqLengths = TensorDesc({bs}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 7: gOptional -> ACL_INT8
-                gOptional = TensorDesc({t, nv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 8: out -> ACL_INT8
-                out = TensorDesc({t, nv, dv}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-            [this, kValueLow, kValueHigh]() { // 9: finalState -> ACL_INT8
-                finalState = TensorDesc({bs, nv, dv, dk}, ACL_INT8, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-            },
-        };
-        if (validIdx >= 0 && validIdx < static_cast<int>(invalidDtypeCases.size())) {
-            invalidDtypeCases[validIdx]();
-        }
-
+        ApplyInvalidDtype(validIdx, kValueLow, kValueHigh);
         aclnnStatus aclRet = utTest(nullIdx);
         // 仅 gOptional 允许为空（nullIdx == 7）时仍视为合法
         aclnnStatus expected =
@@ -119,94 +115,61 @@ public:
         EXPECT_EQ(aclRet, expected);
     }
 
+    aclnnStatus RunNullCase(int idx, uint64_t& ws)
+    {
+        constexpr float scale = 1.0f;
+        switch (idx) {
+            case 0:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 1:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(nullptr, key, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 2:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, nullptr, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 3:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, nullptr, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 4:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, nullptr, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 5:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, nullptr, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 6:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, nullptr, gOptional, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 7:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, actualSeqLengths, nullptr, scale),
+                    OUTPUT(out, finalState)).TestGetWorkspaceSize(&ws);
+            case 8:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(nullptr, finalState)).TestGetWorkspaceSize(&ws);
+            case 9:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(out, nullptr)).TestGetWorkspaceSize(&ws);
+            default:
+                return OP_API_UT(aclnnChunkGatedDeltaRule,
+                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scale),
+                    OUTPUT(nullptr, nullptr)).TestGetWorkspaceSize(&ws);
+        }
+    }
+
     aclnnStatus utTest(int nullIdx)
     {
-        uint64_t workspace_size = 0;
-        constexpr float scaleValue = 1.0f;
-        // 通过 nullIdx 表驱动置空不同的输入/输出位置（序号与 nullIdx 对应）
-        const std::array<std::function<aclnnStatus()>, 11> nullCases = {
-            [this, &workspace_size, scaleValue]() {
-                // 0: 全部非空（基准正常 case）
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 1: query 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(nullptr, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 2: key 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, nullptr, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 3: value 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, nullptr, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 4: beta 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, nullptr, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 5: initialState 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, nullptr, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 6: actualSeqLengths 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, nullptr, gOptional, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 7: gOptional 置空（唯一允许为空的可选输入）
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, actualSeqLengths, nullptr, scaleValue),
-                                    OUTPUT(out, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 8: out 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(nullptr, finalState));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 9: finalState 置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(out, nullptr));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-            [this, &workspace_size, scaleValue]() {
-                // 10: out 与 finalState 同时置空
-                auto ut = OP_API_UT(aclnnChunkGatedDeltaRule,
-                                    INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-                                    OUTPUT(nullptr, nullptr));
-                return ut.TestGetWorkspaceSize(&workspace_size);
-            },
-        };
-        const size_t idx =
-            (nullIdx >= 0 && nullIdx < static_cast<int>(nullCases.size())) ? static_cast<size_t>(nullIdx)
-                                                                          : (nullCases.size() - 1);
-        return nullCases[idx]();
+        uint64_t ws = 0;
+        return RunNullCase((nullIdx >= 0 && nullIdx <= 10) ? nullIdx : 10, ws);
     }
 };
 
