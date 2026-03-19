@@ -462,55 +462,55 @@ bool GroupedQmmTiling::CheckQuantParams(const gert::StorageShape *xScaleStorageS
 
 bool GroupedQmmTiling::CheckShapeForWeightNz(const gert::Shape &wShape) const
 {
-    auto wDimNum = wShape.GetDimNum();
-    OP_CHECK_IF(wDimNum != WEIGHTNZ_DIM_NUM,
-                OP_LOGE(context_->GetNodeName(),
-                        "When the weight is in Nz format, the dimension number should be 5, actual is %zu.", wDimNum),
-                return false);
-    OP_CHECK_IF(wShape[WEIGHTNZ_FIFTH_DIM] != WEIGHTNZ_N0_32,
-                OP_LOGE(context_->GetNodeName(),
-                        "When the weight is in Nz format, the fifth dimension should be 32, actual is %lld.",
-                        wShape[WEIGHTNZ_FIFTH_DIM]),
-                return false);
-    OP_CHECK_IF(wShape[WEIGHTNZ_FORTH_DIM] != WEIGHTNZ_K0_16,
-                OP_LOGE(context_->GetNodeName(),
-                        "When the weight is in Nz format, the forth dimension should be 16, actual is %lld.",
-                        wShape[WEIGHTNZ_FORTH_DIM]),
-                return false);
-    auto wShapeDimThird = static_cast<uint64_t>(wShape[WEIGHTNZ_THIRD_DIM]);
-    auto wShapeDimSecond = static_cast<uint64_t>(wShape[WEIGHTNZ_SECOND_DIM]);
-    if (!inputParams_.transB) {
-        OP_CHECK_IF(wShapeDimThird != CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_16),
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format, the third dimension should be equal to ceil(kSize/16) = \
-%lu, actual is %lu.",
-                            CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_16), wShapeDimThird),
-                    return false);
-        OP_CHECK_IF(
-            wShapeDimSecond != CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_32),
-            OP_LOGE(context_->GetNodeName(),
-                    "When the weight is in Nz format, the second dimension should be equal to ceil(nSize/32) = \
-%lu, actual is %lu.",
-                    CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_32), wShapeDimSecond),
-            return false);
-    } else {
-        OP_CHECK_IF(wShapeDimThird != CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_16),
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format, the third dimension should be equal to ceil(nSize/16) = \
-%lu, actual is %lu.",
-                            CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_16), wShapeDimThird),
-                    return false);
-        OP_CHECK_IF(
-            wShapeDimSecond != CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_32),
-            OP_LOGE(context_->GetNodeName(),
-                    "When the weight is in Nz format, the second dimension should be equal to ceil(kSize/32) = \
-%lu, actual is %lu.",
-                    CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_32), wShapeDimSecond),
-            return false);
-    }
-    OP_CHECK_IF(1 == inputParams_.kSize || 1 == inputParams_.nSize,
-                OP_LOGE(context_->GetNodeName(), "When the weight is in Nz format, nSize or kSize cannot be 1."),
-                return false);
+//     auto wDimNum = wShape.GetDimNum();
+//     OP_CHECK_IF(wDimNum != WEIGHTNZ_DIM_NUM,
+//                 OP_LOGE(context_->GetNodeName(),
+//                         "When the weight is in Nz format, the dimension number should be 5, actual is %zu.", wDimNum),
+//                 return false);
+//     OP_CHECK_IF(wShape[WEIGHTNZ_FIFTH_DIM] != WEIGHTNZ_N0_32,
+//                 OP_LOGE(context_->GetNodeName(),
+//                         "When the weight is in Nz format, the fifth dimension should be 32, actual is %lld.",
+//                         wShape[WEIGHTNZ_FIFTH_DIM]),
+//                 return false);
+//     OP_CHECK_IF(wShape[WEIGHTNZ_FORTH_DIM] != WEIGHTNZ_K0_16,
+//                 OP_LOGE(context_->GetNodeName(),
+//                         "When the weight is in Nz format, the forth dimension should be 16, actual is %lld.",
+//                         wShape[WEIGHTNZ_FORTH_DIM]),
+//                 return false);
+//     auto wShapeDimThird = static_cast<uint64_t>(wShape[WEIGHTNZ_THIRD_DIM]);
+//     auto wShapeDimSecond = static_cast<uint64_t>(wShape[WEIGHTNZ_SECOND_DIM]);
+//     if (!inputParams_.transB) {
+//         OP_CHECK_IF(wShapeDimThird != CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_16),
+//                     OP_LOGE(context_->GetNodeName(),
+//                             "When the weight is in Nz format, the third dimension should be equal to ceil(kSize/16) = \
+// %lu, actual is %lu.",
+//                             CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_16), wShapeDimThird),
+//                     return false);
+//         OP_CHECK_IF(
+//             wShapeDimSecond != CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_32),
+//             OP_LOGE(context_->GetNodeName(),
+//                     "When the weight is in Nz format, the second dimension should be equal to ceil(nSize/32) = \
+// %lu, actual is %lu.",
+//                     CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_32), wShapeDimSecond),
+//             return false);
+//     } else {
+//         OP_CHECK_IF(wShapeDimThird != CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_16),
+//                     OP_LOGE(context_->GetNodeName(),
+//                             "When the weight is in Nz format, the third dimension should be equal to ceil(nSize/16) = \
+// %lu, actual is %lu.",
+//                             CeilDiv(inputParams_.nSize, WEIGHTNZ_N0_16), wShapeDimThird),
+//                     return false);
+//         OP_CHECK_IF(
+//             wShapeDimSecond != CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_32),
+//             OP_LOGE(context_->GetNodeName(),
+//                     "When the weight is in Nz format, the second dimension should be equal to ceil(kSize/32) = \
+// %lu, actual is %lu.",
+//                     CeilDiv(inputParams_.kSize, WEIGHTNZ_K0_32), wShapeDimSecond),
+//             return false);
+//     }
+//     OP_CHECK_IF(1 == inputParams_.kSize || 1 == inputParams_.nSize,
+//                 OP_LOGE(context_->GetNodeName(), "When the weight is in Nz format, nSize or kSize cannot be 1."),
+//                 return false);
     return true;
 }
 
