@@ -1,0 +1,413 @@
+# MLA Prolog V3 性能建模与优化方法论
+
+本文档面向 MLA Prolog 内核开发者，介绍如何分析和优化算子在 Ascend 950 上的理论性能。每一节均包含基于实际参数的计算示例（BF16 Decode BS=1, head_num=128）。
+
+> **快速开始**: 运行 `python perf_analyzer.py --chip 950 --batch-size 1 --head-num 128 --mode full` 查看完整分析。
+
+---
+
+## 目录
+
+1. [关键结论](#1-关键结论)
+2. [硬件存储层次](#2-硬件存储层次)
+3. [Roofline 模型](#3-roofline-模型)
+4. [Matmul 性能建模](#4-matmul-性能建模)
+5. [Vector 操作建模](#5-vector-操作建模)
+6. [缓冲策略](#6-缓冲策略)
+7. [Pipeline 流水分析](#7-pipeline-流水分析)
+8. [优化决策指南](#8-优化决策指南)
+
+---
+
+## 1. 关键结论
+
+在 Ascend 950 上，MLA Prolog V3 的 Decode 场景（BS=1~32）**全面受 HBM 带宽瓶颈限制**：
+
+| 瓶颈 | 原因 | 主要优化手段 |
+|------|------|------------|
+| MM3 占 54% 时间 | B 矩阵 72MB，必须全量从 HBM 加载 | INT8/FP8 量化 (2×) |
+| MM1/MM2 核利用率低 | N 轴小，split-N 只用 9~24 核 | Split-KN 2D 切分 (最高 4.6×) |
+| AIV 几乎空闲 | Vector 操作远小于 Cube | 无需优化（非瓶颈） |
+
+**优化后 Pipeline 时间**: 87.63 us → 53.31 us (Split-KN) → 可进一步通过量化降至 ~27 us。
+
+---
+
+## 2. 硬件存储层次
+
+### 2.1 数据流架构
+
+Ascend AI Core 包含两条计算流水线，共享 HBM 访问：
+
+```
+                        ┌─────────────────────────────────────┐
+                        │              HBM (片外)              │
+                        │         芯片总带宽: 1.6 TB/s         │
+                        └──────┬──────────────────┬────────────┘
+                               │                  │
+                        ┌──────▼──────┐    ┌──────▼──────┐
+                        │  L2 Cache   │    │  L2 Cache   │
+                        │  5.2 TB/s   │    │  5.2 TB/s   │
+                        └──────┬──────┘    └──────┬──────┘
+                               │                  │
+                ┌──────────────▼──┐          ┌────▼──────────────┐
+                │  Cube 流水线    │          │  Vector 流水线    │
+                │                 │          │                   │
+                │   ┌────────┐   │          │   ┌───────────┐   │
+          MTE1/ │   │   L1   │   │    MTE2  │   │    UB     │   │
+          MTE2  │   │ 512 KB │   │          │   │  256 KB   │   │
+                │   └───┬────┘   │          │   └─────┬─────┘   │
+                │  MTE1 │        │          │   PIPE_V│         │
+                │   ┌───▼──┐ ┌──▼──┐       │   ┌─────▼─────┐   │
+                │   │ L0A  │ │ L0B │       │   │  向量计算  │   │
+                │   │64 KB │ │256KB│       │   │ (在 UB 中) │   │
+                │   └───┬──┘ └──┬──┘       │   └─────┬─────┘   │
+                │    MMAD│      │          │         │MTE3     │
+                │   ┌───▼──────▼──┐       │         │         │
+                │   │    L0C      │       │         ▼         │
+                │   │   256 KB    │       │      HBM 写回     │
+                │   └──────┬──────┘       │                   │
+                │   FixPipe│              │                   │
+                │          ▼              │                   │
+                │       HBM 写回          │                   │
+                └─────────────────────────┴───────────────────┘
+```
+
+### 2.2 数据搬运引擎
+
+| 引擎 | 路径 | 用途 | 带宽 (950) |
+|------|------|------|-----------|
+| **MTE1/MTE2** | HBM/L2 → L1 | Cube: 加载 A/B 矩阵到 L1 | 33.3 B/cycle |
+| **MTE1** | L1 → L0A | Cube: 搬运 A tile 到计算缓冲 | 256 B/cycle |
+| **MTE1** | L1 → L0B | Cube: 搬运 B tile 到计算缓冲 (转置) | 256 B/cycle |
+| **MMAD** | L0A × L0B → L0C | Cube: 矩阵乘累加 | BF16: 4096 MACs/cycle, FP8: 8192 MACs/cycle |
+| **FixPipe** | L0C → HBM/UB | Cube: 输出写回 | 256 B/cycle |
+| **MTE2** | HBM/L2 → UB | Vector: 加载输入数据 | 33.3 B/cycle |
+| **PIPE_V** | UB → UB | Vector: 计算 (RmsNorm, RoPE 等) | — |
+| **MTE3** | UB → HBM | Vector: 输出写回 | 33.3 B/cycle |
+
+### 2.3 带宽争抢
+
+多核并发时，单核实际带宽受芯片总带宽限制：
+
+```
+单核实际带宽 = min(单核理论带宽, 芯片总带宽 / 活跃核数)
+```
+
+**示例 (32 核)**:
+- HBM: min(33.3 × 1.65GHz, 1.6TB/s ÷ 32) = min(54.9, 50.0) = **50.0 GB/s**
+- L2: min(108 × 1.65GHz, 5.2TB/s ÷ 32) = min(178.2, 162.5) = **162.5 GB/s**
+- L1→L0A: 256 × 1.65GHz = **422.4 GB/s** (核内独享，无争抢)
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode bound` 查看各阶段带宽瓶颈
+
+### 2.4 L2 Cache 复用
+
+- **Split-N 复用**: 所有核共享同一 A 矩阵 → 首核从 HBM 加载，其余核命中 L2
+- **跨 Matmul 复用**: MM2 复用 MM1 已加载的 tokenX（A 矩阵）→ L2 热数据
+
+---
+
+## 3. Roofline 模型
+
+### 3.1 算术强度
+
+```
+AI = 2 × M × N × K / (M × K × sizeof(A) + K × N × sizeof(B) + M × N × sizeof(C))
+```
+
+单位: FLOPs/Byte。AI 越高，计算与访存越平衡。
+
+### 3.2 Ridge Point (拐点)
+
+| 数据类型 | 单核峰值算力 | 单核 HBM 带宽 | Ridge Point |
+|---------|------------|-------------|-------------|
+| BF16 | 4096 × 2 × 1.65e9 = 13,517 GFLOPS | 50 GB/s | **270.3 FLOPs/B** |
+| FP8 | 8192 × 2 × 1.65e9 = 27,034 GFLOPS | 50 GB/s | **540.7 FLOPs/B** |
+
+- AI < Ridge → **HBM 带宽瓶颈** (典型 Decode 场景)
+- AI > Ridge → **Cube 计算瓶颈** (大批量 Prefill 场景)
+
+### 3.3 示例: MM3 (QcQr), BF16, BS=1
+
+`Cq[1, 1536] × W_UqQr[1536, 24576]`, 32 核, N_per_core = 768
+
+```
+AI = 2 × 1 × 768 × 1536 / (1×1536×2 + 1536×768×2 + 1×768×2) = 1.0 FLOPs/B
+
+Ridge = 270.3 → AI (1.0) << Ridge → HBM 瓶颈
+效率 = 1.0 / 270.3 = 0.4%
+```
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode roofline` 查看各 Matmul 的 AI 和效率
+
+---
+
+## 4. Matmul 性能建模
+
+### 4.1 内层循环结构
+
+```
+外层循环 (kL1 次): HBM/L2 → L1     [MTE1/MTE2 引擎]
+  加载 A[baseM, baseK×stepK] 到 L1
+  加载 B[baseK×stepK, N_per_core] 到 L1
+
+  内层循环 (stepK 次): L1 → L0 + MMAD  [MTE1 + MMAD 引擎]
+    搬运 A tile[baseM, baseK] → L0A
+    搬运 B tile[baseK, N_per_core] → L0B (转置)
+    MMAD: C[baseM, N_per_core] += A × B
+
+  写回 C → HBM                        [FixPipe 引擎]
+```
+
+### 4.2 时间模型
+
+```
+每次 kL1 循环 (三阶段流水重叠):
+  mte1 = max(A_load_time, B_load_time)           ← HBM→L1
+  inner = stepK × max(l0a_time, l0b_time, mmad)  ← L1→L0+计算
+  fixpipe = C_store_time                          ← L0C→HBM
+
+  per_kl1 = max(mte1, inner, fixpipe)             ← 流水瓶颈
+  总时间 = kL1Loops × per_kl1
+```
+
+### 4.3 模式 A: Full-Load (MM4)
+
+K 足够小，A 矩阵一次性加载到 L1，只迭代 N 分片。
+
+**示例: MM4** — `Qc[1, 128] × Uk[128, 512]`, 32 核, N_per_core=16
+
+```
+A = 1 × 128 × 2B = 256B → 远小于 L1 (512KB)，单缓冲全载
+加载 A: 256 / 50e9 = 0.005 us (一次性)
+
+Per N split (nSplitSize=128):
+  加载 B[128, 16] = 4096B: 4096 / 50e9 = 0.082 us  ← 瓶颈
+  L0A/L0B/MMAD/FixPipe 均 < 0.01 us
+
+总时间 ≈ 0.66 us, HBM 瓶颈
+```
+
+### 4.4 模式 B: Split-N (MM3)
+
+N 轴按核切分，每核加载完整 K。
+
+**示例: MM3** — `Cq[1, 1536] × W[1536, 24576]`, BF16, 32 核
+
+```
+N_per_core = 768, Block: baseK=64, stepK=2
+kL1StepSize = 128, kL1Loops = ceil(1536/128) = 12
+
+每次 kL1:
+  MTE1: A=256B (0.005us), B=196,608B (3.932us) → max = 3.932 us ← B 加载主导
+  内层: 2 × max(l0a, l0b, mmad) = 2 × 0.233 = 0.466 us
+  FixPipe: 0.004 us
+
+  per_kl1 = max(3.932, 0.466, 0.004) = 3.932 us
+
+总时间 = 12 × 3.932 = 47.19 us
+→ HBM 瓶颈 (B 矩阵每核 2304KB >> L1 512KB)
+```
+
+**关键瓶颈**: B 矩阵总量 72MB 固定，无论如何切分核都必须全量加载，Split-KN 无法加速 MM3。
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode block-search` 搜索最优 baseM/baseN/baseK
+
+### 4.5 模式 C: Split-KN (MM1/MM2)
+
+同时切 N 和 K 轴，组成 `n_groups × k_groups` 核网格。K 切分的核产生 float32 部分积，由 Vector 侧累加。
+
+**示例: MM1** — `X[1, 7168] × W[7168, 1536]`, 配置 N8×K4 (32 核)
+
+```
+K_per_core = 7168 / 4 = 1792
+N_per_core = 1536 / 8 = 192
+输出 dtype = float32 (4B, 部分积)
+
+Cube (每核):
+  kL1Loops = 4, per_kl1 ≈ 0.98 us
+  Cube 总时间 = 3.93 us (vs split-N 的 17.89 us, 4.6× 加速)
+
+Vector 累加 (8 组并行):
+  每组加载 4 个部分积 × 1 × 192 × 4B = 3,072B
+  累加 = 0.002 us (在 Pipeline 中被下一个 AIC matmul 完全遮盖)
+
+MM1 总时间 = 3.93 us
+```
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode split-kn` 搜索最优 2D 切分并评估完整 Pipeline
+
+---
+
+## 5. Vector 操作建模
+
+Vector 操作在 AIV 流水线执行: **MTE2** (HBM→UB) → **PIPE_V** (UB 内计算) → **MTE3** (UB→HBM)。
+
+```
+总时间 = max(mte2_time, vec_time, mte3_time)    ← 三阶段流水重叠
+```
+
+### 5.1 各操作建模
+
+| 操作 | 输入 | 计算 | 输出 | 示例时间 (BS=1) |
+|------|------|------|------|----------------|
+| **RmsNormCq** | T×Hcq×4B (INT32) | ×3 ops/elem | T×Hcq×2B | 0.015 us |
+| **RmsNormCkvKr** | T×(Hckv+Dr)×4B | ×3 | T×Hckv×2B | 0.005 us |
+| **RopeKr** | T×Dr×2B + sin/cos | ×4 | T×Dr×2B | 0.001 us |
+| **ScatterCkvKr** | T×(Hckv+Dr)×2B | 地址计算 | 散列写入 (×0.4效率) | 0.002 us |
+| **DequantQc** | T×N×D×4B (INT32) | ×2 (乘+加) | T×N×D×2B | ~0.1 us |
+| **RopeQr** | T×N×Dr×2B + sin/cos | ×4 | T×N×Dr×2B | 0.105 us |
+| **DynamicQuantQn** | T×N×Hckv×2B | ×3 (规约+缩放+量化) | T×N×Hckv×1B | ~0.2 us |
+
+### 5.2 示例: RopeQr (Decode BS=1 最大 Vector 操作)
+
+```
+加载: 1 × 128 × 64 × 2B + 1 × 64 × 2B = 16,512 B
+计算: 1 × 128 × 64 × 4 = 32,768 ops
+写回: 1 × 128 × 64 × 2B = 16,384 B
+
+vec = 32,768 / (20e12 / 64) = 0.105 us  ← 计算主导
+总时间 = 0.105 us, VECTOR 瓶颈
+```
+
+> 所有 Vector 操作在 Decode BS=1 下总计仅 ~0.63 us，远小于 AIC 的 83.63 us，非性能瓶颈。
+
+---
+
+## 6. 缓冲策略
+
+### 6.1 默认: 双缓冲 (2×)
+
+双缓冲通过乒乓切换实现搬运与计算重叠，每个缓冲区需要 2 倍 tile 大小：
+
+```
+L0A: baseM × baseK × sizeof(A) × 2 ≤ 64 KB
+L0B: baseK × baseN × sizeof(B) × 2 ≤ 256 KB
+L0C: baseM × baseN × sizeof(C) × 2 ≤ 256 KB
+L1:  (A_per_step + B_per_step) × 2 ≤ 512 KB
+```
+
+### 6.2 全载优化 (单缓冲)
+
+若**完整矩阵**可装入缓冲区，无需乒乓 → 单缓冲 (1×)，仅在性能有收益时启用。
+
+### 6.3 stepK 推导
+
+```python
+per_step = baseM × baseK × sizeof(A) + baseK × N_per_core × sizeof(B)
+
+# 尝试单缓冲全载:
+single_stepK = L1_size // per_step
+if single_stepK >= ceil(K / baseK):
+    stepK = ceil(K / baseK)    # 全载成功, kL1=1
+
+# 否则双缓冲:
+stepK = L1_size // 2 // per_step
+```
+
+**示例: MM3** — baseK=64, N_per_core=768
+
+```
+per_step = 32×64×2 + 64×768×2 = 100 KB
+单缓冲: 512 / 100 = 5 < 24 (需 24 步) → 不够
+双缓冲: 256 / 100 = 2 → stepK=2, kL1Loops=12
+```
+
+**示例: MM4** — M=1, K=128, N_per_core=16
+
+```
+全量 A+B = 256 + 4096 = 4,352 B << 512 KB → 单缓冲, kL1=1
+```
+
+---
+
+## 7. Pipeline 流水分析
+
+### 7.1 AIC/AIV 并行结构
+
+```
+AIC: MM1 → signal → MM2 → signal → wait(RmsNorm) → MM3 → signal → [wait(Dequant)] → MM4
+AIV: CopyIn → wait(MM1) → [AccumCq] → RmsNormCq → signal
+     → wait(MM2) → [AccumCkvKr] → RmsNormCkvKr → RopeKr → Scatter
+     → wait(MM3) → [DequantQc] → signal → RopeQr → [DynQuant + MulQr]
+```
+
+`[括号]` 表示可选阶段（取决于量化模式或 Split-KN 配置）。
+AccumCq/AccumCkvKr 在 AIV 上执行，与下一个 AIC matmul **并行**，可被完全遮盖。
+
+### 7.2 示例: BF16 Decode BS=1 流水线
+
+```
+AIC 阶段:
+  MM1_Cq:     [ 0.00 — 17.89]  17.89 us  ★ 关键路径
+  MM2_CkvKr:  [18.69 — 36.58]  17.89 us  ★ 关键路径
+  MM3_QcQr:   [38.18 — 85.37]  47.19 us  ★ 关键路径 (54%)
+  MM4_Qn:     [86.97 — 87.63]   0.66 us  ★ 关键路径
+
+AIV 阶段:
+  RmsNormCq:     0.015 us  (被 MM2 遮盖)
+  RmsNormCkvKr:  0.005 us  (被 MM3 遮盖)
+  RopeQr:        0.105 us  (被 MM4 遮盖)
+
+Pipeline 总计: 87.63 us
+AIC 利用率: 83.63 / 87.63 = 95.4%
+```
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode pipeline` 查看 ASCII 时间线
+
+### 7.3 Split-KN 优化后
+
+```
+MM1:N8×K4 + MM2:N3×K8:
+  MM1:  3.93 us (↓ 78%)   AccumCq:   0.002 us (被 MM2 遮盖)
+  MM2:  0.78 us (↓ 96%)   AccumCkvKr: 0.001 us (被 MM3 遮盖)
+  MM3: 47.19 us (不变)
+  MM4:  0.66 us
+
+Pipeline 总计: 53.31 us (↓ 39.2%)
+```
+
+---
+
+## 8. 优化决策指南
+
+### 8.1 HBM 带宽瓶颈 (AI << Ridge, 典型 Decode)
+
+| 优化手段 | 适用场景 | 预期收益 |
+|---------|---------|---------|
+| INT8/FP8 量化 | 所有 Matmul | ~2× (B 矩阵减半) |
+| Split-KN 2D 切分 | N 轴小的 MM (MM1, MM2) | 最高 4.6× (受益于更多核) |
+| L2 复用 | Split-N 共享 A 矩阵 | 已内置 |
+| 增大批量 (Prefill) | T > 512 | 转为计算瓶颈 |
+
+### 8.2 计算瓶颈 (AI >> Ridge, 大批量 Prefill)
+
+| 优化手段 | 适用场景 | 预期收益 |
+|---------|---------|---------|
+| 增大 baseM × baseK 填满 L0A | Prefill T ≥ 512 | Cube 效率 ~90%+ |
+| 增大 stepK 减少 kL1 循环 | L1 允许时 | 减少 MTE1 开销 |
+| FP8 (2× MMAD 吞吐) | 精度允许时 | 2× 计算 |
+
+### 8.3 关键洞察
+
+**B 矩阵总量固定**: 对于给定 Matmul，`K × N × sizeof(B)` 总量不变。Split-KN 不减少总 HBM 访存量，只在 per-core 负载不均时（小 N）通过增加并行度获益。当 B 矩阵占主导时（如 MM3），**量化是唯一有效手段**。
+
+---
+
+## 工具命令速查
+
+| 分析目标 | 命令 |
+|---------|------|
+| 各阶段瓶颈分析 | `--mode bound` |
+| AIC/AIV 流水时间线 | `--mode pipeline` |
+| 内核总时间估算 | `--mode estimate` |
+| 优化建议 | `--mode advice` |
+| stepBatchSize 搜索 | `--mode search` |
+| 全测试用例报告 | `--mode report` |
+| Roofline 分析 | `--mode roofline` |
+| 最优 baseM/N/K 搜索 | `--mode block-search` |
+| 2D Split-KN 搜索 | `--mode split-kn` |
+| 全部分析 | `--mode full` |
+
+所有命令均需加 `--chip 950` 以使用 per-cycle 模型。
