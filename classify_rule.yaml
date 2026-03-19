@@ -381,6 +381,7 @@ mc2_moe@ops-transformer:
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/op_graph/
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/CMakeLists.txt
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/README.md
+                - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/op_kernel/check_winsize.h
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/op_kernel/common.h
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_tiling.h
                 - ops/ops-transformer/mc2/moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_full_mesh.h
@@ -413,12 +414,6 @@ mc2_moe@ops-transformer:
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/op_kernel/
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/CMakeLists.txt
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/README.md
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/op_host/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/op_api/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/op_graph/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/op_kernel/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/CMakeLists.txt
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/README.md
                 - ops/ops-transformer/mc2/moe_update_expert/op_host/
                 - ops/ops-transformer/mc2/moe_update_expert/op_api/
                 - ops/ops-transformer/mc2/moe_update_expert/op_graph/
@@ -431,18 +426,6 @@ mc2_moe@ops-transformer:
                 - ops/ops-transformer/mc2/distribute_barrier/op_kernel/
                 - ops/ops-transformer/mc2/distribute_barrier/CMakeLists.txt
                 - ops/ops-transformer/mc2/distribute_barrier/README.md
-                - ops/ops-transformer/mc2/elastic_receivable_test/op_host/
-                - ops/ops-transformer/mc2/elastic_receivable_test/op_api/
-                - ops/ops-transformer/mc2/elastic_receivable_test/op_graph/
-                - ops/ops-transformer/mc2/elastic_receivable_test/op_kernel/
-                - ops/ops-transformer/mc2/elastic_receivable_test/CMakeLists.txt
-                - ops/ops-transformer/mc2/elastic_receivable_test/README.md
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/op_host/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/op_api/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/op_graph/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/op_kernel/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/CMakeLists.txt
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/README.md
             opensource_style: null 
             kernel_style: null  
         unrelease:
@@ -456,21 +439,12 @@ mc2_moe@ops-transformer:
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/tests/
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/examples/
                 - ops/ops-transformer/mc2/moe_distribute_combine_add_rms_norm/docs/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/tests/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/examples/
-                - ops/ops-transformer/mc2/moe_distribute_buffer_reset/docs/
                 - ops/ops-transformer/mc2/moe_update_expert/tests/
                 - ops/ops-transformer/mc2/moe_update_expert/examples/
                 - ops/ops-transformer/mc2/moe_update_expert/docs/
                 - ops/ops-transformer/mc2/distribute_barrier/tests/
                 - ops/ops-transformer/mc2/distribute_barrier/examples/
                 - ops/ops-transformer/mc2/distribute_barrier/docs/
-                - ops/ops-transformer/mc2/elastic_receivable_test/tests/
-                - ops/ops-transformer/mc2/elastic_receivable_test/examples/
-                - ops/ops-transformer/mc2/elastic_receivable_test/docs/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/tests/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/examples/
-                - ops/ops-transformer/mc2/elastic_receivable_info_collect/docs/  
             non_delivery: null  
             open_source:
                 - ops/ops-transformer/mc2/3rd/batch_mat_mul_v3/ 
@@ -660,6 +634,26 @@ moe@ops-transformer:
                 - ops/ops-transformer/moe/moe_init_routing_v2_grad/op_kernel/
                 - ops/ops-transformer/moe/moe_init_routing_v2_grad/CMakeLists.txt
                 - ops/ops-transformer/moe/moe_init_routing_v2_grad/README.md
+                - ops/ops-transformer/moe/moe_token_permute_with_ep/op_host/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep/op_graph/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep/op_kernel/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_permute_with_ep/README.md
+                - ops/ops-transformer/moe/moe_token_permute_with_ep_grad/op_host/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep_grad/op_graph/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep_grad/op_kernel/
+                - ops/ops-transformer/moe/moe_token_permute_with_ep_grad/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_permute_with_ep_grad/README.md
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map/op_host/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map/op_graph/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map/op_kernel/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map/README.md
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map_grad/op_host/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map_grad/op_graph/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map_grad/op_kernel/
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map_grad/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_permute_with_routing_map_grad/README.md
                 - ops/ops-transformer/moe/moe_token_unpermute/op_host/
                 - ops/ops-transformer/moe/moe_token_unpermute/op_graph/
                 - ops/ops-transformer/moe/moe_token_unpermute/op_kernel/
@@ -670,6 +664,26 @@ moe@ops-transformer:
                 - ops/ops-transformer/moe/moe_token_unpermute_grad/op_kernel/
                 - ops/ops-transformer/moe/moe_token_unpermute_grad/CMakeLists.txt
                 - ops/ops-transformer/moe/moe_token_unpermute_grad/README.md
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep/op_host/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep/op_graph/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep/op_kernel/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep/README.md
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep_grad/op_host/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep_grad/op_graph/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep_grad/op_kernel/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep_grad/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_unpermute_with_ep_grad/README.md
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map/op_host/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map/op_graph/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map/op_kernel/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map/README.md
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map_grad/op_host/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map_grad/op_graph/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map_grad/op_kernel/
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map_grad/CMakeLists.txt
+                - ops/ops-transformer/moe/moe_token_unpermute_with_routing_map_grad/README.md
             opensource_style: null 
             kernel_style: null  
         unrelease:
