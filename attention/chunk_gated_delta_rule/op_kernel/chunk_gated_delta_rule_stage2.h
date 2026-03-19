@@ -30,35 +30,22 @@ using cT2 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
 using StageTwoMT = matmul::MatmulImpl<aT2, bT2, cT2>;
 
 struct StageTwoParams {
-    GlobalTensor<float> qPrime_;    // (Nv, Sp, Dk)
-    GlobalTensor<float> vInner_;    // (Nv, Sp, Dv)
-    GlobalTensor<float> gCumExp_;   // (Nv, Sp)
-    GlobalTensor<float> kCumdecay_; // (Nv, Sp, Dk)
-    GlobalTensor<float> curState_;  // (Nv, Dv, Dk)
-    GlobalTensor<float> kg_;
-    GlobalTensor<float> attnInter_;
+    GlobalTensor<float> qPrime;    // (Nv, Sp, Dk)
+    GlobalTensor<float> vInner;    // (Nv, Sp, Dv)
+    GlobalTensor<float> gCumExp;   // (Nv, Sp)
+    GlobalTensor<float> kCumdecay; // (Nv, Sp, Dk)
+    GlobalTensor<float> curState;  // (Nv, Dv, Dk)
+    GlobalTensor<float> kg;
+    GlobalTensor<float> attnInter;
     GM_ADDR ws;
-    StageTwoMT *mm1_;
-    TPipe *pipe_;
+    StageTwoMT *mm1;
+    TPipe *pipe;
     ChunkGroup *cg;
-    int64_t Nv_;
-    int64_t Nk_;
-    int64_t Dv_;
-    int64_t Dk_;
+    int64_t Nv;
+    int64_t Nk;
+    int64_t Dv;
+    int64_t Dk;
     bool gOptional;
-};
-
-template <typename inType, typename outType>
-struct mm2Params {
-    GlobalTensor<inType> x;
-    GlobalTensor<inType> y;
-    GlobalTensor<outType> z;
-    int64_t m;
-    int64_t n;
-    int64_t k;
-    int64_t singleM;
-    int64_t singleN;
-    int64_t singleK;
 };
 
 class Stage2 {
@@ -66,16 +53,16 @@ public:
     __aicore__ inline void Init(StageTwoParams *initParams, int32_t coreNum)
     {
         sTP_ = initParams;
-        pipe_ = sTP_->pipe_;
+        pipe_ = sTP_->pipe;
         chunkSize_ = sTP_->cg->chunkSize;
         seqLength_ = sTP_->cg->length;
         Sp_ = (seqLength_ + chunkSize_ - 1) / chunkSize_  * chunkSize_;
         chunkNum_ = Sp_ / chunkSize_;
         coreNum_ = coreNum;
-        Nv_ = sTP_->Nv_;
-        Nk_ = sTP_->Nk_;
-        Dv_ = sTP_->Dv_;
-        Dk_ = sTP_->Dk_;
+        Nv_ = sTP_->Nv;
+        Nk_ = sTP_->Nk;
+        Dv_ = sTP_->Dv;
+        Dk_ = sTP_->Dk;
         curDk_ = Ceil(sTP_->Dk_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float));
         curChunkSize_ = chunkSize_;
         gOptional_ = sTP_->gOptional;
@@ -109,7 +96,7 @@ public:
         int64_t lastChunkSize = seqLength_ % chunkSize_ == 0 ? chunkSize_ : seqLength_ % chunkSize_;
         for (int64_t nvId = nvStart; nvId < nvEnd; nvId++) {
             curChunkSize_ = chunkSize_;
-            auto curState = sTP_->curState_[nvId * Dv_ * Dk_];
+            auto curState = sTP_->curState[nvId * Dv_ * Dk_];
             for (int64_t cId = 0; cId < chunkNum_; cId++) {
                 int64_t length = cId * chunkSize_;
                 if (cId == chunkNum_ - 1) {
@@ -121,7 +108,7 @@ public:
                     }
                     CrossCoreWaitFlag(0x2);
                     if (GetSubBlockIdx() == 0) {
-                        CalGCumExp(curState, sTP_->gCumExp_[nvId * Sp_ + length]);
+                        CalGCumExp(curState, sTP_->gCumExp[nvId * Sp_ + length]);
                     }
                     CrossCoreSetFlag<0x2, PIPE_MTE3>(0x3);  // 当前state非空，无法直接原子累加，需要覆盖写完通知AIC
                     CrossCoreWaitFlag(0x4);
@@ -129,11 +116,11 @@ public:
                 if ASCEND_IS_AIC {
                     uint64_t mm_offset0 = nvId * Sp_ * Dk_ + length * Dk_;
                     uint64_t mm_offset1 = nvId * Sp_ * Dv_ + length * Dv_;
-                    CalVPrime(sTP_->kCumdecay_[mm_offset0], curState, sTP_->vInner_[mm_offset1]);
-                    CalAttnInter(sTP_->qPrime_[mm_offset0], curState, sTP_->attnInter_[mm_offset1]);
+                    CalVPrime(sTP_->kCumdecay[mm_offset0], curState, sTP_->vInner[mm_offset1]);
+                    CalAttnInter(sTP_->qPrime[mm_offset0], curState, sTP_->attnInter[mm_offset1]);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x2);   // 读完之前AIV不能写
                     CrossCoreWaitFlag(0x3);
-                    CalStateNew(sTP_->vInner_[mm_offset1], sTP_->kg_[mm_offset0], curState);
+                    CalStateNew(sTP_->vInner[mm_offset1], sTP_->kg[mm_offset0], curState);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x4);
                     SetFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
                     WaitFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
@@ -166,12 +153,12 @@ public:
                                         GlobalTensor<float> attnInter)
     {
         // q_prime @ state.transpose(0, 1)
-        sTP_->mm1_->SetOrgShape(curChunkSize_, Dv_, Dk_);    // MNK
-        sTP_->mm1_->SetSingleShape(curChunkSize_, Dv_, Dk_); // SingleCoreMNK
-        sTP_->mm1_->SetTensorA(qPrime, false);
-        sTP_->mm1_->SetTensorB(state, true);
-        sTP_->mm1_->IterateAll(attnInter);
-        sTP_->mm1_->End();
+        sTP_->mm1->SetOrgShape(curChunkSize_, Dv_, Dk_);    // MNK
+        sTP_->mm1->SetSingleShape(curChunkSize_, Dv_, Dk_); // SingleCoreMNK
+        sTP_->mm1->SetTensorA(qPrime, false);
+        sTP_->mm1->SetTensorB(state, true);
+        sTP_->mm1->IterateAll(attnInter);
+        sTP_->mm1->End();
     }
 
     __aicore__ inline void CalVPrime(GlobalTensor<float> kCumdecay,
@@ -179,12 +166,12 @@ public:
                                      GlobalTensor<float> vPrime)
     {
         // v_inner += k_cumdecay @ state.transpose(0, 1)
-        sTP_->mm1_->SetOrgShape(curChunkSize_, Dv_, Dk_);    // MNK
-        sTP_->mm1_->SetSingleShape(curChunkSize_, Dv_, Dk_); // SingleCoreMNK
-        sTP_->mm1_->SetTensorA(kCumdecay, false);
-        sTP_->mm1_->SetTensorB(state, true);
-        sTP_->mm1_->IterateAll(vPrime, 1);
-        sTP_->mm1_->End();
+        sTP_->mm1->SetOrgShape(curChunkSize_, Dv_, Dk_);    // MNK
+        sTP_->mm1->SetSingleShape(curChunkSize_, Dv_, Dk_); // SingleCoreMNK
+        sTP_->mm1->SetTensorA(kCumdecay, false);
+        sTP_->mm1->SetTensorB(state, true);
+        sTP_->mm1->IterateAll(vPrime, 1);
+        sTP_->mm1->End();
     }
 
     __aicore__ inline void CalStateNew(GlobalTensor<float> vInner,
@@ -192,12 +179,12 @@ public:
                                        GlobalTensor<float> state)
     {
         // state_out = v_new.transpose(0, 1) @ kg 
-        sTP_->mm1_->SetOrgShape(Dv_, Dk_, curChunkSize_);    // MNK
-        sTP_->mm1_->SetSingleShape(Dv_, Dk_, curChunkSize_); // SingleCoreMNK
-        sTP_->mm1_->SetTensorA(vInner, true);
-        sTP_->mm1_->SetTensorB(kg, false);
-        sTP_->mm1_->IterateAll(state, 1);
-        sTP_->mm1_->End();
+        sTP_->mm1->SetOrgShape(Dv_, Dk_, curChunkSize_);    // MNK
+        sTP_->mm1->SetSingleShape(Dv_, Dk_, curChunkSize_); // SingleCoreMNK
+        sTP_->mm1->SetTensorA(vInner, true);
+        sTP_->mm1->SetTensorB(kg, false);
+        sTP_->mm1->IterateAll(state, 1);
+        sTP_->mm1->End();
     }
 
     template <typename inType>
