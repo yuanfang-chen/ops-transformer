@@ -2032,14 +2032,15 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
         return ge::GRAPH_FAILED);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE + info.moeExpertNum * sizeof(uint32_t) * 2U; // SYSTEM_NEED_WORKSPACE + userWorkspaceSize
+    // SYSTEM_NEED_WORKSPACE + userWorkspaceSize
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + static_cast<size_t>(info.moeExpertNum * sizeof(uint32_t) * 2U);
 
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
     auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
     std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, 18, algConfig); // opType=18
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(18), algConfig); // opType=18
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
         OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
