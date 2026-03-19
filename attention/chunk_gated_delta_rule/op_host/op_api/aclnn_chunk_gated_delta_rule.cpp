@@ -135,10 +135,6 @@ aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
         DFX_IN(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
         DFX_OUT(out, finalState));
 
-    // 返回 workspace/executor 需要有效指针，测试通路需要先注释
-    OP_CHECK_NULL(workspaceSize, return ACLNN_ERR_PARAM_INVALID);
-    OP_CHECK_NULL(executor, return ACLNN_ERR_PARAM_INVALID);
-
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
