@@ -424,10 +424,10 @@ bool PromptFlashAttentionTilingArch38::GetAndCheckShape(ContextParamsForPFATilin
             "When layout is TND, t should > 0, but t = %ld.", t),
         return false);
     shapeInfo.b = static_cast<uint32_t>(b);
-    shapeInfo.n = static_cast<uint32_t>(n);
-    shapeInfo.s = static_cast<uint32_t>(s);
+    shapeInfo.n = static_cast<uint64_t>(n);
+    shapeInfo.s = static_cast<uint64_t>(s);
     shapeInfo.d = static_cast<uint32_t>(d);
-    shapeInfo.h = static_cast<uint32_t>(h);
+    shapeInfo.h = static_cast<uint64_t>(h);
     shapeInfo.t = static_cast<uint32_t>(t);
     return true;
 }
@@ -488,10 +488,10 @@ bool PromptFlashAttentionTilingArch38::GetAndCheckRopeShape(ContextParamsForPFAT
             contextKeyParams.layout, h, sName.c_str());
     }
     ropeShapeInfo.b = static_cast<uint32_t>(b);
-    ropeShapeInfo.n = static_cast<uint32_t>(n);
-    ropeShapeInfo.s = static_cast<uint32_t>(s);
+    ropeShapeInfo.n = static_cast<uint64_t>(n);
+    ropeShapeInfo.s = static_cast<uint64_t>(s);
     ropeShapeInfo.d = static_cast<uint32_t>(d);
-    ropeShapeInfo.h = static_cast<uint32_t>(h);
+    ropeShapeInfo.h = static_cast<uint64_t>(h);
     ropeShapeInfo.t = static_cast<uint32_t>(t);
     return true;
 }
@@ -831,12 +831,12 @@ bool PromptFlashAttentionTilingArch38::CheckPostQuantParams(const ContextParamsF
     const gert::StorageShape* quantScale2Shape = contextKeyParams.scale2Shape;
     const gert::StorageShape* quantOffset2Shape = contextKeyParams.offset2Shape;
     const ge::DataType quantScale2Type = contextKeyParams.quantScale2Type;
-    uint32_t h = queryShapeInfo.h;
-    uint32_t n = queryShapeInfo.n;
+    uint64_t h = queryShapeInfo.h;
+    uint64_t n = queryShapeInfo.n;
 
     int64_t quantScale2ShapeSize = 0;
     uint32_t quantD = 0;
-    uint32_t queryD = h / n;
+    uint64_t queryD = h / n;
 
     OP_CHECK_IF(outputType != ge::DT_INT8 &&
                outputType != ge::DT_FLOAT8_E4M3FN && outputType != ge::DT_HIFLOAT8,
@@ -908,10 +908,10 @@ bool PromptFlashAttentionTilingArch38::GetAndCheckPrefixShape(ContextParamsForPF
             return false);
     }
     prefixShapeInfo.b = static_cast<uint32_t>(bPrefix);
-    prefixShapeInfo.n = static_cast<uint32_t>(nPrefix);
+    prefixShapeInfo.n = static_cast<uint64_t>(nPrefix);
     prefixShapeInfo.s = static_cast<uint32_t>(prefixSeqInnerSize);
     prefixShapeInfo.d = static_cast<uint32_t>(dPrefix);
-    prefixShapeInfo.h = static_cast<uint32_t>(hPrefix);
+    prefixShapeInfo.h = static_cast<uint64_t>(hPrefix);
     return true;
 }
 

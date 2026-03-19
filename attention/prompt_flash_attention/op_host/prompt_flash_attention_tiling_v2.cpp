@@ -543,10 +543,10 @@ bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& c
             "When layout is TND, t should > 0, but t = %ld.", t),
         return false);
     shapeInfo.b = static_cast<uint32_t>(b);
-    shapeInfo.n = static_cast<uint32_t>(n);
-    shapeInfo.s = static_cast<uint32_t>(s);
+    shapeInfo.n = static_cast<uint64_t>(n);
+    shapeInfo.s = static_cast<uint64_t>(s);
     shapeInfo.d = static_cast<uint32_t>(d);
-    shapeInfo.h = static_cast<uint32_t>(h);
+    shapeInfo.h = static_cast<uint64_t>(h);
     shapeInfo.t = static_cast<uint32_t>(t);
     return true;
 }
@@ -607,10 +607,10 @@ bool PromptFlashAttentionTilingV2::GetAndCheckRopeShape(ContextParamsForPFATilin
             contextKeyParams.layout, h, sName.c_str());
     }
     ropeShapeInfo.b = static_cast<uint32_t>(b);
-    ropeShapeInfo.n = static_cast<uint32_t>(n);
-    ropeShapeInfo.s = static_cast<uint32_t>(s);
+    ropeShapeInfo.n = static_cast<uint64_t>(n);
+    ropeShapeInfo.s = static_cast<uint64_t>(s);
     ropeShapeInfo.d = static_cast<uint32_t>(d);
-    ropeShapeInfo.h = static_cast<uint32_t>(h);
+    ropeShapeInfo.h = static_cast<uint64_t>(h);
     ropeShapeInfo.t = static_cast<uint32_t>(t);
     return true;
 }
@@ -1246,10 +1246,10 @@ bool PromptFlashAttentionTilingV2::GetAndCheckPrefixShape(ContextParamsForPFATil
                     return false);
     }
     prefixShapeInfo.b = static_cast<uint32_t>(bPrefix);
-    prefixShapeInfo.n = static_cast<uint32_t>(nPrefix);
-    prefixShapeInfo.s = static_cast<uint32_t>(prefixSeqInnerSize);
+    prefixShapeInfo.n = static_cast<uint64_t>(nPrefix);
+    prefixShapeInfo.s = static_cast<uint64_t>(prefixSeqInnerSize);
     prefixShapeInfo.d = static_cast<uint32_t>(dPrefix);
-    prefixShapeInfo.h = static_cast<uint32_t>(hPrefix);
+    prefixShapeInfo.h = static_cast<uint64_t>(hPrefix);
     return true;
 }
 
