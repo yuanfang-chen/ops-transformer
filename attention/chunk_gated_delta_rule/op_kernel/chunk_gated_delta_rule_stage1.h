@@ -171,12 +171,15 @@ public:
         coreNum_ = tiling_->aiCoreNum;
         cg_ = initParams.cg;
         gOptional_ = initParams.gOptional;
-        validLen_ = chunkSize_;
         vRowStride_ = nv_ * dv_;
         numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
         halfChunkSize_ = chunkSize_ / TASK_RATIO;
+        validLen_ = chunkSize_;
+        subValidRows_ = halfChunkSize_;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
+        isTailChunk_ = false;
+        isTailHalf_ = false;
         coreIdx_ = GetBlockIdx();
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
@@ -208,6 +211,13 @@ public:
             if (cgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
                 validLen_ = cg_.length % chunkSize_;
             }
+            if (validLen_ < halfChunkSize_) {
+                subValidRows_ = (subBlockIdx_ == 0) ? validLen_ : 0;
+            } else {
+                subValidRows_ = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
+            }
+            isTailChunk_ = (validLen_ < chunkSize_);
+            isTailHalf_ = (subValidRows_ < halfChunkSize_);
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
             uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
             SetChunkTensors(nId, cgId, chunkStartRow);
@@ -302,36 +312,28 @@ private:
     __aicore__ inline void QKPreProcessCompute(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
                                                 LocalTensor<float>& dstBuffer, bool kgFlag = false)
     {
-        uint32_t rows = halfChunkSize_;
-        uint32_t validRows = halfChunkSize_;
-        if (validLen_ < halfChunkSize_) {
-            validRows = (subBlockIdx_ == 0) ? validLen_ : 0;
-        } else {
-            validRows = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
-        }
-        LocalTensor<float> tmpTensor;
         // copyIn
-        DataCopyInBf16WithStride(validRows, dk_, srcGm, nk_ * dk_);
+        DataCopyInBf16WithStride(subValidRows_, dk_, srcGm, nk_ * dk_);
         // compute
         LocalTensor<bfloat16_t> bf16Tensor = fp32InQueue_.DeQue<bfloat16_t>();
-        Cast(dstBuffer, bf16Tensor, AscendC::RoundMode::CAST_NONE, validRows * dkAligned_);
+        Cast(dstBuffer, bf16Tensor, AscendC::RoundMode::CAST_NONE, subValidRows_ * dkAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(bf16Tensor);
 
-        if (validRows < rows) {
-            Duplicate(dstBuffer[validRows * dkAligned_], static_cast<float>(0.0f),
-                      (halfChunkSize_ - validRows) * dkAligned_);
+        if (isTailHalf_) {
+            Duplicate(dstBuffer[subValidRows_ * dkAligned_], static_cast<float>(0.0f),
+                      (halfChunkSize_ - subValidRows_) * dkAligned_);
             PipeBarrier<PIPE_V>();
         }
 
         // copyOut
-        tmpTensor = fp32OutQueue_.AllocTensor<float>();
-        DataCopy(tmpTensor, dstBuffer, rows * dkAligned_);
+        auto tmpTensor = fp32OutQueue_.AllocTensor<float>();
+        DataCopy(tmpTensor, dstBuffer, halfChunkSize_ * dkAligned_);
         fp32OutQueue_.EnQue(tmpTensor);
         tmpTensor = fp32OutQueue_.DeQue<float>();
 
         uint32_t srcStride = (dkAligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
-        DataCopyExtParams outParams{static_cast<uint16_t>(rows),
+        DataCopyExtParams outParams{static_cast<uint16_t>(halfChunkSize_),
                                     static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
         DataCopyPad(dstGm, tmpTensor, outParams);
         if (!gOptional_ && kgFlag){
@@ -509,21 +511,14 @@ private:
 
     __aicore__ inline void VBetaCompute()
     {
-        uint32_t valueLength = halfChunkSize_ * dv_;
         uint64_t vBeginOffset = subOffset_ * vRowStride_;
-        uint32_t validRows = halfChunkSize_;
-        if (validLen_ < halfChunkSize_) {
-            validRows = (subBlockIdx_ == 0) ? validLen_ : 0;
-        } else {
-            validRows = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
-        }
-        DataCopyInBf16WithStride(validRows, dv_, valueGm_[vBeginOffset], vRowStride_);
+        DataCopyInBf16WithStride(subValidRows_, dv_, valueGm_[vBeginOffset], vRowStride_);
         valueLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
         vBetaLocal_ = fp32OutQueue_.AllocTensor<float>();
-        Cast(valueUbFloat_, valueLocal_, AscendC::RoundMode::CAST_NONE, validRows * dvAligned_);
+        Cast(valueUbFloat_, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows_ * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(valueLocal_);
-        if (validLen_ < halfChunkSize_) {
+        if (isTailHalf_) {
             Duplicate(valueUbFloat_[validLen_ * dvAligned_], static_cast<float>(0.0f),
                       (halfChunkSize_ - validLen_) * dvAligned_);
             PipeBarrier<PIPE_V>();
@@ -576,20 +571,15 @@ private:
     __aicore__ inline void BetaCopyInWithStride()
     {
         uint64_t betaBeginOffset = subOffset_ * nv_;
-        uint32_t validRows = halfChunkSize_;
-        if (validLen_ < halfChunkSize_) {
-            validRows = (subBlockIdx_ == 0) ? validLen_ : 0;
-        } else {
-            validRows = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
-        }
-        DataCopyInBf16WithStride(validRows, 1, betaGm_[betaBeginOffset], nv_);
+        DataCopyInBf16WithStride(subValidRows_, 1, betaGm_[betaBeginOffset], nv_);
         betaLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
         constexpr uint32_t slot = BLOCK_SIZE / sizeof(bfloat16_t);
-        for (uint32_t i = 0; i < validRows; ++i) {
-            betaUbBfloat16_.SetValue(i, betaLocal_.GetValue(i * slot));
+        if (isTailHalf_) {
+            Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
+            PipeBarrier<PIPE_V>();
         }
-        for (uint32_t i = validRows; i < halfChunkSize_; ++i) {
-            betaUbBfloat16_.SetValue(i, bfloat16_t(0.0f));
+        for (uint32_t i = 0; i < subValidRows_; ++i) {
+            betaUbBfloat16_.SetValue(i, betaLocal_.GetValue(i * slot));
         }
         Cast(betaUbFloat_, betaUbBfloat16_, AscendC::RoundMode::CAST_NONE, halfChunkSize_);
         PipeBarrier<PIPE_V>();
@@ -601,13 +591,13 @@ private:
         constexpr uint32_t slot = BLOCK_SIZE / sizeof(float);
         DataCopyInFp32WithStride(validLen_, 1, gGm_, nv_);
         gLocal_ = fp32InQueue_.DeQue<float>();
+        if (isTailChunk_) {
+            Duplicate(gCumUbFloat_, 0.0f, chunkSize_);
+            PipeBarrier<PIPE_V>();
+        }
         for (uint32_t i = 0; i < validLen_; ++i) {
             gCumUbFloat_.SetValue(i, gLocal_.GetValue(i * slot));
         }
-        for (uint32_t i = validLen_; i < chunkSize_; ++i) {
-            gCumUbFloat_.SetValue(i, float(0.0f));
-        }
-        PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(gLocal_);
     }
 
@@ -712,9 +702,12 @@ private:
     uint32_t coreIdx_;
     uint32_t chunkSize_;
     uint32_t validLen_;
+    uint32_t subValidRows_;
     uint32_t coreNum_;
     float scale_;
     bool gOptional_;
+    bool isTailChunk_;
+    bool isTailHalf_;
 
     // base GM pointers
     GlobalTensor<bfloat16_t> queryBaseGm_;
