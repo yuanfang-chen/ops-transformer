@@ -23,8 +23,8 @@
 namespace optiling {
 
 enum class TilingMode : uint8_t {
-    PREFILL = 0,
-    DECODE = 1
+    SPLIT_BS = 0,
+    SPLIT_ND = 1
 };
 
 BEGIN_TILING_DATA_DEF(MhcPreTilingData)
@@ -133,7 +133,7 @@ private:
     uint32_t hasGamma_ = 0;
     uint32_t chunkTSize_ = 0;
     uint32_t v1ChunkDSize_ = 0;
-    TilingMode tilingMode_ = TilingMode::PREFILL;
+    TilingMode tilingMode_ = TilingMode::SPLIT_BS;
 
 protected:
     matmul_tiling::MultiCoreMatmulTiling mm_;

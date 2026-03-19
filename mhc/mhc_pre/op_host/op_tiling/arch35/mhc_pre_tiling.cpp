@@ -494,7 +494,7 @@ void MhcPreBaseTiling::FillTilingData()
     uint32_t baseN;
     uint32_t baseK;
 
-    if (tilingMode_ == TilingMode::DECODE) {
+    if (tilingMode_ == TilingMode::SPLIT_ND) {
         baseN = (matN_ + DECODE_ALIGN_16 - 1) / DECODE_ALIGN_16 * DECODE_ALIGN_16;
         baseK = L0_B_SIZE / baseN / FLOAT_ELE_SIZE * KERNEL_WIDTH;
         baseM = L0_B_SIZE / baseK / DECODE_ALIGN_16 * DECODE_ALIGN_16;
@@ -528,12 +528,12 @@ void MhcPreBaseTiling::FillTilingData()
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
     if (totalLength_ <= DECODE_BS_THRESHOLD) {
-        tilingMode_ = TilingMode::DECODE;
+        tilingMode_ = TilingMode::SPLIT_ND;
     } else {
-        tilingMode_ = TilingMode::PREFILL;
+        tilingMode_ = TilingMode::SPLIT_BS;
     }
 
-    if (tilingMode_ == TilingMode::DECODE) {
+    if (tilingMode_ == TilingMode::SPLIT_ND) {
         chunkTSize_ = DECODE_CHUNK_T_SIZE;
         v1ChunkDSize_ = V1_CHUNK_D_SIZE;
     } else {
@@ -548,7 +548,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     size_t userWorkspaceSize;
     size_t systemWorkspaceSize = SYSTEM_WORKSPACE;
 
-    if (tilingMode_ == TilingMode::DECODE) {
+    if (tilingMode_ == TilingMode::SPLIT_ND) {
         size_t xFloatWorkspaceSizeRaw = static_cast<size_t>(matM_) * static_cast<size_t>(matK_) * sizeof(float);
         size_t xFloatWorkspaceSize =
             (xFloatWorkspaceSizeRaw + DECODE_WORKSPACE_ALIGN - 1U) / DECODE_WORKSPACE_ALIGN * DECODE_WORKSPACE_ALIGN;
