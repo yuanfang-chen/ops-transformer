@@ -141,7 +141,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     channeles.resize(rankDim);
     CommLink * links;
     HcclResult ret;
-    uint32_t netLayers = 0; //目前默认是AIV 单Server内
+    uint32_t netLayers = 1; //目前默认是AIV 单Server内
     uint32_t linkNum = 0;
 
     OP_LOGD("PRINT HcclChannelDescInit start");
