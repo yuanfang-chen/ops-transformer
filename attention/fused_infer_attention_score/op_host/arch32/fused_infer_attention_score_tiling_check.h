@@ -171,15 +171,7 @@ private:
     template <typename T>
     ge::graphStatus CheckAttrValueByMap(std::map<std::string, std::pair<const T *, T>> &attrMap) const;
     ge::graphStatus CheckParaExistenceMlaNoquant() const;
-    ge::graphStatus CheckParaExistenceMlaAntiquant() const;
-    ge::graphStatus CheckParaExistenceMlaFullquant() const;
     ge::graphStatus CheckParaExistenceGqaNoquant() const;
-    ge::graphStatus CheckParaExistenceGqaNoquantForFullquant() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt8Inner() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt8() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquantInt4() const;
-    ge::graphStatus CheckParaExistenceGqaAntiquant() const;
-    ge::graphStatus CheckParaExistenceGqaFullquant() const;
     ge::graphStatus CheckParaExistenceMla() const;
     ge::graphStatus CheckParaExistenceGqa() const;
     ge::graphStatus CheckParaExistence();
