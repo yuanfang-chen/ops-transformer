@@ -63,19 +63,24 @@ void PrintTensorDataFloat(const std::vector<int64_t>& shape, void* device_addr) 
 // 将Device侧Tensor数据拷贝到Host侧并打印（float16类型）
 void PrintTensorDataFloat16(const std::vector<int64_t>& shape, void* device_addr) {
   int64_t size = GetShapeSize(shape);
+  std::vector<aclFloat16> host_fp16(size);
   std::vector<float> host_data(size, 0.0f);
-  
+
   aclError ret = aclrtMemcpy(
-      host_data.data(), size * sizeof(float),
+      host_fp16.data(), size * sizeof(aclFloat16),
       device_addr, size * sizeof(aclFloat16),
       ACL_MEMCPY_DEVICE_TO_HOST
   );
-  CHECK_RET(ret == ACL_SUCCESS, 
-            LOG_PRINT("Memcpy device to host failed, error: %d\n", ret); 
+  CHECK_RET(ret == ACL_SUCCESS,
+            LOG_PRINT("Memcpy device to host failed, error: %d\n", ret);
             return);
 
+  for (int64_t i = 0; i < size; ++i) {
+    host_data[i] = HalfToFloat(host_fp16[i]);
+  }
+
   LOG_PRINT("Tensor data (first 10 elements): ");
-  for (int i = 0; i < std::min((int64_t)10, size); ++i) {
+  for (int64_t i = 0; i < std::min((int64_t)10, size); ++i) {
     LOG_PRINT("%f ", host_data[i]);
   }
   LOG_PRINT("\n");
