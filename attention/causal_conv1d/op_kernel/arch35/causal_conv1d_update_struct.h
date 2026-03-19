@@ -23,21 +23,31 @@ int64_t usedCoreNum;              // Total used core number
 int64_t dimCoreCnt;               // Number of cores for dim direction
 int64_t batchCoreCnt;             // Number of cores for batch direction
 
-// Dim tiling parameters inter-core
-int64_t dimChunkSize;             // Dim chunk size per core 256B aligned
-int64_t dimTailSize;              // Dim tail size for last core
+// Dim tiling parameters inter-core (non-uniform split)
+int64_t dimMainCoreCnt;           // Number of big dim cores (base+1 blocks of 128)
+int64_t dimTailCoreCnt;           // Number of small dim cores (base blocks of 128)
+int64_t mainCoredimLen;             // Big core dim size: (base+1) * 128
+int64_t tailCoredimLen;              // Small core dim size: base * 128
 
-// Batch tiling parameters inter-core
-int64_t batchPerCore;             // Batches per core regular
-int64_t batchTailPerCore;         // Batches for tail core
-int64_t validBatchStart;          // First valid batch index
-int64_t validBatchEnd;            // Last valid batch index inclusive
+// Batch tiling parameters inter-core (non-uniform split)
+int64_t batchMainCoreCnt;         // Number of big batch cores
+int64_t batchTailCoreCnt;         // Number of small batch cores
+int64_t mainCoreBatchNum;             // Batch size for big cores
+int64_t tailCoreBatchNum;         // Batch size for small cores
 
 // Intra-core tiling parameters UB loop
-int64_t ubBatchSize;              // Batch size per UB iteration
-int64_t ubDimSize;                // Dim size per UB iteration elements
-int64_t batchLoopCnt;             // Batch loop count within core
-int64_t dimLoopCnt;               // Dim loop count within core
+int64_t loopNumBS;                // Loops in BS direction for big cores
+int64_t loopNumDim;               // Loops in Dim direction for big cores
+int64_t ubMainFactorBS;               // UB BS factor for big cores
+int64_t ubTailFactorBS;           // UB BS tail factor for big cores
+int64_t ubMainFactorDim;              // UB Dim factor for big cores
+int64_t ubTailFactorDim;          // UB Dim tail factor for big cores
+int64_t tailBlockloopNumBS;       // Loops in BS direction for tail cores
+int64_t tailBlockloopNumDim;      // Loops in Dim direction for tail cores
+int64_t tailBlockubFactorBS;      // UB BS factor for tail cores
+int64_t tailBlockubTailFactorBS;  // UB BS tail factor for tail cores
+int64_t tailBlockubFactorDim;     // UB Dim factor for tail cores
+int64_t tailBlockubTailFactorDim; // UB Dim tail factor for tail cores
 
 // Shape information for kernel use
 int64_t batchSize;                // Batch size
@@ -48,8 +58,10 @@ int64_t kernelSize;               // Kernel size K
 int64_t stateLen;                 // State length: second dimension of cacheState (K-1+m)
 int64_t xStride;                  // Stride for x tensor
 int64_t cacheStride;              // Stride for cacheState tensor
+int64_t padSlotId;               // padding batch which will not be calculated
 int64_t xInputMode;               // Input mode: 0 for 3D 1 for 2D
 int64_t hasAcceptTokenNum;        // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+int64_t residualConnection;       // Whether use residual connection: 0 for false, 1 for true
 };
 
 #endif

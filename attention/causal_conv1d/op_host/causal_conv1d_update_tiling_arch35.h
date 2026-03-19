@@ -34,6 +34,9 @@ struct CausalConv1dUpdateCompileInfo {
     uint64_t ubSize = 0;
 };
 
+constexpr uint64_t TILING_KEY_UPDATE_BF16 = 20000;
+constexpr uint64_t TILING_KEY_UPDATE_FP16 = 20001;
+
 // Input tensor indices
 constexpr int32_t X_INDEX = 0;
 constexpr int32_t WEIGHT_INDEX = 1;
@@ -52,10 +55,12 @@ constexpr int32_t OUTPUT_CONV_STATES_INDEX = 1;
 constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
 constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
 constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
+constexpr int32_t ATTR_RESIDUAL_CONNECTION_INDEX = 3;
 
 // Constants for validation
 constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
-constexpr int64_t MIN_DIM = 64;
+constexpr int64_t DIM_ALIGN_SiZESiZE = 256;  // 256 bytes
+constexpr int64_t MIN_DIM = 128;
 constexpr int64_t MAX_DIM = 16384;
 constexpr int64_t MIN_BATCH = 1;
 constexpr int64_t MAX_BATCH = 256;
@@ -109,9 +114,14 @@ protected:
 private:
     // Tiling calculation functions
     int64_t CalculateLimitedCoreNum();
-    int64_t ComputeOptimalDimChunk(int64_t dim, int64_t batch, int64_t coreNum);
-    void CalculateTilingParams(int64_t validBatch);
-    void CalculateIntraCoreTiling();
+
+    // Helpers function for DoOpTiling
+    ge::graphStatus ComputeInterCoreSplit();    //核间切分
+    ge::graphStatus ComputeIntraCoreUbTiling(); // 核内切分
+    void ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
+                      int64_t &outUbDim, int64_t &outUbBS,
+                      int64_t &outLoopDim, int64_t &outLoopBS,
+                      int64_t &outUbTailDim, int64_t &outUbTailBS);
 
     // Hardware information
     uint64_t ubSize_ = 0;
@@ -142,27 +152,37 @@ private:
     int64_t activationMode_ = 0;
     int64_t padSlotId_ = -1;
     int64_t runMode_ = 0;
-    int64_t inValidBatchNum_ = 0;
-    int64_t xInputMode_ = 0;  // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
-    int64_t hasAcceptTokenNum_ = 0;  // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+    int64_t xInputMode_ = 0;            // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
+    int64_t hasAcceptTokenNum_ = 0;     // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+    int64_t residualConnection_ = 0;    // Whether use residual connection: 0 for false, 1 for true
 
-    // Tiling parameters
-    int64_t limitedCoreNum_ = 0;      // Limited core number based on data size
+    // Inter-core tiling parameters (non-uniform split)
+    int64_t limitedCoreNum_ = 0;      // Limited core number based on data size (for reference)
     int64_t usedCoreNum_ = 0;         // Actually used core number
     int64_t dimCoreCnt_ = 0;          // Number of cores for dim direction
     int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
-    int64_t dimChunkSize_ = 0;        // Dim chunk size per core (256 * N)
-    int64_t dimTailSize_ = 0;         // Dim tail size for last core
-    int64_t batchPerCore_ = 0;        // Batches per core (regular)
-    int64_t batchTailPerCore_ = 0;    // Batches for tail core
-    int64_t validBatchStart_ = 0;     // First valid batch index
-    int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
+    int64_t dimMainCoreCnt_ = 0;      // Number of big dim cores (base+1 blocks)
+    int64_t dimTailCoreCnt_ = 0;      // Number of small dim cores (base blocks)
+    int64_t mainCoredimLen_ = 0;        // Big core dim size ((base+1) * 128)
+    int64_t tailCoredimLen_ = 0;         // Small core dim size (base * 128)
+    int64_t batchMainCoreCnt_ = 0;    // Number of big batch cores
+    int64_t batchTailCoreCnt_ = 0;    // Number of small batch cores
+    int64_t mainCoreBatchNum_ = 0;        // Batch size for big cores
+    int64_t tailCoreBatchNum_ = 0;    // Batch size for small cores
 
-    // Intra-core tiling parameters
-    int64_t ubBatchSize_ = 0;         // Batch size per UB iteration
-    int64_t ubDimSize_ = 0;           // Dim size per UB iteration (elements)
-    int64_t batchLoopCnt_ = 0;        // Batch loop count within core
-    int64_t dimLoopCnt_ = 0;          // Dim loop count within core
+    // Intra-core tiling parameters UB loop
+    int64_t loopNumBS_ = 0;                // Loops in BS direction for big cores
+    int64_t loopNumDim_ = 0;               // Loops in Dim direction for big cores
+    int64_t ubMainFactorBS_ = 0;               // UB BS factor for big cores
+    int64_t ubTailFactorBS_ = 0;           // UB BS tail factor for big cores
+    int64_t ubMainFactorDim_ = 0;              // UB Dim factor for big cores
+    int64_t ubTailFactorDim_ = 0;          // UB Dim tail factor for big cores
+    int64_t tailBlockloopNumBS_ = 0;       // Loops in BS direction for tail cores
+    int64_t tailBlockloopNumDim_ = 0;      // Loops in Dim direction for tail cores
+    int64_t tailBlockubFactorBS_ = 0;      // UB BS factor for tail cores
+    int64_t tailBlockubTailFactorBS_ = 0;  // UB BS tail factor for tail cores
+    int64_t tailBlockubFactorDim_ = 0;     // UB Dim factor for tail cores
+    int64_t tailBlockubTailFactorDim_ = 0; // UB Dim tail factor for tail cores
 
     // TilingData object
     CausalConv1dUpdateTilingData tilingData_;
