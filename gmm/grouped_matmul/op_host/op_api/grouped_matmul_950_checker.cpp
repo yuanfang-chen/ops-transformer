@@ -205,10 +205,8 @@ dtype is %s",
         GetInputTensor(gmmParams_.weight)->GetViewShape().GetDim(weightViewShapeDim - LAST_SECOND_DIM_INDEX);
     auto nDimValue =
         GetInputTensor(gmmParams_.weight)->GetViewShape().GetDim(weightViewShapeDim - LAST_FIRST_DIM_INDEX);
-    CHECK_COND(kDimValue != 1L && nDimValue != 1L, ACLNN_ERR_PARAM_INVALID,
-               "When format of weight is FRACTAL_NZ, neither of the last two dimensions of %s can be 1, but actual \
-k is %ld, n is %ld",
-               weightName_.c_str(), kDimValue, nDimValue);
+    // For WeightNz (FRACTAL_NZ), allow degenerate last dims (k/n == 1).
+    // Previously we rejected cases where either k or n was 1.
     return CheckWeightStorageShape(kDimValue, nDimValue);
 }
 
