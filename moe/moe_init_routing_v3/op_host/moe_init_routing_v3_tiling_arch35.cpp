@@ -631,7 +631,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     using ge::DataType;
     using std::unordered_set;
     static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
-                                                                     DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
+                                                                     DataType::DT_BF16, DataType::DT_INT8,
+                                                                     DataType::DT_HIFLOAT8, DataType::DT_FLOAT8_E5M2,
+                                                                     DataType::DT_FLOAT8_E4M3FN};
     static const unordered_set<DataType> DYNAMIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                      DataType::DT_BF16, DataType::DT_INT8};
     static const std::unordered_set<DataType> MX_OR_HIF8_QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
@@ -709,10 +711,19 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
                             expectedDim1, quantMode_, dim1),
                     return ge::GRAPH_FAILED);
     }
-    OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT,
-                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d).", xDtype_,
-                        ge::DataType::DT_FLOAT),
-                return ge::GRAPH_FAILED);
+    if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == DataType::DT_FLOAT8_E5M2 ||
+        xDtype_ == DataType::DT_FLOAT8_E4M3FN)) {
+        OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT8_E8M0,
+            OP_LOGE(context_, "Unsupported dtype of input %d and input scale: %d in quant mode %ld, should be: DT_FLOAT(%d).", xDtype_, 
+            scaleDtype_, QUANT_MODE_UNQUANT, ge::DataType::DT_FLOAT),
+            return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT,
+            OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d).", scaleDtype_,
+                    ge::DataType::DT_FLOAT),
+            return ge::GRAPH_FAILED);
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
