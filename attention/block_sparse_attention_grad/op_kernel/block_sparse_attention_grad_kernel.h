@@ -214,7 +214,6 @@ namespace BSA {
             uint32_t preQSeqLengths = tilingData->preQSeqLengths[coreIdx];
             //BNSD:curBatch * kvHeads * maxKvSeqlen; TND:cusum(gActualKvseqlen[0:curBatch-1])
             uint32_t preKVSeqLengths = tilingData->preKVSeqLengths[coreIdx];
-
             taskInfo.curBatchIdx =  tilingData->beginBatch[coreIdx];
             taskInfo.curHeadIdx = tilingData->beginHead[coreIdx];
             taskInfo.curQSeqIdx = tilingData->beginQSeqOffset[coreIdx];
@@ -379,7 +378,6 @@ namespace BSA {
                 // AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
                 // blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
                 // blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
-
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
@@ -456,7 +454,6 @@ namespace BSA {
         void operator()<AscendC::AIV>(Params const &params)
         {
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
-
             // pre
             VecPre(params);
             PipeBarrier<PIPE_ALL>();
@@ -537,10 +534,8 @@ namespace BSA {
             // uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
-
             for (uint32_t i = 0; i < taskLength; i++) {
                 TaskInfo curInfo = taskInfo[i % 2];
-
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
@@ -559,8 +554,6 @@ namespace BSA {
                             }
 
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
-                            uint64_t vector16Soffset = curInfo.sOffset * sizeof(ElementInput);
-                            uint64_t vector32Soffset = curInfo.sOffset * sizeof(float);
 
                             uint64_t actualRow = curInfo.curCalQSize;
                             uint64_t actualCol = curInfo.curCalKVSize;
@@ -575,6 +568,13 @@ namespace BSA {
                             uint64_t dKOutSize = tilingData->dKOutSize;
                             uint64_t dVOutSize = tilingData->dVOutSize;
 
+                            uint64_t coreOffset = 0; // ai core 的每个vectore 的偏移
+                            if (vecCoreIdx % 2 != 0) {
+                                coreOffset += (actualRow / 2 + actualRow % 2) * actualCol;
+                            }
+                            uint64_t vector16Soffset = (curInfo.sOffset + coreOffset) * sizeof(ElementInput);
+                            uint64_t vector32Soffset = (curInfo.sOffset + coreOffset) * sizeof(float);
+    
                             GM_ADDR s = params.workspace + vector32Soffset;
                             GM_ADDR softmaxLse = params.softmaxLse;
                             GM_ADDR dp = params.workspace + sOutSize + vector32Soffset;
