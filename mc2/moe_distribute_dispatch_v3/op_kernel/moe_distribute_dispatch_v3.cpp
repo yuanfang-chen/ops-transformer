@@ -42,6 +42,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
     TPipe pipe;
     printf("PRINT inter the moe_distribute_dispatch_v3\n");
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
+    printf("PRINT inter the kernel DT_BF16\n");
     if constexpr (ArchTag == TILINGKEY_TPL_A3) {
         printf("PRINT inter the kernel DT_BF16\n");
         if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
