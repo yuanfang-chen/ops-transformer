@@ -202,15 +202,15 @@ public:
 
         for (int32_t taskId = start; taskId < end; ++taskId) {
             validLen_ = chunkSize_;
-            uint64_t nid   = taskId % nv_;
-            uint64_t cg_id = taskId / nv_;
+            uint64_t nId   = taskId % nv_;
+            uint64_t cgId = taskId / nv_;
             // 尾chunk处理
-            if (cg_id == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
+            if (cgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
                 validLen_ = cg_.length % chunkSize_;
             }
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
-            uint64_t chunkStartRow = cg_.startPos + cg_id * chunkSize_;
-            SetChunkTensors(nid, cg_id, chunkStartRow);
+            uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
+            SetChunkTensors(nId, cgId, chunkStartRow);
             ProcessOneChunk();
         }
     }
@@ -218,36 +218,36 @@ public:
 private:
     // ----------------------------------------------------------
     // SetChunkTensors
-    //   nid       : head 编号 (Nv 维度)
+    //   nId       : head 编号 (Nv 维度)
     //   localChunkId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
     // ----------------------------------------------------------
-   __aicore__ inline void SetChunkTensors(uint64_t nid, uint64_t localChunkId, uint64_t chunkStartRow)
+   __aicore__ inline void SetChunkTensors(uint64_t nId, uint64_t localChunkId, uint64_t chunkStartRow)
     {
-        uint64_t kid = nid * nk_ / nv_;
+        uint64_t kid = nId * nk_ / nv_;
         uint64_t subRow = chunkStartRow + subOffset_;
         uint64_t qk_base = subRow * nk_ * dk_ + kid * dk_;
         queryGm_ = queryBaseGm_[qk_base];
         keyGm_   = keyBaseGm_[qk_base];
 
-        uint64_t vOffset = chunkStartRow * vRowStride_ + nid * dv_;
+        uint64_t vOffset = chunkStartRow * vRowStride_ + nId * dv_;
         valueGm_ = valueBaseGm_[vOffset];
 
-        uint64_t bgOffset = chunkStartRow * nv_ + nid;
+        uint64_t bgOffset = chunkStartRow * nv_ + nId;
         betaGm_ = betaBaseGm_[bgOffset];
         if (gOptional_){
             gGm_ = gBaseGm_[bgOffset];
         }
 
-        uint64_t cgLen_pad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
-        uint64_t cb = nid * cgLen_pad + localChunkId * chunkSize_;
+        uint64_t cgLenPad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
+        uint64_t chunkRowBase = nId * cgLenPad + localChunkId * chunkSize_;
 
-        outGCumExpGm_ = outGCumExpBaseGm_[cb];
-        outKCumdecayGm_ = outKCumdecayBaseGm_[cb * dk_];
-        outQPrimeGm_ = outQPrimeBaseGm_[cb * dk_];
-        outKgGm_ = outKgBaseGm_[cb * dk_];
-        outVInnerGm_ = outVInnerBaseGm_[cb * dv_];
-        outQkGm_ = outQkBaseGm_[cb * chunkSize_];
+        outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase];
+        outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase * dk_];
+        outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase * dk_];
+        outKgGm_ = outKgBaseGm_[chunkRowBase * dk_];
+        outVInnerGm_ = outVInnerBaseGm_[chunkRowBase * dv_];
+        outQkGm_ = outQkBaseGm_[chunkRowBase * chunkSize_];
     }
 
     __aicore__ inline void ProcessOneChunk()
@@ -630,8 +630,7 @@ private:
     __aicore__ inline void DataCopyInBf16WithStride(uint64_t rows,  // 要搬的行数
                                                     uint64_t cols,  // 每行的元素数
                                                     GlobalTensor<bfloat16_t> src,
-                                                    uint64_t srcRowStride, // GM上相邻行的间距(元素数)
-                                                    uint64_t pad_rows = 0)
+                                                    uint64_t srcRowStride) // GM上相邻行的间距(元素数)
     {
         DataCopyPadExtParams<bfloat16_t> padParams = {false, static_cast<uint8_t>(0), static_cast<uint8_t>(0),
                                                       static_cast<float>(0)};
