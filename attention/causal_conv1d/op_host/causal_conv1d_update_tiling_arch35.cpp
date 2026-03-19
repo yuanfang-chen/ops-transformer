@@ -170,6 +170,46 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
                 OP_LOGE(context_->GetNodeName(), "CausalConv1dUpdate CheckInputParams FAILED."),
                 return ge::GRAPH_FAILED);
 
+    // 获取 x 的 stride
+    bool xIsView = context_->InputIsView(X_INDEX);
+    if (xIsView) {
+        auto* xStride = context_->GetInputStride(X_INDEX);
+        OP_CHECK_IF(xStride == nullptr,
+                    OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
+                    return ge::GRAPH_FAILED);
+        
+        if (xInputMode_ = X_INPUT_3D) {
+            OP_CHECK_IF(xStride->GetDimNum() != DIM_3,
+                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 3."),
+                    return ge::GRAPH_FAILED);
+            xStride_ = xStride->GetStride(DIM_1); // batch, seq_len, dim
+        } else {
+            OP_CHECK_IF(xStride->GetDimNum() != DIM_2,
+            OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 2."),
+            return ge::GRAPH_FAILED);
+            xStride_ = xStride->GetStride(DIM_0); // cu_seq_len, dim
+        }
+    } else {
+        xStride_ = dim_;
+    }
+
+    // 获取 cacheStates 的 stride
+    bool cacheIsView = context_->InputIsView(CONV_STATES_INDEX);
+    if (cacheIsView) {
+        auto* cacheStride = context_->GetInputStride(CONV_STATES_INDEX);
+        OP_CHECK_IF(cacheStride == nullptr,
+                    OP_LOGE(context_->GetNodeName(), "conv_states stride is invalid."),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(cacheStride->GetDimNum() != DIM_3,
+                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in conv_states stride must be 3."),
+                    return ge::GRAPH_FAILED);
+        cacheStride0 = cacheStride->GetStride(DIM_0);
+        cacheStride1 = cacheStride->GetStride(DIM_1);
+    } else {
+        cacheStride0 = dim_ * stateLen_;
+        cacheStride1 = dim_;
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -506,54 +546,6 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
     OP_CHECK_IF(ValidateNumAcceptedTokenType() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "NumAcceptedToken type validation failed"),
                 return ge::GRAPH_FAILED);
-
-    OP_CHECK_IF(GetStrideInfo() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "Get stride info failed"),
-                return ge::GRAPH_FAILED);
-
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus GetStrideInfo() {
-    // 获取 x 的 stride
-    bool xIsView = context_->InputIsView(X_INDEX);
-    if (xIsView) {
-        auto* xStride = context_->GetInputStride(X_INDEX);
-        OP_CHECK_IF(xStride == nullptr,
-                    OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
-                    return ge::GRAPH_FAILED);
-        
-        if (xInputMode_ = X_INPUT_3D) {
-            OP_CHECK_IF(xStride->GetDimNum() != DIM_3,
-                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 3."),
-                    return ge::GRAPH_FAILED);
-            xStride_ = xStride->GetStride(DIM_1); // batch, seq_len, dim
-        } else {
-            OP_CHECK_IF(xStride->GetDimNum() != DIM_2,
-            OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 2."),
-            return ge::GRAPH_FAILED);
-            xStride_ = xStride->GetStride(DIM_0); // cu_seq_len, dim
-        }
-    } else {
-        xStride_ = dim_;
-    }
-
-    // 获取 cacheStates 的 stride
-    bool cacheIsView = context_->InputIsView(CONV_STATES_INDEX);
-    if (cacheIsView) {
-        auto* cacheStride = context_->GetInputStride(CONV_STATES_INDEX);
-        OP_CHECK_IF(cacheStride == nullptr,
-                    OP_LOGE(context_->GetNodeName(), "conv_states stride is invalid."),
-                    return ge::GRAPH_FAILED);
-        OP_CHECK_IF(cacheStride->GetDimNum() != DIM_3,
-                    OP_LOGE(context_->GetNodeName(), "The number of dimensions in conv_states stride must be 3."),
-                    return ge::GRAPH_FAILED);
-        cacheStride0 = cacheStride->GetStride(DIM_0);
-        cacheStride1 = cacheStride->GetStride(DIM_1);
-    } else {
-        cacheStride0 = dim_ * stateLen_;
-        cacheStride1 = dim_;
-    }
 
     return ge::GRAPH_SUCCESS;
 }

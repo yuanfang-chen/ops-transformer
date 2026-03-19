@@ -114,7 +114,6 @@ protected:
 private:
     // Tiling calculation functions
     int64_t CalculateLimitedCoreNum();
-    ge::graphStatus GetStrideInfo();
 
     // Helpers function for DoOpTiling
     ge::graphStatus ComputeInterCoreSplit();    //核间切分
