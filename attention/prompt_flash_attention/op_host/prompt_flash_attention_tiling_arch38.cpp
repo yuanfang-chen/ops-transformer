@@ -797,7 +797,7 @@ bool PromptFlashAttentionTilingArch38::CheckPerblockQuantParams(const ContextPar
             return false); 
     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-                (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, 128U)) ||   // 2 is the dim of dequantscale along s1.
+                (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, static_cast<uint64_t>(128U))) ||   // 2 is the dim of dequantscale along s1.
                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 1),  // 3 is the dim of dequantscale along d.
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "dequantScaleQueryShape must be (b,n1,ceil(s1/128),1) in per-block quant scenario, now is  [%ld, %ld, %ld, %ld].",
@@ -806,7 +806,7 @@ bool PromptFlashAttentionTilingArch38::CheckPerblockQuantParams(const ContextPar
             return false); 
     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-                (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, 256U)) || //  2 is the dim of dequantscale along s2.
+                (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, static_cast<uint64_t>(256U))) || //  2 is the dim of dequantscale along s2.
                 (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 1), // 3 is the dim of dequantscale along d.
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "keyAntiquantScaleShape must be (b,n2,ceil(s2/256),1) in per-block quant scenario, now is [%ld, %ld, %ld, %ld].",
@@ -815,7 +815,7 @@ bool PromptFlashAttentionTilingArch38::CheckPerblockQuantParams(const ContextPar
             return false);
     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-                (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, 256U)) || // 2 is the dim of dequantscale along s2.
+                (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, static_cast<uint64_t>(256U))) || // 2 is the dim of dequantscale along s2.
                 (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 1), // 3 is the dim of dequantscale along d.
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "valueAntiquantScaleshape must be (b,n2,ceil(s2/256),1) when enablePertensorQuant is true, now is [%ld, %ld, %ld, %ld].",
