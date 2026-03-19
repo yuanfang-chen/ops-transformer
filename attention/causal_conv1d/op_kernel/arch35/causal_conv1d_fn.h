@@ -311,7 +311,7 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
 
     // --- 绑定 GM ---
     // xGM_ 从 x 起始地址开始，bsStart 就是全局 token 位置
-    xGM_.SetGlobalBuffer((__gm__ T*)x, (uint64_t)tiling->cuSeqLen * dim_);
+    xGM_.SetGlobalBuffer((__gm__ T*)x, (uint64_t)tiling->cuSeqLen * xStride_);
     weightGM_.SetGlobalBuffer((__gm__ T*)weight, kernelWidth_ * dim_);
     cacheStatesGM_.SetGlobalBuffer((__gm__ T*)convStates);
     cacheIndicesGM_.SetGlobalBuffer((__gm__ int32_t*)cacheIndices, batchSize_);
