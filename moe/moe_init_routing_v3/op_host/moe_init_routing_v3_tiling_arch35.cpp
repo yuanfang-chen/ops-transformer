@@ -812,6 +812,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckSetInputs()
             return ge::GRAPH_FAILED);
     }
 
+    tilingDataPtr_->activeNum = totalLength_;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1319,6 +1321,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     gatherOutTiling->lastCoreIndicesLoops = lastCoreIndicesLoops;
     gatherOutTiling->lastCorePerLoopIndicesElements = lastCorePerLoopIndicesElements;
     gatherOutTiling->lastCoreLastLoopIndicesElements = lastCoreLastLoopIndicesElements;
+    gatherOutTiling->activeNum = tilingDataPtr_->activeNum;
 
     LogGatherOutTilingData();
     return ge::GRAPH_SUCCESS;
@@ -1394,6 +1397,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
     gatherOutTiling->lastCorePerLoopIndicesElements = lastCorePerLoopIndicesElements;
     gatherOutTiling->lastCoreLastLoopIndicesElements =
         lastCoreLastLoopIndicesElements; // 没用这个，kernel根据读取到的expertTotalCount重新计算tiling相关值
+    gatherOutTiling->activeNum = tilingDataPtr_->activeNum;
 
     LogGatherOutTilingData();
     return ge::GRAPH_SUCCESS;
