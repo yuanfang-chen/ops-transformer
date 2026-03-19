@@ -63,7 +63,7 @@ public:
         Nk_ = sTP_->Nk;
         Dv_ = sTP_->Dv;
         Dk_ = sTP_->Dk;
-        curDk_ = Ceil(sTP_->Dk_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float));
+        curDk_ = Ceil(Dk_, BLOCK_SIZE / sizeof(float)) * (BLOCK_SIZE / sizeof(float));
         curChunkSize_ = chunkSize_;
         gOptional_ = sTP_->gOptional;
         InitLocalBuffers();
@@ -104,7 +104,7 @@ public:
                 }
                 if ASCEND_IS_AIV {
                     if (GetSubBlockIdx() == 0) {
-                        CopyIn<float>(curState, sTP_->Dv_, sTP_->Dk_);
+                        CopyIn<float>(curState, Dv_, Dk_);
                     }
                     CrossCoreWaitFlag(0x2);
                     if (GetSubBlockIdx() == 0) {

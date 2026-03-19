@@ -87,8 +87,8 @@ public:
         }
 
         pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, 
-               chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
-        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ * sTP_->Dv_ * sizeof(float));
+               chunkSize_ > Dv_ ? chunkSize_ * Dk_ * sizeof(float) : Dv_ * Dk_ * sizeof(float));
+        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ * Dv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
         uint32_t buffOffset = 0;
         tmpBuffer1_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
@@ -183,12 +183,12 @@ public:
 
     __aicore__ inline void ReadAttnOut(GlobalTensor<float> inTensor)
     {
-        AttnCopyIn(inTensor, curChunkSize_, sTP_->Dv_);
+        AttnCopyIn(inTensor, curChunkSize_, Dv_);
     }
 
     __aicore__ inline void CalAttnOut(GlobalTensor<bfloat16_t> outTensor)
     {
-        curDv_ = Ceil(sTP_->Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
+        curDv_ = Ceil(Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
         auto out = inQueue_.DeQue<float>();
         auto attn_out = outQueue_.AllocTensor<bfloat16_t>();
         Cast(attn_out, out, RoundMode::CAST_RINT, curChunkSize_ * curDv_);
