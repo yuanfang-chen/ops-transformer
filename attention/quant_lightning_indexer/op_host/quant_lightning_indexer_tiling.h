@@ -62,7 +62,8 @@ constexpr uint32_t ATTR_SPARSE_COUNT_INDEX = 4;
 constexpr uint32_t ATTR_SPARSE_MODE_INDEX = 5;
 constexpr uint32_t ATTR_PRE_TOKENS_INDEX = 6;
 constexpr uint32_t ATTR_NEXT_TOKENS_INDEX = 7;
-constexpr uint32_t ATTR_BLOCK_STRIDE_INDEX = 8;
+constexpr uint32_t ATTR_KEY_BLOCK_STRIDE_INDEX = 8;
+constexpr uint32_t ATTR_KEY_SCALE_BLOCK_STRIDE_INDEX = 9;
 // Dim Index
 constexpr uint32_t DIM_IDX_ZERO = 0;
 constexpr uint32_t DIM_IDX_ONE = 1;
@@ -124,7 +125,8 @@ struct QLIParaInfo {
     const int32_t *sparseCount = nullptr;
     const int64_t *preTokens = nullptr;
     const int64_t *nextTokens = nullptr;
-    int64_t blockStride = 0;
+    int64_t keyBlockStride = 0;
+    int64_t keyScaleBlockStride = 0;
 };
 
 // -----------算子Tiling入参信息类---------------

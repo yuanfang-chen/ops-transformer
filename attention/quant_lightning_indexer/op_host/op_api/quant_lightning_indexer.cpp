@@ -37,16 +37,19 @@ const aclTensor *QuantLightningIndexer(
         int64_t nextTokens,
         aclOpExecutor *executor)
 {
-    int64_t blockStride = 0;
+    int64_t keyBlockStride = 0;
+    int64_t keyScaleBlockStride = 0;
     if (!IsContiguous(key)) {
-        auto blockStrides = key->GetViewStrides();
-        blockStride = blockStrides[0];
+        auto keyStride = key->GetViewStrides();
+        keyBlockStride = keyStride[0];
+        auto keyScaleStride = keyDequantScale->GetViewStrides();
+        keyScaleBlockStride = keyScaleStride[0];
     }
 
     // L0接口时延统计以及入参打印
     L0_DFX(QuantLightningIndexer, query, key, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional,
         actualSeqLengthsKeyOptional, blockTableOptional, queryQuantMode, keyQuantMode, layoutQueryOptional,
-        layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens, blockStride);
+        layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens, keyBlockStride, keyScaleBlockStride);
 
     // 构造输出
     auto output = executor->AllocTensor(DataType::DT_INT32, Format::FORMAT_ND, Format::FORMAT_ND);
@@ -57,7 +60,7 @@ const aclTensor *QuantLightningIndexer(
                                     actualSeqLengthsKeyOptional, blockTableOptional),
                             OP_OUTPUT(output),
                             OP_ATTR(queryQuantMode, keyQuantMode, layoutQueryOptional, layoutKeyOptional, sparseCount,
-                                    sparseMode, preTokens, nextTokens, blockStride));
+                                    sparseMode, preTokens, nextTokens, keyBlockStride, keyScaleBlockStride));
 
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "QuantLightningIndexer InferShape failed.");
@@ -70,7 +73,7 @@ const aclTensor *QuantLightningIndexer(
                                     actualSeqLengthsKeyOptional, blockTableOptional),
                             OP_OUTPUT(output),
                             OP_ATTR(queryQuantMode, keyQuantMode, layoutQueryOptional, layoutKeyOptional, sparseCount,
-                                    sparseMode, preTokens, nextTokens, blockStride));
+                                    sparseMode, preTokens, nextTokens, keyBlockStride, keyScaleBlockStride));
     
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "ADD_TO_LAUNCHER_LIST_AICORE failed.");
