@@ -681,67 +681,6 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
 
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
-    // if (aiCoreIdx == 0) {
-    //     printf("🔥 打印所有 tiling 变量（模拟 InitTilingData 完成）\n");
-    //     printf("-------------------------------------------------------------\n");
-
-    //     printf("singleProcessSInnerSize = %d\n", singleProcessSInnerSize);
-    //     printf("sInnerLoopTimes = %d\n", sInnerLoopTimes);
-    //     printf("singleProcessSInnerSizeTail = %d\n", singleProcessSInnerSizeTail);
-    //     printf("usedCoreNum = %d\n", usedCoreNum);
-    //     printf("formerCoreNum = %d\n", formerCoreNum);
-    //     printf("splitKVNum = %d\n", splitKVNum);
-    //     printf("sInnerLoopSize = %d\n", sInnerLoopSize);
-    //     printf("accumOutSize = %d\n", accumOutSize);
-    //     printf("logSumExpSize = %d\n", logSumExpSize);
-    //     printf("mmResUbSize = %d\n", mmResUbSize);
-    //     printf("bmm2ResUbSize = %d\n", bmm2ResUbSize);
-    //     printf("headDimAlign = %d\n", headDimAlign);
-
-    //     printf("batchSize = %d\n", batchSize);
-    //     printf("kvHeadNum = %d\n", kvHeadNum);
-    //     printf("qHeadNum = %d\n", qHeadNum);
-    //     printf("gSize = %d\n", gSize);
-    //     printf("qSeqSize = %d\n", qSeqSize);
-    //     printf("kvSeqSize = %d\n", kvSeqSize);
-    //     printf("headDim = %d\n", headDim);
-    //     printf("batchContinuous = %d\n", batchContinuous);
-    //     printf("msdIterNum = %d\n", msdIterNum);
-    //     printf("antiquantPerTensorFlag = %d\n", antiquantPerTensorFlag);
-    //     printf("antiquantPerHeadFlag = %d\n", antiquantPerHeadFlag);
-    //     printf("antiquantParamsInPagedAttentionFlag = %d\n", antiquantParamsInPagedAttentionFlag);
-
-    //     printf("gSizeSub = %d\n", gSizeSub);
-    //     printf("gOuter = %d\n", gOuter);
-    //     printf("gSizeTail = %d\n", gSizeTail);
-    //     printf("s1SizeSub = %d\n", s1SizeSub);
-    //     printf("s1Outer = %d\n", s1Outer);
-    //     printf("s1SizeTail = %d\n", s1SizeTail);
-
-    //     printf("attenMaskFlag = %s\n", attenMaskFlag ? "true" : "false");
-    //     printf("attenMaskSize = %d\n", attenMaskSize);
-    //     printf("selectWithByteMaskTmpMinSize = %d\n", selectWithByteMaskTmpMinSize);
-    //     printf("antiqSeqSize = %d\n", antiqSeqSize);
-
-    //     printf("pseShiftFlag = %s\n", pseShiftFlag ? "true" : "false");
-    //     if (pseShiftFlag) {
-    //         printf("pseShiftB = %d\n", pseShiftB);
-    //         printf("pseShiftS = %d\n", pseShiftS);
-    //     }
-
-    //     printf("kvPaddingFlag = %d\n", kvPaddingFlag);
-    //     printf("isPerChnU8Out = %s\n", isPerChnU8Out ? "true" : "false");
-    //     printf("isOutQuantTypeBf16 = %s\n", isOutQuantTypeBf16 ? "true" : "false");
-    //     printf("softmaxLseFlag = %s\n", softmaxLseFlag ? "true" : "false");
-    //     printf("maxBlockNumPerBatch = %d\n", maxBlockNumPerBatch);
-    //     printf("kvCacheBlockSize = %d\n", kvCacheBlockSize);
-    //     printf("l2CacheOffFlag = %d\n", tilingData->baseParams.l2CacheOffFlag);
-    //     printf("scaleValue = %f\n", tilingData->baseParams.scaleValue);
-        
-    //     for (int i = 0; i < 50; i++) {
-    //         printf("coreSidxEnd[%d] : %d\n", i, metaData_->coreSidxEnd[i]);
-    //     }
-    // }
 }
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitBuffers()
@@ -994,17 +933,12 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, const optiling::IncreFlashAttentionTilingData *__restrict tiling,
     TPipe *tPipe, bool isPrefix)
 {
-    // printf("dd entry!-------------------------\n");
-
-    // printf("fd : %d, layout: %d, mode: %d\n", IFAT::flashDecode, IFAT::layout, IFAT::antiquantMode);
     if ASCEND_IS_AIV {
         tmpBlockIdx = GetBlockIdx(); // vec:0-47
         aiCoreIdx = tmpBlockIdx / 2;
-        // printf("AIV BlockIdx : %d\n", tmpBlockIdx);
     } else {
         tmpBlockIdx = GetBlockIdx(); // cube:0-23
         aiCoreIdx = tmpBlockIdx;
-        // printf("AIC BlockIdx : %d\n", tmpBlockIdx);
     }
     // init tiling data
     tilingData = tiling;
@@ -1040,16 +974,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     }
 
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengths);
-    // if (aiCoreIdx == 0) {
-    //     for (int i = 0; i < actualLenQDims; i++) {
-    //         uint64_t a = actualSeqLengthsGmQ.GetValue(i);
-    //         // printf("actualSeqLengthsGmQ[%d] : %d\n", i, a);
-    //     }
-    //     for (int i = 0; i < actualLenDims; i++) {
-    //         uint64_t a = actualSeqLengthsGm.GetValue(i);
-    //         // printf("actualSeqLengthsGm[%d] : %d\n", i, a);
-    //     }
-    // }
+
     if (kvPaddingFlag == 1) {
         kvPaddingSizeGm.SetGlobalBuffer((__gm__ int64_t *)kvPaddingSize);
     }
@@ -1130,9 +1055,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitKeyGm(uint32_t bIdx)
 {
-    // ListTensorDesc keyListTensorDesc((__gm__ void *)keyPtr);
-    // key_ = (__gm__ uint8_t *)keyListTensorDesc.GetDataPtr<__gm__ uint8_t>(bIdx);
-
     keyGm.SetGlobalBuffer((__gm__ KV_T *)keyPtr);
 
     if (tilingData->baseParams.l2CacheOffFlag) {
@@ -1146,9 +1068,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitKeyGm(uint32
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitValueGm(uint32_t bIdx)
 {
-    // ListTensorDesc valueListTensorDesc((__gm__ void *)valuePtr);
-    // value_ = (__gm__ uint8_t *)valueListTensorDesc.GetDataPtr<__gm__ uint8_t>(bIdx);
-
     valueGm.SetGlobalBuffer((__gm__ KV_T *)valuePtr);
 
     if (tilingData->baseParams.l2CacheOffFlag) {
@@ -1534,14 +1453,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::AntiquantMatmulP
 
     for (uint32_t i = 0; i < msdIterNum; i++) {
         AntiquantAIterExpand(dstGm, srcUbFp16, tmpAFloorUbFp16, calcSize, (i == 0 ? true : false), step * i + baseOffset);
-        // if (info.bIdx == 9)
-        // {
-        //     printf("2222 kernel task - info.loop : %d info.bIdx : %d info.s1Idx : %d info.s2Idx : %d info.n2Idx : %d\n", info.loop, info.bIdx, info.s1Idx, info.s2Idx, info.n2Idx);
-        //     printf("kernel task - calcSize : %d dealRowCount : %d columnCount : %d\n", calcSize, dealRowCount, columnCount);
-        //     uint32_t arrayGm[] = {static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(columnCount)};
-        //     AscendC::ShapeInfo shapeInfoGm(2, arrayGm);
-        //     AscendC::DumpTensor(dstGm[step * i + baseOffset], __LINE__, calcSize, shapeInfoGm);
-        // }
     }
 }
 
@@ -4060,7 +3971,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Process()
                         if ASCEND_IS_AIV {
                             CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                             ExtraInfo& info = extraInfo[loop % EXTRA_NUM];
-                            // printf("kernel task - info.loop : %d info.bIdx : %d info.s1Idx : %d info.s2Idx : %d info.n2Idx : %d\n", info.loop, info.bIdx, info.s1Idx, info.s2Idx, info.n2Idx);
                             ProcessVec1L(extraInfo[loop % EXTRA_NUM]);
                             CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C2_FLAG);
                         }
