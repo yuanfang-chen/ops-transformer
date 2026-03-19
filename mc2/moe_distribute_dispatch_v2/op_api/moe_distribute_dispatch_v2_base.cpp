@@ -139,7 +139,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     std::vector<HcclChannelDesc> channelDesc;
     channelDesc.resize(rankDim);
     channeles.resize(rankDim);
-    CommLink * links;
+    CommLink * links = nullptr;
     HcclResult ret;
     uint32_t netLayers = 0; //目前默认是AIV 单Server内
     uint32_t linkNum = 0;
@@ -387,7 +387,9 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
 
     int64_t ydtype = expandXOut->GetDataType();
+    OP_LOGD("PRINT hcclHandle start out :%p",hcclHandle);
     ret = GetCommHandle(groupEp, hcclHandle, netLayerNum);
+    OP_LOGD("PRINT hcclHandle end out :%p",hcclHandle);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT commAlg:%s",commAlg);
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
