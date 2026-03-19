@@ -43,7 +43,7 @@ const constexpr int64_t BSND_DIM_NUM = 4;
 const constexpr int64_t TND_DIM_NUM = 3;
 const constexpr int64_t UNKNOWN_DIM_VALUE = -1LL;
 
-static void SetShape3D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2)
+static void SetShape3D(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t d2)
 {
     shape->SetDimNum(3);
     shape->SetDim(0, d0);
@@ -51,14 +51,14 @@ static void SetShape3D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2
     shape->SetDim(2, d2);
 }
 
-static void SetShape2D(gert::Shape* shape, uint64_t d0, uint64_t d1)
+static void SetShape2D(gert::Shape *shape, uint64_t d0, uint64_t d1)
 {
     shape->SetDimNum(2);
     shape->SetDim(0, d0);
     shape->SetDim(1, d1);
 }
 
-static void SetShape4D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2)
+static void SetShape4D(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t d2)
 {
     shape->SetDimNum(4);
     shape->SetDim(0, d0);
@@ -67,13 +67,13 @@ static void SetShape4D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2
     shape->SetDim(3, d2);
 }
 
-static void SetShape1D(gert::Shape* shape, uint64_t d0)
+static void SetShape1D(gert::Shape *shape, uint64_t d0)
 {
     shape->SetDimNum(1);
     shape->SetDim(0, d0);
 }
 
-static void SetShape3DMatK(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t matK)
+static void SetShape3DMatK(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t matK)
 {
     shape->SetDimNum(3);
     shape->SetDim(0, d0);
@@ -110,23 +110,21 @@ static ge::graphStatus InferShape4MhcPre(InferShapeContext *context)
     if (IsUnknownShape(xShape) || IsUnknownShape(phiShape)) {
         SetShapeFromX(context->GetOutputShape(OUT_H_IN_INDEX), xShape);
         SetShapeFromX(context->GetOutputShape(OUT_H_PRE_INDEX), xShape);
-        OP_LOGD(context->GetNodeName(), "MhcPre infershape handles unknown shape.");
         return GRAPH_SUCCESS;
     }
 
     int64_t phiDim = phiShape->GetDimNum();
     int64_t xDim = xShape->GetDimNum();
-    OP_CHECK_IF(phiDim < 2 || (xDim != BSND_DIM_NUM && xDim != TND_DIM_NUM),
-        OP_LOGE(context->GetNodeName(), "phiDim=%ld, xDim=%ld invalid", phiDim, xDim),
+    OP_CHECK_IF(phiDim < 2, OP_LOGE(context->GetNodeName(), "phiShapeDim should be >= 2, but got %ld", phiDim),
+                return GRAPH_FAILED);
+    OP_CHECK_IF(
+        xDim != BSND_DIM_NUM && xDim != TND_DIM_NUM,
+        OP_LOGE(context->GetNodeName(), "xShapeDim should be %d or %d, but got %ld", BSND_DIM_NUM, TND_DIM_NUM, xDim),
         return GRAPH_FAILED);
-
     uint64_t matK = phiShape->GetDim(0);
-    gert::Shape* outShapes[6] = {
-        context->GetOutputShape(OUT_H_IN_INDEX), context->GetOutputShape(OUT_H_POST_INDEX),
-        context->GetOutputShape(OUT_H_RES_INDEX), context->GetOutputShape(OUT_INV_RMS_INDEX),
-        context->GetOutputShape(OUT_MM_RES_INDEX), context->GetOutputShape(OUT_H_PRE_INDEX)
-    };
-
+    gert::Shape *outShapes[6] = {context->GetOutputShape(OUT_H_IN_INDEX),   context->GetOutputShape(OUT_H_POST_INDEX),
+                                 context->GetOutputShape(OUT_H_RES_INDEX),  context->GetOutputShape(OUT_INV_RMS_INDEX),
+                                 context->GetOutputShape(OUT_MM_RES_INDEX), context->GetOutputShape(OUT_H_PRE_INDEX)};
     if (xDim == BSND_DIM_NUM) {
         uint64_t b = xShape->GetDim(0), s = xShape->GetDim(1), n = xShape->GetDim(2), d = xShape->GetDim(3);
         SetShape3D(outShapes[0], b, s, d);
@@ -161,7 +159,5 @@ static graphStatus InferDataType4MhcPre(gert::InferDataTypeContext *context)
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(MhcPre)
-    .InferShape(InferShape4MhcPre)
-    .InferDataType(InferDataType4MhcPre);
+IMPL_OP_INFERSHAPE(MhcPre).InferShape(InferShape4MhcPre).InferDataType(InferDataType4MhcPre);
 } // namespace ops
