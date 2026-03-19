@@ -239,7 +239,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     //获取对应的资源
     for(uint32_t index = 0; index < mc2_context->epRankSize; index++) {
         if(index == mc2_context->epRankId) {
-            OP_LOGD("PRINT HcclGetHcclBuffer hcclHandle %p",hcclHandle)
+            OP_LOGD("PRINT HcclGetHcclBuffer hcclHandle %p",hcclHandle);
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
             OP_LOGD("PRINT HcclGetHcclBuffer success");
             OP_LOGD("PRINT CreatMc2Context if index:%d",index);
