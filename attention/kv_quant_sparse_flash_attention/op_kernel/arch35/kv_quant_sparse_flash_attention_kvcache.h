@@ -86,7 +86,11 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
 
     runParam.actualS1Size = actualS1Size;
     runParam.actualS2Size = actualS2Size;
-    runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
+    if (constInfo.sparseMode == sparseModeZero) {
+        runParam.nextTokensPerBatch = MAX_PRE_NEXT_TOKENS;
+    } else {
+        runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
+    }
     runParam.preTokensPerBatch = runParam.actualS1Size;
 
     CalculateQueryOffset<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, actualSeqQlenAddr);
