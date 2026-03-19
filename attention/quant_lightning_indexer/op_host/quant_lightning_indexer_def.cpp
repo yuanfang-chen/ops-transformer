@@ -68,7 +68,7 @@ public:
         this->Attr("sparse_mode").AttrType(OPTIONAL).Int(3);      // 3: 默认值，只计算下三角
         this->Attr("pre_tokens").AttrType(OPTIONAL).Int(9223372036854775807);  // 9223372036854775807: 默认值，int64的最大值
         this->Attr("next_tokens").AttrType(OPTIONAL).Int(9223372036854775807); // 9223372036854775807: 默认值，int64的最大值
-        this->Attr("block_strides").AttrType(OPTIONAL).Int(0); // 0: 默认值
+        this->Attr("block_stride").AttrType(OPTIONAL).Int(0); // 0: 默认值
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
@@ -129,10 +129,7 @@ public:
             .DynamicRankSupportFlag(true)
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
-            .PrecisionReduceFlag(true)
-            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
-            .ExtendCfgInfo("opFile.value", "quant_lightning_indexer")
-            .ExtendCfgInfo("jitCompile.flag", "static_false,dynamic_false");
+            .PrecisionReduceFlag(true);
         this->AICore().AddConfig("ascend950", aicore_config_95);
     }
 };
