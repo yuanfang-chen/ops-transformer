@@ -349,9 +349,9 @@ static graphStatus GroupedMatmulExecuteFunc(OpExecuteContext* host_api_ctx)
     std::vector<int64_t> shape{0};
     static const auto aclCreateTensor = GET_OP_API_FUNC(aclCreateTensor);
     OP_CHECK_IF(aclCreateTensor == nullptr, OP_LOGE("aclnnfallback", "aclCreateTensor nullptr"), return GRAPH_FAILED);
-    perTokenScale = aclCreateTensor(shape.data(), shape.size(), aclDataType::ACL_FLOAT, shape.data(),
-                                    0, aclFormat::ACL_FORMAT_ND, shape.data(), shape.size(), nullptr);
-    OP_CHECK_IF(perTokenScale == nullptr, OP_LOGE("aclnnfallback", "perTokenScale nullptr"), return GRAPH_FAILED);
+    // perTokenScale = aclCreateTensor(shape.data(), shape.size(), aclDataType::ACL_FLOAT, shape.data(),
+    //                                 0, aclFormat::ACL_FORMAT_ND, shape.data(), shape.size(), nullptr);
+    // OP_CHECK_IF(perTokenScale == nullptr, OP_LOGE("aclnnfallback", "perTokenScale nullptr"), return GRAPH_FAILED);
   }
   if (perTokenScaleTensor != nullptr && (perTokenScaleTensor->GetDataType() == ge::DataType::DT_FLOAT8_E8M0 ||
                                          isPerTile)) {
@@ -362,6 +362,12 @@ static graphStatus GroupedMatmulExecuteFunc(OpExecuteContext* host_api_ctx)
   }
   auto aclTensorListPerTokenScale = aclCreateTensorList(geTensorVectorPerTokenScale.data(),
                                                         geTensorVectorPerTokenScale.size());
+  if(perTokenScale == nullptr) {
+    OP_LOGE("aclnnfallback", "GroupedMatmulExecuteFunc perTokenScale is nullptr geTensorVectorPerTokenScale.data():%p, geTensorVectorPerTokenScale.size():%lu", geTensorVectorPerTokenScale.data(), geTensorVectorPerTokenScale.size());
+    aclTensorListPerTokenScale = nullptr;
+  } else {
+    OP_LOGE("aclnnfallback", "GroupedMatmulExecuteFunc perTokenScale not nullptr geTensorVectorPerTokenScale.data():%p, geTensorVectorPerTokenScale.size():%lu", geTensorVectorPerTokenScale.data(), geTensorVectorPerTokenScale.size());
+  }
 
   std::vector<const gert::Tensor*> geTensorVectorY;
   PrepareOutputTensorVector(host_api_ctx, geTensorVectorY, INDEX_GMM_OUTPUT_Y, numGeWeight, *splitItemGe);
