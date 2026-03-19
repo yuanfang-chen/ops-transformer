@@ -1974,14 +1974,14 @@ void IFATiling::GetActualSeqInfo(const int64_t *actualSeqKv, ActualSeqInfo &actu
         // TND格式，actual_seq_q定义为累积长度，这里做转化再分核
         const int64_t *actualSeqQTnd = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>();
         actualSeqInfo.actualSeqQ[0] = actualSeqQTnd[0];
-        for (int b = 1; b < static_cast<int>(bSize); b++) {
+        for (int32_t b = 1; b < static_cast<int>(bSize); b++) {
             actualSeqInfo.actualSeqQ[b] = actualSeqQTnd[b] - actualSeqQTnd[b - 1];
             if (actualLenDims_ != 1U) {
                 actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
             }
         }
     } else {
-        for (int b = 0; b < static_cast<int>(bSize); b++) {
+        for (int32_t b = 0; b < static_cast<int>(bSize); b++) {
             actualSeqInfo.actualSeqQ[b] = qSeqSize_; // 需要检查
             if (actualLenDims_ != 1U) {
                 actualSeqInfo.maxActualseqkv = std::max(actualSeqInfo.maxActualseqkv, actualSeqKv[b]);
@@ -4109,7 +4109,7 @@ uint32_t IFATiling::GetTotalQBlockNum() const
         uint32_t totalQblockSum = 0;
         uint32_t curSeqLenQ = 0;
         uint32_t preSeqLenQ = 0;
-        for (int bIdx = 0; bIdx < static_cast<int>(actualLenQDims_); bIdx++) {
+        for (int32_t bIdx = 0; bIdx < static_cast<int>(actualLenQDims_); bIdx++) {
             // actualLenDataQ里的值单调递增
             curSeqLenQ = static_cast<uint32_t>(actualLenDataQ[bIdx]);
             uint32_t tmpBlkNum = static_cast<uint32_t>(curSeqLenQ - preSeqLenQ + seqStepQ_ - 1) / seqStepQ_;

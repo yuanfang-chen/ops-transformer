@@ -1109,22 +1109,47 @@ __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTe
     } else if(info.layout == SG) { // sg
         AttentionmaskCopyInForSgLayout(attenMaskUb, srcGmAddr, tmpBuf, info, isPre);
     } else if (info.layout == S1_EQUAL1) {
-        uint64_t maskOffset = ComputeAttenMaskOffset(info, 0, 0, isPre);
-        uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount = 1;
-        dataCopyParams.blockLen = info.s2dealNum;
-        dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum ;
-        dataCopyParams.dstStride = 0;
-        DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
-        DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+        uint32_t treeMaskStart = info.s2Size - info.s1Size;
+        uint32_t curS2EndPos = info.s2StartIdx + info.s2dealNum;
+
+        if (info.sparseMode == TREE && info.s2StartIdx < treeMaskStart) {
+            // 部分拷贝：只拷贝 [treeMaskStart, curS2EndPos) 区域
+            uint32_t attenMaskSize = curS2EndPos - treeMaskStart;
+            uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
+            uint64_t maskOffset = ComputeAttenMaskOffset(info, 0, treeMaskStart, isPre);
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockCount = 1;
+            dataCopyParams.blockLen = curS2EndPos - treeMaskStart;
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = 0;
+
+            DataCopyPadExtParams<bool> padParams;
+            padParams.isPad = true;
+            padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
+            padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
+            padParams.paddingValue = 0;
+            DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32],
+                        srcGmAddr[maskOffset], dataCopyParams, padParams);
+        } else {
+            // 全量拷贝（非 TREE，或 s2StartIdx >= treeMaskStart）
+            uint64_t maskOffset = ComputeAttenMaskOffset(info, 0, treeMaskStart, isPre);
+            uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockCount = 1;
+            dataCopyParams.blockLen = info.s2dealNum;
+            dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
+            dataCopyParams.dstStride = 0;
+            DataCopyPadExtParams<bool> padParams{true, 0,
+                static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
+            DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+        }
 
         event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         SetFlag<HardEvent::MTE2_V>(enQueEvtID);
         WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
         for (uint32_t i = 1; i < info.gs1dealNum; i++) {
-            uint32_t offset = i * attenMaskSizeAlign;
-            DataCopy(attenMaskUb[offset], attenMaskUb, attenMaskSizeAlign);
+            uint32_t offset = i * Align(info.s2dealNum, 32U);
+            DataCopy(attenMaskUb[offset], attenMaskUb, Align(info.s2dealNum, 32U));
         }
     }
 }
