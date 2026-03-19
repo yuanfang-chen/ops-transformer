@@ -105,12 +105,12 @@ public:
     __aicore__ inline
     void init(Arch::Resource<ArchTag> &resource,uint32_t nDyn, uint32_t kDyn, uint32_t l1BufAddrStart = 0)
     {
-        uint32_t l1BStartOffset = l1BufAddrStart + L1TileShape::M * kDyn * sizeof(ElementA) * STAGES;
+        // Allocate L1 memory space
+        l1BTensor = resource.l1Buf.template GetBufferByByte<ElementB>(l1BufAddrStart +
+            L1TileShape::M * kDyn * sizeof(ElementA) * STAGES);
         for (uint32_t i = 0; i < STAGES; i++) {
             l1ATensor[i] = resource.l1Buf.template GetBufferByByte<ElementA>(l1BufAddrStart +
                 L1TileShape::M * kDyn * sizeof(ElementA) * i);
-            l1BTensor[i] = resource.l1Buf.template GetBufferByByte<ElementB>(l1BStartOffset +
-                nDyn * kDyn * sizeof(ElementB) * i);
             l0ATensor[i] = resource.l0ABuf.template GetBufferByByte<ElementA>(L0A_PINGPONG_BUF_SIZE * i);
             l0BTensor[i] = resource.l0BBuf.template GetBufferByByte<ElementB>(L0B_PINGPONG_BUF_SIZE * i);
             l0CTensor[i] = resource.l0CBuf.template GetBufferByByte<ElementAccumulator>(L0C_PINGPONG_BUF_SIZE * i);
@@ -147,49 +147,6 @@ public:
     }
 
     __aicore__ inline
-    void loadVTile(
-        AscendC::GlobalTensor<ElementB> gB,
-        AscendC::GlobalTensor<int32_t> gBlockTable,
-        LayoutB layoutB, LayoutBInL1 &layoutBInL1,
-        uint32_t kL1Start, uint32_t kL1Actual, uint32_t nL1Actual, uint32_t nL1Offset,
-        uint32_t nIdx, uint32_t blockSize, uint32_t strideKV,
-        uint32_t nLoop, uint32_t kvSeqlen)
-    {
-        if constexpr (PAGED_CACHE_FLAG_) {
-            uint32_t firstBlockIdx = kL1Start / blockSize;
-            uint32_t lastBlockIdx = (kL1Start + kL1Actual - 1) / blockSize;
-            for (uint32_t bsi = firstBlockIdx; bsi <= lastBlockIdx && (nIdx + bsi) < nLoop; bsi++) {
-                uint32_t blockRowStart = bsi * blockSize;
-                uint32_t blockRowEnd = blockRowStart + blockSize;
-
-                uint32_t nowNIdx = nIdx + bsi;
-                if (nowNIdx == nLoop - 1U) {
-                    blockRowEnd = blockRowStart + (kvSeqlen - nowNIdx * blockSize);
-                }
-                uint32_t overlapStart = (kL1Start > blockRowStart) ? kL1Start : blockRowStart;
-                uint32_t kL1End = kL1Start + kL1Actual;
-                uint32_t overlapEnd = (kL1End < blockRowEnd) ? kL1End : blockRowEnd;
-                uint32_t overlapRows = overlapEnd - overlapStart;
-                uint32_t offsetInBlock = overlapStart - blockRowStart;
-                uint32_t destRow = overlapStart - kL1Start;
-
-                uint32_t blockTableId = gBlockTable.GetValue(nowNIdx);
-                uint32_t gBOff = blockTableId * blockSize * strideKV + offsetInBlock * strideKV + nL1Offset;
-
-                auto layoutBTile = layoutB.GetTileLayout(MakeCoord(overlapRows, nL1Actual));
-                MatrixCoord l1BTileCoord{destRow, 0};
-                auto l1BTile = l1BTensor[l1BPingPongFlag][layoutBInL1.GetOffset(l1BTileCoord)];
-                copyGmToL1B(l1BTile, gB[gBOff], layoutBInL1, layoutBTile);
-            }
-        } else {
-            uint32_t gBOff = nIdx * blockSize * strideKV + kL1Start * strideKV + nL1Offset;
-            auto layoutBTile = layoutB.GetTileLayout(MakeCoord(kL1Actual, nL1Actual));
-            copyGmToL1B(l1BTensor[l1BPingPongFlag], gB[gBOff], layoutBInL1, layoutBTile);
-        }
-    }
-
-
-    __aicore__ inline
     void operator()(
         AscendC::GlobalTensor<ElementA> gA,
         AscendC::GlobalTensor<ElementB> gB,
@@ -202,8 +159,23 @@ public:
         uint32_t rowNum = actualOriShape[COORD_DIM0];
         uint32_t embed = actualOriShape[COORD_DIM1];
         uint32_t stackSeqTile = actualOriShape[COORD_DIM2];
+        GemmCoord actualShape{rowNum, embed, 0};
+        uint32_t gBOffset = 0;
 
+        LayoutBInL1 layoutBInL1 = LayoutBInL1::template MakeLayout<ElementB>(stackSeqTile, embed);
         AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+        for (uint32_t blockStackIdx = 0; (blockStackIdx < blockStackNum) && ((nIdx + blockStackIdx) < nLoop);
+             blockStackIdx++) {
+            uint32_t nowNIdx = nIdx + blockStackIdx;
+            getBlockShape(actualShape, nowNIdx, nLoop, kvSeqlen, blockSize);
+            getKVOffset(gBlockTable, gBOffset, nowNIdx, strideKV, blockSize);
+            auto layoutBTile = layoutB.GetTileLayout(MakeCoord(actualShape.k(), actualShape.n()));
+            MatrixCoord l1BTileCoord{blockStackIdx * blockSize, 0};
+            auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BTileCoord)];
+            copyGmToL1B(l1BTile, gB[gBOffset], layoutBInL1, layoutBTile);
+        }
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
         if (crossCoreSyncTrigger) {
             Arch::CrossCoreWaitFlag(softmaxFlag);
 
@@ -220,7 +192,6 @@ public:
                 AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
                 for (uint32_t kL1Idx = 0; kL1Idx < kL1Loop; kL1Idx++) {
                     uint32_t kL1Actual = (kL1Idx < kL1Loop - 1U) ? l1KDynamic : (stackSeqTile - kL1Idx * l1KDynamic);
-                    uint32_t kL1Start = kL1Idx * l1KDynamic;
                     // load P
                     AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1PPingPongFlag);
                     MatrixCoord gmATileCoord{mL1Idx * L1TileShape::M, kL1Idx * l1KDynamic};
@@ -229,14 +200,6 @@ public:
                     LayoutAInL1 layoutAInL1 = LayoutAInL1::template MakeLayout<ElementA>(mL1Actual, kL1Actual);
                     copyGmToL1A(l1ATensor[l1PPingPongFlag], gmTileA, layoutAInL1, layoutTileA);
                     AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1PPingPongFlag);
-
-                    uint32_t nL1Offset = nL1Idx * L0TileShape::N;
-                    LayoutBInL1 layoutBInL1 = LayoutBInL1::template MakeLayout<ElementB>(kL1Actual, nL1Actual);
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1BPingPongFlag + 2);
-                    loadVTile(gB, gBlockTable, layoutB, layoutBInL1,
-                              kL1Start, kL1Actual, nL1Actual, nL1Offset,
-                              nIdx, blockSize, strideKV, nLoop, kvSeqlen);
-                    AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1BPingPongFlag + 2);
 
                     uint32_t kL0Loop = CeilDiv(kL1Actual, L0TileShape::K);
                     for (uint32_t kL0Idx = 0; kL0Idx < kL0Loop; kL0Idx++) {
@@ -249,19 +212,18 @@ public:
                         AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag);
                         if (kL0Idx == 0U) {
                             AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1PPingPongFlag);
-                            AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1BPingPongFlag + 2);
                         }
                         copyL1ToL0A(l0ATensor[l0ABPingPongFlag], l1ATile, layoutAInL0, layoutAInL1);
-                        LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kL0Actual, nL1Actual);
-                        MatrixCoord l1BTileCoord{kL0Idx * L0TileShape::K, 0};
-                        auto l1BTile = l1BTensor[l1BPingPongFlag][layoutBInL1.GetOffset(l1BTileCoord)];
-                        AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2U);
-                        copyL1ToL0B(l0BTensor[l0ABPingPongFlag], l1BTile, layoutBInL0, layoutBInL1);
                         if (kL0Idx == kL0Loop - 1U) {
                             AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1PPingPongFlag);
-                            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1BPingPongFlag + 2);
-
                         }
+
+                        LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kL0Actual, nL1Actual);
+                        MatrixCoord l1BTileCoord{kL1Idx * l1KDynamic + kL0Idx * L0TileShape::K, L0TileShape::N * nL1Idx};
+                        auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BTileCoord)];
+
+                        AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2U);
+                        copyL1ToL0B(l0BTensor[l0ABPingPongFlag], l1BTile, layoutBInL0, layoutBInL1);
 
                         AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                         AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
@@ -279,7 +241,6 @@ public:
                         l0ABPingPongFlag = 1U - l0ABPingPongFlag;
                     }
                     l1PPingPongFlag = 1U - l1PPingPongFlag;
-                    l1BPingPongFlag = 1U - l1BPingPongFlag;
                 }
                 AscendC::SetFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
                 AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
@@ -297,7 +258,7 @@ public:
 protected:
     /// Data members
     AscendC::LocalTensor<ElementA> l1ATensor[STAGES];
-    AscendC::LocalTensor<ElementB> l1BTensor[STAGES];
+    AscendC::LocalTensor<ElementB> l1BTensor;
     AscendC::LocalTensor<ElementA> l0ATensor[STAGES];
     AscendC::LocalTensor<ElementB> l0BTensor[STAGES];
     AscendC::LocalTensor<ElementAccumulator> l0CTensor[STAGES];
@@ -310,7 +271,6 @@ protected:
     CopyL0CToGm copyL0CToGm;
 
     uint32_t l1PPingPongFlag = 0;
-    uint32_t l1BPingPongFlag = 0;
     uint32_t l0CPingPongFlag = 0;
     uint32_t l0ABPingPongFlag = 0;
 
