@@ -26,6 +26,7 @@ namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
 static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
+static constexpr uint32_t TENSOR_LIST_SIZE = 512U;
 
 // 类型复用声明
 using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
@@ -59,6 +60,20 @@ struct TaskTilingInfo {
     int32_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
     int32_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
 };
+
+template <typename T>
+__aicore__ inline constexpr bool IsFp8()
+{
+    return (AscendC::IsSameType<T, fp8_e4m3fn_t>::value || AscendC::IsSameType<T, fp8_e5m2_t>::value);
+}
+
+__aicore__ inline uint64_t AlignTo512(uint64_t size)
+{
+    if (size % TENSOR_LIST_SIZE != 0) {
+        size = (size + TENSOR_LIST_SIZE - 1) & ~(TENSOR_LIST_SIZE - 1);
+    }
+    return size;
+}
 
 }
 #endif // A2AV_COMMON_H

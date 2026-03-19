@@ -23,17 +23,18 @@
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-template <typename hcclDataType, bool commBeforeComputeFlag> class HcclA2avOp {
+template <typename hcclDataType, bool commBeforeComputeFlag>
+class HcclA2avOp {
 public:
-     __aicore__ inline void Init(const void *hcclInitTiling, uint64_t hcclCcTilingOffset,
-        const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
+    __aicore__ inline void Init(const void *hcclInitTiling, uint64_t hcclCcTilingOffset,
+                                const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
         taskTilingInfo_ = taskTilingInfo;
         GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
         hccl_.InitV2(hcclContextGm, hcclInitTiling);
-        hccl_.SetCcTilingV2(hcclCcTilingOffset); 
-        rankId_ = hccl_.GetRankId();	 
-        rankDim_ = hccl_.GetRankDim();	 
+        hccl_.SetCcTilingV2(hcclCcTilingOffset);
+        rankId_ = hccl_.GetRankId();
+        rankDim_ = hccl_.GetRankDim();
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
@@ -55,14 +56,36 @@ public:
             hcclDataType_ = HCCL_DATA_TYPE_BFP16;
         } else if constexpr (AscendC::IsSameType<hcclDataType, hifloat8_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_HIF8;
+        } else if constexpr (AscendC::IsSameType<hcclDataType, fp8_e5m2_t>::value) {
+            hcclDataType_ = HCCL_DATA_TYPE_FP8E5M2;
+        } else if constexpr (AscendC::IsSameType<hcclDataType, fp8_e4m3fn_t>::value) {
+            hcclDataType_ = HCCL_DATA_TYPE_FP8E4M3;
         } else {
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
         }
         if constexpr (commBeforeComputeFlag) {
-            LaunchCommBeforeCompute(startExpertIdx, expertNum);
+            LaunchCommBeforeCompute(startExpertIdx, expertNum, false);
         } else {
             LaunchCommAfterCompute(startExpertIdx, expertNum);
         }
+    }
+
+    __aicore__ inline void LaunchScale(uint32_t startExpertIdx, uint32_t expertNum)
+    {
+        if ASCEND_IS_AIC {
+            return;
+        }
+        if ASCEND_IS_AIV {
+            if (GetBlockIdx() != 0) {
+                return;
+            }
+        }
+        if constexpr (IsFp8<DTYPE_GMM_X>()) {
+            hcclDataType_ = HCCL_DATA_TYPE_FP8E8M0;
+        } else {
+            hcclDataType_ = HCCL_DATA_TYPE_FP16;
+        }
+        LaunchCommBeforeCompute(startExpertIdx, expertNum, true);
     }
 
     __aicore__ inline void Wait(uint32_t startExpertIdx)
@@ -102,11 +125,11 @@ public:
     }
 
 private:
-    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum)
+    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum, bool isScale = false)
     {
         const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
         const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
-        uint64_t axis = H1_;
+        uint64_t axis = isScale ? (H1_ + 63) / 64 * 2 : H1_;
         for (uint64_t i = 0UL; i < rankDim_; i++) {
             alltoAllvSendCnt[i] = 0UL;
             alltoAllvRecvCnt[i] = 0UL;
@@ -135,8 +158,8 @@ private:
                 alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
             }
         }
-        alltoAllvHandleId_[startExpertIdx] =
-        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+        alltoAllvHandleId_[startExpertIdx] = hccl_.AlltoAllV<true>(
+            (__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
             (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
@@ -176,8 +199,8 @@ private:
                 alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[startExpertIdx + (i - 1) * e_ + j]) * N1_;
             }
         }
-        alltoAllvHandleId_[startExpertIdx] =
-        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+        alltoAllvHandleId_[startExpertIdx] = hccl_.AlltoAllV<true>(
+            (__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
             (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
@@ -209,6 +232,6 @@ private:
     uint64_t alltoAllvRecvCnt[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvRecvOffset[MAX_EP_RANK_SIZE] = {0UL};
 };
-};
+}; // namespace MC2KernelTemplate
 
 #endif
