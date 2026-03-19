@@ -400,8 +400,7 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
         DataCopy(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)], templateSqeU8, WRITE_WITH_NOTIFY_SQE_SIZE);
         AscendC::SyncFunc<AscendC::HardEvent::V_S>();
         SetCommWriteWithNotifySQE(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)], notifySqeInfo.dataSrcAddr,
-                                  notifySqeInfo.dataDstAddr, notifySqeInfo.length, notifySqeInfo.notifyAddr, 0x3f800000,
-                                  1);
+                                  notifySqeInfo.dataDstAddr, notifySqeInfo.length, notifySqeInfo.notifyAddr, 0x3f800000, 1);
         AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等tokenSqeU8标量写，后续Local->GM
 
         // 发数据
@@ -460,7 +459,6 @@ MoeDistributeCombineSetup<TemplateMC2TypeFunc>::CurRankComm(const LocalTensor<in
             DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * remain_ub_space], copyParams, padParams);
             expertTokenTmpQueue_.EnQue(expertTokenTmpU8);
             expertTokenTmpU8 = expertTokenTmpQueue_.DeQue<uint8_t>();
-            AscendC::SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
             DataCopyPad(selfDataDstTensor[i * remain_ub_space], expertTokenTmpU8, copyParams);
             ++i;
 
@@ -471,7 +469,6 @@ MoeDistributeCombineSetup<TemplateMC2TypeFunc>::CurRankComm(const LocalTensor<in
         DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * remain_ub_space], copyParams, padParams);
         expertTokenTmpQueue_.EnQue(expertTokenTmpU8);
         expertTokenTmpU8 = expertTokenTmpQueue_.DeQue<uint8_t>();
-        AscendC::SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
         DataCopyPad(selfDataDstTensor[i * remain_ub_space], expertTokenTmpU8, copyParams);
 
         expertTokenTmpQueue_.FreeTensor<uint8_t>(expertTokenTmpU8);
