@@ -78,22 +78,28 @@ public:
         }
 
         uint64_t workSpaceOffset = 0;
-        gBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+        gBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                  coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * dk_ * sizeof(float);
-        kkWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
+        kkWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                 coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * chunkSize_ * sizeof(float);
-        vBetaWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dv_ * sizeof(float)));
+        vBetaWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                    coreIdx_ * chunkSize_ * dv_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * dv_ * sizeof(float);
-        attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
+        attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                   coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * chunkSize_ * sizeof(float);
-        queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+        queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                          coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * chunkSize_ * dk_ * sizeof(float);
-        keyContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+        keyContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
+                                                                         coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
     }
 
     __aicore__ inline void InitLocalBuffers()
@@ -102,54 +108,56 @@ public:
             return;
         }
         uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
-        pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB  maxLen=64
-        pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));  // 16KB
+        pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));
+        pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));
         if (gOptional_){
-            pipe_->InitBuffer(gOutQueue_, BUFFER_NUM_ONE, chunkSize_ * sizeof(float));  // 1KB
+            pipe_->InitBuffer(gOutQueue_, BUFFER_NUM_ONE, chunkSize_ * sizeof(float));
         }
 
         pipe_->InitBuffer(tmpBuff_, UB_REST_BYTES);
         uint32_t buffOffset = 0;
-        betaUbBfloat16_ = tmpBuff_.GetWithOffset<bfloat16_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
+        betaUbBfloat16_ = tmpBuff_.GetWithOffset<bfloat16_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
         buffOffset += halfChunkSize_ * sizeof(bfloat16_t);
         
-        gCumUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_), buffOffset);  // 1KB
+        gCumUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_), buffOffset);
         buffOffset += chunkSize_ * sizeof(float);
 
-        gBUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);   // 1KB
+        gBUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        gEndBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
+        gEndBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        betaUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
+        betaUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        gBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);    // 16KB
+        gBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);
         gammaUbFloat_ = gBroadUbFloat_;
         kUbFloat_ = gBroadUbFloat_;
         valueUbFloat_ = gBroadUbFloat_;
         qUbFloat_ = gBroadUbFloat_;
         buffOffset += chunkSize_ * maxLen  * sizeof(float);
         
-        gTransBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);      // 16KB
+        gTransBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);
         attnUbFloat_ = gTransBroadUbFloat_;
         gCumExpBroadUbFloat_ = gTransBroadUbFloat_;
         buffOffset += chunkSize_ * maxLen * sizeof(float);
 
-        qUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);  // 8KB
+        qUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);
         buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float);
 
-        kUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);  // 8KB
+        kUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);
         buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float);
 
-        inverseUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
+        inverseUbFloat_ = tmpBuff_.GetWithOffset<float>(
+                            static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset); 
         buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
 
         colBuffer_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(INVERSE_SHAPE), buffOffset);
     }
 
-    __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
+    __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
+                                const ChunkGatedDeltaRuleTilingData *tilingData)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -312,7 +320,8 @@ private:
         fp32InQueue_.FreeTensor(bf16Tensor);
 
         if (validRows < rows) {
-            Duplicate(dstBuffer[validRows * dkAligned_], static_cast<float>(0.0f), (halfChunkSize_ - validRows) * dkAligned_);
+            Duplicate(dstBuffer[validRows * dkAligned_], static_cast<float>(0.0f),
+                      (halfChunkSize_ - validRows) * dkAligned_);
             PipeBarrier<PIPE_V>();
         }
 
@@ -483,7 +492,8 @@ private:
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
             uint32_t gEndShape[2] = {1, 1};
             uint32_t gBroadShape[2] = {halfChunkSize_, 1};
-            Broadcast<float, BROADCAST_AXIS, 0>(gEndBroadUbFloat_, gCumExpUbFloat_[chunkSize_ - 1], gBroadShape, gEndShape);
+            Broadcast<float, BROADCAST_AXIS, 0>(gEndBroadUbFloat_, gCumExpUbFloat_[chunkSize_ - 1], 
+                                                gBroadShape, gEndShape);
             PipeBarrier<PIPE_V>();
             Div(gEndBroadUbFloat_, gEndBroadUbFloat_, gCumExpUbFloat_[subOffset_], halfChunkSize_);
             PipeBarrier<PIPE_V>();
@@ -538,7 +548,8 @@ private:
             PipeBarrier<PIPE_V>();
             uint32_t gCumExpShape[2] = {halfChunkSize_, 1};
             uint32_t qShape[2] = {halfChunkSize_, dkAligned_};
-            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat_[subOffset_], qShape, gCumExpShape);
+            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat_[subOffset_], 
+                                                qShape, gCumExpShape);
             PipeBarrier<PIPE_V>();
             // query * scale * g_cum_exp[:, None]       # (C, Dk)
             Mul(qPrimeLocal_, qUbFloat_, gCumExpBroadUbFloat_, halfChunkSize_ * dkAligned_);

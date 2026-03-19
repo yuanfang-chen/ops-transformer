@@ -88,10 +88,13 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
-        uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float), (uint64_t)Dv_ * curDk_ * sizeof(bfloat16_t));
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, 
+                          chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
+        uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float), 
+                                                  (uint64_t)Dv_ * curDk_ * sizeof(bfloat16_t));
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, outQueueSize);
-        pipe_->InitBuffer(tmpBuff_, (chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float)));
+        pipe_->InitBuffer(tmpBuff_, 
+                          chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
     }
 
     __aicore__ inline void Process()

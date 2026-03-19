@@ -92,13 +92,15 @@ public:
         gOptional_ = sTP_->gOptional;
 
         uint64_t workSpaceOffset = 0;
-        cCFloatGM_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams->ws + workSpaceOffset + coreNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
+        cCFloatGM_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams->ws + workSpaceOffset +
+                                                                   coreNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
         if ASCEND_IS_AIC {
             return;
         }
 
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, 
+               chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ * sTP_->Dv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
         uint32_t buffOffset = 0;
@@ -160,7 +162,8 @@ public:
             auto g_cum_exp = inQueue_.DeQue<float>();
             const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
             const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(paddingChunkSize)};
-            const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(paddingChunkSize)};
+            const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), 
+                                         static_cast<uint32_t>(paddingChunkSize)};
             Broadcast<float, BROADCAST_AXIS, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
             Broadcast<float, BROADCAST_AXIS, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
             PipeBarrier<PIPE_V>();
