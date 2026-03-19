@@ -211,6 +211,7 @@ public:
     template <bool isFirstBS>
     __aicore__ inline void VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, __ubuf__ P *invRmsGradDst, uint16_t dealBSSize);
     __aicore__ inline void VFDoV1ProcessBiasGrad(__ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize);
+    __aicore__ inline void VFDoV1ProcessAlphaGrad(__ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn, __ubuf__ P *gatherFusionIn, __ubuf__ P *hMixIn, uint16_t dealBSSize);
     __aicore__ inline void InitCube();
     __aicore__ inline void AICProcess(GlobalTensor<P> x, GlobalTensor<P> y, GlobalTensor<P> z, uint64_t m, uint64_t n, uint64_t k);
     __aicore__ inline void ProcessC0C1Pipeline();
@@ -834,13 +835,14 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         PipeBarrier<PIPE_V>();
 
         // TODO
-        Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], hMixBuf, buffers.invRmsBuf, dealBSSize * fusionSize_);
+        // Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], hMixBuf, buffers.invRmsBuf, dealBSSize * fusionSize_);
+        VFDoV1ProcessAlphaGrad((__ubuf__ P *)h1GradBuf.GetPhyAddr(), (__ubuf__ P *)buffers.invRmsBuf.GetPhyAddr(), (__ubuf__ P *)buffers.gatherFusionBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), dealBSSize);
         PipeBarrier<PIPE_V>();
         bf16InQueue_.FreeTensor(hMixBuf);
 
         // alpha grad pre
-        Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], buffers.hFusionBuf1[bsOffset * fusionSize_],
-            buffers.gatherFusionBuf[bsOffset * fusionSize_], dealBSSize * fusionSize_);
+        // Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], buffers.hFusionBuf1[bsOffset * fusionSize_],
+        //     buffers.gatherFusionBuf[bsOffset * fusionSize_], dealBSSize * fusionSize_);
         PipeBarrier<PIPE_V>();
 
         remainDealBsSize -= dealBSSize;
@@ -868,8 +870,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     fp32OutQueue_.FreeTensor(invRmsGradUb);
 
     // alpha grad (inv rms 梯度计算完成，复用h1GradBuf)
-    ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(h1GradBuf, buffers.hFusionBuf1,
-        buffers.brcbTmpBuf, shape, true);
+    // ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(h1GradBuf, buffers.hFusionBuf1,
+    //     buffers.brcbTmpBuf, shape, true);
     PipeBarrier<PIPE_V>();
 
     if (vecRuntimesId == 0){
@@ -878,6 +880,38 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         Add(sumBuf, h1GradBuf, sumBuf, fusionSize_);
     }
     PipeBarrier<PIPE_V>();
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGrad(__ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn, __ubuf__ P *gatherFusionIn, __ubuf__ P *hMixIn, uint16_t dealBSSize)
+{
+    uint32_t regCapacityFP32 = 64; // 256B / sizeof(P)
+    uint16_t fSLoopCnt = Ceil(fusionSize_, regCapacityFP32);
+    uint32_t curElemCnt = fusionSize_;
+
+    __VEC_SCOPE__
+    {
+        for (uint16_t vfBlockIdx = 0; vfBlockIdx < fSLoopCnt; ++vfBlockIdx) {
+            MicroAPI::RegTensor<P> sumReg;
+            MicroAPI::Duplicate(sumReg, 0);
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
+            for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(dealBSSize); ++bsIdx) {
+                uint32_t elemOffset = bsIdx * fusionSize_ + vfBlockIdx * regCapacityFP32;
+                MicroAPI::RegTensor<P> hMixReg, invRmsReg, gatherReg;
+                MicroAPI::RegTensor<P> mul1Reg, mul2Reg;
+
+                MicroAPI::LoadAlign(hMixReg, hMixIn + elemOffset);
+                MicroAPI::LoadAlign(invRmsReg, invRmsIn + elemOffset);
+                MicroAPI::LoadAlign(gatherReg, gatherFusionIn + elemOffset);
+
+                MicroAPI::Mul(mul1Reg, hMixReg, invRmsReg, mask);
+                MicroAPI::Mul(mul2Reg, mul1Reg, gatherReg, mask);
+                
+                MicroAPI::Add(sumReg, sumReg, mul2Reg, mask);
+            }
+            MicroAPI::StoreAlign(h1GradOut + vfBlockIdx * regCapacityFP32, sumReg, mask);
+        }
+    }
 }
 
 template <class T, class P>
