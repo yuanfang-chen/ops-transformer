@@ -335,7 +335,7 @@ __aicore__ inline void ProcessVec1Vf(const LocalTensor<T2>& dstTensor, TBuf<> *v
                   "VF mul_sel_softmaxflashv2_cast_nz, T2 must be half, bfloat16 or float or fp8");
     static_assert(oriNRange < N_INVALID, "VF mul_sel_softmaxflashv2_cast_nz, oriNRange is invalid");
 
-    if constexpr (!isUpdate) {
+    if constexpr (!isUpdate) { // S2 方向是否有多基本块
         ProcessVec1NoUpdate<T, T2, pseShiftType, s1BaseSize, s2BaseSize, oriNRange, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, useNz>(
             dstTensor, vselrIndexesBuf, expSumTensor, maxTensor, srcTensor, expMaxTensor,
             inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer,

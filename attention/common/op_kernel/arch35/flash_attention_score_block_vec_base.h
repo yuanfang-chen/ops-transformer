@@ -645,8 +645,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo, 
     ConstInfo<isInfer, hasRope> &constInfo)
 {
-    bmm1ResBuf.WaitCrossCore();
-    LocalTensor<pseShiftType> pseUb;
+    bmm1ResBuf.WaitCrossCore(); // 占用 UB 上的共享内存前，先 wait 一下
+    LocalTensor<pseShiftType> pseUb; // pse 场景初始化 ========================================================================================================================
     if constexpr (hasPseOuter == true) {
         PseCopyIn<T, pseShiftType, hasPseOuter>(this->pseInQue, this->pseGm, runInfo, constInfo, *pseInfoPtr);
         pseUb = this->pseInQue.template DeQue<pseShiftType>();
@@ -665,7 +665,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         ComputeInnerPseOffset<T, INPUT_T, hasPse>(slopes, posShift, runInfo, constInfo, *pseInfoPtr, this->pseSlope);
     }
 
-    LocalTensor<uint8_t> attenMaskUb;
+    LocalTensor<uint8_t> attenMaskUb; // attenMask 初始化 =====================================================================================================================
     if constexpr (hasAtten == true) {
         if constexpr (isMlaFullQuant || isMlaNoQuant) {
             this->MlaAttenMaskCopyIn(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
@@ -676,9 +676,9 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         }
         attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
     }
-    LocalTensor<uint8_t> dropMaskUb;
+    LocalTensor<uint8_t> dropMaskUb; // dropMask 初始化 外部生成/内部生成 外部生成：1971上有单独的计算模块，用pta接口调用另一个算子生成 ==============================================
     GetDerived()->GenerateDropoutMask(runInfo, constInfo, dropMaskUb);
-
+    // 中间变量初始化 ==========================================================================================================================================================
     LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
     LocalTensor<float> maxUb = this->softmaxMaxBuf[runInfo.multiCoreIdxMod3].template Get<float>();
     LocalTensor<float> expUb = this->softmaxExpBuf[runInfo.taskIdMod3].template Get<T>();
@@ -695,7 +695,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     if constexpr (!IsSameType<INPUT_T, float>::value && !isMlaNoQuant) {
         stage1Offset = runInfo.taskIdMod2;
     }
-    float descaleQK = 1.0;
+    float descaleQK = 1.0; // 量化参数初始化 ====================================================================================================================================
     float deSCaleKValue = 1.0;
     if constexpr (isFp8) {
         int64_t deScaleQOffset = 0;
@@ -733,11 +733,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         descaleQK = deSCaleQValue * deSCaleKValue;
     }
 
-    LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
+    LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>(); // V1 计算 ======================================================================================================
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
     constexpr bool useMlaSgdFlag = ((isMlaFullQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
-    if (runInfo.s2LoopCount == 0) {
-        if (likely(runInfo.s2RealSize == 128)) {
+    if (runInfo.s2LoopCount == 0) { // 根据 s2 方向上 loop 数判断是否需要 update
+        if (likely(runInfo.s2RealSize == 128)) { // vf 的 scalar 能力较弱，先提前算好分支，调用不同的模板
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, hasDrop, useMlaSgdFlag, isMlaFullQuant>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
@@ -793,7 +793,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             }
         }
     }
-    bmm1ResBuf.SetCrossCore();
+    bmm1ResBuf.SetCrossCore(); // 资源释放 ===================================================================================================================================
     if constexpr (hasAtten) {
         this->attenMaskInQue[runInfo.taskIdMod2].template FreeTensor(attenMaskUb);
     }
@@ -813,7 +813,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     if (likely(runInfo.halfS1RealSize != 0)) {
         if constexpr (IsSameType<INPUT_T, float>::value) {
             if constexpr (isMlaFullQuant) {
-                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp32], stage1CastTensor,
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp32], stage1CastTensor, // 1971 没有能直接 copy 到 L1 的通路，这里直接拷贝出到L1的通路是新加的
                     {16, (uint16_t)runInfo.halfS1RealSize, (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
                     (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
             } else {
@@ -853,7 +853,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     }
     outputBuf.SetCrossCore();
     // ======================================================
-    if (runInfo.s2LoopCount != 0) {
+    if (runInfo.s2LoopCount != 0) { // 更新 Exp 值 ==========================================================================================================================
         UpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
     }
     if constexpr (IsSameType<INPUT_T, float>::value) {
@@ -864,7 +864,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             this->InvalidLineProcess(runInfo, constInfo, sumUb, maxUb);
         }
     }
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
+    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) { // 一行遍历完，数据就可以搬出了
         GetDerived()->SoftmaxDataCopyOut(runInfo, constInfo, sumUb, maxUb);
     }
 }
@@ -1172,7 +1172,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2(
     } else if constexpr (splitD) {
         GlobalTensor<T> mmRes = bmm2ResBuf.template GetTensor<T>();
         ProcessVec2DSplit(mmRes, runInfo, constInfo);
-    } else {
+    } else { // ProcessVec2OnGm
         // bmm2 result is on GM and global update data on UB
         runInfo.vec2S1BaseSize = 8192 / dTemplateAlign64;
         int64_t vec2LoopLimit = CeilDiv(runInfo.halfS1RealSize, runInfo.vec2S1BaseSize);
