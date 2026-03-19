@@ -171,6 +171,9 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
             runInfo.s1oIdx * constInfo.sparseBlockCount; // B, S1, N2(1), K
     }
     int64_t cmpS2LoopCnt = runInfo.s2LoopCount;
+    if constexpr (hasSink) {
+        cmpS2LoopCnt -= 1; // sink 占用了第一个 s2LoopCount，后续偏移需要 -1
+    }
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token0Idx = -1;
@@ -430,6 +433,14 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 {
     outputL1.WaitCrossCore(); // 核间同步
 
+    if constexpr (hasSink) {
+        if (runInfo.isSinkIter) {
+            // Sink pass-through: AIC 负责搬运，AIV 仅释放 L1 buffer
+            outputL1.SetCrossCore();
+            return;
+        }
+    }
+
     blockSize = constInfo.oriBlockSize;
     maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
 
@@ -512,7 +523,15 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
-    if (runInfo.s2LoopCount == 0) {
+    // isFirstEver: 整个 S2 维度上的首次（包括 sink），仅 sink 迭代本身为 true
+    bool isFirstEver;
+    if constexpr (hasSink) {
+        isFirstEver = runInfo.isSinkIter;
+    } else {
+        isFirstEver = (runInfo.s2LoopCount == 0);
+    }
+
+    if (isFirstEver) {
         if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, QSFaVectorApi::OriginNRange::EQ_128_QSFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,

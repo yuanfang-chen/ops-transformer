@@ -114,6 +114,9 @@ private:
     /* 模板库Block */
     CubeBlockType cubeBlock;
     VecBlockType vecBlock;
+
+    /* Sink KV GM指针 */
+    __gm__ uint8_t *sinkKvGm = nullptr;
 };
 
 template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::Init(
@@ -154,6 +157,10 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     InitMMResBuf();
     if ASCEND_IS_AIC {
         cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query);
+        if constexpr (hasSink) {
+            this->sinkKvGm = key_sink;
+            cubeBlock.InitSinkGm(key_sink);
+        }
         /* wait kfc message */
         CrossCoreWaitFlag<SYNC_MODE, PIPE_S>(15);
         auto tempTilingSSbuf = reinterpret_cast<__ssbuf__ uint32_t*>(0); // 从ssbuf的0地址开始拷贝
@@ -498,10 +505,14 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                     continue;
                 }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
+                if constexpr (hasSink) {
+                    s2LoopLimit += 1; // sink 占用第一个 S2 迭代
+                }
             } else {
                 s2LoopLimit = 0;
             }
 
+            // ====== S2 循环（hasSink 时第一轮为 sink 迭代）======
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
                 if (notLastTwoLoop) {
                     RunInfo &runInfo1 = runInfo[taskId % 3];
@@ -551,7 +562,17 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    if (s2LoopCount < runParam.oriKvLoopEndIdx) {
+    runInfo.isSinkIter = false;
+    int64_t effectiveS2 = s2LoopCount;
+    if constexpr (hasSink) {
+        if (s2LoopCount == 0) {
+            runInfo.isSinkIter = true;
+        } else {
+            effectiveS2 = s2LoopCount - 1;
+        }
+    }
+
+    if (effectiveS2 < runParam.oriKvLoopEndIdx) {
         runInfo.s2StartIdx = runParam.s2LineStartIdx;
         runInfo.s2EndIdx = runParam.s2LineEndIdx;
     } else {
@@ -608,7 +629,16 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    int64_t curS2LoopCnt = (runInfo.s2LoopCount >= runParam.oriKvLoopEndIdx) ? (runInfo.s2LoopCount - runParam.oriKvLoopEndIdx) : runInfo.s2LoopCount;
+    if constexpr (hasSink) {
+        if (runInfo.isSinkIter) {
+            return; // sink 固定 128，无需尾块计算
+        }
+    }
+    int64_t effectiveS2Loop = runInfo.s2LoopCount;
+    if constexpr (hasSink) {
+        effectiveS2Loop -= 1;
+    }
+    int64_t curS2LoopCnt = (effectiveS2Loop >= runParam.oriKvLoopEndIdx) ? (effectiveS2Loop - runParam.oriKvLoopEndIdx) : effectiveS2Loop;
     if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
         runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
