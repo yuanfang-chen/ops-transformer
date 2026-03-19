@@ -455,12 +455,10 @@ __aicore__ inline void BatchMulWeightAndReduceSum(const LocalTensor<SCORE_T> &ou
     auto qScaleFloat = (__ubuf__ float *)qScaleFloat_.GetPhyAddr();
 
     if constexpr (sizeof(SCALE_T) == sizeof(float)) {
-        weight = (__ubuf__ bfloat16_t *)weight_.GetPhyAddr();
         kScaleFloat = (__ubuf__ float *)kScale_.GetPhyAddr();
         qScaleFloat = (__ubuf__ float *)qScale_.GetPhyAddr();
         CastWeightType(weight, weightStride, weightFloat, batch);
     } else {
-        weight = (__ubuf__ half *)weight_.GetPhyAddr();
         CastWeightAndScaleType(weight, weightStride, weightFloat, kScale, kScaleStride, kScaleFloat, qScale, qScaleStride, qScaleFloat, batch);
     }
 
