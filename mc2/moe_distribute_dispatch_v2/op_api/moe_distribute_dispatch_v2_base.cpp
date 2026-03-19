@@ -229,7 +229,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     }
     OP_LOGD("PRINT HcclGetRankSize success");
 
-    res = GetHcclCommChannel(hcclHandle, mc2_context->epRankSize, mc2_context->epRankId, engine, channeles);
+    res = GetHcclCommChannel(hcclHandle, mc2_context->epRankSize, mc2_context->epRankId, engine, channeles);//todo:本卡直接不用
     CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("PRINT HcclChannelAcquire success");
 
