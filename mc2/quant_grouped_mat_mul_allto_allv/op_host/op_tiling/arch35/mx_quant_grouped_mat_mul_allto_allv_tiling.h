@@ -54,6 +54,7 @@ protected:
 private:
     ge::graphStatus CheckMxQuantGmmScaleShapes();
     ge::graphStatus CheckMxQuantMmScaleShapes();
+    ge::graphStatus CheckMxQuantDtypeConstraints();
 };
 
 } // namespace Mc2GroupedMatmul

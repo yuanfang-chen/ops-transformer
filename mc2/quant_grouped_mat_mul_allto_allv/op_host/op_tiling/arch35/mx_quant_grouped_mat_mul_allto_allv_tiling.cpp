@@ -335,6 +335,23 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantDtypeConstraints()
+{
+    OP_TILING_CHECK(localParams_.gmmXDtype != localParams_.mmXDtype,
+        OP_LOGE(opName_, "The input mmX Dtype should be equal to gmmX Dtype, but now, gmmX Dtype is %s, mmX is %s.",
+        Ops::Base::ToString(localParams_.gmmXDtype).c_str(), Ops::Base::ToString(localParams_.mmXDtype).c_str()), return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(localParams_.gmmWeightDtype != localParams_.mmWeightDtype,
+        OP_LOGE(opName_, "The input mmWeight Dtype should be equal to gmmWeight Dtype, but now, gmmWeight Dtype is %s, mmWeight is %s.",
+        Ops::Base::ToString(localParams_.gmmWeightDtype).c_str(), Ops::Base::ToString(localParams_.mmWeightDtype).c_str()), return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(localParams_.yDtype != localParams_.mmYDtype,
+        OP_LOGE(opName_, "The ouput mmY Dtype should be equal to y Dtype, but now, y Dtype is %s, mmY is %s.",
+        Ops::Base::ToString(localParams_.yDtype).c_str(), Ops::Base::ToString(localParams_.mmYDtype).c_str()), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes()
 {
     bool TransGmmWeightFlag = false;
@@ -445,6 +462,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckParamsRelationAndSetLocalParams();
+    if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
+
+    status = CheckMxQuantDtypeConstraints();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckMxQuantGmmScaleShapes();
