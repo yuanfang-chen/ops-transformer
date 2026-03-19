@@ -162,9 +162,10 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDim()
                 return ge::GRAPH_FAILED);
 
     // 检查dim范围和对齐
-    OP_CHECK_IF(!(dim_ >= DIM_MIN && dim_ <= DIM_MAX && dim_ % DIM_ALIGN == 0),
-                OP_LOGE(context_->GetNodeName(), "dim must in [%lu, %lu] and be multiple of %lu, but got: %lu",
-                        DIM_MIN, DIM_MAX, DIM_ALIGN, dim_),
+    // 要求：dim > 128 且是 128 的整数倍
+    OP_CHECK_IF(!(dim_ > DIM_ALIGN_ELEMENTS && dim_ <= DIM_MAX && dim_ % DIM_ALIGN_ELEMENTS == 0),
+                OP_LOGE(context_->GetNodeName(), "dim must be > %lu, <= %lu and be multiple of %lu, but got: %lu",
+                        DIM_ALIGN_ELEMENTS, DIM_MAX, DIM_ALIGN_ELEMENTS, dim_),
                 return ge::GRAPH_FAILED);
 
     // 检查weight的维度
@@ -180,9 +181,10 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDim()
                 return ge::GRAPH_FAILED);
 
     // 检查kernel width
-    OP_CHECK_IF(kernelWidth_ > KERNEL_WIDTH_MAX,
-                OP_LOGE(context_->GetNodeName(), "Kernel width must <= %lu, but got: %u",
-                        KERNEL_WIDTH_MAX, kernelWidth_),
+    // 要求：kernel width 必须等于 3
+    OP_CHECK_IF(kernelWidth_ != 3,
+                OP_LOGE(context_->GetNodeName(), "Kernel width must be 3, but got: %u",
+                        kernelWidth_),
                 return ge::GRAPH_FAILED);
 
     // 检查cacheStates的维度
@@ -352,9 +354,11 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
         OP_CHECK_IF(cacheStride->GetDimNum() != cacheStatesShape_.GetDimNum(),
                     OP_LOGE(context_->GetNodeName(), "The number of dimensions in cache_states stride must match that of cache_states shape."),
                     return ge::GRAPH_FAILED);
-        cacheStride_ = cacheStride->GetStride(DIM_1);
+        cacheStride0_ = cacheStride->GetStride(DIM_0);  // 跨 slot 的步长
+        cacheStride1_ = cacheStride->GetStride(DIM_1);  // 跨 K-1 维度的步长（行步长）
     } else {
-        cacheStride_ = dim_;
+        cacheStride0_ = (kernelWidth_ - 1) * dim_;  // 连续存储：stride[0] = (K-1) * dim
+        cacheStride1_ = dim_;                        // 连续存储：stride[1] = dim
     }
 
     // 检查输入和输出参数
@@ -658,14 +662,7 @@ uint64_t CausalConv1dFnTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
 {
-    // 基础系统 workspace 大小
-    uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
-
-    // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
-    uint64_t seqWorkspaceSize = (kernelWidth_ - 1) * dim_ * realCoreNum_ * xDtypeSize_;
-
-    // 总 workspace 大小
-    workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
+    workspaceSize_ = SYS_WORKSPACE_SIZE;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -722,7 +719,8 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.batch = batch_;
     tilingData_.padSlotId = padSlotId_;
     tilingData_.xStride = xStride_;
-    tilingData_.cacheStride = cacheStride_;
+    tilingData_.cacheStride0 = cacheStride0_;
+    tilingData_.cacheStride1 = cacheStride1_;
     tilingData_.residualConnection = residualConnection_;
 
     // Save tiling data to buffer
@@ -778,7 +776,8 @@ void CausalConv1dFnTiling::DumpTilingInfo()
     info << "tailBlockubTailFactorDim: " << tailBlockubTailFactorDim_ << std::endl;
     info << "residualConnection: " << residualConnection_ << std::endl;
     info << "xStride: " << xStride_ << std::endl;
-    info << "cacheStride: " << cacheStride_ << std::endl;
+    info << "cacheStride0: " << cacheStride0_ << std::endl;
+    info << "cacheStride1: " << cacheStride1_ << std::endl;
 
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }

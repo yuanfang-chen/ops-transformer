@@ -88,7 +88,8 @@ private:
     uint64_t batch_ = 0;
     uint64_t xDtypeSize_ = 0;
     uint64_t xStride_ = 0;          // x 的 stride
-    uint64_t cacheStride_ = 0;      // cacheStates 的 stride
+    uint64_t cacheStride0_ = 0;      // cacheStates 的 stride[0]
+    uint64_t cacheStride1_ = 0;      // cacheStates 的 stride[1]
 
     // padding相关信息
     int64_t padSlotId_ = -1;
