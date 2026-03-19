@@ -545,7 +545,6 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSingleWeightSingleY(const gert::Ti
     m_ = static_cast<uint64_t>(m);
     n_ = static_cast<uint64_t>(n);
     k_ = static_cast<uint64_t>(k);
-    kZero = kZero || (k == 0);
     return true;
 }
 
@@ -568,7 +567,6 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::Tiling
   }
   m_ = static_cast<uint64_t>(m);
   k_ = static_cast<uint64_t>(k);
-  kZero = kZero || (k == 0);
   groupType_ = NO_SPLIT;
   return true;
 }
