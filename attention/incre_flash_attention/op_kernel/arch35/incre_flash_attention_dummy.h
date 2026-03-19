@@ -23,7 +23,12 @@
 #include "kernel_operator.h"
 #endif
 #include "lib/matmul_intf.h"
+#ifdef NOT_ONLINE_COMPILE
 #include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
+#else
+#include "../../common/arch35/flash_attention_score_tiling_regbase.h"
+#endif
+
 
 template<typename T>
 class IncreFlashAttentionDummy {
