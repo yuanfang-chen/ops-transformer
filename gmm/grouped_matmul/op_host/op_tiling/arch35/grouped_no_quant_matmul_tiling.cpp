@@ -550,25 +550,25 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSingleWeightSingleY(const gert::Ti
 
 /** @brief split K single-multi-multi(s-m-m)
  */
-bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::TilingContext* context,
-                                                        const gert::Shape xShape, const gert::Shape wShape)
+bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::TilingContext *context,
+                                                              const gert::Shape xShape, const gert::Shape wShape)
 {
-  int64_t m = xShape.GetDim(1);
-  int64_t k = xShape.GetDim(xKDim_);
-  for (uint32_t i = 0; i < MAX_TENSOR; i++) {
-    auto wTensor = context->GetDynamicInputTensor(INDEX_WEIGHT, i);
-    if (wTensor == nullptr) {
-        break;
+    int64_t m = xShape.GetDim(1);
+    int64_t k = xShape.GetDim(xKDim_);
+    for (uint32_t i = 0; i < MAX_TENSOR; i++) {
+        auto wTensor = context->GetDynamicInputTensor(INDEX_WEIGHT, i);
+        if (wTensor == nullptr) {
+            break;
+        }
+        auto wTensorShape = wTensor->GetOriginShape();
+        groupNum_ += 1U;
+        int64_t n = wTensorShape.GetDim(weightNDim_) * nzFactor_;
+        n_ = std::max(n_, static_cast<uint64_t>(n));
     }
-    auto wTensorShape = wTensor->GetOriginShape();
-    groupNum_ += 1U;
-    int64_t n = wTensorShape.GetDim(weightNDim_) * nzFactor_;
-    n_ = std::max(n_, static_cast<uint64_t>(n));
-  }
-  m_ = static_cast<uint64_t>(m);
-  k_ = static_cast<uint64_t>(k);
-  groupType_ = NO_SPLIT;
-  return true;
+    m_ = static_cast<uint64_t>(m);
+    k_ = static_cast<uint64_t>(k);
+    groupType_ = NO_SPLIT;
+    return true;
 }
 
 void GroupedNoQuantMatmulTiling::PrintTilingResult(const gert::TilingContext *context)
