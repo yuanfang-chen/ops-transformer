@@ -51,7 +51,6 @@ class MoeDistributeCombineSetup {
     constexpr static uint64_t STATE_OFFSET = 512U;        // 状态空间偏移地址
     constexpr static uint32_t STATE_SIZE = 1024U * 1024U; // 1M
     constexpr static uint32_t UB_ALIGN = 32U;             // UB按32字节对齐
-    constexpr static uint64_t REMAIN_UB_SPACE = 227008U;  // UB剩余空间
     constexpr static uint64_t WIN_STATE_OFFSET = 350U * 1024U;
     constexpr static uint64_t STATE_WIN_OFFSET = 950U * 1024U;
     constexpr static uint64_t STATE_SIZE_PER_CORE = 512U;   // 数据和状态的0/1区标识占用空间
@@ -118,6 +117,7 @@ private:
     uint64_t stateOffset_{0};
     uint64_t winDataSizeOffset_{0};
     uint64_t expertPerSizeOnWin_{0};
+    uint64_t remain_ub_space{0};
     bool isShardExpert_{false};
 
     TQue<QuePosition::VECIN, 1> assistInfoQueue_;
@@ -233,20 +233,31 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::InitCqeSt
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::BuffInit()
 {
+    uint32_t assistInfoQueueSize = Ceil(moeSendNum_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
+    uint32_t urmaSqInfoBufSize = Ceil(static_cast<uint32_t>(sizeof(HcclAiRMAWQ)), UB_ALIGN) * UB_ALIGN;
+    uint32_t urmaCqInfoBufSize = Ceil(static_cast<uint32_t>(sizeof(HcclAiRMACQ)), UB_ALIGN) * UB_ALIGN;
+    uint32_t doorBellBufSize = Ceil(static_cast<uint32_t>(sizeof(uint32_t)), UB_ALIGN) * UB_ALIGN;
+    uint32_t cqeBufSize = UB_ALIGN * CQ_DEPTH_256;
+    uint32_t templateSqeBufSize = Ceil(WRITE_WITH_NOTIFY_SQE_SIZE, UB_ALIGN) * UB_ALIGN;
+    uint32_t tokenSqeBufSize =
+        Ceil(WRITE_WITH_NOTIFY_SQE_SIZE * moeDistributeCombineSetupInfo_->moeExpertPerRankNum, UB_ALIGN) * UB_ALIGN;
+    remain_ub_space = moeDistributeCombineSetupInfo_->totalUbSize - assistInfoQueueSize - urmaSqInfoBufSize -
+                      urmaCqInfoBufSize - doorBellBufSize - doorBellBufSize - cqeBufSize - templateSqeBufSize -
+                      tokenSqeBufSize;
+
     tpipe_->Reset();
-    tpipe_->InitBuffer(assistInfoQueue_, 1,
-                       moeSendNum_ * sizeof(int32_t)); // epWorldSize * moeExpertPerRankNum * 4
+    tpipe_->InitBuffer(assistInfoQueue_, 1, assistInfoQueueSize); // epWorldSize * moeExpertPerRankNum * 4
 
     // 初始化urma相关buf
-    tpipe_->InitBuffer(urmaSqInfoBuf_, sizeof(HcclAiRMAWQ));
-    tpipe_->InitBuffer(urmaCqInfoBuf_, sizeof(HcclAiRMACQ));
-    tpipe_->InitBuffer(jfsDoorBellBuf_, static_cast<uint32_t>(sizeof(uint32_t)));
-    tpipe_->InitBuffer(jfcDoorBellBuf_, static_cast<uint32_t>(sizeof(uint32_t)));
-    tpipe_->InitBuffer(cqeBuf_, UB_ALIGN * CQ_DEPTH_256);
-    tpipe_->InitBuffer(templateSqeBuf_, WRITE_WITH_NOTIFY_SQE_SIZE);
-    tpipe_->InitBuffer(tokenSqeBuf_, WRITE_WITH_NOTIFY_SQE_SIZE * moeDistributeCombineSetupInfo_->moeExpertPerRankNum);
+    tpipe_->InitBuffer(urmaSqInfoBuf_, urmaSqInfoBufSize);
+    tpipe_->InitBuffer(urmaCqInfoBuf_, urmaCqInfoBufSize);
+    tpipe_->InitBuffer(jfsDoorBellBuf_, doorBellBufSize);
+    tpipe_->InitBuffer(jfcDoorBellBuf_, doorBellBufSize);
+    tpipe_->InitBuffer(cqeBuf_, cqeBufSize);
+    tpipe_->InitBuffer(templateSqeBuf_, templateSqeBufSize);
+    tpipe_->InitBuffer(tokenSqeBuf_, tokenSqeBufSize);
 
-    tpipe_->InitBuffer(expertTokenTmpQueue_, 1, static_cast<uint32_t>(REMAIN_UB_SPACE));
+    tpipe_->InitBuffer(expertTokenTmpQueue_, 1, static_cast<uint32_t>(remain_ub_space));
 }
 
 template <TemplateMC2TypeClass>
@@ -398,6 +409,7 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
                          sqCi, cqCi, cqCiLinear);
         AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等sqe下发完成后敲doorbell
         SendJFSDoorBell(jfsDoorBellU8, sqInfoU8, sqPiLinear);
+        AscendC::SyncFunc<AscendC::HardEvent::S_MTE2>(); // 等sqInfoU8读完，防止下一轮其他卡URMA信息写入
 
         // 更新PI CI
         UpdatePICI((GM_ADDR)hcclContext_, moeDistributeCombineSetupInfo_->epRankId, epIdx, sqPi, sqCi, cqPi, cqCi,
@@ -440,27 +452,27 @@ MoeDistributeCombineSetup<TemplateMC2TypeFunc>::CurRankComm(const LocalTensor<in
 
         uint64_t sendBytes = static_cast<uint64_t>(curTokenNum) * axisHExpandXTypeSize_;
 
-        DataCopyExtParams copyParams{1U, static_cast<uint32_t>(REMAIN_UB_SPACE), 0U, 0U, 0U};
+        DataCopyExtParams copyParams{1U, static_cast<uint32_t>(remain_ub_space), 0U, 0U, 0U};
         DataCopyPadExtParams<uint8_t> padParams{false, 0U, 0U, 0U};
 
         uint64_t i = 0;
-        for (; sendBytes > REMAIN_UB_SPACE; sendBytes -= REMAIN_UB_SPACE) {
-            DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * REMAIN_UB_SPACE], copyParams, padParams);
+        for (; sendBytes > remain_ub_space; sendBytes -= remain_ub_space) {
+            DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * remain_ub_space], copyParams, padParams);
             expertTokenTmpQueue_.EnQue(expertTokenTmpU8);
             expertTokenTmpU8 = expertTokenTmpQueue_.DeQue<uint8_t>();
             AscendC::SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-            DataCopyPad(selfDataDstTensor[i * REMAIN_UB_SPACE], expertTokenTmpU8, copyParams);
+            DataCopyPad(selfDataDstTensor[i * remain_ub_space], expertTokenTmpU8, copyParams);
             ++i;
 
             AscendC::SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
         }
 
         copyParams.blockLen = sendBytes;
-        DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * REMAIN_UB_SPACE], copyParams, padParams);
+        DataCopyPad(expertTokenTmpU8, selfDataSrcTensor[i * remain_ub_space], copyParams, padParams);
         expertTokenTmpQueue_.EnQue(expertTokenTmpU8);
         expertTokenTmpU8 = expertTokenTmpQueue_.DeQue<uint8_t>();
         AscendC::SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-        DataCopyPad(selfDataDstTensor[i * REMAIN_UB_SPACE], expertTokenTmpU8, copyParams);
+        DataCopyPad(selfDataDstTensor[i * remain_ub_space], expertTokenTmpU8, copyParams);
 
         expertTokenTmpQueue_.FreeTensor<uint8_t>(expertTokenTmpU8);
     }

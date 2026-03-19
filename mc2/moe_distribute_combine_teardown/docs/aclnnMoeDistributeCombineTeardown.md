@@ -315,18 +315,22 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
 
   - Ascend 950PR/Ascend 950DT：
     - 不支持共享专家场景。
-    - epWorldSize当前取值仅支持2、4、8。
+    - epWorldSize当前取值仅支持2、8。
+    - moeExpertNum表示MoE专家数量，当前仅能传入32。
     - expertShardType当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum表示共享专家数量，当前不支持共享专家，仅能传入0。
+    - sharedExpertRankNum表示共享专家卡数，当前不支持共享专家，仅能传入0。
     - commQuantMode当前仅支持传入0，表示不进行量化。
     - commType取值范围[0, 2]，当前仅支持2，表示URMA通路。
     - commAlg 当前版本不支持，传空指针即可。
   
   - Atlas A3 训练系列产品/Atlas A3 推理系列产品：
     - 不支持共享专家场景。
-    - epWorldSize当前取值仅支持2、4、8。
+    - epWorldSize当前取值仅支持2、8。
+    - moeExpertNum表示MoE专家数量，当前仅能传入32。
     - expertShardType当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum表示共享专家数量，当前不支持共享专家，仅能传入0。
+    - sharedExpertRankNum表示共享专家卡数，当前不支持共享专家，仅能传入0。
     - commQuantMode当前仅支持传入0，表示不进行量化。
     - commType取值范围[0, 2]，当前仅支持2，表示URMA通路。
     - commAlg 当前版本不支持，传空指针即可。
@@ -428,7 +432,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
   - K：表示选取topK个专家，取值范围为0 < K ≤ 16同时满足0 < K ≤ moeExpertNum。当前仅支持6。
   - localExpertNum：表示本卡专家数量。
     - 对于共享专家卡，localExpertNum = 1
-    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)，localExpertNum > 1时，不支持TP域通信。当前仅支持每卡16个专家。
+    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)。
   - 当前不支持共享专家。
 - HCCL_BUFFSIZE：
   调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
