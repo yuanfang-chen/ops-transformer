@@ -62,9 +62,9 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
 
 -   **next\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`，仅支持默认值2^63-1。
   
--   **query\_dtype**（`typename`）：可选参数，用于支持query为hifloat8数据类型。默认值为None。如果query的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
+-   **query\_dtype**（`int`）：可选参数，用于支持query为hifloat8数据类型。如果query的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
 
--   **key\_dtype**（`typename`）：可选参数，用于支持key为hifloat8数据类型。默认值为None。如果key的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
+-   **key\_dtype**（`int`）：可选参数，用于支持key为hifloat8数据类型。如果key的数据类型为hifloat8，则将该变量赋值为torch_npu.hifloat8。
 
 ## 返回值说明
 `Tensor`
@@ -75,7 +75,7 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
 -   该接口支持图模式。
 -   该接口要求$W \odot Scale_Q$的结果在`float16`的表示范围内。
 -   该接口的TopK过程对NAN排序是未定义行为。
--   对于Ascend 950PR/Ascend 950DT，当query和key的数据类型为`float8_e4m3fn`时，支持weights、query_dequant_scale、key_dequant_scale的数据类型为`bfloat16、float32、float32`和`float16、float16、float16`；当query和key的数据类型为`hifloat8`时，仅支持weights、query_dequant_scale、key_dequant_scale数据类型为`bfloat16、float32、float32`。
+-   对于Ascend 950PR/Ascend 950DT，当query和key的数据类型为`float8_e4m3fn`时，支持weights、query_dequant_scale、key_dequant_scale的数据类型为`bfloat16、float32、float32`或`float16、float16、float16`；当query和key的数据类型为`hifloat8`时，仅支持weights、query_dequant_scale、key_dequant_scale数据类型为`bfloat16、float32、float32`。
 ## 调用示例
 
 -   单算子模式调用
