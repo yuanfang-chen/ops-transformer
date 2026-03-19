@@ -43,20 +43,20 @@
 
 ```c++
 aclnnStatus aclnnInterleaveRopeGetWorkspaceSize(
-    const aclTensor* x,
-    const aclTensor* cos,
-    const aclTensor* sin,
-    aclTensor* out,
-    uint64_t* workspaceSize,
-    aclOpExecutor** executor);
+    const aclTensor *x,
+    const aclTensor *cos,
+    const aclTensor *sin,
+    aclTensor       *out,
+    uint64_t        *workspaceSize,
+    aclOpExecutor   **executor);
 ```
 
 ```c++
 aclnnStatus aclnnInterleaveRope(
-    void* workspace,
-    uint64_t workspaceSize,
-    aclOpExecutor* executor,
-    aclrtStream stream)
+    void          *workspace,
+    uint64_t       workspaceSize,
+    aclOpExecutor *executor,
+    aclrtStream    stream)
 ```
 
 ## aclnnInterleaveRopeGetWorkspaceSize
@@ -90,7 +90,7 @@ aclnnStatus aclnnInterleaveRope(
       <td>x</td>
       <td>输入</td>
       <td>device侧的aclTensor，待执行旋转位置编码的张量，对应公式中的x。</td>
-      <td>数据类型支持FLOAT32、FLOAT16、BFLOAT16，支持非连续的Tensor，数据格式支持ND。</td>
+      <td>-</td>
       <td>FLOAT32、FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>4</td>
@@ -100,8 +100,8 @@ aclnnStatus aclnnInterleaveRope(
       <td>cos</td>
       <td>输入</td>
       <td>device侧的aclTensor，位置编码张量，对应公式中的cos。</td>
-      <td>数据类型与x一致，shape与x满足broadcast关系，支持非连续的Tensor，数据格式支持ND。</td>
-      <td>FLOAT32、FLOAT16、BFLOAT16</td>
+      <td>shape与x满足broadcast关系。</td>
+      <td>与x一致</td>
       <td>ND</td>
       <td>4</td>
       <td>√</td>
@@ -110,8 +110,8 @@ aclnnStatus aclnnInterleaveRope(
       <td>sin</td>
       <td>输入</td>
       <td>device侧的aclTensor，位置编码张量，对应公式中的sin。</td>
-      <td>数据类型与x一致，shape与cos一致，支持非连续的Tensor，数据格式支持ND。</td>
-      <td>FLOAT32、FLOAT16、BFLOAT16</td>
+      <td>shape与cos一致。</td>
+      <td>与x一致</td>
       <td>ND</td>
       <td>4</td>
       <td>√</td>
@@ -120,11 +120,11 @@ aclnnStatus aclnnInterleaveRope(
       <td>out</td>
       <td>输出</td>
       <td>device侧的aclTensor，旋转位置编码计算结果，对应公式中的y。</td>
-      <td>数据类型与x一致，shape与x相同，数据格式支持ND，且数据格式需要与x一致。</td>
-      <td>FLOAT32、FLOAT16、BFLOAT16</td>
+      <td>shape与x一致。</td>
+      <td>与x一致</td>
       <td>ND</td>
       <td>4</td>
-      <td>√</td>
+      <td>x</td>
     </tr>
     <tr>
       <td>workspaceSize</td>
@@ -205,12 +205,12 @@ aclnnStatus aclnnInterleaveRope(
     <tr>
       <td>workspace</td>
       <td>输入</td>
-      <td>在npu device侧申请的workspace内存起址。</td>
+      <td>在Device侧申请的workspace内存地址。</td>
     </tr>
     <tr>
       <td>workspaceSize</td>
       <td>输入</td>
-      <td>在npu device侧申请的workspace大小，由第一段接口aclnnInterleaveRopeGetWorkspaceSize获取。</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnInterleaveRopeGetWorkspaceSize获取。</td>
     </tr>
     <tr>
       <td>executor</td>
@@ -220,7 +220,7 @@ aclnnStatus aclnnInterleaveRope(
     <tr>
       <td>stream</td>
       <td>输入</td>
-      <td>acl stream流。</td>
+      <td>指定执行任务的Stream流。</td>
     </tr>
   </tbody>
   </table>
@@ -237,7 +237,6 @@ aclnnStatus aclnnInterleaveRope(
 - x、cos、sin、out要求为4维张量，shape为（B，N，S，D）。
 - cos、sin的S维度可以为1或与x的S维度相同，N维度必须等于1。
 - 输入x、cos、sin的D维度必须等于64。
-- x、cos、sin、out的数据类型、数据格式须保持一致。
 
 ## 调用示例
 
