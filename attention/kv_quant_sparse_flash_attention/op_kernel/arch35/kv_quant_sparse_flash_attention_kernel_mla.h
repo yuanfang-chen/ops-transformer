@@ -348,8 +348,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = 512;
         constInfo.needInit = this->sharedParams.needInit;
+        constInfo.dSizeV = 512;
     }
     constInfo.n2Size = sharedParams.n2Size;
     constInfo.s2Size = sharedParams.s2Size;
@@ -360,10 +360,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     constInfo.tileSize = sharedParams.tileSize;
     constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
     constInfo.sparseBlockSize = 1;
-    constInfo.cmpRatio = sharedParams.cmpRatio;
-    constInfo.oriWinLeft = sharedParams.oriWinLeft;
-    constInfo.oriWinRight = sharedParams.oriWinRight;
-    constInfo.sparseMode = sharedParams.oriMaskMode;
+    constInfo.sparseMode = sharedParams.maskMode;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
@@ -398,10 +395,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     }
     if ASCEND_IS_AIV {
         constInfo.softmaxScale = sharedParams.softmaxScale;
-        constInfo.oriBlockSize = sharedParams.oriBlockSize;
-        constInfo.cmpBlockSize = sharedParams.cmpBlockSize;
-        constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
-        constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
+        constInfo.blockSize = sharedParams.blockSize;
+        constInfo.maxBlockNumPerBatch = sharedParams.maxBlockNumPerBatch;
     }
 
     InitUniqueConstInfo();
@@ -551,12 +546,9 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    if (s2LoopCount < runParam.oriKvLoopEndIdx) {
+    if (s2LoopCount < runParam.kvLoopEndIdx) {
         runInfo.s2StartIdx = runParam.s2LineStartIdx;
         runInfo.s2EndIdx = runParam.s2LineEndIdx;
-    } else {
-        runInfo.s2StartIdx = 0;
-        runInfo.s2EndIdx = runParam.s2CmpLineEndIdx;
     }
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
@@ -608,9 +600,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    int64_t curS2LoopCnt = (runInfo.s2LoopCount >= runParam.oriKvLoopEndIdx) ? (runInfo.s2LoopCount - runParam.oriKvLoopEndIdx) : runInfo.s2LoopCount;
-    if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-        runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }

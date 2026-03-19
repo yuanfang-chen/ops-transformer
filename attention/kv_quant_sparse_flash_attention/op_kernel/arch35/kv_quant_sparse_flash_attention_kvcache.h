@@ -87,11 +87,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     runParam.actualS1Size = actualS1Size;
     runParam.actualS2Size = actualS2Size;
     runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
-    if (constInfo.oriWinLeft == -1) {
-        runParam.preTokensPerBatch = runParam.actualS1Size;
-    } else {
-        runParam.preTokensPerBatch = -(runParam.actualS2Size - runParam.actualS1Size - constInfo.oriWinLeft);
-    }
+    runParam.preTokensPerBatch = runParam.actualS1Size;
     runParam.preTokensPerBatch = Min(runParam.preTokensPerBatch, runParam.actualS1Size);
 
     CalculateQueryOffset<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, actualSeqQlenAddr);
@@ -233,8 +229,7 @@ TEMPLATE_INTF
 __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo)
 {
     if (runParam.actualS2Size == 0) {
-        runParam.oriKvLoopEndIdx = 0;
-        runParam.cmpKvLoopEndIdx = 0;
+        runParam.kvLoopEndIdx = 0;
         runParam.s2LoopEndIdx = 0;
         return true;
     }
@@ -248,11 +243,11 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo 
             0, runParam.actualS2Size);
         runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
             runParam.s1RealSize, 0, runParam.actualS2Size);
-        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx / constInfo.cmpRatio, constInfo.sparseBlockCount); // 当前LI输出的block size只可能是1
+        runParam.s2LineEndIdx = Min(runParam.s2LineEndIdx, constInfo.sparseBlockCount); // 当前LI输出的block size只可能是1
     }
 
-    runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
-    runParam.s2LoopEndIdx = runParam.oriKvLoopEndIdx;
+    runParam.kvLoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
+    runParam.s2LoopEndIdx = runParam.kvLoopEndIdx;
     return false;
 }
 
@@ -266,7 +261,7 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr& runParam, RunInfo &
     runInfo.actualS2Size = runParam.actualS2Size;
     runInfo.softmaxLseOffset = runParam.softmaxLseOffset;
     runInfo.qSNumInOneBlock = runParam.qSNumInOneBlock;
-    runInfo.oriKvLoopEndIdx = runParam.oriKvLoopEndIdx;
+    runInfo.kvLoopEndIdx = runParam.kvLoopEndIdx;
 }
 
 #endif  // KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H
