@@ -76,7 +76,7 @@ void PrintTensorDataFloat16(const std::vector<int64_t>& shape, void* device_addr
             return);
 
   for (int64_t i = 0; i < size; ++i) {
-    host_data[i] = HalfToFloat(host_fp16[i]);
+    host_data[i] = aclFloat16ToFloat(host_fp16[i]);
   }
 
   LOG_PRINT("Tensor data (first 10 elements): ");
