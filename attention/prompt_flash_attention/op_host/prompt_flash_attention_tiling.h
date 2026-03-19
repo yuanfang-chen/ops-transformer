@@ -591,8 +591,8 @@ protected:
                         const uint32_t typeByteSize);
     uint32_t CalculateL1SizeUsed(PromptFlashAttentionTilingData& tilingData, const uint32_t typeByteSize);
     bool CheckInputDimAndHeadNum(ContextParamsForPFATiling& contextKeyParams, uint32_t nQAttr, uint32_t nKVAttr);
-    bool SetTilingHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, const int32_t* numQueryHeads,
-                               const int32_t* numKeyValueHeads, PromptFlashAttentionTilingData& tilingData);
+    bool SetTilingHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, const int64_t* numQueryHeads,
+                               const int64_t* numKeyValueHeads, PromptFlashAttentionTilingData& tilingData);
     void PromptFlashAttentionInitOutputSplit(uint64_t totalSize, PromptFlashAttentionTilingData &tilingData,
                                              uint32_t curCoreNum);
     void PromptFlashAttentionInitSoftmaxLseOutputSplit(uint64_t totalSize, PromptFlashAttentionTilingData &tilingData);
