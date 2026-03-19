@@ -1150,9 +1150,9 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_qkvout_che
             {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
         &compileInfo, "Ascend950", 64, 262144, 16384);
-    int64_t expectTilingKey = 132382980;
+    int64_t expectTilingKey = 132382977;
     std::string expectTilingData = "";
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_qkvout_check2)
@@ -2228,9 +2228,9 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_qkvout_che
             {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
         &compileInfo, "Ascend950", 64, 262144, 16384);
-    int64_t expectTilingKey = 132382980;
+    int64_t expectTilingKey = 132382977;
     std::string expectTilingData = "";
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_19)
@@ -3031,9 +3031,9 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_qkvout_che
             {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
         &compileInfo, "Ascend950", 64, 262144, 16384);
-    int64_t expectTilingKey = 107133670105728;
+    int64_t expectTilingKey = 132382977;
     std::string expectTilingData = "";
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_qkvout_check31)
