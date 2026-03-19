@@ -80,6 +80,22 @@ const constexpr uint32_t DECODE_CHUNK_T_SIZE = 2;
 const constexpr uint32_t DECODE_ALIGN_16 = 16;
 const constexpr size_t DECODE_WORKSPACE_ALIGN = 32;
 
+static constexpr size_t OUT_H_IN_INDEX = 0;
+static constexpr size_t OUT_H_POST_INDEX = 1;
+static constexpr size_t OUT_H_RES_INDEX = 2;
+static constexpr size_t OUT_INV_RMS_INDEX = 3;
+static constexpr size_t OUT_MM_RES_INDEX = 4;
+static constexpr size_t OUT_H_PRE_INDEX = 5;
+
+static constexpr size_t DIM_0 = 0;
+static constexpr size_t DIM_1 = 1;
+static constexpr size_t DIM_2 = 2;
+static constexpr size_t DIM_3 = 3;
+static constexpr size_t DIM_NUM_2 = 2;
+static constexpr size_t DIM_NUM_3 = 3;
+static constexpr size_t DIM_NUM_4 = 4;
+static constexpr uint32_t HAS_GAMMA_TRUE = 1;
+
 REGISTER_OPS_TILING_TEMPLATE(MhcPre, MhcPreBaseTiling, 1000);
 
 ge::graphStatus MhcPreBaseTiling::GetInputShape()
@@ -105,6 +121,196 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
 
     OP_LOGE(context_->GetNodeName(), "X dims[%u] is invalid", xDims);
     return ge::GRAPH_FAILED;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckDescAndShape()
+{
+    for (size_t i = 0; i <= GAMMA_INDEX; i++) {
+        auto desc = context_->GetInputDesc(i);
+        OP_CHECK_IF(desc == nullptr, OP_LOGE(context_->GetNodeName(), "input %zu desc is nullptr", i),
+                    return ge::GRAPH_FAILED);
+        auto shape = context_->GetInputShape(i);
+        OP_CHECK_IF(shape == nullptr, OP_LOGE(context_->GetNodeName(), "input %zu shape is nullptr", i),
+                    return ge::GRAPH_FAILED);
+    }
+
+    for (size_t i = 0; i <= OUT_H_PRE_INDEX; i++) {
+        auto desc = context_->GetOutputDesc(i);
+        OP_CHECK_IF(desc == nullptr, OP_LOGE(context_->GetNodeName(), "output %zu desc is nullptr", i),
+                    return ge::GRAPH_FAILED);
+        auto shape = context_->GetOutputShape(i);
+        OP_CHECK_IF(shape == nullptr, OP_LOGE(context_->GetNodeName(), "output %zu shape is nullptr", i),
+                    return ge::GRAPH_FAILED);
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckShapePositive()
+{
+    for (size_t i = 0; i <= GAMMA_INDEX; i++) {
+        auto shape = context_->GetInputShape(i)->GetStorageShape();
+        for (size_t j = 0; j < shape.GetDimNum(); j++) {
+            OP_CHECK_IF(
+                shape.GetDim(j) <= 0,
+                OP_LOGE(context_->GetNodeName(), "input %zu dim%zu should be > 0, got %ld", i, j, shape.GetDim(j)),
+                return ge::GRAPH_FAILED);
+        }
+    }
+
+    for (size_t i = 0; i <= OUT_H_PRE_INDEX; i++) {
+        auto shape = context_->GetOutputShape(i)->GetStorageShape();
+        for (size_t j = 0; j < shape.GetDimNum(); j++) {
+            OP_CHECK_IF(
+                shape.GetDim(j) <= 0,
+                OP_LOGE(context_->GetNodeName(), "output %zu dim%zu should be > 0, got %ld", i, j, shape.GetDim(j)),
+                return ge::GRAPH_FAILED);
+        }
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckDataType()
+{
+    auto xDtype = context_->GetInputDesc(X_INDEX)->GetDataType();
+    OP_CHECK_IF(xDtype != ge::DT_BF16 && xDtype != ge::DT_FLOAT16,
+                OP_LOGE(context_->GetNodeName(), "x dtype should be BF16 or FP16, got %s",
+                        ge::TypeUtils::DataTypeToSerialString(xDtype).c_str()),
+                return ge::GRAPH_FAILED);
+
+    auto phiDtype = context_->GetInputDesc(PHI_INDEX)->GetDataType();
+    OP_CHECK_IF(phiDtype != ge::DT_FLOAT,
+                OP_LOGE(context_->GetNodeName(), "phi dtype should be FLOAT32, got %s",
+                        ge::TypeUtils::DataTypeToSerialString(phiDtype).c_str()),
+                return ge::GRAPH_FAILED);
+
+    auto alphaDtype = context_->GetInputDesc(ALPHA_INDEX)->GetDataType();
+    OP_CHECK_IF(alphaDtype != ge::DT_FLOAT,
+                OP_LOGE(context_->GetNodeName(), "alpha dtype should be FLOAT32, got %s",
+                        ge::TypeUtils::DataTypeToSerialString(alphaDtype).c_str()),
+                return ge::GRAPH_FAILED);
+
+    auto biasDtype = context_->GetInputDesc(BIAS_INDEX)->GetDataType();
+    OP_CHECK_IF(biasDtype != ge::DT_FLOAT,
+                OP_LOGE(context_->GetNodeName(), "bias dtype should be FLOAT32, got %s",
+                        ge::TypeUtils::DataTypeToSerialString(biasDtype).c_str()),
+                return ge::GRAPH_FAILED);
+
+    if (hasGamma_ == HAS_GAMMA_TRUE) {
+        auto gammaDtype = context_->GetInputDesc(GAMMA_INDEX)->GetDataType();
+        OP_CHECK_IF(gammaDtype != ge::DT_FLOAT,
+                    OP_LOGE(context_->GetNodeName(), "gamma dtype should be FLOAT32, got %s",
+                            ge::TypeUtils::DataTypeToSerialString(gammaDtype).c_str()),
+                    return ge::GRAPH_FAILED);
+    }
+
+    auto outHinDtype = context_->GetOutputDesc(OUT_H_IN_INDEX)->GetDataType();
+    OP_CHECK_IF(outHinDtype != xDtype,
+                OP_LOGE(context_->GetNodeName(), "out_h_in dtype should be %s, got %s",
+                        ge::TypeUtils::DataTypeToSerialString(xDtype).c_str(),
+                        ge::TypeUtils::DataTypeToSerialString(outHinDtype).c_str()),
+                return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckOutputShapeConsistency()
+{
+    auto xShape = context_->GetInputShape(X_INDEX)->GetStorageShape();
+    size_t xDimNum = xShape.GetDimNum();
+
+    if (xDimNum == BSND_DIM_NUM) {
+        OP_CHECK_IF(
+            CheckBsndOutputShape(xShape) != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "CheckBsndOutputShape failed"), return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(
+            CheckTndOutputShape(xShape) != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "CheckTndOutputShape failed"), return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckBsndOutputShape(const gert::StorageShape &xShape)
+{
+    auto outHinShape = context_->GetOutputShape(OUT_H_IN_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHinShape.GetDimNum() != DIM_NUM_3 || outHinShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHinShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHinShape.GetDim(DIM_2) != xShape.GetDim(DIM_3),
+        OP_LOGE(context_->GetNodeName(), "out_h_in shape (B,S,D) mismatch with x (B,S,N,D)"), return ge::GRAPH_FAILED);
+
+    auto outHpostShape = context_->GetOutputShape(OUT_H_POST_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHpostShape.GetDimNum() != DIM_NUM_3 || outHpostShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHpostShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHpostShape.GetDim(DIM_2) != xShape.GetDim(DIM_2),
+        OP_LOGE(context_->GetNodeName(), "out_h_post shape (B,S,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outHresShape = context_->GetOutputShape(OUT_H_RES_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHresShape.GetDimNum() != DIM_NUM_4 || outHresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHresShape.GetDim(DIM_2) != xShape.GetDim(DIM_2) ||
+                outHresShape.GetDim(DIM_3) != xShape.GetDim(DIM_2),
+        OP_LOGE(context_->GetNodeName(), "out_h_res shape (B,S,N,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outInvRmsShape = context_->GetOutputShape(OUT_INV_RMS_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outInvRmsShape.GetDimNum() != DIM_NUM_2 || outInvRmsShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outInvRmsShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+        OP_LOGE(context_->GetNodeName(), "out_inv_rms shape (B,S) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outMmresShape = context_->GetOutputShape(OUT_MM_RES_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outMmresShape.GetDimNum() != DIM_NUM_3 || outMmresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outMmresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+        OP_LOGE(context_->GetNodeName(), "out_mm_res shape (B,S,matK) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outHpreShape = context_->GetOutputShape(OUT_H_PRE_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHpreShape.GetDimNum() != DIM_NUM_3 || outHpreShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHpreShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHpreShape.GetDim(DIM_2) != xShape.GetDim(DIM_2),
+        OP_LOGE(context_->GetNodeName(), "out_h_pre shape (B,S,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckTndOutputShape(const gert::StorageShape &xShape)
+{
+    auto outHinShape = context_->GetOutputShape(OUT_H_IN_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHinShape.GetDimNum() != DIM_NUM_2 || outHinShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHinShape.GetDim(DIM_1) != xShape.GetDim(DIM_2),
+        OP_LOGE(context_->GetNodeName(), "out_h_in shape (T,D) mismatch with x (T,N,D)"), return ge::GRAPH_FAILED);
+
+    auto outHpostShape = context_->GetOutputShape(OUT_H_POST_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHpostShape.GetDimNum() != DIM_NUM_2 || outHpostShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHpostShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+        OP_LOGE(context_->GetNodeName(), "out_h_post shape (T,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outHresShape = context_->GetOutputShape(OUT_H_RES_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHresShape.GetDimNum() != DIM_NUM_3 || outHresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHresShape.GetDim(DIM_2) != xShape.GetDim(DIM_1),
+        OP_LOGE(context_->GetNodeName(), "out_h_res shape (T,N,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outInvRmsShape = context_->GetOutputShape(OUT_INV_RMS_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outInvRmsShape.GetDimNum() != 1 || outInvRmsShape.GetDim(DIM_0) != xShape.GetDim(DIM_0),
+        OP_LOGE(context_->GetNodeName(), "out_inv_rms shape (T) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outMmresShape = context_->GetOutputShape(OUT_MM_RES_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outMmresShape.GetDimNum() != DIM_NUM_2 || outMmresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0),
+        OP_LOGE(context_->GetNodeName(), "out_mm_res shape (T,matK) mismatch with x"), return ge::GRAPH_FAILED);
+
+    auto outHpreShape = context_->GetOutputShape(OUT_H_PRE_INDEX)->GetStorageShape();
+    OP_CHECK_IF(outHpreShape.GetDimNum() != DIM_NUM_2 || outHpreShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
+                outHpreShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+        OP_LOGE(context_->GetNodeName(), "out_h_pre shape (T,N) mismatch with x"), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckDataRange()
+{
+    OP_CHECK_IF(totalLength_ < 1 || totalLength_ > 65536,
+                OP_LOGE(context_->GetNodeName(), "BS/T should be in [1, 65536], got %lu", totalLength_),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(D_ < 512 || D_ > 16384, OP_LOGE(context_->GetNodeName(), "D should be in [512, 16384], got %lu", D_),
+                return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MhcPreBaseTiling::ParseBsndFormat(const gert::Tensor *xTensor)
@@ -139,8 +345,8 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 {
     auto phiTensor = context_->GetDynamicInputTensor(PHI_INDEX, 0);
     auto phiDims = phiTensor->GetStorageShape().GetDimNum();
-    if (phiDims < 2) {
-        OP_LOGE(context_->GetNodeName(), "Phi dims[%u] is invalid", phiDims);
+    if (phiDims != 2) {
+        OP_LOGE(context_->GetNodeName(), "Phi dims num must be 2, but got %u.", phiDims);
         return ge::GRAPH_FAILED;
     }
 
@@ -176,8 +382,23 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
 
 ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
 {
+    OP_CHECK_IF(CheckDescAndShape() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "CheckDescAndShape failed"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(CheckShapePositive() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "CheckShapePositive failed"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(CheckDataType() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "CheckDataType failed"),
+                return ge::GRAPH_FAILED);
+
     if (GetInputShape() != ge::GRAPH_SUCCESS) {
         OP_LOGE(context_->GetNodeName(), "Get input shape failed");
+        return ge::GRAPH_FAILED;
+    }
+
+    OP_CHECK_IF(CheckDataRange() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "CheckDataRange failed"),
+                return ge::GRAPH_FAILED);
+
+    if (CheckOutputShapeConsistency() != ge::GRAPH_SUCCESS) {
+        OP_LOGE(context_->GetNodeName(), "CheckOutputShapeConsistency failed");
         return ge::GRAPH_FAILED;
     }
 
@@ -300,7 +521,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     } else {
         tilingMode_ = TilingMode::PREFILL;
     }
-    
+
     if (tilingMode_ == TilingMode::DECODE) {
         chunkTSize_ = DECODE_CHUNK_T_SIZE;
         v1ChunkDSize_ = V1_CHUNK_D_SIZE;
@@ -318,15 +539,15 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
 
     if (tilingMode_ == TilingMode::DECODE) {
         size_t xFloatWorkspaceSizeRaw = static_cast<size_t>(matM_) * static_cast<size_t>(matK_) * sizeof(float);
-        size_t xFloatWorkspaceSize = (xFloatWorkspaceSizeRaw + DECODE_WORKSPACE_ALIGN - 1U) /
-                                    DECODE_WORKSPACE_ALIGN * DECODE_WORKSPACE_ALIGN;
+        size_t xFloatWorkspaceSize =
+            (xFloatWorkspaceSizeRaw + DECODE_WORKSPACE_ALIGN - 1U) / DECODE_WORKSPACE_ALIGN * DECODE_WORKSPACE_ALIGN;
         size_t mmResWorkspaceSize = 0;
 
         uint64_t chunkNd = (matK_ + blockDim_ - 1) / blockDim_;
         uint64_t mmResBlockNum = (matK_ + chunkNd - 1) / chunkNd;
         mmResWorkspaceSize = static_cast<size_t>(mmResBlockNum) * static_cast<size_t>(matM_) *
-                            static_cast<size_t>(matN_) * sizeof(float);
-        
+                             static_cast<size_t>(matN_) * sizeof(float);
+
         userWorkspaceSize = xFloatWorkspaceSize + mmResWorkspaceSize;
     } else {
         userWorkspaceSize =
@@ -454,7 +675,5 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MhcPre)
-    .Tiling(TilingFunc4mHCPre)
-    .TilingParse<MhcPreCompileInfo>(TilingPrepare4mHCPre);
+IMPL_OP_OPTILING(MhcPre).Tiling(TilingFunc4mHCPre).TilingParse<MhcPreCompileInfo>(TilingPrepare4mHCPre);
 } // namespace optiling
