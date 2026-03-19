@@ -219,6 +219,7 @@ import ascend_ops
 batch_size = 18
 query_seq_size = 1
 query_head_num = 64
+head_dim = 128
 key_seq_size = 8192
 key_head_num = 1
 block_size = 128
@@ -229,12 +230,15 @@ metadata = torch.ops.custom.npu_fused_infer_attention_score_metadata(
     batch_size=batch_size,
     query_seq_size=query_seq_size,
     query_head_num=query_head_num,
+    head_dim=head_dim,
     key_seq_size=key_seq_size,
     key_head_num=key_head_num,
     block_size=block_size,
     max_block_num_per_batch=max_block_num_per_batch,
     is_accum_seq_query=False,
     is_accum_seq_kv=False,
+    actual_seq_lengths_query=torch.tensor([query_seq_size] * batch_size, dtype=torch.int32).npu(),
+    actual_seq_lengths_kv=torch.tensor([key_seq_size] * batch_size, dtype=torch.int64).npu(),
     layout_query="BSND",
     layout_key="BSND"
 )
