@@ -46,7 +46,6 @@ at::Tensor npu_fused_infer_attention_score_metadata_meta(
     bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
-    printf("start npu_fused_infer_attention_score_metadata_meta\n");
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device(torch::kMeta));
     return output;
 }
@@ -57,7 +56,6 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
     bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
-    printf("start npu_fused_infer_attention_score_metadata_npu\n");
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
 
     auto aicpu_stream = c10_npu::getCurrentNPUStream().stream(true);
