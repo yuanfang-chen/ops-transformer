@@ -156,7 +156,6 @@ private:
     int64_t kernelSize_;     // 卷积核大小（K=3）
     int64_t cacheLen_;       // cache_state第二维
     int64_t xInputMode_;     // 输入模式：0=3D, 1=2D
-    int64_t xStride_;
 
     // ========== 运行时计算参数 ==========
     int32_t blockIdx_;           // 当前核的索引
@@ -211,7 +210,6 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     cacheLen_ = tilingData->stateLen;
     hasAcceptTokenNum_ = tilingData->hasAcceptTokenNum;
     xInputMode_ = tilingData->xInputMode;
-    xStride_ = tilingData->xStride;  
     isresidualConnection_ = tilingData ->residualConnection;
 
     // === 当前核的ub循环的参数 ===
@@ -249,9 +247,9 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 
 
     // === 完整的dim和cacheLen的大小 ===
-    dimSum_ = dim_ + xStride_;
-    cacheLenSum_ = dim_ + tilingData->cacheStride1;
-    cacheBatchLenSum_ = cacheLen_ * cacheLenSum_ + tilingData->cacheStride0;    
+    dimSum_ = tilingData->xStride;
+    cacheLenSum_ = tilingData->cacheStride1;
+    cacheBatchLenSum_ = tilingData->cacheStride0;    
 
     // === 7. 设置Global Memory buffers ===
     if(xInputMode_ == 0) {
