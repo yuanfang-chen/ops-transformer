@@ -381,10 +381,10 @@ namespace BSA {
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
-                    uint64_t kvBlockBasicOffset = 0;
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
                     uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
                     if (gBlcokSpaseMask.GetValue(maskOffset)) {
+                        uint64_t kvBlockBasicOffset = 0;
                         uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen - blockShapeY * idx;
                         uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
@@ -420,8 +420,8 @@ namespace BSA {
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
                             count++;
+                            kvBlockBasicOffset += basicKVBlockSize;
                         }
-                        kvBlockBasicOffset += basicKVBlockSize;
                     }
                     kvBlockOffset += blockShapeY;
                 }
@@ -539,10 +539,10 @@ namespace BSA {
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
-                    uint64_t kvBlockBasicOffset = 0;
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
                     uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
                     if (gBlcokSpaseMask.GetValue(maskOffset)) {
+                        uint64_t kvBlockBasicOffset = 0;
                         uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen - blockShapeY * idx;
                         uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
@@ -599,8 +599,8 @@ namespace BSA {
                             pingpongFlag = 1 - pingpongFlag;
                             // break;
                             // count++;
+                            kvBlockBasicOffset += basicKVBlockSize;
                         }
-                        kvBlockBasicOffset += basicKVBlockSize;
                     }
                     kvBlockOffset += kvBlockNum;
                 }
