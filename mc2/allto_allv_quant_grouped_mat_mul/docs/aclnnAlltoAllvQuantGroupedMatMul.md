@@ -27,7 +27,7 @@
     ```
   - 本卡路由专家按专家维度分组矩阵乘计算
     ```
-    gmm_y=(permute_out × hmm_x_scale) @ (gmm_weight × gmm_weight_scale)
+    gmm_y=(permute_out × gmm_x_scale) @ (gmm_weight × gmm_weight_scale)
     ```
 
 ## 函数原型
