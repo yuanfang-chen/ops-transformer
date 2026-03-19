@@ -487,34 +487,114 @@ bool SplitCore::BalanceLoad(const std::vector<int64_t> &sparseValidArray, int64_
 
 bool SplitCore::GenMetaData(aicpu::kernels::IncreFlashAttentionMetadataArgs *args)
 {
+    // constexpr uint32_t BYTE_BLOCK = 32UL;
+    // aicpu::kernels::IncreFlashAttentionMetadata *metaData = (aicpu::kernels::IncreFlashAttentionMetadata *)args->metaData;
+    // metaData->usedCoreNum = usedCoreNum_;
+    // metaData->formerCoreNum = formerCoreNum_;
+    // metaData->sInnerLoopTimes = sInnerLoopTimes_;
+    // metaData->singleProcessSInnerSize = sInnerSize_;
+    // metaData->singleProcessSInnerSizeTail = sInnerSizeTail_;
+    // metaData->blockSplitBn2Range = blockSplitBn2Range_;
+    // metaData->tailSplitedBatchRange = tailSplitedBatchRange_;
+    // metaData->groupSplitSize = groupSplitSize_;
+    // metaData->s1SplitSize = s1SplitSize_;
+    // for (size_t i = 0; i < aicpu::kernels::MAX_CORE_NUM; ++i) {
+    //     metaData->startIdxEachCore[i] = startIdxEachCore_[i];
+    // }
+
+    // // fd
+    // uint32_t sInnerLoopSize = (maxActualseq_ + (kvSplitPart_ - 1U)) / kvSplitPart_;
+    // sInnerLoopSize = Align(sInnerLoopSize, blockSize_);
+
+    // uint32_t headDimAlign = Align(headDim_, BYTE_BLOCK);
+    // metaData->s2 = kvSplitPart_;
+    // metaData->sInnerLoopSize = sInnerLoopSize;
+    // if (layoutQuery_ == aicpu::kernels::Layout::TND) {
+    //     metaData->accumOutSize = batchSize_ * qSeqSize_ * qHeadNum_ * kvSplitPart_ * headDimAlign;
+    //     metaData->logSumExpSize = 2U * batchSize_ * qHeadNum_ * kvSplitPart_ * qSeqSize_ * (BYTE_BLOCK / sizeof(float));
+    // }  else {
+    //     metaData->accumOutSize = batchSize_ * qHeadNum_ * kvSplitPart_ * headDimAlign;
+    //     metaData->logSumExpSize = 2U * batchSize_ * qHeadNum_ * kvSplitPart_ * (BYTE_BLOCK / sizeof(float));
+    // }
+
+    // if (!splitKVFlag_) {
+    //     metaData->s2 = 0U;
+    // }
     constexpr uint32_t BYTE_BLOCK = 32UL;
     aicpu::kernels::IncreFlashAttentionMetadata *metaData = (aicpu::kernels::IncreFlashAttentionMetadata *)args->metaData;
-    metaData->usedCoreNum = usedCoreNum_;
-    metaData->formerCoreNum = formerCoreNum_;
-    metaData->sInnerLoopTimes = sInnerLoopTimes_;
-    metaData->singleProcessSInnerSize = sInnerSize_;
-    metaData->singleProcessSInnerSizeTail = sInnerSizeTail_;
-    metaData->blockSplitBn2Range = blockSplitBn2Range_;
-    metaData->tailSplitedBatchRange = tailSplitedBatchRange_;
-    metaData->groupSplitSize = groupSplitSize_;
-    metaData->s1SplitSize = s1SplitSize_;
-    for (size_t i = 0; i < aicpu::kernels::MAX_CORE_NUM; ++i) {
-        metaData->startIdxEachCore[i] = startIdxEachCore_[i];
-    }
+    metaData->usedCoreNum = 24;
+    metaData->formerCoreNum = 6;
+    metaData->sInnerLoopTimes = 64;
+    metaData->singleProcessSInnerSize = 1024;
+    metaData->singleProcessSInnerSizeTail = 1024;
+    metaData->blockSplitBn2Range = 2;
+    metaData->tailSplitedBatchRange = 1;
+    metaData->groupSplitSize = 16;
+    metaData->s1SplitSize = 8;
+    metaData->startIdxEachCore[0] = 0;
+    metaData->startIdxEachCore[1] = 2;
+    metaData->startIdxEachCore[2] = 4;
+    metaData->startIdxEachCore[3] = 6;
+    metaData->startIdxEachCore[4] = 8;
+    metaData->startIdxEachCore[5] = 10;
+    metaData->startIdxEachCore[6] = 12;
+    metaData->startIdxEachCore[7] = 13;
+    metaData->startIdxEachCore[8] = 14;
+    metaData->startIdxEachCore[9] = 15;
+    metaData->startIdxEachCore[10] = 16;
+    metaData->startIdxEachCore[11] = 17;
+    metaData->startIdxEachCore[12] = 18;
+    metaData->startIdxEachCore[13] = 19;
+    metaData->startIdxEachCore[14] = 20;
+    metaData->startIdxEachCore[15] = 21;
+    metaData->startIdxEachCore[16] = 22;
+    metaData->startIdxEachCore[17] = 23;
+    metaData->startIdxEachCore[18] = 24;
+    metaData->startIdxEachCore[19] = 25;
+    metaData->startIdxEachCore[20] = 26;
+    metaData->startIdxEachCore[21] = 27;
+    metaData->startIdxEachCore[22] = 28;
+    metaData->startIdxEachCore[23] = 29;
+    metaData->startIdxEachCore[24] = 30;
+    metaData->startIdxEachCore[25] = 30;
+    metaData->startIdxEachCore[26] = 30;
+    metaData->startIdxEachCore[27] = 30;
+    metaData->startIdxEachCore[28] = 30;
+    metaData->startIdxEachCore[29] = 30;
+    metaData->startIdxEachCore[30] = 30;
+    metaData->startIdxEachCore[31] = 30;
+    metaData->startIdxEachCore[32] = 30;
+    metaData->startIdxEachCore[33] = 30;
+    metaData->startIdxEachCore[34] = 30;
+    metaData->startIdxEachCore[35] = 30;
+    metaData->startIdxEachCore[36] = 30;
+    metaData->startIdxEachCore[37] = 30;
+    metaData->startIdxEachCore[38] = 30;
+    metaData->startIdxEachCore[39] = 30;
+    metaData->startIdxEachCore[40] = 30;
+    metaData->startIdxEachCore[41] = 30;
+    metaData->startIdxEachCore[42] = 30;
+    metaData->startIdxEachCore[43] = 30;
+    metaData->startIdxEachCore[44] = 30;
+    metaData->startIdxEachCore[45] = 30;
+    metaData->startIdxEachCore[46] = 30;
+    metaData->startIdxEachCore[47] = 30;
+    metaData->startIdxEachCore[48] = 30;
+    metaData->startIdxEachCore[49] = 30;
 
     // fd
     uint32_t sInnerLoopSize = (maxActualseq_ + (kvSplitPart_ - 1U)) / kvSplitPart_;
     sInnerLoopSize = Align(sInnerLoopSize, blockSize_);
 
     uint32_t headDimAlign = Align(headDim_, BYTE_BLOCK);
-    metaData->s2 = kvSplitPart_;
-    metaData->sInnerLoopSize = sInnerLoopSize;
+    metaData->s2 = 0;
+    metaData->sInnerLoopSize = 65536;
     if (layoutQuery_ == aicpu::kernels::Layout::TND) {
-        metaData->accumOutSize = batchSize_ * qSeqSize_ * qHeadNum_ * kvSplitPart_ * headDimAlign;
-        metaData->logSumExpSize = 2U * batchSize_ * qHeadNum_ * kvSplitPart_ * qSeqSize_ * (BYTE_BLOCK / sizeof(float));
+        metaData->accumOutSize = 30720;
+        metaData->logSumExpSize = 3840;
     }  else {
-        metaData->accumOutSize = batchSize_ * qHeadNum_ * kvSplitPart_ * headDimAlign;
-        metaData->logSumExpSize = 2U * batchSize_ * qHeadNum_ * kvSplitPart_ * (BYTE_BLOCK / sizeof(float));
+        metaData->accumOutSize = 30720;
+        metaData->logSumExpSize = 3840;
     }
 
     if (!splitKVFlag_) {

@@ -145,20 +145,16 @@ custom::graphStatus IFATiling::GetNpuInfo()
 custom::graphStatus IFATiling::PreProcess()
 {
     if (ProcessBaseInputs() != custom::graphStatus::GRAPH_SUCCESS) {
-        OP_LOGE(ifaContext_->opName, "ggggggggggggggggggggggggg");
         return custom::graphStatus::GRAPH_FAILED;
     }
-    OP_LOGE(ifaContext_->opName, "vvvvvvvvvvvvvvvvvvvvvvvvvvv");
     bool ret = CheckIfRollBack();
     if (ret) {
         passToOldTiling_ = true;
         return custom::graphStatus::GRAPH_FAILED;
     }
     if (ProcessOptionalTensors() != custom::graphStatus::GRAPH_SUCCESS) {
-        OP_LOGE(ifaContext_->opName, "ttttttttttttttttttttttt");
         return custom::graphStatus::GRAPH_FAILED;
     }
-    OP_LOGE(ifaContext_->opName, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
     SetupPerfMode();
     // IsFdBalanceCase();
     balanceModeFlag_ = IsBalanceSplitCore();
@@ -1721,7 +1717,6 @@ custom::graphStatus IFATiling::ProcessAntiQuantMode()
 
 custom::graphStatus IFATiling::ProcessBlockTable()
 {
-    OP_LOGE(ifaContext_->opName, "xxxxxxxxxxxxxxxxx");
     if (!pageAttentionFlag_) {
         return custom::graphStatus::GRAPH_SUCCESS;
     }
@@ -3327,7 +3322,6 @@ custom::graphStatus IFATiling::RunBigKernelTiling(IFAContext &context,
         (FillTiling() != custom::graphStatus::GRAPH_SUCCESS) ||
         (CalcWorkSpace() != custom::graphStatus::GRAPH_SUCCESS) ||
         (CalcNumBlocks() != custom::graphStatus::GRAPH_SUCCESS)) {
-            OP_LOGE(ifaContext_->opName, "ccccccccccccccccccccccccccc");
         return custom::graphStatus::GRAPH_FAILED;
     }
     if (sysPrefixFlag_ && SharedPrefixTiling() != custom::graphStatus::GRAPH_SUCCESS) {

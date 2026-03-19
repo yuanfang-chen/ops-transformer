@@ -130,7 +130,7 @@ set(COMMON_COMPILE_OPTIONS
 
 message(STATUS "Building Torch Ops project...")
 
-file(GLOB OPERATOR_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/ascend_ops/csrc/*")
+file(GLOB OPERATOR_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src/csrc/*")
 set(OPERATOR_TARGETS "")
 
 foreach(OP_DIR ${OPERATOR_DIRS})
@@ -141,7 +141,7 @@ foreach(OP_DIR ${OPERATOR_DIRS})
         # 检查目录中是否有 CMakeLists.txt
         if(EXISTS "${OP_DIR}/CMakeLists.txt")
             message(STATUS "Found operator: ${OP_NAME}")
-            add_subdirectory(ascend_ops/csrc/${OP_NAME})
+            add_subdirectory(src/csrc/${OP_NAME})
             list(APPEND OPERATOR_TARGETS $<TARGET_OBJECTS:${OP_NAME}_objects>)
         endif()
     endif()
@@ -150,7 +150,7 @@ endforeach()
 message(STATUS "Discovered torch operator targets: ${OPERATOR_TARGETS}")
 
 # 主库源文件
-set(MAIN_LIBRARY_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ascend_ops/ops_def_registration.cpp")
+set(MAIN_LIBRARY_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/ops_def_registration.cpp")
 
 # 创建主库
 add_library(_C SHARED

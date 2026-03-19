@@ -164,7 +164,6 @@ protected:
     GlobalTensor<OUT_T> attentionOutGm;
     GlobalTensor<float> softmaxLseGm;
     GlobalTensor<int32_t> blockTableGm;
-    GlobalTensor<KV_T> aGm;
     // atten mask
     GlobalTensor<bool> attenMaskBoolGm;
 
@@ -682,74 +681,67 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
 
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
+    // if (aiCoreIdx == 0) {
+    //     printf("🔥 打印所有 tiling 变量（模拟 InitTilingData 完成）\n");
+    //     printf("-------------------------------------------------------------\n");
 
-    // printf("🔥 打印所有 tiling 变量（模拟 InitTilingData 完成）\n");
-    // printf("-------------------------------------------------------------\n");
+    //     printf("singleProcessSInnerSize = %d\n", singleProcessSInnerSize);
+    //     printf("sInnerLoopTimes = %d\n", sInnerLoopTimes);
+    //     printf("singleProcessSInnerSizeTail = %d\n", singleProcessSInnerSizeTail);
+    //     printf("usedCoreNum = %d\n", usedCoreNum);
+    //     printf("formerCoreNum = %d\n", formerCoreNum);
+    //     printf("splitKVNum = %d\n", splitKVNum);
+    //     printf("sInnerLoopSize = %d\n", sInnerLoopSize);
+    //     printf("accumOutSize = %d\n", accumOutSize);
+    //     printf("logSumExpSize = %d\n", logSumExpSize);
+    //     printf("mmResUbSize = %d\n", mmResUbSize);
+    //     printf("bmm2ResUbSize = %d\n", bmm2ResUbSize);
+    //     printf("headDimAlign = %d\n", headDimAlign);
 
-    // printf("singleProcessSInnerSize = %d\n", singleProcessSInnerSize);
-    // printf("sInnerLoopTimes = %d\n", sInnerLoopTimes);
-    // printf("singleProcessSInnerSizeTail = %d\n", singleProcessSInnerSizeTail);
-    // printf("usedCoreNum = %d\n", usedCoreNum);
-    // printf("formerCoreNum = %d\n", formerCoreNum);
-    // printf("splitKVNum = %d\n", splitKVNum);
-    // printf("sInnerLoopSize = %d\n", sInnerLoopSize);
-    
-    // printf("mmResUbSize = %d\n", mmResUbSize);
-    // printf("bmm2ResUbSize = %d\n", bmm2ResUbSize);
-    // printf("headDimAlign = %d\n", headDimAlign);
-    // printf("accumOutSize = %d\n", accumOutSize);
-    // printf("logSumExpSize = %d\n", logSumExpSize);
-    // printf("batchSize = %d\n", batchSize);
-    // printf("kvHeadNum = %d\n", kvHeadNum);
-    // printf("qHeadNum = %d\n", qHeadNum);
-    // printf("gSize = %d\n", gSize);
-    // printf("qSeqSize = %d\n", qSeqSize);
-    // printf("kvSeqSize = %d\n", kvSeqSize);
-    // printf("headDim = %d\n", headDim);
-    // printf("batchContinuous = %d\n", batchContinuous);
-    // printf("msdIterNum = %d\n", msdIterNum);
-    // printf("antiquantPerTensorFlag = %d\n", antiquantPerTensorFlag);
-    // printf("antiquantPerHeadFlag = %d\n", antiquantPerHeadFlag);
-    // printf("antiquantParamsInPagedAttentionFlag = %d\n", antiquantParamsInPagedAttentionFlag);
+    //     printf("batchSize = %d\n", batchSize);
+    //     printf("kvHeadNum = %d\n", kvHeadNum);
+    //     printf("qHeadNum = %d\n", qHeadNum);
+    //     printf("gSize = %d\n", gSize);
+    //     printf("qSeqSize = %d\n", qSeqSize);
+    //     printf("kvSeqSize = %d\n", kvSeqSize);
+    //     printf("headDim = %d\n", headDim);
+    //     printf("batchContinuous = %d\n", batchContinuous);
+    //     printf("msdIterNum = %d\n", msdIterNum);
+    //     printf("antiquantPerTensorFlag = %d\n", antiquantPerTensorFlag);
+    //     printf("antiquantPerHeadFlag = %d\n", antiquantPerHeadFlag);
+    //     printf("antiquantParamsInPagedAttentionFlag = %d\n", antiquantParamsInPagedAttentionFlag);
 
-    // printf("gSizeSub = %d\n", gSizeSub);
-    // printf("gOuter = %d\n", gOuter);
-    // printf("gSizeTail = %d\n", gSizeTail);
-    // printf("s1SizeSub = %d\n", s1SizeSub);
-    // printf("s1Outer = %d\n", s1Outer);
-    // printf("s1SizeTail = %d\n", s1SizeTail);
+    //     printf("gSizeSub = %d\n", gSizeSub);
+    //     printf("gOuter = %d\n", gOuter);
+    //     printf("gSizeTail = %d\n", gSizeTail);
+    //     printf("s1SizeSub = %d\n", s1SizeSub);
+    //     printf("s1Outer = %d\n", s1Outer);
+    //     printf("s1SizeTail = %d\n", s1SizeTail);
 
-    // printf("attenMaskFlag = %s\n", attenMaskFlag ? "true" : "false");
-    // printf("attenMaskSize = %d\n", attenMaskSize);
-    // printf("selectWithByteMaskTmpMinSize = %d\n", selectWithByteMaskTmpMinSize);
-    // printf("antiqSeqSize = %d\n", antiqSeqSize);
+    //     printf("attenMaskFlag = %s\n", attenMaskFlag ? "true" : "false");
+    //     printf("attenMaskSize = %d\n", attenMaskSize);
+    //     printf("selectWithByteMaskTmpMinSize = %d\n", selectWithByteMaskTmpMinSize);
+    //     printf("antiqSeqSize = %d\n", antiqSeqSize);
 
-    // printf("pseShiftFlag = %s\n", pseShiftFlag ? "true" : "false");
-    // if (pseShiftFlag) {
-    //     printf("pseShiftB = %d\n", pseShiftB);
-    //     printf("pseShiftS = %d\n", pseShiftS);
+    //     printf("pseShiftFlag = %s\n", pseShiftFlag ? "true" : "false");
+    //     if (pseShiftFlag) {
+    //         printf("pseShiftB = %d\n", pseShiftB);
+    //         printf("pseShiftS = %d\n", pseShiftS);
+    //     }
+
+    //     printf("kvPaddingFlag = %d\n", kvPaddingFlag);
+    //     printf("isPerChnU8Out = %s\n", isPerChnU8Out ? "true" : "false");
+    //     printf("isOutQuantTypeBf16 = %s\n", isOutQuantTypeBf16 ? "true" : "false");
+    //     printf("softmaxLseFlag = %s\n", softmaxLseFlag ? "true" : "false");
+    //     printf("maxBlockNumPerBatch = %d\n", maxBlockNumPerBatch);
+    //     printf("kvCacheBlockSize = %d\n", kvCacheBlockSize);
+    //     printf("l2CacheOffFlag = %d\n", tilingData->baseParams.l2CacheOffFlag);
+    //     printf("scaleValue = %f\n", tilingData->baseParams.scaleValue);
+        
+    //     for (int i = 0; i < 50; i++) {
+    //         printf("coreSidxEnd[%d] : %d\n", i, metaData_->coreSidxEnd[i]);
+    //     }
     // }
-
-    // printf("kvPaddingFlag = %d\n", kvPaddingFlag);
-    // printf("isPerChnU8Out = %s\n", isPerChnU8Out ? "true" : "false");
-    // printf("isOutQuantTypeBf16 = %s\n", isOutQuantTypeBf16 ? "true" : "false");
-    // printf("softmaxLseFlag = %s\n", softmaxLseFlag ? "true" : "false");
-    // printf("maxBlockNumPerBatch = %d\n", maxBlockNumPerBatch);
-    // printf("kvCacheBlockSize = %d\n", kvCacheBlockSize);
-    // printf("l2CacheOffFlag = %d\n", tilingData->baseParams.l2CacheOffFlag);
-    // printf("scaleValue = %f\n", tilingData->baseParams.scaleValue);
-    // uint32_t coreSidxEnd[50];
-    // if (metaData_ != nullptr) {
-    //     copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(metaData_->coreSidxEnd), sizeof(coreSidxEnd));
-    // } else {
-    //     copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
-    //                         sizeof(coreSidxEnd));
-    // }
-    // for (int i = 0; i < 50; i++) {
-    //     printf("coreSidxEnd[%d] : %d\n", i, coreSidxEnd[i]);
-    // }
-    // printf("✅ 所有变量已打印完成！\n");
-
 }
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitBuffers()
@@ -1033,8 +1025,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     // init global buffer
     queryGm.SetGlobalBuffer((__gm__ Q_T *)query);
     attentionOutGm.SetGlobalBuffer((__gm__ OUT_T *)attentionOut);
-    
-    aGm.SetGlobalBuffer((__gm__ KV_T *)attentionOut);
     // batch连续时,只需要初始化一次;不连续时,需要在使用时根据batchIdx初始化
     if (batchContinuous) {
         InitKeyGm(0);
@@ -1050,15 +1040,16 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     }
 
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengths);
-    // for (int i = 0; i < actualLenQDims; i++) {
-    //     uint64_t a = actualSeqLengthsGmQ.GetValue(i);
-    //     printf("actualSeqLengthsGmQ[%d] : %d\n", i, a);
+    // if (aiCoreIdx == 0) {
+    //     for (int i = 0; i < actualLenQDims; i++) {
+    //         uint64_t a = actualSeqLengthsGmQ.GetValue(i);
+    //         // printf("actualSeqLengthsGmQ[%d] : %d\n", i, a);
+    //     }
+    //     for (int i = 0; i < actualLenDims; i++) {
+    //         uint64_t a = actualSeqLengthsGm.GetValue(i);
+    //         // printf("actualSeqLengthsGm[%d] : %d\n", i, a);
+    //     }
     // }
-    // for (int i = 0; i < actualLenDims; i++) {
-    //     uint64_t a = actualSeqLengthsGm.GetValue(i);
-    //     printf("actualSeqLengthsGm[%d] : %d\n", i, a);
-    // }
-    
     if (kvPaddingFlag == 1) {
         kvPaddingSizeGm.SetGlobalBuffer((__gm__ int64_t *)kvPaddingSize);
     }
@@ -1283,22 +1274,13 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadD
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitCalcParamsEach()
 {
-    // 这里是编译器优化写法，定义一个局部数组变量coreSidxEnd(存在栈上)，使用copy_data_align64接口
-    // 可以只从ub中拷贝tiling中coreSidxEnd的内容到栈上，而非将整个increFlashAttentionCoreParams
-    // 内容拷贝到栈，减少拷贝时间。
-#ifdef ASCENDC_CPU_DEBUG
-    const uint32_t *coreSidxEnd = tilingData->increFlashAttentionCoreParams.coreSidxEnd;
-#else
-    uint32_t coreSidxEnd[50];
     if (metaData_ != nullptr) {
-        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(metaData_->coreSidxEnd), sizeof(coreSidxEnd));
+        bn2LoopTimes = metaData_->coreSidxEnd[aiCoreIdx + 1] - metaData_->coreSidxEnd[aiCoreIdx];
+        beforeBlockSplitBn2Nums = metaData_->coreSidxEnd[aiCoreIdx];
     } else {
-        copy_data_align64((uint8_t *)coreSidxEnd, (uint8_t *)(tilingData->increFlashAttentionCoreParams.coreSidxEnd),
-                            sizeof(coreSidxEnd));
+        bn2LoopTimes = tilingData->increFlashAttentionCoreParams.coreSidxEnd[aiCoreIdx + 1] - tilingData->increFlashAttentionCoreParams.coreSidxEnd[aiCoreIdx];
+        beforeBlockSplitBn2Nums = tilingData->increFlashAttentionCoreParams.coreSidxEnd[aiCoreIdx];
     }
-#endif
-    bn2LoopTimes = coreSidxEnd[aiCoreIdx + 1] - coreSidxEnd[aiCoreIdx];
-    beforeBlockSplitBn2Nums = coreSidxEnd[aiCoreIdx];
 }
 
 template <typename IFAT>
@@ -1552,6 +1534,14 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::AntiquantMatmulP
 
     for (uint32_t i = 0; i < msdIterNum; i++) {
         AntiquantAIterExpand(dstGm, srcUbFp16, tmpAFloorUbFp16, calcSize, (i == 0 ? true : false), step * i + baseOffset);
+        // if (info.bIdx == 9)
+        // {
+        //     printf("2222 kernel task - info.loop : %d info.bIdx : %d info.s1Idx : %d info.s2Idx : %d info.n2Idx : %d\n", info.loop, info.bIdx, info.s1Idx, info.s2Idx, info.n2Idx);
+        //     printf("kernel task - calcSize : %d dealRowCount : %d columnCount : %d\n", calcSize, dealRowCount, columnCount);
+        //     uint32_t arrayGm[] = {static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(columnCount)};
+        //     AscendC::ShapeInfo shapeInfoGm(2, arrayGm);
+        //     AscendC::DumpTensor(dstGm[step * i + baseOffset], __LINE__, calcSize, shapeInfoGm);
+        // }
     }
 }
 
@@ -4069,6 +4059,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Process()
                         }
                         if ASCEND_IS_AIV {
                             CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
+                            ExtraInfo& info = extraInfo[loop % EXTRA_NUM];
+                            // printf("kernel task - info.loop : %d info.bIdx : %d info.s1Idx : %d info.s2Idx : %d info.n2Idx : %d\n", info.loop, info.bIdx, info.s1Idx, info.s2Idx, info.n2Idx);
                             ProcessVec1L(extraInfo[loop % EXTRA_NUM]);
                             CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C2_FLAG);
                         }
