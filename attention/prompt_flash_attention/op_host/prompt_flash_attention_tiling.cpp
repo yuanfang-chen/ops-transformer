@@ -395,7 +395,7 @@ ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::Tili
     contextKeyParams.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
     contextKeyParams.workspaceSize = context->GetWorkspaceSizes(1);
     contextKeyParams.compileInfoPtr = static_cast<const PromptFlashAttentionCompileInfo *>(context->GetCompileInfo());
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
@@ -2770,8 +2770,8 @@ void PromptFlashAttentionTiling::SetBaseApiTilingData(ContextParamsForPFATiling&
     uint32_t headSizeV = 0U;
     uint32_t s = 0U;
     uint32_t seqInnerSize = 0U;
-    const uint32_t headNum = *contextKeyParams.headsNumber;
-    const uint32_t kvHeadNum = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : headNum;
+    const uint64_t headNum = *contextKeyParams.headsNumber;
+    const uint64_t kvHeadNum = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : headNum;
     uint32_t maxSeqLen = 0;
     uint32_t maxKvSeqLen = 0;
     const gert::Tensor* tempData = contextKeyParams.actualSequenceLengthQ;
@@ -4095,7 +4095,7 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
         "key value consistency check failed!"),
         return ge::GRAPH_FAILED);
 
-    const int32_t* numKeyValueHeads = contextKeyParams.numKeyValueHeads;
+    const int64_t* numKeyValueHeads = contextKeyParams.numKeyValueHeads;
     if (!SetTilingHeadNumRatio(contextKeyParams, n, numKeyValueHeads, tilingData)) {
         return ge::GRAPH_FAILED;
     }
@@ -5880,8 +5880,8 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiRequiredInput(ContextPar
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "kvHeadNum should not be null"),
             return ge::GRAPH_FAILED);
 
-        const int32_t headNum = *contextKeyParams.headsNumber;
-        const int32_t kvHeadNum = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : headNum;
+        const int64_t headNum = *contextKeyParams.headsNumber;
+        const int64_t kvHeadNum = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : headNum;
 
         OP_CHECK_IF((headNum < 0),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "headNum can not be less than 0"),

@@ -779,10 +779,10 @@ bool PromptFlashAttentionTilingV2::CheckKeyValueParamsConsistency(ContextParamsF
 }
 
 bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATiling& contextKeyParams,
-    const uint32_t nQAttr, const uint32_t nKVAttr) 
+    const uint64_t nQAttr, const uint64_t nKVAttr) 
 {
-    uint32_t nQ = nQAttr;
-    uint32_t nKV = nKVAttr;
+    uint64_t nQ = nQAttr;
+    uint64_t nKV = nKVAttr;
     if (nKVAttr == 0U) { // Detected that nKVAttr is the default value, which means that the customer did not pass in.
         nKV = nQAttr;
     }
@@ -790,9 +790,9 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     const gert::StorageShape* queryShape = contextKeyParams.queryInputShape;
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
-    uint32_t queryShapeHeadNum = nQ;
-    uint32_t keyShapeHeadNum = nKV;
-    uint32_t valueShapeHeadNum = nKV;
+    uint64_t queryShapeHeadNum = nQ;
+    uint64_t keyShapeHeadNum = nKV;
+    uint64_t valueShapeHeadNum = nKV;
     const size_t queryDim = queryShape->GetStorageShape().GetDimNum();
     const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
     const size_t valueDim = valueShape->GetStorageShape().GetDimNum();
@@ -801,9 +801,9 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
 
     if (((inputLayout == InputLayout::BNSD) || (inputLayout == InputLayout::BSND)) && (!enablePA)) {
         if ((queryDim == 4) && (keyDim == 4) && (valueDim == 4)) { // dim num: 4
-            queryShapeHeadNum = queryShape->GetStorageShape().GetDim(nIdx);
-            keyShapeHeadNum = keyShape->GetStorageShape().GetDim(nIdx);
-            valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
+            queryShapeHeadNum = static<uint64_t>(queryShape->GetStorageShape().GetDim(nIdx));
+            keyShapeHeadNum = static<uint64_t>(keyShape->GetStorageShape().GetDim(nIdx));
+            valueShapeHeadNum = static<uint64_t>(valueShape->GetStorageShape().GetDim(nIdx));
         } else {
             OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 4 for BNSD or BSND format!",
                 queryDim, keyDim, valueDim);
@@ -811,9 +811,9 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
         }
     } else if ((inputLayout == InputLayout::TND) && (!enablePA)) {
         if ((queryDim == 3) && (keyDim == 3) && (valueDim == 3)) { // dim num: 3
-            queryShapeHeadNum = queryShape->GetStorageShape().GetDim(nIdx);
-            keyShapeHeadNum = keyShape->GetStorageShape().GetDim(nIdx);
-            valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
+            queryShapeHeadNum = static<uint64_t>(queryShape->GetStorageShape().GetDim(nIdx));
+            keyShapeHeadNum = static<uint64_t>(keyShape->GetStorageShape().GetDim(nIdx));
+            valueShapeHeadNum = static<uint64_t>(valueShape->GetStorageShape().GetDim(nIdx));
         } else {
             OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 3 for TND format!",
                 queryDim, keyDim, valueDim);
@@ -821,9 +821,9 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
         }
     } else if ((inputLayout == InputLayout::NTD) && (!enablePA)) {
         if ((queryDim == 3) && (keyDim == 3) && (valueDim == 3)) { // dim num: 3
-            queryShapeHeadNum = queryShape->GetStorageShape().GetDim(nIdx);
-            keyShapeHeadNum = keyShape->GetStorageShape().GetDim(nIdx);
-            valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
+            queryShapeHeadNum = static<uint64_t>(queryShape->GetStorageShape().GetDim(nIdx));
+            keyShapeHeadNum = static<uint64_t>(keyShape->GetStorageShape().GetDim(nIdx));
+            valueShapeHeadNum = static<uint64_t>(valueShape->GetStorageShape().GetDim(nIdx));
         } else {
             OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 3 for NTD format!",
                 queryDim, keyDim, valueDim);
@@ -851,8 +851,8 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
 
 bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData) 
 {
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
+    const int64_t nQ = *contextKeyParams.headsNumber;
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads;
 
     if ((nQ < 0) || (nKV < 0)) {
         OP_LOGE(contextKeyParams.opName, "numHeads(%d) or numKeyValueHeads(%d) is negative!", nQ, nKV);
@@ -988,7 +988,7 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     uint64_t keyShapeD = contextKeyParams.keyInputShape->GetStorageShape().GetDim(dIdx);
     uint64_t valueShapeD = contextKeyParams.valueInputShape->GetStorageShape().GetDim(dIdx);
     if (inputLayout == InputLayout::BSH) {
-        int32_t nKV = *contextKeyParams.numKeyValueHeads;
+        int64_t nKV = *contextKeyParams.numKeyValueHeads;
         if (nKV == 0) {
             nKV = *contextKeyParams.headsNumber;
         }
@@ -1316,7 +1316,7 @@ bool PromptFlashAttentionTilingV2::CheckActSharedPrefix(ContextParamsForPFATilin
 
 bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATiling& contextKeyParams, int64_t& keyDim1,
     PFAShapeInfo& queryShapeInfo, const gert::StorageShape* keyShape, const gert::StorageShape* valueShape,
-    const size_t keyDim, const int32_t* blockSize, int64_t blockNumValid, int32_t headNumRatio) 
+    const size_t keyDim, const int32_t* blockSize, int64_t blockNumValid, int64_t headNumRatio) 
 {
     int64_t keyDim2 = keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_1);
     int64_t keyDim3 = keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_2);
@@ -1390,7 +1390,7 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
 }
 
 bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& contextKeyParams, const size_t keyDim, PFAShapeInfo& shapeInfo,
-    const gert::StorageShape* shape, const int32_t* blockSize, int64_t blockNumValid, int32_t headNumRatio, const std::string& sName) 
+    const gert::StorageShape* shape, const int32_t* blockSize, int64_t blockNumValid, int64_t headNumRatio, const std::string& sName) 
 {
     std::string layoutStr(contextKeyParams.layout);
     int64_t dim1 = shape->GetStorageShape().GetDim(KV_CACHE_DIM_0);
@@ -1480,8 +1480,8 @@ bool PromptFlashAttentionTilingV2::CheckBlockTableShape(ContextParamsForPFATilin
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
     int64_t keyDim1 = keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_0);   
-    int32_t headNumRatio = (enableIFAMLA || enableIFA) ?  gSize :
-        static_cast<int32_t>(tilingData.promptAttentionBaseParams.get_headNumRatio());
+    int64_t headNumRatio = (enableIFAMLA || enableIFA) ?  gSize :
+        static_cast<int64_t>(tilingData.promptAttentionBaseParams.get_headNumRatio());
     if (!CheckPAKeyValueShape(contextKeyParams, keyDim1, queryShapeInfo, keyShape, valueShape, keyDim, blockSize,
         blockNumValid, headNumRatio)) {
         return false;
@@ -1535,7 +1535,7 @@ bool PromptFlashAttentionTilingV2::CheckBlockTableShape(ContextParamsForPFATilin
 }
 
 bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& contextKeyParams, const int32_t* sparseMode,
-    int64_t& attenMaskBatch, int64_t& attenMaskS1, int64_t& attenMaskS2, bool& checkMask, const uint32_t sQ, const uint32_t sK,
+    int64_t& attenMaskBatch, int64_t& attenMaskS1, int64_t& attenMaskS2, bool& checkMask, const uint64_t sQ, const uint64_t sK,
     const uint32_t batchSize, std::string& strMaskShape) 
 {
     int64_t attenMaskN = 1U;
@@ -1637,7 +1637,7 @@ void PromptFlashAttentionTilingV2::SetSparseModeData(ContextParamsForPFATiling& 
 }
 
 bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFATiling& contextKeyParams,
-    PromptFlashAttentionTilingData& tilingData, const int32_t* sparseMode, uint32_t sQ, const uint32_t sK,
+    PromptFlashAttentionTilingData& tilingData, const int32_t* sparseMode, uint64_t sQ, const uint64_t sK,
     const uint32_t batchSize) 
 {
     if (isMaxWorkspace || !enableMask) {
@@ -1684,9 +1684,9 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
         return false;
     }
 
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
-    if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
+    const int64_t nQ = *contextKeyParams.headsNumber;
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads;
+    if ((nKV > 0) && (static_cast<uint64_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
         return false;
     }
     if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
@@ -1867,7 +1867,7 @@ bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contex
                 "{1, 2, 4, 8, 16, 32, 64, 128} when enable ifa mla", queryShapeInfo.n),
             return false);
     }
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
     OP_CHECK_IF((nKV != 1U),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input key/value's heads num is %u, it should be 1 when enable "
             "ifa mla", nKV),
@@ -2698,7 +2698,7 @@ bool PromptFlashAttentionTilingV2::CheckPACrossover(ContextParamsForPFATiling& c
 }
 
 bool PromptFlashAttentionTilingV2::CheckMaskCrossIFAMLA(ContextParamsForPFATiling& contextKeyParams,
-    const int32_t *sparseMode, uint32_t queryS) 
+    const int32_t *sparseMode, uint64_t queryS) 
 {
     if (sparseMode == nullptr) {
         return true;

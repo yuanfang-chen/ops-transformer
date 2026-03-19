@@ -658,8 +658,8 @@ bool PromptFlashAttentionTilingArch38::CheckInputDimAndHeadNum(ContextParamsForP
 bool PromptFlashAttentionTilingArch38::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams,
     PromptFlashAttentionTilingData& tilingData) 
 {
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
+    const int64_t nQ = *contextKeyParams.headsNumber;
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads;
 
     if ((nQ < 0) || (nKV < 0)) {
         OP_LOGE(contextKeyParams.opName, "numHeads(%d) or numKeyValueHeads(%d) is negative!", nQ, nKV);
@@ -1074,8 +1074,8 @@ bool PromptFlashAttentionTilingArch38::CheckBlockTableShape(ContextParamsForPFAT
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
     int64_t keyDim1 = keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_0);   
-    int32_t headNumRatio = (enableIFAMLA || enableIFA) ?  gSize :
-        static_cast<int32_t>(tilingData.promptAttentionBaseParams.get_headNumRatio());
+    int64_t headNumRatio = (enableIFAMLA || enableIFA) ?  gSize :
+        static_cast<int64_t>(tilingData.promptAttentionBaseParams.get_headNumRatio());
     if (!CheckPAKeyValueShape(contextKeyParams, keyDim1, queryShapeInfo, keyShape, valueShape, keyDim, blockSize,
         blockNumValid, headNumRatio)) {
         return false;
@@ -1243,7 +1243,7 @@ void PromptFlashAttentionTilingArch38::SetSparseModeData(ContextParamsForPFATili
 }
 
 bool PromptFlashAttentionTilingArch38::CheckMaskShapeCrossSparse(ContextParamsForPFATiling& contextKeyParams,
-    const int32_t* sparseMode, uint32_t sQ, const uint32_t sK, const uint32_t batchSize) 
+    const int32_t* sparseMode, uint64_t sQ, const uint64_t sK, const uint32_t batchSize) 
 {
     if ((contextKeyParams.fromTilingSink != 0) || (!enableMask)) {
         return true;
@@ -1294,8 +1294,8 @@ bool PromptFlashAttentionTilingArch38::CheckPFAMerge(ContextParamsForPFATiling& 
         return false;
     }
 
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
+    const int64_t nQ = *contextKeyParams.headsNumber;
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads;
     if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) > pfaMergeGLimit)) {
         return false;
     }
@@ -1423,7 +1423,7 @@ bool PromptFlashAttentionTilingArch38::CheckIFAMLA(ContextParamsForPFATiling& co
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
             "{32, 64, 128} when enable ifa mla", queryShapeInfo.n),
         return false);
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
+    const int64_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
     OP_CHECK_IF((nKV != 1U),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input key/value's heads num is %u, it should be 1 when enable "
             "ifa mla", nKV),
@@ -2007,7 +2007,7 @@ bool PromptFlashAttentionTilingArch38::CheckPACrossover(ContextParamsForPFATilin
 }
 
 bool PromptFlashAttentionTilingArch38::CheckMaskCrossIFAMLA(ContextParamsForPFATiling& contextKeyParams,
-    const int32_t *sparseMode, uint32_t queryS) 
+    const int32_t *sparseMode, uint64_t queryS) 
 {
     if (sparseMode == nullptr) {
         return true;
@@ -4031,13 +4031,13 @@ ge::graphStatus PromptFlashAttentionTilingArch38::ConvertContextToPFAParams(Cont
     contextKeyParams.outputShape = context_->GetOutputShape(0);
     auto attrs = context_->GetAttrs();
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
     contextKeyParams.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE);
     contextKeyParams.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
     contextKeyParams.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
     contextKeyParams.workspaceSize = context_->GetWorkspaceSizes(1);
     contextKeyParams.compileInfoPtr = reinterpret_cast<const PromptFlashAttentionCompileInfo *>(context_->GetCompileInfo());
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
