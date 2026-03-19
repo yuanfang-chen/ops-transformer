@@ -419,20 +419,20 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
             mmXScaleDim0, mmXScaleDim1, mmXScaleDim2), return ge::GRAPH_FAILED);
 
     if (localParams_.isMmWeightTrans){ // Transposed Scenario
-        OP_TILING_CHECK((mmWeightScaleDim0 != localParams_.N1) || (mmWeightScaleDim1 != mmxDivH2) || (mmWeightScaleDim2 != EVEN_ALIGN),
+        OP_TILING_CHECK((mmWeightScaleDim0 != localParams_.N2) || (mmWeightScaleDim1 != mmxDivH2) || (mmWeightScaleDim2 != EVEN_ALIGN),
             OP_LOGE(opName_, "In the Transposed Scenario, Wrong shape of mmWeightScale! "
                 "mmWeightScaleDim0 should be equal to mmWeightDim0(%lu), "
                 "mmWeightScaleDim1 should be equal to (mmWeightDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu), mmWeightScaleDim2 should be equal to 2, "
                 "Expected Shape of mmWeightScale = (%lu, %lu, %lu), Actual Shape of mmWeightScale = (%lu, %lu, %lu).",
-                localParams_.N1, mmxDivH2, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.N1, mmxDivH2, EVEN_ALIGN, 
+                localParams_.N2, mmxDivH2, MX_SCALE_GROUP, MX_SCALE_GROUP, localParams_.N2, mmxDivH2, EVEN_ALIGN, 
                 mmWeightScaleDim0, mmWeightScaleDim1, mmWeightScaleDim2), return ge::GRAPH_FAILED);
     } else {
-        OP_TILING_CHECK((mmWeightScaleDim0 != mmxDivH2) || (mmWeightScaleDim1 != localParams_.N1) || (mmWeightScaleDim2 != EVEN_ALIGN),
+        OP_TILING_CHECK((mmWeightScaleDim0 != mmxDivH2) || (mmWeightScaleDim1 != localParams_.N2) || (mmWeightScaleDim2 != EVEN_ALIGN),
             OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of mmWeightScale! "
                 "mmWeightScaleDim0 should be equal to (mmWeightDim1(%lu) + MX_SCALE_GROUP(%lu) - 1) / MX_SCALE_GROUP(%lu),"
                 "mmWeightScaleDim1 should be equal to mmWeightDim2(%lu), mmWeightScaleDim2 should be equal to 2, "
                 "Expected Shape of mmWeightScale = (%lu, %lu, %lu), Actual Shape of mmWeightScale = (%lu, %lu, %lu).",
-                mmxDivH2, localParams_.N1, MX_SCALE_GROUP, MX_SCALE_GROUP,mmxDivH2, localParams_.N1, EVEN_ALIGN, 
+                mmxDivH2, localParams_.N2, MX_SCALE_GROUP, MX_SCALE_GROUP,mmxDivH2, localParams_.N2, EVEN_ALIGN, 
                 mmWeightScaleDim0, mmWeightScaleDim1, mmWeightScaleDim2), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
