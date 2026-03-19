@@ -238,6 +238,10 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         if(index == mc2_context->epRankId) {
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
             OP_LOGD("PRINT HcclGetHcclBuffer success");
+            OP_LOGD("PRINT CreatMc2Context if index:%d",index);
+            OP_LOGD("PRINT CreatMc2Context if mc2_context->winSize:%ld",mc2_context->winSize);
+            OP_LOGD("PRINT CreatMc2Context if tempBuffer:%p",tempBuffer);
+            //OP_LOGD("PRINT CreatMc2Context if epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
         } else {
             //ret = HcclRankGraphGetLinks(hcclHandle, )
             if(index < mc2_context->epRankId) {
@@ -245,16 +249,17 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             } else {
                 ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index - 1], &tempBuffer, &buffersize);
             }
+            OP_LOGD("PRINT CreatMc2Context else index:%d",index);
+            OP_LOGD("PRINT CreatMc2Context else buffersize:%ld",buffersize);
+            OP_LOGD("PRINT CreatMc2Context else tempBuffer:%p",tempBuffer);
+            //OP_LOGD("PRINT CreatMc2Context else epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
         }
         if(ret != HCCL_SUCCESS) {
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
             return ACLNN_ERR_INNER;
         }
-        OP_LOGD("PRINT CreatMc2Context index:%d",index);
-        OP_LOGD("PRINT CreatMc2Context buffersize:%ld",buffersize);
-        OP_LOGD("PRINT CreatMc2Context tempBuffer:%p",tempBuffer);
-        mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
-        OP_LOGD("PRINT CreatMc2Context epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
+        
+         mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
     }
     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
