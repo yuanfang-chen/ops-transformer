@@ -27,7 +27,7 @@
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_host/op_tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
 #include "all_gather_formulaic_tiling.h"
 #include "arch35/all_gather_fit_balance_tiling.h"
@@ -176,7 +176,7 @@ bool AllGatherMatmulTilingBase::CheckGatherOutPara()
 {
     auto attrs = context_->GetAttrs();
     auto isGatherout = attrs->GetAttrPointer<bool>(IS_GATHER_OUT);
-    auto gatherIndex = attrs->GetAttrPointer<int>(GATHER_IDX);
+    auto gatherIndex = attrs->GetAttrPointer<int64_t>(GATHER_IDX);
     auto gatherOutShape = context_->GetOutputShape(GATHER_OUT);
     const gert::StorageShape* x1Shape = context_->GetInputShape(INPUT_X1);
     int64_t x1Dim0 = x1Shape->GetStorageShape().GetDim(0);
@@ -391,19 +391,21 @@ void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rc
  */
 ge::graphStatus AllGatherMatmulTilingBase::CheckHCCLSize()
 {
-    uint64_t sizeOfSingleM = args_.kValue * sizeof(args_.geAType) * args_.rankDim;
+    uint64_t sizeOfSingleM = args_.kValue * ge::GetSizeByDataType(args_.geAType) * args_.rankDim;
     OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
-        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data x1 into (1, k), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data x1 into (1, k), the size %lu still exceeds 256MB.", sizeOfSingleM),
+                return ge::GRAPH_FAILED);
     
     uint64_t sizeOfSplitM = Ops::Base::CeilDiv(args_.mValue, mc2tiling::ALL_GATHER_HCCL_NUM_LIMIT) * sizeOfSingleM;
-    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
-        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data M into 16 parts (rounded up), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(sizeOfSplitM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data M into 16 parts (rounded up), the size %lu still exceeds 256MB.", sizeOfSplitM),
+                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg, mc2tiling::Mc2QuantMode quantMmMode)
 {    
-    if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
+    if (tileMValue_ * args_.kValue * ge::GetSizeByDataType(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
         return ge::GRAPH_SUCCESS;
     }
     
@@ -415,7 +417,8 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
         OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting, the size still exceeds 256MB."), 
         return ge::GRAPH_FAILED);
     
-    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * ge::GetSizeByDataType(args_.geAType) * args_.rankDim,
+                            mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
     tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
     rcfCfg.tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
     rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
@@ -584,8 +587,8 @@ bool AllGatherMatmulTilingBase::AnalyzeAttrs()
     group_ = attrs->GetAttrPointer<char>(GROUP);
     auto isTransA = attrs->GetAttrPointer<bool>(IS_TRANS_A);
     auto isTransB = attrs->GetAttrPointer<bool>(IS_TRANS_B);
-    auto gatherIndexPtr = attrs->GetAttrPointer<int>(GATHER_IDX);
-    auto commTurn = attrs->GetAttrPointer<int>(COMM_TURN);
+    auto gatherIndexPtr = attrs->GetAttrPointer<int64_t>(GATHER_IDX);
+    auto commTurn = attrs->GetAttrPointer<int64_t>(COMM_TURN);
     OP_TILING_CHECK(!mc2tiling::GetRankSize(opName_, group_, rankSize_), VECTOR_INNER_ERR_REPORT_TILING(opName_,
                     "GetRankSize failed."), return false);
     OP_TILING_CHECK(
@@ -612,7 +615,7 @@ bool AllGatherMatmulTilingBase::AnalyzeAttrs()
         (gatherIndex_ != 0),
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "the gatherIndex should be 0, but real value is %u", gatherIndex_),
         return false);
-    auto blockSize = *context_->GetAttrs()->GetAttrPointer<int>(BLOCK_SIZE_INDEX);
+    auto blockSize = *context_->GetAttrs()->GetAttrPointer<int64_t>(BLOCK_SIZE_INDEX);
     OP_TILING_CHECK(blockSize != 0, VECTOR_INNER_ERR_REPORT_TILING(opName_,
                     "blockSize should be 0, but the actual value is %u.", blockSize), return false);
     OP_LOGD(opName_,

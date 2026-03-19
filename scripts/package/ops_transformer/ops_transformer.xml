@@ -39,8 +39,8 @@
         <path value="share/info" install_mod="750"/>
         <path value="share/info/ops_transformer" install_mod="550"/>
         <path value="share/info/ops_transformer/script" install_mod="550"/>
-        <path value="python" install_mode="750"/>
-        <path value="python/site-packages" install_mode="750"/>
+        <path value="python" install_mod="750"/>
+        <path value="python/site-packages" install_mod="750"/>
     </dir_info>
     <dir_info value="opp" install_path="opp" install_type="all">
         <path value="opp" install_mod="750"/>

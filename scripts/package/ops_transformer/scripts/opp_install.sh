@@ -318,7 +318,7 @@ create_softlink_for_files_and_dirs() {
   create_softlink_for_files ${src_dir} ${dst_dir}
 }
 
-install_whl_package() {
+install_es_whl_package() {
  	local _package_path="$1"
  	local _package_name="$2"
  	local _pythonlocalpath="$3"
@@ -346,7 +346,7 @@ install_es_whl() {
   chmod u+w "${TARGET_VERSION_DIR}/python" 2> /dev/null
  	local whl_install_dir_path="${TARGET_VERSION_DIR}/python/site-packages"
  	chmod u+w "${whl_install_dir_path}" 2> /dev/null
- 	install_whl_package "${es_whl_path}" "${python_es_whl_name}" "${whl_install_dir_path}"
+ 	install_es_whl_package "${es_whl_path}" "${python_es_whl_name}" "${whl_install_dir_path}"
 }
 
 add_init_py() {

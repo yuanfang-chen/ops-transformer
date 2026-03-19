@@ -16,13 +16,17 @@
 #ifndef MOE_DISTRIBUTE_BASE_H
 #define MOE_DISTRIBUTE_BASE_H
 
-#if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
-#include "../common/inc/kernel/mc2_kernel_utils.h"
+#if __has_include("../common/op_kernel/mc2_kernel_utils.h")
+#include "../common/op_kernel/mc2_kernel_utils.h"
 #else
-#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#include "../../common/op_kernel/mc2_kernel_utils.h"
 #endif
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 
 constexpr uint32_t MAX_RANK_NUM = 64U; // 最大卡数

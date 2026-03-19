@@ -29,11 +29,11 @@
 
 #include "moe_distribute_v2_base.h"
 #include "check_winsize.h"
-#include "../common/inc/kernel/mc2_moe_context.h"
-#if __has_include("../common/inc/kernel/moe_distribute_base.h")
-#include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/op_kernel/mc2_moe_context.h"
+#if __has_include("../common/op_kernel/moe_distribute_base.h")
+#include "../common/op_kernel/moe_distribute_base.h"
 #else 
-#include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/op_kernel/moe_distribute_base.h"
 #endif
 
 #define FLOAT_OVERFLOW_MODE_CTRL 60
@@ -273,8 +273,6 @@ private:
 
     // Using Mc2Context instead of hccl context
     __gm__ Mc2MoeContext* mc2Context_{nullptr};
-    uint32_t rankId_{0};
-    uint32_t rankIdOriginal_{0};
 
     DataCopyParams expandXCopyParams_;
     DataCopyParams xCopyParams_;
@@ -291,7 +289,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, 
     GM_ADDR tpSendCountsOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
-#if defined(__DAV_C310__) // A3不支持MX量化，无需使能饱和模式
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) // A3不支持MX量化，无需使能饱和模式
     AscendC::SetCtrlSpr<FLOAT_OVERFLOW_MODE_CTRL, FLOAT_OVERFLOW_MODE_CTRL>(0);
 #endif
     tpipe_ = pipe;
@@ -302,7 +300,8 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     // 检查hcclwinsize是否越界
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
-    if (isMc2Context_) {
+    if (tilingData->moeDistributeDispatchV2Info.isMc2Context) {
+        isMc2Context_ = true;
         mc2Context_ = (__gm__ Mc2MoeContext *)mc2Context;
     } else {
         winContext_[COMM_EP_IDX] = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
@@ -332,9 +331,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     uint32_t epRankIdHccl{0};
     uint32_t epWorldSizeHccl{0};
     if (isMc2Context_) {
-        rankIdOriginal_ = mc2Context_->epRankId;
-        rankId_ = mc2Context_->epRankId;
-        epRankIdHccl = rankId_;
+        epRankIdHccl = mc2Context_->epRankId;
         statusDataSpaceGm_ = (GM_ADDR)(mc2Context_->epHcclBuffer_[epRankIdHccl]);
         epWorldSizeHccl = epWorldSizeOriginal_;
     } else {
@@ -506,7 +503,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
         validBsIndexTensor_ = validBsIndexTBuf_.Get<int32_t>();
     }
 
-    if constexpr (QuantMode > UNQUANT) {
+    if constexpr ((QuantMode > UNQUANT) || (QuantMode == UNQUANT && !Std::IsSame<ExpandXOutType, XType>::value)) {
         tpipe_->InitBuffer(receiveDataCastFloatBuf_, maxSize_); // max{28K, BS * K * 4B}
         totalUsedUB_ += maxSize_;
         floatLocalTemp_ = receiveDataCastFloatBuf_.Get<float>();
@@ -585,9 +582,9 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
             GlobalTensor<ExpandXOutType>& outTokenGT, uint32_t tokenIndex, uint32_t topKIndex,
             DataCopyPadParams& padParams, DataCopyParams& scaleInParams, uint32_t expertIndex)
 {
-    if constexpr (QuantMode > UNQUANT) {
+    if constexpr ((QuantMode > UNQUANT) || (QuantMode == UNQUANT && !Std::IsSame<ExpandXOutType, XType>::value)) {
         xInTensor_ = xInQueue_.AllocTensor<XType>();
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         LocalTensor<uint8_t> singleByteTok = xInTensor_.template ReinterpretCast<uint8_t>();
         // 由于MX以及PERGROUP量化在计算scales时每次搬入256字节数据，所以在token搬入前需要对空间填0，避免引入脏数据
         if constexpr ((QuantMode == MX_QUANT) || (QuantMode == PERGROUP_DYNAMIC_QUANT)) {
@@ -599,7 +596,15 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
         xInQueue_.EnQue(xInTensor_);
         xInTensor_ = xInQueue_.DeQue<XType>();
         xOutTensor_ = xOutQueue_.AllocTensor<ExpandXOutType>();
-        quantInst_.QuantProcess(xOutTensor_, xInTensor_, expertIndex, scalesCount_, scalesGMTensor_); // 量化
+        if constexpr (QuantMode > UNQUANT) {
+            quantInst_.QuantProcess(xOutTensor_, xInTensor_, expertIndex, scalesCount_, scalesGMTensor_); // 量化
+        }
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+        else { // 非量化直转hifp8
+            Cast(floatLocalTemp_, xInTensor_, RoundMode::CAST_NONE, axisH_);
+            Cast(xOutTensor_, floatLocalTemp_, RoundMode::CAST_ROUND, axisH_);
+        }
+#endif
         xOutQueue_.EnQue(xOutTensor_);
         xInQueue_.FreeTensor<XType>(xInTensor_);
         xOutTensor_ = xOutQueue_.DeQue<ExpandXOutType>();
@@ -609,11 +614,11 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
     } else {
         xTmpTensor_ = xQueue_.AllocTensor<ExpandXOutType>();
         DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * axisH_], xCopyParams_, padParams);
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         if constexpr (IsSmoothScaleExist) {
             auto tmp = scalesGMTensor_.ReinterpretCast<uint8_t>();
-            DataCopyPad(xTmpTensor_[axisH_].template ReinterpretCast<uint8_t>(), tmp[tokenIndex * scaleInBytes_],
-                scaleInParams, padParams);
+            DataCopyPad(xTmpTensor_[Align32(axisH_)].template ReinterpretCast<uint8_t>(),
+                tmp[tokenIndex * scaleInBytes_], scaleInParams, padParams);
         }
 #endif
         xQueue_.EnQue(xTmpTensor_);
@@ -1416,8 +1421,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::SetE
     SyncFunc<AscendC::HardEvent::S_MTE3>(); 
     DataCopyExtParams expertTokenNumsCopyParams{1U, static_cast<uint32_t>(localExpertNum * sizeof(int64_t)), 
                                                 0U, 0U, 0U}; 
-    DataCopyPad(expertTokenNumsOutGMTensor_, expertTokenNumsLocalTensor, expertTokenNumsCopyParams); 
-    
+    DataCopyPad(expertTokenNumsOutGMTensor_, expertTokenNumsLocalTensor, expertTokenNumsCopyParams);
 }	 
 
 template <TemplateDispatchV2TypeClass> 
