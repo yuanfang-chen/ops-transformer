@@ -290,7 +290,7 @@ aclnnStatus aclnnMoeDistributeDispatchSetup(
     - <term>Ascend 950PR/Ascend 950DT</term>：
         - scalesOptional 非量化场景传空指针，动态量化可选择传入有效数据或传入空指针。
         - xActiveMaskOptional 可选择传入有效数据或传入空指针，传入空指针时表示所有token都会参与通信。
-        - groupEp 字符串长度范围为[1, 128)，不能和groupTp相同。
+        - groupEp 字符串长度范围为[1, 128)。
         - epWorldSize 取值范围[2, 384]。
         - epRankId 取值范围[0, epWorldSize)。同一个EP通信域中各卡的epRankId不能重复。
         - moeExpertNum 取值范围(0, 512]。
@@ -304,7 +304,7 @@ aclnnStatus aclnnMoeDistributeDispatchSetup(
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
         - scalesOptional 非量化场景传空指针，动态量化可选择传入有效数据或传入空指针。
         - xActiveMaskOptional 可选择传入有效数据或传入空指针，传入空指针时表示所有token都会参与通信。
-        - groupEp 字符串长度范围为[1, 128)，不能和groupTp相同。
+        - groupEp 字符串长度范围为[1, 128)。
         - epWorldSize 取值范围[2, 384]。
         - epRankId 取值范围[0, epWorldSize)。同一个EP通信域中各卡的epRankId不能重复。
         - moeExpertNum 取值范围(0, 512]。
