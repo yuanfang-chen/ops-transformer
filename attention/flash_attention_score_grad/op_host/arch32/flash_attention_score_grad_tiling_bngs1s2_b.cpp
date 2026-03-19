@@ -569,8 +569,12 @@ public:
         // softmax和dropout对应的vector计算的shape是一样的
         auto shape = ge::Shape({bIn * td_->opInfo.get_n() * td_->opInfo.get_g() * sQ, sKVAlign});
 
+
+        
         uint32_t softmaxTmpSize = GetSoftMaxMinTmpSize(shape, td_->opInfo.get_vecCalcDTypeSize(), true);
         uint32_t dropoutTmpSize = GetDropOutMinTmpSize(shape, td_->opInfo.get_vecCalcDTypeSize(), true);
+
+        printf(" softmaxTmpSize :%d\n", softmaxTmpSize);
 
         return std::max(softmaxTmpSize, dropoutTmpSize);
     }
