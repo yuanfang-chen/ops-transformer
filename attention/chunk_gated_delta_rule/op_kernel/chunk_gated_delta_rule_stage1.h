@@ -232,8 +232,8 @@ private:
             gGm_ = gBaseGm_[bgOffset];
         }
 
-        uint64_t cgLen_pad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
-        uint64_t chunkRowBase = nId * cgLen_pad + localChunkId * chunkSize_;
+        uint64_t cgLenPad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
+        uint64_t chunkRowBase = nId * cgLenPad + localChunkId * chunkSize_;
 
         outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase];
         outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase * dk_];
