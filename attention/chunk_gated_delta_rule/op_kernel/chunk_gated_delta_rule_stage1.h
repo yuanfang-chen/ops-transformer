@@ -178,8 +178,6 @@ public:
         validLen_ = chunkSize_;
         subValidRows_ = halfChunkSize_;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
-        isTailChunk_ = false;
-        isTailHalf_ = false;
         coreIdx_ = GetBlockIdx();
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
@@ -216,8 +214,6 @@ public:
             } else {
                 subValidRows_ = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
             }
-            isTailChunk_ = (validLen_ < chunkSize_);
-            isTailHalf_ = (subValidRows_ < halfChunkSize_);
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
             uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
             SetChunkTensors(nId, cgId, chunkStartRow);
@@ -320,7 +316,7 @@ private:
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(bf16Tensor);
 
-        if (isTailHalf_) {
+        if (subValidRows_ < halfChunkSize_) {
             Duplicate(dstBuffer[subValidRows_ * dkAligned_], static_cast<float>(0.0f),
                       (halfChunkSize_ - subValidRows_) * dkAligned_);
             PipeBarrier<PIPE_V>();
@@ -518,7 +514,7 @@ private:
         Cast(valueUbFloat_, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows_ * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(valueLocal_);
-        if (isTailHalf_) {
+        if (validLen_ < halfChunkSize_) {
             Duplicate(valueUbFloat_[validLen_ * dvAligned_], static_cast<float>(0.0f),
                       (halfChunkSize_ - validLen_) * dvAligned_);
             PipeBarrier<PIPE_V>();
@@ -574,7 +570,7 @@ private:
         DataCopyInBf16WithStride(subValidRows_, 1, betaGm_[betaBeginOffset], nv_);
         betaLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
         constexpr uint32_t slot = BLOCK_SIZE / sizeof(bfloat16_t);
-        if (isTailHalf_) {
+        if (subValidRows_ < halfChunkSize_) {
             Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
             PipeBarrier<PIPE_V>();
         }
@@ -591,7 +587,7 @@ private:
         constexpr uint32_t slot = BLOCK_SIZE / sizeof(float);
         DataCopyInFp32WithStride(validLen_, 1, gGm_, nv_);
         gLocal_ = fp32InQueue_.DeQue<float>();
-        if (isTailChunk_) {
+        if (validLen_ < chunkSize_) {
             Duplicate(gCumUbFloat_, 0.0f, chunkSize_);
             PipeBarrier<PIPE_V>();
         }
@@ -706,8 +702,6 @@ private:
     uint32_t coreNum_;
     float scale_;
     bool gOptional_;
-    bool isTailChunk_;
-    bool isTailHalf_;
 
     // base GM pointers
     GlobalTensor<bfloat16_t> queryBaseGm_;
