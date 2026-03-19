@@ -137,6 +137,7 @@ perf_analyzer.py    CLI entry point, all analysis modes
 - **Buffer strategy**: double buffer (2×) by default. Full-load single buffer (1×) only when the complete matrix fits and it improves performance.
 - **Split-KN**: 2D core grid (n_groups × k_groups). K-split cores produce float32 partial sums; vector side accumulates. Pipeline DAG captures overlap between accumulation and next matmul.
 
-## Generated Reports
+## Documentation
 
-- `report_ascend950.md` — Comprehensive analysis for Ascend 950 across quantization modes
+- **[methodology.md](methodology.md)** — Performance modeling & optimization methodology with worked examples
+- **[report_ascend950.md](report_ascend950.md)** — Comprehensive analysis for Ascend 950 across quantization modes
