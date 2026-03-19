@@ -311,7 +311,7 @@ aclnnStatus aclnnMoeDistributeDispatchTeardown(
     </table>
 
     - <term>Ascend 950PR/Ascend 950DT</term>：
-        - groupEp 字符串长度范围为[1, 128)，不能和groupTp相同。
+        - groupEp 字符串长度范围为[1, 128)。
         - epWorldSize 取值范围[2, 384]。
         - epRankId 取值范围[0, epWorldSize)。同一个EP通信域中各卡的epRankId不能重复。
         - moeExpertNum 取值范围(0, 512]。
@@ -323,7 +323,7 @@ aclnnStatus aclnnMoeDistributeDispatchTeardown(
         - commAlg 当前版本不支持，传空指针即可。
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-        - groupEp 字符串长度范围为[1, 128)，不能和groupTp相同。
+        - groupEp 字符串长度范围为[1, 128)。
         - epWorldSize 取值范围[2, 384]。
         - epRankId 取值范围[0, epWorldSize)。同一个EP通信域中各卡的epRankId不能重复。
         - moeExpertNum 取值范围(0, 512]。
@@ -440,14 +440,14 @@ aclnnStatus aclnnMoeDistributeDispatchTeardown(
     * localExpertNum：表示本卡专家数量。
       
       * 对于共享专家卡，localExpertNum = 1
-      * 对于MoE专家卡，localExpertNum = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)，`localExpertNum` > 1时，不支持TP域通信。
+      * 对于MoE专家卡，localExpertNum = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)。
     * tokenMsgSize：表示每个token在数据通信时的维度信息。
       * 非量化场景下，tokenMsgSize = Align256(H)。
       * 量化场景下，tokenMsgSize = Align512(Align32(H) + 4 )，其中AlignN(x) = ((x + N - 1) / N) * N。
 
     * 当前版本暂不支持共享专家。
 
-5. **HCCL_BUFFSIZE**：
+5. HCCL_BUFFSIZE：
     - <term>Ascend 950PR/Ascend 950DT</term>：
       调用本接口前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。要求 >= 2且满足>= 2 * (`localExpertNum` * `maxBs` * `epWorldSize` * Align512(Align32(2 * H) + 44) + (`K` + `sharedExpertNum`) * `maxBs` * Align512(2 * `H`))，`localExpertNum`代表使用MoE专家卡的本卡专家数，其中Align512(x) = ((x + 512 - 1) / 512) * 512，Align32(x) = ((x + 32 - 1) / 32) * 32。
     
