@@ -376,7 +376,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     aclnnStatus ret;
     aclTensor* mc2Context = nullptr;
     HcclComm hcclHandle;
-    uint32_t netLayerNum;
+    uint32_t netLayerNum = 0;
     aclnnStatus getWorkspaceSizesRes;
     if (is910B) {
         groupTpDispatchV2Temp = "";
