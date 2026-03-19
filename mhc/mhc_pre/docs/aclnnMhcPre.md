@@ -24,7 +24,7 @@ H^{post}_l &= \alpha^{post}_{l} ·(\vec{x^{'}_{l}}\varphi^{post}_{l}) + b^{post}
 H^{res}_l &= \alpha^{res}_{l} ·(\vec{x^{'}_{l}}\varphi^{res}_{l}) + b^{res}_{l}\\
 H^{pre}_l &= \sigma (H^{pre}_{l})\\
 H^{post}_l &= 2\sigma (H^{post}_{l})\\
-h_{in} &=\vec{x^{'}_{l}}H^{pre}_l
+h_{in} &=\vec{x_{l}}H^{pre}_l
 \end{aligned}
 $$
 

@@ -22,9 +22,9 @@
 
 namespace optiling {
 
-enum class TilingMode : uint32_t {
-    PREFILL = 0,
-    DECODE = 1
+enum class TilingMode : uint8_t {
+    SPLIT_BS = 0,
+    SPLIT_ND = 1
 };
 
 BEGIN_TILING_DATA_DEF(MhcPreTilingData)
@@ -96,6 +96,13 @@ protected:
     ge::graphStatus PostTiling() override;
 
     ge::graphStatus GetInputShape();
+    ge::graphStatus CheckDescAndShape();
+    ge::graphStatus CheckShapePositive();
+    ge::graphStatus CheckDataType();
+    ge::graphStatus CheckDataRange();
+    ge::graphStatus CheckOutputShapeConsistency();
+    ge::graphStatus CheckBsndOutputShape(uint64_t b, uint64_t s, uint64_t n, uint64_t d);
+    ge::graphStatus CheckTndOutputShape(uint64_t t, uint64_t n, uint64_t d);
     ge::graphStatus ParseBsndFormat(const gert::Tensor *xTensor);
     ge::graphStatus ParseTndFormat(const gert::Tensor *xTensor);
     ge::graphStatus ValidateAndSetTilingParams(const gert::Tensor *xTensor);
@@ -109,24 +116,24 @@ protected:
 
 private:
     MhcPreTilingData tilingData_;
-    uint32_t blockDim_; // AIC
-    uint64_t totalLength_;
-    uint64_t m_;
-    uint64_t ubSize_;
-    uint64_t l1Size_;
-    uint64_t matM_;
-    uint64_t matK_;
-    uint64_t matN_;
-    uint64_t nD_;
-    uint64_t N_;
-    uint64_t D_;
-    float normEps_;
-    float hcEps_;
-    uint32_t outFlag_;
-    uint32_t hasGamma_;
-    uint32_t chunkTSize_;
-    uint32_t v1ChunkDSize_;
-    TilingMode tilingMode_;
+    uint32_t blockDim_ = 32; // AIC
+    uint64_t totalLength_ = 0;
+    uint64_t m_ = 0;
+    uint64_t ubSize_ = 0;
+    uint64_t l1Size_ = 0;
+    uint64_t matM_ = 0;
+    uint64_t matK_ = 0;
+    uint64_t matN_ = 0;
+    uint64_t nD_ = 0;
+    uint64_t N_ = 0;
+    uint64_t D_ = 0;
+    float normEps_ = 1e-6f;
+    float hcEps_ = 1e-6f;
+    bool outFlag_ = false;
+    uint32_t hasGamma_ = 0;
+    uint32_t chunkTSize_ = 0;
+    uint32_t v1ChunkDSize_ = 0;
+    TilingMode tilingMode_ = TilingMode::SPLIT_BS;
 
 protected:
     matmul_tiling::MultiCoreMatmulTiling mm_;
