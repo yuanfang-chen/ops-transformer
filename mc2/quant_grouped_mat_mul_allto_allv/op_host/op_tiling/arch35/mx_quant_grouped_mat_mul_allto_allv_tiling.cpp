@@ -46,7 +46,6 @@ static ge::graphStatus MxCheckShapeDimensions(const gert::StorageShape *shape, u
     return ge::GRAPH_SUCCESS;
 }
 
-
 static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
     return std::count(list.begin(), list.end(), value) > 0;
@@ -82,15 +81,15 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     localParams_.gmmYDtype = localParams_.yDtype;
     
     const gert::StorageShape* gmmXStorageShape = context_->GetInputShape(GMM_X_INDEX);
-    OP_TILING_CHECK(gmmXStorageShape == nullptr, OP_LOGE(opName_, "gmmXStorageShape is null!"),
+    OP_TILING_CHECK(gmmXStorageShape == nullptr, OP_LOGE(opName_, "The gmmXStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     const gert::StorageShape* gmmWeightStorageShape = context_->GetInputShape(GMM_WEIGHT_INDEX);
-    OP_TILING_CHECK(gmmWeightStorageShape == nullptr, OP_LOGE(opName_, "gmmWeightStorageShape is null!"),
+    OP_TILING_CHECK(gmmWeightStorageShape == nullptr, OP_LOGE(opName_, "The gmmWeightStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     const gert::StorageShape* yStorageShape = context_->GetOutputShape(OUTPUT_Y_INDEX);
-    OP_TILING_CHECK(yStorageShape == nullptr, OP_LOGE(opName_, "yStorageShape is null!"),
+    OP_TILING_CHECK(yStorageShape == nullptr, OP_LOGE(opName_, "The yStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     auto status = MxCheckShapeDimensions(gmmXStorageShape, DIM_TWO, "gmmXShape", opName_);
@@ -140,15 +139,15 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
         Ops::Base::ToString(localParams_.mmYDtype).c_str()), return ge::GRAPH_FAILED);
     
     const gert::StorageShape* mmXStorageShape = context_->GetOptionalInputShape(MM_X_OPTIONAL_INDEX);
-    OP_TILING_CHECK(mmXStorageShape == nullptr, OP_LOGE(opName_, "mmXStorageShape is null!"),
+    OP_TILING_CHECK(mmXStorageShape == nullptr, OP_LOGE(opName_, "The mmXStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     const gert::StorageShape* mmWeightStorageShape = context_->GetOptionalInputShape(MM_WEIGHT_OPTIONAL_INDEX);
-    OP_TILING_CHECK(mmWeightStorageShape == nullptr, OP_LOGE(opName_, "mmWeightStorageShape is null!"),
+    OP_TILING_CHECK(mmWeightStorageShape == nullptr, OP_LOGE(opName_, "The mmWeightStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     const gert::StorageShape* mmYStorageShape = context_->GetOutputShape(OUTPUT_MM_Y_OPTIONAL_INDEX);
-    OP_TILING_CHECK(mmYStorageShape == nullptr, OP_LOGE(opName_, "mmYStorageShape is null!"),
+    OP_TILING_CHECK(mmYStorageShape == nullptr, OP_LOGE(opName_, "The mmYStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
     auto status = MxCheckShapeDimensions(mmXStorageShape, DIM_TWO, "mmXShape", opName_);
@@ -168,7 +167,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 
     uint64_t mmYDim0 = mmYStorageShape->GetStorageShape().GetDim(DIM_ZERO);
     OP_TILING_CHECK(localParams_.Bs != mmYDim0,
-        OP_LOGE(opName_, "mmX DIM0 %lu and mmY DIM0 %lu is not valid!", localParams_.Bs, mmYDim0),
+        OP_LOGE(opName_, "The mmX DIM0 %lu and mmY DIM0 %lu is not equal!", localParams_.Bs, mmYDim0),
         return ge::GRAPH_FAILED);
 
     localParams_.N2 = mmYStorageShape->GetStorageShape().GetDim(DIM_ONE);
@@ -192,16 +191,16 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 
     const gert::StorageShape* gmmXScaleStorageShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape* gmmWeightScaleStorageShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
-    OP_TILING_CHECK(gmmXScaleStorageShape == nullptr, OP_LOGE(opName_, "gmmXScaleStorageShape is null!"),
+    OP_TILING_CHECK(gmmXScaleStorageShape == nullptr, OP_LOGE(opName_, "The gmmXScaleStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(gmmWeightScaleStorageShape == nullptr, OP_LOGE(opName_, "gmmWeightScaleStorageShape is null!"),
+    OP_TILING_CHECK(gmmWeightScaleStorageShape == nullptr, OP_LOGE(opName_, "The gmmWeightScaleStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
     
     OP_TILING_CHECK(localParams_.gmmXQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "gmmXQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmXQuantMode),
+        OP_LOGE(opName_, "The gmmXQuantMode should be MX mode, but actul mode is %ld !", QUANT_MX, localParams_.gmmXQuantMode),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "gmmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmWeightQuantMode),
+        OP_LOGE(opName_, "The gmmWeightQuantMode should be MX mode, but actul mode is  %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
     ge::graphStatus status = MxCheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
@@ -211,17 +210,17 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     localParams_.gmmQuantSuit = QUANT_PAIR_MX;
     if (!localParams_.isGmmWeightTrans) {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim1,
-            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !", localParams_.H1, localParams_.gmmWeightDim1),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, gmmX dim1 is %lu, but gmmWeight dim1 is %lu!", localParams_.H1, localParams_.gmmWeightDim1),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim2),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, y dim1 is %lu, but gmmWeight dim2 is%lu !", localParams_.N1, localParams_.gmmWeightDim2),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "gmmX shape K %lu not match gmmWeight shape K %lu !", localParams_.H1, localParams_.gmmWeightDim2),
+            OP_LOGE(opName_, "In the Transposed Scenario, gmmX dim1 is %lu, but gmmWeight dim2 is %lu !", localParams_.H1, localParams_.gmmWeightDim2),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim1,
-            OP_LOGE(opName_, "y shape N %lu not match gmmWeight shape N %lu !", localParams_.N1, localParams_.gmmWeightDim1),
+            OP_LOGE(opName_, "In the Transposed Scenario, y dim1 is %lu, but gmmWeight dim1 is %lu !", localParams_.N1, localParams_.gmmWeightDim1),
             return ge::GRAPH_FAILED);
     }
 
@@ -245,17 +244,17 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
 
     const gert::StorageShape* mmXScaleStorageShape = context_->GetOptionalInputShape(MM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape* mmWeightScaleStorageShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
-    OP_TILING_CHECK(mmXScaleStorageShape == nullptr, OP_LOGE(opName_, "mmXScaleStorageShape is null!"),
+    OP_TILING_CHECK(mmXScaleStorageShape == nullptr, OP_LOGE(opName_, "The mmXScaleStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(mmWeightScaleStorageShape == nullptr, OP_LOGE(opName_, "mmWeightScaleStorageShape is null!"),
+    OP_TILING_CHECK(mmWeightScaleStorageShape == nullptr, OP_LOGE(opName_, "The mmWeightScaleStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
     
     OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "mmXQuantMode just support tensor mode now, mode is %ld !", localParams_.mmXQuantMode),
+        OP_LOGE(opName_, "The mmXQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmXQuantMode),
         return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "mmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.mmWeightQuantMode),
+        OP_LOGE(opName_, "The mmWeightQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
     ge::graphStatus status = MxCheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
@@ -265,17 +264,17 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     localParams_.mmQuantSuit = QUANT_PAIR_MX;
     if (!localParams_.isMmWeightTrans) {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim0,
-            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim0),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, mmX dim1 is %lu, but mmWeight dim0 is %lu !", localParams_.H2, localParams_.mmWeightDim0),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim1,
-            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim1),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, mmY dim1 is %lu, but mmWeight dim1 is %lu !", localParams_.N2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
-            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !", localParams_.H2, localParams_.mmWeightDim1),
+            OP_LOGE(opName_, "In the Transposed Scenario, mmX dim1 is %lu, but mmWeight dim1 is %lu !", localParams_.H2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim0,
-            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !", localParams_.N2, localParams_.mmWeightDim0),
+            OP_LOGE(opName_, "In the Transposed Scenario, mmY dim1 is  %lu, but mmWeight dim0 is %lu !", localParams_.N2, localParams_.mmWeightDim0),
             return ge::GRAPH_FAILED);
     }
 
@@ -286,9 +285,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
-    OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "group is null."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The group is nullptr."), return ge::GRAPH_FAILED);
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
-    OP_TILING_CHECK(epWorldSizePtr == nullptr, OP_LOGE(opName_, "epWorldSizePtr is null."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(epWorldSizePtr == nullptr, OP_LOGE(opName_, "The epWorldSizePtr is nullptr."), return ge::GRAPH_FAILED);
 
     int64_t rankDim = 0;
     std::string supportRankSizeRange;
@@ -302,23 +301,24 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
         rankDim = *epWorldSizePtr;
     }
     OP_TILING_CHECK(SUPPORT_RANK_SIZE.find(rankDim) == SUPPORT_RANK_SIZE.end(),
-        OP_LOGE(opName_, "World_size should be %s, but the actual value is %ld.", supportRankSizeRange, rankDim),
+        OP_LOGE(opName_, "The world_size should be %s, but the actual value is %ld.", supportRankSizeRange, rankDim),
         return ge::GRAPH_FAILED);
     localParams_.epWorldSize = rankDim;
 
     bool isEpNumMatch = (localParams_.ep > 0) && (localParams_.ep < 33);
     if (!isEpNumMatch) {
-        OP_LOGE(opName_, "expert Per Rank is not match range, expertNum is %lu !", localParams_.ep);
+        OP_LOGE(opName_, "The expert Per Rank is not match range, expertNum is %lu !", localParams_.ep);
         return ge::GRAPH_FAILED;
     } else {
         uint64_t expertNum = localParams_.ep * rankDim;
         OP_TILING_CHECK(expertNum > MAX_EXPERT_NUM,
-            OP_LOGE(opName_, "expert Num lager than MAX_EXPERT_NUM, expertNum is %lu !", expertNum),
+            OP_LOGE(opName_, "The expert Num lager than MAX_EXPERT_NUM, expertNum is %lu !", expertNum),
             return ge::GRAPH_FAILED);
     }
 
     auto groupSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_GROUP_SIZE_OPTIONAL_INDEX);
-    OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "groupSizePtr is null !"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "The groupSizePtr is nullptr !"), return ge::GRAPH_FAILED);
+
     localParams_.groupSize = *groupSizePtr;
     uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
     uint64_t groupSizeN = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
@@ -328,10 +328,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
                     ((groupSizeN != MX_GROUP_SIZE_N) && (groupSizeN != 0)) ||
                     ((groupSizeK != MX_GROUP_SIZE_K) && (groupSizeK != 0)),
         CUBE_INNER_ERR_REPORT(
-            opName_,
-            "GroupSizeM, groupSizeN should be 0 or 1, and groupSizeK should be 0 or 32 in mxfp scene,"
-            " but actual is groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu.",
-            groupSizeM, groupSizeN, groupSizeK),
+            opName_, "The groupSizeM, groupSizeN should be 0 or 1, and groupSizeK should be 0 or 32 in mxfp8 scene,"
+            " but actual is groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu.", groupSizeM, groupSizeN, groupSizeK),
         return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -347,6 +345,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     }
     const gert::StorageShape *gmmXScaleShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape *gmmWeightScaleShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    OP_TILING_CHECK((gmmXScaleShape == nullptr), OP_LOGE(opName_, "The gmmXScaleShape is nullptr"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((gmmWeightScaleShape == nullptr), OP_LOGE(opName_, "The gmmWeightScale is nullptr"), return ge::GRAPH_FAILED);
+
     uint64_t gmmXScaleDim0 = gmmXScaleShape->GetStorageShape().GetDim(0);
     uint64_t gmmXScaleDim1 = gmmXScaleShape->GetStorageShape().GetDim(1);
     uint64_t gmmXScaleDim2 = gmmXScaleShape->GetStorageShape().GetDim(2);
@@ -354,9 +355,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     uint64_t gmmWeightScaleDim1 = gmmWeightScaleShape->GetStorageShape().GetDim(1);
     uint64_t gmmWeightScaleDim2 = gmmWeightScaleShape->GetStorageShape().GetDim(2);
     uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(3);
-    
-    OP_LOGE(opName_, "A is:%lu\n H1 is:%lu\n ep is:%lu\n BsK is:%lu\n N1 is:%lu\n Bs is:%lu\n H2 is:%lu\n N2 is:%lu\n.",
-            localParams_.A, localParams_.H1, localParams_.ep, localParams_.BsK, localParams_.N1, localParams_.Bs, localParams_.H2, localParams_.N2);
 
     uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.A != gmmXScaleDim0) || (gmmxDivH1 != gmmXScaleDim1) || (gmmXScaleDim2 != EVEN_ALIGN),
@@ -399,15 +397,15 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
     }
     const gert::StorageShape *mmXScaleShape = context_->GetOptionalInputShape(MM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape *mmWeightScaleShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    OP_TILING_CHECK((mmXScaleShape == nullptr), OP_LOGE(opName_, "the input mmXScale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((mmWeightScaleShape == nullptr), OP_LOGE(opName_, "the input mmWeightScale shape is invalid"), return ge::GRAPH_FAILED);
+
     uint64_t mmXScaleDim0 = mmXScaleShape->GetStorageShape().GetDim(0);
     uint64_t mmXScaleDim1 = mmXScaleShape->GetStorageShape().GetDim(1);
     uint64_t mmXScaleDim2 = mmXScaleShape->GetStorageShape().GetDim(2);
     uint64_t mmWeightScaleDim0 = mmWeightScaleShape->GetStorageShape().GetDim(0);
     uint64_t mmWeightScaleDim1 = mmWeightScaleShape->GetStorageShape().GetDim(1);
     uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(2);
-    
-    OP_LOGE(opName_, "A is:%lu\n H1 is:%lu\n ep is:%lu\n BsK is:%lu\n N1 is:%lu\n Bs is:%lu\n H2 is:%lu\n N2 is:%lu\n.",
-            localParams_.A, localParams_.H1, localParams_.ep, localParams_.BsK, localParams_.N1, localParams_.Bs, localParams_.H2, localParams_.N2);
 
     uint64_t mmxDivH2 = (localParams_.H2 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.Bs != mmXScaleDim0) || (mmxDivH2 != mmXScaleDim1) || (mmXScaleDim2 != EVEN_ALIGN),
