@@ -41,112 +41,118 @@ const constexpr int64_t OUT_H_PRE_INDEX = 5;
 
 const constexpr int64_t BSND_DIM_NUM = 4;
 const constexpr int64_t TND_DIM_NUM = 3;
+const constexpr int64_t UNKNOWN_DIM_VALUE = -1LL;
 
-const constexpr int64_t INDEX_B_BSND = 0;
-const constexpr int64_t INDEX_S_BSND = 1;
-const constexpr int64_t INDEX_N_BSND = 2;
-const constexpr int64_t INDEX_D_BSND = 3;
+static void SetShape3D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2)
+{
+    shape->SetDimNum(3);
+    shape->SetDim(0, d0);
+    shape->SetDim(1, d1);
+    shape->SetDim(2, d2);
+}
 
-const constexpr int64_t INDEX_T_TND = 0;
-const constexpr int64_t INDEX_N_TND = 1;
-const constexpr int64_t INDEX_D_TND = 2;
+static void SetShape2D(gert::Shape* shape, uint64_t d0, uint64_t d1)
+{
+    shape->SetDimNum(2);
+    shape->SetDim(0, d0);
+    shape->SetDim(1, d1);
+}
 
-static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
+static void SetShape4D(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t d2)
+{
+    shape->SetDimNum(4);
+    shape->SetDim(0, d0);
+    shape->SetDim(1, d1);
+    shape->SetDim(2, d2);
+    shape->SetDim(3, d2);
+}
+
+static void SetShape1D(gert::Shape* shape, uint64_t d0)
+{
+    shape->SetDimNum(1);
+    shape->SetDim(0, d0);
+}
+
+static void SetShape3DMatK(gert::Shape* shape, uint64_t d0, uint64_t d1, uint64_t matK)
+{
+    shape->SetDimNum(3);
+    shape->SetDim(0, d0);
+    shape->SetDim(1, d1);
+    shape->SetDim(2, matK);
+}
+
+static bool IsUnknownShape(const gert::Shape *shape)
+{
+    for (int64_t i = 0; i < shape->GetDimNum(); ++i) {
+        if (shape->GetDim(i) == UNKNOWN_DIM_VALUE) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void SetShapeFromX(gert::Shape *dst, const gert::Shape *src)
+{
+    dst->SetDimNum(src->GetDimNum());
+    for (int64_t i = 0; i < src->GetDimNum(); ++i) {
+        dst->SetDim(i, src->GetDim(i));
+    }
+}
+
+static ge::graphStatus InferShape4MhcPre(InferShapeContext *context)
 {
     OP_LOGD(context->GetNodeName(), "Begin to do InferShape MhcPre");
     const gert::Shape *xShape = context->GetDynamicInputShape(X_INDEX, 0);
-        OP_CHECK_NULL_WITH_CONTEXT(context, xShape);
     const gert::Shape *phiShape = context->GetDynamicInputShape(PHI_INDEX, 0);
-        OP_CHECK_NULL_WITH_CONTEXT(context, phiShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context, xShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context, phiShape);
 
-    int64_t xShapeDim = xShape->GetDimNum();
-    int64_t phiShapeDim = phiShape->GetDimNum();
-    auto outHinShape = context->GetOutputShape(OUT_H_IN_INDEX);
-    auto outHpostShape = context->GetOutputShape(OUT_H_POST_INDEX);
-    auto outHresShape = context->GetOutputShape(OUT_H_RES_INDEX);
-
-    auto outInvRmsShape = context->GetOutputShape(OUT_INV_RMS_INDEX);
-    auto outMmresShape = context->GetOutputShape(OUT_MM_RES_INDEX);
-    auto outHpreShape = context->GetOutputShape(OUT_H_PRE_INDEX);
-
-    if (phiShapeDim < 2) {
-        OP_LOGD(context->GetNodeName(), "phiShapeDim dims is invalid");
-        return GRAPH_FAILED;
+    if (IsUnknownShape(xShape) || IsUnknownShape(phiShape)) {
+        SetShapeFromX(context->GetOutputShape(OUT_H_IN_INDEX), xShape);
+        SetShapeFromX(context->GetOutputShape(OUT_H_PRE_INDEX), xShape);
+        OP_LOGD(context->GetNodeName(), "MhcPre infershape handles unknown shape.");
+        return GRAPH_SUCCESS;
     }
 
+    int64_t phiDim = phiShape->GetDimNum();
+    int64_t xDim = xShape->GetDimNum();
+    OP_CHECK_IF(phiDim < 2 || (xDim != BSND_DIM_NUM && xDim != TND_DIM_NUM),
+        OP_LOGE(context->GetNodeName(), "phiDim=%ld, xDim=%ld invalid", phiDim, xDim),
+        return GRAPH_FAILED);
+
     uint64_t matK = phiShape->GetDim(0);
-    if (xShapeDim == BSND_DIM_NUM) {
-        uint64_t batch = xShape->GetDim(INDEX_B_BSND);
-        uint64_t sequence = xShape->GetDim(INDEX_S_BSND);
-        uint64_t numsResidual = xShape->GetDim(INDEX_N_BSND);
-        uint64_t dimen = xShape->GetDim(INDEX_D_BSND);
+    gert::Shape* outShapes[6] = {
+        context->GetOutputShape(OUT_H_IN_INDEX), context->GetOutputShape(OUT_H_POST_INDEX),
+        context->GetOutputShape(OUT_H_RES_INDEX), context->GetOutputShape(OUT_INV_RMS_INDEX),
+        context->GetOutputShape(OUT_MM_RES_INDEX), context->GetOutputShape(OUT_H_PRE_INDEX)
+    };
 
-        outHinShape->SetDimNum(BSND_DIM_NUM - 1);
-        outHinShape->SetDim(0, batch);
-        outHinShape->SetDim(1, sequence);
-        outHinShape->SetDim(2, dimen);
-
-        outHpostShape->SetDimNum(BSND_DIM_NUM - 1);
-        outHpostShape->SetDim(0, batch);
-        outHpostShape->SetDim(1, sequence);
-        outHpostShape->SetDim(2, numsResidual);
-
-        outHresShape->SetDimNum(BSND_DIM_NUM);
-        outHresShape->SetDim(0, batch);
-        outHresShape->SetDim(1, sequence);
-        outHresShape->SetDim(2, numsResidual);
-        outHresShape->SetDim(3, numsResidual);
-
-        outInvRmsShape->SetDimNum(BSND_DIM_NUM - 2);
-        outInvRmsShape->SetDim(0, batch);
-        outInvRmsShape->SetDim(1, sequence);
-
-        outMmresShape->SetDimNum(BSND_DIM_NUM - 1);
-        outMmresShape->SetDim(0, batch);
-        outMmresShape->SetDim(1, sequence);
-        outMmresShape->SetDim(2, matK);
-
-        outHpreShape->SetDimNum(BSND_DIM_NUM - 1);
-        outHpreShape->SetDim(0, batch);
-        outHpreShape->SetDim(1, sequence);
-        outHpreShape->SetDim(2, numsResidual);
-    } else if (xShapeDim == TND_DIM_NUM) {
-        uint64_t t = xShape->GetDim(INDEX_T_TND);
-        uint64_t numsResidual = xShape->GetDim(INDEX_N_TND);
-        uint64_t dimen = xShape->GetDim(INDEX_D_TND);
-
-        outHinShape->SetDimNum(TND_DIM_NUM - 1);
-        outHinShape->SetDim(0, t);
-        outHinShape->SetDim(1, dimen);
-
-        outHpostShape->SetDimNum(TND_DIM_NUM - 1);
-        outHpostShape->SetDim(0, t);
-        outHpostShape->SetDim(1, numsResidual);
-
-        outHresShape->SetDimNum(TND_DIM_NUM);
-        outHresShape->SetDim(0, t);
-        outHresShape->SetDim(1, numsResidual);
-        outHresShape->SetDim(2, numsResidual);
-
-        outInvRmsShape->SetDimNum(TND_DIM_NUM - 2);
-        outInvRmsShape->SetDim(0, t);
-
-        outMmresShape->SetDimNum(TND_DIM_NUM - 1);
-        outMmresShape->SetDim(0, t);
-        outMmresShape->SetDim(1, matK);
-
-        outHpreShape->SetDimNum(TND_DIM_NUM - 1);
-        outHpreShape->SetDim(0, t);
-        outHpreShape->SetDim(1, numsResidual);
+    if (xDim == BSND_DIM_NUM) {
+        uint64_t b = xShape->GetDim(0), s = xShape->GetDim(1), n = xShape->GetDim(2), d = xShape->GetDim(3);
+        SetShape3D(outShapes[0], b, s, d);
+        SetShape3D(outShapes[1], b, s, n);
+        SetShape4D(outShapes[2], b, s, n);
+        SetShape2D(outShapes[3], b, s);
+        SetShape3DMatK(outShapes[4], b, s, matK);
+        SetShape3D(outShapes[5], b, s, n);
+    } else {
+        uint64_t t = xShape->GetDim(0), n = xShape->GetDim(1), d = xShape->GetDim(2);
+        SetShape2D(outShapes[0], t, d);
+        SetShape2D(outShapes[1], t, n);
+        SetShape3D(outShapes[2], t, n, n);
+        SetShape1D(outShapes[3], t);
+        SetShape2D(outShapes[4], t, matK);
+        SetShape2D(outShapes[5], t, n);
     }
 
     OP_LOGD(context->GetNodeName(), "End to do InferShape MhcPre");
     return GRAPH_SUCCESS;
 }
 
-static graphStatus InferDataType4mHCPre(gert::InferDataTypeContext *context)
+static graphStatus InferDataType4MhcPre(gert::InferDataTypeContext *context)
 {
-    context->SetOutputDataType(OUT_H_IN_INDEX, DataType::DT_FLOAT16);
+    const auto xDtype = context->GetInputDataType(X_INDEX);
+    context->SetOutputDataType(OUT_H_IN_INDEX, xDtype);
     context->SetOutputDataType(OUT_H_POST_INDEX, DataType::DT_FLOAT);
     context->SetOutputDataType(OUT_H_RES_INDEX, DataType::DT_FLOAT);
     context->SetOutputDataType(OUT_INV_RMS_INDEX, DataType::DT_FLOAT);
@@ -156,6 +162,6 @@ static graphStatus InferDataType4mHCPre(gert::InferDataTypeContext *context)
 }
 
 IMPL_OP_INFERSHAPE(MhcPre)
-    .InferShape(InferShape4mHCPre)
-    .InferDataType(InferDataType4mHCPre);
+    .InferShape(InferShape4MhcPre)
+    .InferDataType(InferDataType4MhcPre);
 } // namespace ops
