@@ -762,7 +762,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                                 layout == LayOutTypeEnum::LAYOUT_SBH) {
                     maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
                 } else {
-                    maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
+                    maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx * runInfo.s1RealSize;
                 }
                 maskInfo.gs1dealNum = runInfo.halfS1RealSize;
                 maskInfo.s1Size = runInfo.actualS1Size;

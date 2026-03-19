@@ -672,7 +672,7 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
         runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
             runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
     } else {
-        if (constInfo.isGqa) {
+        if (constInfo.isGqa && layout != LayOutTypeEnum::LAYOUT_BNSD) {
             sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx - runParam.preTokensPerBatch,
                 0, runParam.actualS2Size);
             runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx + runParam.nextTokensPerBatch +
