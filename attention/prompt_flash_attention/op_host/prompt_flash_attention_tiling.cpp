@@ -1315,7 +1315,7 @@ bool PromptFlashAttentionTiling::PromptFlashAttentionCheckBmm2(PromptFlashAttent
     if (autoBaseMNK) {
         if (enableMatmulNorm || splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE || splitCoreMode == SplitCoreMode::SPLIT_ONEN_CUBE) {
             uint32_t baseM = std::min(uint32_t(128), sOuterFactor);
-            uint32_t baseN = std::min(uint32_t(128), tilingData.promptAttentionBaseParams.get_headSize());
+            uint32_t baseN = static_cast<uint32_t>(std::min(uint64_t(128), tilingData.promptAttentionBaseParams.get_headSize()));
             uint32_t baseK = 128U;
             ret = bmm2.SetFixSplit(baseM, baseN, baseK);
             OP_CHECK_IF(ret != 0,

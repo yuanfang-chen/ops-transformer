@@ -1141,7 +1141,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             return false);
         OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
                     (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-                    (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, static_cast<int64_t>(fp8QBlockSize))) || // 2 is the dim of dequantscale along s2.
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, static_cast<uint64_t>(fp8QBlockSize))) || // 2 is the dim of dequantscale along s2.
                     (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "valueAntiquantScaleshape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
