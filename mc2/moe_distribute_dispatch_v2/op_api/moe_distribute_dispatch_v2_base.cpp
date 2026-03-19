@@ -20,7 +20,7 @@
 #include "opdev/common_types.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "moe_distribute_dispatch_v2_base.h"
-#include "op_kernel/mc2_moe_context.h"
+#include "mc2_moe_context.h"
 #include "opdev/platform.h"
 #include "hccl/hcom.h"
 #include "hccl/hccl_rank_graph.h"
