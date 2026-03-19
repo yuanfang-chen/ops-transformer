@@ -168,7 +168,7 @@ public:
         vRowStride_ = nv_ * dv_;
         numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
-        halfChunkSize_ = chunkSize_ / 2;
+        halfChunkSize_ = chunkSize_ / GetTaskRatio();
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
         if ASCEND_IS_AIV{
@@ -292,7 +292,6 @@ private:
         }
     }
 
-
     __aicore__ inline void QKPreProcessCompute(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
                                                 LocalTensor<float>& dstBuffer, bool kgFlag = false)
     {
@@ -363,8 +362,8 @@ private:
         uint32_t divShape[2] = {chunkSize_, chunkSize_};
         uint32_t gShape[2] = {chunkSize_, 1};
         uint32_t gTransShape[2] = {1, chunkSize_};
-        Broadcast<float, 2, 1>(gBroadUbFloat_, gCumExpUbFloat_, divShape, gShape);
-        Broadcast<float, 2, 0>(gTransBroadUbFloat_, gCumExpUbFloat_, divShape, gTransShape);
+        Broadcast<float, BROADCAST_AXIS, 1>(gBroadUbFloat_, gCumExpUbFloat_, divShape, gShape);
+        Broadcast<float, BROADCAST_AXIS, 0>(gTransBroadUbFloat_, gCumExpUbFloat_, divShape, gTransShape);
         PipeBarrier<PIPE_V>();
         // div
         Div(gammaUbFloat_, gBroadUbFloat_, gTransBroadUbFloat_, chunkSize_ * chunkSize_);
@@ -387,7 +386,7 @@ private:
 
         uint32_t betaShape[2] = {halfChunkSize_, 1};
         uint32_t kkShape[2] = {halfChunkSize_, chunkSize_};
-        Broadcast<float, 2, 1>(attnUbFloat_, betaUbFloat_, kkShape, betaShape);
+        Broadcast<float, BROADCAST_AXIS, 1>(attnUbFloat_, betaUbFloat_, kkShape, betaShape);
         PipeBarrier<PIPE_V>();
         Mul(attnUbFloat_, kkLocal_, attnUbFloat_, chunkSize_ * halfChunkSize_);
         PipeBarrier<PIPE_V>();
@@ -430,7 +429,7 @@ private:
         auto ei = inverseUbFloat_[inverseBufferOffset];
 
         Duplicate(ei, static_cast<float>(0.0), inverseVecLen);
-        Duplicate(yLocal, static_cast<float>(0.0), 2 * inverseVecLen * inverseVecLen); // yLocal清零
+        Duplicate(yLocal, static_cast<float>(0.0), inverseVecLen * inverseVecLen); // yLocal清零
         inverseLocal_.SetValue(offset, static_cast<float>(1.0));
         
         uint32_t srcShape[2] = {1, inverseVecLen};
@@ -445,8 +444,8 @@ private:
 
             uint32_t dstShape[2] = {validRows, inverseVecLen};
             uint32_t colSrcShape[2] = {validRows, 1};
-            Broadcast<float, 2, 1>(col[inverseVecLen], col, dstShape, colSrcShape);
-            Broadcast<float, 2, 0>(row, inverseLocal_[offset + curI * chunkSize_], dstShape, srcShape);
+            Broadcast<float, BROADCAST_AXIS, 1>(col[inverseVecLen], col, dstShape, colSrcShape);
+            Broadcast<float, BROADCAST_AXIS, 0>(row, inverseLocal_[offset + curI * chunkSize_], dstShape, srcShape);
             MulAddDst(yLocal[i * inverseVecLen], col[inverseVecLen], row, inverseVecLen * validRows);
             PipeBarrier<PIPE_V>();
             ei.SetValue(i - 1, static_cast<float>(0.0));
@@ -473,7 +472,7 @@ private:
         uint32_t betaShape[2] = {halfChunkSize_, 1};
         uint32_t kShape[2] = {halfChunkSize_, dkAligned_};
         gBKLocal_ = fp32OutQueue_.AllocTensor<float>();
-        Broadcast<float, 2, 1>(gBKLocal_, gBUbFloat_, kShape, betaShape);
+        Broadcast<float, BROADCAST_AXIS, 1>(gBKLocal_, gBUbFloat_, kShape, betaShape);
         PipeBarrier<PIPE_V>();
         Mul(gBKLocal_, gBKLocal_, kUbFloatCon_, halfChunkSize_ * dkAligned_);
         fp32OutQueue_.EnQue<float>(gBKLocal_);
@@ -484,12 +483,12 @@ private:
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
             uint32_t gEndShape[2] = {1, 1};
             uint32_t gBroadShape[2] = {halfChunkSize_, 1};
-            Broadcast<float, 2, 0>(gEndBroadUbFloat_, gCumExpUbFloat_[chunkSize_ - 1], gBroadShape, gEndShape);
+            Broadcast<float, BROADCAST_AXIS, 0>(gEndBroadUbFloat_, gCumExpUbFloat_[chunkSize_ - 1], gBroadShape, gEndShape);
             PipeBarrier<PIPE_V>();
             Div(gEndBroadUbFloat_, gEndBroadUbFloat_, gCumExpUbFloat_[subOffset_], halfChunkSize_);
             PipeBarrier<PIPE_V>();
             kgLocal_ = fp32OutQueue_.AllocTensor<float>();
-            Broadcast<float, 2, 1>(kgLocal_, gEndBroadUbFloat_, kShape, gBroadShape);
+            Broadcast<float, BROADCAST_AXIS, 1>(kgLocal_, gEndBroadUbFloat_, kShape, gBroadShape);
             PipeBarrier<PIPE_V>();
             Mul(kgLocal_, kgLocal_, kUbFloatCon_, halfChunkSize_ * dkAligned_);
             PipeBarrier<PIPE_V>();
@@ -522,7 +521,7 @@ private:
         }
         uint32_t betaShape[2] = {halfChunkSize_, 1};
         uint32_t vShape[2] = {halfChunkSize_, dvAligned_};
-        Broadcast<float, 2, 1>(vBetaLocal_, betaUbFloat_, vShape, betaShape);
+        Broadcast<float, BROADCAST_AXIS, 1>(vBetaLocal_, betaUbFloat_, vShape, betaShape);
         PipeBarrier<PIPE_V>();
         Mul(vBetaLocal_, valueUbFloat_, vBetaLocal_, halfChunkSize_ * dvAligned_);
         PipeBarrier<PIPE_V>();
@@ -539,7 +538,7 @@ private:
             PipeBarrier<PIPE_V>();
             uint32_t gCumExpShape[2] = {halfChunkSize_, 1};
             uint32_t qShape[2] = {halfChunkSize_, dkAligned_};
-            Broadcast<float, 2, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat_[subOffset_], qShape, gCumExpShape);
+            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat_[subOffset_], qShape, gCumExpShape);
             PipeBarrier<PIPE_V>();
             // query * scale * g_cum_exp[:, None]       # (C, Dk)
             Mul(qPrimeLocal_, qUbFloat_, gCumExpBroadUbFloat_, halfChunkSize_ * dkAligned_);

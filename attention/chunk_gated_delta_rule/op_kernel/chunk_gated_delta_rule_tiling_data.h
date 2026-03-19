@@ -22,6 +22,9 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 namespace ChunkGatedDeltaRule {
     constexpr uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
     constexpr uint64_t BUFFER_NUM_ONE = 1;
+    constexpr uint64_t BROADCAST_AXIS = 2;
+    constexpr uint64_t STRUCT_ALIGNAS = 8;
+    constexpr uint64_t STAGE3_BUFFER_COUNT = 4;
 
     // 同步信号
     constexpr uint64_t V_MTE3_EVENT = 0;
@@ -30,7 +33,7 @@ namespace ChunkGatedDeltaRule {
     constexpr uint64_t FIX_MTE2_EVENT = 6;
 
     #pragma pack(push, 8)
-    struct alignas(8) ChunkGatedDeltaRuleTilingData {
+    struct alignas(STRUCT_ALIGNAS) ChunkGatedDeltaRuleTilingData {
         int64_t aiCoreNum;
         int64_t t;
         int64_t nk;

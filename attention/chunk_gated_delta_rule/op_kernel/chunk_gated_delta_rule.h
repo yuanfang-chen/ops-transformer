@@ -186,10 +186,10 @@ public:
         offset += sizeof(highType) * tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
 
         stageOneMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * GetTaskRatio();
 
         stageThreeMask_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * 2;
+        offset += sizeof(highType) * tiling_->chunkSize * tiling_->chunkSize * tiling_->aiCoreNum * GetTaskRatio();
 
         stageWsAddr_ = user + offset;
 
@@ -242,7 +242,6 @@ private:
         stageOneOp_.Process();
         pipe_->Reset();
     }
-    
 
     __aicore__ inline void RunStage2(ChunkGroup& cg, GlobalTensor<highType> state)
     {

@@ -100,7 +100,7 @@ public:
 
         pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ * sTP_->Dv_ * sizeof(float));
-        pipe_->InitBuffer(tmpBuff_, (4 * chunkSize_ * chunkSize_ * sizeof(float)));
+        pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
         uint32_t buffOffset = 0;
         cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
         buffOffset += chunkSize_ * chunkSize_ * sizeof(float);
@@ -161,8 +161,8 @@ public:
             const uint32_t srcShape1[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(1)};
             const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(paddingChunkSize)};
             const uint32_t dstShape[] = {static_cast<uint32_t>(paddingChunkSize), static_cast<uint32_t>(paddingChunkSize)};
-            Broadcast<float, 2, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
-            Broadcast<float, 2, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
+            Broadcast<float, BROADCAST_AXIS, 1>(cCFloat_, g_cum_exp, dstShape, srcShape1);
+            Broadcast<float, BROADCAST_AXIS, 0>(cCFloat2_, g_cum_exp, dstShape, srcShape2);
             PipeBarrier<PIPE_V>();
             Div(cCFloat_, cCFloat_, cCFloat2_, curChunkSize_ * paddingChunkSize);
             inQueue_.FreeTensor(g_cum_exp);
