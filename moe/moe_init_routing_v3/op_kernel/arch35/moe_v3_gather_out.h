@@ -44,11 +44,13 @@ private:
 
     GlobalTensor<T> xGm_;
     GlobalTensor<uint8_t> xUint8tGm_;
-    GlobalTensor<float> xGscaleGm_;
+    GlobalTensor<float> scaleGm_;
+    GlobalTensor<uint8_t> scaleUint8tGm_;
     GlobalTensor<int32_t> sortedExpertIdxGm_;
     GlobalTensor<T> expandedXGm_;
     GlobalTensor<int32_t> expandedRowIdxGm_;
     GlobalTensor<float> expandedScaleGm_;
+    GlobalTensor<uint8_t> expandedScaleUint8tGm_;
     GlobalTensor<int32_t> expertTotalCountGm_;
 
     int64_t blockIdx_;
@@ -121,16 +123,24 @@ __aicore__ inline void MoeGatherOut<T>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR w
     indicesLoops_ = Ceil(curCoreIndicesElements_, curCorePerLoopIndicesElements_);
     curCoreLastLoopIndicesElements_ = curCoreIndicesElements_ - (indicesLoops_ - 1) * curCorePerLoopIndicesElements_;
 
-    xGscaleGm_.SetGlobalBuffer((__gm__ float *)scale, n_);
-    if constexpr (IsSameType<T, hifloat8_t>::value) {
+    if (IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, fp8_e5m2_t>::value) {
+        scaleUint8tGm_.SetGlobalBuffer((__gm__ uint8_t *)scale, n_);
+        expandedScaleUint8tGm_.SetGlobalBuffer((__gm__ uint8_t *)expandedScale + blockIdx_ * perCoreIndicesElements_,
+                                     curCoreIndicesElements_);
+    } else {
+        scaleGm_.SetGlobalBuffer((__gm__ float *)scale, n_);
+        expandedScaleGm_.SetGlobalBuffer((__gm__ float *)expandedScale + blockIdx_ * perCoreIndicesElements_,
+                                     curCoreIndicesElements_);
+    }
+
+    if constexpr (IsSameType<T, hifloat8_t>::value || IsSameType<T, fp8_e4m3fn_t>::value ||
+        IsSameType<T, fp8_e5m2_t>::value) {
         xUint8tGm_.SetGlobalBuffer((__gm__ uint8_t *)x, n_ * cols_);
     } else {
         xGm_.SetGlobalBuffer((__gm__ T *)x, n_ * cols_);
     }
     expandedXGm_.SetGlobalBuffer((__gm__ T *)expandedX + blockIdx_ * perCoreIndicesElements_ * cols_,
                                  curCoreIndicesElements_ * cols_);
-    expandedScaleGm_.SetGlobalBuffer((__gm__ float *)expandedScale + blockIdx_ * perCoreIndicesElements_,
-                                     curCoreIndicesElements_);
 
     pipe_->InitBuffer(expandedRowIdxCopyInQueue_, GATHER_OUT_BUFFER_NUM,
                       AlignBytes(curCorePerLoopIndicesElements_, sizeof(int32_t)));
@@ -163,7 +173,8 @@ __aicore__ inline void MoeGatherOut<T>::CopyExpertIn(int64_t curExpertLoopOffset
 template <typename T>
 __aicore__ inline void MoeGatherOut<T>::CopyXIn(int64_t xSrcOffset, int64_t scaleSrcOffset, int64_t curLoopCols)
 {
-    if constexpr (IsSameType<T, hifloat8_t>::value) {
+    if constexpr (IsSameType<T, hifloat8_t>::value || IsSameType<T, fp8_e4m3fn_t>::value ||
+        IsSameType<T, fp8_e5m2_t>::value) {
         LocalTensor<uint8_t> xLocal = xCopyInQueue_.AllocTensor<uint8_t>();
         DataCopyExtParams copyParams0{static_cast<uint16_t>(1), static_cast<uint32_t>(curLoopCols * sizeof(uint8_t)), 0, 0, 0};
         DataCopyPadExtParams<uint8_t> padParams0{false, 0, 0, 0};
@@ -190,20 +201,35 @@ __aicore__ inline void MoeGatherOut<T>::CopyXOut(int64_t xDstOffset, int64_t sca
 template <typename T>
 __aicore__ inline void MoeGatherOut<T>::CopyScaleIn(int64_t scaleSrcOffset)
 {
-    LocalTensor<float> scaleLocal = scaleCopyInQueue_.AllocTensor<float>();
-    DataCopyExtParams copyParams1{static_cast<uint16_t>(1), static_cast<uint32_t>(1 * sizeof(float)), 0, 0, 0};
-    DataCopyPadExtParams<float> padParams1{false, 0, 0, 0};
-    DataCopyPad(scaleLocal, xGscaleGm_[scaleSrcOffset], copyParams1, padParams1);
-    scaleCopyInQueue_.EnQue(scaleLocal);
+    if (IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, fp8_e5m2_t>::value) {
+        LocalTensor<uint8_t> scaleLocal = scaleCopyInQueue_.AllocTensor<uint8_t>();
+        DataCopyExtParams copyParams1{static_cast<uint16_t>(1), static_cast<uint32_t>(1 * sizeof(uint8_t)), 0, 0, 0};
+        DataCopyPadExtParams<uint8_t> padParams1{false, 0, 0, 0};
+        DataCopyPad(scaleLocal, scaleUint8tGm_[scaleSrcOffset], copyParams1, padParams1);
+        scaleCopyInQueue_.EnQue(scaleLocal);
+    } else {
+        LocalTensor<float> scaleLocal = scaleCopyInQueue_.AllocTensor<float>();
+        DataCopyExtParams copyParams1{static_cast<uint16_t>(1), static_cast<uint32_t>(1 * sizeof(float)), 0, 0, 0};
+        DataCopyPadExtParams<float> padParams1{false, 0, 0, 0};
+        DataCopyPad(scaleLocal, scaleGm_[scaleSrcOffset], copyParams1, padParams1);
+        scaleCopyInQueue_.EnQue(scaleLocal);
+    }
 }
 
 template <typename T>
 __aicore__ inline void MoeGatherOut<T>::CopyScaleOut(int64_t scaleDstOffset)
 {
-    LocalTensor<float> scaleLocal = scaleCopyInQueue_.DeQue<float>();
-    DataCopyExtParams copyParams3{1, static_cast<uint32_t>(sizeof(float)), 0, 0, 0};
-    DataCopyPad(expandedScaleGm_[scaleDstOffset], scaleLocal, copyParams3);
-    scaleCopyInQueue_.FreeTensor(scaleLocal);
+    if (IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, fp8_e5m2_t>::value) {
+        LocalTensor<uint8_t> scaleLocal = scaleCopyInQueue_.DeQue<uint8_t>();
+        DataCopyExtParams copyParams3{1, static_cast<uint32_t>(sizeof(uint8_t)), 0, 0, 0};
+        DataCopyPad(expandedScaleUint8tGm_[scaleDstOffset], scaleLocal, copyParams3);
+        scaleCopyInQueue_.FreeTensor(scaleLocal);
+    } else {
+        LocalTensor<float> scaleLocal = scaleCopyInQueue_.DeQue<float>();
+        DataCopyExtParams copyParams3{1, static_cast<uint32_t>(sizeof(float)), 0, 0, 0};
+        DataCopyPad(expandedScaleGm_[scaleDstOffset], scaleLocal, copyParams3);
+        scaleCopyInQueue_.FreeTensor(scaleLocal);
+    }
 }
 
 template <typename T>
