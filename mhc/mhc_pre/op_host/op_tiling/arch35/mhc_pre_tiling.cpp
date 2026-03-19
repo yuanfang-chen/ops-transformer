@@ -52,6 +52,10 @@ const constexpr uint32_t D_ALIGNMENT = 16;
 const constexpr uint32_t CHUNK_T_MAX = 128;
 const constexpr uint32_t V1_CHUNK_D_SIZE = 5120;
 const constexpr uint32_t CHUNK_T_CALC_FACTOR = 32;
+const constexpr uint64_t TOTAL_LENGTH_MIN = 1;
+const constexpr uint64_t TOTAL_LENGTH_MAX = 65536;
+const constexpr uint64_t D_MIN = 512;
+const constexpr uint64_t D_MAX = 16384;
 const constexpr uint32_t L0_B_SIZE = 8 * 1024;
 const constexpr uint32_t FLOAT_ELE_SIZE = 8;
 const constexpr uint32_t KERNEL_WIDTH = 8;
@@ -68,9 +72,6 @@ const constexpr size_t WORKSPACE_ELEMENTS = 8;
 const constexpr size_t SYSTEM_WORKSPACE = 20 * 1024 * 1024;
 
 const constexpr uint32_t SCHEDULE_MODE = 1;
-const constexpr uint32_t OUT_FLAG_INV_RMS = 1;
-const constexpr uint32_t OUT_FLAG_H_MIX = 2;
-const constexpr uint32_t OUT_FLAG_H_PRE = 4;
 
 const constexpr float DEFAULT_NORM_EPS = 1e-6f;
 const constexpr float DEFAULT_HC_EPS = 1e-6f;
@@ -119,7 +120,7 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
         return ParseTndFormat(xTensor);
     }
 
-    OP_LOGE(context_->GetNodeName(), "X dims[%u] is invalid", xDims);
+    OP_LOGE(context_->GetNodeName(), "X dims[%u] is invalid, expect %d or %d", xDims, TND_DIM_NUM, BSND_DIM_NUM);
     return ge::GRAPH_FAILED;
 }
 
@@ -320,11 +321,13 @@ ge::graphStatus MhcPreBaseTiling::CheckTndOutputShape(uint64_t t, uint64_t n, ui
 
 ge::graphStatus MhcPreBaseTiling::CheckDataRange()
 {
-    OP_CHECK_IF(totalLength_ < 1 || totalLength_ > 65536,
-                OP_LOGE(context_->GetNodeName(), "BS/T should be in [1, 65536], got %lu", totalLength_),
+    OP_CHECK_IF(totalLength_ < TOTAL_LENGTH_MIN || totalLength_ > TOTAL_LENGTH_MAX,
+                OP_LOGE(context_->GetNodeName(), "BS/T should be in [%lu, %lu], got %lu", 
+                        TOTAL_LENGTH_MIN, TOTAL_LENGTH_MAX, totalLength_),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(D_ < 512 || D_ > 16384, OP_LOGE(context_->GetNodeName(), "D should be in [512, 16384], got %lu", D_),
+    OP_CHECK_IF(D_ < D_MIN || D_ > D_MAX, 
+                OP_LOGE(context_->GetNodeName(), "D should be in [%lu, %lu], got %lu", D_MIN, D_MAX, D_),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -456,16 +459,7 @@ ge::graphStatus MhcPreBaseTiling::ParseOutputFlags()
     auto hMixDesc = context_->GetOutputDesc(H_MIX_INDEX);
     auto hPreDesc = context_->GetOutputDesc(H_PRE_INDEX);
 
-    outFlag_ = 0;
-    if (invRmsDesc != nullptr) {
-        outFlag_ |= OUT_FLAG_INV_RMS;
-    }
-    if (hMixDesc != nullptr) {
-        outFlag_ |= OUT_FLAG_H_MIX;
-    }
-    if (hPreDesc != nullptr) {
-        outFlag_ |= OUT_FLAG_H_PRE;
-    }
+    outFlag_ = (invRmsDesc != nullptr && hMixDesc != nullptr && hPreDesc != nullptr);
 
     return ge::GRAPH_SUCCESS;
 }

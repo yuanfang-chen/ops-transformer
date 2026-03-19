@@ -129,7 +129,7 @@ private:
     uint64_t D_;
     float normEps_;
     float hcEps_;
-    uint32_t outFlag_;
+    bool outFlag_;
     uint32_t hasGamma_;
     uint32_t chunkTSize_;
     uint32_t v1ChunkDSize_;
