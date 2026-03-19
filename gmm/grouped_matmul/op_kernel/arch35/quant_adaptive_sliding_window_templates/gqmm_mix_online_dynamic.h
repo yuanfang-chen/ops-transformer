@@ -285,7 +285,6 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Upd
     }
     yGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<yType>(0, yTensorPtr_) + block_.params_.cGroupAddrOffset);
 }
-// zzznote : mListGm_是写在哪里呢？这里可能要求确认哪里写了mListGm_
 LOCAL_TEMPLATE_CLASS_MIX_PARAMS
 __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::SetMNK(uint32_t loopIdx, uint32_t groupIdx,
                                                                                     int32_t &mSize, int32_t &nSize,

@@ -190,7 +190,6 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlobalA
                                         block_.params_.biasGroupAddrOffset);
     }
 }
-// zzznote : mListGm_是写在哪里呢？这里可能要求确认哪里写了mListGm_
 LOCAL_TEMPLATE_CLASS_PARAMS
 __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMNK(uint32_t loopIdx, uint32_t groupIdx,
                                                                         int32_t &mSize, int32_t &nSize, int32_t &kSize)
@@ -309,7 +308,6 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
             CalcTailTile(block_.params_.mBaseTail, block_.params_.nBaseTail);
             block_.UpdateTailTile();
         }
-        // zzznote: 这里可能要变
         UpdateMMGlobalAddr(groupIdx);
         for (uint64_t roundIdx = 0; roundIdx < block_.params_.round; ++roundIdx) {
             bool isLastGroupRound = IsLastGroupAndRound(groupIdx, roundIdx);
