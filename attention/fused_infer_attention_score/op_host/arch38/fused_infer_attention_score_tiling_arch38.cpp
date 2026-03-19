@@ -9,24 +9,33 @@
  */
 
 /*!
- * \file fused_infer_attention_score_tiling.cpp
+ * \file fused_infer_attention_score_tiling_arch38.cpp
  * \brief
  */
 
-#include "fused_infer_attention_score_tiling_v2.h"
-#include "../../../incre_flash_attention/op_host/incre_flash_attention_tiling_v2.h"
-#include "../../../prompt_flash_attention/op_host/prompt_flash_attention_tiling_v2.h"
+#include "fused_infer_attention_score_tiling_arch38.h"
+#include "../../../incre_flash_attention/op_host/incre_flash_attention_tiling_arch38.h"
+#include "../../../prompt_flash_attention/op_host/prompt_flash_attention_tiling_arch38.h"
 #include "log/log.h"
 #include "log/error_code.h"
 #include "err/ops_err.h"
 #include "tiling/tiling_api.h"
 #include "platform/platform_info.h"
-#include "../../op_kernel/fused_infer_attention_score_template_tiling_key.h"
+#include "../../op_kernel/fused_infer_attention_score_tilingkey.h"
 
 using namespace ge;
 using namespace AscendC;
-using namespace optiling::v2;
+using namespace optiling::arch38;
 namespace optiling {
+
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_10000000000000090, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1000000000000000090, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1002122000000021012, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1002312000040001212, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1002312000040021212, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1001311000000001212, FlashAttentionScoreSimplifiedTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_1001311000000021212, FlashAttentionScoreSimplifiedTilingData)
+
 // Inputs Index
 constexpr uint32_t QUERY_DIM_0 = 0;
 constexpr uint32_t QUERY_DIM_1 = 1;
@@ -35,7 +44,6 @@ constexpr uint32_t QUERY_DIM_3 = 3;
 constexpr uint32_t QUERY_DIM_4 = 4;
 constexpr uint32_t VALUE_DIM_2 = 2;
 constexpr uint32_t VALUE_DIM_3 = 3;
-constexpr uint32_t VALUE_DIM_4 = 4;
 constexpr uint32_t KV_DIM_0 = 0;
 constexpr uint32_t KV_DIM_2 = 2;
 constexpr uint32_t KV_DIM_3 = 3;
@@ -118,7 +126,7 @@ static bool CheckEmptyTensorList(ContextParamsForPFATiling& contextKeyParams, in
 
 static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
     const string layoutStr, int64_t validBatchOfK) {
-    if (layoutStr == "BSH" || layoutStr == "BSH_BNSD" || layoutStr == "BSH_NBSD") { // check all H across batches and KVs are the same under BSH layout
+    if (layoutStr == "BSH") { // check all H across batches and KVs are the same under BSH layout
         auto standardKH = contextKeyParams.kTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
         auto standardVH = contextKeyParams.vTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
         int64_t tmpNKv = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : *contextKeyParams.headsNumber;
@@ -158,7 +166,7 @@ static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsFor
             }
             contextKeyParams.maxKVs = std::max(contextKeyParams.maxKVs, uint32_t(contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1)));
         }
-    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND" || layoutStr == "BNSD_NBSD") { // check N and D, respectively, are the same
+    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND") { // check N and D, respectively, are the same
         // across batches and KVs under BNSD/BNSD_BSND
         auto standardN = contextKeyParams.kTensorList[0]->GetStorageShape().GetDim(1);
         auto standardKD = contextKeyParams.kTensorList[0]->GetStorageShape().GetDim(KV_DIM_3);
@@ -409,7 +417,7 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
         (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_UINT8),
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), 
         "Invalid attention mask datatype(%s)! Only support BOOL, INT8 and UINT8",
-        v2::GetPfaDataTypeStr(context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType()).c_str()),
+        arch38::GetPfaDataTypeStr(context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType()).c_str()),
         return ge::GRAPH_FAILED);
     contextKeyParams.actualSequenceLengthQ = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     contextKeyParams.actualSequenceLengthKV = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
@@ -464,13 +472,13 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
     contextKeyParams.valueAntiquantMode = attrs->GetAttrPointer<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
     contextKeyParams.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
     contextKeyParams.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
     contextKeyParams.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
     contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
     contextKeyParams.workspaceSize = context->GetWorkspaceSizes(1);
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1 : 0;
@@ -610,8 +618,6 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
   ifaContext.valueSharedPrefix.desc = context.GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX);
   ifaContext.actualSharedPrefixLen.tensor = context.GetOptionalInputTensor(ACTUAL_SHARED_PREFIX_LEN_INDEX);
   ifaContext.actualSharedPrefixLen.desc = context.GetOptionalInputDesc(ACTUAL_SHARED_PREFIX_LEN_INDEX);
-  ifaContext.queryRopeInputShape = context.GetOptionalInputShape(QUERY_ROPE_INDEX);
-  ifaContext.keyRopeInputShape = context.GetOptionalInputShape(KEY_ROPE_INDEX);
 
   auto attrs = context.GetAttrs();
   OP_CHECK_IF(attrs == nullptr,
@@ -679,8 +685,6 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "Learnable sink only supports no-quantized GQA mode."),
                   return ge::GRAPH_FAILED);
 
-  ifaContext.transposeLayout = GetTransposeLayout(string(ifaContext.layOut));
-
   return ge::GRAPH_SUCCESS;
 }
 
@@ -690,13 +694,13 @@ static bool GetMaxWorkspaceFlag(gert::TilingContext& context) {
     return res;
 }
 
-ge::graphStatus TilingFusedInferAttentionScoreV2(gert::TilingContext *context) {
-    FusedInferAttentionScoreTilingV2 FIATilingV2(context);
-    auto ret = FIATilingV2.DoTiling(nullptr);
+ge::graphStatus TilingFusedInferAttentionScoreArch38(gert::TilingContext *context) {
+    FusedInferAttentionScoreTilingArch38 FIATilingArch38(context);
+    auto ret = FIATilingArch38.DoTiling(nullptr);
     return ret;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
+ge::graphStatus FusedInferAttentionScoreTilingArch38::DoOpTiling() {
     if (context_ == nullptr) {
         OP_LOGE("FusedInferAttentionScore", "tiling context is nullptr!");
         return ge::GRAPH_FAILED;
@@ -709,7 +713,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     auto tempOut = context_->GetOutputShape(ATTENTION_OUT_INDEX);
     auto tempLse = context_->GetOutputShape(SOFTMAX_LSE_INDEX);
     bool qOutEmptyTensor = false;
-    bool enablePA = context_->GetOptionalInputTensor(BLOCK_TABLE_INDEX) != nullptr;
     uint32_t queryD = 1U;
     uint32_t valueD = 1U;
     OP_CHECK_IF((tempQ == nullptr),
@@ -745,21 +748,13 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     if (tempKVN == 0U) {
         tempKVN = tempN;
     }
-    if (enablePA) {
-        size_t vDim = tempV->GetStorageShape().GetDimNum();
-        if (vDim == 3) {         // BBH, dim num: 3
-            valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
-        } else if (vDim == 5) {  // BND1BD0, dum num: 5
-            valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2) * tempV->GetStorageShape().GetDim(VALUE_DIM_4);
-        }
-    }
     const string inputLayoutStr = string(attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
     int64_t s = 0;
     int64_t b = tempQ->GetStorageShape().GetDim(QUERY_DIM_0);
     int64_t t = 0;
     bool lseFlag = *attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
     bool usingIFA = false;
-    if (inputLayoutStr == "BNSD" || inputLayoutStr == "BNSD_BSND" || inputLayoutStr == "BNSD_NBSD") {
+    if (inputLayoutStr == "BNSD" || inputLayoutStr == "BNSD_BSND") {
         s = tempQ->GetStorageShape().GetDim(QUERY_DIM_2);
     } else if (inputLayoutStr == "TND" || inputLayoutStr == "TND_NTD") {
         if (isMaxWorkspace) {
@@ -796,7 +791,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     } else {
         s = tempQ->GetStorageShape().GetDim(1);
     }
-    if (inputLayoutStr == "NSD") { // 当前已没有NSD, 回主线后在FIA tiling v2内删除
+    if (inputLayoutStr == "NSD") { // 当前已没有NSD, 回主线后在FIA tiling Arch38内删除
         b = 1;
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "input shape dim should be 3!"),
@@ -819,7 +814,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "The current layout is %s, attention out shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
                 tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2);
-        valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2);
+        valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2);
         if (inputLayoutStr == "TND") {
             OP_CHECK_IF(((queryD == valueD) && (tempQ->GetStorageShape() != tempOut->GetStorageShape())),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), 
@@ -875,7 +870,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "The current layout is %s, attention out shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
                 tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2) / tempN;
-        valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
+        valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
         OP_CHECK_IF(((queryD == valueD) && (tempQ->GetStorageShape() != tempOut->GetStorageShape())),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), 
                 "Layout is BSH and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
@@ -892,7 +887,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
                 tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_3);
-        valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_3);
+        valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_3);
         if (inputLayoutStr == "BNSD_BSND" || inputLayoutStr == "BSND_BNSD") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(0) != tempOut->GetStorageShape().GetDim(0)) ||
                 (tempQ->GetStorageShape().GetDim(1) != tempOut->GetStorageShape().GetDim(OUT_DIM_2)) ||
@@ -920,7 +915,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
                 tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2) / tempN;
-        valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
+        valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
         if (inputLayoutStr == "BSH_BNSD") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(QUERY_DIM_0) != tempOut->GetStorageShape().GetDim(0)) ||
                 (tempQ->GetStorageShape().GetDim(QUERY_DIM_1) != tempOut->GetStorageShape().GetDim(OUT_DIM_2)) ||
@@ -950,7 +945,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
                 tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_3);
-        valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_3);
+        valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_3);
         if (inputLayoutStr == "BSND_NBSD") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(0) != tempOut->GetStorageShape().GetDim(OUT_DIM_1)) ||
                 (tempQ->GetStorageShape().GetDim(QUERY_DIM_1) != tempOut->GetStorageShape().GetDim(OUT_DIM_2)) ||
@@ -1010,20 +1005,11 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
           OP_LOGE(context_->GetNodeName(), "Error occored while convert tilingContext to ifa context!");
           return ret;
         }
-        IFATilingV2 ifaTilingV2(context_);
-        ret = ifaTilingV2.DoSubOpTiling(ifaContext);
+        IFATilingArch38 ifaTilingArch38(context_);
+        ret = ifaTilingArch38.DoSubOpTiling(ifaContext);
         OP_CHECK_IF(ret == ge::GRAPH_FAILED,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
                     return ge::GRAPH_FAILED);
-        uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
-                                                static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
-                                                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType), ifaTilingV2.enableKVPrefix);
-        context_->SetTilingKey(tiling_key);
-        OP_LOGI(ifaContext.opName, "The new template tilingkey is %llu.", tiling_key);
-        OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.", 
-                static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
-                static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
-                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType), ifaTilingV2.enableKVPrefix);
         return ret;
     } else {
         // PFA tiling process        
@@ -1031,7 +1017,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         constexpr int64_t D_ALIGN_16 = 16;
 
         PromptFlashAttentionTilingData pfaTilingData;
-        PromptFlashAttentionTilingV2 pfa_tiling(context_);
+        PromptFlashAttentionTilingArch38 pfa_tiling(context_);
         ContextParamsForPFATiling contextParamsForPFATiling;
         PromptFlashAttentionCompileInfo tempCompileInfoPtr;
 
@@ -1120,7 +1106,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 }
             }
         }
-        if (ascendcPlatform.GetCurNpuArch() != NpuArch::DAV_3510) {
+        if (ascendcPlatform.GetCurNpuArch() != NpuArch::DAV_5102) {
             OP_CHECK_IF((((contextParamsForPFATiling.inputDataType == ge::DT_INT8) || (contextParamsForPFATiling.kDataType == ge::DT_INT8) ||
                 (contextParamsForPFATiling.outputDataType == ge::DT_INT8)) && (queryD % D_ALIGN_32 != 0)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "D(%u) of query should be 32 elements aligned when int8 is involved!", queryD),
@@ -1133,15 +1119,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OP_CHECK_IF(ret == ge::GRAPH_FAILED,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
                     return ge::GRAPH_FAILED);
-        uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
-                                                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
-                                                static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
-        context_->SetTilingKey(gen_tilingkey);
-        OP_LOGI(context_->GetNodeName(), "The new template tilingkey is %llu.", gen_tilingkey);
-        OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
-                static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
-                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
-        OP_LOGI(context_->GetNodeName(), "All the FIASTiling work is done.");
         return ret;
     }
 }

@@ -54,6 +54,7 @@ if(NOT BUILD_OPS_RTY_KERNEL)
     ../../common/op_host/arch32/fia_tiling_nonquant_mla.cpp
     ../../common/op_host/arch32/fia_tiling_nonquant.cpp
     ../../common/op_host/arch32/fia_tiling_empty_tensor.cpp
+    ../op_host/arch38/fused_infer_attention_score_tiling_arch38.cpp
     ../op_host/arch35/fused_infer_attention_score_tiling_v2.cpp
     ../op_host/arch32/fused_infer_attention_score_tiling_v3.cpp
     ../op_host/arch32/fused_infer_attention_score_tiling_info_parser.cpp
