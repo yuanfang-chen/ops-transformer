@@ -11,6 +11,7 @@
 #include "opdev/op_log.h"
 #include "opdev/op_dfx.h"
 #include "opdev/make_op_executor.h"
+#include <vector>
 #include "util/math_util.h"
 #include "grouped_matmul_swiglu_quant_utils.h"
 #include "grouped_matmul_swiglu_quant_v2.h"
@@ -22,6 +23,24 @@ namespace l0op {
 OP_TYPE_REGISTER(GroupedMatmulSwigluQuantV2);
 
 constexpr int64_t SWIGLU_SPLIT_SIZE = 64L;
+constexpr int64_t QUANT_MODE_MX = 2L;
+
+static aclnnStatus DataContiguous(const aclTensorList *&tensors, aclOpExecutor *executor)
+{
+    std::vector<const aclTensor *> tensorsVec;
+    const aclTensor *contiguousTensor = nullptr;
+    for (size_t i = 0; i < tensors->Size(); ++i) {
+        const aclTensor *tensor = (*tensors)[i];
+        contiguousTensor = l0op::Contiguous(tensor, executor);
+        if (contiguousTensor == nullptr) {
+            OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Contiguous tensor list failed.");
+            return ACLNN_ERR_INNER_NULLPTR;
+        }
+        tensorsVec.push_back(contiguousTensor);
+    }
+    tensors = executor->AllocTensorList(tensorsVec.data(), tensorsVec.size());
+    return ACLNN_SUCCESS;
+}
 
 const std::tuple<aclTensor *, aclTensor *> GroupedMatmulSwigluQuantV2(const aclTensor *x, const aclTensorList *weight,
                          const aclTensorList *weightScale,
@@ -37,21 +56,50 @@ const std::tuple<aclTensor *, aclTensor *> GroupedMatmulSwigluQuantV2(const aclT
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x is nullptr.");
         return std::tuple(nullptr, nullptr);
     }
-    int64_t m = xScale->GetViewShape().GetDim(0);
-    int64_t n = (*weightScale)[0]->GetViewShape().GetDim(1);
+    const aclTensor *xContiguous = x;
+    const aclTensorList *weightContiguous = weight;
+    const aclTensorList *weightScaleContiguous = weightScale;
+    const aclTensor *xScaleContiguous = xScale;
+
+    bool isDav3510 = (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510);
+    if (isDav3510) {
+        xContiguous = l0op::Contiguous(x, executor);
+        if (xContiguous == nullptr) {
+            OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Contiguous x failed.");
+            return std::tuple(nullptr, nullptr);
+        }
+
+        if (DataContiguous(weightContiguous, executor) != ACLNN_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Contiguous weight failed.");
+            return std::tuple(nullptr, nullptr);
+        }
+        if (DataContiguous(weightScaleContiguous, executor) != ACLNN_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Contiguous weightScale failed.");
+            return std::tuple(nullptr, nullptr);
+        }
+
+        xScaleContiguous = l0op::Contiguous(xScale, executor);
+        if (xScaleContiguous == nullptr) {
+            OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Contiguous xScale failed.");
+            return std::tuple(nullptr, nullptr);
+        }
+    }
+
+    int64_t m = xScaleContiguous->GetViewShape().GetDim(0);
+    int64_t n = (*weightScaleContiguous)[0]->GetViewShape().GetDim(1);
     int64_t nAfterHalve = static_cast<int64_t>(n / 2);
     gert::Shape outShape({m, nAfterHalve});
     gert::Shape scaleOutShape({m});
     auto out = executor->AllocTensor(outShape, DataType::DT_INT8, ge::FORMAT_ND);
     auto scaleOut = executor->AllocTensor(scaleOutShape, DataType::DT_FLOAT, ge::FORMAT_ND);
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        n = transposeWeight ? (*weightScale)[0]->GetViewShape().GetDim(1) : // 转置情况下weightScale的第1维是n
-                            (*weightScale)[0]->GetViewShape().GetDim(2); // 非转置情况下weightScale的第2维是n
+        n = transposeWeight ? (*weightScaleContiguous)[0]->GetViewShape().GetDim(1) : // 转置情况下weightScale的第1维是n
+                            (*weightScaleContiguous)[0]->GetViewShape().GetDim(2); // 非转置情况下weightScale的第2维是n
         nAfterHalve = static_cast<int64_t>(n / 2); // outShape需要为[M, N / 2]
         gert::Shape outShapeV2({m, nAfterHalve});
         gert::Shape scaleOutShapeV2;
         // 当quantMode等于2时，out_scale 的形状为三维
-        if (quantMode == 2) {
+        if (quantMode == QUANT_MODE_MX) {
             int64_t nAfterSplit = static_cast<int64_t>(Ops::Base::CeilDiv(nAfterHalve, SWIGLU_SPLIT_SIZE));
             scaleOutShapeV2 = gert::Shape({m, nAfterSplit, 2});
         } else {
@@ -59,11 +107,12 @@ const std::tuple<aclTensor *, aclTensor *> GroupedMatmulSwigluQuantV2(const aclT
         }
         out = executor->AllocTensor(outShapeV2, static_cast<ge::DataType>(quantDtype), ge::FORMAT_ND);
         // 当quantMode等于2时，outScale的DataType为FLOAT8_E8M0
-        scaleOut = quantMode == 2 ? executor->AllocTensor(scaleOutShapeV2, DataType::DT_FLOAT8_E8M0, ge::FORMAT_ND) :
+        scaleOut = quantMode == QUANT_MODE_MX ? executor->AllocTensor(scaleOutShapeV2, DataType::DT_FLOAT8_E8M0, ge::FORMAT_ND) :
                                     executor->AllocTensor(scaleOutShapeV2, DataType::DT_FLOAT, ge::FORMAT_ND);
     }
     auto ret = INFER_SHAPE(GroupedMatmulSwigluQuantV2,
-                    OP_INPUT(x, xScale, groupList, weight, weightScale, weightAssistanceMatrix, bias, smoothScale),
+                    OP_INPUT(xContiguous, xScaleContiguous, groupList, weightContiguous, weightScaleContiguous,
+                             weightAssistanceMatrix, bias, smoothScale),
                     OP_OUTPUT(out, scaleOut), OP_ATTR(dequantMode, dequantDtype, quantMode, quantDtype, transposeWeight,
                     groupListType, tuningConfigOptional));
     if (ret != ACLNN_SUCCESS) {
@@ -73,7 +122,8 @@ const std::tuple<aclTensor *, aclTensor *> GroupedMatmulSwigluQuantV2(const aclT
 
     ret = ADD_TO_LAUNCHER_LIST_AICORE(
         GroupedMatmulSwigluQuantV2,
-        OP_INPUT(x, xScale, groupList, weight, weightScale, weightAssistanceMatrix, bias, smoothScale),
+        OP_INPUT(xContiguous, xScaleContiguous, groupList, weightContiguous, weightScaleContiguous,
+                 weightAssistanceMatrix, bias, smoothScale),
         OP_OUTPUT(out, scaleOut), OP_ATTR(dequantMode, dequantDtype, quantMode, quantDtype, transposeWeight,
                         groupListType, tuningConfigOptional));
     if (ret != ACLNN_SUCCESS) {
