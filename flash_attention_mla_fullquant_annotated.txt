@@ -1,0 +1,648 @@
+================================================================================
+      MLA全量化Flash Attention推理内核代码注释文档
+================================================================================
+
+文件列表:
+1. flash_attention_score_kernel_infer_mla_fullquant.h     - 推理内核主入口
+2. flash_attention_score_block_vec_infer_mla_fullquant.h  - Vector引擎计算块
+3. flash_attention_score_block_cube_mla_fullquant.h        - Cube引擎计算块
+
+================================================================================
+一、整体架构概述
+================================================================================
+
+1.1 三层架构关系
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                    Kernel (推理入口)                                  │
+    │         flash_attention_score_kernel_infer_mla_fullquant.h            │
+    │                                                                     │
+    │  功能: 协调Cube和Vector引擎、流水线调度、多核切分                    │
+    └─────────────────────────────┬───────────────────────────────────────┘
+                                │
+            ┌───────────────────┴───────────────────┐
+            ▼                                       ▼
+    ┌───────────────────────┐             ┌───────────────────────┐
+    │   Cube计算块          │             │   Vector计算块        │
+    │ flash_attention_score_ │             │ flash_attention_score_ │
+    │ block_cube_mla_       │             │ block_vec_infer_mla_   │
+    │ fullquant.h           │             │ fullquant.h            │
+    │                       │             │                       │
+    │ BMM1: Q * K^T        │             │ Vec1: Softmax         │
+    │ BMM2: P * V          │             │ Vec2: Post-Quant      │
+    │ (矩阵乘法)            │             │ (向量运算)             │
+    └───────────────────────┘             └───────────────────────┘
+
+1.2 Flash Attention计算流程
+--------------------------------------------------------------------------------
+
+    输入: Q (Query), K (Key), V (Value)
+    
+    ┌───────────────────────────────────────────────────────────────────┐
+    │                                                               │
+    │  Step 1: BMM1 (Cube引擎)                                      │
+    │  ┌─────────────────┐                                         │
+    │  │  Q [B,N1,S1,D]  │                                         │
+    │  │       ×          │                                         │
+    │  │  K [B,N2,S2,D]  │                                         │
+    │  │       ↓          │                                         │
+    │  │  S [B,N1,S1,S2] │  (注意力分数矩阵)                       │
+    │  └─────────────────┘                                         │
+    │                                                               │
+    │  Step 2: Vec1 (Vector引擎) - Softmax                          │
+    │  ┌─────────────────┐                                         │
+    │  │  S [B,N1,S1,S2] │  ──►  P = softmax(S)  (行归一化)     │
+    │  │       ↓          │                                         │
+    │  │  P [B,N1,S1,S2] │                                         │
+    │  └─────────────────┘                                         │
+    │                                                               │
+    │  Step 3: BMM2 (Cube引擎)                                      │
+    │  ┌─────────────────┐                                         │
+    │  │  P [B,N1,S1,S2] │                                         │
+    │  │       ×          │                                         │
+    │  │  V [B,N2,S2,Dv] │                                         │
+    │  │       ↓          │                                         │
+    │  │  O [B,N1,S1,Dv] │  (输出)                                │
+    │  └─────────────────┘                                         │
+    │                                                               │
+    │  Step 4: Vec2 (Vector引擎) - 后量化                           │
+    │  ┌─────────────────┐                                         │
+    │  │  O [B,N1,S1,Dv] │  ──►  int8/uint8 (量化输出)          │
+    │  └─────────────────┘                                         │
+    │                                                               │
+    └───────────────────────────────────────────────────────────────────┘
+
+1.3 MLA (Multi-Latent Attention) 特殊处理
+--------------------------------------------------------------------------------
+
+    MLA使用低秩分解来减少KV缓存:
+    - 标准的KV: [B, N, S, D]
+    - MLA的KV: 分解为Nope + Rope两部分
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │                 MLA分解示意图                              │
+    │                                                             │
+    │   K_std [B,N,S,D]  ──►  Nope [B,N,S,Dv] + Rope [B,N,S,D-Dv]│
+    │                            ↓                  ↓              │
+    │                      Q_nope [B,N1,S,Dv]     Q_rope [B,N1,S,D-Dv]│
+    │                            ×                  ×              │
+    │                          Nope              Rope             │
+    │                            │                  │              │
+    │                            └────────┬─────────┘              │
+    │                                     ↓                       │
+    │                              S_final                        │
+    └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+二、Kernel层详解 (flash_attention_score_kernel_infer_mla_fullquant.h)
+================================================================================
+
+2.1 类定义
+--------------------------------------------------------------------------------
+
+    template <typename CubeBlockType, typename VecBlockType>
+    class FlashAttentionScoreKernelInferMlaFullquant : 
+        public FlashAttentionScoreKernelBaseFullquant<...>
+    
+    模板参数:
+    - CubeBlockType: Cube引擎计算块类型 (FABlockCubeMlaFullquant)
+    - VecBlockType:  Vector引擎计算块类型 (FABlockVecInferMlaFullquant)
+
+    关键成员变量 POST_QUANT:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T,    │
+    │    half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value │
+    │    && !IsSameType<OUTPUT_T, float>::value;                 │
+    │                                                             │
+    │ 作用: 判断输出是否需要后量化                                 │
+    │       - FP16/BF16/FP32: 不需要后量化 → POST_QUANT = false   │
+    │       - INT8/UINT8: 需要后量化 → POST_QUANT = true         │
+    └─────────────────────────────────────────────────────────────┘
+
+2.2 InitUniqueConstInfo() - 初始化常量信息
+--------------------------------------------------------------------------------
+
+    功能: 从sharedParams复制配置到constInfo
+    
+    主要配置项:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 1. Flash Decode配置 (isFd=true时)                        │
+    │    - splitKVNum: KV分块数量                               │
+    │    - sInnerLoopSize: 内层循环大小 = ceil(s2Size/splitKVNum)│
+    │                                                             │
+    │ 2. 后量化配置 (POST_QUANT=true时)                          │
+    │    - isPostQuantPerChnl: 是否按通道后量化                   │
+    │    - isPostQuantBF16: 输出是否转BF16                       │
+    │                                                             │
+    │ 3. 注意力通用配置                                          │
+    │    - isRowInvalid: 是否有无效行需要mask                     │
+    │    - headNumRatio: Q的head数 / KV的head数 (GQA支持)       │
+    │    - isGqa: 是否使用Group Query Attention                  │
+    │    - isKvContinuous: KV是否连续存储                         │
+    │    - actualSeqLenSize/KVSize: 序列长度数组大小              │
+    │                                                             │
+    │ 4. Page Attention配置 (isPa=true时)                        │
+    │    - blockTableDim2: 块表第二维大小                        │
+    │    - blockSize: 块大小 (通常128)                          │
+    │    - paLayoutType: PA布局类型                             │
+    │                                                             │
+    │ 5. MLA矩阵维度预计算                                      │
+    │    - n2GD = n2G * dSize: N2与D的乘积                     │
+    │    - gDR = gSize * dSizeRope: 全局与Rope维度乘积         │
+    │    - n2GDR = n2Size * gDR: 综合维度                      │
+    └─────────────────────────────────────────────────────────────┘
+
+2.3 ProcessMainLoop() - 主计算循环 (核心)
+--------------------------------------------------------------------------------
+
+    整体结构: 三层循环 + 流水线执行
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ for (bnIdx = bnStartIdx; bnIdx < bnEndIdx; ++bnIdx) {    │  外层: Batch-N维度
+    │     for (gS1Index = gS1StartIdx; gS1Index < tempGS1End│  中层: GS1分块索引
+    │         ++gS1Index) {                                   │
+    │         for (s2LoopCount = 0; s2LoopCount <= s2LoopLimit│  内层: S2循环计数
+    │             ++s2LoopCount) {                             │
+    │             // 流水线执行 (双缓冲)                         │
+    │         }                                                 │
+    │     }                                                     │
+    │ }                                                         │
+    └─────────────────────────────────────────────────────────────┘
+
+    流水线执行时序:
+    
+    taskId:   0     1     2     3     4     5     6
+    ─────────────────────────────────────────────────────
+    BMM1:     ■─────■─────■─────■─────■─────■─────■
+               │
+    Vec1:          □─────□─────□─────□─────□─────□─────
+               │
+    BMM2:              ●─────●─────●─────●─────●─────●
+               │
+    Vec2:                  ○─────○─────○─────○─────○─────○
+    
+    说明:
+    - ■ = BMM1 (Cube引擎): Q × K^T
+    - □ = Vec1 (Vector引擎): Softmax归一化
+    - ● = BMM2 (Cube引擎): P × V
+    - ○ = Vec2 (Vector引擎): 后量化处理
+    
+    环形缓冲: 使用 runInfo[4] 实现双缓冲，taskId & 3 实现取余
+
+    多核切分:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 非Flash Decode模式:                                        │
+    │   actualCoreNums = coreNum                               │
+    │   切分维度: [batch * n2 * headNumRatio]                  │
+    │                                                             │
+    │ Flash Decode模式:                                         │
+    │   actualCoreNums = bSize * n2Size * splitKVNum           │
+    │   切分维度: [batch * N2 * SplitKV]                       │
+    └─────────────────────────────────────────────────────────────┘
+
+2.4 Process() - 主入口函数
+--------------------------------------------------------------------------------
+
+    执行流程:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │  1. SyncAll<false>()                                    │
+    │     - 仅在首次调用时执行 (needInit=true)                   │
+    │     - 确保多核数据一致性                                   │
+    │                                                             │
+    │  2. ProcessMainLoop()                                    │
+    │     - 执行主要注意力计算流水线                             │
+    │                                                             │
+    │  3. FlashDecode处理 (isFd=true时)                        │
+    │     - SyncAll(): 等待主循环完成                           │
+    │     - InitFDBuffers(): 初始化FlashDecode缓冲区            │
+    │     - FlashDecodeCompute(): 执行FlashDecode计算          │
+    └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+三、Vector计算块详解 (flash_attention_score_block_vec_infer_mla_fullquant.h)
+================================================================================
+
+3.1 类定义与模板参数
+--------------------------------------------------------------------------------
+
+    TEMPLATES_DEF
+    class FABlockVecInferMlaFullquant : public FABlockVecBaseFullquant<...>
+    
+    编译期常量:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ static constexpr uint32_t bufferSizeByte32K = 32768;       │  UB缓冲区大小
+    │ static constexpr uint32_t gSplitMax = 16;                  │  G维度最大切分数
+    │ static constexpr uint32_t preloadTimes = 3;               │  预加载次数
+    │ static constexpr bool isFp8 = ...;                       │  是否FP8输入
+    │ static constexpr bool isMlaFullQuant = isFp8 && hasRope; │  MLA全量化标志
+    └─────────────────────────────────────────────────────────────┘
+
+3.2 GM变量 (Global Memory)
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ GlobalTensor<float> softmaxLseGm;                        │  LogSumExp输出
+    │                                                             │
+    │ FD相关 (Flash Decode模式):                                 │
+    │ FDGmType accumOutGm;          // 累加输出                     │
+    │ FDGmType softmaxFDMaxGm;     // FlashDecode的max值          │
+    │ FDGmType softmaxFDSumGm;    // FlashDecode的sum值         │
+    │                                                             │
+    │ 后量化相关 (POST_QUANT模式):                               │
+    │ postQuantGmType postQuantScaleGm;   // 反量化scale          │
+    │ postQuantGmType postQuantOffsetGm;  // 反量化offset         │
+    │ postQuantBf16GmType postQuantScaleBf16Gm;                 │
+    │ postQuantBf16GmType postQuantOffsetBf16Gm;                 │
+    └─────────────────────────────────────────────────────────────┘
+
+3.3 UB队列 (Unified Buffer Queues)
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ TQue<QuePosition::VECOUT, 1> softmaxLseQueue;             │  LSE输出队列
+    │ TQue<QuePosition::VECOUT, 1> FDResOutputQue;           │  FD结果输出
+    │                                                             │
+    │ TQue<QuePosition::VECIN, 1> accumOutInputQue;            │  累加输入
+    │ TQue<QuePosition::VECIN, 1> softmaxMaxInputQue;         │  Softmax Max输入
+    │ TQue<QuePosition::VECIN, 1> softmaxSumInputQue;         │  Softmax Sum输入
+    │ TQue<QuePosition::VECIN, 1> postQuantScaleQue;         │  后量化Scale
+    │ TQue<QuePosition::VECIN, 1> postQuantOffsetQue;       │  后量化Offset
+    │ TQue<QuePosition::VECIN, 1> sinkQue;                  │  Attention Sink
+    └─────────────────────────────────────────────────────────────┘
+
+3.4 InitCubeVecSharedParams() - 初始化共享参数
+--------------------------------------------------------------------------------
+
+    功能: 从tilingData复制参数到sharedParams
+    
+    参数映射:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 输入维度:                                                  │
+    │   bSize, t1Size, t2Size, n2Size, gSize, s1Size, s2Size  │
+    │   dSize, dSizeV, dSizeRope                               │
+    │                                                             │
+    │ 滑动窗口:                                                  │
+    │   preTokens, nextTokens (稀疏注意力窗口)                    │
+    │                                                             │
+    │ 稀疏配置:                                                  │
+    │   s1SparseValidSize, s2SparseValidSize                    │
+    │                                                             │
+    │ 多核切分:                                                  │
+    │   s1OuterSize, coreNum                                   │
+    │   multiCoreInnerOffset, multiCoreInnerLimit              │
+    │   bnStartIdx, bnEndIdx                                  │
+    │                                                             │
+    │ Page Attention:                                           │
+    │   blockTableDim2, blockSize, paLayoutType, paBlockNumSum  │
+    └─────────────────────────────────────────────────────────────┘
+
+3.5 FlashDecodeCompute() - Flash解码计算
+--------------------------------------------------------------------------------
+
+    功能: 处理KV Cache的Flash解码，将分块结果合并
+    
+    计算流程:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 1. 计算当前AIV核心的batch和n2索引                            │
+    │    bIdx = aivIdx / n2Size                                 │
+    │    n2Idx = aivIdx % n2Size                               │
+    │                                                             │
+    │ 2. 获取实际KV序列长度                                       │
+    │    - 从actualSeqKvlenAddr读取                             │
+    │    - 处理左填充和右填充                                     │
+    │                                                             │
+    │ 3. 计算合并循环次数                                        │
+    │    actualCombineLoopSize = ceil(actualSeqLen / sInnerLoopSize)│
+    │                                                             │
+    │ 4. 合并SplitKV结果                                        │
+    │    CombineSplitKVRes(...)                                 │
+    └─────────────────────────────────────────────────────────────┘
+
+3.6 CombineSplitKVRes() - 合并分块KV结果
+--------------------------------------------------------------------------------
+
+    功能: 将多个SplitKV分块的结果合并
+    
+    处理流程:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 计算G维度切分大小:                                         │
+    │   gSplitSize = min(32KB/(splitKVNum*32B), 32KB/sizeof(float))│
+    │   gSplitSize = min(gSplitSize, gMax)                       │
+    │                                                             │
+    │ 循环处理每个G分块:                                          │
+    │   for (i = 0; i < loopCount; i++) {                      │
+    │       CopyLseIn(...)        // 拷贝LSE到UB                  │
+    │       ComputeScaleValue(...) // 计算scale值                 │
+    │       ReduceFinalRes(...)   // 归约最终结果               │
+    │       CopyFinalResOut(...)  // 拷贝结果到GM               │
+    │   }                                                        │
+    └─────────────────────────────────────────────────────────────┘
+
+3.7 PostQuant() - 后量化处理
+--------------------------------------------------------------------------------
+
+    功能: 将浮点输出量化到INT8/UINT8
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ Per-Channel量化:                                          │
+    │   for (每个G分块) {                                       │
+    │       // 拷贝scale和offset                                 │
+    │       CopyScaleIn(postQuantScaleQue)                       │
+    │       CopyOffsetIn(postQuantOffsetQue)                    │
+    │       // 执行量化                                          │
+    │       PostQuantPerChnlImpl(...)                          │
+    │   }                                                        │
+    │                                                             │
+    │ Per-Tensor量化:                                           │
+    │   PostQuantPerTensorImpl(                                 │
+    │       attenOut, vec2ResUb,                                 │
+    │       postQuantScaleValue, postQuantOffsetValue           │
+    │   )                                                        │
+    └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+四、Cube计算块详解 (flash_attention_score_block_cube_mla_fullquant.h)
+================================================================================
+
+4.1 类定义与缓冲区策略
+--------------------------------------------------------------------------------
+
+    TEMPLATES_DEF
+    class FABlockCubeMlaFullquant
+    
+    缓冲区选择策略:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ Q的L1缓冲区选择:                                           │
+    │   - float类型或dBaseSize>256: 单缓冲                      │
+    │   - 其他: 双缓冲                                          │
+    │                                                             │
+    │ K/V的L1缓冲区选择:                                        │
+    │   - FP8且s2BaseSize==128且dBaseSize==576: 4缓冲           │
+    │   - 非FP8且s2BaseSize==256且dBaseSize>128: 单缓冲         │
+    │   - 其他: 双缓冲                                          │
+    │                                                             │
+    │ L0A/L0B选择:                                              │
+    │   - float: 单缓冲                                         │
+    │   - 其他: 双缓冲                                          │
+    │                                                             │
+    │ L0C选择:                                                   │
+    │   - 满足特定内存条件: 4缓冲                                │
+    │   - 其他: 双缓冲                                          │
+    └─────────────────────────────────────────────────────────────┘
+
+4.2 GM变量定义
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ Query/Key/Value张量 (根据layout选择格式):                   │
+    │   FaGmTensor<INPUT_T, Q_FORMAT> queryGm;                  │
+    │   FaGmTensor<INPUT_T, KV_FORMAT> keyGm;                  │
+    │   FaGmTensor<INPUT_T, KV_FORMAT> valueGm;                │
+    │                                                             │
+    │ Rope相关:                                                  │
+    │   FaGmTensor<ROPE_T, Q_FORMAT> queryRopeGm;              │
+    │   FaGmTensor<ROPE_T, KV_FORMAT> keyRopeGm;               │
+    │   // ROPE_T = bfloat16_t (MLA全量化)                     │
+    │   // ROPE_T = INPUT_T (其他情况)                         │
+    │                                                             │
+    │ 前缀缓存:                                                  │
+    │   FaGmTensor<INPUT_T, KV_FORMAT> keySharedPrefixGm;      │
+    │   FaGmTensor<INPUT_T, KV_FORMAT> valueSharedPrefixGm;    │
+    │                                                             │
+    │ 反量化Scale:                                              │
+    │   GlobalTensor<float> deScaleQGm;                        │
+    │   GlobalTensor<float> deScaleKGm;                        │
+    │   GlobalTensor<float> deScaleVGm;                        │
+    │                                                             │
+    │ Page Attention:                                            │
+    │   GlobalTensor<int32_t> blockTableGm;                    │
+    └─────────────────────────────────────────────────────────────┘
+
+4.3 IterateBmm1MLAFullQuant() - MLA优化的BMM1
+--------------------------------------------------------------------------------
+
+    功能: 执行 Q × K^T 计算，包含MLA特有的Nope+Rope分解
+    
+    计算流程:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ Step 1: 加载左矩阵Q (仅s2LoopCount==0时)                    │
+    │   - 从GM加载Nope部分到L1                                  │
+    │   - 从GM加载Rope部分到L1                                  │
+    │   - 设置MTE2同步事件                                        │
+    │                                                             │
+    │ Step 2: 加载右矩阵K                                       │
+    │   - 从GM/PA加载Nope部分到L1                               │
+    │   - 从GM/PA加载Rope部分到L1                               │
+    │   - 设置MTE2同步事件                                        │
+    │                                                             │
+    │ Step 3: 执行Matmul                                        │
+    │   - MatmulK: Nope × Nope                                  │
+    │   - MatmulFull: Rope × Rope (累加到Nope结果)              │
+    │   - 输出到L0C                                              │
+    │                                                             │
+    │ Step 4: Fixpipe搬运                                       │
+    │   - 从L0C搬运到UB                                        │
+    │   - 格式转换: ND → NZ                                     │
+    └─────────────────────────────────────────────────────────────┘
+    
+    MLA特有处理:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 输入分解:                                                   │
+    │   Q = [B, N1, S1, D_v] + [B, N1, S1, D_rope]            │
+    │   K = [B, N2, S2, D_v] + [B, N2, S2, D_rope]            │
+    │                                                             │
+    │ 计算分解:                                                   │
+    │   S = Q_nope × K_nope^T + Q_rope × K_rope^T              │
+    │           (MatmulK)          (MatmulFull)                    │
+    │                                                             │
+    │ 内存布局:                                                   │
+    │   L1QBuffer = Q_nope + Q_rope (拼接)                      │
+    │   L1KBuffer = K_nope + K_rope (拼接)                      │
+    └─────────────────────────────────────────────────────────────┘
+
+4.4 IterateBmm2MLAFullQuant() - MLA优化的BMM2
+--------------------------------------------------------------------------------
+
+    功能: 执行 P × V 计算
+    
+    计算流程:
+    
+    ┌─────────────────────────────────────────────────────────────┐
+    │ Step 1: 等待L1A可用                                     │
+    │   - inputBuf.Get() 获取L1A                             │
+    │   - WaitCrossCore() 跨核同步                             │
+    │                                                             │
+    │ Step 2: 准备L1B和L0C                                     │
+    │   - l1KBuffers.GetReused() 复用K缓冲区                  │
+    │   - mmL0CBuffers.Get() 获取L0C                        │
+    │                                                             │
+    │ Step 3: 执行Matmul                                       │
+    │   - MatmulN: P × V                                      │
+    │   - 输出到L0C                                              │
+    │                                                             │
+    │ Step 4: Fixpipe搬运                                       │
+    │   - 从L0C搬运到UB或GM                                   │
+    │   - bmm2Write2Ub决定输出位置                              │
+    └─────────────────────────────────────────────────────────────┘
+
+4.5 内存层次结构
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ GM (Global Memory) - 片外内存                            │
+    │   ├── Q/K/V GmTensors                                   │
+    │   ├── Rope GmTensors                                    │
+    │   └── BlockTable (PA)                                    │
+    │           │                                               │
+    │           ▼ DMA Copy                                      │
+    │ L1 (Local Memory) - 矩阵乘法输入                         │
+    │   ├── l1QBuffers: Q矩阵                                 │
+    │   ├── l1KBuffers: K矩阵                                 │
+    │   └── l1VBuffers: V矩阵                                 │
+    │           │                                               │
+    │           ▼ DMA Copy                                      │
+    │ L0A/L0B (Matrix Multiply Local)                         │
+    │           │                                               │
+    │           ▼ Matrix Multiply                               │
+    │ L0C (Matrix Multiply Output)                             │
+    │           │                                               │
+    │           ▼ Fixpipe                                       │
+    │ UB (Unified Buffer)                                     │
+    │   ├── bmm1Buffers: Q×K^T结果                            │
+    │   └── bmm2Buffers: P×V结果                              │
+    │           │                                               │
+    │           ▼ Vector Ops                                   │
+    │ VECOUT                                                      │
+    └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+五、关键数据结构
+================================================================================
+
+5.1 RunInfo (运行信息)
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ struct RunInfo {                                         │
+    │     int64_t boIdx;      // Batch外层索引                   │
+    │     int64_t n2oIdx;    // N2外层索引                      │
+    │     int64_t goIdx;     // G外层索引                       │
+    │     int64_t s1oIdx;    // S1外层索引                      │
+    │     int64_t s1SizeAcc; // S1累计大小                      │
+    │     int64_t s2StartIdx;    // S2起始索引                   │
+    │     int64_t s2LoopCount; // S2循环计数                    │
+    │     int64_t s2LoopLimit;  // S2循环上限                   │
+    │     // ... 其他运行时参数                                 │
+    │ };                                                       │
+    └─────────────────────────────────────────────────────────────┘
+
+5.2 ConstInfo (常量信息)
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │ struct ConstInfo {                                       │
+    │     // 维度大小                                          │
+    │     uint32_t bSize, n2Size, gSize;                      │
+    │     uint32_t s1Size, s2Size, dSize;                    │
+    │     uint32_t dSizeV, dSizeRope;                        │
+    │     // MLA维度                                           │
+    │     uint32_t n2GD, gDR, n2GDR;                        │
+    │     uint32_t mm1RopeKa, mm1Ka;                        │
+    │     // Flash Decode                                      │
+    │     uint32_t splitKVNum, sInnerLoopSize;               │
+    │     // 标志位                                            │
+    │     bool isSoftmaxLseEnable;                           │
+    │     bool isPostQuantPerChnl;                            │
+    │     // ... 其他常量                                      │
+    │ };                                                      │
+    └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+六、执行流程图
+================================================================================
+
+6.1 完整推理流程
+--------------------------------------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                        初始化阶段                                 │
+    ├─────────────────────────────────────────────────────────────────────┤
+    │ 1. Kernel::InitUniqueConstInfo()                                   │
+    │    - 复制sharedParams到constInfo                                  │
+    │    - 预计算MLA维度参数                                              │
+    │                                                                     │
+    │ 2. CubeBlock::InitCubeBlock()                                      │
+    │    - 设置GM缓冲区                                                   │
+    │    - 初始化L1/L0A/L0B/L0C缓冲区                                     │
+    │                                                                     │
+    │ 3. VecBlock::InitCubeVecSharedParams()                            │
+    │    - 复制tiling参数到sharedParams                                   │
+    │    - 初始化UB队列                                                   │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                        计算阶段                                     │
+    ├─────────────────────────────────────────────────────────────────────┤
+    │ for (each core) {                                                │
+    │     for (bnIdx) {              // Batch-N外层循环                   │
+    │         ComputeParamBatch(...)    // 计算批次参数                   │
+    │         ComputeS1LoopInfo(...)    // 计算S1循环信息                 │
+    │                                                                     │
+    │         for (gS1Index) {         // GS1分块循环                     │
+    │             ComputeParamS1(...)     // 计算S1参数                     │
+    │             ComputeS2LoopInfo(...)  // 计算S2参数                     │
+    │                                                                     │
+    │             for (s2LoopCount) {   // S2内层循环                     │
+    │                 // 流水线执行                                         │
+    │                 BMM1(Cube)    // Q × K^T                           │
+    │                 Vec1(Vector)  // Softmax                            │
+    │                 BMM2(Cube)    // P × V                              │
+    │                 Vec2(Vector)  // Post-Quant                         │
+    │             }                                                        │
+    │         }                                                          │
+    │     }                                                              │
+    │                                                                     │
+    │     if (isFd) {                                                   │
+    │         FlashDecodeCompute(...)  // Flash解码合并                   │
+    │     }                                                              │
+    │ }                                                                  │
+    └─────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+七、关键公式
+================================================================================
+
+7.1 MLA矩阵分解
+--------------------------------------------------------------------------------
+    K_v = Nope (维度: [B, N, S, D_v])
+    K_r = Rope (维度: [B, N, S, D - D_v])
+    
+    S = Q_v × K_v^T + Q_r × K_r^T
+
+7.2 Softmax计算
+--------------------------------------------------------------------------------
+    P_ij = exp(S_ij - rowMax) / Σ exp(S_ik - rowMax)
+
+7.3 LogSumExp
+--------------------------------------------------------------------------------
+    LSE_i = log(Σ exp(S_ij - rowMax_i))
+    其中 rowMax_i = max_j S_ij
+
+7.4 后量化
+--------------------------------------------------------------------------------
+    // Per-Tensor
+    Y_quant = round(Y_float / scale + offset)
+    
+    // Per-Channel
+    Y_quant[c] = round(Y_float[c] / scale[c] + offset[c])
+
+================================================================================
+                              文档结束
+================================================================================
