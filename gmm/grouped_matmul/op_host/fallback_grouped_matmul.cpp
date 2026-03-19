@@ -362,6 +362,12 @@ static graphStatus GroupedMatmulExecuteFunc(OpExecuteContext* host_api_ctx)
   }
   auto aclTensorListPerTokenScale = aclCreateTensorList(geTensorVectorPerTokenScale.data(),
                                                         geTensorVectorPerTokenScale.size());
+  if(perTokenScale == nullptr) {
+    OP_LOGE("aclnnfallback GroupedMatmulExecuteFunc perTokenScale is nullptr geTensorVectorPerTokenScale.data():%p, geTensorVectorPerTokenScale.size():%lu", geTensorVectorPerTokenScale.data(), geTensorVectorPerTokenScale.size());
+    aclTensorListPerTokenScale = nullptr;
+  } else {
+    OP_LOGE("aclnnfallback GroupedMatmulExecuteFunc perTokenScale not nullptr geTensorVectorPerTokenScale.data():%p, geTensorVectorPerTokenScale.size():%lu", geTensorVectorPerTokenScale.data(), geTensorVectorPerTokenScale.size());
+  }
 
   std::vector<const gert::Tensor*> geTensorVectorY;
   PrepareOutputTensorVector(host_api_ctx, geTensorVectorY, INDEX_GMM_OUTPUT_Y, numGeWeight, *splitItemGe);
