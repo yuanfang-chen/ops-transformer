@@ -11,122 +11,89 @@
 # ----------------------------------------------------------------------------
 __input__ = {
         "kernel": {
-            "grouped_matmul": "grouped_matmul_inputs"
+            "grouped_matmul_finalize_routing": "grouped_matmul_finalize_routing_inputs"
         }
 }
 
 from typing import List
-from ml_dtypes import bfloat16
 import numpy as np
+from ml_dtypes import bfloat16
+import torch
 import struct
-import random
 
-def grouped_matmul_inputs(x, weight, bias, scale, offset, antiquant_scale, antiquant_offset,
-                          group_list_ori, per_token_scale, split_item: int = 0,
-                          dtype:int = 0, transpose_weight:bool = False, transpose_x:bool = False,
-                          group_type:int = -1, group_list_type:int = 0, act_type:int = 0,
-                          tuning_config:List[int] = [0], **kwargs):
-    print("#########x", x, len(x), type(x))
-
-    if len(scale[0]) != 0:
-        input_deq_scale = scale[0]
-    else:
-        input_deq_scale = None
+def grouped_matmul_finalize_routing_inputs(x, w, scale, bias, pertoken_scale, group_list_ori, shared_input, logit, row_index,
+                                           offset, dtype: int = 0, shared_input_weight: float = 1.0,
+                                           shared_input_offset: int = 0, transpose_x: bool = False,
+                                           transpose_w: bool = False, output_bs: int = 0, group_list_type: int = 1,
+                                           tuning_config: List[int] = [0], **kwargs):
     
-    if len(per_token_scale) == 0
-        per_token_scale = None
-
-
-
+ 
     x1 = x
-    x2 = weight
-    input_deq_scale = scale
+    x2 = w
     group_list_shape = group_list_ori
-    pertoken_scale = per_token_scale
-    output_dtypes = kwargs['output_dtypes']
-    out_dtype = output_dtypes[0]
-    testcase_name = kwargs['testcase_name']
+    row_index_test = []
+    for i in range(len(row_index) // group_list_shape.shape[0]):
+        row_index_test.extend([i] * group_list_shape.shape[0])
+    remain = len(row_index) % group_list_shape.shape[0]
+    if remain:
+        row_index_test.extend([0] * remain)
+    row_index_test = np.array(row_index_test, dtype=np.int64)
+    row_index = row_index_test
 
-    # 重新生成float4_e2m1或float4_e2m1的x1和x2数据
+    # save input 
+    x1_np = x1.view(np.uint8)
+    x1_torch = torch.tensor(x1_np, dtype=torch.uint8)
+    x2_np = x2.view(np.uint8)
+    x2_torch = torch.tensor(x2_np, dtype=torch.uint8)
+    shared_input_new = shared_input.astype(np.float32)
+    shared_input_torch = torch.tensor(shared_input_new, dtype=torch.float32)
+    logit_torch = torch.tensor(logit, dtype=torch.float32)
+    row_index_torch = torch.tensor(row_index, dtype=torch.int32)
+
+    # generate fp8_e8m0 scale
+ 
     if x1.dtype == 'float4_e2m1':
-        if out_dtype == "float32":
-            x1_ori = np.random.uniform(0, 7, x1.shape).astype(np.float64)
-        else:
-            x1_ori = np.random.uniform(-2, 2
-            , x1.shape).astype(np.float64)
+        x1_ori = np.random.uniform(0, 1, x1.shape).astype(np.float64)
+        # x1_ori[:] = 1
         x1 = trans_np_bfloat16_tensor_to_fp4_e2m1(x1_ori.astype(bfloat16))
-    elif x1.dtype == 'float4_e1m2' or x1.dtype == 'hifloat4' :
-        if out_dtype == "float32":
-            x1_ori = np.random.uniform(0, 2, x1.shape).astype(np.float64)
-        else:
-            x1_ori = np.random.uniform(-2, 2, x1.shape).astype(np.float64)
+    elif x1.dtype == 'float4_e1m2':
+        x1_ori = np.random.uniform(0, 1, x1.shape).astype(np.float64)
         x1 = trans_np_bfloat16_tensor_to_fp4_e1m2(x1_ori.astype(bfloat16))
-
+ 
     if x2.dtype == 'float4_e2m1':
         # 先转换成[N, K]生成随机数，再转换回[K, N]
-        if out_dtype == "float32":
-            x2_ori = np.random.uniform(0, 7, x2.shape).astype(np.float64)
-        else:
-            x2_ori = np.random.uniform(-7, 7, x2.shape).astype(np.float64)
+        x2_ori = np.random.uniform(0, 1, x2.shape).astype(np.float64)
+        # x2_ori[:] = 1
         x2 = trans_np_bfloat16_tensor_to_fp4_e2m1(x2_ori.astype(bfloat16))
-    elif x2.dtype == 'float4_e1m2' or x2.dtype == 'hifloat4' :
-        if out_dtype == "float32":
-            x2_ori = np.random.uniform(0, 2, x2.shape).astype(np.float64)
-        else:
-            x2_ori = np.random.uniform(-2, 2, x2.shape).astype(np.float64)
+    elif x2.dtype == 'float4_e1m2':
+        x2_ori = np.random.uniform(0, 1, x2.shape).astype(np.float64)
         x2 = trans_np_bfloat16_tensor_to_fp4_e1m2(x2_ori.astype(bfloat16))
-
-    # convert scale to uint64
-    if (input_deq_scale.dtype == "uint64" or input_deq_scale.dtype == "int64") and pertoken_scale is None:
-        input_deq_scale = scale_generate(scale.shape, offset, out_dtype, testcase_name)
-    # generate fp8_e8m0 scale
-    elif input_deq_scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
+ 
+    if scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
         x1_mx_gm = np.random.uniform(127, 130, size=pertoken_scale.shape).astype(np.uint8) # 127, 130
         x1_mx = 2**(x1_mx_gm.astype(np.float64) - 127)
         pertoken_scale = x1_mx.astype("float8_e8m0")
-
-        x2_mx_gm = np.random.randint(127, 130, size=input_deq_scale.shape).astype(np.uint8)
-        x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
-        input_deq_scale = x2_mx.astype("float8_e8m0")
-    elif antiquant_scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
-        # 伪量化MxA8W4
-        x1_mx_gm = np.random.uniform(124, 130, size=pertoken_scale.shape).astype(np.uint8)
-        x1_mx = 2 ** (x1_mx_gm.astype(np.float64) - 127)
-        pertoken_scale = x1_mx.astype("float8_e8m0")
+        u8 = pertoken_scale.view(np.uint8)
+        pertoken_scale_torch = torch.tensor(u8, dtype=torch.uint8)
  
-    if antiquant_scale.dtype == "float8_e8m0":
-        x2_mx_gm = np.random.uniform(124, 130, size=antiquant_scale.shape).astype(np.uint8)
-        x2_mx = 2 ** (x2_mx_gm.astype(np.float64) - 127)
-        antiquant_scale = x2_mx.astype("float8_e8m0")
+        x2_mx_gm = np.random.randint(127, 130, size=scale.shape).astype(np.uint8)
+        x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
+        scale = x2_mx.astype("float8_e8m0")
+        u9 = scale.view(np.uint8)
+        scale_torch = torch.tensor(u9, dtype=torch.uint8)
     group_num = group_list_shape.shape[0]  # 注意ttk csv里group_num设置的准确性
-    group_list_expect = None
     if 'group_list_expect' in kwargs:
-        group_list_expect = kwargs['group_list_expect']
-    group_list = []
-    if group_list_expect:  # 全量化组需必传group_list_expect
-        group_list = group_list_expect
-    elif group_num == 1:
-        group_list.append(x1.shape[0])
+        group_list = kwargs['group_list_expect']
     else:
-        avgGroup = (x1.shape[0] + group_num - 1) // group_num
-        tmp_num = x1.shape[0]
-        print(" Input func x1 shape: ", x1.shape)
-        for i in range(group_num - 1):
-            tmp = min(tmp_num, avgGroup)
-            # tmp = random.randint(0, tmp_num)
-            tmp_num -= tmp
-            group_list.append(tmp)
-        group_list.append(tmp_num)
-        if group_list_type == 0:
-            for i in range(1, group_num):
-                group_list[i] += group_list[i - 1]
-    print("GMM INPUT FUNC, group_list: ", group_list)
+        group_list = group_list_ori
     group_list_tmp = group_list
     if group_list_type == 1:
         group_list_tmp = np.cumsum(group_list)
     if group_list_tmp[-1] > x1.shape[0]:
         raise Exception('sum of grouplist: ({}) can not be greater than x1[0]: ({})'.format(group_list_tmp[-1], x1.shape[0]))
-    return x1, x2, bias, input_deq_scale, offset, antiquant_scale, antiquant_offset, np.array(group_list), pertoken_scale
+    bias_n = bias.shape[-1]
+    bias = np.zeros((x2.shape[0], bias_n)).astype(bfloat16)   # shape=(e, n) 的全 0 ndarray
+    return x1, x2, scale, bias, pertoken_scale, np.array(group_list), shared_input, logit, row_index, None
 
 def trans_np_bfloat16_tensor_to_fp4_e2m1(in_tensor):
     import numpy as np
@@ -150,28 +117,6 @@ def trans_np_bfloat16_tensor_to_fp4_e2m1(in_tensor):
 
     fp4_tensor = fp4_tensor.reshape(fp4_shape)
     return fp4_tensor
-
-def IsRoundOne(sign, man, truncLen):
-    roundingTruncLen = 64
-    if truncLen >= roundingTruncLen:
-        mask0 = 0
-    else:
-        mask0 = 0x1 << truncLen
-    if (truncLen > roundingTruncLen):
-        mask1 = 0
-    else:
-        mask1 = 0x1 << (truncLen - 1)
-
-    mask2 = mask1 - 1
-
-    #ROUND_TO_NEAREST
-    lastBit = (man & mask0) > 0      # Last bit after conversion
-    truncHighBit = (man & mask1) > 0 # Highest bit in the truncated part
-    truncLeft = (man & mask2) > 0    # Truncated left part (except for the highest bit)
-    return truncHighBit and (truncLeft or lastBit)
-
-def float_to_hex(f):
-    return hex(struct.unpack('<I',struct.pack('<f',f))[0])
 
 def cvt_bfloat16_to_fp4_e2m1(x):
     import math
@@ -224,6 +169,28 @@ def cvt_bfloat16_to_fp4_e2m1(x):
         mRet = 0
 
     return (((sRet) << 3) | ((eRet) << 1) | ((mRet) & 1))
+
+def IsRoundOne(sign, man, truncLen):
+    roundingTruncLen = 64
+    if truncLen >= roundingTruncLen:
+        mask0 = 0
+    else:
+        mask0 = 0x1 << truncLen
+    if (truncLen > roundingTruncLen):
+        mask1 = 0
+    else:
+        mask1 = 0x1 << (truncLen - 1)
+
+    mask2 = mask1 - 1
+
+    #ROUND_TO_NEAREST
+    lastBit = (man & mask0) > 0      # Last bit after conversion
+    truncHighBit = (man & mask1) > 0 # Highest bit in the truncated part
+    truncLeft = (man & mask2) > 0    # Truncated left part (except for the highest bit)
+    return truncHighBit and (truncLeft or lastBit)
+
+def float_to_hex(f):
+    return hex(struct.unpack('<I',struct.pack('<f',f))[0])
 
 def trans_np_bfloat16_tensor_to_fp4_e1m2(in_tensor):
     import numpy as np
@@ -298,42 +265,3 @@ def cvt_bfloat16_to_fp4_e1m2(x):
         mRet = 0
 
     return (((sRet) << 3) | ((eRet) << 2) | ((mRet) & 3))
-
-def scale_generate(deq_scale_shape, offset, out_dtype, testcase_name):
-    has_offset = offset is not None
-
-    fp32_deq_scale = np.random.uniform(low=-5, high=5, size=deq_scale_shape).astype(np.float32)
-    uint32_deq_scale = np.frombuffer(fp32_deq_scale, np.uint32).reshape(deq_scale_shape)
-    #与高19位运算，模拟硬件
-    uint32_deq_scale &= 0XFFFFE000
-
-    if has_offset:
-        offset_shape = offset.shape
-        fp32_offset = np.random.uniform(low=-5, high=5, size=offset_shape).astype(np.float32)
-
-    #dequant
-    if out_dtype != "int8":#
-        fp32_deq_scale = np.frombuffer(uint32_deq_scale, np.float32).reshape(deq_scale_shape)
-        np.save(testcase_name + "_deq_scale.npy", fp32_deq_scale)
-        uint64_deq_scale = np.zeros(deq_scale_shape, np.uint64)
-        uint64_deq_scale |= np.uint64(uint32_deq_scale)
-    #requant
-    elif out_dtype == "int8":
-        fp32_deq_scale = np.frombuffer(uint32_deq_scale, np.float32).reshape(deq_scale_shape)
-        np.save(testcase_name + "_deq_scale.npy", fp32_deq_scale)
-        s9_offset = 0
-        if has_offset:
-            np.save(testcase_name + "_offset.npy", fp32_offset)
-            s9_offset = f32_2_s9(fp32_offset).astype(int).reshape(offset_shape)
-            s9_offset &= 0X1FF
-            s9_offset = s9_offset[0] if deq_scale_shape[-1] < offset_shape[-1] else s9_offset
-        uint64_deq_scale = np.zeros(deq_scale_shape, np.uint64)
-        uint64_deq_scale |= np.uint64(uint32_deq_scale)
-        uint64_deq_scale |= np.uint64(s9_offset << 37)
-        uint64_deq_scale |= 1 << 46
-    return uint64_deq_scale
-
-def f32_2_s9(array):
-    array_round = np.round(array)
-    array_round_clip = np.clip(array_round, -256, 255)
-    return array_round_clip
