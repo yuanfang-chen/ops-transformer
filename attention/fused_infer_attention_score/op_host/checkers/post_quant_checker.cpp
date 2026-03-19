@@ -105,7 +105,7 @@ ge::graphStatus PostQuantChecker::CheckFeaturePrefix(const FiaTilingInfo &fiaInf
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PostQuantChecker::CheckFeatureRowVaild(const FiaTilingInfo &fiaInfo)
+ge::graphStatus PostQuantChecker::CheckFeatureRowValid(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.isOutQuantEnable) {
         return ge::GRAPH_SUCCESS;
@@ -295,7 +295,7 @@ ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
             return ge::GRAPH_FAILED;
         }
         if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B) {
-            if (ge::GRAPH_SUCCESS != CheckFeatureRowVaild(fiaInfo)) {
+            if (ge::GRAPH_SUCCESS != CheckFeatureRowValid(fiaInfo)) {
                  return ge::GRAPH_FAILED;
             }
         }

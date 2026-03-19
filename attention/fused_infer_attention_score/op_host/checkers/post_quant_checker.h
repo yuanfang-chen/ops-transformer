@@ -41,7 +41,7 @@ private:
     ge::graphStatus CheckFeatureOutput(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureOutputEqual(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeaturePrefix(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureRowVaild(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckFeatureRowValid(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckMultiParaDtype(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckMultiParaShape(const FiaTilingInfo &fiaInfo);
