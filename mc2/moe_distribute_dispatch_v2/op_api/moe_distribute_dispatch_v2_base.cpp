@@ -234,7 +234,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     OP_LOGD("PRINT HcclChannelAcquire success");
 
     //获取对应的资源
-    for(uint64_t index = 0; index < mc2_context->epRankSize; index++) {
+    for(uint32_t index = 0; index < mc2_context->epRankSize; index++) {
         if(index == mc2_context->epRankId) {
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
             OP_LOGD("PRINT HcclGetHcclBuffer success");
@@ -250,10 +250,11 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
             return ACLNN_ERR_INNER;
         }
+        OP_LOGD("PRINT CreatMc2Context index:%d",index);
         OP_LOGD("PRINT CreatMc2Context buffersize:%ld",buffersize);
-        OP_LOGD("PRINT CreatMc2Context buffersize:%p",tempBuffer);
+        OP_LOGD("PRINT CreatMc2Context tempBuffer:%p",tempBuffer);
         mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
-        OP_LOGD("PRINT CreatMc2Context buffersize:%ld",mc2_context->epHcclBuffer_[index]);
+        OP_LOGD("PRINT CreatMc2Context epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
     }
     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
