@@ -516,10 +516,10 @@ ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
     if (isEpNumMatch) {
         uint64_t expertNum = localParams_.ep * rankDim;
         OP_TILING_CHECK(expertNum > MAX_EXPERT_NUM,
-            OP_LOGE(opName_, "experts(ep * epWorldSize) max is 256, but now is %lu !", expertNum),
+            OP_LOGE(opName_, "experts(ep * epWorldSize) max is %lu, but now is %lu !", MAX_EXPERT_NUM, expertNum),
             return ge::GRAPH_FAILED);
     } else {
-        OP_LOGE(opName_, "E_ep[%lu] should be in (0, 32]!", localParams_.ep);
+        OP_LOGE(opName_, "E_ep[%lu] should be in (0, %ld]!", localParams_.ep, MAX_EXPERT_NUM_PER_RANK);
         return ge::GRAPH_FAILED;
     }
 
