@@ -310,16 +310,16 @@ ge::graphStatus FiaInfoParser::GetAttrParaInfo()
                return ge::GRAPH_FAILED);
 
     // sparseMode,preToken,nextToken在GetUpdateInfo()中获取
-    opParamInfo_.numHeads = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
+    opParamInfo_.numHeads = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
     opParamInfo_.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     opParamInfo_.layOut = attrs->GetStr(ATTR_INPUT_LAYOUT_INDEX);
-    opParamInfo_.kvHeadNums = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
-    opParamInfo_.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
+    opParamInfo_.kvHeadNums = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
+    opParamInfo_.blockSize = attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX);
     opParamInfo_.antiquantMode = attrs->GetAttrPointer<int64_t>(ANTIQUANT_MODE_INDEX);
     opParamInfo_.softmaxLseFlag = attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
     opParamInfo_.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
     opParamInfo_.valueAntiquantMode = attrs->GetAttrPointer<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
-    opParamInfo_.innerPrecise = attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX);
+    opParamInfo_.innerPrecise = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX);
     opParamInfo_.queryQuantMode = attrs->GetAttrPointer<int64_t>(QUERY_QUANT_MODE_INDEX);
 
     return ge::GRAPH_SUCCESS;
@@ -339,7 +339,7 @@ ge::graphStatus FiaInfoParser::GetUpdateInfo()
         opParamInfo_.queryPaddingSize.tensor = nullptr;
         opParamInfo_.queryPaddingSize.desc = nullptr;
     } else {
-        opParamInfo_.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
+        opParamInfo_.sparseMode = attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX);
         opParamInfo_.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
         opParamInfo_.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
         opParamInfo_.actualSeqLengthsQ.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);

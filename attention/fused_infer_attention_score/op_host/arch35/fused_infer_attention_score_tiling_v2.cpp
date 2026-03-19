@@ -464,14 +464,14 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
     contextKeyParams.valueAntiquantMode = attrs->GetAttrPointer<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
-    contextKeyParams.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
+    contextKeyParams.sparseMode = attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX);
     contextKeyParams.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
     contextKeyParams.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
-    contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
+    contextKeyParams.blockSize = attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX);
     contextKeyParams.workspaceSize = context->GetWorkspaceSizes(1);
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1 : 0;
     contextKeyParams.transposeLayout = GetTransposeLayout(string(contextKeyParams.layout));
@@ -618,15 +618,15 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "attrs got from ge is nullptr"),
                   return ge::GRAPH_FAILED);
 
-  ifaContext.numHeads = attrs->GetAttrPointer<uint32_t>(ATTR_N_INDEX);
-  ifaContext.sparseMode = attrs->GetAttrPointer<uint32_t>(ATTR_SPARSE_MODE_INDEX);
+  ifaContext.numHeads = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
+  ifaContext.sparseMode = attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX);
   ifaContext.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
   ifaContext.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
-  ifaContext.innerPrecise = attrs->GetAttrPointer<uint32_t>(ATTR_INNER_PRECISE_INDEX);
+  ifaContext.innerPrecise = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX);
   ifaContext.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
   ifaContext.layOut = attrs->GetStr(ATTR_INPUT_LAYOUT_INDEX);
-  ifaContext.kvHeadNums = attrs->GetAttrPointer<uint32_t>(ATTR_NUM_KV_HEADS_INDEX);
-  ifaContext.blockSize = attrs->GetAttrPointer<uint32_t>(ATTR_BLOCK_SIZE_INDEX);
+  ifaContext.kvHeadNums = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
+  ifaContext.blockSize = attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX);
   ifaContext.antiquantMode = attrs->GetAttrPointer<int64_t>(ANTIQUANT_MODE_INDEX);
   ifaContext.softmaxLseFlag = attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
   ifaContext.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
@@ -738,8 +738,8 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Attributes returned from GetAttrs() is a nullptr!"),
         return ge::GRAPH_FAILED);
 
-    uint32_t tempN = *attrs->GetAttrPointer<uint32_t>(ATTR_N_INDEX);
-    uint32_t tempKVN = *attrs->GetAttrPointer<uint32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    uint32_t tempN = static_cast<uint32_t>(*attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX));
+    uint32_t tempKVN = static_cast<uint32_t>(*attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX));
     OP_CHECK_IF(tempN == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Q numhead is 0!"), 
         return ge::GRAPH_FAILED);
     if (tempKVN == 0U) {
@@ -1035,8 +1035,8 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         ContextParamsForPFATiling contextParamsForPFATiling;
         PromptFlashAttentionCompileInfo tempCompileInfoPtr;
 
-        OP_CHECK_IF((attrs->GetAttrPointer<uint64_t>(ANTIQUANT_MODE_INDEX) != nullptr) &&
-            (*attrs->GetAttrPointer<uint64_t>(ANTIQUANT_MODE_INDEX) != 0),
+        OP_CHECK_IF((attrs->GetAttrPointer<int64_t>(ANTIQUANT_MODE_INDEX) != nullptr) &&
+            (*attrs->GetAttrPointer<int64_t>(ANTIQUANT_MODE_INDEX) != 0),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "antiquant_mode is not supported!"),
             return ge::GRAPH_FAILED);
 

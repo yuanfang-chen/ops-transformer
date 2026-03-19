@@ -226,19 +226,19 @@ struct FIAParaInfo {
     FIARequiredParaInfo attenOut = {nullptr, nullptr};
     FIARequiredParaInfo lseOut = {nullptr, nullptr};
 
-    const int32_t *numHeads = nullptr;
+    const int64_t *numHeads = nullptr;
     const int64_t *preToken = nullptr;
     const int64_t *nextToken = nullptr;
     const float *scaleValue = nullptr;
-    const int32_t *kvHeadNums = nullptr;
+    const int64_t *kvHeadNums = nullptr;
     const char *layOut = nullptr;
-    const int32_t *blockSize = nullptr;
-    const int32_t *innerPrecise = nullptr;
+    const int64_t *blockSize = nullptr;
+    const int64_t *innerPrecise = nullptr;
     const int64_t *antiquantMode = nullptr;
     const bool *softmaxLseFlag = nullptr;
     const int64_t *keyAntiquantMode = nullptr;
     const int64_t *valueAntiquantMode = nullptr;
-    const int32_t *sparseMode = nullptr;
+    const int64_t *sparseMode = nullptr;
     const int64_t *queryQuantMode = nullptr;
     const int64_t *pseType = nullptr;
 };

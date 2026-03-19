@@ -89,11 +89,11 @@ ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, g
     contextKeyParams.outputShape = context->GetOutputShape(OUTPUT_INDEX);
     auto attrs = context->GetAttrs();
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(INNER_PRECISE_ATTR_INDEX);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(NUM_HEADS_ATTR_INDEX);
-    contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(BLOCK_SIZE_ATTR_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(NUM_HEADS_ATTR_INDEX);
+    contextKeyParams.blockSize = attrs->GetAttrPointer<int64_t>(BLOCK_SIZE_ATTR_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(SCALE_VALUE_ATTR_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(LAYOUT_ATTR_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(KV_NUM_HEADS_ATTR_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(KV_NUM_HEADS_ATTR_INDEX);
     contextKeyParams.sparseMode = &sparseDefault;
     contextKeyParams.preToken = &tokenDefault;
     contextKeyParams.nextToken = &tokenDefault;
@@ -184,12 +184,12 @@ ge::graphStatus IFATilingArch38::ConvertContext(gert::TilingContext &context, In
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context.GetNodeName(), "Attrs got from ge is null."),
                 return ge::GRAPH_FAILED);
 
-    ifaContext.numHeads = attrs->GetAttrPointer<uint32_t>(NUM_HEADS_ATTR_INDEX);
+    ifaContext.numHeads = attrs->GetAttrPointer<int64_t>(NUM_HEADS_ATTR_INDEX);
     ifaContext.scaleValue = attrs->GetAttrPointer<float>(SCALE_VALUE_ATTR_INDEX);
     ifaContext.layOut = attrs->GetStr(LAYOUT_ATTR_INDEX);
-    ifaContext.kvHeadNums = attrs->GetAttrPointer<uint32_t>(KV_NUM_HEADS_ATTR_INDEX);
-    ifaContext.blockSize = attrs->GetAttrPointer<uint32_t>(BLOCK_SIZE_ATTR_INDEX);
-    ifaContext.innerPrecise = attrs->GetAttrPointer<uint32_t>(INNER_PRECISE_ATTR_INDEX);
+    ifaContext.kvHeadNums = attrs->GetAttrPointer<int64_t>(KV_NUM_HEADS_ATTR_INDEX);
+    ifaContext.blockSize = attrs->GetAttrPointer<int64_t>(BLOCK_SIZE_ATTR_INDEX);
+    ifaContext.innerPrecise = attrs->GetAttrPointer<int64_t>(INNER_PRECISE_ATTR_INDEX);
 
     OP_CHECK_IF(context.GetWorkspaceSizes(1) == nullptr,
                 OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "WorkSpaceSize got from ge is null."),

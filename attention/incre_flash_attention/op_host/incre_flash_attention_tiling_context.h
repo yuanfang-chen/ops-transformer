@@ -69,19 +69,19 @@ struct IncreFlashAttentionContext {
     RequiredParaInfo attenOut = {nullptr, nullptr};
     RequiredParaInfo lseOut = {nullptr, nullptr};
 
-    const uint32_t *numHeads = nullptr;
+    const int64_t *numHeads = nullptr;
     const int64_t *preToken = nullptr;
     const int64_t *nextToken = nullptr;
     const float *scaleValue = nullptr;
-    const uint32_t *kvHeadNums = nullptr;
+    const int64_t *kvHeadNums = nullptr;
     const char *layOut = nullptr;
-    const uint32_t *blockSize = nullptr;
-    const uint32_t *innerPrecise = nullptr;
+    const int64_t *blockSize = nullptr;
+    const int64_t *innerPrecise = nullptr;
     const int64_t *antiquantMode = nullptr;
     const bool *softmaxLseFlag = nullptr;
     const int64_t *keyAntiquantMode = nullptr;
     const int64_t *valueAntiquantMode = nullptr;
-    const uint32_t *sparseMode = nullptr;
+    const int64_t *sparseMode = nullptr;
     const int64_t *queryQuantMode = nullptr;
     const int64_t *pseType = nullptr;
     const int64_t *windowSize = nullptr;
@@ -92,8 +92,8 @@ struct IncreFlashAttentionContext {
     std::vector<gert::StorageShape *> kCache = {nullptr};
     std::vector<gert::StorageShape *> vCache = {nullptr};
     uint64_t tilingKey = 0;
-    uint32_t numBlocks = 0;
-    uint32_t transposeLayout = 0;
+    int64_t numBlocks = 0;
+    int64_t transposeLayout = 0;
 };
 } // namespace optiling
 #endif // AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_

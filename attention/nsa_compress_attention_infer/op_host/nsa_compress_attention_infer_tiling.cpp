@@ -481,16 +481,16 @@ ge::graphStatus NCAITiling::ConvertContext(gert::TilingContext &context, NsaComp
     auto attrs = context.GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context.GetNodeName(), "attrs got from GE is nullptr"),
                return ge::GRAPH_FAILED);
-    ncaiContext.numHeads = attrs->GetAttrPointer<uint32_t>(NUM_HEADS_ATTR_INDEX);
-    ncaiContext.kvHeadNums = attrs->GetAttrPointer<uint32_t>(KV_NUM_HEADS_ATTR_INDEX);
-    ncaiContext.selectSize = attrs->GetAttrPointer<uint32_t>(SELECT_SIZE_ATTR_INDEX);
-    ncaiContext.selectNum = attrs->GetAttrPointer<uint32_t>(SELECT_NUM_ATTR_INDEX);
-    ncaiContext.compSizeL = attrs->GetAttrPointer<uint32_t>(COMP_SIZE_ATTR_INDEX);
-    ncaiContext.compStrideD = attrs->GetAttrPointer<uint32_t>(COMP_STRIDE_ATTR_INDEX);
+    ncaiContext.numHeads = attrs->GetAttrPointer<int64_t>(NUM_HEADS_ATTR_INDEX);
+    ncaiContext.kvHeadNums = attrs->GetAttrPointer<int64_t>(KV_NUM_HEADS_ATTR_INDEX);
+    ncaiContext.selectSize = attrs->GetAttrPointer<int64_t>(SELECT_SIZE_ATTR_INDEX);
+    ncaiContext.selectNum = attrs->GetAttrPointer<int64_t>(SELECT_NUM_ATTR_INDEX);
+    ncaiContext.compSizeL = attrs->GetAttrPointer<int64_t>(COMP_SIZE_ATTR_INDEX);
+    ncaiContext.compStrideD = attrs->GetAttrPointer<int64_t>(COMP_STRIDE_ATTR_INDEX);
     ncaiContext.scaleValue = attrs->GetAttrPointer<float>(SCALE_VALUE_ATTR_INDEX);
     ncaiContext.layOut = attrs->GetAttrPointer<char>(LAYOUT_ATTR_INDEX);
-    ncaiContext.blockSize = attrs->GetAttrPointer<uint32_t>(BLOCK_SIZE_ATTR_INDEX);
-    ncaiContext.sparseMode = attrs->GetAttrPointer<uint32_t>(SPARSE_MODE_ATTR_INDEX);
+    ncaiContext.blockSize = attrs->GetAttrPointer<int64_t>(BLOCK_SIZE_ATTR_INDEX);
+    ncaiContext.sparseMode = attrs->GetAttrPointer<int64_t>(SPARSE_MODE_ATTR_INDEX);
 
     OP_CHECK_IF(context.GetWorkspaceSizes(1) == nullptr,
                OPS_REPORT_VECTOR_INNER_ERR("NsaCompressAttentionInfer", "workSpaceSize got from GE is nullptr"),
