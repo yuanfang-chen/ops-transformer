@@ -1090,6 +1090,7 @@ CompressorBlockVectorPerf<COMP>::CalRope(const LocalTensor<X_T> &outputUb, const
              repeatTime, {1, 1, 4, 8});
     }
 
+    sliceIterator.SetNeedDealScSize(dealRowCount);
     while (!ropeSliceIterator.IsEnd()) {
         ropeSliceIterator.GetSlice();
         if (sliceInfo.curDealScNum > 0) {
@@ -1247,7 +1248,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::UpdateIteratorState(cons
         if (curB < splitInfo.curBStart) {
             splitInfo.preCompressedCnt += (startPos + seqLength) / constInfo_.cmpRatio - startPos / constInfo_.cmpRatio;
         } else {
-            splitInfo.totalCompressedCnt +=
+            totalCompressedCnt_ +=
                 (startPos + seqLength) / constInfo_.cmpRatio - startPos / constInfo_.cmpRatio;
         }
     }
@@ -1421,6 +1422,9 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec2(const Compressor::Vec2RunInfo &info)
 {
     Vec2SplitInfo splitInfo = SplitCoreV2();
+    if (splitInfo.dealScNum == 0) {
+        return splitInfo;
+    }
     CompressorVec2SliceIterator sliceIterator(tools_);
     sliceIterator.SetMaxBatchSize(constInfo_.batchSize);
     sliceIterator.Reset(splitInfo.curBStart, splitInfo.curScStart, splitInfo.preScCnt);

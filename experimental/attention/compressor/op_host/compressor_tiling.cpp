@@ -207,7 +207,7 @@ ge::graphStatus CompressorTiling::SetTemplateId()
         return ge::GRAPH_SUCCESS;
     }
     // 设置高性能模板
-    context_->templateId = TemplateId::PERF;
+    // context_->templateId = TemplateId::NORMAL;
     return ge::GRAPH_SUCCESS;
 }
 
