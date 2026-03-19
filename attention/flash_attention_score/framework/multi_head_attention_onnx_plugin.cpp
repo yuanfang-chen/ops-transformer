@@ -30,13 +30,7 @@ constexpr int ONE = 1;
 static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const ge::Operator& op_src) {
   std::vector<ge::AscendString> input_strings;
   if (op_src.GetAttr("input", input_strings) == ge::GRAPH_SUCCESS) {
-    int input_size = 0;
-    for (const auto &input : input_strings) {
-      if (!std::string(input_strings[i].GetString()).empty()) {
-        input_size++;
-      }
-    }
-    op_dest.DynamicInputRegister("x", input_size);
+    op_dest.DynamicInputRegister("x", input_strings.size());
   }
   std::vector<ge::AscendString> output_strings;
   if (op_src.GetAttr("output", output_strings) == ge::GRAPH_SUCCESS) {
@@ -45,6 +39,7 @@ static void UpdateFlashAttentionByNode(ge::Operator& op_dest, const ge::Operator
   op_dest.SetAttr("name", op_src.GetName());
   op_dest.SetAttr("original_type", "com.microsoft::11::MultiHeadAttention");
 }
+
 static Status GetOriNameFromOperator(const ge::Operator& op, std::string& ori_name) {
   if (op.GetAttr("name", ori_name) != SUCCESS) {
     OP_LOGE(op.GetName().c_str(), "get name from op failed.");
@@ -61,15 +56,6 @@ static Status GetAttr(const ge::Operator& op, int& head_num, float& scale) {
     OP_LOGE(op.GetName().c_str(), "get scale from op failed");
     return FAILED;
   }
-  return SUCCESS;
-}
-
-static Status GetFinalDimsByOperator(const ge::Operator& op, int head_num, vector<int64_t>& final_dims) {
-  std::vector<int64_t> dims = op.GetInputDesc(0).GetShape().GetDims();
-  int64_t numels = dims[0] * dims[1] * dims[1] * head_num;
-  int64_t length = (numels + ALIGN_NUM - 1) / ALIGN_NUM * ALIGN_NUM / ONE_BYTE_BITS;
-  length += EXTRA_LENGTH;
-  final_dims = {length};
   return SUCCESS;
 }
 }
@@ -102,37 +88,23 @@ static Status ParseOpToGraphMultiHeadAttention(const ge::Operator& op, ge::Graph
   auto data0 = ge::op::Data((ori_name + "_data0").c_str()).set_attr_index(0);
   auto data1 = ge::op::Data((ori_name + "_data1").c_str()).set_attr_index(1);
   auto data2 = ge::op::Data((ori_name + "_data2").c_str()).set_attr_index(2);
-  auto data3 = ge::op::Data((ori_name + "_data3").c_str()).set_attr_index(3);
+  auto data4 = ge::op::Data((ori_name + "_data4").c_str()).set_attr_index(4);
 
   int head_num = 0;
   float scale = 1.0f;
   if ((GetAttr(op, head_num, scale) != SUCCESS)) {
     return FAILED;
   }
-  // create const input tensor "drop_mask" which is filled with the scalar value 1 for inferencing
-  // deop_mask.size = [B, N, S, S]
-  ge::Tensor saclar_one = CreateScalar(ONE, ge::DT_UINT8);
-  auto const_one = ge::op::Const((ori_name + "_Const_one").c_str()).set_attr_value(saclar_one);
-  vector<int64_t> final_dims;
-  if (GetFinalDimsByOperator(op, head_num, final_dims) != SUCCESS) {
-    return FAILED;
-  }
-
-  auto tensor_dims = Vec2Tensor(final_dims, {1}, ge::DT_INT64);
-  auto const_dims = ge::op::Const((ori_name + "_Const_dims").c_str()).set_attr_value(tensor_dims);
-  auto drop_mask = ge::op::Fill((ori_name + "_Fill_ones").c_str()).set_input_dims(const_dims).set_input_value(const_one);
-  auto cast_drop_mask = ge::op::Cast((ori_name + "_Cast_drop_mask").c_str()).set_input_x(drop_mask)
-                                                                            .set_attr_dst_type(ACL_UINT8);
   std::string input_layout = "BSH";
   int sparse_mode = 1;
   auto attention_score = ge::op::FlashAttentionScore((ori_name + "_FlashAttentionScore").c_str())
       .set_input_query(data0).set_input_key(data1).set_input_value(data2)
-      .set_input_atten_mask(data3)
-      .set_input_drop_mask(cast_drop_mask).set_attr_scale_value(scale)
+      .set_input_atten_mask(data4)
+      .set_attr_scale_value(scale)
       .set_attr_input_layout(input_layout)
       .set_attr_sparse_mode(sparse_mode)
       .set_attr_head_num(head_num);
-  std::vector<ge::Operator> inputs{data0, data1, data2, data3};
+  std::vector<ge::Operator> inputs{data0, data1, data2, data4};
   std::vector<std::pair<ge::Operator, std::vector<size_t>>> outputs;
   outputs.emplace_back(attention_score, std::vector<std::size_t>{OUTPUT_INDEX});
   graph.SetInputs(inputs).SetOutputs(outputs);
