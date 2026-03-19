@@ -1423,7 +1423,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec2(const Compre
 {
     Vec2SplitInfo splitInfo = SplitCoreV2();
     if (splitInfo.dealScNum == 0) {
-        return splitInfo;
+        return;
     }
     CompressorVec2SliceIterator sliceIterator(tools_);
     sliceIterator.SetMaxBatchSize(constInfo_.batchSize);
