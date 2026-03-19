@@ -13,8 +13,8 @@
  * \brief
  */
 
-#include "arch35/mhc_pre_prefill.h"
-#include "arch35/mhc_pre_decode.h"
+#include "arch35/mhc_pre_split_bs.h"
+#include "arch35/mhc_pre_split_nd.h"
 #include "arch35/mhc_pre_tiling_key.h"
 
 using namespace AscendC;
@@ -31,20 +31,20 @@ __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR alpha, GM_ADD
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-    if constexpr (TILING_MODE == MHC_PRE_PREFILL) {
+    if constexpr (TILING_MODE == MHC_PRE_SPLIT_BS) {
         InitParams initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
                               h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
-        MhcPreKernelPrefill<DTYPE_X, float32_t> op(mm);
+        MhcPreKernelSplitBS<DTYPE_X, float32_t> op(mm);
         op.Init(initParams);
         op.Process();
-    } else if constexpr (TILING_MODE == MHC_PRE_DECODE) {
+    } else if constexpr (TILING_MODE == MHC_PRE_SPLIT_ND) {
         InitParamsDecode initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
                                      h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
-        MhcPreKernelDecode<DTYPE_X, float32_t> op(mm);
+        MhcPreKernelSplitND<DTYPE_X, float32_t> op(mm);
         op.Init(initParams);
         op.Process();
     }
