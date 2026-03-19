@@ -175,11 +175,11 @@ public:
         vRowStride_ = nv_ * dv_;
         numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
-        halfChunkSize_ = chunkSize_ / GetTaskRatio();
+        halfChunkSize_ = chunkSize_ / TASK_RATIO;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
         if ASCEND_IS_AIV{
-            coreIdx_ /= GetTaskRatio();
+            coreIdx_ /= TASK_RATIO;
         }
         SetGlobalTensors(initParams);
         InitLocalBuffers();

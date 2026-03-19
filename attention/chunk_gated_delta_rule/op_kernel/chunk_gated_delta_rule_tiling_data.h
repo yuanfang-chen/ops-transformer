@@ -22,6 +22,7 @@ namespace ChunkGatedDeltaRule {
     constexpr uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
     constexpr uint64_t BUFFER_NUM_ONE = 1;
     constexpr uint64_t BROADCAST_AXIS = 2;
+    constexpr uint64_t TASK_RATIO = 2;
     constexpr uint64_t STRUCT_ALIGNAS = 8;
     constexpr uint64_t STAGE3_BUFFER_COUNT = 4;
 
