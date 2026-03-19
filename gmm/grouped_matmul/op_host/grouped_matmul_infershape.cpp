@@ -1375,7 +1375,7 @@ static ge::graphStatus CheckShapeIfWeightNZ(gert::InferShapeContext* context, co
     std::cout << "=========4=======" << std::endl;
     auto wFormat0 = static_cast<ge::Format>(ge::GetPrimaryFormat(weightDesc->GetStorageFormat()));
     std::cout << "=========5=======" << std::endl;
-    weightNzFlag_ = wFormat0 == ge::FORMAT_FRACTAL_NZ;
+    bool weightNzFlag_ = wFormat0 == ge::FORMAT_FRACTAL_NZ;
     std::cout << "=========6=======" << std::endl;
     std::cout << "weightNzFlag_: " << weightNzFlag_ << std::endl;
     if (weightNzFlag_) {
@@ -1384,10 +1384,11 @@ static ge::graphStatus CheckShapeIfWeightNZ(gert::InferShapeContext* context, co
         std::cout << "numInOneBlk: " << numInOneBlk << std::endl;
         uint32_t i = 0;
         while (true) {
-            auto weightShape = context->GetDynamicInputShape(GMM_INDEX_IN_WEIGHT, i++);
+            const gert::Shape* weightShape = context->GetDynamicInputShape(GMM_INDEX_IN_WEIGHT, i++);
+            if (weightShape == nullptr) { break; }
             OP_CHECK_NULL_WITH_CONTEXT(context, weightShape);
-            int64_t kValue = weightShape.GetDim(weightShape.GetDimNum() - (gmmAttrs.transposeWeight ? 1 : 2));
-            int64_t nValue = weightShape.GetDim(weightShape.GetDimNum() - (gmmAttrs.transposeWeight ? 2 : 1));
+            int64_t kValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 1 : 2));
+            int64_t nValue = weightShape->GetDim(weightShape->GetDimNum() - (gmmAttrs.transposeWeight ? 2 : 1));
             std::cout << "kValue: " << kValue << std::endl;
             std::cout << "nValue: " << nValue << std::endl;
             OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
@@ -1538,6 +1539,8 @@ static ge::graphStatus InferShape4GroupedMatmul(gert::InferShapeContext* context
                   OP_LOGE(context->GetNodeName(), "CheckFunctionParamsForShape failed."), return GRAPH_FAILED);
         OP_CHECK_IF(CheckParamDifferentGroupType(context, gmmAttrs, paramsInfo) != GRAPH_SUCCESS,
                   OP_LOGE(context->GetNodeName(), "CheckParamDifferentGroupType failed."), return GRAPH_FAILED);
+        OP_CHECK_IF(CheckShapeIfWeightNZ(context, paramsInfo, gmmAttrs) != GRAPH_SUCCESS,
+                  OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid."), return GRAPH_FAILED);
     } else {
         OP_CHECK_IF(CheckDimNum(context, numX, GMM_MIN_FM_DIM, "x") != GRAPH_SUCCESS,  // check dim number of tensors
                   OP_LOGE(context->GetNodeName(), "Dim num of tensor in tensorList x is invalid."),
@@ -1563,8 +1566,6 @@ static ge::graphStatus InferShape4GroupedMatmul(gert::InferShapeContext* context
     outputParams.weightDimN = weightDimN;
     outputParams.lenGroupList = lenGroupList;
     outputParams.numWeight = numWeight;
-    OP_CHECK_IF(CheckShapeIfWeightNZ(context, paramsInfo, gmmAttrs) != GRAPH_SUCCESS,
-              OP_LOGE(context->GetNodeName(), "The shape of nz weight is invaild."), return GRAPH_FAILED);
     OP_CHECK_IF(GMMSetOutputShape(context, gmmAttrs, outputParams, x0Shape, w0Shape) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GMMSetOutputShape failed"), return GRAPH_FAILED);
 

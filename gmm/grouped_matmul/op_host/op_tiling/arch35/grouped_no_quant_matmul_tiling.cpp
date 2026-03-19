@@ -222,7 +222,7 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
             nzFactor_ = transposeWeight_ ? BASIC_BLOCK_SIZE_16 : static_cast<int64_t>(c0);
         }
         OP_CHECK_IF(CheckWeightNZShape(context, static_cast<int64_t>(c0)),
-                    OP_LOGE(context->GetNodeName(), "The shape of nz weight is invaild."),
+                    OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid."),
                     return false);
     }
 
@@ -244,10 +244,10 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
     return false;
 }
 
-bool GroupedNoQuantMatmulTiling::CheckWeightNZShape(const gert::TilingContext *context, int64_t numInOneBlk) const
+bool GroupedNoQuantMatmulTiling::CheckWeightNZShape(const gert::TilingContext *context, int64_t numInOneBlk)
 {
     std::cout << "yangtao get in CheckWeightNZShape" << std::endl;
-    OP_CHECK_IF(numInOneBlk <= 0, OP_LOGE(context->GetNodeName(), "the value of numInOneBlk is invaild, %ld", numInOneBlk), return false);
+    OP_CHECK_IF(numInOneBlk <= 0, OP_LOGE(context->GetNodeName(), "the value of numInOneBlk is invalid, %ld", numInOneBlk), return false);
     uint32_t i = 0;
     while (true) {
         auto wTensor = context->GetDynamicInputTensor(INDEX_WEIGHT, i++);

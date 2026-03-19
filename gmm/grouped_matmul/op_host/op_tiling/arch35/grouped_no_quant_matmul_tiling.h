@@ -108,6 +108,7 @@ protected:
     bool SplitKSingleXSeparatedWeight(const gert::TilingContext* context, const gert::Shape xShape, const gert::Shape wShape);
     void PrintTilingResult(const gert::TilingContext *context);
     void SetDisableL2Cache(const gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
+    bool CheckWeightNZShape(const gert::TilingContext *context, int64_t numInOneBlk);
 
 private:
 
