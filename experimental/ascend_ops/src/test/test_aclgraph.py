@@ -1,78 +1,191 @@
 import torch
-import torch_npu
 import torch.nn as nn
-from torch_npu.dynamo.torchair.configs.compiler_config import CompilerConfig
 import torchair as tng
-
+from torch_npu import npu
+from torch_npu.dynamo.torchair.configs.compiler_config import CompilerConfig
+import ascend_ops
 import time
 import numpy as np
 import os
-import ascend_ops
 
-class Network(nn.Module):
+# =============================================
+# 🔧 CONFIGURATION CENTER (可配置化)
+# =============================================
+class AttentionConfig:
     def __init__(self):
-        super(Network, self).__init__()
+        # Attention Dimensions
+        self.batch_size = 18
+        self.q_head_num = 64
+        self.kv_head_num = 1
+        self.q_seq = 1
+        self.block_size = 128
+        self.head_dim = 128
+
+        # KV Cache Dimensions
+        self.kv_seq_length = 8192
+        self.max_block_num_per_batch = (self.kv_seq_length // self.block_size) + 1
+        self.block_num = self.batch_size * self.max_block_num_per_batch
+
+        # Compiler Settings
+        self.compile_mode = "reduce-overhead"
+        self.fullgraph = True
+        self.dynamic = True
+
+        # Attention Scale
+        self.softmax_scale = 1.0 / (self.head_dim ** 0.5)
+
+# =============================================
+# 🧠 MODEL DEFINITION (模块化：模型清晰分离)
+# =============================================
+class FusedAttentionNetwork(nn.Module):
+    def __init__(self):
+        super().__init__()
 
     def forward(self, param: dict):
-        return torch.ops.custom.npu_fused_infer_attention_score(**param)
+        # Step 1: Compute metadata
+        metadata = torch.ops.custom.npu_fused_infer_attention_score_metadata(**param['metaParam'])
+        param['faParam']['metadata'] = metadata
 
-os.environ["ENABLE_ACLNN"] = "false"  
-torch._dynamo.reset()      
-npu_mode = Network().npu()
-config = CompilerConfig()   
-config.debug.aclgraph.disable_reinplace_inplaceable_ops_pass = True
-config.mode = "reduce-overhead"
-# config.experimental_config.tiling_schedule_optimize = True                                                         
-npu_backend = tng.get_npu_backend(compiler_config=config)       
+        # Step 2: Call fused attention
+        return torch.ops.custom.npu_fused_infer_attention_score(**param['faParam'])
 
-npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=True)
+# =============================================
+# 📥 INPUT GENERATION (输入构造独立函数)
+# =============================================
+def generate_inputs(config: AttentionConfig):
+    # Query
+    q = torch.randn(
+        config.batch_size, config.q_head_num, config.q_seq, config.head_dim
+    ).to(dtype=torch.bfloat16).npu()
 
-batch_size = 18
-q_head_num = 64
-kv_head_num = 1
-q_seq = 1
-head_dim = 128
-kv_seq_length = 8192
-q_tensor = torch.randn(batch_size, q_head_num, q_seq, head_dim).to(dtype=torch.bfloat16).npu()
-block_size = 128
-block_num = batch_size * (kv_seq_length // block_size + 1)
-max_block_num_prebatch = kv_seq_length // block_size + 1
-blockTable = torch.arange(batch_size * max_block_num_prebatch, dtype=torch.int32).view(batch_size, max_block_num_prebatch).npu()
-#kv NZ
-k_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
-v_tensor = torch.randn(block_num, kv_head_num, head_dim//32, block_size, 32).to(dtype=torch.int8).npu()
+    # KV Cache (INT8 quantized)
+    key_cache = torch.randint(
+        0, 100,
+        (config.block_num, config.kv_head_num, config.head_dim // 32, config.block_size, 32)
+    ).to(dtype=torch.int8).npu()
 
-actualSeqLengthqs = torch.tensor([q_seq] * batch_size, dtype=torch.int64).npu()
-actualSeqLengthkvs = torch.tensor([kv_seq_length] * batch_size, dtype=torch.int64).npu()
+    value_cache = torch.randint(
+        0, 100,
+        (config.block_num, config.kv_head_num, config.head_dim // 32, config.block_size, 32)
+    ).to(dtype=torch.int8).npu()
 
-key_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
-value_antiquant_scale=torch.randn(kv_head_num, 1, head_dim).to(dtype=torch.bfloat16).npu()
+    # Block Table
+    block_table = torch.arange(
+        config.batch_size * config.max_block_num_per_batch, dtype=torch.int32
+    ).view(config.batch_size, config.max_block_num_per_batch).npu()
 
-scaleValue = 1 / (head_dim**0.5)
-m_tensor = ~torch.tril(torch.ones(2048, 2048, dtype=torch.bool)).unsqueeze(0).unsqueeze(0).npu()
+    # Sequence lengths
+    actual_seq_kvlen = torch.tensor(
+        [config.kv_seq_length] * config.batch_size, dtype=torch.int64
+    ).npu()
 
-param = dict(
-        query = q_tensor,
-        key = k_tensor,
-        value = v_tensor,
-        # atten_mask = mask_fa,
-        # actual_seq_qlen = actualSeqLengthqs,
-        actual_seq_kvlen = actualSeqLengthkvs,
-        input_layout = "BNSD",
-        softmax_scale = scaleValue,
-        block_size = block_size,
-        block_table = blockTable,
-        num_query_heads  = q_head_num,
-        num_key_value_heads = kv_head_num,
-        sparse_mode=0,
-        inner_precise=1,
-        dequant_scale_key = key_antiquant_scale,
-        dequant_scale_value = value_antiquant_scale, 
-        key_quant_mode = 0,
-        value_quant_mode = 0  
+    # Dequantization scales
+    dequant_scale_key = torch.randn(
+        config.kv_head_num, 1, config.head_dim
+    ).to(dtype=torch.bfloat16).npu()
+
+    dequant_scale_value = torch.randn(
+        config.kv_head_num, 1, config.head_dim
+    ).to(dtype=torch.bfloat16).npu()
+
+    # FA Param
+    fa_param = {
+        "query": q,
+        "key": key_cache,
+        "value": value_cache,
+        "actual_seq_kvlen": actual_seq_kvlen,
+        "block_table": block_table,
+        "dequant_scale_key": dequant_scale_key,
+        "dequant_scale_value": dequant_scale_value,
+        "num_query_heads": config.q_head_num,
+        "num_key_value_heads": config.kv_head_num,
+        "softmax_scale": config.softmax_scale,
+        "block_size": config.block_size,
+        "input_layout": "BNSD",
+        "sparse_mode": 0,
+        "inner_precise": 1,
+        "key_quant_mode": 0,
+        "value_quant_mode": 0,
+    }
+
+    # Meta Param
+    meta_param = {
+        "batch_size": config.batch_size,
+        "query_seq_size": config.q_seq,
+        "query_head_num": config.q_head_num,
+        "key_seq_size": config.kv_seq_length,
+        "key_head_num": config.kv_head_num,
+        "block_size": config.block_size,
+        "max_block_num_per_batch": config.max_block_num_per_batch,
+        "is_accum_seq_query": False,
+        "is_accum_seq_kv": False,
+        "actual_seq_lengths_query": torch.tensor(
+            [config.q_seq] * config.batch_size, dtype=torch.int32
+        ).npu(),
+        "actual_seq_lengths_kv": actual_seq_kvlen.to(dtype=torch.int32),
+        "layout_query": "BNSD",
+        "layout_key": "BNSD",
+    }
+
+    return {"metaParam": meta_param, "faParam": fa_param}
+
+# =============================================
+# 🏁 MAIN EXECUTION (主入口函数)
+# =============================================
+def main():
+    # 1. Load config
+    config = AttentionConfig()
+
+    # 2. Reset Dynamo (for clean compile)
+    print("🔄 Resetting TorchDynamo...")
+    torch._dynamo.reset()
+
+    # 3. Build model
+    print("🧠 Building FusedAttentionNetwork...")
+    model = FusedAttentionNetwork().npu()
+
+    # 4. Set compiler config
+    print("⚙️ Setting up NPU compiler config...")
+    compiler_config = CompilerConfig()
+    compiler_config.mode = config.compile_mode
+
+    # 5. Get NPU backend
+    print("🎯 Getting NPU backend...")
+    npu_backend = tng.get_npu_backend(compiler_config=compiler_config)
+
+    # 6. Compile model
+    print("⚡ Compiling model with TorchDynamo...")
+    compiled_model = torch.compile(
+        model,
+        fullgraph=config.fullgraph,
+        backend=npu_backend,
+        dynamic=config.dynamic
     )
 
-output, softmaxlse = npu_mode(param)
-print("res : []")
-print(output)
+    # 7. Generate inputs
+    print("📥 Generating input tensors...")
+    param = generate_inputs(config)
 
+    # 8. Run inference
+    print("🚀 Running inference...")
+    try:
+        output, softmaxlse = compiled_model(param)
+        torch.npu.synchronize()
+
+        # 9. Print results
+        print(f"📊 Output shape: {output.shape}")
+        print(f"📉 Softmax output shape: {softmaxlse.shape}")
+
+        # 10. Pretty print output (first few values)
+        print("\n📌 First 5 values of output (BNSD):")
+        print(output[:5, :5, :5, :5].cpu().float().numpy())
+
+    except Exception as e:
+        print(f"❌ Inference failed: {e}")
+        raise
+
+# =============================================
+# 🚀 ENTRY POINT
+# =============================================
+if __name__ == "__main__":
+    main()

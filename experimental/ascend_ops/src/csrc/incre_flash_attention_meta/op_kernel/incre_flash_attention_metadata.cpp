@@ -522,36 +522,36 @@ bool SplitCore::GenMetaData(aicpu::kernels::IncreFlashAttentionMetadataArgs *arg
     // }
     constexpr uint32_t BYTE_BLOCK = 32UL;
     aicpu::kernels::IncreFlashAttentionMetadata *metaData = (aicpu::kernels::IncreFlashAttentionMetadata *)args->metaData;
-    metaData->usedCoreNum = 24;
-    metaData->formerCoreNum = 6;
-    metaData->sInnerLoopTimes = 64;
+    metaData->usedCoreNum = 18;
+    metaData->formerCoreNum = 18;
+    metaData->sInnerLoopTimes = 9;
     metaData->singleProcessSInnerSize = 1024;
-    metaData->singleProcessSInnerSizeTail = 1024;
-    metaData->blockSplitBn2Range = 2;
-    metaData->tailSplitedBatchRange = 1;
-    metaData->groupSplitSize = 16;
-    metaData->s1SplitSize = 8;
+    metaData->singleProcessSInnerSizeTail = 128;
+    metaData->blockSplitBn2Range = 1;
+    metaData->tailSplitedBatchRange = 0;
+    metaData->groupSplitSize = 64;
+    metaData->s1SplitSize = 1;
     metaData->startIdxEachCore[0] = 0;
-    metaData->startIdxEachCore[1] = 2;
-    metaData->startIdxEachCore[2] = 4;
-    metaData->startIdxEachCore[3] = 6;
-    metaData->startIdxEachCore[4] = 8;
-    metaData->startIdxEachCore[5] = 10;
-    metaData->startIdxEachCore[6] = 12;
-    metaData->startIdxEachCore[7] = 13;
-    metaData->startIdxEachCore[8] = 14;
-    metaData->startIdxEachCore[9] = 15;
-    metaData->startIdxEachCore[10] = 16;
-    metaData->startIdxEachCore[11] = 17;
-    metaData->startIdxEachCore[12] = 18;
-    metaData->startIdxEachCore[13] = 19;
-    metaData->startIdxEachCore[14] = 20;
-    metaData->startIdxEachCore[15] = 21;
-    metaData->startIdxEachCore[16] = 22;
-    metaData->startIdxEachCore[17] = 23;
-    metaData->startIdxEachCore[18] = 24;
-    metaData->startIdxEachCore[19] = 25;
-    metaData->startIdxEachCore[20] = 26;
+    metaData->startIdxEachCore[1] = 1;
+    metaData->startIdxEachCore[2] = 2;
+    metaData->startIdxEachCore[3] = 3;
+    metaData->startIdxEachCore[4] = 4;
+    metaData->startIdxEachCore[5] = 5;
+    metaData->startIdxEachCore[6] = 6;
+    metaData->startIdxEachCore[7] = 7;
+    metaData->startIdxEachCore[8] = 8;
+    metaData->startIdxEachCore[9] = 9;
+    metaData->startIdxEachCore[10] = 10;
+    metaData->startIdxEachCore[11] = 11;
+    metaData->startIdxEachCore[12] = 12;
+    metaData->startIdxEachCore[13] = 13;
+    metaData->startIdxEachCore[14] = 14;
+    metaData->startIdxEachCore[15] = 15;
+    metaData->startIdxEachCore[16] = 16;
+    metaData->startIdxEachCore[17] = 17;
+    metaData->startIdxEachCore[18] = 18;
+    metaData->startIdxEachCore[19] = 18;
+    metaData->startIdxEachCore[20] = 18;
     metaData->startIdxEachCore[21] = 27;
     metaData->startIdxEachCore[22] = 28;
     metaData->startIdxEachCore[23] = 29;
@@ -590,11 +590,11 @@ bool SplitCore::GenMetaData(aicpu::kernels::IncreFlashAttentionMetadataArgs *arg
     metaData->s2 = 0;
     metaData->sInnerLoopSize = 65536;
     if (layoutQuery_ == aicpu::kernels::Layout::TND) {
-        metaData->accumOutSize = 30720;
-        metaData->logSumExpSize = 3840;
+        metaData->accumOutSize = 147456;
+        metaData->logSumExpSize = 18432;
     }  else {
-        metaData->accumOutSize = 30720;
-        metaData->logSumExpSize = 3840;
+        metaData->accumOutSize = 147456;
+        metaData->logSumExpSize = 18432;
     }
 
     if (!splitKVFlag_) {

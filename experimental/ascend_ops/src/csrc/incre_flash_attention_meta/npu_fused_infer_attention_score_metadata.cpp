@@ -47,7 +47,7 @@ at::Tensor npu_fused_infer_attention_score_metadata_meta(
     c10::string_view layout_query, c10::string_view layout_key)
 {
     printf("start npu_fused_infer_attention_score_metadata_meta\n");
-    at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
+    at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device(torch::kMeta));
     return output;
 }
 
