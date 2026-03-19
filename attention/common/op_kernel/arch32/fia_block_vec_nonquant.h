@@ -614,17 +614,15 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         }
 
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
-            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
             AscendC::PipeBarrier<PIPE_V>();
             fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
-            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
         }
         if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
             SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
+            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
             fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
-            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
         }
         inputQue2.FreeTensor(maskUb);
     }
