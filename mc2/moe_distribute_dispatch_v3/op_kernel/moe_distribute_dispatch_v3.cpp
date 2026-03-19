@@ -45,6 +45,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
     if constexpr (ArchTag == TILINGKEY_TPL_A3) {
         printf("PRINT inter the kernel DT_BF16\n");
         if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
+            printf("PRINT inter the kernel FullMesh\n");
             GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
             MoeDistributeDispatchV2FullMesh<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
             op.Init(mc2Context, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut,
