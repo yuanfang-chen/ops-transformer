@@ -101,8 +101,8 @@ int main() {
     int64_t compressStride = 16;
     double scaleValue = 0.088388;
 	string sLayerOut = "TND";
-	char layOut[sLayerOut.length()];
-	strcpy(layOut, sLayerOut.c_str());
+	char layOut[16] = {0};
+	strcpy_s(layOut, sizeof(layOut), sLayerOut.c_str());
     int64_t pageBlockSize = 128;
     int64_t sparseMod = 0;
 	std::vector<int64_t> queryShape = {batchSize, numHeads, headDimsQK};
