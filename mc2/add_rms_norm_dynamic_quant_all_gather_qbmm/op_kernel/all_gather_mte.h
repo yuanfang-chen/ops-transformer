@@ -31,6 +31,7 @@ using namespace QuantMTECommImpl;
 using namespace AscendC;
 
 // 之后可修改成从tiling侧获取数据切块大小
+constexpr static uint32_t NO_TILE_K = 1U;   // 不切K模板
 constexpr static uint32_t X_PER_BLOCK_NUM = 512U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 512个x数据
 constexpr static uint64_t ALLOC_UB_SPACE = 180UL * 1024UL;  // 总共192K UB中抽出180K于此处使用
 
@@ -199,8 +200,13 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
         }
     }
     LocalTensor<int8_t> xTmpTensor = xInQueue_.AllocTensor<int8_t>();
-    dataCopyParamsIn_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, K_ - X_PER_BLOCK_NUM, 0, 0};
-    dataCopyParamsOut_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, 0, K_ - X_PER_BLOCK_NUM, 0};
+    if constexpr (SyncMode == NO_TILE_K) {
+        dataCopyParamsIn_ = {static_cast<uint16_t>(mCnt), static_cast<uint16_t>(K_ * sizeof(int8_t)), 0, 0, 0};
+        dataCopyParamsOut_ = {static_cast<uint16_t>(mCnt), static_cast<uint16_t>(K_ * sizeof(int8_t)), 0, 0, 0};
+    } else {
+        dataCopyParamsIn_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, K_ - X_PER_BLOCK_NUM, 0, 0};
+        dataCopyParamsOut_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, 0, K_ - X_PER_BLOCK_NUM, 0};
+    }
     DataCopyPad(xTmpTensor, remoteWinXTensor_[curXOffset], dataCopyParamsIn_, dataCopyPadParams_);
     xInQueue_.EnQue(xTmpTensor);
     xTmpTensor = xInQueue_.DeQue<int8_t>();
@@ -306,51 +312,74 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         ReadScales();
     }
 
-    uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
-    if (kBlockIdx_ < tileK_ % kDim_) {
-        kLoop++;
-    }
-    uint32_t curXOffset = coreInnerMIndex_ * K_ + kStartIndex_;
-    if constexpr (isCVSync) {   // CV软同步
-        uint32_t mCurOffset = M_ / singleCoreM_;
-        uint32_t mTile = 1;
-        uint32_t mFlagCount = mMteCoreM_;
-        uint32_t baseMIndex = mStartIndex_ / singleCoreM_;
-        // 先一次拷完，若跨base块则切分拷贝，当前tp M泛化到128，暂不存在跨baseM的情况
-        if (((mEndIndex_ - 1) / singleCoreM_ - mStartIndex_ / singleCoreM_) > 0) {
-            mTile = 2;
-            mFlagCount = Ceil(mStartIndex_, singleCoreM_) * singleCoreM_ - mStartIndex_;
+    if constexpr (SyncMode == NO_TILE_K) {
+        uint32_t mPerCore = M_ / sendCoreNumPerRank_;
+        uint32_t remainderNum = M_ % sendCoreNumPerRank_; // 余数
+        uint32_t mStartId = mPerCore * (aicId_ % sendCoreNumPerRank_);
+        if (aicId_ % sendCoreNumPerRank_ >= sendCoreNumPerRank_ - remainderNum) {
+            mPerCore++;
+            mStartId += aicId_ % sendCoreNumPerRank_ - (sendCoreNumPerRank_ - remainderNum);
         }
-        for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
-            uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
-            // 读取对端对应地址的 x 数据
-            ReadDataBlock(innerCurXOffset, mFlagCount);
-            SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
+        uint32_t mPerLoop = xInQueueSize_ / K_;
+        uint32_t mLoopCnt = mPerCore / mPerLoop;
+        uint32_t mTail = mPerCore % mPerLoop;
+        uint64_t innerCurXOffset = mStartId * K_;
+        for (uint32_t i = 0; i < mLoopCnt; ++i) {
+            ReadDataBlock(innerCurXOffset, mPerLoop);
+            innerCurXOffset += mPerLoop * K_;
         }
-        // 第二轮
-        if (mTile > 1) {
-            curXOffset += mFlagCount * K_;
-            mFlagCount = mEndIndex_ - Ceil(mStartIndex_, singleCoreM_) * singleCoreM_;
-            baseMIndex++;
+        if (mTail) {
+            ReadDataBlock(innerCurXOffset, mTail);
+        }
+        SyncAll<true>();
+        CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+    } else {
+        uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
+        if (kBlockIdx_ < tileK_ % kDim_) {
+            kLoop++;
+        }
+        uint32_t curXOffset = coreInnerMIndex_ * K_ + kStartIndex_;
+        if constexpr (SyncMode > NO_TILE_K) {   // CV软同步
+            uint32_t mCurOffset = M_ / singleCoreM_;
+            uint32_t mTile = 1;
+            uint32_t mFlagCount = mMteCoreM_;
+            uint32_t baseMIndex = mStartIndex_ / singleCoreM_;
+            // 先一次拷完，若跨base块则切分拷贝，当前tp M泛化到128，暂不存在跨baseM的情况
+            if (((mEndIndex_ - 1) / singleCoreM_ - mStartIndex_ / singleCoreM_) > 0) {
+                mTile = 2;
+                mFlagCount = Ceil(mStartIndex_, singleCoreM_) * singleCoreM_ - mStartIndex_;
+            }
             for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
                 uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
                 // 读取对端对应地址的 x 数据
                 ReadDataBlock(innerCurXOffset, mFlagCount);
                 SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
             }
-        }
-        PipeBarrier<PIPE_MTE3>();
-    } else {    // CV硬同步
-        for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
-            uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
-            ReadDataBlock(innerCurXOffset, mMteCoreM_);
+            // 第二轮
+            if (mTile > 1) {
+                curXOffset += mFlagCount * K_;
+                mFlagCount = mEndIndex_ - Ceil(mStartIndex_, singleCoreM_) * singleCoreM_;
+                baseMIndex++;
+                for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+                    uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+                    // 读取对端对应地址的 x 数据
+                    ReadDataBlock(innerCurXOffset, mFlagCount);
+                    SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
+                }
+            }
             PipeBarrier<PIPE_MTE3>();
-            SyncAll<true>();
-            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
-        }
-        if (kLoop < ((tileK_ + kDim_ - 1) / kDim_)) {
-            SyncAll<true>();
-            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+        } else {    // 切K硬同步
+            for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+                uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+                ReadDataBlock(innerCurXOffset, mMteCoreM_);
+                PipeBarrier<PIPE_MTE3>();
+                SyncAll<true>();
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+            }
+            if (kLoop < ((tileK_ + kDim_ - 1) / kDim_)) {
+                SyncAll<true>();
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+            }
         }
     }
 }

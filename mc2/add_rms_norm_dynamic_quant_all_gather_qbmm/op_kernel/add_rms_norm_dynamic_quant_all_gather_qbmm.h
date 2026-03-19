@@ -35,12 +35,13 @@
 
 namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
-#define TemplateMC2TypeClass typename X1Type, typename ScaleType, bool isCVSync, bool isOptionalOutput, bool isSmoothScale
-#define TemplateMC2TypeFunc X1Type, ScaleType, isCVSync, isOptionalOutput, isSmoothScale
+#define TemplateMC2TypeClass typename X1Type, typename ScaleType, uint32_t SyncMode, bool isOptionalOutput, bool isSmoothScale
+#define TemplateMC2TypeFunc X1Type, ScaleType, SyncMode, isOptionalOutput, isSmoothScale
 using namespace AscendC;
 using namespace AllGatherImpl;
 
 // 之后可修改成从tiling侧获取数据切块大小
+constexpr static uint32_t NO_TILE_K = 1U;   // 不切K模板
 constexpr static uint32_t X_PRE_BLOCK_NUM = 1024U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
 constexpr static uint64_t MX_SCALES_LAST_DIM = 2U; // MX量化scales最后一维的大小
 constexpr static uint8_t BUFFER_NUM = 2; // 多Buf
@@ -87,7 +88,7 @@ private:
     __aicore__ inline void DequantProcess();
 
     TPipe *tpipe_{nullptr};
-    AllGatherMte<int8_t, float, int8_t, isCVSync, isOptionalOutput> allGatherMte_;  // allGather 相关实现
+    AllGatherMte<int8_t, float, int8_t, SyncMode, isOptionalOutput> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -516,10 +517,14 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     mm_.SetTensorB(x2GMTensor_[offsetB_], false);
     mm_.DisableBias();
 
-    if (kBlockIdx == 0) {
-        mm_.template Iterate<false>(false); // <sync=false>(enPartialSum=false)
+    if constexpr (SyncMode == NO_TILE_K) {  //不切K串行模板下需计算整个singlecore
+        mm_.IterateAll<false>(mmOutGm_[offsetC_]);
     } else {
-        mm_.template Iterate<false>(true); // <sync=false>(enPartialSum=true)
+        if (kBlockIdx == 0) {
+            mm_.template Iterate<false>(false); // <sync=false>(enPartialSum=false)
+        } else {
+            mm_.template Iterate<false>(true); // <sync=false>(enPartialSum=true)
+        }
     }
 }
 
@@ -546,21 +551,26 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
     if (nCoreIndx < nDimNeed) {
         CalcOffset(0, mCoreIndx, nCoreIndx);
-        uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
-        for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
-            if constexpr (isCVSync) {
-                CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
-            } else {
-                if (kBlockIdx % 2 == 0) {
-                    CrossCoreWaitFlag(6);
+        if constexpr (SyncMode == NO_TILE_K) {
+            CrossCoreWaitFlag(6);
+            MMCompute(singleCoreM_, singleCoreNUpdate, 0);
+        } else {
+            uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
+            for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
+                if constexpr (SyncMode > NO_TILE_K) {
+                    CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
+                } else {
+                    if (kBlockIdx % 2 == 0) {
+                        CrossCoreWaitFlag(6);
+                    }
                 }
+                // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
+                MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
+                offsetA_ += singleCoreK_; // 512
+                offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
             }
-            // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
-            MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
-            offsetA_ += singleCoreK_; // 512
-            offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
+            mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
         }
-        mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
     }
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
 
@@ -570,13 +580,17 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
             break;
         }
         CalcOffset(nDimLoopIdx * nDimReal, mCoreIndx, nCoreIndx);
-        for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
-            // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
-            MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
-            offsetA_ += singleCoreK_; // 512
-            offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
+        if constexpr (SyncMode > NO_TILE_K) {
+            MMCompute(singleCoreM_, singleCoreNUpdate, 0);
+        } else {
+            for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
+                // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
+                MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
+                offsetA_ += singleCoreK_; // 512
+                offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
+            }
+            mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
         }
-        mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
         CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
     }
 
@@ -754,20 +768,23 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::AllGatherProcess()
 {
-    if (GetSubBlockIdx() == 0) {
-        allGatherMte_.InitBuffer(tpipe_);
-        allGatherMte_.SetRemoteFlag();
-        allGatherMte_.WaitRemoteFlag();
-        allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
-    } else {
-        if constexpr (!isCVSync) {
+    if (GetSubBlockIdx() == 1) {
+        if constexpr (SyncMode == NO_TILE_K) {
+            SyncAll<true>();
+            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+        } else if constexpr (SyncMode < NO_TILE_K) {
             uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
             for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
                 SyncAll<true>();
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
             }
         }
+        return;
     }
+    allGatherMte_.InitBuffer(tpipe_);
+    allGatherMte_.SetRemoteFlag();
+    allGatherMte_.WaitRemoteFlag();
+    allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
 }
 
 template<TemplateMC2TypeClass>

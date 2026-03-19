@@ -84,8 +84,8 @@ constexpr static uint32_t ZERONE_STATUS_POS = 0U;       // 0/1分区标志位ind
  * └──────────────┴──────────────┴──────────────┴───────────────────────────────┘
  */
 
-#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType, bool isCVSync, bool isOptionalOutput
-#define AllGatherTemplateType XType, ScalesType, OutputType, isCVSync, isOptionalOutput
+#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType, uint32_t SyncMode, bool isOptionalOutput
+#define AllGatherTemplateType XType, ScalesType, OutputType, SyncMode, isOptionalOutput
 
 template<AllGatherTemplateTypeClass>
 class MTECommunication {
