@@ -108,7 +108,8 @@ public:
     constexpr static uint64_t REAPTE_BYTE = 256;
 
     constexpr static uint64_t BLOCK_BYTE_SIZE = 32;
-    constexpr static uint64_t BLOCK_SIZE = 8;
+    constexpr static uint64_t BLOCK_FP32_NUM = 8;
+    constexpr static uint64_t BLOCK_16_NUM = 16;
     constexpr static uint64_t SFMG_HIGH_PERF_N_FACTOR = 8;
     constexpr static uint64_t SFMG_HIGH_PERF_D_FACTOR = 64;
 
@@ -117,6 +118,10 @@ public:
     uint64_t vecCoreIdx = 0;
     uint64_t row = 0; // 当前core需要处理q方向的s数
     uint64_t col = 0; // 当前core需要处理kv方向的s数
+    uint64_t align32Col = 0;
+    uint64_t align16Col = 0;
+    uint64_t alignCol = 0;
+    uint64_t alignRow = 0;
     uint64_t curCoreBatch = 0;
     uint64_t curCoreN1Idx = 0;      // q_n
     uint64_t curT1Idx = 0;          // q_t
@@ -168,6 +173,9 @@ public:
         maxKvSeqlen = tilingData -> maxKvSeqlen;
         n1 = tilingData -> numHeads; // q_n
         col = params.actualCol;
+        align32Col = (col + BLOCK_FP32_NUM - 1) / BLOCK_FP32_NUM * BLOCK_FP32_NUM; // fp32 对齐后的列数
+        align16Col = (col + BLOCK_16_NUM - 1) / BLOCK_16_NUM * BLOCK_16_NUM;
+        alignCol = (align32Col != col && (align32Col % BLOCK_16_NUM != 0)) ? align16Col : align32Col;
         curCoreBatch = params.curCoreBatch;
         curCoreN1Idx = params.curCoreN1Idx;
         curT1Idx = params.curT1Idx;
@@ -186,6 +194,10 @@ public:
         } else {
             row = params.actualRow / 2;
             curCoreS1Idx +=  params.actualRow / 2 + params.actualRow % 2;
+        }
+
+        if (row <= 0) {
+            return;
         }
         processNums = row * col;
         if constexpr(INPUT_LAYOUT == TND) {
@@ -253,12 +265,12 @@ public:
         }
 
         // 初始化 GM
-        sGm.SetGlobalBuffer((__gm__ float *)params.s + coreOffset);
+        sGm.SetGlobalBuffer((__gm__ float *)params.s);
         softmaxLseGm.SetGlobalBuffer((__gm__ float *)params.softmaxLse);
-        dpGm.SetGlobalBuffer((__gm__ float *)params.dp + coreOffset);
-        pWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.pWorkspace + coreOffset);
+        dpGm.SetGlobalBuffer((__gm__ float *)params.dp );
+        pWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.pWorkspace);
         softGradworkspaceGm.SetGlobalBuffer((__gm__ float *)params.softGradworkspace);
-        dsWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.dsWorkspace + coreOffset);
+        dsWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.dsWorkspace);
     }
         
     __aicore__ inline
@@ -281,17 +293,17 @@ public:
     __aicore__ inline
     void operator()<AscendC::AIV>()
     {
-        if (cBlockIdx >= usedVecCoreNums) {
+        if (cBlockIdx >= usedVecCoreNums || row <= 0) {
             return;
         }
         
-        // col < 128
+        // col <= 128
         // 计算单loop的计算量及loop次数
         uint64_t eleBaseBuffNum = p32BaseBufLen / sizeof(float); // 基本buffer块的元素数量
-        uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
+        // uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
+        uint64_t bufferRows = eleBaseBuffNum / alignCol == 0 ? 1 :  eleBaseBuffNum / alignCol; // 一次lopp可以执行的row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
-
         uint64_t ping = 0;
         // 不包含尾行处理
         for (uint64_t i = 0; i < rowLoopTimes; i++) {
@@ -352,6 +364,7 @@ public:
                     static_cast<uint32_t>(transpseStride), 0, 0},
                     {false, 0, 0, 0});
         } else {
+            printf("bnsd\n");
             startOffset = curCoreBatch * (n1 * maxQSeqlen) + curCoreN1Idx * maxQSeqlen + curS1;
             DataCopyPad(lse, LseGm[startOffset],
                     {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)),
@@ -390,7 +403,7 @@ public:
 
         // 执行一次sub，迭代次数 col / oneblock ， 一次迭代计算 row * oneblock 元素， 
         uint32_t rowNumPerCompute = BLK_NUM_PER_VECTOR_FRACTAL; // 256 / 32 = 8 即per_repeat / per_block = 8
-        uint32_t colNumPerCompute = eleNumPerBlk * maxRepeatNum; // 255 * 8
+        uint32_t colNumPerCompute = eleNumPerBlk * maxRepeatNum; // 255 * 8 最多可以计算列的元素
         for (uint32_t rowOffset = 0; rowOffset < row; rowOffset += rowNumPerCompute) {
             uint32_t residueM = row - rowOffset;
             uint32_t currentRowNum = (residueM > rowNumPerCompute) ? rowNumPerCompute : residueM;
@@ -399,6 +412,8 @@ public:
                 uint32_t residueN = col - colOffset;
                 uint32_t currentColNum = (residueN > colNumPerCompute) ? colNumPerCompute : residueN;
                 uint8_t repeatTimes = static_cast<uint8_t>(currentColNum / eleNumPerBlk);
+                uint32_t tailColNUm = currentColNum - static_cast<uint32_t>(repeatTimes) * eleNumPerBlk;
+                uint32_t trailTimes = tailColNUm == 0 ? 0 : 1;
                 AscendC::Sub(
                     ubOut[rowOffset * col + colOffset],
                     ubIn0[rowOffset * col + colOffset],
@@ -417,6 +432,7 @@ public:
     __aicore__ inline
     void SimplySoftmax(struct SimplySoftMaxInfo<InputDType> runInfo, uint64_t row, uint64_t col, uint64_t curS1)
     {
+        // row <= 128 col <= 128
         LocalTensor<float> &sLocal = runInfo.sTensor;
         LocalTensor<float> &lse = runInfo.lseTensor;
         LocalTensor<float> &lseFp32Brc = runInfo.lseBrocTensor;
@@ -427,8 +443,8 @@ public:
         GlobalTensor<float> lseGm = runInfo.lseGm;
         GlobalTensor<InputDType> pGm = runInfo.pGm;
 
-        uint64_t count = row * col;
-        uint64_t countAlign = (count + BLOCK_SIZE - 1) / BLOCK_SIZE * BLOCK_SIZE;
+        uint64_t countAlign = row * alignCol;
+        uint64_t count =  row * col;
         
         auto event_id = EVENT_ID0;
         set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
@@ -436,36 +452,33 @@ public:
 
         LseBrocast(lseGm, lse, lseFp32Brc, row, curS1);
 
-
-        if (count % BLOCK_SIZE == 0) {
-            DataCopy(sLocal, s, count);
+        if (align32Col * sizeof(InputDType) % BLOCK_BYTE_SIZE == 0) {
+            DataCopyPad(sLocal, s, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(float)), 0, 0, 0}, 
+                    {true, 0, static_cast<uint8_t>(align32Col - col), 0});
         } else {
-            DataCopyPad(sLocal, s, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, 
-                        {true, 0, static_cast<uint8_t>(countAlign - count), 0});
+            DataCopyPad(sLocal, s, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(float)), 0, 1, 0}, 
+                    {true, 0, static_cast<uint8_t>(align32Col - col), 0});
         }
 
         set_flag(PIPE_MTE2, PIPE_V, event_id);
         wait_flag(PIPE_MTE2, PIPE_V, event_id);
         
-        Muls(sLocal, sLocal, (float)scaleValue, count);
+
+        Muls(sLocal, sLocal, (float)scaleValue, countAlign);
         AscendC::PipeBarrier<PIPE_V>();
 
-        SubBrcb(p32Local, sLocal, lseFp32Brc, row, col);
+        SubBrcb(p32Local, sLocal, lseFp32Brc, row, alignCol);
         AscendC::PipeBarrier<PIPE_V>();
 
-        Exp(p32Local, p32Local, count);
+        Exp(p32Local, p32Local, countAlign);
         AscendC::PipeBarrier<PIPE_V>();
 
-        Cast(p16Local, p32Local, AscendC::RoundMode::CAST_ROUND, count);
+        Cast(p16Local, p32Local, AscendC::RoundMode::CAST_ROUND, countAlign);
 
         set_flag(PIPE_V, PIPE_MTE3, event_id);
         wait_flag(PIPE_V, PIPE_MTE3, event_id);
 
-        if (count * sizeof(InputDType) % BLOCK_BYTE_SIZE == 0) {
-            DataCopy(pGm, p16Local, count);
-        } else {
-            DataCopyPad(pGm, p16Local, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(InputDType)), 0, 0, 0});
-        }
+        DataCopyPad(pGm, p16Local, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(InputDType)), 0, 0, 0});
 
         set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
         wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
@@ -490,30 +503,38 @@ public:
         GlobalTensor<InputDType> ds = runInfo.dsGm;
 
         uint64_t count = row * col;
+        uint64_t countAlign = row * alignCol;
 
-        AscendC::PipeBarrier<PIPE_ALL>();
         auto event_id = EVENT_ID0;
         set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
         wait_flag(PIPE_MTE3, PIPE_MTE2, event_id);
 
-        DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
+        if (align32Col * sizeof(InputDType) % BLOCK_BYTE_SIZE == 0) {
+            DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(float)), 0, 0, 0}, 
+                    {true, 0, static_cast<uint8_t>(align32Col - col), 0});
+         } else {
+            DataCopyPad(dpLocal, dp, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(float)), 0, 1, 0}, 
+                    {true, 0, static_cast<uint8_t>(align32Col - col), 0});
+        }
+
+
         CopyDIn(d, dLocal, row, curS1);
 
         set_flag(PIPE_MTE2, PIPE_V, event_id);
         wait_flag(PIPE_MTE2, PIPE_V, event_id);
 
-        SubBrcb(dpLocal, dpLocal, dLocal, row, col);
+        SubBrcb(dpLocal, dpLocal, dLocal, row, alignCol);
         AscendC::PipeBarrier<PIPE_V>();
 
-        Mul(dpLocal, p32Local, dpLocal, count);
+        Mul(dpLocal, p32Local, dpLocal, countAlign);
         AscendC::PipeBarrier<PIPE_V>();
 
-        Cast(ds16Tensor, dpLocal, AscendC::RoundMode::CAST_ROUND, count);
+        Cast(ds16Tensor, dpLocal, AscendC::RoundMode::CAST_ROUND, countAlign);
 
         set_flag(PIPE_V, PIPE_MTE3, event_id);
         wait_flag(PIPE_V, PIPE_MTE3, event_id);
 
-        DataCopyPad(ds, ds16Tensor, {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(InputDType)), 0, 0, 0});
+        DataCopyPad(ds, ds16Tensor, {static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(InputDType)), 0, 0, 0});
         AscendC::PipeBarrier<PIPE_ALL>();
 
         set_flag(PIPE_MTE3, PIPE_MTE2, event_id);
