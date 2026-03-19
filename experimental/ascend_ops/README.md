@@ -115,6 +115,8 @@ ascend_ops/
 
 ```bash
 # 确保 CANN 已安装并配置环境变量
+source cann包环境
+#默认安装环境
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
 # 验证 CANN 环境

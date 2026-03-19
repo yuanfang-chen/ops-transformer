@@ -480,31 +480,27 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     uint32_t blockDim = tilingData.increFlashAttentionSingleCoreParams.get_usedCoreNum();
     printf("blockDim set to :%d\n", blockDim);
     print(tilingData);
-    auto aclCal = [&]() -> int {
-        if (fdFlag == 0 && layoutVal == 0 && antiquantMode == 0) {
-            LAUNCH_INCRE_FA(0, 0, 0);
-        } else if (fdFlag == 0 && layoutVal == 0 && antiquantMode == 1) {
-            LAUNCH_INCRE_FA(0, 0, 1);
-        } else if (fdFlag == 0 && layoutVal == 1 && antiquantMode == 0) {
-            LAUNCH_INCRE_FA(0, 1, 0);
-        } else if (fdFlag == 0 && layoutVal == 1 && antiquantMode == 1) {
-            LAUNCH_INCRE_FA(0, 1, 1);
-        } else if (fdFlag == 1 && layoutVal == 0 && antiquantMode == 0) {
-            LAUNCH_INCRE_FA(1, 0, 0);
-        } else if (fdFlag == 1 && layoutVal == 0 && antiquantMode == 1) {
-            LAUNCH_INCRE_FA(1, 0, 1);
-        } else if (fdFlag == 1 && layoutVal == 1 && antiquantMode == 0) {
-            LAUNCH_INCRE_FA(1, 1, 0);
-        } else if (fdFlag == 1 && layoutVal == 1 && antiquantMode == 1) {
-            LAUNCH_INCRE_FA(1, 1, 1);
-        } else {
-            printf("invalid flags: fd=%d layout=%d antiquantMode=%d\n",
-                fdFlag, layoutVal, antiquantMode);
-            return -1;
-        }
-        return 0;
-    };
-    at_npu::native::OpCommand::RunOpApiV2("FA", aclCal);
+    
+    if (fdFlag == 0 && layoutVal == 0 && antiquantMode == 0) {
+        LAUNCH_INCRE_FA(0, 0, 0);
+    } else if (fdFlag == 0 && layoutVal == 0 && antiquantMode == 1) {
+        LAUNCH_INCRE_FA(0, 0, 1);
+    } else if (fdFlag == 0 && layoutVal == 1 && antiquantMode == 0) {
+        LAUNCH_INCRE_FA(0, 1, 0);
+    } else if (fdFlag == 0 && layoutVal == 1 && antiquantMode == 1) {
+        LAUNCH_INCRE_FA(0, 1, 1);
+    } else if (fdFlag == 1 && layoutVal == 0 && antiquantMode == 0) {
+        LAUNCH_INCRE_FA(1, 0, 0);
+    } else if (fdFlag == 1 && layoutVal == 0 && antiquantMode == 1) {
+        LAUNCH_INCRE_FA(1, 0, 1);
+    } else if (fdFlag == 1 && layoutVal == 1 && antiquantMode == 0) {
+        LAUNCH_INCRE_FA(1, 1, 0);
+    } else if (fdFlag == 1 && layoutVal == 1 && antiquantMode == 1) {
+        LAUNCH_INCRE_FA(1, 1, 1);
+    } else {
+        printf("invalid flags: fd=%d layout=%d antiquantMode=%d\n",
+            fdFlag, layoutVal, antiquantMode);
+    }
 
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
