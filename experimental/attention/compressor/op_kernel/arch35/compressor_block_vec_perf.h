@@ -1090,7 +1090,7 @@ CompressorBlockVectorPerf<COMP>::CalRope(const LocalTensor<X_T> &outputUb, const
              repeatTime, {1, 1, 4, 8});
     }
 
-    sliceIterator.SetNeedDealScSize(dealRowCount);
+    ropeSliceIterator.SetNeedDealScSize(dealRowCount);
     while (!ropeSliceIterator.IsEnd()) {
         ropeSliceIterator.GetSlice();
         if (sliceInfo.curDealScNum > 0) {
