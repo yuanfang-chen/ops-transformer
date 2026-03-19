@@ -397,7 +397,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         } else {
             OP_LOGD("PRINT ERROR scalesOptional is not nullptr");
         }
-        getWorkspaceSizesRes =  (
+        getWorkspaceSizesRes =  aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
             mc2Context, x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, epWorldSize, epRankId, moeExpertNum,
             hcclBuffSize, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
