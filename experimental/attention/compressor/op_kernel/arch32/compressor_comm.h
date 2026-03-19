@@ -46,6 +46,28 @@ __aicore__ inline T Trunc(T num, T rnd)
     return ((rnd) == 0) ? 0 : (((num) / (rnd) * (rnd)));
 }
 
+template <typename T>
+__aicore__ inline T FloorPow2(T num)
+{
+    if (num == 0) return 1;
+    for(uint32_t i = 1; i < sizeof(T) * 8; i <<= 1) {
+        num |= (num >> i);
+    }
+    return num - (num >> 1);
+}
+
+template <typename T>
+__aicore__ inline T CeilPow2(T num)
+{
+    if (num <= 1) return 1;
+    num --;
+    for(uint32_t i = 1; i < sizeof(T) * 8; i <<= 1) {
+        num |= (num >> i);
+    }
+    num ++;
+    return num;
+}
+
 enum class X_LAYOUT : std::uint8_t {
     BSH = static_cast<std::uint8_t>(0),
     TH = static_cast<std::uint8_t>(1)
@@ -104,17 +126,8 @@ struct ConstInfo {
     uint32_t coreGroupNum = 0;
     uint32_t singleCoreDealTcBasicNum = 0;
     uint32_t dIdx = 0;
-    uint32_t mStart = 0;
-    uint32_t mEnd = 0;
-    uint32_t nStart = 0;
-    uint32_t nEnd = 0;
-    uint32_t kStart = 0;
-    uint32_t kEnd = 0;
-    uint32_t mLoopNum = 0;
     uint32_t bIdxOfLastTc = 0;
     uint32_t sIdxOfLastTc = 0;
-    uint32_t mGroupNum = 0;
-    uint32_t mCurGroupIdx = 0;
 
     // shape及参数
     uint32_t batchSize = 0;
@@ -125,6 +138,7 @@ struct ConstInfo {
     uint32_t cmpRatio = 0;
     float normEps = 1e-6;
     float reciprocalD = 0;
+    uint64_t stateCacheStrideDim0 = 0;
 
     uint32_t curGroupIdx = 0;
     uint32_t tailGroupIdx = 0;
@@ -137,16 +151,22 @@ struct ConstInfo {
     uint32_t maxBlockNumPerBatch = 0;
 
     // workSpace
-    uint32_t preMm1ResSize = 0;
-    uint32_t curMm1ResSize = 0;
+    uint32_t dbWorkspaceRatio = 1;
+    uint32_t mm1KvResSize = 0;
+    uint32_t mm1ScoreResSize = 0;
+    uint32_t vec1TailCacheSize = 0;
     uint32_t vec1ResSize = 0;
+    uint32_t mm1ResSize = 0;    // 所有cube输出kv/score结果的总大小
 
     uint32_t aiCoreIdx = 0;
     uint32_t nSize = 0;
+
+    uint32_t dbSize = 0;
 };
 
 struct RunInfo {
     bool isValid = false;
+    uint32_t cubeDbIdx = 0;         // kernel主循环索引
 
     // 增加字段
     uint32_t dealTcNum = 0;
@@ -175,8 +195,20 @@ struct RunInfo {
     uint64_t vec1ResOffset = 0;
 };
 
+struct Vec1RunInfo {
+    // vec相关信息，一次syncAll需处理数据的起始索引
+    bool resetResFlag = false;          // v1积攒N轮 是否是N轮的起始轮
+    uint32_t c1v1DbIdx = 0;               // vec1 doubleBuffer索引
+    uint32_t v1v2DbIdx = 0;             // v1v2 doubleBuffer索引
+    uint32_t bStart = 0;
+    uint32_t sStart = 0;
+    uint32_t dealTcNum = 0;
+    uint32_t dealScSize = 0;
+};
+
 struct Vec2RunInfo {
     // uint32_t bStart = 0;
+    uint32_t v2DbIdx = 0;              // v2 doubleBuffer索引
     uint32_t sStart = 0;
     uint32_t bEnd = 0;
     uint32_t sEnd = 0;

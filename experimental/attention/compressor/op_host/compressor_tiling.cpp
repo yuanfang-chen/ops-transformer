@@ -154,9 +154,9 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     coff = static_cast<uint8_t>(*context_->coff);
     baseParams_->stateCacheStrideDim0 = static_cast<uint64_t>(*context_->stateCacheStrideDim0);
     baseParams_->nSize = 2; // 2:每个核处理两个基本块后做全核同步
-        baseParams_->usedCoreNum = aicNum_;
-     OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u, stateCacheStrideDim0:%u", \
- 	    baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff, baseParams_->stateCacheStrideDim0);
+    baseParams_->usedCoreNum = aicNum_;
+    OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u, stateCacheStrideDim0:%u", \
+        baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff, baseParams_->stateCacheStrideDim0);
     
     return ge::GRAPH_SUCCESS;
 }
@@ -213,7 +213,7 @@ ge::graphStatus CompressorTiling::SetTemplateId()
 
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
-    if (context_->templateId = TemplateId::PERF) {
+    if (context_->templateId == TemplateId::PERF) {
         innerSplitParams_->mBaseSize = 256;                 // 256:核间切分，M轴基本块大小
         innerSplitParams_->dBaseSize = 256 / (coff * 2);    // nBase = dBase * coff * 2
         uint32_t dBaseNum = baseParams_->headDim / innerSplitParams_->dBaseSize;
@@ -806,7 +806,7 @@ ge::graphStatus CompressorTiling::CheckFeature() const
     if (static_cast<uint8_t>(*context_->cacheMode) == static_cast<uint8_t>(CACHE_MODE::CYCLE)) {
         OP_CHECK_IF(pageAttentionParams_->blockNum < baseParams_->batchSize,
                     OP_LOGE(context_->opName, "when cacheMode is %u, blockNum should not be less than batchSize(%u), but got %u",
-                static_cast<uint8_t>(CACHE_MODE::CYCLE), baseParams_->batchSize, pageAttentionParams_->blockSize),
+                    static_cast<uint8_t>(CACHE_MODE::CYCLE), baseParams_->batchSize, pageAttentionParams_->blockSize),
                     return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;

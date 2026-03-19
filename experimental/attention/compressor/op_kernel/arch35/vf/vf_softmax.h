@@ -1124,6 +1124,8 @@ __simd_vf__ inline void SoftmaxDndBase16(__ubuf__ T *inputAddr, __ubuf__ float *
         Max(max2, max20, max21, pregAll);
         Max(max3, max30, max31, pregAll);
 
+<<<<<<< HEAD
+=======
         // Squeeze<T, AscendC::MicroAPI::GatherMaskMode::NO_STORE_REG>(max00, max0, pregLHalf);
         // Squeeze<T, AscendC::MicroAPI::GatherMaskMode::NO_STORE_REG>(max01, max0, pregHHalf);
         // Max(max0, max00, max01, pregLHalf);
@@ -1140,6 +1142,7 @@ __simd_vf__ inline void SoftmaxDndBase16(__ubuf__ T *inputAddr, __ubuf__ float *
         // Squeeze<T, AscendC::MicroAPI::GatherMaskMode::NO_STORE_REG>(max31, max3, pregHHalf);
         // Max(max3, max30, max31, pregLHalf);
 
+>>>>>>> 0b5afde7f2104b01e0055502f1c503b1cd19f181
         for (uint16_t loopM = 0; loopM < uint16_t(ReduceSize / 2); ++loopM) {
             LoadAlign(vregF32_00, srcUb00 + loopM * RowSize + ReduceSize * RowSize * loopSc * 4);
             LoadAlign(vregF32_01, srcUb01 + + loopM * RowSize + ReduceSize * RowSize * loopSc * 4);
@@ -1232,10 +1235,13 @@ __simd_vf__ inline void SoftmaxDndBase16(__ubuf__ T *inputAddr, __ubuf__ float *
         }
         Max(max0, max00, max01, pregAll);
 
+<<<<<<< HEAD
+=======
         // Squeeze<T, AscendC::MicroAPI::GatherMaskMode::NO_STORE_REG>(max00, max0, pregLHalf);
         // Squeeze<T, AscendC::MicroAPI::GatherMaskMode::NO_STORE_REG>(max01, max0, pregHHalf);
         // Max(max0, max00, max01, pregLHalf);
 
+>>>>>>> 0b5afde7f2104b01e0055502f1c503b1cd19f181
         for (uint16_t loopM = 0; loopM < uint16_t(ReduceSize / 2); ++loopM) {
             LoadAlign(vregF32_00, srcUb00 + loopM * RowSize + ReduceSize * RowSize * (loopSc + vScRealSize / 4 * 4));
             LoadAlign(vregF32_01, srcUb01 + loopM * RowSize + ReduceSize * RowSize * (loopSc + vScRealSize / 4 * 4));

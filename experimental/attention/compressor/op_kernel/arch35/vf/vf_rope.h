@@ -17,7 +17,7 @@
 #define VF_ROPE_H
 
 #include "kernel_operator.h"
-#include "../../compressor_comm.h"
+#include "../compressor_comm.h"
 
 using namespace AscendC;
 struct RopeParam{

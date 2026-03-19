@@ -16,8 +16,8 @@
 #ifndef COMPRESSOR_BLOCK_CUBE_PERF_H
 #define COMPRESSOR_BLOCK_CUBE_PERF_H
 
-#include "../compressor_comm.h"
-#include "../compressor_tools.h"
+#include "compressor_comm.h"
+#include "compressor_tools.h"
 
 using namespace AscendC;
 
@@ -133,14 +133,12 @@ template <typename COMP> __aicore__ inline void CompressorBlockCubePerf<COMP>::I
         __gm__ uint8_t *x,
         __gm__ uint8_t *wKv,
         __gm__ uint8_t *wGate,
-        __gm__ uint8_t *kvState,
-        __gm__ uint8_t *scoreState,
+        __gm__ uint8_t *stateCache,
         __gm__ uint8_t *ape,
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *kvBlockTable,
-        __gm__ uint8_t *scoreBlockTable,
+        __gm__ uint8_t *stateBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -364,7 +362,7 @@ __aicore__ inline void CompressorBlockCubePerf<COMP>::ComputeMm1(const RunInfo &
     // hSize为K_SIZE=512的倍数
     uint32_t hStart = constInfo_.kStart;
     uint32_t hSize = constInfo_.kEnd - constInfo_.kStart;
-    uint32_t hIdxStart = (constInfo_.aiCoreIdx % constInfo_.dBaseNum) * K_L1_BASE;  // 每组核内的h循环起始不同
+    uint32_t hIdxStart = (constInfo_.aiCoreIdx % constInfo_.dBasicBlockNum) * K_L1_BASE;  // 每组核内的h循环起始不同
     // printf("hStart=%d, hSize=%d, hIdxStart=%d\n", hStart, hSize, hIdxStart);
     // printf("cube1\n");
     uint32_t kSize = K_L1_BASE;
