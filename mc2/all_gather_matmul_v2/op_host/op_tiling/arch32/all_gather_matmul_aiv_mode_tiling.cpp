@@ -362,7 +362,7 @@ static ge::graphStatus PrintfTilingData(gert::TilingContext *context, AllGatherM
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData info.aivNum=%u", info.aivNum);
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData info.totalUbSize=%u", info.totalUbSize);
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData info.isTransposeX2=%d", info.isTransposeX2);
-    
+
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData coctiling.k0=%u", coctiling.k0);
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData coctiling.n0=%u", coctiling.n0);
     OP_LOGD("AllgatherMatmulV2AIVMode", "TilingData coctiling.mLoop=%u", coctiling.mLoop);
@@ -374,14 +374,14 @@ static ge::graphStatus PrintfTilingData(gert::TilingContext *context, AllGatherM
 }
 
 void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint64_t &userWorkSpaceSize, int64_t rankSize,
-                        AllGatherMatmulAIVModeInfo &info)
+                        AllGatherMatmulAIVModeInfo &info, const CoCTiling &cocTiling)
 {
     bool hasAAlign = (!IsMatrixAligned(info.M, info.K, info.isTransposeX1, nElemAlign) && info.M != 1);
     bool hasBAlign = !IsMatrixAligned(info.K, info.N, info.isTransposeX2, nElemAlign);
     int32_t mAlign = AlignUp(info.M, nElemAlign);
     int32_t kAlign = AlignUp(info.K, nElemAlign);
     int32_t nAlign = AlignUp(info.N, nElemAlign);
-    
+
     info.aAlignSize = 0;
     info.bAlignSize = 0;
     info.hasAAlign = hasAAlign;
@@ -403,7 +403,9 @@ void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint64_t &us
         userWorkSpaceSize += info.bAlignSize;
     }
     if (info.quantFlag) {
-        userWorkSpaceSize += static_cast<uint64_t>(info.M * info.N * rankSize * sizeof(int32_t));
+        // 使用分块大小计算int32结果内存，只需要MAX_BLOCK_COUNT个分块的空间
+        int32_t block_m = cocTiling.m0 * cocTiling.pValue;
+        userWorkSpaceSize += static_cast<uint64_t>(block_m * info.N * rankSize * MAX_BLOCK_COUNT * sizeof(int32_t));
     }
     if (info.dequantType == DequantType::PER_TOKEN) {
         userWorkSpaceSize += static_cast<uint64_t>(info.M * rankSize * sizeof(float32_t));
@@ -441,7 +443,7 @@ static bool CheckDtypeX2(gert::TilingContext *context, AllGatherMatmulAIVModeInf
     return false;
 }
 
-bool SetTilingDataA3(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize) 
+bool SetTilingDataA3(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize)
 {
     if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
         AllGatherV2MatmulNPU91093FourRankINT8Tiling(cocTilingData);
@@ -459,7 +461,7 @@ bool SetTilingDataA3(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info,
     return false;
 }
 
-bool SetTilingDataA2(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize) 
+bool SetTilingDataA2(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize)
 {
     if (rankSize == RANKSIZE_TWO && info.quantFlag) {
         AllGatherV2MatmulNPU910BTwoRankINT8Tiling(cocTilingData);
@@ -496,11 +498,11 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     OP_LOGI("Enter AllGatherMatmulAIVMode tiling func.");
-    
+
     // 涉及SyncAll，设置batch mode模式，所有核同时启动
     uint32_t batchMode = 1U;
     auto ret = context->SetScheduleMode(batchMode);
-    GE_ASSERT_GRAPH_SUCCESS(ret); 
+    GE_ASSERT_GRAPH_SUCCESS(ret);
 
     // 1. tilingData
     AllGatherMatmulAIVModeTilingData *tilingData = context->GetTilingData<AllGatherMatmulAIVModeTilingData>();
@@ -522,7 +524,7 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
         AllGatherMatmulAIVModeGetPlatformInfoAndSetTiling(context, info, coctiling) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "AllGatherMatmulAIVMode GetPlatformInfoAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
-    
+
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
     const char* opName = context->GetNodeName();
@@ -564,7 +566,7 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
                return ge::GRAPH_FAILED);
-    
+
     info.is910C = false;
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     fe::PlatFormInfos &platformInfo = *platformInfoPtr;
@@ -587,9 +589,9 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
         elementSize = D_TYPE_SIZE_MAP.at(aType);
         nElemAlign = HALF_KBYTE / elementSize;
     }
-    
+
     uint64_t userWorkSpaceSize = 0;
-    GetUsrWorkSpaceSize(nElemAlign, elementSize, userWorkSpaceSize, rankSize, info);
+    GetUsrWorkSpaceSize(nElemAlign, elementSize, userWorkSpaceSize, rankSize, info, tilingData->cocTiling);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;
 
     // 5. communication
