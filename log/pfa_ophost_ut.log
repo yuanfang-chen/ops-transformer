@@ -1,0 +1,259 @@
+GTEST_INSTALL_PATH=/home/j60100428/ops-transformer_0319/third_party/gtest
+gtest found:FALSE
+gtest not found in /home/j60100428/ops-transformer_0319/third_party/gtest, begin load from https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz
+CMake Warning (dev) at /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:3074 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:4170 (_ep_add_download_command)
+  cmake/third_party/gtest.cmake:90 (ExternalProject_Add)
+  CMakeLists.txt:130 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+[2026-03-24 17:37:06] Warning: The current environment is configured for ascend910b, Please use Atlas A2 series hardware for optimal performance.
+[2026-03-24 17:37:07] ----------------------------------------------------------------
+[2026-03-24 17:37:07] Start to build ut
+[2026-03-24 17:37:07] -- The C compiler identification is GNU 9.4.0
+[2026-03-24 17:37:07] -- The CXX compiler identification is GNU 9.4.0
+[2026-03-24 17:37:07] -- Detecting C compiler ABI info
+[2026-03-24 17:37:07] -- Detecting C compiler ABI info - done
+[2026-03-24 17:37:07] -- Check for working C compiler: /usr/bin/cc - skipped
+[2026-03-24 17:37:07] -- Detecting C compile features
+[2026-03-24 17:37:07] -- Detecting C compile features - done
+[2026-03-24 17:37:07] -- Detecting CXX compiler ABI info
+[2026-03-24 17:37:08] -- Detecting CXX compiler ABI info - done
+[2026-03-24 17:37:08] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[2026-03-24 17:37:08] -- Detecting CXX compile features
+[2026-03-24 17:37:08] -- Detecting CXX compile features - done
+[2026-03-24 17:37:08] -- ASCEND_CANN_PACKAGE_PATH=/home/j60100428/Ascend_0320/cann-9.0.0
+[2026-03-24 17:37:08] -- compile project with library
+[2026-03-24 17:37:11] -- Found Python3: /root/miniconda3/envs/jpy38/bin/python3.8 (found version "3.8.20") found components: Interpreter 
+[2026-03-24 17:37:11] -- ENABLE_CCACHE=ON, CUSTOM_CCACHE=
+[2026-03-24 17:37:11] -- CCACHE_PROGRAM=CCACHE_PROGRAM-NOTFOUND
+[2026-03-24 17:37:11] -- ASCEND_COMPUTE_UNIT=ascend910b;
+[2026-03-24 17:37:11] -- ASCEND_OP_NAME=prompt_flash_attention
+[2026-03-24 17:37:11] -- TILING_KEY=
+[2026-03-24 17:37:11] -- TESTS_UT_OPS_TEST=prompt_flash_attention
+[2026-03-24 17:37:11] -- TESTS_EXAMPLE_OPS_TEST=
+[2026-03-24 17:37:11] -- CMAKE_BUILD_TYPE=Debug
+[2026-03-24 17:37:11] -- VERSION=
+[2026-03-24 17:37:11] -- CMAKE_CXX_COMPILER_ID=GNU
+[2026-03-24 17:37:11] -- Could NOT find json (missing: JSON_INCLUDE) 
+[2026-03-24 17:37:11] -- Could NOT find gtest (missing: GTEST_INCLUDE GTEST_STATIC_LIBRARY GTEST_MAIN_STATIC_LIBRARY GMOCK_STATIC_LIBRARY GMOCK_MAIN_STATIC_LIBRARY) 
+[2026-03-24 17:37:11] -- Start building custom package.
+[2026-03-24 17:37:11] -- Search libs under install path /home/j60100428/Ascend_0320/cann-9.0.0
+[2026-03-24 17:37:11] -- CMAKE_MODULE_PATH            :/home/j60100428/ops-transformer_0319/cmake/modules;/home/j60100428/Ascend_0320/cann-9.0.0/include/ge/cmake
+[2026-03-24 17:37:11] -- compile option:  -O0 -g -Wall -Wextra -Wshadow -Wformat=2 -fno-common -fPIC -Wformat-signedness -Wno-missing-include-dirs -Wno-write-strings
+[2026-03-24 17:37:11] -- Found dlog: /home/j60100428/Ascend_0320/cann-9.0.0/pkg_inc/base  
+[2026-03-24 17:37:11] -- Transformer Variables in dlog module:
+[2026-03-24 17:37:11] -- dlog_TRANSFORMER_INCLUDE_DIR="/home/j60100428/Ascend_0320/cann-9.0.0/pkg_inc/base"
+[2026-03-24 17:37:11] -- dlog_SHARED_LIBRARY="/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:11] -- 
+[2026-03-24 17:37:11]  Properties for TARGET dlog:
+[2026-03-24 17:37:11]    dlog.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:37:11]    dlog.INTERFACE_LINK_LIBRARIES = "dlog_headers"
+[2026-03-24 17:37:11]    dlog.IMPORTED_LOCATION = "/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:11] 
+[2026-03-24 17:37:11] -- 
+[2026-03-24 17:37:11]  Properties for TARGET dlog_headers:
+[2026-03-24 17:37:11]    dlog_headers.INTERFACE_INCLUDE_DIRECTORIES = "/home/j60100428/Ascend_0320/cann-9.0.0/pkg_inc/base"
+[2026-03-24 17:37:11] 
+[2026-03-24 17:37:11] -- Found securec: /home/j60100428/Ascend_0320/cann-9.0.0/include  
+[2026-03-24 17:37:11] -- Found OPBASE: /home/j60100428/ops-transformer_0319/third_party/opbase/pkg_inc  
+[2026-03-24 17:37:11] -- Found OPABSE include:/home/j60100428/ops-transformer_0319/third_party/opbase/pkg_inc
+[2026-03-24 17:37:11] -- Found OPABSE lib:
+[2026-03-24 17:37:11] -- Found platform: /home/j60100428/Ascend_0320/cann-9.0.0/include  
+[2026-03-24 17:37:11] -- Found platform include:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:The eigen package needs to be downloaded.
+37:11] -- Found register library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libregister.so
+[2026-03-24 17:37:11] -- Found opp_registry library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libopp_registry.so
+[2026-03-24 17:37:11] -- Found exe_graph library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libexe_graph.so
+[2026-03-24 17:37:11] -- Found graph_base library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libgraph_base.so
+[2026-03-24 17:37:11] -- Found error_manager library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/liberror_manager.so
+[2026-03-24 17:37:11] -- Found metadef library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libmetadef.so
+[2026-03-24 17:37:11] -- Found rt2_registry library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/librt2_registry.a
+[2026-03-24 17:37:11] -- Found metadef: /home/j60100428/Ascend_0320/cann-9.0.0/include  
+[2026-03-24 17:37:11] -- Found source metadef include dir:  /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/exe_graph
+[2026-03-24 17:37:11] -- Found graph library:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libgraph.so
+[2026-03-24 17:37:11] -- Found source acl include dir:  /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:37:11] -- [transformer]Found source npuruntime include dir: /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/runtime
+[2026-03-24 17:37:11] -- Found aclnn include dir:  /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:37:11] -- Found opdev include dir:  /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/aclnn
+[2026-03-24 17:37:11] -- Found tilingapi include:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include
+[2026-03-24 17:37:11] -- TILINGAPI_INC_DIRS: /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc/include;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/lib;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/impl;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/ascendc/include/highlevel_api/tiling
+[2026-03-24 17:37:11] -- Found tilingapi lib:/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/lib64/libtiling_api.a
+[2026-03-24 17:37:11] -- Using AICPU include dirs: /home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/experiment;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/experiment/cce;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/experiment/msprof;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/common;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/cpu_proto;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/aicpu_common/context/utils;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/aicpu_common/context;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/aicpu_common/context/common;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/aicpu_common/context/cpu_proto;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/aicpu_common/context/utils;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/experiment/datagw/aicpu/common;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/include/experiment/datagw/aicpu/common;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc;/home/j60100428/Ascend_0320/cann-9.0.0/x86_64-linux/pkg_inc/aicpu
+[2026-03-24 17:37:11] -- Finding gen es pkg
+[2026-03-24 17:37:11] -- [add_es_library] Module loaded from: /home/j60100428/Ascend_0320/cann-9.0.0/include/ge/cmake
+[2026-03-24 17:37:11] -- Downloading eigen from https://gitcode.com/cann-src-third-party/eigen/releases/downlCMake Warning (dev) at /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:3074 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:4170 (_ep_add_download_command)
+  cmake/third_party/abseil-cpp.cmake:52 (ExternalProject_Add)
+  CMakeLists.txt:147 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:3074 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /opt/cmake/share/cmake-3.24/Modules/ExternalProject.cmake:4170 (_ep_add_download_command)
+  cmake/third_party/ascend_protobuf.cmake:54 (ExternalProject_Add)
+  CMakeLists.txt:148 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /opt/cmake/share/cmake-3.24/Modules/FetchContent.cmake:1267 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  cmake/third_party/makeself-fetch.cmake:32 (FetchContent_Declare)
+  CMakeLists.txt:150 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+oad/5.0.0-h0.trunk/eigen-5.0.0.tar.gz
+[2026-03-24 17:37:11] -- Could NOT find abseil-cpp (missing: ABSL_SOURCE_DIR) 
+[2026-03-24 17:37:11] -- [ThirdPartyLib][abseil-cpp] https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz not found, need download.
+[2026-03-24 17:37:11] -- Could NOT find ascend_protobuf_build_transformer (missing: ASCEND_PROTOBUF_SHARED_INCLUDE) 
+[2026-03-24 17:37:11] -- [ThirdPartyLib][ascend protobuf] ascend protobuf shared not found, finding binary file.
+[2026-03-24 17:37:11] -- [ThirdPartyLib][ascend protobuf] https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz not found, need download.
+[2026-03-24 17:37:11] -- Downloading makeself from https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz
+[2026-03-24 17:37:12] -- Found alog: /home/j60100428/Ascend_0320/cann-9.0.0/include  
+[2026-03-24 17:37:12] -- Variables in alog module:
+[2026-03-24 17:37:12] -- alog_a_INCLUDE_DIR="/home/j60100428/Ascend_0320/cann-9.0.0/include"
+[2026-03-24 17:37:12] -- slog_a_SHARED_LIBRARY="/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:12] -- alog_a_SHARED_LIBRARY="/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:12] -- 
+[2026-03-24 17:37:12]  Properties for TARGET slog_a:
+[2026-03-24 17:37:12]    slog_a.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:37:12]    slog_a.INTERFACE_LINK_LIBRARIES = "alog_headers"
+[2026-03-24 17:37:12]    slog_a.IMPORTED_LOCATION = "/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:12] 
+[2026-03-24 17:37:12] -- 
+[2026-03-24 17:37:12]  Properties for TARGET alog_a:
+[2026-03-24 17:37:12]    alog_a.INTERFACE_COMPILE_DEFINITIONS = "LOG_CPP;PROCESS_LOG"
+[2026-03-24 17:37:12]    alog_a.INTERFACE_LINK_LIBRARIES = "alog_headers"
+[2026-03-24 17:37:12]    alog_a.IMPORTED_LOCATION = "/home/j60100428/Ascend_0320/cann-9.0.0/lib64/libascendalog.so"
+[2026-03-24 17:37:12] 
+[2026-03-24 17:37:12] -- 
+[2026-03-24 17:37:12]  Properties for TARGET alog_headers:
+[2026-03-24 17:37:12]    alog_headers.INTERFACE_INCLUDE_DIRECTORIES = "/home/j60100428/Ascend_0320/cann-9.0.0/include;/home/j60100428/Ascend_0320/cann-9.0.0/include/base"
+[2026-03-24 17:37:12] 
+[2026-03-24 17:37:12] -- Could NOT find unified_dlog (missing: _INCLUDE_ROOT_DIR) 
+[2026-03-24 17:37:12] -- === Debug: start ops.ops-transformer.attention.prompt_flash_attention.tests.CMakeLists.txt 
+[2026-03-24 17:37:12] -- === Debug: CURRENT_DIRS =CMakeLists.txt;st;ut 
+[2026-03-24 17:37:12] -- === Debug: CURRENT_DIRS =CMakeLists.txt;op_api;op_host 
+[2026-03-24 17:37:12] -- _OpsTestUt_UTestCaseLibraries      = .
+[2026-03-24 17:37:12] -- _OpsTestUt_UTestAclnnCaseLibraries = 
+[2026-03-24 17:37:12] -- _OpsTestUt_UTestCaseLibraries and _OpsTestUt_UTestAclnnCaseLibraries both empty.
+[2026-03-24 17:37:12] -- aicpu or host aicpu no need aclnn.
+[2026-03-24 17:37:12] -- Skip proto update: /home/j60100428/ops-transformer_0319/attention/prompt_flash_attention
+[2026-03-24 17:37:12] -- Start Generating es transformer for custom pkg
+[2026-03-24 17:37:12] -- Generated helper script: /home/j60100428/ops-transformer_0319/build/cmake/run_gen_esb_with_lock.sh
+[2026-03-24 17:37:12] -- _add_es_library_impl: EXCLUDE_OPS is not provided
+[2026-03-24 17:37:12] -- add_es_package: Using default output directory: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:37:12] -- add_es_package: OPP_PROTO_TARGET output directory: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:37:12] -- add_es_package: Derived ASCEND_OPP_PATH: /home/j60100428/ops-transformer_0319/build
+[2026-03-24 17:37:12] --   - Created standard OPP path: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:37:12] -- _add_es_library_impl: gen_esb target not found, searching in environment...
+[2026-03-24 17:37:12] --     Found gen_esb in PATH (environment variables configured)
+[2026-03-24 17:37:12] --     - gen_esb path: /home/j60100428/Ascend_0320/cann-9.0.0/bin/gen_esb
+[2026-03-24 17:37:12] --     - library path: /home/j60100428/Ascend_0320/cann-9.0.0/lib64
+[2026-03-24 17:37:12] -- Using proto library path (derived from OPP_PROTO_TARGET): /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:37:12] -- add_es_package: Module name for gen_esb: transformer_cust
+[2026-03-24 17:37:12] -- [add_es_library] No history registry found at /home/j60100428/Ascend_0320/cann-9.0.0/opp/history_registry/transformer_cust, skipping
+[2026-03-24 17:37:12] -- Trying to locate eager_style_graph_builder_base library from run package...
+[2026-03-24 17:37:12] --   Found library in run package: /home/j60100428/Ascend_0320/cann-9.0.0/lib64/libeager_style_graph_builder_base.so
+[2026-03-24 17:37:12] -- Configuring ES package: es_transformer_cust
+[2026-03-24 17:37:12] --   - Exported target: es_transformer_cust (public interface)
+[2026-03-24 17:37:12] --   - Internal .obj target: es_transformer_cust_obj (compile once)
+[2026-03-24 17:37:12] --   - Internal .so target: es_transformer_cust_so
+[2026-03-24 17:37:12] --   - Internal .a target: es_transformer_cust_a
+[2026-03-24 17:37:12] --   - Module name (for gen_esb): transformer_cust
+[2026-03-24 17:37:12] --   - OPP proto target: proto_transformer_cust
+[2026-03-24 17:37:12] --   - OPP proto path: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/opp_standard_path_proto_transformer_cust
+[2026-03-24 17:37:12] --   - Output path: /home/j60100428/ops-transformer_0319/build/es_packages
+[2026-03-24 17:37:12] --   - Library files: libes_transformer_cust.so, libes_transformer_cust.a
+[2026-03-24 17:37:12] --   - Python package: es_transformer_cust
+[2026-03-24 17:37:12] -- ES package 'es_transformer_cust' using single-file compilation mode
+[2026-03-24 17:37:12] --   - Wrapper file: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/generated_code/es_transformer_cust_all_in_one.cpp
+[2026-03-24 17:37:12] --   - Module name: transformer_cust
+[2026-03-24 17:37:12] -- add_es_library: Using default compile options: -fPIC;-Wall;-fstack-protector-all;-std=c++17;-D_GLIBCXX_USE_CXX11_ABI=0;-O2;-Wno-free-nonheap-object
+[2026-03-24 17:37:12] -- add_es_library: Set _GLIBCXX_USE_CXX11_ABI=0 for ABI compatibility
+[2026-03-24 17:37:12] -- add_es_library: Deduced header base path from cmake file: /home/j60100428/Ascend_0320/cann-9.0.0
+[2026-03-24 17:37:12] -- add_es_library: metadef_headers target not found, skipping
+[2026-03-24 17:37:12] -- add_es_library: Found c_sec target
+[2026-03-24 17:37:12] -- add_es_library: Linking with CANN libraries: c_sec
+[2026-03-24 17:37:12] -- add_es_package: 'build_es_transformer_cust' is the first ES package (will be built first)
+[2026-03-24 17:37:12] -- ES package 'es_transformer_cust' configured successfully (single-file mode):
+[2026-03-24 17:37:12] --   - Exported target (for linking): es_transformer_cust
+[2026-03-24 17:37:12] --   - Build target: build_es_transformer_cust
+[2026-03-24 17:37:12] --   - Wrapper file: /home/j60100428/ops-transformer_0319/build/es_transformer_cust_build/generated_code/es_transformer_cust_all_in_one.cpp
+[2026-03-24 17:37:12] --   - Internal targets:
+[2026-03-24 17:37:12] --     * Code generation: generate_es_transformer_cust_code
+[2026-03-24 17:37:12] --     * Object library: es_transformer_cust_obj (compiled once)
+[2026-03-24 17:37:12] --     * Shared library: es_transformer_cust_so
+[2026-03-24 17:37:12] --     * Static library: es_transformer_cust_a
+[2026-03-24 17:37:12] --     * Wheel generation: generate_es_transformer_cust_whl
+[2026-03-24 17:37:12] --     * Install: install_es_transformer_cust
+[2026-03-24 17:37:12] --   - Library files: libes_transformer_cust.so, libes_transformer_cust.a
+[2026-03-24 17:37:12] --   - Python package: es_transformer_cust
+[2026-03-24 17:37:12] --   - ES base library: /home/j60100428/Ascend_0320/cann-9.0.0/lib64/libeager_style_graph_builder_base.so (from library)
+[2026-03-24 17:37:12]CMake Error at attention/prompt_flash_attention/op_host/CMakeLists.txt:37 (add_library):
+  Cannot find source file:
+
+    //softmax_tiling_mocker.cpp
+
+  Tried extensions .c .C .c++ .cc .cpp .cxx .cu .mpp .m .M .mm .ixx .cppm .h
+  .hh .h++ .hm .hpp .hxx .in .txx .f .F .for .f77 .f90 .f95 .f03 .hip .ispc
+
+
+CMake Error at attention/prompt_flash_attention/op_host/CMakeLists.txt:37 (add_library):
+  No SOURCES given to target: softmax_tiling_ut_stub
+
+
+CMake Generate step failed.  Build files cannot be regenerated correctly.
+ -- 
+[2026-03-24 17:37:12] -- Build mode: Single-file compilation (no reconfiguration needed)
+[2026-03-24 17:37:12] -- 
+[2026-03-24 17:37:12] -- Quick start:
+[2026-03-24 17:37:12] --   1. Link:    target_link_libraries(your_target PRIVATE es_transformer_cust)
+[2026-03-24 17:37:12] --   2. Build:   make your_target  (recommended, triggers automatically)
+[2026-03-24 17:37:12] -- 
+[2026-03-24 17:37:12] -- custom cust proto to es
+[2026-03-24 17:37:12] -- Detected architecture: x86_64
+[2026-03-24 17:37:12] -- End building custom package.
+[2026-03-24 17:37:12] -- create aclnn master header file: /home/j60100428/ops-transformer_0319/build/aclnn_ops_transformer_custom.h
+[2026-03-24 17:37:12] -- no operator info to generate
+[2026-03-24 17:37:12] -- Start building custom package.
+[2026-03-24 17:37:12] -- No aicpu json files to merge, skipping.
+[2026-03-24 17:37:12] -- No aicpu cust obj targets found, skipping.
+[2026-03-24 17:37:12] -- Configuring done
