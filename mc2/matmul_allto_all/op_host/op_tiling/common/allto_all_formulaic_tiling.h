@@ -32,7 +32,6 @@ public:
     {
         if (isCommunicationBefore) {
             // 如果是AllToAllMatmul，设置CommShapeLen为k轴的长度
-            uint64_t commShapeLen = 0;
             if (args.geAType == ge::DT_FLOAT4_E2M1) {
                 commPerf_.SetCommDtypeSizeExpansionFraction(DIV_NUM);
             }
