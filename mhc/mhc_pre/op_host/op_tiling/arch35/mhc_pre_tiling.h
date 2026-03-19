@@ -101,8 +101,8 @@ protected:
     ge::graphStatus CheckDataType();
     ge::graphStatus CheckDataRange();
     ge::graphStatus CheckOutputShapeConsistency();
-    ge::graphStatus CheckBsndOutputShape(const gert::StorageShape &xShape);
-    ge::graphStatus CheckTndOutputShape(const gert::StorageShape &xShape);
+    ge::graphStatus CheckBsndOutputShape(uint64_t b, uint64_t s, uint64_t n, uint64_t d);
+    ge::graphStatus CheckTndOutputShape(uint64_t t, uint64_t n, uint64_t d);
     ge::graphStatus ParseBsndFormat(const gert::Tensor *xTensor);
     ge::graphStatus ParseTndFormat(const gert::Tensor *xTensor);
     ge::graphStatus ValidateAndSetTilingParams(const gert::Tensor *xTensor);

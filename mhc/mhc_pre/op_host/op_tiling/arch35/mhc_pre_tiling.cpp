@@ -217,85 +217,102 @@ ge::graphStatus MhcPreBaseTiling::CheckDataType()
 
 ge::graphStatus MhcPreBaseTiling::CheckOutputShapeConsistency()
 {
-    auto xShape = context_->GetInputShape(X_INDEX)->GetStorageShape();
-    size_t xDimNum = xShape.GetDimNum();
+    const gert::Shape* xShapePtr = context_->GetInputShape(X_INDEX);
+    const gert::Shape* xShape = &xShapePtr->GetStorageShape();
+    size_t xDimNum = xShape->GetDimNum();
 
     if (xDimNum == BSND_DIM_NUM) {
-        OP_CHECK_IF(
-            CheckBsndOutputShape(xShape) != ge::GRAPH_SUCCESS,
+        uint64_t b = xShape->GetDim(DIM_0);
+        uint64_t s = xShape->GetDim(DIM_1);
+        uint64_t n = xShape->GetDim(DIM_2);
+        uint64_t d = xShape->GetDim(DIM_3);
+        OP_CHECK_IF(CheckBsndOutputShape(b, s, n, d) != ge::GRAPH_SUCCESS,
             OP_LOGE(context_->GetNodeName(), "CheckBsndOutputShape failed"), return ge::GRAPH_FAILED);
     } else {
-        OP_CHECK_IF(
-            CheckTndOutputShape(xShape) != ge::GRAPH_SUCCESS,
+        uint64_t t = xShape->GetDim(DIM_0);
+        uint64_t n = xShape->GetDim(DIM_1);
+        uint64_t d = xShape->GetDim(DIM_2);
+        OP_CHECK_IF(CheckTndOutputShape(t, n, d) != ge::GRAPH_SUCCESS,
             OP_LOGE(context_->GetNodeName(), "CheckTndOutputShape failed"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MhcPreBaseTiling::CheckBsndOutputShape(const gert::StorageShape &xShape)
+ge::graphStatus MhcPreBaseTiling::CheckBsndOutputShape(uint64_t b, uint64_t s, uint64_t n, uint64_t d)
 {
-    auto outHinShape = context_->GetOutputShape(OUT_H_IN_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHinShape.GetDimNum() != DIM_NUM_3 || outHinShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHinShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHinShape.GetDim(DIM_2) != xShape.GetDim(DIM_3),
+    const gert::Shape* outHinShapePtr = context_->GetOutputShape(OUT_H_IN_INDEX);
+    const gert::Shape* outHinShape = &outHinShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHinShape->GetDimNum() != DIM_NUM_3 || outHinShape->GetDim(DIM_0) != b ||
+                outHinShape->GetDim(DIM_1) != s || outHinShape->GetDim(DIM_2) != d,
         OP_LOGE(context_->GetNodeName(), "out_h_in shape (B,S,D) mismatch with x (B,S,N,D)"), return ge::GRAPH_FAILED);
 
-    auto outHpostShape = context_->GetOutputShape(OUT_H_POST_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHpostShape.GetDimNum() != DIM_NUM_3 || outHpostShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHpostShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHpostShape.GetDim(DIM_2) != xShape.GetDim(DIM_2),
+    const gert::Shape* outHpostShapePtr = context_->GetOutputShape(OUT_H_POST_INDEX);
+    const gert::Shape* outHpostShape = &outHpostShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHpostShape->GetDimNum() != DIM_NUM_3 || outHpostShape->GetDim(DIM_0) != b ||
+                outHpostShape->GetDim(DIM_1) != s || outHpostShape->GetDim(DIM_2) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_post shape (B,S,N) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outHresShape = context_->GetOutputShape(OUT_H_RES_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHresShape.GetDimNum() != DIM_NUM_4 || outHresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHresShape.GetDim(DIM_2) != xShape.GetDim(DIM_2) ||
-                outHresShape.GetDim(DIM_3) != xShape.GetDim(DIM_2),
+    const gert::Shape* outHresShapePtr = context_->GetOutputShape(OUT_H_RES_INDEX);
+    const gert::Shape* outHresShape = &outHresShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHresShape->GetDimNum() != DIM_NUM_4 || outHresShape->GetDim(DIM_0) != b ||
+                outHresShape->GetDim(DIM_1) != s || outHresShape->GetDim(DIM_2) != n || outHresShape->GetDim(DIM_3) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_res shape (B,S,N,N) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outInvRmsShape = context_->GetOutputShape(OUT_INV_RMS_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outInvRmsShape.GetDimNum() != DIM_NUM_2 || outInvRmsShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outInvRmsShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+    const gert::Shape* outInvRmsShapePtr = context_->GetOutputShape(OUT_INV_RMS_INDEX);
+    const gert::Shape* outInvRmsShape = &outInvRmsShapePtr->GetStorageShape();
+    OP_CHECK_IF(outInvRmsShape->GetDimNum() != DIM_NUM_2 || outInvRmsShape->GetDim(DIM_0) != b ||
+                outInvRmsShape->GetDim(DIM_1) != s,
         OP_LOGE(context_->GetNodeName(), "out_inv_rms shape (B,S) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outMmresShape = context_->GetOutputShape(OUT_MM_RES_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outMmresShape.GetDimNum() != DIM_NUM_3 || outMmresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outMmresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+    const gert::Shape* outMmresShapePtr = context_->GetOutputShape(OUT_MM_RES_INDEX);
+    const gert::Shape* outMmresShape = &outMmresShapePtr->GetStorageShape();
+    OP_CHECK_IF(outMmresShape->GetDimNum() != DIM_NUM_3 || outMmresShape->GetDim(DIM_0) != b ||
+                outMmresShape->GetDim(DIM_1) != s,
         OP_LOGE(context_->GetNodeName(), "out_mm_res shape (B,S,matK) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outHpreShape = context_->GetOutputShape(OUT_H_PRE_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHpreShape.GetDimNum() != DIM_NUM_3 || outHpreShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHpreShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHpreShape.GetDim(DIM_2) != xShape.GetDim(DIM_2),
+    const gert::Shape* outHpreShapePtr = context_->GetOutputShape(OUT_H_PRE_INDEX);
+    const gert::Shape* outHpreShape = &outHpreShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHpreShape->GetDimNum() != DIM_NUM_3 || outHpreShape->GetDim(DIM_0) != b ||
+                outHpreShape->GetDim(DIM_1) != s || outHpreShape->GetDim(DIM_2) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_pre shape (B,S,N) mismatch with x"), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MhcPreBaseTiling::CheckTndOutputShape(const gert::StorageShape &xShape)
+ge::graphStatus MhcPreBaseTiling::CheckTndOutputShape(uint64_t t, uint64_t n, uint64_t d)
 {
-    auto outHinShape = context_->GetOutputShape(OUT_H_IN_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHinShape.GetDimNum() != DIM_NUM_2 || outHinShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHinShape.GetDim(DIM_1) != xShape.GetDim(DIM_2),
+    const gert::Shape* outHinShapePtr = context_->GetOutputShape(OUT_H_IN_INDEX);
+    const gert::Shape* outHinShape = &outHinShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHinShape->GetDimNum() != DIM_NUM_2 || outHinShape->GetDim(DIM_0) != t ||
+                outHinShape->GetDim(DIM_1) != d,
         OP_LOGE(context_->GetNodeName(), "out_h_in shape (T,D) mismatch with x (T,N,D)"), return ge::GRAPH_FAILED);
 
-    auto outHpostShape = context_->GetOutputShape(OUT_H_POST_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHpostShape.GetDimNum() != DIM_NUM_2 || outHpostShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHpostShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+    const gert::Shape* outHpostShapePtr = context_->GetOutputShape(OUT_H_POST_INDEX);
+    const gert::Shape* outHpostShape = &outHpostShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHpostShape->GetDimNum() != DIM_NUM_2 || outHpostShape->GetDim(DIM_0) != t ||
+                outHpostShape->GetDim(DIM_1) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_post shape (T,N) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outHresShape = context_->GetOutputShape(OUT_H_RES_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHresShape.GetDimNum() != DIM_NUM_3 || outHresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHresShape.GetDim(DIM_1) != xShape.GetDim(DIM_1) || outHresShape.GetDim(DIM_2) != xShape.GetDim(DIM_1),
+    const gert::Shape* outHresShapePtr = context_->GetOutputShape(OUT_H_RES_INDEX);
+    const gert::Shape* outHresShape = &outHresShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHresShape->GetDimNum() != DIM_NUM_3 || outHresShape->GetDim(DIM_0) != t ||
+                outHresShape->GetDim(DIM_1) != n || outHresShape->GetDim(DIM_2) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_res shape (T,N,N) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outInvRmsShape = context_->GetOutputShape(OUT_INV_RMS_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outInvRmsShape.GetDimNum() != 1 || outInvRmsShape.GetDim(DIM_0) != xShape.GetDim(DIM_0),
+    const gert::Shape* outInvRmsShapePtr = context_->GetOutputShape(OUT_INV_RMS_INDEX);
+    const gert::Shape* outInvRmsShape = &outInvRmsShapePtr->GetStorageShape();
+    OP_CHECK_IF(outInvRmsShape->GetDimNum() != 1 || outInvRmsShape->GetDim(DIM_0) != t,
         OP_LOGE(context_->GetNodeName(), "out_inv_rms shape (T) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outMmresShape = context_->GetOutputShape(OUT_MM_RES_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outMmresShape.GetDimNum() != DIM_NUM_2 || outMmresShape.GetDim(DIM_0) != xShape.GetDim(DIM_0),
+    const gert::Shape* outMmresShapePtr = context_->GetOutputShape(OUT_MM_RES_INDEX);
+    const gert::Shape* outMmresShape = &outMmresShapePtr->GetStorageShape();
+    OP_CHECK_IF(outMmresShape->GetDimNum() != DIM_NUM_2 || outMmresShape->GetDim(DIM_0) != t,
         OP_LOGE(context_->GetNodeName(), "out_mm_res shape (T,matK) mismatch with x"), return ge::GRAPH_FAILED);
 
-    auto outHpreShape = context_->GetOutputShape(OUT_H_PRE_INDEX)->GetStorageShape();
-    OP_CHECK_IF(outHpreShape.GetDimNum() != DIM_NUM_2 || outHpreShape.GetDim(DIM_0) != xShape.GetDim(DIM_0) ||
-                outHpreShape.GetDim(DIM_1) != xShape.GetDim(DIM_1),
+    const gert::Shape* outHpreShapePtr = context_->GetOutputShape(OUT_H_PRE_INDEX);
+    const gert::Shape* outHpreShape = &outHpreShapePtr->GetStorageShape();
+    OP_CHECK_IF(outHpreShape->GetDimNum() != DIM_NUM_2 || outHpreShape->GetDim(DIM_0) != t ||
+                outHpreShape->GetDim(DIM_1) != n,
         OP_LOGE(context_->GetNodeName(), "out_h_pre shape (T,N) mismatch with x"), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
