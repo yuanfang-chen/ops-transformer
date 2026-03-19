@@ -2093,6 +2093,8 @@ FIA_EXTERN_C ge::graphStatus DoOpTilingFusedInferAttentionScore(gert::TilingCont
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
     if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         return TilingFusedInferAttentionScoreV2(context);
+    } else if(ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_5102) {
+        return TilingFusedInferAttentionScoreArch38(context);
     } else {
         return TilingFusedInferAttentionScore(context);
     }
