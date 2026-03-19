@@ -71,5 +71,4 @@ ge::graphStatus InferDataType4CausalConv1dUpdate(gert::InferDataTypeContext *con
 IMPL_OP_INFERSHAPE(CausalConv1dUpdate)
     .InferShape(InferShape4CausalConv1dUpdate)
     .InferDataType(InferDataType4CausalConv1dUpdate)
-    .InputsDataDependency({INPUT_CACHE_INDICES_INDEX});
 } // namespace ops
