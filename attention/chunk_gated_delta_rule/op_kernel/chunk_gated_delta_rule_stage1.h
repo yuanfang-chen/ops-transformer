@@ -217,9 +217,9 @@ private:
     // ----------------------------------------------------------
    __aicore__ inline void SetChunkTensors(uint64_t nId, uint64_t localChunkId, uint64_t chunkStartRow)
     {
-        uint64_t kid = nId * nk_ / nv_;
+        uint64_t kId = nId * nk_ / nv_;
         uint64_t subRow = chunkStartRow + subOffset_;
-        uint64_t qkBase = subRow * nk_ * dk_ + kid * dk_;
+        uint64_t qkBase = subRow * nk_ * dk_ + kId * dk_;
         queryGm_ = queryBaseGm_[qkBase];
         keyGm_   = keyBaseGm_[qkBase];
 
