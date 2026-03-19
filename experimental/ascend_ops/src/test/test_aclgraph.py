@@ -113,6 +113,7 @@ def generate_inputs(config: AttentionConfig):
         "batch_size": config.batch_size,
         "query_seq_size": config.q_seq,
         "query_head_num": config.q_head_num,
+        "head_dim": config.head_dim,
         "key_seq_size": config.kv_seq_length,
         "key_head_num": config.kv_head_num,
         "block_size": config.block_size,

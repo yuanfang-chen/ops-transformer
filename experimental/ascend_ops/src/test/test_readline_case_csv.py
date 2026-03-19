@@ -245,6 +245,7 @@ def build_case_inputs(case: Dict[str, Any], config: Config) -> Dict[str, Any]:
         batch_size = batch_size,
         query_seq_size = q_seq,
         query_head_num = q_head_num,
+        head_dim = head_dim,
         key_seq_size = kv_seq_length,
         key_head_num = kv_head_num,
         block_size = block_size,
@@ -523,8 +524,8 @@ def main():
 
         rtol=1e-4,
         atol=1e-4,
-        specific_case=[0]
-        # only_first_n_cases=10
+        specific_case=[4, 6]
+        #only_first_n_cases=20
     )
 
     log("\n" + "=" * 60, config)

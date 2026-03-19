@@ -62,6 +62,7 @@ TORCH_LIBRARY(custom, m)
     m.def(R"(npu_fused_infer_attention_score_metadata(int batch_size,
                                                     int query_seq_size,
                                                     int query_head_num,
+                                                    int head_dim,
                                                     int key_seq_size,
                                                     int key_head_num,
                                                     int block_size,

@@ -41,9 +41,9 @@ aicpu::kernels::Layout CovertToLayout(const std::string &str)
 
 // step3, 为META设备实现前向接口
 at::Tensor npu_fused_infer_attention_score_metadata_meta(
-    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_seq_size, int64_t key_head_num,
-    int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, bool is_accum_seq_kv,
-    at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
+    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t head_dim, int64_t key_seq_size, 
+    int64_t key_head_num, int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, 
+    bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
     printf("start npu_fused_infer_attention_score_metadata_meta\n");
@@ -52,9 +52,9 @@ at::Tensor npu_fused_infer_attention_score_metadata_meta(
 }
 
 at::Tensor npu_fused_infer_attention_score_metadata_npu(
-    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_seq_size, int64_t key_head_num,
-    int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, bool is_accum_seq_kv,
-    at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
+    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t head_dim, int64_t key_seq_size, 
+    int64_t key_head_num, int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, 
+    bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
     c10::string_view layout_query, c10::string_view layout_key)
 {
     printf("start npu_fused_infer_attention_score_metadata_npu\n");
@@ -68,6 +68,7 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
     args.batchSize = batch_size;
     args.querySeqSize = query_seq_size;
     args.queryHeadNum = query_head_num;
+    args.headDim = head_dim;
     args.keySeqSize = key_seq_size;
     args.keyHeadNum = key_head_num;
     args.blockSize = block_size;
