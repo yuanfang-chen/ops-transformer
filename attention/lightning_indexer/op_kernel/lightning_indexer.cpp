@@ -16,7 +16,13 @@
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "lightning_indexer_template_tiling_key.h"
-#include "lightning_indexer_kernel.h"
+
+#if (__CCE_AICORE__ == 310)
+    #include "arch35/lightning_indexer_kernel.h"
+
+#else
+    #include "lightning_indexer_kernel.h"
+#endif
 
 using namespace LIKernel;
 
@@ -38,7 +44,25 @@ __global__ __aicore__ void lightning_indexer(__gm__ uint8_t *query, __gm__ uint8
                                              __gm__ uint8_t *tiling)
 {
 #if (__CCE_AICORE__ == 310) || (defined __DAV_310R6__) || (__CCE_AICORE__ == 200)
-
+    TPipe tPipe;
+    __gm__ uint8_t *user = GetUserWorkspace(workspace);
+    if (ORIG_DTYPE_QUERY == DT_BF16) {
+        if (ORIG_DTYPE_WEIGHTS == DT_BF16) {
+            INVOKE_LI_NO_KFC_OP_IMPL(LIPreload, bfloat16_t, bfloat16_t, int32_t,
+                PAGE_ATTENTION, LI_LAYOUT(LAYOUT_T), LI_LAYOUT(K_LAYOUT_T), DT_W_FLAG, bfloat16_t);
+        } else {
+            INVOKE_LI_NO_KFC_OP_IMPL(LIPreload, bfloat16_t, bfloat16_t, int32_t,
+                PAGE_ATTENTION, LI_LAYOUT(LAYOUT_T), LI_LAYOUT(K_LAYOUT_T), DT_W_FLAG, float32_t);
+        }
+    } else if (ORIG_DTYPE_QUERY == DT_FLOAT16) {
+        if (ORIG_DTYPE_WEIGHTS == DT_FLOAT16) {
+            INVOKE_LI_NO_KFC_OP_IMPL(LIPreload, fp8_e4m3fn_t, fp8_e4m3fn_t, int32_t,
+                PAGE_ATTENTION, LI_LAYOUT(LAYOUT_T), LI_LAYOUT(K_LAYOUT_T), DT_W_FLAG, half);
+        } else {
+            INVOKE_LI_NO_KFC_OP_IMPL(LIPreload, fp8_e4m3fn_t, fp8_e4m3fn_t, int32_t,
+                PAGE_ATTENTION, LI_LAYOUT(LAYOUT_T), LI_LAYOUT(K_LAYOUT_T), DT_W_FLAG, float32_t);
+        }
+    }
 #else
     TPipe tPipe;
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
