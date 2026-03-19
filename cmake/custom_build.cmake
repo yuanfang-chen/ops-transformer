@@ -80,6 +80,21 @@ if (BUILD_OPEN_PROJECT)
     target_compile_definitions(cust_opapi PRIVATE
             -DACLNN_LOG_FMT_CHECK
     )
+    if(BUILD_WITH_3_8_PACKAGE)  #3~8包 依赖opapi, 不依赖opbase
+    target_link_libraries(cust_opapi PRIVATE
+        $<BUILD_INTERFACE:intf_pub>
+        -Wl,--whole-archive
+        ops_aclnn
+        -Wl,--no-whole-archive
+        -lopapi
+        nnopbase
+        profapi
+        ge_common_base
+        ascend_dump
+        ascendalog
+        dl
+    )
+    else()
     target_link_libraries(cust_opapi PRIVATE
             $<BUILD_INTERFACE:intf_pub>
             -Wl,--whole-archive
@@ -93,6 +108,7 @@ if (BUILD_OPEN_PROJECT)
             ascendalog
             dl
     )
+    endif()
     set_target_properties(cust_opapi PROPERTIES OUTPUT_NAME
             cust_opapi
     )
@@ -644,6 +660,16 @@ if (BUILD_OPEN_PROJECT)
         )
     endif()
 
+    merge_graph_headers(
+        TARGET merge_ops_proto ALL
+        OUT_DIR ${ASCEND_GRAPH_CONF_DST}
+    )
+
+    add_dependencies(cust_proto merge_ops_proto)
+    target_sources(cust_proto PRIVATE
+        ${ASCEND_GRAPH_CONF_DST}/ops_proto_transformer.cpp
+    )
+
     redefine_file_macro(
             TARGET_NAME
             op_host_aclnn
@@ -703,11 +729,14 @@ else()
 endif ()
 target_sources(cust_opapi PRIVATE
     $<$<TARGET_EXISTS:${OPHOST_NAME}_opapi_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opapi_obj>>)
+if(NOT BUILD_WITH_3_8_PACKAGE)
 target_link_libraries(
     cust_opapi
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:opapi_math>>
 )
+endif()
 
+if(BUILD_WITH_3_8_PACKAGE)
 target_link_libraries(
     cust_opmaster
     PUBLIC ${OPHOST_NAME}_tiling_obj
@@ -715,11 +744,33 @@ target_link_libraries(
     PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
 )
+else ()
+target_link_libraries(
+    cust_opmaster
+    PUBLIC ${OPHOST_NAME}_tiling_obj
+    PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
+    PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
+    PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
+)
+endif()
 
+if(TARGET ${COMMON_NAME}_obj)
+    add_dependencies(cust_opmaster ${COMMON_NAME}_obj)
+else()
+    message(WARNING "Target ${COMMON_NAME}_obj not found, dependency not added!")
+endif()
+
+if(BUILD_WITH_3_8_PACKAGE)
 target_link_libraries(
     cust_proto
     PUBLIC ${OPHOST_NAME}_infer_obj
 )
+else()
+target_link_libraries(
+    cust_proto
+    PUBLIC ${OPHOST_NAME}_infer_obj
+)
+endif()
 if (generate_aclnn_headers)
     install(FILES ${generate_aclnn_headers}
             DESTINATION ${ACLNN_INC_INSTALL_DIR} OPTIONAL
