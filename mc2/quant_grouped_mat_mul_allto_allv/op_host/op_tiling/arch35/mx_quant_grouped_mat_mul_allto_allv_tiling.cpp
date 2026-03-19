@@ -397,8 +397,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
     }
     const gert::StorageShape *mmXScaleShape = context_->GetOptionalInputShape(MM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape *mmWeightScaleShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
-    OP_TILING_CHECK((mmXScaleShape == nullptr), OP_LOGE(opName_, "the input mmXScale shape is invalid"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((mmWeightScaleShape == nullptr), OP_LOGE(opName_, "the input mmWeightScale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((mmXScaleShape == nullptr), OP_LOGE(opName_, "The input mmXScale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((mmWeightScaleShape == nullptr), OP_LOGE(opName_, "The input mmWeightScale shape is invalid"), return ge::GRAPH_FAILED);
 
     uint64_t mmXScaleDim0 = mmXScaleShape->GetStorageShape().GetDim(0);
     uint64_t mmXScaleDim1 = mmXScaleShape->GetStorageShape().GetDim(1);
