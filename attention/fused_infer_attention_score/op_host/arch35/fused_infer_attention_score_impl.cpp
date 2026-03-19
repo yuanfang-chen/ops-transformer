@@ -152,10 +152,8 @@ void FusedInferAttentionScoreTilingImpl::InitImplParam(const FiaTilingInfo &fiaI
         actualSeqLenKVFlag_ =
             !((actSeqLenKVDims == 0) || (actSeqLenKV == nullptr) || (actSeqLenKV->GetData<int64_t>() == nullptr));
 
-        if (fiaInfo.antiQuantFlag) {
-            if (fiaInfo.qLayout == FiaLayout::TND) {
-                actualSeqLenQFlag_ = true;
-            }
+        if (fiaInfo.antiQuantFlag && fiaInfo.qLayout == FiaLayout::TND) {
+            actualSeqLenQFlag_ = true;
         }
     }
 
@@ -1681,7 +1679,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
             if (fiaInfo.preToken >= fiaInfo.s1Size && fiaInfo.nextToken == 0) {
                 sparseType = 3;
             } else if (fiaInfo.preToken >= fiaInfo.s1Size && !fiaInfo.pageAttentionFlag &&
-                    fiaInfo.nextToken >= fiaInfo.s2Size) {
+                       fiaInfo.nextToken >= fiaInfo.s2Size) {
                 sparseType = 0;
             } else {
                 sparseType = 4;
@@ -1744,25 +1742,25 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
     if (fiaInfo.pageAttentionFlag) {
         if (fiaInfo.antiQuantFlag) {
             uint32_t keyCacheDimNum = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
-            if (keyCacheDimNum == 3) {
+            if (keyCacheDimNum == 3) { // 3: BBH
                 inputParams.set_paLayoutType(0);
                 baseParams.set_PAlayoutType(0);
-            } else if (keyCacheDimNum == 4) {
+            } else if (keyCacheDimNum == 4) { // 4: BNBD
                 inputParams.set_paLayoutType(1);
                 baseParams.set_PAlayoutType(1);
-            } else if (keyCacheDimNum == 5) {
+            } else if (keyCacheDimNum == 5) { // 5: PA NZ
                 inputParams.set_paLayoutType(2);
                 baseParams.set_PAlayoutType(2);
             }
         } else {
             uint32_t keyCacheDimNum = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
-            if (keyCacheDimNum == 3) {
+            if (keyCacheDimNum == 3) { // 3: BBH
                 inputParams.set_paLayoutType(1);
                 baseParams.set_PAlayoutType(1);
-            } else if (keyCacheDimNum == 4) {
+            } else if (keyCacheDimNum == 4) { // 4: BNBD
                 inputParams.set_paLayoutType(0);
                 baseParams.set_PAlayoutType(0);
-            } else if (keyCacheDimNum == 5) {
+            } else if (keyCacheDimNum == 5) { // 5: PA NZ
                 inputParams.set_paLayoutType(2);
                 baseParams.set_PAlayoutType(2);
             }
