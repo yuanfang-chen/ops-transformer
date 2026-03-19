@@ -16,6 +16,7 @@
 #include "torch_npu/csrc/framework/utils/OpPreparation.h"
 #include "torch_npu/csrc/framework/OpCommand.h"
 #include "op_kernel/ifa_meta_public_define.h"
+#include "tiling/platform/platform_ascendc.h"
 
 extern "C" {
     extern __global__ __aicpu__ uint32_t IncreFlashAttentionMetadataKernel(void *args);
@@ -59,10 +60,11 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
 
     auto aicpu_stream = c10_npu::getCurrentNPUStream().stream(true);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
 
     aicpu::kernels::IncreFlashAttentionMetadataArgs args {};
-    args.aicCoreNum = 24;
-    args.aivCoreNum = 48;
+    args.aicCoreNum = ascendcPlatform->GetCoreNumAic();
+    args.aivCoreNum = ascendcPlatform->GetCoreNumAiv();
     args.batchSize = batch_size;
     args.querySeqSize = query_seq_size;
     args.queryHeadNum = query_head_num;
