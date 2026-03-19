@@ -251,7 +251,6 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     }
 }
 
-// 需要变化吗？把
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t loopIdx, uint32_t groupIdx)
 {

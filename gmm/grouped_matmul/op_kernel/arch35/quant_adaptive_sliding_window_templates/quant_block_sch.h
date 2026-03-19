@@ -124,7 +124,6 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
     }
 }
 
-// zzzlogtodo 这里还需要改，暂时没思路
 template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat>
 __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx,
                                                            uint32_t loopIdx, uint32_t groupListType, int8_t groupType)
