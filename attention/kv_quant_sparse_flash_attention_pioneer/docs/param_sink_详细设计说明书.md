@@ -8,6 +8,8 @@
 | 2026-03-18 |   1.1    | TilingKey 控制开关；Vec0 搬运；MLA 复用+batch 共享 | AI Assistant |
 | 2026-03-18 |   1.2    | 修正 key_sink/value_sink shape：(128, N1, 576)/(128, N1, 512)，value_sink nope 复用 key_sink | AI Assistant |
 | 2026-03-18 |   1.3    | Sink 搬运改为 AIC BMM1 阶段（复用 CopyToL1Nd2Nz），AIV Vec0 仅 pass-through | AI Assistant |
+| 2026-03-19 |   1.4    | 补全 Tiling 侧校验：反向不对称校验、value_sink desc/dtype 校验；GenTilingKey 防御性双重条件 | AI Assistant |
+| 2026-03-19 |   1.5    | Kernel 侧详设重构：Sink 融入 S2 循环（s2LoopLimit+1, effectiveS2-1）；移除独立 Sink 迭代块和 IterateBmm1Sink；sink 搬运在 IterateBmm1QSFA 内实现 | AI Assistant |
 
 # 1 关联需求
 
@@ -28,7 +30,7 @@
 
 **设计原则**：
 - **零框架侵入**：框架侧不修改 block_table、sparse_indices 等已有数据结构，仅传入 `key_sink` 张量
-- **最小 Kernel 侵入**：复用现有三级流水架构，在 S2 循环前插入独立 Sink 迭代；Sink KV 搬运由 AIC 在 BMM1 阶段完成（复用 CopyToL1Nd2Nz），AIV Vec0 仅做 CrossCore pass-through
+- **最小 Kernel 侵入**：复用现有三级流水架构，Sink 迭代融入 S2 循环（占用 s2LoopCount=0），不新增独立迭代块或搬运函数；Sink KV 搬运由 AIC 在 IterateBmm1QSFA 内完成（复用 CopyToL1Nd2Nz），AIV Vec0 仅做 CrossCore pass-through
 - **TilingKey 编译期控制**：复用已有的 `FLASH_DECODE`（当前未使用）模板参数位作为 `HAS_SINK` 标志，通过 TilingKey 区分，**不修改 TilingData 结构**
 - **MLA 复用**：value_sink 的 nope 部分（512 维）物理上复用 key_sink 的 nope 数据。Kernel 中只需搬运 key_sink 到 L1，BMM1 取全部 nope+rope=576 维做 Q×K^T，BMM2 从同一份 L1 数据中取 nope=512 维做 P×V
 - **格式一致**：Sink KV 写入 L1 后的 NZ 格式与正常反量化 KV 完全一致，Cube 侧 BMM1/BMM2 逻辑无需修改
@@ -83,7 +85,7 @@
 | 07 | 算子原型 | 否 | 否 | OpDef 已预注册 |
 | 08 | OpDef定义 | 否 | 否 | 已有 key_sink/value_sink |
 | 09 | 算子tiling函数 | 是 | 是 | GenTilingKey 中设置 HAS_SINK；**TilingData 不修改** |
-| 10 | 算子kernel实现 | 是 | 是 | 主循环新增 sink 迭代、AIC BMM1 搬运 sink KV、Vec0 pass-through |
+| 10 | 算子kernel实现 | 是 | 是 | S2 循环 s2LoopLimit+1、AIC IterateBmm1QSFA 内 sink 搬运、Vec0 pass-through |
 | 11 | 算子二进制配置 | 否 | 否 | |
 | 12 | inferShape/inferDataType | 否 | 否 | 输出 shape 不变 |
 | 13 | 图融合pass | 否 | 否 | |
@@ -146,8 +148,9 @@ ASCENDC_TPL_SEL(
 // 变更前
 tilingKey_ = GET_TPL_TILING_KEY(0U, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
 
-// 变更后
-uint32_t hasSink = (sfaaInfo_->keySinkExists && sfaaInfo_->kvLayout == QSFALayout::PA_BSND) ? 1U : 0U;
+// 变更后（防御性双重条件：tensor 存在 + kvLayout 为 PA_BSND）
+uint32_t hasSink = (sfaaInfo_->opParamInfo.keySink.tensor != nullptr &&
+                    sfaaInfo_->kvLayout == QSFALayout::PA_BSND) ? 1U : 0U;
 tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
 ```
 
@@ -176,11 +179,11 @@ tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, perfMode_ == QSF
 | op_host/*_tiling.cpp | Tiling 策略 | GenTilingKey 中根据 key_sink 设置 HAS_SINK | - | Param Sink |
 | op_kernel/*_common.h | 模板参数定义 | isFd → hasSink（重命名） | - | Param Sink |
 | op_kernel/*.cpp | 入口函数 | FLASH_DECODE → HAS_SINK；传入 key_sink（替换 nullptr） | - | Param Sink |
-| op_kernel/*_kernel_mla.h | Kernel 主类 | 新增 sinkKvGm GM 指针、Sink 迭代逻辑、传递 sinkKvGm 给 Cube 服务 | - | Param Sink |
-| op_kernel/*_service_cube_mla.h | Cube 服务 | IterateBmm1 新增 sink BF16 GM→L1 搬运（CopyToL1Nd2Nz） | - | Param Sink |
+| op_kernel/*_kernel_mla.h | Kernel 主类 | S2 循环 s2LoopLimit+1、SetRunInfo 增加 effectiveS2 偏移逻辑、传递 sinkKvGm 给 Cube 服务 | - | Param Sink |
+| op_kernel/*_service_cube_mla.h | Cube 服务 | IterateBmm1QSFA 内新增 sink BF16 GM→L1 搬运分支（CopyToL1Nd2Nz）；新增 sinkKvGm 成员和 InitSinkGm | - | Param Sink |
 | op_kernel/*_service_vector_mla.h | Vector 服务 | ProcessVec0 新增 sink pass-through 分支（WaitCrossCore + SetCrossCore） | - | Param Sink |
 
-**注意**：**不修改 TilingData（tiling.h）**，**不修改 util_regbase.h**（ConstInfo/CVSharedParams/RunInfo 无需新增字段，hasSink 通过编译期模板参数判定）。
+**注意**：**不修改 TilingData（tiling.h）**，**不修改 ConstInfo/CVSharedParams**。`util_regbase.h` 中 `RunInfo` 新增 `bool isSinkIter = false` 字段，hasSink 通过编译期模板参数判定。
 
 # 4 模板设计
 
@@ -188,20 +191,22 @@ tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, perfMode_ == QSF
 
 ### 4.1.1 计算流程图
 
+**核心设计思路**：Sink 迭代不作为独立阶段，而是**融入现有 S2 循环**，占用 `s2LoopCount=0` 位置。通过 `s2LoopLimit += 1` 扩展循环次数，正常 KV 索引在使用时 `-1` 偏移。
+
 **正常块 vs Sink 块数据通路对比**：
 
 ```
-正常 Sparse KV 块（现有流程）：
+正常 Sparse KV 块（s2LoopCount >= 1，hasSink 时）：
   AIV Vec0: GM(KV_FP8) → UB → 反量化(VF) → NZ → L1
   AIC BMM1: L1(Q) × L1(K_NZ)^T → UB(scores)
-  AIV Vec1: Softmax(scores) → P_NZ → L1
+  AIV Vec1: Softmax(scores, update=true) → P_NZ → L1
   AIC BMM2: L1(P) × L1(V_NZ) → UB(partial_out)
   AIV Vec2: FlashUpdate → attentionOut
 
-Sink KV 块（新增流程，AIC 搬运）：
+Sink KV 块（s2LoopCount=0，hasSink 时）：
   AIV Vec0: L1 pass-through (WaitCrossCore → SetCrossCore)   ← 不搬运数据，仅释放 L1 buffer
-  AIC BMM1: GM(sink_BF16) → L1(NZ) → Q×K^T → UB(scores)    ← AIC 负责 GM→L1 搬运 + BMM1
-  AIV Vec1: Softmax(scores) → P_NZ → L1                     ← 无变更
+  AIC BMM1: GM(sink_BF16) → L1(NZ) → Q×K^T → UB(scores)    ← AIC 在 IterateBmm1QSFA 内完成 GM→L1 搬运 + BMM1
+  AIV Vec1: Softmax(scores, update=false) → P_NZ → L1       ← 首次初始化 max/sum
   AIC BMM2: L1(P) × L1(V_sink_NZ) → UB(partial_out)         ← 无变更（MLA 复用同一份 L1 数据）
   AIV Vec2: FlashUpdate → attentionOut                       ← 无变更
 ```
@@ -216,21 +221,23 @@ Sink KV 块（新增流程，AIC 搬运）：
 - Sink KV 的 GM 偏移与 bIdx 无关，每个 batch/每个 Q 行都读取同一份 Sink 数据
 - 计算 GM 偏移时：`sinkOffset = 0`（固定），不乘 bIdx
 
-**三级流水时序图（含 Sink 迭代）**：
+**三级流水时序图（Sink 融入 S2 循环）**：
 
 ```
-时间 →  T_sink0    T_sink1    T0         T1         T2        ...
-AIC:  BMM1_sink  BMM2_sink  BMM1[0]    BMM1[1]    BMM1[2]   ...
-                            BMM2[0]    BMM2[1]    ...
-AIV:  Vec0_sink  Vec1_sink  Vec0[0]    Vec0[1]    Vec0[2]   ...
-                            Vec1[0]    Vec1[1]    ...
-                 Vec2_sink              Vec2[0]    Vec2[1]   ...
+s2LoopCount:  0(sink)    1          2          3         ...
+时间 →        T0         T1         T2         T3        ...
+AIC:        BMM1_sink  BMM1[0]    BMM1[1]    BMM1[2]   ...
+                       BMM2_sink  BMM2[0]    BMM2[1]   ...
+AIV:        Vec0_sink  Vec0[0]    Vec0[1]    Vec0[2]   ...
+                       Vec1_sink  Vec1[0]    Vec1[1]   ...
+                                  Vec2_sink  Vec2[0]   ...
 ```
 
 **说明**：
-- Sink 迭代在正常 S2 循环之前执行，作为 taskId=0 的特殊迭代
-- Vec0_sink：AIV 执行 pass-through（WaitCrossCore → SetCrossCore，不搬运数据），AIC 在 BMM1 阶段完成 GM→L1 搬运 + 矩阵乘
-- Sink 迭代完成后，正常 S2 循环从 taskId=1 开始（s2LoopCount=0 的 Softmax 需要走 update 路径，因为已有 sink 的 max/sum 状态）
+- Sink 迭代占用 `s2LoopCount=0`，与正常 S2 迭代共用同一个 for 循环，无独立的 sink 循环块
+- `s2LoopLimit += 1`：原始 `s2LoopLimit = s2LoopEndIdx - 1`，hasSink 时加 1，使正常 KV 迭代次数不变
+- 正常 KV 索引偏移：`effectiveS2 = s2LoopCount - 1`（hasSink 时），确保 s2LoopCount=1 对应原来的 s2LoopCount=0
+- Vec0_sink：AIV 执行 pass-through（WaitCrossCore → SetCrossCore，不搬运数据），AIC 在 IterateBmm1QSFA 内完成 GM→L1 搬运 + 矩阵乘
 - Sink 的 S2 大小固定为 128（= s2BaseSize），无尾块问题
 
 ### 4.1.2 Tiling实现设计
@@ -246,20 +253,28 @@ AIV:  Vec0_sink  Vec1_sink  Vec0[0]    Vec0[1]    Vec0[2]   ...
 
 **启用判定逻辑（Tiling 阶段）**：
 ```
-在 QSFAPInfoParser::Parse() 中：
-  sfaaInfo_->hasSink = (opParamInfo_.keySink.tensor != nullptr && kvLayout == PA_BSND)
-
 在 QSFAPMlaTiling::GenTilingKey() 中：
-  uint32_t hasSink = sfaaInfo_->hasSink ? 1U : 0U;
+  // 防御性双重条件：即使 Check 已校验，GenTilingKey 也不依赖 Check 的执行顺序
+  uint32_t hasSink = (sfaaInfo_->opParamInfo.keySink.tensor != nullptr &&
+                      sfaaInfo_->kvLayout == QSFALayout::PA_BSND) ? 1U : 0U;
   tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, ...);
 ```
 
-**参数校验新增**：
+**参数校验新增**（`CheckFeatureSinkParams`）：
+
+- key_sink 为 nullptr 时：
+  - 校验 value_sink 也为 nullptr（反向不对称校验：key_sink 为空但 value_sink 不为空时报错）
+  - 两者均为 nullptr 则直接返回成功（功能关闭）
+
 - key_sink 存在时：
   - 校验 kvLayout == PA_BSND
+  - 校验 key_sink desc != nullptr
   - 校验 key_sink dtype == BF16（与 Q 一致）
   - 校验 key_sink shape == [128, N1, 576]（无 B 维度，sink_token_num=128, N1=KV head 数量, D=576）
-  - 校验 value_sink 也存在，shape == [128, N1, 512]（D_nope=512）
+  - 校验 value_sink tensor != nullptr（key_sink 存在时 value_sink 必须存在）
+  - 校验 value_sink desc != nullptr
+  - 校验 value_sink dtype == BF16
+  - 校验 value_sink shape == [128, N1, 512]（D_nope = qHeadDim - ropeHeadDim = 576 - 64 = 512）
   - MLA 下 N1=1，value_sink nope 部分复用 key_sink 数据
 
 ### 4.1.3 Buffer设计
@@ -352,28 +367,19 @@ QSFA_OP_IMPL(..., bfloat16_t, fp8_e4m3fn_t, float, bfloat16_t, HAS_SINK, true, .
 
 #### 4.1.4.2 主 Kernel 类变更（kernel_mla.h）
 
-**新增成员变量**：
-```cpp
-// Sink KV 的 GM 指针（指向 key_sink，value 数据取 nope 部分）
-GlobalTensor<Q_T> sinkKvGm;
-```
+**设计原则**：不新增独立的 Sink 迭代块和 `SetRunInfoForSink` 方法。Sink 迭代融入现有 S2 循环，通过 `s2LoopLimit += 1` 扩展循环次数，`SetRunInfo` 内部根据 `s2LoopCount == 0` 设置 `isSinkIter` 标志，正常 KV 索引通过 `effectiveS2 = s2LoopCount - 1` 偏移。
 
 **Init 变更**：
-在 `InitGlobalBuffer` 中初始化 sink GM 指针，并传递给 Cube 服务：
+在 `InitGlobalBuffer` 中将 key_sink 传递给 Cube 服务：
 ```cpp
 if constexpr (hasSink) {
-    sinkKvGm.SetGlobalBuffer((__gm__ Q_T *)key_sink);  // 只需 key_sink，value 从 nope 部分取
-    // 传递给 Cube 服务，AIC 在 BMM1 阶段搬运 sink 数据
     this->cubeBlock.InitSinkGm(key_sink);
 }
 ```
 
-注意：使用 `if constexpr (hasSink)` 而非运行时判断，编译器在 `hasSink=false` 时完全消除此分支。
+注意：sinkKvGm 成员变量仅在 Cube 服务类中定义，Kernel 主类不持有。使用 `if constexpr (hasSink)` 编译期控制。
 
-**InitGlobalBuffer 签名变更**：
-新增 key_sink 参数传递（将 Init 中收到的 key_sink 传到 InitGlobalBuffer）。
-
-**ProcessMainLoop 变更**——在正常 S2 循环前插入 Sink 迭代：
+**ProcessMainLoop 变更**——Sink 融入 S2 循环：
 
 ```cpp
 // === 伪代码 ===
@@ -385,160 +391,170 @@ for bnIdx in [bN2Start, bN2End):
       ComputeAxisIdxByBnAndGs1()
       ComputeParamS1()
       ComputeS2LoopInfo()
+      s2LoopLimit = runParam.s2LoopEndIdx - 1
+      if constexpr (hasSink):
+        s2LoopLimit += 1   // sink 占用 s2LoopCount=0，总循环次数 +1
 
-    // ====== Sink 迭代（新增，编译期控制）======
-    if constexpr (hasSink):
+    // ====== S2 循环（hasSink 时 s2LoopCount=0 为 sink 迭代）======
+    for s2LoopCount in [0, s2LoopLimit]:
       if (notLastTwoLoop):
-        RunInfo &sinkRunInfo = runInfo[taskId % 3]
-        SetRunInfoForSink(sinkRunInfo, runParam, taskId, multiCoreInnerIdx)
-        // s2RealSize=128, s2LoopCount=-1(特殊标记), s2LoopLimit 加 1
+        RunInfo &runInfo1 = runInfo[taskId % 3]
+        SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx)
+        // SetRunInfo 内部：s2LoopCount==0 时设 isSinkIter=true，否则 effectiveS2=s2LoopCount-1
 
         if ASCEND_IS_AIC:
-          // AIC: 搬运 sink BF16 到 L1 + BMM1（在 IterateBmm1 中根据 isSinkIter 分支）
-          cubeBlock.IterateBmm1(bmm1Buffers.Get(), l1RightBuffers.Get(),
-              sinkRunInfo, constInfo)
+          cubeBlock.IterateBmm1(bmm1Buffers.Get(), l1RightBuffers.Get(), runInfo1, constInfo)
         else:
-          // AIV: Vec0 pass-through（WaitCrossCore → SetCrossCore，不搬运数据）
-          vecBlock.ProcessVec0(l1RightBuffers.Get(), sinkRunInfo, constInfo)
+          vecBlock.ProcessVec0(l1RightBuffers.Get(), runInfo1, constInfo)
 
       if (taskId > 0 && notLast):
-        // Stage1: Vec1 + BMM2 for previous task
+        // Stage1: Vec1 + BMM2 for previous task（无变更）
         ...
       if (taskId > 1):
-        // Stage2: Vec2 for prev-prev task
+        // Stage2: Vec2 for prev-prev task（无变更）
         ...
       ++taskId
-
-    // ====== 正常 S2 循环 ======
-    for s2LoopCount in [0, s2LoopLimit]:
-      // 原有三级流水逻辑
-      // 变更：s2LoopCount==0 时 ProcessVec1 需要走 update 路径（因为 sink 已经初始化了 max/sum）
 ```
 
-**SetRunInfoForSink 方法**：
+**SetRunInfo 变更**（在现有方法中增加 sink 处理，不新增方法）：
 
 ```cpp
-__aicore__ inline void SetRunInfoForSink(RunInfo &runInfo, RunParamStr &runParam,
-    int64_t taskId, int64_t multiCoreInnerIdx)
+__aicore__ inline void SetRunInfo(RunInfo &runInfo, RunParamStr &runParam,
+    int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    // 复用 SetRunInfo 的大部分逻辑，但 s2 相关参数设为 sink 特定值
-    runInfo.s2RealSize = 128;   // sink_token_num，固定 128
-    runInfo.s2AlignedSize = 128;
-    runInfo.s2LoopCount = -1;   // 特殊标记：sink 迭代
-    runInfo.s2LoopLimit = /* 原 s2LoopLimit + 1，使正常循环的最后一次仍为 s2LoopLimit */
-    runInfo.isSinkIter = true;  // 标记为 sink 迭代
+    // === Sink 索引偏移逻辑 ===
+    runInfo.isSinkIter = false;
+    int64_t effectiveS2 = s2LoopCount;
+    if constexpr (hasSink) {
+        if (s2LoopCount == 0) {
+            runInfo.isSinkIter = true;   // s2LoopCount=0 为 sink 迭代
+        } else {
+            effectiveS2 = s2LoopCount - 1;  // 正常 KV 索引 -1 偏移
+        }
+    }
 
-    // 其余字段与正常 SetRunInfo 一致
+    // === 使用 effectiveS2 计算 s2 方向参数 ===
+    if (effectiveS2 < runParam.oriKvLoopEndIdx) {
+        runInfo.s2StartIdx = runParam.s2LineStartIdx;
+        runInfo.s2EndIdx = runParam.s2LineEndIdx;
+    } else {
+        runInfo.s2StartIdx = 0;
+        runInfo.s2EndIdx = runParam.s2CmpLineEndIdx;
+    }
+    runInfo.s2LoopCount = s2LoopCount;  // 保留原始 s2LoopCount（Vec1/Vec2 使用）
+    runInfo.s2LoopLimit = s2LoopLimit;
+
+    // ... 其余字段赋值与原有逻辑一致 ...
+    this->ComputeBmm1Tail(runInfo, runParam);
+}
+```
+
+**ComputeBmm1Tail 变更**（尾块计算中使用偏移后的索引）：
+
+```cpp
+__aicore__ inline void ComputeBmm1Tail(RunInfo &runInfo, RunParamStr &runParam)
+{
+    // S1 相关（无变更）
     runInfo.s1RealSize = runParam.s1RealSize;
     runInfo.mRealSize = runParam.mRealSize;
     runInfo.halfMRealSize = runParam.halfMRealSize;
-    // ... 复用 ComputeBmm1Tail 逻辑
+    // ...
+
+    // S2 相关
+    runInfo.s2RealSize = constInfo.s2BaseSize;  // 默认 128
+    runInfo.s2AlignedSize = runInfo.s2RealSize;
+
+    if constexpr (hasSink) {
+        if (runInfo.isSinkIter) {
+            return;  // sink 固定 128，无需尾块计算
+        }
+    }
+
+    // 正常 KV 尾块计算：使用偏移后的 effectiveS2Loop
+    int64_t effectiveS2Loop = runInfo.s2LoopCount;
+    if constexpr (hasSink) {
+        effectiveS2Loop -= 1;  // 正常 KV 索引 -1
+    }
+    int64_t curS2LoopCnt = (effectiveS2Loop >= runParam.oriKvLoopEndIdx) ?
+        (effectiveS2Loop - runParam.oriKvLoopEndIdx) : effectiveS2Loop;
+    if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+    }
 }
 ```
 
 **关键变更点汇总**：
-- 使用 `if constexpr (hasSink)` 控制 sink 分支，编译期消除
-- Sink 迭代通过 `runInfo.isSinkIter = true` 标记
-- Sink 迭代的 s2RealSize 固定为 128
-- 正常 S2 循环的 s2LoopCount==0 时，ProcessVec1 需要判断 `hasSink` 决定走 update 还是 no_update 路径
+- **不新增 `SetRunInfoForSink` 方法**，在现有 `SetRunInfo` 中通过 `s2LoopCount == 0` 判断 sink
+- **不新增独立 Sink 迭代块**，Sink 融入 S2 for 循环，`s2LoopLimit += 1`
+- 正常 KV 索引通过 `effectiveS2 = s2LoopCount - 1` 偏移，确保 s2LoopCount=1 对应原来的 s2LoopCount=0
+- `ComputeBmm1Tail` 中 sink 迭代直接返回（固定 128），正常迭代使用 `effectiveS2Loop -= 1`
+- Kernel 主类不持有 `sinkKvGm`，仅通过 `InitSinkGm` 传递给 Cube 服务
 
 #### 4.1.4.3 Cube 服务变更（service_cube_mla.h）
 
-**IterateBmm1 变更——Sink 迭代时 AIC 负责 GM→L1 搬运**：
+**设计原则**：不新增 `IterateBmm1Sink` 方法，Sink 搬运逻辑直接在现有 `IterateBmm1QSFA` 中通过 `if constexpr (hasSink)` 分支实现。
 
-正常流程中，AIC IterateBmm1 在 `inputRightBuf.WaitCrossCore()` 后直接使用 L1 中已由 AIV Vec0 搬好的 KV 数据。Sink 迭代时，AIV Vec0 仅做 pass-through（不搬运数据），因此 AIC 需要在 WaitCrossCore 之后、BMM1 之前，自行将 sink BF16 数据从 GM 搬到 L1。
-
+**IterateBmm1 无变更**（仍直接调用 IterateBmm1QSFA）：
 ```cpp
-TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::IterateBmm1(
-    Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-    ConstInfo &constInfo)
-{
+__aicore__ inline void IterateBmm1(...) {
     CalcS1Coord(runInfo, constInfo);
-
-    if constexpr (hasSink) {
-        if (runInfo.isSinkIter) {
-            // ========= Sink 迭代：AIC 搬运 sink BF16 到 L1 =========
-            IterateBmm1Sink(outputBuf, inputRightBuf, runInfo, constInfo);
-            return;
-        }
-    }
-
-    // ========= 正常迭代（不变）=========
     IterateBmm1QSFA(outputBuf, inputRightBuf, runInfo, constInfo);
 }
 ```
 
-**新增 IterateBmm1Sink 方法**：
+**IterateBmm1QSFA 变更**——在 `WaitCrossCore` 之后插入 Sink 搬运分支：
 
 ```cpp
-__aicore__ inline void IterateBmm1Sink(
-    Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
+__aicore__ inline void IterateBmm1QSFA(
+    Buffer<UB, CROSS_CORE_SYNC_BOTH> &outputBuf,
+    Buffer<L1, CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
     RunInfo &runInfo, ConstInfo &constInfo)
 {
-    // 1. 加载 Q 到 L1（与正常 BMM1 一致，s2LoopCount==0 时搬运 Q）
-    Buffer<BufferType::L1> inputLeftBuf = l1QBuffers.Get();
-    inputLeftBuf.Wait<HardEvent::MTE1_MTE2>();
-    LocalTensor<Q_T> inputLeftTensor = inputLeftBuf.GetTensor<Q_T>();
-    CopyToL1Nd2Nz<Q_T>(inputLeftTensor, this->queryGm.gmTensor[runInfo.queryOffset],
-        runInfo.mRealSize, constInfo.dSize, constInfo.mm1Ka);
-    inputLeftBuf.Set<HardEvent::MTE2_MTE1>();
+    // 1. 加载 Q 到 L1（s2LoopCount==0 时搬运 Q，sink 迭代也是 s2LoopCount==0）
+    if (unlikely(runInfo.s2LoopCount == 0)) {
+        inputLeftBuf = l1QBuffers.Get();
+        inputLeftBuf.Wait<HardEvent::MTE1_MTE2>();
+        CopyToL1Nd2Nz<Q_T>(inputLeftBuf.GetTensor<Q_T>(),
+            this->queryGm.gmTensor[runInfo.queryOffset],
+            runInfo.mRealSize, constInfo.dSize, constInfo.mm1Ka);
+        inputLeftBuf.Set<HardEvent::MTE2_MTE1>();
+    } else {
+        inputLeftBuf = l1QBuffers.GetPre();  // 复用已加载的 Q
+        inputLeftBuf.Set<HardEvent::MTE2_MTE1>();
+    }
 
-    // 2. 等待 AIV Vec0 pass-through 释放 L1 buffer
+    // 2. 等待 AIV Vec0 释放 L1 buffer
     inputRightBuf.WaitCrossCore();
 
-    // 3. AIC 搬运 sink BF16 数据 GM → L1 NZ
-    //    key_sink shape: [128, N1, 576]，MLA 下 N1=1
-    //    复用 CopyToL1Nd2Nz<Q_T>，与 Q 搬运方式一致（GM ND → L1 NZ）
-    //    所有 batch 共享，GM 偏移与 bIdx 无关
-    LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
-    constexpr int64_t sinkD = 576;  // nope(512) + rope(64)
-    CopyToL1Nd2Nz<Q_T>(inputRightTensor, sinkKvGm[0],
-        runInfo.s2RealSize, sinkD, sinkD);  // s2RealSize=128, K=576
+    // 3. ========= Sink 搬运（新增，在 WaitCrossCore 之后）=========
+    if constexpr (hasSink) {
+        if (runInfo.isSinkIter) {
+            // AIC 搬运 sink BF16 数据 GM → L1 NZ
+            // key_sink shape: [128, N1, 576]，MLA 下 N1=1
+            // 复用 CopyToL1Nd2Nz<Q_T>，与 Q 搬运方式一致
+            // 所有 batch 共享，GM 偏移固定为 0
+            LocalTensor<Q_T> inputRightTensor = inputRightBuf.GetTensor<Q_T>();
+            CopyToL1Nd2Nz<Q_T>(inputRightTensor, sinkKvGm[0],
+                runInfo.s2RealSize, constInfo.dSize, constInfo.dSize);
+        }
+    }
 
-    // 4. 执行 BMM1: Q × K_sink^T
+    // 4. 执行 BMM1: Q × K^T（sink 和正常迭代共用此路径）
     inputLeftBuf.Wait<HardEvent::MTE2_MTE1>();
-    Buffer<BufferType::L0C> mm1ResL0C = mmL0CBuffers.Get();
-    mm1ResL0C.Wait<HardEvent::FIX_M>();
-    MMParam param = {static_cast<uint32_t>(runInfo.mRealSize),     // singleM
-                     static_cast<uint32_t>(runInfo.s2RealSize),    // singleN = 128
-                     static_cast<uint32_t>(constInfo.dSize),       // singleK = 576
-                     0,    // isLeftTranspose
-                     1     // isRightTranspose
-                    };
-    MatmulK<Q_T, Q_T, T, s1BaseSize, s2BaseSize, dBaseMatmulSize, ABLayout::MK, ABLayout::KN>(
-        inputLeftBuf.GetTensor<Q_T>(), inputRightBuf.GetTensor<Q_T>(),
-        mmL0ABuffers, mmL0BBuffers,
-        mm1ResL0C.GetTensor<T>(),
-        param);
-
-    // 5. Fixpipe L0C → UB（与正常 BMM1 一致）
-    mm1ResL0C.Set<HardEvent::M_FIX>();
-    mm1ResL0C.Wait<HardEvent::M_FIX>();
-
-    outputBuf.WaitCrossCore();
-    FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams;
-    fixpipeParams.nSize = Align8Func(runInfo.s2RealSize);
-    fixpipeParams.mSize = Align2Func(runInfo.mRealSize);
-    fixpipeParams.srcStride = Align16Func(fixpipeParams.mSize);
-    fixpipeParams.dstStride = s2BaseSize;
-    fixpipeParams.dualDstCtl = 1;
-    fixpipeParams.params.ndNum = 1;
-    fixpipeParams.params.srcNdStride = 0;
-    fixpipeParams.params.dstNdStride = 0;
-
-    Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(),
-        mm1ResL0C.GetTensor<T>(), fixpipeParams);
-    mm1ResL0C.Set<HardEvent::FIX_M>();
-    outputBuf.SetCrossCore();
+    // ... MatmulK + Fixpipe（与原有逻辑完全一致）...
 }
 ```
 
+**关键设计点**：
+- Sink 搬运代码仅 5 行，插入在 `WaitCrossCore` 和 `MatmulK` 之间，对原有代码侵入极小
+- `CopyToL1Nd2Nz<Q_T>(inputRightTensor, sinkKvGm[0], s2RealSize=128, dSize=576, dSize=576)`：将 sink BF16 数据从 GM 搬到 L1 NZ 格式
+- 搬运完成后，后续 MatmulK 和 Fixpipe 路径与正常迭代完全一致，无需任何修改
+- `sinkKvGm[0]`：所有 batch 共享，偏移固定为 0
+
 **新增成员变量**（Cube 服务类中）：
 ```cpp
-// Sink KV 的 GM 指针，由 Kernel 主类传入
-GlobalTensor<Q_T> sinkKvGm;
+GlobalTensor<Q_T> sinkKvGm;  // Sink KV 的 GM 指针，由 Kernel 主类通过 InitSinkGm 传入
 ```
 
 **新增 InitSinkGm 方法**：
@@ -562,22 +578,21 @@ __aicore__ inline void InitSinkGm(__gm__ uint8_t *key_sink)
 Sink 迭代时，AIV Vec0 不搬运数据，仅执行 WaitCrossCore → SetCrossCore 释放 L1 buffer 给 AIC 使用：
 
 ```cpp
-TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0(
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+__aicore__ inline void ProcessVec0(
+    Buffer<L1, CROSS_CORE_SYNC_FORWARD> &outputL1,
     const RunInfo &runInfo, ConstInfo &constInfo)
 {
     outputL1.WaitCrossCore();
 
     if constexpr (hasSink) {
         if (runInfo.isSinkIter) {
-            // ========= Sink pass-through =========
-            // AIC 负责搬运 sink BF16 到 L1，AIV 仅释放 L1 buffer
+            // Sink pass-through: AIC 负责搬运，AIV 仅释放 L1 buffer
             outputL1.SetCrossCore();
             return;
         }
     }
 
-    // ========= 正常 Sparse KV 搬运路径（不变）=========
+    // 正常 Sparse KV 搬运路径（不变）
     blockSize = constInfo.oriBlockSize;
     maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
     ProcessSparseKv(outputL1, runInfo, constInfo);
@@ -585,21 +600,13 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 }
 ```
 
-**不新增 ProcessSinkKv / CopyInSinkBf16ToNz 方法**（搬运逻辑已移至 AIC Cube 服务）。
+**不新增 ProcessSinkKv / CopyInSinkBf16ToNz 方法**（搬运逻辑已在 AIC Cube 服务的 IterateBmm1QSFA 中实现）。
 
 **ProcessVec1 变更**：
 
-正常 S2 循环的首次迭代（s2LoopCount==0），如果之前有 sink 迭代，需要走 update 路径（而非 no_update），因为 sink 迭代已经初始化了 max/sum 状态：
+Sink 迭代是整个 S2 维度上的首次迭代，需要走 `update=false` 路径初始化 max/sum。正常 S2 循环的 s2LoopCount=1（hasSink 时对应原来的 s2LoopCount=0）需要走 `update=true` 路径：
 
 ```cpp
-// 变更前
-if (runInfo.s2LoopCount == 0) {
-    ProcessVec1Vf<..., false, ...>(...);  // false = no update（首次初始化 max/sum）
-} else {
-    ProcessVec1Vf<..., true, ...>(...);   // true = update
-}
-
-// 变更后
 // isFirstEver: 整个 S2 维度上的首次（包括 sink），仅 sink 迭代本身为 true
 bool isFirstEver;
 if constexpr (hasSink) {
@@ -615,28 +622,36 @@ if (isFirstEver) {
 }
 ```
 
-**ProcessVec2 无变更**：FlashUpdate 逻辑天然支持 sink 迭代，只要 s2LoopCount 语义正确（sink 迭代的 s2LoopCount 为 0 或 -1，后续迭代正常递增）。
-
-**InitGlobalBuffer 变更**：
-新增 sinkKvGm 的 GM 指针设置，并传递给 Cube 服务：
+**ProcessVec1 中 QSFAUpdateExpSumAndExpMax 调用**：
 ```cpp
-if constexpr (hasSink) {
-    sinkKvGm.SetGlobalBuffer((__gm__ Q_T *)key_sink);
-    this->cubeBlock.InitSinkGm(key_sink);
+// 原有逻辑使用 s2LoopCount != 0 判断是否需要 update
+// hasSink 时 sink 迭代的 s2LoopCount=0，不执行 update（正确）
+// hasSink 时正常迭代的 s2LoopCount>=1，执行 update（正确）
+// 因此此处无需修改
+if (runInfo.s2LoopCount != 0) {
+    QSFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
 }
 ```
 
+**ProcessVec2 变更**：
+
+ProcessVec2 中使用 `s2LoopCount` 判断首次/末次迭代：
+
+```cpp
+// s2LoopCount == 0：首次迭代（hasSink 时为 sink 迭代），DataCopy 初始化
+// s2LoopCount == s2LoopLimit：末次迭代，FlashUpdateLast + CopyOut
+// 中间迭代：FlashUpdateNew
+```
+
+由于 `s2LoopCount` 保留原始值（sink=0, 正常 KV=1,2,...），且 `s2LoopLimit` 已 +1，ProcessVec2 的首次/末次判断逻辑天然正确，**无需修改**。
+
 #### 4.1.4.5 运行时参数变更
 
-**ConstInfo / CVSharedParams / RunInfo 均不新增字段**。
+**ConstInfo / CVSharedParams 均不新增字段**。
 
 hasSink 通过编译期模板参数判定，无需运行时传递。
 
-唯一运行时需要的信息：
-- `runInfo.isSinkIter`：在 `RunInfo` 中新增此标志位，区分 sink 迭代与正常迭代。或者也可以用 `runInfo.s2LoopCount == -1` 作为特殊标记，不新增字段。
-
-**推荐方案**：在 `RunInfo` 中新增 `bool isSinkIter = false`，语义更清晰。
-
+**RunInfo 新增字段**：
 ```cpp
 // util_regbase.h RunInfo 中新增
 struct RunInfo {
@@ -646,45 +661,56 @@ struct RunInfo {
 };
 ```
 
-这是唯一的运行时参数变更，不涉及 CVSharedParams 和 ConstInfo。
+**isSinkIter 的设置方式**：由 `SetRunInfo` 方法根据 `s2LoopCount == 0` 自动设置，不需要独立的 `SetRunInfoForSink` 方法：
+- `s2LoopCount == 0` 且 `hasSink` → `isSinkIter = true`
+- 其他情况 → `isSinkIter = false`
+
+**isSinkIter 的使用位置**：
+| 使用位置 | 用途 |
+| -------- | ---- |
+| ProcessVec0 | 判断是否走 pass-through 路径 |
+| IterateBmm1QSFA | 判断是否搬运 sink BF16 到 L1 |
+| ProcessVec1 | 判断 isFirstEver（首次初始化 max/sum） |
+| ComputeBmm1Tail | sink 迭代直接返回，跳过尾块计算 |
 
 #### 4.1.4.6 核间同步协议
 
-**Sink 块的核间同步协议与正常块略有不同（Vec0 阶段）**：
+Sink 迭代融入 S2 循环后，核间同步协议与正常迭代完全一致，仅 Vec0 阶段行为不同：
 
 ```
-正常块：
-  AIV Vec0: WaitCrossCore(L1) → 搬运反量化 KV → SetCrossCore(L1)
-  AIC BMM1: WaitCrossCore(L1) → Q×K → SetCrossCore(UB)
+所有迭代（统一协议）：
+  AIV Vec0: WaitCrossCore(L1) → [搬运/pass-through] → SetCrossCore(L1)
+  AIC BMM1: WaitCrossCore(L1) → [可选: sink GM→L1] → Q×K → SetCrossCore(UB)
   AIV Vec1: WaitCrossCore(UB) → Softmax → SetCrossCore(L1)
   AIC BMM2: WaitCrossCore(L1) → P×V → SetCrossCore(UB)
   AIV Vec2: WaitCrossCore(UB) → FlashUpdate → SetCrossCore(UB)
-
-Sink 块（Vec0 阶段变更，其余不变）：
-  AIV Vec0: WaitCrossCore(L1) → pass-through → SetCrossCore(L1)   ← 不搬运数据，仅释放 L1
-  AIC BMM1: WaitCrossCore(L1) → GM→L1(sink BF16) → Q×K → SetCrossCore(UB)  ← AIC 负责搬运 + BMM1
-  AIV Vec1: WaitCrossCore(UB) → Softmax → SetCrossCore(L1)        ← 无变更
-  AIC BMM2: WaitCrossCore(L1) → P×V → SetCrossCore(UB)            ← 无变更
-  AIV Vec2: WaitCrossCore(UB) → FlashUpdate → SetCrossCore(UB)    ← 无变更
 ```
 
-**关键设计**：
-- AIV Vec0 的 WaitCrossCore → SetCrossCore pass-through 保证了核间同步时序不变（AIC 仍然在 WaitCrossCore 后才访问 L1）
-- AIC 在 WaitCrossCore(L1) 之后、BMM1 之前插入 `CopyToL1Nd2Nz` 搬运 sink 数据，不影响后续 Vec1/BMM2/Vec2 的同步协议
-- 这种方式更合理：BF16 数据无需反量化，AIC 直接搬运到 L1 NZ 格式后立即执行 BMM1，减少核间通信开销
+**Sink 迭代（s2LoopCount=0）的特殊行为**：
+- AIV Vec0：`WaitCrossCore → SetCrossCore`（pass-through，不搬运数据）
+- AIC BMM1：`WaitCrossCore` 后先执行 `CopyToL1Nd2Nz` 搬运 sink BF16 到 L1，再执行 MatmulK
+
+**设计优势**：
+- 核间同步时序完全不变，Sink 只是 S2 循环中的一个普通迭代
+- 不引入额外的同步点或特殊的同步协议
+- Vec1/BMM2/Vec2 阶段完全无感知 sink 的存在
 
 ### 4.1.5 异常场景设计
 | 异常场景 | 处理方式 | 处理层级 |
 | -------- | -------- | -------- |
-| key_sink 为 nullptr | HAS_SINK=0，TilingKey 走无 sink 路径 | Host Tiling + 编译期 |
+| key_sink 为 nullptr，value_sink 也为 nullptr | HAS_SINK=0，TilingKey 走无 sink 路径 | Host Tiling + 编译期 |
+| key_sink 为 nullptr，value_sink 不为 nullptr | Tiling 阶段报错（反向不对称，输入不合法） | Host Tiling Check |
 | key_sink 存在但 kvLayout 非 PA_BSND | Tiling 阶段报错 | Host Tiling Check |
-| key_sink 存在但 value_sink 为 nullptr | Tiling 阶段报错（MLA 场景理论上不会发生） | Host Tiling Check |
-| key_sink shape != [128, N1, 576] | Tiling 阶段报错 | Host Tiling Check |
-| value_sink shape != [128, N1, 512] | Tiling 阶段报错 | Host Tiling Check |
+| key_sink 存在但 desc 为 nullptr | Tiling 阶段报错 | Host Tiling Check |
 | key_sink dtype 非 BF16 | Tiling 阶段报错 | Host Tiling Check |
+| key_sink shape != [128, N1, 576] | Tiling 阶段报错 | Host Tiling Check |
+| key_sink 存在但 value_sink 为 nullptr | Tiling 阶段报错 | Host Tiling Check |
+| value_sink 存在但 desc 为 nullptr | Tiling 阶段报错 | Host Tiling Check |
+| value_sink dtype 非 BF16 | Tiling 阶段报错 | Host Tiling Check |
+| value_sink shape != [128, N1, 512] | Tiling 阶段报错 | Host Tiling Check |
 
 ### 4.1.6 支持确定性计算设计
-不涉及。Sink 迭代的计算顺序确定（始终在 S2 循环之前），不引入非确定性。
+不涉及。Sink 迭代作为 S2 循环的 s2LoopCount=0 执行，计算顺序确定，不引入非确定性。
 
 ### 4.1.7 精度分析及设计
 
