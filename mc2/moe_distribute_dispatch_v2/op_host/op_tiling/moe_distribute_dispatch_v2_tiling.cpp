@@ -1639,6 +1639,7 @@ ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext 
     bool isSetFullMeshV2 = false;
     bool isLayered = false;
     uint32_t localMoeExpertNum = 1;
+    OP_LOGD(nodeName, "PRINT MoeDistributeDispatchA3TilingFuncImplPublic start");
     OP_LOGI(nodeName, "Enter MoeDistributeDispatchV2 tiling check func.");
 
     // 获取入参属性

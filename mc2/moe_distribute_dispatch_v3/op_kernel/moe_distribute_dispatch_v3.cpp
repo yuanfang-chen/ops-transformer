@@ -45,6 +45,9 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
     printf("PRINT inter the kernel DT_BF16\n");
     if constexpr (ArchTag == TILINGKEY_TPL_A3) {
         printf("PRINT inter the kernel DT_BF16\n");
+        printf("PRINT FullMesh:%u",FullMesh);
+        printf("PRINT TILINGKEY_ENABLE_FULLMESH:%u\n",TILINGKEY_ENABLE_FULLMESH);
+        printf("PRINT TILINGKEY_NO_FULLMESH:%u\n",TILINGKEY_NO_FULLMESH);
         if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
             printf("PRINT inter the kernel FullMesh\n");
             GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
