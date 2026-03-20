@@ -229,7 +229,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
                        static_cast<int64_t>(params.gmmParams.baseK)};
     L1Params l1Params{static_cast<uint64_t>(params.gmmParams.kAL1), static_cast<uint64_t>(params.gmmParams.kBL1),
                       static_cast<uint64_t>(params.gmmParams.scaleKAL1), 2UL}; // Enable double buffering by default.
-    mmadOp_.Init(problemShape_, l0Shape, l1Params, isBias_, false);
+    mmadOp_.Init(problemShape_, l0Shape, l1Params, isBias_, params.gmmParams.dbL0C == DOUBLE_BUFFER_COUNT);
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
