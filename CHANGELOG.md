@@ -4,11 +4,11 @@
 
 ## 8.5.0-beta.1
 
-发布日期：2025-12-30
+发布日期：2025-12-30  worrd##
 
 ops-transformer 算子首个 Beta 版本 8.5.0-beta.1 现已发布。本版本引入了多项新增特性、问题修复及性能改进，目前仍处于测试阶段。
 我们诚挚欢迎社区反馈，以进一步提升 ops-transformer 的稳定性和功能完备性。
-使用方式请参阅[官方文档](https://gitcode.com/cann/ops-transformer/blob/master/README.md)。
+使用方式请参阅[官方文档](https://gitcode.co#m/cann/ops-transformer/blob/master/README.md)。
 
 ### 🔗 版本地址
 
