@@ -1040,7 +1040,7 @@ ge::graphStatus CheckFAIIsTND(gert::TilingContext *context, bool isPageAttention
         return ge::GRAPH_FAILED;
     }
     int32_t sparseMode = static_cast<int32_t>(*(context->GetAttrs()->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
- 	if (sparseMode == 4 && CheckSparseModeParams(context, actSeqLenDims) != ge::GRAPH_SUCCESS) {
+    if (sparseMode == 4 && CheckSparseModeParams(context, actSeqLenDims) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -1144,7 +1144,7 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
         tempVD = tempV->GetStorageShape().GetDim(DIM_2);
     } else {
         int64_t kvHeadNum = *(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX));
- 	    int64_t inputBlockSize = *(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX));
+        int64_t inputBlockSize = *(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX));
         tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
         tempVD = (tempV->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
         int64_t cacheBlockSize = tempK->GetStorageShape().GetDim(DIM_1);
@@ -1278,9 +1278,9 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     auto attrs = context->GetAttrs();
     faInfo.pagedCacheFlag = blockTable != nullptr;
     faInfo.numHeads = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX)));
- 	int32_t tmpNKv = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX)));
- 	int32_t tmpBlkSize = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX)));
- 	int32_t sparseMode = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
+    int32_t tmpNKv = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX)));
+    int32_t tmpBlkSize = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX)));
+    int32_t sparseMode = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
     float scaleValue = *(attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX));
     faInfo.sparseMode = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
     int64_t preToken  = *(attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX));
@@ -1391,9 +1391,9 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     auto kvDimNum = tempK->GetStorageShape().GetDimNum();
     auto attrs = context.GetAttrs();
     int64_t headNum = *(attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX));
- 	int64_t kvHeadNum = *(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX));
- 	int32_t sparseMode = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
- 	int32_t innerPrecise = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX)));
+    int64_t kvHeadNum = *(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX));
+    int32_t sparseMode = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_SPARSE_MODE_INDEX)));
+    int32_t innerPrecise = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX)));
     bool isLearnableSink = context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
     bool isLearnableSinkFlag = true;
     if (isLearnableSink && inputLayoutStr == "TND") {
