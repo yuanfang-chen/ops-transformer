@@ -174,6 +174,57 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNormalCa
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
 }
 
+// Test Case 24: Verify coreNum/blockDim is set correctly from compileInfo
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzCoreNum)
+{
+    gert::StorageShape xShape = {{M, K}, {M, K}};
+    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
+    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
+    gert::StorageShape biasShape = {{E, N}, {E, N}};
+    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
+    gert::StorageShape groupListShape = {{E}, {E}};
+    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
+    gert::StorageShape logitShape = {{M}, {M}};
+    gert::StorageShape rowindexShape = {{M}, {M}};
+    gert::StorageShape yShape = {{M, N}, {M, N}};
+
+    gert::TilingContextPara tilingContextPara(
+        "GroupedMatmulFinalizeRouting",
+        {
+            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
+            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
+            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
+            {biasShape, ge::DT_BF16, ge::FORMAT_ND},
+            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
+            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
+            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
+            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
+            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
+        },
+        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
+        {
+            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
+            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
+            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+        },
+        &DEFAULT_COMPILE_INFO,
+        "Ascend950"
+    );
+
+    int64_t expectTilingKey = 4L;
+    size_t expectBlockNum = DEFAULT_COMPILE_INFO.aicNum;  // Should use aicNum from compileInfo
+
+    TilingInfo tilingInfo;
+    ExecuteTiling(tilingContextPara, tilingInfo);
+    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
+    EXPECT_EQ(tilingInfo.blockNum, expectBlockNum);
+}
+
 // ============================================================================
 // Test Cases 2-6: nullptr validation tests
 // ============================================================================
