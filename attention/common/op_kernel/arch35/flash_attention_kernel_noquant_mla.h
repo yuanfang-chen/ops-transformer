@@ -206,7 +206,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitInpu
     }
 
     this->vecBlock.InitGlobalBuffer(pse, nullptr, nullptr, nullptr, nullptr, postQuantScale, postQuantOffset,
-        nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, 0, this->aicIdx, constInfo);
+        nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, 0, this->aicIdx, constInfo,
+ 	    actualSeqLengths, actualSeqLengthsKv);
 }
 
 template <typename CubeBlockType, typename VecBlockType>

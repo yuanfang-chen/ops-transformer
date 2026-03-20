@@ -490,7 +490,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
         } else {
             if (constInfo.isGqa && constInfo.s1Size > 1) { // 合轴：antiquant PFA
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
-                    runParam.tensorQOffset = runParam.qBOffset + runParam.cubeSOuterOffset * constInfo.n2GD +
+                    runParam.tensorQOffset = runParam.qBOffset + runParam.cubeSOuterOffset * constInfo.n2Size * constInfo.dSize +
                         runParam.n2oIdx * constInfo.gD;
                 } else {
                     runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
@@ -562,7 +562,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
             if (constInfo.isGqa && constInfo.s1Size > 1) { // PFA
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.queryLeftPaddingSize * constInfo.n2GDv +
-                        runParam.sOuterOffset / constInfo.gSize * constInfo.n2GDv + runParam.n2oIdx * constInfo.gDv;
+                        runParam.sOuterOffset * constInfo.n2Size * constInfo.dSizeV + runParam.n2oIdx * constInfo.gDv;
                 } else {
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.n2oIdx * constInfo.gDv * actualSeqLen +
                         runParam.sOuterOffset * constInfo.dSizeV;
@@ -672,7 +672,7 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
         runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
             runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
     } else {
-        if (constInfo.isGqa) {
+        if (constInfo.isGqa && layout != LayOutTypeEnum::LAYOUT_BNSD) {
             sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx - runParam.preTokensPerBatch,
                 0, runParam.actualS2Size);
             runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.s1oIdx + runParam.nextTokensPerBatch +

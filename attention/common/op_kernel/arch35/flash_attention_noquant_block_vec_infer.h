@@ -78,7 +78,7 @@ public:
         __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
         __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax,
         __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
-        ConstInfo<isInfer, hasRope> &constInfo);
+        ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv);
     __aicore__ inline void InitUniqueLocalBuffer(ConstInfo<isInfer, hasRope> &constInfo);
     __aicore__ inline void InitPostQuant(ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset);
     __aicore__ inline void GenerateDropoutMask(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<uint8_t> &dropMaskUb) {}
@@ -260,7 +260,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
     __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
     __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax,
     __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
-    ConstInfo<isInfer, hasRope> &constInfo)
+    ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv)
 {
     BaseClass::InitCommonGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, pScale, postQuantScale, prefix, attenMask, learnableSink, workspace, constInfo);
     if constexpr (isFd) {
@@ -281,6 +281,8 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
     if constexpr (POST_QUANT) {
         this->InitPostQuant(constInfo, postQuantScale, postQuantOffset);
     }
+    BaseClass::actualSeqQlenAddr = (__gm__ int64_t *)actualSeqLengths;
+    BaseClass::actualSeqKvlenAddr = (__gm__ int64_t *)actualSeqLengthsKv;
 }
 
 TEMPLATES_DEF_NO_DEFAULT

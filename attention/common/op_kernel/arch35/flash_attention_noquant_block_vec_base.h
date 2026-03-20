@@ -26,6 +26,7 @@
 #include "vf/vf_flash_decode.h"
 #include "flash_attention_score_tiling_regbase.h"
 #include "attenmask_gs1.h"
+#include "attenout_gs1.h"
 
 using namespace AscendC;
 using namespace FaVectorApi;
@@ -153,6 +154,8 @@ public:
     AttenMaskInfo *attenMaskInfoPtr;
     T negativeFloatScalar;
     T positiveFloatScalar;
+    __gm__ int64_t *actualSeqQlenAddr;
+ 	__gm__ int64_t *actualSeqKvlenAddr;
     // Bmm2阶段subblock在Gm上的偏移
     int64_t bmm2SubBlockOffset = 0;
     int64_t vec2SubBlockOffset = 0;
@@ -210,6 +213,8 @@ private:
         LocalTensor<OUTPUT_T> &attenOut);
     __aicore__ inline void MlaBnsdWithActqDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
         LocalTensor<OUTPUT_T> &attenOut, DataCopyExtParams &dataCopyParams);
+    __aicore__ inline void S1GMergeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+ 	    LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
@@ -757,7 +762,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                                 layout == LayOutTypeEnum::LAYOUT_SBH) {
                     maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
                 } else {
-                    maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
+                    maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx * s1BaseSize;
                 }
                 maskInfo.gs1dealNum = runInfo.halfS1RealSize;
                 maskInfo.s1Size = runInfo.actualS1Size;
@@ -1655,6 +1660,49 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithAct
 }
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
+__aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCopyOut(
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount)
+{
+    FaUbTensor<OUTPUT_T> ubTensor {
+        .tensor = attenOut,
+        .rowCount = static_cast<uint32_t>(runInfo.vec2S1RealSize),
+        .colCount = colCount
+    };
+    GmCoord gmCoord {
+        .bIdx = static_cast<uint32_t>(runInfo.boIdx),
+        .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
+        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize),
+        .dIdx = 0,
+        .gS1DealSize = static_cast<uint32_t>(runInfo.vec2S1RealSize),
+        .dDealSize = static_cast<uint32_t>(constInfo.dSize)
+    };
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
+        FaGmTensor<OUTPUT_T, GmFormat::BSNGD> outGmTensor {
+            .gmTensor = this->attentionOutGm,
+        };
+        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
+        CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BSNGD, UbFormat::S1G> copyAttenOutUbToGm;
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+    } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
+        FaGmTensor<OUTPUT_T, GmFormat::TNGD> outGmTensor {
+            .gmTensor = this->attentionOutGm,
+        };
+        GlobalTensor<uint64_t> actualSeqQLen;
+        actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr);
+        outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize, actualSeqQLen, constInfo.actualSeqLenSize);
+        CopyAttenOutUbToGm<OUTPUT_T, GmFormat::TNGD, UbFormat::S1G> copyAttenOutUbToGm;
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+    } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
+        FaGmTensor<OUTPUT_T, GmFormat::BNGSD> outGmTensor {
+            .gmTensor = this->attentionOutGm,
+        };
+        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
+        CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BNGSD, UbFormat::GS1> copyAttenOutUbToGm;
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+    }
+}
+
+TEMPLATES_DEF_BASE_NO_DEFAULT
 template <typename VEC2_RES_T>
 __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
@@ -1739,7 +1787,9 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOu
     }
 
     if constexpr (isInfer && !isMlaNoQuant) {
-        if (constInfo.isPfaGS1Merge && dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
+        if ((constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) ||constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND)) && constInfo.isPfaGS1Merge) {
+            S1GMergeDataCopyOut(runInfo, constInfo, attenOut, dSizeAligned64);
+        } else if (dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
             for(int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++){
                 attenOutOffset = i * constInfo.dSizeV * constInfo.gSize * constInfo.n2Size;
                 dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
@@ -2009,7 +2059,12 @@ public:
         __gm__ uint8_t *attenMask, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, 
         __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset,
         uint32_t aicIdx, ConstInfo<isInfer, hasRope> &constInfo) {}
-
+    __aicore__ inline void InitGlobalBuffer(
+        __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV, __gm__ uint8_t *pScale,
+        __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,__gm__ uint8_t *prefix,
+        __gm__ uint8_t *attenMask, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, 
+        __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset,
+        uint32_t aicIdx, ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv) {}
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo<isInfer, hasRope> &constInfo) {}
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo,
