@@ -263,9 +263,9 @@ ge::graphStatus JMTiling::InitMemInfo()
 
 
     jmData_.shapeInfo.vDim2Aligned = jmData_.memInfo.nSizeAligned;
-    jmData_.shapeInfo.uDim2Aligned = (((jmData_.shapeInfo.uDim2 + mask - 1) / mask) * mask);
+    jmData_.shapeInfo.uDim2Aligned = (((jmData_.shapeInfo.uDim2 + jmData_.memInfo.nMaskSize - 1) / jmData_.memInfo.nMaskSize) * jmData_.memInfo.nMaskSize);
 
-    int bucketSize = (ubSize - RESERVED_VECTOR_MEMORY_SIZE) / (3 * recordMemSize + 2 * recordASizeAligned * sizeof(float) + 2 * mask * sizeof(float));
+    int bucketSize = (ubSize - RESERVED_VECTOR_MEMORY_SIZE) / (3 * jmData_.memInfo.recordMemSize + 2 * jmData_.memInfo.tmpRowSizeAligned * sizeof(float) + 2 * jmData_.memInfo.nMaskSize * sizeof(float));
     PRINT_VAL(bucketSize);
     bucketSize = MIN(bucketSize, MAX_VEC_INSTRUCTION_NUM);
     PRINT_VAL(bucketSize);
