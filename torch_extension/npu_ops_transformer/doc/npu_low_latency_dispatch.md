@@ -133,10 +133,11 @@ npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="
 
 -   HCCL通信域缓存区大小:
     调用本接口前需检查HCCL\_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-    - 该场景不仅支持通过环境变量HCCL\_BUFFSIZE配置，还支持通过hccl_buffer_size配置（参考《[PyTorch训练模型迁移调优](https://hiascend.com/document/redirect/canncommercial-ptmigr)》中“性能调优>性能调优方法>通信优化>优化方法>hccl_buffer_size”章节）。
-    - ep通信域内，comm\_alg配置为"fullmesh_v1"或"": 设置大小要求 \>= 2 \* \(local\_expert\_num \* max\_bs \* ep\_world\_size \* Align512\(Align32\(2 \* H\) + 64\) + \(K + shared\_expert\_num\) \* max\_bs \* Align512\(2 \* H\)\)。
-    - ep通信域内，comm\_alg配置为"fullmesh_v2": 设置大小要求 \>= 2 \* \(local\_expert\_num \* max\_bs \* ep\_world\_size \* 480Align512\(Align32\(2 \* H\) + 64\) + \(K + shared\_expert\_num\) \* max\_bs \* Align512\(2 \* H\)\)。
-    - 其中 480Align512(x) = ((x+480-1)/480)\*512,Align512(x) = ((x+512-1)/512)\*512,Align32(x) = ((x+32-1)/32)\*32。
+    -   该场景不仅支持通过环境变量HCCL\_BUFFSIZE配置，该场景仅支持通过环境变量HCCL\_BUFFSIZE配置，该环境变量按通信域粒度管理，每个通信域独占一组“2*HCCL\_BUFFSIZE”大小的内存。
+    -   ep通信域内，comm_alg配置为"fullmesh_v1"或"": 设置大小要求 >= 2 * (local_expert_num * max_bs * ep_world_size * Align512(Align32(2 * H) + 64) + (K + shared_expert_num) * max_bs * Align512(2 * H))。
+    -   ep通信域内，comm_alg配置为"fullmesh_v2": 设置大小要求 >= 2 * (local_expert_num * max_bs * ep_world_size * 480Align512(Align32(2 * H) + 64) + (K + shared_expert_num) * max_bs * Align512(2 * H))。
+    -   其中 480Align512(x) = ((x+480-1)/480)*512,Align512(x) = ((x+512-1)/512)*512,Align32(x) = ((x+32-1)/32)*32。
+    -   通信域内开设大小可通过调用MoeDistributeBuffer.get_low_latency_ccl_buffer_size接口计算。
 
 -   本文公式中的“/”表示整除。
 
