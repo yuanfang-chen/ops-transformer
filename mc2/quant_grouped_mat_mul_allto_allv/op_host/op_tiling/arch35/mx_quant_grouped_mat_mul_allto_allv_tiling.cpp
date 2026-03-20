@@ -180,8 +180,13 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 {
-    localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
-    localParams_.gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
+    auto gmmXScaleDesc = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX);
+    auto gmmWeightScaleDesc = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    OP_TILING_CHECK(gmmXScaleDesc == nullptr, OP_LOGE(opName_, "The gmmXScaleDesc is nullptr."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(gmmWeightScaleDesc == nullptr, OP_LOGE(opName_, "The gmmWeightScaleDesc is nullptr."), return ge::GRAPH_FAILED);
+
+    localParams_.gmmXScaleDtype = gmmXScaleDesc->GetDataType();
+    localParams_.gmmWeightScaleDtype = gmmWeightScaleDesc->GetDataType();
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_X_SCALE_DTYPE_LIST, localParams_.gmmXScaleDtype),
         OP_LOGE(opName_, "The Input gmmX Scale Dtype should be in (DT_FLOAT8_E8M0, ), but Scale is %s.",
         Ops::Base::ToString(localParams_.gmmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
@@ -213,7 +218,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
             OP_LOGE(opName_, "In the Non-Transposed Scenario, gmmX dim1 is %lu, but gmmWeight dim1 is %lu!", localParams_.H1, localParams_.gmmWeightDim1),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "In the Non-Transposed Scenario, y dim1 is %lu, but gmmWeight dim2 is%lu !", localParams_.N1, localParams_.gmmWeightDim2),
+            OP_LOGE(opName_, "In the Non-Transposed Scenario, y dim1 is %lu, but gmmWeight dim2 is %lu !", localParams_.N1, localParams_.gmmWeightDim2),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
@@ -232,9 +237,13 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
     }
-    localParams_.mmXScaleDtype = context_->GetOptionalInputDesc(MM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
-    localParams_.mmWeightScaleDtype = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
-    
+    auto mmXScaleDesc = context_->GetOptionalInputDesc(MM_X_SCALE_OPTIONAL_INDEX);
+    auto mmWeightScaleDesc = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    OP_TILING_CHECK(mmXScaleDesc == nullptr, OP_LOGE(opName_, "The mmXScaleDesc is nullptr."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mmWeightScaleDesc == nullptr, OP_LOGE(opName_, "The mmWeightScaleDesc is nullptr."), return ge::GRAPH_FAILED);
+
+    localParams_.mmXScaleDtype = mmXScaleDesc->GetDataType();
+    localParams_.mmWeightScaleDtype = mmWeightScaleDesc->GetDataType();
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_X_SCALE_DTYPE_LIST, localParams_.mmXScaleDtype),
         OP_LOGE(opName_, "The Input mmX Scale Dtype should be in (DT_FLOAT8_E8M0, ), but Scale is %s.",
         Ops::Base::ToString(localParams_.mmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
@@ -284,6 +293,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalParams()
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "The context Attrs is nullptr."), return ge::GRAPH_FAILED);
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
     OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The group is nullptr."), return ge::GRAPH_FAILED);
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
@@ -318,6 +328,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
 
     auto groupSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_GROUP_SIZE_OPTIONAL_INDEX);
     OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "The groupSizePtr is nullptr !"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(*groupSizePtr < 0, OP_LOGE(opName_, "The groupSize is less then 0 !"), return ge::GRAPH_FAILED);
 
     localParams_.groupSize = *groupSizePtr;
     uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
@@ -356,6 +367,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
 {
     bool TransGmmWeightFlag = false;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "The context Attrs is nullptr."), return ge::GRAPH_FAILED);
     const bool *isTransGmmWeight = attrs->GetAttrPointer<bool>(ATTR_TRANS_GMM_WEIGHT_INDEX);
     if (isTransGmmWeight) {
         TransGmmWeightFlag = *isTransGmmWeight;
@@ -365,13 +377,13 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     OP_TILING_CHECK((gmmXScaleShape == nullptr), OP_LOGE(opName_, "The gmmXScaleShape is nullptr"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((gmmWeightScaleShape == nullptr), OP_LOGE(opName_, "The gmmWeightScale is nullptr"), return ge::GRAPH_FAILED);
 
-    uint64_t gmmXScaleDim0 = gmmXScaleShape->GetStorageShape().GetDim(0);
-    uint64_t gmmXScaleDim1 = gmmXScaleShape->GetStorageShape().GetDim(1);
-    uint64_t gmmXScaleDim2 = gmmXScaleShape->GetStorageShape().GetDim(2);
-    uint64_t gmmWeightScaleDim0 = gmmWeightScaleShape->GetStorageShape().GetDim(0);
-    uint64_t gmmWeightScaleDim1 = gmmWeightScaleShape->GetStorageShape().GetDim(1);
-    uint64_t gmmWeightScaleDim2 = gmmWeightScaleShape->GetStorageShape().GetDim(2);
-    uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(3);
+    uint64_t gmmXScaleDim0 = gmmXScaleShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t gmmXScaleDim1 = gmmXScaleShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t gmmXScaleDim2 = gmmXScaleShape->GetStorageShape().GetDim(DIM_TWO);
+    uint64_t gmmWeightScaleDim0 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t gmmWeightScaleDim1 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t gmmWeightScaleDim2 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_TWO);
+    uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_THREE);
 
     uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.A != gmmXScaleDim0) || (gmmxDivH1 != gmmXScaleDim1) || (gmmXScaleDim2 != EVEN_ALIGN),
@@ -408,6 +420,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
 {
     bool TransmmWeightFlag = false;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "The context Attrs is nullptr."), return ge::GRAPH_FAILED);
     const bool *isTransmmWeight = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
     if (isTransmmWeight) {
         TransmmWeightFlag = *isTransmmWeight;
