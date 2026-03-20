@@ -49,9 +49,9 @@ protected:
     ge::graphStatus CheckA3NonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters();
-    ge::graphStatus DoMMTiling();
-    
+    ge::graphStatus DoMMTiling(); 
     ge::graphStatus SetHcclTiling();
+    
     void SetTilingInfo(MatmulAlltoAllTilingInfoA3 &tilingInfo) const;
 
 private:
