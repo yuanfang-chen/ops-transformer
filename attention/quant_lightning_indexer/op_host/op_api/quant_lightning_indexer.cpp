@@ -42,6 +42,8 @@ const aclTensor *QuantLightningIndexer(
     if (!IsContiguous(key)) {
         auto keyStride = key->GetViewStrides();
         keyBlockStride = keyStride[0];
+    }
+    if (!IsContiguous(keyDequantScale)) {
         auto keyScaleStride = keyDequantScale->GetViewStrides();
         keyScaleBlockStride = keyScaleStride[0];
     }
