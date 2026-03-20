@@ -48,7 +48,7 @@ aclnnStatus aclnnInterleaveRopeGetWorkspaceSize(
     const aclTensor *sin,
     aclTensor       *out,
     uint64_t        *workspaceSize,
-    aclOpExecutor   **executor);
+    aclOpExecutor   **executor)
 ```
 
 ```c++
