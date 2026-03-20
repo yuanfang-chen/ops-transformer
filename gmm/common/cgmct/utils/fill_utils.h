@@ -25,10 +25,10 @@
 namespace Cgmct {
 namespace Gemm {
 
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510 || __NPU_ARCH__ == 3102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510 || __NPU_ARCH__ == 3102 || __NPU_ARCH__ == 3101)
 template <typename T>
-__aicore__ inline void InitOutputWithZero(AscendC::GlobalTensor<T> yInitGlobal, AscendC::LocalTensor<T>& initLocal,
-                                          uint64_t ySize, int32_t usedCoreNum, bool& isKZeroInit)
+__aicore__ inline void InitOutputWithZero(AscendC::GlobalTensor<T> yInitGlobal, AscendC::LocalTensor<T> &initLocal,
+                                          uint64_t ySize, int32_t usedCoreNum, bool &isKZeroInit)
 {
     if ASCEND_IS_AIC {
         return;
