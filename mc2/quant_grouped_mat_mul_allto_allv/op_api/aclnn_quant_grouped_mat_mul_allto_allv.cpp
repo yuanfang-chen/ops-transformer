@@ -23,7 +23,6 @@
 #include "opdev/op_log.h"
 #include "platform/soc_spec.h"
 #include "opdev/platform.h"
-#include "common/op_api/mc2_aclnn_util.h"
 #include "securec.h"
 #include <algorithm>
 
@@ -606,6 +605,36 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
 
     if (isMxQuant) {
+        // === MX Scale Shape 校验 ===
+        if (gmmWeightScaleOptional != nullptr) {
+            uint64_t scaleDimNum = gmmWeightScaleOptional->GetViewShape().GetDimNum();
+            if (scaleDimNum < DIM_THREE) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                        "In MX quant mode, gmmWeightScale dim num should be >= 3, but got %lu.", scaleDimNum);
+                return ACLNN_ERR_PARAM_INVALID;
+            }
+            int64_t lastDim = gmmWeightScaleOptional->GetViewShape().GetDim(scaleDimNum - 1);
+            if (lastDim != DIM_TWO) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                        "In MX quant mode, gmmWeightScale last dim should be 2, but got %ld.", lastDim);
+                return ACLNN_ERR_PARAM_INVALID;
+            }
+        }
+        if (mmWeightScaleOptional != nullptr) {
+            uint64_t scaleDimNum = mmWeightScaleOptional->GetViewShape().GetDimNum();
+            if (scaleDimNum < DIM_THREE) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                        "In MX quant mode, mmWeightScale dim num should be >= 3, but got %lu.", scaleDimNum);
+                return ACLNN_ERR_PARAM_INVALID;
+            }
+            int64_t lastDim = mmWeightScaleOptional->GetViewShape().GetDim(scaleDimNum - 1);
+            if (lastDim != DIM_TWO) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                        "In MX quant mode, mmWeightScale last dim should be 2, but got %ld.", lastDim);
+                return ACLNN_ERR_PARAM_INVALID;
+            }
+        }
+
         // === gmmWeight 转置检测 ===
         bool notContiguousGmm = IsTransposeLastTwoDims(gmmWeight);
         if (notContiguousGmm && transGmmWeight) {
@@ -616,11 +645,8 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
             transGmmWeight = !transGmmWeight;
             gmmWeight = TransGmmWeightTensor(gmmWeight);
             CHECK_RET(gmmWeight != nullptr, ACLNN_ERR_INNER_NULLPTR);
-        }
-
-        // === gmmWeightScale 转置检测 ===
-        if (gmmWeightScaleOptional != nullptr && MC2Aclnn::IsNeedScaleTrans(gmmWeightScaleOptional)) {
-            if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            // gmmWeightScale 跟随 gmmWeight 转置（4D [E, K/32, N, 2] → swap dim[1]/dim[2]）
+            if (gmmWeightScaleOptional != nullptr) {
                 gmmWeightScaleOptional = TransGmmWeightTensor(gmmWeightScaleOptional);
                 CHECK_RET(gmmWeightScaleOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
             }
@@ -637,14 +663,11 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
                 transMmWeight = !transMmWeight;
                 mmWeightOptional = TransMmWeightOptionalTensor(mmWeightOptional);
                 CHECK_RET(mmWeightOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
-            }
-        }
-
-        // === mmWeightScale 转置检测 ===
-        if (mmWeightScaleOptional != nullptr && IsTransposeLastTwoDims(mmWeightScaleOptional)) {
-            if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-                mmWeightScaleOptional = TransMmWeightOptionalTensor(mmWeightScaleOptional);
-                CHECK_RET(mmWeightScaleOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+                // mmWeightScale 跟随 mmWeight 转置（3D [K/32, N, 2] → swap dim[0]/dim[1]）
+                if (mmWeightScaleOptional != nullptr) {
+                    mmWeightScaleOptional = TransMmWeightOptionalTensor(mmWeightScaleOptional);
+                    CHECK_RET(mmWeightScaleOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+                }
             }
         }
 
