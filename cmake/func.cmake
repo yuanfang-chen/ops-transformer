@@ -989,3 +989,32 @@ function(add_version_info_targets)
         add_custom_target(version_${pkg_name}_info ALL DEPENDS ${CMAKE_BINARY_DIR}/version.${pkg_name}.info)
     endforeach()
 endfunction()
+
+function(add_aicpu_cust_kernel_modules target_name)
+    message(STATUS "add_aicpu_cust_kernel_modules for ${target_name}")
+    if(NOT TARGET ${target_name})
+        add_library(${target_name} OBJECT)
+        target_include_directories(${target_name} PRIVATE ${AICPU_INCLUDE})
+        target_compile_definitions(
+            ${target_name} PRIVATE
+                           _FORTIFY_SOURCE=2 _GLIBCXX_USE_CXX11_ABI=1
+                           google=ascend_private
+                           $<$<BOOL:${ENABLE_TEST}>:ASCEND_AICPU_UT>
+        )
+        target_compile_options(
+            ${target_name} PRIVATE
+                           $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1> -Dgoogle=ascend_private
+                           -fvisibility=hidden ${AICPU_DEFINITIONS}
+        )
+        target_link_libraries(
+            ${target_name}
+            PRIVATE $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
+                    $<BUILD_INTERFACE:dlog_headers>
+                    -WL,--no-whole-archive
+                    Eigen3::EigenCv   
+        )
+        if (NOT ${target_name} IN_LIST AICPU_CUST_OBJ_TARGETS)
+            set(AICPU_CUST_OHJ_TARGETS ${AICPU_CUST_OBJ_TARGETS} ${target_name} CACHE INTERNAL "All aicpu cust ohj targets")
+        endif()
+    endif()
+endfunction()
