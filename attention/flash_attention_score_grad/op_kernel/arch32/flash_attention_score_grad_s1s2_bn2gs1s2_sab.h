@@ -2499,6 +2499,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
     uint32_t subNSizeAct = nSplitSize;
     uint32_t subNSizeActAlign = CeilDiv(subNSizeAct, MMAD_BASE_SIZE) * MMAD_BASE_SIZE;
     event_t eventIdMToMte1 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::M_MTE1));
+    event_t eventIdMte1ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE1_MTE2));
     AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM_ID0);
     AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM_ID1);
     AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2_ID0);
@@ -2625,10 +2626,11 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
         AscendC::SetFlag<HardEvent::MTE1_MTE2>(ping_pong_flag_l1_a_);
         ping_pong_flag_l1_a_ = 1 - ping_pong_flag_l1_a_;
 
+        AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
+        AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
         ///////////////////////////////////////////////////////////////
         // Matmal4 dk
         ///////////////////////////////////////////////////////////////
-        AscendC::WaitFlag<HardEvent::MTE1_MTE2>(ping_pong_flag_l1_a_);
         for (uint32_t n_loop = 0; n_loop < nInnerLoops; n_loop++) {
             subNSizeAct = n_loop == (nInnerLoops - 1) ? nInnerTail : nSplitSize;
             subNSizeActAlign = CeilDiv(subNSizeAct, C0_SIZE) * C0_SIZE;
@@ -2640,19 +2642,6 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
                 uint64_t aL1Offset = m_loop * MMAD_BASE_SIZE * S_SPLITT_SIZE + n_loop * MMAD_BASE_SIZE * MMAD_BASE_SIZE;
                 LocalTensor<T1> *l0_a_tensor = ping_pong_flag_l0_a_ ? &l0_a_pong_tensor : &l0_a_ping_tensor;
                 LocalTensor<T1> *l0_b_tensor = ping_pong_flag_l0_b_ ? &l0_b_pong_tensor : &l0_b_ping_tensor;
-                AscendC::WaitFlag<HardEvent::M_MTE1>(ping_pong_flag_l0_a_ + 3);
-                // load L1A To L0A
-                uint32_t s1_L10_count = (subMSizeActAlign + C0_SIZE - 1) / C0_SIZE;
-                uint32_t s2_L10_count = (subNSizeActAlign + C0_SIZE - 1) / C0_SIZE;
-                commonLoadData2dParamsTranspose.repeatTimes = s1_L10_count * s2_L10_count;
-                commonLoadData2dParamsTranspose.srcStride = 1;
-                AscendC::LoadData(
-                    *l0_a_tensor,
-                    dsL1Tensor[m_loop * MMAD_BASE_SIZE * S_SPLITT_SIZE + MMAD_BASE_SIZE * n_loop * MMAD_BASE_SIZE], 
-                    commonLoadData2dParamsTranspose
-                );
-                AscendC::SetFlag<HardEvent::MTE1_M>(eventIdMte1AToM);
-                AscendC::WaitFlag<HardEvent::MTE1_M>(eventIdMte1AToM);
 
                 // load gm to L1B
                 if (n_loop == 0 && sliceIdx == 0) {
@@ -2662,6 +2651,17 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
                     AscendC::SetFlag<HardEvent::MTE2_MTE1>(ping_pong_flag_l0_b_ + 2);
                     AscendC::WaitFlag<HardEvent::MTE2_MTE1>(ping_pong_flag_l0_b_ + 2);
                 }
+                // load L1A To L0A
+                AscendC::WaitFlag<HardEvent::M_MTE1>(ping_pong_flag_l0_a_ + 3);
+                uint32_t s1_L10_count = (subMSizeActAlign + C0_SIZE - 1) / C0_SIZE;
+                uint32_t s2_L10_count = (subNSizeActAlign + C0_SIZE - 1) / C0_SIZE;
+                commonLoadData2dParamsTranspose.repeatTimes = s1_L10_count * s2_L10_count;
+                commonLoadData2dParamsTranspose.srcStride = 1;
+                AscendC::LoadData(
+                    *l0_a_tensor,
+                    dsL1Tensor[m_loop * MMAD_BASE_SIZE * S_SPLITT_SIZE + MMAD_BASE_SIZE * n_loop * MMAD_BASE_SIZE], 
+                    commonLoadData2dParamsTranspose
+                );
                 // load L1B To L0b
                 AscendC::WaitFlag<HardEvent::M_MTE1>(ping_pong_flag_l0_b_ + 3 + 2);
                 commonLoadData2dParamsTranspose.repeatTimes = d / C0_SIZE;
@@ -2702,7 +2702,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
                 commonFixpipeParamsV220.dstStride = s2 * 2;
                 commonFixpipeParamsV220.quantPre = QuantMode_t::NoQuant;
                 commonFixpipeParamsV220.unitFlag = 3;
-                AscendC::SetAtomicType<float>(); //
+                AscendC::SetAtomicType<float>();
                 AscendC::Fixpipe<float, float, AscendC::CFG_NZ>(dkWorkSpaceGm[dkvOffset + dkOffsetBias + gmBaseBlockOffset], *l0_c_tensor, commonFixpipeParamsV220);
                 AscendC::SetAtomicNone();
             } else {
@@ -2710,9 +2710,9 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeL
             }
             AscendC::SetFlag<HardEvent::FIX_M>(ping_pong_flag_l0_c_);
             ping_pong_flag_l0_c_ = 1 - ping_pong_flag_l0_c_;
-        }
-        AscendC::SetFlag<HardEvent::MTE1_MTE2>(ping_pong_flag_l1_a_);
-        ping_pong_flag_l1_a_ = 1 - ping_pong_flag_l1_a_;
+            AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
+            AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
+        }   
     }
     AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM_ID0);
     AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM_ID1);
