@@ -410,7 +410,8 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
 
     int32_t perLoopBatch = batchLoop * ubMainFactorBS_;
     uint16_t blockLen = dimSizeInLoop_ * sizeof(T);
-    uint16_t strideBytes = (dimSum_ - dimSizeInLoop_) * sizeof(T);
+    uint16_t convStride = (cacheLenSum_ - dimSizeInLoop_) * sizeof(T);
+    uint16_t yStride = (dim_ - dimSizeInLoop_) * sizeof(T);
     DataCopyPadParams padParams{false, 0, 0, 0};
     for (int32_t b = 0; b < batchNumInLoop_; b++) {
         int32_t curBatchIdx = firstBatchIdx_ + perLoopBatch + b;
@@ -425,7 +426,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         DataCopyParams cacheCopyParams;
         cacheCopyParams.blockCount = cacheLen_;
         cacheCopyParams.blockLen = blockLen;
-        cacheCopyParams.srcStride = strideBytes;
+        cacheCopyParams.srcStride = convStride;
         cacheCopyParams.dstStride = 0;
         DataCopyPad(convStatesLocal, convStatesGm[convStatesGmOffset], cacheCopyParams, padParams); //convStates GM->UB
         InsertSync(HardEvent::MTE2_MTE3);
@@ -456,7 +457,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         yGMParams.blockCount = ((kernelSize_ - 1) < curBatchSeq) ? kernelSize_ - 1 : curBatchSeq;
         yGMParams.blockLen = blockLen;
         yGMParams.srcStride = 0;
-        yGMParams.dstStride = strideBytes;
+        yGMParams.dstStride = convStride;
         DataCopyPad(yGm[yOffset], convStatesLocal[(acceptToken-1) *dimSizeInLoop_], yGMParams);
 
         // 情况B：序列位置 j ∈ [K-1, curBatchSeq-1]，只使用x数据
@@ -470,7 +471,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             xToCacheCopyParams2.blockCount = blockCount;
             xToCacheCopyParams2.blockLen = blockLen;
             xToCacheCopyParams2.srcStride = 0;
-            xToCacheCopyParams2.dstStride = strideBytes;
+            xToCacheCopyParams2.dstStride = yStride;
             DataCopyPad(yGm[yOffset + (kernelSize_ - 1)* dim_], xLocal[curBatchUbOffset], xToCacheCopyParams2);
         }
         InsertSync(HardEvent::MTE3_MTE2);
