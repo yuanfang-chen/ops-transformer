@@ -128,6 +128,18 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::GetInputShape()
     m_ = static_cast<uint64_t>(mkDims[0]);
     n_ = static_cast<uint64_t>(knDims[1]);
 
+    // Debug: print shapes / formats and whether optional inputs exist.
+    auto xStorageShape = context_->GetInputShape(0)->GetStorageShape();
+    auto wStorageShape = context_->GetInputShape(1)->GetStorageShape();
+    OP_LOGD(context_->GetNodeName(),
+            "zzzlog GroupedMatmulFinalizeRoutingBaseTiling GetInputShape:"
+            " input0(storageFormat=%d, storageDimNum=%lu) mkDims[m,k]=[%lu,%lu]"
+            " input1(storageFormat=%d, storageDimNum=%lu) knDims[k,n]=[%lu,%lu]"
+            " hasPertokenScale=%u hasBias=%u",
+            static_cast<int>(inputXDesc->GetStorageFormat()), xStorageShape.GetDimNum(), m_, k_,
+            static_cast<int>(inputWDesc->GetStorageFormat()), wStorageShape.GetDimNum(), static_cast<uint64_t>(knDims[0]), n_,
+            hasPertokenScale_, hasBias_);
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -213,6 +225,10 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::ParseInputAndAttr()
     }
 
     groupNum_ = context_->GetInputShape(1)->GetStorageShape()[0];
+    OP_LOGD(context_->GetNodeName(),
+            "zzzlog GroupedMatmulFinalizeRoutingBaseTiling ParseInputAndAttr:"
+            " groupNum=%u totalInGroup(m_)=%lu k_=%lu n_=%lu tuningConfig_=%ld useL1OptKernel_=%u residualScale_=%.6f batch_=%u",
+            groupNum_, m_, k_, n_, static_cast<long>(tuningConfig_), useL1OptKernel_ ? 1 : 0, residualScale_, batch_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -223,8 +239,19 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
     size_t userWorkspaceSize = (CV_PARALL_NUM * blockDim_ * singleN * singleM * sizeof(int32_t) * EIGHT) + m_ * sizeof(float);
     size_t systemWorkspaceSize = RPC_WORKSIZE * MB_SIZE;
 
-    auto wFormat0 = static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(0)->GetStorageFormat()));
-    bool wNZ = (wFormat0 == ge::FORMAT_FRACTAL_NZ);
+    auto input0PrimaryFmt =
+        static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(0)->GetStorageFormat()));
+    auto input1PrimaryFmt =
+        static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(1)->GetStorageFormat()));
+    bool wNZ_from_input0 = (input0PrimaryFmt == ge::FORMAT_FRACTAL_NZ);
+    bool wNZ_from_input1 = (input1PrimaryFmt == ge::FORMAT_FRACTAL_NZ);
+    OP_LOGD(context_->GetNodeName(),
+            "zzzlog GroupedMatmulFinalizeRoutingBaseTiling W4A8BaseTiling storage formats:"
+            " input0 primary=%d input1 primary=%d wNZ(input0)=%d wNZ(input1)=%d",
+            static_cast<int>(input0PrimaryFmt), static_cast<int>(input1PrimaryFmt),
+            wNZ_from_input0 ? 1 : 0, wNZ_from_input1 ? 1 : 0);
+    auto wFormat0 = input0PrimaryFmt;
+    bool wNZ = wNZ_from_input0;
 
     quantGroupNum_ = context_->GetOptionalInputShape(SCALE_INPUT_INDEX)->GetStorageShape()[1];
     ubRestBytes_ = A8W4_UBRESTBYTES;
@@ -274,6 +301,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
 
     // key 11···UL for A8W4
     tilingKey_ = 11000000000000000011UL;
+    OP_LOGD(context_->GetNodeName(), "zzzlog GroupedMatmulFinalizeRoutingBaseTiling W4A8BaseTiling tilingKey_=%llu",
+            static_cast<unsigned long long>(tilingKey_));
 
     workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
     return ge::GRAPH_SUCCESS;
@@ -286,8 +315,19 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
     size_t userWorkspaceSize = (blockDim_ * singleN * singleM * sizeof(int32_t) * EIGHT) + m_ * sizeof(float);
     size_t systemWorkspaceSize = RPC_WORKSIZE * MB_SIZE;
 
-    auto wFormat0 = static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(0)->GetStorageFormat()));
-    bool wNZ = (wFormat0 == ge::FORMAT_FRACTAL_NZ);
+    auto input0PrimaryFmt =
+        static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(0)->GetStorageFormat()));
+    auto input1PrimaryFmt =
+        static_cast<ge::Format>(ge::GetPrimaryFormat(context_->GetInputDesc(1)->GetStorageFormat()));
+    bool wNZ_from_input0 = (input0PrimaryFmt == ge::FORMAT_FRACTAL_NZ);
+    bool wNZ_from_input1 = (input1PrimaryFmt == ge::FORMAT_FRACTAL_NZ);
+    OP_LOGD(context_->GetNodeName(),
+            "zzzlog GroupedMatmulFinalizeRoutingBaseTiling W4A8L1OptTiling storage formats:"
+            " input0 primary=%d input1 primary=%d wNZ(input0)=%d wNZ(input1)=%d",
+            static_cast<int>(input0PrimaryFmt), static_cast<int>(input1PrimaryFmt),
+            wNZ_from_input0 ? 1 : 0, wNZ_from_input1 ? 1 : 0);
+    auto wFormat0 = input0PrimaryFmt;
+    bool wNZ = wNZ_from_input0;
 
     quantGroupNum_ = context_->GetOptionalInputShape(SCALE_INPUT_INDEX)->GetStorageShape()[1];
     ubRestBytes_ = A8W4_UBRESTBYTES;
@@ -331,6 +371,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
 
     // key 11···UL for A8W4
     tilingKey_ = 11000000000000000111UL;
+    OP_LOGD(context_->GetNodeName(), "zzzlog GroupedMatmulFinalizeRoutingBaseTiling W4A8L1OptTiling tilingKey_=%llu",
+            static_cast<unsigned long long>(tilingKey_));
 
     workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
     return ge::GRAPH_SUCCESS;
@@ -468,6 +510,8 @@ void GroupedMatmulFinalizeRoutingBaseTiling::FillTilingDataL1Opt()
 
 void GroupedMatmulFinalizeRoutingBaseTiling::PrintTilingData()
 {
+    OP_LOGD(context_->GetNodeName(), "zzzlog GroupedMatmulFinalizeRoutingBaseTiling tilingKey_=%llu",
+            static_cast<unsigned long long>(tilingKey_));
     OP_LOGD(context_->GetNodeName(), "blockDim: [%d]", tilingData_.get_coreNum());
     OP_LOGD(context_->GetNodeName(), "groupNum: [%u]", tilingData_.get_groupNum());
     OP_LOGD(context_->GetNodeName(), "batch: [%u]", tilingData_.get_batch());
