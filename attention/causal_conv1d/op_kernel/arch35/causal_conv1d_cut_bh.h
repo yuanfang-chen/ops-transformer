@@ -9,10 +9,10 @@
  */
 
 /*!
- * \file causal_conv1d_update.h
- * \brief CausalConv1dUpdate kernel implementation
+ * \file causal_conv1d_cut_bh.h
+ * \brief CausalConv1dCutBH kernel implementation
  *
- * 本文件实现了causal_conv1d_update算子的核函数，用于执行因果一维卷积并更新缓存状态。
+ * 本文件实现了causal_conv1d_cut_bh算子的核函数，用于执行因果一维卷积并更新缓存状态。
  *
  * 算子功能：
  * 1. 对输入序列执行因果1D卷积（每个特征通道独立）
@@ -27,11 +27,11 @@
  * - 针对序列位置<K-1和>=K-1采用不同的计算策略
  */
 
-#ifndef CAUSAL_CONV1D_UPDATE_H
-#define CAUSAL_CONV1D_UPDATE_H
+#ifndef CAUSAL_CONV1D_CUT_BH_H
+#define CAUSAL_CONV1D_CUT_BH_H
 
 #include "kernel_operator.h"
-#include "causal_conv1d_update_struct.h"
+#include "causal_conv1d_cut_bh_struct.h"
 #include "vf/compute.h"
 
 using namespace AscendC;
@@ -41,14 +41,14 @@ constexpr int32_t BUFFER_NUM = 2;           // 双Buffer数量，用于重叠数
 constexpr int32_t ALIGN_BYTES = 32;      // 32字节对齐，用于DataCopyParams的stride和对齐计算
 constexpr int32_t MAX_SEQUENCE_LEN = 6;
 
-// TilingData结构定义在Host侧：op_host/causal_conv1d_update_tiling_arch35.h
+// TilingData结构定义在Host侧：op_host/causal_conv1d_cut_bh_tiling_arch35.h
 // 核间切分策略：二维切分（Dim方向 × Batch方向）
 // - Dim方向：256B对齐分割，mainCoredimLen_ * (dimCoreCnt-1) + dimTailSize = dim
 // - Batch方向：按照有效batch范围分配，支持过滤无效batch
 
 // ========== 核函数主类 ==========
 /**
- * @brief CausalConv1dUpdate核函数实现类
+ * @brief CausalConv1dCutBH核函数实现类
  * @tparam T 数据类型（half或bfloat16）
  *
  * 该类实现了因果1D卷积的完整计算流程：
@@ -65,9 +65,9 @@ constexpr int32_t MAX_SEQUENCE_LEN = 6;
  * - yQueue: 存储输出y数据（复用xQueue的buffer）
  */
 template <typename T>
-class CausalConv1dUpdateKernel {
+class CausalConv1dCutBHKernel {
 public:
-    __aicore__ inline CausalConv1dUpdateKernel(TPipe* pipe) : pipe_(pipe) {};
+    __aicore__ inline CausalConv1dCutBHKernel(TPipe* pipe) : pipe_(pipe) {};
     /**
      * @brief 初始化函数，设置所有Global Memory指针并分配UB资源
      * @param x 输入序列 [batch, m+1, dim]
@@ -81,7 +81,7 @@ public:
      * @param tilingData tiling参数结构体指针
      */
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc,
-                                GM_ADDR cacheIndices, GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dUpdateTilingData* tilingData);
+                                GM_ADDR cacheIndices, GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dCutBHTilingData* tilingData);
 
     /**
      * @brief 主处理函数，执行双重循环处理所有数据
@@ -180,9 +180,9 @@ private:
 // ==================== 函数实现 ====================
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
+__aicore__ inline void CausalConv1dCutBHKernel<T>::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc, GM_ADDR cacheIndices,
-    GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dUpdateTilingData* tilingData)
+    GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dCutBHTilingData* tilingData)
 {
     // === 1. 获取核间切分参数（二维：Dim方向 × Batch方向） ===
     dimCoreCnt_ = tilingData->dimCoreCnt;
@@ -306,7 +306,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::Process()
+__aicore__ inline void CausalConv1dCutBHKernel<T>::Process()
 {
     // 预先搬运cache indices、accept token numbers和query start loc到UB
     // 这些是常驻数据，整个Process过程中都需要访问
@@ -358,7 +358,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Process()
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::CopyIn(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& queryStartLocLocal)
+__aicore__ inline void CausalConv1dCutBHKernel<T>::CopyIn(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& queryStartLocLocal)
 {
     LocalTensor<T> xLocal = xQueue.AllocTensor<T>();
     LocalTensor<T> weightLocal = weightQueue.AllocTensor<T>();
@@ -401,7 +401,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::CopyIn(int32_t batchLoop, in
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& indicesLocal,
+__aicore__ inline void CausalConv1dCutBHKernel<T>::Compute(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& indicesLocal,
     const LocalTensor<int32_t>& acceptTokenLocal, const LocalTensor<int32_t>& queryStartLocLocal)
 {
     LocalTensor<T> xLocal = xQueue.DeQue<T>();
@@ -483,7 +483,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
+__aicore__ inline void CausalConv1dCutBHKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
     int32_t acceptToken, int32_t curBatchUbOffset, int64_t convStatesIdx, int32_t curBatchSeq)
 {
     int64_t convStatesGmOffset = convStatesIdx * cacheBatchLenSum_ + dimOffset_ + dimOffsetInLoop_;
@@ -518,7 +518,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::UpdateconvStates(const Local
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dUpdateKernel<T>::InsertSync(const HardEvent& event)
+__aicore__ inline void CausalConv1dCutBHKernel<T>::InsertSync(const HardEvent& event)
 {
     event_t eventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(event));
     switch (event) {
@@ -555,4 +555,4 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::InsertSync(const HardEvent& 
     }
 }
 
-#endif // CAUSAL_CONV1D_UPDATE_H
+#endif // CAUSAL_CONV1D_CUT_BH_H

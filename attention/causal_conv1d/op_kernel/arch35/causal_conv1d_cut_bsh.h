@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file causal_conv1d_fn.h
+ * \file causal_conv1d_cut_bsh.h
  */
 
-#ifndef CAUSAL_CONV1D_FN_H
-#define CAUSAL_CONV1D_FN_H
+#ifndef CAUSAL_CONV1D_CUT_BSH_H
+#define CAUSAL_CONV1D_CUT_BSH_H
 
 #include "kernel_operator.h"
 #include "./vf/compute.h"
-#include "causal_conv1d_fn_struct.h"
+#include "causal_conv1d_cut_bsh_struct.h"
 
-namespace CausalConv1dFnNs {
+namespace CausalConv1dCutBSHNs {
 
 using namespace AscendC;
 
@@ -29,7 +29,7 @@ using namespace AscendC;
 constexpr int32_t BUFFER_NUM   = 2;              // 双缓冲
 constexpr uint32_t ALIGN_BYTES = 32;             // DataCopy 32 字节对齐单元
 // ============================================================================
-// CausalConv1dFn Kernel 类
+// CausalConv1dCutBSH Kernel 类
 //
 // 流程概述：
 //   Init  → 解析 TilingData，绑定 GM，初始化 UB 队列/缓冲
@@ -41,9 +41,9 @@ constexpr uint32_t ALIGN_BYTES = 32;             // DataCopy 32 字节对齐单�
 //     5. WriteDeferredCacheToStates：从 GM 原始数据重建 cache 并写回 cacheStates
 // ============================================================================
 template <typename T>
-class CausalConv1dFn {
+class CausalConv1dCutBSH {
 public:
-    __aicore__ inline CausalConv1dFn() {}
+    __aicore__ inline CausalConv1dCutBSH() {}
 
     __aicore__ inline void Init(
         GM_ADDR x,
@@ -54,7 +54,7 @@ public:
         GM_ADDR initialStateMode,
         GM_ADDR y,
         GM_ADDR workspace,
-        const CausalConv1dFnTilingData* tiling);
+        const CausalConv1dCutBSHTilingData* tiling);
 
     __aicore__ inline void Process();
 
@@ -230,7 +230,7 @@ private:
 // Init
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::Init(
+__aicore__ inline void CausalConv1dCutBSH<T>::Init(
     GM_ADDR x,
     GM_ADDR weight,
     GM_ADDR convStates,
@@ -239,7 +239,7 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     GM_ADDR initialStateMode,
     GM_ADDR y,
     GM_ADDR workspace,
-    const CausalConv1dFnTilingData* tiling)
+    const CausalConv1dCutBSHTilingData* tiling)
 {
     // --- 解析 tiling ---
     dim_                       = tiling->dim;
@@ -337,7 +337,7 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
 // LoadMetaData：一次性加载 seqStartIndex、cacheIndices、hasInitialState
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
+__aicore__ inline void CausalConv1dCutBSH<T>::LoadMetaData()
 {
     // seqStartIndex (queryStartLoc)
     {
@@ -381,7 +381,7 @@ __aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
 // 搜索范围为 [0, batchSize_)
 // ============================================================================
 template <typename T>
-__aicore__ inline uint32_t CausalConv1dFn<T>::FindBatchIdx(uint64_t globalSeqIdx)
+__aicore__ inline uint32_t CausalConv1dCutBSH<T>::FindBatchIdx(uint64_t globalSeqIdx)
 {
     uint32_t lo = 0;
     uint32_t hi = batchSize_ - 1;
@@ -400,7 +400,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::FindBatchIdx(uint64_t globalSeqIdx
 // ProcessUBBlock - 处理单个 UB 块
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
+__aicore__ inline void CausalConv1dCutBSH<T>::ProcessUBBlock(
     uint32_t bsStart, uint32_t bsSize,
     uint32_t dimStart, uint32_t dimSize,
     uint32_t iStart,
@@ -511,7 +511,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
 // ProcessTokensNeedCache - 处理需要 cache state 的 token（curSequenceIdx < K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
+__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(
     LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
     uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -594,7 +594,7 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
 // ProcessTokensNoCache - 处理不需要 cache 的 token（curSequenceIdx >= K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
+__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNoCache(
     LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
     uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -635,7 +635,7 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
 // WriteCacheShortBatch - 回写 cache（短 batch，长度 < K）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
+__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheShortBatch(
     LocalTensor<T>& cacheLocal, LocalTensor<T>& xLocal,
     uint32_t i, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
     uint32_t cacheSkipBlocks, uint32_t curBatchLen,
@@ -673,7 +673,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
 // WriteCacheLongBatch - 回写 cache（长 batch，长度 >= K）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
+__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheLongBatch(
     LocalTensor<T>& xLocal,
     uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks,
@@ -702,7 +702,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
 // dimStart: 当前核在 Dim 方向的起始位置
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
+__aicore__ inline void CausalConv1dCutBSH<T>::ProcessMainCompute(
     uint64_t bsStart, uint64_t dimStart,
     uint32_t loopNumBS,  uint32_t ubFactorBS,  uint32_t ubTailFactorBS,
     uint32_t loopNumDim, uint32_t ubFactorDim, uint32_t ubTailFactorDim)
@@ -781,7 +781,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainCompute(
 //     （hasInitState==1 时从 GM 读旧 cache，否则填零）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
+__aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
 {
     if (!firstBatchNeedsDeferredWrite_) {
         return;
@@ -878,7 +878,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteDeferredCacheToStates()
 // Process：主流程
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dFn<T>::Process()
+__aicore__ inline void CausalConv1dCutBSH<T>::Process()
 {
     uint32_t blockIdx = GetBlockIdx();
     if (blockIdx >= realCoreNum_) {
@@ -940,6 +940,6 @@ __aicore__ inline void CausalConv1dFn<T>::Process()
     WriteDeferredCacheToStates();
 }
 
-} // namespace CausalConv1dFnNs
+} // namespace CausalConv1dCutBSHNs
 
-#endif // CAUSAL_CONV1D_FN_H
+#endif // CAUSAL_CONV1D_CUT_BSH_H

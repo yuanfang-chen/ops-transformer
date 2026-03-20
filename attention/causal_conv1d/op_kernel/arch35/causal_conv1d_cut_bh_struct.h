@@ -9,15 +9,15 @@
  */
 
 /*!
- * \file causal_conv1d_update_struct.h
- * \brief CausalConv1dUpdate tiling struct
+ * \file causal_conv1d_cut_bh_struct.h
+ * \brief CausalConv1dCutBH tiling struct
  */
 
-#ifndef CAUSAL_CONV1D_UPDATE_STRUCT_H
-#define CAUSAL_CONV1D_UPDATE_STRUCT_H
+#ifndef CAUSAL_CONV1D_CUT_BH_STRUCT_H
+#define CAUSAL_CONV1D_CUT_BH_STRUCT_H
 
 
-struct CausalConv1dUpdateTilingData{
+struct CausalConv1dCutBHTilingData{
 // Core distribution parameters
 int64_t usedCoreNum;              // Total used core number
 int64_t dimCoreCnt;               // Number of cores for dim direction

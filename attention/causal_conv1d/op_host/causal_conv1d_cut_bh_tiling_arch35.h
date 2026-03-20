@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file causal_conv1d_update_tiling_arch35.h
- * \brief CausalConv1dUpdate tiling implementation
+ * \file causal_conv1d_cut_bh_tiling_arch35.h
+ * \brief CausalConv1dCutBH tiling implementation
  */
-#ifndef CAUSAL_CONV1D_UPDATE_TILING_H
-#define CAUSAL_CONV1D_UPDATE_TILING_H
+#ifndef CAUSAL_CONV1D_CUT_BH_TILING_H
+#define CAUSAL_CONV1D_CUT_BH_TILING_H
 
 #include "log/log.h"
 #include "platform/platform_info.h"
@@ -24,18 +24,18 @@
 #include "util/math_util.h"
 #include "util/platform_util.h"
 #include "util/shape_util.h"
-#include "../op_kernel/arch35/causal_conv1d_update_struct.h"
+#include "../op_kernel/arch35/causal_conv1d_cut_bh_struct.h"
 
 namespace optiling {
 
 // CompileInfo structure for platform information
-struct CausalConv1dUpdateCompileInfo {
+struct CausalConv1dCutBHCompileInfo {
     uint64_t coreNum = 0;
     uint64_t ubSize = 0;
 };
 
-constexpr uint64_t TILING_KEY_UPDATE_BF16 = 20000;
-constexpr uint64_t TILING_KEY_UPDATE_FP16 = 20001;
+constexpr uint64_t TILING_KEY_BH_BF16 = 20000;
+constexpr uint64_t TILING_KEY_BH_FP16 = 20001;
 
 // Input tensor indices
 constexpr int32_t X_INDEX = 0;
@@ -78,9 +78,9 @@ constexpr int64_t BUFFER_NUM = 2;
 constexpr int64_t X_INPUT_3D = 0;  // 3D input mode
 constexpr int64_t X_INPUT_2D = 1;  // 2D input mode
 
-class CausalConv1dUpdateTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class CausalConv1dCutBHTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit CausalConv1dUpdateTiling(gert::TilingContext* context) : TilingBaseClass(context) {}
+    explicit CausalConv1dCutBHTiling(gert::TilingContext* context) : TilingBaseClass(context) {}
 
 protected:
     bool IsCapable() override;
@@ -189,9 +189,9 @@ private:
     int64_t tailBlockubTailFactorDim_ = 0; // UB Dim tail factor for tail cores
 
     // TilingData object
-    CausalConv1dUpdateTilingData tilingData_;
+    CausalConv1dCutBHTilingData tilingData_;
 };
 
 } // namespace optiling
 
-#endif // CAUSAL_CONV1D_UPDATE_TILING_H
+#endif // CAUSAL_CONV1D_CUT_BH_TILING_H

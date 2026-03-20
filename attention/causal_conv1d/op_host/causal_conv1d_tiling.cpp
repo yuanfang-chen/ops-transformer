@@ -17,22 +17,14 @@
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "causal_conv1d_update_tiling_arch35.h"
-#include "causal_conv1d_fn_tiling_arch35.h"
+#include "causal_conv1d_cut_bh_tiling_arch35.h"
+#include "causal_conv1d_cut_bsh_tiling_arch35.h"
 
 namespace optiling {
-
-// Attribute indices
-// constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
-// constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
-// constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
-
 // Run mode constants
-constexpr int64_t RUN_MODE_FN = 0;      // Fn mode: 2D input [cu_seq_len, dim]
-constexpr int64_t RUN_MODE_UPDATE = 1;  // Update mode: 2D/3D input [batch, seq_len, dim] or [cu_seq_len, dim]
-// constexpr int64_t CACHE_INDICES_INDEX = 4;
+constexpr int64_t RUN_MODE_BSH = 0;
+constexpr int64_t RUN_MODE_BH = 1;
 
-// Unified CompileInfo structure
 struct CausalConv1dCompileInfo {
     uint64_t coreNum = 0;
     uint64_t ubSize = 0;
@@ -44,23 +36,23 @@ static ge::graphStatus TilingCausalConv1d(gert::TilingContext* context)
     OP_LOGD(context->GetNodeName(), "CausalConv1dTiling tiling start");
 
     // Get runMode attribute to determine which tiling implementation to use
-    int64_t runMode = 0;  // Default to Fn mode
+    int64_t runMode = 0;  // Default to BSH mode
     if (context->GetAttrs() != nullptr && context->GetAttrs()->GetInt(ATTR_RUN_MODE_INDEX) != nullptr) {
         runMode = *(context->GetAttrs()->GetInt(ATTR_RUN_MODE_INDEX));
     }
 
-    OP_LOGD(context->GetNodeName(), "CausalConv1d runMode=%ld (0=Fn, 1=Update)", runMode);
+    OP_LOGD(context->GetNodeName(), "CausalConv1d runMode=%ld (0=BSH, 1=BH)", runMode);
 
     // Dispatch to the appropriate tiling implementation based on runMode
     ge::graphStatus status = ge::GRAPH_FAILED;
 
-    if (runMode == RUN_MODE_UPDATE) {
-        // Use Update tiling logic
-        CausalConv1dUpdateTiling tilingImpl(context);
+    if (runMode == RUN_MODE_BH) {
+        // Use BH tiling logic
+        CausalConv1dCutBHTiling tilingImpl(context);
         status = tilingImpl.DoTiling();
-    } else {
-        // Use Fn tiling logic
-        CausalConv1dFnTiling tilingImpl(context);
+    } else if (runMode == RUN_MODE_BSH){
+        // Use BSH tiling logic
+        CausalConv1dCutBSHTiling tilingImpl(context);
         status = tilingImpl.DoTiling();
     }
 

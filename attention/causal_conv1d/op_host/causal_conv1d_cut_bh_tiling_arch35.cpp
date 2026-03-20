@@ -9,28 +9,28 @@
  */
 
 /*!
- * \file causal_conv1d_update_tiling_arch35.cpp
- * \brief CausalConv1dUpdate tiling implementation
+ * \file causal_conv1d_cut_bh_tiling_arch35.cpp
+ * \brief CausalConv1dCutBH tiling implementation
  */
 
-#include "causal_conv1d_update_tiling_arch35.h"
+#include "causal_conv1d_cut_bh_tiling_arch35.h"
 #include <algorithm>
 #include "securec.h"
 
 namespace optiling {
 
 
-bool CausalConv1dUpdateTiling::IsCapable()
+bool CausalConv1dCutBHTiling::IsCapable()
 {
     return true;
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::GetPlatformInfo()
+ge::graphStatus CausalConv1dCutBHTiling::GetPlatformInfo()
 {
     ubBlockSize_ = Ops::Base::GetUbBlockSize(context_);
     auto platformInfo = context_->GetPlatformInfo();
     if (platformInfo == nullptr) {
-        auto compileInfoPtr = reinterpret_cast<const CausalConv1dUpdateCompileInfo *>(context_->GetCompileInfo());
+        auto compileInfoPtr = reinterpret_cast<const CausalConv1dCutBHCompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
         totalCoreNum_ = compileInfoPtr->coreNum;
         ubSize_ = compileInfoPtr->ubSize;
@@ -53,9 +53,9 @@ ge::graphStatus CausalConv1dUpdateTiling::GetPlatformInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
+ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
 {
-    OP_CHECK_IF(context_ == nullptr, OP_LOGE("CausalConv1dUpdate", "context is null"),
+    OP_CHECK_IF(context_ == nullptr, OP_LOGE("CausalConv1dCutBH", "context is null"),
                 return ge::GRAPH_FAILED);
 
     // Get x shape
@@ -130,7 +130,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     // Get dtype size
     xDtypeSize_ = GetSizeByDataType(xDtype_);
     OP_CHECK_IF(xDtypeSize_ == 0,
-                OP_LOGE(context_->GetNodeName(), "CausalConv1dUpdate get x dtype[%s] size is 0.",
+                OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBH get x dtype[%s] size is 0.",
                         Ops::Base::ToString(xDtype_).c_str()),
                 return ge::GRAPH_FAILED);
 
@@ -167,7 +167,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 
     // Perform all validations
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "CausalConv1dUpdate CheckInputParams FAILED."),
+                OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBH CheckInputParams FAILED."),
                 return ge::GRAPH_FAILED);
 
     // 获取 x 的 stride
@@ -214,7 +214,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 }
 
 // Validate X tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateXShape()
 {
     // Validate batch size: [1, 256]
     OP_CHECK_IF(batchSize_ < MIN_BATCH || batchSize_ > MAX_BATCH,
@@ -252,7 +252,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
 }
 
 // Validate weight tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateWeightShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateWeightShape()
 {
     auto weightShape = context_->GetInputShape(WEIGHT_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, weightShape);
@@ -270,7 +270,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateWeightShape()
 }
 
 // Validate conv states tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateConvStatesShape()
 {
     auto convStatesShape = context_->GetInputShape(CONV_STATES_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
@@ -308,7 +308,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
 }
 
 // Validate cache indices tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateCacheIndicesShape()
 {
     // This is an optional input
     auto indicesShape = context_->GetOptionalInputShape(CACHE_INDICES_INDEX);
@@ -336,7 +336,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
 }
 
 // Validate accept token num tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateNumAcceptedTokenShape()
 {
     // This is an optional input
     if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKEN_INDEX) == nullptr) {
@@ -366,7 +366,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
 }
 
 // Validate query start loc tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateQueryStartLocShape()
 {
     if (xInputMode_ == X_INPUT_3D) {
         return ge::GRAPH_SUCCESS;
@@ -399,7 +399,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
 }
 
 // Validate X tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateXType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateXType()
 {
     OP_CHECK_IF(xDtype_ != ge::DataType::DT_FLOAT16 && xDtype_ != ge::DataType::DT_BF16,
                 OP_LOGE(context_->GetNodeName(),
@@ -411,7 +411,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXType()
 }
 
 // Validate weight tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateWeightType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateWeightType()
 {
     OP_CHECK_IF(weightDtype_ != xDtype_,
                 OP_LOGE(context_->GetNodeName(),
@@ -424,7 +424,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateWeightType()
 }
 
 // Validate conv states tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateConvStatesType()
 {
     OP_CHECK_IF(convStatesDtype_ != xDtype_,
                 OP_LOGE(context_->GetNodeName(),
@@ -437,7 +437,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesType()
 }
 
 // Validate cache indices tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateCacheIndicesType()
 {
     // This is an optional input
     auto cacheIndicesDesc = context_->GetOptionalInputDesc(CACHE_INDICES_INDEX);
@@ -455,7 +455,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesType()
 }
 
 // Validate query start loc tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateQueryStartLocType()
 {
     if (xInputMode_ == X_INPUT_3D) {
         return ge::GRAPH_SUCCESS;
@@ -477,7 +477,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 }
 
 // Validate num accepted tokens tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenType()
+ge::graphStatus CausalConv1dCutBHTiling::ValidateNumAcceptedTokenType()
 {
     // This is an optional input
     auto numAcceptedTokenDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKEN_INDEX);
@@ -495,7 +495,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenType()
 }
 
 // Overall input parameters validation
-ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
+ge::graphStatus CausalConv1dCutBHTiling::CheckInputParams()
 {
     // Validate all shapes
     OP_CHECK_IF(ValidateXShape() != ge::GRAPH_SUCCESS,
@@ -550,7 +550,7 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
+ge::graphStatus CausalConv1dCutBHTiling::DoOpTiling()
 {
     OP_CHECK_IF(ComputeInterCoreSplit() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"),
@@ -563,7 +563,7 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
+ge::graphStatus CausalConv1dCutBHTiling::ComputeInterCoreSplit()
 {
     // 2D tiling (non-uniform): first split dim by 128, then split batch to maximize cores
     int64_t N = dim_ / DIM_ALIGN_ELEMENT;
@@ -640,7 +640,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeInterCoreSplit()
     return ge::GRAPH_SUCCESS;
 }
 
-void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
+void CausalConv1dCutBHTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS, int64_t availableUbSize,
                       int64_t &outUbDim, int64_t &outUbBS,
                       int64_t &outLoopDim, int64_t &outLoopBS,
                       int64_t &outUbTailDim, int64_t &outUbTailBS)
@@ -673,7 +673,7 @@ void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS
     outUbTailBS = (outLoopBS == 1) ? outUbBS : (coreBS - (outLoopBS - 1) * outUbBS);
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::ComputeIntraCoreUbTiling()
+ge::graphStatus CausalConv1dCutBHTiling::ComputeIntraCoreUbTiling()
 {
     // Intra-core UB tiling (big and tail blocks separately)
     int64_t cacheIndicesUBSize = (batchSize_ * sizeof(int32_t) + ALIGN_BYTES - 1) / ALIGN_BYTES * ALIGN_BYTES;
@@ -713,7 +713,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ComputeIntraCoreUbTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
+int64_t CausalConv1dCutBHTiling::CalculateLimitedCoreNum()
 {
     // Calculate input x size in bytes (only consider batch * dim_)
     int64_t xSizeBytes;
@@ -730,16 +730,16 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 }
 
 
-uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
+uint64_t CausalConv1dCutBHTiling::GetTilingKey() const
 {
     if (xDtype_ == ge::DataType::DT_BF16) {
-        return TILING_KEY_UPDATE_BF16;
+        return TILING_KEY_BH_BF16;
     } else if (xDtype_ == ge::DataType::DT_FLOAT16) {
-        return TILING_KEY_UPDATE_FP16;
+        return TILING_KEY_BH_FP16;
     }
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
+ge::graphStatus CausalConv1dCutBHTiling::PostTiling()
 {
     // Set block dimension (number of cores to use)
     context_->SetBlockDim(usedCoreNum_);
@@ -791,7 +791,7 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.residualConnection = residualConnection_;
 
     // Save tiling data to buffer
-    auto tilingDataSize = sizeof(CausalConv1dUpdateTilingData);
+    auto tilingDataSize = sizeof(CausalConv1dCutBHTilingData);
     errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(),
                            context_->GetRawTilingData()->GetCapacity(),
                            reinterpret_cast<void *>(&tilingData_), tilingDataSize);
@@ -804,9 +804,9 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void CausalConv1dUpdateTiling::DumpTilingInfo()
+void CausalConv1dCutBHTiling::DumpTilingInfo()
 {
-    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate DumpTilingInfo ===");
+    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dCutBH DumpTilingInfo ===");
 
     // Core distribution parameters
     OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", tilingData_.usedCoreNum);
@@ -855,12 +855,12 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "residualConnection: %ld", tilingData_.residualConnection);
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
+ge::graphStatus CausalConv1dCutBHTiling::DoLibApiTiling()
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CausalConv1dUpdateTiling::GetWorkspaceSize()
+ge::graphStatus CausalConv1dCutBHTiling::GetWorkspaceSize()
 {
     auto platformInfo = context_->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
@@ -870,6 +870,6 @@ ge::graphStatus CausalConv1dUpdateTiling::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_OPS_TILING_TEMPLATE(CausalConv1dUpdate, CausalConv1dUpdateTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(CausalConv1dCutBH, CausalConv1dCutBHTiling, 1);
 
 } // namespace optiling
