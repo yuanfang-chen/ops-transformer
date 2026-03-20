@@ -38,7 +38,8 @@ if __name__ == "__main__":
         "https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0-h0.trunk/eigen-5.0.0.tar.gz",
         "https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz",
         ("https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/"
-        "20230802.1/abseil-cpp-20230802.1.tar.gz")
+        "20230802.1/abseil-cpp-20230802.1.tar.gz",
+        "https://gitcode.com/cann/opbase.git")
     ]
     
     down_files_native(my_urls)
