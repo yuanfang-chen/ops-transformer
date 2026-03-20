@@ -236,7 +236,7 @@ static aclnnStatus GetCommEngine(const HcclComm& hcclHandle, CommEngine& engine,
     uint32_t netLayerNum{0};
     uint32_t* netLayerList{nullptr};
 
-    hcclRet = HcclRankGraphGetLayers(hcclHandle, &netLayerList, &netLayerNum);
+    auto hcclRet = HcclRankGraphGetLayers(hcclHandle, &netLayerList, &netLayerNum);
     if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Rank Graph Layers failed");
         return ACLNN_ERR_INNER;
