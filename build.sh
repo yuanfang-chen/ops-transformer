@@ -397,6 +397,7 @@ function cmake_config()
 {
     local extra_option="$1"
     log "Info: cmake config ${CUSTOM_OPTION} ${extra_option} ."
+    log "Debug: Current CANN_3RD_LIB_PATH is set to: ${CANN_3RD_LIB_PATH}"
     cmake ..  ${CUSTOM_OPTION} ${extra_option}
 }
 
