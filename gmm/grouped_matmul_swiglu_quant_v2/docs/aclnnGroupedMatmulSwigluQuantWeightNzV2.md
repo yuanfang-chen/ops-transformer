@@ -370,7 +370,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
         <td>tuningConfig</td>
         <td rowspan="1">可选输入</td>
         <td>用于算子预估M/E的大小，走不同的算子模板，以适配不同场景性能要求。</td>
-        <td>预留输入，暂不支持，需要传空指针。</td>
+        <td>数组，传入的第一个数字表示各个专家处理的token数的预期值，用于优化tiling，A4W4 右矩阵NZ输入时使能，其他输入请传入空指针。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -631,6 +631,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
               <li>NZ非转置格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li>
               <li>NZ转置格式且INT4时原始shape形如{(E, K / 64, N / 16, 16, 64)}，并调用transpose(-1,-2)后传入</li>
               <li>NZ转置格式且INT32时原始shape形如{(E, K / 64, N / 16, 16, 8)}，并调用transpose(-1,-2)后传入</li>
+             <li>NZ转置输入时，per-group的K/K_group_num请按照64对齐</li>
               </td>
               <td><ul>
               <li>per-channel场景shape形如{(E, N)}</li>
