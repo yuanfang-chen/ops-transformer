@@ -476,6 +476,60 @@ static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, 
     return true;
 }
 
+// 检查tensor最后两维是否转置（stride不连续）
+static bool IsTransposeLastTwoDims(const aclTensor *tensor)
+{
+    if (tensor->GetViewShape().GetDimNum() < 2 || tensor->GetViewShape().GetDimNum() > 6) {
+        return false;
+    }
+    int64_t dim1 = tensor->GetViewShape().GetDimNum() - 1;
+    int64_t dim2 = tensor->GetViewShape().GetDimNum() - 2;
+    if (tensor->GetViewStrides()[dim2] == 1 && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
+        if (tensor->GetViewShape().GetDim(dim1) == 1 && tensor->GetViewShape().GetDim(dim2) == 1) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+// MX Scale Shape 校验：维度数 >= 3 且最后一维 == 2
+static aclnnStatus CheckMxScaleShape(const aclTensor *scale, const char *name)
+{
+    if (scale == nullptr) {
+        return ACLNN_SUCCESS;
+    }
+    uint64_t scaleDimNum = scale->GetViewShape().GetDimNum();
+    if (scaleDimNum < DIM_THREE) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "In MX quant mode, %s dim num should be >= 3, but got %lu.", name, scaleDimNum);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    int64_t lastDim = scale->GetViewShape().GetDim(scaleDimNum - 1);
+    if (lastDim != DIM_TWO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "In MX quant mode, %s last dim should be 2, but got %ld.", name, lastDim);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    return ACLNN_SUCCESS;
+}
+
+// 检测 weight 转置状态，仅设置标志位，不修改 tensor shape
+static aclnnStatus DetectMxWeightTranspose(const aclTensor *weight, bool &transWeight, const char *name)
+{
+    bool notContiguous = IsTransposeLastTwoDims(weight);
+    OP_LOGD("%s notContiguous=%d, transWeight(before)=%d", name, notContiguous, transWeight);
+    if (notContiguous && transWeight) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s not contiguous and transWeight is already set!", name);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if (notContiguous && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        transWeight = !transWeight;
+        OP_LOGD("%s transposed detected: transWeight flipped to %d", name, transWeight);
+    }
+    return ACLNN_SUCCESS;
+}
+
 // 入参校验
 static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
                                const aclTensor *gmmWeightScaleOptional, const aclTensor *sendCountsTensorOptional,
@@ -527,6 +581,29 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
     const aclTensor *y, const aclTensor *mmYOptional, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    // MX 量化场景通过 stride 检测 weight/scale 的转置状态
+    bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
+
+    if (isMxQuant) {
+        OP_LOGD("MX quant mode: transGmmWeight(input)=%d, transMmWeight(input)=%d", transGmmWeight, transMmWeight);
+
+        // MX Scale Shape 校验
+        auto scaleRet = CheckMxScaleShape(gmmWeightScaleOptional, "gmmWeightScale");
+        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
+        scaleRet = CheckMxScaleShape(mmWeightScaleOptional, "mmWeightScale");
+        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
+
+        // 检测 weight 转置状态，仅设置标志位
+        auto transRet = DetectMxWeightTranspose(gmmWeight, transGmmWeight, "gmmWeight");
+        CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+        if (mmWeightOptional != nullptr) {
+            transRet = DetectMxWeightTranspose(mmWeightOptional, transMmWeight, "mmWeight");
+            CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+        }
+
+        OP_LOGD("Final: transGmmWeight=%d, transMmWeight=%d", transGmmWeight, transMmWeight);
+    }
+
     auto retParam = CheckParams(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, sendCountsTensorOptional,
                                 recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
                                 mmWeightScaleOptional, gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode,
