@@ -1040,14 +1040,14 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo
                                            constInfo.attenMaskFlag, constInfo.isRowInvalid);
 
     if constexpr ((Q_FORMAT == GmFormat::BSNGD) || (Q_FORMAT == GmFormat::TNGD)) {
-        int64_t s1IdxStart = (info.gS1Idx + wsMStart) / constInfo.gSize;
-        int64_t gIdxStart = (info.gS1Idx + wsMStart) % constInfo.gSize;
+        int64_t s1IdxStart = (info.gS1Idx + static_cast<int64_t>(wsMStart)) / constInfo.gSize;
+        int64_t gIdxStart = (info.gS1Idx + static_cast<int64_t>(wsMStart)) % constInfo.gSize;
         int64_t s1IdxEnd = (info.gS1Idx + wsMStart + dealRowCount) / constInfo.gSize;
         int64_t gIdxEnd = (info.gS1Idx + wsMStart + dealRowCount) % constInfo.gSize;
         int64_t gStartIdx = 0; // 循环当前s1中的g的起点
         int64_t dealCount = 0;
         int64_t curDealRows = 0;
-        for (int i = s1IdxStart; i <= s1IdxEnd; i++) {
+        for (int64_t i = s1IdxStart; i <= s1IdxEnd; i++) {
             if (i == s1IdxStart && s1IdxEnd == s1IdxStart) {
                 curDealRows = gIdxEnd - gIdxStart;
             } else if (i == s1IdxStart && s1IdxEnd != s1IdxStart) {
@@ -1078,7 +1078,6 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo
             gIdx = (info.gS1Idx + wsMStart + row) / info.actS1Size;
             s1Idx = (info.gS1Idx + wsMStart + row) % info.actS1Size;
             DataCopy(tmpSinkResUbBrcb[row * brcbNum], sinkBuf[gIdx * brcbNum], brcbNum);
-
             if (unlikely(isInvalidRows)) { // 行无效处理
                 SinkInvalidRow(info, tmpSinkResUbBrcb, s1Idx, row, 1);
             }
