@@ -15,7 +15,7 @@
 
 -   **算子功能**:
 
-    `aclnnMatmulReduceScatterV2`接口是对`aclnnMatmulReduceScatter`接口的功能扩展，在支持x1和x2输入类型为FLOAT16/BFLOAT16的基础上，新增功能如下：
+    `matmul_reduce_scatter_v2`算子是对`matmul_reduce_scatter`算子的功能扩展，在支持x1和x2输入类型为FLOAT16/BFLOAT16的基础上，新增功能如下：
     
     -   <term>Ascend 950PR/Ascend 950DT</term>：
 
@@ -36,7 +36,7 @@
         $$
         output=ReduceScatter((x1Scale*x2Scale)*(x1@x2 + bias_{optional}))
         $$
-    -   情形3：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的perblock场景，且不输出amaxOut，当x1为(a0, a1)x2为(b0, b1)时x1Scale为(ceildiv(a0, 128), ceildiv(a1, 128))x2Scale为(ceildiv(b0, 128), ceildiv(b1, 128))时，入参x1、x2进行Matmul计算和dequant计算后，再进行ReduceScatter通信。
+    -   情形3：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的perblock场景，且不输出amaxOut，当x1为(a0, a1)，x2为(b0, b1)时，x1Scale为(ceildiv(a0, 128), ceildiv(a1, 128))，x2Scale为(ceildiv(b0, 128), ceildiv(b1, 128))时，入参x1、x2进行Matmul计算和dequant计算后，再进行ReduceScatter通信。
     
         $$
         output=ReduceScatter(\sum_{0}^{\left \lfloor \frac{k}{blockSize} \right \rfloor} (x1_{pr}@x2_{rq}*(x1Scale_{pr}*x2Scale_{rq})))
@@ -254,7 +254,7 @@
 - <term>Ascend 950PR/Ascend 950DT</term>：
     - x1、x2数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, x1的shape为[m, k]，x2的shape为[k, n]。在mx量化场景下，当前x2仅支持转置场景。bias数据类型支持FLOAT16、BFLOAT16、FLOAT。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
     - x1Scale、x2Scale数据类型支持FLOAT、FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，二者仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，x1Scale的shape为[ceildiv(m, 128), ceildiv(k, 128)]，x2Scale的shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，二者数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，x1Scale的shape为(m, ceilDiv(k, 64), 2)，x2Scale的shape为(ceilDiv(k, 64), n, 2)，且x2Scale仅支持转置场景。
-    - 当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，groupSize当前版本仅支持输入0。
+    - 当x1Scale/x2Scale输入都是2维且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]的取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入均为3维且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]的取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；对于其他场景输入，当前版本仅支持groupSize输入为0。
     - 当前仅支持集合通信单元ccu完成通信任务，commMode当前版本仅支持输入“ccu”。
     - output数据类型支持FLOAT16、BFLOAT16、FLOAT，
 

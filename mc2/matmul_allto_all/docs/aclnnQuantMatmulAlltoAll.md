@@ -187,7 +187,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <tr>
     <td>alltoAllAxesOptional</td>
     <td>输入</td>
-    <td>AlltoAll和Pemute数据交换的方向。</td>
+    <td>AlltoAll和Permute数据交换的方向。</td>
     <td>支持配置空或者[-1, -2]，传入空时默认按[-1, -2]处理，表示将输入由(BS, H2)转为(BS*rankSize, H2/rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>-</td>
@@ -276,7 +276,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     <tr>
     <td>output</td>
-    <td>输入</td>
+    <td>输出</td>
     <td>最终的计算结果。</td>
     <td></td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
@@ -613,11 +613,11 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
         long long x1ScaleShapeSize = GetShapeSize(x1ScaleShape);
         long long x2ScaleShapeSize = GetShapeSize(x2ScaleShape);
         long long outShapeSize = GetShapeSize(outShape);
-        std::vector<int16_t> x1HostData(x1ShapeSize, 1);
-        std::vector<int16_t> x2HostData(x2ShapeSize, 1);
+        std::vector<int8_t> x1HostData(x1ShapeSize, 1);
+        std::vector<int8_t> x2HostData(x2ShapeSize, 1);
         std::vector<int16_t> biasHostData(biasShapeSize, 1);
-        std::vector<int16_t> x1ScaleHostData(x1ShapeSize, 1);
-        std::vector<int16_t> x2ScaleHostData(x2ShapeSize, 1);
+        std::vector<float> x1ScaleHostData(x1ScaleShapeSize, 1);
+        std::vector<float> x2ScaleHostData(x2ScaleShapeSize, 1);
         std::vector<int16_t> outHostData(outShapeSize, 0);
         // 创建 tensor
         ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_INT8, &x1);

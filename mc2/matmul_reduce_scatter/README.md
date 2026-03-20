@@ -12,7 +12,7 @@
 
 ## 功能说明
 
-算子功能：完成mm + reduce_scatter_base计算。
+算子功能：完成matmul + reduce_scatter_base计算。
 
 计算公式：
 
@@ -91,7 +91,7 @@ $$
   <tr>
    <td>output</td>
    <td>输出</td>
-   <td>mm计算+reducescatter通信的结果，数据类型与x1保持一致。</td>
+   <td>matmul计算和reduce_scatter通信的结果，数据类型与x1保持一致。</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
   </tr>
