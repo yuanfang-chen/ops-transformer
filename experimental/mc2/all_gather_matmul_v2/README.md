@@ -36,20 +36,7 @@ chmod +x *.run
 ./*.run --install-path=/usr/local/Ascend/cann
 ```
 
-#### 2.4 torch_npu编包及安装
-拉取目标版本的pytorch仓代码到本地，进入到op-plugin仓
-```
-git clone https://gitcode.com/Ascend/pytorch.git -b v2.7.1 --recursive
-```
-修改`AllGatherBaseMatmulKernelOpApi.cpp`，调用的aclnn函数名及入参修改如下：
-```
-EXEC_NPU_CMD(aclnnAllGatherMatmul, self, x2, bias_real, hcom_ptr,
-            gather_index, comm_turn, stream_mode, comm_mode_ptr, out_gather_mm, out_gather);
-
-```
-编译torch_npu包并安装在测试环境下。
-
-#### 2.5 执行测试脚本
+#### 2.4 执行测试脚本
 ```
 cd script
 python test.py
@@ -63,12 +50,15 @@ python test.py
 ## 💻 实战示例：AllGatherMatmul优化
 
 ### AllGatherMatmul计算流程
-AllGatherMatmul算子实现了AllGather通信和Matmul矩阵乘法的融合。算子逻辑为：对输入的通信矩阵a做AllGather通信得到Matmul计算的左矩阵，即通信结果gather_out，将gather_out和右矩阵b做Matmul运算得到输出c。对应的数学表达式为：
+AllGatherMatmul算子实现了AllGather通信和Matmul矩阵乘法的融合。算子逻辑为：x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1进行AllGather通信后得到通信结果gather_out，对x1、x2进行matmul计算。对应计算公式为：
 
-```
-gather_out = AllGather(a)
-c = gather_out ∗ b
-```
+$$
+output=AllGather(x1)@x2 + bias
+$$
+
+$$
+gatherOut=AllGather(x1)
+$$
 MC<sup>2</sup>通算融合算子的性能收益主要来自于通信、计算的并行执行，即将输入数据切分为多个子块，子块的计算和通信任务形成两条流水线，通过两条流水线上任务的并行执行，实现流水掩盖，从而提升算子性能。如下图所示，相比于先做AllGather通信、后Matmul计算的场景，AllGatherMatmul算子通过将通信输入的矩阵切分为多块，前一块数据的Matmul计算和后一块数据的通信可以并行执行，从而达到计算和通信时间相互掩盖的目的。
 
 ![all_gather_matmul_demo_1](./docs/images/image-1.jpg)
