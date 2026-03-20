@@ -51,6 +51,7 @@ TEST_P(FusedInferAttentionScoreArch32TilingTest, param)
         "    \"socVersion\": \"Ascend910_B3\"\n"
         "  }\n"
         "}";
+
     gert::TilingContextPara tilingContextPara(
         "FusedInferAttentionScore",
         {
@@ -111,12 +112,13 @@ TEST_P(FusedInferAttentionScoreArch32TilingTest, param)
         param.inputInstance, param.outputInstance,
         &compileInfo, "Ascend910B", 40, 196608, 4096, A2SocInfo
     );
+
     ExecuteTestCase(tilingContextPara, param.expectResult, param.expectTilingKey, param.expectTilingDataHash,
         {}, 0, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    FusedInferAttention,
+    FusedInferAttentionScore,
     FusedInferAttentionScoreArch32TilingTest,
     testing::ValuesIn(GetCasesFromCsv<FusedInferAttentionTilingUtParam>(ReplaceFileExtension2Csv(__FILE__))),
     PrintCaseInfoString<FusedInferAttentionTilingUtParam>
