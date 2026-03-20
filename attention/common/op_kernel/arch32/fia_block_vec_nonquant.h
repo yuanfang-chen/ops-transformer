@@ -1069,6 +1069,7 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo
             if (unlikely(isInvalidRows)) { // 行无效处理
                 SinkInvalidRow(info, tmpSinkResUbBrcb, i, dealCount, curDealRows);
             }
+            dealCount += curDealRows;
         }
     } else if constexpr ((Q_FORMAT == GmFormat::BNGSD) || (Q_FORMAT == GmFormat::NGTD)) {
         int64_t gIdx = 0;
