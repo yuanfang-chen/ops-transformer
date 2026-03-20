@@ -29,6 +29,9 @@
 #include "grouped_matmul_finalize_routing_MX_checker.h"
 #include "../../../grouped_matmul/op_host/op_api/grouped_matmul_950_checker.h"
 
+/* Intentional compile error for debugging pipeline / revert before merge. Search: zzzlog_intentional_compile_error */
+#error "zzzlog_intentional_compile_error: remove this directive to restore build"
+
 using namespace op;
 using namespace GmmFinalizeRouting;
 #ifdef __cplusplus
