@@ -443,23 +443,29 @@ private:
         for (uint32_t j = 0; j < inverseVecLen; ++j) {
             colBuffer_.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
         }
+        SetFlag<HardEvent::S_V>(S_V_EVENT);
+        WaitFlag<HardEvent::S_V>(S_V_EVENT);
         for (int i = 1; i < inverseVecLen; ++i) {
             uint32_t curI = i - 1;
             uint32_t validRows = inverseVecLen - i;
             Gather(col, attnUbFloat_[offset + i * chunkSize_ + curI], colBuffer_, (uint32_t)0, validRows);
-
+            PipeBarrier<PIPE_V>();
             uint32_t dstShape[2] = {validRows, inverseVecLen};
             uint32_t colSrcShape[2] = {validRows, 1};
             Broadcast<float, BROADCAST_AXIS, 1>(col[inverseVecLen], col, dstShape, colSrcShape);
             Broadcast<float, BROADCAST_AXIS, 0>(row, inverseLocal_[offset + curI * chunkSize_], dstShape, srcShape);
+            PipeBarrier<PIPE_V>();
             MulAddDst(yLocal[i * inverseVecLen], col[inverseVecLen], row, inverseVecLen * validRows);
             PipeBarrier<PIPE_V>();
             ei.SetValue(i - 1, static_cast<float>(0.0));
             ei.SetValue(i, static_cast<float>(1.0));
+            SetFlag<HardEvent::S_V>(S_V_EVENT);
+            WaitFlag<HardEvent::S_V>(S_V_EVENT);
             // xi = (I - SUM) / Lii = I - SUM
             Sub(inverseLocal_[offset + i * chunkSize_], ei, yLocal[i * inverseVecLen], inverseVecLen);
+            PipeBarrier<PIPE_V>();
         }
-        PipeBarrier<PIPE_V>();
+
     }
 
     __aicore__ inline void GBKCompute()
@@ -574,9 +580,13 @@ private:
             Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
             PipeBarrier<PIPE_V>();
         }
+        SetFlag<HardEvent::V_S>(V_S_EVENT);
+        WaitFlag<HardEvent::V_S>(V_S_EVENT);
         for (uint32_t i = 0; i < subValidRows_; ++i) {
             betaUbBfloat16_.SetValue(i, betaLocal_.GetValue(i * slot));
         }
+        SetFlag<HardEvent::S_V>(S_V_EVENT);
+        WaitFlag<HardEvent::S_V>(S_V_EVENT);
         Cast(betaUbFloat_, betaUbBfloat16_, AscendC::RoundMode::CAST_NONE, halfChunkSize_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(betaLocal_);
@@ -591,6 +601,8 @@ private:
             Duplicate(gCumUbFloat_, 0.0f, chunkSize_);
             PipeBarrier<PIPE_V>();
         }
+        SetFlag<HardEvent::V_S>(V_S_EVENT);
+        WaitFlag<HardEvent::V_S>(V_S_EVENT);
         for (uint32_t i = 0; i < validLen_; ++i) {
             gCumUbFloat_.SetValue(i, gLocal_.GetValue(i * slot));
         }
