@@ -213,8 +213,8 @@ private:
         LocalTensor<OUTPUT_T> &attenOut);
     __aicore__ inline void MlaBnsdWithActqDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
         LocalTensor<OUTPUT_T> &attenOut, DataCopyExtParams &dataCopyParams);
-    __aicore__ inline void Gs1MergeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-        LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount, int64_t index);
+    __aicore__ inline void S1GMergeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+        LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
@@ -1660,8 +1660,8 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithAct
 }
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Gs1MergeDataCopyOut(
-    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount, int64_t index)
+__aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCopyOut(
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, uint32_t colCount)
 {
     FaUbTensor<OUTPUT_T> ubTensor {
         .tensor = attenOut,
@@ -1671,7 +1671,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Gs1MergeDataCo
     GmCoord gmCoord {
         .bIdx = static_cast<uint32_t>(runInfo.boIdx),
         .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-        .gS1Idx = static_cast<uint32_t>(index),
+        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize + constInfo.subBlockIdx * runInfo.vec2S1RealSize),
         .dIdx = 0,
         .gS1DealSize = static_cast<uint32_t>(runInfo.vec2S1RealSize),
         .dDealSize = static_cast<uint32_t>(constInfo.dSize)
@@ -1787,11 +1787,9 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOu
     }
 
     if constexpr (isInfer && !isMlaNoQuant) {
-        if ((constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) ||constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND) ||
-            constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BNSD)) && constInfo.isPfaGS1Merge) {
-            Gs1MergeDataCopyOut(runInfo, constInfo, attenOut, dSizeAligned64, vec2S1Idx);
-        }
-        else if (dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
+        if ((constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) ||constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND)) && constInfo.isPfaGS1Merge) {
+            S1GMergeDataCopyOut(runInfo, constInfo, attenOut, dSizeAligned64);
+        } else if (dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
             for(int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++){
                 attenOutOffset = i * constInfo.dSizeV * constInfo.gSize * constInfo.n2Size;
                 dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
