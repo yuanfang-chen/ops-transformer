@@ -61,19 +61,5 @@ struct TaskTilingInfo {
     int32_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
 };
 
-template <typename T>
-__aicore__ inline constexpr bool IsFp8()
-{
-    return (AscendC::IsSameType<T, fp8_e4m3fn_t>::value || AscendC::IsSameType<T, fp8_e5m2_t>::value);
-}
-
-__aicore__ inline uint64_t AlignTo512(uint64_t size)
-{
-    if (size % TENSOR_LIST_SIZE != 0) {
-        size = (size + TENSOR_LIST_SIZE - 1) & ~(TENSOR_LIST_SIZE - 1);
-    }
-    return size;
-}
-
 }
 #endif // A2AV_COMMON_H
