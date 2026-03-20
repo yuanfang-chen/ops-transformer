@@ -1671,7 +1671,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCo
     GmCoord gmCoord {
         .bIdx = static_cast<uint32_t>(runInfo.boIdx),
         .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize + constInfo.subBlockIdx * runInfo.vec2S1RealSize),
+        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize),
         .dIdx = 0,
         .gS1DealSize = static_cast<uint32_t>(runInfo.vec2S1RealSize),
         .dDealSize = static_cast<uint32_t>(constInfo.dSize)
