@@ -40,10 +40,16 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
 {
     REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
     TPipe pipe;
-
+    printf("PRINT inter the moe_distribute_dispatch_v3\n");
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
-    if constexpr (ArchTag == TILINGKEY_TPL_A3) {
+    printf("PRINT inter the kernel DT_BF16\n");
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
+        printf("PRINT inter the kernel DT_BF16\n");
+        printf("PRINT FullMesh:%u",FullMesh);
+        printf("PRINT TILINGKEY_ENABLE_FULLMESH:%u\n",TILINGKEY_ENABLE_FULLMESH);
+        printf("PRINT TILINGKEY_NO_FULLMESH:%u\n",TILINGKEY_NO_FULLMESH);
         if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
+            printf("PRINT inter the kernel FullMesh\n");
             GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
             MoeDistributeDispatchV2FullMesh<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
             op.Init(mc2Context, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut,
@@ -51,6 +57,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
             op.Process();
             return;
         } else if constexpr (FullMesh == TILINGKEY_NO_FULLMESH) {
+            printf("PRINT inter the kernel MoeDistributeDispatchV2\n");
             GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
             MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, HasTp> op;
             op.Init(mc2Context, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
