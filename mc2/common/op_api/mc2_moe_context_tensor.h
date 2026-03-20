@@ -54,7 +54,7 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
     }
     uint32_t linksIndex = 0;
     while(linksIndex < netLinkNum) { // 遍历组网支持的协议
-        if (linksList[linksIndex].linkAttr.linkProtocol == protocol) { // 如果于目标协议相同返回对应的link
+        if (linksList[linksIndex].linkAttr.linkProtocol == protocol) { // 如果与目标协议相同返回对应的link
             links = &linksList[linksIndex];
             break;
         }
