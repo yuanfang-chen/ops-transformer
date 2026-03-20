@@ -2719,11 +2719,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token mode and keyAntiquant/valueAntiquant is splited.",
-<<<<<<< HEAD
-                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
-=======
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
->>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
         if (keyAntiquantMode == PER_TOKEN_HEAD_MODE) {
@@ -2733,11 +2729,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token-head mode and keyAntiquant/valueAntiquant is splited.",
-<<<<<<< HEAD
-                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
-=======
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
->>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
         if (keyAntiquantMode == PER_TOKEN_GROUP_MODE) {
@@ -2747,11 +2739,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "The second-to-last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The second-to-last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token-group mode and keyAntiquant/valueAntiquant is splited.",
-<<<<<<< HEAD
-                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 2), maxBlockNumPerSeq_, blockSize_),
-=======
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM2), maxBlockNumPerSeq_, blockSize_),
->>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
     }
