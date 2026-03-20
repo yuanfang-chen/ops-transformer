@@ -55,11 +55,13 @@ public:
         this->Output("attentionOut")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND});
+            .FormatList({ge::FORMAT_ND})
+            .InitValue(0);
         this->Output("softmaxLse")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
-            .FormatList({ge::FORMAT_ND});
+            .FormatList({ge::FORMAT_ND})
+            .InitValue(0);
         
         this->Attr("qInputLayout").AttrType(OPTIONAL).String("TND");
         this->Attr("kvInputLayout").AttrType(OPTIONAL).String("TND");
