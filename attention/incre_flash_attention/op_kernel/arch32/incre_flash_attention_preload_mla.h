@@ -746,35 +746,37 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitOutputSingl
     if (usedCoreNum != 0) {
         uint32_t initOutputEventId = 0U;
         SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-        // TND/NTD 场景：sparse9 padding 时 tSeqSize > actualSeqLen[-1]，需初始化 padding 部分为 0
-        if constexpr (LAYOUT_T == LAYOUT::TND || LAYOUT_T == LAYOUT::NTD) {
-            if (sparseMode == 9U) {
-                uint32_t tSize = actualSeqLengthsGmQ.GetValue(batchSize - 1);
-                if (tSeqSize > tSize) {
-                    uint64_t totalOutputSize = tSeqSize * qHeadNum * headDim;
-                    uint64_t singleCoreSize =
-                        (totalOutputSize + (2 * usedCoreNum) - 1) / (2 * usedCoreNum);
-                    uint64_t tailSize = totalOutputSize - tmpBlockIdx * singleCoreSize;
-                    uint64_t singleInitOutputSize =
-                        tailSize < singleCoreSize ? tailSize : singleCoreSize;
-                    WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-                    if (tmpBlockIdx * singleCoreSize < totalOutputSize &&
-                        singleInitOutputSize > 0) {
-                        if constexpr (IsSameType<OUT_T, int8_t>::value) {
-                            GlobalTensor<half> attentionOutTmpGm;
-                            attentionOutTmpGm.SetGlobalBuffer(
-                                reinterpret_cast<__gm__ half *>(attentionOutGm.GetPhyAddr(0)));
-                            matmul::InitOutput<half>(
-                                attentionOutTmpGm[tmpBlockIdx * singleCoreSize / 2],
-                                singleInitOutputSize / 2, 0);
-                        } else {
-                            matmul::InitOutput<OUT_T>(
-                                attentionOutGm[tmpBlockIdx * singleCoreSize],
-                                singleInitOutputSize, 0);
-                        }
+        // TND 场景：sparse9 有 s2=0 的 batch，其 Q token 不会被计算路径写入，必须清零
+        if constexpr (LAYOUT_T == LAYOUT::TND) {
+            if (sparseMode == 9U && actualLenDims > 1U) {
+                WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+                // 按 batch 轮询分配，跳过 s2≠0 的 batch
+                for (uint64_t bIdx = (uint64_t)tmpBlockIdx; bIdx < batchSize;
+                     bIdx += (uint64_t)usedCoreNum) {
+                    uint64_t s2 = actualSeqLengthsGm.GetValue(bIdx);
+                    if (s2 != 0) {
+                        continue;
                     }
-                    SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+                    uint64_t tBase = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
+                    uint64_t s1 = actualSeqLengthsGmQ.GetValue(bIdx) - tBase;
+                    if (s1 == 0) {
+                        continue;
+                    }
+                    // TND: [T, N, D]，batch 对应的 T 区间连续，一次清零
+                    uint64_t outputOffset = tBase * qHeadNum * headDim;
+                    uint64_t outputSize = s1 * qHeadNum * headDim;
+                    if constexpr (IsSameType<OUT_T, int8_t>::value) {
+                        GlobalTensor<half> attentionOutTmpGm;
+                        attentionOutTmpGm.SetGlobalBuffer(
+                            reinterpret_cast<__gm__ half *>(attentionOutGm.GetPhyAddr(0)));
+                        matmul::InitOutput<half>(
+                            attentionOutTmpGm[outputOffset / 2], outputSize / 2, 0);
+                    } else {
+                        matmul::InitOutput<OUT_T>(
+                            attentionOutGm[outputOffset], outputSize, 0);
+                    }
                 }
+                SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
             }
         }
         WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
