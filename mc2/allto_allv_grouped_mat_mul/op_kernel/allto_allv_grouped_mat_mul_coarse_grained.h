@@ -126,7 +126,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     mmyGM_ = mmyOptionalGM;
     tilingData_ = tilingData;
     permuteOutGM_ =
-        tilingData_->commonTilingInfo.isPermuteOut ? permuteOutOptionalGM : workspaceGM + 1024U * 1024U * 1024U; // todo
+        tilingData_->commonTilingInfo.isPermuteOut ? permuteOutOptionalGM : workspaceGM + 1024UL * 1024UL * 1024UL; // todo
 
     const void *hcclInitTilingV2 = &(tilingData_->hcclInitTiling);
     uint64_t hcclCcTilingOffset = offsetof(AlltoAllvGmmTilingData, alltoAllvCcTiling);
@@ -155,7 +155,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     permutedGMTensor_.SetGlobalBuffer((__gm__ DataType *)this->permuteOutGM_);
     workspaceGMTensor_.SetGlobalBuffer((__gm__ DataType *)workspaceGM);
 
-    tPipe->InitBuffer(TBuf_, totalUbSize_);
+    tPipe->InitBuffer(tBuf_, totalUbSize_);
 }
 
 template <typename DataType, bool IsNeedMM, bool IsTranGmmW, bool IsTranMmW>
@@ -171,9 +171,9 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     HcclFinalize();
 }
 
-template <TemplateDispatchV2TypeClass>
+template <typename DataType, bool IsNeedMM, bool IsTranGmmW, bool IsTranMmW>
 __aicore__ inline void
-MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::SplitToCore(uint32_t curSendCnt, uint32_t &startTokenId,
+AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW, IsTranMmW>::SplitToCore(uint32_t curSendCnt, uint32_t &startTokenId,
                                                                  uint32_t &endTokenId, uint32_t &sendTokenNum)
 {
     sendTokenNum = curSendCnt / aivNum_;               // 每个aiv需要发送的token数
@@ -284,14 +284,14 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     uint32_t eEnd = min(eStart + expertNumInGroup_, expertNumInOneRank_);
     LocalTensor<DataType> copyTensor = tBuf_.Get<DataType>();
 
-    for(uint32_t rIndex = 0; rIndex < eEnd; rIndex++) {
+    for(uint32_t rIndex = 0; rIndex < rankDim_; rIndex++) {
         for(uint32_t e = eStart; e < eEnd; e++) {
             uint32_t posStart = rankDim_ * eGroup * expertNumInGroup_;
             uint32_t posBefore = 0;
             uint32_t posAfter = 0;
 
-            if(posStart + rIndex * expertNum + e - eStart != 0) {
-                posBefore = recvSumCntBefore[posStart + rIndex * expertNum + e - eStart - 1];
+            if(posStart + rIndex * expertNumInGroup_ + e - eStart != 0) {
+                posBefore = recvSumCntBefore[posStart + rIndex * expertNumInGroup_ + e - eStart - 1];
             }
             if(posStart + (e - eStart) * rankDim_ + rIndex != 0) {
                 posAfter = recvSumCntAfter[posStart + (e - eStart) * rankDim_ + rIndex - 1];
@@ -303,7 +303,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
                 continue;
             }
 
-            uint32_t tileNum = Ceil(sendCnt, totalUbELm_);
+            uint32_t tileNum = Ceil(sendCnt, totalUbElm_);
             for(uint32_t tile = 0; tile < tileNum; tile ++) {
                 uint32_t realLength = totalUbElm_;
                 if(tile == tileNum - 1) {
@@ -392,7 +392,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
         
         if ASCEND_IS_AIC {
             if (tokenNum[0] != 0) {
-                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, expertNumInGroup_, e * expertNumInGroup);
+                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, expertNumInGroup_, e * expertNumInGroup_);
             }
         }
     }
