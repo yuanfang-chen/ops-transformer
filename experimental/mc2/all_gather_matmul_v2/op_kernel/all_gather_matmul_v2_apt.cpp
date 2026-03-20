@@ -15,7 +15,7 @@
 
 #include "lib/matmul_intf.h"
 #include "common.h"
-#include "all_gather_matmul_apt_tiling_key.h"
+#include "all_gather_matmul_v2_apt_tiling_key.h"
 #include "all_gather_matmul_fp16_bf16.h"
 
 using namespace Mc2Tiling;
@@ -39,8 +39,10 @@ using namespace AllGatherMatmulImpl;
     } while (0)
 
 template<TPL_PARAMS_COMM, TPL_QUANT_BMM_PARAMS_COMM>
-__global__ __aicore__ void all_gather_matmul(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM,
-                                             GM_ADDR gatherOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
+__global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR scaleInv1,
+                                                GM_ADDR scaleInv2, GM_ADDR scale, GM_ADDR cGM,
+                                                GM_ADDR gatherOut, GM_ADDR amax, GM_ADDR workspaceGM,
+                                                GM_ADDR tilingGM)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
