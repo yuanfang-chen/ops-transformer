@@ -605,6 +605,25 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
 
     if (isMxQuant) {
+        OP_LOGD("MX quant mode: transGmmWeight(input)=%d, transMmWeight(input)=%d", transGmmWeight, transMmWeight);
+        // 打印 gmmWeight stride 信息
+        {
+            auto dimNum = gmmWeight->GetViewShape().GetDimNum();
+            auto strides = gmmWeight->GetViewStrides();
+            for (uint64_t i = 0; i < dimNum; i++) {
+                OP_LOGD("gmmWeight dim[%lu]: shape=%ld, stride=%ld",
+                        i, gmmWeight->GetViewShape().GetDim(i), strides[i]);
+            }
+        }
+        if (mmWeightOptional != nullptr) {
+            auto dimNum = mmWeightOptional->GetViewShape().GetDimNum();
+            auto strides = mmWeightOptional->GetViewStrides();
+            for (uint64_t i = 0; i < dimNum; i++) {
+                OP_LOGD("mmWeight dim[%lu]: shape=%ld, stride=%ld",
+                        i, mmWeightOptional->GetViewShape().GetDim(i), strides[i]);
+            }
+        }
+
         // === MX Scale Shape 校验 ===
         if (gmmWeightScaleOptional != nullptr) {
             uint64_t scaleDimNum = gmmWeightScaleOptional->GetViewShape().GetDimNum();
@@ -637,12 +656,14 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
         // === gmmWeight 转置检测 ===
         bool notContiguousGmm = IsTransposeLastTwoDims(gmmWeight);
+        OP_LOGD("gmmWeight notContiguous=%d, transGmmWeight(before)=%d", notContiguousGmm, transGmmWeight);
         if (notContiguousGmm && transGmmWeight) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight not contiguous and transGmmWeight is set!");
             return ACLNN_ERR_PARAM_INVALID;
         }
         if (notContiguousGmm && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             transGmmWeight = !transGmmWeight;
+            OP_LOGD("gmmWeight transposed: transGmmWeight flipped to %d", transGmmWeight);
             gmmWeight = TransGmmWeightTensor(gmmWeight);
             CHECK_RET(gmmWeight != nullptr, ACLNN_ERR_INNER_NULLPTR);
             // gmmWeightScale 跟随 gmmWeight 转置（4D [E, K/32, N, 2] → swap dim[1]/dim[2]）
@@ -655,12 +676,14 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         // === mmWeight 转置检测 ===
         if (mmWeightOptional != nullptr) {
             bool notContiguousMm = IsTransposeLastTwoDims(mmWeightOptional);
+            OP_LOGD("mmWeight notContiguous=%d, transMmWeight(before)=%d", notContiguousMm, transMmWeight);
             if (notContiguousMm && transMmWeight) {
                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeight not contiguous and transMmWeight is set!");
                 return ACLNN_ERR_PARAM_INVALID;
             }
             if (notContiguousMm && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
                 transMmWeight = !transMmWeight;
+                OP_LOGD("mmWeight transposed: transMmWeight flipped to %d", transMmWeight);
                 mmWeightOptional = TransMmWeightOptionalTensor(mmWeightOptional);
                 CHECK_RET(mmWeightOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
                 // mmWeightScale 跟随 mmWeight 转置（3D [K/32, N, 2] → swap dim[0]/dim[1]）
@@ -672,10 +695,10 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         }
 
         // === GMM 和 MM 转置一致性校验 ===
+        OP_LOGD("Final: transGmmWeight=%d, transMmWeight=%d", transGmmWeight, transMmWeight);
         if (mmWeightOptional != nullptr && transGmmWeight != transMmWeight) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "transGmmWeight(%d) and transMmWeight(%d) must be the same.",
-                    transGmmWeight, transMmWeight);
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "transGmmWeight(%s) and transMmWeight(%s) must be the same.",
+                    transGmmWeight ? "True" : "False", transMmWeight ? "True" : "False");
             return ACLNN_ERR_PARAM_INVALID;
         }
     }
