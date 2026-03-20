@@ -19,13 +19,14 @@
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
 
-namespace MC2MoeContext{
+namespace MC2MoeContext {
 
 constexpr uint64_t kDefaultCtxOffset = 0; // 默认从最开始拷贝
 constexpr uint64_t MaxContextTagSize = 255; // 最大上下文标签大小
 constexpr uint32_t HCCL_COMM_LAYERS_MTE_CCU = 1; // 当走MTE或者CCU通信时， hccl获取的组网层数应该为1
 
-static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle) {
+static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle)
+{
     OP_LOGD("Start to get HCCL communication handle");
     auto ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle); // 获取HCCL通信句柄
     if(ret != HCCL_SUCCESS) {
