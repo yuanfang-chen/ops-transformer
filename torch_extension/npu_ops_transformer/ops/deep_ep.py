@@ -24,12 +24,10 @@ class MoeDistributeBuffer:
         self.rank_id = torch.distributed.get_rank(group)
         self.world_size = torch.distributed.get_world_size(group)
         self.group_name = group._get_backend(torch.device("npu")).get_hccl_comm_name(self.rank_id, init_comm=False)
-        mb_buffer_size = 200 if ccl_buffer_size == 0 else ccl_buffer_size
-        self.ccl_buffer_size = mb_buffer_size * 1024 * 1024 # convert from mb
         context_struct_size = (2 + 1024)
         context_tensor_size = ((context_struct_size * 8) + 3) // 4
         self.context = torch.zeros(context_tensor_size, dtype=torch.int32).npu()
-        update_context(self.group_name, self.world_size, self.ccl_buffer_size, self.context)
+        self.ccl_buffer_size = update_context(self.group_name, self.world_size, self.context)
 
     @staticmethod
     def get_low_latency_ccl_buffer_size(world_size: int, num_max_dispatch_tokens_per_rank: int, hidden: int,
@@ -78,13 +76,13 @@ class MoeDistributeBuffer:
         if (comm_alg == "fullmesh_v2"):
             token_need_size_dispatch = inline_align(token_actual_len, full_mesh_data_align) // full_mesh_data_align * \
                 win_addr_align
-        else: 
+        else:
             token_need_size_dispatch = inline_align(token_actual_len, win_addr_align)
         token_need_size_combine = inline_align(hidden * max_out_dtype_size, win_addr_align)
         minimum_buffer_size = 2 * (
             (num_max_dispatch_tokens_per_rank * token_need_size_dispatch * world_size * local_moe_expert_num) + \
             (num_max_dispatch_tokens_per_rank * token_need_size_combine * (topk + num_shared_expert))) + mb_conversion
-        return inline_align(minimum_buffer_size, mb_conversion) // mb_conversion
+        return (inline_align(minimum_buffer_size, mb_conversion) // mb_conversion) / 2 ## hccl按照2*bufferSize大小开设
 
     def update_ctx(self, new_group) -> bool:
         self.group = new_group
@@ -95,8 +93,9 @@ class MoeDistributeBuffer:
                     lambda: (f"New world size should be the same as orginal world size, "
                             f"but got {new_world_size=}, orginial={self.world_size}"
                             f"{ops_error(ErrCode.VALUE)}."),)
-        return update_context(self.group_name, self.world_size, self.ccl_buffer_size, self.context)
-        
+        self.ccl_buffer_size = update_context(self.group_name, self.world_size, self.context)
+        return True
+
     def npu_low_latency_dispatch(self, x, topk_idx, num_experts: int, *,
                              quant_mode=0, comm_alg="", x_smooth_scale=None,
                              x_active_mask=None, topk_weights=None, zero_expert_num=0, copy_expert_num=0,

@@ -47,6 +47,7 @@ struct CheckWinSizeData {
     uint64_t totalWinSizeTp;
     bool isSetFullMeshV2;
     bool isLayered;
+    bool isMc2Context;
 };
 
 static ge::graphStatus CheckTpWinSize(const gert::TilingContext *context, const char *nodeName,
@@ -76,22 +77,23 @@ static ge::graphStatus CheckTpWinSize(const gert::TilingContext *context, const 
 static ge::graphStatus CheckWinSize(const gert::TilingContext *context, const char *nodeName, CheckWinSizeData &winSizeData)
 {
     auto attrs = context->GetAttrs();
-    uint64_t hcclBufferSizeEp = 0;
-    uint64_t maxWindowSizeEp = 0;
-    OP_TILING_CHECK(
-        mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX, winSizeData.isLayered) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
+    uint64_t hcclBufferSizeEp = 0, maxWindowSizeEp = 0, tokenNeedSizeDispatch = 0;
+    if (!winSizeData.isMc2Context) {
+        OP_TILING_CHECK(mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX, winSizeData.isLayered) !=
+            ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
+    } else {
+        auto attrs = context->GetAttrs();
+        auto cclBuffSizePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(3)); // 3为V3算子中ccl_buffer_size的index
+        OP_TILING_CHECK(cclBuffSizePtr == nullptr || *cclBuffSizePtr < 0, OP_LOGE(nodeName, "cclBuffSizePtr is invalid."), return ge::GRAPH_FAILED);
+        maxWindowSizeEp= *cclBuffSizePtr;
+    }
     uint32_t sharedExpertNum = winSizeData.sharedExpertNum;
-    uint64_t h = static_cast<uint64_t>(winSizeData.h);
-    uint64_t k = static_cast<uint64_t>(winSizeData.k);
-    uint64_t bs = static_cast<uint64_t>(winSizeData.bs);
-    uint64_t epWorldSize = static_cast<uint64_t>(winSizeData.epWorldSize);
-    uint64_t maxBs = static_cast<uint64_t>(winSizeData.globalBs) / epWorldSize;
+    uint64_t h = static_cast<uint64_t>(winSizeData.h), k = static_cast<uint64_t>(winSizeData.k), bs = static_cast<uint64_t>(winSizeData.bs);
+    uint64_t epWorldSize = static_cast<uint64_t>(winSizeData.epWorldSize), maxBs = static_cast<uint64_t>(winSizeData.globalBs) / epWorldSize;
     // combine数据区 token首地址对齐512
     uint64_t tokenNeedSizeCombine = ((h * MAX_OUT_DTYPE_SIZE  + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     // dispatch数据区 token首对齐512，有效token长度h_align_32b + scale(32b) + 三元组(3*4b)
     uint64_t tokenActualLen = ((h * MAX_OUT_DTYPE_SIZE  + UB_ALIGN - 1UL) / UB_ALIGN) * UB_ALIGN + SCALE_EXPAND_IDX_BUFFER;
-    uint64_t tokenNeedSizeDispatch = 0;
     uint64_t moeExpertNum = static_cast<uint64_t>(winSizeData.moeExpertNum);
     if (winSizeData.isSetFullMeshV2) {
         tokenNeedSizeDispatch = ((tokenActualLen + FULL_MESH_DATA_ALIGN - 1UL) / FULL_MESH_DATA_ALIGN) * WIN_ADDR_ALIGN;
@@ -101,6 +103,7 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, const ch
     uint64_t actualSize = winSizeData.isLayered ? (moeExpertNum * maxBs * (h * MAX_OUT_DTYPE_SIZE + (3 * (k + 7) / 8 * 8) *
         sizeof(uint32_t) + 64) + 404 * MB_SIZE) : ((maxBs * tokenNeedSizeDispatch * epWorldSize * static_cast<uint64_t>(winSizeData.localMoeExpertNum))
         + (maxBs * tokenNeedSizeCombine * (k + static_cast<uint64_t>(sharedExpertNum)))) * DOUBLE_DATA_BUFFER;
+    if (winSizeData.isMc2Context) {actualSize += MB_SIZE;}; // V3流程加1M状态区
     if (winSizeData.isLayered) {
         // 校验可变bs
         OP_TILING_CHECK((bs != maxBs), OP_LOGE(nodeName, "Layered cannot support variableBs, bs is %lu, maxBs is %lu",
