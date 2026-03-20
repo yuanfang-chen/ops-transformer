@@ -2721,11 +2721,15 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "keyAntiquantMode, valueAntiquantMode are per-token mode and keyAntiquant/valueAntiquant is splited.",
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
 <<<<<<< HEAD
+<<<<<<< HEAD
               return ge::GRAPH_FAILED;
             )
 =======
               return ge::GRAPH_FAILED);
 >>>>>>> 41270e4f... 添加LSE、prefix拦截，添加伪量化PA相关拦截
+=======
+              return ge::GRAPH_FAILED);
+>>>>>>> 7bd71280... 添加LSE、prefix拦截，添加伪量化PA相关拦截
         }
         if (keyAntiquantMode == PER_TOKEN_HEAD_MODE) {
             OP_CHECK_IF(
@@ -2736,11 +2740,15 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "keyAntiquantMode, valueAntiquantMode are per-token-head mode and keyAntiquant/valueAntiquant is splited.",
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
 <<<<<<< HEAD
+<<<<<<< HEAD
               return ge::GRAPH_FAILED;
             )
 =======
               return ge::GRAPH_FAILED);
 >>>>>>> 41270e4f... 添加LSE、prefix拦截，添加伪量化PA相关拦截
+=======
+              return ge::GRAPH_FAILED);
+>>>>>>> 7bd71280... 添加LSE、prefix拦截，添加伪量化PA相关拦截
         }
         if (keyAntiquantMode == PER_TOKEN_GROUP_MODE) {
             OP_CHECK_IF(
@@ -2751,11 +2759,15 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                       "keyAntiquantMode, valueAntiquantMode are per-token-group mode and keyAntiquant/valueAntiquant is splited.",
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 2), maxBlockNumPerSeq_, blockSize_),
 <<<<<<< HEAD
+<<<<<<< HEAD
               return ge::GRAPH_FAILED;
             )
 =======
               return ge::GRAPH_FAILED);
 >>>>>>> 41270e4f... 添加LSE、prefix拦截，添加伪量化PA相关拦截
+=======
+              return ge::GRAPH_FAILED);
+>>>>>>> 7bd71280... 添加LSE、prefix拦截，添加伪量化PA相关拦截
         }
     }
     OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && inputLayout_ == IfaLayout::TND),
