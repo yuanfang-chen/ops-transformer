@@ -81,7 +81,6 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
                     actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
             }
         }
-
     }
 
     runParam.actualS1Size = actualS1Size;
