@@ -114,247 +114,247 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 }
 
 
- aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum) //TODO:把入参参数打出来
-{
-    OP_LOGD("PRINT GetCommMode start");
-    OP_LOGD("PRINT hcclHandle START :%p",hcclHandle);
-    HcclResult ret;
-    uint32_t* netLayers = nullptr;
-    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Ep Handle failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcomGetCommHandleByGroup success");
-    OP_LOGD("PRINT hcclHandle end :%p",hcclHandle);
-    ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
-    OP_LOGD("PRINT HcclRankGraphGetLayers netLayers:%d",netLayerNum);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
-        return ACLNN_ERR_INNER;
-    }
+//  aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum) //TODO:把入参参数打出来
+// {
+//     OP_LOGD("PRINT GetCommMode start");
+//     OP_LOGD("PRINT hcclHandle START :%p",hcclHandle);
+//     HcclResult ret;
+//     uint32_t* netLayers = nullptr;
+//     ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Ep Handle failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcomGetCommHandleByGroup success");
+//     OP_LOGD("PRINT hcclHandle end :%p",hcclHandle);
+//     ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+//     OP_LOGD("PRINT HcclRankGraphGetLayers netLayers:%d",netLayerNum);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
+//         return ACLNN_ERR_INNER;
+//     }
 
-    return ACLNN_SUCCESS;
-}
+//     return ACLNN_SUCCESS;
+// }
 
-aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t srcRankId, CommEngine engine, std::vector<ChannelHandle>& channeles)
-{
-    std::vector<HcclChannelDesc> channelDesc;
-    channelDesc.resize(rankDim);
-    channeles.resize(rankDim);
-    CommLink * links = nullptr;
-    HcclResult ret;
-    uint32_t netLayers = 0; //目前默认是AIV 单Server内
-    uint32_t linkNum = 0;
+// aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t srcRankId, CommEngine engine, std::vector<ChannelHandle>& channeles)
+// {
+//     std::vector<HcclChannelDesc> channelDesc;
+//     channelDesc.resize(rankDim);
+//     channeles.resize(rankDim);
+//     CommLink * links = nullptr;
+//     HcclResult ret;
+//     uint32_t netLayers = 0; //目前默认是AIV 单Server内
+//     uint32_t linkNum = 0;
 
-    OP_LOGD("PRINT HcclChannelDescInit start");
-    OP_LOGD("PRINT CommProtocol::COMM_PROTOCOL_UB_MEM: %d",CommProtocol::COMM_PROTOCOL_UB_MEM);
-    OP_LOGD("PRINT RankDIm:%d", rankDim);
-    OP_LOGD("PRINT CommLink ptr %p", links);
-    ret = HcclChannelDescInit(channelDesc.data(), rankDim);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcclChannelDescInit success");
+//     OP_LOGD("PRINT HcclChannelDescInit start");
+//     OP_LOGD("PRINT CommProtocol::COMM_PROTOCOL_UB_MEM: %d",CommProtocol::COMM_PROTOCOL_UB_MEM);
+//     OP_LOGD("PRINT RankDIm:%d", rankDim);
+//     OP_LOGD("PRINT CommLink ptr %p", links);
+//     ret = HcclChannelDescInit(channelDesc.data(), rankDim);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcclChannelDescInit success");
 
-    for (uint32_t index = 0; index < rankDim; index++) {
-        if (index == srcRankId) {
-            continue;
-        }
-        ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum); // TODO：需要循环去判断这个通讯协议
-        if(ret != HCCL_SUCCESS) {
-            OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed."); //打印错误码，入参之类的。
-            return ACLNN_ERR_INNER;
-        }
-        if(linkNum == 0) {
-            OP_LOGE(ACLNN_ERR_INNER, "The Rank LiNK Is nullptr.");
-            return ACLNN_ERR_INNER;
-        }
-        OP_LOGD("PRINT Get linkNum %d",linkNum);
-        OP_LOGD("PRINT CommLink ptr %p", links);
+//     for (uint32_t index = 0; index < rankDim; index++) {
+//         if (index == srcRankId) {
+//             continue;
+//         }
+//         ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum); // TODO：需要循环去判断这个通讯协议
+//         if(ret != HCCL_SUCCESS) {
+//             OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed."); //打印错误码，入参之类的。
+//             return ACLNN_ERR_INNER;
+//         }
+//         if(linkNum == 0) {
+//             OP_LOGE(ACLNN_ERR_INNER, "The Rank LiNK Is nullptr.");
+//             return ACLNN_ERR_INNER;
+//         }
+//         OP_LOGD("PRINT Get linkNum %d",linkNum);
+//         OP_LOGD("PRINT CommLink ptr %p", links);
 
-        if (index < srcRankId) {
-            channelDesc[index].remoteRank = index;
-            channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-            channelDesc[index].notifyNum =3;
-            channelDesc[index].localEndpoint = links->srcEndpointDesc;
-            channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
-            //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
-        }
-        else{
-            channelDesc[index - 1].remoteRank = index;
-            channelDesc[index - 1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-            channelDesc[index - 1].notifyNum = 3;
-            channelDesc[index - 1].localEndpoint = links->srcEndpointDesc;
-            channelDesc[index - 1].remoteEndpoint = links->dstEndpointDesc;
-            //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
-        }
-    }
-    for (uint32_t i =0 ;i<rankDim - 1;i++) {
-        OP_LOGD("PRINT HcclChannelAcquire index%d srcRankId %d channelDesc[%d].remoteRank:%d", i, srcRankId, channelDesc[i].remoteRank);
-    }
-    ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim - 1, channeles.data());
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel get channel failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcclChannelAcquire success");
-    return ACLNN_SUCCESS;
-}
+//         if (index < srcRankId) {
+//             channelDesc[index].remoteRank = index;
+//             channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+//             channelDesc[index].notifyNum =3;
+//             channelDesc[index].localEndpoint = links->srcEndpointDesc;
+//             channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
+//             //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+//         }
+//         else{
+//             channelDesc[index - 1].remoteRank = index;
+//             channelDesc[index - 1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+//             channelDesc[index - 1].notifyNum = 3;
+//             channelDesc[index - 1].localEndpoint = links->srcEndpointDesc;
+//             channelDesc[index - 1].remoteEndpoint = links->dstEndpointDesc;
+//             //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
+//         }
+//     }
+//     for (uint32_t i =0 ;i<rankDim - 1;i++) {
+//         OP_LOGD("PRINT HcclChannelAcquire index%d srcRankId %d channelDesc[%d].remoteRank:%d", i, srcRankId, channelDesc[i].remoteRank);
+//     }
+//     ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim - 1, channeles.data());
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel get channel failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcclChannelAcquire success");
+//     return ACLNN_SUCCESS;
+// }
 
-aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void* & ctx, Mc2MoeContext*  mc2_context)
-{
-    OP_LOGD("PRINT inter to the CreatMc2Context");
-    uint64_t ctxSize = sizeof(Mc2MoeContext);
-    void * tempBuffer = nullptr;
-    uint64_t buffersize = 0;
-    uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0 TODO:
-    HcclResult ret;
-    aclnnStatus res;
-    std::vector<ChannelHandle> channeles;
+// aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void* & ctx, Mc2MoeContext*  mc2_context)
+// {
+//     OP_LOGD("PRINT inter to the CreatMc2Context");
+//     uint64_t ctxSize = sizeof(Mc2MoeContext);
+//     void * tempBuffer = nullptr;
+//     uint64_t buffersize = 0;
+//     uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0 TODO:
+//     HcclResult ret;
+//     aclnnStatus res;
+//     std::vector<ChannelHandle> channeles;
 
-    ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcclEngineCtxCreate success");
-    OP_LOGD("PRINT ctxSize: %d", ctxSize);
-    //获取对应的资源
-    ret = HcclGetRankId(hcclHandle, &mc2_context->epRankId);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Id failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcclGetRankId success");
-    ret = HcclGetRankSize(hcclHandle, &mc2_context->epRankSize);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcclGetRankSize success");
+//     ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcclEngineCtxCreate success");
+//     OP_LOGD("PRINT ctxSize: %d", ctxSize);
+//     //获取对应的资源
+//     ret = HcclGetRankId(hcclHandle, &mc2_context->epRankId);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Id failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcclGetRankId success");
+//     ret = HcclGetRankSize(hcclHandle, &mc2_context->epRankSize);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT HcclGetRankSize success");
 
-    res = GetHcclCommChannel(hcclHandle, mc2_context->epRankSize, mc2_context->epRankId, engine, channeles);//todo:本卡直接不用
-    CHECK_RET(res == ACLNN_SUCCESS, res);
-    OP_LOGD("PRINT HcclChannelAcquire success");
+//     res = GetHcclCommChannel(hcclHandle, mc2_context->epRankSize, mc2_context->epRankId, engine, channeles);//todo:本卡直接不用
+//     CHECK_RET(res == ACLNN_SUCCESS, res);
+//     OP_LOGD("PRINT HcclChannelAcquire success");
 
-    //获取对应的资源
-    for(uint32_t index = 0; index < mc2_context->epRankSize; index++) {
-        if(index == mc2_context->epRankId) {
-            OP_LOGD("PRINT HcclGetHcclBuffer hcclHandle %p",hcclHandle);
-            ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
-            OP_LOGD("PRINT HcclGetHcclBuffer success");
-            OP_LOGD("PRINT CreatMc2Context if index:%d",index);
-            OP_LOGD("PRINT CreatMc2Context if mc2_context->winSize:%ld",mc2_context->winSize);
-            OP_LOGD("PRINT CreatMc2Context if tempBuffer:%p",tempBuffer);
-            //OP_LOGD("PRINT CreatMc2Context if epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
-        } else {
-            //ret = HcclRankGraphGetLinks(hcclHandle, )
-            if(index < mc2_context->epRankId) {
-                ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
-            } else {
-                ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index - 1], &tempBuffer, &buffersize);
-            }
-            OP_LOGD("PRINT CreatMc2Context else index:%d",index);
-            OP_LOGD("PRINT CreatMc2Context else buffersize:%ld",buffersize);
-            OP_LOGD("PRINT CreatMc2Context else tempBuffer:%p",tempBuffer);
-            //OP_LOGD("PRINT CreatMc2Context else epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
-        }
-        if(ret != HCCL_SUCCESS) {
-            OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
-            return ACLNN_ERR_INNER;
-        }
+//     //获取对应的资源
+//     for(uint32_t index = 0; index < mc2_context->epRankSize; index++) {
+//         if(index == mc2_context->epRankId) {
+//             OP_LOGD("PRINT HcclGetHcclBuffer hcclHandle %p",hcclHandle);
+//             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
+//             OP_LOGD("PRINT HcclGetHcclBuffer success");
+//             OP_LOGD("PRINT CreatMc2Context if index:%d",index);
+//             OP_LOGD("PRINT CreatMc2Context if mc2_context->winSize:%ld",mc2_context->winSize);
+//             OP_LOGD("PRINT CreatMc2Context if tempBuffer:%p",tempBuffer);
+//             //OP_LOGD("PRINT CreatMc2Context if epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
+//         } else {
+//             //ret = HcclRankGraphGetLinks(hcclHandle, )
+//             if(index < mc2_context->epRankId) {
+//                 ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
+//             } else {
+//                 ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index - 1], &tempBuffer, &buffersize);
+//             }
+//             OP_LOGD("PRINT CreatMc2Context else index:%d",index);
+//             OP_LOGD("PRINT CreatMc2Context else buffersize:%ld",buffersize);
+//             OP_LOGD("PRINT CreatMc2Context else tempBuffer:%p",tempBuffer);
+//             //OP_LOGD("PRINT CreatMc2Context else epHcclBuffer_:%ld",mc2_context->epHcclBuffer_[index]);
+//         }
+//         if(ret != HCCL_SUCCESS) {
+//             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
+//             return ACLNN_ERR_INNER;
+//         }
         
-         mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
-    }
-    OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
-    //把数据拷贝到device侧
-    ret = HcclEngineCtxCopy(hcclHandle, engine, mc2Ctxtag.c_str(), mc2_context, ctxSize, dstCtxOffset);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Copy data from host to device failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT end to the CreatMc2Context");
-    return ACLNN_SUCCESS;
-}
+//          mc2_context->epHcclBuffer_[index] = reinterpret_cast<uint64_t>(tempBuffer);
+//     }
+//     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
+//     //把数据拷贝到device侧
+//     ret = HcclEngineCtxCopy(hcclHandle, engine, mc2Ctxtag.c_str(), mc2_context, ctxSize, dstCtxOffset);
+//     if(ret != HCCL_SUCCESS) {
+//         OP_LOGE(ACLNN_ERR_INNER, "Copy data from host to device failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT end to the CreatMc2Context");
+//     return ACLNN_SUCCESS;
+// }
 
-aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
-{
-    OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
-    if(ctx == nullptr) {
-        OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
-        return ACLNN_ERR_INNER;
-    }
-    uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
-    int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
-    int64_t strides[1] = {1};
-    mc2Context = aclCreateTensor(
-        shap, 1, aclDataType::ACL_INT32, strides, 0, 
-        aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
-    if(mc2Context == nullptr) {
-        OP_LOGE(ACLNN_ERR_INNER, "PRINT Create Mc2Context Tensor failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT end to the CreatMc2ContextTensor");
-    return ACLNN_SUCCESS;
-}
+// aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
+// {
+//     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
+//     if(ctx == nullptr) {
+//         OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
+//     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
+//     int64_t strides[1] = {1};
+//     mc2Context = aclCreateTensor(
+//         shap, 1, aclDataType::ACL_INT32, strides, 0, 
+//         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
+//     if(mc2Context == nullptr) {
+//         OP_LOGE(ACLNN_ERR_INNER, "PRINT Create Mc2Context Tensor failed.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     OP_LOGD("PRINT end to the CreatMc2ContextTensor");
+//     return ACLNN_SUCCESS;
+// }
 
 
-aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* &mc2Context, int64_t& hcclBuffSize,
-                        std::string& hcclTopoType) 
-{
-    OP_LOGD("PRINT inter to the GetMc2Context");
-    Mc2MoeContext mc2_context;
-    HcclResult ret;
-    aclnnStatus res;
-    CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
-    std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
-    void * ctx = nullptr;
-    uint64_t ctxSize = 0;
-    OP_LOGD("PRINT ctxSize:%d",ctxSize);
-    OP_LOGD("PRINT before HcclEngineCtxGet");
-    ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
-    OP_LOGD("PRINT ctxSize after:%d", ctxSize);
-    if(ret != HCCL_SUCCESS) { 
-        OP_LOGD("PRINT in if");
-        //如果资源不存在则进行context结构体创建
-        auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
-        CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    }
-    OP_LOGD("PRINT HcclEngineCtxGet success");
-    hcclBuffSize = mc2_context.winSize;
-    hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。（与HCCL保持一致）
-    if(ctx == nullptr) {
-        OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
-        return ACLNN_ERR_INNER;
-    }
-    res = CreatMc2ContextTensor(ctx, mc2Context);
-    CHECK_RET(res == ACLNN_SUCCESS, ret);
-    OP_LOGD("PRINT end to the GetMc2Context");
-    return ACLNN_SUCCESS;
-}
+// aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* &mc2Context, int64_t& hcclBuffSize,
+//                         std::string& hcclTopoType) 
+// {
+//     OP_LOGD("PRINT inter to the GetMc2Context");
+//     Mc2MoeContext mc2_context;
+//     HcclResult ret;
+//     aclnnStatus res;
+//     CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
+//     std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
+//     void * ctx = nullptr;
+//     uint64_t ctxSize = 0;
+//     OP_LOGD("PRINT ctxSize:%d",ctxSize);
+//     OP_LOGD("PRINT before HcclEngineCtxGet");
+//     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
+//     OP_LOGD("PRINT ctxSize after:%d", ctxSize);
+//     if(ret != HCCL_SUCCESS) { 
+//         OP_LOGD("PRINT in if");
+//         //如果资源不存在则进行context结构体创建
+//         auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
+//         CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+//     }
+//     OP_LOGD("PRINT HcclEngineCtxGet success");
+//     hcclBuffSize = mc2_context.winSize;
+//     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。（与HCCL保持一致）
+//     if(ctx == nullptr) {
+//         OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
+//         return ACLNN_ERR_INNER;
+//     }
+//     res = CreatMc2ContextTensor(ctx, mc2Context);
+//     CHECK_RET(res == ACLNN_SUCCESS, ret);
+//     OP_LOGD("PRINT end to the GetMc2Context");
+//     return ACLNN_SUCCESS;
+// }
 
-void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
-{
-    if(is950) {
-        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
-        if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-            arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
-        }
-        NnopbaseSetUserHandle(*executor, arg);
-    }
+// void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
+// {
+//     if(is950) {
+//         void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
+//         if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+//             arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
+//         }
+//         NnopbaseSetUserHandle(*executor, arg);
+//     }
     
-    if (NnopbaseSetHcclServerType) {  //给ACLnn框架指定通讯方式。
-        if (is910B) {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-        } else if ( is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
-        }
-    }
-}
+//     if (NnopbaseSetHcclServerType) {  //给ACLnn框架指定通讯方式。
+//         if (is910B) {
+//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+//         } else if ( is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
+//         } else {
+//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+//         }
+//     }
+// }
 
 aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* scalesOptional,
