@@ -846,7 +846,7 @@ bool FlashAttentionScoreTilingBase::SetPseAlibiParams()
         }
         return true;
     }
-    if (pseShape->GetStorageShape().GetDimNum() < 2) {  // 2 is min dim num of legal pse
+    if (pseShape->GetStorageShape().GetDimNum() < 1) {  // 1 is min dim num of legal pse
         OP_LOGE(context_, "Invalid Pse DimNum(%zu), PseType(%ld).",
                   pseShape->GetStorageShape().GetDimNum(), pseType);
         return false;
@@ -3420,7 +3420,7 @@ protected:
             return true;
         }
         // 2: pre last axiss
-        if (pseShape->GetStorageShape().GetDimNum() < 2) {  // 2 is min dim num of legal pse
+        if (pseShape->GetStorageShape().GetDimNum() < 1) {  // 1 is min dim num of legal pse
             OP_LOGE(context_, "Invalid Pse DimNum(%zu), PseType(%ld).",
                       pseShape->GetStorageShape().GetDimNum(), pseType);
             return false;
@@ -3701,7 +3701,7 @@ protected:
             return true;
         }
         // 2: pre last axiss
-        if (pseShape->GetStorageShape().GetDimNum() < 2) {  // 2 is min dim num of legal pse
+        if (pseShape->GetStorageShape().GetDimNum() < 1) {  // 1 is min dim num of legal pse
             OP_LOGE(context_, "Invalid Pse DimNum(%zu), PseType(%ld).",
                       pseShape->GetStorageShape().GetDimNum(), pseType);
             return false;
@@ -3880,7 +3880,7 @@ protected:
             return true;
         }
         // 2: pre last axiss
-        if (pseShape->GetStorageShape().GetDimNum() < 2) {  // 2 is min dim num of legal pse
+        if (pseShape->GetStorageShape().GetDimNum() < 1) {  // 1 is min dim num of legal pse
             OP_LOGE(context_, "Invalid Pse DimNum(%zu), PseType(%ld).",
                       pseShape->GetStorageShape().GetDimNum(), pseType);
             return false;
