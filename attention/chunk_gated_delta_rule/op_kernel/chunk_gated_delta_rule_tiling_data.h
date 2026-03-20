@@ -49,13 +49,12 @@ namespace ChunkGatedDeltaRule {
 
     // 同步信号
     constexpr uint64_t V_MTE3_EVENT = 0;
+    constexpr uint64_t V_S_EVENT = 1;
     constexpr uint64_t MTE2_V_EVENT = 2;
-    constexpr uint64_t MTE3_MTE2_EVENT = 4;
-    constexpr uint64_t FIX_MTE2_EVENT = 6;
     constexpr uint64_t S_V_EVENT = 3;
     constexpr uint64_t MTE3_MTE2_EVENT = 4;
     constexpr uint64_t FIX_MTE2_EVENT = 6;
-    
+
     constexpr uint64_t BUFFER_NUM_ONE = 1;
     constexpr uint64_t BROADCAST_AXIS = 2;
     constexpr uint64_t TASK_RATIO = 2;
