@@ -43,7 +43,6 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckAndSetInputOutputInfo() override;
-    ge::graphStatus SetGmmA2avWorkspaceInfo() override;
 
     ge::graphStatus CheckAndSetLocalParamsGmm() override;
     ge::graphStatus CheckAndSetLocalParamsMm() override;

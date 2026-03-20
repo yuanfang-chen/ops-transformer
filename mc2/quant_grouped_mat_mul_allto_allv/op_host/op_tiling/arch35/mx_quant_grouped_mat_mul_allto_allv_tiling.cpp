@@ -476,22 +476,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
-{
-    constexpr uint64_t alignAddrLen = 512;
-    auto gmmYDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
-    inferredInfo_.gmmResultLen = mc2tiling::AlignUp(
-        localParams_.A * localParams_.N1 * gmmYDtypeSize, alignAddrLen);
-    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo_.gmmResultLen;
-    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo_.gmmResultLen +
-        localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
-        localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
-
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
