@@ -32,7 +32,7 @@ public:
 };
 
 std::pair<int, int> getTmpSize(int M, int N, int blockSize, int numLevels) {
-    int numBlocks = M / blockSize;
+    int numBlocks = blockSize > 0 ? M / blockSize : 1;
     int numPairs = numBlocks / 2;
     int tail = (numBlocks % 2 > 0);
     int aOffset = 0;
@@ -83,13 +83,26 @@ ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
         if (M / 4 > 1024) blockSize = 1024;
     }
 
+    int32_t numBlocks = blockSize > 0 ? M / blockSize : 1;
+    int32_t numLevels = (int32_t)(std::ceil(std::log2(numBlocks)));
+
+    // Operator Limitations
+    if (!(M >= 128 && N >= 16 // MIN Shape
+        && M <= 8 * 1024 * 1024 && N <= 160 // MAX Shape
+        && M >= N * 8
+        && N * 2 <= blockSize && blockSize <= M / 4
+        && N % 8 == 0 && N <= 168
+        && M % blockSize == 0
+        && ((numBlocks & (numBlocks - 1)) == 0)) // Is Power Of Two
+    ) {
+        std::cout << "Out of shape limitations" << std::endl;
+        return ge::GRAPH_FAILED;
+    }
+
     tilingData.set_batchSize(batchSize);
     tilingData.set_m(M);
     tilingData.set_n(N);
     tilingData.set_blockSize(blockSize);
-
-    int32_t numBlocks = M / blockSize;
-    int32_t numLevels = (int32_t)(std::ceil(std::log2(numBlocks)));
 
     auto tmpSize = getTmpSize(M, N, blockSize, numLevels);
     int64_t tmpQSize = tmpSize.first + 2 * N * N;
