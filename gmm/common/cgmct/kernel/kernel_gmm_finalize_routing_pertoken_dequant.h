@@ -341,6 +341,13 @@ public:
         BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
         SyncAll<false>();
         if ASCEND_IS_AIV {
+            // Publish prologue writes before any epilogue atomic add is allowed to consume y.
+            AscendC::CrossCoreSetFlag<SYNC_AIC_AIV_MODES, PIPE_MTE3>(AIV_SYNC_AIC_FLAGS);
+        }
+        if ASCEND_IS_AIC {
+            WaitForVector();
+        }
+        if ASCEND_IS_AIV {
             epilogueDequantOp_.Init(params.epilogueParams);
         }
         uint32_t groupNum = params.gmmParams.groupNum;

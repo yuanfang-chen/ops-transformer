@@ -157,12 +157,15 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
     singleCount = CeilDiv(singleCount, static_cast<uint64_t>(ONE_CORE_ALIGN_LEN)) * ONE_CORE_ALIGN_LEN;
 
     uint64_t baseOffset = GetBlockIdx() * singleCount;
-    if (baseOffset > totalLen) {
+    if (baseOffset >= totalLen) {
         return;
     }
 
     if (baseOffset + singleCount > totalLen) {
         singleCount = totalLen - baseOffset;
+    }
+    if (singleCount == 0) {
+        return;
     }
 
     if (!isDataBlockInitialized_) {
@@ -174,6 +177,8 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
     // singleCount smaller than UB_INIT_REZO_LEN, just copy one time
     if (singleCount <= UB_INIT_REZO_LEN) {
         CopyOutShareInput(initWithZero_, baseOffset, singleCount);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
         return;
     }
     // once copy size
@@ -184,6 +189,8 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
         }
         CopyOutShareInput(initWithZero_, baseOffset + offset, ubOnceCopyLen);
     }
+    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
 }
 
 BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
@@ -263,16 +270,17 @@ BlockPrologueFinalizeRouting<BLOCK_PROLOGUE_BLOCK_FINALIZE_ROUTING_FUNC_LOCAL_PA
     }
     auto sharedInputOffset = params_->sharedInputOffset;
     auto sharedInputLen = params_->sharedInputLen;
-    uint64_t firstZeroSize = params_->n * sharedInputOffset;
+    uint64_t firstZeroSize = static_cast<uint64_t>(params_->n) * sharedInputOffset;
     // sharedInput is None,only do InitOutputWithZeros, all shape(batch,n) ,then finish
     if (sharedInputLen == 0) {
-        InitOutputWithZeros(0, params_->n * params_->batch);
+        InitOutputWithZeros(0, static_cast<uint64_t>(params_->n) * params_->batch);
         return;
     }
 
     InitOutputWithZeros(0, firstZeroSize);
     uint64_t tail = sharedInputOffset + sharedInputLen;
-    InitOutputWithZeros(tail * params_->n, params_->n * (params_->batch - tail));
+    InitOutputWithZeros(static_cast<uint64_t>(tail) * params_->n,
+                        static_cast<uint64_t>(params_->n) * (params_->batch - tail));
 
     uint64_t totalOutput = static_cast<uint64_t>(params_->n) * sharedInputLen;
     uint64_t singleCount = CeilDiv(totalOutput, static_cast<uint64_t>(vectorCoreNum_));
