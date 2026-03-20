@@ -573,7 +573,7 @@ namespace BSA {
                             if (vecCoreIdx % 2 != 0) {
                                 coreOffset += (actualRow / 2 + actualRow % 2) * actualCol;
                             }
-                            uint64_t vector16Soffset = (curInfo.sOffset + coreOffset) * sizeof(ElementInput);
+                            uint64_t vector16Soffset = (curInfo.sOffset * 2 + coreOffset) * sizeof(ElementInput);
                             uint64_t vector32Soffset = (curInfo.sOffset + coreOffset) * sizeof(float);
     
                             GM_ADDR s = params.workspace + vector32Soffset;
