@@ -57,14 +57,14 @@ namespace ge {
 * @li expand_scales: A tensor. Scales of each token to sum for combine. Support dtype: float32. Shape supports (A, ), support format: ND.
 */
 REG_OP(MoeDistributeDispatchV2)
-    .INPUT(x, TensorType({DT_BF16, DT_FLOAT16}))
+    .INPUT(x, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_HIFLOAT8, DT_FLOAT4_E2M1, DT_FLOAT4_E1M2}))
     .INPUT(expert_ids, TensorType({DT_INT32}))
-    .OPTIONAL_INPUT(scales, TensorType({DT_FLOAT}))
+    .OPTIONAL_INPUT(scales, TensorType({DT_FLOAT, DT_FLOAT8_E8M0}))
     .OPTIONAL_INPUT(x_active_mask, TensorType({DT_BOOL}))
     .OPTIONAL_INPUT(expert_scales, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(elastic_info, TensorType({DT_INT32}))
     .OPTIONAL_INPUT(performance_info, TensorType({DT_INT64}))
-    .OUTPUT(expand_x, TensorType({DT_BF16, DT_INT8, DT_FLOAT16, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_HIFLOAT8}))
+    .OUTPUT(expand_x, TensorType({DT_BF16, DT_INT8, DT_FLOAT16, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_HIFLOAT8, DT_FLOAT4_E2M1, DT_FLOAT4_E1M2}))
     .OUTPUT(dynamic_scales, TensorType({DT_FLOAT, DT_FLOAT8_E8M0}))
     .OUTPUT(assist_info_for_combine, TensorType({DT_INT32}))
     .OUTPUT(expert_token_nums, TensorType({DT_INT64}))
