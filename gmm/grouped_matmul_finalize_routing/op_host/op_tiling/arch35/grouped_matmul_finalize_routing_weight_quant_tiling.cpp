@@ -261,81 +261,59 @@ bool CheckMxA8W4NzAttrPtr(gert::TilingContext *contex) {
     return true;
 }
 
-bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
-    // Get all shapes first
+// Helper: Validate x shape and extract M, K
+static bool ValidateXShape(gert::TilingContext *contex, int64_t &mSize, int64_t &kSize) {
     auto xStorageShape = contex->GetInputShape(X_INDEX);
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
     auto xDimNum = xShape.GetDimNum();
-
-    auto wShape = contex->GetInputShape(W_INDEX);
-
-    auto scaleStorageShape = contex->GetOptionalInputShape(SCALE_INDEX);
-    const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
-    auto scaleDimNum = scaleShape.GetDimNum();
-
-    auto pertokenScaleStorageShape = contex->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
-    const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
-    auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
-
-    // Get w format to determine validation rules
-    auto wDesc = contex->GetInputDesc(W_INDEX);
-    OP_CHECK_IF(wDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input wDesc is nullptr."), return false);
-    auto wFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
-    // GetPrimaryFormat returns the format value masked with 0xFF
-    // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
-
-    // 1. Validate x shape is [M, K] (2D)
+    
     OP_CHECK_IF(xDimNum != DIM_NUM_X,
                 OP_LOGE(contex->GetNodeName(), "The dimension of x must be %u, actual is %zu", DIM_NUM_X, xDimNum),
                 return false);
-    int64_t mSize = xShape.GetDim(0);
-    int64_t kSize = xShape.GetDim(1);
+    mSize = xShape.GetDim(0);
+    kSize = xShape.GetDim(1);
+    return true;
+}
 
-    // 2. Validate w shape
-    // For FRACTAL_NZ format: OriginalShape is [E, CeilDiv(K,32), CeilDiv(N,16), 16, 32] (5D)
-    // StorageShape is [E, N, K] (3D)
+// Helper: Validate w shape and extract E, N, K
+static bool ValidateWShape(gert::TilingContext *contex, ge::Format wFormat, 
+                            int64_t &eFromW, int64_t &nSize, int64_t &kFromW) {
+    auto wShape = contex->GetInputShape(W_INDEX);
     const gert::Shape &wStorageShape = wShape->GetStorageShape();
     auto wStorageDimNum = wStorageShape.GetDimNum();
+    
     if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
         OP_CHECK_IF(wStorageDimNum != DIM_NUM_WEIGHT_NZ,
                     OP_LOGE(contex->GetNodeName(), "The dimension of w (FRACTAL_NZ) must be %u, actual is %zu", 
                             DIM_NUM_WEIGHT_NZ, wStorageDimNum),
                     return false);
+        const gert::Shape &wOriginShape = wShape->GetOriginShape();
+        nSize = wOriginShape.GetDim(1);
+        kFromW = wOriginShape.GetDim(2);
     } else {
         OP_CHECK_IF(wStorageDimNum != DIM_NUM_WEIGHT,
                     OP_LOGE(contex->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wStorageDimNum),
                     return false);
-    }
-    
-    // For FRACTAL_NZ: Get N and K from StorageShape [E, N, K]
-    // For ND: Get N and K from OriginShape [E, N, K]
-    int64_t eFromW = wStorageShape.GetDim(0);
-    int64_t nSize;
-    int64_t kFromW;
-    if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
-        // StorageShape is 3D: [E, N, K]
-        const gert::Shape &wStorageShapeActual = wShape->GetOriginShape();
-        nSize = wStorageShapeActual.GetDim(1);
-        kFromW = wStorageShapeActual.GetDim(2);
-    } else {
         nSize = wStorageShape.GetDim(1);
         kFromW = wStorageShape.GetDim(2);
     }
+    eFromW = wStorageShape.GetDim(0);
+    return true;
+}
 
-    // Validate K consistency between x and w
-    OP_CHECK_IF(kSize != kFromW,
-                OP_LOGE(contex->GetNodeName(), "K dimension mismatch: x has K=%ld, w has K=%ld", kSize, kFromW),
-                return false);
-
-    // 3. Validate E matches group_list shape (group_list is optional)
+// Helper: Validate group_list shape matches E
+static bool ValidateGroupListShape(gert::TilingContext *contex, int64_t eFromW) {
     auto groupListStorageShape = contex->GetOptionalInputShape(GROUPLIST_INDEX);
     const gert::Shape &groupListShape = groupListStorageShape->GetOriginShape();
     OP_CHECK_IF(eFromW != groupListShape.GetDim(0),
                 OP_LOGE(contex->GetNodeName(), "E mismatch: w has E=%ld, group_list has %ld",
                         eFromW, groupListShape.GetDim(0)),
                 return false);
+    return true;
+}
 
-    // 4. Validate row_index shape is [M] (1D)
+// Helper: Validate row_index shape is [M]
+static bool ValidateRowIndexShape(gert::TilingContext *contex, int64_t mSize) {
     auto rowIndexStorageShape = contex->GetInputShape(ROW_INDEX_INDEX);
     const gert::Shape &rowIndexShape = rowIndexStorageShape->GetOriginShape();
     OP_CHECK_IF(rowIndexShape.GetDimNum() != DIM_NUM_ROW_INDEX,
@@ -346,52 +324,59 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
                 OP_LOGE(contex->GetNodeName(), "row_index shape[0]=%ld must equal M=%ld",
                         rowIndexShape.GetDim(0), mSize),
                 return false);
+    return true;
+}
 
-    // 5. Validate logit shape [M] if not nullptr (1D)
+// Helper: Validate logit shape is [M] if present
+static bool ValidateLogitShape(gert::TilingContext *contex, int64_t mSize) {
     auto logitDesc = contex->GetOptionalInputDesc(LOGIT_INDEX);
-    if (logitDesc != nullptr) {
-        auto logitStorageShape = contex->GetOptionalInputShape(LOGIT_INDEX);
-        const gert::Shape &logitShape = logitStorageShape->GetOriginShape();
-        OP_CHECK_IF(logitShape.GetDimNum() != DIM_NUM_LOGIT,
-                    OP_LOGE(contex->GetNodeName(), "The dimension of logit must be %u, actual is %zu",
-                            DIM_NUM_LOGIT, logitShape.GetDimNum()),
-                    return false);
-        OP_CHECK_IF(logitShape.GetDim(0) != mSize,
-                    OP_LOGE(contex->GetNodeName(), "logit shape[0]=%ld must equal M=%ld",
-                            logitShape.GetDim(0), mSize),
-                    return false);
-    }
+    if (logitDesc == nullptr) return true;
+    
+    auto logitStorageShape = contex->GetOptionalInputShape(LOGIT_INDEX);
+    const gert::Shape &logitShape = logitStorageShape->GetOriginShape();
+    OP_CHECK_IF(logitShape.GetDimNum() != DIM_NUM_LOGIT,
+                OP_LOGE(contex->GetNodeName(), "The dimension of logit must be %u, actual is %zu",
+                        DIM_NUM_LOGIT, logitShape.GetDimNum()),
+                return false);
+    OP_CHECK_IF(logitShape.GetDim(0) != mSize,
+                OP_LOGE(contex->GetNodeName(), "logit shape[0]=%ld must equal M=%ld",
+                        logitShape.GetDim(0), mSize),
+                return false);
+    return true;
+}
 
-    // 6. Validate bias shape [E, N] if not nullptr and not empty (2D)
+// Helper: Validate bias shape is [E, N] if present and non-empty
+static bool ValidateBiasShape(gert::TilingContext *contex, int64_t eFromW, int64_t nSize) {
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
-    if (biasDesc != nullptr) {
-        // Try GetInputShape first (for provided inputs including empty shapes)
-        auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
-        // Skip validation if bias shape is null - treat as optional
-        if (biasStorageShape != nullptr) {
-            const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
-            // Only validate if shape has dimensions (non-empty)
-            if (biasShape.GetDimNum() > 0) {
-                OP_CHECK_IF(biasShape.GetDimNum() != DIM_NUM_BIAS,
-                            OP_LOGE(contex->GetNodeName(), "The dimension of bias must be %u, actual is %zu",
-                                    DIM_NUM_BIAS, biasShape.GetDimNum()),
-                            return false);
-                OP_CHECK_IF(biasShape.GetDim(0) != eFromW,
-                            OP_LOGE(contex->GetNodeName(), "bias shape[0]=%ld must equal E=%ld",
-                                    biasShape.GetDim(0), eFromW),
-                            return false);
-                OP_CHECK_IF(biasShape.GetDim(1) != nSize,
-                            OP_LOGE(contex->GetNodeName(), "bias shape[1]=%ld must equal N=%ld",
-                                    biasShape.GetDim(1), nSize),
-                            return false);
-            }
-        }
-    }
+    if (biasDesc == nullptr) return true;
+    
+    auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
+    if (biasStorageShape == nullptr) return true;
+    
+    const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
+    if (biasShape.GetDimNum() == 0) return true;
+    
+    OP_CHECK_IF(biasShape.GetDimNum() != DIM_NUM_BIAS,
+                OP_LOGE(contex->GetNodeName(), "The dimension of bias must be %u, actual is %zu",
+                        DIM_NUM_BIAS, biasShape.GetDimNum()),
+                return false);
+    OP_CHECK_IF(biasShape.GetDim(0) != eFromW,
+                OP_LOGE(contex->GetNodeName(), "bias shape[0]=%ld must equal E=%ld",
+                        biasShape.GetDim(0), eFromW),
+                return false);
+    OP_CHECK_IF(biasShape.GetDim(1) != nSize,
+                OP_LOGE(contex->GetNodeName(), "bias shape[1]=%ld must equal N=%ld",
+                        biasShape.GetDim(1), nSize),
+                return false);
+    return true;
+}
 
-    // Calculate CeilDiv(K, 64) for scale/pertoken_scale validation
-    int64_t kCeilDiv64 = (kSize + MX_SCALE_BLOCK_SIZE - 1) / MX_SCALE_BLOCK_SIZE;
-
-    // 7. Validate scale shape [E, N, CeilDiv(K, 64), 2] (4D)
+// Helper: Validate scale shape [E, N, CeilDiv(K, 64), 2]
+static bool ValidateScaleShape(gert::TilingContext *contex, int64_t eFromW, int64_t nSize, int64_t kCeilDiv64) {
+    auto scaleStorageShape = contex->GetOptionalInputShape(SCALE_INDEX);
+    const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
+    auto scaleDimNum = scaleShape.GetDimNum();
+    
     OP_CHECK_IF(scaleDimNum != DIM_NUM_MX_SCALE,
                 OP_LOGE(contex->GetNodeName(), "The dimension of scale must be %u, actual is %zu",
                         DIM_NUM_MX_SCALE, scaleDimNum),
@@ -412,8 +397,15 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
                 OP_LOGE(contex->GetNodeName(), "scale shape[3]=%ld must equal %d",
                         scaleShape.GetDim(3), MX_INNER_DIM),
                 return false);
+    return true;
+}
 
-    // 8. Validate pertoken_scale shape [M, CeilDiv(K, 64), 2] (3D)
+// Helper: Validate pertoken_scale shape [M, CeilDiv(K, 64), 2]
+static bool ValidatePertokenScaleShape(gert::TilingContext *contex, int64_t mSize, int64_t kCeilDiv64) {
+    auto pertokenScaleStorageShape = contex->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
+    const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
+    auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
+    
     OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_MX_PERTOKENSCALE,
                 OP_LOGE(contex->GetNodeName(), "The dimension of pertokenScale must be %u, actual is %zu",
                         DIM_NUM_MX_PERTOKENSCALE, pertokenScaleDimNum),
@@ -430,6 +422,56 @@ bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
                 OP_LOGE(contex->GetNodeName(), "pertokenScale shape[2]=%ld must equal %d",
                         pertokenScaleShape.GetDim(2), MX_INNER_DIM),
                 return false);
+    return true;
+}
+
+bool CheckMxA8W4InputShape(gert::TilingContext *contex) {
+    // Get w format first
+    auto wDesc = contex->GetInputDesc(W_INDEX);
+    OP_CHECK_IF(wDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input wDesc is nullptr."), return false);
+    auto wFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
+
+    // 1. Validate x shape and get M, K
+    int64_t mSize, kSize;
+    OP_CHECK_IF(!ValidateXShape(contex, mSize, kSize), 
+                OP_LOGE(contex->GetNodeName(), "ValidateXShape failed."), return false);
+
+    // 2. Validate w shape and get E, N, K
+    int64_t eFromW, nSize, kFromW;
+    OP_CHECK_IF(!ValidateWShape(contex, wFormat, eFromW, nSize, kFromW), 
+                OP_LOGE(contex->GetNodeName(), "ValidateWShape failed."), return false);
+
+    // Validate K consistency between x and w
+    OP_CHECK_IF(kSize != kFromW,
+                OP_LOGE(contex->GetNodeName(), "K dimension mismatch: x has K=%ld, w has K=%ld", kSize, kFromW),
+                return false);
+
+    // 3. Validate group_list shape
+    OP_CHECK_IF(!ValidateGroupListShape(contex, eFromW), 
+                OP_LOGE(contex->GetNodeName(), "ValidateGroupListShape failed."), return false);
+
+    // 4. Validate row_index shape
+    OP_CHECK_IF(!ValidateRowIndexShape(contex, mSize), 
+                OP_LOGE(contex->GetNodeName(), "ValidateRowIndexShape failed."), return false);
+
+    // 5. Validate logit shape
+    OP_CHECK_IF(!ValidateLogitShape(contex, mSize), 
+                OP_LOGE(contex->GetNodeName(), "ValidateLogitShape failed."), return false);
+
+    // 6. Validate bias shape
+    OP_CHECK_IF(!ValidateBiasShape(contex, eFromW, nSize), 
+                OP_LOGE(contex->GetNodeName(), "ValidateBiasShape failed."), return false);
+
+    // Calculate CeilDiv(K, 64) for scale validation
+    int64_t kCeilDiv64 = (kSize + MX_SCALE_BLOCK_SIZE - 1) / MX_SCALE_BLOCK_SIZE;
+
+    // 7. Validate scale shape
+    OP_CHECK_IF(!ValidateScaleShape(contex, eFromW, nSize, kCeilDiv64), 
+                OP_LOGE(contex->GetNodeName(), "ValidateScaleShape failed."), return false);
+
+    // 8. Validate pertoken_scale shape
+    OP_CHECK_IF(!ValidatePertokenScaleShape(contex, mSize, kCeilDiv64), 
+                OP_LOGE(contex->GetNodeName(), "ValidatePertokenScaleShape failed."), return false);
 
     return true;
 }
@@ -522,63 +564,82 @@ bool SetMxA8W4NzAttrs(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
     return true;
 }
 
-bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
+// Helper: Set w format in input params
+static bool SetWFormat(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
     auto wDesc = contex->GetInputDesc(W_INDEX);
     OP_CHECK_IF(wDesc == nullptr, OP_LOGE(contex->GetNodeName(), "Input wDesc is nullptr."), return false);
     inputParams.wFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
+    return true;
+}
 
+// Helper: Extract M and K from x shape
+static bool ExtractXDimensions(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
     auto xStorageShape = contex->GetInputShape(X_INDEX);
     OP_CHECK_IF(xStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input xStorageShape is nullptr."), return false);
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
     uint64_t xDimNum = static_cast<uint64_t>(xShape.GetDimNum());
     inputParams.mSize = xShape.GetDim(xDimNum - LAST_SECOND_DIM_INDEX);
     inputParams.kSize = xShape.GetDim(xDimNum - LAST_FIRST_DIM_INDEX);
+    return true;
+}
 
+// Helper: Extract E, N from w shape
+static bool ExtractWDimensions(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
     auto wStorageShape = contex->GetInputShape(W_INDEX);
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input wStorageShape is nullptr."), return false);
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
 
-    // For FRACTAL_NZ: nSize should come from StorageShape [E, N, K]
-    // For ND: nSize comes from OriginalShape [E, N, K]
-    auto wFormat = inputParams.wFormat;
-    // GetPrimaryFormat returns the format value masked with 0xFF
-    // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
-    
-    if (wFormat == ge::FORMAT_FRACTAL_NZ || wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
-        // StorageShape is 3D: [E, N, K], get N from dim 1
-        const gert::Shape &wStorageShapeActual = wStorageShape->GetStorageShape();
-        inputParams.nSize = wStorageShapeActual.GetDim(1);
+    if (inputParams.wFormat == ge::FORMAT_FRACTAL_NZ || inputParams.wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
+        const gert::Shape &wStorage = wStorageShape->GetStorageShape();
+        inputParams.nSize = wStorage.GetDim(1);
     } else {
         uint32_t wDimNum = static_cast<uint32_t>(wShape.GetDimNum());
         inputParams.nSize = wShape.GetDim(wDimNum - LAST_SECOND_DIM_INDEX);
     }
     inputParams.groupNum = wShape.GetDim(0);
+    return true;
+}
 
+// Helper: Set bias info
+static void SetBiasInfo(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
     auto biasDesc = contex->GetOptionalInputDesc(BIAS_INDEX);
-    if (biasDesc != nullptr) {
-        // Try GetOptionalInputShape first (for provided inputs including empty shapes)
-        auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
-        // Check if shape is valid and not empty
-        if (biasStorageShape != nullptr) {
-            const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
-            // Consider bias present only if shape is not empty (0 dimensions)
-            inputParams.hasBias = (biasShape.GetDimNum() > 0);
-        } else {
-            inputParams.hasBias = false;
-        }
-    } else {
+    if (biasDesc == nullptr) {
         inputParams.hasBias = false;
+        return;
     }
-    
+    auto biasStorageShape = contex->GetOptionalInputShape(BIAS_INDEX);
+    if (biasStorageShape == nullptr) {
+        inputParams.hasBias = false;
+        return;
+    }
+    const gert::Shape &biasShape = biasStorageShape->GetOriginShape();
+    inputParams.hasBias = (biasShape.GetDimNum() > 0);
+}
+
+// Helper: Set shared input info
+static bool SetSharedInputInfo(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
     auto sharedInputDesc = contex->GetOptionalInputDesc(SHARE_INPUT_INDEX);
-    if (sharedInputDesc != nullptr) {
-        auto sharedInputStorageShape = contex->GetOptionalInputShape(SHARE_INPUT_INDEX);
-        OP_CHECK_IF(sharedInputStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input sharedInputStorageShape is nullptr."), return false);
-        inputParams.sharedInputLen = sharedInputStorageShape->GetOriginShape().GetDim(0);
-    } else {
+    if (sharedInputDesc == nullptr) {
         inputParams.sharedInputLen = 0;
         inputParams.residualScale = 0.0f;
+        return true;
     }
+    auto sharedInputStorageShape = contex->GetOptionalInputShape(SHARE_INPUT_INDEX);
+    OP_CHECK_IF(sharedInputStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input sharedInputStorageShape is nullptr."), return false);
+    inputParams.sharedInputLen = sharedInputStorageShape->GetOriginShape().GetDim(0);
+    return true;
+}
+
+bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& inputParams) {
+    OP_CHECK_IF(!SetWFormat(contex, inputParams), 
+                OP_LOGE(contex->GetNodeName(), "SetWFormat failed."), return false);
+    OP_CHECK_IF(!ExtractXDimensions(contex, inputParams), 
+                OP_LOGE(contex->GetNodeName(), "ExtractXDimensions failed."), return false);
+    OP_CHECK_IF(!ExtractWDimensions(contex, inputParams), 
+                OP_LOGE(contex->GetNodeName(), "ExtractWDimensions failed."), return false);
+    SetBiasInfo(contex, inputParams);
+    OP_CHECK_IF(!SetSharedInputInfo(contex, inputParams), 
+                OP_LOGE(contex->GetNodeName(), "SetSharedInputInfo failed."), return false);
     return true;
 }
 

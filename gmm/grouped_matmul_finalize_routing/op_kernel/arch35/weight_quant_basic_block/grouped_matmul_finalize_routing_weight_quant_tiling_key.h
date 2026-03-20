@@ -22,9 +22,9 @@ namespace GroupedMatmulFinalizeRoutingArch35WeightQuantTiling {
 
 ASCENDC_TPL_ARGS_DECL(GroupedMatmulFinalizeRouting,
                       ASCENDC_TPL_UINT_DECL(ATRANS, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 0),
-                      ASCENDC_TPL_UINT_DECL(BTRANS, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 1), );
+                      ASCENDC_TPL_UINT_DECL(BTRANS, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 0, 1), );
 
 ASCENDC_TPL_SEL(ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(ATRANS, ASCENDC_TPL_UI_LIST, 0),
-                                     ASCENDC_TPL_UINT_SEL(BTRANS, ASCENDC_TPL_UI_LIST, 1), ));
+                                     ASCENDC_TPL_UINT_SEL(BTRANS, ASCENDC_TPL_UI_LIST, 0, 1), ));
 } // namespace GMMFinalizeRoutingArch35Tiling
 #endif
