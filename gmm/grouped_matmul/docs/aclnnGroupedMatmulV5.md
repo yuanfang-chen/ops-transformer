@@ -674,8 +674,8 @@ aclnnStatus aclnnGroupedMatmulV5(
       - weight仅支持3维Tensor，Shape为（E，K，N）
       - weight的数据格式为ND时，要求n为8的整数倍。
       - 支持perchannel和pergroup量化。perchannel场景的scale的shape需为$[E, N]$，pergroup场景需为$[E, G, N]$。
-      - pergroup场景下，$G$必须要能整除$k$，且$k/G$需为偶数。
-      - 开启右矩阵NZ转置后，$k/G$必须按照64对齐。
+      - pergroup场景下，$G$必须要能整除$K$，且$k/G$需为偶数。
+      - 开启右矩阵NZ转置后，$K/G$必须按照64对齐， K按照64对齐， N按照16对齐。
     </details>
 
     <a id="非量化场景约束"></a>
