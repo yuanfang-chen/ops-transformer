@@ -270,7 +270,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                     return ACLNN_ERR_INNER;
                 }
                 desc.remoteRank = dstRank;
-                desc.channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+                desc.channelProtocol = commLink[best].linkAttr.linkProtocol;
                 desc.notifyNum = mc2Context.epRankSize;
 
                 uint32_t best = 0;
