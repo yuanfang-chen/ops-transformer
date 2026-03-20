@@ -27,7 +27,7 @@ constexpr uint32_t HCCL_COMM_LAYERS_MTE_CCU = 1; // 当走MTE或者CCU通信时�
 
 static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle) {
     OP_LOGD("Start to get HCCL communication handle");
-    auto ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    auto ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle); // 获取HCCL通信句柄
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Communication handle failed groupEp is:%s", groupEp);
         return ACLNN_ERR_INNER;
@@ -52,14 +52,14 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
         return ACLNN_ERR_INNER;
     }
     uint32_t linksIndex = 0;
-    while(linksIndex < netLinkNum) {
-        if (linksList[linksIndex].linkAttr.linkProtocol == protocol) {
+    while(linksIndex < netLinkNum) { // 遍历组网支持的协议
+        if (linksList[linksIndex].linkAttr.linkProtocol == protocol) { // 如果于目标协议相同返回对应的link
             links = &linksList[linksIndex];
             break;
         }
         linksIndex++;
     }
-    if (linksIndex == netLinkNum) {
+    if (linksIndex == netLinkNum) { // 遍历完没有找到匹配的协议
         OP_LOGE(ACLNN_ERR_INNER, "Failed to obtain communication handle: No matching protocol \
                 found in the connection configuration");
         return ACLNN_ERR_INNER;
@@ -107,9 +107,9 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
         uint32_t channelId = channelIndex > srcRankId ? channelIndex - 1 : channelIndex; // 通道id,比本卡Id大的卡Id全部左移一位
         aclnnRet = GetHcclCommLink(hcclHandle, netLayers, srcRankId, dstRankId, links); // 遍历组网支持的所有通信协议
         CHECK_RET(aclnnRet == ACLNN_SUCCESS, aclnnRet);
-        channelDesc[channelId].channelProtocol = protocol;
-        channelDesc[channelId].remoteRank = dstRankId;
-        channelDesc[channelId].notifyNum = channelNum;
+        channelDesc[channelId].channelProtocol = protocol; // 通信协议
+        channelDesc[channelId].remoteRank = dstRankId; // 目标rank id
+        channelDesc[channelId].notifyNum = channelNum; // 通信的notify数量
         channelDesc[channelId].localEndpoint = links.srcEndpointDesc;
         channelDesc[channelId].remoteEndpoint = links.dstEndpointDesc;
     }
@@ -207,7 +207,7 @@ aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     int64_t strides[1] = {1};
     mc2Context = aclCreateTensor(
         shap, 1, aclDataType::ACL_INT32, strides, 0, 
-        aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
+        aclFormat::ACL_FORMAT_ND, shap, 1, ctx); // 创建mc2Context Tensor
     if(mc2Context == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "Create Mc2Context Tensor failed.");
         return ACLNN_ERR_INNER;
@@ -216,8 +216,9 @@ aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, int64_t& hcclBuffSize)
+static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, int64_t& hcclBuffSize) 
 {
+    // 多轮次调用的时候，host侧没有保存mc2contxet结构体的数据，需要重新获取hccl buffer 大小
     void * tempBuffer = nullptr;
     auto hcclRet = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &hcclBuffSize);
     if (hcclRet != HCCL_SUCCESS) {
