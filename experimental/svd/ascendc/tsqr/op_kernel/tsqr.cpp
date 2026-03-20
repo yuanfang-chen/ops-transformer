@@ -340,8 +340,8 @@ __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm
     int coreIdx = AscendC::GetBlockIdx();
     int numCores = GetBlockNum(); // cube cores
     int processedBlocks = numBlocksLeft;
-    if (processedBlocks < numCores) {
-        numCores = processedBlocks; // don't use other cores
+    if (numBlocksLeft < numCores) {
+        numCores = numBlocksLeft; // don't use other cores
     }
     if (coreIdx < numCores) {
         int perCore = processedBlocks / numCores;
@@ -392,7 +392,6 @@ __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm
     }
     PipeBarrier<PIPE_ALL>();
     if ((processedBlocks % 2 == 1) && (!hasTail) && firstTail) {
-        // printf("Was transfered once => now firstTail is False!!!\n");
         firstTail = false;
     }
 }

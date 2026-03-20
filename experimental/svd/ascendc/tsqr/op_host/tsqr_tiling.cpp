@@ -52,7 +52,6 @@ std::pair<int, int> getTmpSize(int M, int N, int blockSize, int numLevels) {
     return { qOffset, rOffset * N * N };
 }
 
-
 ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
     auto platformInfo = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
 
