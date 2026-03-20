@@ -196,7 +196,7 @@ static aclnnStatus CreatMc2Context(const HcclComm hcclHandle, const std::string&
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
+static aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
 {
     OP_LOGD("Start to create Mc2Context Tensor");
     if(ctx == nullptr) {
