@@ -1071,6 +1071,38 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     auto retxweightnullptr = CheckNullptrForXAndweight(x1, x2);
     CHECK_RET(retxweightnullptr == ACLNN_SUCCESS, retxweightnullptr);
     auto viewShape = x2->GetViewShape();
+
+    // Debug print: transpose flags + x1/x2 shapes (view + storage).
+    auto x1ViewShapeStr = op::ToString(x1->GetViewShape());
+    auto x1StorageShapeStr = op::ToString(x1->GetStorageShape());
+    auto x2ViewShapeStr = op::ToString(x2->GetViewShape());
+    auto x2StorageShapeStr = op::ToString(x2->GetStorageShape());
+    OP_LOGI("aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, transposeX1=%d transposeX2=%d, x1 view shape=%s storage shape=%s, x2 view shape=%s storage shape=%s",
+        static_cast<int>(transposeX1), static_cast<int>(transposeX2),
+        x1ViewShapeStr.GetString(), x1StorageShapeStr.GetString(),
+        x2ViewShapeStr.GetString(), x2StorageShapeStr.GetString());
+
+    // Debug print: other tensor attrs/shapes to help locate mismatch quickly.
+    std::string scaleViewShapeStr = op::ToString(scale->GetViewShape()).GetString();
+    std::string biasViewShapeStr = op::ToString(bias->GetViewShape()).GetString();
+    std::string pertokenScaleViewShapeStr =
+        (pertokenScaleOptional != nullptr) ? op::ToString(pertokenScaleOptional->GetViewShape()).GetString() : "null";
+    std::string groupListViewShapeStr =
+        (groupList != nullptr) ? op::ToString(groupList->GetViewShape()).GetString() : "null";
+    std::string sharedInputViewShapeStr =
+        (sharedInput != nullptr) ? op::ToString(sharedInput->GetViewShape()).GetString() : "null";
+    std::string logitViewShapeStr = (logit != nullptr) ? op::ToString(logit->GetViewShape()).GetString() : "null";
+    std::string rowIndexViewShapeStr =
+        (rowIndex != nullptr) ? op::ToString(rowIndex->GetViewShape()).GetString() : "null";
+    std::string outViewShapeStr = (out != nullptr) ? op::ToString(out->GetViewShape()).GetString() : "null";
+    std::string offsetOptionalViewShapeStr =
+        (offsetOptional != nullptr) ? op::ToString(offsetOptional->GetViewShape()).GetString() : "null";
+    OP_LOGI(
+        "aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, shapes: scale=%s bias=%s offsetOptional=%s pertokenScale=%s groupList=%s sharedInput=%s logit=%s rowIndex=%s out=%s",
+        scaleViewShapeStr.c_str(), biasViewShapeStr.c_str(), offsetOptionalViewShapeStr.c_str(),
+        pertokenScaleViewShapeStr.c_str(), groupListViewShapeStr.c_str(), sharedInputViewShapeStr.c_str(),
+        logitViewShapeStr.c_str(), rowIndexViewShapeStr.c_str(), outViewShapeStr.c_str());
+
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
@@ -1122,6 +1154,19 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
                                             logit, rowIndex,  dtype};
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
+    }
+
+    // Debug print: tmpWeight final shapes + weightNzShape derived by transposeX2.
+    {
+        auto tmpWeightViewShapeStr = op::ToString(tmpWeight->GetViewShape());
+        auto tmpWeightStorageShapeStr = op::ToString(tmpWeight->GetStorageShape());
+        auto weightNzShape = GetWeightNzShape(tmpWeight, transposeX2);
+        auto weightNzShapeStr = op::ToString(weightNzShape);
+        OP_LOGI("aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, tmpWeight dtype=%s, tmpWeight view shape=%s storage shape=%s, weightNzShape=%s",
+            op::ToString(tmpWeight->GetDataType()).GetString(),
+            tmpWeightViewShapeStr.GetString(),
+            tmpWeightStorageShapeStr.GetString(),
+            weightNzShapeStr.GetString());
     }
     GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, tmpWeight, out)
         .SetScale(scale)
