@@ -137,30 +137,25 @@ void SplitCore::AcquireParam(aicpu::kernels::IncreFlashAttentionMetadataArgs *ar
 
 void SplitCore::ParamsInit()
 {
-    if (qSeqSize_ > 1U && qSeqSize_ <= 16U) {
-        gqaMtpFlag_ = true;
-    }
-
-    maxActualseq_ = qSeqSize_;
-    if (actSeqKvLenDim_ > 0) {
-        maxActualseq_ = actSeqQLen_[0];
-
-        for (int64_t i = 1; i < actSeqKvLenDim_; ++i) {
-            int32_t tmp = (isAccumSeqKv_) ? actSeqKvLen_[i] - actSeqKvLen_[i - 1] : actSeqKvLen_[i];
-            if (maxActualseq_ < tmp) {
-                maxActualseq_ = tmp;
-            }
-            if (tmp != actSeqKvLen_[0]) {
-                isSameActualseq_ = false;
-            }
-        }
-    }
-
     groupNum_ = qHeadNum_ / kvHeadNum_;
     groupSplitSize_ = groupNum_;
     s1SplitSize_ = qSeqSize_;
     sMax_ = maxBlockNumPerBatch_ * blockSize_;
     seqSize_ = sMax_;
+
+    if (qSeqSize_ > 1U && qSeqSize_ <= 16U) {
+        gqaMtpFlag_ = true;
+    }
+
+    maxActualseq_ = sMax_;
+    if (actSeqKvLenDim_ > 0) {
+        for (int64_t i = 1; i < actSeqKvLenDim_; ++i) {
+            int32_t tmp = (isAccumSeqKv_) ? actSeqKvLen_[i] - actSeqKvLen_[i - 1] : actSeqKvLen_[i];
+            if (tmp != actSeqKvLen_[0]) {
+                isSameActualseq_ = false;
+            }
+        }
+    }
 }
 
 bool SplitCore::BalanceSchedule() 
