@@ -177,28 +177,28 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     <tr>
     <td>gmmXQuantMode</td>
     <td>输入</td>
-    <td>路由专家左矩阵的量化方式。</td>
+    <td>路由专家左矩阵的量化方式，当前版本仅支持1。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>gmmWeightQuantMode</td>
     <td>输入</td>
-    <td>路由专家右矩阵的量化方式。</td>
+    <td>路由专家右矩阵的量化方式，当前版本仅支持1。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>mmXQuantMode</td>
     <td>输入</td>
-    <td>共享专家左矩阵的量化方式。</td>
+    <td>共享专家左矩阵的量化方式，当前版本仅支持1。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>mmWeightQuantMode</td>
     <td>输入</td>
-    <td>共享专家右矩阵的量化方式。</td>
+    <td>共享专家右矩阵的量化方式，当前版本仅支持1。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
