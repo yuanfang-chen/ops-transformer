@@ -54,18 +54,18 @@ int Init(int32_t deviceId, aclrtStream* stream) {
 template <typename T>
 int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                     aclDataType dataType, aclTensor** tensor) {
-    auto size = GetShapeSize(shape) * sizeof(T);
+    auto size = GetShapeSize(shape) * aclDataTypeSize(dataType);
     // 调用aclrtMalloc申请device侧内存
     auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
-    // 调用aclrtMalloc申请host侧内存
-    ret = aclrtMalloc(hostAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
+    // 调用aclrtMallocHost申请host侧内存
+    ret = aclrtMallocHost(hostAddr, size);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMallocHost failed. ERROR: %d\n", ret); return ret);
     // 调用aclCreateTensor接口创建aclTensor
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, nullptr, 0, aclFormat::ACL_FORMAT_ND,
                               shape.data(), shape.size(), *deviceAddr);
     // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
-    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, GetShapeSize(shape)*aclDataTypeSize(dataType), ACL_MEMCPY_HOST_TO_DEVICE);
+    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, size, ACL_MEMCPY_HOST_TO_DEVICE);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
     return 0;
 }
@@ -73,18 +73,18 @@ int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hos
 template <typename T>
 int CreateAclTensorNZ(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                     aclDataType dataType, aclTensor** tensor) {
-    auto size = GetShapeSize(shape) * sizeof(T);
+    auto size = GetShapeSize(shape) * aclDataTypeSize(dataType);
     // 调用aclrtMalloc申请device侧内存
     auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
-    // 调用aclrtMalloc申请host侧内存
-    ret = aclrtMalloc(hostAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
+    // 调用aclrtMallocHost申请host侧内存
+    ret = aclrtMallocHost(hostAddr, size);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMallocHost failed. ERROR: %d\n", ret); return ret);
     // 调用aclCreateTensor接口创建aclTensor
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, nullptr, 0, aclFormat::ACL_FORMAT_FRACTAL_NZ,
                               shape.data(), shape.size(), *deviceAddr);
     // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
-    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, GetShapeSize(shape)*aclDataTypeSize(dataType), ACL_MEMCPY_HOST_TO_DEVICE);
+    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, size, ACL_MEMCPY_HOST_TO_DEVICE);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
     return 0;
 }
@@ -360,26 +360,26 @@ int main() {
     aclrtFree(dequantScaleQNopeDeviceAddr);
 
     // 8. 释放host 资源
-    aclrtFree(tokenXHostAddr);
-    aclrtFree(weightDqHostAddr);
-    aclrtFree(weightUqQrHostAddr);
-    aclrtFree(weightUkHostAddr);
-    aclrtFree(weightDkvKrHostAddr);
-    aclrtFree(rmsnormGammaCqHostAddr);
-    aclrtFree(rmsnormGammaCkvHostAddr);
-    aclrtFree(ropeSinHostAddr);
-    aclrtFree(ropeCosHostAddr);
-    aclrtFree(cacheIndexHostAddr);
-    aclrtFree(kvCacheHostAddr);
-    aclrtFree(krCacheHostAddr);
-    aclrtFree(dequantScaleXHostAddr);
-    aclrtFree(dequantScaleWDqHostAddr);
-    aclrtFree(dequantScaleWUqQrHostAddr);
-    aclrtFree(dequantScaleWDkvKrHostAddr);
-    aclrtFree(quantScaleCkvHostAddr);
-    aclrtFree(queryHostAddr);
-    aclrtFree(queryRopeHostAddr);
-    aclrtFree(dequantScaleQNopeHostAddr);
+    aclrtFreeHost(tokenXHostAddr);
+    aclrtFreeHost(weightDqHostAddr);
+    aclrtFreeHost(weightUqQrHostAddr);
+    aclrtFreeHost(weightUkHostAddr);
+    aclrtFreeHost(weightDkvKrHostAddr);
+    aclrtFreeHost(rmsnormGammaCqHostAddr);
+    aclrtFreeHost(rmsnormGammaCkvHostAddr);
+    aclrtFreeHost(ropeSinHostAddr);
+    aclrtFreeHost(ropeCosHostAddr);
+    aclrtFreeHost(cacheIndexHostAddr);
+    aclrtFreeHost(kvCacheHostAddr);
+    aclrtFreeHost(krCacheHostAddr);
+    aclrtFreeHost(dequantScaleXHostAddr);
+    aclrtFreeHost(dequantScaleWDqHostAddr);
+    aclrtFreeHost(dequantScaleWUqQrHostAddr);
+    aclrtFreeHost(dequantScaleWDkvKrHostAddr);
+    aclrtFreeHost(quantScaleCkvHostAddr);
+    aclrtFreeHost(queryHostAddr);
+    aclrtFreeHost(queryRopeHostAddr);
+    aclrtFreeHost(dequantScaleQNopeHostAddr);
 
     if (workspaceSize > static_cast<uint64_t>(0)) {
         aclrtFree(workspaceAddr);
