@@ -2319,7 +2319,7 @@ bool PromptFlashAttentionTiling::CheckPATypeAndShape(ContextParamsForPFATiling& 
 bool PromptFlashAttentionTiling::CheckAttenMaskShape(ContextParamsForPFATiling& contextKeyParams,
     const int32_t* sparseMode,
     const gert::StorageShape* attenMaskShape,
-    const uint32_t sQ, const uint32_t sK, const uint32_t batchSize) {
+    const uint64_t sQ, const uint64_t sK, const uint32_t batchSize) {
     if (contextKeyParams.fromTilingSink != 0U) {
         return true;
     }
@@ -2415,7 +2415,7 @@ bool PromptFlashAttentionTiling::CheckPAAntiquantSupportScenarios(ContextParamsF
 }
 
 bool PromptFlashAttentionTiling::CheckPerchannelAntiquantParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape, const gert::StorageShape* antiquantOffsetShape,
-        const uint32_t n, const uint32_t d, const uint32_t h, uint32_t paramFirstDim) const {
+        const uint64_t n, const uint32_t d, const uint64_t h, uint32_t paramFirstDim) const {
     OP_CHECK_IF(antiquantScaleShape == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "antiquant scale is nullptr"), return false);
     if ((inputLayout == InputLayout::BNSD) || (inputLayout == InputLayout::NSD)) {
         OP_CHECK_IF(antiquantScaleShape->GetStorageShape().GetDimNum() != 4,
@@ -4095,7 +4095,7 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
         "key value consistency check failed!"),
         return ge::GRAPH_FAILED);
 
-    const int32_t* numKeyValueHeads = contextKeyParams.numKeyValueHeads;
+    const int64_t* numKeyValueHeads = contextKeyParams.numKeyValueHeads;
     if (!SetTilingHeadNumRatio(contextKeyParams, n, numKeyValueHeads, tilingData)) {
         return ge::GRAPH_FAILED;
     }
