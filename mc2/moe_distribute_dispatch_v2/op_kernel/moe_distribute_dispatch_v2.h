@@ -1279,7 +1279,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Loca
             winOffset = index % epWorldSize_ * moeExpertNumPerRank_ + index / epWorldSize_;
         }
         GM_ADDR wAddr = (__gm__ uint8_t*)(windowGM_) + winOffset * expertPerSizeOnWin_;
-        GlobalTensor<ExpandXOutType> tokGlobal, expandXOutGlobal;
+        GlobalTensor<XOutType> tokGlobal, expandXOutGlobal;
         tokGlobal.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
         for (uint32_t j = 0; j < count; j++) {
             tokGlobal.SetGlobalBuffer((__gm__ XOutType *)(wAddr + j * hAlignWinSize_));
