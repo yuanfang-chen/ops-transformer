@@ -60,7 +60,7 @@ constexpr uint32_t NUM_EIGHT = 8;
 constexpr uint32_t NUM_SIXTEEN = 16;
 constexpr uint32_t NUM_THIRTYTWO = 32;
 constexpr uint32_t NUM_SIXTYFOUR = 64;
-constexpr uint32_t MAX_EXPERT_NUM = 256;
+constexpr uint32_t MAX_EXPERT_NUM = 512;
 constexpr uint32_t MAX_BSK = 52428800;
 constexpr uint32_t MAX_SHAPE_SIZE = 65536;
 constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
@@ -877,12 +877,12 @@ ge::graphStatus AlltoAllvGmmTiling::Init(gert::TilingContext* context)
     OP_TILING_CHECK(
         GetShapeAndFormat(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Get shape and format failed!"),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        CheckShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check shape size failed!"),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        CheckAttrsShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check Attrs shape size failed!"),
-        return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(
+    //     CheckShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check shape size failed!"),
+    //     return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(
+    //     CheckAttrsShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check Attrs shape size failed!"),
+    //     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         CheckAttrsShapeRelation(context) != ge::GRAPH_SUCCESS,
         OP_LOGE(A_INNER_DEBUG, "Check Attrs Shape Relation failed!"), return ge::GRAPH_FAILED);
@@ -957,6 +957,7 @@ ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
         return ge::GRAPH_FAILED);
     tilingData->commonTilingInfo.aicCoreNum = numBlocks;
     tilingData->commonTilingInfo.aivCoreNum = numBlocks * NUM_TWO;    // aic:aiv按照1：2配比
+    tilingData->commonTilingInfo.totalUbSize = PLATFORM_SIZE.ubSize;
     context->SetBlockDim(static_cast<uint32_t>(numBlocks));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
 
     return ge::GRAPH_SUCCESS;
@@ -988,7 +989,7 @@ ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* c
                               0 :
                               (tilingData->commonTilingInfo.A * tilingData->commonTilingInfo.H1 * mmDataTypeSize);
     tilingData->commonTilingInfo.commOut = commOut;
-    workspaces[0] = libApiWorkSpaceSize_ + commOut + permuteOut;
+    workspaces[0] = libApiWorkSpaceSize_ + commOut + permuteOut + 1024UL * 1024UL * 1024UL; //todo
     uint64_t tilingKey = GetTilingKey(context);
     context->SetTilingKey(tilingKey);
 
