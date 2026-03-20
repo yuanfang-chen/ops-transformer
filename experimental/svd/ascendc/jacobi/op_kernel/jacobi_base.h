@@ -22,7 +22,10 @@
 #define PRINT_VAL(X)
 #endif
 
-
+#define FAST_SET_WAIT_FLAG(EVENT_NAME, SET_WAIT_UNITS) event_t EVENT_NAME = \
+                    static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::SET_WAIT_UNITS));\
+                    SetFlag<HardEvent::SET_WAIT_UNITS>(EVENT_NAME);\
+                    WaitFlag<HardEvent::SET_WAIT_UNITS>(EVENT_NAME)
 
 #define MIN(A,B) (((A)<(B))?(A):(B))
 
@@ -32,48 +35,241 @@
 
 namespace SVD {
 
-template<typename T>
-constexpr __aicore__ T GET_MIN_BLOCK_SIZE()
-{
-    constexpr uint32_t MIN_BLOCK_SIZE = 32;
-    return static_cast<T>(MIN_BLOCK_SIZE);
-}
+    template<typename T>
+    constexpr __aicore__ T GET_MIN_BLOCK_SIZE()
+    {
+        constexpr uint32_t MIN_BLOCK_SIZE = 32;
+        return static_cast<T>(MIN_BLOCK_SIZE);
+    }
 
-template<typename SourceType, typename ResultType = uint8_t>
-constexpr __aicore__ ResultType SMALL_MASK_NUM_ELEMENTS()
-{
-    return static_cast<ResultType>(GET_MIN_BLOCK_SIZE<size_t>() / sizeof(SourceType));
-}
-
-
-template<typename T>
-constexpr __aicore__ T GET_MAX_BLOCK_SIZE()
-{
-    constexpr uint32_t MIN_BLOCK_SIZE = 256;
-    return static_cast<T>(MIN_BLOCK_SIZE);
-}
-
-template<typename SourceType, typename ResultType = uint8_t>
-constexpr __aicore__ uint8_t BIG_MASK_NUM_ELEMENTS()
-{
-    return static_cast<ResultType>(GET_MAX_BLOCK_SIZE<size_t>() / sizeof(SourceType));
-}
+    template<typename SourceType, typename ResultType = uint8_t>
+    constexpr __aicore__ ResultType SMALL_MASK_NUM_ELEMENTS()
+    {
+        return static_cast<ResultType>(GET_MIN_BLOCK_SIZE<size_t>() / sizeof(SourceType));
+    }
 
 
-using namespace AscendC;
-template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
-class JacobiBase {
-private:
-    struct RotateMaskInfo;
-public:
+    template<typename T>
+    constexpr __aicore__ T GET_MAX_BLOCK_SIZE()
+    {
+        constexpr uint32_t MIN_BLOCK_SIZE = 256;
+        return static_cast<T>(MIN_BLOCK_SIZE);
+    }
 
-    __aicore__ inline JacobiBase(TPipe* pipe)
+    template<typename SourceType, typename ResultType = uint8_t>
+    constexpr __aicore__ uint8_t BIG_MASK_NUM_ELEMENTS()
+    {
+        return static_cast<ResultType>(GET_MAX_BLOCK_SIZE<size_t>() / sizeof(SourceType));
+    }
+
+    using namespace AscendC;
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    class JacobiBase {
+    private:
+        struct RotateMaskInfo;
+    public:
+
+        __aicore__ inline JacobiBase(TPipe* pipe);
+        __aicore__ inline void Init(__gm__ uint8_t* a, __gm__ uint8_t* s,
+            __gm__ uint8_t* u, __gm__ uint8_t* v, __gm__ uint8_t* workspace,
+            const JMTilingData* tilingData);
+        __aicore__ inline void Process();
+
+    private:
+        __aicore__ inline void AllocMem();
+
+        __aicore__ inline void ProcessImpl();
+
+        __aicore__ inline void JacobiProcess();
+
+        __aicore__ inline void LocalPhaseProcess(const uint16_t leftGlobalSetId, const uint16_t rightGlobalSetId, 
+                const bool isSaveUV, const bool isZeroStage, const bool isZeroIter);
+
+        __aicore__ inline void GetLeftRightGlobalSetIds(uint16_t& dstLeftGlobalSetId, uint16_t& dstRightGlobalSetId,
+            const uint32_t phaseID, const uint32_t numPhases, const uint32_t coreID, const uint32_t numCores);
+
+        __aicore__ inline void ApplyGlobalSet(const uint16_t lBegin, const uint16_t lEnd, const uint16_t rBegin,
+            const uint16_t rEnd, const bool isFinalIteration=false);
+
+        __aicore__ inline void ApplyGlobalSet(const uint16_t sBegin, const uint16_t sEnd, const bool isFirstLoadData=false);
+
+        __aicore__ inline void ApplyBucket(const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& leftNorms, 
+            const LocalTensor<float>& rightBucketSpace, const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, 
+            const uint32_t rightBucketSize, const bool calculateRightNorms);
+
+        template<typename T = uint32_t>
+        __aicore__ inline T  ScalarLog2(const T val);
+
+        template<typename T>
+        __aicore__ inline void ExtendBucketSize(T& extendedBucketSize, T& aOffsetNumStages, const T bucketSize);
+
+        __aicore__ inline void ApplyBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& norms, 
+                const uint32_t bucketSize, const bool calculateNorms);
+
+        template<bool BUCKET_1_TARGET = true, bool NEED_CALCULATE_RIGHT_NORM = false>
+        __aicore__ inline void CalculateDotProducts(const LocalTensor<float>& sqNormsBucket1, const LocalTensor<float>& sqNormsBucket2,
+                const LocalTensor<float>& dotProducts, const LocalTensor<float>& bucket1, const LocalTensor<float>& norms1,
+                const LocalTensor<float>& bucket2, const LocalTensor<float>& norms2, const RotateMaskInfo& maskInfo);
+
+        __aicore__ inline void CalcNorms(const LocalTensor<float>& norms1, const LocalTensor<float>& norms2, 
+                const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2, const RotateMaskInfo& maskInfo, 
+                const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& tmpBucket2, const LocalTensor<float>& dotProductTmp1, 
+                const LocalTensor<float>& dotProductTmp2);
+
+        __aicore__ inline void CalculateRightNormAndDotProductForDoubleBucketsCase(const LocalTensor<float>& dstDotProduct, 
+                const LocalTensor<float>& dstRightNorms, const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2, 
+                const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& tmpBucket2,
+                const LocalTensor<float>& dotProductTmp1, const LocalTensor<float>& dotProductTmp2);
+
+        __aicore__ inline void CalculateDotProductForDoubleBucketCase(const LocalTensor<float>& dstDotProduct, 
+                const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2, const RotateMaskInfo& maskInfo, 
+                const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& dotProductTmp1);
+
+        __aicore__ inline void CalculateNormOfBucket(const LocalTensor<float>& dstNormVector, const LocalTensor<float>& bucket,
+                const LocalTensor<float>& tmpBucket, const LocalTensor<float>& dotProductTmp, const uint8_t(&rowIds)[sizeof(uint64_t)], 
+                const uint32_t bucketSize);
+
+        template<bool NEED_CALCULATE_NORM>
+        __aicore__ inline void CalculateDotProductsForSelfBucket(const LocalTensor<float>& sqNorms1, 
+                const LocalTensor<float>& sqNorms2, const LocalTensor<float>& dotProducts, const LocalTensor<float>& normVector, 
+                const LocalTensor<float>& bucket, const uint32_t bucketSize, const RotateMaskInfo& maskInfo);
+
+        __aicore__ inline void GatherNormVector(const LocalTensor<float>& dstNormVector, const LocalTensor<float>& srcNormVector, 
+                const uint64_t mask, const LocalTensor<float>& workLocal1, const LocalTensor<float>& workLocal2);
+
+        __aicore__ inline void GatherNormsVectorToLeftRightNorms(const LocalTensor<float>& dstSqNorms1,
+                const LocalTensor<float>& dstSqNorms2, const LocalTensor<float>& srcNorms,const RotateMaskInfo& maskInfo, 
+                const LocalTensor<float>& workLocal1, const LocalTensor<float>& workLocal2);
+
+        
+        __aicore__ inline void UpdateSquareNorms(const LocalTensor<float>& leftSquareNorms, 
+                const LocalTensor<float>& rightSquareNorms, const LocalTensor<float>& dotProducts,  const LocalTensor<float>& sinTensor, 
+                const LocalTensor<float>& cosTensor);
+
+        template<bool LEFT_TARGET = true, bool NEED_CALCULATE_RIGHT_NORM = false>
+        __aicore__ inline void RotateBucket(const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& rightBucketSpace, 
+                const LocalTensor<float>& leftNorms, const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, 
+                const uint32_t rightBucketSize, const RotateMaskInfo& maskInfo);
+
+        template<bool LEFT_TARGET>
+        __aicore__ inline void RotateNorms(const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms, 
+                const LocalTensor<float>& dotProducts, const LocalTensor<float>& leftNorms, const LocalTensor<float>& rightNorms, 
+                const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo);
+
+        //Self bucket rotate
+        template<bool NEED_CALCULATE_NORM>
+        __aicore__ inline void RotateSelfBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, 
+                const uint32_t bucketSize, const RotateMaskInfo& maskInfo);
+
+        __aicore__ inline void RotateSelfNorms(const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms, 
+                const LocalTensor<float>& dotProducts, const LocalTensor<float>& normVector, const LocalTensor<float>& sinTensor, 
+                const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo);
+
+        __aicore__ inline void ApplySinCosForRowSet(const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2,
+                const uint32_t bucketSize, const LocalTensor<float>& sinBroadcastedValues, 
+                const LocalTensor<float>& cosBroadcastedValues, const LocalTensor<float>& calcTmpTensor1, 
+                const LocalTensor<float>& calcTmpTensor2, const RotateMaskInfo& maskInfo, const uint32_t rowLength, 
+                const uint8_t numRepeats);
+
+        template<bool BUCKET_1_TARGET = true>
+        __aicore__ inline void  ApplySinCos(const LocalTensor<float>& bucket1, const uint32_t bucket1Size, 
+                const LocalTensor<float>& bucket2, const uint32_t bucket2Size, const LocalTensor<float>& sinTensor, 
+                const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo);
+
+        template<bool BUCKET_1_TARGET = true>
+        __aicore__ inline void  ApplySinCosForSelfBucket(const LocalTensor<float>& bucket, const uint32_t bucketSize, 
+                const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo);
+
+        __aicore__ inline void InitV(const LocalTensor<float>& bucketSpace, const uint32_t bucketBegin, const uint32_t bucketEnd);
+
+        __aicore__ inline void LoadBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, 
+                const uint32_t bucketBegin, const uint32_t bucketEnd, const bool isFirstLoadDataLocal);
+        
+        __aicore__ inline void SaveBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, 
+                const uint32_t bucketBegin, const uint32_t bucketEnd);
+
+        template<bool IS_LEFT_BUCKET_SAVING>
+        __aicore__ inline void SaveOutputs(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, 
+                const uint32_t bucketBegin, const uint32_t bucketEnd);
+
+        __aicore__ inline void CalculateSinCos(const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms,
+                const LocalTensor<float>& dotProducts, const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor);
+        
+    private:
+        //constexpr functions
+        template<typename DST_TYPE>
+        constexpr __aicore__ DST_TYPE VEC_INSTRUCTION_NUM()
+        {
+            return static_cast<DST_TYPE>(VEC_INSTRUCTION_SET_SIZE / sizeof(float));
+        }
+    private:
+        static constexpr float NEAR_ZERO_VALUE = 0.0000000001f;
+    private:
+        struct RotateMaskInfo
+        {
+            uint8_t leftRowsIds[sizeof(uint64_t)];
+            uint8_t rightRowsIds[sizeof(uint64_t)];
+            uint64_t normUpdateMask = 0;
+            union
+            {
+                uint64_t leftMaskU64Val;
+                uint8_t leftMaskU8Val[sizeof(uint64_t)];
+            };
+            union
+            {
+                uint64_t rightMaskU64Val;
+                uint8_t rightMaskU8Val[sizeof(uint64_t)];
+            };
+            uint8_t numPairs = 0;
+            uint8_t leftBucketSize = 0;
+            uint8_t rightBucketSize = 0;
+        };
+        static constexpr uint64_t INTERNAL_SYNC_ALL = 0x1;
+        TPipe* pipe_;
+        GlobalTensor<AType> aGm;
+        GlobalTensor<AType> aTmpGm;
+        GlobalTensor<AType> sGm;
+        GlobalTensor<AType> uGm;
+        GlobalTensor<AType> vGm;
+        uint32_t coreIdx, numAvailableVectorCores;
+        uint32_t globSetMaxSize, globSetMinSize, numGlobalSetsWithMaxSize, numGlobalSetsWithMinSize, globSetMinOffset;
+        uint32_t numIterations, numStages, numPhases, numGlobalSets, leftGlobalSetBegin, leftGlobalSetEnd, rightGlobalSetBegin, rightGlobalSetEnd;
+        uint32_t mSize, nSize, nSizeAligned, uMSize, uNSize, uNSizeAligned, vMSize, vNSize, vNSizeAligned, sMNSize, sMNSizeAligned, recordSize, recordSizeAligned;
+        int32_t batchSize;
+        uint64_t batchOffsetV,batchOffsetU, batchOffsetS, batchOffsetI, batchOffsetTmp;
+        uint32_t rowSize, rowSizeAligned, rowMask, rowRepeatsNum, rowTail, maxBucketSize, ubSize, uRepeatsNum, uTailSize, tmpRowSize, tmpRowSizeAligned;
+        TBuf<TPosition::VECCALC> ubBuf;
+        LocalTensor<uint8_t> ubMemory;
+        LocalTensor<int32_t> arithmProgressive;
+        LocalTensor<float>  tmpMemSpace, tmpMaskSpace, bucketSpace1, bucketSpace2, bucketSpace3;
+        //Constant tensors
+        LocalTensor<float> tmpBlock1, tmpBlock2, tmpBlock3, tmpBlock4, tmpBlock5,
+            tmpBlock6, tmpBlock7, tmpBlock8, tmpBlock9, tmpBlock10, tmpBlock11, tmpBlock12, tmpBlock13,
+            tmpBlock14, tmpBlock15, tmpBlock16, tmpBlock17, tmpBlock18, tmpBlock19, tmpBlock20, tmpBlock21,
+            tmpBlock22, tmpBlock23, tmpBlock24, tmpBlock25, tmpBlock26, tmpBlock27, tmpBlock28, tmpBlock29,
+            tmpBlock30, tmpBlock31, tmpBlock32, tmpBlockSpace;
+        bool needSort;
+    };
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::JacobiBase(TPipe* pipe)
     {
         pipe_ = pipe;
     }
 
-    __aicore__ inline void Init(__gm__ uint8_t* a, __gm__ uint8_t* s,
-        __gm__ uint8_t* u, __gm__ uint8_t* v, __gm__ uint8_t* workspace,
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::Process()
+    {
+        if (g_coreType == AIC) {
+            return;
+        }
+        ProcessImpl();
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::Init(
+        __gm__ uint8_t* a, __gm__ uint8_t* s, __gm__ uint8_t* u, __gm__ uint8_t* v, __gm__ uint8_t* workspace,
         const JMTilingData* tilingData)
     {
         coreIdx = GetBlockIdxImpl();
@@ -124,121 +320,25 @@ public:
         ubMemory = ubBuf.Get<uint8_t>();
     }
 
-    __aicore__ inline void Process()
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::AllocMem()
     {
-        if (g_coreType == AIC) {
-            return;
-        }
-        ProcessImpl();
-    }
-private:
-    __aicore__ inline void AllocMem()
-    {
+#define ALLOC_TMP_BLOCKS1_16 GTB(1) GTB(2) GTB(3) GTB(4) GTB(5) GTB(6) GTB(7) GTB(8) GTB(9) GTB(10)\
+                             GTB(11) GTB(12) GTB(13)  GTB(14) GTB(15) GTB(16)
+#define ALLOC_TMP_BLOCKS17_32 GTB(17) GTB(18) GTB(19) GTB(20) GTB(21) GTB(22) GTB(23) GTB(24) GTB(25) GTB(26)\
+                             GTB(27) GTB(28) GTB(29)  GTB(30) GTB(31) GTB(32)
+#define GTB(ID) tmpBlock##ID = ubBuf.GetWithOffset<float>(32 * MIN_BLOCK_ELEMENTS_NUM, offsetPtr);\
+                            offsetPtr += MIN_BLOCK_SIZE;
+
+    
         uint32_t offsetPtr = 0;
 
         //Small blocks for cos/sin vectorisation
         constexpr uint8_t MIN_BLOCK_ELEMENTS_NUM = SMALL_MASK_NUM_ELEMENTS<float>();
         constexpr uint32_t MIN_BLOCK_SIZE = GET_MIN_BLOCK_SIZE<uint32_t>();
         tmpBlockSpace = ubBuf.GetWithOffset<float>(32 * MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-
-        {
-            tmpBlock1 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock2 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock3 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock4 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock5 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock6 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock7 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock8 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock9 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock10 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock11 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock12 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock13 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock14 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock15 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock16 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock17 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock18 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock19 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock20 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock21 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock22 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock23 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock24 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock25 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock26 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock27 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock28 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock29 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock30 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock31 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-
-            tmpBlock32 = ubBuf.GetWithOffset<float>(MIN_BLOCK_ELEMENTS_NUM, offsetPtr);
-            offsetPtr += MIN_BLOCK_SIZE;
-        }
-
+        ALLOC_TMP_BLOCKS1_16
+        ALLOC_TMP_BLOCKS17_32
         uint32_t bucketElementsNum = maxBucketSize * recordSizeAligned;
         bucketSpace1 = ubBuf.GetWithOffset<float>(bucketElementsNum, offsetPtr);
         offsetPtr += bucketElementsNum * sizeof(float);
@@ -261,50 +361,35 @@ private:
         offsetPtr += tmpMaskElementsNum * sizeof(float);
     }
 
-    __aicore__ inline void ProcessImpl()
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ProcessImpl()
     {
         AllocMem();
-        Preprocess();
+        batchOffsetV = 0;
+        batchOffsetU = 0;
+        batchOffsetS = 0;
+        batchOffsetI = 0;
+        batchOffsetTmp = 0;
         JacobiProcess();
     }
 
-    __aicore__ inline void JacobiProcess()
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::JacobiProcess()
     {
         for (uint16_t iter = 0; iter < numIterations; ++iter) {
             bool isFinalIteration=(iter==numIterations-1);
+            bool isZeroIter=(iter==0);
             for (uint32_t stageID = 0; stageID < numStages; ++stageID) {
                 bool isFinalStage = (stageID==numStages-1);
+                bool isZeroStage=(stageID==0);
                 numPhases = 1 << stageID;
                 for (uint32_t phaseID = 0; phaseID < numPhases; ++phaseID) {
                     bool isFinalPhaseID = (phaseID==numPhases-1);
                     uint16_t leftGlobalSetId = 0;
                     uint16_t rightGlobalSetId = 0;
+                    bool isSaveUV=isFinalIteration&&isFinalStage&&isFinalPhaseID;
                     GetLeftRightGlobalSetIds(leftGlobalSetId, rightGlobalSetId, phaseID, numPhases, coreIdx, numAvailableVectorCores);
-                    if (leftGlobalSetId < numGlobalSets && rightGlobalSetId < numGlobalSets) {
-                        bool leftSetHasMaxSize = (leftGlobalSetId < numGlobalSetsWithMaxSize);
-                        bool rightSetHasMaxSize = (rightGlobalSetId < numGlobalSetsWithMaxSize);
-                        uint32_t leftBegin = (leftSetHasMaxSize) ? leftGlobalSetId * globSetMaxSize :
-                            globSetMinOffset + (leftGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
-                        uint32_t leftEnd = (leftSetHasMaxSize) ? leftBegin + globSetMaxSize : leftBegin + globSetMinSize;
-                        uint32_t rightBegin = (rightSetHasMaxSize) ? rightGlobalSetId * globSetMaxSize :
-                            globSetMinOffset + (rightGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
-                        uint32_t rightEnd = (rightSetHasMaxSize) ? rightBegin + globSetMaxSize : rightBegin + globSetMinSize;
-                        bool isSaveUV=isFinalIteration&&isFinalStage&&isFinalPhaseID;
-                        for(uint32_t batchIdx=0;batchIdx<batchSize; ++batchIdx){
-                            batchOffsetI = batchIdx*mSize*nSize;
-                            batchOffsetU = batchIdx*uMSize*uNSize;
-                            batchOffsetV = batchIdx*vMSize*vNSize;
-                            batchOffsetS = batchIdx*sMNSize;
-                            batchOffsetTmp = batchIdx*sMNSize*recordSizeAligned;
-                            if (stageID == 0) {
-                                ApplyGlobalSet(leftBegin, leftEnd, iter == 0);
-                                ApplyGlobalSet(rightBegin, rightEnd, iter == 0);
-                                ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd, isSaveUV);
-                            } else {
-                                ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd, isSaveUV);
-                            }
-                        }
-                    }
+                    LocalPhaseProcess(leftGlobalSetId, rightGlobalSetId, isSaveUV, isZeroStage, isZeroIter);
                     CrossCoreSetFlag<0x0, PIPE_MTE3>(INTERNAL_SYNC_ALL);
                     CrossCoreWaitFlag(INTERNAL_SYNC_ALL);
                 }
@@ -312,12 +397,51 @@ private:
         }
     }
 
-    __aicore__ inline void GetLeftRightGlobalSetIds(uint16_t& dstLeftGlobalSetId, uint16_t& dstRightGlobalSetId,
-        const uint32_t phaseID, const uint32_t numPhases, const uint32_t coreID, const uint32_t numCores)
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::LocalPhaseProcess(
+            const uint16_t leftGlobalSetId, const uint16_t rightGlobalSetId, const bool isSaveUV, const bool isZeroStage, 
+            const bool isZeroIter)
+    {
+        if (leftGlobalSetId >= numGlobalSets || rightGlobalSetId >= numGlobalSets) {
+            return;
+        }
+        bool leftSetHasMaxSize = (leftGlobalSetId < numGlobalSetsWithMaxSize);
+        bool rightSetHasMaxSize = (rightGlobalSetId < numGlobalSetsWithMaxSize);
+        uint32_t leftBegin = (leftSetHasMaxSize) ? leftGlobalSetId * globSetMaxSize :
+            globSetMinOffset + (leftGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
+        uint32_t leftEnd = (leftSetHasMaxSize) ? leftBegin + globSetMaxSize : leftBegin + globSetMinSize;
+        uint32_t rightBegin = (rightSetHasMaxSize) ? rightGlobalSetId * globSetMaxSize :
+            globSetMinOffset + (rightGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
+        uint32_t rightEnd = (rightSetHasMaxSize) ? rightBegin + globSetMaxSize : rightBegin + globSetMinSize;
+        
+        for(uint32_t batchIdx=0;batchIdx<batchSize; ++batchIdx){
+            batchOffsetI = batchIdx*mSize*nSize;
+            batchOffsetU = batchIdx*uMSize*uNSize;
+            batchOffsetV = batchIdx*vMSize*vNSize;
+            batchOffsetS = batchIdx*sMNSize;
+            batchOffsetTmp = batchIdx*sMNSize*recordSizeAligned;
+            if (!isZeroStage)
+            {
+                ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd, isSaveUV);
+            }
+            else {
+                ApplyGlobalSet(leftBegin, leftEnd, isZeroIter);
+                ApplyGlobalSet(rightBegin, rightEnd, isZeroIter);
+                ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd, isSaveUV);
+            }  
+        }
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::GetLeftRightGlobalSetIds(
+            uint16_t& dstLeftGlobalSetId, uint16_t& dstRightGlobalSetId, const uint32_t phaseID, const uint32_t numPhases, 
+            const uint32_t coreID, const uint32_t numCores)
     {
 
         uint32_t groupSize = numPhases * 2;
         uint32_t coresInGroup = groupSize / 2;
+        uint32_t numPhases_ = (numPhases!=0)?numPhases:1;
         if (coresInGroup > numCores) {
             //usually on last stage when number of coresInGroup is not equal real number of cores,
             // we try to reassing tasks from imaginary cores to real cores
@@ -351,61 +475,9 @@ private:
 
     }
 
-    __aicore__ inline void JacobiProcessMultiCoreSimulator()
-    {
-        uint32_t nCoresGG = GetBlockNum();
-        if (coreIdx > 0) {
-            return;
-        }
-        for (uint16_t iter = 0; iter < numIterations; ++iter) {
-            for (uint32_t stageID = 0; stageID < numStages; ++stageID) {
-                numPhases = 1 << stageID;
-                for (uint32_t phaseID = 0; phaseID < numPhases; ++phaseID) {
-                    for (uint32_t coreIdx_ = 0; coreIdx_ < nCoresGG; ++coreIdx_) {
-                        uint16_t leftGlobalSetId = 0;
-                        uint16_t rightGlobalSetId = 0;
-
-                        GetLeftRightGlobalSetIds(leftGlobalSetId, rightGlobalSetId, phaseID, numPhases, coreIdx_, nCoresGG);
-                        if (leftGlobalSetId < numGlobalSets && rightGlobalSetId < numGlobalSets) {
-                            bool leftSetHasMaxSize = (leftGlobalSetId < numGlobalSetsWithMaxSize);
-                            bool rightSetHasMaxSize = (rightGlobalSetId < numGlobalSetsWithMaxSize);
-                            uint32_t leftBegin = (leftSetHasMaxSize) ? leftGlobalSetId * globSetMaxSize :
-                                globSetMinOffset + (leftGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
-                            uint32_t leftEnd = (leftSetHasMaxSize) ? leftBegin + globSetMaxSize : leftBegin + globSetMinSize;
-                            uint32_t rightBegin = (rightSetHasMaxSize) ? rightGlobalSetId * globSetMaxSize :
-                                globSetMinOffset + (rightGlobalSetId - numGlobalSetsWithMaxSize) * globSetMinSize;
-                            uint32_t rightEnd = (rightSetHasMaxSize) ? rightBegin + globSetMaxSize : rightBegin + globSetMinSize;
-                            for(uint32_t batchIdx=0;batchIdx<batchSize; ++batchIdx){
-                                batchOffsetI = batchIdx*mSize*nSize;
-                                batchOffsetU = batchIdx*uMSize*uNSize;
-                                batchOffsetV = batchIdx*vMSize*vNSize;
-                                batchOffsetS = batchIdx*sMNSize;
-                                batchOffsetTmp = batchIdx*sMNSize*recordSizeAligned;
-                                if (stageID == 0) {
-                                    ApplyGlobalSet(leftBegin, leftEnd, iter == 0);
-                                    ApplyGlobalSet(rightBegin, rightEnd, iter == 0);
-                                    ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd);
-                                } else {
-                                    ApplyGlobalSet(leftBegin, leftEnd, rightBegin, rightEnd);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    __aicore__ inline void Preprocess()
-    {
-        batchOffsetV = 0;
-        batchOffsetU = 0;
-        batchOffsetS = 0;
-        batchOffsetI = 0;
-        batchOffsetTmp =0;
-    }
-
-    __aicore__ inline void ApplyGlobalSet(const uint16_t lBegin, const uint16_t lEnd, const uint16_t rBegin,
-        const uint16_t rEnd, const bool isFinalIteration=false)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplyGlobalSet(
+        const uint16_t lBegin, const uint16_t lEnd, const uint16_t rBegin, const uint16_t rEnd, const bool isFinalIteration)
     {
         if (coreIdx >= numAvailableVectorCores) {
             return;
@@ -430,13 +502,10 @@ private:
                 uint32_t rightBucketBegin = rBegin + rightBucketId * maxBucketSize;
                 uint32_t rightBucketEnd = MIN(rightBucketBegin + maxBucketSize, rEnd);
                 LoadBucket(rightBucketSpace, rightNorms, rightBucketBegin, rightBucketEnd, false);
-                event_t evtMte2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-                SetFlag<HardEvent::MTE2_V>(evtMte2ToV);
-                WaitFlag<HardEvent::MTE2_V>(evtMte2ToV);
-                ApplyBucket(leftBucketSpace, leftNorms, rightBucketSpace, rightNorms, leftBucketEnd - leftBucketBegin, rightBucketEnd - rightBucketBegin, false);
-                event_t evtVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-                SetFlag<HardEvent::V_MTE3>(evtVToMte3);
-                WaitFlag<HardEvent::V_MTE3>(evtVToMte3);
+                FAST_SET_WAIT_FLAG(evtMte2ToV, MTE2_V);
+                ApplyBucket(leftBucketSpace, leftNorms, rightBucketSpace, rightNorms, leftBucketEnd - leftBucketBegin, 
+                    rightBucketEnd - rightBucketBegin, false);
+                FAST_SET_WAIT_FLAG(evtVToMte3, V_MTE3);
                 if(!isFinalIteration || (isFinalIteration&&leftBucketId!=numBucketsInLeftSet-1))
                 {
                     SaveBucket(rightBucketSpace, rightNorms, rightBucketBegin, rightBucketEnd);
@@ -447,9 +516,7 @@ private:
                     SaveOutputs<false>(rightBucketSpace, rightNorms, rightBucketBegin, rightBucketEnd);
                 }
                 if (rightBucketId < numBucketsInRightSet - 1) {
-                    event_t evtMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-                    SetFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
-                    WaitFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
+                    FAST_SET_WAIT_FLAG(evtMte3ToMte2, MTE3_MTE2);
                 }
             }
             if(!isFinalIteration)
@@ -461,14 +528,13 @@ private:
                 PipeBarrier<PIPE_V>();
                 SaveOutputs<true>(leftBucketSpace, leftNorms, leftBucketBegin, leftBucketEnd);
             }
-            event_t evtMte3ToMte2D = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-            SetFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2D);
-            WaitFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2D);
+            FAST_SET_WAIT_FLAG(evtMte3ToMte2D, MTE3_MTE2);
         }
-
     }
 
-    __aicore__ inline void ApplyGlobalSet(const uint16_t sBegin, const uint16_t sEnd, const bool isFirstLoadData = false)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplyGlobalSet(
+            const uint16_t sBegin, const uint16_t sEnd, const bool isFirstLoadData)
     {
         if (coreIdx >= numAvailableVectorCores) {
             return;
@@ -489,54 +555,48 @@ private:
             uint32_t leftBucketEnd = MIN(leftBucketBegin + maxBucketSize, sEnd);
 
             LoadBucket(leftBucketSpace, leftNorms, leftBucketBegin, leftBucketEnd, isFirstLoadDataLocal);
-            event_t evtMte2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-            SetFlag<HardEvent::MTE2_V>(evtMte2ToV);
-            WaitFlag<HardEvent::MTE2_V>(evtMte2ToV);
+            FAST_SET_WAIT_FLAG(evtMte2ToV, MTE2_V);
             if(isFirstLoadDataLocal)
             {
                 InitV(leftBucketSpace, leftBucketBegin, leftBucketEnd);
             }
             ApplyBucket(leftBucketSpace, leftNorms, leftBucketEnd - leftBucketBegin, isFirstLoadDataLocal);
             if (leftBucketId + 1 >= numBucketsInSet) {
-                event_t evtVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-                SetFlag<HardEvent::V_MTE3>(evtVToMte3);
-                WaitFlag<HardEvent::V_MTE3>(evtVToMte3);
+                FAST_SET_WAIT_FLAG(evtVToMte3,V_MTE3);
             }
 
             for (uint32_t rightBucketId = leftBucketId + 1; rightBucketId < numBucketsInSet; ++rightBucketId) {
                 uint32_t rightBucketBegin = sBegin + rightBucketId * maxBucketSize;
                 uint32_t rightBucketEnd = MIN(rightBucketBegin + maxBucketSize, sEnd);
                 LoadBucket(rightBucketSpace, rightNorms, rightBucketBegin, rightBucketEnd, isFirstLoadDataLocal);
-                event_t evtMte2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-                SetFlag<HardEvent::MTE2_V>(evtMte2ToV);
-                WaitFlag<HardEvent::MTE2_V>(evtMte2ToV);
+                FAST_SET_WAIT_FLAG(evtMte2ToV, MTE2_V);
                 if(isFirstLoadDataLocal)
                 {
                     InitV(rightBucketSpace, rightBucketBegin, rightBucketEnd);
                 }
                 ApplyBucket(leftBucketSpace, leftNorms, rightBucketSpace, rightNorms, leftBucketEnd - leftBucketBegin, rightBucketEnd - rightBucketBegin, isFirstLoadDataLocal);
-                event_t evtVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-                SetFlag<HardEvent::V_MTE3>(evtVToMte3);
-                WaitFlag<HardEvent::V_MTE3>(evtVToMte3);
+                FAST_SET_WAIT_FLAG(evtVToMte3, V_MTE3);
                 SaveBucket(rightBucketSpace, rightNorms, rightBucketBegin, rightBucketEnd);
                 if (rightBucketId != numBucketsInSet - 1)
                 {
-                    event_t evtMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-                    SetFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
-                    WaitFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
+                    FAST_SET_WAIT_FLAG(evtMte3ToMte2, MTE3_MTE2);
                 }
             }
             isFirstLoadDataLocal = false;
             SaveBucket(leftBucketSpace, leftNorms, leftBucketBegin, leftBucketEnd);
-            event_t evtMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-            SetFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
-            WaitFlag<HardEvent::MTE3_MTE2>(evtMte3ToMte2);
+            FAST_SET_WAIT_FLAG(evtMte3ToMte2, MTE3_MTE2);
         }
     }
 
-    __aicore__ inline void ApplyBucket(const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& leftNorms, const LocalTensor<float>& rightBucketSpace,
-        const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, const uint32_t rightBucketSize, const bool calculateRightNorms)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplyBucket(
+            const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& leftNorms, 
+            const LocalTensor<float>& rightBucketSpace, const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, 
+            const uint32_t rightBucketSize, const bool calculateRightNorms)
     {
+        if(leftBucketSize==0&&rightBucketSize==0) {
+            return;
+        }
         bool leftIsLess = (leftBucketSize <= rightBucketSize);
         uint32_t aNum = (leftIsLess) ? rightBucketSize : leftBucketSize;
         RotateMaskInfo maskInfo;
@@ -580,11 +640,11 @@ private:
             }
             calculateRightNorm = false;
         }
-
     }
 
-    template<typename T = uint32_t>
-    __aicore__ inline T  ScalarLog2(const T val)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<typename T>
+    __aicore__ inline T  JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ScalarLog2(const T val)
     {
         T tmp = val;
         T res = 0;
@@ -596,7 +656,26 @@ private:
         return res - 1;
     }
 
-    __aicore__ inline void ApplyBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& norms, const uint32_t bucketSize, const bool calculateNorms)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<typename T>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ExtendBucketSize(T& extendedBucketSize,
+            T& aOffsetNumStages, const T bucketSize)
+    {
+            uint32_t lg2 = ScalarLog2(bucketSize);
+            uint32_t possibleEtendedBucketSize = 1 << lg2;
+            if (possibleEtendedBucketSize == bucketSize) {
+                aOffsetNumStages = lg2;
+                extendedBucketSize = bucketSize;
+            } else {
+                aOffsetNumStages = lg2 + 1;
+                extendedBucketSize = 1 << (aOffsetNumStages);
+            }
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplyBucket(
+            const LocalTensor<float>& bucketSpace, const LocalTensor<float>& norms, const uint32_t bucketSize, 
+            const bool calculateNorms)
     {
         if (bucketSize < 2) {
             if (calculateNorms) {
@@ -612,17 +691,7 @@ private:
         }
         uint32_t extendedBucketSize = 0;
         uint32_t aOffsetNumStages = 0;
-        {
-            uint32_t lg2 = ScalarLog2(bucketSize);
-            uint32_t possibleEtendedBucketSize = 1 << lg2;
-            if (possibleEtendedBucketSize == bucketSize) {
-                aOffsetNumStages = lg2;
-                extendedBucketSize = bucketSize;
-            } else {
-                aOffsetNumStages = lg2 + 1;
-                extendedBucketSize = 1 << (aOffsetNumStages);
-            }
-        }
+        ExtendBucketSize(extendedBucketSize, aOffsetNumStages, bucketSize);
         RotateMaskInfo maskInfo;
         bool isCalculateNorm = calculateNorms;
 
@@ -667,10 +736,48 @@ private:
 
     }
 
-    template<bool BUCKET_1_TARGET = true, bool NEED_CALCULATE_RIGHT_NORM = false>
-    __aicore__ inline void CalculateDotProducts(const LocalTensor<float>& sqNormsBucket1, const LocalTensor<float>& sqNormsBucket2,
-        const LocalTensor<float>& dotProducts, const LocalTensor<float>& bucket1, const LocalTensor<float>& norms1,
-        const LocalTensor<float>& bucket2, const LocalTensor<float>& norms2, const RotateMaskInfo& maskInfo)
+     template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalcNorms(
+            const LocalTensor<float>& norms1, const LocalTensor<float>& norms2, const LocalTensor<float>& bucket1, 
+            const LocalTensor<float>& bucket2, const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, 
+            const LocalTensor<float>& tmpBucket2, const LocalTensor<float>& dotProductTmp1, const LocalTensor<float>& dotProductTmp2)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
+        LocalTensor<float>& tmpNorm1 = tmpBlock18;
+        LocalTensor<float>& tmpNorm2 = tmpBlock17;
+        Duplicate(dotProductTmp1, 0.f, 2 * rowMask * maxBucketSize);
+        for (uint16_t rowIdx = 0; rowIdx < maskInfo.leftBucketSize; ++rowIdx) {
+            Mul(tmpBucket1[rowIdx * nSizeAligned], bucket1[rowIdx * nSizeAligned],
+                bucket1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1,1, repeatStride, repeatStride, repeatStride });
+        }
+        for (uint16_t rowIdx = 0; rowIdx < maskInfo.rightBucketSize; ++rowIdx) {
+            Mul(tmpBucket2[rowIdx * nSizeAligned], bucket2[rowIdx * nSizeAligned],
+                bucket2[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1,1, repeatStride, repeatStride, repeatStride });
+        }
+        PipeBarrier<PIPE_V>();
+        for (uint16_t rowIdx = 0; rowIdx < maskInfo.leftBucketSize; ++rowIdx) {
+            Add(dotProductTmp1[rowIdx * rowMask], tmpBucket1[rowIdx * nSizeAligned], dotProductTmp1[rowIdx * rowMask], rowMask, rowRepeatsNum, { 1,1,1, 0, repeatStride, 0 });
+        }
+        for (uint16_t rowIdx = 0; rowIdx < maskInfo.rightBucketSize; ++rowIdx) {
+            Add(dotProductTmp2[rowIdx * rowMask], tmpBucket2[rowIdx * nSizeAligned], dotProductTmp2[rowIdx * rowMask], rowMask, rowRepeatsNum, { 1,1,1, 0, repeatStride, 0 });
+        }
+        PipeBarrier<PIPE_V>();
+
+        WholeReduceSum(tmpNorm1, dotProductTmp1, rowMask, static_cast<uint8_t>(maskInfo.leftBucketSize), 1, 1, repeatStride);
+        WholeReduceSum(tmpNorm2, dotProductTmp2, rowMask, static_cast<uint8_t>(maskInfo.rightBucketSize), 1, 1, repeatStride);
+        PipeBarrier<PIPE_V>();
+        Sqrt(norms1, tmpNorm1, SMNE);
+        Sqrt(norms2, tmpNorm2, SMNE);
+        PipeBarrier<PIPE_V>();
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<bool BUCKET_1_TARGET, bool NEED_CALCULATE_RIGHT_NORM>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateDotProducts(
+            const LocalTensor<float>& sqNormsBucket1, const LocalTensor<float>& sqNormsBucket2,
+            const LocalTensor<float>& dotProducts, const LocalTensor<float>& bucket1, const LocalTensor<float>& norms1,
+            const LocalTensor<float>& bucket2, const LocalTensor<float>& norms2, const RotateMaskInfo& maskInfo)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         LocalTensor<float>& tmpBucket1 = tmpMemSpace;
@@ -678,36 +785,10 @@ private:
         LocalTensor<float>& dotProductTmp1 = tmpMaskSpace;
         LocalTensor<float> dotProductTmp2 = tmpMaskSpace[rowMask * maxBucketSize];
         const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
-        LocalTensor<float>& tmpNorm1 = tmpBlock18;
-        LocalTensor<float>& tmpNorm2 = tmpBlock17;
-#ifdef RUNTIME_NORM_GENERATION
-        {
-            Duplicate(dotProductTmp1, 0.f, 2 * rowMask * maxBucketSize);
-            for (uint16_t rowIdx = 0; rowIdx < maskInfo.leftBucketSize; ++rowIdx) {
-                Mul(tmpBucket1[rowIdx * nSizeAligned], bucket1[rowIdx * nSizeAligned],
-                    bucket1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1,1, repeatStride, repeatStride, repeatStride });
-            }
-            for (uint16_t rowIdx = 0; rowIdx < maskInfo.rightBucketSize; ++rowIdx) {
-                Mul(tmpBucket2[rowIdx * nSizeAligned], bucket2[rowIdx * nSizeAligned],
-                    bucket2[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1,1, repeatStride, repeatStride, repeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint16_t rowIdx = 0; rowIdx < maskInfo.leftBucketSize; ++rowIdx) {
-                Add(dotProductTmp1[rowIdx * rowMask], tmpBucket1[rowIdx * nSizeAligned], dotProductTmp1[rowIdx * rowMask], rowMask, rowRepeatsNum, { 1,1,1, 0, repeatStride, 0 });
-            }
-            for (uint16_t rowIdx = 0; rowIdx < maskInfo.rightBucketSize; ++rowIdx) {
-                Add(dotProductTmp2[rowIdx * rowMask], tmpBucket2[rowIdx * nSizeAligned], dotProductTmp2[rowIdx * rowMask], rowMask, rowRepeatsNum, { 1,1,1, 0, repeatStride, 0 });
-            }
-            PipeBarrier<PIPE_V>();
-
-            WholeReduceSum(tmpNorm1, dotProductTmp1, rowMask, static_cast<uint8_t>(maskInfo.leftBucketSize), 1, 1, repeatStride);
-            WholeReduceSum(tmpNorm2, dotProductTmp2, rowMask, static_cast<uint8_t>(maskInfo.rightBucketSize), 1, 1, repeatStride);
-            PipeBarrier<PIPE_V>();
-            Sqrt(norms1, tmpNorm1, SMNE);
-            Sqrt(norms2, tmpNorm2, SMNE);
-            PipeBarrier<PIPE_V>();
-        }
-#endif
+   
+        #ifdef RUNTIME_NORM_GENERATION
+            CalcNorms(norms1, norms2, bucket1, bucket2, maskInfo, tmpBucket1, tmpBucket2, dotProductTmp1, dotProductTmp2)
+        #endif
         if constexpr (NEED_CALCULATE_RIGHT_NORM) {
             CalculateRightNormAndDotProductForDoubleBucketsCase(dotProducts, norms2, bucket1, bucket2, maskInfo, tmpBucket1, tmpBucket2, dotProductTmp1, dotProductTmp2);
         } else {
@@ -729,9 +810,12 @@ private:
 
     }
 
-    __aicore__ inline void CalculateRightNormAndDotProductForDoubleBucketsCase(const LocalTensor<float>& dstDotProduct, const LocalTensor<float>& dstRightNorms, const LocalTensor<float>& bucket1,
-        const LocalTensor<float>& bucket2, const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& tmpBucket2,
-        const LocalTensor<float>& dotProductTmp1, const LocalTensor<float>& dotProductTmp2)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::
+            CalculateRightNormAndDotProductForDoubleBucketsCase(const LocalTensor<float>& dstDotProduct, 
+            const LocalTensor<float>& dstRightNorms, const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2, 
+            const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& tmpBucket2,
+            const LocalTensor<float>& dotProductTmp1, const LocalTensor<float>& dotProductTmp2)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
@@ -759,12 +843,12 @@ private:
         WholeReduceSum(dstRightNorms, dotProductTmp2, rowMask, static_cast<uint8_t>(maskInfo.rightBucketSize), 1, 1, repeatStride);
         PipeBarrier<PIPE_V>();
         Sqrt(dstRightNorms, dstRightNorms, SMNE);
-
     }
 
-
-    __aicore__ inline void CalculateDotProductForDoubleBucketCase(const LocalTensor<float>& dstDotProduct, const LocalTensor<float>& bucket1,
-        const LocalTensor<float>& bucket2, const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& dotProductTmp1)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateDotProductForDoubleBucketCase(
+            const LocalTensor<float>& dstDotProduct, const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2, 
+            const RotateMaskInfo& maskInfo, const LocalTensor<float>& tmpBucket1, const LocalTensor<float>& dotProductTmp1)
     {
         const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
         Duplicate(dotProductTmp1, 0.f, rowMask * maskInfo.numPairs);
@@ -782,8 +866,10 @@ private:
         WholeReduceSum(dstDotProduct, dotProductTmp1, rowMask, static_cast<uint8_t>(maskInfo.numPairs), 1, 1, repeatStride);
     }
 
-    __aicore__ inline void CalculateNormOfBucket(const LocalTensor<float>& dstNormVector, const LocalTensor<float>& bucket,
-        const LocalTensor<float>& tmpBucket, const LocalTensor<float>& dotProductTmp, const uint8_t(&rowIds)[sizeof(uint64_t)], const uint32_t bucketSize)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateNormOfBucket(
+            const LocalTensor<float>& dstNormVector, const LocalTensor<float>& bucket, const LocalTensor<float>& tmpBucket, 
+            const LocalTensor<float>& dotProductTmp, const uint8_t(&rowIds)[sizeof(uint64_t)], const uint32_t bucketSize)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
@@ -803,9 +889,11 @@ private:
         PipeBarrier<PIPE_V>();
         Sqrt(dstNormVector, dstNormVector, SMNE);
     }
-
-    __aicore__ inline void GatherNormVector(const LocalTensor<float>& dstNormVector, const LocalTensor<float>& srcNormVector, const uint64_t mask, const LocalTensor<float>& workLocal1,
-        const LocalTensor<float>& workLocal2)
+    
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::GatherNormVector(
+            const LocalTensor<float>& dstNormVector, const LocalTensor<float>& srcNormVector, const uint64_t mask, 
+            const LocalTensor<float>& workLocal1, const LocalTensor<float>& workLocal2)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         Duplicate(workLocal1, 0.f, rowMask);
@@ -822,12 +910,14 @@ private:
 
     }
 
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
     template<bool NEED_CALCULATE_NORM>
-    __aicore__ inline void CalculateDotProductsForSelfBucket(const LocalTensor<float>& sqNorms1, const LocalTensor<float>& sqNorms2,
-        const LocalTensor<float>& dotProducts, const LocalTensor<float>& normVector, const LocalTensor<float>& bucket, const uint32_t bucketSize, const RotateMaskInfo& maskInfo)
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateDotProductsForSelfBucket(
+            const LocalTensor<float>& sqNorms1, const LocalTensor<float>& sqNorms2, const LocalTensor<float>& dotProducts, 
+            const LocalTensor<float>& normVector, const LocalTensor<float>& bucket, const uint32_t bucketSize, 
+            const RotateMaskInfo& maskInfo)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
-
 
         LocalTensor<float>& tmpBucket1 = tmpMemSpace;
         LocalTensor<float> tmpBucket2 = tmpMemSpace[maxBucketSize * nSizeAligned];
@@ -835,7 +925,7 @@ private:
         LocalTensor<float> dotProductTmp2 = tmpMaskSpace[maxBucketSize * rowMask];
 
         const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
-#ifdef RUNTIME_NORM_GENERATION
+        #ifdef RUNTIME_NORM_GENERATION
         {
             Duplicate(dotProductTmp1, 0.f, rowMask * bucketSize);
             const uint8_t repeatStride = (rowMask * sizeof(float)) / 32;
@@ -853,7 +943,7 @@ private:
             Sqrt(normVector, normVector, SMNE);
             PipeBarrier<PIPE_V>();
         }
-#endif
+        #endif
 
         if constexpr (NEED_CALCULATE_NORM) {
             CalculateRightNormAndDotProductForDoubleBucketsCase(dotProducts, normVector, bucket, bucket, maskInfo, tmpBucket1, tmpBucket2, dotProductTmp1, dotProductTmp2);
@@ -871,8 +961,11 @@ private:
 
     }
 
-    __aicore__ inline void GatherNormsVectorToLeftRightNorms(const LocalTensor<float>& dstSqNorms1, const LocalTensor<float>& dstSqNorms2, const LocalTensor<float>& srcNorms,
-        const RotateMaskInfo& maskInfo, const LocalTensor<float>& workLocal1, const LocalTensor<float>& workLocal2)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::GatherNormsVectorToLeftRightNorms(
+            const LocalTensor<float>& dstSqNorms1, const LocalTensor<float>& dstSqNorms2, 
+            const LocalTensor<float>& srcNorms, const RotateMaskInfo& maskInfo, const LocalTensor<float>& workLocal1,
+            const LocalTensor<float>& workLocal2)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         Copy(workLocal1, srcNorms, SMNE, SMNE, { 1,1,1,0 });
@@ -888,9 +981,12 @@ private:
 
     }
 
-    template<bool LEFT_TARGET = true, bool NEED_CALCULATE_RIGHT_NORM = false>
-    __aicore__ inline void RotateBucket(const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& rightBucketSpace, const LocalTensor<float>& leftNorms,
-        const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, const uint32_t rightBucketSize, const RotateMaskInfo& maskInfo)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<bool LEFT_TARGET, bool NEED_CALCULATE_RIGHT_NORM>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::RotateBucket(
+            const LocalTensor<float>& leftBucketSpace, const LocalTensor<float>& rightBucketSpace, 
+            const LocalTensor<float>& leftNorms, const LocalTensor<float>& rightNorms, const uint32_t leftBucketSize, 
+            const uint32_t rightBucketSize, const RotateMaskInfo& maskInfo)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         constexpr uint8_t BMNE = BIG_MASK_NUM_ELEMENTS<float>();
@@ -905,67 +1001,59 @@ private:
         LocalTensor<float>& cosTensor = tmpBlock13;
         CalculateSinCos(leftSquareNorms, rightSquareNorms, dotProducts, sinTensor, cosTensor);
         PipeBarrier<PIPE_V>();
-        {
-            LocalTensor<float>& tmpVec1 = tmpBlock20;
-            LocalTensor<float>& tmpVec2 = tmpBlock21;
-            LocalTensor<float>& tmpVec3 = tmpBlock22;
-            LocalTensor<float>& tmpVec4 = tmpBlock23;
-            LocalTensor<float>& sinSq = tmpBlock24;
-            LocalTensor<float>& cosSq = tmpBlock25;
-            LocalTensor<float>& sin2XDoub = tmpBlock26;
-            LocalTensor<float>& broadcastedNorms = tmpMaskSpace;
-            LocalTensor<float> broadcastedNormsWithZero = tmpMaskSpace[rowMask];
-            LocalTensor<float>& targetSquareNorms = (LEFT_TARGET) ? leftSquareNorms : rightSquareNorms;
-            LocalTensor<float>& nonTargetSquareNorms = (LEFT_TARGET) ? rightSquareNorms : leftSquareNorms;
-            const LocalTensor<float>& targetNorms = (LEFT_TARGET) ? leftNorms : rightNorms;
-            const LocalTensor<float>& nonTargetNorms = (LEFT_TARGET) ? rightNorms : leftNorms;
-            uint64_t targetMaskUpdate = (1 << maskInfo.numPairs) - 1;
-            uint64_t targetMaskUpdater[2] = { targetMaskUpdate, 0 };
-            uint64_t nonTargetScatteringMask[2] = { 0, 0 };
-            uint64_t nonTargetMaskUpdater[2] = { maskInfo.normUpdateMask, 0 };
-            if constexpr (LEFT_TARGET) {
-                nonTargetScatteringMask[0] = maskInfo.rightMaskU64Val;
-            } else {
-                nonTargetScatteringMask[0] = maskInfo.leftMaskU64Val;
-            }
-            Duplicate(broadcastedNormsWithZero, 0.f, rowMask);
-            Mul(sinSq, sinTensor, sinTensor, SMNE);
-            Mul(cosSq, cosTensor, cosTensor, SMNE);
-            Mul(sin2XDoub, sinTensor, cosTensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            Muls(sin2XDoub, sin2XDoub, 2.f, SMNE);
-            Mul(tmpVec1, leftSquareNorms, cosSq, SMNE);
-            Mul(tmpVec2, leftSquareNorms, sinSq, SMNE);
-            Mul(tmpVec3, rightSquareNorms, sinSq, SMNE);
-            Mul(tmpVec4, rightSquareNorms, cosSq, SMNE);
-            PipeBarrier<PIPE_V>();
-            Mul(sin2XDoub, sin2XDoub, dotProducts, SMNE);
-            Add(tmpVec1, tmpVec1, tmpVec3, SMNE);
-            Add(tmpVec2, tmpVec2, tmpVec4, SMNE);
-            PipeBarrier<PIPE_V>();
-            Sub(leftSquareNorms, tmpVec1, sin2XDoub, SMNE);
-            Add(rightSquareNorms, tmpVec2, sin2XDoub, SMNE);
-            PipeBarrier<PIPE_V>();
-            Sqrt(targetNorms, targetSquareNorms, targetMaskUpdater, 1, { 1,1,1,1 });
-            Brcb(broadcastedNorms, nonTargetSquareNorms, 1, { 1,8 });
-            PipeBarrier<PIPE_V>();
-            Duplicate(nonTargetSquareNorms, 0.f, SMNE);
-            Copy(broadcastedNormsWithZero, broadcastedNorms, nonTargetScatteringMask, 1, { 1,1,1,1 });
-            PipeBarrier<PIPE_V>();
-            Add(nonTargetSquareNorms, broadcastedNormsWithZero, nonTargetSquareNorms, SMNE, SMNE, { 1,1,1, 0,1,0 });
-            PipeBarrier<PIPE_V>();
-            Sqrt(nonTargetNorms, nonTargetSquareNorms, nonTargetMaskUpdater, 1, { 1,1,1,1 });
-        }
+        RotateNorms<LEFT_TARGET>(leftSquareNorms, rightSquareNorms, dotProducts, leftNorms, rightNorms, sinTensor,
+                cosTensor, maskInfo);
         PipeBarrier<PIPE_V>();
         ApplySinCos<LEFT_TARGET>(leftBucketSpace, leftBucketSize, rightBucketSpace, rightBucketSize, sinTensor, cosTensor, maskInfo);
         PipeBarrier<PIPE_V>();
 
     }
 
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<bool LEFT_TARGET>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::RotateNorms(
+            const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms, const LocalTensor<float>& dotProducts,
+            const LocalTensor<float>& leftNorms, const LocalTensor<float>& rightNorms, const LocalTensor<float>& sinTensor, 
+            const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        LocalTensor<float>& tmpVec1 = tmpBlock20;
+        LocalTensor<float>& tmpVec2 = tmpBlock21;
+        LocalTensor<float>& tmpVec3 = tmpBlock22;
+        LocalTensor<float>& tmpVec4 = tmpBlock23;
+        LocalTensor<float>& sinSq = tmpBlock24;
+        LocalTensor<float>& cosSq = tmpBlock25;
+        LocalTensor<float>& sin2XDoub = tmpBlock26;
+        LocalTensor<float>& broadcastedNorms = tmpMaskSpace;
+        LocalTensor<float> broadcastedNormsWithZero = tmpMaskSpace[rowMask];
+        const LocalTensor<float>& targetSquareNorms = (LEFT_TARGET) ? leftSquareNorms : rightSquareNorms;
+        const LocalTensor<float>& nonTargetSquareNorms = (LEFT_TARGET) ? rightSquareNorms : leftSquareNorms;
+        const LocalTensor<float>& targetNorms = (LEFT_TARGET) ? leftNorms : rightNorms;
+        const LocalTensor<float>& nonTargetNorms = (LEFT_TARGET) ? rightNorms : leftNorms;
+        uint64_t targetMaskUpdate = (1 << maskInfo.numPairs) - 1;
+        uint64_t targetMaskUpdater[2] = { targetMaskUpdate, 0 };
+        uint64_t nonTargetScatteringMask[2] = { 0, 0 };
+        uint64_t nonTargetMaskUpdater[2] = { maskInfo.normUpdateMask, 0 };
+        nonTargetScatteringMask[0] = (LEFT_TARGET)?maskInfo.rightMaskU64Val:maskInfo.leftMaskU64Val;
+        Duplicate(broadcastedNormsWithZero, 0.f, rowMask);
+        UpdateSquareNorms(leftSquareNorms, rightSquareNorms, dotProducts, sinTensor, cosTensor);
+        PipeBarrier<PIPE_V>();
+        Sqrt(targetNorms, targetSquareNorms, targetMaskUpdater, 1, { 1,1,1,1 });
+        Brcb(broadcastedNorms, nonTargetSquareNorms, 1, { 1,8 });
+        PipeBarrier<PIPE_V>();
+        Duplicate(nonTargetSquareNorms, 0.f, SMNE);
+        Copy(broadcastedNormsWithZero, broadcastedNorms, nonTargetScatteringMask, 1, { 1,1,1,1 });
+        PipeBarrier<PIPE_V>();
+        Add(nonTargetSquareNorms, broadcastedNormsWithZero, nonTargetSquareNorms, SMNE, SMNE, { 1,1,1, 0,1,0 });
+        PipeBarrier<PIPE_V>();
+        Sqrt(nonTargetNorms, nonTargetSquareNorms, nonTargetMaskUpdater, 1, { 1,1,1,1 });
+    }
 
-    //Self bucket rotate
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
     template<bool NEED_CALCULATE_NORM>
-    __aicore__ inline void RotateSelfBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketSize, const RotateMaskInfo& maskInfo)
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::RotateSelfBucket(
+            const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketSize, 
+            const RotateMaskInfo& maskInfo)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         constexpr uint8_t BMNE = BIG_MASK_NUM_ELEMENTS<float>();
@@ -975,7 +1063,8 @@ private:
         LocalTensor<float>& dotProducts = tmpBlock11;
         LocalTensor<float>& leftNorms = tmpBlock14;
         LocalTensor<float>& rightNorms = tmpBlock15;
-        CalculateDotProductsForSelfBucket<NEED_CALCULATE_NORM>(leftSquareNorms, rightSquareNorms, dotProducts, normVector, bucketSpace, bucketSize, maskInfo);
+        CalculateDotProductsForSelfBucket<NEED_CALCULATE_NORM>(leftSquareNorms, rightSquareNorms, dotProducts, normVector, 
+                bucketSpace, bucketSize, maskInfo);
         PipeBarrier<PIPE_V>();
         LocalTensor<float>& sinTensor = tmpBlock12;
         LocalTensor<float>& cosTensor = tmpBlock13;
@@ -984,60 +1073,120 @@ private:
         CalculateSinCos(leftSquareNorms, rightSquareNorms, dotProducts, sinTensor, cosTensor);
         PipeBarrier<PIPE_V>();
         //(Sqrt(leftSquareNorms), Sqrt(rightSquareNorms))-> normVector
-        {
-            LocalTensor<float>& tmpVec1 = tmpBlock20;
-            LocalTensor<float>& tmpVec2 = tmpBlock21;
-            LocalTensor<float>& tmpVec3 = tmpBlock22;
-            LocalTensor<float>& tmpVec4 = tmpBlock23;
-            LocalTensor<float>& newScatteredNorm = tmpBlock24;
-            LocalTensor<float>& sinSq = tmpBlock25;
-            LocalTensor<float>& cosSq = tmpBlock26;
-            LocalTensor<float>& sin2XDoub = tmpBlock27;
-            LocalTensor<float>& broadcastedLeftNorms = tmpMaskSpace;
-            LocalTensor<float> broadcastedRightNorms = tmpMaskSpace[rowMask];
-            LocalTensor<float> broadcastedScatteredNorms = tmpMaskSpace[2 * rowMask];
-            Mul(sinSq, sinTensor, sinTensor, SMNE);
-            Mul(cosSq, cosTensor, cosTensor, SMNE);
-            Mul(sin2XDoub, sinTensor, cosTensor, SMNE);
-            Duplicate(broadcastedScatteredNorms, 0.f, 2 * rowMask);
-            PipeBarrier<PIPE_V>();
-            Muls(sin2XDoub, sin2XDoub, 2.f, SMNE);
-            Mul(tmpVec1, leftSquareNorms, cosSq, SMNE);
-            Mul(tmpVec2, leftSquareNorms, sinSq, SMNE);
-            Mul(tmpVec3, rightSquareNorms, sinSq, SMNE);
-            Mul(tmpVec4, rightSquareNorms, cosSq, SMNE);
-            PipeBarrier<PIPE_V>();
-            Mul(sin2XDoub, sin2XDoub, dotProducts, SMNE);
-            Add(tmpVec1, tmpVec1, tmpVec3, SMNE);
-            Add(tmpVec2, tmpVec2, tmpVec4, SMNE);
-            PipeBarrier<PIPE_V>();
-            Sub(leftSquareNorms, tmpVec1, sin2XDoub, SMNE);
-            Add(rightSquareNorms, tmpVec2, sin2XDoub, SMNE);
-            PipeBarrier<PIPE_V>();
-            Brcb(broadcastedLeftNorms, leftSquareNorms, 1, { 1,8 });
-            Brcb(broadcastedRightNorms, rightSquareNorms, 1, { 1,8 });
-
-            PipeBarrier<PIPE_V>();
-            uint64_t mask1[2] = { maskInfo.leftMaskU64Val, 0 };
-            uint64_t mask2[2] = { maskInfo.rightMaskU64Val, 0 };
-            Copy(broadcastedScatteredNorms, broadcastedLeftNorms, mask1, 1, { 1,1,8,8 });
-            Copy(broadcastedScatteredNorms[rowMask], broadcastedRightNorms, mask2, 1, { 1,1,8,8 });
-            Duplicate(newScatteredNorm, 0.f, SMNE);
-            PipeBarrier<PIPE_V>();
-            Add(newScatteredNorm, broadcastedScatteredNorms, newScatteredNorm, SMNE, 2 * SMNE, { 1,1,1, 0,1,0 });
-            PipeBarrier<PIPE_V>();
-            uint64_t updateMask[2] = { maskInfo.normUpdateMask, 0 };
-            Sqrt(normVector, newScatteredNorm, updateMask, 1, { 1,1,0,0 });
-        }
+        RotateSelfNorms(leftSquareNorms, rightSquareNorms, dotProducts, normVector, sinTensor, cosTensor, maskInfo);
         PipeBarrier<PIPE_V>();
         ApplySinCosForSelfBucket(bucketSpace, bucketSize, sinTensor, cosTensor, maskInfo);
         PipeBarrier<PIPE_V>();
 
     }
 
-    template<bool BUCKET_1_TARGET = true>
-    __aicore__ inline void  ApplySinCos(const LocalTensor<float>& bucket1, const uint32_t bucket1Size, const LocalTensor<float>& bucket2,
-        const uint32_t bucket2Size, const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::UpdateSquareNorms(
+            const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms, 
+            const LocalTensor<float>& dotProducts,  const LocalTensor<float>& sinTensor, 
+            const LocalTensor<float>& cosTensor)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        LocalTensor<float>& tmpVec1 = tmpBlock20;
+        LocalTensor<float>& tmpVec2 = tmpBlock21;
+        LocalTensor<float>& tmpVec3 = tmpBlock22;
+        LocalTensor<float>& tmpVec4 = tmpBlock23;
+        LocalTensor<float>& sinSq = tmpBlock25;
+        LocalTensor<float>& cosSq = tmpBlock26;
+        LocalTensor<float>& sin2XDoub = tmpBlock27;
+        Mul(sinSq, sinTensor, sinTensor, SMNE);
+        Mul(cosSq, cosTensor, cosTensor, SMNE);
+        Mul(sin2XDoub, sinTensor, cosTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Muls(sin2XDoub, sin2XDoub, 2.f, SMNE);
+        Mul(tmpVec1, leftSquareNorms, cosSq, SMNE);
+        Mul(tmpVec2, leftSquareNorms, sinSq, SMNE);
+        Mul(tmpVec3, rightSquareNorms, sinSq, SMNE);
+        Mul(tmpVec4, rightSquareNorms, cosSq, SMNE);
+        PipeBarrier<PIPE_V>();
+        Mul(sin2XDoub, sin2XDoub, dotProducts, SMNE);
+        Add(tmpVec1, tmpVec1, tmpVec3, SMNE);
+        Add(tmpVec2, tmpVec2, tmpVec4, SMNE);
+        PipeBarrier<PIPE_V>();
+        Sub(leftSquareNorms, tmpVec1, sin2XDoub, SMNE);
+        Add(rightSquareNorms, tmpVec2, sin2XDoub, SMNE);
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::RotateSelfNorms(
+            const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms, 
+            const LocalTensor<float>& dotProducts, const LocalTensor<float>& normVector, const LocalTensor<float>& sinTensor, 
+            const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        LocalTensor<float>& tmpVec1 = tmpBlock20;
+        LocalTensor<float>& tmpVec2 = tmpBlock21;
+        LocalTensor<float>& tmpVec3 = tmpBlock22;
+        LocalTensor<float>& tmpVec4 = tmpBlock23;
+        LocalTensor<float>& newScatteredNorm = tmpBlock24;
+ 
+        LocalTensor<float>& broadcastedLeftNorms = tmpMaskSpace;
+        LocalTensor<float> broadcastedRightNorms = tmpMaskSpace[rowMask];
+        LocalTensor<float> broadcastedScatteredNorms = tmpMaskSpace[2 * rowMask];
+        Duplicate(broadcastedScatteredNorms, 0.f, 2 * rowMask);
+        UpdateSquareNorms(leftSquareNorms, rightSquareNorms, dotProducts, sinTensor, cosTensor);
+        PipeBarrier<PIPE_V>();
+        Brcb(broadcastedLeftNorms, leftSquareNorms, 1, { 1,8 });
+        Brcb(broadcastedRightNorms, rightSquareNorms, 1, { 1,8 });
+
+        PipeBarrier<PIPE_V>();
+        uint64_t mask1[2] = { maskInfo.leftMaskU64Val, 0 };
+        uint64_t mask2[2] = { maskInfo.rightMaskU64Val, 0 };
+        Copy(broadcastedScatteredNorms, broadcastedLeftNorms, mask1, 1, { 1,1,8,8 });
+        Copy(broadcastedScatteredNorms[rowMask], broadcastedRightNorms, mask2, 1, { 1,1,8,8 });
+        Duplicate(newScatteredNorm, 0.f, SMNE);
+        PipeBarrier<PIPE_V>();
+        Add(newScatteredNorm, broadcastedScatteredNorms, newScatteredNorm, SMNE, 2 * SMNE, { 1,1,1, 0,1,0 });
+        PipeBarrier<PIPE_V>();
+        uint64_t updateMask[2] = { maskInfo.normUpdateMask, 0 };
+        Sqrt(normVector, newScatteredNorm, updateMask, 1, { 1,1,0,0 });
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplySinCosForRowSet(
+            const LocalTensor<float>& bucket1, const LocalTensor<float>& bucket2,
+            const uint32_t bucketSize, const LocalTensor<float>& sinBroadcastedValues, const LocalTensor<float>& cosBroadcastedValues,
+            const LocalTensor<float>& calcTmpTensor1, const LocalTensor<float>& calcTmpTensor2, 
+            const RotateMaskInfo& maskInfo, const uint32_t rowLength, const uint8_t numRepeats)
+    {
+        uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
+        for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
+            uint16_t rightRowIdx = maskInfo.rightRowsIds[rowIdx];
+            Mul(calcTmpTensor1[rowIdx * rowLength], bucket2[rightRowIdx * rowLength], sinBroadcastedValues[rowIdx * rowMask], rowMask, numRepeats,
+                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
+            Mul(calcTmpTensor2[rowIdx * rowLength], bucket2[rightRowIdx * rowLength], cosBroadcastedValues[rowIdx * rowMask], rowMask, numRepeats,
+                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
+        }
+        PipeBarrier<PIPE_V>();
+        Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * rowLength);
+        PipeBarrier<PIPE_V>();
+        for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
+            uint16_t leftRowIdx = maskInfo.leftRowsIds[rowIdx];
+            MulAddDst(calcTmpTensor1[rowIdx * rowLength], cosBroadcastedValues[rowIdx * rowMask], bucket1[leftRowIdx * rowLength], rowMask, numRepeats,
+                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
+            MulAddDst(calcTmpTensor2[rowIdx * rowLength], sinBroadcastedValues[rowIdx * rowMask], bucket1[leftRowIdx * rowLength], rowMask, numRepeats,
+                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
+        }
+        PipeBarrier<PIPE_V>();
+        for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
+            uint16_t leftRowIdx = maskInfo.leftRowsIds[rowIdx];
+            uint16_t rightRowIdx = maskInfo.rightRowsIds[rowIdx];
+            Copy(bucket1[leftRowIdx * rowLength], calcTmpTensor1[rowIdx * rowLength], rowMask, numRepeats, { 1,1, maskRepeatStride, maskRepeatStride });
+            Copy(bucket2[rightRowIdx * rowLength], calcTmpTensor2[rowIdx * rowLength], rowMask, numRepeats, { 1,1, maskRepeatStride, maskRepeatStride });
+        }
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<bool BUCKET_1_TARGET>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplySinCos(
+            const LocalTensor<float>& bucket1, const uint32_t bucket1Size, const LocalTensor<float>& bucket2,
+            const uint32_t bucket2Size, const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor, 
+            const RotateMaskInfo& maskInfo)
     {
         const uint32_t bucketSize = (BUCKET_1_TARGET) ? bucket1Size : bucket2Size;
         LocalTensor<float> sinBroadcastedValues = tmpMaskSpace;
@@ -1055,124 +1204,25 @@ private:
             PipeBarrier<PIPE_V>();
             Brcb(cosBroadcastedValues, calcTmpTensor1, static_cast<uint8_t>(bucketSize), { 1,8 });
             Brcb(sinBroadcastedValues, calcTmpTensor2, static_cast<uint8_t>(bucketSize), { 1,8 });
-
         }
         PipeBarrier<PIPE_V>();
         uint32_t uOffsetForBacket1 = bucket1Size*nSizeAligned;
         uint32_t uOffsetForBacket2 = bucket2Size*nSizeAligned;
-        if constexpr (BUCKET_1_TARGET) {
-            uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
-            {
-                uint16_t rowIdxWithOffset = maskInfo.rightRowsIds[0];
-                Mul(calcTmpTensor1, bucket2[rowIdxWithOffset * nSizeAligned], sinBroadcastedValues, rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-                Mul(calcTmpTensor2, bucket2[rowIdxWithOffset * nSizeAligned], cosBroadcastedValues, rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            }
-            for (uint32_t rowIdx = 1; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.rightRowsIds[rowIdx];
-                Mul(calcTmpTensor1[rowIdx * nSizeAligned], bucket2[rowIdxWithOffset * nSizeAligned], sinBroadcastedValues[rowIdx * rowMask], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-                Mul(calcTmpTensor2[rowIdx * nSizeAligned], bucket2[rowIdxWithOffset * nSizeAligned], cosBroadcastedValues[rowIdx * rowMask], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            }
-            PipeBarrier<PIPE_V>();
-            Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * nSizeAligned);
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                MulAddDst(calcTmpTensor1[rowIdx * nSizeAligned], cosBroadcastedValues[rowIdx * rowMask], bucket1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-                MulAddDst(calcTmpTensor2[rowIdx * nSizeAligned], sinBroadcastedValues[rowIdx * rowMask], bucket1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.rightRowsIds[rowIdx];
-                Copy(bucket1[rowIdx * nSizeAligned], calcTmpTensor1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-                Copy(bucket2[rowIdxWithOffset * nSizeAligned], calcTmpTensor2[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.rightRowsIds[rowIdx];
-                Mul(calcTmpTensor1[rowIdx * uNSizeAligned], sinBroadcastedValues[rowIdx * rowMask], bucket2[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket2], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-                Mul(calcTmpTensor2[rowIdx * uNSizeAligned], cosBroadcastedValues[rowIdx * rowMask], bucket2[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket2], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * uNSizeAligned);
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                MulAddDst(calcTmpTensor1[rowIdx * uNSizeAligned], cosBroadcastedValues[rowIdx * rowMask], bucket1[rowIdx * uNSizeAligned + uOffsetForBacket1], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-                MulAddDst(calcTmpTensor2[rowIdx * uNSizeAligned], sinBroadcastedValues[rowIdx * rowMask], bucket1[rowIdx * uNSizeAligned + uOffsetForBacket1], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.rightRowsIds[rowIdx];
-                Copy(bucket1[rowIdx * uNSizeAligned + uOffsetForBacket1], calcTmpTensor1[rowIdx * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-                Copy(bucket2[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket2], calcTmpTensor2[rowIdx * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            }
 
-            // TODO: Add for APPLYING SIN AND COS FOR U TENSOR
-
-        } else {
-            uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                Mul(calcTmpTensor1[rowIdx * nSizeAligned], bucket2[rowIdx * nSizeAligned], sinBroadcastedValues[rowIdx * rowMask], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-                Mul(calcTmpTensor2[rowIdx * nSizeAligned], bucket2[rowIdx * nSizeAligned], cosBroadcastedValues[rowIdx * rowMask], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            }
-            PipeBarrier<PIPE_V>();
-            Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * nSizeAligned);
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.leftRowsIds[rowIdx];
-                MulAddDst(calcTmpTensor1[rowIdx * nSizeAligned], cosBroadcastedValues[rowIdx * rowMask], bucket1[rowIdxWithOffset * nSizeAligned], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-                MulAddDst(calcTmpTensor2[rowIdx * nSizeAligned], sinBroadcastedValues[rowIdx * rowMask], bucket1[rowIdxWithOffset * nSizeAligned], rowMask, rowRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.leftRowsIds[rowIdx];
-                Copy(bucket1[rowIdxWithOffset * nSizeAligned], calcTmpTensor1[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-                Copy(bucket2[rowIdx * nSizeAligned], calcTmpTensor2[rowIdx * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                Mul(calcTmpTensor1[rowIdx * uNSizeAligned], bucket2[rowIdx * uNSizeAligned + uOffsetForBacket2], sinBroadcastedValues[rowIdx * rowMask], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-                Mul(calcTmpTensor2[rowIdx * uNSizeAligned], bucket2[rowIdx * uNSizeAligned + uOffsetForBacket2], cosBroadcastedValues[rowIdx * rowMask], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            }
-            PipeBarrier<PIPE_V>();
-            Muls(calcTmpTensor1, calcTmpTensor1, -1.f, maxBucketSize * nSizeAligned);
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.leftRowsIds[rowIdx];
-                MulAddDst(calcTmpTensor1[rowIdx * uNSizeAligned], cosBroadcastedValues[rowIdx * rowMask], bucket1[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket1], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-                MulAddDst(calcTmpTensor2[rowIdx * uNSizeAligned], sinBroadcastedValues[rowIdx * rowMask], bucket1[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket1], rowMask, uRepeatsNum,
-                    { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            }
-            PipeBarrier<PIPE_V>();
-            for (uint32_t rowIdx = 0; rowIdx < bucketSize; ++rowIdx) {
-                uint16_t rowIdxWithOffset = maskInfo.leftRowsIds[rowIdx];
-                Copy(bucket1[rowIdxWithOffset * uNSizeAligned + uOffsetForBacket1], calcTmpTensor1[rowIdx * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-                Copy(bucket2[rowIdx * uNSizeAligned + uOffsetForBacket2], calcTmpTensor2[rowIdx * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            }
-        }
+        uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
+        ApplySinCosForRowSet(bucket1, bucket2, bucketSize, sinBroadcastedValues, cosBroadcastedValues, calcTmpTensor1,
+                        calcTmpTensor2, maskInfo, nSizeAligned, rowRepeatsNum);
         PipeBarrier<PIPE_V>();
-
+        ApplySinCosForRowSet(bucket1[uOffsetForBacket1], bucket2[uOffsetForBacket2], bucketSize, sinBroadcastedValues, cosBroadcastedValues, calcTmpTensor1,
+                        calcTmpTensor2, maskInfo, uNSizeAligned, uRepeatsNum);
+        PipeBarrier<PIPE_V>();
     }
 
-    template<bool BUCKET_1_TARGET = true>
-    __aicore__ inline void  ApplySinCosForSelfBucket(const LocalTensor<float>& bucket, const uint32_t bucketSize, const LocalTensor<float>& sinTensor,
-        const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    template<bool BUCKET_1_TARGET>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::ApplySinCosForSelfBucket(
+            const LocalTensor<float>& bucket, const uint32_t bucketSize, const LocalTensor<float>& sinTensor,
+            const LocalTensor<float>& cosTensor, const RotateMaskInfo& maskInfo)
     {
         LocalTensor<float> sinBroadcastedValues = tmpMaskSpace;
         LocalTensor<float> cosBroadcastedValues = tmpMaskSpace[rowMask * maxBucketSize];
@@ -1251,7 +1301,10 @@ private:
         }
 
     }
-    __aicore__ inline void InitV(const LocalTensor<float>& bucketSpace, const uint32_t bucketBegin, const uint32_t bucketEnd)
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::InitV(
+            const LocalTensor<float>& bucketSpace, const uint32_t bucketBegin, const uint32_t bucketEnd)
     {
         uint16_t numRows = bucketEnd - bucketBegin;
         Duplicate(bucketSpace[nSizeAligned*numRows], 0.f, uNSizeAligned*numRows);
@@ -1268,7 +1321,10 @@ private:
         PipeBarrier<PIPE_V>();
     }
 
-    __aicore__ inline void LoadBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, const uint32_t bucketEnd, const bool isFirstLoadDataLocal)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::LoadBucket(
+        const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, 
+        const uint32_t bucketEnd, const bool isFirstLoadDataLocal)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         uint16_t numRows = bucketEnd - bucketBegin;
@@ -1283,15 +1339,21 @@ private:
         }
     }
 
-    __aicore__ inline void SaveBucket(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, const uint32_t bucketEnd)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::SaveBucket(
+        const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, 
+        const uint32_t bucketEnd)
     {
         uint16_t numRows = bucketEnd - bucketBegin;
         DataCopy(aTmpGm[batchOffsetTmp + bucketBegin * recordSizeAligned], bucketSpace, { numRows, static_cast<uint16_t>(recordSizeAligned * sizeof(AType) / 32), 0, 0 });
         DataCopyPad(sGm[batchOffsetS + bucketBegin], normVector, { 1, static_cast<uint16_t>(numRows * sizeof(AType)), 0, 0 });
     }
 
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
     template<bool IS_LEFT_BUCKET_SAVING>
-    __aicore__ inline void SaveOutputs(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, const uint32_t bucketEnd)
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::SaveOutputs(
+            const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, const uint32_t bucketBegin, 
+            const uint32_t bucketEnd)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         uint16_t numRows = bucketEnd - bucketBegin;
@@ -1339,15 +1401,17 @@ private:
         WaitFlag<HardEvent::V_MTE3>(evtVToMte3_1);
         DataCopyPad(uGm[batchOffsetU + bucketBegin * uNSize], bucketSpace[numRows*nSizeAligned],
                 {static_cast<uint16_t>(numRows), static_cast<uint16_t>(uNSize * sizeof(AType)), 
-                 static_cast<uint16_t>((uNSizeAligned - uNSizeAligned32) * sizeof(AType) / 32), 0 });
+                static_cast<uint16_t>((uNSizeAligned - uNSizeAligned32) * sizeof(AType) / 32), 0 });
         DataCopyPad(sGm[batchOffsetS + bucketBegin], singularValues, { 1, static_cast<uint16_t>(numRows * sizeof(AType)), 0, 0 });
         DataCopyPad(vGm[batchOffsetV + bucketBegin * vNSize], bucketSpace,
                     { static_cast<uint16_t>(numRows), static_cast<uint16_t>(vNSize * sizeof(AType)), static_cast<uint16_t>((nSizeAligned - vNSizeAligned32) * sizeof(AType) / 32),0 });
     }
 
-    __aicore__ inline void CalculateSinCos(const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms,
-        const LocalTensor<float>& dotProducts, const LocalTensor<float>& sinTensor,
-        const LocalTensor<float>& cosTensor)
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateSinCos(
+            const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms,
+            const LocalTensor<float>& dotProducts, const LocalTensor<float>& sinTensor,
+            const LocalTensor<float>& cosTensor)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
         //Generating coeffs for rotating
@@ -1363,167 +1427,103 @@ private:
         LocalTensor<uint8_t> isFakeRotateCase = tmpBlock3.ReinterpretCast<uint8_t>();
         LocalTensor<uint8_t> isNotFakeRotateCase =  tmpBlock3.ReinterpretCast<uint8_t>();
         //Free tmpBlocks are {4,5,6,7,8}
-        // {
-            LocalTensor<float>& normSquareDiff = tmpBlock4;
-            LocalTensor<float>& constValues = tmpBlock5;
-            LocalTensor<float>& absDotProducts = tmpBlock6;
-           
-            Duplicate(constValues, 0.f, SMNE);
+        
+        LocalTensor<float>& normSquareDiff = tmpBlock4;
+        LocalTensor<float>& constValues = tmpBlock5;
+        LocalTensor<float>& absDotProducts = tmpBlock6;
+    
+        Duplicate(constValues, 0.f, SMNE);
 
-            Sub(normSquareDiff, rightSquareNorms, leftSquareNorms, SMNE);
-            PipeBarrier<PIPE_V>();
-            // Compare(normSquareDiffIsPositive, normSquareDiff, constValues, CMPMODE::GE, SMNE);
-            VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsPositive.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
-                CMPMODE::GE, SMNE, 1, { 1,1,1, 1,1,1 });
-            Div(tauTensor, normSquareDiff, dotProducts, SMNE);
-            PipeBarrier<PIPE_V>();
-            Muls(tauTensor, tauTensor, 0.5f, SMNE);
-            Abs(normSquareDiff, normSquareDiff, SMNE);
-            Abs(absDotProducts, dotProducts, SMNE);
-            Duplicate(constValues, NEAR_ZERO_VALUE, SMNE);
-            PipeBarrier<PIPE_V>();
-            LocalTensor<uint8_t>& normSquareDiffIsZero = isFakeRotateCase;
-            LocalTensor<uint8_t> dotProductIsZero = tmpBlock7.ReinterpretCast<uint8_t>();
-            VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsZero.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
-                CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
-            // PipeBarrier<PIPE_V>();
-            VcmpvImpl((__ubuf__ uint8_t*)dotProductIsZero.GetPhyAddr(), (__ubuf__ float*)absDotProducts.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
-                CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
-            PipeBarrier<PIPE_V>();
-            Or(isFakeRotateCase, normSquareDiffIsZero, dotProductIsZero, SMNE);
-            PipeBarrier<PIPE_V>();
-        // }
+        Sub(normSquareDiff, rightSquareNorms, leftSquareNorms, SMNE);
+        PipeBarrier<PIPE_V>();
+        // Compare(normSquareDiffIsPositive, normSquareDiff, constValues, CMPMODE::GE, SMNE);
+        VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsPositive.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
+            CMPMODE::GE, SMNE, 1, { 1,1,1, 1,1,1 });
+        Div(tauTensor, normSquareDiff, dotProducts, SMNE);
+        PipeBarrier<PIPE_V>();
+        Muls(tauTensor, tauTensor, 0.5f, SMNE);
+        Abs(normSquareDiff, normSquareDiff, SMNE);
+        Abs(absDotProducts, dotProducts, SMNE);
+        Duplicate(constValues, NEAR_ZERO_VALUE, SMNE);
+        PipeBarrier<PIPE_V>();
+        LocalTensor<uint8_t>& normSquareDiffIsZero = isFakeRotateCase;
+        LocalTensor<uint8_t> dotProductIsZero = tmpBlock7.ReinterpretCast<uint8_t>();
+        VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsZero.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
+            CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
+        // PipeBarrier<PIPE_V>();
+        VcmpvImpl((__ubuf__ uint8_t*)dotProductIsZero.GetPhyAddr(), (__ubuf__ float*)absDotProducts.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
+            CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
+        PipeBarrier<PIPE_V>();
+        Or(isFakeRotateCase, normSquareDiffIsZero, dotProductIsZero, SMNE);
+        PipeBarrier<PIPE_V>();
         LocalTensor<float>& tTensor = tmpBlock4;
         //Free tmpBlocks are {5,6,7,8}
         //Calculating t = sign(tau)/(absTau+sqrt(1.f+tau*tau));
-        // {
-            LocalTensor<float>& absTaoTensor = tmpBlock5;
-            LocalTensor<float>& tmp1 = tmpBlock6;
-            LocalTensor<float>& tmp2 = tmpBlock7;
-            //absTau = abs(tau)
-            NotImpl((__ubuf__ uint16_t*)isNotFakeRotateCase.GetPhyAddr(), (__ubuf__ uint16_t*)isFakeRotateCase.GetPhyAddr(), SMNE, 1, {1,1,1,1});
-            Abs(absTaoTensor, tauTensor, SMNE);
-            // tmp1=tau*tau
-            Mul(tmp1, tauTensor, tauTensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            //tmp1 = 1.f+tau*tau
-            Adds(tmp1, tmp1, 1.f, SMNE);
-            //tmp2 = sign(tau)=tau/absTau
-            Div(tmp2, tauTensor, absTaoTensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            //tmp1 = sqrt(1.f+tau*tau)
-            Sqrt(tmp1, tmp1, SMNE);
-            PipeBarrier<PIPE_V>();
-            //tmp1 = absTau+sqrt(1.f+tau*tau)
-            Add(tmp1, tmp1, absTaoTensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            // t = sign(tau)/(absTau+sqrt(1.f+tau*tau))
-            Div(tTensor, tmp2, tmp1, SMNE);
-            PipeBarrier<PIPE_V>();
-        // }
+        LocalTensor<float>& absTaoTensor = tmpBlock5;
+        LocalTensor<float>& tmp1 = tmpBlock6;
+        LocalTensor<float>& tmp2 = tmpBlock7;
+        //absTau = abs(tau)
+        NotImpl((__ubuf__ uint16_t*)isNotFakeRotateCase.GetPhyAddr(), (__ubuf__ uint16_t*)isFakeRotateCase.GetPhyAddr(), SMNE, 1, {1,1,1,1});
+        Abs(absTaoTensor, tauTensor, SMNE);
+        // tmp1=tau*tau
+        Mul(tmp1, tauTensor, tauTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        //tmp1 = 1.f+tau*tau
+        Adds(tmp1, tmp1, 1.f, SMNE);
+        //tmp2 = sign(tau)=tau/absTau
+        Div(tmp2, tauTensor, absTaoTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        //tmp1 = sqrt(1.f+tau*tau)
+        Sqrt(tmp1, tmp1, SMNE);
+        PipeBarrier<PIPE_V>();
+        //tmp1 = absTau+sqrt(1.f+tau*tau)
+        Add(tmp1, tmp1, absTaoTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        // t = sign(tau)/(absTau+sqrt(1.f+tau*tau))
+        Div(tTensor, tmp2, tmp1, SMNE);
+        PipeBarrier<PIPE_V>();
+
         //taoTensor is free and can be reused
         LocalTensor<float>& s1Tensor = tmpBlock1;
         LocalTensor<float>& s2Tensor = tmpBlock5;
         //Free tmpBlocks are {6,7,8}
-        // {
+        LocalTensor<float>& negativeOneTensor = tmpBlock6;
+        Duplicate(negativeOneTensor, -1.f, SMNE);
+        //s1 = 1 / sqrt(1.f + t*t)
+        //s1 = t*t
+        Mul(s1Tensor, tTensor, tTensor, SMNE);
+        Duplicate(s2Tensor, 1.f, SMNE);
+        PipeBarrier<PIPE_V>();
+        //s1 = 1.f + t*t
+        Add(s1Tensor, s2Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        //s1 = sqrt(1.f + t*t)
+        Sqrt(s1Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        //s1 = 1 / sqrt(1.f + t*t)
+        Div(s1Tensor, s2Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        //s2 = t*s1
+        Mul(s2Tensor, s1Tensor, tTensor, SMNE);
+        //tTensor is free
+        //  if(normSquareDiff>=0.f) s2=-s2;
+        LocalTensor<float>& coeff = tmpBlock4;
+        Select(coeff, normSquareDiffIsPositive, negativeOneTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
+        PipeBarrier<PIPE_V>();
+        Mul(s2Tensor, s2Tensor, coeff, SMNE);
+        PipeBarrier<PIPE_V>();
 
-            LocalTensor<float>& negativeOneTensor = tmpBlock6;
-            Duplicate(negativeOneTensor, -1.f, SMNE);
-            //s1 = 1 / sqrt(1.f + t*t)
-            //s1 = t*t
-            Mul(s1Tensor, tTensor, tTensor, SMNE);
-            Duplicate(s2Tensor, 1.f, SMNE);
-            PipeBarrier<PIPE_V>();
-            //s1 = 1.f + t*t
-            Add(s1Tensor, s2Tensor, s1Tensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            //s1 = sqrt(1.f + t*t)
-            Sqrt(s1Tensor, s1Tensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            //s1 = 1 / sqrt(1.f + t*t)
-            Div(s1Tensor, s2Tensor, s1Tensor, SMNE);
-            PipeBarrier<PIPE_V>();
-            //s2 = t*s1
-            Mul(s2Tensor, s1Tensor, tTensor, SMNE);
-            //tTensor is free
-            //  if(normSquareDiff>=0.f) s2=-s2;
-            LocalTensor<float>& coeff = tmpBlock4;
-            Select(coeff, normSquareDiffIsPositive, negativeOneTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
-            PipeBarrier<PIPE_V>();
-            Mul(s2Tensor, s2Tensor, coeff, SMNE);
-            PipeBarrier<PIPE_V>();
-
-        // }
         // Calculate sin, cos
         // Free tmpBlocks are {8}
-        // {
-            Select(sinTensor, normSquareDiffIsPositive, s1Tensor, s2Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
-            // PipeBarrier<PIPE_V>();
-            Select(cosTensor, normSquareDiffIsPositive, s2Tensor, s1Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
-            PipeBarrier<PIPE_V>();
-            // Free s1Tensor(tmpBlock1), s2Tensor(tmpBlock5), normSquareDiffIsPositive(tmpBlock2),
-            Select(cosTensor, isNotFakeRotateCase, cosTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
-            // PipeBarrier<PIPE_V>();
-            Select(sinTensor, isNotFakeRotateCase, sinTensor, 0.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
-            PipeBarrier<PIPE_V>();
-        // }
-
+        Select(sinTensor, normSquareDiffIsPositive, s1Tensor, s2Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
+        // PipeBarrier<PIPE_V>();
+        Select(cosTensor, normSquareDiffIsPositive, s2Tensor, s1Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
+        PipeBarrier<PIPE_V>();
+        // Free s1Tensor(tmpBlock1), s2Tensor(tmpBlock5), normSquareDiffIsPositive(tmpBlock2),
+        Select(cosTensor, isNotFakeRotateCase, cosTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
+        // PipeBarrier<PIPE_V>();
+        Select(sinTensor, isNotFakeRotateCase, sinTensor, 0.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
+        PipeBarrier<PIPE_V>();
     }
-    
-private:
-    //constexpr functions
-    template<typename DST_TYPE>
-    constexpr __aicore__ DST_TYPE VEC_INSTRUCTION_NUM()
-    {
-        return static_cast<DST_TYPE>(VEC_INSTRUCTION_SET_SIZE / sizeof(float));
-    }
-private:
-    static constexpr float NEAR_ZERO_VALUE = 0.0000000001f;
-private:
-    struct RotateMaskInfo
-    {
-        uint8_t leftRowsIds[sizeof(uint64_t)];
-        uint8_t rightRowsIds[sizeof(uint64_t)];
-        uint64_t normUpdateMask = 0;
-        union
-        {
-            uint64_t leftMaskU64Val;
-            uint8_t leftMaskU8Val[sizeof(uint64_t)];
-        };
-        union
-        {
-            uint64_t rightMaskU64Val;
-            uint8_t rightMaskU8Val[sizeof(uint64_t)];
-        };
-        uint8_t numPairs = 0;
-        uint8_t leftBucketSize = 0;
-        uint8_t rightBucketSize = 0;
-    };
-    static constexpr uint64_t INTERNAL_SYNC_ALL = 0x1;
-    TPipe* pipe_;
-    GlobalTensor<AType> aGm;
-    GlobalTensor<AType> aTmpGm;
-    GlobalTensor<AType> sGm;
-    GlobalTensor<AType> uGm;
-    GlobalTensor<AType> vGm;
-    uint32_t coreIdx, numAvailableVectorCores;
-    uint32_t globSetMaxSize, globSetMinSize, numGlobalSetsWithMaxSize, numGlobalSetsWithMinSize, globSetMinOffset;
-    uint32_t numIterations, numStages, numPhases, numGlobalSets, leftGlobalSetBegin, leftGlobalSetEnd, rightGlobalSetBegin, rightGlobalSetEnd;
-    uint32_t mSize, nSize, nSizeAligned, uMSize, uNSize, uNSizeAligned, vMSize, vNSize, vNSizeAligned, sMNSize, sMNSizeAligned, recordSize, recordSizeAligned;
-    int32_t batchSize;
-    uint64_t batchOffsetV,batchOffsetU, batchOffsetS, batchOffsetI, batchOffsetTmp;
-    uint32_t rowSize, rowSizeAligned, rowMask, rowRepeatsNum, rowTail, maxBucketSize, ubSize, uRepeatsNum, uTailSize, tmpRowSize, tmpRowSizeAligned;
-    TBuf<TPosition::VECCALC> ubBuf;
-    LocalTensor<uint8_t> ubMemory;
-    LocalTensor<int32_t> arithmProgressive;
-    LocalTensor<float>  tmpMemSpace, tmpMaskSpace, bucketSpace1, bucketSpace2, bucketSpace3;
-    //Constant tensors
-    LocalTensor<float> tmpBlock1, tmpBlock2, tmpBlock3, tmpBlock4, tmpBlock5,
-        tmpBlock6, tmpBlock7, tmpBlock8, tmpBlock9, tmpBlock10, tmpBlock11, tmpBlock12, tmpBlock13,
-        tmpBlock14, tmpBlock15, tmpBlock16, tmpBlock17, tmpBlock18, tmpBlock19, tmpBlock20, tmpBlock21,
-        tmpBlock22, tmpBlock23, tmpBlock24, tmpBlock25, tmpBlock26, tmpBlock27, tmpBlock28, tmpBlock29,
-        tmpBlock30, tmpBlock31, tmpBlock32, tmpBlockSpace;
-    bool needSort;
-};
 }
 #endif //JACOBI_BASE_H
