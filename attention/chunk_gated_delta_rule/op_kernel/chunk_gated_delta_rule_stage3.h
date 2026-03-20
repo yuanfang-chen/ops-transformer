@@ -165,7 +165,10 @@ public:
     {
         int64_t Bf16PaddingDv = Ceil(Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
         // 匹配到BF16对齐, 余数为8以上时自动对齐无需额外偏移
-        int64_t dstStride = Dv_ % BLOCK_BF16_NUM > BLOCK_FLOAT_NUM ? 0 : BLOCK_FLOAT_NUM;
+        int64_t dstStride = 0;
+        if (Dv_ % BLOCK_BF16_NUM != 0) {
+            dstStride = Dv_ % BLOCK_BF16_NUM > BLOCK_FLOAT_NUM ? 0 : BLOCK_FLOAT_NUM;
+        }
         LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
         DataCopyExtParams inParams{static_cast<uint16_t>(curChunkSize_),
                                    static_cast<uint32_t>(Dv_ * sizeof(float)),
