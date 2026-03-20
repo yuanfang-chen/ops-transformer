@@ -34,3 +34,5 @@ foreach(SUB_DIR ${CURRENT_DIRS})
         endif()
     endif()
 endforeach()
+
+add_all_modules_sources(OPTYPE crop_and_resize ACLNNTYPE aclnn_exclude)

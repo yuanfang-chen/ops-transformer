@@ -294,11 +294,11 @@ if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
         add_subdirectory(tests/ut/framework_normal)
 endif()
 
-# 编译AICPU算子
-if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")	 
-     add_subdirectory(examples/add_example)	 
-     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})	 
-endif()
+# # 编译AICPU算子
+# if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")	 
+#      add_subdirectory(examples/add_example)	 
+#      list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})	 
+# endif()
 
 # 编译examples目录下算子
 foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
@@ -894,6 +894,7 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
 endif()
 
 # ------------------------------------------------ generate adapt py ------------------------------------------------
+if (NOT ENBALE_AICPU_KERNEL)
 add_custom_target(generate_transformer_adapt_py
         COMMAND ${HI_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/util/ascendc_impl_build.py
         \"\"
@@ -904,6 +905,7 @@ add_custom_target(generate_transformer_adapt_py
         ${ASCEND_AUTOGEN_DIR}
         --opsinfo-dir ${base_aclnn_binary_dir} ${base_aclnn_binary_dir}/inner ${base_aclnn_binary_dir}/exc
 )
+endif()
 
 add_dependencies(generate_transformer_adapt_py opbuild_gen_default opbuild_gen_inner opbuild_gen_exc)
 
@@ -971,7 +973,7 @@ foreach (op_dir ${OP_DIR_LIST})
 endforeach ()
 
 # ------------------------------------------------ generate compile cmd ------------------------------------------------
-if (BUILD_OPEN_PROJECT)
+if (BUILD_OPEN_PROJECT AND NOT ENBALE_AICPU_KERNEL)
     add_custom_target(prepare_build ALL)
     add_custom_target(generate_compile_cmd ALL)
     add_custom_target(generate_ops_info ALL)
@@ -986,7 +988,7 @@ if (BUILD_OPEN_PROJECT)
                 COMPUTE_UNIT ${compute_unit}
         )
     endforeach ()
-else()
+elseif(NOT ENBALE_AICPU_KERNEL)
     add_dependencies(tbe_ops_json_info generate_transformer_adapt_py)
 endif ()
 
