@@ -16,7 +16,11 @@
 #pragma once
 
 #include <string>
+#include <cstdarg>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <algorithm>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <securec.h>
@@ -144,6 +148,58 @@ private:
 #define OPS_LOG_STUB_W(OPS_DESC, FMT, ...) OPS_LOG_STUB(OP, DLOG_WARN, OPS_DESC, FMT, ##__VA_ARGS__)
 #define OPS_LOG_STUB_E(OPS_DESC, FMT, ...) OPS_LOG_STUB(OP, DLOG_ERROR, OPS_DESC, FMT, ##__VA_ARGS__)
 #define OPS_LOG_STUB_EVENT(OPS_DESC, FMT, ...) OPS_LOG_STUB(OP, DLOG_EVENT, OPS_DESC, FMT, ##__VA_ARGS__)
+
+static inline void OpsLogStubFullImpl(int level, const char *opsDesc, const char *fmt, ...)
+{
+    if (0 == AlogCheckDebugLevel(OP, level)) {
+        return;
+    }
+
+    char msgbufxyz[ops::utils::LogBase::MAX_LOG_LEN] = {0};
+    size_t msgmaxlen = (MSG_LENGTH - ops::utils::LogBase::MSG_HDR_LEN);
+
+    va_list args;
+    va_start(args, fmt);
+    int rettmp = vsnprintf_s(msgbufxyz, sizeof(msgbufxyz), sizeof(msgbufxyz) - 1, fmt, args);
+    va_end(args);
+
+    if (rettmp == -1) {
+        msgbufxyz[sizeof(msgbufxyz) - 1] = '\0';
+    }
+
+    size_t msglength = std::strlen(msgbufxyz);
+    if (msglength < msgmaxlen) {
+        OPS_LOG_STUB(OP, level, opsDesc, "%s", msgbufxyz);
+        return;
+    }
+
+    char *msgchunkbegin = msgbufxyz;
+    char *msgchunkend = nullptr;
+    while (msgchunkbegin < (msgbufxyz + msglength)) {
+        if (msgchunkbegin[0] == '\n') {
+            OPS_LOG_STUB(OP, level, opsDesc, "");
+            msgchunkbegin += 1;
+            continue;
+        }
+
+        msgchunkend = std::strchr(msgchunkbegin, '\n');
+        if (msgchunkend == nullptr) {
+            msgchunkend = msgchunkbegin + std::strlen(msgchunkbegin);
+        }
+
+        while (msgchunkend > msgchunkbegin) {
+            std::string msgchunk(
+                msgchunkbegin,
+                std::min(msgmaxlen, static_cast<size_t>(msgchunkend - msgchunkbegin)));
+            OPS_LOG_STUB(OP, level, opsDesc, "%s", msgchunk.c_str());
+            msgchunkbegin += msgchunk.size();
+        }
+        msgchunkbegin += 1;
+    }
+}
+
+#define OPS_LOG_STUB_FULL(LEVEL, OPS_DESC, FMT, ...) \
+    OpsLogStubFullImpl((LEVEL), (OPS_DESC), (FMT), ##__VA_ARGS__)
 
 #define OPS_LOG_STUB_FULL(LEVEL, OPS_DESC, FMT, ...)                                                                   \
     do {                                                                                                               \
