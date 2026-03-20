@@ -29,7 +29,7 @@ public:
         // B*S过大时，跳写参数dataCopyParams.dstStride(uint32_t)计算结果将溢出，使用for循环拷贝代替
         if (dstStride > UINT32_MAX) {
             uint64_t gmSingleStride = (dstStride + blockLen) / sizeof(OUT_T);
-            uint64_t ubSingleStride = (srcStride * fa_base_vector::BYTE_BLOCK + blockLen) / sizeof(OUT_T);
+            uint64_t ubSingleStride = (srcStride * 32 + blockLen) / sizeof(OUT_T);
             dataCopyParams.blockCount = 1;
             dataCopyParams.blockLen = blockLen;
             dataCopyParams.srcStride = 0;
@@ -80,7 +80,7 @@ public:
             uint64_t ubOffset = 0;
             uint32_t blockCount = headS1;
             uint32_t blockLen = gmCoord.dDealSize * sizeof(OUT_T);
-            uint32_t srcStride = (srcTensor.colCount - gmCoord.dDealSize) / (fa_base_vector::BYTE_BLOCK / sizeof(OUT_T));
+            uint32_t srcStride = (srcTensor.colCount - gmCoord.dDealSize) / (32 / sizeof(OUT_T));
             uint64_t dstStride = (offsetCalculator.GetStrideS1() - gmCoord.dDealSize) * sizeof(OUT_T); // 单位为Byte
             SafeStrideCopy(dstTensor.gmTensor[gmOffset], srcTensor.tensor[ubOffset], blockCount, blockLen, srcStride,
                             dstStride);
@@ -124,7 +124,7 @@ public:
             uint64_t ubOffset = 0;
             uint32_t blockCount = headSize;
             uint32_t blockLen = gmCoord.dDealSize * sizeof(OUT_T);
-            uint32_t srcStride = (srcTensor.colCount - gmCoord.dDealSize) / (fa_base_vector::BYTE_BLOCK / sizeof(OUT_T));
+            uint32_t srcStride = (srcTensor.colCount - gmCoord.dDealSize) / (32 / sizeof(OUT_T));
             uint64_t dstStride = (offsetCalculator.GetStrideG() - gmCoord.dDealSize) * sizeof(OUT_T); // 单位为Byte
             SafeStrideCopy(dstTensor.gmTensor[gmOffset], srcTensor.tensor[ubOffset], blockCount, blockLen, srcStride,
                             dstStride);
