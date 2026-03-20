@@ -418,6 +418,7 @@ namespace BSA {
                                 blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
                             }
                             preTaskInfo = curInfo;
+                            preTaskInfo.sOffset = curInfo.sOffset * 2; // float32偏移转成bf16/half偏移
                             pingpongFlag = 1 - pingpongFlag;
                             count++;
                             kvBlockBasicOffset += basicKVBlockSize;
