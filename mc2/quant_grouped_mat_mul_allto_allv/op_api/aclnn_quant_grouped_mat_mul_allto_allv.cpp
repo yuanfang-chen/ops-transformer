@@ -23,7 +23,7 @@
 #include "opdev/op_log.h"
 #include "platform/soc_spec.h"
 #include "opdev/platform.h"
-#include "mc2_aclnn_util.h"
+#include "common/op_api/mc2_aclnn_util.h"
 #include "securec.h"
 #include <algorithm>
 
