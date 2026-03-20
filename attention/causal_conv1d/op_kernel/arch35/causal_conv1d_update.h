@@ -457,7 +457,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         yGMParams.blockCount = ((kernelSize_ - 1) < curBatchSeq) ? kernelSize_ - 1 : curBatchSeq;
         yGMParams.blockLen = blockLen;
         yGMParams.srcStride = 0;
-        yGMParams.dstStride = convStride;
+        yGMParams.dstStride = yStride;
         DataCopyPad(yGm[yOffset], convStatesLocal[(acceptToken-1) *dimSizeInLoop_], yGMParams);
 
         // 情况B：序列位置 j ∈ [K-1, curBatchSeq-1]，只使用x数据
