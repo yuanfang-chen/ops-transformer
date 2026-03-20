@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -87,12 +87,12 @@ ge::graphStatus AllGatherMatmulTiling::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2Matm
 {
     tilingCfg.SetRankDim(args_.rankDim - 1);
     tilingCfg.SetMatMulV3TilingData(tilingData);
-    if (args_.nValue != 0)
+    if (args_.nValue != 0) {
         if (Mc2MMTilingRegistry::GetInstance().DoTilingImpl(context_, tilingCfg, registerCfg) != ge::GRAPH_SUCCESS) {
             OP_LOGE(opName_, "DoMatmulV3Tiling failed.");
             return ge::GRAPH_FAILED;
         }
-
+    }
     return ge::GRAPH_SUCCESS;
 }
 
