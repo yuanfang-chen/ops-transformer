@@ -117,28 +117,6 @@ cannsim record [options] user_app --user_options
     ```
     ├─cannsim_{timestamp}_${user_app}
     ├── cannsim.log
-    ├── log
-    │   ├── AIC_0_0_0_0_ChiWrap.log0
-    │   ├── ccum_0_0_2.txt0
-    │   ├── hha_0_0_0_states.log
-    │   ├── L2Buf_0_0_0_0.txt0
-    │   ├── L2cache_stats.log
-    │   ├── lpddr_state0.log
-    │   ├── ManyRing_0_0_0_0DatPerf.txt0
-    │   ├── sdmam_0_0_0_debug.log0
-    │   ├── sllc_chip_0_die_0_1_0_0_perf.log
-    │   ├── STARS_ChiWrapper_0_1.log0
-    │   ├── Tg_Log_File_0_0.txt
-    │   ├── UB_0_0_2_0_ChiWrap.log0
-    │   └── ub_log
-    │       ├── UB_0_0_2_BA_0_statis.log
-    ├── log_ca
-    │   ├── core0.cubecore0_su_perf_summary_log
-    │   ├── core0_summary_log
-    │   ├── core0.wrapper_log.dump
-    │   ├── mcu_log.dump
-    │   ├── stars_log0_0.dump
-    │   └── stars_log0_1.dump
     ```
 
 4. 用户可以获取算子执行结果，并进行精度的对比，结果展示在cannsim.log，示例如下
