@@ -676,12 +676,12 @@ void CausalConv1dUpdateTiling::ComputeUbFor(int64_t coreDimElems, int64_t coreBS
 ge::graphStatus CausalConv1dUpdateTiling::ComputeIntraCoreUbTiling()
 {
     // Intra-core UB tiling (big and tail blocks separately)
-    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
-    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
+    int64_t cacheIndicesUBSize = (batchSize_ * sizeof(int32_t) + ALIGN_BYTES - 1) / ALIGN_BYTES * ALIGN_BYTES;
+    int64_t numAcceptedTokensUBSize = (batchSize_ * sizeof(int32_t) + ALIGN_BYTES - 1) / ALIGN_BYTES * ALIGN_BYTES;
 
     fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
     if (xInputMode_ == X_INPUT_2D) {
-        int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
+        int64_t queryStartLocUBSize = ((batchSize_ + 1) * sizeof(int32_t) + ALIGN_BYTES - 1) / ALIGN_BYTES * ALIGN_BYTES;
         fixedUBSize += queryStartLocUBSize;
     }
 

@@ -60,6 +60,7 @@ constexpr int32_t ATTR_RESIDUAL_CONNECTION_INDEX = 3;
 // Constants for validation
 constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
 constexpr int64_t DIM_ALIGN_SiZESiZE = 256;  // 256 bytes
+constexpr int64_t ALIGN_BYTES = 32;
 constexpr int64_t MIN_DIM = 128;
 constexpr int64_t MAX_DIM = 16384;
 constexpr int64_t MIN_BATCH = 1;
