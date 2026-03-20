@@ -1,4 +1,6 @@
-# ----------------------------------------------------------------------------
+#!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -6,7 +8,7 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# ----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------
 
 import torch
 import torch_npu
@@ -37,10 +39,6 @@ QR_TEST_CASES = [
     ((2, 1, 3, 128, 16), 1e-5),
 #    ((4, 4*1024, 168), 1e-4),
     ((48, 64*1024, 160), 1e-3),
-]
-
-RSVD_REF_TEST_CASES = [
-    ((1, 128, 32), 16, 8, 1e-4),
 ]
 
 RSVD_TEST_CASES = [
@@ -75,18 +73,6 @@ def test_qr_decomposition(test_shapes, atol):
     q = q.reshape(-1, A.shape[-2], A.shape[-1])
     r = r.reshape(-1, A.shape[-1], A.shape[-1])
     assert torch.allclose(A, torch.matmul(q, r), atol=atol)
-
-@pytest.mark.parametrize("test_shapes,rank,gen_mtx_rank,atol", RSVD_REF_TEST_CASES)
-def test_svd_lowrank_ref(test_shapes, rank, gen_mtx_rank, atol):
-    b, m, n = test_shapes
-    A = get_input_matrix(b, m, n, gen_mtx_rank)
-    npu_a = A.to("npu:%s" % DEVICE_ID)
-    omega = get_omega(n, rank)
-    npu_omega = omega.to("npu:%s" % DEVICE_ID)
-
-    npu_u, npu_s, npu_v = torch.ops.npu_linalg.svd_lowrank(npu_a, omega=npu_omega, q=rank)
-    u, s, v = npu_u.cpu(), npu_s.cpu(), npu_v.cpu()
-    assert torch.allclose(A, torch.matmul(torch.matmul(u, torch.diag_embed(s)), v), atol=atol)
 
 @pytest.mark.parametrize("test_shapes,rank,gen_mtx_rank,atol", RSVD_TEST_CASES)
 def test_svd_lowrank(test_shapes, rank, gen_mtx_rank, atol):
