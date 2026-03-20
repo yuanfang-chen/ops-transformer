@@ -54,6 +54,12 @@ else()
     # --- 简单标记 ---
     message(STATUS "Debug: 2222 - Going into COPY branch")
     # --- 标记结束 ---
+
+    
+    execute_process(
+        COMMAND sh -c "echo 'Checking source path: ${MAKESELF_PATH}'; echo 'Directory exists:'; ls -la '${MAKESELF_PATH}' || echo 'Source directory does not exist!'; echo 'Contents of makeself.sh:'; ls -la '${MAKESELF_PATH}/makeself.sh' || echo 'makeself.sh does not exist!'; echo 'Contents of makeself-header.sh:'; ls -la '${MAKESELF_PATH}/makeself-header.sh' || echo 'makeself-header.sh does not exist!'"
+    )
+
     execute_process(
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"
