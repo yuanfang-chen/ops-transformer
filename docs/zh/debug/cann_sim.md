@@ -20,7 +20,7 @@ CANN Simulator是一款面向算子开发场景的SoC级芯片仿真工具，用
 * 本工具为开发工具，不建议在生产环境使用。
 * 工具的仿真功能仅支持单卡场景，无法仿真多卡环境，代码中只能设置为0卡。若修改可见卡号，将导致仿真失败。
 * 仿真环境仅支持AI Core计算类算子（不支持MC2和HCCL类型的算子）。
-* Cannsim工具目前处于尝鲜版本阶段，仅支持Ascend950芯片，建议仿真器运行环境配置为16核CPU和32GB以上内存。
+* Cannsim工具目前处于尝鲜版本阶段，仅支持Ascend950PR芯片，建议仿真器运行环境配置为16核CPU和32GB以上内存。
 * 目前不支持arm环境仿真。
 
 ## 环境准备
@@ -227,12 +227,19 @@ cannsim report [options]
 cannsim --help
 ```
 
-查询工具record 子命令的帮助信息：
+查询工具 record 子命令的帮助信息：
 
 ```
 cannsim record --help
 ```
-
+  
+查询工具 report 子命令的帮助信息： 
+ 
+ 
+ ``` 
+ cannsim report --help 
+ ``` 
+ 
 ## 参数说明
 
 无
