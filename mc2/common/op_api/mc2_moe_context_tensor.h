@@ -37,7 +37,7 @@ static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle) {
 }
 
 static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t netLayers, const uint32_t srcRankId,
-                                   const CommProtocol& protocol, const uint32_t dstRankId, CommLink*& links)
+                                   const uint32_t dstRankId, const CommProtocol& protocol, CommLink*& links)
 {
     OP_LOGD("Start to get HCCL communication link");
     CommLink* linksList{nullptr};
@@ -105,13 +105,13 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
         }
         uint32_t dstRankId = channelIndex; // 目标rank id
         uint32_t channelId = channelIndex > srcRankId ? channelIndex - 1 : channelIndex; // 通道id,比本卡Id大的卡Id全部左移一位
-        aclnnRet = GetHcclCommLink(hcclHandle, netLayers, srcRankId, dstRankId, links); // 遍历组网支持的所有通信协议
+        aclnnRet = GetHcclCommLink(hcclHandle, netLayers, srcRankId, dstRankId, protocol, links); // 遍历组网支持的所有通信协议
         CHECK_RET(aclnnRet == ACLNN_SUCCESS, aclnnRet);
         channelDesc[channelId].channelProtocol = protocol; // 通信协议
         channelDesc[channelId].remoteRank = dstRankId; // 目标rank id
         channelDesc[channelId].notifyNum = channelNum; // 通信的notify数量
-        channelDesc[channelId].localEndpoint = links.srcEndpointDesc;
-        channelDesc[channelId].remoteEndpoint = links.dstEndpointDesc;
+        channelDesc[channelId].localEndpoint = links->srcEndpointDesc;
+        channelDesc[channelId].remoteEndpoint = links->dstEndpointDesc;
     }
     hcclRet = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), channelNum, channeles.data());
     if(hcclRet != HCCL_SUCCESS) {
