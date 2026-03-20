@@ -849,7 +849,7 @@ ge::graphStatus QuantLightningIndexerTiling::DoTiling(QLITilingInfo *tilingInfo)
     tilingData_.set_s1Size(tilingInfo->s1Size);
     tilingData_.set_sparseCount(tilingInfo->sparseCount);
     tilingData_.set_keyBlockStride(tilingInfo->keyBlockStride);
-    tilingData_.set_keyScaleBlockStride(tilingInfo->keyDequantScaleBlockStride);
+    tilingData_.set_keyDequantScaleBlockStride(tilingInfo->keyDequantScaleBlockStride);
     tilingData_.set_gSize(tilingInfo->gSize);
     tilingData_.set_blockSize(tilingInfo->blockSize);
     tilingData_.set_maxBlockNumPerBatch(tilingInfo->maxBlockNumPerBatch);
