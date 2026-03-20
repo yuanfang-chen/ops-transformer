@@ -14,6 +14,7 @@
  */
 #include "prompt_flash_attention_tiling_v2.h"
 #include <queue>
+#include <tuple>
 
 #include "register/op_def_registry.h"
 #include "tiling/tiling_api.h"
@@ -3937,6 +3938,52 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionInitSoftmaxLseOutputSplit
     initParams->set_totalSoftMaxLseOutputSize(totalSize);
 }
 
+using DataTypeTriple = std::tuple<ge::DataType, ge::DataType, ge::DataType>;
+static const std::map<DataTypeTriple, int> qkoDtypeMap = {
+    {{ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16}, QFLOAT16_KINT8_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}, QFLOAT16_KINT4_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QFLOAT16_KHIFLOAT8_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16}, QFLOAT16_KFLOAT8_E4M3FN_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT4_E2M1, ge::DT_FLOAT16}, QFLOAT16_KFLOAT4_E2M1_OFLOAT16},
+    {{ge::DT_BF16, ge::DT_INT8, ge::DT_BF16}, QBF16_KINT8_OBF16},
+    {{ge::DT_BF16, ge::DT_INT4, ge::DT_BF16}, QBF16_KINT4_OBF16},
+    {{ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_BF16}, QBF16_KHIFLOAT8_OBF16},
+    {{ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16}, QBF16_KFLOAT8_E4M3FN_OBF16},
+    {{ge::DT_BF16, ge::DT_FLOAT4_E2M1, ge::DT_BF16}, QBF16_KFLOAT4_E2M1_OBF16},
+    {{ge::DT_BF16, ge::DT_INT8, ge::DT_INT8}, QBF16_KINT8_OINT8},
+    {{ge::DT_FLOAT16, ge::DT_INT8, ge::DT_INT8}, QFLOAT16_KINT8_OINT8},
+    {{ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8}, QBF16_KHIFLOAT8_OHIFLOAT8},
+    {{ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8}, QFLOAT16_KHIFLOAT8_OHIFLOAT8},
+    {{ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN}, QBF16_KFLOAT8_E4M3FN_OFLOAT8_E4M3FN},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN}, QFLOAT16_KFLOAT8_E4M3FN_OFLOAT8_E4M3FN},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}, QFLOAT16_KFLOAT16_OFLOAT16},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_BF16}, QBF16_KBF16_OBF16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8}, QFLOAT16_KFLOAT16_OINT8},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_HIFLOAT8}, QFLOAT16_KFLOAT16_OHIFLOAT8},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN}, QFLOAT16_KFLOAT16_OFLOAT8_E4M3FN},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_INT8}, QBF16_KBF16_OINT8},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_HIFLOAT8}, QBF16_KBF16_OHIFLOAT8},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT8_E4M3FN}, QBF16_KBF16_OFLOAT8_E4M3FN},
+    {{ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT16}, QINT8_KINT8_OFLOAT16},
+    {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OFLOAT16},
+    {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OBF16},
+    {{ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QHIFLOAT8_KHIFLOAT8_OFLOAT16},
+    {{ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_BF16}, QHIFLOAT8_KHIFLOAT8_OBF16},
+};
+
+void PromptFlashAttentionTilingV2::UpdateTilingKeyQkoDtype(ContextParamsForPFATiling& contextKeyParams) 
+{
+    DataTypeTriple key = std::make_tuple(contextKeyParams.inputDataType, contextKeyParams.kDataType, contextKeyParams.outputDataType);
+    auto it = qkoDtypeMap.find(key);
+
+    if (it != qkoDtypeMap.end()) {
+        qkoDtype = it->second;
+    } else {
+        qkoDtype = QFLOAT16_KINT8_OFLOAT16; // 默认传入0
+        OP_LOGE(contextKeyParams.opName, "query key ouput datatype check failed!");
+    }
+}
+
 void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() 
 {
     if (inputLayout == InputLayout::BNSD) {
@@ -4150,9 +4197,11 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyEnableKVPrefix()
 bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) 
 {
     auto inputDataType = contextKeyParams.inputDataType; // input q
+    auto kDataType = contextKeyParams.kDataType; // input k
     auto attenMaskElemType = contextKeyParams.maskDataType;
     auto outputDataType = contextKeyParams.outputDataType; // output tensor
     tilingData.promptAttentionBaseParams.set_attenMaskElemType(attenMaskElemType);
+    UpdateTilingKeyQkoDtype(contextKeyParams);
     UpdateTilingKeyLayoutType();
     UpdateTilingKeyConfig(contextKeyParams, tilingData);
     UpdateTilingKeyPseMode();
@@ -5161,14 +5210,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
 
 void PromptFlashAttentionTilingV2::SetTilingKey(ContextParamsForPFATiling& contextKeyParams) const 
 {
-    uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
+    uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(qkoDtype), static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                                 static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask,
                                                 hasRope, isPa, isFd, emptyTensor,
                                                 static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), static_cast<uint64_t>(enableKVPrefix));
     context_->SetTilingKey(gen_tilingkey);
     OP_LOGI(contextKeyParams.opName, "The new template tilingkey is %llu.", gen_tilingkey);
-    OP_LOGI(contextKeyParams.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
-            static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config), static_cast<uint64_t>(pseMode),
+    OP_LOGI(contextKeyParams.opName, "The new template tilingkey param is qkoDtype: %llu, inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
+            static_cast<uint64_t>(qkoDtype), static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config), static_cast<uint64_t>(pseMode),
             static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, static_cast<uint64_t>(PFAMask),
             static_cast<uint64_t>(pFAMatMulType), static_cast<uint64_t>(enableKVPrefix));
 }

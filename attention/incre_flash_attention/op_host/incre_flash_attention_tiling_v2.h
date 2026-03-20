@@ -95,6 +95,7 @@ class IFATilingV2 : public FiaTilingBase {
   }
 
 protected:
+    void UpdateTilingKeyQkoDtype();
     void UpdateTilingKeyLayoutType();
     void UpdateTilingKeyConfig();
     void UpdateTilingKeyPseMode();
@@ -108,6 +109,7 @@ protected:
     void UpdateTilingKeyPFAMatMulType();
     void UpdateTilingKeyEnableKVPrefix();
 public:
+    uint8_t qkoDtype = 0;
     uint8_t inOutLayoutType = 0;
     uint16_t config = 0;
     uint8_t pseMode = 0;
