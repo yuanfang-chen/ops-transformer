@@ -37,13 +37,13 @@ extern "C" __global__ __aicore__ void causal_conv1d(
     GM_ADDR workspace,            // workspace
     GM_ADDR tiling)               // tiling
 {
-    REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    REGISTER_NONE_TILING;
     TPipe pipe;
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
 
     if (TILING_KEY_IS(TILING_KEY_UPDATE_BF16)) {
-        // REGISTER_TILING_DEFAULT(CausalConv1dUpdateTilingData);
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dUpdateTilingData, tilingData, tiling);
         CausalConv1dUpdateKernel<bfloat16_t> op(&pipe);
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
@@ -51,7 +51,6 @@ extern "C" __global__ __aicore__ void causal_conv1d(
     }
 
     if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
-        // REGISTER_TILING_DEFAULT(CausalConv1dUpdateTilingData);
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dUpdateTilingData, tilingData, tiling);
         CausalConv1dUpdateKernel<half> op(&pipe);
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
@@ -59,7 +58,6 @@ extern "C" __global__ __aicore__ void causal_conv1d(
     }
 
     if (TILING_KEY_IS(TILING_KEY_FN_BF16)) {
-        // REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
         CausalConv1dFn<bfloat16_t> op;
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
@@ -68,7 +66,6 @@ extern "C" __global__ __aicore__ void causal_conv1d(
     }
 
     if (TILING_KEY_IS(TILING_KEY_FN_FP16))  {
-        // REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
         CausalConv1dFn<half> op;
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
