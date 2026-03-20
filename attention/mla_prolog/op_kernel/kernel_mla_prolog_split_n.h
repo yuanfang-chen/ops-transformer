@@ -562,7 +562,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::VectorBufferInit() {
     if constexpr (std::is_same<rmsNormCkvOutputType, int8_t>::value || std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
         std::is_same<rmsNormCkvOutputType, hifloat8_t>::value) {
         uint64_t quantScaleCkvSize = 0;
-        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value || std::is_same<mmCkvKrOutputType, float>::value) {
+        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value || (std::is_same<mmCkvKrOutputType, float>::value &&
+            std::is_same<dequantScaleType, float>::value)) {
             quantScaleCkvSize = ALIGN_BLOCK_SIZE;
             pipe_->InitBuffer(quantScaleCkvBuffer_, quantScaleCkvSize);
         } else {
