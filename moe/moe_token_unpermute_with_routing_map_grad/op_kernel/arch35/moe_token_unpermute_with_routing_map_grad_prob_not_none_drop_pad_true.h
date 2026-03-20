@@ -60,10 +60,13 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradProbNotNoneDropPadTrue
     this->pipe.InitBuffer(probGradReduceSumTBuf, this->hiddenSizeLoopTimesAlign * SIZE_FLOAT);
     this->pipe.InitBuffer(permutedTokensGradTQue, DOUBLE_BUFFER, this->hiddenSizeAlign * this->inputTypeSize);
     this->pipe.InitBuffer(probGradOutTBuf, BLOCK_SIZE_32);
-
-    InitOutput<ProbsT>(
-        this->probGradGm[this->unpermutedOutputDStartOffset * this->numExpert], this->tokensNum * this->numExpert,
-        ProbsT(0));
+    int64_t totalCoreNum = this->tailCoreNum + this->formerCoreNum;
+    int64_t initProbNumPerCore = this->CeilDiv(
+        this->tokensNum * this->numExpert / totalCoreNum, BLOCK_SIZE_512 / this->probTypeSize);
+    int64_t initNum = this->coreIndex < totalCoreNum - 1
+        ? initProbNumPerCore
+        : this->tokensNum * this->numExpert - (totalCoreNum - 1) * initProbNumPerCore;
+    InitOutput<ProbsT>(this->probGradGm[this->coreIndex * initProbNumPerCore], initNum, ProbsT(0));
     SyncAll();
 }
 
