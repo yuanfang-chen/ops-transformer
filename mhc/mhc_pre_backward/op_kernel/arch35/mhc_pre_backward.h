@@ -53,6 +53,9 @@ constexpr uint32_t PROCESS_V2_CHUNK_SIZE = 64;  // ProcessV2函数使用的chunk
 constexpr uint32_t SINGLE_M = 1024;
 constexpr uint32_t ND_BLOCK_SIZE = 128;
 constexpr uint32_t ALPHA_GRAD_PADDING = 24;
+constexpr uint32_t ALPHA_GRAD_SHAPE_1_OFFSET = 0;
+constexpr uint32_t ALPHA_GRAD_SHAPE_2_OFFSET = 8;
+constexpr uint32_t ALPHA_GRAD_SHAPE_3_OFFSET = 16;
 
 struct InitParams {
     GM_ADDR x;
@@ -216,6 +219,7 @@ public:
                                                     __ubuf__ P *hMixIn, uint16_t dealBSSize);
     __aicore__ inline void VFDoV1ProcessAlphaGradForN8Performance(__ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn,
                                                                     __ubuf__ P *gatherFusionIn, __ubuf__ P *hMixIn, uint16_t dealBSSize);
+    __aicore__ inline void VFDoV1ProcessAlphaGradLastSplit(__ubuf__ P *alphaOut, __ubuf__ P *sumIn);
     __aicore__ inline void InitCube();
     __aicore__ inline void AICProcess(GlobalTensor<P> x, GlobalTensor<P> y, GlobalTensor<P> z, uint64_t m, uint64_t n, uint64_t k);
     __aicore__ inline void ProcessC0C1Pipeline();
@@ -599,21 +603,24 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0Main()
     AscendC::LocalTensor<P> alphaOutBuf = bf16OutQueue_.AllocTensor<P>();
     uint32_t coreId = GetBlockIdx();
 
-    uint32_t srcShape1[] = {1, N_};
-    uint32_t srcShape2[] = {1, 2 * N_};
-    uint32_t srcShape3[] = {1, fusionSize_};
+    // uint32_t srcShape1[] = {1, N_};
+    // uint32_t srcShape2[] = {1, 2 * N_};
+    // uint32_t srcShape3[] = {1, fusionSize_};
 
-    ReduceSum<float, Pattern::Reduce::AR, false>(alphaOutBuf, sumBuf, srcShape1, true);
-    PipeBarrier<PIPE_V>();
-    Muls(sumBuf, sumBuf, 0.0f, N_);
-    PipeBarrier<PIPE_V>();
+    // ReduceSum<float, Pattern::Reduce::AR, false>(alphaOutBuf, sumBuf, srcShape1, true);
+    // PipeBarrier<PIPE_V>();
+    // Muls(sumBuf, sumBuf, 0.0f, N_);
+    // PipeBarrier<PIPE_V>();
 
-    ReduceSum<float, Pattern::Reduce::AR, false>(alphaOutBuf[8], sumBuf, srcShape2, true);
-    PipeBarrier<PIPE_V>();
-    Muls(sumBuf, sumBuf, 0.0f, N_*2);
-    PipeBarrier<PIPE_V>();
+    // ReduceSum<float, Pattern::Reduce::AR, false>(alphaOutBuf[8], sumBuf, srcShape2, true);
+    // PipeBarrier<PIPE_V>();
+    // Muls(sumBuf, sumBuf, 0.0f, N_*2);
+    // PipeBarrier<PIPE_V>();
 
-    ReduceSum<float, Pattern::Reduce::AR, true>(alphaOutBuf[16], sumBuf, srcShape3, true);
+    // ReduceSum<float, Pattern::Reduce::AR, true>(alphaOutBuf[16], sumBuf, srcShape3, true);
+    // PipeBarrier<PIPE_V>();
+    PipeBarrier<PIPE_V>();
+    VFDoV1ProcessAlphaGradLastSplit((__ubuf__ P *)alphaOutBuf.GetPhyAddr(), (__ubuf__ P *)sumBuf.GetPhyAddr());
     PipeBarrier<PIPE_V>();
 
     SetFlag<HardEvent::V_MTE3>(EVENT_ID2);
@@ -632,6 +639,38 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0Main()
     DataCopyPad(workSpaceGm_[offset], alphaOutBuf, bsCopyParams);
 
     bf16OutQueue_.FreeTensor(alphaOutBuf);
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGradLastSplit(__ubuf__ P *alphaOut, __ubuf__ P *sumIn)
+{
+    __VEC_SCOPE__
+    {
+        MicroAPI::RegTensor<P> alphaInReg1, alphaInReg2, alphaInReg3;
+        MicroAPI::RegTensor<P> sumReg1, sumReg2, sumReg3;
+        MicroAPI::Duplicate(sumReg1, 0);
+        MicroAPI::Duplicate(sumReg2, 0);
+        MicroAPI::Duplicate(sumReg3, 0);
+        uint32_t splitShape1 = N_;
+        uint32_t splitShape2 = N_;
+        uint32_t splitShape3 = N_ * N_;
+        MicroAPI::MaskReg mask1 = MicroAPI::UpdateMask<P>(splitShape1);
+        MicroAPI::MaskReg mask2 = MicroAPI::UpdateMask<P>(splitShape2);
+        MicroAPI::MaskReg mask3 = MicroAPI::UpdateMask<P>(splitShape3);
+
+        MicroAPI::Load(alphaInReg1, sumIn);
+        MicroAPI::Load(alphaInReg2, sumIn + N_);
+        MicroAPI::Load(alphaInReg3, sumIn + 2 * N_);
+        
+        MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(sumReg1, alphaInReg1, mask1);
+        MicroAPI::Store(alphaOut + ALPHA_GRAD_SHAPE_1_OFFSET, sumReg1, 1);
+
+        MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(sumReg2, alphaInReg2, mask2);
+        MicroAPI::Store(alphaOut + ALPHA_GRAD_SHAPE_2_OFFSET, sumReg2, 1);
+
+        MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(sumReg3, alphaInReg3, mask3);
+        MicroAPI::Store(alphaOut + ALPHA_GRAD_SHAPE_3_OFFSET, sumReg3, 1);
+    }
 }
 
 template <class T, class P>
