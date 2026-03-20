@@ -222,15 +222,15 @@ __simd_vf__ inline void CastWeightType(__ubuf__ bfloat16_t* weight_,
 }
 
 __simd_vf__ inline void CastWeightAndScaleType(__ubuf__ half* weight_,
-                                     uint32_t weightStride,
-                                     __ubuf__ float* weightFloat_,
-                                     __ubuf__ half* kScale_,
-                                     uint32_t kScaleStride,
-                                     __ubuf__ float* kScaleFloat_,
-                                     __ubuf__ half* qScale_,
-                                     uint32_t qScaleStride,
-                                     __ubuf__ float* qScaleFloat_,
-                                     const int batch)
+                                               uint32_t weightStride,
+                                               __ubuf__ float* weightFloat_,
+                                               __ubuf__ half* kScale_,
+                                               uint32_t kScaleStride,
+                                               __ubuf__ float* kScaleFloat_,
+                                               __ubuf__ half* qScale_,
+                                               uint32_t qScaleStride,
+                                               __ubuf__ float* qScaleFloat_,
+                                               const int batch)
 {
     AscendC::MicroAPI::RegTensor<float> regW;
     AscendC::MicroAPI::RegTensor<float> regQScale;
@@ -260,13 +260,13 @@ __simd_vf__ inline void CastWeightAndScaleType(__ubuf__ half* weight_,
 }
 
 // float in uint16 out
-__simd_vf__ inline void MulWeightAndReduceSum(__ubuf__ uint16_t* out_,   // out    [S2Base]     [128   ]
-                                             __ubuf__ float* qk_,       // q*k^t  [G, S2Base]  [64 128]
-                                             const uint32_t qkVLStride,
-                                             __ubuf__ float* weight_,   // w      [G]          [64    ]
-                                             __ubuf__ float* kScale_,   // kScale [S2Base]     [128   ]
-                                             __ubuf__ float* qScale_,   // qScale [G]          [64    ]
-                                             const int gSize)                     // G 64
+__simd_vf__ inline void MulWeightAndReduceSum(__ubuf__ uint16_t* out_,
+                                              __ubuf__ float* qk_,
+                                              const uint32_t qkVLStride,
+                                              __ubuf__ float* weight_,
+                                              __ubuf__ float* kScale_,
+                                              __ubuf__ float* qScale_,
+                                              const int gSize)
 {
     AscendC::MicroAPI::RegTensor<float> regwBrc;
     AscendC::MicroAPI::RegTensor<float> regQK[2];
@@ -330,22 +330,22 @@ __simd_vf__ inline void MulWeightAndReduceSum(__ubuf__ uint16_t* out_,   // out 
 
 // 计算S1=2
 // float in uint16 out
-__simd_vf__ inline void MulWeightAndReduceSum2(__ubuf__ uint16_t* out0_,   // out    [2, S2Base]     [128   ]
+__simd_vf__ inline void MulWeightAndReduceSum2(__ubuf__ uint16_t* out0_, 
                                                __ubuf__ uint16_t* out1_,
                                                uint32_t outStride,
-                                               __ubuf__ float* qk0_,       // q*k^t  [2, G, S2Base]  [64 128]
+                                               __ubuf__ float* qk0_,      
                                                __ubuf__ float* qk1_,
                                                uint32_t qkVLStride,
                                                uint32_t qkStride,
-                                               __ubuf__ float* weight0_,   // w      [2, G]          [64    ]
+                                               __ubuf__ float* weight0_, 
                                                __ubuf__ float* weight1_,
                                                uint32_t weightStride,
-                                               __ubuf__ float* kScale_,   // kScale [S2Base]        [128   ]
+                                               __ubuf__ float* kScale_,
                                                uint32_t kScaleStride,
-                                               __ubuf__ float* qScale0_,   // qScale [2, G]          [64    ]
+                                               __ubuf__ float* qScale0_,
                                                __ubuf__ float* qScale1_,
                                                uint32_t qScaleStride,
-                                               const int gSize)                     // G 64
+                                               const int gSize)
 {
     AscendC::MicroAPI::RegTensor<float> regwBrc[2];
     AscendC::MicroAPI::RegTensor<float> regQK0[2];
