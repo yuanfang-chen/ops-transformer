@@ -54,13 +54,13 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
     uint32_t linksIndex = 0;
     while(linksIndex < netLinkNum) {
         if (linksList[linksIndex].linkAttr.linkProtocol == protocol) {
-            links = linksList[linksIndex];
+            links = &linksList[linksIndex];
             break;
         }
         linksIndex++;
     }
     if (linksIndex == netLinkNum) {
-        OP_LOGE(ACLNN_ERR_INNER, "Failed to obtain communication handle: No matching protocol
+        OP_LOGE(ACLNN_ERR_INNER, "Failed to obtain communication handle: No matching protocol \
                 found in the connection configuration");
         return ACLNN_ERR_INNER;
     }
@@ -144,7 +144,7 @@ static aclnnStatus GetHcclCommResource(const HcclComm hcclHandle, const CommEngi
             hcclRet = HcclChannelGetHcclBuffer(hcclHandle, channels[channelIndex], &tempBuffer, &buffersize);
         }
         if(hcclRet != HCCL_SUCCESS) { 
-            OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Communicate Buffer Failed,
+            OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Communicate Buffer Failed,\
                     srcRankId:%d, dstRankId:%d", rankId, rankIdIndex);
             return ACLNN_ERR_INNER;
         }
@@ -166,7 +166,7 @@ static aclnnStatus CreatMc2Context(const HcclComm hcclHandle, const std::string&
 
     hcclRet = HcclEngineCtxCreate(hcclHandle, mc2ContextTag.c_str(), engine, ctxSize, &ctx);
     if(hcclRet != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Context Memory failed, mc2ContextTag is:%s, engine is:%d", 
+        OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Context Memory failed, mc2ContextTag is:%s, engine is:%d",\
                 mc2ContextTag.c_str(), engine);
         return ACLNN_ERR_INNER;
     }
@@ -262,7 +262,7 @@ extern aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* opName, 
     Mc2MoeContext mc2_context;
     std::string mc2ContextTag = std::string(groupEp) + std::string(opName);
     if (mc2ContextTag.size() > MaxContextTagSize) { // 检查上下文标签大小最大允许255个字符串长度
-        OP_LOGE(ACLNN_ERR_INNER, "Mc2ContextTag is too long, max size is %d, but current size is %d",
+        OP_LOGE(ACLNN_ERR_INNER, "Mc2ContextTag is too long, max size is %d, but current size is %d",\
                 MaxContextTagSize, mc2ContextTag.size());
         return ACLNN_ERR_INNER;
     }
