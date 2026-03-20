@@ -21,7 +21,6 @@
 using namespace AscendC;
 
 static constexpr int32_t BUFFER_NUM = 2;
-// static constexpr int32_t FLOAT_MASK = VECTOR_REG_WIDTH / sizeof(float);
 static constexpr int32_t FLOAT_MASK = 64;
 
 #define ALIGN_DOWN(x, y) ((x) / (y) * (y))
@@ -52,10 +51,7 @@ private:
 
     __aicore__ inline void ComputeR();
     __aicore__ inline void ComputeQ();
-
     __aicore__ inline void InitGm(const GlobalTensor<float> &outGm, int32_t matrixSize);
-
-
     __aicore__ inline void CopyInColumn(const GlobalTensor<float> &inputGm, int32_t gmOffset, const DataCopyParams &dataCopyParams, bool setSign);
     __aicore__ inline void ReducePaddedColumn(LocalTensor<float> &dstTensor, int32_t colSize);
     __aicore__ inline void CalculateTensorV(int32_t tensorSize);
@@ -71,6 +67,7 @@ private:
     __aicore__ inline void Dot(LocalTensor<float> &dst, const LocalTensor<float> &src1, const LocalTensor<float> &src2,
                                LocalTensor<float> &tmp, int32_t tensorSize);
     __aicore__ inline void MulByBlock(const LocalTensor<float> &dst, const LocalTensor<float> &src, const LocalTensor<float> &blockSrc, uint8_t repeat, uint8_t tailRepeat, int32_t tail);
+    __aicore__ inline void ComputeQBlock(const LocalTensor<float> &vTensor, const LocalTensor<float>& q, int32_t vOffset, int32_t betaIdx);
 };
 
 inline __aicore__ void QRHouseholderSingleVec::Init(GM_ADDR input_x, GM_ADDR output_q, GM_ADDR output_r, GM_ADDR workspace,
@@ -293,13 +290,11 @@ inline __aicore__ void QRHouseholderSingleVec::InitAndUpdateR() {
     LocalTensor<float> vTensor = vBuf_.Get<float>();
     LocalTensor<float> bcastTensor = tmpBuf_.Get<float>();
     uint8_t rightPad = static_cast<uint8_t>(kDim_ % 8);
-    bool isPad = rightPad != 0;
     uint8_t numRepeat = static_cast<uint8_t>(kDim_ / FLOAT_MASK);
     uint8_t tailRepeat = static_cast<uint8_t>((kDim_ % FLOAT_MASK) / 8);
     int32_t tail = (kDim_ % FLOAT_MASK) % 8;
     DataCopyParams dataCopyParams = {1, static_cast<uint16_t>(kDim_ * sizeof(float)), 0, 0};
-    DataCopyPadParams dataCopyPadParams = {isPad, 0, rightPad, 0};
-
+    DataCopyPadParams dataCopyPadParams = {rightPad != 0, 0, rightPad, 0};
     CopyInRow(inputXGm_, 0, dataCopyParams, dataCopyPadParams);
     Brcb(bcastTensor, vTensor, 1, {1, 8});
     PipeBarrier<PIPE_V>();
@@ -311,16 +306,17 @@ inline __aicore__ void QRHouseholderSingleVec::InitAndUpdateR() {
     inQueX_.FreeTensor(row);
     outQue_.EnQue(resultRow);
     CopyOutRow(outputRGm_, 0, dataCopyParams);
-
     int32_t alignedRowLen = ALIGN_UP(kDim_, 8);
     int32_t ubNumRows = maxNumElements_ / alignedRowLen;
-    int32_t numIters = (mDim_ - 1) / ubNumRows;
-    int32_t tailRows = (mDim_ - 1) % ubNumRows;
+    int32_t numRows = (mDim_ - 1);
+    int32_t numIters = CEIL_DIV(numRows, ubNumRows);
     dataCopyParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(kDim_ * sizeof(float)), 0, 0};
     int32_t processedRowIdx = 1;
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     LocalTensor<float> tmp = outQue_.AllocTensor<float>();
-    for (int32_t i = 0; i < numIters; i++) {
+    for (int32_t i = 0; i < numIters; i++, numRows -= ubNumRows) {
+        ubNumRows = ubNumRows < numRows ? ubNumRows : numRows;
+        dataCopyParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(kDim_ * sizeof(float)), 0, 0};
         int32_t gmOffset = processedRowIdx * kDim_;
         CopyInRow(inputXGm_, gmOffset, dataCopyParams, dataCopyPadParams);
         LocalTensor<float> rows = inQueX_.DeQue<float>();
@@ -339,27 +335,6 @@ inline __aicore__ void QRHouseholderSingleVec::InitAndUpdateR() {
         DataCopyPad(outputQGm_[gmOffset], rows, dataCopyParams);
         inQueX_.FreeTensor(rows);
     }
-    if (tailRows > 0) {
-        int32_t gmOffset = processedRowIdx * kDim_;
-        dataCopyParams = {static_cast<uint16_t>(tailRows), static_cast<uint16_t>(kDim_ * sizeof(float)), 0, 0};
-        CopyInRow(inputXGm_, gmOffset, dataCopyParams, dataCopyPadParams);
-        LocalTensor<float> rows = inQueX_.DeQue<float>();
-        for(int32_t j = 0; j < tailRows; j++, processedRowIdx++) {
-            int32_t bcastId = processedRowIdx % 8;
-            if (bcastId == 0) {
-                Brcb(bcastTensor, vTensor[processedRowIdx], 1, {1, 8});
-                PipeBarrier<PIPE_V>();
-            }
-            MulByBlock(tmp, wtTensor, bcastTensor[bcastId * 8], numRepeat, tailRepeat, tail);
-            PipeBarrier<PIPE_V>();
-            Sub(rows[j * alignedRowLen], rows[j * alignedRowLen], tmp, kDim_);
-            PipeBarrier<PIPE_V>();
-        }
-        SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-        WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-        DataCopyPad(outputQGm_[gmOffset], rows, dataCopyParams);
-        inQueX_.FreeTensor(rows);
-    }
     outQue_.FreeTensor(tmp);
 }
 
@@ -367,15 +342,12 @@ inline __aicore__ void QRHouseholderSingleVec::UpdateR(int32_t rowLen, int32_t s
     LocalTensor<float> wtTensor = wTBuf_.Get<float>();
     LocalTensor<float> vTensor = vBuf_.Get<float>();
     LocalTensor<float> bcastTensor = tmpBuf_.Get<float>();
-
     uint8_t rightPad = static_cast<uint8_t>(rowLen % 8);
-    bool isPad = rightPad != 0;
     uint8_t numRepeat = static_cast<uint8_t>(rowLen / FLOAT_MASK);
     uint8_t tailRepeat = static_cast<uint8_t>((rowLen % FLOAT_MASK) / 8);
     int32_t tail = (rowLen % FLOAT_MASK) % 8;
     DataCopyParams dataCopyParams = {1, static_cast<uint16_t>(rowLen * sizeof(float)), 0, 0};
-    DataCopyPadParams dataCopyPadParams = {isPad, 0, rightPad, 0};
-
+    DataCopyPadParams dataCopyPadParams = {rightPad != 0, 0, rightPad, 0};
     CopyInRow(outputQGm_, startIdx * kDim_ + startIdx, dataCopyParams, dataCopyPadParams);
     Brcb(bcastTensor, vTensor, 1, {1, 8});
     PipeBarrier<PIPE_V>();
@@ -383,24 +355,23 @@ inline __aicore__ void QRHouseholderSingleVec::UpdateR(int32_t rowLen, int32_t s
     PipeBarrier<PIPE_V>();
     LocalTensor<float> row = inQueX_.DeQue<float>();
     LocalTensor<float> resultRow = outQue_.AllocTensor<float>();
-
     MulByBlock(resultRow, wtTensor, bcastTensor, numRepeat, tailRepeat, tail);
     PipeBarrier<PIPE_V>();
     Add(resultRow, row, resultRow, rowLen);
     inQueX_.FreeTensor(row);
     outQue_.EnQue(resultRow);
     CopyOutRow(outputRGm_, startIdx * kDim_ + startIdx, dataCopyParams);
-
     int32_t alignedRowLen = ALIGN_UP(rowLen, 8);
     int32_t ubNumRows = maxNumElements_ / alignedRowLen;
-    int32_t numIters = (mDim_ - (startIdx + 1)) / ubNumRows;
-    int32_t tailRows = (mDim_ - (startIdx + 1)) % ubNumRows;
-    DataCopyParams dataCopyOutParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(rowLen * sizeof(float)), 0, static_cast<uint16_t>(startIdx * sizeof(float))};
+    int32_t numRows = mDim_ - (startIdx + 1);
+    int32_t numIters = CEIL_DIV(numRows, ubNumRows);
     int32_t processedRowIdx = 1;
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     SetAtomicAdd<float>();
-    for (int32_t i = 0; i < numIters; i++) {
+    for (int32_t i = 0; i < numIters; i++, numRows -= ubNumRows) {
+        ubNumRows = ubNumRows < numRows ? ubNumRows : numRows;
         int32_t gmOffset = startIdx * kDim_ + processedRowIdx * kDim_ + startIdx;
+        DataCopyParams dataCopyOutParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(rowLen * sizeof(float)), 0, static_cast<uint16_t>(startIdx * sizeof(float))};
         LocalTensor<float> rows = inQueX_.AllocTensor<float>();
         for (int32_t j = 0; j < ubNumRows; j++, processedRowIdx++) {
             int32_t bcastId = processedRowIdx % 8;
@@ -412,26 +383,6 @@ inline __aicore__ void QRHouseholderSingleVec::UpdateR(int32_t rowLen, int32_t s
             }
             int32_t dstOffset = j * alignedRowLen;
             MulByBlock(rows[dstOffset], wtTensor, bcastTensor[bcastId * 8], numRepeat, tailRepeat, tail);
-        }
-        SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-        WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-        DataCopyPad(outputQGm_[gmOffset], rows, dataCopyOutParams);
-        inQueX_.FreeTensor(rows);
-    }
-    if (tailRows > 0) {
-        int32_t gmOffset = startIdx * kDim_ + processedRowIdx * kDim_ + startIdx;
-        dataCopyOutParams = {static_cast<uint16_t>(tailRows), static_cast<uint16_t>(rowLen * sizeof(float)), 0, static_cast<uint16_t>(startIdx * sizeof(float))};
-        LocalTensor<float> rows = inQueX_.AllocTensor<float>();
-        for (int32_t j = 0; j < tailRows; j++, processedRowIdx++) {
-            int32_t bcastIdTail = processedRowIdx % 8;
-            if (bcastIdTail == 0) {
-                Brcb(bcastTensor, vTensor[processedRowIdx], 1, {1, 8});
-                PipeBarrier<PIPE_V>();
-                Muls(bcastTensor, bcastTensor, -1.f, FLOAT_MASK);
-                PipeBarrier<PIPE_V>();
-            }
-            int32_t dstOffset = j * alignedRowLen;
-            MulByBlock(rows[dstOffset], wtTensor, bcastTensor[bcastIdTail * 8], numRepeat, tailRepeat, tail);
         }
         SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
         WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
@@ -481,24 +432,33 @@ inline __aicore__ void QRHouseholderSingleVec::ComputeR() {
     }
 }
 
-inline __aicore__ void QRHouseholderSingleVec::ComputeQ() {
+inline __aicore__ void QRHouseholderSingleVec::ComputeQBlock(const LocalTensor<float> &vTensor, const LocalTensor<float>& q, int32_t vOffset, int32_t betaIdx) {
     LocalTensor<float> beta = betaBuf_.Get<float>();
     LocalTensor<float> dotRes = tmpBuf_.Get<float>();
     LocalTensor<float> tmpTensor = wTBuf_.Get<float>();
-
     uint8_t numRepeat = static_cast<uint8_t>(mDim_ / FLOAT_MASK);
     uint8_t tailRepeat = static_cast<uint8_t>((mDim_ % FLOAT_MASK) / 8);
     int32_t tail = (mDim_ % FLOAT_MASK) % 8;
+    Duplicate(vTensor[vOffset], 0.f, betaIdx);
+    PipeBarrier<PIPE_V>();
+    Dot(dotRes, vTensor[vOffset], q, tmpTensor, mDim_);
+    Brcb(dotRes, dotRes, 1, {1, 8});
+    PipeBarrier<PIPE_V>();
+    Muls(dotRes, dotRes, beta.GetValue(betaIdx), 8);
+    PipeBarrier<PIPE_V>();
+    MulByBlock(tmpTensor, vTensor[vOffset], dotRes, numRepeat, tailRepeat, tail);
+    Sub(q, q, tmpTensor, mDim_);
+    PipeBarrier<PIPE_V>();
+}
 
+inline __aicore__ void QRHouseholderSingleVec::ComputeQ() {
     uint8_t rightPad = static_cast<uint8_t>(mDim_ % 8);
-    bool isPad = rightPad != 0;
-    DataCopyPadParams dataCopyPadParams = {isPad, 0, rightPad, 0};
-
     int32_t alignedRowLen = ALIGN_UP(mDim_, 8);
     int32_t ubNumRows = maxNumElements_ / alignedRowLen;
     ubNumRows = ubNumRows > kDim_ ? kDim_ : ubNumRows;
     DataCopyParams dataCopyParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(mDim_ * sizeof(float)), 0, 0};
     DataCopyParams dataCopyOutParams = {1, static_cast<uint16_t>(mDim_ * sizeof(float)), 0, 0};
+    DataCopyPadParams dataCopyPadParams = {rightPad != 0 , 0, rightPad, 0};
     CopyInRow(vGm_, 0, dataCopyParams, dataCopyPadParams);
     LocalTensor<float> vTensor = inQueX_.DeQue<float>();
     for (int32_t i = 0; i < kDim_; i++) {
@@ -510,69 +470,26 @@ inline __aicore__ void QRHouseholderSingleVec::ComputeQ() {
         PipeBarrier<PIPE_V>();
         Duplicate(q[qOffset], 1.f, mask, 1, 1, 8);
         PipeBarrier<PIPE_V>();
-
         if (ubNumRows <= i) {
             int32_t numRows = i + 1;
-            int32_t numIters = numRows / ubNumRows;
-            int32_t tailIterLen = numRows % ubNumRows;
+            int32_t numIters = CEIL_DIV(numRows, ubNumRows);
             int32_t betaIdx = i;
-            for (int32_t j = 0; j < numIters; j++) {
+            for (int32_t j = 0; j < numIters; j++, numRows -= ubNumRows) {
+                ubNumRows = ubNumRows < numRows ? ubNumRows : numRows;
                 int32_t gmOffset = (numRows - ubNumRows * (j + 1)) * mDim_;
+                dataCopyParams = {static_cast<uint16_t>(ubNumRows), static_cast<uint16_t>(mDim_ * sizeof(float)), 0, 0};
                 CopyInRow(vGm_, gmOffset, dataCopyParams, dataCopyPadParams);
                 vTensor = inQueX_.DeQue<float>();
                 for (int32_t k = ubNumRows; k > 0; k--, betaIdx--) {    
                     int32_t vOffset = (k - 1) * alignedRowLen;
-
-                    Duplicate(vTensor[vOffset], 0.f, betaIdx);
-                    PipeBarrier<PIPE_V>();
-
-                    Dot(dotRes, vTensor[vOffset], q, tmpTensor, mDim_);
-                    Brcb(dotRes, dotRes, 1, {1, 8});
-                    PipeBarrier<PIPE_V>();
-                    Muls(dotRes, dotRes, beta.GetValue(betaIdx), 8);
-                    PipeBarrier<PIPE_V>();
-                    MulByBlock(tmpTensor, vTensor[vOffset], dotRes, numRepeat, tailRepeat, tail);
-                    Sub(q, q, tmpTensor, mDim_);
-                    PipeBarrier<PIPE_V>();
-                }
-                inQueX_.FreeTensor(vTensor);
-            }
-            if (tailIterLen > 0) {
-                DataCopyParams dataCopyTailParams = {static_cast<uint16_t>(tailIterLen), static_cast<uint16_t>(mDim_ * sizeof(float)), 0, 0};
-                CopyInRow(vGm_, 0, dataCopyTailParams, dataCopyPadParams);
-                vTensor = inQueX_.DeQue<float>();
-                for (int32_t k = tailIterLen; k > 0; k--, betaIdx--) {
-                    int32_t vOffsetTail = (k - 1) * alignedRowLen;
-
-                    Duplicate(vTensor[vOffsetTail], 0.f, betaIdx);
-                    PipeBarrier<PIPE_V>();
-
-                    Dot(dotRes, vTensor[vOffsetTail], q, tmpTensor, mDim_);
-                    Brcb(dotRes, dotRes, 1, {1, 8});
-                    PipeBarrier<PIPE_V>();
-                    Muls(dotRes, dotRes, beta.GetValue(betaIdx), 8);
-                    PipeBarrier<PIPE_V>();
-                    MulByBlock(tmpTensor, vTensor[vOffsetTail], dotRes, numRepeat, tailRepeat, tail);
-                    Sub(q, q, tmpTensor, mDim_);
-                    PipeBarrier<PIPE_V>();
+                    ComputeQBlock(vTensor, q, vOffset, betaIdx);
                 }
                 inQueX_.FreeTensor(vTensor);
             }
         } else {
             for (int32_t k = i; k > -1; k--) {
-                int32_t vOffset1 = k * alignedRowLen;
-
-                Duplicate(vTensor[vOffset1], 0.f, k);
-                PipeBarrier<PIPE_V>();
-
-                Dot(dotRes, vTensor[vOffset1], q, tmpTensor, mDim_);
-                Brcb(dotRes, dotRes, 1, {1, 8});
-                PipeBarrier<PIPE_V>();
-                Muls(dotRes, dotRes, beta.GetValue(k), 8);
-                PipeBarrier<PIPE_V>();
-                MulByBlock(tmpTensor, vTensor[vOffset1], dotRes, numRepeat, tailRepeat, tail);
-                Sub(q, q, tmpTensor, mDim_);
-                PipeBarrier<PIPE_V>();
+                int32_t vOffset = k * alignedRowLen;
+                ComputeQBlock(vTensor, q, vOffset, k);
             }
             if (ubNumRows == (i + 1)) {
                 inQueX_.FreeTensor(vTensor);
