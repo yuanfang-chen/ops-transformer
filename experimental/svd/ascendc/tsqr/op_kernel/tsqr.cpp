@@ -14,15 +14,13 @@
  */
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
-
-using namespace AscendC;
-
 class QrHouseholderTilingData {
 public:
     int batchSize, mDim, kDim, ubSize;
 };
 #include "qr_householder_single_vec.h"
 
+using namespace AscendC;
 
 template <typename T> class TsqrKernel {
 public:
