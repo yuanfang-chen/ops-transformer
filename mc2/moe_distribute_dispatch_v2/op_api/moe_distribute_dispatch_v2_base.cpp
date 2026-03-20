@@ -415,7 +415,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         // } else {
         //     OP_LOGD("PRINT ERROR scalesOptional is not nullptr");
         // }
-
+        const char * opName = "moe_distribute_dispatch_v2";
         ret = GetMc2ContextTensor(groupEp, opName, hcclBuffSize, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
 

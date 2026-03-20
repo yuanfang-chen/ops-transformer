@@ -94,7 +94,7 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
 
     hcclRet = HcclChannelDescInit(channelDesc.data(), channelNum);
     if(hcclRet != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed.");
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("Hccl Channel Init Success");
@@ -115,7 +115,7 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
     }
     hcclRet = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), channelNum, channeles.data());
     if(hcclRet != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Channel Resource failed");
+        OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Channel Resource failed, engine is:%d", engine);
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("Get HCCL Channel Resource success");
