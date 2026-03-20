@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file chunk_gated_delta_rule_stage1.h
@@ -153,6 +153,21 @@ public:
         buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
 
         colBuffer_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(INVERSE_SHAPE), buffOffset);
+        buffOffset += INVERSE_SHAPE * sizeof(float);
+
+        gatherOffsetFp32_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(chunkSize_), buffOffset);
+        buffOffset += chunkSize_ * sizeof(uint32_t);
+
+        gatherOffsetBf16_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
+        buffOffset += halfChunkSize_ * sizeof(uint32_t);
+
+        for (uint32_t i = 0; i < chunkSize_; ++i) {
+            gatherOffsetFp32_.SetValue(i, i * BLOCK_SIZE);
+        }
+        for (uint32_t i = 0; i < halfChunkSize_; ++i) {
+            gatherOffsetBf16_.SetValue(i, i * BLOCK_SIZE);
+        }
+        PipeBarrier<PIPE_V>();
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
@@ -575,18 +590,13 @@ private:
         uint64_t betaBeginOffset = subOffset_ * nv_;
         DataCopyInBf16WithStride(subValidRows_, 1, betaGm_[betaBeginOffset], nv_);
         betaLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
-        constexpr uint32_t slot = BLOCK_SIZE / sizeof(bfloat16_t);
         if (subValidRows_ < halfChunkSize_) {
             Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
             PipeBarrier<PIPE_V>();
         }
-        SetFlag<HardEvent::V_S>(V_S_EVENT);
-        WaitFlag<HardEvent::V_S>(V_S_EVENT);
-        for (uint32_t i = 0; i < subValidRows_; ++i) {
-            betaUbBfloat16_.SetValue(i, betaLocal_.GetValue(i * slot));
-        }
-        SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT);
+        Gather(betaUbBfloat16_, betaLocal_, gatherOffsetBf16_, static_cast<uint32_t>(0), subValidRows_);
+        PipeBarrier<PIPE_V>();
+
         Cast(betaUbFloat_, betaUbBfloat16_, AscendC::RoundMode::CAST_NONE, halfChunkSize_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(betaLocal_);
@@ -594,18 +604,15 @@ private:
 
     __aicore__ inline void GCopyInWithStride()
     {
-        constexpr uint32_t slot = BLOCK_SIZE / sizeof(float);
         DataCopyInFp32WithStride(validLen_, 1, gGm_, nv_);
         gLocal_ = fp32InQueue_.DeQue<float>();
         if (validLen_ < chunkSize_) {
             Duplicate(gCumUbFloat_, 0.0f, chunkSize_);
             PipeBarrier<PIPE_V>();
         }
-        SetFlag<HardEvent::V_S>(V_S_EVENT);
-        WaitFlag<HardEvent::V_S>(V_S_EVENT);
-        for (uint32_t i = 0; i < validLen_; ++i) {
-            gCumUbFloat_.SetValue(i, gLocal_.GetValue(i * slot));
-        }
+        Gather(gCumUbFloat_, gLocal_, gatherOffsetFp32_, static_cast<uint32_t>(0), validLen_);
+        PipeBarrier<PIPE_V>();
+
         fp32InQueue_.FreeTensor(gLocal_);
     }
 
@@ -773,6 +780,8 @@ private:
     LocalTensor<uint32_t> colBuffer_;
     LocalTensor<float> qUbFloatCon_;
     LocalTensor<float> kUbFloatCon_;
+    LocalTensor<uint32_t> gatherOffsetFp32_;
+    LocalTensor<uint32_t> gatherOffsetBf16_;
 
     LocalTensor<bfloat16_t> betaLocal_;
     LocalTensor<bfloat16_t> valueLocal_;
