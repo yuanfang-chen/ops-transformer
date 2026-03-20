@@ -88,7 +88,7 @@ c = gather_out ∗ b
 
 MC<sup>2</sup>通算融合算子的性能收益主要来自于通信、计算的并行执行，即将输入数据切分为多个子块，子块的计算和通信任务形成两条流水线，通过两条流水线上任务的并行执行，实现流水掩盖，从而提升算子性能。如下图所示，相比于先做AllGather通信、后Matmul计算的场景，AllGatherMatmul算子通过将通信输入的矩阵切分为多块，前一块数据的Matmul计算和后一块数据的通信可以并行执行，从而达到计算和通信时间相互掩盖的目的。
 
-![all_gather_matmul_demo_1](./images/image-1.jpg)
+![all_gather_matmul_demo_1](./docs/images/image-1.jpg)
 
 ### 传统实现分析
 
@@ -118,7 +118,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::P
 
 AllGather通信会将其他卡数据全部收取到本卡上，然后启动计算。在本卡下发AllGather通信任务时，可以同时**提前启动本卡本地数据的计算任务**，从而掩盖通信任务下发带来的额外开销，进一步释放性能。优化前与优化后的通信及计算执行流程对比如下图所示：
 
-![all_gather_matmul_demo_2](./images/image-2.jpg)
+![all_gather_matmul_demo_2](./docs/images/image-2.jpg)
 
 ```cpp
 // all_gather_matmul_fp16_bf16.h 关键代码
@@ -150,7 +150,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
 
 AllGatherMatmul算子通过将通信输入的矩阵切分为多块，主块数据的Matmul计算和尾块数据的通信并行执行，从而形成流水掩盖。本卡对通信后收取的GatherOut主块数据进行计算时，尾块数据尚未通信，导致主块数据地址不连续，Matmul模板需要重复实例化，Cube核执行效率低。通过非连续转连续优化，将GatherOut数据地址通过偏移的方式连续加载，从而减少Matmul重复实例化带来的计算头开销，实现Cube核流水的不间断运行，提升计算效率。优化前与优化后的通信及计算执行流程对比如下图所示：
 
-![all_gather_matmul_demo_3](./images/image-3.jpg)
+![all_gather_matmul_demo_3](./docs/images/image-3.jpg)
 
 ```cpp
 // all_gather_matmul_fp16_bf16.h 关键代码
