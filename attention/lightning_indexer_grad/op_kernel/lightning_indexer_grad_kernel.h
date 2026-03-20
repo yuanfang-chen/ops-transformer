@@ -448,11 +448,11 @@ __aicore__ inline void LIGKernel<LIGT>::ProcessVec3(uint64_t taskId)
     if (likely(!constInfo.deterministic)) {
         vectorService.ScatterAdd(sparseIndicesGm, scatterAddGm, dkWorkSpaceGm, constInfo, runInfoStore[taskId]);
     } else {
+        vectorService.InitOutputDkcoreGm(dkCoreWorkspaceGM, constInfo, runInfoStore[taskId]);
+        SyncAll();
         vectorService.ScatterAdd(sparseIndicesGm, scatterAddGm, dkCoreWorkspaceGM, constInfo, runInfoStore[taskId]);
         SyncAll();
         vectorService.DeterministicMerge(dkCoreWorkspaceGM, dkWorkSpaceGm, constInfo, runInfoStore[taskId]);
-        SyncAll();
-        InitOutput<float>(dkCoreWorkspaceGM[GetBlockIdx() * constInfo.dkCoreSize / 2], constInfo.dkCoreSize / 2, 0);
     }
 }
 
@@ -597,10 +597,10 @@ __aicore__ inline void LIGKernel<LIGT>::Process()
         }
         if ASCEND_IS_AIV {
             if (unlikely(constInfo.deterministic && !runInfo.isRemainderCore)) {
+                vectorService.InitOutputDkcoreGm(dkCoreWorkspaceGM, constInfo, runInfoStore[(runInfo.loopTimes - 1) % 4]);
+                SyncAll();
                 SyncAll();
                 vectorService.DeterministicMerge(dkCoreWorkspaceGM, dkWorkSpaceGm, constInfo, runInfoStore[(runInfo.loopTimes - 1) % 4]);
-                SyncAll();
-                InitOutput<float>(dkCoreWorkspaceGM[GetBlockIdx() * constInfo.dkCoreSize / 2], constInfo.dkCoreSize / 2, 0);
             }
         }
 
