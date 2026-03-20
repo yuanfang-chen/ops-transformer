@@ -25,7 +25,7 @@ template <typename T>
 __aicore__ inline void CopySingleMatrixNDToNZ(LocalTensor<T> l1Tensor, const GlobalTensor<T> gmTensor,
     uint32_t nValue, uint32_t dValue, uint32_t srcDValue, uint32_t dstNzC0Stride)
 {
-    constexpr SRCDVALUE_LIMIT = 65536;
+    constexpr uint32_t SRCDVALUE_LIMIT = 65536;
     Nd2NzParams nd2nzPara;
     if (unlikely(srcDValue < SRCDVALUE_LIMIT)){
         nd2nzPara.ndNum = 1;
