@@ -1052,6 +1052,39 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         logit, rowIndex, dtype, sharedInputWeight, sharedInputOffset, transposeX1, transposeX2,
         groupListType),
         DFX_OUT(out));
+    int64_t tuningConfigSize = tuningConfigOptional != nullptr ? static_cast<int64_t>(tuningConfigOptional->Size()) : 0;
+    int64_t tuningConfig0 = (tuningConfigSize > 0 && tuningConfigOptional != nullptr) ? (*tuningConfigOptional)[0] : -1;
+
+    std::string x1ViewShapeStr = op::ToString(x1->GetViewShape()).GetString();
+    std::string x2ViewShapeStr = op::ToString(x2->GetViewShape()).GetString();
+    std::string x2StorageShapeStr = op::ToString(x2->GetStorageShape()).GetString();
+    std::string scaleViewShapeStr = op::ToString(scale->GetViewShape()).GetString();
+    std::string biasViewShapeStr = op::ToString(bias->GetViewShape()).GetString();
+    std::string outViewShapeStr = out != nullptr ? op::ToString(out->GetViewShape()).GetString() : "null";
+    std::string offsetViewShapeStr = offsetOptional != nullptr ? op::ToString(offsetOptional->GetViewShape()).GetString() : "null";
+    std::string pertokenScaleViewShapeStr = pertokenScaleOptional != nullptr ? op::ToString(pertokenScaleOptional->GetViewShape()).GetString() : "null";
+    std::string groupListViewShapeStr = groupList != nullptr ? op::ToString(groupList->GetViewShape()).GetString() : "null";
+    std::string sharedInputViewShapeStr = sharedInput != nullptr ? op::ToString(sharedInput->GetViewShape()).GetString() : "null";
+    std::string logitViewShapeStr = logit != nullptr ? op::ToString(logit->GetViewShape()).GetString() : "null";
+    std::string rowIndexViewShapeStr = rowIndex != nullptr ? op::ToString(rowIndex->GetViewShape()).GetString() : "null";
+
+    std::string x1DtypeStr = op::ToString(x1->GetDataType()).GetString();
+    std::string x2DtypeStr = op::ToString(x2->GetDataType()).GetString();
+    std::string x2StorageFormatStr = op::ToString(x2->GetStorageFormat()).GetString();
+
+    OP_LOGI("zzzlog aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize:"
+            " transposeX1=%d transposeX2=%d groupListType=%lld dtype=%lld tuningSize=%lld tuning0=%lld sharedInputWeight=%.6f sharedInputOffset=%lld "
+            "x1(view=%s, dtype=%s) x2(view=%s, storage=%s, dtype=%s, storageFormat=%s) "
+            "scale(view=%s) bias(view=%s) offset(view=%s) pertokenScale(view=%s) groupList(view=%s) sharedInput(view=%s) logit(view=%s) rowIndex(view=%s) out(view=%s)",
+            transposeX1 ? 1 : 0, transposeX2 ? 1 : 0, groupListType, dtype, tuningConfigSize, tuningConfig0,
+            sharedInputWeight, sharedInputOffset,
+            x1ViewShapeStr.c_str(), x1DtypeStr.c_str(),
+            x2ViewShapeStr.c_str(), x2StorageShapeStr.c_str(), x2DtypeStr.c_str(), x2StorageFormatStr.c_str(),
+            scaleViewShapeStr.c_str(), biasViewShapeStr.c_str(),
+            offsetViewShapeStr.c_str(), pertokenScaleViewShapeStr.c_str(),
+            groupListViewShapeStr.c_str(), sharedInputViewShapeStr.c_str(),
+            logitViewShapeStr.c_str(), rowIndexViewShapeStr.c_str(),
+            outViewShapeStr.c_str());
     (void) antiquantScaleOptional;
     (void) antiquantOffsetOptional;
     auto viewShape = x2->GetViewShape();
@@ -1107,6 +1140,12 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
     }
+    OP_LOGI("zzzlog aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize: tmpWeight final:"
+            " view=%s storage=%s dtype=%s storageFormat=%s",
+            op::ToString(tmpWeight->GetViewShape()).GetString(),
+            op::ToString(tmpWeight->GetStorageShape()).GetString(),
+            op::ToString(tmpWeight->GetDataType()).GetString(),
+            op::ToString(tmpWeight->GetStorageFormat()).GetString());
     GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, tmpWeight, out)
         .SetScale(scale)
         .SetBias(bias)
