@@ -354,7 +354,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckAndSetLocalParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmmTransShape()
+ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationGmmTransShape()
 {
     if (localParams_.isGmmWeightTrans) {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
@@ -419,7 +419,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationGmm()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMmTransShape()
+ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationMmTransShape()
 {
     if (localParams_.isMmWeightTrans) {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
