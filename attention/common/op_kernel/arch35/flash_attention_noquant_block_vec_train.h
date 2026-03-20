@@ -222,6 +222,9 @@ __aicore__ inline void FANoQuantBlockVecTrain<TEMPLATE_ARGS>::SoftmaxDataCopyOut
     int64_t bOffset;
     int64_t n2Offset;
     int64_t gOffset;
+    if (unlikely(constInfo.learnableSinkFlag)) {
+        SinkSubExpAddVF<float>(sumUb, maxUb, constInfo.sinkValue, runInfo.halfS1RealSize);
+    }
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         bOffset = constInfo.n2G * runInfo.s1SizeAcc;
         n2Offset = runInfo.n2oIdx * constInfo.gSize * runInfo.actualS1Size;
