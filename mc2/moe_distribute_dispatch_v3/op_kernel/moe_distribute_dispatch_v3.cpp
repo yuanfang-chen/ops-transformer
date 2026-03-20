@@ -43,7 +43,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v3(
     printf("PRINT inter the moe_distribute_dispatch_v3\n");
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
     printf("PRINT inter the kernel DT_BF16\n");
-    if constexpr (ArchTag == TILINGKEY_TPL_A3) {
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         printf("PRINT inter the kernel DT_BF16\n");
         printf("PRINT FullMesh:%u",FullMesh);
         printf("PRINT TILINGKEY_ENABLE_FULLMESH:%u\n",TILINGKEY_ENABLE_FULLMESH);
