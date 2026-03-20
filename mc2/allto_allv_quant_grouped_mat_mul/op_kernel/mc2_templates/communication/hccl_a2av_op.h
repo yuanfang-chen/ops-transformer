@@ -80,13 +80,22 @@ public:
                 return;
             }
         }
-        if constexpr (IsFp8<DTYPE_GMM_X>()) {
+        if constexpr (AscendC::IsSameType<DTYPE_GMM_X, fp8_e4m3fn_t>::value ||
+                       AscendC::IsSameType<DTYPE_GMM_X, fp8_e5m2_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_FP8E8M0;
         } else {
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
         }
         LaunchCommBeforeCompute(startExpertIdx, expertNum, true);
     }
+
+
+    __aicore__ inline void UpdateBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
+    {
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
+    }
+
 
     __aicore__ inline void Wait(uint32_t startExpertIdx)
     {
