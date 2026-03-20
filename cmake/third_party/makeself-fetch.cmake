@@ -8,6 +8,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+
+message(STATUS "Debug: [makeself_custom.cmake] CANN_3RD_LIB_PATH variable is set to: '${CANN_3RD_LIB_PATH}'")
 set(MAKESELF_NAME "makeself")
 set(MAKESELF_PATH ${CANN_3RD_LIB_PATH}/makeself)
 # 默认配置的makeself还是不存在则下载
