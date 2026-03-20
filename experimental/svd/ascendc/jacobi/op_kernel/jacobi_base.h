@@ -193,6 +193,12 @@ namespace SVD {
         __aicore__ inline void SaveOutputs(const LocalTensor<float>& bucketSpace, const LocalTensor<float>& normVector, 
                 const uint32_t bucketBegin, const uint32_t bucketEnd);
 
+        __aicore__ inline void CalculateSinCosConvertTaoToArg(const LocalTensor<float>& tauTensor, 
+                const LocalTensor<float>& tTensor);
+        
+        __aicore__ inline void CalculateSinCosValues(const LocalTensor<float>& tTensor, const LocalTensor<float>& s1Tensor, 
+            const LocalTensor<float>& s2Tensor, LocalTensor<uint8_t>&normSquareDiffIsPositive);
+
         __aicore__ inline void CalculateSinCos(const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms,
                 const LocalTensor<float>& dotProducts, const LocalTensor<float>& sinTensor, const LocalTensor<float>& cosTensor);
         
@@ -1209,7 +1215,6 @@ namespace SVD {
         uint32_t uOffsetForBacket1 = bucket1Size*nSizeAligned;
         uint32_t uOffsetForBacket2 = bucket2Size*nSizeAligned;
 
-        uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
         ApplySinCosForRowSet(bucket1, bucket2, bucketSize, sinBroadcastedValues, cosBroadcastedValues, calcTmpTensor1,
                         calcTmpTensor2, maskInfo, nSizeAligned, rowRepeatsNum);
         PipeBarrier<PIPE_V>();
@@ -1246,59 +1251,14 @@ namespace SVD {
         LocalTensor<float>& calcTmpTensor1 = tmpMemSpace;
         LocalTensor<float>  calcTmpTensor2 = tmpMemSpace[maxBucketSize * nSizeAligned];
         uint8_t maskRepeatStride = rowMask * sizeof(float) / 32;
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t secondRowIdx = maskInfo.rightRowsIds[pairID];
-            Mul(calcTmpTensor1[pairID * nSizeAligned], sinBroadcastedValues[pairID * rowMask], bucket[secondRowIdx * nSizeAligned], rowMask, rowRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            Mul(calcTmpTensor2[pairID * nSizeAligned], cosBroadcastedValues[pairID * rowMask], bucket[secondRowIdx * nSizeAligned], rowMask, rowRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-        }
-        PipeBarrier<PIPE_V>();
-        Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * nSizeAligned);
-        PipeBarrier<PIPE_V>();
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t firstRowIdx = maskInfo.leftRowsIds[pairID];
-            MulAddDst(calcTmpTensor1[pairID * nSizeAligned], bucket[firstRowIdx * nSizeAligned], cosBroadcastedValues[pairID * rowMask], rowMask, rowRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            MulAddDst(calcTmpTensor2[pairID * nSizeAligned], bucket[firstRowIdx * nSizeAligned], sinBroadcastedValues[pairID * rowMask], rowMask, rowRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-        }
-        PipeBarrier<PIPE_V>();
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t firstRowIdx = maskInfo.leftRowsIds[pairID];
-            uint8_t secondRowIdx = maskInfo.rightRowsIds[pairID];
-            Copy(bucket[firstRowIdx * nSizeAligned], calcTmpTensor1[pairID * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            Copy(bucket[secondRowIdx * nSizeAligned], calcTmpTensor2[pairID * nSizeAligned], rowMask, rowRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-        }
-
+        ApplySinCosForRowSet(bucket, bucket,  maskInfo.numPairs, sinBroadcastedValues, cosBroadcastedValues, calcTmpTensor1,
+                    calcTmpTensor2, maskInfo, nSizeAligned, rowRepeatsNum);
         // TODO: Add for APPLYING SIN AND COS FOR U TENSOR
-        //Applaing U matrice
+        // Applaing U matrice
         PipeBarrier<PIPE_V>();
         uint32_t uOffset = bucketSize*nSizeAligned;
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t secondRowIdx = maskInfo.rightRowsIds[pairID];
-            Mul(calcTmpTensor1[pairID * uNSizeAligned], sinBroadcastedValues[pairID * rowMask], bucket[secondRowIdx * uNSizeAligned + uOffset], rowMask, uRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-            Mul(calcTmpTensor2[pairID * uNSizeAligned], cosBroadcastedValues[pairID * rowMask], bucket[secondRowIdx * uNSizeAligned + uOffset], rowMask, uRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, 0, maskRepeatStride });
-        }
-        PipeBarrier<PIPE_V>();
-        Muls(calcTmpTensor1, calcTmpTensor1, -1.f, bucketSize * uNSizeAligned);
-        PipeBarrier<PIPE_V>();
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t firstRowIdx = maskInfo.leftRowsIds[pairID];
-            MulAddDst(calcTmpTensor1[pairID * uNSizeAligned], bucket[firstRowIdx * uNSizeAligned + uOffset], cosBroadcastedValues[pairID * rowMask], rowMask, uRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-            MulAddDst(calcTmpTensor2[pairID * uNSizeAligned], bucket[firstRowIdx * uNSizeAligned + uOffset], sinBroadcastedValues[pairID * rowMask], rowMask, uRepeatsNum,
-                { 1, 1, 1, maskRepeatStride, maskRepeatStride, 0 });
-        }
-        PipeBarrier<PIPE_V>();
-        for (uint32_t pairID = 0; pairID < maskInfo.numPairs; ++pairID) {
-            uint8_t firstRowIdx = maskInfo.leftRowsIds[pairID];
-            uint8_t secondRowIdx = maskInfo.rightRowsIds[pairID];
-            Copy(bucket[firstRowIdx * uNSizeAligned + uOffset], calcTmpTensor1[pairID * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-            Copy(bucket[secondRowIdx * uNSizeAligned + uOffset], calcTmpTensor2[pairID * uNSizeAligned], rowMask, uRepeatsNum, { 1,1, maskRepeatStride, maskRepeatStride });
-        }
+        ApplySinCosForRowSet(bucket[uOffset], bucket[uOffset],  maskInfo.numPairs, sinBroadcastedValues, cosBroadcastedValues,
+                    calcTmpTensor1, calcTmpTensor2, maskInfo, uNSizeAligned, uRepeatsNum);
 
     }
 
@@ -1408,26 +1368,64 @@ namespace SVD {
     }
 
     template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateSinCosConvertTaoToArg(
+            const LocalTensor<float>& tauTensor, const LocalTensor<float>& tTensor)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        LocalTensor<float>& absTaoTensor = tmpBlock5;
+        LocalTensor<float>& tmp1 = tmpBlock6;
+        LocalTensor<float>& tmp2 = tmpBlock7;
+
+        Abs(absTaoTensor, tauTensor, SMNE);
+        Mul(tmp1, tauTensor, tauTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Adds(tmp1, tmp1, 1.f, SMNE);
+        Div(tmp2, tauTensor, absTaoTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Sqrt(tmp1, tmp1, SMNE);
+        PipeBarrier<PIPE_V>();
+        Add(tmp1, tmp1, absTaoTensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Div(tTensor, tmp2, tmp1, SMNE);
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
+    __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateSinCosValues(
+            const LocalTensor<float>& tTensor, const LocalTensor<float>& s1Tensor, const LocalTensor<float>& s2Tensor, 
+            LocalTensor<uint8_t>&normSquareDiffIsPositive)
+    {
+        constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
+        LocalTensor<float>& negativeOneTensor = tmpBlock6;
+        Duplicate(negativeOneTensor, -1.f, SMNE);
+        Mul(s1Tensor, tTensor, tTensor, SMNE);
+        Duplicate(s2Tensor, 1.f, SMNE);
+        PipeBarrier<PIPE_V>();
+        Add(s1Tensor, s2Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Sqrt(s1Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Div(s1Tensor, s2Tensor, s1Tensor, SMNE);
+        PipeBarrier<PIPE_V>();
+        Mul(s2Tensor, s1Tensor, tTensor, SMNE);
+        LocalTensor<float>& coeff = tmpBlock4;
+        Select(coeff, normSquareDiffIsPositive, negativeOneTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
+        PipeBarrier<PIPE_V>();
+        Mul(s2Tensor, s2Tensor, coeff, SMNE);
+        
+    }
+
+    template<typename AType, typename SType, typename UType, typename VType, uint8_t VEC_INSTRUCTION_SET_SIZE>
     __aicore__ inline void JacobiBase<AType, SType, UType, VType, VEC_INSTRUCTION_SET_SIZE>::CalculateSinCos(
             const LocalTensor<float>& leftSquareNorms, const LocalTensor<float>& rightSquareNorms,
             const LocalTensor<float>& dotProducts, const LocalTensor<float>& sinTensor,
             const LocalTensor<float>& cosTensor)
     {
         constexpr uint8_t SMNE = SMALL_MASK_NUM_ELEMENTS<float>();
-        //Generating coeffs for rotating
-        // tmpBlock1-8 used for tmp calculatins
 
-        //tauTensor used for calculation tTensor
         LocalTensor<float>& tauTensor = tmpBlock1;
-        //normSquareDiffIsPositive ensures  that sin and cos are selected so that the singular
-        // values are sorted in descending order. this trick need to avoid  to sort outputs.
         LocalTensor<uint8_t> normSquareDiffIsPositive = tmpBlock2.ReinterpretCast<uint8_t>();
-        // The vaules of  isFakeRotateCase indicate whether the vactors are orthogonal or not.
-        // If vectors are orthogonal a fake rotation is performed
         LocalTensor<uint8_t> isFakeRotateCase = tmpBlock3.ReinterpretCast<uint8_t>();
-        LocalTensor<uint8_t> isNotFakeRotateCase =  tmpBlock3.ReinterpretCast<uint8_t>();
-        //Free tmpBlocks are {4,5,6,7,8}
-        
+        LocalTensor<uint8_t> isNotFakeRotateCase =  tmpBlock3.ReinterpretCast<uint8_t>();       
         LocalTensor<float>& normSquareDiff = tmpBlock4;
         LocalTensor<float>& constValues = tmpBlock5;
         LocalTensor<float>& absDotProducts = tmpBlock6;
@@ -1436,7 +1434,6 @@ namespace SVD {
 
         Sub(normSquareDiff, rightSquareNorms, leftSquareNorms, SMNE);
         PipeBarrier<PIPE_V>();
-        // Compare(normSquareDiffIsPositive, normSquareDiff, constValues, CMPMODE::GE, SMNE);
         VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsPositive.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
             CMPMODE::GE, SMNE, 1, { 1,1,1, 1,1,1 });
         Div(tauTensor, normSquareDiff, dotProducts, SMNE);
@@ -1450,78 +1447,27 @@ namespace SVD {
         LocalTensor<uint8_t> dotProductIsZero = tmpBlock7.ReinterpretCast<uint8_t>();
         VcmpvImpl((__ubuf__ uint8_t*)normSquareDiffIsZero.GetPhyAddr(), (__ubuf__ float*)normSquareDiff.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
             CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
-        // PipeBarrier<PIPE_V>();
         VcmpvImpl((__ubuf__ uint8_t*)dotProductIsZero.GetPhyAddr(), (__ubuf__ float*)absDotProducts.GetPhyAddr(), (__ubuf__ float*)constValues.GetPhyAddr(),
             CMPMODE::LT, SMNE, 1, { 1,1,1, 1,1,1 });
         PipeBarrier<PIPE_V>();
         Or(isFakeRotateCase, normSquareDiffIsZero, dotProductIsZero, SMNE);
         PipeBarrier<PIPE_V>();
+
         LocalTensor<float>& tTensor = tmpBlock4;
-        //Free tmpBlocks are {5,6,7,8}
-        //Calculating t = sign(tau)/(absTau+sqrt(1.f+tau*tau));
-        LocalTensor<float>& absTaoTensor = tmpBlock5;
-        LocalTensor<float>& tmp1 = tmpBlock6;
-        LocalTensor<float>& tmp2 = tmpBlock7;
-        //absTau = abs(tau)
+ 
         NotImpl((__ubuf__ uint16_t*)isNotFakeRotateCase.GetPhyAddr(), (__ubuf__ uint16_t*)isFakeRotateCase.GetPhyAddr(), SMNE, 1, {1,1,1,1});
-        Abs(absTaoTensor, tauTensor, SMNE);
-        // tmp1=tau*tau
-        Mul(tmp1, tauTensor, tauTensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        //tmp1 = 1.f+tau*tau
-        Adds(tmp1, tmp1, 1.f, SMNE);
-        //tmp2 = sign(tau)=tau/absTau
-        Div(tmp2, tauTensor, absTaoTensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        //tmp1 = sqrt(1.f+tau*tau)
-        Sqrt(tmp1, tmp1, SMNE);
-        PipeBarrier<PIPE_V>();
-        //tmp1 = absTau+sqrt(1.f+tau*tau)
-        Add(tmp1, tmp1, absTaoTensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        // t = sign(tau)/(absTau+sqrt(1.f+tau*tau))
-        Div(tTensor, tmp2, tmp1, SMNE);
+        CalculateSinCosConvertTaoToArg(tauTensor, tTensor);
         PipeBarrier<PIPE_V>();
 
-        //taoTensor is free and can be reused
         LocalTensor<float>& s1Tensor = tmpBlock1;
         LocalTensor<float>& s2Tensor = tmpBlock5;
-        //Free tmpBlocks are {6,7,8}
-        LocalTensor<float>& negativeOneTensor = tmpBlock6;
-        Duplicate(negativeOneTensor, -1.f, SMNE);
-        //s1 = 1 / sqrt(1.f + t*t)
-        //s1 = t*t
-        Mul(s1Tensor, tTensor, tTensor, SMNE);
-        Duplicate(s2Tensor, 1.f, SMNE);
-        PipeBarrier<PIPE_V>();
-        //s1 = 1.f + t*t
-        Add(s1Tensor, s2Tensor, s1Tensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        //s1 = sqrt(1.f + t*t)
-        Sqrt(s1Tensor, s1Tensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        //s1 = 1 / sqrt(1.f + t*t)
-        Div(s1Tensor, s2Tensor, s1Tensor, SMNE);
-        PipeBarrier<PIPE_V>();
-        //s2 = t*s1
-        Mul(s2Tensor, s1Tensor, tTensor, SMNE);
-        //tTensor is free
-        //  if(normSquareDiff>=0.f) s2=-s2;
-        LocalTensor<float>& coeff = tmpBlock4;
-        Select(coeff, normSquareDiffIsPositive, negativeOneTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
-        PipeBarrier<PIPE_V>();
-        Mul(s2Tensor, s2Tensor, coeff, SMNE);
+        CalculateSinCosValues(tTensor, s1Tensor, s2Tensor, normSquareDiffIsPositive);
         PipeBarrier<PIPE_V>();
 
-        // Calculate sin, cos
-        // Free tmpBlocks are {8}
         Select(sinTensor, normSquareDiffIsPositive, s1Tensor, s2Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
-        // PipeBarrier<PIPE_V>();
         Select(cosTensor, normSquareDiffIsPositive, s2Tensor, s1Tensor, SELMODE::VSEL_CMPMASK_SPR, SMNE);
         PipeBarrier<PIPE_V>();
-        // Free s1Tensor(tmpBlock1), s2Tensor(tmpBlock5), normSquareDiffIsPositive(tmpBlock2),
         Select(cosTensor, isNotFakeRotateCase, cosTensor, 1.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
-        // PipeBarrier<PIPE_V>();
         Select(sinTensor, isNotFakeRotateCase, sinTensor, 0.f, SELMODE::VSEL_TENSOR_SCALAR_MODE, SMNE);
         PipeBarrier<PIPE_V>();
     }
