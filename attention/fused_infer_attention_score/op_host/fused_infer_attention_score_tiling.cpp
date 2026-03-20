@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -91,6 +91,10 @@ REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200206, FAInfer
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200206, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201206, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201206, FAInferTilingData)
+
+// Decoding 场景 (pagedCacheFlag == true && qSeqlen == 1 && NO_MASK && !lseFlag)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5200000000010200100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5200000000010200200, FAInferTilingData)
 
 // Test purposes - using old key
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, IncreFlashAttentionTilingDataV2)
@@ -318,13 +322,13 @@ static ge::graphStatus ConvertAttrsPFA(gert::TilingContext &context, ContextPara
         OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "Attributes returned from GetAttrs() is a nullptr"),
         return ge::GRAPH_FAILED);
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(ATTR_N_INDEX);
     contextKeyParams.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
     contextKeyParams.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
     contextKeyParams.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX);
     contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
     contextKeyParams.softmaxLseFlag = attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
@@ -1260,6 +1264,12 @@ ge::graphStatus CheckFAIAvailability(gert::TilingContext *context)
 
 static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, FAInferContext& faInfo, uint32_t aicoreNum)
 {
+    constexpr int64_t KV_ACTUAL_SEQ_LEN_1024 = 1024;
+ 	constexpr int64_t QUERY_ACTUAL_SEQ_LEN_16 = 16;
+ 	constexpr int64_t QUERY_ACTUAL_SEQ_LEN_0 = 0;
+ 	constexpr int32_t EMBEDDING_SIZE_128 = 128;
+ 	constexpr int64_t GROUP_SIZE_128 = 128;
+
     auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
     auto tempQ = context->GetInputShape(QUERY_INDEX);
     auto tempK = context->GetInputShape(KEY_INDEX);
@@ -1357,9 +1367,14 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         bool isLongSeq = (numTasks <= 0.8 * aicoreNum) && (minKVSeqlen >= aicoreNum * 512);
         bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 1024);
         if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::FULL_MASK) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
-            (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && // 128: embeddingsize need less than 128 128: gsize need less than 128 16: maxqseqlen need less than 16 1024: minkvseqlen need greater than or equal to 1024 0: minqseqlen need greater than 0 
+            (faInfo.embeddingSize <= EMBEDDING_SIZE_128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= GROUP_SIZE_128) && (maxQSeqlen <= QUERY_ACTUAL_SEQ_LEN_16) && (minKVSeqlen >= KV_ACTUAL_SEQ_LEN_1024) && (minQSeqlen > QUERY_ACTUAL_SEQ_LEN_0) && 
             (isLongSeq || isShortSeq)) {
             faInfo.flashDecodeFlag = true; 
+        }
+        if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1 && faInfo.maskType == MaskType::NO_MASK &&
+            !faInfo.lseFlag && !faInfo.learnableSinkFlag && (faInfo.innerPrecise == 0) && (aicoreNum != 0) &&
+            (faInfo.batch % aicoreNum == 0)) {
+            faInfo.decodingFlag = true;
         }
     } else {
         faInfo.isTilingSink = true;
@@ -1383,11 +1398,12 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
     bool isLearnableSink = context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
     bool isLearnableSinkFlag = true;
+    constexpr int64_t QUERY_HEAD_DIM_64 = 64;
     if (isLearnableSink && inputLayoutStr == "TND") {
         auto tempQ = context.GetInputShape(QUERY_INDEX);
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         auto sinkDataType = context.GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
-        if (tempQD == 64 && sinkDataType == ge::DT_BF16) { // 64: qD need 64, condition to set sinkflag to disable
+        if (tempQD == QUERY_HEAD_DIM_64 && sinkDataType == ge::DT_BF16) {
             isLearnableSinkFlag = false;
         }
     }

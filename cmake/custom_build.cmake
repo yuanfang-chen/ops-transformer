@@ -146,7 +146,9 @@ if (BUILD_OPEN_PROJECT)
         $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
     )
     target_include_directories(cust_opmaster PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/utils
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_host/op_tiling
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
     )
     target_compile_options(cust_opmaster PRIVATE
@@ -285,6 +287,7 @@ else()
     # genop新增非experimental算子分类
     # add_subdirectory(${op_class})
     add_subdirectory(attention)
+    add_subdirectory(mhc)
 endif()
 
 if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
@@ -711,7 +714,6 @@ target_link_libraries(
 target_link_libraries(
     cust_opmaster
     PUBLIC ${OPHOST_NAME}_tiling_obj
-    PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
     PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
 )
@@ -719,6 +721,7 @@ target_link_libraries(
 target_link_libraries(
     cust_proto
     PUBLIC ${OPHOST_NAME}_infer_obj
+    PUBLIC $<$<TARGET_EXISTS:${OPGRAPH_NAME}_gentask_obj>:${OPGRAPH_NAME}_gentask_obj>
 )
 if (generate_aclnn_headers)
     install(FILES ${generate_aclnn_headers}
@@ -822,6 +825,74 @@ if (BUILD_OPEN_PROJECT)
     )
 endif ()
 
+# ---------------------------------------- generate es transformer cust ------------------------------------------
+if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENABLE_STATIC)
+    message(STATUS "Start Generating es transformer for custom pkg")
+    add_library(
+        proto_transformer_cust SHARED
+        ${generate_proto_srcs}
+    )
+    add_dependencies(proto_transformer_cust ops_transformer_proto_headers)
+    target_link_libraries(
+        proto_transformer_cust PRIVATE
+        $<BUILD_INTERFACE:intf_pub_cxx17>
+        c_sec
+        -Wl,--no-as-needed
+        register
+        $<$<TARGET_EXISTS:opsbase>:opsbase>
+        -Wl,--as-needed
+    )
+    target_link_directories(proto_transformer_cust PRIVATE ${ASCEND_DIR}/${SYSTEM_PREFIX}/lib64)
+
+    add_es_library(
+        ES_LINKABLE_AND_ALL_TARGET es_transformer_cust
+        OPP_PROTO_TARGET proto_transformer_cust
+        OUTPUT_PATH ${CMAKE_BINARY_DIR}/es_packages
+    )
+    install(
+        DIRECTORY ${CMAKE_BINARY_DIR}/es_packages/include/es_transformer_cust/
+        DESTINATION ${ES_INC_INSTALL_DIR}
+        OPTIONAL
+    )
+    install(
+        FILES ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer_cust.so
+        DESTINATION ${ES_LIB_INSTALL_DIR}
+        OPTIONAL
+    )
+
+    # building es referring cust proto target. When autogen es from AscendC is supported, these can be removed
+    # when fusion pass files adapted, reference can be changed to graph plugin obj
+    if(TARGET ${GRAPH_PLUGIN_NAME}_obj)
+        # proto -> es transformer -> graph obj
+        message(STATUS "custom graph obj")
+        unset(GRAPH_SOURCE)
+        get_target_property(GRAPH_SOURCE ${GRAPH_PLUGIN_NAME}_obj SOURCES)
+        if(GRAPH_SOURCE)
+            message(STATUS "custom Graph Plugin Source to add es to obj")
+            add_dependencies(${GRAPH_PLUGIN_NAME}_obj
+                build_es_transformer_cust
+            )
+            target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
+                PRIVATE es_transformer_cust
+            )
+        endif()
+    else()
+        # proto -> es transformer -> cust proto
+        message(STATUS "custom cust proto to es")
+        add_dependencies(cust_proto
+            build_es_transformer_cust
+        )
+        target_link_libraries(cust_proto
+            PRIVATE es_transformer_cust
+        )
+    endif()
+    target_link_directories(
+        cust_proto PRIVATE
+        ${CMAKE_BINARY_DIR}/es_packages/lib64
+        ${ES_LIB_INSTALL_DIR}
+    )
+endif()
+
 # ------------------------------------------------ generate adapt py ------------------------------------------------
 add_custom_target(generate_transformer_adapt_py
         COMMAND ${HI_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/util/ascendc_impl_build.py
@@ -854,8 +925,8 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
 install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
-install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/op_kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
@@ -863,10 +934,10 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
 )
 
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/atvoss
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/op_kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
         
 foreach (op_dir ${OP_DIR_LIST})

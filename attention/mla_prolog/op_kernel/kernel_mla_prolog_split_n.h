@@ -503,7 +503,14 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MmQnParamInit() {
     }
     mmQnParam_.orgKb = baseParams_->dimHeadSizeQc;
     mmQnParam_.orgKc = baseParams_->headSizeCkv * baseParams_->numHeadSize;
-    mmQnParam_.kL1StepSize = mmQnParam_.k;
+    mmQnParam_.baseN = 128;
+    mmQnParam_.baseK = 128;
+    mmQnParam_.stepK = 1;
+    if ((mmQnParam_.k > mmQnParam_.baseK) && (mmQnParam_.k % mmQnParam_.baseK != 0)) {
+        mmQnParam_.baseK = 64;
+        mmQnParam_.stepK = 3; // support D = 192
+    }
+    mmQnParam_.kL1StepSize = mmQnParam_.baseK * mmQnParam_.stepK;
     mmQnParam_.kScale = mmQnParam_.k / FP8_E4M3_BLOCK_SIZE;
 }
 
@@ -1180,11 +1187,14 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MatmulQnWeightPreload(int64_t
             return;
         }
     }
+    if (mmQnParam_.k > mmQnParam_.baseK) {
+        return;
+    }
     int64_t weightOffset = weightUkOffset;
     for (int32_t i = 0; i < subLoopTimes; ++i) {
         if (i < 1) { // preload double buffer
             LoadL1B<mmQnInputType, DataFormat::ND, false>(weightUkGm_[weightOffset], 
-                mmQnParam_.n, mmQnParam_.k, mmQnParam_.k, bufParam_);
+                mmQnParam_.n, mmQnParam_.n, mmQnParam_.k, mmQnParam_.k, bufParam_);
             WaitFlag<HardEvent::MTE2_MTE1>(B_EVENT0 + (bufParam_.bL1BufIter & 1u));
             weightOffset += static_cast<int64_t>(baseParams_->dimHeadSizeQc) *
                 static_cast<int64_t>(baseParams_->headSizeCkv);

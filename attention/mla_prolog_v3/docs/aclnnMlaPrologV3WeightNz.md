@@ -14,7 +14,7 @@
 
 -  **功能更新**：（相对于aclnnMlaPrologV2weightNz的差异）
     -  新增Query与Key的尺度矫正因子，分别对应qcQrScale（$\alpha_q$）与kcScale（$\alpha_{kv}$）。
-    -  新增可选输入参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
+    -  新增可选输入参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOutOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
     -  调整cacheIndex参数的名称与位置，对应当前的cacheIndexOptional。
 -  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路:
     -  首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后，再乘以Query尺度矫正因子$\alpha_q$得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$。
@@ -97,8 +97,8 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const aclTensor *rmsnormGammaCkv,
     const aclTensor *ropeSin,
     const aclTensor *ropeCos,
-    aclTensor *kvCacheRef,
-    aclTensor *krCacheRef,
+    aclTensor       *kvCacheRef,
+    aclTensor       *krCacheRef,
     const aclTensor *cacheIndexOptional,
     const aclTensor *dequantScaleXOptional,
     const aclTensor *dequantScaleWDqOptional,
@@ -109,31 +109,31 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const aclTensor *smoothScalesCqOptional,
     const aclTensor *actualSeqLenOptional,
     const aclTensor *kNopeClipAlphaOptional,
-    double rmsnormEpsilonCq,
-    double rmsnormEpsilonCkv,
-    char *cacheModeOptional,
-    int64_t weightQuantMode,
-    int64_t kvCacheQuantMode,
-    int64_t queryQuantMode,
-    int64_t ckvkrRepoMode,
-    int64_t quantScaleRepoMode,
-    int64_t tileSize,
-    double qcQrScale,
-    double kcScale,
+    double           rmsnormEpsilonCq,
+    double           rmsnormEpsilonCkv,
+    char            *cacheModeOptional,
+    int64_t          weightQuantMode,
+    int64_t          kvCacheQuantMode,
+    int64_t          queryQuantMode,
+    int64_t          ckvkrRepoMode,
+    int64_t          quantScaleRepoMode,
+    int64_t          tileSize,
+    double           qcQrScale,
+    double           kcScale,
     const aclTensor *queryOut,
     const aclTensor *queryRopeOut,
     const aclTensor *dequantScaleQNopeOutOptional,
     const aclTensor *queryNormOutOptional,
     const aclTensor *dequantScaleQNormOutOptional,
-    uint64_t *workspaceSize,
-    aclOpExecutor **executor)
+    uint64_t        *workspaceSize,
+    aclOpExecutor  **executor)
 ```
 
 ```cpp
 aclnnStatus aclnnMlaPrologV3WeightNz(
-  void *workspace,
-  uint64_t workspaceSize,
-  aclOpExecutor *executor,
+  void             *workspace,
+  uint64_t          workspaceSize,
+  aclOpExecutor    *executor,
   const aclrtStream stream)
 ```
 
@@ -288,66 +288,66 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td rowspan="3">部分量化</td>
       <td>kvCache非量化 </td>
       <td>
-          入参：weightUqQr传入pertoken量化数据，其余入参皆为非量化数据。dequant_scale_w_uq_qr字段必须传入，smooth_scale_cq字段可选传入 <br>
+          入参：weightUqQr传入per-token量化数据，其余入参皆为非量化数据。dequantScaleWUqQr字段必须传入，smoothScalesCq字段可选传入 <br>
           出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td>kvCache per-channel量化 </td>
       <td>
-          入参：weightUqQr传入pertoken量化数据，kvCacheRef、krCacheRef传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_w_uq_qr、quant_scale_ckv、quant_scale_ckr字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：kvCacheRef、krCacheRef返回perchannel量化数据，其余出参返回非量化数据
+          入参：weightUqQr传入per-token量化数据，kvCacheRef、krCacheRef传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleWUqQr、quantScaleCkv、quant_scale_ckr字段必须传入，smoothScalesCq字段可选传入 <br>
+          出参：kvCacheRef、krCacheRef返回per-channel量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td>kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：kvCacheRef_out返回pertile量化数据，其余出参返回非量化数据
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入 <br>
+          出参：kvCacheRef返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td rowspan="3">int8/fp8/hif8全量化</td>
       <td> kvCache非量化</td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入 <br>
           出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tensor量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，kvCacheRef传入pertensor量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参返回非量化数据
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，kvCacheRef传入per-tensor量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr、quantScaleCkv字段必须传入，smoothScalesCq字段可选传入 <br>
+          出参：queryOut返回per-token-head量化数据，kvCacheRef出参返回per-tensor量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：kvCacheRef出参返回pertile量化数据，其余出参返回非量化数据
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入，smoothScalesCq字段可选传入 <br>
+          出参：kvCacheRef出参返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td rowspan="3">mxfp8全量化</td>
       <td> kvCache非量化</td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入 <br>
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
           出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tensor量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，kvCacheRef传入pertensor量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入 <br>
-          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参返回非量化数据
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，kvCacheRef传入per-tensor量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr、quantScaleCkv字段必须传入 <br>
+          出参：queryOut返回per-token-head量化数据，kvCacheRef出参返回per-tensor量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入 <br>
-          出参：kvCacheRef出参返回pertile量化数据，其余出参返回非量化数据
+          入参：tokenX传入per-token量化数据，weightDq、weightUqQr、weightDkvKr传入per-channel量化数据，其余入参皆为非量化数据。dequantScaleX、dequantScaleWDq、dequantScaleWUqQr、dequantScaleWDkvKr字段必须传入 <br>
+          出参：kvCacheRef出参返回per-tile量化数据，其余出参返回非量化数据
       </td>
     </tr>
   </table>
