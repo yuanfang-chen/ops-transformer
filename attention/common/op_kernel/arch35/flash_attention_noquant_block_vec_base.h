@@ -1682,7 +1682,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCo
         };
         outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BSNGD, UbFormat::S1G> copyAttenOutUbToGm;
-        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord, runInfo.attentionOutOffset);
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         FaGmTensor<OUTPUT_T, GmFormat::TNGD> outGmTensor {
             .gmTensor = this->attentionOutGm,
@@ -1691,14 +1691,14 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCo
         actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr);
         outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize, actualSeqQLen, constInfo.actualSeqLenSize);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::TNGD, UbFormat::S1G> copyAttenOutUbToGm;
-        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord, runInfo.attentionOutOffset);
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
         FaGmTensor<OUTPUT_T, GmFormat::BNGSD> outGmTensor {
             .gmTensor = this->attentionOutGm,
         };
         outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BNGSD, UbFormat::GS1> copyAttenOutUbToGm;
-        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord, runInfo.attentionOutOffset);
+        copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     }
 }
 
