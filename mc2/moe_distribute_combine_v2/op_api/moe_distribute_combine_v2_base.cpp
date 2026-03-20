@@ -183,35 +183,8 @@ aclnnStatus GetNetAndTopo(const char *groupEp, int64_t epRankId, HcclComm &hcclH
     if (netLayerNum <= 1) { // 第一层: MTE/CCU
         return ACLNN_SUCCESS;
     }
-    // 第二层
-    // CommLink *commLink
-    // uint32_t linkNum = 0;
-    // uint32_t srcRank = rank;
-    // uint32_t dstRank = (srcRank + 1) % world;
-    // const uint32_t netLayer = 1;
-    // res = HcclRankGraphGetLinks(hcclHandle, netLayer, srcRank, dstRank, &commLink, &linkNum); //
-    // 获取第二层组网的links CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Layer2 Links Failed."); bool isHost = false; for
-    // (uint32_t i = 0; i < linkNum && commLink; ++i) {
-    //     if (commLink[i].linkAttr.hop > 0) {
-    //         isHost = true;
-    //         break;
-    //     }
-    // }
-    // topoTypeOut = isHost ? Mc2TopoType::MC2_TOPO_HOST_KFC : Mc2TopoType::MC2_TOPO_AIV_DPU;
     return ACLNN_SUCCESS;
 }
-
-// aclnnStatus BuildKfcContext()
-// {
-//     void* ascCommArgs;
-//     AscCommGetArgs(&ascCommArgs);
-//     AscCommSetCommEngine(ascCommArgs, commEngine);  // 选MTE,AICPU等方式
-//     AscCommSetCommEngine(ascCommArgs, hcclAlgo);
-//     void * kfcContextAddr;
-//     AscCommResPrepare("group_name", "AllToAll", ascCommArgs, &kfcContextAddr);
-//     AscCommResPrepare("group_name", "AllGather", ascCommArgs2, &kfcContextAddr); //
-//     多个通信域，传同一个kfcContextAddr即可
-// }
 
 aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t epRankId, void *&devCtx,
                             const aclTensor *&mc2TensorOut, Mc2TopoType &topoTypeOut, uint64_t &hcclBuffSize)
@@ -270,7 +243,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                     return ACLNN_ERR_INNER;
                 }
                 desc.remoteRank = dstRank;
-                desc.channelProtocol = commLink[best].linkAttr.linkProtocol;
+                desc.channelProtocol = commLink[0].linkAttr.linkProtocol;
                 desc.notifyNum = mc2Context.epRankSize;
 
                 uint32_t best = 0;
