@@ -335,26 +335,26 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 //     return ACLNN_SUCCESS;
 // }
 
-// void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
-// {
-//     if(is950) {
-//         void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
-//         if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-//             arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
-//         }
-//         NnopbaseSetUserHandle(*executor, arg);
-//     }
+void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
+{
+    if(is950) {
+        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
+        if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
+        }
+        NnopbaseSetUserHandle(*executor, arg);
+    }
     
-//     if (NnopbaseSetHcclServerType) {  //给ACLnn框架指定通讯方式。
-//         if (is910B) {
-//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-//         } else if ( is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
-//         } else {
-//             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
-//         }
-//     }
-// }
+    if (NnopbaseSetHcclServerType) {  //给ACLnn框架指定通讯方式。
+        if (is910B) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        } else if ( is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        } else {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        }
+    }
+}
 
 aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* scalesOptional,
