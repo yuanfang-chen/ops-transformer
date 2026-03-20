@@ -47,6 +47,7 @@ struct CheckWinSizeData {
     uint64_t totalWinSizeTp;
     bool isSetFullMeshV2;
     bool isLayered;
+    bool isMc2Context;
 };
 
 static ge::graphStatus CheckTpWinSize(const gert::TilingContext *context, const char *nodeName,
@@ -78,9 +79,15 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, const ch
     auto attrs = context->GetAttrs();
     uint64_t hcclBufferSizeEp = 0;
     uint64_t maxWindowSizeEp = 0;
-    OP_TILING_CHECK(
-        mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX, winSizeData.isLayered) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
+    if (!winSizeData.isMc2Context) {
+        OP_TILING_CHECK(mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX, winSizeData.isLayered) !=
+            ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
+    } else {
+        auto attrs = context->GetAttrs();
+        auto cclBuffSizePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(3)); // 3为V3算子中ccl_buffer_size的index
+        OP_TILING_CHECK(cclBuffSizePtr == nullptr || *cclBuffSizePtr < 0, OP_LOGE(nodeName, "cclBuffSizePtr is invalid."), return ge::GRAPH_FAILED);
+        maxWindowSizeEp= *cclBuffSizePtr;
+    }
     uint32_t sharedExpertNum = winSizeData.sharedExpertNum;
     uint64_t h = static_cast<uint64_t>(winSizeData.h);
     uint64_t k = static_cast<uint64_t>(winSizeData.k);
