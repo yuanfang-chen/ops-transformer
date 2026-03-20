@@ -423,15 +423,15 @@ inline __aicore__ void QRHouseholderSingleVec::UpdateR(int32_t rowLen, int32_t s
         dataCopyOutParams = {static_cast<uint16_t>(tailRows), static_cast<uint16_t>(rowLen * sizeof(float)), 0, static_cast<uint16_t>(startIdx * sizeof(float))};
         LocalTensor<float> rows = inQueX_.AllocTensor<float>();
         for (int32_t j = 0; j < tailRows; j++, processedRowIdx++) {
-            int32_t bcastId = processedRowIdx % 8;
-            if (bcastId == 0) {
+            int32_t bcastIdTail = processedRowIdx % 8;
+            if (bcastIdTail == 0) {
                 Brcb(bcastTensor, vTensor[processedRowIdx], 1, {1, 8});
                 PipeBarrier<PIPE_V>();
                 Muls(bcastTensor, bcastTensor, -1.f, FLOAT_MASK);
                 PipeBarrier<PIPE_V>();
             }
             int32_t dstOffset = j * alignedRowLen;
-            MulByBlock(rows[dstOffset], wtTensor, bcastTensor[bcastId * 8], numRepeat, tailRepeat, tail);
+            MulByBlock(rows[dstOffset], wtTensor, bcastTensor[bcastIdTail * 8], numRepeat, tailRepeat, tail);
         }
         SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
         WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
@@ -542,17 +542,17 @@ inline __aicore__ void QRHouseholderSingleVec::ComputeQ() {
                 CopyInRow(vGm_, 0, dataCopyTailParams, dataCopyPadParams);
                 vTensor = inQueX_.DeQue<float>();
                 for (int32_t k = tailIterLen; k > 0; k--, betaIdx--) {
-                    int32_t vOffset = (k - 1) * alignedRowLen;
+                    int32_t vOffsetTail = (k - 1) * alignedRowLen;
 
-                    Duplicate(vTensor[vOffset], 0.f, betaIdx);
+                    Duplicate(vTensor[vOffsetTail], 0.f, betaIdx);
                     PipeBarrier<PIPE_V>();
 
-                    Dot(dotRes, vTensor[vOffset], q, tmpTensor, mDim_);
+                    Dot(dotRes, vTensor[vOffsetTail], q, tmpTensor, mDim_);
                     Brcb(dotRes, dotRes, 1, {1, 8});
                     PipeBarrier<PIPE_V>();
                     Muls(dotRes, dotRes, beta.GetValue(betaIdx), 8);
                     PipeBarrier<PIPE_V>();
-                    MulByBlock(tmpTensor, vTensor[vOffset], dotRes, numRepeat, tailRepeat, tail);
+                    MulByBlock(tmpTensor, vTensor[vOffsetTail], dotRes, numRepeat, tailRepeat, tail);
                     Sub(q, q, tmpTensor, mDim_);
                     PipeBarrier<PIPE_V>();
                 }
@@ -560,17 +560,17 @@ inline __aicore__ void QRHouseholderSingleVec::ComputeQ() {
             }
         } else {
             for (int32_t k = i; k > -1; k--) {
-                int32_t vOffset = k * alignedRowLen;
+                int32_t vOffset1 = k * alignedRowLen;
 
-                Duplicate(vTensor[vOffset], 0.f, k);
+                Duplicate(vTensor[vOffset1], 0.f, k);
                 PipeBarrier<PIPE_V>();
 
-                Dot(dotRes, vTensor[vOffset], q, tmpTensor, mDim_);
+                Dot(dotRes, vTensor[vOffset1], q, tmpTensor, mDim_);
                 Brcb(dotRes, dotRes, 1, {1, 8});
                 PipeBarrier<PIPE_V>();
                 Muls(dotRes, dotRes, beta.GetValue(k), 8);
                 PipeBarrier<PIPE_V>();
-                MulByBlock(tmpTensor, vTensor[vOffset], dotRes, numRepeat, tailRepeat, tail);
+                MulByBlock(tmpTensor, vTensor[vOffset1], dotRes, numRepeat, tailRepeat, tail);
                 Sub(q, q, tmpTensor, mDim_);
                 PipeBarrier<PIPE_V>();
             }
