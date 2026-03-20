@@ -88,6 +88,14 @@ public:
         LaunchCommBeforeCompute(startExpertIdx, expertNum, true);
     }
 
+    
+    __aicore__ inline void UpdateBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
+    {
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
+    }
+
+
     __aicore__ inline void Wait(uint32_t startExpertIdx)
     {
         if ASCEND_IS_AIC {

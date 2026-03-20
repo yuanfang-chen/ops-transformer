@@ -44,18 +44,19 @@ public:
         commOutGm = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm);
 
-        // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用（待确认）
+        // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用
         if IsFp8<DTYPE_GMM_X>() {
             uint64_t commOutLen = AlignTo512((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1));
             gmmxScalecommOutGM = workspaceGM + commOutLen;
-            scaleCommOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, 
-                        gmmxScaleGM, gmmxScalecommOutGM);
+            // commOp中已经初始化了上下文，这里只更新地址
+            scaleCommOp.UpdateBuffer(gmmxScaleGM, gmmxScalecommOutGM);
         }
         if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe, isA2avGmmFlag);
         }
-        computeOp.Init(commOutGm, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
+        computeScaleGM = IsFp8<DTYPE_GMM_X>() ? gmmxScalecommOutGM : gmmxScaleGM;
+        computeOp.Init(commOutGm, gmmweightGM, computeScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
             &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe, isA2avGmmFlag);
     }
 
@@ -97,7 +98,9 @@ private:
     CommOpType scaleCommOp;  // xscale的通信操作
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
+    GM_ADDR commOutGm = nullptr;
     GM_ADDR gmmxScaleCommOutGm = nullptr;
+    GM_ADDR computeScaleGM = nullptr;
     const TilingDataType *tilingData_ = nullptr;
     uint32_t e_ = 0U;
 };
