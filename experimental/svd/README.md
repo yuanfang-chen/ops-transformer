@@ -79,10 +79,10 @@ There are 4 linear algebra operators npu_linalg are the core implementation modu
 
 | Ascend        | PyTorch | PyTorch NPU Linalg | Description                         |
 |---------------|:-----|:-----|:-----|
-| QrHauseholder | [torch.linalg.qr(A)](https://docs.pytorch.org/docs/stable/generated/torch.linalg.qr.html) | torch.ops.npu_linalg.qr_householder(A) | Hauseholder QR decomposition        |
-| Tsqr          | [torch.linalg.qr(A)](https://docs.pytorch.org/docs/stable/generated/torch.linalg.qr.html) | torch.ops.npu_linalg.tsqr(A) | Tall-skinny matrix QR decomposition |
-| Jacobi        | [torch.linalg.svd(A)](https://docs.pytorch.org/docs/stable/generated/torch.linalg.svd.html) | torch.ops.npu_linalg.svd(A) | Jacobi rotation SVD                 |
-| SvdLowrank    | [torch.svd_lowrank(A, q=6, niter=2)](https://docs.pytorch.org/docs/stable/generated/torch.svd_lowrank.html) | torch.ops.npu_linalg.svd_lowrank(A, q=6, niter=2) | Low-rank SVD |
+| QrHauseholder | torch.linalg.qr(A) | torch.ops.npu_linalg.qr_householder(A) | Hauseholder QR decomposition        |
+| Tsqr          | torch.linalg.qr(A) | torch.ops.npu_linalg.tsqr(A) | Tall-skinny matrix QR decomposition |
+| Jacobi        | torch.linalg.svd(A) | torch.ops.npu_linalg.svd(A) | Jacobi rotation SVD                 |
+| SvdLowrank    | torch.svd_lowrank(A, q=6, niter=2) | torch.ops.npu_linalg.svd_lowrank(A, q=6, niter=2) | Low-rank SVD |
 
 **Directory structure**  
 ```

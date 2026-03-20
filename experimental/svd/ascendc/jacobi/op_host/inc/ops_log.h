@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "log/inner/dfx_base.h"
+#include "dfx_base.h"
 
 /* 基础日志 */
 #define OPS_LOG_D(OPS_DESC, ...) OPS_LOG_STUB_D(OPS_DESC, __VA_ARGS__)
