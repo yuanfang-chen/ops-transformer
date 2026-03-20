@@ -71,7 +71,7 @@ constexpr uint32_t AICPUNUM = 4U;
 
 constexpr size_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
 constexpr int64_t COMM_CMD_INFO_SIZE = 16;
-constexpr int64_t MIN_AVAILABLE_BUFF_SIZE = 2;
+constexpr uint64_t MIN_AVAILABLE_BUFF_SIZE = 2;
 constexpr int64_t HCCL_BUFFER_SIZE = 44;
 } // namespace
 
@@ -587,7 +587,7 @@ void MoeDistributeCombineSetupTilingBase::SetTilingKey()
 
 ge::graphStatus MoeDistributeCombineSetupTilingBase::CheckHcclBuffSize()
 {
-    const uint64_t hcclBuffSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+    const uint64_t hcclBuffSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize() / 2;
     OP_TILING_CHECK(
         hcclBuffSize < MIN_AVAILABLE_BUFF_SIZE,
         OP_LOGE(nodeName_, "HCCL_BUFFSIZE too short, [%ld] < [%ld].", hcclBuffSize, MIN_AVAILABLE_BUFF_SIZE),
@@ -615,6 +615,8 @@ ge::graphStatus MoeDistributeCombineSetupTilingBase::CheckHcclBuffSize()
     OP_TILING_CHECK(hcclBuffSize < hcclBuffSizeGolden,
                     OP_LOGE(nodeName_, "HCCL_BUFFSIZE [%lu] < [%lu].", hcclBuffSize, hcclBuffSizeGolden),
                     return ge::GRAPH_FAILED);
+
+    tilingData_->moeDistributeCombineSetupInfo.totalWinSize = hcclBuffSize;
 
     return ge::GRAPH_SUCCESS;
 }
