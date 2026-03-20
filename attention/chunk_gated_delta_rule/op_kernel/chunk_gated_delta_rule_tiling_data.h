@@ -19,6 +19,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 
 namespace ChunkGatedDeltaRule {
+    constexpr uint64_t STRUCT_ALIGNAS = 8;
     #pragma pack(push, 8)
     struct alignas(STRUCT_ALIGNAS) ChunkGatedDeltaRuleTilingData {
         int64_t aiCoreNum;
@@ -55,13 +56,11 @@ namespace ChunkGatedDeltaRule {
     constexpr uint64_t BUFFER_NUM_ONE = 1;
     constexpr uint64_t BROADCAST_AXIS = 2;
     constexpr uint64_t TASK_RATIO = 2;
-    constexpr uint64_t STRUCT_ALIGNAS = 8;
     constexpr uint64_t STAGE3_BUFFER_COUNT = 4;
     constexpr uint32_t MAX_L0_SIZE = 64 * 1024; // 64KB
     constexpr uint32_t BLOCK_SIZE = 32;         // copypad对齐块大小
     constexpr uint32_t BLOCK_FLOAT_NUM = 8;
     constexpr uint32_t BLOCK_BF16_NUM = 16;
-    constexpr uint32_t BLOCK_SIZE = 32;   // copypad对齐块大小
 }  // ChunkGatedDeltaRule
 
 #endif  // CHUNK_GATED_DELTA_RULE_TILING_DATA_H
