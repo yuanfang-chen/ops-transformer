@@ -520,9 +520,9 @@ private:
         Cast(valueUbFloat_, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows_ * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(valueLocal_);
-        if (validLen_ < halfChunkSize_) {
-            Duplicate(valueUbFloat_[validLen_ * dvAligned_], static_cast<float>(0.0f),
-                      (halfChunkSize_ - validLen_) * dvAligned_);
+        if (subValidRows_ < halfChunkSize_) {
+            Duplicate(valueUbFloat_[subValidRows_ * dvAligned_], static_cast<float>(0.0f),
+                      (halfChunkSize_ - subValidRows_) * dvAligned_);
             PipeBarrier<PIPE_V>();
         }
         uint32_t betaShape[2] = {halfChunkSize_, 1};
