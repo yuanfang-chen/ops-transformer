@@ -1026,18 +1026,18 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::SinkInvalidRow(const RunInfo &
 }
 
 template <typename FIAT>
-__aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo &info, LocalTensor<COMPUTE_T> &tmpSinkResUbBrcb,
-    uint32_t wsMStart, uint32_t dealRowCount)
+__aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo &info,
+                                                                   LocalTensor<COMPUTE_T> &tmpSinkResUbBrcb,
+                                                                   uint32_t wsMStart, uint32_t dealRowCount)
 {
     constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
-    int64_t gIdx = 0;
-    int64_t s1Idx = 0;
+
 
     LocalTensor<COMPUTE_T> sinkBuf = tmpBuff1.GetWithOffset<COMPUTE_T>(BUFFER_SIZE_BYTE_8K, BUFFER_SIZE_BYTE_8K * 2);
     SinkCopyIn(info, sinkBuf);
 
-    bool isInvalidRows = fa_base_vector::IsExistInvalidRows(info.nextTokensPerBatch, info.preTokensPerBatch, 
-        constInfo.sparseMode, constInfo.attenMaskFlag, constInfo.isRowInvalid);
+    bool isInvalidRows = fa_base_vector::IsExistInvalidRows(info.nextTokensPerBatch, info.preTokensPerBatch, constInfo.sparseMode,
+                                           constInfo.attenMaskFlag, constInfo.isRowInvalid);
 
     if constexpr ((Q_FORMAT == GmFormat::BSNGD) || (Q_FORMAT == GmFormat::TNGD)) {
         int64_t s1IdxStart = (info.gS1Idx + wsMStart) / constInfo.gSize;
@@ -1070,19 +1070,17 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Vec1GetSinkValue(const RunInfo
                 SinkInvalidRow(info, tmpSinkResUbBrcb, i, dealCount, curDealRows);
             }
         }
-    }
-    for (uint32_t row = 0; row < dealRowCount; ++row) {
-        if constexpr ((Q_FORMAT == GmFormat::BSNGD) || (Q_FORMAT == GmFormat::TNGD)) { //内存按照S1G排布
-            gIdx = (info.gS1Idx + wsMStart + row) % constInfo.gSize;
-            s1Idx = (info.gS1Idx + wsMStart + row) / constInfo.gSize;
-        } else if constexpr ((Q_FORMAT == GmFormat::BNGSD) || (Q_FORMAT == GmFormat::NGTD)) { //内存按照GS1排布
+    } else if constexpr ((Q_FORMAT == GmFormat::BNGSD) || (Q_FORMAT == GmFormat::NGTD)) {
+        int64_t gIdx = 0;
+        int64_t s1Idx = 0;
+        for (uint32_t row = 0; row < dealRowCount; ++row) {
             gIdx = (info.gS1Idx + wsMStart + row) / info.actS1Size;
             s1Idx = (info.gS1Idx + wsMStart + row) % info.actS1Size;
-        }
-        DataCopy(tmpSinkResUbBrcb[row * brcbNum], sinkBuf[gIdx * brcbNum], brcbNum);
+            DataCopy(tmpSinkResUbBrcb[row * brcbNum], sinkBuf[gIdx * brcbNum], brcbNum);
 
-        if (unlikely(isInvalidRows)) { // 行无效处理
-            SinkInvalidRow(info, tmpSinkResUbBrcb, s1Idx, row, 1);
+            if (unlikely(isInvalidRows)) { // 行无效处理
+                SinkInvalidRow(info, tmpSinkResUbBrcb, s1Idx, row, 1);
+            }
         }
     }
 }
