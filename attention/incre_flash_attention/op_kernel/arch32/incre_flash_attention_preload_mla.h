@@ -336,6 +336,7 @@ protected:
     uint64_t mSizeVStart = 0ULL;
     uint64_t kvSeqSize = 0ULL;
     uint64_t qSeqSize = 1ULL;
+    uint64_t tSeqSize = 1ULL;   // TND T轴总长度（含padding）
 
     // pageAttention
     uint32_t kvCacheBlockSize = 0;
@@ -566,6 +567,7 @@ protected:
 
     __aicore__ inline void InitAllZeroOutput(uint32_t bIdx, uint32_t n2Idx);
     __aicore__ inline void InitSoftmaxLseAllInfOutput(uint32_t bIdx, uint32_t n2Idx);
+    __aicore__ inline void InitOutputSingleCore();
     __aicore__ inline uint64_t SeqLenFromTensorList(uint32_t bIdx);
 
     __aicore__ inline void CopyFixedUbToGm(const GlobalTensor<T> &dst, const LocalTensor<T> &src, size_t size);
@@ -594,6 +596,7 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadM
 
     kvSeqSize = tilingData->baseParams.seqSize;
     qSeqSize = tilingData->baseParams.qSeqSize;
+    tSeqSize = tilingData->baseParams.tSeqSize;
 
     s1SizeSub = tilingData->increFlashAttentionSingleCoreParams.s1SplitSize; // 切块大小Si
     s1Outer = (qSeqSize + s1SizeSub - 1) / s1SizeSub;
@@ -734,6 +737,48 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitSoftmaxLseA
     } else { // BSH BSND
         uint64_t softmaxLseOffset = bIdx * kvHeadNum * gSize * qSeqSize + n2Idx * gSize * qSeqSize;
         matmul::InitOutput<T>(softmaxLseGm[softmaxLseOffset], gSize * qSeqSize, FLOAT_INF);
+    }
+}
+
+template <typename IFAT>
+__aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitOutputSingleCore()
+{
+    if (usedCoreNum != 0) {
+        uint32_t initOutputEventId = 0U;
+        SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+        // TND/NTD 场景：sparse9 padding 时 tSeqSize > actualSeqLen[-1]，需初始化 padding 部分为 0
+        if constexpr (LAYOUT_T == LAYOUT::TND || LAYOUT_T == LAYOUT::NTD) {
+            if (sparseMode == 9U) {
+                uint32_t tSize = actualSeqLengthsGmQ.GetValue(batchSize - 1);
+                if (tSeqSize > tSize) {
+                    uint64_t totalOutputSize = tSeqSize * qHeadNum * headDim;
+                    uint64_t singleCoreSize =
+                        (totalOutputSize + (2 * usedCoreNum) - 1) / (2 * usedCoreNum);
+                    uint64_t tailSize = totalOutputSize - tmpBlockIdx * singleCoreSize;
+                    uint64_t singleInitOutputSize =
+                        tailSize < singleCoreSize ? tailSize : singleCoreSize;
+                    WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+                    if (tmpBlockIdx * singleCoreSize < totalOutputSize &&
+                        singleInitOutputSize > 0) {
+                        if constexpr (IsSameType<OUT_T, int8_t>::value) {
+                            GlobalTensor<half> attentionOutTmpGm;
+                            attentionOutTmpGm.SetGlobalBuffer(
+                                reinterpret_cast<__gm__ half *>(attentionOutGm.GetPhyAddr(0)));
+                            matmul::InitOutput<half>(
+                                attentionOutTmpGm[tmpBlockIdx * singleCoreSize / 2],
+                                singleInitOutputSize / 2, 0);
+                        } else {
+                            matmul::InitOutput<OUT_T>(
+                                attentionOutGm[tmpBlockIdx * singleCoreSize],
+                                singleInitOutputSize, 0);
+                        }
+                    }
+                    SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+                }
+            }
+        }
+        WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
+        SyncAll();
     }
 }
 
@@ -899,6 +944,11 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::Init(
     }
 
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengths);
+
+    // sparse9 TND padding 场景初始化 output 为 0
+    if ASCEND_IS_AIV {
+        InitOutputSingleCore();
+    }
 
     if constexpr (PAGE_ATTENTION) {
         blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);

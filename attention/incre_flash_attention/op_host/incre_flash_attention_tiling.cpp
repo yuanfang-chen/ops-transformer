@@ -3224,6 +3224,7 @@ void IFATiling::FillTilingBaseParamsMla()
     tilingDataMla_.baseParams.set_sparseMode(sparseMode_);
     tilingDataMla_.baseParams.set_outputLayout(static_cast<uint32_t>(outputLayout_));
     tilingDataMla_.baseParams.set_softmaxLseFlag(softmaxLseFlag_ ? 1 : 0);
+    tilingDataMla_.baseParams.set_tSeqSize(tSeqSize_);
 }
 
 // for flash decode
