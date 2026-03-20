@@ -25,9 +25,12 @@
 #include "hccl/hcom.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
+#include "mc2_moe_context_tensor.h"
 
 using namespace Ops::Transformer;
 using namespace op;
+using namespace MC2MoeContext;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -388,11 +391,11 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
 
     int64_t ydtype = expandXOut->GetDataType();
-    OP_LOGD("PRINT hcclHandle start out :%p",hcclHandle);
-    ret = GetCommHandle(groupEp, hcclHandle, netLayerNum);
-    OP_LOGD("PRINT hcclHandle end out :%p",hcclHandle);
-    CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    OP_LOGD("PRINT commAlg:%s",commAlg);
+    // OP_LOGD("PRINT hcclHandle start out :%p",hcclHandle);
+    // ret = GetCommHandle(groupEp, hcclHandle, netLayerNum);
+    // OP_LOGD("PRINT hcclHandle end out :%p",hcclHandle);
+    // CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    // OP_LOGD("PRINT commAlg:%s",commAlg);
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
             x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
@@ -402,16 +405,20 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     } else {
-        OP_LOGD("PRINT inter to the 950");
+        // OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
-        std::string hcclTopoType; //TODO:改为int值，
-        ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
+        // std::string hcclTopoType; //TODO:改为int值，
+        // ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
+        // CHECK_RET(ret == ACLNN_SUCCESS, ret);
+        // if(scalesOptional == nullptr) {
+        //     OP_LOGD("PRINT SUCCESS scalesOptional is nullptr");
+        // } else {
+        //     OP_LOGD("PRINT ERROR scalesOptional is not nullptr");
+        // }
+
+        ret = GetMc2ContextTensor(groupEp, opName, hcclBuffSize, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
-        if(scalesOptional == nullptr) {
-            OP_LOGD("PRINT SUCCESS scalesOptional is nullptr");
-        } else {
-            OP_LOGD("PRINT ERROR scalesOptional is not nullptr");
-        }
+
         getWorkspaceSizesRes =  aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
             mc2Context, x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, epWorldSize, epRankId, moeExpertNum,
