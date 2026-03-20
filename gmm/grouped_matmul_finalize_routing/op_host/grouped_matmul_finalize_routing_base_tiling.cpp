@@ -16,6 +16,7 @@
 #include "tiling/platform/platform_ascendc.h"
 #include "util/math_util.h"
 #include "err/ops_err.h"
+#include <iostream>
 
 namespace optiling {
 namespace grouped_matmul_finalize_routing {
@@ -213,6 +214,20 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::ParseInputAndAttr()
     }
 
     groupNum_ = context_->GetInputShape(1)->GetStorageShape()[0];
+
+    std::cout << "zzzlog [BaseTiling::ParseInputAndAttr] "
+              << "m=" << m_ << ", n=" << n_ << ", k=" << k_
+              << ", groupNum=" << groupNum_
+              << ", batch=" << batch_
+              << ", sharedInputLen=" << sharedInputLen_
+              << ", sharedInputOffset=" << sharedInputOffset_
+              << ", residualScale=" << residualScale_
+              << ", tuningConfig=" << tuningConfig_
+              << ", hasPertokenScale=" << hasPertokenScale_
+              << ", hasBias=" << hasBias_
+              << ", withOffset=" << withOffset_
+              << std::endl;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -245,6 +260,16 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
         OP_LOGE(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling: baseN is 0! Tling Failed!");
         return ge::GRAPH_FAILED;
     }
+
+    std::cout << "zzzlog [BaseTiling::W4A8BaseTilingProcess] "
+              << "tuningConfig=" << tuningConfig_
+              << ", avg_m=" << avg_m
+              << ", baseM=" << baseM
+              << ", baseN=" << baseN
+              << ", baseK=" << A8W4_MSD_BASE_K
+              << ", wNZ=" << static_cast<int>(wNZ)
+              << ", m=" << m_ << ", n=" << n_ << ", k=" << k_
+              << std::endl;
 
     vBaseM_ = UBCALSIZE / baseN;
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT4, false);
@@ -363,6 +388,15 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
         baseM = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_N : BEST_BASE_M;
         baseN = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_M : BEST_BASE_N;
     }
+
+    std::cout << "zzzlog [BaseTiling::W8A8TilingProcess] "
+              << "tuningConfig=" << tuningConfig_
+              << ", baseM=" << baseM
+              << ", baseN=" << baseN
+              << ", baseK=" << BEST_BASE_K
+              << ", m=" << m_ << ", n=" << n_ << ", k=" << k_
+              << std::endl;
+
     vBaseM_ = UBCALSIZE / baseN;
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, false);
     mm_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, false);
