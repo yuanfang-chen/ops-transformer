@@ -2714,32 +2714,44 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
         uint32_t dimNum = keyAntiquantScaleTensor->GetStorageShape().GetDimNum();
         if (keyAntiquantMode == PER_TOKEN_MODE) {
             OP_CHECK_IF(
-              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1) < maxBlockNumPerSeq_ * blockSize_),
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1) < maxBlockNumPerSeq_ * blockSize_),
               OP_LOGE(ifaContext_->opName,
                       "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token mode and keyAntiquant/valueAntiquant is splited.",
+<<<<<<< HEAD
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
+=======
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
+>>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
         if (keyAntiquantMode == PER_TOKEN_HEAD_MODE) {
             OP_CHECK_IF(
-              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1) < maxBlockNumPerSeq_ * blockSize_),
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1) < maxBlockNumPerSeq_ * blockSize_),
               OP_LOGE(ifaContext_->opName,
                       "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token-head mode and keyAntiquant/valueAntiquant is splited.",
+<<<<<<< HEAD
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 1), maxBlockNumPerSeq_, blockSize_),
+=======
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
+>>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
         if (keyAntiquantMode == PER_TOKEN_GROUP_MODE) {
             OP_CHECK_IF(
-              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 2) < maxBlockNumPerSeq_ * blockSize_),
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM2) < maxBlockNumPerSeq_ * blockSize_),
               OP_LOGE(ifaContext_->opName,
                       "The second-to-last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
                       "The second-to-last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
                       "keyAntiquantMode, valueAntiquantMode are per-token-group mode and keyAntiquant/valueAntiquant is splited.",
+<<<<<<< HEAD
                       keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 2), maxBlockNumPerSeq_, blockSize_),
+=======
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM2), maxBlockNumPerSeq_, blockSize_),
+>>>>>>> d187b4d8... 添加LSE、prefix拦截，添加伪量化PA相关拦截
               return ge::GRAPH_FAILED);
         }
     }
