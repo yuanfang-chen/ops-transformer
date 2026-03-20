@@ -116,7 +116,7 @@ function(gen_opgraph_symbol)
             rt2_registry_static
             -Wl,--no-whole-archive
             -Wl,-Bsymbolic
-            # ge_compiler
+            ge_compiler
   )
   target_link_directories(${OPGRAPH_NAME}
     PRIVATE
@@ -130,10 +130,12 @@ function(gen_opgraph_symbol)
     get_target_property(GRAPH_SOURCE ${GRAPH_PLUGIN_NAME}_obj SOURCES)
     if(GRAPH_SOURCE)
       add_dependencies(${GRAPH_PLUGIN_NAME}_obj
+        build_es_math
         build_es_transformer
       )
       target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
         PRIVATE
+        es_math
         es_transformer
       )
     endif()
