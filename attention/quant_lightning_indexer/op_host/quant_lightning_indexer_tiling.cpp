@@ -168,7 +168,7 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     opParamInfo_.nextTokens = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKENS_INDEX);
     if (attrNum > ATTR_KEY_BLOCK_STRIDE_INDEX) {
         opParamInfo_.keyBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_BLOCK_STRIDE_INDEX));
-        opParamInfo_.keyScaleBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_SCALE_BLOCK_STRIDE_INDEX));
+        opParamInfo_.keyDequantScaleBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_DEQUANT_SCALE_BLOCK_STRIDE_INDEX));
     }
 
     if (opParamInfo_.layOutQuery != nullptr) {
@@ -232,9 +232,9 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
     OP_CHECK_IF(opParamInfo_.keyBlockStride < 0,
                 OP_LOGE(opName_, "input attr key_block_stride must >= 0, but now key_block_stride is %u",
                        opParamInfo_.keyBlockStride),return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.keyScaleBlockStride < 0,
-                OP_LOGE(opName_, "input attr key_scale_block_stride must >= 0, but now key_scale_block_stride is %u",
-                       opParamInfo_.keyScaleBlockStride),return ge::GRAPH_FAILED);
+    OP_CHECK_IF(opParamInfo_.keyDequantScaleBlockStride < 0,
+                OP_LOGE(opName_, "input attr key_dequant_scale_block_stride must >= 0, but now key_dequant_scale_block_stride is %u",
+                       opParamInfo_.keyDequantScaleBlockStride),return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(*opParamInfo_.queryQuantMode != 0, OP_LOGE(opName_, "input attr query_quant_mode only supported 0."),
                return ge::GRAPH_FAILED);
@@ -763,10 +763,10 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     } else {
         QLIInfo.keyBlockStride = blockSize_ * n2Size_ * headDim_;
     }
-    if (opParamInfo_.keyScaleBlockStride != 0) {
-        QLIInfo.keyScaleBlockStride = opParamInfo_.keyScaleBlockStride;
+    if (opParamInfo_.keyDequantScaleBlockStride != 0) {
+        QLIInfo.keyDequantScaleBlockStride = opParamInfo_.keyDequantScaleBlockStride;
     } else {
-        QLIInfo.keyScaleBlockStride = blockSize_;
+        QLIInfo.keyDequantScaleBlockStride = blockSize_;
     }
 
     QLIInfo.inputQLayout = qLayout_;
@@ -849,7 +849,7 @@ ge::graphStatus QuantLightningIndexerTiling::DoTiling(QLITilingInfo *tilingInfo)
     tilingData_.set_s1Size(tilingInfo->s1Size);
     tilingData_.set_sparseCount(tilingInfo->sparseCount);
     tilingData_.set_keyBlockStride(tilingInfo->keyBlockStride);
-    tilingData_.set_keyScaleBlockStride(tilingInfo->keyScaleBlockStride);
+    tilingData_.set_keyScaleBlockStride(tilingInfo->keyDequantScaleBlockStride);
     tilingData_.set_gSize(tilingInfo->gSize);
     tilingData_.set_blockSize(tilingInfo->blockSize);
     tilingData_.set_maxBlockNumPerBatch(tilingInfo->maxBlockNumPerBatch);

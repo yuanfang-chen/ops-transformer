@@ -69,7 +69,7 @@ public:
         this->Attr("pre_tokens").AttrType(OPTIONAL).Int(9223372036854775807);  // 9223372036854775807: 默认值，int64的最大值
         this->Attr("next_tokens").AttrType(OPTIONAL).Int(9223372036854775807); // 9223372036854775807: 默认值，int64的最大值
         this->Attr("key_block_stride").AttrType(OPTIONAL).Int(0); // 0: 默认值
-        this->Attr("key_scale_block_stride").AttrType(OPTIONAL).Int(0); // 0: 默认值
+        this->Attr("key_dequant_scale_block_stride").AttrType(OPTIONAL).Int(0); // 0: 默认值
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
