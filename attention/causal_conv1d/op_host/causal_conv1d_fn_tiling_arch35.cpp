@@ -40,11 +40,11 @@ constexpr uint64_t WEIGHT_DIM_NUM = 2;
 constexpr uint64_t CACHE_STATES_DIM_NUM = 3;
 constexpr uint64_t SEQ_START_INDEX_DIM_NUM = 1;
 
-constexpr uint64_t DIM_MIN = 64;
+constexpr uint64_t DIM_MIN = 128;
 constexpr uint64_t DIM_MAX = 16384;
 constexpr uint64_t DIM_ALIGN = 16;
 constexpr uint64_t CU_SEQ_LEN_MIN = 1;
-constexpr uint64_t CU_SEQ_LEN_MAX = 65536;
+constexpr uint64_t CU_SEQ_LEN_MAX = 1048576;
 constexpr uint64_t BATCH_MIN = 1;
 constexpr uint64_t BATCH_MAX = 256;
 constexpr uint64_t KERNEL_WIDTH_MAX = 6;
@@ -163,7 +163,7 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDim()
 
     // 检查dim范围和对齐
     // 要求：dim > 128 且是 128 的整数倍
-    OP_CHECK_IF(!(dim_ > DIM_ALIGN_ELEMENTS && dim_ <= DIM_MAX && dim_ % DIM_ALIGN_ELEMENTS == 0),
+    OP_CHECK_IF(!(dim_ >= DIM_MIN && dim_ <= DIM_MAX && dim_ % DIM_ALIGN_ELEMENTS == 0),
                 OP_LOGE(context_->GetNodeName(), "dim must be > %lu, <= %lu and be multiple of %lu, but got: %lu",
                         DIM_ALIGN_ELEMENTS, DIM_MAX, DIM_ALIGN_ELEMENTS, dim_),
                 return ge::GRAPH_FAILED);
