@@ -194,6 +194,7 @@ public:
     __aicore__ inline void Process()
     {
         initHighState();
+        SyncAll<false>();
         int64_t seqStart = 0;
         int64_t seqEnd = 0;
         ChunkGroup cg;
@@ -267,7 +268,6 @@ private:
         int64_t dataCount = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
         CopyCast(initState_, highState_, pipe_, dataCount, RoundMode::CAST_NONE);
         pipe_->Reset();
-        SyncAll<false>();
     }
 
     __aicore__ inline void SetFinalState()
