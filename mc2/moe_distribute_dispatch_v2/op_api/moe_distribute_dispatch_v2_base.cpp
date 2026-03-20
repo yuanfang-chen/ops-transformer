@@ -406,7 +406,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     } else {
         // OP_LOGD("PRINT inter to the 950");
-        int64_t hcclBuffSize = 0;
+        uint64_t hcclBuffSize = 0;
         // std::string hcclTopoType; //TODO:改为int值，
         // ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         // CHECK_RET(ret == ACLNN_SUCCESS, ret);

@@ -216,7 +216,7 @@ aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, int64_t& hcclBuffSize) 
+static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, uint64_t& hcclBuffSize) 
 {
     // 多轮次调用的时候，host侧没有保存mc2contxet结构体的数据，需要重新获取hccl buffer 大小
     void * tempBuffer = nullptr;
@@ -251,7 +251,7 @@ static aclnnStatus GetCommEngine(const HcclComm& hcclHandle, CommEngine& engine,
     return ACLNN_ERR_INNER;
 }
 
-extern aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* opName, int64_t& hcclBuffSize, aclTensor* &mc2Context)
+extern aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* opName, uint64_t& hcclBuffSize, aclTensor* &mc2Context)
 {
     OP_LOGD("Start to get Mc2MoeContext Tensor");
     HcclComm hcclHandle;
