@@ -13,14 +13,16 @@
  * \brief
  */
 
-#ifndef VEC_MUL_MAT_INTERFACE_H
-#define VEC_MUL_MAT_INTERFACE_H
+#ifndef VF_VEC_MUL_MAT_H
+#define VF_VEC_MUL_MAT_H
 
 #include "kernel_tensor.h"
-namespace AscendC{
+
+namespace AscendC {
+
 template <typename T>
-__aicore__ inline void MatVecMulVF(const LocalTensor<T>& matrixInUb, const LocalTensor<T>& rowVecInUb,
-                                   const LocalTensor<T>& matrixOutUb, const uint16_t row, const uint32_t col)
+__aicore__ inline void VecMulMatVF(const LocalTensor<T>& matrixOutUb, const LocalTensor<T>& rowVecInUb,
+                                   const LocalTensor<T>& matrixInUb, const uint16_t row, const uint32_t col)
 {
     __ubuf__ float * matrixUb = (__ubuf__ float*)matrixInUb.GetPhyAddr();
     __ubuf__ float * rowVecUb = (__ubuf__ float*)rowVecInUb.GetPhyAddr();
@@ -29,90 +31,45 @@ __aicore__ inline void MatVecMulVF(const LocalTensor<T>& matrixInUb, const Local
     constexpr uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
     uint16_t dLoops = col / floatRepSize;
     uint32_t dTail = col % floatRepSize;
+    uint16_t dTailLoop = dTail > 0 ? 1 : 0;
 
     __VEC_SCOPE__
     {
-        AscendC::MicroAPI::RegTensor<T> vregMatrix;
-        AscendC::MicroAPI::RegTensor<T> vregRowVec;
-        AscendC::MicroAPI::RegTensor<T> vregOutput;
-        AscendC::MicroAPI::MaskReg fullMask = AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
-        AscendC::MicroAPI::MaskReg tailMask;
-        tailMask = AscendC::MicroAPI::UpdateMask<float>(dTail);
-        constexpr static AscendC::MicroAPI::CastTrait castTraitPack2 = {
-            AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT,
-            AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_RINT};
-        constexpr static AscendC::MicroAPI::CastTrait castTraitF32ToHalf = {
-            AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::NO_SAT,
-            AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_ODD};
+        MicroAPI::RegTensor<T> vregMatrix;
+        MicroAPI::RegTensor<T> vregRowVec;
+        MicroAPI::RegTensor<T> vregOutput;
+        MicroAPI::MaskReg fullMask = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
+        MicroAPI::MaskReg tailMask;
+        tailMask = MicroAPI::UpdateMask<float>(dTail);
+        constexpr static MicroAPI::CastTrait castTraitPack2 = {
+            MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
+            MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+        constexpr static MicroAPI::CastTrait castTraitF32ToHalf = {
+            MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
+            MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_ODD};
 
         uint32_t colOffset = 0;
         uint32_t rowOffset = 0;
         for (uint16_t j = 0; j < dLoops; j++) {
-            AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregRowVec, rowVecUb + colOffset);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregRowVec, rowVecUb + colOffset);
             rowOffset = 0;
             for (uint16_t i = 0; i < row; i++) {
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregMatrix, matrixUb + colOffset + rowOffset);
-                AscendC::MicroAPI::Mul(vregOutput, vregMatrix, vregRowVec, fullMask);
-                AscendC::MicroAPI::StoreAlign<T, AscendC::MicroAPI::StoreDist::DIST_NORM>(outputUb + colOffset + rowOffset, vregOutput, fullMask);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregMatrix, matrixUb + colOffset + rowOffset);
+                MicroAPI::Mul(vregOutput, vregMatrix, vregRowVec, fullMask);
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(outputUb + colOffset + rowOffset, vregOutput, fullMask);
                 rowOffset += col;
             }
             colOffset += floatRepSize; 
         }
 
-        if (dTail > 0) {
+        if (dTailLoop > 0) {
             rowOffset = 0;
-            AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregRowVec, rowVecUb + dLoops * floatRepSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregRowVec, rowVecUb + dLoops * floatRepSize);
             for (uint16_t i = 0; i < row; i++) {
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregMatrix, matrixUb + dLoops * floatRepSize + rowOffset);
-                AscendC::MicroAPI::Mul(vregOutput, vregMatrix, vregRowVec, tailMask);
-                AscendC::MicroAPI::StoreAlign<T, AscendC::MicroAPI::StoreDist::DIST_NORM>(outputUb + dLoops * floatRepSize + rowOffset, vregOutput, tailMask);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregMatrix, matrixUb + dLoops * floatRepSize + rowOffset);
+                MicroAPI::Mul(vregOutput, vregMatrix, vregRowVec, tailMask);
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(outputUb + dLoops * floatRepSize + rowOffset, vregOutput, tailMask);
                 rowOffset += col;
-            }
-        }
-    }
-}
-
-template <typename T>
-__aicore__ inline void OuterAddVF(const LocalTensor<T>& outputUb, const LocalTensor<T>& deltaInUb,
-                                  const LocalTensor<T>& kInUb, const LocalTensor<T>& stateInUb, const uint16_t row,
-                                  const uint32_t col)
-{
-    __ubuf__ T * deltaBuf = (__ubuf__ T*)deltaInUb.GetPhyAddr();
-    __ubuf__ T * kInputBuf = (__ubuf__ T*)kInUb.GetPhyAddr();
-    __ubuf__ T * stateInBuf = (__ubuf__ T*)stateInUb.GetPhyAddr();
-    __ubuf__ T * outputBuf = (__ubuf__ T*)outputUb.GetPhyAddr();
-
-    constexpr uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
-    uint16_t dLoops = col / floatRepSize;
-    uint32_t dTail = col % floatRepSize;
-
-    __VEC_SCOPE__
-    {
-        AscendC::MicroAPI::RegTensor<T> vregKInput;
-        AscendC::MicroAPI::RegTensor<T> vregDelta;
-        AscendC::MicroAPI::RegTensor<T> vregStateIn;
-        AscendC::MicroAPI::MaskReg pregAll = AscendC::MicroAPI::CreateMask<T, AscendC::MicroAPI::MaskPattern::ALL>();
-
-        for (uint16_t j = 0; j < dLoops; j++) {
-            AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregKInput, kInputBuf + j * floatRepSize);
-            for (uint16_t i = 0; i < row; i++) {
-                uint16_t loopOffset = i * col + j * floatRepSize;
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_BRC_B32>(vregDelta, deltaBuf + i); // 使用DIST_BRC_B32模式搬运将首元素broadcast到整个寄存器
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregStateIn, stateInBuf + loopOffset);
-                AscendC::MicroAPI::MulAddDst<T, AscendC::MicroAPI::MaskMergeMode::ZEROING>(vregStateIn, vregKInput, vregDelta, pregAll);
-                AscendC::MicroAPI::StoreAlign<T, AscendC::MicroAPI::StoreDist::DIST_NORM>(outputBuf + loopOffset, vregStateIn, pregAll);
-            }
-        }
-
-        if (dTail > 0) {
-            AscendC::MicroAPI::MaskReg tailMask = AscendC::MicroAPI::UpdateMask<T>(dTail);
-            AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregKInput, kInputBuf + dLoops * floatRepSize);
-            for (uint16_t i = 0; i < row; i++) {
-                uint16_t loopOffset = i * col + dLoops * floatRepSize;
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_BRC_B32>(vregDelta, deltaBuf + i); // 使用DIST_BRC_B32模式搬运将首元素broadcast到整个寄存器
-                AscendC::MicroAPI::LoadAlign<T, AscendC::MicroAPI::LoadDist::DIST_NORM>(vregStateIn, stateInBuf + loopOffset);
-                AscendC::MicroAPI::MulAddDst<T, AscendC::MicroAPI::MaskMergeMode::ZEROING>(vregStateIn, vregKInput, vregDelta, tailMask);
-                AscendC::MicroAPI::StoreAlign<T, AscendC::MicroAPI::StoreDist::DIST_NORM>(outputBuf + loopOffset, vregStateIn, tailMask);
             }
         }
     }
@@ -120,4 +77,4 @@ __aicore__ inline void OuterAddVF(const LocalTensor<T>& outputUb, const LocalTen
 
 } // namespace
 
-#endif // VEC_MUL_MAT_INTERFACE_H
+#endif // VF_VEC_MUL_MAT_H

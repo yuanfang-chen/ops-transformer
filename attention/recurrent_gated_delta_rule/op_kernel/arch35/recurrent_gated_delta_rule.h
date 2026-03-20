@@ -19,6 +19,7 @@
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "vf_vec_mul_mat.h"
+#include "vf_outer_add.h"
 #include "../recurrent_gated_delta_rule_tiling_data.h"
 
 namespace RecurrentGatedDeltaRule {
@@ -265,10 +266,10 @@ private:
             Muls(stateInUb, stateInUb, gama_, alignK_ * curSingleV);
         }
         if (hasGamaK_) {
-            MatVecMulVF<float>(stateInUb, gamaKInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), alignK_);
+            VecMulMatVF<float>(stateInUb, gamaKInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), alignK_);
         }
         AscendC::PipeBarrier<PIPE_V>();
-        MatVecMulVF<float>(stateInUb, kInUb[curQKOffset], broadTmpInUb, static_cast<uint16_t>(curSingleV), alignK_);
+        VecMulMatVF<float>(broadTmpInUb, kInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), alignK_);
         AscendC::PipeBarrier<PIPE_V>();
         ReduceSum<float, Pattern::Reduce::AR, true>(deltaInUb, broadTmpInUb, stateShape, true);
         AscendC::PipeBarrier<PIPE_V>();
@@ -278,7 +279,7 @@ private:
         AscendC::PipeBarrier<PIPE_V>();
         OuterAddVF(stateInUb, deltaInUb, kInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), static_cast<uint16_t>(alignK_));
         AscendC::PipeBarrier<PIPE_V>();
-        MatVecMulVF<float>(stateInUb, qInUb[curQKOffset], broadTmpInUb, static_cast<uint16_t>(curSingleV), alignK_);
+        VecMulMatVF<float>(broadTmpInUb, qInUb[curQKOffset], stateInUb, static_cast<uint16_t>(curSingleV), alignK_);
         AscendC::PipeBarrier<PIPE_V>();
         ReduceSum<float, Pattern::Reduce::AR, true>(attnInUb, broadTmpInUb, stateShape, true);
         LocalTensor<outType> stateOutLocal = stateOutQueue_.AllocTensor<outType>();
