@@ -72,7 +72,6 @@ def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list, y, scale
             # 升精度 & 转torch
             x2_g = convert_to_high_precision(x2_g, x2_dtype)
             out = single_group_mm_cal(x1_g, x2_g, None, out_dtype, True)
-            # print("out=",out, out.shape, out.dtype, inplace_y[i], inplace_y[i].shape,flush=True)
             outs.append(out)
     else:
         x1 = convert_to_high_precision(x1, x1_dtype)
