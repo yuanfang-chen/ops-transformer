@@ -46,11 +46,6 @@ static ge::graphStatus MxCheckShapeDimensions(const gert::StorageShape *shape, u
     return ge::GRAPH_SUCCESS;
 }
 
-static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
-{
-    return std::count(list.begin(), list.end(), value) > 0;
-}
-
 bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
