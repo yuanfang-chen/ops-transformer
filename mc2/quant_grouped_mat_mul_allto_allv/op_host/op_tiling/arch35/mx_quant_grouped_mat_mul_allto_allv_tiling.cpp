@@ -36,16 +36,6 @@ const std::vector<uint32_t> MX_QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 
-static ge::graphStatus MxCheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
-    const char *opName_)
-{
-    uint64_t dimNum = shape->GetStorageShape().GetDimNum();
-    OP_TILING_CHECK((dimNum != dims),
-        OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
-
-    return ge::GRAPH_SUCCESS;
-}
-
 bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
