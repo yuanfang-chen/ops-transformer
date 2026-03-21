@@ -122,7 +122,9 @@ protected:
     virtual ge::graphStatus CheckAndSetLocalParamsMm();
     virtual ge::graphStatus CheckAndSetLocalParamsAttr();
     virtual ge::graphStatus CheckAndSetLocalParams();
+    virtual ge::graphStatus CheckParamsRelationGmmTransShape();
     virtual ge::graphStatus CheckParamsRelationGmm();
+    virtual ge::graphStatus CheckParamsRelationMmTransShape();
     virtual ge::graphStatus CheckParamsRelationMm();
     virtual ge::graphStatus CheckParamsAttrEpAndSetLocalParams();
     virtual ge::graphStatus CheckAndSetSendRecvCountsAttr();
