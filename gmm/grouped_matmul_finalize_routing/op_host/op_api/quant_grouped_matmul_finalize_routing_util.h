@@ -46,7 +46,8 @@ struct GroupedMatmulParams {
     // attrs
     bool transposeX1{false};
     bool transposeX2{false};
-    bool skipHostDimensionChecks{false}; // WeightNzV2 debug: skip host dim/shape checks when true
+    // WeightNzV2: skip host tensor rank/shape consistency (CheckShape, CheckDimRange, etc.); dtype/format/null still checked.
+    bool skipHostDimensionChecks{false};
 };
 
 class GroupedMatmulParamsBuilder {
