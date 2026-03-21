@@ -30,7 +30,7 @@ struct CommContext {
     uint64_t epHcclBuffer_[1024];
 };
 
-static int32_t CreatMc2Context(HcclComm &comm, int64_t worldSize, int64_t cclBufferSize, CommContext &mc2Context)
+static int32_t CreatMc2Context(HcclComm &comm, int64_t worldSize, int64_t &cclBufferSize, CommContext &mc2Context)
 {
     uint32_t ctxIndex = 0;
     uint32_t rankId;
@@ -42,10 +42,11 @@ static int32_t CreatMc2Context(HcclComm &comm, int64_t worldSize, int64_t cclBuf
         HcclResult ret;
         if (rankId == remoteRankId) {
             ret = static_cast<HcclResult>(HcclGetHcclBufferFunc(comm, &remoteAddr, &commSize));  // 获取本卡地址
+            cclBufferSize = commSize / 2; // 获取本卡, WinIn+WinOut, 这里除以2拿到对应的WinIn大小
         } else {
-            ret = static_cast<HcclResult>(HcclGetRemoteIpcHcclBufFunc(comm, remoteRankId, &remoteAddr, &commSize)); // 获取远端地址
+            // 获取远端卡, WinIn+WinOut+WinExp(1M)
+            ret = static_cast<HcclResult>(HcclGetRemoteIpcHcclBufFunc(comm, remoteRankId, &remoteAddr, &commSize));
         }
-        TORCH_CHECK(((commSize >= cclBufferSize) && (ret == HCCL_SUCCESS)), "HcclGetRemoteIpcHcclBuf failed, commSize=", commSize, " ret=", ret);
         mc2Context.epHcclBuffer_[remoteRankId] = (uint64_t)remoteAddr;
     }
 
@@ -77,7 +78,7 @@ static int32_t CreateHcclContext(HcclComm &commHandle, void *opArgs, int64_t wor
     return 0;
 }
 
-static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, int64_t cclBufferSize, const char* groupEpStr)
+static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, int64_t &cclBufferSize, const char* groupEpStr)
 {
     InitHcclFunctions();
     void* opArgs = nullptr;
@@ -102,16 +103,17 @@ static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, i
  * @param x Input Tensor (on NPU)
  * @return Result Tensor
 **/
-bool UpdateContext(std::string groupEp, int64_t epWorldSize, int64_t cclBufferSize, at::Tensor &contextTensor)
+int64_t UpdateContext(std::string groupEp, int64_t epWorldSize, at::Tensor &contextTensor)
 {
     CommContext mc2ContextHost;
+    int64_t cclBufferSize = 0;
     int32_t ret = GetMc2Context(mc2ContextHost, epWorldSize, cclBufferSize, groupEp.c_str());
     TORCH_CHECK(ret == 0, "GetMc2Context failed, ret:", ret);
 
     // copy to device tensor
     at::Tensor hostContext = at::from_blob(&mc2ContextHost, {sizeof(CommContext) / sizeof(int32_t)}, at::kInt);
     contextTensor.copy_(hostContext);
-    return true;
+    return cclBufferSize;
 }
 
 // Bind the C++ function to Python module
