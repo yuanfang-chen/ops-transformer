@@ -27,6 +27,8 @@ using namespace optiling::GmmConstant;
 using namespace GMMFinalizeRoutingArch35Tiling;
 
 namespace {
+constexpr uint64_t DEBUG_FIXED_BASE_N = 96;
+
 template <typename DimsT>
 std::string DumpDimsToString(const DimsT &dims)
 {
@@ -500,6 +502,10 @@ uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
 {
     CalBasicBlock();
+    // Debug override: force baseN to 96 for WeightNzV2 verification.
+    if (inputParams_.nSize >= DEBUG_FIXED_BASE_N) {
+        basicTiling_.baseN = DEBUG_FIXED_BASE_N;
+    }
     OP_CHECK_IF(CalL1Tiling() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "CalL1Tiling failed"),
                 return ge::GRAPH_FAILED);
     tilingData_.matmulTiling.M = inputParams_.mSize;
@@ -546,6 +552,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
               << ", baseM=" << tilingData_.matmulTiling.baseM
               << ", baseN=" << tilingData_.matmulTiling.baseN
               << ", baseK=" << tilingData_.matmulTiling.baseK
+              << ", forcedBaseN=" << DEBUG_FIXED_BASE_N
               << std::endl;
 
     PrintMatmulParams();
