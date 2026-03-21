@@ -259,6 +259,8 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
     gm_b_align = reinterpret_cast<GM_ADDR>(hasBAlign ? workspaceGM + aAlignSize : 0);
     gm_a_src = reinterpret_cast<__gm__ supportX1Type*>(hasAAlign ? gm_a_align : aGM_);
     gm_b_src = reinterpret_cast<__gm__ supportX2Type*>(hasBAlign ? gm_b_align : bGM_);
+    // 使用分块大小分配int32结果内存，利用pingpong机制复用内存
+    int32_t block_m = m0 * pValue;
     gm_accum = reinterpret_cast<__gm__ int32_t*>(quantFlag ? workspaceGM + aAlignSize + bAlignSize : 0);
 
     m_align = Block512B<X1Type>::AlignUp(m);
@@ -266,7 +268,7 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
     n_align = Block512B<X1Type>::AlignUp(n);
     aligned_a = hasAAlign;
     aligned_b = hasBAlign;
-    
+
     isX2ScaleTypeInt64 = tilingData.allGatherMatmulInfo.isX2ScaleTypeInt64;
     dequantType = tilingData.allGatherMatmulInfo.dequantType;
     needAivDequant = quantFlag && (dequantType == PER_TOKEN || std::is_same<YType, bfloat16_t>::value);
@@ -294,7 +296,8 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
         }
     }
 
-    uint64_t gm_scale_workspace_st = aAlignSize + bAlignSize + m * n * worldSize * sizeof(int32_t);
+    // 使用分块大小计算scale_workspace起始地址，只需要MAX_BLOCK_COUNT个分块的空间
+    uint64_t gm_scale_workspace_st = aAlignSize + bAlignSize + block_m * n * worldSize * MAX_BLOCK_COUNT * sizeof(int32_t);
  	gm_scale_workspace = needPerToken ? workspaceGM + gm_scale_workspace_st : 0;
 
     AllGatherMatmulAIVMode<TemplateAGMMFunc>::AICInit();
@@ -623,7 +626,7 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::MoveToOtherRank
                 } else {
                     CopyUbufToGmAlignB16((__gm__ X1Type*)stateAddrPerRank[dst_rank] + rank_offset, copyTensor, 1, block_len, 0, 0);
                 }
-                
+
             }
             dst_rank = (dst_rank + skip_num) % rank_scope;
         }
@@ -859,6 +862,14 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Process()
                 }
             }
 
+            // 调整执行顺序：先执行dequant，再触发matmul
+            // 确保第n轮matmul开始前，第n-2轮的dequant已经完成
+ 	        if (cal_idx >= MAX_BLOCK_COUNT) {
+                SetAndWaitAivSync(flag_idx);
+ 	            Dequant(cal_idx - MAX_BLOCK_COUNT);
+                SetAndWaitAivSync(flag_idx);
+ 	        }
+
             if (cal_idx < cal_count) {
                 SetAndWaitAivSync(flag_idx);
                 CrossRankSyncV2(FLAG_ONE_IDX, cal_idx + 1);
@@ -866,11 +877,6 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Process()
                 // 发送aic同步
                 SetAicSync(flag_idx);
             }
-
-            // dequant
- 	        if (cal_idx >= MAX_BLOCK_COUNT) {
- 	            Dequant(cal_idx - MAX_BLOCK_COUNT);
- 	        }
         }
 
         for (int32_t idx = 0; idx < num_flags; ++idx) {
