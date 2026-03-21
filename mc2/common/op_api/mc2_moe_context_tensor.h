@@ -19,7 +19,7 @@
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
 
-namespace MC2MoeContext {
+namespace Mc2MoeDistributeContext {
 
 constexpr uint64_t kDefaultCtxOffset = 0; // 默认从最开始拷贝
 constexpr uint64_t MaxContextTagSize = 255; // 最大上下文标签大小

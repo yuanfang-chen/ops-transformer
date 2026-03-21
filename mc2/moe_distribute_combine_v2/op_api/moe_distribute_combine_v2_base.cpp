@@ -25,7 +25,7 @@
 
 using namespace Ops::Transformer;
 using namespace op;
-using namespace Mc2MoeContext;
+using namespace Mc2MoeDistributeContext;
 #ifdef __cplusplus
 extern "C" {
 #endif

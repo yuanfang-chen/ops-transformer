@@ -42,7 +42,7 @@
 namespace MoeDistributeCombineV2Impl {
 using namespace MoeDistributeV2Base;
 using namespace Mc2Kernel;
-using namespace Mc2MoeContext;
+using namespace Mc2MoeDistributeContext;
 #define CombineMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant, bool HasAddRmsNorm
 #define CombineMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant, HasAddRmsNorm
 
