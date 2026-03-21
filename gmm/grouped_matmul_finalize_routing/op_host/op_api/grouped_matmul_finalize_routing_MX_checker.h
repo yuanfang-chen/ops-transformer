@@ -77,13 +77,13 @@ public:
         CHECK_RET(CheckNotNull() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
         // 2. 检查输入的数据类型是否在支持的数据类型范围之内
         CHECK_RET(CheckDtypeValid(), ACLNN_ERR_PARAM_INVALID);
-        // 3. 校验输入、输出参数维度
-        CHECK_RET(CheckInputOutDims() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-        // 4. 校验输入、输出shape参数
-        CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
-        // 5. 校验输入、输出shape参数针对MXFP4
-        if (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP4)) {
-            CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
+        // 3–5. 维度与 shape 校验（WeightNzV2 可通过 skipHostDimensionChecks 跳过）
+        if (!gmmParams_.skipHostDimensionChecks) {
+            CHECK_RET(CheckInputOutDims() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+            CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
+            if (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP4)) {
+                CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
+            }
         }
         // 6. 检查数据形状是否支持
         CHECK_RET(CheckFormat(), ACLNN_ERR_PARAM_INVALID);

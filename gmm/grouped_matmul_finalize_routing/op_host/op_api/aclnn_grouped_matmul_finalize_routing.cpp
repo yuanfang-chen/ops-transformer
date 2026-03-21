@@ -516,9 +516,6 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
 
 static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
-    if (params.skipHostDimensionChecks) {
-        return ACLNN_SUCCESS;
-    }
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRoutingDAV3510Checker checker;
         aclnnStatus status = checker.CheckParams(params);
@@ -526,8 +523,10 @@ static aclnnStatus CheckParams(GroupedMatmulParams &params)
     } else {
         // 1. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
         CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
-        // 2. 检查shape是否符合要求
-        CHECK_RET(CheckShape(params), ACLNN_ERR_PARAM_INVALID);
+        // 2. 检查shape是否符合要求（WeightNzV2 可通过 skipHostDimensionChecks 跳过）
+        if (!params.skipHostDimensionChecks) {
+            CHECK_RET(CheckShape(params), ACLNN_ERR_PARAM_INVALID);
+        }
         // 3. 检查format是否符合要求
         CHECK_RET(CheckFormat(params), ACLNN_ERR_PARAM_INVALID);
         // 4. 空Tensor处理逻辑
@@ -996,9 +995,9 @@ static inline aclnnStatus CheckWeightNzFormat(const aclTensor *x1, const aclTens
     return ACLNN_SUCCESS;
 }
 
-static inline aclnnStatus CheckSupportScene(const CheckSupportSceneParams& params, bool transposeX, bool transposeW)
+// Required pointers + API dtype attr (non dimension/shape/NZ layout checks).
+static inline aclnnStatus CheckSupportSceneHostNonDim(const CheckSupportSceneParams& params)
 {
-    // 支持sharedInput输入为空, 不支持logit为空
     auto scene = params.x != nullptr && params.w != nullptr && params.scaleOptional != nullptr && params.logitOptional != nullptr
         && params.groupListOptional != nullptr && params.rowIndexOptional != nullptr;
 
@@ -1011,7 +1010,12 @@ static inline aclnnStatus CheckSupportScene(const CheckSupportSceneParams& param
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GroupedMatmulFinalizeRoutingWeightNz dtype must be 0, but is %lld.", params.dtype);
         return ACLNN_ERR_PARAM_INVALID;
     }
+    return ACLNN_SUCCESS;
+}
 
+// Weight view/rank, transpose, and NZ storage/view consistency (dimension-related).
+static inline aclnnStatus CheckSupportSceneHostDim(const CheckSupportSceneParams& params, bool transposeX, bool transposeW)
+{
     int64_t viewDimNum = params.w->GetViewShape().GetDimNum();
     if (viewDimNum < MIN_DIM_NUM_ND) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -1023,10 +1027,16 @@ static inline aclnnStatus CheckSupportScene(const CheckSupportSceneParams& param
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GroupedMatmulFinalizeRoutingWeightNz transpose should be false");
         return ACLNN_ERR_PARAM_INVALID;
     }
-    // check input format
     auto ret0 = CheckWeightNzFormat(params.x, params.w, transposeW);
     CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
     return ACLNN_SUCCESS;
+}
+
+static inline aclnnStatus CheckSupportScene(const CheckSupportSceneParams& params, bool transposeX, bool transposeW)
+{
+    auto ret = CheckSupportSceneHostNonDim(params);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    return CheckSupportSceneHostDim(params, transposeX, transposeW);
 }
 }
 
@@ -1164,7 +1174,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         }
         tmpWeight->SetStorageShape(storageShape);
 
-        /* DEBUG: WeightNzV2 — host-side dimension/format interception disabled (debug branch).
         if (tmpWeight->GetDataType() == DataType::DT_INT4 && pertokenScaleOptional == nullptr) {
             OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
                     "GroupedMatmulFinalizeRoutingWeightNz does not support nullptr for pertokenScale.");
@@ -1173,9 +1182,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
 
         CheckSupportSceneParams sceneParams{x1,    tmpWeight, scale, pertokenScaleOptional, groupList, sharedInput,
                                             logit, rowIndex,  dtype};
-        auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
-        CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
-        */
+        auto retScene = CheckSupportSceneHostNonDim(sceneParams);
+        CHECK_RET(retScene == ACLNN_SUCCESS, retScene);
     }
 
     // zzzlog: tmpWeight after unpack + weightNzShape derived by transposeX2.
