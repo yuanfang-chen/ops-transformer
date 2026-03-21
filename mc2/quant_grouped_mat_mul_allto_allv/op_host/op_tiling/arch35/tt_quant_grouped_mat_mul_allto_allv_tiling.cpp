@@ -28,11 +28,6 @@ using namespace optiling::Mc2GroupedMatmul;
 
 namespace optiling {
 
-static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
-{
-    return std::count(list.begin(), list.end(), value) > 0;
-}
-
 bool TTQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
