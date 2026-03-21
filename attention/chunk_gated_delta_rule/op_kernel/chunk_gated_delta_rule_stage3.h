@@ -64,6 +64,7 @@ public:
         Nk_ = sTP_->Nk;
         Dv_ = sTP_->Dv;
         Dk_ = sTP_->Dk;
+        paddedDv_ = Ceil(Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
         gOptional_ = sTP_->gOptional;
         uint64_t workSpaceOffset = 0;
         tmpGM_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams->ws + workSpaceOffset +
@@ -72,8 +73,8 @@ public:
             return;
         }
         coreId_ /= 2;
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, 
-               chunkSize_ > Dv_ ? chunkSize_ * Dk_ * sizeof(float) : Dv_ * Dk_ * sizeof(float));
+        uint64_t inQueueSize = static_cast<uint64_t>(chunkSize_) * paddedDv_ * sizeof(float);
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, inQueueSize);
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ > Dv_ ?
                           chunkSize_ * chunkSize_ * sizeof(float) : chunkSize_ * Dv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
@@ -251,6 +252,7 @@ private:
     int64_t Nk_;
     int64_t Dv_;
     int64_t Dk_;
+    int64_t paddedDv_;
     int32_t chunkNum_;
     int32_t coreNum_;
     int32_t curChunkSize_; 
