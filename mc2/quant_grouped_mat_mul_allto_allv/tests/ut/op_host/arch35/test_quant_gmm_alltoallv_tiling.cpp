@@ -18,6 +18,7 @@
 
 #include "mc2_tiling_case_executor.h"
 #include "../../../../op_host/op_tiling/arch35/tt_quant_grouped_mat_mul_allto_allv_tiling.h"
+#include "../../../../op_host/op_tiling/arch35/mx_quant_grouped_mat_mul_allto_allv_tiling.h"
 
 using namespace std;
 
@@ -69,11 +70,13 @@ struct GroupedMatMulAlltoAllvTilingTestParam {
     ge::DataType mmYDataType;
     ge::Format mmYFormat;
 
-    // Attributes
-    bool gmm_x_quant_mode;
-    bool gmm_weight_quant_mode;
-    bool mm_x_quant_mode;
-    bool mm_weight_quant_mode;
+     // Attributes
+    int64_t gmm_x_quant_mode;
+    int64_t gmm_weight_quant_mode;
+    int64_t mm_x_quant_mode;
+    int64_t mm_weight_quant_mode;
+
+    int64_t group_size;
 
     bool trans_gmm_weight_flag;
     bool trans_mm_weight_flag;
@@ -106,7 +109,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
         {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmYShape
-        1, 1, 1, 1, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode
+        1, 1, 1, 1, 0, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode group_size
         false, false, // gmmTrans mmTrans
         2, 2, 0, // worldSize epWorldSize graphType
         ge::GRAPH_SUCCESS, 137 // expectedStatus expectTilingKey
@@ -127,7 +130,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmweight_datatype_invalid",
@@ -142,7 +145,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmy_datatype_invalid",
@@ -157,7 +160,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_INT8, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmY数据类型非法
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmxscale_datatype_invalid",
@@ -172,7 +175,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmweightscale_datatype_invalid",
@@ -187,7 +190,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_mmx_datatype_invalid",
@@ -202,7 +205,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_mmweight_datatype_invalid",
@@ -217,7 +220,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_mmxscale_datatype_invalid",
@@ -232,7 +235,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_mmweightscale_datatype_invalid",
@@ -247,7 +250,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
 
     // 空tensor异常
@@ -264,7 +267,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmx_empty_dim1",
@@ -279,7 +282,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmweight_empty_dim0",
@@ -294,7 +297,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmweight_empty_dim1",
@@ -309,7 +312,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmweight_empty_dim2",
@@ -324,7 +327,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmy_empty_dim0",
@@ -339,7 +342,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {0,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmY为空tensor，第一维为0
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmy_empty_dim1",
@@ -354,7 +357,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,0}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmY为空tensor，第二维为0
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
 
     // K轴不匹配异常
@@ -371,7 +374,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_gmmx_gmmweight_k_mismatch_transpose",
@@ -386,7 +389,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // trans_gmm_weight_flag=true
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // trans_gmm_weight_flag=true
     },
     {
         "gmmalltoallv_hif8_quant_exception_mm_not_null_mmx_mmweight_k_mismatch",
@@ -401,7 +404,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
 
     // mm不为空时mmX的第一维与mmWeight的第二维不匹配
@@ -418,7 +421,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     // mm不为空时mmY与mmX的第一维不匹配
     {
@@ -434,7 +437,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmY(8192)与mmX的第一维(4096)不匹配
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
 
     // group相关异常
@@ -451,7 +454,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024,1024,1024,1024,1024,1024,1024,1024,1024}, // 9个元素，超过8
         {1024,1024,1024,1024,1024,1024,1024,1024,1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // group长度超过128（这里sendCounts长度超过8）
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // group长度超过128（这里sendCounts长度超过8）
     },
 
     // trans flag与shape不匹配
@@ -468,7 +471,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // transGmmWeight=false但shape不匹配（应该是[4,7168,4096]）
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // transGmmWeight=false但shape不匹配（应该是[4,7168,4096]）
     },
     {
         "gmmalltoallv_hif8_quant_exception_transmmweight_value_shape_mismatch",
@@ -483,7 +486,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // transMmWeight=false但shape不匹配（应该是[7168,4096]）
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0 // transMmWeight=false但shape不匹配（应该是[7168,4096]）
     },
 
     // epWorldSize异常
@@ -500,7 +503,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 4, 0, ge::GRAPH_FAILED, 0 // e*epWorldSize不等于256 (2*4=8)
+        1, 1, 1, 1, 0, false, false, 2, 4, 0, ge::GRAPH_FAILED, 0 // e*epWorldSize不等于256 (2*4=8)
     },
 
     // TopK异常
@@ -517,7 +520,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
 
     // sendCounts和recvCounts总和异常
@@ -534,7 +537,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024,1024,1024,1024,1024,1024,1024,1025}, // 总和=8193，不等于gmmX的第一维大小8192
         {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+        1, 1, 1, 1, 0, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
     },
     {
         "gmmalltoallv_hif8_quant_exception_recvcounts_sum_not_equal_gmmx_dim0",
@@ -550,44 +553,6 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         {1024,1024,1024,1024,1024,1024,1024,1025}, // 总和=8193，不等于gmmX的第一维大小8192
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
         1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
-    },
-    {
-        "gmmalltoallv_hif8_quant_scaleShape_not_1",
-        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {4}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-        {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        1, 1, 1, 1,
-        false, false,
-        2, 2, 0,
-        ge::GRAPH_FAILED, 0
-    },
-    {
-        "gmmalltoallv_hif8_quant_n2_not_in_range",
-        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {7168, 65536}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-        {8192, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        {4096, 65536}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        1, 1, 1, 1,
-        false, false,
-        2, 2, 0,
-        ge::GRAPH_FAILED, 0
     }
 };
 
@@ -648,7 +613,12 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // gmmXScaleStorageShape
     gert::StorageShape gmmXScaleStorageShape;
     if (param.gmmXScaleShape.size() > 0 && param.gmmXScaleShape[0] > 0) {
-        gmmXScaleStorageShape = {{param.gmmXScaleShape[0]}, {param.gmmXScaleShape[0]}};
+        if (param.gmmXScaleShape.size() > 2) {
+            gmmXScaleStorageShape = {{param.gmmXScaleShape[0], param.gmmXScaleShape[1], param.gmmXScaleShape[2]}, {param.gmmXScaleShape[0], param.gmmXScaleShape[1], param.gmmXScaleShape[2]}};
+        }
+        else {
+            gmmXScaleStorageShape = {{param.gmmXScaleShape[0]}, {param.gmmXScaleShape[0]}};
+        }
     } else {
         gmmXScaleStorageShape = {};
     }
@@ -656,7 +626,12 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // gmmWeightScaleStorageShape
     gert::StorageShape gmmWeightScaleStorageShape;
     if (param.gmmWeightScaleShape.size() > 0 && param.gmmWeightScaleShape[0] > 0) {
-        gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0]}, {param.gmmWeightScaleShape[0]}};
+        if (param.gmmWeightScaleShape.size() > 3) {
+            gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0], param.gmmWeightScaleShape[1], param.gmmWeightScaleShape[2], param.gmmWeightScaleShape[3]}, {param.gmmWeightScaleShape[0], param.gmmWeightScaleShape[1], param.gmmWeightScaleShape[2], param.gmmWeightScaleShape[3]}};
+        }
+        else {
+            gmmWeightScaleStorageShape = {{param.gmmWeightScaleShape[0]}, {param.gmmWeightScaleShape[0]}};
+        }
     } else {
         gmmWeightScaleStorageShape = {};
     }
@@ -664,7 +639,11 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // mmXScaleStorageShape
     gert::StorageShape mmXScaleStorageShape;
     if (param.mmXScaleShape.size() > 0 && param.mmXScaleShape[0] > 0) {
-        mmXScaleStorageShape = {{param.mmXScaleShape[0]}, {param.mmXScaleShape[0]}};
+        if (param.mmXScaleShape.size() > 2) {
+            mmXScaleStorageShape = {{param.mmXScaleShape[0], param.mmXScaleShape[1], param.mmXScaleShape[2]}, {param.mmXScaleShape[0], param.mmXScaleShape[1], param.mmXScaleShape[2]}};
+        } else {
+            mmXScaleStorageShape = {{param.mmXScaleShape[0]}, {param.mmXScaleShape[0]}};
+        }
     } else {
         mmXScaleStorageShape = {};
     }
@@ -672,7 +651,11 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
     // mmWeightScaleStorageShape
     gert::StorageShape mmWeightScaleStorageShape;
     if (param.mmWeightScaleShape.size() > 0 && param.mmWeightScaleShape[0] > 0) {
-        mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0]}, {param.mmWeightScaleShape[0]}};
+        if (param.mmWeightScaleShape.size() > 2) {
+            mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0], param.mmWeightScaleShape[1], param.mmWeightScaleShape[2]}, {param.mmWeightScaleShape[0], param.mmWeightScaleShape[1], param.mmWeightScaleShape[2]}};
+        } else {
+            mmWeightScaleStorageShape = {{param.mmWeightScaleShape[0]}, {param.mmWeightScaleShape[0]}};
+        }
     } else {
         mmWeightScaleStorageShape = {};
     }
@@ -709,10 +692,10 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
             {"mm_x_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mm_x_quant_mode)},
             {"mm_weight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mm_weight_quant_mode)},
             {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.group_size)},
+            {"comm_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
             {"gmm_y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
             {"mm_y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-            {"comm_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
         },
         &compileInfo,
         "Ascend950",
