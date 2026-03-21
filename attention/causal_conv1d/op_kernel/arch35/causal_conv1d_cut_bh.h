@@ -328,8 +328,8 @@ __aicore__ inline void CausalConv1dCutBH<T>::Process()
     DataCopyPad(indicesLocal, cacheIndicesGm, indicesCopyParams, padParams);
 
     Duplicate(acceptTokenLocal, static_cast<int32_t>(1), batchSize_);
+    SetWaitFlag<HardEvent::V_MTE2>(HardEvent::V_MTE2);
     if (hasAcceptTokenNum_ == 1) {
-        SetWaitFlag<HardEvent::V_MTE2>(HardEvent::V_MTE2);
         DataCopyPad(acceptTokenLocal, acceptTokenNumGm, indicesCopyParams, padParams);
     }
 
