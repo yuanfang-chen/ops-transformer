@@ -435,7 +435,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
     uint64_t mmXScaleDim2 = mmXScaleShape->GetStorageShape().GetDim(DIM_TWO);
     uint64_t mmWeightScaleDim0 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t mmWeightScaleDim1 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_ONE);
-    uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_TWO2);
+    uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_TWO);
 
     uint64_t mmxDivH2 = (localParams_.H2 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.Bs != mmXScaleDim0) || (mmxDivH2 != mmXScaleDim1) || (mmXScaleDim2 != EVEN_ALIGN),
