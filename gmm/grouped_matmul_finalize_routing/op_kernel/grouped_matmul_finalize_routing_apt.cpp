@@ -33,9 +33,9 @@
 #include "arch35/common/basic_block_config.h"
 #include "arch35/common/weight_quant_vcv_basic_block_base.h"
 #include "arch35/common/weight_quant_basic_block.h"
-#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
-#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_key.h"
-#include "arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_resplit_controller.h"
+#include "arch35/weight_quant_basic_block/gmm_fr_weight_quant_tiling_data.h"
+#include "arch35/weight_quant_basic_block/gmm_fr_weight_quant_tiling_key.h"
+#include "arch35/weight_quant_basic_block/gmm_fr_weight_quant_resplit_controller.h"
 #else
 // Full Quantization scenario (全量化场景)
 #include "lib/matmul_intf.h"

@@ -30,7 +30,7 @@
 
 #include "./grouped_matmul_finalize_routing_quant_tiling.h"
 #include "../../../op_kernel/arch35/grouped_matmul_finalize_routing_tiling_data.h"
-#include "../../../op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
+#include "../../../op_kernel/arch35/weight_quant_basic_block/gmm_fr_weight_quant_tiling_data.h"
 #include "../../../op_kernel/arch35/grouped_matmul_finalize_routing_tiling_key.h"
 #include "../../grouped_matmul_finalize_routing_tiling.h"
 #include "../../../../grouped_matmul/op_host/op_tiling/grouped_matmul_tiling.h"

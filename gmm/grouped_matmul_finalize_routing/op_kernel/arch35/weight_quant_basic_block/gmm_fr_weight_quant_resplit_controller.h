@@ -16,8 +16,8 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
 
 #include "../common/weight_quant_vcv_basic_block_base.h"
-#include "./grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
-#include "./weight_quant_finalize_routing_vcv_basic_block.h"
+#include "./gmm_fr_weight_quant_tiling_data.h"
+#include "./gmm_fr_weight_quant_vcv_basic_block.h"
 
 using AscendC::CeilAlign;
 using AscendC::SyncAll;
