@@ -43,7 +43,6 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckAndSetInputOutputInfo() override;
-    ge::graphStatus SetGmmA2avWorkspaceInfo() override;
 
     ge::graphStatus CheckAndSetLocalParamsGmm() override;
     ge::graphStatus CheckAndSetLocalParamsMm() override;
@@ -54,6 +53,7 @@ protected:
 private:
     ge::graphStatus CheckMxQuantGmmScaleShapes();
     ge::graphStatus CheckMxQuantMmScaleShapes();
+    ge::graphStatus CheckMxQuantDtypeConstraints();
 };
 
 } // namespace Mc2GroupedMatmul
