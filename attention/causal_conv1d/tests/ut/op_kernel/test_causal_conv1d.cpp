@@ -15,7 +15,8 @@
 #include "tikicpulib.h"
 
 // Tiling struct used by update kernel
-#include "../../../op_kernel/arch35/causal_conv1d_update_struct.h"
+#include "../../../op_kernel/arch35/causal_conv1d_cut_bh_struct.h"
+#include "../../../op_kernel/arch35/causal_conv1d_cut_bsh_struct.h"
 
 using namespace std;
 
@@ -40,8 +41,8 @@ protected:
     static void TearDownTestCase() { cout << "causal_conv1d_test TearDown\n" << endl; }
 };
 
-// Shape aligned with host UT case: CausalConv1dUpdate_950_bf_b4_s1_d512
-TEST_F(causal_conv1d_test, CausalConv1dUpdate_950_bf_b4_s1_d512)
+// Shape aligned with host UT case: CausalConv1dCutBH_950_bf_b4_s1_d512
+TEST_F(causal_conv1d_test, CausalConv1dCutBH_950_bf_b4_s1_d512)
 {
     AscendC::SetKernelMode(KernelMode::AIV_MODE);
 
@@ -74,10 +75,10 @@ TEST_F(causal_conv1d_test, CausalConv1dUpdate_950_bf_b4_s1_d512)
 
     uint8_t* cacheIndices = (uint8_t*)AscendC::GmAlloc(cacheIdxBytes);
     uint8_t* numAcceptedToken = (uint8_t*)AscendC::GmAlloc(numAcceptedBytes);
-    
-    size_t tilingSize = sizeof(CausalConv1dUpdateTilingData);
+
+    size_t tilingSize = sizeof(CausalConv1dCutBHTilingData);
     uint8_t* tiling = (uint8_t*)AscendC::GmAlloc(tilingSize);
-    auto* td = reinterpret_cast<CausalConv1dUpdateTilingData*>(tiling);
+    auto* td = reinterpret_cast<CausalConv1dCutBHTilingData*>(tiling);
 
     // Fill tiling data to mirror the host-UT expected tiling string
     // "16 4 4 4 0 128 128 4 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 512 1024 512 -1 0 1 0 "
@@ -140,6 +141,98 @@ TEST_F(causal_conv1d_test, CausalConv1dUpdate_950_bf_b4_s1_d512)
     AscendC::GmFree(numAcceptedToken);
     AscendC::GmFree(y);
     AscendC::GmFree(outStates);
+    AscendC::GmFree(workspace);
+    AscendC::GmFree(tiling);
+}
+static void FillSingleCoreTiling(CausalConv1dCutBSHTilingDataTest *td,
+    uint32_t batch, uint32_t dim, uint32_t K, uint32_t cuSeqLen, uint32_t residualConnection)
+{
+    td->loopNumBS = 1;
+    td->loopNumDim = 1;
+    td->ubFactorBS = cuSeqLen;
+    td->ubTailFactorBS = cuSeqLen;
+    td->ubFactorDim = dim;
+    td->ubTailFactorDim = dim;
+    td->tailBlockloopNumBS = 1;
+    td->tailBlockloopNumDim = 1;
+    td->tailBlockubFactorBS = cuSeqLen;
+    td->tailBlockubTailFactorBS = cuSeqLen;
+    td->tailBlockubFactorDim = dim;
+    td->tailBlockubTailFactorDim = dim;
+    td->dimCoreNum = 1;
+    td->dimRemainderCores = 1;
+    td->dimBlockFactor = dim;
+    td->dimBlockTailFactor = dim;
+    td->bsCoreNum = 1;
+    td->bsRemainderCores = 1;
+    td->bsBlockFactor = cuSeqLen;
+    td->bsBlockTailFactor = cuSeqLen;
+    td->realCoreNum = 1;
+    td->kernelWidth = K;
+    td->cuSeqLen = cuSeqLen;
+    td->dim = dim;
+    td->batch = batch;
+    td->padSlotId = -1;
+    td->xStride = dim;
+    td->cacheStride0 = (K - 1) * dim;
+    td->cacheStride1 = dim;
+    td->residualConnection = residualConnection;
+}
+
+TEST_F(causal_conv1d_test, test_bsh_fp16_single_batch)
+{
+    uint32_t batch = 1;
+    uint32_t dim = 128;
+    uint32_t K = 3;
+    uint32_t cuSeqLen = 16;
+    uint32_t blockDim = 1;
+
+    size_t x_size = cuSeqLen * dim * sizeof(half);
+    size_t weight_size = K * dim * sizeof(half);
+    size_t cache_size = batch * (K - 1) * dim * sizeof(half);
+    size_t y_size = cuSeqLen * dim * sizeof(half);
+
+    uint8_t *x = (uint8_t *)AscendC::GmAlloc(x_size);
+    uint8_t *weight = (uint8_t *)AscendC::GmAlloc(weight_size);
+    uint8_t *convStates = (uint8_t *)AscendC::GmAlloc(cache_size);
+    uint8_t *queryStartLoc = (uint8_t *)AscendC::GmAlloc((batch + 1) * sizeof(int32_t));
+    uint8_t *cacheIndices = (uint8_t *)AscendC::GmAlloc(batch * sizeof(int32_t));
+    uint8_t *initialStateMode = (uint8_t *)AscendC::GmAlloc(batch * sizeof(int32_t));
+    uint8_t *bias = (uint8_t *)AscendC::GmAlloc(16);
+    uint8_t *numAcceptedToken = (uint8_t *)AscendC::GmAlloc(16);
+    uint8_t *y = (uint8_t *)AscendC::GmAlloc(y_size);
+    uint8_t *outputConvStates = (uint8_t *)AscendC::GmAlloc(16);
+    uint8_t *workspace = (uint8_t *)AscendC::GmAlloc(16);
+    uint8_t *tiling = (uint8_t *)AscendC::GmAlloc(sizeof(CausalConv1dCutBSHTilingDataTest));
+
+    memset(x, 0, x_size);
+    memset(weight, 0, weight_size);
+    memset(convStates, 0, cache_size);
+
+    reinterpret_cast<int32_t *>(queryStartLoc)[0] = 0;
+    reinterpret_cast<int32_t *>(queryStartLoc)[1] = 16;
+    reinterpret_cast<int32_t *>(cacheIndices)[0] = 0;
+    reinterpret_cast<int32_t *>(initialStateMode)[0] = 1;
+
+    CausalConv1dCutBSHTilingDataTest *td =
+        reinterpret_cast<CausalConv1dCutBSHTilingDataTest *>(tiling);
+    FillSingleCoreTiling(td, batch, dim, K, cuSeqLen, 0);
+
+    ICPU_SET_TILING_KEY(10001);
+    ICPU_RUN_KF(causal_conv1d, blockDim, x, weight, convStates, queryStartLoc,
+                cacheIndices, initialStateMode, bias, numAcceptedToken, y,
+                outputConvStates, workspace, (uint8_t *)(td));
+
+    AscendC::GmFree(x);
+    AscendC::GmFree(weight);
+    AscendC::GmFree(convStates);
+    AscendC::GmFree(queryStartLoc);
+    AscendC::GmFree(cacheIndices);
+    AscendC::GmFree(initialStateMode);
+    AscendC::GmFree(bias);
+    AscendC::GmFree(numAcceptedToken);
+    AscendC::GmFree(y);
+    AscendC::GmFree(outputConvStates);
     AscendC::GmFree(workspace);
     AscendC::GmFree(tiling);
 }
