@@ -32,7 +32,9 @@ extern "C" __global__ __aicore__ void gather_pa_kv_cache(GM_ADDR keyCache, GM_AD
         op.Init(keyCache, valueCache, blockTables, seqLens, seqOffset, keyOut, valueOut, &tilingData);
         op.Process();
     }
-#else  # INT_8
+
+// INT_8
+#else 
     if (TILING_KEY_IS (577)) {
         GatherPaKvCache::GatherPaKvCacheNz<int8_t> op(&pipe);
         op.Init(keyCache, valueCache, blockTables, seqLens, seqOffset, keyOut, valueOut, &tilingData);
