@@ -874,13 +874,10 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
     bool prefixCompressCanSimplify = false;
     if constexpr (IS_ATTEN_MASK == ENABLE) {
         int64_t attenMaskOffset = 0;
-        if constexpr(INPUT_LAYOUT == TND) {
-            CalcAttenMaskOffsetWithSparseModeForUnpad(attenMaskOffset, attenMaskOffsetPre, s1ExtendSubGraph, s2Extend,
-                                                    curS1Idx, s2VBegin, unpadUseBand, prefixCompressCanSimplify, dbParam);
-        } else {
-            CalcAttenMaskOffsetWithSparseMode(attenMaskOffset, attenMaskOffsetPre, s1ExtendSubGraph, s2Extend, curS1Idx,
-                                            s2VBegin, prefixCompressCanSimplify, dbParam);
-        }
+
+        CalcAttenMaskOffsetWithSparseMode(attenMaskOffset, attenMaskOffsetPre, s1ExtendSubGraph, s2Extend, curS1Idx,
+                                        s2VBegin, prefixCompressCanSimplify, dbParam);
+
         // uint8_t
         if (AttenBandMode == AttenMaskCompress::All || AttenBandMode == AttenMaskCompress::NextOnly) {
             CopyInAttenMaskBool(attenMaskUbuint8, attenMaskOffset, s1ExtendSubGraph, s2Extend);
@@ -891,12 +888,6 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
 
     LocalTensor<uint8_t> vecInDropBuffer =
         unifiedBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + U8Begin);
-    if constexpr (IS_DROP == ENABLE) {
-        if constexpr (IsSameType<T1, float>::value) {
-            AscendC::PipeBarrier<PIPE_ALL>();
-        }
-        DropOutCopy(vecInDropBuffer, curS1Idx, s2VBegin);
-    }
 
     LocalTensor<float> vecClc2Buffer =
         unifiedBuffer.GetWithOffset<float>(32 * 1024 / sizeof(float), ubBufferOffset + T2Begin);
@@ -913,17 +904,7 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
         event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
         AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-    } else {
-        int64_t mmAddr = pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * C0_SIZE + curS2Idx * dbParam.s1CvExtendAlign * s2VecSize;
-        NZCopyIn(mmAddr, mm2WorkspaceGm, vecClc2Buffer, s1VecSize, s2ExtendAlign, dbParam.s1CvExtendAlign);
-        event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-        AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-        AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-        auto tmpTensor = unifiedBuffer.GetWithOffset<T2>(TMP_UB_SIZE / sizeof(T2), TMP_UB_OFFSET);
-        DataCopy(tmpTensor, vecClc2Buffer, s1VecSize * s2ExtendAlign + s2ExtendAlign / C0_SIZE * VEC_REPEAT);
-        AscendC::PipeBarrier<PIPE_V>();
-        NZ2ND(vecClc2Buffer, tmpTensor, s1VecSize, s2ExtendAlign);
-    }
+    } 
 
     if (TilingData->s1s2BNGS1S2BaseParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
         AscendC::PipeBarrier<PIPE_V>();
@@ -1017,30 +998,16 @@ cutom_sab_vec<FAGT>::SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx
     }
     int64_t copyOutOffset = 0;
     DataCopyParams copyOutParam;
-    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        AscendC::PipeBarrier<PIPE_V>();
-        LocalTensor<T1> tmpTensor = unifiedBuffer.GetWithOffset<T1>(TMP_UB_SIZE / sizeof(T1), TMP_UB_OFFSET);
-        copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR + curS1Idx * s1VecSize * C0_SIZE +
-                        curS2Idx * dbParam.s1CvExtendAlign * DTYPE_FACTOR * s2VecSize;
-        copyOutParam = {
-            static_cast<uint16_t>(s2ExtendAlign / C0_SIZE),
-            static_cast<uint16_t>(s1ExtendSubGraph * C0_SIZE * sizeof(T1)),
-            1,
-            static_cast<uint16_t>((dbParam.s1CvExtendAlign * DTYPE_FACTOR - s1ExtendSubGraph) * C0_SIZE * sizeof(T1))
-        };
-        DataCopy(tmpTensor, vecCopyOutBuffer, s1ExtendSubGraph * s2ExtendAlign);
-        AscendC::PipeBarrier<PIPE_V>();
-        ND2NZ(vecCopyOutBuffer, tmpTensor, s1ExtendSubGraph, s2ExtendAlign);
-    } else {
-        copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR +
-                        curS1Idx * s1VecSize * dbParam.s2CvExtendAlign * DTYPE_FACTOR + curS2Idx * s2VecSize;
-        copyOutParam = {
-            static_cast<uint16_t>(s1ExtendSubGraph),
-            static_cast<uint16_t>(s2ExtendAlign * sizeof(T1)),
-            0,
-            static_cast<uint16_t>((dbParam.s2CvExtendAlign * DTYPE_FACTOR - s2ExtendAlign) * sizeof(T1))
-        };
-    }
+
+    copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR +
+                    curS1Idx * s1VecSize * dbParam.s2CvExtendAlign * DTYPE_FACTOR + curS2Idx * s2VecSize;
+    copyOutParam = {
+        static_cast<uint16_t>(s1ExtendSubGraph),
+        static_cast<uint16_t>(s2ExtendAlign * sizeof(T1)),
+        0,
+        static_cast<uint16_t>((dbParam.s2CvExtendAlign * DTYPE_FACTOR - s2ExtendAlign) * sizeof(T1))
+    };
+
     event_t mte3WaitV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     AscendC::SetFlag<HardEvent::V_MTE3>(static_cast<int32_t>(mte3WaitV));
     AscendC::WaitFlag<HardEvent::V_MTE3>(static_cast<int32_t>(mte3WaitV));
@@ -1072,13 +1039,7 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
 
     LocalTensor<uint8_t> vecInDropBuffer =
         unifiedBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + U8Begin);
-    if constexpr (IS_DROP == ENABLE) {
-        int64_t s2VBegin = dbParam.s2oIdx * s2CvInner + curS2Idx * s2VecSize;
-        DropOutCopy(vecInDropBuffer, curS1Idx, s2VBegin);
-        if constexpr (IsSameType<T1, float>::value) {
-            AscendC::PipeBarrier<PIPE_ALL>();
-        }
-    }
+
 
     LocalTensor<T2> vecClc1Buffer = unifiedBuffer.GetWithOffset<T2>(33 * 1024 / sizeof(T2), ubBufferOffset + T1Begin);
     // copyIn dyv
@@ -1096,16 +1057,6 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
         event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
         AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-    } else {
-        int64_t mmAddr = pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * C0_SIZE + curS2Idx * dbParam.s1CvExtendAlign * s2VecSize;
-        NZCopyIn(mmAddr, mm1WorkspaceGm, vecClc1Buffer, s1VecSize, s2ExtendAlign, dbParam.s1CvExtendAlign);
-        event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-        AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-        AscendC::WaitFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
-        auto tmpTensor = unifiedBuffer.GetWithOffset<T2>(TMP_UB_SIZE / sizeof(T2), TMP_UB_OFFSET);
-        DataCopy(tmpTensor, vecClc1Buffer, s1VecSize * s2ExtendAlign + s2ExtendAlign / C0_SIZE * VEC_REPEAT);
-        AscendC::PipeBarrier<PIPE_V>();
-        NZ2ND(vecClc1Buffer, tmpTensor, s1VecSize, s2ExtendAlign);
     }
 
     ///////////////////////////////////////////////////////////////
@@ -1148,31 +1099,16 @@ cutom_sab_vec<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLo
     
     int64_t copyOutOffset = 0;
     DataCopyParams copyOutParam;
-    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        auto tmpTensor1 = unifiedBuffer.GetWithOffset<T1>(TMP_UB_SIZE / sizeof(T1), TMP_UB_OFFSET);
-        AscendC::PipeBarrier<PIPE_V>();
-        DataCopy(tmpTensor1, vecCopyOutBuffer, s1ExtendSubGraph * s2ExtendAlign);
-        AscendC::PipeBarrier<PIPE_V>();
-        ND2NZ(vecCopyOutBuffer, tmpTensor1, s1ExtendSubGraph, s2ExtendAlign);
 
-        copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR + curS1Idx * s1VecSize * C0_SIZE +
-                        curS2Idx * dbParam.s1CvExtendAlign * DTYPE_FACTOR * s2VecSize;
-        copyOutParam = {
-            static_cast<uint16_t>(s2ExtendAlign / C0_SIZE),
-            static_cast<uint16_t>(s1ExtendSubGraph * C0_SIZE * sizeof(T1)),
-            1,
-            static_cast<uint16_t>((dbParam.s1CvExtendAlign * DTYPE_FACTOR - s1ExtendSubGraph) * C0_SIZE * sizeof(T1))
-        };
-    } else {
-        copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR +
-                        curS1Idx * s1VecSize * dbParam.s2CvExtendAlign * DTYPE_FACTOR + curS2Idx * s2VecSize;
-        copyOutParam = {
-            static_cast<uint16_t>(s1ExtendSubGraph),
-            static_cast<uint16_t>(s2ExtendAlign * sizeof(T1)),
-            0,
-            static_cast<uint16_t>((dbParam.s2CvExtendAlign * DTYPE_FACTOR - s2ExtendAlign) * sizeof(T1))
-        };
-    }
+    copyOutOffset = pingpongIdx * cubeBaseMN * DTYPE_FACTOR +
+                    curS1Idx * s1VecSize * dbParam.s2CvExtendAlign * DTYPE_FACTOR + curS2Idx * s2VecSize;
+    copyOutParam = {
+        static_cast<uint16_t>(s1ExtendSubGraph),
+        static_cast<uint16_t>(s2ExtendAlign * sizeof(T1)),
+        0,
+        static_cast<uint16_t>((dbParam.s2CvExtendAlign * DTYPE_FACTOR - s2ExtendAlign) * sizeof(T1))
+    };
+
     event_t mte3WaitV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     AscendC::SetFlag<HardEvent::V_MTE3>(static_cast<int32_t>(mte3WaitV));
     AscendC::WaitFlag<HardEvent::V_MTE3>(static_cast<int32_t>(mte3WaitV));
