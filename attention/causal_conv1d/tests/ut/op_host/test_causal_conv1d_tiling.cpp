@@ -281,31 +281,32 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d8192_x
 // CausalConv1d Fn Mode Tests (runMode=0)
 // ============================================================
 
-class CausalConv1dFnTiling : public testing::Test {
+class CausalConv1dCutBSHTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "CausalConv1dFnTiling SetUp" << std::endl;
+        std::cout << "CausalConv1dCutBSHTiling SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "CausalConv1dFnTiling TearDown" << std::endl;
+        std::cout << "CausalConv1dCutBSHTiling TearDown" << std::endl;
     }
 };
 
 // Test case 1: Basic FP16 test with small batch and sequence
-// batch=2, each sequence length=128, dim=512, kernel_width=4
+// batch=2, each sequence length=128, dim=512, kernel_width=3
 // cu_seq_len = 2 * 128 = 256
 // cache_max_size=4 (> batch=2, allows some buffer)
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_basic_fp16)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_basic_fp16)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -313,10 +314,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_basic_fp16)
         {
             // Input 0: x - (cu_seq_len=256, dim=512)
             {{{256, 512}, {256, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=3, dim=512)
-            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=512)
+            {{{3, 512}, {3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=2, dim=512)
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=3)
             {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=2)
@@ -327,29 +328,30 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_basic_fp16)
         {
             // Output 0: y - (cu_seq_len=256, dim=512)
             {{{256, 512}, {256, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (cache_max_size=4, cache_width=3, dim=512)
-            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=4, cache_width=2, dim=512)
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10001;  // FP16 类型
-    std::string expectTilingData = "1 2 256 256 128 43 171 1 170 1 2 256 256 128 42 3 4 256 512 2 0 2 0 256 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16780288};
+    std::string expectTilingData = "1 1 18 18 128 128 1 1 17 17 128 128 4 0 128 128 16 14 18 17 64 3 256 512 2 -1 512 1024 512 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 2: Edge case with single batch
-// batch=1, sequence length=64, dim=256, kernel_width=4
+// batch=1, sequence length=64, dim=256, kernel_width=3
 // cu_seq_len = 64
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_single_batch)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_single_batch)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -357,10 +359,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_single_batch)
         {
             // Input 0: x - (cu_seq_len=64, dim=256)
             {{{64, 256}, {64, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=256)
-            {{{4, 256}, {4, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=2, cache_width=3, dim=256)
-            {{{2, 3, 256}, {2, 3, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=256)
+            {{{3, 256}, {3, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=2, cache_width=2, dim=256)
+            {{{2, 2, 256}, {2, 2, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=2)
             {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=1)
@@ -371,29 +373,30 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_single_batch)
         {
             // Output 0: y - (cu_seq_len=64, dim=256)
             {{{64, 256}, {64, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (cache_max_size=2, cache_width=3, dim=256)
-            {{{2, 3, 256}, {2, 3, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=2, cache_width=2, dim=256)
+            {{{2, 2, 256}, {2, 2, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10001;
-    std::string expectTilingData = "1 1 64 64 256 256 64 0 64 1 1 64 64 256 256 1 4 64 256 1 0 1 0 64 256 256 ";
-    std::vector<size_t> expectWorkspaces = {16777728};
+    std::string expectTilingData = "1 1 4 4 128 128 1 1 3 3 128 128 2 0 128 128 32 30 4 3 64 3 64 256 1 -1 256 512 256 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 3: Medium size test with FP16
-// batch=8, each sequence length=512, dim=768, kernel_width=4
+// batch=8, each sequence length=512, dim=768, kernel_width=3
 // cu_seq_len = 8 * 512 = 4096
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_medium_fp16)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_medium_fp16)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -401,10 +404,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_medium_fp16)
         {
             // Input 0: x - (cu_seq_len=4096, dim=768)
             {{{4096, 768}, {4096, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=768)
-            {{{4, 768}, {4, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=16, cache_width=3, dim=768)
-            {{{16, 3, 768}, {16, 3, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=768)
+            {{{3, 768}, {3, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=16, cache_width=2, dim=768)
+            {{{16, 2, 768}, {16, 2, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=9)
             {{{9}, {9}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=8)
@@ -415,29 +418,30 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_medium_fp16)
         {
             // Output 0: y - (cu_seq_len=4096, dim=768)
             {{{4096, 768}, {4096, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (cache_max_size=16, cache_width=3, dim=768)
-            {{{16, 3, 768}, {16, 3, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=16, cache_width=2, dim=768)
+            {{{16, 2, 768}, {16, 2, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10001;
-    std::string expectTilingData = "1 2 85 85 640 128 85 0 84 1 2 85 84 640 128 50 4 4096 768 8 0 8 0 4096 768 768 ";
-    std::vector<size_t> expectWorkspaces = {16854016};
+    std::string expectTilingData = "1 2 258 258 128 128 1 1 257 257 128 128 4 2 256 128 16 14 258 257 64 3 4096 768 8 -1 768 1536 768 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 4: Variable sequence lengths test
-// batch=3 with variable sequence lengths (128, 256, 64), dim=512, kernel_width=4
+// batch=3 with variable sequence lengths (128, 256, 64), dim=512, kernel_width=3
 // cu_seq_len = 128 + 256 + 64 = 448
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_variable_seqlen)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_variable_seqlen)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -445,10 +449,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_variable_seqlen)
         {
             // Input 0: x - (cu_seq_len=448, dim=512)
             {{{448, 512}, {448, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=6, cache_width=3, dim=512)
-            {{{6, 3, 512}, {6, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=512)
+            {{{3, 512}, {3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=6, cache_width=2, dim=512)
+            {{{6, 2, 512}, {6, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=4)
             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=3)
@@ -459,28 +463,29 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_variable_seqlen)
         {
             // Output 0: y - (cu_seq_len=448, dim=512)
             {{{448, 512}, {448, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (cache_max_size=6, cache_width=3, dim=512)
-            {{{6, 3, 512}, {6, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=6, cache_width=2, dim=512)
+            {{{6, 2, 512}, {6, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10001;
-    std::string expectTilingData = "1 1 115 115 512 512 115 0 114 1 1 115 114 512 512 4 4 448 512 3 0 3 0 448 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16781312};
+    std::string expectTilingData = "1 1 30 30 128 128 1 1 29 29 128 128 4 0 128 128 16 14 30 29 64 3 448 512 3 -1 512 1024 512 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 5: Large size test with BF16
-// batch=4, cu_seq_len=32768, dim=512, kernel_width=4
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_large_bf16)
+// batch=4, cu_seq_len=32768, dim=512, kernel_width=3
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_large_bf16)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -488,10 +493,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_large_bf16)
         {
             // Input 0: x - (cu_seq_len=32768, dim=512)
             {{{32768, 512}, {32768, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=256, cache_width=3, dim=512)
-            {{{256, 3, 512}, {256, 3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=512)
+            {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=256, cache_width=2, dim=512)
+            {{{256, 2, 512}, {256, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=5)
             {{{5}, {5}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=4)
@@ -502,28 +507,29 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_large_bf16)
         {
             // Output 0: y - (cu_seq_len=32768, dim=512)
             {{{32768, 512}, {32768, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (cache_max_size=256, cache_width=3, dim=512)
-            {{{256, 3, 512}, {256, 3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=256, cache_width=2, dim=512)
+            {{{256, 2, 512}, {256, 2, 512}}, ge::DT_BF16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "2 4 491 27 128 128 515 0 514 2 4 491 26 128 128 64 4 32768 512 4 0 4 0 32768 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16842752};
+    std::string expectTilingData = "5 1 492 90 128 128 5 1 492 89 128 128 4 0 128 128 16 14 2050 2049 64 3 32768 512 4 -1 512 1024 512 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 6: Extra large size test with FP16 (dim split mode)
 // batch=256, cu_seq_len=65536, dim=8192, kernel_width=3
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_xlarge_fp16)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_xlarge_fp16)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -552,20 +558,21 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_xlarge_fp16)
         &compileInfo);
 
     int64_t expectTilingKey = 10001;
-    std::string expectTilingData = "3 64 486 58 128 128 1026 0 1025 3 64 486 57 128 128 64 3 65536 8192 256 0 256 0 65536 8192 8192 ";
-    std::vector<size_t> expectWorkspaces = {17825792};
+    std::string expectTilingData = "136 1 486 196 128 128 136 1 486 196 128 128 64 0 128 128 1 0 65536 65536 64 3 65536 8192 256 -1 8192 16384 8192 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
 // Test case 7: Small size test with FP16
-TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_small_fp16)
+TEST_F(CausalConv1dCutBSHTiling, CausalConv1d_950_tiling_small_fp16)
 {
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
+    struct CausalConv1dCutBSHCompileInfo {} compileInfo;
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -573,10 +580,10 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_small_fp16)
         {
             // Input 0: x - (cu_seq_len=8, dim=512)
             {{{8, 512}, {8, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_width=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=3, dim=512)
-            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=3, dim=512)
+            {{{3, 512}, {3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=2, dim=512)
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Input 3: queryStartLoc - (batch+1=3)
             {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 4: cacheIndices - (batch=2)
@@ -588,13 +595,13 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_small_fp16)
             // Output 0: y - (cu_seq_len=8, dim=512)
             {{{8, 512}, {8, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             // Output 1: cacheStates - (cache_max_size=4, cache_width=3, dim=512)
-            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{4, 2, 512}, {4, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         attrs,
         &compileInfo);
 
     int64_t expectTilingKey = 10001;
-    std::string expectTilingData = "1 1 8 8 512 512 8 0 8 1 1 8 8 512 512 1 4 8 512 2 0 2 0 8 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16778240};
+    std::string expectTilingData = "1 1 3 3 128 128 1 1 3 3 128 128 4 0 128 128 6 0 3 3 24 3 8 512 2 -1 512 1024 512 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
