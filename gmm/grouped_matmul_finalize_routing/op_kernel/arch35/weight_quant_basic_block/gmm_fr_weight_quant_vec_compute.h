@@ -84,7 +84,7 @@ public:
 
     __aicore__ inline void UpdateGlobalAddr(__gm__ wType *weight, __gm__ antiQuantScaleType *antiQuantScale, __gm__ xType *antiQuantOffset,
         __gm__ float *perTokenScale, __gm__ float *perChannelScale, __gm__ biasType *bias, __gm__ float*yFp32Addr, const bool weightL2Cacheable);
-    __aicore__ inline void Init(bool hasBias, float sharedInputWeight);
+    __aicore__ inline void Init(bool hasBias, float sharedInputWeight, __gm__ float* yFp32Addr);
     __aicore__ inline void InitKCG(uint32_t antiQuantGroupSize, bool hasBias,
                                    const LocalTensor<xType> &ubHighBitTotalBuffer, uint64_t highBitUbOffset);
     __aicore__ inline void WaitVToMTE2();
@@ -243,18 +243,17 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Update
     if (hasBias_) {
         biasGlobal_.SetGlobalBuffer(bias);
     }
-    
-    yFp32Global_.SetGlobalBuffer(yFp32Addr);
 }
 
 /*
  * 初始化buffer和同步所需的EventID
  */
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Init(bool hasBias, float sharedInputWeight)
+__aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Init(bool hasBias, float sharedInputWeight, __gm__ float* yFp32Addr)
 {
     hasBias_ = hasBias;
     sharedInputWeight_ = sharedInputWeight;
+    yFp32Global_.SetGlobalBuffer(yFp32Addr);
     // MxA8W4
     ubWeightInputLowBitTotalBuffer_ = LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize);
     uint64_t ubOffset = UB_BUFFER_INFO.weightInputLowbitUbTotalSize;

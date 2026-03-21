@@ -48,7 +48,7 @@ GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
 class WQFRVcvMatmulBasicBlock {
 public:
     __aicore__ inline WQFRVcvMatmulBasicBlock(){};
-    __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize);
+    __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y);
     __aicore__ inline void InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize, __gm__ sharedInputDType *shareInputAddr);
     __aicore__ inline void UpdateGlobalAddr(__gm__ xType *x, __gm__ wType *weight,
                                             __gm__ antiQuantScaleType *antiquantScale, __gm__ xType *antiquantOffset,
@@ -118,7 +118,7 @@ protected:
 };
 
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t antiQuantGroupSize)
+__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y)
 {
     hasBias_ = hasBias;
     biasL1DbOffset_ = 0;
@@ -139,7 +139,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t
     if ASCEND_IS_AIC {
         cubeCompute_.MxA8W4Init(l1RemainSize, l1StartSize, biasL1DbOffset_, biasL1_);
     } else {
-        vecCompute_.Init(GetTPipePtr(), hasBias_);
+        vecCompute_.Init(hasBias_, 0.0f, reinterpret_cast<__gm__ float*>(y));
     }
     cvLoopIdx_ = 0;
 }
@@ -173,17 +173,17 @@ GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitGmZeroWithIterate(uint64_t & yGmStartOffset, uint64_t yGmEndOffset, uint64_t sharedInputStartSize, uint64_t sharedInputSize){
     constexpr uint64_t initZeroBufferSize = GetGmmFRMxA8W4BufferInfo<vecConfig>().highBitDataUbSingleBufferSize / sizeof(float);
     uint64_t bufferSize = initZeroBufferSize;
-    for (uint64_t yGmOffset = yGmStartOffset; yGmOffset <= yGmEndOffset; yGmOffset += AscendC::GetBlockNum() * bufferSize){
-        uint64_t initZeroRealSize = yGmOffset + bufferSize > yGmEndOffset ? yGmEndOffset - yGmOffset : bufferSize;
-        if (yGmOffset >= sharedInputStartSize) {
-            vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroRealSize);
-        } else if (yGmOffset + bufferSize <= sharedInputStartSize) {
-            vecCompute_.InitGmToZero(yGmOffset, initZeroRealSize);
+    for (; yGmStartOffset <= yGmEndOffset; yGmStartOffset += AscendC::GetBlockNum() * bufferSize){
+        uint64_t initZeroRealSize = yGmStartOffset + bufferSize > yGmEndOffset ? yGmEndOffset - yGmStartOffset : bufferSize;
+        if (yGmStartOffset >= sharedInputStartSize) {
+            vecCompute_.InitGmToZero(yGmStartOffset + sharedInputSize, initZeroRealSize);
+        } else if (yGmStartOffset + bufferSize <= sharedInputStartSize) {
+            vecCompute_.InitGmToZero(yGmStartOffset, initZeroRealSize);
         }else {
-            uint64_t initZeroFirstTail = sharedInputStartSize - yGmOffset;
-            vecCompute_.InitGmToZero(yGmOffset, initZeroFirstTail);
+            uint64_t initZeroFirstTail = sharedInputStartSize - yGmStartOffset;
+            vecCompute_.InitGmToZero(yGmStartOffset, initZeroFirstTail);
             uint64_t initZeroSecondTail = initZeroRealSize - initZeroFirstTail;
-            vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroSecondTail);
+            vecCompute_.InitGmToZero(yGmStartOffset + sharedInputSize, initZeroSecondTail);
         }
     }
 }
