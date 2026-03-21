@@ -251,14 +251,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
     OP_LOGD(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling tuningConfig is %ld, avg_m is %u",
             tuningConfig_, avg_m);
     baseM = avg_m < AVG_M_THREHOLD ? A8W4_MSD_SMALLM_BASE_M : A8W4_MSD_BIGM_BASE_M;
-    if (baseN > n_) {
-        baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
-    }
-
-    if (baseN == 0) {
-        OP_LOGE(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling: baseN is 0! Tling Failed!");
-        return ge::GRAPH_FAILED;
-    }
+    // Debug branch: always use FIXED_BASE_N (96), do not clamp to n_.
 
     std::cout << "zzzlog [BaseTiling::W4A8BaseTilingProcess] "
               << "tuningConfig=" << tuningConfig_
@@ -287,6 +280,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
              "m, n, k: %lu, %lu, %lu", m_, n_, k_);
         return ge::GRAPH_FAILED;
     }
+    // Debug branch: matmul lib may still adjust baseN; force host output to 96.
+    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
 
     if (k_ > MAX_K_A8W4_MSD) {
         OP_LOGE(context_->GetNodeName(), "GMM_tiling: K should be less than 18432 on the A8W4 scenario, but now is %lu", k_);
@@ -321,15 +316,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
             tuningConfig_, avg_m);
     uint32_t baseM = avg_m < AVG_M_THREHOLD ? A8W4_L1OPT_SMALLM_BASE_M : A8W4_L1OPT_BIGM_BASE_M;
     uint32_t baseN = FIXED_BASE_N;
-
-    if (baseN > n_) {
-        baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
-    }
-
-    if (baseN == 0) {
-        OP_LOGE(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling: baseN is 0! Tling Failed!");
-        return ge::GRAPH_FAILED;
-    }
+    // Debug branch: always use FIXED_BASE_N (96), do not clamp to n_.
 
     vBaseM_ = UBCALSIZE / baseN;
     mm_.SetAType(matmul_tiling::TPosition::TSCM, matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT4, false);
@@ -349,6 +336,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
              "m, n, k: %lu, %lu, %lu", m_, n_, k_);
         return ge::GRAPH_FAILED;
     }
+    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
 
     OP_LOGD(context_->GetNodeName(), "GMM_tiling: baseM is %d, baseK is %d, baseN is %d.",
         baseM, A8W4_L1OPT_BASE_K, baseN);
@@ -379,18 +367,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
     
     uint32_t baseM = BEST_BASE_M;
     uint32_t baseN = FIXED_BASE_N;
-    // When n=7168/7680 and k=2048, we use tuningConfig_ to select more optimal baseM/baseN.
-    if ((n_ == 7168 || n_ == 7680) && k_ == 2048) {
-        uint32_t avg_m = (tuningConfig_ != 0) ? tuningConfig_  : ((groupNum_ != 0) ? (m_ / groupNum_) : 1);
-        OP_LOGD(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling(A8W8) tuningConfig is %ld, avg_m is %u",
-                tuningConfig_, avg_m);
-        baseM = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_N : BEST_BASE_M;
-        baseN = FIXED_BASE_N;
-    }
-
-    if (baseN > n_) {
-        baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
-    }
+    // Debug branch: baseN always FIXED_BASE_N (96); no n_-based tuning/clamp.
 
     std::cout << "zzzlog [BaseTiling::W8A8TilingProcess] "
               << "tuningConfig=" << tuningConfig_
@@ -414,6 +391,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
         OP_LOGE(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling Get Tiling Failed!, m, n, k: %lu, %lu, %lu", m_, n_, k_);
         return ge::GRAPH_FAILED;
     }
+    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
     
     // row_index类型
     auto rowIndexDesc = context_->GetOptionalInputDesc(ROW_INDEX_INDEX);

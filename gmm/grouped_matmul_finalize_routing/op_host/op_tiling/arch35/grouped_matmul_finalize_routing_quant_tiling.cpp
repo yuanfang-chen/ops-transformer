@@ -502,10 +502,8 @@ uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
 {
     CalBasicBlock();
-    // Debug override: force baseN to 96 for WeightNzV2 verification.
-    if (inputParams_.nSize >= DEBUG_FIXED_BASE_N) {
-        basicTiling_.baseN = DEBUG_FIXED_BASE_N;
-    }
+    // Debug branch: always force baseN to 96 (no n_-based compatibility).
+    basicTiling_.baseN = DEBUG_FIXED_BASE_N;
     OP_CHECK_IF(CalL1Tiling() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "CalL1Tiling failed"),
                 return ge::GRAPH_FAILED);
     tilingData_.matmulTiling.M = inputParams_.mSize;
@@ -530,6 +528,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
     tilingData_.matmulTiling.dbL0A = 2; // db switch, 1: off, 2: on
     tilingData_.matmulTiling.dbL0B = 2; // db switch, 1: off, 2: on
     tilingData_.matmulTiling.dbL0C = basicTiling_.dbL0c;
+    tilingData_.matmulTiling.set_baseN(DEBUG_FIXED_BASE_N);
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         if (basicTiling_.scaleFactorA >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorA <= SCALER_FACTOR_MAX &&
             basicTiling_.scaleFactorB >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorB <= SCALER_FACTOR_MAX) {
