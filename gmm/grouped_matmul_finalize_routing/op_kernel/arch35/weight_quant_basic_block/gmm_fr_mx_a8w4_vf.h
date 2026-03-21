@@ -15,7 +15,7 @@
 #ifndef GMM_FR_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 #define GMM_FR_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
+#include "../common/basic_block_config.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else

@@ -15,7 +15,7 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
 
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
+#include "../common/weight_quant_vcv_basic_block_base.h"
 #include "./grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
 #include "./weight_quant_finalize_routing_vcv_basic_block.h"
 

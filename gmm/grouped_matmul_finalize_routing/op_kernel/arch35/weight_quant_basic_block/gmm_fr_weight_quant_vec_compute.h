@@ -14,18 +14,18 @@
 #ifndef GMM_FR_WEIGHT_QUANT_VEC_COMPUTE_H
 #define GMM_FR_WEIGHT_QUANT_VEC_COMPUTE_H
 
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/anti_quant_y_vf.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_vf_mx.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_vf_nd.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_vf_nz.h"
+#include "../common/anti_quant_y_vf.h"
+#include "../common/basic_block_config.h"
+#include "../common/basic_block_vf_mx.h"
+#include "../common/basic_block_vf_nd.h"
+#include "../common/basic_block_vf_nz.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else
 #include "kernel_operator.h"
 #include "kernel_operator_intf.h"
 #endif
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/tool.h"
+#include "../common/tool.h"
 #include "gmm_fr_mx_a8w4_vf.h"
 
 using AscendC::BLOCK_CUBE;

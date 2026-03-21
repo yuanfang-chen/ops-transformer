@@ -15,7 +15,7 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_VCV_BASIC_BLOCK_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_VCV_BASIC_BLOCK_H
 
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_block_config.h"
+#include "../common/basic_block_config.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else
@@ -23,10 +23,10 @@
 #include "kernel_operator_intf.h"
 #endif
 #include "lib/matmul_intf.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/tool.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_cube_compute.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/basic_api/weight_quant_basic_api_v1.h"
-#include "../../../../grouped_matmul/op_kernel/arch35/weight_quant_basic_block/weight_quant_vcv_basic_block_base.h"
+#include "../common/tool.h"
+#include "../common/weight_quant_cube_compute.h"
+#include "../common/basic_api/weight_quant_basic_api_v1.h"
+#include "../common/weight_quant_vcv_basic_block_base.h"
 #include "gmm_fr_weight_quant_vec_compute.h"
 
 using AscendC::GetSubBlockIdx;
