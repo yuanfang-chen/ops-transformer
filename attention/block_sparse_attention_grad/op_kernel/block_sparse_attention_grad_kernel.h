@@ -400,21 +400,26 @@ namespace BSA {
                             LayoutC1 layoutC1(curInfo.curCalQSize, curInfo.curCalKVSize);
                             GemmCoord actualShape1{curInfo.curCalQSize, curInfo.curCalKVSize, headDim};
                             blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1);
+    
                             blockMmad1(gDout[curInfo.qOffset], gV[curInfo.kvOffset], gDp[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1);
                             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
                             if (count > 0) {
                                 AscendC::WaitEvent(VEC2CUBE);
+                                // AscendC::CrossCoreWaitFlag(VEC2CUBE);
                                 LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
                                 LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
                                 LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
                                 GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
+
                                 blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gDq[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
 
                                 LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
                                 LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);
                                 LayoutC3 layoutC3(preTaskInfo.curCalKVSize, headDim);
                                 GemmCoord actualShape3{preTaskInfo.curCalKVSize, headDim, preTaskInfo.curCalQSize};
+
                                 blockMmad3(gP[preTaskInfo.sOffset], gDout[preTaskInfo.qOffset], gDv[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
+
                                 blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
                             }
                             preTaskInfo = curInfo;
@@ -589,15 +594,20 @@ namespace BSA {
                             GM_ADDR tiling = params.tiling;
 
                             AscendC::WaitEvent(CUBE2VEC);
-                            SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
-                                                actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
-                            EpilogueFAGOp sStmOp(sfmParams);
-                            sStmOp();
-                            PipeBarrier<PIPE_ALL>();
+
+                            if (vecCoreIdx % 2 == 0) {
+                                SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
+                                                    actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
+                                EpilogueFAGOp sStmOp(sfmParams);
+                                sStmOp();
+                            }
+                            // PipeBarrier<PIPE_ALL>();
+
                             AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(VEC2CUBE);
 
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
+                            preTaskInfo.sOffset = curInfo.sOffset * 2; // float32偏移转成bf16/half偏移
                             // break;
                             // count++;
                             kvBlockBasicOffset += basicKVBlockSize;
