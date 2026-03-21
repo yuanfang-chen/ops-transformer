@@ -58,6 +58,34 @@ ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
     OP_CHECK_IF(context_ == nullptr, OP_LOGE("CausalConv1dCutBH", "context is null"),
                 return ge::GRAPH_FAILED);
 
+    OP_CHECK_IF(GetShapeInfo() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "GetShapeInfo FAILED"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(GetTypeInfo() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "GetTypeInfo FAILED"),
+                return ge::GRAPH_FAILED);
+
+    // Perform all validations (depends on shapes and types)
+    OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBH CheckInputParams FAILED."),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(GetAttrInfo() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "GetAttrInfo FAILED"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(GetStrideInfo() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "GetStrideInfo FAILED"),
+                return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+
+// Shape related info: x/weight/conv_states shapes and derived fields
+ge::graphStatus CausalConv1dCutBHTiling::GetShapeInfo()
+{
     // Get x shape
     auto xShape = context_->GetInputShape(X_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, xShape);
@@ -101,6 +129,19 @@ ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
 
     kernelSize_ = weightOriginShape.GetDim(DIM_0);
 
+    // Get convStates shape to retrieve stateLen
+    auto convStatesShape = context_->GetInputShape(CONV_STATES_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
+    auto convStatesOriginShape = convStatesShape->GetOriginShape();
+    // stateLen is the second dimension of convStates [-1, stateLen, dim]
+    stateLen_ = convStatesOriginShape.GetDim(DIM_1);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+// Type related info: dtypes and dtype size
+ge::graphStatus CausalConv1dCutBHTiling::GetTypeInfo()
+{
     // Get data types
     xDtype_ = context_->GetInputDesc(X_INDEX)->GetDataType();
     weightDtype_ = context_->GetInputDesc(WEIGHT_INDEX)->GetDataType();
@@ -134,7 +175,12 @@ ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
                         Ops::Base::ToString(xDtype_).c_str()),
                 return ge::GRAPH_FAILED);
 
-    // Get attributes
+    return ge::GRAPH_SUCCESS;
+}
+
+// Attr related info: read op attributes
+ge::graphStatus CausalConv1dCutBHTiling::GetAttrInfo()
+{
     auto attrs = context_->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context_, attrs);
 
@@ -158,18 +204,12 @@ ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
         residualConnection_ = *residualConnectionPtr;
     }
 
-    // Get convStates shape to retrieve stateLen
-    auto convStatesShape = context_->GetInputShape(CONV_STATES_INDEX);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
-    auto convStatesOriginShape = convStatesShape->GetOriginShape();
-    // stateLen is the second dimension of convStates [-1, stateLen, dim]
-    stateLen_ = convStatesOriginShape.GetDim(DIM_1);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // Perform all validations
-    OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBH CheckInputParams FAILED."),
-                return ge::GRAPH_FAILED);
-
+// Stride related info: input strides when input is view
+ge::graphStatus CausalConv1dCutBHTiling::GetStrideInfo()
+{
     // 获取 x 的 stride
     bool xIsView = context_->InputIsView(X_INDEX);
     if (xIsView) {
@@ -177,7 +217,7 @@ ge::graphStatus CausalConv1dCutBHTiling::GetShapeAttrsInfo()
         OP_CHECK_IF(xStride == nullptr,
                     OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
                     return ge::GRAPH_FAILED);
-        
+
         if (xInputMode_ == X_INPUT_3D) {
             OP_CHECK_IF(xStride->GetDimNum() != DIM_3,
                     OP_LOGE(context_->GetNodeName(), "The number of dimensions in x stride must be 3."),
@@ -782,7 +822,7 @@ ge::graphStatus CausalConv1dCutBHTiling::PostTiling()
     tilingData_.dim = dim_;
     tilingData_.kernelSize = kernelSize_;
     tilingData_.stateLen = stateLen_;
-    tilingData_.xStride = xStride_; //  tilingData_.xStride = 0;
+    tilingData_.xStride = xStride_; 
     tilingData_.cacheStride0 = cacheStride0_;
     tilingData_.cacheStride1 = cacheStride1_;
     tilingData_.padSlotId = padSlotId_;

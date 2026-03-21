@@ -124,6 +124,12 @@ private:
                       int64_t &outLoopDim, int64_t &outLoopBS,
                       int64_t &outUbTailDim, int64_t &outUbTailBS);
 
+    // Helper splits for GetShapeAttrsInfo
+    ge::graphStatus GetShapeInfo();
+    ge::graphStatus GetTypeInfo();
+    ge::graphStatus GetAttrInfo();
+    ge::graphStatus GetStrideInfo();
+
     // Hardware information
     uint64_t ubSize_ = 0;
     uint64_t totalCoreNum_ = 0;
@@ -151,9 +157,9 @@ private:
 
     // Attribute values
     int64_t activationMode_ = 0;
-    int64_t xStride_;     
-    int64_t cacheStride0_;
-    int64_t cacheStride1_;
+    int64_t xStride_ = 0;     
+    int64_t cacheStride0_ = 0;
+    int64_t cacheStride1_ = 0;
     int64_t padSlotId_ = -1;
     int64_t runMode_ = 0;
     int64_t xInputMode_ = 0;            // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]

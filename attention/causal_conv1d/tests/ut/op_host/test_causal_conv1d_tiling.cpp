@@ -10,7 +10,7 @@
 
 /*!
  * \file test_causal_conv1d_tiling.cpp
- * \brief Unit tests for CausalConv1dUpdate tiling logic
+ * \brief Unit tests for CausalConv1dCutBH tiling logic
  */
 
 #include <iostream>
@@ -22,30 +22,30 @@
 
 using namespace std;
 
-class CausalConv1dUpdateTiling : public testing::Test {
+class CausalConv1dCutBHTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "CausalConv1dUpdateTiling SetUp" << std::endl;
+        std::cout << "CausalConv1dCutBHTiling SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "CausalConv1dUpdateTiling TearDown" << std::endl;
+        std::cout << "CausalConv1dCutBHTiling TearDown" << std::endl;
     }
 };
 
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b4_s1_d512)
 {
     optiling::CausalConv1dCutBHCompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -84,16 +84,16 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b1_s4_d1024)
 {
     optiling::CausalConv1dCutBHCompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
     gert::TilingContextPara tilingContextPara(
@@ -132,64 +132,15 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
-
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d)
-{
-    optiling::CausalConv1dCutBHCompileInfo compileInfo = {
-        64, 261888};
-
-    std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
-    };
-
-    gert::TilingContextPara tilingContextPara(
-        "CausalConv1d",
-        {
-            // Input 0: x - (cuSeqLen=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_size=3, dim=512)
-            {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 2: convStates - (batch=1, cache_len=3+4-2=5, dim=512)
-            // cache_len = kernel_size + seq_len - 2 = 3 + 4 - 2 = 5
-            {{{1, 5, 512}, {1, 5, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 3: queryStartLoc - (batch+1=2)
-            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: cacheIndices - (batch=1)
-            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=1)
-            {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 6: bias - optional, (dim=512)
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 7: numAcceptedTokens - optional, (batch=1)
-            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-            },
-        {
-            // Output 0: y - (cuSeqLen=4, dim=512)
-            {{{4, 512}, {4, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (batch=1, cache_len=5, dim=512)
-            {{{1, 5, 512}, {1, 5, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-        },
-        attrs,
-        &compileInfo);
-
-    int64_t expectTilingKey = 20000;
-    std::string expectTilingData = "4 4 1 4 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 512 3 5 512 2560 512 -1 1 1 1 ";
-    std::vector<size_t> expectWorkspaces = {};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-}
-
 // Helper to build a 2D-Input TilingContextPara
 static gert::TilingContextPara Make2DTilingPara(int64_t batch, int64_t cuSeqLen, int64_t dim)
 {
     optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        {"residualConnection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
+        {"activation_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"pad_slot_id", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"run_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+        {"residual_connection", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
     };
 
     const int64_t k = 3;
@@ -225,22 +176,28 @@ static gert::TilingContextPara Make2DTilingPara(int64_t batch, int64_t cuSeqLen,
         &compileInfo);
 }
 
-// batch=1, cuSeqLen=4
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d768_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b1_s4_d512_x2d)
+{
+    auto para = Make2DTilingPara(1, 4, 512);
+    int64_t expectTilingKey = 20000;
+    ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "4 4 1 4 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 512 3 5 512 2560 512 -1 1 1 1 ", {});
+}
+
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b1_s4_d768_x2d)
 {
     auto para = Make2DTilingPara(1, 4, 768);
     int64_t expectTilingKey = 20000;
     ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "6 6 1 6 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 768 3 5 768 3840 768 -1 1 1 1 ", {});
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d4096_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b1_s4_d4096_x2d)
 {
     auto para = Make2DTilingPara(1, 4, 4096);
     int64_t expectTilingKey = 20000;
     ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "32 32 1 32 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 4096 3 5 4096 20480 4096 -1 1 1 1 ", {});
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d8192_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b1_s4_d8192_x2d)
 {
     auto para = Make2DTilingPara(1, 4, 8192);
     int64_t expectTilingKey = 20000;
@@ -248,28 +205,28 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d8192_x2
 }
 
 // batch=32, cuSeqLen=128
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d512_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b32_s4_d512_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 512);
     int64_t expectTilingKey = 20000;
     ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 4 0 128 128 16 0 2 2 1 1 2 2 128 128 1 1 2 2 128 128 32 6 128 512 3 5 512 2560 512 -1 1 1 1 ", {});
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d768_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b32_s4_d768_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 768);
     int64_t expectTilingKey = 20000;
     ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 4 16 2 2 256 128 16 0 2 2 1 1 2 2 256 256 1 1 2 2 128 128 32 6 128 768 3 5 768 3840 768 -1 1 1 1 ", {});
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d4096_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b32_s4_d4096_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 4096);
     int64_t expectTilingKey = 20000;
     ExecuteTestCase(para, ge::GRAPH_SUCCESS, expectTilingKey, "64 32 2 32 0 128 128 2 0 16 16 1 1 16 16 128 128 1 1 16 16 128 128 32 6 128 4096 3 5 4096 20480 4096 -1 1 1 1 ", {});
 }
 
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d8192_x2d)
+TEST_F(CausalConv1dCutBHTiling, CausalConv1dCutBH_950_tiling_bf_b32_s4_d8192_x2d)
 {
     auto para = Make2DTilingPara(32, 128, 8192);
     int64_t expectTilingKey = 20000;
@@ -278,7 +235,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b32_s4_d8192_x
 
 
 // ============================================================
-// CausalConv1d Fn Mode Tests (runMode=0)
+// CausalConv1d CutBSH Mode Tests (run_mode=0)
 // ============================================================
 
 class CausalConv1dCutBSHTiling : public testing::Test {
