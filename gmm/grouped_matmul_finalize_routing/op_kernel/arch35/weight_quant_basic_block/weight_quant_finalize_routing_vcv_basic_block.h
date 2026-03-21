@@ -175,7 +175,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitGmZeroWithIterate(uint6
     uint64_t bufferSize = initZeroBufferSize;
     for (uint64_t yGmOffset = yGmStartOffset; yGmOffset <= yGmEndOffset; yGmOffset += AscendC::GetBlockNum() * bufferSize){
         uint64_t initZeroRealSize = yGmOffset + bufferSize > yGmEndOffset ? yGmEndOffset - yGmOffset : bufferSize;
-        if (yGmOffset > sharedInputStartSize) {
+        if (yGmOffset >= sharedInputStartSize) {
             vecCompute_.InitGmToZero(yGmOffset + sharedInputSize, initZeroRealSize);
         } else if (yGmOffset + bufferSize <= sharedInputStartSize) {
             vecCompute_.InitGmToZero(yGmOffset, initZeroRealSize);
