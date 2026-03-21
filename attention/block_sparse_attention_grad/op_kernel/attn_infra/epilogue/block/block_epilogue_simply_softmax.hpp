@@ -112,6 +112,7 @@ public:
     constexpr static uint64_t BLOCK_16_NUM = 16;
     constexpr static uint64_t SFMG_HIGH_PERF_N_FACTOR = 8;
     constexpr static uint64_t SFMG_HIGH_PERF_D_FACTOR = 64;
+    constexpr static uint64_t baseM =  128;
 
     uint64_t cBlockIdx = 0;
     uint64_t cubeCoreIdx = 0;
@@ -187,13 +188,7 @@ public:
         uint64_t ubSize = tilingData->ubSize;
         uint64_t ubSizeEeachStage = ubSize  / STAGES / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE; // 32字节对齐
 
-        if (vecCoreIdx % 2 == 0) {
-            row = params.actualRow / 2 + params.actualRow % 2;
-        } else {
-            row = params.actualRow / 2;
-            curCoreS1Idx +=  params.actualRow / 2 + params.actualRow % 2;
-        }
-
+        row = params.actualRow;
         if (row <= 0) {
             return;
         }
@@ -203,15 +198,16 @@ public:
             transpseStride = 0;
         }
 
+        // baseM =  128;
         // 分核 一个core 最大 128 * 128 一个vec 64 * 128
-        uint64_t sBufferLen = 64 * 128 * sizeof(float); // max
-        uint64_t lBufferLen = 64 * sizeof(float); // max
-        uint64_t lBrobBufferLen = BRCB_BASE_NUM * 64 * sizeof(float);  // max
-        uint64_t p32BufferLen = 64 * 128 * sizeof(float);
+        uint64_t sBufferLen = baseM * 128 * sizeof(float); // max
+        uint64_t lBufferLen = baseM * sizeof(float); // max
+        uint64_t lBrobBufferLen = BRCB_BASE_NUM * baseM * sizeof(float);  // max
+        uint64_t p32BufferLen = baseM * 128 * sizeof(float);
         uint64_t dpBufLen = sBufferLen;
-        uint64_t p16BufLen = 64 * 128 * sizeof(InputDType);
+        uint64_t p16BufLen = baseM * 128 * sizeof(InputDType);
         uint64_t ds16BufLen = p16BufLen;
-        uint64_t dBufLen = BRCB_BASE_NUM * 64 * sizeof(float);
+        uint64_t dBufLen = BRCB_BASE_NUM * baseM * sizeof(float);
         p16BaseBufLen = p16BufLen;
         p32BaseBufLen = p32BufferLen;
 
@@ -269,20 +265,17 @@ public:
         // col <= 128
         // 计算单loop的计算量及loop次数
         uint64_t eleBaseBuffNum = p32BaseBufLen / STAGES / sizeof(float); // 基本buffer块的元素数量
-        // uint64_t bufferRows = eleBaseBuffNum / col == 0 ? 1 :  eleBaseBuffNum / col; // 一次lopp可以执行的row行数
-        // uint64_t bufferRows = eleBaseBuffNum / alignCol == 0 ? 1 :  eleBaseBuffNum / alignCol; // 一次lopp可以执行的row行数
-        uint64_t bufferRows = 64 / STAGES; // 一次lopp可以执行的最多row行数
+        uint64_t bufferRows = baseM / STAGES; // 一次lopp可以执行的最多row行数
         uint64_t rowLoopTimes = row / bufferRows;
         uint64_t tailRowNum = row - rowLoopTimes * bufferRows;
+
         uint64_t ping = 0;
         // 不包含尾行处理
         for (uint64_t i = 0; i < rowLoopTimes; i++) {
             auto eventId = ping ? EVENT_ID1 : EVENT_ID0;
-
             uint64_t curS1 = curCoreS1Idx + i * bufferRows;
             int32_t gmRowOffset = i * bufferRows * col;
             compute(gmRowOffset, bufferRows, col, curS1, ping);
-            // gmRowOffset += bufferRows * col;
       
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
@@ -290,7 +283,7 @@ public:
         }
 
         if (tailRowNum > 0) {
-            auto eventId = ping ? EVENT_ID0 : EVENT_ID1;
+            auto eventId = ping ? EVENT_ID1 : EVENT_ID0;
 
             uint64_t curS1 = curCoreS1Idx + rowLoopTimes * bufferRows;
             int32_t gmOffset =  rowLoopTimes * bufferRows * col;
@@ -333,7 +326,6 @@ public:
                     static_cast<uint32_t>(transpseStride), 0, 0},
                     {false, 0, 0, 0});
         } else {
-            printf("bnsd\n");
             startOffset = curCoreBatch * (n1 * maxQSeqlen) + curCoreN1Idx * maxQSeqlen + curS1;
             DataCopyPad(lse, LseGm[startOffset],
                     {static_cast<uint16_t>(1), static_cast<uint32_t>(count * sizeof(float)),
@@ -432,7 +424,6 @@ public:
         set_flag(PIPE_MTE2, PIPE_V, event_id);
         wait_flag(PIPE_MTE2, PIPE_V, event_id);
         
-
         Muls(sLocal, sLocal, (float)scaleValue, countAlign);
         AscendC::PipeBarrier<PIPE_V>();
 
