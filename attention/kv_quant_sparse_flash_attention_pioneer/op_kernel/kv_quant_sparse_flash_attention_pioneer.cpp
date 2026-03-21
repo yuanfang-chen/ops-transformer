@@ -30,7 +30,7 @@ using namespace AscendC;
             BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                    \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
-            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                  \
+            actualSeqLengthsQuery, actualSeqLengthsKV, keySink, valueSink,                                  \
 	    attentionOut, user, nullptr, &tPipe);                                                             \
         op.Process();                                                                                     \
     } while (0)
@@ -45,7 +45,7 @@ using namespace AscendC;
         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                               \
         const tilingdataClass *__restrict tilingData = &tilingDataIn;                                     \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,                       \
-            actualSeqLengthsQuery, actualSeqLengthsKV, nullptr, nullptr,                                  \
+            actualSeqLengthsQuery, actualSeqLengthsKV, keySink, valueSink,                                  \
 	    attentionOut, user, tilingData, &tPipe);                                                          \
         op.Process();                                                                                     \
     } while (0)
@@ -56,7 +56,7 @@ template<int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
 kv_quant_sparse_flash_attention_pioneer(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
                        __gm__ uint8_t *sparseIndices, __gm__ uint8_t* keyScale, __gm__ uint8_t* valueScale,
                        __gm__ uint8_t *blocktable, __gm__ uint8_t *actualSeqLengthsQuery,
-                       __gm__ uint8_t *actualSeqLengthsKV, __gm__ uint8_t *key_sink, __gm__ uint8_t *value_sink, 
+                       __gm__ uint8_t *actualSeqLengthsKV, __gm__ uint8_t *keySink, __gm__ uint8_t *valueSink, 
                        __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
@@ -67,13 +67,16 @@ kv_quant_sparse_flash_attention_pioneer(__gm__ uint8_t *query, __gm__ uint8_t *k
     if constexpr (ORIG_DTYPE_QUERY == DT_BF16 && ORIG_DTYPE_KEY == DT_FLOAT8_E4M3FN &&
                   ORIG_DTYPE_ATTENTION_OUT == DT_BF16) {
         QSFA_OP_IMPL(BaseApi::KvQuantSparseFlashAttentionMla, KvQuantSparseFlashAttentionPioneerTilingDataMla, bfloat16_t, fp8_e4m3fn_t,
-            float, bfloat16_t, FLASH_DECODE, true, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
+            float, bfloat16_t, true, true, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
             static_cast<QSFATemplateMode>(TEMPLATE_MODE));
     } else if constexpr (ORIG_DTYPE_QUERY == DT_BF16 && ORIG_DTYPE_KEY == DT_HIFLOAT8 &&
                   ORIG_DTYPE_ATTENTION_OUT == DT_BF16) { 
         QSFA_OP_IMPL(BaseApi::KvQuantSparseFlashAttentionMla, KvQuantSparseFlashAttentionPioneerTilingDataMla, bfloat16_t, hifloat8_t,
-            float, bfloat16_t, FLASH_DECODE, true, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
+            float, bfloat16_t, true, true, static_cast<QSFA_LAYOUT>(LAYOUT_T), static_cast<QSFA_LAYOUT>(KV_LAYOUT_T),
             static_cast<QSFATemplateMode>(TEMPLATE_MODE));
     }
 #endif
 }
+
+
+
