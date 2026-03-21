@@ -302,7 +302,6 @@ __aicore__ inline void CausalConv1dCutBH<T>::Init(
         int32_t queryStartLocQueueSize = ((batchSize_ + 1) * sizeof(int32_t) + ALIGN_BYTES - 1) / ALIGN_BYTES * ALIGN_BYTES;
         pipe_->InitBuffer(queryStartLocQueue, 1, queryStartLocQueueSize);
     }
-    int64_t all = 2*xQueueSize + cacheQueueSize + weightQueueSize + indicesQueueSize + acceptTokenQueueSize;
 }
 
 template <typename T>
