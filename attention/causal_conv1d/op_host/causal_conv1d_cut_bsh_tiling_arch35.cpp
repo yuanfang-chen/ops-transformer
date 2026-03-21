@@ -147,98 +147,92 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDtype()
 }
 
 // 检查输入数据维度
-ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDim()
+ge::graphStatus CausalConv1dCutBSHTiling::CheckXDim()
 {
-    // 检查X的维度
     uint64_t xDimNum = xShape_.GetDimNum();
     OP_CHECK_IF(xDimNum != X_DIM_NUM,
                 OP_LOGE(context_->GetNodeName(), "X dim must be 2, but got: %lu", xDimNum),
                 return ge::GRAPH_FAILED);
-
-    // 检查cu_seq_len范围
     OP_CHECK_IF(!(cuSeqLen_ >= CU_SEQ_LEN_MIN && cuSeqLen_ <= CU_SEQ_LEN_MAX),
                 OP_LOGE(context_->GetNodeName(), "cu_seq_len must in [%lu, %lu], but got: %lu",
                         CU_SEQ_LEN_MIN, CU_SEQ_LEN_MAX, cuSeqLen_),
                 return ge::GRAPH_FAILED);
-
-    // 检查dim范围和对齐
-    // 要求：dim > 128 且是 128 的整数倍
     OP_CHECK_IF(!(dim_ >= DIM_MIN && dim_ <= DIM_MAX && dim_ % DIM_ALIGN_ELEMENTS == 0),
                 OP_LOGE(context_->GetNodeName(), "dim must be > %lu, <= %lu and be multiple of %lu, but got: %lu",
                         DIM_ALIGN_ELEMENTS, DIM_MAX, DIM_ALIGN_ELEMENTS, dim_),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 检查weight的维度
+ge::graphStatus CausalConv1dCutBSHTiling::CheckWeightDim()
+{
     uint64_t weightDimNum = weightShape_.GetDimNum();
     OP_CHECK_IF(weightDimNum != WEIGHT_DIM_NUM,
                 OP_LOGE(context_->GetNodeName(), "Weight dim must be 2, but got: %lu", weightDimNum),
                 return ge::GRAPH_FAILED);
-
     uint64_t weightDim = weightShape_.GetDim(DIM_1);
     OP_CHECK_IF(weightDim != dim_,
                 OP_LOGE(context_->GetNodeName(), "Weight dim[1] must equal to X dim[1], X dim: %lu, Weight dim: %lu",
                         dim_, weightDim),
                 return ge::GRAPH_FAILED);
-
-    // 检查kernel width
-    // 要求：kernel width 必须等于 3
     OP_CHECK_IF(kernelWidth_ != 3,
-                OP_LOGE(context_->GetNodeName(), "Kernel width must be 3, but got: %lu",
-                        kernelWidth_),
+                OP_LOGE(context_->GetNodeName(), "Kernel width must be 3, but got: %lu", kernelWidth_),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 检查cacheStates的维度
+ge::graphStatus CausalConv1dCutBSHTiling::CheckCacheStatesDim()
+{
     uint64_t cacheStatesDimNum = cacheStatesShape_.GetDimNum();
     OP_CHECK_IF(cacheStatesDimNum != CACHE_STATES_DIM_NUM,
                 OP_LOGE(context_->GetNodeName(), "CacheStates dim must be 3, but got: %lu", cacheStatesDimNum),
                 return ge::GRAPH_FAILED);
-
     uint64_t cacheStatesDim1 = cacheStatesShape_.GetDim(DIM_1);
     OP_CHECK_IF(cacheStatesDim1 != (kernelWidth_ - 1),
                 OP_LOGE(context_->GetNodeName(), "CacheStates dim[1] must equal to K-1=%lu, but got: %lu",
                         kernelWidth_ - 1, cacheStatesDim1),
                 return ge::GRAPH_FAILED);
-
     uint64_t cacheStatesDim2 = cacheStatesShape_.GetDim(DIM_2);
     OP_CHECK_IF(cacheStatesDim2 != dim_,
                 OP_LOGE(context_->GetNodeName(), "CacheStates dim[2] must equal to dim=%lu, but got: %lu",
                         dim_, cacheStatesDim2),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 检查seqStartIndex的维度 (必须提供)
+ge::graphStatus CausalConv1dCutBSHTiling::CheckIndexDims()
+{
     auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
     OP_CHECK_IF(seqStartIndexStorageShape == nullptr,
                 OP_LOGE(context_->GetNodeName(), "QueryStartLoc must be provided"),
                 return ge::GRAPH_FAILED);
-
-    // 检查 cacheIndices (必须提供)
     auto cacheIndicesShape = context_->GetOptionalInputShape(INPUT_CACHE_INDICES_INDEX);
     OP_CHECK_IF(cacheIndicesShape == nullptr,
                 OP_LOGE(context_->GetNodeName(), "CacheIndices must be provided"),
                 return ge::GRAPH_FAILED);
+    auto seqStartIndexShape = seqStartIndexStorageShape->GetStorageShape();
+    uint64_t seqStartIndexDimNum = seqStartIndexShape.GetDimNum();
+    OP_CHECK_IF(seqStartIndexDimNum != SEQ_START_INDEX_DIM_NUM,
+                OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim must be 1, but got: %lu", seqStartIndexDimNum),
+                return ge::GRAPH_FAILED);
+    uint64_t seqStartIndexDim0 = seqStartIndexShape.GetDim(DIM_0);
+    OP_CHECK_IF(seqStartIndexDim0 != (batch_ + 1),
+                OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%lu, but got: %lu",
+                        batch_ + 1, seqStartIndexDim0),
+                return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 注意：seqStartIndexShape_ 已在 GetShapeAttrsInfo 中处理，这里只做验证
-    if (seqStartIndexStorageShape != nullptr) {
-        // 如果提供了 queryStartLoc，检查维度
-        auto seqStartIndexShape = seqStartIndexStorageShape->GetStorageShape();
-        uint64_t seqStartIndexDimNum = seqStartIndexShape.GetDimNum();
-        OP_CHECK_IF(seqStartIndexDimNum != SEQ_START_INDEX_DIM_NUM,
-                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim must be 1, but got: %lu", seqStartIndexDimNum),
-                    return ge::GRAPH_FAILED);
-
-        uint64_t seqStartIndexDim0 = seqStartIndexShape.GetDim(DIM_0);
-        OP_CHECK_IF(seqStartIndexDim0 != (batch_ + 1),
-                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%lu, but got: %lu",
-                            batch_ + 1, seqStartIndexDim0),
-                    return ge::GRAPH_FAILED);
-    }
-
-    // 检查batch范围
+ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDim()
+{
+    if (CheckXDim() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+    if (CheckWeightDim() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+    if (CheckCacheStatesDim() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+    if (CheckIndexDims() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
     OP_CHECK_IF(!(batch_ >= BATCH_MIN && batch_ <= BATCH_MAX),
                 OP_LOGE(context_->GetNodeName(), "batch must in [%lu, %lu], but got: %lu",
                         BATCH_MIN, BATCH_MAX, batch_),
                 return ge::GRAPH_FAILED);
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -276,11 +270,8 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckOutputParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
+ge::graphStatus CausalConv1dCutBSHTiling::GetInputShapes()
 {
-    OP_CHECK_IF(context_ == nullptr, OP_LOGE("CausalConv1dCutBSH", "context is null"), return ge::GRAPH_FAILED);
-
-    // 获取输入shape
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_X_INDEX));
     xShape_ = context_->GetInputShape(INPUT_X_INDEX)->GetOriginShape();
     cuSeqLen_ = xShape_.GetDim(DIM_0);
@@ -293,19 +284,19 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_CACHE_STATES_INDEX));
     cacheStatesShape_ = context_->GetInputShape(INPUT_CACHE_STATES_INDEX)->GetOriginShape();
 
-    // 获取 queryStartLoc (OPTIONAL)
     auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
     if (seqStartIndexStorageShape != nullptr) {
         seqStartIndexShape_ = seqStartIndexStorageShape->GetOriginShape();
         batch_ = seqStartIndexShape_.GetDim(DIM_0) - 1;
     } else {
-        // 没有提供 queryStartLoc，默认 batch = 1，处理全部序列
         batch_ = 1;
-        // 创建一个默认的 gert::Shape，表示没有分批的情况
         seqStartIndexShape_ = gert::Shape({0, static_cast<int64_t>(cuSeqLen_)});
     }
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 获取输入数据类型
+ge::graphStatus CausalConv1dCutBSHTiling::GetInputDtypes()
+{
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputDesc(INPUT_X_INDEX));
     xType_ = context_->GetInputDesc(INPUT_X_INDEX)->GetDataType();
 
@@ -317,21 +308,12 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
                 OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBSH get X dtype[%s] size is 0.",
                         Ops::Base::ToString(xType_).c_str()),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
-    // 读取 padSlotId attribute
-    padSlotId_ = -1;
-    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX) != nullptr) {
-        padSlotId_ = *(context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX));
-    }
-
-    residualConnection_ = 0;
-    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX) != nullptr) {
-        residualConnection_ = *(context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX));
-    }
-
-    // 获取 x 的 stride
-    bool xIsView = context_->InputIsView(INPUT_X_INDEX);
-    if (xIsView) {
+ge::graphStatus CausalConv1dCutBSHTiling::GetInputStrides()
+{
+    if (context_->InputIsView(INPUT_X_INDEX)) {
         auto* xStride = context_->GetInputStride(INPUT_X_INDEX);
         OP_CHECK_IF(xStride == nullptr || xStride->GetDimNum() == 0,
                     OP_LOGE(context_->GetNodeName(), "x stride is invalid."),
@@ -344,9 +326,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
         xStride_ = dim_;
     }
 
-    // 获取 cacheStates 的 stride
-    bool cacheIsView = context_->InputIsView(INPUT_CACHE_STATES_INDEX);
-    if (cacheIsView) {
+    if (context_->InputIsView(INPUT_CACHE_STATES_INDEX)) {
         auto* cacheStride = context_->GetInputStride(INPUT_CACHE_STATES_INDEX);
         OP_CHECK_IF(cacheStride == nullptr || cacheStride->GetDimNum() == 0,
                     OP_LOGE(context_->GetNodeName(), "cache_states stride is invalid."),
@@ -354,14 +334,33 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
         OP_CHECK_IF(cacheStride->GetDimNum() != cacheStatesShape_.GetDimNum(),
                     OP_LOGE(context_->GetNodeName(), "The number of dimensions in cache_states stride must match that of cache_states shape."),
                     return ge::GRAPH_FAILED);
-        cacheStride0_ = cacheStride->GetStride(DIM_0);  // 跨 slot 的步长
-        cacheStride1_ = cacheStride->GetStride(DIM_1);  // 跨 K-1 维度的步长（行步长）
+        cacheStride0_ = cacheStride->GetStride(DIM_0);
+        cacheStride1_ = cacheStride->GetStride(DIM_1);
     } else {
-        cacheStride0_ = (kernelWidth_ - 1) * dim_;  // 连续存储：stride[0] = (K-1) * dim
-        cacheStride1_ = dim_;                        // 连续存储：stride[1] = dim
+        cacheStride0_ = (kernelWidth_ - 1) * dim_;
+        cacheStride1_ = dim_;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
+{
+    OP_CHECK_IF(context_ == nullptr, OP_LOGE("CausalConv1dCutBSH", "context is null"), return ge::GRAPH_FAILED);
+
+    if (GetInputShapes() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+    if (GetInputDtypes() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+
+    padSlotId_ = -1;
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX) != nullptr) {
+        padSlotId_ = *(context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX));
+    }
+    residualConnection_ = 0;
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX) != nullptr) {
+        residualConnection_ = *(context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX));
     }
 
-    // 检查输入和输出参数
+    if (GetInputStrides() != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
+
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "CausalConv1dCutBSH CheckInputParams FAILED."),
                 return ge::GRAPH_FAILED);
@@ -377,6 +376,10 @@ CausalConv1dCutBSHTiling::CuSeqLenSplitInfo CausalConv1dCutBSHTiling::CalculateC
     uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const
 {
     CuSeqLenSplitInfo info;
+
+    if (coreNum == 0) {
+        return info;
+    }
 
     // 均分策略：将带重叠的总长度均分到所有核
     // effectiveTotal = cuSeqLen + (coreNum - 1) * overlap
@@ -402,167 +405,126 @@ CausalConv1dCutBSHTiling::CuSeqLenSplitInfo CausalConv1dCutBSHTiling::CalculateC
     return info;
 }
 
-
 // 计算二维切分时的tiling（支持不均匀切分 + dim循环）
-ge::graphStatus CausalConv1dCutBSHTiling::Calculate2DTiling()
+ge::graphStatus CausalConv1dCutBSHTiling::CalcCoreUbTiling(
+    uint64_t coreDim, uint64_t coreBS, uint64_t bsBlockFactor,
+    int64_t availableUbSize, uint64_t weightCacheCoeffPerDim, uint64_t bsOverlap,
+    uint64_t& ubFactorBS, uint64_t& ubFactorDim,
+    uint64_t& loopNumBS, uint64_t& ubTailFactorBS,
+    uint64_t& loopNumDim, uint64_t& ubTailFactorDim)
 {
-    // 核内UB分配策略：
-    // 1. 优先保证BS方向能装下整核的数据（bsBlockFactor）
-    // 2. dim方向保证最小128（256 bytes对齐），尽量扩大但不超过核间分配的dim
-    // 3. dim方向可能需要循环加载
-
-    uint64_t bsOverlap = kernelWidth_ - 1;
-
-    // 固定UB使用
-    uint64_t startLocInQueueSize = (batch_ + 1) * sizeof(int32_t);
-    uint64_t indicesInQueueSize = batch_ * sizeof(int32_t);
-    uint64_t hasInitialInQueueSize = batch_ * sizeof(int32_t);
-    uint64_t fixedUbSize = startLocInQueueSize + indicesInQueueSize + hasInitialInQueueSize;
-
-    // ===== 计算整核（大核）的UB参数 =====
-    uint64_t coreDim = dimBlockFactor_;      // 核间分配的dim大小（大核）
-    uint64_t coreBS = bsBlockFactor_;        // 核间分配的BS大小（大核）
-
-    // weight和cache每个dim元素的系数
-    uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
-
-    // x每个dim元素的系数（双buffer，满BS）
-    uint64_t xCoeffPerDimFullBS = coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-
-    // 总系数
-    uint64_t totalCoeffPerDim = weightCacheCoeffPerDim + xCoeffPerDimFullBS;
-
-    // 计算可用UB和最大ubDim
-    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
-    int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
-
-    // 对齐到DIM_ALIGN_ELEMENTS (128)
+    int64_t maxUbDim = availableUbSize /
+        (weightCacheCoeffPerDim + coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM);
     maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
 
     if (maxUbDim >= static_cast<int64_t>(DIM_ALIGN_ELEMENTS)) {
-        // 能装下满BS，尽量扩大dim
-        ubFactorBS_ = coreBS;
-        ubFactorDim_ = std::min(static_cast<uint64_t>(maxUbDim), coreDim);
-
-        // 确保ubFactorDim_对齐到DIM_ALIGN_ELEMENTS
-        ubFactorDim_ = (ubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
-        if (ubFactorDim_ == 0) {
-            ubFactorDim_ = DIM_ALIGN_ELEMENTS;
-        }
+        ubFactorBS = coreBS;
+        ubFactorDim = (std::min(static_cast<uint64_t>(maxUbDim), coreDim) /
+                       DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        if (ubFactorDim == 0) ubFactorDim = DIM_ALIGN_ELEMENTS;
     } else {
-        // 不能装下满BS，使用最小dim并减少BS
-        ubFactorDim_ = DIM_ALIGN_ELEMENTS;
-
-        // weight和cache占用空间（使用最小dim）
-        uint64_t weightCacheSize = weightCacheCoeffPerDim * ubFactorDim_;
-        int64_t availableForX = availableUbSize - weightCacheSize;
-
-        // x每个BS的大小（双buffer）
-        uint64_t xSizePerBS = ubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-
-        // 计算能装下多少BS
-        int64_t maxBS = availableForX / xSizePerBS;
-        ubFactorBS_ = std::max(maxBS, static_cast<int64_t>(1));
-        ubFactorBS_ = std::min(ubFactorBS_, coreBS);
-
-        if (ubFactorBS_ == 0) {
+        ubFactorDim = DIM_ALIGN_ELEMENTS;
+        int64_t availableForX = availableUbSize - weightCacheCoeffPerDim * ubFactorDim;
+        int64_t maxBS = availableForX / (ubFactorDim * xDtypeSize_ * DOUBLE_BUFFER_NUM);
+        ubFactorBS = static_cast<uint64_t>(std::min(std::max(maxBS, static_cast<int64_t>(1)),
+                                                    static_cast<int64_t>(coreBS)));
+        if (ubFactorBS == 0) {
             OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling");
             return ge::GRAPH_FAILED;
         }
     }
 
-    // 计算dim方向的循环次数
-    if (coreDim <= ubFactorDim_) {
-        loopNumDim_ = 1;
-        ubTailFactorDim_ = ubFactorDim_;
+    loopNumDim = (coreDim <= ubFactorDim) ? 1 : (coreDim + ubFactorDim - 1) / ubFactorDim;
+    ubTailFactorDim = (coreDim <= ubFactorDim) ? ubFactorDim : coreDim - (loopNumDim - 1) * ubFactorDim;
+
+    if (bsBlockFactor <= ubFactorBS) {
+        loopNumBS = 1;
     } else {
-        loopNumDim_ = (coreDim + ubFactorDim_ - 1) / ubFactorDim_;
-        ubTailFactorDim_ = coreDim - (loopNumDim_ - 1) * ubFactorDim_;
+        uint64_t remaining = bsBlockFactor - ubFactorBS;
+        loopNumBS = 1 + Ops::Base::CeilDiv(remaining, ubFactorBS - bsOverlap);
     }
-
-    // 计算BS方向的循环次数（考虑overlap）
-    uint64_t coreLoopsNeeded;
-    if (bsBlockFactor_ <= ubFactorBS_) {
-        coreLoopsNeeded = 1;
-    } else {
-        uint64_t remaining = bsBlockFactor_ - ubFactorBS_;
-        uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, ubFactorBS_ - bsOverlap);
-        coreLoopsNeeded = 1 + subsequentLoops;
-    }
-    loopNumBS_ = coreLoopsNeeded;
-
-    // 计算整核最后一次循环载入大小
-    uint64_t coreLastLoopInput = bsBlockFactor_ - (coreLoopsNeeded - 1) * (ubFactorBS_ - bsOverlap);
-    ubTailFactorBS_ = std::min(coreLastLoopInput, ubFactorBS_);
-
-    // ===== 计算尾核（双重小核）的UB参数 =====
-    // 使用相同的逻辑，但基于尾核的dim和BS大小
-    uint64_t tailCoreDim = (dimRemainderCores_ > 0) ? dimBlockTailFactor_ : dimBlockFactor_;
-    uint64_t tailCoreBS = bsBlockTailFactor_;
-
-    // 重新计算尾核的UB参数
-    uint64_t tailXCoeffPerDimFullBS = tailCoreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-    uint64_t tailTotalCoeffPerDim = weightCacheCoeffPerDim + tailXCoeffPerDimFullBS;
-    int64_t tailMaxUbDim = availableUbSize / tailTotalCoeffPerDim;
-    tailMaxUbDim = (tailMaxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
-
-    if (tailMaxUbDim >= static_cast<int64_t>(DIM_ALIGN_ELEMENTS)) {
-        tailBlockubFactorBS_ = tailCoreBS;
-        tailBlockubFactorDim_ = std::min(static_cast<uint64_t>(tailMaxUbDim), tailCoreDim);
-        tailBlockubFactorDim_ = (tailBlockubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
-        if (tailBlockubFactorDim_ == 0) {
-            tailBlockubFactorDim_ = DIM_ALIGN_ELEMENTS;
-        }
-    } else {
-        tailBlockubFactorDim_ = DIM_ALIGN_ELEMENTS;
-        uint64_t weightCacheSize = weightCacheCoeffPerDim * tailBlockubFactorDim_;
-        int64_t availableForX = availableUbSize - weightCacheSize;
-        uint64_t xSizePerBS = tailBlockubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-        int64_t maxBS = availableForX / xSizePerBS;
-        tailBlockubFactorBS_ = std::max(maxBS, static_cast<int64_t>(1));
-        tailBlockubFactorBS_ = std::min(tailBlockubFactorBS_, tailCoreBS);
-
-        if (tailBlockubFactorBS_ == 0) {
-            OP_LOGE(context_->GetNodeName(), "UB size is not enough for tail block tiling");
-            return ge::GRAPH_FAILED;
-        }
-    }
-
-    // 计算尾核dim方向的循环次数
-    if (tailCoreDim <= tailBlockubFactorDim_) {
-        tailBlockloopNumDim_ = 1;
-        tailBlockubTailFactorDim_ = tailBlockubFactorDim_;
-    } else {
-        tailBlockloopNumDim_ = (tailCoreDim + tailBlockubFactorDim_ - 1) / tailBlockubFactorDim_;
-        tailBlockubTailFactorDim_ = tailCoreDim - (tailBlockloopNumDim_ - 1) * tailBlockubFactorDim_;
-    }
-
-    // 计算尾核BS方向的循环次数
-    uint64_t tailLoopsNeeded;
-    if (bsBlockTailFactor_ <= tailBlockubFactorBS_) {
-        tailLoopsNeeded = 1;
-    } else {
-        uint64_t remaining = bsBlockTailFactor_ - tailBlockubFactorBS_;
-        uint64_t subsequentLoops = Ops::Base::CeilDiv(remaining, tailBlockubFactorBS_ - bsOverlap);
-        tailLoopsNeeded = 1 + subsequentLoops;
-    }
-    tailBlockloopNumBS_ = tailLoopsNeeded;
-
-    uint64_t tailLastLoopInput = bsBlockTailFactor_ - (tailLoopsNeeded - 1) * (tailBlockubFactorBS_ - bsOverlap);
-    tailBlockubTailFactorBS_ = std::min(tailLastLoopInput, tailBlockubFactorBS_);
+    uint64_t lastLoopInput = bsBlockFactor - (loopNumBS - 1) * (ubFactorBS - bsOverlap);
+    ubTailFactorBS = std::min(lastLoopInput, ubFactorBS);
 
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CausalConv1dCutBSHTiling::Calculate2DTiling()
+{
+    uint64_t bsOverlap = kernelWidth_ - 1;
+    uint64_t fixedUbSize = (2 * batch_ + 1 + batch_) * sizeof(int32_t);
+    uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
+    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
+
+    if (CalcCoreUbTiling(dimBlockFactor_, bsBlockFactor_, bsBlockFactor_,
+                         availableUbSize, weightCacheCoeffPerDim, bsOverlap,
+                         ubFactorBS_, ubFactorDim_, loopNumBS_, ubTailFactorBS_,
+                         loopNumDim_, ubTailFactorDim_) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+
+    uint64_t tailCoreDim = (dimRemainderCores_ > 0) ? dimBlockTailFactor_ : dimBlockFactor_;
+    if (CalcCoreUbTiling(tailCoreDim, bsBlockTailFactor_, bsBlockTailFactor_,
+                         availableUbSize, weightCacheCoeffPerDim, bsOverlap,
+                         tailBlockubFactorBS_, tailBlockubFactorDim_,
+                         tailBlockloopNumBS_, tailBlockubTailFactorBS_,
+                         tailBlockloopNumDim_, tailBlockubTailFactorDim_) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CausalConv1dCutBSHTiling::SearchBestCoreSplit(
+    uint64_t N, uint64_t bsOverlap, uint64_t& bestDimCores, CuSeqLenSplitInfo& bestBSSplitInfo)
+{
+    uint64_t bestUsed = 0;
+    for (uint64_t dc = N; dc >= 1; --dc) {
+        uint64_t base = N / dc;
+        if (base == 0) continue;
+
+        uint64_t maxAllowedBSByCore = totalCoreNum_ / dc;
+        if (maxAllowedBSByCore == 0) continue;
+
+        uint64_t maxAllowedBSBySeqLen = (cuSeqLen_ > bsOverlap) ? (cuSeqLen_ - bsOverlap) : 1;
+        uint64_t maxAllowedBS = std::min(maxAllowedBSByCore, maxAllowedBSBySeqLen);
+
+        auto splitInfo = CalculateCuSeqLenSplitInfo(cuSeqLen_, bsOverlap, maxAllowedBS);
+        uint64_t usedCores = dc * splitInfo.realCoreNum;
+
+        if (usedCores > bestUsed || (usedCores == bestUsed && dc > bestDimCores)) {
+            bestDimCores = dc;
+            bestUsed = usedCores;
+            bestBSSplitInfo = splitInfo;
+        }
+        if (bestUsed == totalCoreNum_) break;
+    }
+
+    if (bestUsed == 0) {
+        OP_LOGE(context_->GetNodeName(), "Failed to find valid tiling strategy");
+        return ge::GRAPH_FAILED;
+    }
+    realCoreNum_ = bestUsed;
+    return ge::GRAPH_SUCCESS;
+}
+
+void CausalConv1dCutBSHTiling::ApplyDimSplit(uint64_t N, uint64_t bestDimCores)
+{
+    constexpr uint64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENTS;
+    uint64_t base = N / bestDimCores;
+    uint64_t remainder = N % bestDimCores;
+
+    dimCoreNum_ = bestDimCores;
+    dimRemainderCores_ = remainder;
+    dimBlockFactor_ = (remainder > 0 ? base + 1 : base) * DIM_GRANULARITY;
+    dimBlockTailFactor_ = base * DIM_GRANULARITY;
+}
+
 ge::graphStatus CausalConv1dCutBSHTiling::DoOpTiling()
 {
-    // 二维切分策略（不均匀切分）：先切dim（以128为粒度，允许不均匀分配），再切BS（考虑overlap）
-    // 目标：最大化核利用率，优先切dim方向
-
     uint64_t bsOverlap = kernelWidth_ - 1;
-    constexpr uint64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENTS;  // 128
+    constexpr uint64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENTS;
 
-    // 步骤1：计算dim方向可切的份数（N = dim / 128）
     uint64_t N = dim_ / DIM_GRANULARITY;
     if (N == 0) {
         OP_LOGE(context_->GetNodeName(), "dim %lu is smaller than DIM_GRANULARITY %lu",
@@ -570,83 +532,19 @@ ge::graphStatus CausalConv1dCutBSHTiling::DoOpTiling()
         return ge::GRAPH_FAILED;
     }
 
-    // 步骤2：贪心搜索最优(dimCoreNum, bsCoreNum)组合
-    // 优先尝试dim切分多的方案（从N向下遍历所有可能值，允许不均匀切分）
-
-    // 初始化为 dc=1 的情况（所有核给BS方向）
     uint64_t bestDimCores = 0;
-    uint64_t bestBSCores = 0;
-    uint64_t bestUsed = 0;
     CuSeqLenSplitInfo bestBSSplitInfo = {};
-
-    // 从大到小遍历 [1, N] 的所有值（允许不均匀切分）
-    for (uint64_t dc = N; dc >= 1; --dc) {
-        // 计算每核分配的128-块数
-        uint64_t base = N / dc;
-        if (base == 0) continue;  // 跳过（每个核至少要1个128-块）
-
-        // 计算该dimCores下能分配的最大BS核数
-        uint64_t maxAllowedBSByCore = totalCoreNum_ / dc;
-        if (maxAllowedBSByCore == 0) continue;  // 跳过（dim切太多，没有剩余核给BS）
-
-        // BS方向的约束：n <= cuSeqLen - overlap（保证每个核至少输出1个元素）
-        uint64_t maxAllowedBSBySeqLen = (cuSeqLen_ > bsOverlap) ? (cuSeqLen_ - bsOverlap) : 1;
-        uint64_t maxAllowedBS = std::min(maxAllowedBSByCore, maxAllowedBSBySeqLen);
-
-        // 考虑因果重叠，计算BS方向实际能用的核数
-        auto splitInfo = CalculateCuSeqLenSplitInfo(cuSeqLen_, bsOverlap, maxAllowedBS);
-        uint64_t actualBS = splitInfo.realCoreNum;
-
-        // 总使用核数
-        uint64_t usedCores = dc * actualBS;
-
-        // 更新最优解（优先核数多，核数相同优先dim切分多）
-        if (usedCores > bestUsed || (usedCores == bestUsed && dc > bestDimCores)) {
-            bestDimCores = dc;
-            bestBSCores = actualBS;
-            bestUsed = usedCores;
-            bestBSSplitInfo = splitInfo;  // 保存BS方向的切分信息
-        }
-
-        // 如果已经完美利用所有核，提前退出
-        if (bestUsed == totalCoreNum_) {
-            break;
-        }
-    }
-
-    // 安全检查：确保找到了有效的切分方案
-    if (bestUsed == 0) {
-        OP_LOGE(context_->GetNodeName(), "Failed to find valid tiling strategy");
+    if (SearchBestCoreSplit(N, bsOverlap, bestDimCores, bestBSSplitInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
 
-    // 步骤3：计算dim方向不均匀分配参数
-    uint64_t base = N / bestDimCores;          // 每个小核分到的128-块数
-    uint64_t remainder = N % bestDimCores;     // 需要多分配的块数（大核数量）
+    ApplyDimSplit(N, bestDimCores);
 
-    dimCoreNum_ = bestDimCores;
-    dimRemainderCores_ = remainder;
+    bsCoreNum_ = bestBSSplitInfo.realCoreNum;
+    bsRemainderCores_ = bestBSSplitInfo.remainder;
+    bsBlockFactor_ = bestBSSplitInfo.blockFactor;
+    bsBlockTailFactor_ = bestBSSplitInfo.blockTailFactor;
 
-    if (remainder > 0) {
-        // 有大核：前remainder个核是大核
-        dimBlockFactor_ = (base + 1) * DIM_GRANULARITY;     // 大核的dim大小
-        dimBlockTailFactor_ = base * DIM_GRANULARITY;       // 小核的dim大小
-    } else {
-        // 均匀分配：所有核大小相同
-        dimBlockFactor_ = base * DIM_GRANULARITY;
-        dimBlockTailFactor_ = base * DIM_GRANULARITY;
-    }
-
-    // 步骤4：保存BS方向分配结果
-    bsCoreNum_ = bestBSCores;
-    bsRemainderCores_ = bestBSSplitInfo.remainder;        // BS方向大核数量
-    bsBlockFactor_ = bestBSSplitInfo.blockFactor;         // BS方向大核长度
-    bsBlockTailFactor_ = bestBSSplitInfo.blockTailFactor; // BS方向小核长度
-
-    // 步骤5：核数信息
-    realCoreNum_ = bestUsed;
-
-    // 步骤6：计算二维切分下的UB参数
     return Calculate2DTiling();
 }
 
@@ -664,24 +562,17 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetWorkspaceSize()
 {
     workspaceSize_ = SYS_WORKSPACE_SIZE;
 
+    auto workspaces = context_->GetWorkspaceSizes(1);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, workspaces);
+    workspaces[0] = workspaceSize_;
+
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CausalConv1dCutBSHTiling::PostTiling()
 {
-    auto workspaces = context_->GetWorkspaceSizes(1);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, workspaces);
-    workspaces[0] = workspaceSize_;
-
     // Set block dimension (number of cores to use)
     context_->SetBlockDim(realCoreNum_);
-
-    // Clear tiling data to avoid uninitialized padding bytes
-    errno_t ret = memset_s(&tilingData_, sizeof(tilingData_), 0, sizeof(tilingData_));
-    if (ret != EOK) {
-        OP_LOGE(context_->GetNodeName(), "memset_s failed, ret=%d", ret);
-        return ge::GRAPH_FAILED;
-    }
 
     // Populate tiling data
     tilingData_.loopNumBS = loopNumBS_;
@@ -725,7 +616,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::PostTiling()
 
     // Save tiling data to buffer
     auto tilingDataSize = sizeof(CausalConv1dCutBSHTilingData);
-    ret = memcpy_s(context_->GetRawTilingData()->GetData(),
+    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(),
                     context_->GetRawTilingData()->GetCapacity(),
                     reinterpret_cast<void *>(&tilingData_), tilingDataSize);
     if (ret != EOK) {
@@ -782,5 +673,4 @@ void CausalConv1dCutBSHTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }
 
-// REGISTER_OPS_TILING_TEMPLATE(CausalConv1dCutBSH, CausalConv1dCutBSHTiling, 1);
 } // namespace optiling

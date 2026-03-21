@@ -49,7 +49,14 @@ protected:
     ge::graphStatus CheckInputDim();
     ge::graphStatus CheckInputDtype();
     ge::graphStatus CheckOutputParams();
+    ge::graphStatus CheckXDim();
+    ge::graphStatus CheckWeightDim();
+    ge::graphStatus CheckCacheStatesDim();
+    ge::graphStatus CheckIndexDims();
     ge::graphStatus Calculate2DTiling();  // 二维切分的tiling计算
+    ge::graphStatus GetInputShapes();
+    ge::graphStatus GetInputDtypes();
+    ge::graphStatus GetInputStrides();
 
 private:
     // 辅助结构体：切cu_seq_len时的核间切分信息
@@ -65,6 +72,15 @@ private:
     // 辅助函数：计算切cu_seq_len时实际需要的核数（考虑因果卷积重叠）
     // 同时返回中间计算结果，避免重复计算
     CuSeqLenSplitInfo CalculateCuSeqLenSplitInfo(uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const;
+    ge::graphStatus SearchBestCoreSplit(uint64_t N, uint64_t bsOverlap,
+                                        uint64_t& bestDimCores, CuSeqLenSplitInfo& bestBSSplitInfo);
+    void ApplyDimSplit(uint64_t N, uint64_t bestDimCores);
+    ge::graphStatus CalcCoreUbTiling(uint64_t coreDim, uint64_t coreBS, uint64_t bsBlockFactor,
+                                     int64_t availableUbSize, uint64_t weightCacheCoeffPerDim,
+                                     uint64_t bsOverlap,
+                                     uint64_t& ubFactorBS, uint64_t& ubFactorDim,
+                                     uint64_t& loopNumBS, uint64_t& ubTailFactorBS,
+                                     uint64_t& loopNumDim, uint64_t& ubTailFactorDim);
 
     // 硬件信息
     uint64_t ubSize_ = 0;
