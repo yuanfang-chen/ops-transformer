@@ -512,7 +512,6 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
     tilingData_.matmulTiling.Kb = inputParams_.kSize;
     tilingData_.matmulTiling.usedCoreNum = aicoreParams_.aicNum;
     tilingData_.matmulTiling.baseM = basicTiling_.baseM;
-    tilingData_.matmulTiling.set_baseN(basicTiling_.baseN);
     tilingData_.matmulTiling.baseK = basicTiling_.baseK;
     tilingData_.matmulTiling.singleCoreM = basicTiling_.singleCoreM;
     tilingData_.matmulTiling.singleCoreN = basicTiling_.singleCoreN;
@@ -528,7 +527,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
     tilingData_.matmulTiling.dbL0A = 2; // db switch, 1: off, 2: on
     tilingData_.matmulTiling.dbL0B = 2; // db switch, 1: off, 2: on
     tilingData_.matmulTiling.dbL0C = basicTiling_.dbL0c;
-    tilingData_.matmulTiling.set_baseN(static_cast<uint32_t>(DEBUG_FIXED_BASE_N));
+    // Override: CalL1Tiling may adjust basicTiling_.baseN; keep host output at DEBUG_FIXED_BASE_N.
+    tilingData_.matmulTiling.baseN = static_cast<uint32_t>(DEBUG_FIXED_BASE_N);
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         if (basicTiling_.scaleFactorA >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorA <= SCALER_FACTOR_MAX &&
             basicTiling_.scaleFactorB >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorB <= SCALER_FACTOR_MAX) {

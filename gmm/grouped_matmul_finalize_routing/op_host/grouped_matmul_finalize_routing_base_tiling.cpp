@@ -281,7 +281,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
         return ge::GRAPH_FAILED;
     }
     // Debug branch: matmul lib may still adjust baseN; force host output to 96.
-    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
+    tilingData_.matmulTiling.baseN = FIXED_BASE_N;
 
     if (k_ > MAX_K_A8W4_MSD) {
         OP_LOGE(context_->GetNodeName(), "GMM_tiling: K should be less than 18432 on the A8W4 scenario, but now is %lu", k_);
@@ -336,7 +336,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
              "m, n, k: %lu, %lu, %lu", m_, n_, k_);
         return ge::GRAPH_FAILED;
     }
-    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
+    tilingData_.matmulTiling.baseN = FIXED_BASE_N;
 
     OP_LOGD(context_->GetNodeName(), "GMM_tiling: baseM is %d, baseK is %d, baseN is %d.",
         baseM, A8W4_L1OPT_BASE_K, baseN);
@@ -391,8 +391,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
         OP_LOGE(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling Get Tiling Failed!, m, n, k: %lu, %lu, %lu", m_, n_, k_);
         return ge::GRAPH_FAILED;
     }
-    tilingData_.matmulTiling.set_baseN(FIXED_BASE_N);
-    
+    tilingData_.matmulTiling.baseN = FIXED_BASE_N;
+
     // row_index类型
     auto rowIndexDesc = context_->GetOptionalInputDesc(ROW_INDEX_INDEX);
     auto rowIndexDtype = rowIndexDesc != nullptr ? rowIndexDesc->GetDataType() : ge::DT_INT64;
