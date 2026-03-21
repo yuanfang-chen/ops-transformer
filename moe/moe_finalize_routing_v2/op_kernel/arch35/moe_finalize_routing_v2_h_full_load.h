@@ -170,10 +170,9 @@ private:
                 if (tilingData->activeNum <= gmValueOfExpandedRowIdx) {
                     continue;
                 }
-            } else {
-                if (gmValueOfExpandedRowIdx == INVALID_IDX) {
-                    continue;
-                }
+            }
+            if (gmValueOfExpandedRowIdx == INVALID_IDX) {
+                continue;
             }
             CopyIn(
                 expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,

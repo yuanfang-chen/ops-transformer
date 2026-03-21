@@ -161,14 +161,11 @@ private:
             for (int64_t kIdx = 0; kIdx < tilingData->k; kIdx += 1) {
                 SetOffsetForExpandedRowIdx(rowOuterIdx, kIdx, rowInnerIdx);
                 int64_t expandedRowIdxGmValue = expandedRowIdxGm.GetValue(expandedRowIdxOffset);
-                if constexpr (dropPadMode == DROP_PAD_COLUMN || dropPadMode == DROP_PAD_ROW) {
-                    if (expandedRowIdxGmValue == INVALID_IDX) {
-                        continue;
-                    }
-                } else {
-                    if (expandedRowIdxGmValue >= tilingData->activeNum) {
-                        continue;
-                    }
+                if (expandedRowIdxGmValue == INVALID_IDX) {
+                    continue;
+                }
+                if (expandedRowIdxGmValue >= tilingData->activeNum) {
+                    continue;
                 }
                 if (hasBiasAndExpertIdx) {
                     SetExpertIdxOffset(rowOuterIdx, rowInnerIdx, kIdx);
