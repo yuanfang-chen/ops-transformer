@@ -9,6 +9,7 @@
  */
 
 #include <dlfcn.h>
+#include <string>
 
 #include "aclnn_grouped_matmul_finalize_routing_weight_nz.h"
 #include "aclnn_grouped_matmul_finalize_routing_weight_nz_v2.h"
@@ -822,6 +823,23 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     return ACLNN_SUCCESS;
 }
 
+// zzzlog: compact view/storage/format string for L0-op entry debug (grep "zzzlog").
+static std::string ZzzlogTensorDesc(const aclTensor *t)
+{
+    if (t == nullptr) {
+        return "null";
+    }
+    std::string s = "view=";
+    s += op::ToString(t->GetViewShape()).GetString();
+    s += " storage=";
+    s += op::ToString(t->GetStorageShape()).GetString();
+    s += " fmt=";
+    s += op::ToString(t->GetStorageFormat()).GetString();
+    s += " dtype=";
+    s += op::ToString(t->GetDataType()).GetString();
+    return s;
+}
+
 static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProcess(GroupedMatmulParams &params, aclOpExecutor *executor)
 {
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
@@ -877,6 +895,21 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
 
     int64_t outDimNum = params.out->GetViewShape().GetDimNum();
     int64_t outputBS = params.out->GetViewShape().GetDim(outDimNum - PENULTIMATE_DIM);
+
+    OP_LOGI(
+        "zzzlog before L0 GroupedMatmulFinalizeRouting: transposeX1=%d transposeX2=%d outputBS=%lld groupListType=%lld "
+        "sharedInputWeight=%f sharedInputOffset=%lld out=%s",
+        static_cast<int>(params.transposeX1), static_cast<int>(params.transposeX2),
+        static_cast<long long>(outputBS), static_cast<long long>(params.groupListType),
+        static_cast<double>(params.shareInputWeight), static_cast<long long>(params.shareInputOffset),
+        ZzzlogTensorDesc(params.out).c_str());
+    OP_LOGI(
+        "zzzlog before L0 inputs x1=%s x2=%s scale=%s bias=%s pertokenScale=%s groupList=%s shareInput=%s logit=%s rowIndex=%s offset=%s",
+        ZzzlogTensorDesc(reformatedX1).c_str(), ZzzlogTensorDesc(params2.x2).c_str(),
+        ZzzlogTensorDesc(reformatedScale).c_str(), ZzzlogTensorDesc(reformatedBias).c_str(),
+        ZzzlogTensorDesc(reformatedPertokenScaleOptional).c_str(), ZzzlogTensorDesc(reformatedGroupList).c_str(),
+        ZzzlogTensorDesc(reformatedShareInput).c_str(), ZzzlogTensorDesc(reformatedLogit).c_str(),
+        ZzzlogTensorDesc(reformatedRowIndex).c_str(), ZzzlogTensorDesc(reformatedOffset).c_str());
     
     // 调用l0算子GroupedMatmulFinalizeRouting进行计算，包含infershape
     auto matmulRet = l0op::GroupedMatmulFinalizeRouting(reformatedX1, params2.x2, params2.scale, reformatedBias,
@@ -1056,19 +1089,19 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     (void) antiquantOffsetOptional;
     auto viewShape = x2->GetViewShape();
 
-    // Debug print: transpose flags + x1/x2 shapes (view + storage).
+    // zzzlog: transpose flags + x1/x2 shapes (view + storage).
     auto x1ViewShapeStr = op::ToString(x1->GetViewShape());
     auto x1StorageShapeStr = op::ToString(x1->GetStorageShape());
     auto x2ViewShapeStr = op::ToString(x2->GetViewShape());
     auto x2StorageShapeStr = op::ToString(x2->GetStorageShape());
-    OP_LOGI("aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, transposeX1=%d transposeX2=%d, x1 view shape=%s storage shape=%s, x2 view shape=%s storage shape=%s",
+    OP_LOGI("zzzlog WeightNzV2GetWorkspaceSize: transposeX1=%d transposeX2=%d, x1 view=%s storage=%s, x2 view=%s storage=%s",
         static_cast<int>(transposeX1), static_cast<int>(transposeX2),
         x1ViewShapeStr.GetString(), x1StorageShapeStr.GetString(),
         x2ViewShapeStr.GetString(), x2StorageShapeStr.GetString());
 
-    // Debug print: other tensor attrs/shapes to help locate mismatch quickly.
+    // zzzlog: other tensor shapes (bias/optional may be null).
     std::string scaleViewShapeStr = op::ToString(scale->GetViewShape()).GetString();
-    std::string biasViewShapeStr = op::ToString(bias->GetViewShape()).GetString();
+    std::string biasViewShapeStr = (bias != nullptr) ? op::ToString(bias->GetViewShape()).GetString() : "null";
     std::string pertokenScaleViewShapeStr =
         (pertokenScaleOptional != nullptr) ? op::ToString(pertokenScaleOptional->GetViewShape()).GetString() : "null";
     std::string groupListViewShapeStr =
@@ -1082,7 +1115,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     std::string offsetOptionalViewShapeStr =
         (offsetOptional != nullptr) ? op::ToString(offsetOptional->GetViewShape()).GetString() : "null";
     OP_LOGI(
-        "aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, shapes: scale=%s bias=%s offsetOptional=%s pertokenScale=%s groupList=%s sharedInput=%s logit=%s rowIndex=%s out=%s",
+        "zzzlog WeightNzV2GetWorkspaceSize shapes: scale=%s bias=%s offsetOptional=%s pertokenScale=%s groupList=%s sharedInput=%s logit=%s rowIndex=%s out=%s",
         scaleViewShapeStr.c_str(), biasViewShapeStr.c_str(), offsetOptionalViewShapeStr.c_str(),
         pertokenScaleViewShapeStr.c_str(), groupListViewShapeStr.c_str(), sharedInputViewShapeStr.c_str(),
         logitViewShapeStr.c_str(), rowIndexViewShapeStr.c_str(), outViewShapeStr.c_str());
@@ -1140,13 +1173,13 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
     }
 
-    // Debug print: tmpWeight final shapes + weightNzShape derived by transposeX2.
+    // zzzlog: tmpWeight after unpack + weightNzShape derived by transposeX2.
     {
         auto tmpWeightViewShapeStr = op::ToString(tmpWeight->GetViewShape());
         auto tmpWeightStorageShapeStr = op::ToString(tmpWeight->GetStorageShape());
         auto weightNzShape = GetWeightNzShape(tmpWeight, transposeX2);
         auto weightNzShapeStr = op::ToString(weightNzShape);
-        OP_LOGI("aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize, tmpWeight dtype=%s, tmpWeight view shape=%s storage shape=%s, weightNzShape=%s",
+        OP_LOGI("zzzlog WeightNzV2GetWorkspaceSize tmpWeight: dtype=%s view=%s storage=%s weightNzShape=%s",
             op::ToString(tmpWeight->GetDataType()).GetString(),
             tmpWeightViewShapeStr.GetString(),
             tmpWeightStorageShapeStr.GetString(),
