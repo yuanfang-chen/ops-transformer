@@ -45,67 +45,31 @@ class CausalConv1dCutBSH {
 public:
     __aicore__ inline CausalConv1dCutBSH() {}
 
-    __aicore__ inline void Init(
-        GM_ADDR x,
-        GM_ADDR weight,
-        GM_ADDR convStates,
-        GM_ADDR queryStartLoc,
-        GM_ADDR cacheIndices,
-        GM_ADDR initialStateMode,
-        GM_ADDR y,
-        GM_ADDR workspace,
-        const CausalConv1dCutBSHTilingData* tiling);
-
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc,
+                                GM_ADDR cacheIndices, GM_ADDR initialStateMode, GM_ADDR y, GM_ADDR workspace,
+                                const CausalConv1dCutBSHTilingData* tiling);
     __aicore__ inline void Process();
 
 private:
-    // 主计算：二维切分场景（同时切 BS 和 Dim）
-    __aicore__ inline void ProcessMainCompute(
-        uint64_t bsStart, uint64_t dimStart,
-        uint32_t loopNumBS,   uint32_t ubFactorBS,   uint32_t ubTailFactorBS,
-        uint32_t loopNumDim,  uint32_t ubFactorDim,  uint32_t ubTailFactorDim);
-
-    // 处理单个 UB 块：[bsStart, bsStart+bsSize) 行，[dimStart, dimStart+dimSize) 列
-    // curBatchIdx 和 curSequenceIdx 由调用者传入，在函数内部会被更新
-    // iStart: token 遍历的起始位置（考虑 UB 块间重叠）
-    __aicore__ inline void ProcessUBBlock(
-        uint32_t bsStart, uint32_t bsSize,
-        uint32_t dimStart, uint32_t dimSize,
-        uint32_t iStart,
-        uint32_t& curBatchIdx, uint32_t& curSequenceIdx);
-
-    // 处理需要 cache state 的 token（curSequenceIdx < K-1）
-    // 返回处理的 token 数量
-    __aicore__ inline uint16_t ProcessTokensNeedCache(
-        LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
-        uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
-        uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
-        uint64_t batchStart, uint32_t curBatchLen, uint32_t curSequenceIdx,
-        int32_t hasInitState, int64_t cIdx, uint32_t curBatchIdx,
-        bool& reachBatchEnd);
-
-    // 处理不需要 cache 的 token（curSequenceIdx >= K-1）
-    // 返回处理的 token 数量
-    __aicore__ inline uint16_t ProcessTokensNoCache(
-        LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
-        uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
-        uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
-        uint64_t batchStart, uint32_t curBatchLen, uint32_t curSequenceIdx,
-        int64_t cIdx, uint32_t curBatchIdx,
-        bool& reachBatchEnd);
-
-    // 回写 cache（短 batch，长度 < K）
-    __aicore__ inline void WriteCacheShortBatch(
-        LocalTensor<T>& cacheLocal, LocalTensor<T>& xLocal,
-        uint32_t i, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
-        uint32_t cacheSkipBlocks, uint32_t curBatchLen,
-        int64_t cIdx, uint32_t curBatchIdx);
-
-    // 回写 cache（长 batch，长度 >= K，到达 batch 末尾时）
-    __aicore__ inline void WriteCacheLongBatch(
-        LocalTensor<T>& xLocal,
-        uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks,
-        uint32_t dimStart, uint32_t cacheSkipBlocks,
+    __aicore__ inline void ParseBSHTilingData(const CausalConv1dCutBSHTilingData* tiling);
+    __aicore__ inline void ProcessMainCompute(uint64_t bsStart, uint64_t dimStart,
+        uint32_t loopNumBS, uint32_t ubFactorBS, uint32_t ubTailFactorBS,
+        uint32_t loopNumDim, uint32_t ubFactorDim, uint32_t ubTailFactorDim);
+    __aicore__ inline void ProcessUBBlock(uint32_t bsStart, uint32_t bsSize, uint32_t dimStart, uint32_t dimSize,
+        uint32_t iStart, uint32_t& curBatchIdx, uint32_t& curSequenceIdx);
+    __aicore__ inline uint16_t ProcessTokensNeedCache(LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
+        uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
+        uint32_t cacheSkipBlocks, uint32_t ySkipBlocks, uint64_t batchStart, uint32_t curBatchLen,
+        uint32_t curSequenceIdx, int32_t hasInitState, int64_t cIdx, uint32_t curBatchIdx, bool& reachBatchEnd);
+    __aicore__ inline uint16_t ProcessTokensNoCache(LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
+        uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
+        uint32_t cacheSkipBlocks, uint32_t ySkipBlocks, uint64_t batchStart, uint32_t curBatchLen,
+        uint32_t curSequenceIdx, int64_t cIdx, uint32_t curBatchIdx, bool& reachBatchEnd);
+    __aicore__ inline void WriteCacheShortBatch(LocalTensor<T>& cacheLocal, LocalTensor<T>& xLocal,
+        uint32_t i, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart, uint32_t cacheSkipBlocks,
+        uint32_t curBatchLen, int64_t cIdx, uint32_t curBatchIdx);
+    __aicore__ inline void WriteCacheLongBatch(LocalTensor<T>& xLocal, uint32_t i, uint16_t step,
+        uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart, uint32_t cacheSkipBlocks,
         int64_t cIdx, uint32_t curBatchIdx);
 
     // 全核同步后，从 GM 原始数据重建 cache 并写回 cacheStates（延迟写回）
@@ -227,21 +191,11 @@ private:
 };
 
 // ============================================================================
-// Init
+// ParseBSHTilingData：解析 TilingData 到成员变量
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dCutBSH<T>::Init(
-    GM_ADDR x,
-    GM_ADDR weight,
-    GM_ADDR convStates,
-    GM_ADDR queryStartLoc,
-    GM_ADDR cacheIndices,
-    GM_ADDR initialStateMode,
-    GM_ADDR y,
-    GM_ADDR workspace,
-    const CausalConv1dCutBSHTilingData* tiling)
+__aicore__ inline void CausalConv1dCutBSH<T>::ParseBSHTilingData(const CausalConv1dCutBSHTilingData* tiling)
 {
-    // --- 解析 tiling ---
     dim_                       = tiling->dim;
     kernelWidth_               = tiling->kernelWidth;
     batchSize_                 = tiling->batch;
@@ -283,24 +237,30 @@ __aicore__ inline void CausalConv1dCutBSH<T>::Init(
 
     // 有效 batch 范围
     padSlotId_                 = tiling->padSlotId;
+}
+
+// ============================================================================
+// Init
+// ============================================================================
+template <typename T>
+__aicore__ inline void CausalConv1dCutBSH<T>::Init(GM_ADDR x, GM_ADDR weight, GM_ADDR convStates,
+    GM_ADDR queryStartLoc, GM_ADDR cacheIndices, GM_ADDR initialStateMode, GM_ADDR y, GM_ADDR workspace,
+    const CausalConv1dCutBSHTilingData* tiling)
+{
+    ParseBSHTilingData(tiling);
 
     // 计算当前核的二维索引
     uint32_t blockIdx = GetBlockIdx();
-    bsIdx_  = blockIdx / dimCoreNum_;     // BS 方向的核索引
-    dimIdx_ = blockIdx % dimCoreNum_;     // Dim 方向的核索引
+    bsIdx_  = blockIdx / dimCoreNum_;                    // BS 方向的核索引
+    dimIdx_ = blockIdx - bsIdx_ * dimCoreNum_;           // Dim 方向的核索引
 
     initialStateModeNull_ = (initialStateMode == nullptr);  // 检查是否为空指针
 
-    // 计算各方向上实际的最大 UB 因子（用于 buffer 分配，仅 Init 内使用）
-    uint32_t maxUbBS = ubFactorBS_;
-    if (ubTailFactorBS_          > maxUbBS) maxUbBS = ubTailFactorBS_;
-    if (tailBlockubFactorBS_     > maxUbBS) maxUbBS = tailBlockubFactorBS_;
-    if (tailBlockubTailFactorBS_ > maxUbBS) maxUbBS = tailBlockubTailFactorBS_;
-
-    uint32_t maxUbDim = ubFactorDim_;
-    if (ubTailFactorDim_          > maxUbDim) maxUbDim = ubTailFactorDim_;
-    if (tailBlockubFactorDim_     > maxUbDim) maxUbDim = tailBlockubFactorDim_;
-    if (tailBlockubTailFactorDim_ > maxUbDim) maxUbDim = tailBlockubTailFactorDim_;
+    // 根据当前核的实际类型计算 UB 因子（用于 buffer 分配，仅 Init 内使用）
+    bool isBsTailCore  = (bsIdx_ >= bsRemainderCores_);
+    bool isDimTailCore = (dimIdx_ >= dimRemainderCores_);
+    uint32_t maxUbBS  = isBsTailCore  ? tailBlockubFactorBS_  : ubFactorBS_;
+    uint32_t maxUbDim = isDimTailCore ? tailBlockubFactorDim_ : ubFactorDim_;
 
     // --- 绑定 GM ---
     // xGM_ 从 x 起始地址开始，bsStart 就是全局 token 位置
@@ -400,18 +360,14 @@ __aicore__ inline uint32_t CausalConv1dCutBSH<T>::FindBatchIdx(uint64_t globalSe
 // ProcessUBBlock - 处理单个 UB 块
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dCutBSH<T>::ProcessUBBlock(
-    uint32_t bsStart, uint32_t bsSize,
-    uint32_t dimStart, uint32_t dimSize,
-    uint32_t iStart,
-    uint32_t& curBatchIdx, uint32_t& curSequenceIdx)
+__aicore__ inline void CausalConv1dCutBSH<T>::ProcessUBBlock(uint32_t bsStart, uint32_t bsSize,
+    uint32_t dimStart, uint32_t dimSize, uint32_t iStart, uint32_t& curBatchIdx, uint32_t& curSequenceIdx)
 {
     uint32_t K = kernelWidth_;
     uint32_t N = bsSize;
 
     // 计算各种 stride 参数
-    uint32_t dimBytes   = dimSize * sizeof(T);
-    uint32_t dimBlocks  = dimBytes / ALIGN_BYTES;
+    uint32_t dimBlocks  = dimSize * sizeof(T) / ALIGN_BYTES;
     uint32_t weightSkipBlocks = (dim_ - dimSize) * sizeof(T) / ALIGN_BYTES;
     uint32_t ySkipBlocks = weightSkipBlocks;
     uint32_t xSkipBlocks = (xStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
@@ -511,13 +467,11 @@ __aicore__ inline void CausalConv1dCutBSH<T>::ProcessUBBlock(
 // ProcessTokensNeedCache - 处理需要 cache state 的 token（curSequenceIdx < K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(
-    LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
-    uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
-    uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
-    uint64_t batchStart, uint32_t curBatchLen, uint32_t curSequenceIdx,
-    int32_t hasInitState, int64_t cIdx, uint32_t curBatchIdx,
-    bool& reachBatchEnd)
+__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(LocalTensor<T>& xLocal,
+    LocalTensor<T>& weightLocal, uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
+    uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks, uint64_t batchStart,
+    uint32_t curBatchLen, uint32_t curSequenceIdx, int32_t hasInitState, int64_t cIdx,
+    uint32_t curBatchIdx, bool& reachBatchEnd)
 {
     uint32_t K = kernelWidth_;
 
@@ -550,6 +504,10 @@ __aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(
                              cacheSkipBlocks, curBatchLen, cIdx, curBatchIdx);
     }
 
+    // 写回 y 的公共参数
+    uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
+    DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
+                          0, ySkipBlocks * ALIGN_BYTES, 0};
     // 卷积计算（hasInitState == 2 时跳过）
     if (hasInitState != 2) {
         for (uint32_t j = 0; j < step; j++) {
@@ -563,26 +521,15 @@ __aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(
             // 每次 VF 计算后同步，确保写入完成
         }
         SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
-        // 写回 y
-        uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
-        DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                            0, ySkipBlocks * ALIGN_BYTES, 0};
-        DataCopyPad(yGM_[yGmOffset],
-                    cacheLocal[curSequenceIdx * dimSize], ycp);
+        DataCopyPad(yGM_[yGmOffset], cacheLocal[curSequenceIdx * dimSize], ycp);
     } else {
         // hasInitState == 2，跳过卷积
         if (residualConnection_ == 1) {
             // 需要残差连接，直接把 x 搬到 yGM（y = x）
-            uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
-            DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                                  0, ySkipBlocks * ALIGN_BYTES, 0};
             DataCopyPad(yGM_[yGmOffset], xLocal[i * dimSize], ycp);
         } else {
             SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
             // residualConnection_ == 0，需要把 y 置 0，cacheLocal 已填充 0，直接搬出
-            uint64_t yGmOffset = (batchStart + curSequenceIdx) * dim_ + dimStart;
-            DataCopyExtParams ycp{step, static_cast<uint16_t>(dimBlocks * ALIGN_BYTES),
-                                  0, ySkipBlocks * ALIGN_BYTES, 0};
             DataCopyPad(yGM_[yGmOffset], cacheLocal[curSequenceIdx * dimSize], ycp);
         }
     }
@@ -594,13 +541,10 @@ __aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNeedCache(
 // ProcessTokensNoCache - 处理不需要 cache 的 token（curSequenceIdx >= K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNoCache(
-    LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
-    uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
-    uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
-    uint64_t batchStart, uint32_t curBatchLen, uint32_t curSequenceIdx,
-    int64_t cIdx, uint32_t curBatchIdx,
-    bool& reachBatchEnd)
+__aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNoCache(LocalTensor<T>& xLocal,
+    LocalTensor<T>& weightLocal, uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
+    uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks, uint64_t batchStart,
+    uint32_t curBatchLen, uint32_t curSequenceIdx, int64_t cIdx, uint32_t curBatchIdx, bool& reachBatchEnd)
 {
     uint32_t K = kernelWidth_;
 
@@ -635,11 +579,9 @@ __aicore__ inline uint16_t CausalConv1dCutBSH<T>::ProcessTokensNoCache(
 // WriteCacheShortBatch - 回写 cache（短 batch，长度 < K）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheShortBatch(
-    LocalTensor<T>& cacheLocal, LocalTensor<T>& xLocal,
-    uint32_t i, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
-    uint32_t cacheSkipBlocks, uint32_t curBatchLen,
-    int64_t cIdx, uint32_t curBatchIdx)
+__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheShortBatch(LocalTensor<T>& cacheLocal,
+    LocalTensor<T>& xLocal, uint32_t i, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
+    uint32_t cacheSkipBlocks, uint32_t curBatchLen, int64_t cIdx, uint32_t curBatchIdx)
 {
     uint32_t K = kernelWidth_;
     uint32_t cacheRowsToKeep = (K - 1 > curBatchLen) ? (K - 1 - curBatchLen) : 0;
@@ -673,11 +615,9 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheShortBatch(
 // WriteCacheLongBatch - 回写 cache（长 batch，长度 >= K）
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheLongBatch(
-    LocalTensor<T>& xLocal,
-    uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks,
-    uint32_t dimStart, uint32_t cacheSkipBlocks,
-    int64_t cIdx, uint32_t curBatchIdx)
+__aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheLongBatch(LocalTensor<T>& xLocal,
+    uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks, uint32_t dimStart,
+    uint32_t cacheSkipBlocks, int64_t cIdx, uint32_t curBatchIdx)
 {
     uint32_t K = kernelWidth_;
 
@@ -702,21 +642,17 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteCacheLongBatch(
 // dimStart: 当前核在 Dim 方向的起始位置
 // ============================================================================
 template <typename T>
-__aicore__ inline void CausalConv1dCutBSH<T>::ProcessMainCompute(
-    uint64_t bsStart, uint64_t dimStart,
-    uint32_t loopNumBS,  uint32_t ubFactorBS,  uint32_t ubTailFactorBS,
+__aicore__ inline void CausalConv1dCutBSH<T>::ProcessMainCompute(uint64_t bsStart, uint64_t dimStart,
+    uint32_t loopNumBS, uint32_t ubFactorBS, uint32_t ubTailFactorBS,
     uint32_t loopNumDim, uint32_t ubFactorDim, uint32_t ubTailFactorDim)
 {
     // 每次 BS 方向前进的步长（由于有 K-1 重叠，每次实际前进 ubFactorBS - (K-1) 行）
     uint32_t K    = kernelWidth_;
     uint16_t step = (ubFactorBS > K - 1) ? (ubFactorBS - (K - 1)) : 1;
 
-    // bsStart 就是全局 token 位置，直接用于 batch 边界判断
-    uint64_t globalBsStart = bsStart;
-
     // 只在核开始时调用一次 FindBatchIdx（传入全局位置）
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
-    uint32_t curBatchIdx = FindBatchIdx(globalBsStart);
+    uint32_t curBatchIdx = FindBatchIdx(bsStart);
 
     // iStart：只有 bsIdx_ == 0 的核的第一个 BS 循环从 0 开始，其余从 K-1 开始
     bool isBsFirstCore = (bsIdx_ == 0);
@@ -783,10 +719,7 @@ __aicore__ inline void CausalConv1dCutBSH<T>::ProcessMainCompute(
 template <typename T>
 __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
 {
-    if (!firstBatchNeedsDeferredWrite_) {
-        return;
-    }
-    if (firstBatchCIdx_ == padSlotId_) {
+    if (!firstBatchNeedsDeferredWrite_ || firstBatchCIdx_ == padSlotId_) {
         return;
     }
 
@@ -808,15 +741,12 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
     uint64_t batchEnd    = (uint64_t)seqStartLocal_.GetValue(firstBatchIdx_ + 1);
     uint32_t curBatchLen = (uint32_t)(batchEnd - batchStart);
 
-    // 每行实际数据的字节数和块数
-    uint32_t rowBytes   = dimSize * sizeof(T);
-    uint32_t rowBlocks  = rowBytes / ALIGN_BYTES;
-    // cacheStates 的行间跳过
+    uint32_t rowBlocks  = dimSize * sizeof(T) / ALIGN_BYTES;
     uint32_t cacheSkip  = (cacheStride1_ - dimSize) * sizeof(T) / ALIGN_BYTES;
-    // x 的行间跳过
     uint32_t xSkip      = (xStride_ - dimSize) * sizeof(T) / ALIGN_BYTES;
 
     int64_t cIdx = firstBatchCIdx_;
+    DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
 
     LocalTensor<T> tmpBuf = xQueue_.AllocTensor<T>();
 
@@ -826,7 +756,6 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
         DataCopyExtParams rcp{static_cast<uint16_t>(rows),
                               static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
                               static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
-        DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         DataCopyPad(tmpBuf, xGM_[xSrcOffset], rcp, padParams);
     } else {
         // Short batch：组装 [旧 cache 尾部, x 行]
@@ -841,7 +770,6 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
                 DataCopyExtParams rcp{static_cast<uint16_t>(cacheRowsToKeep),
                                       static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
                                       static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0, 0};
-                DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
                 DataCopyPad(tmpBuf, cacheStatesGM_[cacheSrcOffset], rcp, padParams);
             } else {
                 // hasInit == 0 或 2：旧 cache 为零
@@ -854,7 +782,6 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
             DataCopyExtParams rcp{static_cast<uint16_t>(curBatchLen),
                                   static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
                                   static_cast<uint16_t>(xSkip * ALIGN_BYTES), 0, 0};
-            DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
             DataCopyPad(tmpBuf[cacheRowsToKeep * dimSize], xGM_[xSrcOffset], rcp, padParams);
         }
     }
@@ -864,12 +791,10 @@ __aicore__ inline void CausalConv1dCutBSH<T>::WriteDeferredCacheToStates()
 
     // 写回 cacheStates
     uint64_t csDstOffset = (uint64_t)cIdx * cacheStride0_ + dimStart;
-    {
-        DataCopyExtParams wcp{static_cast<uint16_t>(rows),
-                              static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
-                              0, static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0};
-        DataCopyPad(cacheStatesGM_[csDstOffset], tmpBuf, wcp);
-    }
+    DataCopyExtParams wcp{static_cast<uint16_t>(rows),
+                          static_cast<uint16_t>(rowBlocks * ALIGN_BYTES),
+                          0, static_cast<uint16_t>(cacheSkip * ALIGN_BYTES), 0};
+    DataCopyPad(cacheStatesGM_[csDstOffset], tmpBuf, wcp);
 
     xQueue_.FreeTensor(tmpBuf);
 }
