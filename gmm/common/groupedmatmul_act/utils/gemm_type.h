@@ -16,7 +16,7 @@
 #ifndef ACT_INCLUDE_UTILS_GEMM_TYPE_H
 #define ACT_INCLUDE_UTILS_GEMM_TYPE_H
 
-#include "kernel_event.h"
+#include "kernel_operator.h"
 
 namespace Act::Gemm {
 template <class Element_, class Layout_, AscendC::TPosition POSITION_ = AscendC::TPosition::GM>
