@@ -113,6 +113,7 @@ def generate_inputs(config: AttentionConfig):
         "batch_size": config.batch_size,
         "query_seq_size": config.q_seq,
         "query_head_num": config.q_head_num,
+        "head_dim": config.head_dim,
         "key_seq_size": config.kv_seq_length,
         "key_head_num": config.kv_head_num,
         "block_size": config.block_size,
@@ -148,7 +149,9 @@ def main():
     print("⚙️ Setting up NPU compiler config...")
     compiler_config = CompilerConfig()
     compiler_config.mode = config.compile_mode
-
+    compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel = True
+    compiler_config.experimental_config.aclgraph._super_kernel_optimize = True
+    compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "./result/"
     # 5. Get NPU backend
     print("🎯 Getting NPU backend...")
     npu_backend = tng.get_npu_backend(compiler_config=compiler_config)

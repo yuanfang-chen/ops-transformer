@@ -253,14 +253,16 @@ print(f"✅ 元数据计算完成！Shape: {metadata.shape}")
 ### 运行单元测试
 
 ```bash
+cd  ops-transformer/experimental/ascend_ops/src/test
+
 # 运行AICPU Tiling下沉+FA算子(<<<>>>调用)测试
-python 
+python test.py
 
 # 运行AICPU Tiling下沉+FA算子(<<<>>>调用)+aclpraph测试
 python test_aclgraph.py
 
 # 运行AICPU Tiling下沉+FA算子(<<<>>>调用)+Aclpraph+SuperKernel测试
-python 
+python test_aclgraph_sk.py
 ```
 ---
 
@@ -272,7 +274,7 @@ python
 
 **参数**:
 
-| 参数 | 类型 | 必填 | 说明 |
+| 参数名 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `query` | Tensor | ✅ | Query 张量 |
 | `key` | Tensor | ✅ | Key Cache 张量，INT8 量化 |
@@ -303,7 +305,7 @@ python
 
 **参数**:
 
-| 参数 | 类型 | 必填 | 说明 |
+| 参数名 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `batch_size` | int | ✅ | 批次大小 |
 | `query_seq_size` | int | ✅ | Query 序列长度 |

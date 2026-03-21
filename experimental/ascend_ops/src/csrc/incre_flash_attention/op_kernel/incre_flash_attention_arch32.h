@@ -40,6 +40,7 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
             InitMetaData<IncreFlashAttentionMetaData>(metaData, &metaDataTmp);                                         \
             meta_data = &metaDataTmp;                                                                                  \
         }                                                                                                              \
+        op.blockNum = GetBlockNum();                                                                                   \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable, kvPaddingSize,\
                 meta_data, attentionOut, softmaxLse, user, tiling_data, &tPipe);                                       \
         op.InitQuant(deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,    \
@@ -47,6 +48,23 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
         op.Process();                                                                                                  \
     } while (0)
 
+#define INVOKE_IFA_NO_KFC_DD_OP_IMPL_SK(templateClass, ...)                                                            \
+    do {                                                                                                               \
+        templateClass<IFAType<__VA_ARGS__>> op;                                                                        \
+        const optiling::IncreFlashAttentionTilingData *__restrict tiling_data = &tiling;                               \
+        const IncreFlashAttentionMetaData *__restrict meta_data = nullptr;                                             \
+        IncreFlashAttentionMetaData metaDataTmp;                                                                       \
+        if (metaData != nullptr) {                                                                                     \
+            InitMetaData<IncreFlashAttentionMetaData>(metaData, &metaDataTmp);                                         \
+            meta_data = &metaDataTmp;                                                                                  \
+        }                                                                                                              \
+        op.blockNum = sysArgs->skBlockNum;                                                                        \
+        op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable, kvPaddingSize,\
+                meta_data, attentionOut, softmaxLse, user, tiling_data, &tPipe);                                       \
+        op.InitQuant(deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,    \
+                     keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, user);          \ 
+        op.Process();                                                                                                  \
+    } while (0)
 
 template <uint8_t FLASH_DECODE, uint8_t LAYOUT_T, uint8_t ANTIQUANT_MODE>
 __global__ __mix__(1, 2) void incre_flash_attention(
@@ -69,3 +87,102 @@ __global__ __mix__(1, 2) void incre_flash_attention(
     INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t,
                                     bfloat16_t, true, FLASH_DECODE, static_cast<LAYOUT>(LAYOUT_T), ANTIQUANT_MODE, false, LAYOUT::NZ, AMLAMODE::NORMAL);
 }
+
+// SK Adapt
+struct SKArgsStruct {
+    GM_ADDR query;
+    GM_ADDR key;
+    GM_ADDR value;
+    GM_ADDR pseShift;
+    GM_ADDR attenMask;
+    GM_ADDR actualSeqLengthsQ;
+    GM_ADDR actualSeqLengths;
+    GM_ADDR deqScale1;
+    GM_ADDR quantScale1;
+    GM_ADDR deqScale2;
+    GM_ADDR quantScale2;
+    GM_ADDR quantOffset2;
+    GM_ADDR antiquantScale;
+    GM_ADDR antiquantOffset;
+    GM_ADDR blocktable;
+    GM_ADDR queryPaddingSize;
+    GM_ADDR kvPaddingSize;
+    GM_ADDR keyAntiquantScale;
+    GM_ADDR keyAntiquantOffset;
+    GM_ADDR valueAntiquantScale;
+    GM_ADDR valueAntiquantOffset;
+    GM_ADDR keySharedPrefix;
+    GM_ADDR valueSharedPrefix;
+    GM_ADDR actualSharedPrefixLen;
+    GM_ADDR queryRope;
+    GM_ADDR keyRope;
+    GM_ADDR keyRopeAntiquantScale;
+    GM_ADDR dequantScaleQuery;
+    GM_ADDR metaData;
+    GM_ADDR attentionOut;
+    GM_ADDR softmaxLse;
+    GM_ADDR workspace;
+    optiling::IncreFlashAttentionTilingData tiling;
+};
+
+template <uint8_t FLASH_DECODE, uint8_t LAYOUT_T, uint8_t ANTIQUANT_MODE, uint32_t splitNum>
+__sk__ void incre_flash_attention_sk(const SKArgsStruct *args, const sk::SkSystemArgs *sysArgs)
+{
+    GM_ADDR query = args->query;
+    GM_ADDR key = args->key;
+    GM_ADDR value = args->value;
+    GM_ADDR pseShift = args->pseShift;
+    GM_ADDR attenMask = args->attenMask;
+    GM_ADDR actualSeqLengthsQ = args->actualSeqLengthsQ;
+    GM_ADDR actualSeqLengths = args->actualSeqLengths;
+    GM_ADDR deqScale1 = args->deqScale1;
+    GM_ADDR quantScale1 = args->quantScale1;
+    GM_ADDR deqScale2 = args->deqScale2;
+    GM_ADDR quantScale2 = args->quantScale2;
+    GM_ADDR quantOffset2 = args->quantOffset2;
+    GM_ADDR antiquantScale = args->antiquantScale;
+    GM_ADDR antiquantOffset = args->antiquantOffset;
+    GM_ADDR blocktable = args->blocktable;
+    GM_ADDR queryPaddingSize = args->queryPaddingSize;
+    GM_ADDR kvPaddingSize = args->kvPaddingSize;
+    GM_ADDR keyAntiquantScale = args->keyAntiquantScale;
+    GM_ADDR keyAntiquantOffset = args->keyAntiquantOffset;
+    GM_ADDR valueAntiquantScale = args->valueAntiquantScale;
+    GM_ADDR valueAntiquantOffset = args->valueAntiquantOffset;
+    GM_ADDR keySharedPrefix = args->keySharedPrefix;
+    GM_ADDR valueSharedPrefix = args->valueSharedPrefix;
+    GM_ADDR actualSharedPrefixLen = args->actualSharedPrefixLen;
+    GM_ADDR queryRope = args->queryRope;
+    GM_ADDR keyRope = args->keyRope;
+    GM_ADDR keyRopeAntiquantScale = args->keyRopeAntiquantScale;
+    GM_ADDR dequantScaleQuery = args->dequantScaleQuery;
+    GM_ADDR metaData = args->metaData;
+    GM_ADDR attentionOut = args->attentionOut;
+    GM_ADDR softmaxLse = args->softmaxLse;
+    GM_ADDR workspace = args->workspace;
+    const optiling::IncreFlashAttentionTilingData& tiling = args->tiling;
+
+    TPipe tPipe;
+    __gm__ uint8_t *user = workspace; 
+
+    INVOKE_IFA_NO_KFC_DD_OP_IMPL_SK(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t,
+                                    bfloat16_t, true, FLASH_DECODE, static_cast<LAYOUT>(LAYOUT_T), ANTIQUANT_MODE, false, LAYOUT::NZ, AMLAMODE::NORMAL);
+}
+
+#define FA_SK_BIND(FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE)                            \
+        SK_BIND(incre_flash_attention<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE>,        \
+                4,                                                                    \
+                incre_flash_attention_sk<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE, 0>,  \
+                incre_flash_attention_sk<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE, 1>,  \
+                incre_flash_attention_sk<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE, 2>,  \
+                incre_flash_attention_sk<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE, 3>   \
+                )
+
+FA_SK_BIND(0, 0, 0);
+FA_SK_BIND(0, 0, 1);
+FA_SK_BIND(0, 1, 0);
+FA_SK_BIND(0, 1, 1);
+FA_SK_BIND(1, 0, 0);
+FA_SK_BIND(1, 0, 1);
+FA_SK_BIND(1, 1, 0);
+FA_SK_BIND(1, 1, 1);

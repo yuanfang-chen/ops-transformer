@@ -153,6 +153,7 @@ public:
     using MM_OUT_T = typename AscendC::Conditional<ANTIQUANT, half, T>::type;
     using L0C_T = typename AscendC::Conditional<ANTIQUANT, int32_t, T>::type;
 
+    uint64_t blockNum = 0;
 protected:
     const optiling::IncreFlashAttentionTilingData *__restrict tilingData = nullptr;
     const IncreFlashAttentionMetaData *__restrict metaData_ = nullptr;
@@ -996,43 +997,43 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
         if constexpr (KVINT4) {
             queryPreProcessResGm.SetGlobalBuffer(
                 (__gm__ KV_T *)(workspace + offset + (aiCoreIdx * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T) >> 1)));
-            offset += (GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T) >> 1);
+            offset += (blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T) >> 1);
         } else {
             queryPreProcessResGm.SetGlobalBuffer(
                 (__gm__ KV_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T)));
-            offset += GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T);
+            offset += blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(KV_T);
         }
     }
 
     mm1ResGm.SetGlobalBuffer(
             (__gm__ MM_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * mmResUbSize * sizeof(MM_OUT_T)));
-    offset += GetBlockNum() * dbWorkspaceRatio * mmResUbSize * sizeof(MM_OUT_T);
+    offset += blockNum * dbWorkspaceRatio * mmResUbSize * sizeof(MM_OUT_T);
 
     if constexpr (KVINT4) {
         vec1ResGm.SetGlobalBuffer(
             (__gm__ KV_T *)(workspace + offset + (aiCoreIdx * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T) >> 1)));
-        offset += (GetBlockNum() * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T) >> 1);
+        offset += (blockNum * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T) >> 1);
     } else {
         vec1ResGm.SetGlobalBuffer(
             (__gm__ KV_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T)));
-        offset += GetBlockNum() * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T);
+        offset += blockNum * dbWorkspaceRatio * mmResUbSize * sizeof(KV_T);
     }
 
 
     mm2ResGm.SetGlobalBuffer(
             (__gm__ MM_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T)));
-    offset += GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
+    offset += blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
 
     if constexpr (ANTIQUANT) {
         vec2ResGm.SetGlobalBuffer(
                 (__gm__ MM_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio* bmm2ResUbSize * sizeof(MM_OUT_T)));
-        offset += GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
+        offset += blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
     } else {
         vec2ResGm.SetGlobalBuffer(
                 (__gm__ MM_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio* bmm2ResUbSize * sizeof(T)));
-        offset += GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
+        offset += blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(MM_OUT_T);
     }
-    offset += GetBlockNum() * dbWorkspaceRatio * bmm2ResUbSize * sizeof(T);
+    offset += blockNum * dbWorkspaceRatio * bmm2ResUbSize * sizeof(T);
 
     // GM for pse
     if (pseShiftFlag) {

@@ -524,7 +524,7 @@ def main():
 
         rtol=1e-4,
         atol=1e-4,
-        specific_case=[4, 6]
+        specific_case=[0]
         #only_first_n_cases=20
     )
 
