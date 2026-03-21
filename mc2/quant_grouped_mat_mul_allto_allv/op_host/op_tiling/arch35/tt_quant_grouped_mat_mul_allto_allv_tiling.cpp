@@ -26,7 +26,7 @@ using namespace AscendC;
 using namespace optiling;
 using namespace optiling::Mc2GroupedMatmul;
 
-// namespace Mc2GroupedMatmul {
+namespace optiling {
 
 static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
@@ -68,4 +68,4 @@ uint64_t TTQuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 // 注册tiling类
 REGISTER_OPS_TILING_TEMPLATE(QuantGroupedMatMulAlltoAllv, TTQuantGroupedMatmulAllToAllvTiling, 0);
 
-// }
+}
