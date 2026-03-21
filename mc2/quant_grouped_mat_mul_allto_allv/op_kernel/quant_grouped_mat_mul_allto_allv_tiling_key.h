@@ -56,13 +56,11 @@ ASCENDC_TPL_ARGS_DECL(QuantGroupedMatMulAlltoAllv,
 
                     // GMM 量化模式：0=NONE, 1=TT, 2=MX
                     ASCENDC_TPL_UINT_DECL(TILINGKEY_GMM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_MX),
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_MX),
+                                            QUANT_MODE_NONE, QUANT_MODE_TT),
 
                     // 共享专家 MM 量化模式: 0=NONE, 1=TT, 2=MX
                     ASCENDC_TPL_UINT_DECL(TILINGKEY_SHARED_MM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_MX));
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_MX));
+                                            QUANT_MODE_NONE, QUANT_MODE_TT));
 
 /**
  * TilingKey 选择器定义
