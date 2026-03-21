@@ -430,12 +430,12 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
     OP_TILING_CHECK((mmXScaleShape == nullptr), OP_LOGE(opName_, "The input mmXScale shape is invalid"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((mmWeightScaleShape == nullptr), OP_LOGE(opName_, "The input mmWeightScale shape is invalid"), return ge::GRAPH_FAILED);
 
-    uint64_t mmXScaleDim0 = mmXScaleShape->GetStorageShape().GetDim(0);
-    uint64_t mmXScaleDim1 = mmXScaleShape->GetStorageShape().GetDim(1);
-    uint64_t mmXScaleDim2 = mmXScaleShape->GetStorageShape().GetDim(2);
-    uint64_t mmWeightScaleDim0 = mmWeightScaleShape->GetStorageShape().GetDim(0);
-    uint64_t mmWeightScaleDim1 = mmWeightScaleShape->GetStorageShape().GetDim(1);
-    uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(2);
+    uint64_t mmXScaleDim0 = mmXScaleShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t mmXScaleDim1 = mmXScaleShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t mmXScaleDim2 = mmXScaleShape->GetStorageShape().GetDim(DIM_TWO);
+    uint64_t mmWeightScaleDim0 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t mmWeightScaleDim1 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t mmWeightScaleDim2 = mmWeightScaleShape->GetStorageShape().GetDim(DIM_TWO2);
 
     uint64_t mmxDivH2 = (localParams_.H2 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.Bs != mmXScaleDim0) || (mmxDivH2 != mmXScaleDim1) || (mmXScaleDim2 != EVEN_ALIGN),
