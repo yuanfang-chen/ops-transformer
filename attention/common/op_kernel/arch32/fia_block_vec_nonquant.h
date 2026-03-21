@@ -1031,8 +1031,6 @@ template <typename FIAT>
  	                                                                    uint32_t wsMStart, uint32_t dealRowCount)
 {
     constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
-    int64_t gIdx = 0;
-    int64_t s1Idx = 0;
 
     LocalTensor<COMPUTE_T> sinkBuf = tmpBuff1.GetWithOffset<COMPUTE_T>(BUFFER_SIZE_BYTE_8K, BUFFER_SIZE_BYTE_8K * 2);
     SinkCopyIn(info, sinkBuf);
