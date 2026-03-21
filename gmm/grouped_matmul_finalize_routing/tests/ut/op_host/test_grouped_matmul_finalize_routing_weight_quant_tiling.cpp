@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 
 #include "../../../op_host/op_tiling/arch35/grouped_matmul_finalize_routing_weight_quant_tiling.h"
+#include "../../../op_kernel/arch35/weight_quant_basic_block/grouped_matmul_finalize_routing_weight_quant_tiling_data.h"
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
 
@@ -326,6 +327,21 @@ protected:
             if (tc.verifyBlockNum) {
                 EXPECT_EQ(tilingInfo.blockNum, DEFAULT_COMPILE_INFO.aicNum);
             }
+            
+            // Verify initSize calculation
+            if (tilingInfo.tilingData != nullptr && tilingInfo.tilingDataSize > 0) {
+                auto* weightQuantTiling = reinterpret_cast<const GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData*>(tilingInfo.tilingData.get());
+                uint64_t actualInitSize = weightQuantTiling->initSize;
+                
+                // Calculate expected initSize: (outputBS - sharedInputLen) * nSize
+                int64_t outputBS = (tc.outputBs != "NULL") ? stoi(tc.outputBs) : (tc.e > 0 ? tc.m / tc.e : 0);
+                uint64_t expectedInitSize = (outputBS - tc.bs) * tc.n;
+                
+                EXPECT_EQ(actualInitSize, expectedInitSize) 
+                    << tc.testName << ": initSize mismatch. Expected=" << expectedInitSize 
+                    << " (outputBS=" << outputBS << " - bs=" << tc.bs << ") * n=" << tc.n
+                    << ", Actual=" << actualInitSize;
+            }
         } else {
             ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
         }
@@ -360,7 +376,7 @@ TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroWit
 TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestCsvFileLoaded)
 {
     auto& cases = GetCsvTestCases();
-    EXPECT_EQ(cases.size(), 20) << "Expected 20 test cases in CSV file";
+    EXPECT_EQ(cases.size(), 23) << "Expected 23 test cases in CSV file";
     
     cout << "Successfully loaded " << cases.size() << " test cases from CSV" << endl;
     for (const auto& pair : cases) {
