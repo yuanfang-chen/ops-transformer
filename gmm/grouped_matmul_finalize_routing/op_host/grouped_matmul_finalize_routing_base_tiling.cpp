@@ -74,6 +74,7 @@ constexpr uint32_t A8W4_L1OPT_SMALLM_BASE_N = 128;
 constexpr uint32_t A8W4_L1OPT_BIGM_BASE_M = 128;
 constexpr uint32_t A8W4_L1OPT_BIGM_BASE_N = 128;
 constexpr uint32_t A8W4_L1OPT_BASE_K = 512;
+constexpr uint32_t FIXED_BASE_N = 96;
 
 static ge::graphStatus GetInputDims(const gert::Shape &storageShape, ge::Format format, int64_t (&dims)[TWO_BATCH_DIM])
 {
@@ -245,13 +246,11 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
     ubRestBytes_ = A8W4_UBRESTBYTES;
 
     uint32_t baseM = A8W4_MSD_BASE_M_DEFAULT;
-    uint32_t baseN = A8W4_MSD_BASE_N_DEFAULT;
+    uint32_t baseN = FIXED_BASE_N;
     uint32_t avg_m = (tuningConfig_ != 0) ? tuningConfig_  : ((groupNum_ != 0) ? (m_ / groupNum_) : 1);
     OP_LOGD(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling tuningConfig is %ld, avg_m is %u",
             tuningConfig_, avg_m);
     baseM = avg_m < AVG_M_THREHOLD ? A8W4_MSD_SMALLM_BASE_M : A8W4_MSD_BIGM_BASE_M;
-    baseN = avg_m < AVG_M_THREHOLD ? A8W4_MSD_SMALLM_BASE_N : A8W4_MSD_BIGM_BASE_N;
-
     if (baseN > n_) {
         baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
     }
@@ -321,7 +320,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
     OP_LOGD(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling tuningConfig is %ld, avg_m is %u",
             tuningConfig_, avg_m);
     uint32_t baseM = avg_m < AVG_M_THREHOLD ? A8W4_L1OPT_SMALLM_BASE_M : A8W4_L1OPT_BIGM_BASE_M;
-    uint32_t baseN = avg_m < AVG_M_THREHOLD ? A8W4_L1OPT_SMALLM_BASE_N : A8W4_L1OPT_BIGM_BASE_N;
+    uint32_t baseN = FIXED_BASE_N;
 
     if (baseN > n_) {
         baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
@@ -379,14 +378,18 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
     ubRestBytes_ = A8W8_UBRESTBYTES;
     
     uint32_t baseM = BEST_BASE_M;
-    uint32_t baseN = BEST_BASE_N;
+    uint32_t baseN = FIXED_BASE_N;
     // When n=7168/7680 and k=2048, we use tuningConfig_ to select more optimal baseM/baseN.
     if ((n_ == 7168 || n_ == 7680) && k_ == 2048) {
         uint32_t avg_m = (tuningConfig_ != 0) ? tuningConfig_  : ((groupNum_ != 0) ? (m_ / groupNum_) : 1);
         OP_LOGD(context_->GetNodeName(), "GroupedMatmulFinalizeRoutingBaseTiling(A8W8) tuningConfig is %ld, avg_m is %u",
                 tuningConfig_, avg_m);
         baseM = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_N : BEST_BASE_M;
-        baseN = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_M : BEST_BASE_N;
+        baseN = FIXED_BASE_N;
+    }
+
+    if (baseN > n_) {
+        baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
     }
 
     std::cout << "zzzlog [BaseTiling::W8A8TilingProcess] "
