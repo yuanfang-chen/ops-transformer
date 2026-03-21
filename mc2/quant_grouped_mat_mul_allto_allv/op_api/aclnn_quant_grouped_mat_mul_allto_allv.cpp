@@ -509,18 +509,71 @@ static aclnnStatus CheckMxScaleShape(const aclTensor *scale, const char *name)
     return ACLNN_SUCCESS;
 }
 
-// 检测 weight 转置状态，仅设置标志位，不修改 tensor shape
-static aclnnStatus DetectMxWeightTranspose(const aclTensor *weight, bool &transWeight, const char *name)
+// 交换 tensor view 的两个维度（shape + strides），不改变物理数据，基于 aclCreateTensor
+static const aclTensor *SwapTensorDims(const aclTensor *tensor, uint64_t dimA, uint64_t dimB)
+{
+    uint64_t storageShapeDimNum = tensor->GetStorageShape().GetDimNum();
+    std::vector<int64_t> storageDim(storageShapeDimNum);
+    for (uint64_t i = 0; i < storageShapeDimNum; i++) {
+        storageDim[i] = tensor->GetStorageShape().GetDim(i);
+    }
+    uint64_t viewShapeDimNum = tensor->GetViewShape().GetDimNum();
+    std::vector<int64_t> viewDim(viewShapeDimNum);
+    for (uint64_t i = 0; i < viewShapeDimNum; i++) {
+        viewDim[i] = tensor->GetViewShape().GetDim(i);
+    }
+    std::swap(viewDim[dimA], viewDim[dimB]);
+    aclDataType dataType = aclDataType::ACL_DT_UNDEFINED;
+    aclGetDataType(tensor, &dataType);
+    auto origStride = tensor->GetViewStrides();
+    std::vector<int64_t> stride(origStride.begin(), origStride.end());
+    std::swap(stride[dimA], stride[dimB]);
+    auto offset = tensor->GetViewOffset();
+    aclFormat format = aclFormat::ACL_FORMAT_ND;
+    return aclCreateTensor(viewDim.data(), viewShapeDimNum, dataType, stride.data(), offset, format,
+                           storageDim.data(), storageShapeDimNum, tensor->GetTensor()->GetAddr());
+}
+
+// 检测 gmmWeight stride 转置，同时 reshape weight 和 scale（swap dim[1]/dim[2]）
+static aclnnStatus HandleGmmMxTranspose(const aclTensor *&weight, const aclTensor *&scale, bool &transWeight)
 {
     bool notContiguous = IsTransposeLastTwoDims(weight);
-    OP_LOGD("%s notContiguous=%d, transWeight(before)=%d", name, notContiguous, transWeight);
+    OP_LOGD("gmmWeight notContiguous=%d, transWeight(before)=%d", notContiguous, transWeight);
     if (notContiguous && transWeight) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s not contiguous and transWeight is already set!", name);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight not contiguous and transGmmWeight is already set!");
         return ACLNN_ERR_PARAM_INVALID;
     }
     if (notContiguous && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         transWeight = !transWeight;
-        OP_LOGD("%s transposed detected: transWeight flipped to %d", name, transWeight);
+        OP_LOGD("gmmWeight transposed detected: transWeight flipped to %d", transWeight);
+        weight = SwapTensorDims(weight, 1, 2);
+        CHECK_RET(weight != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        if (scale != nullptr) {
+            scale = SwapTensorDims(scale, 1, 2);
+            CHECK_RET(scale != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        }
+    }
+    return ACLNN_SUCCESS;
+}
+
+// 检测 mmWeight stride 转置，同时 reshape weight 和 scale（swap dim[0]/dim[1]）
+static aclnnStatus HandleMmMxTranspose(const aclTensor *&weight, const aclTensor *&scale, bool &transWeight)
+{
+    bool notContiguous = IsTransposeLastTwoDims(weight);
+    OP_LOGD("mmWeight notContiguous=%d, transWeight(before)=%d", notContiguous, transWeight);
+    if (notContiguous && transWeight) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeight not contiguous and transMmWeight is already set!");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if (notContiguous && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        transWeight = !transWeight;
+        OP_LOGD("mmWeight transposed detected: transWeight flipped to %d", transWeight);
+        weight = SwapTensorDims(weight, 0, 1);
+        CHECK_RET(weight != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        if (scale != nullptr) {
+            scale = SwapTensorDims(scale, 0, 1);
+            CHECK_RET(scale != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        }
     }
     return ACLNN_SUCCESS;
 }
@@ -588,11 +641,11 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         scaleRet = CheckMxScaleShape(mmWeightScaleOptional, "mmWeightScale");
         CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
 
-        // 检测 weight 转置状态，仅设置标志位
-        auto transRet = DetectMxWeightTranspose(gmmWeight, transGmmWeight, "gmmWeight");
+        // 检测 weight stride 转置，同时 reshape weight 和 scale
+        auto transRet = HandleGmmMxTranspose(gmmWeight, gmmWeightScaleOptional, transGmmWeight);
         CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
         if (mmWeightOptional != nullptr) {
-            transRet = DetectMxWeightTranspose(mmWeightOptional, transMmWeight, "mmWeight");
+            transRet = HandleMmMxTranspose(mmWeightOptional, mmWeightScaleOptional, transMmWeight);
             CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
         }
 
