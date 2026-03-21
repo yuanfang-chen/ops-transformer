@@ -113,7 +113,7 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
     yGm_ = reinterpret_cast<__gm__ yType *>(y);
     shareInputAddr_ = reinterpret_cast<__gm__ sharedInputDType *>(shareInput);
     groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t *>(groupList));
-    basicBlock_.Init(tiling_->hasBias, tiling_->groupSize, yGm_);
+    basicBlock_.Init(tiling_->hasBias, tiling_->groupSize, yGm_, tiling_->sharedInputWeight);
     mxA8W4L1KDynamicConfigMThreshold_ = tiling_->hasBias ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
                                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
 }

@@ -48,7 +48,7 @@ GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
 class WQFRVcvMatmulBasicBlock {
 public:
     __aicore__ inline WQFRVcvMatmulBasicBlock(){};
-    __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y);
+    __aicore__ inline void Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y, float sharedInputWeight);
     __aicore__ inline void InitAtomicGm(uint64_t initSize, uint64_t sharedInputStartSize, uint64_t sharedInputSize, __gm__ sharedInputDType *shareInputAddr);
     __aicore__ inline void UpdateGlobalAddr(__gm__ xType *x, __gm__ wType *weight,
                                             __gm__ antiQuantScaleType *antiquantScale, __gm__ xType *antiquantOffset,
@@ -118,7 +118,7 @@ protected:
 };
 
 GMM_WQ_VCV_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y)
+__aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t antiQuantGroupSize, __gm__ yType *y, float sharedInputWeight)
 {
     hasBias_ = hasBias;
     biasL1DbOffset_ = 0;
@@ -139,7 +139,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::Init(bool hasBias, uint64_t
     if ASCEND_IS_AIC {
         cubeCompute_.MxA8W4Init(l1RemainSize, l1StartSize, biasL1DbOffset_, biasL1_);
     } else {
-        vecCompute_.Init(hasBias_, 0.0f, reinterpret_cast<__gm__ float*>(y));
+        vecCompute_.Init(hasBias_, sharedInputWeight, reinterpret_cast<__gm__ float*>(y));
     }
     cvLoopIdx_ = 0;
 }
@@ -154,7 +154,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::InitAtomicGm(uint64_t initS
 
     // shared input mte3写出
     constexpr uint64_t mte2BufferSize =
-        WeightQuantBatchMatmulV2::Arch35::GetMxA8W4NzBufferInfo<vecConfig>().weightInputLowBitUbSingleBufferSize / sizeof(float);
+        WeightQuantBatchMatmulV2::Arch35::GetMxA8W4NzBufferInfo<vecConfig>().weightInputLowBitUbSingleBufferSize / sizeof(sharedInputDType);
     for (uint64_t sharedInputGmOffset = AscendC::GetBlockIdx() * mte2BufferSize; sharedInputGmOffset <= sharedInputSize;
          sharedInputGmOffset += AscendC::GetBlockNum() * mte2BufferSize) {
         uint64_t initSharedInputRealSize = sharedInputGmOffset + mte2BufferSize > sharedInputSize ?
