@@ -35,6 +35,7 @@ extern "C" __global__ __aicore__ void causal_conv1d(
     GM_ADDR workspace,            // workspace
     GM_ADDR tiling)               // tiling
 {
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     REGISTER_TILING_DEFAULT(CausalConv1dCutBSHTilingData);
     REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR >= 20000)", CausalConv1dCutBHTilingData);
     TPipe pipe;
