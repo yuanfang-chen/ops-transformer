@@ -15,8 +15,8 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_host/causal_conv1d_update_tiling_arch35.h"
-#include "../../../op_host/causal_conv1d_fn_tiling_arch35.h"
+#include "../../../op_host/causal_conv1d_cut_bh_tiling_arch35.h"
+#include "../../../op_host/causal_conv1d_cut_bsh_tiling_arch35.h"
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
 
@@ -38,7 +38,7 @@ protected:
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
@@ -78,7 +78,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
         &compileInfo);
 
     int64_t expectTilingKey = 20000;
-    std::string expectTilingData = "16 4 4 4 0 128 128 4 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 512 1024 512 -1 0 1 0";
+    std::string expectTilingData = "16 4 4 4 0 128 128 4 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 512 1024 512 -1 0 1 0 ";
 
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -86,7 +86,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b4_s1_d512)
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
@@ -127,7 +127,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
         &compileInfo);
 
     int64_t expectTilingKey = 20000;
-    std::string expectTilingData = "8 8 1 8 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 4 0 1024 3 5 1024 5120 1024 -1 0 1 0";
+    std::string expectTilingData = "8 8 1 8 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 4 0 1024 3 5 1024 5120 1024 -1 0 1 0 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -135,7 +135,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d1024)
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
@@ -176,7 +176,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d
         &compileInfo);
 
     int64_t expectTilingKey = 20000;
-    std::string expectTilingData = "4 4 1 4 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 512 3 5 512 2560 512 -1 1 1 1";
+    std::string expectTilingData = "4 4 1 4 0 128 128 1 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 1 6 4 512 3 5 512 2560 512 -1 1 1 1 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -184,7 +184,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf_b1_s4_d512_x2d
 // Helper to build a 2D-Input TilingContextPara
 static gert::TilingContextPara Make2DTilingPara(int64_t batch, int64_t cuSeqLen, int64_t dim)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
@@ -300,7 +300,7 @@ protected:
 // cache_max_size=4 (> batch=2, allows some buffer)
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_basic_fp16)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -344,7 +344,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_basic_fp16)
 // cu_seq_len = 64
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_single_batch)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -388,7 +388,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_single_batch)
 // cu_seq_len = 8 * 512 = 4096
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_medium_fp16)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -432,7 +432,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_medium_fp16)
 // cu_seq_len = 128 + 256 + 64 = 448
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_variable_seqlen)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -475,7 +475,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_variable_seqlen)
 // batch=4, cu_seq_len=32768, dim=512, kernel_width=4
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_large_bf16)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -518,7 +518,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_large_bf16)
 // batch=256, cu_seq_len=65536, dim=8192, kernel_width=3
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_xlarge_fp16)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -560,7 +560,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_xlarge_fp16)
 // Test case 7: Small size test with FP16
 TEST_F(CausalConv1dFnTiling, CausalConv1d_950_tiling_small_fp16)
 {
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {64, 261888};
+    optiling::CausalConv1dCutBHCompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
