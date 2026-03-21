@@ -341,6 +341,20 @@ protected:
                     << tc.testName << ": initSize mismatch. Expected=" << expectedInitSize 
                     << " (outputBS=" << outputBS << " - bs=" << tc.bs << ") * n=" << tc.n
                     << ", Actual=" << actualInitSize;
+                
+                // Verify nSize
+                uint64_t actualNSize = weightQuantTiling->nSize;
+                uint64_t expectedNSize = tc.n;
+                EXPECT_EQ(actualNSize, expectedNSize) 
+                    << tc.testName << ": nSize mismatch. Expected=" << expectedNSize 
+                    << ", Actual=" << actualNSize;
+                
+                // Verify sharedInputLen
+                uint64_t actualSharedInputLen = weightQuantTiling->sharedInputLen;
+                uint64_t expectedSharedInputLen = tc.bs;
+                EXPECT_EQ(actualSharedInputLen, expectedSharedInputLen) 
+                    << tc.testName << ": sharedInputLen mismatch. Expected=" << expectedSharedInputLen 
+                    << ", Actual=" << actualSharedInputLen;
             }
         } else {
             ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);

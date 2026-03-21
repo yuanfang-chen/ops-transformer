@@ -628,8 +628,8 @@ static bool ExtractWDimensions(gert::TilingContext *contex, GMMFRWeightQuantInpu
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
 
     if (inputParams.wFormat == ge::FORMAT_FRACTAL_NZ || inputParams.wFormat == ge::FORMAT_FRACTAL_NZ_C0_32) {
-        const gert::Shape &wStorage = wStorageShape->GetStorageShape();
-        inputParams.nSize = wStorage.GetDim(1);
+        // For FRACTAL_NZ, get N from origin shape [E, N, K]
+        inputParams.nSize = wShape.GetDim(1);
     } else {
         uint32_t wDimNum = static_cast<uint32_t>(wShape.GetDimNum());
         inputParams.nSize = wShape.GetDim(wDimNum - LAST_SECOND_DIM_INDEX);
