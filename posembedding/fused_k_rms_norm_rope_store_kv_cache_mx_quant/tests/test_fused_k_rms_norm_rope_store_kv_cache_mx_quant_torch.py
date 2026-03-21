@@ -20,7 +20,11 @@ import numpy as np
 
 import torch
 import torch_npu
-import npu_ops_transformer
+
+# 直接导入特定算子，避免加载其他无关算子
+from npu_ops_transformer.ops.fused_k_rms_norm_rope_store_kv_cache_mx_quant import (
+    npu_fused_k_rms_norm_rope_store_kv_cache_mx_quant
+)
 
 QUANT_BLOCK_SIZE = 32
 EPSILON = 1e-5
@@ -119,8 +123,9 @@ def create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu"):
     sin = torch.randn(T, 1, D, dtype=torch.bfloat16, device=device)
     gamma = torch.randn(D, dtype=torch.float32, device=device).abs() + 0.1
 
-    kv_slot_mapping = torch.arange(T, dtype=torch.int64, device=device)
-    v_scale_slot_mapping = torch.arange(T // QUANT_BLOCK_SIZE // 2, dtype=torch.int64, device=device)
+    # 随机打乱 slot_mapping，测试 scatter 功能
+    kv_slot_mapping = torch.randperm(T, dtype=torch.int64, device=device)
+    v_scale_slot_mapping = torch.randperm(T // QUANT_BLOCK_SIZE // 2, dtype=torch.int64, device=device)
 
     # NPU does not support direct float8 tensor creation, create as uint8 and view
     k_cache = torch.zeros(Bn, Nk, Bs, D, dtype=torch.uint8, device=device).view(torch.float8_e4m3fn)
@@ -209,7 +214,7 @@ def test_npu_execution():
 
         # Run NPU fused operator
         q, q_scale, k_cache_out, k_scale_cache_out, v_cache_out, v_scale_cache_out = \
-            torch.ops.npu_ops_transformer.npu_fused_k_rms_norm_rope_store_kv_cache_mx_quant(
+            npu_fused_k_rms_norm_rope_store_kv_cache_mx_quant(
                 qkv, cos, sin, gamma, kv_slot_mapping, v_scale_slot_mapping,
                 k_cache, k_scale_cache, v_cache, v_scale_cache, epsilon=EPSILON)
 

@@ -65,9 +65,10 @@ __aicore__ inline void StoreTensorForDtypeTOut(__local_mem__ T *dst, AscendC::Mi
 
 constexpr static int64_t QUANT_BLOCK_SIZE = 32;
 constexpr static int64_t U8_BLOCK_ALIGN_NUM = 32;
-constexpr static int64_t VL_B16 = Ops::Base::GetVRegSize() / sizeof(bfloat16_t);
-constexpr static int64_t VL_FP32 = Ops::Base::GetVRegSize() / sizeof(float);
-constexpr static int64_t DIGIT_TWO = 2;
+constexpr static uint32_t DIGIT_TWO = 2;
+constexpr static uint32_t VL_B16 = Ops::Base::GetVRegSize() / sizeof(bfloat16_t);
+constexpr static uint32_t HALF_VL_B16 = VL_B16 / DIGIT_TWO;
+constexpr static uint32_t VL_FP32 = Ops::Base::GetVRegSize() / sizeof(float);
 constexpr static int64_t COS_SIN_NUM = 2;
 constexpr static int64_t DOUBLE_BUFFER = 2;
 constexpr static uint16_t MAX_EXP_FOR_BF16 = 0x7f80;
@@ -78,7 +79,7 @@ constexpr static uint16_t NAN_CUSTOMIZATION = 0x7f81;
 constexpr static int16_t SHR_NUM_FOR_BF16 = 7;
 constexpr static uint16_t MAX_EXP_FOR_FP8 = 0x00ff;
 constexpr static uint16_t SPECIAL_EXP_THRESHOLD = 0x0040;
-constexpr static int64_t OUT_ELE_NUM_ONE_BLK = 64;
+constexpr static uint32_t OUT_ALL = 256;
 constexpr static uint16_t BLOCK_REDUCE_NUMS = Ops::Base::GetVRegSize() / Ops::Base::GetUbBlockSize();
 
 template <typename T_QKV, typename T_OUT>
@@ -164,6 +165,7 @@ public:
         __VEC_SCOPE__
         {
             uint32_t count = static_cast<uint32_t>(rSize - VL_FP32);
+            uint32_t strideU32 = static_cast<uint32_t>(stride);
             AscendC::MicroAPI::RegTensor<float> reg0, reg1, reg0_1, reg1_1, reg2, reg2_1;
             AscendC::MicroAPI::RegTensor<float> reg3, reg4, reg5, reg6, reg7, reg8, reg9;
             AscendC::MicroAPI::MaskReg pMask = AscendC::MicroAPI::UpdateMask<float>(count);
@@ -171,8 +173,8 @@ public:
                 AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
 
             for (uint16_t i = 0; i < loopTimes; ++i) {
-                LoadTensorForDtypeT<T>(x, reg0, pFull, i * stride);
-                LoadTensorForDtypeT<T>(x_1, reg0_1, pMask, i * stride);
+                LoadTensorForDtypeT<T>(x, reg0, pFull, i * strideU32);
+                LoadTensorForDtypeT<T>(x_1, reg0_1, pMask, i * strideU32);
                 LoadTensorForDtypeT<float>(gamma, reg1, pFull, 0);
                 LoadTensorForDtypeT<float>(gamma_1, reg1_1, pMask, 0);
 
@@ -189,11 +191,11 @@ public:
 
                 AscendC::MicroAPI::Div(reg6, reg0, reg5, pFull);
                 AscendC::MicroAPI::Mul(reg7, reg1, reg6, pFull);
-                StoreTensorForDtypeTOut<float>(dst, reg7, pFull, i * stride);
+                StoreTensorForDtypeTOut<float>(dst, reg7, pFull, i * strideU32);
 
                 AscendC::MicroAPI::Div(reg8, reg0_1, reg5, pMask);
                 AscendC::MicroAPI::Mul(reg9, reg1_1, reg8, pMask);
-                StoreTensorForDtypeTOut<float>(dst, reg9, pMask, i * stride + VL_FP32);
+                StoreTensorForDtypeTOut<float>(dst, reg9, pMask, i * strideU32 + VL_FP32);
             }
         }
     }
@@ -224,6 +226,8 @@ public:
 
         __VEC_SCOPE__
         {
+            uint32_t dSizeU32 = static_cast<uint32_t>(dSize);
+            uint32_t nSizeU32 = static_cast<uint32_t>(nSize);
             AscendC::MicroAPI::RegTensor<float> inPart1Reg;
             AscendC::MicroAPI::RegTensor<float> inPart2Reg;
             AscendC::MicroAPI::RegTensor<float> cosPart1Reg;
@@ -243,8 +247,8 @@ public:
 
             for (uint16_t sIdx = 0; sIdx < static_cast<uint16_t>(seqSize); sIdx++) {
                 // 对每个序列位置sIdx，cos和sin只需要加载一次
-                currCosUb = cosUb + sIdx * dSize;
-                currSinUb = sinUb + sIdx * dSize;
+                currCosUb = cosUb + sIdx * dSizeU32;
+                currSinUb = sinUb + sIdx * dSizeU32;
                 LoadTensorForDtypeT<T2>(currCosUb, cosPart1Reg, pFull, 0);           // cos[0:D/2]
                 LoadTensorForDtypeT<T2>(currCosUb, cosPart2Reg, pFull, dHalfOffset); // cos[D/2:D]
 
@@ -253,8 +257,8 @@ public:
 
                 for (uint16_t nIdx = 0; nIdx < static_cast<uint16_t>(nSize); nIdx++) {
                     // src需要对每个nIdx都加载
-                    currSrcUb = srcUb + (sIdx * nSize + nIdx) * dSize;
-                    currDstUb = dstUb + (sIdx * nSize + nIdx) * dSize;
+                    currSrcUb = srcUb + (sIdx * nSizeU32 + nIdx) * dSizeU32;
+                    currDstUb = dstUb + (sIdx * nSizeU32 + nIdx) * dSizeU32;
 
                     LoadTensorForDtypeT<T1>(currSrcUb, inPart1Reg, pFull, 0);           // in[0:D/2]
                     LoadTensorForDtypeT<T1>(currSrcUb, inPart2Reg, pFull, dHalfOffset); // in[D/2:D]
@@ -347,6 +351,7 @@ public:
     __aicore__ inline void CalcAxis1ScaleOcpVF(__ubuf__ uint16_t *mxScaleAddr, __ubuf__ uint16_t *halfScaleAddr,
                                                __ubuf__ uint16_t *maxExpAddr, uint32_t allScaleNum, uint16_t loopNum)
     {
+        
         __VEC_SCOPE__
         {
             AscendC::MicroAPI::RegTensor<uint16_t> expMask;
@@ -392,7 +397,7 @@ public:
 
                 AscendC::MicroAPI::DataCopy<uint16_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
                                             AscendC::MicroAPI::StoreDist::DIST_PACK_B16>(
-                    mxScaleAddr, scaleValue, VL_B16 / DIGIT_TWO, preMaskScale);
+                    mxScaleAddr, scaleValue, HALF_VL_B16, preMaskScale);
 
                 AscendC::MicroAPI::Compare<uint16_t, CMPMODE::EQ>(specialDataMask, sharedExp, scaleBias, preMaskScale);
                 AscendC::MicroAPI::Sub(halfScale, scaleBias, sharedExp, preMaskScale);
@@ -416,13 +421,10 @@ public:
             AscendC::MicroAPI::MaskReg dataMask2;
             AscendC::MicroAPI::MaskReg dataMask3;
             AscendC::MicroAPI::MaskReg dataMask4;
-            AscendC::MicroAPI::MaskReg maskAll =
-                AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::ALL>();
+            AscendC::MicroAPI::MaskReg dataMask5;
             AscendC::MicroAPI::RegTensor<uint16_t> halfScaleForMul;
             AscendC::MicroAPI::RegTensor<T> vdExp0;
             AscendC::MicroAPI::RegTensor<T> vdExp1;
-            AscendC::MicroAPI::RegTensor<bfloat16_t> vdExp0BF16;
-            AscendC::MicroAPI::RegTensor<bfloat16_t> vdExp1BF16;
             AscendC::MicroAPI::RegTensor<float> vdExp0FP32Zero;
             AscendC::MicroAPI::RegTensor<float> vdExp0FP32One;
             AscendC::MicroAPI::RegTensor<float> vdExp1FP32Zero;
@@ -437,13 +439,23 @@ public:
             static constexpr AscendC::MicroAPI::CastTrait castTraitOne = {
                 AscendC::MicroAPI::RegLayout::ONE, AscendC::MicroAPI::SatMode::UNKNOWN,
                 AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
-            static constexpr AscendC::MicroAPI::CastTrait castTrait32to8 = {
+            static constexpr AscendC::MicroAPI::CastTrait castTrait32to80 = {
                 AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::SAT,
+                AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+            static constexpr AscendC::MicroAPI::CastTrait castTrait32to81 = {
+                AscendC::MicroAPI::RegLayout::ONE, AscendC::MicroAPI::SatMode::SAT,
+                AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+            static constexpr AscendC::MicroAPI::CastTrait castTrait32to82 = {
+                AscendC::MicroAPI::RegLayout::TWO, AscendC::MicroAPI::SatMode::SAT,
+                AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+            static constexpr AscendC::MicroAPI::CastTrait castTrait32to83 = {
+                AscendC::MicroAPI::RegLayout::THREE, AscendC::MicroAPI::SatMode::SAT,
                 AscendC::MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
             dataMask1 = AscendC::MicroAPI::CreateMask<T>();
             dataMask2 = AscendC::MicroAPI::CreateMask<T>();
             dataMask3 = AscendC::MicroAPI::CreateMask<T>();
             dataMask4 = AscendC::MicroAPI::CreateMask<T>();
+            dataMask5 = AscendC::MicroAPI::CreateMask<U>();
             for (uint16_t i = 0; i < loopNum; i++) {
                 AscendC::MicroAPI::DataCopy<T, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
                                             AscendC::MicroAPI::LoadDist::DIST_DINTLV_B16>(vdExp0, vdExp1, srcAddr,
@@ -454,34 +466,31 @@ public:
 
                 AscendC::MicroAPI::Mul(vdExp0, vdExp0, (AscendC::MicroAPI::RegTensor<T> &)halfScaleForMul, dataMask1);
                 AscendC::MicroAPI::Mul(vdExp1, vdExp1, (AscendC::MicroAPI::RegTensor<T> &)halfScaleForMul, dataMask1);
-                AscendC::MicroAPI::Interleave(vdExp0, vdExp1, vdExp0, vdExp1);
+
                 AscendC::MicroAPI::Cast<float, T, castTraitZero>(vdExp0FP32Zero, vdExp0, dataMask1);
                 AscendC::MicroAPI::Cast<float, T, castTraitOne>(vdExp0FP32One, vdExp0, dataMask1);
-                AscendC::MicroAPI::Interleave(vdExp0FP32Zero, vdExp0FP32One, vdExp0FP32Zero, vdExp0FP32One);
-                AscendC::MicroAPI::Cast<U, float, castTrait32to8>(vdExp0FP8Zero, vdExp0FP32Zero, dataMask3);
-                AscendC::MicroAPI::Cast<U, float, castTrait32to8>(vdExp0FP8One, vdExp0FP32One, dataMask3);
                 AscendC::MicroAPI::Cast<float, T, castTraitZero>(vdExp1FP32Zero, vdExp1, dataMask2);
                 AscendC::MicroAPI::Cast<float, T, castTraitOne>(vdExp1FP32One, vdExp1, dataMask2);
-                AscendC::MicroAPI::Interleave(vdExp1FP32Zero, vdExp1FP32One, vdExp1FP32Zero, vdExp1FP32One);
-                AscendC::MicroAPI::Cast<U, float, castTrait32to8>(vdExp1FP8Zero, vdExp1FP32Zero, dataMask4);
-                AscendC::MicroAPI::Cast<U, float, castTrait32to8>(vdExp1FP8One, vdExp1FP32One, dataMask4);
+
+                AscendC::MicroAPI::Cast<U, float, castTrait32to80>(vdExp0FP8Zero, vdExp0FP32Zero, dataMask3);
+                AscendC::MicroAPI::Cast<U, float, castTrait32to82>(vdExp0FP8One, vdExp0FP32One, dataMask3);
+                AscendC::MicroAPI::Cast<U, float, castTrait32to81>(vdExp1FP8Zero, vdExp1FP32Zero, dataMask4);
+                AscendC::MicroAPI::Cast<U, float, castTrait32to83>(vdExp1FP8One, vdExp1FP32One, dataMask4);
+
+                AscendC::MicroAPI::Add((AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8One, dataMask5);
+                AscendC::MicroAPI::Add((AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp1FP8Zero, dataMask5);
+                AscendC::MicroAPI::Add((AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero,
+                                       (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp1FP8One, dataMask5);
 
                 AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
-                                            AscendC::MicroAPI::StoreDist::DIST_PACK4_B32>(
-                    quantOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero, OUT_ELE_NUM_ONE_BLK,
-                    dataMask3);
-                AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
-                                            AscendC::MicroAPI::StoreDist::DIST_PACK4_B32>(
-                    quantOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8One, OUT_ELE_NUM_ONE_BLK,
-                    dataMask3);
-                AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
-                                            AscendC::MicroAPI::StoreDist::DIST_PACK4_B32>(
-                    quantOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp1FP8Zero, OUT_ELE_NUM_ONE_BLK,
-                    dataMask4);
-                AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE,
-                                            AscendC::MicroAPI::StoreDist::DIST_PACK4_B32>(
-                    quantOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp1FP8One, OUT_ELE_NUM_ONE_BLK,
-                    dataMask4);
+                                            AscendC::MicroAPI::StoreDist::DIST_NORM_B8>(
+                    quantOutAddr, (AscendC::MicroAPI::RegTensor<uint8_t> &)vdExp0FP8Zero, OUT_ALL,
+                    dataMask5);
             }
         }
     }
@@ -492,15 +501,17 @@ public:
     {
         __VEC_SCOPE__
         {
+            uint32_t quantScaleLastDimU32 = static_cast<uint32_t>(quantScaleLastDim_);
+            uint32_t quantScaleLastDimBlockAlignU32 = static_cast<uint32_t>(quantScaleLastDimBlockAlign_);
             AscendC::MicroAPI::UnalignReg uIn;
             AscendC::MicroAPI::UnalignReg uOut;
             AscendC::MicroAPI::RegTensor<uint8_t> inputRegTensor;
             for (uint16_t i = 0; i < loopNum; i++) {
                 AscendC::MicroAPI::DataCopyUnAlignPre(uIn, mxScaleAddr);
                 AscendC::MicroAPI::DataCopyUnAlign<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    inputRegTensor, uIn, mxScaleAddr, quantScaleLastDim_);
+                    inputRegTensor, uIn, mxScaleAddr, quantScaleLastDimU32);
                 AscendC::MicroAPI::DataCopyUnAlign<uint8_t, AscendC::MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    mxScaleBlockAlignAddr, inputRegTensor, uOut, quantScaleLastDimBlockAlign_);
+                    mxScaleBlockAlignAddr, inputRegTensor, uOut, quantScaleLastDimBlockAlignU32);
                 AscendC::MicroAPI::DataCopyUnAlignPost(mxScaleBlockAlignAddr, uOut, 0);
             }
         }
@@ -541,6 +552,7 @@ public:
     {
         __VEC_SCOPE__
         {
+            uint32_t dSizeU32 = static_cast<uint32_t>(dSize);
             AscendC::MicroAPI::RegTensor<uint8_t> scale0;
             AscendC::MicroAPI::RegTensor<uint8_t> scale1;
             AscendC::MicroAPI::RegTensor<uint8_t> first128;
@@ -551,12 +563,12 @@ public:
                 // 两行scale为一个交织对，[2, dSize] -> [1, dSize, 2]
                 for (uint16_t i = 0; i < colLoopNum; i++) {
                     AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::LoadDist::DIST_NORM>(
-                        scale0, mxScaleU8ddr0 + pairIdx * dSize * DIGIT_TWO + i * VL_B16);
+                        scale0, mxScaleU8ddr0 + pairIdx * dSizeU32 * DIGIT_TWO + i * VL_B16);
                     AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::LoadDist::DIST_NORM>(
-                        scale1, mxScaleU8ddr0 + dSize + pairIdx * dSize * DIGIT_TWO + i * VL_B16);
+                        scale1, mxScaleU8ddr0 + dSizeU32 + pairIdx * dSizeU32 * DIGIT_TWO + i * VL_B16);
                     AscendC::MicroAPI::Interleave(first128, second128, scale0, scale1);
                     AscendC::MicroAPI::DataCopy<uint8_t, AscendC::MicroAPI::StoreDist::DIST_NORM>(
-                        scaleOutAddr + pairIdx * dSize * DIGIT_TWO + i * VL_B16 * DIGIT_TWO, first128, pregAllU8);
+                        scaleOutAddr + pairIdx * dSizeU32 * DIGIT_TWO + i * VL_B16 * DIGIT_TWO, first128, pregAllU8);
                 }
             }
         }
@@ -569,6 +581,7 @@ public:
     {
         __VEC_SCOPE__
         {
+            uint32_t dSizeU32 = static_cast<uint32_t>(dSize);
             AscendC::MicroAPI::RegTensor<T> xRegTensor;
             AscendC::MicroAPI::RegTensor<uint16_t> expRegTensor;
             AscendC::MicroAPI::RegTensor<uint16_t> expMaxRegTensor;
@@ -604,7 +617,7 @@ public:
                 // 行方向循环
                 AscendC::MicroAPI::Duplicate(expMaxRegTensor, 0);
                 for (uint16_t j = 0; j < rowLoopNum; j++) {
-                    DataCopy(xRegTensor, xAddr + j * dSize + i * VL_B16);
+                    DataCopy(xRegTensor, xAddr + j * dSizeU32 + i * VL_B16);
                     AscendC::MicroAPI::And(expRegTensor, (AscendC::MicroAPI::RegTensor<uint16_t> &)xRegTensor,
                                            maxEleRegTensor, pregAll16);
                     AscendC::MicroAPI::Max(expMaxRegTensor, expMaxRegTensor, expRegTensor, pregAll16);
@@ -647,6 +660,7 @@ public:
     {
         __VEC_SCOPE__
         {
+            uint32_t dSizeU32 = static_cast<uint32_t>(dSize);
             AscendC::MicroAPI::RegTensor<T> xRegTensor;
             AscendC::MicroAPI::RegTensor<float> xFP32RegTensor0;
             AscendC::MicroAPI::RegTensor<float> xFP32RegTensor1;
@@ -687,7 +701,7 @@ public:
                     (AscendC::MicroAPI::RegTensor<bfloat16_t> &)reversedShareExpRegTensor, pregAll16);
                 for (uint16_t j = 0; j < rowLoopNum; j++) {
                     AscendC::MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(xRegTensor,
-                                                                                  xAddr + j * dSize + i * VL_B16);
+                                                                                  xAddr + j * dSizeU32 + i * VL_B16);
 
                     AscendC::MicroAPI::Cast<float, T, castTraitXdtypetoFp32Zero>(xFP32RegTensor0, xRegTensor,
                                                                                  pregAll16);
@@ -717,7 +731,7 @@ public:
                         (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
                         (AscendC::MicroAPI::RegTensor<uint16_t> &)yZeroFP8);
 
-                    DataCopy(yAddr + j * dSize + i * VL_B16, (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
+                    DataCopy(yAddr + j * dSizeU32 + i * VL_B16, (AscendC::MicroAPI::RegTensor<uint8_t> &)yZeroFP8,
                              preg128);
                 }
             }
@@ -803,7 +817,6 @@ public:
                                           const LocalTensor<uint8_t> &outScaleTensor, const int64_t processSeqLen,
                                           const int64_t startTIdx)
     {
-        event_t eventIDSToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_MTE3));
         DataCopyExtParams copyQuantOutParams;
         copyQuantOutParams.blockCount = tilingData_->kNumHead;
         copyQuantOutParams.blockLen = tilingData_->headDim * sizeof(uint8_t);
@@ -822,8 +835,6 @@ public:
             int64_t bnIndex = cacheIndex / tilingData_->blockSize;
             // 计算Bs维度上的索引
             int64_t bsIndex = cacheIndex % tilingData_->blockSize;
-            SetFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
-            WaitFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
             DataCopyPad(kCacheGm_[bnIndex * kCacheBlockOffset_ + bsIndex * tilingData_->headDim],
                         outTensor[i * kHiddenSize_], copyQuantOutParams);
             DataCopyPad(kScaleCacheGm_[bnIndex * kScaleCacheBlockOffset_ + bsIndex * quantScaleLastDim_],
@@ -835,7 +846,6 @@ public:
                                           const LocalTensor<uint8_t> &outScaleTensor, const int64_t processSeqLen,
                                           const int64_t processNLen, const int64_t startTIdx, const int64_t nIdx)
     {
-        event_t eventIDSToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_MTE3));
         DataCopyExtParams copyQuantOutParams;
         copyQuantOutParams.blockCount = processNLen;
         copyQuantOutParams.blockLen = tilingData_->headDim * sizeof(uint8_t);
@@ -848,8 +858,6 @@ public:
             int64_t bnIndex = cacheIndex / tilingData_->blockSize;
             // 计算Bs维度上的索引
             int64_t bsIndex = cacheIndex % tilingData_->blockSize;
-            SetFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
-            WaitFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
             DataCopyPad(vCacheGm_[bnIndex * vCacheBlockOffset_ + nIdx * tilingData_->blockSize * tilingData_->headDim +
                                   bsIndex * tilingData_->headDim],
                         outTensor[i * processNLen * tilingData_->headDim], copyQuantOutParams);
@@ -862,8 +870,6 @@ public:
         copyScaleOutParams.dstStride = (vScaleCacheActualBs_ - 1) * tilingData_->headDim * DIGIT_TWO * sizeof(uint8_t);
         for (int64_t i = 0; i < processSeqLen / QUANT_BLOCK_SIZE / DIGIT_TWO; ++i) {
             int64_t cacheIndex = vScaleSlotMappingGm_(startTIdx / QUANT_BLOCK_SIZE / DIGIT_TWO + i);
-            SetFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
-            WaitFlag<HardEvent::S_MTE3>(eventIDSToMTE3);
             // 计算Bn维度上的索引
             int64_t bnIndex = cacheIndex / vScaleCacheActualBs_;
             // 计算Bs维度上的索引
