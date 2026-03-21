@@ -26,7 +26,7 @@ using namespace AscendC;
 using namespace optiling;
 using namespace optiling::Mc2GroupedMatmul;
 
-// namespace Mc2GroupedMatmul {
+namespace optiling {
 
 const std::vector<uint32_t> QUANT_GMM_X_DTYPE_LIST = {ge::DT_HIFLOAT8,};
 const std::vector<uint32_t> QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_HIFLOAT8,};
@@ -904,4 +904,4 @@ uint64_t QuantGroupedMatmulAllToAllvTilingBase::GetTilingKey() const
     return tilingKey;
 }
 
-// }
+}
