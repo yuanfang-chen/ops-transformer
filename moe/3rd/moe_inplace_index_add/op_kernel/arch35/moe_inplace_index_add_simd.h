@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License")
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file moe_inplace_index_add_simd.h
@@ -87,8 +87,8 @@ __aicore__ inline void MoeInplaceIndexAddSimd<VAR_T, IDX_T, CAST_T, IS_CONTIGUOU
     constexpr uint32_t vfLen = Ops::Base::GetVRegSize() / sizeof(int16_t);
     int32_t loopSize = Ops::Base::CeilDiv(static_cast<uint32_t>(colLen), vfLen);
     int32_t idLocation = 0;
-    int64_t colLenAlignSize = Ops::Base::CeilAlign(colLen * sizeof(VAR_T), UB_AGLIN_VALUE) / sizeof(VAR_T);
-    int64_t colLenAlignIn16 = Ops::Base::CeilAlign(colLen * sizeof(int16_t), UB_AGLIN_VALUE) / sizeof(int16_t);
+    int64_t colLenAlignSize = ops::CeilAlign(colLen * sizeof(VAR_T), UB_AGLIN_VALUE) / sizeof(VAR_T);
+    int64_t colLenAlignIn16 = ops::CeilAlign(colLen * sizeof(int16_t), UB_AGLIN_VALUE) / sizeof(int16_t);
 
     __VEC_SCOPE__
     {
@@ -115,7 +115,7 @@ __aicore__ inline void MoeInplaceIndexAddSimd<VAR_T, IDX_T, CAST_T, IS_CONTIGUOU
     LocalTensor<IDX_T> indicesLocal = indicesQue_.AllocTensor<IDX_T>();
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
 
-    int64_t colLenAlignedSize = Ops::Base::CeilAlign(sizeof(VAR_T) * colLen , UB_AGLIN_VALUE) / sizeof(VAR_T);
+    int64_t colLenAlignedSize = ops::CeilAlign(sizeof(VAR_T) * colLen , UB_AGLIN_VALUE) / sizeof(VAR_T);
     int64_t rowLen = tilingData_.updatesInAxis * preLen;
     if constexpr (IS_CONTIGUOUS) {
         CopyIn<IDX_T>(indicesLocal, indices_, tilingData_.updatesInAxis);
@@ -181,7 +181,7 @@ __aicore__ inline void MoeInplaceIndexAddSimd<VAR_T, IDX_T, CAST_T, IS_CONTIGUOU
     LocalTensor<IDX_T> indicesLocal = indicesQue_.AllocTensor<IDX_T>();
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
 
-    int64_t colLenAlignSize = Ops::Base::CeilAlign(colLen * sizeof(VAR_T), UB_AGLIN_VALUE) / sizeof(VAR_T);
+    int64_t colLenAlignSize = ops::CeilAlign(colLen * sizeof(VAR_T), UB_AGLIN_VALUE) / sizeof(VAR_T);
     int64_t indicesOfset = tilingData_.ubIndexFactor * rowIdx;
     if constexpr (IS_CONTIGUOUS) {
         CopyIn<IDX_T>(indicesLocal, indices_[indicesOfset], rowLen);
@@ -292,7 +292,7 @@ __aicore__ inline void MoeInplaceIndexAddSimd<VAR_T, IDX_T, CAST_T, IS_CONTIGUOU
     LocalTensor<IDX_T> indicesLocal = indicesQue_.AllocTensor<IDX_T>();
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
 
-    int64_t colLenAlignSize = Ops::Base::CeilAlign(sizeof(VAR_T) *colLen, UB_AGLIN_VALUE) / sizeof(VAR_T);
+    int64_t colLenAlignSize = ops::CeilAlign(sizeof(VAR_T) *colLen, UB_AGLIN_VALUE) / sizeof(VAR_T);
     int64_t indicesOfset = rowIdx * tilingData_.ubIndexFactor;	
     if constexpr (IS_CONTIGUOUS) {
         CopyIn<IDX_T>(indicesLocal, indices_[indicesOfset], rowLen);
@@ -387,7 +387,7 @@ __aicore__ inline void MoeInplaceIndexAddSimd<VAR_T, IDX_T, CAST_T, IS_CONTIGUOU
     LocalTensor<IDX_T> indicesLocal = indicesQue_.AllocTensor<IDX_T>();
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
 
-    int64_t colLenAlignSize = Ops::Base::CeilAlign(sizeof(VAR_T) *colLen, UB_AGLIN_VALUE) / sizeof(VAR_T);
+    int64_t colLenAlignSize = ops::CeilAlign(sizeof(VAR_T) *colLen, UB_AGLIN_VALUE) / sizeof(VAR_T);
     int64_t indicesOfset =  GetBlockIdx() * tilingData_.eachCoreIndexCount + rowIdx * tilingData_.ubIndexFactor;
     if constexpr (IS_CONTIGUOUS) {
         CopyIn<IDX_T>(indicesLocal, indices_[indicesOfset], rowLen);
