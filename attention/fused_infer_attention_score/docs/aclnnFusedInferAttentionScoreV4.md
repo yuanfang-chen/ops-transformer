@@ -1607,7 +1607,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="22">query d=512</td>
+            <td rowspan="24">query d=512</td>
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>FLOAT16、BFLOAT16；Q_N=[1,2,4,8,16,32,64,128]</td>
@@ -1728,7 +1728,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
             <td>-</td>
         </tr>
         <tr>
-            <td colspan="4">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
+            <td colspan="5">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
         </tr>
         <tr>
             <td rowspan="5">query d=128</td>
