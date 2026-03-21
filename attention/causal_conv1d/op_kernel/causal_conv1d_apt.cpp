@@ -43,14 +43,14 @@ extern "C" __global__ __aicore__ void causal_conv1d(
 
     if (TILING_KEY_IS(TILING_KEY_BH_BF16)) {
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dCutBHTilingData, tilingData, tiling);
-        CausalConv1dCutBHKernel<bfloat16_t> op(&pipe);
+        CausalConv1dCutBH<bfloat16_t> op(&pipe);
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
         op.Process();
     }
 
     if (TILING_KEY_IS(TILING_KEY_BH_FP16)) {
         GET_TILING_DATA_WITH_STRUCT(CausalConv1dCutBHTilingData, tilingData, tiling);
-        CausalConv1dCutBHKernel<half> op(&pipe);
+        CausalConv1dCutBH<half> op(&pipe);
         op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
         op.Process();
     }

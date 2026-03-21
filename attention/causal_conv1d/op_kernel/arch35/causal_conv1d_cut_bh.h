@@ -65,9 +65,9 @@ constexpr int32_t MAX_SEQUENCE_LEN = 6;
  * - yQueue: 存储输出y数据（复用xQueue的buffer）
  */
 template <typename T>
-class CausalConv1dCutBHKernel {
+class CausalConv1dCutBH {
 public:
-    __aicore__ inline CausalConv1dCutBHKernel(TPipe* pipe) : pipe_(pipe) {};
+    __aicore__ inline CausalConv1dCutBH(TPipe* pipe) : pipe_(pipe) {};
     /**
      * @brief 初始化函数，设置所有Global Memory指针并分配UB资源
      * @param x 输入序列 [batch, m+1, dim]
@@ -180,7 +180,7 @@ private:
 // ==================== 函数实现 ====================
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::Init(
+__aicore__ inline void CausalConv1dCutBH<T>::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc, GM_ADDR cacheIndices,
     GM_ADDR numAcceptedToken, GM_ADDR y,const CausalConv1dCutBHTilingData* tilingData)
 {
@@ -306,7 +306,7 @@ __aicore__ inline void CausalConv1dCutBHKernel<T>::Init(
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::Process()
+__aicore__ inline void CausalConv1dCutBH<T>::Process()
 {
     // 预先搬运cache indices、accept token numbers和query start loc到UB
     // 这些是常驻数据，整个Process过程中都需要访问
@@ -358,7 +358,7 @@ __aicore__ inline void CausalConv1dCutBHKernel<T>::Process()
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::CopyIn(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& queryStartLocLocal)
+__aicore__ inline void CausalConv1dCutBH<T>::CopyIn(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& queryStartLocLocal)
 {
     LocalTensor<T> xLocal = xQueue.AllocTensor<T>();
     LocalTensor<T> weightLocal = weightQueue.AllocTensor<T>();
@@ -401,7 +401,7 @@ __aicore__ inline void CausalConv1dCutBHKernel<T>::CopyIn(int32_t batchLoop, int
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::Compute(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& indicesLocal,
+__aicore__ inline void CausalConv1dCutBH<T>::Compute(int32_t batchLoop, int32_t dimLoop, const LocalTensor<int32_t>& indicesLocal,
     const LocalTensor<int32_t>& acceptTokenLocal, const LocalTensor<int32_t>& queryStartLocLocal)
 {
     LocalTensor<T> xLocal = xQueue.DeQue<T>();
@@ -483,7 +483,7 @@ __aicore__ inline void CausalConv1dCutBHKernel<T>::Compute(int32_t batchLoop, in
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
+__aicore__ inline void CausalConv1dCutBH<T>::UpdateconvStates(const LocalTensor<T>& xLocal, const LocalTensor<T>& convStatesLocal,
     int32_t acceptToken, int32_t curBatchUbOffset, int64_t convStatesIdx, int32_t curBatchSeq)
 {
     int64_t convStatesGmOffset = convStatesIdx * cacheBatchLenSum_ + dimOffset_ + dimOffsetInLoop_;
@@ -518,7 +518,7 @@ __aicore__ inline void CausalConv1dCutBHKernel<T>::UpdateconvStates(const LocalT
 }
 
 template <typename T>
-__aicore__ inline void CausalConv1dCutBHKernel<T>::InsertSync(const HardEvent& event)
+__aicore__ inline void CausalConv1dCutBH<T>::InsertSync(const HardEvent& event)
 {
     event_t eventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(event));
     switch (event) {
