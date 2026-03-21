@@ -77,17 +77,17 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     OP_TILING_CHECK(yStorageShape == nullptr, OP_LOGE(opName_, "The yStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
-    auto status = MxCheckShapeDimensions(gmmXStorageShape, DIM_TWO, "gmmXShape", opName_);
+    auto status = CheckShapeDimensions(gmmXStorageShape, DIM_TWO, "gmmXShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
 
-    status = MxCheckShapeDimensions(gmmWeightStorageShape, DIM_THREE, "gmmWeightShape", opName_);
+    status = CheckShapeDimensions(gmmWeightStorageShape, DIM_THREE, "gmmWeightShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
 
-    status = MxCheckShapeDimensions(yStorageShape, DIM_TWO, "yShape", opName_);
+    status = CheckShapeDimensions(yStorageShape, DIM_TWO, "yShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
@@ -135,15 +135,15 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
     OP_TILING_CHECK(mmYStorageShape == nullptr, OP_LOGE(opName_, "The mmYStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
-    auto status = MxCheckShapeDimensions(mmXStorageShape, DIM_TWO, "mmXShape", opName_);
+    auto status = CheckShapeDimensions(mmXStorageShape, DIM_TWO, "mmXShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
-    status = MxCheckShapeDimensions(mmWeightStorageShape, DIM_TWO, "mmWeightShape", opName_);
+    status = CheckShapeDimensions(mmWeightStorageShape, DIM_TWO, "mmWeightShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
-    status = MxCheckShapeDimensions(mmYStorageShape, DIM_TWO, "mmYShape", opName_);
+    status = CheckShapeDimensions(mmYStorageShape, DIM_TWO, "mmYShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
@@ -192,9 +192,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_MX,
         OP_LOGE(opName_, "The gmmWeightQuantMode should be MX mode, but actul mode is  %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
-    ge::graphStatus status = MxCheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
+    ge::graphStatus status = CheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
-    status = MxCheckShapeDimensions(gmmWeightScaleStorageShape, DIM_FOUR, "gmmWeightScaleShape", opName_);
+    status = CheckShapeDimensions(gmmWeightScaleStorageShape, DIM_FOUR, "gmmWeightScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
 
     localParams_.gmmQuantSuit = QUANT_PAIR_MX;
@@ -250,9 +250,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_MX,
         OP_LOGE(opName_, "The mmWeightQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
-    ge::graphStatus status = MxCheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
+    ge::graphStatus status = CheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
-    status = MxCheckShapeDimensions(mmWeightScaleStorageShape, DIM_THREE, "mmWeightScaleShape", opName_);
+    status = CheckShapeDimensions(mmWeightScaleStorageShape, DIM_THREE, "mmWeightScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
 
     localParams_.mmQuantSuit = QUANT_PAIR_MX;
