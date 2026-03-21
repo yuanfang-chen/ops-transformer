@@ -183,7 +183,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDim()
     // 检查kernel width
     // 要求：kernel width 必须等于 3
     OP_CHECK_IF(kernelWidth_ != 3,
-                OP_LOGE(context_->GetNodeName(), "Kernel width must be 3, but got: %u",
+                OP_LOGE(context_->GetNodeName(), "Kernel width must be 3, but got: %lu",
                         kernelWidth_),
                 return ge::GRAPH_FAILED);
 
@@ -195,7 +195,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDim()
 
     uint64_t cacheStatesDim1 = cacheStatesShape_.GetDim(DIM_1);
     OP_CHECK_IF(cacheStatesDim1 != (kernelWidth_ - 1),
-                OP_LOGE(context_->GetNodeName(), "CacheStates dim[1] must equal to K-1=%u, but got: %lu",
+                OP_LOGE(context_->GetNodeName(), "CacheStates dim[1] must equal to K-1=%lu, but got: %lu",
                         kernelWidth_ - 1, cacheStatesDim1),
                 return ge::GRAPH_FAILED);
 
@@ -228,14 +228,14 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckInputDim()
 
         uint64_t seqStartIndexDim0 = seqStartIndexShape.GetDim(DIM_0);
         OP_CHECK_IF(seqStartIndexDim0 != (batch_ + 1),
-                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%u, but got: %lu",
+                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%lu, but got: %lu",
                             batch_ + 1, seqStartIndexDim0),
                     return ge::GRAPH_FAILED);
     }
 
     // 检查batch范围
     OP_CHECK_IF(!(batch_ >= BATCH_MIN && batch_ <= BATCH_MAX),
-                OP_LOGE(context_->GetNodeName(), "batch must in [%lu, %lu], but got: %u",
+                OP_LOGE(context_->GetNodeName(), "batch must in [%lu, %lu], but got: %lu",
                         BATCH_MIN, BATCH_MAX, batch_),
                 return ge::GRAPH_FAILED);
 
@@ -302,7 +302,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::GetShapeAttrsInfo()
         // 没有提供 queryStartLoc，默认 batch = 1，处理全部序列
         batch_ = 1;
         // 创建一个默认的 gert::Shape，表示没有分批的情况
-        seqStartIndexShape_ = gert::Shape({0, cuSeqLen_});
+        seqStartIndexShape_ = gert::Shape({0, static_cast<int64_t>(cuSeqLen_)});
     }
 
     // 获取输入数据类型
