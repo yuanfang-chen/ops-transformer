@@ -26,7 +26,26 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     OUTPUT_VARIABLE TORCH_NPU_PATH
 )
-set(TORCH_NPU_INCLUDE_DIRS ${TORCH_NPU_PATH}/include)
+set(TORCH_NPU_INCLUDE_DIRS 
+    ${TORCH_NPU_PATH}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/block
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/memcopy
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vf
+    ${ASCEND_HOME}/include
+    ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api/impl
+    ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api
+    ${ASCEND_HOME}/include/ascendc
+    ${ASCEND_HOME}/include/ascendc/basic_api/interface
+    ${ASCEND_HOME}/include/ascendc/basic_api
+    ${ASCEND_HOME}/pkg_inc/op_common
+    ${ASCEND_HOME}/pkg_inc/base
+    ${ASCEND_HOME}/pkg_inc
+)
 set(TORCH_NPU_LIBRARIES ${TORCH_NPU_PATH}/lib)
 
 execute_process(
@@ -37,21 +56,30 @@ execute_process(
 find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
 
 pybind11_add_module(ascendc_ops SHARED
-    qbmmv3_custom.asc
+    FIA.cpp
 )
 
 target_include_directories(ascendc_ops PRIVATE
     ${TORCH_INCLUDE_DIRS}
     ${TORCH_NPU_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../..
+    ${CMAKE_CURRENT_SOURCE_DIR}/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${COMMON_INCLUDE_DIRS}
 )
 
 target_link_libraries(ascendc_ops PRIVATE
     torch_npu
+    ascendcl
+    platform
+    register
+    tiling_api
+    runtime
 )
 
 target_link_directories(ascendc_ops PRIVATE
     ${TORCH_NPU_LIBRARIES}
+    ${ASCEND_HOME}/lib64
 )
 
 # ======================================================================================
@@ -62,6 +90,10 @@ target_link_directories(ascendc_ops PRIVATE
 # ======================================================================================
 target_compile_options(ascendc_ops PRIVATE
     ${TORCH_CXX_FLAGS}
-    $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-2201>
-    # $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-3510>
+    # $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-2201>
+    $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-3101>
+    # "-xasc"
+    "-w"
+    "-O3"
+    "--asc-aicore-lang"
 )
