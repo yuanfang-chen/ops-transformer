@@ -54,7 +54,6 @@ static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     OP_LOGI(opName_, "[MX_TILING] Enter IsCapable, checking quant mode...");
-    OP_LOGI(opName_, "[MX_TILING] Enter IsCapable, checking quant mode...");
     QuantModePair mode = GetQuantMode(context_, opName_);
     OP_TILING_CHECK(mode == QUANT_PAIR_ERROR, OP_LOGE(opName_, "Fail to get attr quant mode."), return false);
     OP_LOGI(opName_, "[MX_TILING] QuantMode=%d, expected MX mode=%d", mode, QUANT_PAIR_MX);
@@ -68,6 +67,7 @@ bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
 {
+    OP_LOGI(opName_, "[MX_TILING] Enter CheckAndSetLocalParamsGmm");
     OP_LOGI(opName_, "[MX_TILING] Enter CheckAndSetLocalParamsGmm");
     localParams_.gmmXDtype = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     localParams_.gmmWeightDtype = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType();
