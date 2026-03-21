@@ -74,7 +74,7 @@ private:
     CuSeqLenSplitInfo CalculateCuSeqLenSplitInfo(uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const;
     ge::graphStatus SearchBestCoreSplit(uint64_t N, uint64_t bsOverlap,
                                         uint64_t& bestDimCores, CuSeqLenSplitInfo& bestBSSplitInfo);
-    void ApplyDimSplit(uint64_t N, uint64_t bestDimCores);
+    ge::graphStatus ApplyDimSplit(uint64_t N, uint64_t bestDimCores);
     ge::graphStatus CalcCoreUbTiling(uint64_t coreDim, uint64_t coreBS, uint64_t bsBlockFactor,
                                      int64_t availableUbSize, uint64_t weightCacheCoeffPerDim,
                                      uint64_t bsOverlap,

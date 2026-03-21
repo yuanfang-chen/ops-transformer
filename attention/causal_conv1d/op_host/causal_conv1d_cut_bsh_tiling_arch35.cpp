@@ -210,7 +210,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::CheckIndexDims()
     OP_CHECK_IF(cacheIndicesShape == nullptr,
                 OP_LOGE(context_->GetNodeName(), "CacheIndices must be provided"),
                 return ge::GRAPH_FAILED);
-    auto seqStartIndexShape = seqStartIndexStorageShape->GetStorageShape();
+    auto seqStartIndexShape = seqStartIndexStorageShape->GetOriginShape();
     uint64_t seqStartIndexDimNum = seqStartIndexShape.GetDimNum();
     OP_CHECK_IF(seqStartIndexDimNum != SEQ_START_INDEX_DIM_NUM,
                 OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim must be 1, but got: %lu", seqStartIndexDimNum),
@@ -508,8 +508,12 @@ ge::graphStatus CausalConv1dCutBSHTiling::SearchBestCoreSplit(
     return ge::GRAPH_SUCCESS;
 }
 
-void CausalConv1dCutBSHTiling::ApplyDimSplit(uint64_t N, uint64_t bestDimCores)
+ge::graphStatus CausalConv1dCutBSHTiling::ApplyDimSplit(uint64_t N, uint64_t bestDimCores)
 {
+    if (bestDimCores == 0) {
+        OP_LOGE(context_->GetNodeName(), "ApplyDimSplit: bestDimCores is 0");
+        return ge::GRAPH_FAILED;
+    }
     constexpr uint64_t DIM_GRANULARITY = DIM_ALIGN_ELEMENTS;
     uint64_t base = N / bestDimCores;
     uint64_t remainder = N % bestDimCores;
@@ -518,6 +522,7 @@ void CausalConv1dCutBSHTiling::ApplyDimSplit(uint64_t N, uint64_t bestDimCores)
     dimRemainderCores_ = remainder;
     dimBlockFactor_ = (remainder > 0 ? base + 1 : base) * DIM_GRANULARITY;
     dimBlockTailFactor_ = base * DIM_GRANULARITY;
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CausalConv1dCutBSHTiling::DoOpTiling()
@@ -538,7 +543,7 @@ ge::graphStatus CausalConv1dCutBSHTiling::DoOpTiling()
         return ge::GRAPH_FAILED;
     }
 
-    ApplyDimSplit(N, bestDimCores);
+    if (ApplyDimSplit(N, bestDimCores) != ge::GRAPH_SUCCESS) return ge::GRAPH_FAILED;
 
     bsCoreNum_ = bestBSSplitInfo.realCoreNum;
     bsRemainderCores_ = bestBSSplitInfo.remainder;
