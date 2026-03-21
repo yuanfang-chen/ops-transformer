@@ -243,7 +243,7 @@ private:
     void Tiling4VBSComputeLastdim();
     void ShowIndexCopyComputeTilingDataTilingData();
     void Tiling4GatherCompute();
-    void Tiling4GatherComputeSimt();
+    void Tiling4GatherComputeSimt(bool isProb);
 
     int64_t XDtypeImprove();
     void ShowTilingData();
@@ -585,32 +585,47 @@ void MoeTokenPermuteWithRoutingMapTilingBase::Tiling4GatherCompute() {
     tilingData->set_tokenUB(ubAviable);
 }
 
-void MoeTokenPermuteWithRoutingMapTilingBase::Tiling4GatherComputeSimt() {
+void MoeTokenPermuteWithRoutingMapTilingBase::Tiling4GatherComputeSimt(bool isProb) {
     auto tilingData = &moeTokenPermuteWithRoutingMapTilingData.indexCopyComputeParamsOp;
     int32_t threadNum = MAX_THREAD_NUM;
-    int64_t ySize_ = innerSize_ * numOutTokens;
+    int64_t ySize_ = isProb ? numOutTokens : innerSize_ * numOutTokens ;
     while ((threadNum >= NUM_TWO * SMALL_CASE_THREAD_NUM) && (GetDiv(ySize_, static_cast<int64_t>(threadNum)) < (aivNum / NUM_TWO))) {
         threadNum = threadNum / NUM_TWO;
     }
-    tilingKey_ = tilingKey_ + SIMT_KEY;
-    tilingData->set_onceIndicesTokenNums(threadNum);
-    // simtTwoDimTilingData_.set_gatherDimSize(gatherDimSize_);
-    tilingData->set_onceUbTokenNums(innerSize_);
-    int64_t perCoreElements = GetDiv(ySize_, aivNum);
     int64_t needCoreNum_ = 1;
-    context_->SetLocalMemorySize(static_cast<uint32_t>(aicoreParams_.ubSize));
-
-    if (ySize_ < threadNum) {
-        tilingData->set_needCoreNum(needCoreNum_);
-        tilingData->set_coreCalcNum(ySize_);
-        tilingData->set_tailCoreNum(ySize_);
+    if (isProb) {
+        tilingData->set_onceIndices(threadNum);
+        // simtTwoDimTilingData_.set_gatherDimSize(gatherDimSize_);
+        int64_t perCoreElements = GetDiv(ySize_, realCoreNumAiv);
+        if (ySize_ < threadNum) {
+            tilingData->set_frontCoreNum(needCoreNum_);
+            tilingData->set_frontCoreLoop(ySize_);
+            tilingData->set_tailCoreLoop(ySize_);
+        } else {
+            perCoreElements = (perCoreElements + threadNum - 1) / threadNum * threadNum;  // 对齐到threadNum_的倍数
+            needCoreNum_ = GetDiv(ySize_, perCoreElements);
+            int64_t lastCoreElements = ySize_ - perCoreElements * (needCoreNum_ - 1);
+            tilingData->set_frontCoreNum(needCoreNum_);
+            tilingData->set_frontCoreLoop(perCoreElements);
+            tilingData->set_tailCoreLoop(lastCoreElements);
+        }
     } else {
-        perCoreElements = (perCoreElements + threadNum - 1) / threadNum * threadNum;  // 对齐到threadNum_的倍数
-        needCoreNum_ = GetDiv(ySize_, perCoreElements);
-        int64_t lastCoreElements = ySize_ - perCoreElements * (needCoreNum_ - 1);
-        tilingData->set_needCoreNum(needCoreNum_);
-        tilingData->set_coreCalcNum(perCoreElements);
-        tilingData->set_tailCoreNum(lastCoreElements);
+        tilingData->set_onceIndicesTokenNums(threadNum);
+        // simtTwoDimTilingData_.set_gatherDimSize(gatherDimSize_);
+        tilingData->set_onceUbTokenNums(innerSize_);
+        int64_t perCoreElements = GetDiv(ySize_, realCoreNumAiv);
+        if (ySize_ < threadNum) {
+            tilingData->set_needCoreNum(needCoreNum_);
+            tilingData->set_coreCalcNum(ySize_);
+            tilingData->set_tailCoreNum(ySize_);
+        } else {
+            perCoreElements = (perCoreElements + threadNum - 1) / threadNum * threadNum;  // 对齐到threadNum_的倍数
+            needCoreNum_ = GetDiv(ySize_, perCoreElements);
+            int64_t lastCoreElements = ySize_ - perCoreElements * (needCoreNum_ - 1);
+            tilingData->set_needCoreNum(needCoreNum_);
+            tilingData->set_coreCalcNum(perCoreElements);
+            tilingData->set_tailCoreNum(lastCoreElements);
+        }
     }
     aivNum = std::max(aivNum, static_cast<int64_t>(needCoreNum_));
 }
@@ -623,7 +638,7 @@ ge::graphStatus MoeTokenPermuteWithRoutingMapTilingBase::DoOpTiling()
         int64_t cols = moeTokenPermuteWithRoutingMapTilingData.get_cols();
         isSimd = (cols >= SIMD_B32_THRES) && numOutTokens >= aivNum / NUM_TWO;
         innerSize_ = cols;
-        aicoreParams_.ubSize = isSimd ? aicoreParams_.ubSize : aicoreParams_.ubSize - SIMT_UB_SIZE_BYTE;
+        aicoreParams_.ubSize = aicoreParams_.ubSize - SIMT_UB_SIZE_BYTE;
     }
 
     sortLoopMaxElement = (aicoreParams_.ubSize - aivNum * ONE_BLOCK_BYTE) / (NUM_FOUR * NUM_TWO * NUM_FOUR) /
@@ -637,11 +652,15 @@ ge::graphStatus MoeTokenPermuteWithRoutingMapTilingBase::DoOpTiling()
     } else {
         Tiling4VBSComputeLastdim();
         Tiling4SortOutCompute();
+        
         if (regBase) {
+            Tiling4GatherComputeSimt(true);
+            context_->SetLocalMemorySize(static_cast<uint32_t>(aicoreParams_.ubSize));
             if (isSimd) {
                 Tiling4GatherCompute();
             } else {
-                Tiling4GatherComputeSimt();
+                tilingKey_ = tilingKey_ + SIMT_KEY;
+                Tiling4GatherComputeSimt(false);
             }
         }
     }

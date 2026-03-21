@@ -1,0 +1,545 @@
+    1  cd ../
+    2  bash test_hust.sh 
+    3  cd -
+    4  bash build.sh 
+    5  ./build_out/custom_opp_ubuntu_aarch64.run 
+    6  cd -
+    7  python3 test_hstu.py 
+    8  cd -
+    9  bash build.sh 
+   10  ./build_out/custom_opp_ubuntu_aarch64.run 
+   11  cd -
+   12  python3 test_hstu.py 
+   13  cd -
+   14  bash build.sh 
+   15  ./build_out/custom_opp_ubuntu_aarch64.run 
+   16  cd -
+   17  python3 test_hstu.py 
+   18  cd -
+   19  bash build.sh 
+   20  ./build_out/custom_opp_ubuntu_aarch64.run 
+   21  cd -
+   22  python3 test_hstu.py 
+   23  cd -
+   24  bash build.sh 
+   25  ./build_out/custom_opp_ubuntu_aarch64.run 
+   26  cd -
+   27  python3 test_hstu.py 
+   28  cd -
+   29  bash build.sh 
+   30  ./build_out/custom_opp_ubuntu_aarch64.run 
+   31  cd -
+   32  python3 test_hstu.py 
+   33  cd -
+   34  bash build.sh 
+   35  ./build_out/custom_opp_ubuntu_aarch64.run 
+   36  cd -
+   37  python3 test_hstu.py 
+   38  cd -
+   39  bash build.sh 
+   40  ./build_out/custom_opp_ubuntu_aarch64.run 
+   41  cd -
+   42  python3 test_hstu.py 
+   43  cd -
+   44  bash build.sh 
+   45  ./build_out/custom_opp_ubuntu_aarch64.run 
+   46  cd -
+   47  python3 test_hstu.py 
+   48  cd -
+   49  bash build.sh 
+   50  ./build_out/custom_opp_ubuntu_aarch64.run 
+   51  cd -
+   52  python3 test_hstu.py 
+   53  cd -
+   54  bash build.sh 
+   55  ./build_out/custom_opp_ubuntu_aarch64.run 
+   56  cd -
+   57  python3 test_hstu.py 
+   58  cd -
+   59  bash build.sh 
+   60  ./build_out/custom_opp_ubuntu_aarch64.run 
+   61  cd -
+   62  python3 test_hstu.py 
+   63  cd -
+   64  bash build.sh 
+   65  ./build_out/custom_opp_ubuntu_aarch64.run 
+   66  cd -
+   67  python3 test_hstu.py 
+   68  clear
+   69  python3 test_hstu.py 
+   70  cd -
+   71  bash build.sh 
+   72  ./build_out/custom_opp_ubuntu_aarch64.run 
+   73  cd -
+   74  python3 test_hstu.py 
+   75  cd -
+   76  bash build.sh 
+   77  ./build_out/custom_opp_ubuntu_aarch64.run 
+   78  cd -
+   79  python3 test_hstu.py 
+   80  cd -
+   81  bash build.sh 
+   82  ./build_out/custom_opp_ubuntu_aarch64.run 
+   83  cd -
+   84  python3 test_hstu.py 
+   85  cd -
+   86  bash build.sh 
+   87  ./build_out/custom_opp_ubuntu_aarch64.run 
+   88  cd -
+   89  python3 test_hstu.py 
+   90  cd -
+   91  bash build.sh 
+   92  ./build_out/custom_opp_ubuntu_aarch64.run 
+   93  cd -
+   94  python3 test_hstu.py 
+   95  cd -
+   96  bash build.sh 
+   97  ./build_out/custom_opp_ubuntu_aarch64.run 
+   98  cd -
+   99  python3 test_hstu.py 
+  100  cd -
+  101  bash build.sh 
+  102  ./build_out/custom_opp_ubuntu_aarch64.run 
+  103  cd -
+  104  python3 test_hstu.py 
+  105  cd -
+  106  bash build.sh 
+  107  ./build_out/custom_opp_ubuntu_aarch64.run 
+  108  cd -
+  109  python3 test_hstu.py 
+  110  cd -
+  111  bash build.sh 
+  112  ./build_out/custom_opp_ubuntu_aarch64.run 
+  113  cd -
+  114  python3 test_hstu.py 
+  115  cd -
+  116  bash build.sh 
+  117  ./build_out/custom_opp_ubuntu_aarch64.run 
+  118  cd -
+  119  python3 test_hstu.py 
+  120  cd -
+  121  bash build.sh 
+  122  ./build_out/custom_opp_ubuntu_aarch64.run 
+  123  cd -
+  124  python3 test_hstu.py 
+  125  cd -
+  126  bash build.sh 
+  127  ./build_out/custom_opp_ubuntu_aarch64.run 
+  128  cd -
+  129  python3 test_hstu.py 
+  130  长度-
+  131  cd -
+  132  bash build.sh 
+  133  ./build_out/custom_opp_ubuntu_aarch64.run 
+  134  cd -
+  135  python3 test_hstu.py 
+  136  cd -
+  137  bash build.sh 
+  138  ./build_out/custom_opp_ubuntu_aarch64.run 
+  139  python3 test_hstu.py 
+  140  ./build_out/custom_opp_ubuntu_aarch64.run 
+  141  python3 test_hstu.py 
+  142  cd -
+  143  python3 test_hstu.py 
+  144  bash build.sh 
+  145  ./build_out/custom_opp_ubuntu_aarch64.run 
+  146  cd -
+  147  python3 test_hstu.py 
+  148  cd -
+  149  bash build.sh 
+  150  ./build_out/custom_opp_ubuntu_aarch64.run 
+  151  cd -
+  152  python3 test_hstu.py 
+  153  cd -
+  154  bash build.sh 
+  155  cd -
+  156  ./build_out/custom_opp_ubuntu_aarch64.run 
+  157  cd -
+  158  python3 test_hstu.py 
+  159  cd -
+  160  bash build.sh 
+  161  ./build_out/custom_opp_ubuntu_aarch64.run 
+  162  cd -
+  163  python3 test_hstu.py 
+  164  cd -
+  165  bash build.sh 
+  166  ./build_out/custom_opp_ubuntu_aarch64.run 
+  167  cd -
+  168  python3 test_hstu.py 
+  169  cd -
+  170  bash build.sh 
+  171  ./build_out/custom_opp_ubuntu_aarch64.run 
+  172  cd -
+  173  python3 test_hstu.py 
+  174  cd -
+  175  bash build.sh 
+  176  ./build_out/custom_opp_ubuntu_aarch64.run 
+  177  cd -
+  178  python3 test_hstu.py 
+  179  cd -
+  180  bash build.sh 
+  181  ./build_out/custom_opp_ubuntu_aarch64.run 
+  182  cd -
+  183  python3 test_hstu.py 
+  184  cd -
+  185  bash build.sh 
+  186  ./build_out/custom_opp_ubuntu_aarch64.run 
+  187  cd -
+  188  python3 test_hstu.py 
+  189  cd /data/yzq/
+  190  ls
+  191  ll -h 
+  192  chmod -R 775 *.whl
+  193  ll -h 
+  194  conda activate py311
+  195  pip install ct_tool-0.1.1-py3-none-any.whl 
+  196  docker ps -a
+  197  docker image list
+  198  docker ps
+  199  docker image list
+  200  mount /dev/nvme1n1p1 /data
+  201  source ~/.bashrc
+  202  docker image list
+  203  docker ps
+  204  sudo systemctl restart docker.service
+  205  docker ps
+  206  docker image list
+  207  docker ps -a
+  208  ll
+  209  df -h
+  210  du -h
+  211  du -h --max-depth=1 ./ | sort -h
+  212  cd ./.trae-cn-server
+  213  du -h --max-depth=1 ./ | sort -h
+  214  du -sh --max-depth=1
+  215  du -h --max-depth=1
+  216  df =h
+  217  df -h
+  218  du -h --max-depth=1
+  219  ln -s ~/.trae-cn-server /data/.trae-cn-server
+  220  rm -rf /data/.trae-cn-serve
+  221  mkdir /data/.trae-cn-server
+  222  rm -rf /~/.trae-cn-server
+  223  cd ..
+  224  ll
+  225  ln -s /data/.trae-cn-server /~/.trae-cn-server
+  226  rm -rf "/root/.trae-cn-server/"
+  227  ln -s /data/.trae-cn-server "/root/.trae-cn-server/"
+  228  ln -s ~/.trae-cn-server /data/.trae-cn-server
+  229  ln -s /data/.trae-cn-server "/root/.trae-cn-server/"
+  230  ln -s /data/.trae-cn-server /root/
+  231  df -h
+  232  docker ps -a
+  233  docker start kdy
+  234  apt-get install clang-format
+  235  ls
+  236  docker ps
+  237  docker exec -it fft bash
+  238  docker restart fft
+  239  docker ps
+  240  docker exec -it fft bash
+  241  docker restart fft
+  242  docker exec -it fft bash
+  243  cd /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/tests
+  244  python case_parser.py 
+  245  clear
+  246  python case_parser.py 
+  247  clear
+  248  python /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/tests/pta_test.py
+  249  conda activate clx
+  250  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  251  clear
+  252  python extract_b_values.py 
+  253  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  254  clear
+  255  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  256  clear
+  257  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  258  clear
+  259  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  260  clear
+  261  pip3 list
+  262  cd /data/
+  263  ll
+  264  cd jcy
+  265  cd demo
+  266  ll
+  267  cd ..
+  268  ll
+  269  cp ../zcc/Ascend-cann-* .
+  270  ll
+  271  source local/Ascend/ascend-toolkit/set_env.sh 
+  272  env | grep opp
+  273  cd ops-transformer/
+  274  ll
+  275  bash build.sh --pkg --ops=GroupedMatmul
+  276  bash build.sh --pkg --ops=grouped_matmul
+  277  bash build.sh --run_example add_example eager cust --vendor_name=custom
+  278  ll
+  279  source /data/zcc/ascend-toolkit/set_env.sh 
+  280  bash build.sh --run_example add_example eager cust --vendor_name=custom
+  281  bash build.sh --run_example add_example eager cust
+  282  bash build.sh --pkg --soc=ascend910b --ops=add_example -j16
+  283  find . -name python
+  284  cd /home
+  285  ls
+  286  cd ../
+  287  ls
+  288  cd data
+  289  ls
+  290  mkdir zby
+  291  docker ps
+  292  ls
+  293  cd /data/
+  294  ls
+  295  docker images
+  296  npu-smi info
+  297  nvidia-smi info
+  298  ls
+  299  mkdir chenyanbin
+  300  cd chenyanbin/
+  301  ls
+  302  docker run --name cann_container \
+  303  --device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci2 --device /dev/davinci3 --device /dev/davinci4 --device /dev/davinci5 --device /dev/davinci6 --device /dev/davinci7 \
+  304  --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc \
+  305  -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi -v /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/ -v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info -v /etc/ascend_install.info:/etc/ascend_install.info \
+  306  -v /data/chenyanbin:/data/chenyanbin \
+  307  -it swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops bash
+  308  clear
+  309  docker run --name cann_container --device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci2 --device /dev/davinci3 --device /dev/davinci4 --device /dev/davinci5 --device /dev/davinci6 --device /dev/davinci7 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi -v /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/ -v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info -v /etc/ascend_install.info:/etc/ascend_install.info -v /data/chenyanbin:/data/chenyanbin -it swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops bash
+  310  clear
+  311  docker run --name cyb_container --device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci2 --device /dev/davinci3 --device /dev/davinci4 --device /dev/davinci5 --device /dev/davinci6 --device /dev/davinci7 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi -v /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/ -v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info -v /etc/ascend_install.info:/etc/ascend_install.info -v /data/chenyanbin:/data/chenyanbin -it swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops bash
+  312  docker ps 
+  313  docker ps --all
+  314  docker ps -a | grep cyb_container
+  315  docker inspect cyb_container
+  316  df -h
+  317  docker exec -it cyb_container bash
+  318  docker start cyb_container
+  319  docker exec -it cyb_container bash
+  320  netstat -tulpn | grep 12001
+  321  docker stop cyb_container
+  322  docker rm cyb_container
+  323  docker run --name cyb_container -p 12001:22 --device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci2 --device /dev/davinci3 --device /dev/davinci4 --device /dev/davinci5 --device /dev/davinci6 --device /dev/davinci7 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi -v /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/ -v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info -v /etc/ascend_install.info:/etc/ascend_install.info -v /data/chenyanbin:/data/chenyanbin -d swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops /bin/bash -c "apt update && apt install -y openssh-server && service ssh start && tail -f /dev/null"
+  324  docker ps --all
+  325  docker exec -it cyb_container bash
+  326  cd /data/kdy/cann/ops-transformersjh
+  327  git cherry-pick --abort
+  328  cd /data/kdy/cann/ops-transformersjh
+  329  git cherry-pick --abort
+  330  git status
+  331  ls /root/.ssh
+  332  ssh-add -l
+  333  ssh-keygen -t rsa -b 2048 -C BoyangZhang@noreply.gitcode.com -f /data/zby/.ssh/id_rsa
+  334  cat ./.ssh/id_rsa.pub 
+  335  git clone git@gitcode.com:BoyangZhang/ops-math.git
+  336  ssh-add /data/zby/.ssh/id_rsa
+  337  eval $(ssh-agent -s)
+  338  ssh-add /data/zby/.ssh/id_rsa
+  339  git clone git@gitcode.com:BoyangZhang/ops-math.git
+  340  ssh -T git@gitcode.com
+  341  conda activate yyd
+  342  cd. 
+  343  cd..
+  344  cd ''
+  345  cd ..
+  346  bash build.sh --pkg --soc=ascend910b --ops=add_example -j16
+  347  docker ps -a
+  348  cat ~/.ssh/id_rsa
+  349  cat ~/.ssh/id_rsa.pub 
+  350  ssh-keygen -t rsa -b 2048 -C BoyangZhang@noreply.gitcode.com -f ~/.ssh/id_rsa_zby
+  351  cat ~/.ssh/id_rsa_zby.pub 
+  352  cat ~/.ssh/id_rsa_zby
+  353  git clone git@gitcode.com:BoyangZhang/ops-math.git
+  354  curl www.baidu.com
+  355  git clone git@gitcode.com:BoyangZhang/ops-math.git
+  356  git clone https://BoyangZhang:_qLMDNysLfbiLXihS2rrUc28@gitcode.com/BoyangZhang/ops-math.git
+  357  git config --list
+  358  git remote -v
+  359  cd ops-math/
+  360  git remote -v
+  361  git config --list
+  362  git remote add upstream https://gitcode.com/cann/ops-math.git
+  363  git config --list
+  364  git remote -v
+  365  git config user.name "BoyangZhang"
+  366  git config user.email "zhangboyang15@h-partners.com"
+  367  find . -name *.whl
+  368  cd ../..
+  369  cd fangziyang/
+  370  ll
+  371  cd co
+  372  cd Code/
+  373  ll
+  374  cd op-plugin/
+  375  ll
+  376  find . -name *.wh;
+  377  find . -name *.whl
+  378  source /data/yxj/cann_0210/ascend-toolkit/set_env.sh
+  379  find . -name *ChunkBwdDvLocal*
+  380  git branch
+  381  conda activate  fzy 
+  382  conda list
+  383  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  384  conda create -n clx_atk  --clone  fzy
+  385  conda activate clx_atk
+  386  pip install /data/clx/atk-26.1.28-cp39-cp39-linux_aarch64.whl
+  387  pwd
+  388  conda list
+  389  cd /data/clx/ops-transformer-dev
+  390  git status
+  391  git branch
+  392  git checkout fixMoeMixProb
+  393  cd /data/clx/ops-transformer-dev
+  394  git status
+  395  git add moe/
+  396  git branch
+  397  git commit -m "f"
+  398  git rebase -i HEAD~2
+  399  git log
+  400  git push -f
+  401  git status
+  402  git add moe/
+  403  git commit -m "f"
+  404  git rebase -i HEAD~2
+  405  git push -f
+  406  cd
+  407  cd /data/clx/ops-transformer-dev
+  408  git branch
+  409  git status
+  410  git add moe/
+  411  git commit -m "f"
+  412  git rebase -i HEAD~2
+  413  git push -f
+  414  cd /home/data
+  415  ll /home/
+  416  cd ..
+  417  ll
+  418  cd yxj/
+  419  ll
+  420  cd cann_0210/
+  421  ll
+  422  pwd
+  423  conda activate clx
+  424  conda list
+  425  conda install pytorch==2.1.0 
+  426  conda env list
+  427  cd /data/miniconda3/envs/
+  428  cd clx/
+  429  ll
+  430  find  . -name python
+  431  pwd
+  432  conda create -n  clx_py39  --clone  clx
+  433  conda activate clx_py39
+  434  conda install python=3.9
+  435  pip install /data/clx/atk-26.1.28-cp39-cp39-linux_aarch64.whl
+  436  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  437  conda list
+  438  conda install pytorch==2.1.0 
+  439  pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+  440  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  441  pip install decorator numpy
+  442  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  443  python -c "import numpy; print(f'NumPy version: {numpy.__version__}'); print(f'NumPy path: {numpy.__file__}')"
+  444  pip uninstall numpy -y
+  445  pip install numpy==1.24.3
+  446  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  447  pip install /data/fangziyang/Code/op-plugin/build/pytorch/dist/torch_npu-2.6.0.post4-cp311-cp311-linux_aarch64.whl
+  448  cd /data/fangziyang/Code/op-plugin
+  449  source /data/yxj/cann_0210/ascend-toolkit/set_env.sh
+  450  bash ci/build.sh --python=3.9  --pytorch=v2.1.0-7.2.0
+  451  conda list
+  452  pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+  453  bash ci/build.sh --python=3.9  --pytorch=v2.6.0-7.2.0
+  454  pip install ./dist/torch_npu-2.6.0.post4-cp39-cp39-linux_aarch64.whl
+  455  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  456  cd /data/clx/ops-transformer_GDN
+  457  git status
+  458  cd /data/clx/ATK/chunk_bwd_dv_local
+  459  atk case -f aclnn_chunk_bwd_dv_local.yaml  -p generator_chunk_bwd_dv_local.py 
+  460  bash /data/clx/ops-transformer_GDN/chunk_gated_delta_rule/chunk_bwd_dv_local/run.sh
+  461  clear
+  462  git status
+  463  cd /data/clx/ops-transformer_GDN
+  464  clear
+  465  git status
+  466  git add chunk_gated_delta_rule/
+  467  git status
+  468  git commit -m "add test"
+  469  git push -f
+  470  code .git/config 
+  471  git branch
+  472  git push self chunk_bwd_dv_local:gdn_dv -f
+  473  git status
+  474  git add chunk_gated_delta_rule/
+  475  export __trae_PS1="\n(TraeAI-9) \\w [\$?] \$ "; export GIT_PAGER= PAGER= PS1="$__trae_PS1"
+  476  clear
+  477   . "\root\.trae-cn-server\bin\stable-f99e329020bc09b3efe68e854d369b552284ffc3-debian10\out\vs\workbench\contrib\terminal\common\scripts\safe_rm_aliases.sh"; echo "[Trae CN] Safe Rm alias is not enabled, try to fix it now."
+  478   ls -la ~
+  479   . "\root\.trae-cn-server\bin\stable-f99e329020bc09b3efe68e854d369b552284ffc3-debian10\out\vs\workbench\contrib\terminal\common\scripts\safe_rm_aliases.sh"; echo "[Trae CN] Safe Rm alias is not enabled, try to fix it now."
+  480   conda init zsh
+  481   . "\root\.trae-cn-server\bin\stable-f99e329020bc09b3efe68e854d369b552284ffc3-debian10\out\vs\workbench\contrib\terminal\common\scripts\safe_rm_aliases.sh"; echo "[Trae CN] Safe Rm alias is not enabled, try to fix it now."
+  482   source ~/.zshrc && conda info
+  483  conda activate clx
+  484  cd /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test
+  485  ct isclose output/dA_cpu.pt output/dA_npu.pt 
+  486  md5sum output/dA_npu.pt 
+  487  md5sum output/dA_npu_model_case.pt 
+  488  md5sum output/dA_npu_model_case.pt 
+  489  md5sum output/dA_cpu_model_case.pt 
+  490  ct isclose output/dA_cpu_model_case.pt output/dA_npu_model_case.pt 
+  491  md5sum output/dA_npu.pt 
+  492  ct isclose output/dA_cpu.pt output/dA_npu.pt 
+  493  md5sum output/dA_npu.pt 
+  494  md5sum output/dA_npu_model_case.pt 
+  495  ct isclose output/dA_cpu_model_case.pt output/dA_npu_model_case.pt 
+  496  ct isclose output/dA_var_cpu.pt output/dA_var_npu.pt 
+  497  md5sum output/dA_cpu
+  498  md5sum output/dA_cpu.pt 
+  499  md5sum output/dA_var_cpu.pt 
+  500  conda activate yzq311
+  501  cd /data/yzq/ops-transformer_GDN
+  502  source ../CANN0124/ascend-toolkit/set_env.sh 
+  503  git status
+  504  bash ../cat_env.sh 
+  505  git status
+  506  bash /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/run.sh
+  507  conda activate py311
+  508  python /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/test_da.py > /data/yzq/OP_LOG/DA.log
+  509  ll -h /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/output
+  510  git status
+  511  git add  chunk_gated_delta_rule/prepare_wy_repr_bwd_da/op_host chunk_gated_delta_rule/prepare_wy_repr_bwd_da/op_kernel
+  512  git status
+  513  git log -1
+  514  git commit --amend --no-edit
+  515  git push
+  516  git push -f
+  517  git status
+  518  python /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/test_da.py > /data/yzq/OP_LOG/DA.log
+  519  git status
+  520  git remote -v
+  521  git fetch upstream
+  522  git pull --rebase upstream master
+  523  git push
+  524  git status
+  525  bash /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/run.sh
+  526  source ../set_log.sh 
+  527  python /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/test_da.py > /data/yzq/OP_LOG/tiling.log
+  528  git status
+  529  git add chunk_gated_delta_rule/prepare_wy_repr_bwd_da/op_host/op_tiling/prepare_wy_repr_bwd_da_tiling.cpp
+  530  git commit -m "prepare_wy_repr_bwd_da dynamic ub"
+  531  git push
+  532  python /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/test_da.py > /data/yzq/OP_LOG/DA.log
+  533  git status
+  534  python /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/test/test_da.py > /data/yzq/OP_LOG/DA_var.log
+  535  git status
+  536  bash /data/yzq/ops-transformer_GDN/chunk_gated_delta_rule/prepare_wy_repr_bwd_da/run.sh
+  537* ls /usr/bin/gcc*0
+  538  gcc --version
+  539  cd /data/kdy/cann/ops-transformer
+  540  source source /data/kdy/cann/pkg/ascend-toolkit/set_env.sh
+  541  source /data/kdy/cann/pkg/ascend-toolkit/set_env.sh
+  542  bash build.sh --ops=moe_init_routing_v2 --pkg
+  543  gcc --version
+  544  g++ --version
+  545  history >> lll
