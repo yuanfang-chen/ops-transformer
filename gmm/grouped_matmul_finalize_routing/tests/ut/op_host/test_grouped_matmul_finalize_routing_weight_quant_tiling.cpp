@@ -10,11 +10,15 @@
 
 /*!
  * \file test_grouped_matmul_finalize_routing_weight_quant_tiling.cpp
- * \brief Unit tests for MX-A8W4 weight quantization tiling
+ * \brief Unit tests for MX-A8W4 weight quantization tiling (CSV-based)
  */
 
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <map>
 
 #include <gtest/gtest.h>
 
@@ -50,12 +54,153 @@ static optiling::GroupedMatmulFinalizeRoutingCompileInfo DEFAULT_COMPILE_INFO = 
     NpuArch::DAV_3510                            // npuArch
 };
 
-// Standard test dimensions
-static const int M = 1024;
-static const int K = 2048;
-static const int N = 7168;
-static const int E = 16;
-static const int BS = 64;
+// ============================================================================
+// CSV-Based Test Infrastructure
+// ============================================================================
+
+/**
+ * @brief Test case data loaded from CSV
+ */
+struct CsvWeightQuantTestCase {
+    string testName;
+    int m, k, n, e, bs;
+    string xDtype, wDtype, scaleDtype, biasDtype, pertokenScaleDtype;
+    bool transposeW;
+    string outputBs;
+    int groupListType;
+    int expectTilingKey;
+    string expectResult;
+    bool verifyBlockNum;
+    string description;
+};
+
+/**
+ * @brief Parse CSV line into fields
+ */
+static vector<string> ParseCsvLine(const string& line)
+{
+    vector<string> fields;
+    string current;
+    bool inQuotes = false;
+    
+    for (size_t i = 0; i < line.length(); ++i) {
+        char c = line[i];
+        if (c == '"') {
+            inQuotes = !inQuotes;
+        } else if (c == ',' && !inQuotes) {
+            fields.push_back(current);
+            current.clear();
+        } else {
+            current += c;
+        }
+    }
+    fields.push_back(current);
+    return fields;
+}
+
+/**
+ * @brief Convert string to ge::DataType
+ */
+static ge::DataType StringToDataType(const string& dtype)
+{
+    if (dtype == "DT_FLOAT8_E4M3FN") return ge::DT_FLOAT8_E4M3FN;
+    if (dtype == "DT_FLOAT4_E2M1") return ge::DT_FLOAT4_E2M1;
+    if (dtype == "DT_FLOAT8_E8M0") return ge::DT_FLOAT8_E8M0;
+    if (dtype == "DT_BF16") return ge::DT_BF16;
+    if (dtype == "DT_FLOAT16") return ge::DT_FLOAT16;
+    if (dtype == "DT_INT8") return ge::DT_INT8;
+    if (dtype == "DT_FLOAT") return ge::DT_FLOAT;
+    if (dtype == "DT_INT64") return ge::DT_INT64;
+    return ge::DT_UNDEFINED;
+}
+
+/**
+ * @brief Find CSV file path
+ */
+static string FindCsvFile()
+{
+    vector<string> searchPaths = {
+        "/home/shirui/opencode_cann_kimi/ops-transformer/gmm/grouped_matmul_finalize_routing/tests/ut/op_host/test_data/weight_quant_test_cases.csv",
+        "gmm/grouped_matmul_finalize_routing/tests/ut/op_host/test_data/weight_quant_test_cases.csv",
+        "test_data/weight_quant_test_cases.csv",
+        "../test_data/weight_quant_test_cases.csv",
+        "../../test_data/weight_quant_test_cases.csv",
+    };
+    
+    for (const auto& path : searchPaths) {
+        ifstream testFile(path);
+        if (testFile.good()) {
+            testFile.close();
+            return path;
+        }
+    }
+    return "";
+}
+
+/**
+ * @brief Load test cases from CSV file
+ */
+static map<string, CsvWeightQuantTestCase> LoadCsvTestCases()
+{
+    map<string, CsvWeightQuantTestCase> cases;
+    string csvPath = FindCsvFile();
+    
+    if (csvPath.empty()) {
+        cerr << "Warning: CSV file not found" << endl;
+        return cases;
+    }
+    
+    ifstream file(csvPath);
+    if (!file.is_open()) {
+        cerr << "Warning: Could not open CSV file: " << csvPath << endl;
+        return cases;
+    }
+    
+    string line;
+    getline(file, line);  // Skip header
+    
+    while (getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        
+        vector<string> fields = ParseCsvLine(line);
+        if (fields.size() < 16) continue;
+        
+        CsvWeightQuantTestCase tc;
+        tc.testName = fields[0];
+        tc.m = stoi(fields[1]);
+        tc.k = stoi(fields[2]);
+        tc.n = stoi(fields[3]);
+        tc.e = stoi(fields[4]);
+        tc.bs = stoi(fields[5]);
+        tc.xDtype = fields[6];
+        tc.wDtype = fields[7];
+        tc.scaleDtype = fields[8];
+        tc.biasDtype = fields[9];
+        tc.pertokenScaleDtype = fields[10];
+        tc.transposeW = (fields[11] == "true");
+        tc.outputBs = fields[12];
+        tc.groupListType = stoi(fields[13]);
+        tc.expectTilingKey = stoi(fields[14]);
+        tc.expectResult = fields[15];
+        tc.verifyBlockNum = (fields.size() > 16 && fields[16] == "true");
+        tc.description = (fields.size() > 17) ? fields[17] : "";
+        
+        cases[tc.testName] = tc;
+    }
+    
+    return cases;
+}
+
+// Global CSV test case cache
+static map<string, CsvWeightQuantTestCase>& GetCsvTestCases()
+{
+    static map<string, CsvWeightQuantTestCase> cases = LoadCsvTestCases();
+    return cases;
+}
+
+// ============================================================================
+// Test Fixture with CSV Support
+// ============================================================================
 
 class GroupedMatmulFinalizeRoutingWeightQuantTiling : public testing::Test
 {
@@ -69,890 +214,156 @@ protected:
     {
         std::cout << "GroupedMatmulFinalizeRoutingWeightQuantTiling TearDown" << std::endl;
     }
+    
+    void ExecuteCsvTest(const string& testName)
+    {
+        auto& testCases = GetCsvTestCases();
+        
+        auto it = testCases.find(testName);
+        if (it == testCases.end()) {
+            cerr << "Test case not found in CSV: " << testName << endl;
+            EXPECT_TRUE(false) << "Test case not found in CSV: " << testName;
+            return;
+        }
+        
+        const CsvWeightQuantTestCase& tc = it->second;
+        
+        // Reconstruct test case from CSV data
+        int m = tc.m, k = tc.k, n = tc.n, e = tc.e, bs = tc.bs;
+        
+        // Build shapes
+        gert::StorageShape xShape = {{m, k}, {m, k}};
+        gert::StorageShape wShape = {{e, n, k}, {e, (k + 31) / 32, (n + 15) / 16, 16, 32}};
+        gert::StorageShape scaleShape = {{e, n, (k + 63) / 64, 2}, {e, n, (k + 63) / 64, 2}};
+        gert::StorageShape biasShape = {{e, n}, {e, n}};
+        gert::StorageShape pertokenScaleShape = {{m, (k + 63) / 64, 2}, {m, (k + 63) / 64, 2}};
+        gert::StorageShape groupListShape = {{e}, {e}};
+        gert::StorageShape sharedInputShape = {{bs, n}, {bs, n}};
+        gert::StorageShape logitShape = {{m}, {m}};
+        gert::StorageShape rowindexShape = {{m}, {m}};
+        gert::StorageShape yShape = {{m, n}, {m, n}};
+        
+        // Get dtypes from CSV
+        ge::DataType xDtype = StringToDataType(tc.xDtype);
+        ge::DataType wDtype = StringToDataType(tc.wDtype);
+        ge::DataType scaleDtype = StringToDataType(tc.scaleDtype);
+        ge::DataType biasDtype = StringToDataType(tc.biasDtype);
+        ge::DataType pertokenScaleDtype = StringToDataType(tc.pertokenScaleDtype);
+        
+        // Handle special cases from CSV
+        if (tc.testName.find("NullScale") != string::npos) {
+            scaleShape = {{}, {}};
+        }
+        if (tc.testName.find("NullPertokenScale") != string::npos) {
+            pertokenScaleShape = {{}, {}};
+        }
+        if (tc.testName.find("NullRowIndex") != string::npos) {
+            rowindexShape = {{}, {}};
+        }
+        if (tc.testName.find("NullGroupList") != string::npos) {
+            groupListShape = {{}, {}};
+        }
+        if (tc.testName.find("EmptyBias") != string::npos) {
+            biasShape = {{}, {}};
+        }
+        if (tc.testName.find("WrongXShape") != string::npos) {
+            xShape = {{m, k, 1}, {m, k, 1}};
+        }
+        if (tc.testName.find("WrongWShape") != string::npos) {
+            wShape = {{e, n}, {e, n}};
+        }
+        if (tc.testName.find("EMismatch") != string::npos) {
+            scaleShape = {{e + 1, n, (k + 63) / 64, 2}, {e + 1, n, (k + 63) / 64, 2}};
+        }
+        if (tc.testName.find("KMismatch") != string::npos) {
+            scaleShape = {{e, n, (k + 63) / 64 + 1, 2}, {e, n, (k + 63) / 64 + 1, 2}};
+        }
+        
+        // Build attributes - MUST be in correct index order:
+        // 0:dtype, 1:shared_input_weight, 2:shared_input_offset, 3:transpose_x
+        // 4:transpose_w, 5:output_bs, 6:group_list_type, 7:tuning_config
+        vector<gert::TilingContextPara::OpAttr> attrs;
+        attrs.push_back({"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)});                        // index 0
+        attrs.push_back({"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)});         // index 1
+        attrs.push_back({"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)});         // index 2
+        attrs.push_back({"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)});                // index 3
+        attrs.push_back({"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(tc.transposeW)});        // index 4
+        // output_bs must be index 5
+        if (tc.outputBs != "NULL") {
+            attrs.push_back({"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(stoi(tc.outputBs))}); // index 5
+        } else {
+            // Add default value to maintain index alignment
+            attrs.push_back({"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)});
+        }
+        attrs.push_back({"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(tc.groupListType)}); // index 6
+        attrs.push_back({"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)});                  // index 7
+        
+        gert::TilingContextPara tilingContextPara(
+            "GroupedMatmulFinalizeRouting",
+            {
+                {xShape, xDtype, ge::FORMAT_ND},
+                {wShape, wDtype, ge::FORMAT_FRACTAL_NZ},
+                {scaleShape, scaleDtype, ge::FORMAT_ND},
+                {biasShape, biasDtype, ge::FORMAT_ND},
+                {pertokenScaleShape, pertokenScaleDtype, ge::FORMAT_ND},
+                {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
+                {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
+                {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
+                {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
+            },
+            {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
+            attrs,
+            &DEFAULT_COMPILE_INFO,
+            "Ascend950"
+        );
+        
+        // Execute test
+        if (tc.expectResult == "SUCCESS") {
+            TilingInfo tilingInfo;
+            bool result = ExecuteTiling(tilingContextPara, tilingInfo);
+            EXPECT_TRUE(result) << tc.description;
+            EXPECT_EQ(tilingInfo.tilingKey, tc.expectTilingKey) << tc.description;
+            if (tc.verifyBlockNum) {
+                EXPECT_EQ(tilingInfo.blockNum, DEFAULT_COMPILE_INFO.aicNum);
+            }
+        } else {
+            ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
+        }
+    }
 };
 
-// Helper function to create a standard MX-A8W4 tiling context
-static gert::TilingContextPara CreateMXA8W4TilingContext(
-    int m = M, int k = K, int n = N, int e = E, int bs = BS,
-    ge::DataType xDtype = ge::DT_FLOAT8_E4M3FN,
-    ge::DataType wDtype = ge::DT_FLOAT4_E2M1,
-    ge::DataType scaleDtype = ge::DT_FLOAT8_E8M0,
-    ge::DataType pertokenScaleDtype = ge::DT_FLOAT8_E8M0,
-    bool transposeW = true,
-    optiling::GroupedMatmulFinalizeRoutingCompileInfo* compileInfo = &DEFAULT_COMPILE_INFO)
-{
-    gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, (k + 31) / 32, (n + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{e, n, (k + 63) / 64, 2}, {e, n, (k + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{e, n}, {e, n}};  // Valid bias shape
-    gert::StorageShape pertokenScaleShape = {{m, (k + 63) / 64, 2}, {m, (k + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{e}, {e}};
-    gert::StorageShape sharedInputShape = {{bs, n}, {bs, n}};
-    gert::StorageShape logitShape = {{m}, {m}};
-    gert::StorageShape rowindexShape = {{m}, {m}};
-    gert::StorageShape yShape = {{m, n}, {m, n}};
-
-    return gert::TilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, xDtype, ge::FORMAT_ND},
-            {wShape, wDtype, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, scaleDtype, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},  // bias with valid shape
-            {pertokenScaleShape, pertokenScaleDtype, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {
-            {yShape, ge::DT_FLOAT, ge::FORMAT_ND},
-        },
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(transposeW)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(bs)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        compileInfo,
-        "Ascend950"
-    );
-}
-
 // ============================================================================
-// Test Case 1: Normal MX-A8W4 weight NZ case
-// ============================================================================
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNormalCase)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},  // bias with valid shape
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    // When tiling fails, tilingKey remains -1 (default value)
-    int64_t expectTilingKey = 4L;
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
-}
-
-// Test Case 24: Verify coreNum/blockDim is set correctly from compileInfo
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzCoreNum)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{E, N}, {E, N}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    int64_t expectTilingKey = 4L;
-    size_t expectBlockNum = DEFAULT_COMPILE_INFO.aicNum;  // Should use aicNum from compileInfo
-
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
-    EXPECT_EQ(tilingInfo.blockNum, expectBlockNum);
-}
-
-// ============================================================================
-// Test Cases 2-6: nullptr validation tests
+// CSV-Based Test Cases (All 20 tests from CSV file)
 // ============================================================================
 
-// Test Case 2: Null scale should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullScale)
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNormalCase) { ExecuteCsvTest("TestMXA8W4WeightNzNormalCase"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzCoreNum) { ExecuteCsvTest("TestMXA8W4WeightNzCoreNum"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullScale) { ExecuteCsvTest("TestMXA8W4WeightNzNullScale"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullPertokenScale) { ExecuteCsvTest("TestMXA8W4WeightNzNullPertokenScale"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullRowIndex) { ExecuteCsvTest("TestMXA8W4WeightNzNullRowIndex"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullGroupList) { ExecuteCsvTest("TestMXA8W4WeightNzNullGroupList"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongXDtype) { ExecuteCsvTest("TestMXA8W4WeightNzWrongXDtype"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongWDtype) { ExecuteCsvTest("TestMXA8W4WeightNzWrongWDtype"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongScaleDtype) { ExecuteCsvTest("TestMXA8W4WeightNzWrongScaleDtype"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzTransposeWFalse) { ExecuteCsvTest("TestMXA8W4WeightNzTransposeWFalse"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongXShape) { ExecuteCsvTest("TestMXA8W4WeightNzWrongXShape"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongWShape) { ExecuteCsvTest("TestMXA8W4WeightNzWrongWShape"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEMismatch) { ExecuteCsvTest("TestMXA8W4WeightNzEMismatch"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzKMismatch) { ExecuteCsvTest("TestMXA8W4WeightNzKMismatch"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWithBias) { ExecuteCsvTest("TestMXA8W4WeightNzWithBias"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzDefaultOutputBs) { ExecuteCsvTest("TestMXA8W4WeightNzDefaultOutputBs"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzSmallDimensions) { ExecuteCsvTest("TestMXA8W4WeightNzSmallDimensions"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEmptyBias) { ExecuteCsvTest("TestMXA8W4WeightNzEmptyBias"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroNullOutputBs) { ExecuteCsvTest("TestMXA8W4WeightNzEZeroNullOutputBs"); }
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroWithOutputBs) { ExecuteCsvTest("TestMXA8W4WeightNzEZeroWithOutputBs"); }
+
+TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestCsvFileLoaded)
 {
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{}, {}};  // Empty/null scale
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 3: Null pertoken_scale should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullPertokenScale)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{}, {}};  // Empty/null pertoken_scale
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 4: Null row_index should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullRowIndex)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{}, {}};  // Empty/null row_index
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 5: Null group_list should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzNullGroupList)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{}, {}};  // Empty/null group_list
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// ============================================================================
-// Test Cases 7-10: DataType validation tests
-// ============================================================================
-
-// Test Case 7: Wrong x dtype should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongXDtype)
-{
-    gert::TilingContextPara tilingContextPara = CreateMXA8W4TilingContext(
-        M, K, N, E, BS,
-        ge::DT_FLOAT16,  // Wrong: should be DT_FLOAT8_E4M3FN
-        ge::DT_FLOAT4_E2M1,
-        ge::DT_FLOAT8_E8M0,
-        ge::DT_FLOAT8_E8M0,
-        true
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 8: Wrong w dtype should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongWDtype)
-{
-    gert::TilingContextPara tilingContextPara = CreateMXA8W4TilingContext(
-        M, K, N, E, BS,
-        ge::DT_FLOAT8_E4M3FN,
-        ge::DT_INT8,  // Wrong: should be DT_FLOAT4_E2M1
-        ge::DT_FLOAT8_E8M0,
-        ge::DT_FLOAT8_E8M0,
-        true
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 9: Wrong scale dtype should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongScaleDtype)
-{
-    gert::TilingContextPara tilingContextPara = CreateMXA8W4TilingContext(
-        M, K, N, E, BS,
-        ge::DT_FLOAT8_E4M3FN,
-        ge::DT_FLOAT4_E2M1,
-        ge::DT_FLOAT,  // Wrong: should be DT_FLOAT8_E8M0
-        ge::DT_FLOAT8_E8M0,
-        true
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 10: transpose_w = false should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzTransposeWFalse)
-{
-    gert::TilingContextPara tilingContextPara = CreateMXA8W4TilingContext(
-        M, K, N, E, BS,
-        ge::DT_FLOAT8_E4M3FN,
-        ge::DT_FLOAT4_E2M1,
-        ge::DT_FLOAT8_E8M0,
-        ge::DT_FLOAT8_E8M0,
-        false  // Wrong: must be true
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// ============================================================================
-// Test Cases 11-17: Shape validation tests
-// ============================================================================
-
-// Test Case 11: Wrong x shape (not 2D) should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongXShape)
-{
-    gert::StorageShape xShape = {{M, K, 1}, {M, K, 1}};  // Wrong: 3D instead of 2D
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 12: Wrong w shape (not 3D) should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWrongWShape)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N}, {E, N}};  // Wrong: 2D instead of 3D
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 13: E mismatch between w and group_list should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEMismatch)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};  // E = 16
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{8}, {8}};  // Wrong: E = 8, should be 16
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 14: K mismatch between x and w should fail
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzKMismatch)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};  // K = 2048
-    gert::StorageShape wShape = {{E, (1024 + 31) / 32, (N + 15) / 16, 16, 32}, {E, N, 1024}};  // Wrong: K = 1024
-    gert::StorageShape scaleShape = {{E, N, (1024 + 31) / 32, 2}, {E, N, (1024 + 31) / 32, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (1024 + 31) / 32, 2}, {M, (1024 + 31) / 32, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// ============================================================================
-// Test Cases 18-20: Additional normal cases with optional inputs
-// ============================================================================
-
-// Test Case 18: With bias input
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzWithBias)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},  // With bias
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    // When tiling fails, tilingKey remains -1 (default value)
-    int64_t expectTilingKey = 4L;
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
-}
-
-// Test Case 19: Without output_bs attribute (should use default M/E)
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzDefaultOutputBs)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{E, N}, {E, N}};  // Valid bias shape
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},  // bias with valid shape
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    // When tiling fails, tilingKey remains -1 (default value)
-    int64_t expectTilingKey = 4L;
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
-}
-
-// Test Case 20: Different dimensions (smaller M, K, N)
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzSmallDimensions)
-{
-    int m = 256;
-    int k = 512;
-    int n = 1024;
-    int e = 4;
-    int bs = 64;
-
-    gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, (k + 31) / 32, (n + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{e, n, (k + 63) / 64, 2}, {e, n, (k + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{e, n}, {e, n}};  // Valid bias shape
-    gert::StorageShape pertokenScaleShape = {{m, (k + 63) / 64, 2}, {m, (k + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{e}, {e}};
-    gert::StorageShape sharedInputShape = {{bs, n}, {bs, n}};
-    gert::StorageShape logitShape = {{m}, {m}};
-    gert::StorageShape rowindexShape = {{m}, {m}};
-    gert::StorageShape yShape = {{m, n}, {m, n}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},  // bias with valid shape
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(bs)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    // When tiling fails, tilingKey remains -1 (default value)
-    int64_t expectTilingKey = 4L;
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
-}
-
-// ============================================================================
-// Additional Test Cases: Empty bias and E=0 scenarios
-// ============================================================================
-
-// Test Case 21: Empty bias shape (optional bias not provided)
-// NOTE: Empty bias (shape {{}, {}}) is not supported by the UT framework.
-// When a shape has 0 dimensions, DO_TILING macro sets instanceNum to 0,
-// causing subsequent inputs to have nullptr descriptors.
-// Use valid bias shape {{E, N}, {E, N}} or omit bias entirely instead.
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEmptyBias)
-{
-    gert::StorageShape xShape = {{M, K}, {M, K}};
-    gert::StorageShape wShape = {{E, N, K}, {E, (K + 31) / 32, (N + 15) / 16, 16, 32}};
-    gert::StorageShape scaleShape = {{E, N, (K + 63) / 64, 2}, {E, N, (K + 63) / 64, 2}};
-    gert::StorageShape pertokenScaleShape = {{M, (K + 63) / 64, 2}, {M, (K + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{E}, {E}};
-    gert::StorageShape sharedInputShape = {{BS, N}, {BS, N}};
-    gert::StorageShape logitShape = {{M}, {M}};
-    gert::StorageShape rowindexShape = {{M}, {M}};
-    gert::StorageShape yShape = {{M, N}, {M, N}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},  // Empty bias shape - UT framework limitation
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(BS)},
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    // Empty bias causes row_index to be nullptr due to UT framework limitation
-    // Expect GRAPH_FAILED
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 22: E=0 and outputBs nullptr (should fail gracefully)
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroNullOutputBs)
-{
-    int m = 1024;
-    int k = 2048;
-    int n = 7168;
-    int e = 0;  // E = 0
-    int bs = 64;
-
-    gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, (k + 31) / 32, (n + 15) / 16, 16, 32}};  // E = 0
-    gert::StorageShape scaleShape = {{e, n, (k + 63) / 64, 2}, {e, n, (k + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{e, n}, {e, n}};  // E = 0
-    gert::StorageShape pertokenScaleShape = {{m, (k + 63) / 64, 2}, {m, (k + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{e}, {e}};  // E = 0
-    gert::StorageShape sharedInputShape = {{bs, n}, {bs, n}};
-    gert::StorageShape logitShape = {{m}, {m}};
-    gert::StorageShape rowindexShape = {{m}, {m}};
-    gert::StorageShape yShape = {{m, n}, {m, n}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_BF16, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            // Note: output_bs not provided, E=0, should fail (cannot compute M/0)
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO
-    );
-
-    // Expected to fail because E=0 and outputBs is not provided
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
-}
-
-// Test Case 23: E=0 but with explicit outputBs (should succeed)
-TEST_F(GroupedMatmulFinalizeRoutingWeightQuantTiling, TestMXA8W4WeightNzEZeroWithOutputBs)
-{
-    int m = 1024;
-    int k = 2048;
-    int n = 7168;
-    int e = 0;  // E = 0
-    int bs = 64;
-
-    gert::StorageShape xShape = {{m, k}, {m, k}};
-    gert::StorageShape wShape = {{e, n, k}, {e, (k + 31) / 32, (n + 15) / 16, 16, 32}};  // E = 0
-    gert::StorageShape scaleShape = {{e, n, (k + 63) / 64, 2}, {e, n, (k + 63) / 64, 2}};
-    gert::StorageShape biasShape = {{e, n}, {e, n}};  // E = 0
-    gert::StorageShape pertokenScaleShape = {{m, (k + 63) / 64, 2}, {m, (k + 63) / 64, 2}};
-    gert::StorageShape groupListShape = {{e}, {e}};  // E = 0
-    gert::StorageShape sharedInputShape = {{bs, n}, {bs, n}};
-    gert::StorageShape logitShape = {{m}, {m}};
-    gert::StorageShape rowindexShape = {{m}, {m}};
-    gert::StorageShape yShape = {{m, n}, {m, n}};
-
-    gert::TilingContextPara tilingContextPara(
-        "GroupedMatmulFinalizeRouting",
-        {
-            {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
-            {wShape, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ},
-            {scaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {biasShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {pertokenScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
-            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-            {sharedInputShape, ge::DT_BF16, ge::FORMAT_ND},
-            {logitShape, ge::DT_FLOAT, ge::FORMAT_ND},
-            {rowindexShape, ge::DT_INT64, ge::FORMAT_ND}
-        },
-        {{yShape, ge::DT_FLOAT, ge::FORMAT_ND}},
-        {
-            {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"shared_input_weight", Ops::Transformer::AnyValue::CreateFrom<float>(1.0)},
-            {"shared_input_offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-            {"transpose_w", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-            {"output_bs", Ops::Transformer::AnyValue::CreateFrom<int64_t>(bs)},  // Explicit outputBs
-            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-            {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-        },
-        &DEFAULT_COMPILE_INFO,
-        "Ascend950"
-    );
-
-    // When tiling fails, tilingKey remains -1 (default value)
-    int64_t expectTilingKey = 4L;
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
+    auto& cases = GetCsvTestCases();
+    EXPECT_EQ(cases.size(), 20) << "Expected 20 test cases in CSV file";
+    
+    cout << "Successfully loaded " << cases.size() << " test cases from CSV" << endl;
+    for (const auto& pair : cases) {
+        cout << "  - " << pair.first << endl;
+    }
 }
