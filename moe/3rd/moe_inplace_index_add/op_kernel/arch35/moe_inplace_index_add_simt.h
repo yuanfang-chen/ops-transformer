@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License")
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file moe_inplace_index_add_simt.h
@@ -16,6 +16,7 @@
 #define ASCENDC_MOE_INPLACE_INDEX_ADD_SIMT_H_
 
 #include "kernel_operator.h"
+#include "op_kernel/math_util.h"
 #include "moe_inplace_index_add_common.h"
 
 namespace MoeInplaceIndexAdd
@@ -86,13 +87,13 @@ __aicore__ inline void MoeInplaceIndexAddSimt<VAR_T, IDX_T, COMP_T, CAST_T, WITH
         varWorkspaceGm_.SetGlobalBuffer((__gm__ CAST_T*)workspace);
 
         int64_t varAxis = td_.preAxis * td_.varInAxis * td_.afterAxis;
-        normBlockData_ = Ops::Base::CeilDiv(varAxis, static_cast<int64_t>(blockNum_));
+        normBlockData_ = ops::CeilDiv(varAxis, static_cast<int64_t>(blockNum_));
         int64_t minDealNum = LEAST_DEAL_SIZE / sizeof(VAR_T);
         normBlockData_ = normBlockData_ > minDealNum ? normBlockData_ : minDealNum;
-        usedCoreNum_ = Ops::Base::CeilDiv(varAxis, normBlockData_);
+        usedCoreNum_ = ops::CeilDiv(varAxis, normBlockData_);
         int64_t tailBlockData = varAxis - (usedCoreNum_ - 1) * normBlockData_;
         int64_t curCoreData = blockIdx_ != (usedCoreNum_ - 1) ? normBlockData_ : tailBlockData;
-        loopNum_ = Ops::Base::FloorDiv(curCoreData, td_.ubFactor);
+        loopNum_ = ops::FloorDiv(curCoreData, td_.ubFactor);
         tailLoopLength_ = curCoreData - loopNum_ * td_.ubFactor;
 
         pipe_.InitBuffer(varQue_, DB_BUFFER, td_.ubFactor * sizeof(VAR_T));

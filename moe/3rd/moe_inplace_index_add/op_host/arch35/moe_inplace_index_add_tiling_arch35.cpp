@@ -23,16 +23,6 @@ ge::graphStatus MoeInplaceIndexAddTilingForAscendC(gert::TilingContext* context)
     return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
-int64_t MoeCeilAlign(int64_t u_value, int64_t d_value) {
-  int64_t res_value = 0;
-  if (d_value == 0) {
-    return u_value;
-  }
-  res_value = (u_value + d_value - 1) / d_value * d_value;
-
-  return res_value;
-}
-
 bool MoeGetTilingCoreNum(const gert::TilingParseContext* context, uint32_t& core_num) {
   auto platform_info = context->GetPlatformInfo();
   MOE_OPS_CHECK_NULL_WITH_CONTEXT_RET(context, platform_info, false);

@@ -46,15 +46,15 @@ bool MoeInplaceIndexAddSimdTiling::IsCapable()
 
 int64_t MoeInplaceIndexAddSimdTiling::GetIndicesAlignBlockSize(int64_t indicesFactor)
 {
-    auto ubBlock = Ops::Base::GetUbBlockSize(context_);
-    int64_t occupy = MoeCeilAlign(indicesFactor * indicesTypeSize_, ubBlock);
+    auto ubBlock = static_cast<int64_t>(Ops::Base::GetUbBlockSize(context_));
+    int64_t occupy = Ops::Base::CeilAlign(indicesFactor * indicesTypeSize_, ubBlock);
     return occupy;
 }
 
 int64_t MoeInplaceIndexAddSimdTiling::GetAfterAlignBlockSize(int64_t indicesFactor, int64_t afterFactor)
 {
-    auto ubBlock = Ops::Base::GetUbBlockSize(context_);
-    int64_t occupy = indicesFactor * MoeCeilAlign((varTypeSize_) * afterFactor, ubBlock);
+    auto ubBlock = static_cast<int64_t>(Ops::Base::GetUbBlockSize(context_));
+    int64_t occupy = indicesFactor * Ops::Base::CeilAlign((varTypeSize_) * afterFactor, ubBlock);
     return occupy;
 }
 
