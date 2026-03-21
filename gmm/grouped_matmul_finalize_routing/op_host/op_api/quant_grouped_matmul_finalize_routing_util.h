@@ -46,6 +46,7 @@ struct GroupedMatmulParams {
     // attrs
     bool transposeX1{false};
     bool transposeX2{false};
+    bool skipHostDimensionChecks{false}; // WeightNzV2 debug: skip host dim/shape checks when true
 };
 
 class GroupedMatmulParamsBuilder {
@@ -125,6 +126,12 @@ public:
     {
         p_.transposeX1 = transposeX1;
         p_.transposeX2 = transposeX2;
+        return *this;
+    }
+
+    GroupedMatmulParamsBuilder &SetSkipHostDimensionChecks(bool skip)
+    {
+        p_.skipHostDimensionChecks = skip;
         return *this;
     }
 

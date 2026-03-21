@@ -516,6 +516,9 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
 
 static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
+    if (params.skipHostDimensionChecks) {
+        return ACLNN_SUCCESS;
+    }
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRoutingDAV3510Checker checker;
         aclnnStatus status = checker.CheckParams(params);
@@ -817,7 +820,7 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     }
 
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+    if (!params.skipHostDimensionChecks && op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
         CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
     }
     return ACLNN_SUCCESS;
@@ -1177,6 +1180,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         }
         tmpWeight->SetStorageShape(storageShape);
 
+        /* DEBUG: WeightNzV2 — host-side dimension/format interception disabled (debug branch).
         if (tmpWeight->GetDataType() == DataType::DT_INT4 && pertokenScaleOptional == nullptr) {
             OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
                     "GroupedMatmulFinalizeRoutingWeightNz does not support nullptr for pertokenScale.");
@@ -1187,6 +1191,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
                                             logit, rowIndex,  dtype};
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
+        */
     }
 
     // zzzlog: tmpWeight after unpack + weightNzShape derived by transposeX2.
@@ -1212,6 +1217,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         .SetTuningConfig(tuningConfigOptional)
         .SetNumbers(sharedInputWeight, sharedInputOffset, groupListType)
         .SetTranspose(transposeX1, transposeX2)
+        .SetSkipHostDimensionChecks(true)
         .Build();
     auto ret = aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProcess(params, uniqueExecutor.get());
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
