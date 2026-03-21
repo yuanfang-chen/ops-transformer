@@ -102,6 +102,10 @@ constexpr int32_t ALLGATHERV2_MATMUL_NPU91093_FOUR_RANK_INT8_CODE_DEFAULT = 4341
 constexpr int32_t ALLGATHERV2_MATMUL_NPU91093_EIGHT_RANK_INT8_CODE_DEFAULT = 428930088;
 constexpr int32_t ALLGATHERV2_MATMUL_NPU91093_FOUR_RANK_FP16_CODE_DEFAULT = 428930088;
 constexpr int32_t ALLGATHERV2_MATMUL_NPU91093_EIGHT_RANK_FP16_CODE_DEFAULT = 428377128;
+constexpr int32_t ALLGATHERV2_MATMUL_NPU910B_TWO_RANK_INT4_CODE_DEFAULT = 428889128;  // INT4 使用与 INT8 相同的默认值
+
+// INT4 复用 INT8 的映射表
+static std::map<int, std::vector<std::vector<int>>> &g_allGatherV2MatmulNPU910BEightRankINT4CodeMap = g_allGatherV2MatmulNPU910BEightRankINT8CodeMap;
 
 // Tiling Code Encode Map
 static std::map<int, std::vector<std::vector<int>>> g_allGatherV2MatmulNPU910BTwoRankINT8CodeMap = {
