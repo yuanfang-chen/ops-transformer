@@ -36,12 +36,7 @@ const std::vector<uint32_t> QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF1
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 
-static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
-{
-    return std::count(list.begin(), list.end(), value) > 0;
-}
-
-static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
+ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
     const char *opName_)
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
@@ -49,6 +44,11 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
         OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
+}
+
+bool QuantGroupedMatmulAllToAllvTilingBase::IsContains(const std::vector<uint32_t> &list, uint32_t value)
+{
+    return std::count(list.begin(), list.end(), value) > 0;
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::GetShapeAttrsInfo()

@@ -96,6 +96,8 @@ protected:
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus GetPlatformInfo() override;
     virtual bool IsCapable() = 0;
+    virtual bool IsContains(const std::vector<uint32_t> &list, uint32_t value);
+    ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName, const char *opName_);
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus PostTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
