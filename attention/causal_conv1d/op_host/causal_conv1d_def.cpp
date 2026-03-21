@@ -23,54 +23,44 @@ public:
         this->Input("x")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("weight")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("conv_states")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("query_start_loc")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("cache_indices")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("initial_state_mode")
             .ParamType((OPTIONAL))
             .DataTypeList({ge::DT_INT32})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("bias")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Input("num_accepted_tokens")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
 
         this->Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
         this->Output("conv_states")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
+            .FormatList({ge::FORMAT_ND});
 
         this->Attr("activation_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("pad_slot_id").AttrType(OPTIONAL).Int(-1);
