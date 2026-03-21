@@ -113,7 +113,7 @@ namespace optiling {
         int64_t b = tilingData_.b;
         tilingData_.interWorkspaceSz += sizeHigh * nv * s;  // gCumExp
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kCumDecay
-        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // vInner
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // vInner
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // qPrime
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // attnInter
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kg
