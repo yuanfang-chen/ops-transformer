@@ -34,7 +34,6 @@ get_manager_refs() {
     eval "${_outvar}=\"${_result}\""
 }
 
-# manager引用计数是否存在
 # 返回值0为真，1为假
 manager_refs_exists() {
     local var_path="$1"
