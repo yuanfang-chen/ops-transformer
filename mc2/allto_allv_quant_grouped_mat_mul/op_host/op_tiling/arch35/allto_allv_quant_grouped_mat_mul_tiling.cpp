@@ -114,14 +114,14 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
         SetTilingArray(gmmQuantTilingData, maxMSize, n1_, h1_);
-        SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
+        SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_, transGmmWeight_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
     if (bs_ != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
         SetTilingArray(mmQuantTilingData, bs_, n2_, h2_);
-        SetTilingParams(mmQuantTilingData, bs_, n2_, h2_);
+        SetTilingParams(mmQuantTilingData, bs_, n2_, h2_, transMmWeight_);
         PrintGMMQuantTilingData(mmQuantTilingData);
     }
     OP_LOGD(context_->GetNodeName(), "end DoLibApiTiling.");
