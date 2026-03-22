@@ -220,13 +220,10 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
             weightNDim_ = transposeWeight_ ? wDimNum - DIM_THREE : wDimNum - DIM_FOUR;
             nzFactor_ = transposeWeight_ ? BASIC_BLOCK_SIZE_16 : static_cast<int64_t>(c0);
         }
-        // if (!CheckWeightNZShape(context, static_cast<int64_t>(c0))) {
-        //     OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid.");
-        //     return false;
-        // }
-        OP_CHECK_IF(CheckWeightNZShape(context, static_cast<int64_t>(c0)),
-                    OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid."),
-                    return false);
+        if (!CheckWeightNZShape(context, static_cast<int64_t>(c0))) {
+            OP_LOGE(context->GetNodeName(), "The shape of nz weight is invalid.");
+            return false;
+        }
     }
 
     if (groupType_ == SPLIT_K) {
@@ -257,14 +254,10 @@ bool GroupedNoQuantMatmulTiling::CheckWeightNZShape(const gert::TilingContext *c
         auto wShape = wTensor->GetOriginShape();
         size_t kValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 1 : 2));
         size_t nValue = wShape.GetDim(wShape.GetDimNum() - (transposeWeight_ ? 2 : 1));
-        // if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) {
-        //     OP_LOGE(context->GetNodeName(),"the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %zu, k value is %zu.", nValue, kValue);
-        //     return false;
-        // }
-        OP_CHECK_IF((kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0),
-                    OP_LOGE(context->GetNodeName(),
-                    "the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %ld, k value is %ld.", nValue, kValue),
-                    return false);
+        if (kValue % numInOneBlk != 0 || nValue % numInOneBlk != 0) {
+            OP_LOGE(context->GetNodeName(),"the value of dim n, k is expected to be a multiple of 32B when NZ weight, but n value is %zu, k value is %zu.", nValue, kValue);
+            return false;
+        }
     }
     return true;
 }
