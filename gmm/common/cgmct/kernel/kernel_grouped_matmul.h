@@ -52,6 +52,7 @@ constexpr uint64_t NUM_ONE = 1UL;
 constexpr uint64_t NUM_TWO = 2UL;
 constexpr uint64_t NUM_THREE = 3UL;
 constexpr uint64_t NUM_FOUR = 4UL;
+constexpr uint64_t NUM_SIXTEEN = 16UL;
 constexpr uint64_t DIM_NUM = 2UL;
 
 template <class ProblemShape_, class BlockMmadBuilder_, class BlockEpilogue_, class BlockScheduler_,
