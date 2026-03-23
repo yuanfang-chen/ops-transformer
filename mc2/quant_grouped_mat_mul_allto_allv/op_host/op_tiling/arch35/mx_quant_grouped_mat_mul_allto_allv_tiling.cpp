@@ -359,6 +359,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantDtypeConstraints()
 {
+    if (!localParams_.hasSharedMm) {
+        return ge::GRAPH_SUCCESS;
+    }
     OP_TILING_CHECK(localParams_.gmmXDtype != localParams_.mmXDtype,
         OP_LOGE(opName_, "The input mmX Dtype should be equal to gmmX Dtype, but now, gmmX Dtype is %s, mmX is %s.",
         Ops::Base::ToString(localParams_.gmmXDtype).c_str(), Ops::Base::ToString(localParams_.mmXDtype).c_str()), return ge::GRAPH_FAILED);
