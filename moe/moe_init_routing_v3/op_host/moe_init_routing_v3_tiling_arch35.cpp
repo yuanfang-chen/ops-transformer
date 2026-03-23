@@ -1185,7 +1185,7 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
         int64_t usedSpace = Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple +
                             UB_BLOCK_SIZE * NUM_TWO + perLoopParams.perLoopMaxIndicesElements * multipleParams.rowMultiple * static_cast<int64_t>(sizeof(int32_t));
         int64_t remainingSpace = availUbSize_ - usedSpace;
-        int64_t rowSpace = Align(perLoopParams.perLoopCols, inputXDtypeSize_) + UB_BLOCK_SIZE;
+        int64_t rowSpace = Align(perLoopParams.perLoopCols, inputXDtypeSize_) * inputXDtypeSize_;
         int64_t maxAdditionalRows = remainingSpace / rowSpace;
         perLoopParams.xCopyInQueueBufferNum = std::min(maxAdditionalRows + NUM_TWO, MAX_QUEUE_BUFFER_NUM);
     }
