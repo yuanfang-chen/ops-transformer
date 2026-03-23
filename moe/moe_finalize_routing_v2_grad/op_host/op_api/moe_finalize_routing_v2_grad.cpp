@@ -46,7 +46,7 @@ const std::array<const aclTensor *, 2> MoeFinalizeRoutingV2Grad(
     } else {
         outShapeGradExpandedX.AppendDim(expandedRowIdxShape.GetDim(0));
     }
-    outShapeGradExpandedX.AppendDim(gradYShape.GetDim(gradYShape.GetDimNum() - 1));
+    outShapeGradExpandedX.AppendDim(gradYShape.GetDim(1));
 
     auto grad_expanded_x = executor->AllocTensor(outShapeGradExpandedX, grad_y->GetDataType(), op::Format::FORMAT_ND);
 
