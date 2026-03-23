@@ -57,9 +57,12 @@ aclnnStatus aclnnMoeTokenUnpermuteGradGetWorkspaceSize(
     auto permuteTokensShape = permuteTokens->GetViewShape();
     CHECK_RET(permuteTokensShape.GetDimNum() > 0, ACLNN_ERR_PARAM_INVALID);
     int64_t activeNum = permuteTokensShape.GetDim(0);
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    aclOpExecutor* executorRawPtr = uniqueExecutor.get();
     aclnnStatus ret = aclnnInnerMoeFinalizeRoutingV2GradGetWorkspaceSize(
         unpermutedTokensGrad, sortedIndices, permuteTokens, probsOptional, nullptr, nullptr, 0, activeNum, 0, 0,
-        permutedTokensGradOut, probsGradOut, workspaceSize, executor);
+        permutedTokensGradOut, probsGradOut, workspaceSize, &executorRawPtr);
+    uniqueExecutor.ReleaseTo(executor);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(
             ACLNN_ERR_INNER,

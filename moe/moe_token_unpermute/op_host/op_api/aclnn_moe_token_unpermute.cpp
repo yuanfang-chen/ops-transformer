@@ -60,9 +60,12 @@ aclnnStatus aclnnMoeTokenUnpermuteGetWorkspaceSize(
             executor);
     }
     CHECK_RET(paddedMode == false, ACLNN_ERR_PARAM_INVALID);
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    aclOpExecutor* executorRawPtr = uniqueExecutor.get();
     aclnnStatus ret = aclnnInnerMoeFinalizeRoutingV2GetWorkspaceSize(
         permutedTokens, sortedIndices, nullptr, nullptr, nullptr, probsOptional, nullptr, READ_INDEX_BY_ROW, out,
-        workspaceSize, executor);
+        workspaceSize, &executorRawPtr);
+    uniqueExecutor.ReleaseTo(executor);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(
             ACLNN_ERR_INNER,
