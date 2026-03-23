@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchair as tng
 from torch_npu import npu
-from torch_npu.dynamo.torchair.configs.compiler_config import CompilerConfig
+from torchair.configs.compiler_config import CompilerConfig
 import ascend_ops
 import time
 import numpy as np

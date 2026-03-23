@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchair as tng
 from torch_npu import npu
-from torch_npu.dynamo.torchair.configs.compiler_config import CompilerConfig
+from torchair.configs.compiler_config import CompilerConfig
 import ascend_ops
 import time
 import numpy as np
@@ -151,7 +151,7 @@ def main():
     compiler_config.mode = config.compile_mode
     compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel = True
     compiler_config.experimental_config.aclgraph._super_kernel_optimize = True
-    compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "./result/"
+    compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "./"
     # 5. Get NPU backend
     print("🎯 Getting NPU backend...")
     npu_backend = tng.get_npu_backend(compiler_config=compiler_config)
