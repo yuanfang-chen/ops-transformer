@@ -1017,9 +1017,17 @@ void GroupedQmmTiling::CalBasicBlock()
         return;
     }
     basicTiling_.baseN = std::min(inputParams_.nSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
-    basicTiling_.baseN = inputParams_.transB ?
-                             CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
-                             CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    if (inputParams_.transB) {
+        // weight NZ with transB uses K0=32 layout; align baseN to 32B element width to
+        // avoid split-n tile shape mismatches between transpose-attr and stride-inferred paths.
+        uint64_t nAlign = CUBE_BLOCK;
+        if (isWeightNz_) {
+            nAlign = GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype);
+        }
+        basicTiling_.baseN = CeilAlign(basicTiling_.baseN, nAlign);
+    } else {
+        basicTiling_.baseN = CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    }
     basicTiling_.baseK = CeilAlign(
         std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
         GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
