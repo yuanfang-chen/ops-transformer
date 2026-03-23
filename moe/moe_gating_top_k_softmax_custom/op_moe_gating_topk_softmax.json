@@ -1,0 +1,49 @@
+[
+    {
+        "op": "MoeGatingTopKSoftmax",
+        "name": "MoeGatingTopKSoftmax",
+        "input_desc": [
+            {
+                "name": "x",
+                "param_type": "required",
+                "format": [ "ND" ],
+                "type": [ "float16" ],
+                "index": 0,
+                "shape": [18, 512]
+            }
+        ],
+        "output_desc": [
+            {
+                "name": "y",
+                "param_type": "required",
+                "format": [ "ND" ],
+                "type": [ "float16" ],
+                "index": 0,
+                "shape": [18, 10]
+            },
+            {
+                "name": "expertIdx",
+                "param_type": "required",
+                "format": ["ND"],
+                "type": ["int32"],
+                "index": 1, 
+                "shape":[18, 10]
+            },{
+                "name": "rowIdx",
+                "param_type": "required",
+                "format": ["ND"],
+                "type": ["int32"],
+                "index": 2, 
+                "shape":[18, 10]
+            }
+        ],
+        "attr":[
+            {
+                "name": "num_experts_per_tok",
+                "param_type": "required",
+                "type":[ "int"],
+                "value": 10
+            }
+        ]
+    }
+]
