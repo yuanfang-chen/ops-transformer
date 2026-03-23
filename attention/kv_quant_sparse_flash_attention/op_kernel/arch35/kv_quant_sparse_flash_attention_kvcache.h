@@ -55,7 +55,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
             actualS1Size = (sIdx == 0) ? actualSeqQlenAddr[0] :
                 actualSeqQlenAddr[sIdx] - actualSeqQlenAddr[sIdx - 1];
         } else {
-            actualS1Size = actualSeqQlenAddr[sIdx];
+            actualS1Size = constInfo.s1Size;
         }
     } else {
         actualS1Size = (actualSeqQlenAddr == nullptr) ? constInfo.s1Size :
