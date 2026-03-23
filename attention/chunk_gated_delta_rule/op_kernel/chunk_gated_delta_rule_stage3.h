@@ -74,7 +74,8 @@ public:
         }
         coreId_ /= 2;
         uint64_t inQueueSize = static_cast<uint64_t>(chunkSize_) * paddedDv_ * sizeof(float);
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, inQueueSize);
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, chunkSize_ > paddedDv_ ?
+                          chunkSize_ * chunkSize_ * sizeof(float) : inQueueSize);
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ > Dv_ ?
                           chunkSize_ * chunkSize_ * sizeof(float) : chunkSize_ * Dv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
