@@ -7,8 +7,8 @@
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
 |  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
-|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
-|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
+|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     ×    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     ×    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
 |  <term>Atlas 推理系列产品</term>    |     ×    |
 |  <term>Atlas 训练系列产品</term>    |     ×    |
@@ -22,12 +22,12 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
+    convStates: [-1, K-1, dim]
     queryStartLoc: [batch+1]
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
-    numAcceptedTokens: [batch]（可选）
+    bias: [dim]（无作用）
+    numAcceptedTokens: [batch]（无作用）
     y: [cu_seq_len, dim]
     runMode: 0
     ```
@@ -37,11 +37,11 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
+    convStates: [-1, K-1, dim]
     queryStartLoc: [batch+1]
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
+    bias: [dim]（无作用）
     numAcceptedTokens: [batch]（用于投机解码）
     y: [cu_seq_len, dim]
     runMode: 1
@@ -51,11 +51,11 @@
     ```
     x: [batch, m+1, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
-    queryStartLoc: [batch+1]（可选）
+    convStates: [-1, K-1, dim]
+    queryStartLoc: [batch+1]（无作用）
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
+    bias: [dim]（无作用）
     numAcceptedTokens: [batch]（用于投机解码，m为投机token个数）
     y: [batch, m+1, dim]
     runMode: 1
@@ -155,7 +155,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>x</td>
       <td>输入</td>
       <td>输入序列</td>
-      <td>prefill场景：shape为[cu_seq_len, dim]<br>decode场景：shape为[cu_seq_len, dim]或[batch, seqlen, dim]<br>cu_seq_len范围[1, 65536]，dim范围[64, 16384]</td>
+      <td>prefill场景：shape为[cu_seq_len, dim]<br>decode场景：shape为[cu_seq_len, dim]或[batch, seq_len, dim]</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>2-3</td>
@@ -165,7 +165,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>weight</td>
       <td>输入</td>
       <td>因果1维卷积核</td>
-      <td>shape为[K, dim]<br>K固定为3，dim范围[64, 16384]</td>
+      <td>shape为[K, dim]</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>2</td>
@@ -175,7 +175,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>convStates</td>
       <td>输入/输出</td>
       <td>缓存状态张量，存储各序列的历史token数据，各序列计算完成后原地更新</td>
-      <td>shape为[..., K-1, dim]<br>第0维大小不固定</td>
+      <td>shape为[..., K-1, dim]</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3</td>
@@ -185,7 +185,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>queryStartLoc</td>
       <td>输入</td>
       <td>序列起始位置索引，记录各序列在拼接张量x中的起始位置</td>
-      <td>shape为[batch+1]<br>batch范围[1, 256]<br>queryStartLoc[i]表示第i个序列的起始偏移</td>
+      <td>shape为[batch+1]<br>queryStartLoc[i]表示第i个序列的起始偏移</td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
@@ -395,16 +395,28 @@ aclnnStatus aclnnCausalConv1dAdd(
   - aclnnCausalConv1dAdd默认确定性实现。
 
 - 输入shape限制：
-  - x支持2维[cu_seq_len, dim]或3维[batch, seqlen, dim]。
-  - weight必须是2维[K, dim]，其中K固定为3。
-  - convStates必须是3维[..., K-1, dim]，第0维大小不固定。
-  - cu_seq_len范围[1, 65536]，dim范围[64, 16384]，batch范围[1, 256]。
+  - prefill场景：
+    - x支持2维[cu_seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., K-1, dim]，第0维大小不固定。
+    - cu_seq_len范围[1, 65536]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
+  - decode场景（变长序列）：
+    - x支持2维[cu_seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., state_len, dim]，第0维大小不固定，state_len必须大于所有batch中最大的token个数加K-1。
+    - cu_seq_len范围[1, 1536]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
+  - decode场景（固定batch）：
+    - x支持3维[batch, seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., K-1+seq_len-1, dim]，第0维大小不固定。
+    - seq_len范围[1, 6]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
 
 - 输入值域限制：
-  - queryStartLoc是累计偏移量，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移。
+  - queryStartLoc是累计偏移量，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移，queryStartLoc[batch+1]表示最后一个序列的结束位置。
   - cacheIndices长度为batch，指定每个序列对应的缓存槽索引。
   - initialStateMode长度为batch，每个元素取值0、1或2。
   - padSlotId建议值-1，当cacheIndices[i]==padSlotId时跳过该batch。
+  - numAcceptedTokens分为None和非None，非None情况下长度为batch，每个元素取值不超过当前batch的token个数且大于0。
 
 - 输入属性限制：
   - x、weight、convStates、bias、y的数据类型必须一致。
@@ -495,7 +507,7 @@ int main()
 
     // 2. 构造输入与输出，需要根据API的接口定义构造
     int64_t K = 3;
-    int64_t dim = 64;
+    int64_t dim = 128;
     int64_t batch = 4;
     int64_t numSlots = 8;
     int64_t cuSeqLen = 19;  // seq_lens = [5, 3, 7, 4]
@@ -604,8 +616,7 @@ int main()
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(yShape);
     std::vector<float> resultData(size, 0);
-    ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), yDeviceAddr,
-                      size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
+    ret = CreateAclTensor(hostY, yShape, &yDeviceAddr, aclDataType::ACL_FLOAT16, &y, aclFormat::ACL_FORMAT_ND);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
 
     LOG_PRINT("First 10 output values:\n");
