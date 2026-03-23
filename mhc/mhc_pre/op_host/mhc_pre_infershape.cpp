@@ -58,37 +58,19 @@ static void SetShape2D(gert::Shape *shape, uint64_t d0, uint64_t d1)
     shape->SetDim(1, d1);
 }
 
-static void SetShape4D(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t d2)
+static void SetShape4D(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t d2, uint64_t d3)
 {
     shape->SetDimNum(4);
     shape->SetDim(0, d0);
     shape->SetDim(1, d1);
     shape->SetDim(2, d2);
-    shape->SetDim(3, d2);
+    shape->SetDim(3, d3);
 }
 
 static void SetShape1D(gert::Shape *shape, uint64_t d0)
 {
     shape->SetDimNum(1);
     shape->SetDim(0, d0);
-}
-
-static void SetShape3DMatK(gert::Shape *shape, uint64_t d0, uint64_t d1, uint64_t matK)
-{
-    shape->SetDimNum(3);
-    shape->SetDim(0, d0);
-    shape->SetDim(1, d1);
-    shape->SetDim(2, matK);
-}
-
-static bool IsUnknownShape(const gert::Shape *shape)
-{
-    for (int64_t i = 0; i < shape->GetDimNum(); ++i) {
-        if (shape->GetDim(i) == UNKNOWN_DIM_VALUE) {
-            return true;
-        }
-    }
-    return false;
 }
 
 static void SetShapeFromX(gert::Shape *dst, const gert::Shape *src)
@@ -107,15 +89,9 @@ static ge::graphStatus InferShape4MhcPre(InferShapeContext *context)
     OP_CHECK_NULL_WITH_CONTEXT(context, xShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, phiShape);
 
-    if (IsUnknownShape(xShape) || IsUnknownShape(phiShape)) {
-        SetShapeFromX(context->GetOutputShape(OUT_H_IN_INDEX), xShape);
-        SetShapeFromX(context->GetOutputShape(OUT_H_PRE_INDEX), xShape);
-        return GRAPH_SUCCESS;
-    }
-
     int64_t phiDim = phiShape->GetDimNum();
     int64_t xDim = xShape->GetDimNum();
-    OP_CHECK_IF(phiDim < 2, OP_LOGE(context->GetNodeName(), "phiShapeDim should be >= 2, but got %ld", phiDim),
+    OP_CHECK_IF(phiDim != 2, OP_LOGE(context->GetNodeName(), "phiShapeDim should be 2, but got %ld", phiDim),
                 return GRAPH_FAILED);
     OP_CHECK_IF(
         xDim != BSND_DIM_NUM && xDim != TND_DIM_NUM,
@@ -129,9 +105,9 @@ static ge::graphStatus InferShape4MhcPre(InferShapeContext *context)
         uint64_t b = xShape->GetDim(0), s = xShape->GetDim(1), n = xShape->GetDim(2), d = xShape->GetDim(3);
         SetShape3D(outShapes[0], b, s, d);
         SetShape3D(outShapes[1], b, s, n);
-        SetShape4D(outShapes[2], b, s, n);
+        SetShape4D(outShapes[2], b, s, n, n);
         SetShape2D(outShapes[3], b, s);
-        SetShape3DMatK(outShapes[4], b, s, matK);
+        SetShape3D(outShapes[4], b, s, matK);
         SetShape3D(outShapes[5], b, s, n);
     } else {
         uint64_t t = xShape->GetDim(0), n = xShape->GetDim(1), d = xShape->GetDim(2);

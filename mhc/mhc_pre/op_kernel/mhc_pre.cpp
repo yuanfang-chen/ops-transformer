@@ -13,6 +13,7 @@
  * \brief
  */
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+#include "arch35/mhc_pre_kernel_base.h"
 #include "arch35/mhc_pre_split_bs.h"
 #include "arch35/mhc_pre_split_nd.h"
 #include "arch35/mhc_pre_tiling_key.h"
@@ -40,8 +41,8 @@ __global__ __aicore__ void mhc_pre(GM_ADDR x, GM_ADDR phi, GM_ADDR alpha, GM_ADD
         op.Init(initParams);
         op.Process();
     } else if constexpr (TILING_MODE == MHC_PRE_SPLIT_ND) {
-        InitParamsDecode initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
-                                    h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
+        InitParams initParams{x,     phi,     alpha, bias,  gamma, hin,   h_post,
+                              h_res, inv_rms, h_mix, h_pre, user,  &pipe, &tilingData};
         MT mm;
         mm.Init(&tilingData.matmulTiling, &pipe);
         MhcPreKernelSplitND<DTYPE_X, float32_t> op(mm);
