@@ -17,37 +17,25 @@ def print_tensor_shape(tensor, name):
 # 参数配置
 # -----------------------------
 batch_size = 4
-q_head_num = 64
-kv_head_num = 1
 q_seq = 1
-block_size = 128
-head_dim = 128
+q_head_num = 64
 kv_seq_length = 8192
-block_num = batch_size * (kv_seq_length // block_size + 1)
+kv_head_num = 1
+head_dim = 128
+block_size = 128
 max_block_num_per_batch = kv_seq_length // block_size + 1
-
-q_len = [q_seq] * batch_size
-qkv_len = [kv_seq_length] * batch_size
-
-scale_num = 1 / (head_dim**0.5)
-
-actual_seq_lengths_query = torch.tensor([q_seq] * batch_size).to(torch.int32).npu()
 actual_seq_lengths_kv = torch.tensor([kv_seq_length] * batch_size).to(torch.int32).npu()
 
 infer_kwargs = dict(
     batch_size = batch_size,
     query_seq_size = q_seq,
     query_head_num = q_head_num,
-    key_seq_size = kv_seq_length,
     key_head_num = kv_head_num,
+    head_dim = head_dim,
     block_size = 128,
     max_block_num_per_batch = max_block_num_per_batch,
-    is_accum_seq_query = False,
-    is_accum_seq_kv = False,
-    actual_seq_lengths_query = actual_seq_lengths_query,
     actual_seq_lengths_kv = actual_seq_lengths_kv,
     layout_query = "BNSD",
-    layout_key = 'BNSD'
 )
 
 result = torch.ops.custom.npu_fused_infer_attention_score_metadata(**infer_kwargs)

@@ -43,7 +43,7 @@ private:
     bool SplitBN();
     bool SplitBN_V0();
     void GetEstimatedLoad(int64_t &estimatedLoad) const;
-    std::vector<int64_t> InitSparseValidArray(int64_t actualLensDim, const int32_t *actualLens) const;
+    std::vector<int64_t> InitSparseValidArray(int64_t actualLensDim, const int64_t *actualLens) const;
     bool BalanceLoad(const std::vector<int64_t> &sparseValidArray, int64_t totalSize, int64_t validAivNum,
         std::vector<int64_t> &localValue, std::vector<int64_t> &sparseStartIdx) const;
     void SetSparseStartIdx(const std::vector<int64_t> &sparseValidArray, int64_t totalSize, int64_t validAivNum,
@@ -57,19 +57,13 @@ public:
     uint32_t batchSize_ = 0U;
     uint32_t qSeqSize_ = 0U;
     uint32_t qHeadNum_ = 0U;
-    uint32_t kvSeqSize_ = 0U;
     uint32_t kvHeadNum_ = 0U;
     uint32_t headDim_ = 0U;
     uint32_t blockSize_ = 0U;
     uint32_t maxBlockNumPerBatch_ = 0U;
     aicpu::kernels::Layout layoutQuery_ = aicpu::kernels::Layout::BUTT;
-    aicpu::kernels::Layout layoutKV_ = aicpu::kernels::Layout::BUTT;
     std::string socVersion_ = "";
-    bool isAccumSeqQ_ = false;
-    int32_t *actSeqQLen_ = nullptr;
-    int64_t actSeqQLenDim_ = 0;
-    bool isAccumSeqKv_ = false;
-    int32_t *actSeqKvLen_ = nullptr;
+    int64_t *actSeqKvLen_ = nullptr;
     int64_t actSeqKvLenDim_ = 0;
 
     // output
@@ -118,21 +112,15 @@ void SplitCore::AcquireParam(aicpu::kernels::IncreFlashAttentionMetadataArgs *ar
     batchSize_ = args->batchSize;
     qSeqSize_ = args->querySeqSize;
     qHeadNum_ = args->queryHeadNum;
-    headDim_ = args->headDim;
-    kvSeqSize_ = args->keySeqSize;
     kvHeadNum_ = args->keyHeadNum;
+    headDim_ = args->headDim;
     blockSize_ = args->blockSize;
     maxBlockNumPerBatch_ = args->maxBlockNumPerBatch;
 
-    isAccumSeqQ_ = args->isAccumSeqQ;
-    actSeqQLen_ = (int32_t *)args->actSeqQLen;
-    actSeqQLenDim_ = args->actSeqQLenDim;
-    isAccumSeqKv_ = args->isAccumSeqQ;
-    actSeqKvLen_ = (int32_t *)args->actSeqKvLen;
+    actSeqKvLen_ = (int64_t *)args->actSeqKvLen;
     actSeqKvLenDim_ = args->actSeqKvLenDim;
 
     layoutQuery_ = args->layoutQuery;
-    layoutKV_ = args->layoutKey;
 }
 
 void SplitCore::ParamsInit()
@@ -150,8 +138,7 @@ void SplitCore::ParamsInit()
     maxActualseq_ = sMax_;
     if (actSeqKvLenDim_ > 0) {
         for (int64_t i = 1; i < actSeqKvLenDim_; ++i) {
-            int32_t tmp = (isAccumSeqKv_) ? actSeqKvLen_[i] - actSeqKvLen_[i - 1] : actSeqKvLen_[i];
-            if (tmp != actSeqKvLen_[0]) {
+            if (actSeqKvLen_[i] != actSeqKvLen_[0]) {
                 isSameActualseq_ = false;
             }
         }
@@ -325,7 +312,7 @@ bool SplitCore::SplitBN_V0()
     return true;
 }
 
-std::vector<int64_t> SplitCore::InitSparseValidArray(int64_t actualLensDim, const int32_t *actualLens) const
+std::vector<int64_t> SplitCore::InitSparseValidArray(int64_t actualLensDim, const int64_t *actualLens) const
 {
     uint32_t outer;
     if (layoutQuery_ == aicpu::kernels::Layout::BSH || layoutQuery_ == aicpu::kernels::Layout::BSND ||

@@ -245,17 +245,12 @@ def build_case_inputs(case: Dict[str, Any], config: Config) -> Dict[str, Any]:
         batch_size = batch_size,
         query_seq_size = q_seq,
         query_head_num = q_head_num,
-        head_dim = head_dim,
-        key_seq_size = kv_seq_length,
         key_head_num = kv_head_num,
+        head_dim = head_dim,
         block_size = block_size,
         max_block_num_per_batch = block_table_shape[1],
-        is_accum_seq_query = False,
-        is_accum_seq_kv = False,
-        actual_seq_lengths_query = torch.tensor([q_seq] * batch_size, dtype=torch.int32).npu(),
-        actual_seq_lengths_kv = torch.tensor(kv_len, dtype=torch.int32).npu(),
+        actual_seq_lengths_kv = torch.tensor(kv_len, dtype=torch.int64).npu(),
         layout_query = input_layout,
-        layout_key = input_layout
     )
 
     inputs_summary = {
@@ -524,8 +519,8 @@ def main():
 
         rtol=1e-4,
         atol=1e-4,
-        specific_case=[0]
-        #only_first_n_cases=20
+        specific_case=[17]
+        # only_first_n_cases=20
     )
 
     log("\n" + "=" * 60, config)

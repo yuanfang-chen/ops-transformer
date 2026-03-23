@@ -107,19 +107,12 @@ def generate_inputs(config: AttentionConfig):
         "batch_size": config.batch_size,
         "query_seq_size": config.q_seq,
         "query_head_num": config.q_head_num,
-        "head_dim": config.head_dim,
-        "key_seq_size": config.kv_seq_length,
         "key_head_num": config.kv_head_num,
+        "head_dim": config.head_dim,
         "block_size": config.block_size,
         "max_block_num_per_batch": config.max_block_num_per_batch,
-        "is_accum_seq_query": False,
-        "is_accum_seq_kv": False,
-        "actual_seq_lengths_query": torch.tensor(
-            [config.q_seq] * config.batch_size, dtype=torch.int32
-        ).npu(),
-        "actual_seq_lengths_kv": actual_seq_kvlen.to(dtype=torch.int32),
+        "actual_seq_lengths_kv": actual_seq_kvlen.to(dtype=torch.int64),
         "layout_query": "BNSD",
-        "layout_key": "BNSD",
     }
 
     return {"metaParam": meta_param, "faParam": fa_param}

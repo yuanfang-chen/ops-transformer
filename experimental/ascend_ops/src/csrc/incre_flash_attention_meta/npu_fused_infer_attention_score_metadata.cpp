@@ -42,20 +42,18 @@ aicpu::kernels::Layout CovertToLayout(const std::string &str)
 
 // step3, 为META设备实现前向接口
 at::Tensor npu_fused_infer_attention_score_metadata_meta(
-    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t head_dim, int64_t key_seq_size, 
-    int64_t key_head_num, int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, 
-    bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
-    c10::string_view layout_query, c10::string_view layout_key)
+    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_head_num, int64_t head_dim,
+    int64_t block_size, int64_t max_block_num_per_batch,
+    at::Tensor &actual_seq_lengths_kv, c10::string_view layout_query)
 {
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device(torch::kMeta));
     return output;
 }
 
 at::Tensor npu_fused_infer_attention_score_metadata_npu(
-    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t head_dim, int64_t key_seq_size, 
-    int64_t key_head_num, int64_t block_size, int64_t max_block_num_per_batch, bool is_accum_seq_query, 
-    bool is_accum_seq_kv, at::Tensor &actual_seq_lengths_query, at::Tensor &actual_seq_lengths_kv,
-    c10::string_view layout_query, c10::string_view layout_key)
+    int64_t batch_size, int64_t query_seq_size, int64_t query_head_num, int64_t key_head_num, int64_t head_dim,
+    int64_t block_size, int64_t max_block_num_per_batch,
+    at::Tensor &actual_seq_lengths_kv, c10::string_view layout_query)
 {
     at::Tensor output = torch::empty({1024}, torch::dtype(torch::kInt32).device("npu"));
 
@@ -68,21 +66,15 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
     args.batchSize = batch_size;
     args.querySeqSize = query_seq_size;
     args.queryHeadNum = query_head_num;
-    args.headDim = head_dim;
-    args.keySeqSize = key_seq_size;
     args.keyHeadNum = key_head_num;
+    args.headDim = head_dim;
     args.blockSize = block_size;
     args.maxBlockNumPerBatch = max_block_num_per_batch;
-    args.isAccumSeqQ = is_accum_seq_query;
-    args.actSeqQLenDim = actual_seq_lengths_query.size(0);
-    args.actSeqQLen = static_cast<int32_t *>(const_cast<void *>(actual_seq_lengths_query.storage().data()));
-    args.isAccumSeqKv = is_accum_seq_kv;
     args.actSeqKvLenDim = actual_seq_lengths_kv.size(0);
-    args.actSeqKvLen = static_cast<int32_t *>(const_cast<void *>(actual_seq_lengths_kv.storage().data()));
+    args.actSeqKvLen = static_cast<int64_t *>(const_cast<void *>(actual_seq_lengths_kv.storage().data()));
 
     // convert str
     args.layoutQuery = CovertToLayout(std::string(layout_query));
-    args.layoutKey = CovertToLayout(std::string(layout_key));
     args.metaData = static_cast<int8_t *>(const_cast<void *>(output.storage().data()));
 
     IncreFlashAttentionMetadataKernel<<<1, nullptr, aicpu_stream>>>(&args, sizeof(aicpu::kernels::IncreFlashAttentionMetadataArgs));
