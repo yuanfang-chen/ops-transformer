@@ -5,8 +5,8 @@
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
 |  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    ×     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
@@ -21,12 +21,12 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
+    convStates: [-1, K-1, dim]
     queryStartLoc: [batch+1]
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
-    numAcceptedTokens: [batch]（可选）
+    bias: [dim]（无作用）
+    numAcceptedTokens: [batch]（无作用）
     y: [cu_seq_len, dim]
     runMode: 0
     ```
@@ -36,11 +36,11 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
+    convStates: [-1, K-1, dim]
     queryStartLoc: [batch+1]
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
+    bias: [dim]（无作用）
     numAcceptedTokens: [batch]（用于投机解码）
     y: [cu_seq_len, dim]
     runMode: 1
@@ -50,11 +50,11 @@
     ```
     x: [batch, m+1, dim]
     weight: [K, dim]，其中K=3
-    convStates: [num_slots, K-1, dim]
-    queryStartLoc: [batch+1]（可选）
+    convStates: [-1, K-1, dim]
+    queryStartLoc: [batch+1]（无作用）
     cacheIndices: [batch]
     initialStateMode: [batch]
-    bias: [dim]（可选）
+    bias: [dim]（无作用）
     numAcceptedTokens: [batch]（用于投机解码，m为投机token个数）
     y: [batch, m+1, dim]
     runMode: 1
@@ -206,21 +206,32 @@
 
 ## 约束说明
 
+- 输入shape限制：
+  - prefill场景：
+    - x支持2维[cu_seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., K-1, dim]，第0维大小不固定。
+    - cu_seq_len范围[1, 65536]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
+  - decode场景（变长序列）：
+    - x支持2维[cu_seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., state_len, dim]，第0维大小不固定，state_len必须大于所有batch中最大的token个数加K-1。
+    - cu_seq_len范围[1, 1536]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
+  - decode场景（固定batch）：
+    - x支持3维[batch, seq_len, dim]。
+    - weight必须是2维[K, dim]，其中K固定为3。
+    - convStates必须是3维[..., K-1+seq_len-1, dim]，第0维大小不固定。
+    - seq_len范围[1, 6]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
+
 - 输入值域限制：
-  - x支持2维[cu_seq_len, dim]或3维[batch, seqlen, dim]。
-  - weight必须是2维[K, dim]，其中K固定为3。
-  - convStates必须是3维[..., K-1, dim]，第0维大小不固定。
-  - cu_seq_len范围[1, 65536]，dim范围[64, 16384]，batch范围[1, 256]。
-  - queryStartLoc是累计偏移量，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移。
+  - queryStartLoc是累计偏移量，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移，queryStartLoc[batch+1]表示最后一个序列的结束位置。
   - cacheIndices长度为batch，指定每个序列对应的缓存槽索引。
   - initialStateMode长度为batch，每个元素取值0、1或2。
   - padSlotId建议值-1，当cacheIndices[i]==padSlotId时跳过该batch。
-  - activationMode建议值0，表示None。
-  - runMode建议值0，表示prefill场景。
-  - residualConnection建议值1，表示做残差连接。
+  - numAcceptedTokens分为None和非None，非None情况下长度为batch，每个元素取值不超过当前batch的token个数且大于0。
 
-- 其他限制：
+- 输入属性限制：
   - x、weight、convStates、bias、y的数据类型必须一致。
   - queryStartLoc、cacheIndices、initialStateMode、numAcceptedTokens的数据类型必须一致。
   - 输入参数支持非连续Tensor。
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：x/weight/convStates/bias/y数据类型仅支持FLOAT16、BFLOAT16。
+  - <term>Ascend 950PR/Ascend 950DT</term>：x/weight/convStates/bias/y数据类型仅支持FLOAT16、BFLOAT16。

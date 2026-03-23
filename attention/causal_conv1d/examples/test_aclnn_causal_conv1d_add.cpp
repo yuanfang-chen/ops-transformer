@@ -15,6 +15,7 @@
 #include <iostream>
 #include <vector>
 #include "acl/acl.h"
+#include "aclnn/opdev/fp16_t.h"
 #include "aclnnop/aclnn_causal_conv1d_add.h"
 
 #define CHECK_RET(cond, return_expr)                                                                                   \
@@ -83,7 +84,7 @@ int main() {
     // 2. 构造输入与输出，需要根据API的接口自定义构造
     // 参考test_causal_conv1d_fn_add.py中的test函数参数
     int64_t K = 3;
-    int64_t dim = 64;
+    int64_t dim = 128;
     int64_t batch = 4;
     int64_t numSlots = 8;
     // prefill场景: seq_lens = [5, 3, 7, 4], cu_seq_len = 19
@@ -121,18 +122,18 @@ int main() {
     aclTensor* y = nullptr;
 
     // 初始化host数据
-    std::vector<int16_t> hostX(cuSeqLen * dim, 1);
-    std::vector<int16_t> hostWeight(K * dim, 1);
-    std::vector<int16_t> hostConvStates(numSlots * stateLen * dim, 0);
+    std::vector<op::fp16_t> hostX(cuSeqLen * dim, 1.0f);
+    std::vector<op::fp16_t> hostWeight(K * dim, 1.0f);
+    std::vector<op::fp16_t> hostConvStates(numSlots * stateLen * dim, 0.0f);
     // query_start_loc = [0, 5, 8, 15, 19] (累计偏移量)
     std::vector<int32_t> hostQueryStartLoc = {0, 5, 8, 15, 19};
     // cache_indices = [0, 3, 1, 5]
     std::vector<int32_t> hostCacheIndices = {0, 3, 1, 5};
     // initial_state_mode = [1, 0, 2, 1]
     std::vector<int32_t> hostInitialStateMode = {1, 0, 2, 1};
-    std::vector<int16_t> hostBias(dim, 0);
+    std::vector<op::fp16_t> hostBias(dim, 0);
     std::vector<int32_t> hostNumAcceptedTokens(batch, 0);
-    std::vector<int16_t> hostY(cuSeqLen * dim, 0);
+    std::vector<op::fp16_t> hostY(cuSeqLen * dim, 0.0f);
 
     // 创建x aclTensor
     ret = CreateAclTensor(hostX, xShape, &xDeviceAddr, aclDataType::ACL_FLOAT16, &x, aclFormat::ACL_FORMAT_ND);
@@ -204,14 +205,14 @@ int main() {
 
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(yShape);
-    std::vector<float> resultData(size, 0);
+    std::vector<op::fp16_t> resultData(size, 0);
     ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), yDeviceAddr,
                       size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
 
     LOG_PRINT("First 10 output values:\n");
-    for (int64_t i = 0; i < std::min(size, (int64_t)10); i++) {
-        LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+    for (int64_t i = 0; i < 10; i++) {
+        std::cout << "index: " << i << ": " << static_cast<float>(resultData[i]) << std::endl;
     }
 
     // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改
