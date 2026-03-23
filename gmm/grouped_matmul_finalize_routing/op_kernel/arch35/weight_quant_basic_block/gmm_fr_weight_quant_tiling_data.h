@@ -15,7 +15,6 @@
 #define GROUPED_MATMUL_FINALIZE_ROUTING_WEIGHT_QUANT_TILING_DATA_H
 
 #include "kernel_tiling/kernel_tiling.h"
-#include "../common/grouped_matmul_tiling_data_apt.h"
 
 #ifndef __CCE_AICORE__
 #include <cstdint>

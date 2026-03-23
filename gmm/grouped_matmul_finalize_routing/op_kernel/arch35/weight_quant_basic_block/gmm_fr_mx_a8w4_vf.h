@@ -72,7 +72,7 @@ __simd_vf__ inline void CastAndMulWithSharedWeightVf(__ubuf__ float * dstAddr, _
 }
 
 template <typename biasType>
-__simd_callee__ inline void FrMxA8W4BiasCompute(uint16_t biasLoopNum, (__ubuf__ biasType *)biasInUbAddr, (__ubuf__ biasType *)biasOutUbAddr)
+__simd_callee__ inline void FrMxA8W4BiasCompute(uint16_t biasLoopNum, __ubuf__ biasType *biasInUbAddr, __ubuf__ biasType *biasOutUbAddr)
 {
     static constexpr biasType MX_BIAS_FACTOR = static_cast<biasType>(0.015625f);
     MicroAPI::RegTensor<biasType> biasVreg, biasFactorVreg;

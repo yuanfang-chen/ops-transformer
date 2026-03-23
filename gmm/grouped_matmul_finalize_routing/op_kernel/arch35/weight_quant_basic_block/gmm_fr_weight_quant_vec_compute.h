@@ -91,19 +91,22 @@ public:
     __aicore__ inline void SetVToMTE2();
     __aicore__ inline void CopyShareInputGmToUb(uint64_t sharedInputGmOffset,
                                                                      uint64_t initSharedInputRealSize, __gm__ sharedInputDType *shareInputAddr);
-    __aicore__ inline void CopyGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
-                                      uint64_t ubMte2KOffset, const BasicBlockOffsetParam &offsetParam);
+    __aicore__ inline void CopyGmToUb(uint64_t ubMte2KSize, uint64_t kGmOffset,
+                                      uint64_t biasGmOffset, uint64_t biasRealSize,
+                                      const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void CopyShareInputUbToGm(uint64_t sharedInputGmOffset,
                                                                      uint64_t initSharedInputRealSize);
+    __aicore__ inline void CopyBiasGmToUb(uint64_t biasGmOffset, uint64_t biasRealSize,
+                                          uint64_t kGmOffset, const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void CopyMxBiasGmToUb(uint64_t ubMte2MxBiasNSize, uint64_t ubMte2MxBiasNOffset);
     __aicore__ inline void WeightAntiQuantCompute(const UbConsumeConfig &ubConsumeConfig,
                                                   const LocalTensor<xType> &weightHighBitL1,
                                                   const L1ConsumeConfig &l1ConsumeConfig,
                                                   const LocalTensor<biasType> *biasL1Ptr);
-    __aicore__ inline void WeightAntiQuantComputeNzNk(const UbConsumeConfig &ubConsumeConfig,
+    __aicore__ inline void WeightAntiQuantComputeNzNk(uint64_t kRealSize, uint64_t biasRealSize, uint64_t kGmOffset,
                                                       const LocalTensor<xType> &weightHighBitL1,
-                                                      const L1ConsumeConfig &l1ConsumeConfig,
-                                                      const LocalTensor<biasType> &biasL1);
+                                                      const LocalTensor<biasType> &biasL1,
+                                                      const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void CopyKcScaleBiasGmToUb(uint64_t nRealL0Size, uint64_t mRealL0Size, uint64_t nOffset,
                                                  uint64_t mOffset);
     __aicore__ inline void AntiQuantYWithKc(uint64_t nRealL0Size, uint64_t mRealL0Size);
@@ -111,6 +114,7 @@ public:
                                        const BasicBlockOffsetParam &offsetParam, uint64_t aivMOffset);
     __aicore__ inline void MulLogits(uint64_t nRealL0Size, uint64_t mRealL0Size);
     __aicore__ inline void End();
+    __aicore__ inline void CopyRowIndexLogitsGmToUb();
 
     __aicore__ inline void InitGmToZero(uint64_t yGmOffset,
                                                                                     uint64_t initZeroSize);
@@ -148,10 +152,10 @@ private:
                                                 uint64_t nWeightLowBitUbOffset, uint64_t kWeightLowBitUbOffset);
     __aicore__ inline void AntiQuantProcessNzMx(uint64_t vfExternalRealLen, uint64_t vfInnerRealLen,
                                                 uint64_t nWeightLowBitUbOffset, uint64_t kWeightLowBitUbOffset);
-    __aicore__ inline void AntiQuantProcessNzMxA8W4(const UbConsumeConfig &ubConsumeConfig);
+    __aicore__ inline void AntiQuantProcessNzMxA8W4(uint64_t biasRealSize, uint64_t ubMte2KSize, uint64_t kGmOffset,
+                                                    const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void CalLocalAddrForYVf(LocalAddressYParam<yType> &localAddressParam);
-    __aicore__ inline void CopyWeightHighBitForAligned(uint64_t weightHighBitL1Offset, uint64_t antiQuantRealN,
-                                                       const uint64_t antiQuantRealK,
+    __aicore__ inline void CopyWeightHighBitForAligned(uint64_t antiQuantRealN, uint64_t antiQuantRealK,
                                                        const LocalTensor<xType> &weightHighBitL1);
     __aicore__ inline void CopyWeightHighBitForUnaligned(uint64_t weightHighBitL1Offset, uint64_t antiQuantRealN,
                                                          uint64_t antiQuantRealK,
@@ -391,24 +395,24 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::SetVTo
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyGmToUb(
-    uint64_t ubMte2KSize, uint64_t kGmOffset,
+    uint64_t ubMte2KSize, uint64_t kGmOffset, uint64_t biasGmOffset, uint64_t biasRealSize,
     const BasicBlockOffsetParam &offsetParam)
 {
-    CopyBiasGmToUb();
+    CopyBiasGmToUb(biasGmOffset, biasRealSize, kGmOffset, offsetParam);
 
     // ubMte2NSize和ubMte2KSize为实际MTE2搬运到UB的有效数据，
     // 其按照ubMte2InnerSize进行跳写，垃圾数据无需操作，搬出的时搬运有效数据即可。
-    if (curOffsetParam.nL1Size == 0 || ubMte2KSize == 0) {
+    if (offsetParam.nL1Size == 0 || ubMte2KSize == 0) {
         return;
     }
 
     DataCopyPad2D(ubWeightInputLowBitTotalBuffer_[(ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum) *
                                                     UB_BUFFER_INFO.weightInputLowBitUbSingleBufferSize]
                         .template ReinterpretCast<wType>(),
-                    wGlobal_[kGmOffset * offsetParam.nAlign + curOffsetParam.nOffset * static_cast<uint64_t>(C0_SIZE)],
+                    wGlobal_[kGmOffset * offsetParam.nAlign + offsetParam.nOffset * static_cast<uint64_t>(C0_SIZE)],
                     CeilDivide(ubMte2KSize, static_cast<uint64_t>(C0_SIZE)),
-                    CeilAlign(curOffsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
-                    CeilAlign(curOffsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
+                    CeilAlign(offsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
+                    CeilAlign(offsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
                     offsetParam.nAlign * C0_SIZE);
     
     SetFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
@@ -417,13 +421,13 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyGm
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAntiQuantComputeNzNk(
-    uint64_t kRealSize, uint64_t biasRealSize, const LocalTensor<xType> &weightHighBitL1,
+    uint64_t kRealSize, uint64_t biasRealSize, uint64_t kGmOffset, const LocalTensor<xType> &weightHighBitL1,
     const LocalTensor<biasType> &biasL1, const BasicBlockOffsetParam &offsetParam)
 {
     WaitFlag<HardEvent::MTE3_V>(
         EVENT_ID_MTE3_TO_V + (ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)));
 
-    AntiQuantProcessNzMxA8W4(biasRealSize, kRealSize, offsetParam);
+    AntiQuantProcessNzMxA8W4(biasRealSize, kRealSize, kGmOffset, offsetParam);
 
     SetFlag<HardEvent::V_MTE3>(EVENT_ID_V_TO_MTE3);
     WaitFlag<HardEvent::V_MTE3>(EVENT_ID_V_TO_MTE3);
@@ -444,7 +448,7 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Weight
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::AntiQuantProcessNzMxA8W4(
-    uint64_t biasRealSize, uint64_t ubMte2KSize, const BasicBlockOffsetParam &offsetParam)
+    uint64_t biasRealSize, uint64_t ubMte2KSize, uint64_t kGmOffset, const BasicBlockOffsetParam &offsetParam)
 {
     MxA8W4NzParams<xType, wType, biasType> mxA8W4NzParams;
     uint64_t ubMte2BufferIdx = (ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1);
@@ -565,6 +569,12 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::End()
     for (uint16_t idx = 0; idx < UB_ANTI_QUANT_Y_BUFFER_NUM; idx++) {
         WaitFlag<HardEvent::V_MTE2>(vecEventIdAntiQuantYVToMte2_ + idx);
     }
+}
+
+GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyRowIndexLogitsGmToUb()
+{
+    // TODO: Implementation needed
 }
 } // namespace WeightQuantBatchMatmulV2::Arch35
 

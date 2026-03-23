@@ -29,9 +29,7 @@
 
 #if defined (V310_GMM_FR_ANTI_QUANT)
 // Weight Quantization scenario (伪量化场景)
-// Include all headers directly from source directory to avoid broken paths in copied files
 #include "arch35/common/basic_block_config.h"
-#include "arch35/common/weight_quant_vcv_basic_block_base.h"
 #include "arch35/common/weight_quant_basic_block.h"
 #include "arch35/weight_quant_basic_block/gmm_fr_weight_quant_tiling_data.h"
 #include "arch35/weight_quant_basic_block/gmm_fr_weight_quant_tiling_key.h"
@@ -54,22 +52,22 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
                                 GM_ADDR group_list, GM_ADDR share_input, GM_ADDR logit, GM_ADDR row_index,
                                 GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    TPipe pipe;
+    AscendC::TPipe pipe;
 #if defined (V310_GMM_FR_ANTI_QUANT)
     // Weight Quantization scenario - Use GMMFRWeightQuantResplitController
-REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData);
-    // GET_TILING_DATA_WITH_STRUCT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData, tilingData, tilingGM);
-    // const GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData *tiling = &tilingData;
+    REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData);
+    GET_TILING_DATA_WITH_STRUCT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData, tilingData, tilingGM);
+    const GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData *tiling = &tilingData;
     
-    // // Use pre-defined MXA8W4_NZNK config for FP8+FP4 MX (Microscaling) format
-    // // Config values: aTrans=false, bTrans=true, antiQuantType=MX, hasAntiQuantOffset=false, quantType=NONE, weightFormat=NZ
-    // GROUPED_MATMUL_FINALIZE_ROUTING::GMMFRWeightQuantResplitController<
-    //     DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y, bfloat16_t,
-    //     WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK, 
-    //     WeightQuantBatchMatmulV2::Arch35::VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
+    // Use pre-defined MXA8W4_NZNK config for FP8+FP4 MX (Microscaling) format
+    // Config values: aTrans=false, bTrans=true, antiQuantType=MX, hasAntiQuantOffset=false, quantType=NONE, weightFormat=NZ
+    GROUPED_MATMUL_FINALIZE_ROUTING::GMMFRWeightQuantResplitController<
+        DTYPE_X, DTYPE_W, DTYPE_SCALE, DTYPE_SCALE, DTYPE_PERTOKEN_SCALE, DTYPE_BIAS, DTYPE_Y, bfloat16_t,
+        WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK, 
+        WeightQuantBatchMatmulV2::Arch35::VEC_ANTIQUANT_CONFIG_DYNAMIC> controller;
     
-    // controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, share_input, tiling);
-    // controller.Process();
+    controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, share_input, tiling);
+    controller.Process();
 #else
     // Full Quantization scenario
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
