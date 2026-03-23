@@ -20,6 +20,7 @@
 #include "op_host/op_tiling/mc2_tiling_utils.h"
 #include <tiling/tiling_api.h>
 #include <numeric>
+#include <sstream>
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -570,6 +571,27 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckAndSetSendRecvCounts
             OP_LOGE(opName_, "recvCounts value %ld should not be < 0 !", recvCounts[i]), return ge::GRAPH_FAILED);
         gmmQTilingCommonInfoPtr->sendCnt[i] = static_cast<int32_t>(sendCounts[i]);
         gmmQTilingCommonInfoPtr->recvCnt[i] = static_cast<int32_t>(recvCounts[i]);
+    }
+
+    // MX_ debug: print per-expert token sums (equivalent to group_list in kernel)
+    // sendCnt layout: [ep0_rank0, ep1_rank0, ..., ep(e-1)_rank0, ep0_rank1, ..., ep(e-1)_rank(w-1)]
+    // kernel sums: expertTokenNum[e] = sum over all ranks of sendCnt[e + rank * ep]
+    {
+        std::ostringstream oss;
+        oss << "[MX_] Per-expert token sums (group_list for kernel): [";
+        for (uint64_t e = 0; e < localParams_.ep && e < maxCountsSize; e++) {
+            uint64_t tokenSum = 0;
+            for (uint64_t r = 0; r < localParams_.epWorldSize; r++) {
+                uint64_t idx = e + r * localParams_.ep;
+                if (idx < maxCountsSize) {
+                    tokenSum += static_cast<uint64_t>(sendCounts[idx]);
+                }
+            }
+            if (e > 0) oss << ", ";
+            oss << tokenSum;
+        }
+        oss << "], ep=" << localParams_.ep << ", epWorldSize=" << localParams_.epWorldSize;
+        OP_LOGI(opName_, "%s", oss.str().c_str());
     }
 
     return ge::GRAPH_SUCCESS;
