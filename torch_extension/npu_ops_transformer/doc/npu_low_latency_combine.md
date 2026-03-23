@@ -89,7 +89,7 @@ npu_low_latency_combine(x, topk_idx, topk_weights, assist_info_for_combine, ep_s
 
 -   **shared\_expert\_rank\_num** (`int`)：可选参数，表示共享专家卡数量。取值范围\[0, ep\_world\_size\)。取0表示无共享专家，不取0需满足shared\_expert\_rank\_num%shared\_expert\_num=0。
 
--   **num\_max\_dispatch\_tokens\_per\_rank** (`int`)：可选参数，表示每张卡上。当每个rank的BS不同时，最大的BS大小，当每个rank上BS相同时，默认为0。
+-   **num\_max\_dispatch\_tokens\_per\_rank** (`int`)：可选参数，表示每张卡上的token数量。当每个rank的BS不同时，最大的BS大小，当每个rank上BS相同时，默认为0。
 
 ## 返回值说明<a name="zh-cn_topic_0000002168254826_section22231435517"></a>
 `Tensor`
