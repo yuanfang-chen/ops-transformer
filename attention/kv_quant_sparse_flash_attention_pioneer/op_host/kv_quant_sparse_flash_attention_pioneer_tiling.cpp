@@ -236,6 +236,7 @@ void QSFAPMlaTiling::GenTilingKey()
 {
     uint32_t layoutQuery = static_cast<uint32_t>(sfaaInfo_->qLayout);
     uint32_t layoutKV = static_cast<uint32_t>(sfaaInfo_->kvLayout);
+    uint32_t pageAttention = 0U;
     if (sfaaInfo_->kvLayout == QSFALayout::PA_BSND) {
         pageAttention = 1U;
     }
