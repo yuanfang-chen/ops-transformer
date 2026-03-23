@@ -895,6 +895,7 @@ __aicore__ inline uint64_t ComputeAttenMaskOffsetCompressPre(MaskInfo &info, uin
     return offset;
 }
 
+template <bool ENABLE_TREE = false>
 __aicore__ inline uint64_t ComputeAttenMaskOffset(MaskInfo &info, uint32_t s1StartIdx = 0, uint64_t treeMaskStart = 0, bool isPre = false)
 {
     if (isPre) {
@@ -902,54 +903,58 @@ __aicore__ inline uint64_t ComputeAttenMaskOffset(MaskInfo &info, uint32_t s1Sta
     } else {
         if (info.sparseMode == DEFAULT_MASK || info.sparseMode == ALL_MASK) {
             return ComputeAttenMaskOffsetNoCompress(info, s1StartIdx);
-        } else if (info.sparseMode == TREE) {
-            return ComputeAttenMaskOffsetTree(info, s1StartIdx, treeMaskStart);
-        } else {
-            return ComputeAttenMaskOffsetCompress(info, s1StartIdx);
         }
+        if constexpr (ENABLE_TREE) {
+            if (info.sparseMode == TREE) {
+                return ComputeAttenMaskOffsetTree(info, s1StartIdx, treeMaskStart);
+            }
+        }
+        return ComputeAttenMaskOffsetCompress(info, s1StartIdx);
     }
 }
 
-template <typename T>
+template <typename T, bool ENABLE_TREE = false>
 __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, uint32_t s1StartIdx, uint32_t s1EndIdx, bool isPre = false)
 {
-    // 由于sparse9 mask只有一部分，不能合并处理
-    uint32_t treeMaskStart = info.s2Size - info.s1Size;
-    uint32_t curS2EnsPos = info.s2StartIdx + info.s2dealNum;
-
-    // 只有info.s2StartIdx + info.s2dealNum > treeMaskStart时，才会进入此流程；
-    // 当info.s2StartIdx > treeMaskStart，mask拷贝也是全量拷贝，和其余sparse过程相同
-    if (info.sparseMode == TREE && info.s2StartIdx < treeMaskStart) {
-        uint32_t attenMaskSize = curS2EnsPos - treeMaskStart;
-        uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
-        uint64_t maskOffset = ComputeAttenMaskOffset(info, s1StartIdx, treeMaskStart, isPre);
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
-        dataCopyParams.blockLen = curS2EnsPos - treeMaskStart;
-        dataCopyParams.srcStride = info.attenMaskStride - (curS2EnsPos - treeMaskStart);
-        dataCopyParams.dstStride = (treeMaskStart - info.s2StartIdx) / 32; // dst在UB上，单位为32字节，同时左侧不对齐场景会进行左padding
-        
-        DataCopyPadExtParams<bool> padParams;
-        padParams.isPad = true;
-        padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
-        padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
-        padParams.paddingValue = 0;
-        DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
-    } else {
-        uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
-        uint64_t maskOffset = ComputeAttenMaskOffset(info, s1StartIdx, treeMaskStart, isPre);
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
-        dataCopyParams.blockLen = info.s2dealNum;
-        dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
-        dataCopyParams.dstStride = 0;
-        DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
-
-        DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+    uint32_t treeMaskStart = 0;
+    if constexpr (ENABLE_TREE) {
+        treeMaskStart = info.s2Size - info.s1Size;
+        uint32_t curS2EnsPos = info.s2StartIdx + info.s2dealNum;
+        // 只有info.s2StartIdx + info.s2dealNum > treeMaskStart时，才会进入此流程；
+        // 当info.s2StartIdx > treeMaskStart，mask拷贝也是全量拷贝，和其余sparse过程相同
+        if (info.s2StartIdx < treeMaskStart) {
+            // 由于sparse9 mask只有一部分，不能合并处理
+            uint32_t attenMaskSize = curS2EnsPos - treeMaskStart;
+            uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
+            uint64_t maskOffset = ComputeAttenMaskOffset<ENABLE_TREE>(info, s1StartIdx, treeMaskStart, isPre);
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
+            dataCopyParams.blockLen = curS2EnsPos - treeMaskStart;
+            dataCopyParams.srcStride = info.attenMaskStride - (curS2EnsPos - treeMaskStart);
+            dataCopyParams.dstStride = (treeMaskStart - info.s2StartIdx) / 32; // dst在UB上，单位为32字节，同时左侧不对齐场景会进行左padding
+            DataCopyPadExtParams<bool> padParams;
+            padParams.isPad = true;
+            padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
+            padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
+            padParams.paddingValue = 0;
+            DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
+            return;
+        }
     }
+    // 标准拷贝路径（非TREE模式，或TREE模式但s2StartIdx >= treeMaskStart时）
+    uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+    uint64_t maskOffset = ComputeAttenMaskOffset<ENABLE_TREE>(info, s1StartIdx, treeMaskStart, isPre);
+    DataCopyExtParams dataCopyParams;
+    dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
+    dataCopyParams.blockLen = info.s2dealNum;
+    dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
+    dataCopyParams.dstStride = 0;
+    DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
+
+    DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
 }
 
-template <typename T, typename U>
+template <typename T, typename U, bool ENABLE_TREE = false>
 __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
@@ -957,17 +962,17 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
     uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
     if (info.gs1dealNum <= info.s1Size) {
         if (s1StartIdx + info.gs1dealNum > info.s1Size) {
-            AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, info.s1Size, isPre);
+            AttentionmaskDataCopy<T, ENABLE_TREE>(attenMaskUb, srcGmAddr, info, s1StartIdx, info.s1Size, isPre);
             LocalTensor<T> attenMaskSecUb = attenMaskUb[(info.s1Size - s1StartIdx) * attenMaskSizeAlign];
-            AttentionmaskDataCopy(attenMaskSecUb, srcGmAddr, info, 0, s1EndIdx, isPre);
+            AttentionmaskDataCopy<T, ENABLE_TREE>(attenMaskSecUb, srcGmAddr, info, 0, s1EndIdx, isPre);
         } else {
-            AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, s1EndIdx, isPre);
+            AttentionmaskDataCopy<T, ENABLE_TREE>(attenMaskUb, srcGmAddr, info, s1StartIdx, s1EndIdx, isPre);
         }
         event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         SetFlag<HardEvent::MTE2_V>(enQueEvtID);
         WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
     } else {
-        AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, 0, info.s1Size, isPre);
+        AttentionmaskDataCopy<T, ENABLE_TREE>(attenMaskUb, srcGmAddr, info, 0, info.s1Size, isPre);
         LocalTensor<T> attenMaskUbDst = tmpBuf.template ReinterpretCast<T>();
         event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         SetFlag<HardEvent::MTE2_V>(enQueEvtID);
@@ -999,7 +1004,7 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
     }
 }
 
-template <typename T, typename U>
+template <typename T, typename U, bool ENABLE_TREE = false>
 __aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     uint32_t s1StartIdx = info.gs1StartIdx / info.gSize;
@@ -1007,7 +1012,7 @@ __aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskU
     uint32_t s1Count = s1EndIdx - s1StartIdx + 1;
     uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
 
-    AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, s1EndIdx + 1, isPre);
+    AttentionmaskDataCopy<T, ENABLE_TREE>(attenMaskUb, srcGmAddr, info, s1StartIdx, s1EndIdx + 1, isPre);
 
     event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
     SetFlag<HardEvent::MTE2_V>(enQueEvtID);
@@ -1047,6 +1052,7 @@ __aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskU
     attenMaskUb = attenMaskUbDst.template ReinterpretCast<bool>();
 }
 
+template <bool ENABLE_TREE = false>
 __aicore__ inline bool IsSkipAttentionmask(MaskInfo &info)
 {
     if (info.sparseMode == DEFAULT_MASK || info.sparseMode == ALL_MASK) {
@@ -1054,12 +1060,14 @@ __aicore__ inline bool IsSkipAttentionmask(MaskInfo &info)
     }
 
     // 增加sparse = 9的处理
-    if (info.sparseMode == TREE) {
-        // 由于分核时按照Batch进行划分，sparse9在每个batch的所有 S 跳过的范围固定，所以不区分跨g轴的情况
-        if (static_cast<int64_t>(info.s2StartIdx + info.s2dealNum) > static_cast<int64_t>(info.s2Size - info.s1Size)) {
-            return false;
-        } else {
-            return true;
+    if constexpr (ENABLE_TREE) {
+        if (info.sparseMode == TREE) {
+            // 由于分核时按照Batch进行划分，sparse9在每个batch的所有 S 跳过的范围固定，所以不区分跨g轴的情况
+            if (static_cast<int64_t>(info.s2StartIdx + info.s2dealNum) > static_cast<int64_t>(info.s2Size - info.s1Size)) {
+                return false;
+            } else {
+                return true;
+            }
         }
     }
 
@@ -1101,38 +1109,51 @@ __aicore__ inline bool IsSkipAttentionmaskForPre(MaskInfo &info)
     return false;
 }
 
-template <typename T, typename U>
+template <typename T, typename U, bool ENABLE_TREE = false>
 __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     if (info.layout == GS) {
-        AttentionmaskCopyInForGsLayout(attenMaskUb, srcGmAddr, tmpBuf, info, isPre);
+        AttentionmaskCopyInForGsLayout<T, U, ENABLE_TREE>(attenMaskUb, srcGmAddr, tmpBuf, info, isPre);
     } else if(info.layout == SG) { // sg
-        AttentionmaskCopyInForSgLayout(attenMaskUb, srcGmAddr, tmpBuf, info, isPre);
+        AttentionmaskCopyInForSgLayout<T, U, ENABLE_TREE>(attenMaskUb, srcGmAddr, tmpBuf, info, isPre);
     } else if (info.layout == S1_EQUAL1) {
-        uint32_t treeMaskStart = info.s2Size - info.s1Size;
-        uint32_t curS2EndPos = info.s2StartIdx + info.s2dealNum;
-
-        if (info.sparseMode == TREE && info.s2StartIdx < treeMaskStart) {
-            // 部分拷贝：只拷贝 [treeMaskStart, curS2EndPos) 区域
-            uint32_t attenMaskSize = curS2EndPos - treeMaskStart;
-            uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
-            uint64_t maskOffset = ComputeAttenMaskOffset(info, 0, treeMaskStart, isPre);
-            DataCopyExtParams dataCopyParams;
-            dataCopyParams.blockCount = 1;
-            dataCopyParams.blockLen = curS2EndPos - treeMaskStart;
-            dataCopyParams.srcStride = 0;
-            dataCopyParams.dstStride = 0;
-
-            DataCopyPadExtParams<bool> padParams;
-            padParams.isPad = true;
-            padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
-            padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
-            padParams.paddingValue = 0;
-            DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32],
-                        srcGmAddr[maskOffset], dataCopyParams, padParams);
+        uint32_t treeMaskStart = 0;
+        if constexpr (ENABLE_TREE) {
+            treeMaskStart = info.s2Size - info.s1Size;
+            uint32_t curS2EndPos = info.s2StartIdx + info.s2dealNum;
+            if (info.s2StartIdx < treeMaskStart) {
+                // 部分拷贝：只拷贝 [treeMaskStart, curS2EndPos) 区域
+                uint32_t attenMaskSize = curS2EndPos - treeMaskStart;
+                uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
+                uint64_t maskOffset = ComputeAttenMaskOffset<ENABLE_TREE>(info, 0, treeMaskStart, isPre);
+                DataCopyExtParams dataCopyParams;
+                dataCopyParams.blockCount = 1;
+                dataCopyParams.blockLen = curS2EndPos - treeMaskStart;
+                dataCopyParams.srcStride = 0;
+                dataCopyParams.dstStride = 0;
+                DataCopyPadExtParams<bool> padParams;
+                padParams.isPad = true;
+                padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
+                padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
+                padParams.paddingValue = 0;
+                DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32],
+                            srcGmAddr[maskOffset], dataCopyParams, padParams);
+            } else {
+                // TREE 但 s2StartIdx >= treeMaskStart：全量拷贝
+                uint64_t maskOffset = ComputeAttenMaskOffset<ENABLE_TREE>(info, 0, treeMaskStart, isPre);
+                uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+                DataCopyExtParams dataCopyParams;
+                dataCopyParams.blockCount = 1;
+                dataCopyParams.blockLen = info.s2dealNum;
+                dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
+                dataCopyParams.dstStride = 0;
+                DataCopyPadExtParams<bool> padParams{true, 0,
+                    static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
+                DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+            }
         } else {
-            // 全量拷贝（非 TREE，或 s2StartIdx >= treeMaskStart）
-            uint64_t maskOffset = ComputeAttenMaskOffset(info, 0, treeMaskStart, isPre);
+            // 非 TREE：全量拷贝
+            uint64_t maskOffset = ComputeAttenMaskOffset<ENABLE_TREE>(info, 0, 0, isPre);
             uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
             DataCopyExtParams dataCopyParams;
             dataCopyParams.blockCount = 1;

@@ -91,6 +91,9 @@ protected:
         uint32_t columnCount, uint32_t actualColumnCount);
     __aicore__ inline void ElewiseCompute(const RunInfo &info, LocalTensor<MM1_OUT_T> &mmResUb, TBuf<> &tmpBuf,
         uint32_t startRow, uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount);
+    template <bool TREE_MASK>
+    __aicore__ void DealAttenMask(const RunInfo &info, LocalTensor<MM1_OUT_T> &mmResUb, TBuf<> &tmpBuf,
+        fa_base_vector::MaskInfo &maskInfo);
     __aicore__ inline void SoftmaxFlashV2Compute(const RunInfo &info, LocalTensor<MM1_OUT_T> &mmResUb,
         LocalTensor<uint8_t> &softmaxTmpUb, uint32_t startRow, uint32_t dealRowCount,
         uint32_t columnCount, uint32_t actualColumnCount);
@@ -586,46 +589,59 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         } else {
             maskInfo.layout = fa_base_vector::GS;
         }
-
         maskInfo.attenMaskType = fa_base_vector::MASK_BOOL; // compatible with int8/uint8
 
-        // 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
-        // TND场景下mask传入∑s1²，其余场景传入[B,S1,S1]
-        LocalTensor<bool> maskUb = inputQue2.AllocTensor<bool>();
-        LocalTensor<bool> attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2];
-        LocalTensor<uint8_t> ubWorkSpace = tmpBuf.Get<uint8_t>();
-        event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+        // 根据 sparseMode 在编译期选择有/无 TREE 代码的路径，避免非 sparse9 场景的 icache 开销
         if (maskInfo.sparseMode == fa_base_vector::TREE) {
-            LocalTensor<int16_t> mask16 = maskUb.template ReinterpretCast<int16_t>();
-            uint32_t zeroCount  = BUFFER_SIZE_BYTE_8K / sizeof(int16_t);
-            Duplicate(mask16, static_cast<int16_t>(0), zeroCount);
-            maskUb = mask16.template ReinterpretCast<bool>();
-            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
-            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
-            // 修改attenMaskStride、attenMaskBatchStride值
-            maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
-            if (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
-                maskInfo.attenMaskStride = info.actS1Size;
-                maskInfo.attenMaskBatchStride = 0;
-                for (int32_t i = 0; i < maskInfo.batchIdx; i++) {
-                    maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
-                }
+            DealAttenMask<true>(info, mmResUb, tmpBuf, maskInfo);
+        } else {
+            DealAttenMask<false>(info, mmResUb, tmpBuf, maskInfo);
+        }
+    }
+}
+
+template <typename FIAT>
+template <bool TREE_MASK>
+__aicore__ void FiaBlockVecNonQuant<FIAT>::DealAttenMask(
+    const RunInfo &info, LocalTensor<MM1_OUT_T> &mmResUb, TBuf<> &tmpBuf,
+    fa_base_vector::MaskInfo &maskInfo)
+{
+    LocalTensor<bool> maskUb = inputQue2.AllocTensor<bool>();
+    LocalTensor<bool> attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2];
+    LocalTensor<uint8_t> ubWorkSpace = tmpBuf.Get<uint8_t>();
+    event_t eventIdVMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+
+    // TREE 模式专有：初始化 UB 为 0，计算修正后的 mask 偏移
+    if constexpr (TREE_MASK) {
+        LocalTensor<int16_t> mask16 = maskUb.template ReinterpretCast<int16_t>();
+        uint32_t zeroCount = BUFFER_SIZE_BYTE_8K / sizeof(int16_t);
+        Duplicate(mask16, static_cast<int16_t>(0), zeroCount);
+        maskUb = mask16.template ReinterpretCast<bool>();
+        SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
+        WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
+        // 修改attenMaskStride、attenMaskBatchStride值
+        maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
+        if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
+            maskInfo.attenMaskStride = info.actS1Size;
+            maskInfo.attenMaskBatchStride = 0;
+            for (int32_t i = 0; i < maskInfo.batchIdx; i++) {
+                maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
             }
         }
-
-        if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
-            fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
-            AscendC::PipeBarrier<PIPE_V>();
-            fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
-        }
-        if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
-            SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
-            WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
-            fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
-            fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
-        }
-        inputQue2.FreeTensor(maskUb);
     }
+
+    if (!fa_base_vector::IsSkipAttentionmask<TREE_MASK>(maskInfo)) {
+        fa_base_vector::AttentionmaskCopyIn<bool, uint8_t, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
+        AscendC::PipeBarrier<PIPE_V>();
+        fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
+    }
+    if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
+        SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
+        WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
+        fa_base_vector::AttentionmaskCopyIn<bool, uint8_t, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
+        fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
+    }
+    inputQue2.FreeTensor(maskUb);
 }
 
 template <typename FIAT>
