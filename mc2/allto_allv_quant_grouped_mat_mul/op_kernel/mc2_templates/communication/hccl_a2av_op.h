@@ -70,6 +70,84 @@ public:
         }
     }
 
+
+    __aicore__ inline void LaunchScaleWithParams(uint32_t startExpertIdx, uint32_t expertNum)
+    {
+        if ASCEND_IS_AIC {
+            return;
+        }
+        if ASCEND_IS_AIV {
+            if (GetBlockIdx() != 0) {
+                return;
+            }
+        }
+
+        uint64_t axis = (H1_ + 63) / 64 * 2;
+
+        // 计算发送和接收的 count 和 offset
+        uint64_t alltoAllvSendCntLocal[MAX_EP_RANK_SIZE] = {0UL};
+        uint64_t alltoAllvRecvCntLocal[MAX_EP_RANK_SIZE] = {0UL};
+        uint64_t alltoAllvSendOffsetLocal[MAX_EP_RANK_SIZE] = {0UL};
+        uint64_t alltoAllvRecvOffsetLocal[MAX_EP_RANK_SIZE] = {0UL};
+
+        // 直接使用 taskTilingInfo_ 中的数据
+        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
+        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
+
+        for (uint64_t i = 0UL; i < rankDim_; i++) {
+            for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
+                alltoAllvSendCntLocal[i] += static_cast<uint64_t>(sendCnt[expertIdx + i * e_]) * axis;
+                alltoAllvRecvCntLocal[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
+            }
+        }
+
+        // 计算发送偏移量（使用 axis）
+        alltoAllvSendOffsetLocal[0] = 0UL;
+        for (uint32_t j = 0U; j < startExpertIdx; j++) {
+            alltoAllvSendOffsetLocal[0] += static_cast<uint64_t>(sendCnt[j]) * axis;
+        }
+        for (uint32_t i = 1U; i < rankDim_; i++) {
+            alltoAllvSendOffsetLocal[i] = alltoAllvSendOffsetLocal[i - 1U];
+            for (uint32_t j = 0U; j < e_; j++) {
+                alltoAllvSendOffsetLocal[i] +=
+                    static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * axis;
+            }
+        }
+
+        // 计算接收偏移量
+        alltoAllvRecvOffsetLocal[0] = 0UL;
+        uint64_t alltoAllvRecvOffsetLastSum = 0UL;
+        for (uint32_t i = 0U; i < rankDim_; i++) {
+            if ((startExpertIdx == 0U) && (i == 0U)) {
+                alltoAllvRecvOffsetLocal[i] = 0UL;
+                alltoAllvRecvOffsetLastSum += alltoAllvRecvCntLocal[0];
+            } else {
+                alltoAllvRecvOffsetLocal[i] = alltoAllvRecvOffsetLastSum;
+                alltoAllvRecvOffsetLastSum += alltoAllvRecvCntLocal[i];
+            }
+        }
+
+        // 启动 AlltoAllV 并存储句柄
+        alltoAllvScaleHandleId_[startExpertIdx] = hccl_.AlltoAllV<true>(
+            (__gm__ uint8_t *)sendScaleGlobalBuffer_.GetPhyAddr(), alltoAllvSendCntLocal, alltoAllvSendOffsetLocal, HCCL_DATA_TYPE_FP8E8M0,
+            (__gm__ uint8_t *)recvScaleGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCntLocal, alltoAllvRecvOffsetLocal, HCCL_DATA_TYPE_FP8E8M0);
+    }
+
+
+    __aicore__ inline void WaitScale(uint32_t startExpertIdx)
+    {
+        if ASCEND_IS_AIC {
+            return;
+        }
+        if ASCEND_IS_AIV {
+            if (GetBlockIdx() != 0) {
+                return;
+            }
+        }
+        hccl_.Wait(alltoAllvScaleHandleId_[startExpertIdx]);
+    }
+
+
     __aicore__ inline void LaunchScale(uint32_t startExpertIdx, uint32_t expertNum)
     {
         if ASCEND_IS_AIC {
@@ -89,10 +167,10 @@ public:
     }
 
 
-    __aicore__ inline void UpdateBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
+    __aicore__ inline void InitSacleBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
-        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
-        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
+        sendScaleGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
+        recvScaleGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
     }
 
 
@@ -231,7 +309,11 @@ private:
     GlobalTensor<hcclDataType> sendGlobalBuffer_;
     GlobalTensor<hcclDataType> recvGlobalBuffer_;
 
+    GlobalTensor<hcclDataType> sendScaleGlobalBuffer_;
+    GlobalTensor<hcclDataType> recvScaleGlobalBuffer_;
+
     HcclHandle alltoAllvHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
+    HcclHandle alltoAllvScaleHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
     HcclDataType hcclDataType_ = HCCL_DATA_TYPE_FP16;
 
     uint64_t alltoAllvRecvOffsetLastSum = 0UL;

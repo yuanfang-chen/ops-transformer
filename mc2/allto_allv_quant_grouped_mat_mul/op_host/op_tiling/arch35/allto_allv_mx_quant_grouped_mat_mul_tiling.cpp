@@ -342,8 +342,8 @@ ge::graphStatus AlltoAllvMXQuantGmmTilingHelper::SetInputParams(uint64_t M, uint
     inputParams_.isSingleY = 0;
 
     inputParams_.mSize = M;
-    inputParams_.kSize = N;
-    inputParams_.nSize = K;
+    inputParams_.kSize = K;
+    inputParams_.nSize = N;
     inputParams_.groupNum = SINGLE_GROUP_NUM;
     inputParams_.aQuantMode = static_cast<Mc2GroupedMatmulTiling::QuantMode>(1U << QUANT_MODE_MAP[MX_MODE]);
     inputParams_.bQuantMode = static_cast<Mc2GroupedMatmulTiling::QuantMode>(1U << QUANT_MODE_MAP[MX_MODE]);

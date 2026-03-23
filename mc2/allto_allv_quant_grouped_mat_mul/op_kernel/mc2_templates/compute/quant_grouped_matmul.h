@@ -100,7 +100,7 @@ public:
         if ASCEND_IS_AIV {
             return ;
         }
-        if (expertTokenNum_[expertIdx] == 0) {
+        if (!isLocal && expertTokenNum_[expertIdx] == 0) {
             return ;
         }
         this->UpdateAddr(expertIdx);
@@ -140,6 +140,7 @@ protected:
 
         // MX 模式：更新 scale 的 per-expert / per-token 偏移
         if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+            if(!isLocal) {
             uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
                 Mc2QuantUtils::CeilDiv(h1_, static_cast<uint64_t>(Mc2QuantUtils::MXFP_DIVISOR_SIZE));
             // scale2 (weight scale, xScaleGM_): per-expert 偏移
@@ -147,6 +148,7 @@ protected:
             // scale1 (activation scale, weightScaleGM_): per-token 偏移
             weightScaleGM_ = (GM_ADDR)wScaleGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * scaleK);
         }
+    }
 
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }

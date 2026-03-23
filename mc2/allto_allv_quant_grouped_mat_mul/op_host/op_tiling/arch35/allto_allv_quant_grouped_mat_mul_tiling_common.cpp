@@ -77,9 +77,9 @@ ge::graphStatus AlltoAllvQuantGmmTilingCommon::DoOpTiling()
     if (CheckCommonShapeAttrsInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    if (CheckScaleShape() != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
+    // if (CheckScaleShape() != ge::GRAPH_SUCCESS) {
+    //     return ge::GRAPH_FAILED;
+    // }
     auto platformInfo = context_->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     context_->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivCoreNum_, aicCoreNum_, aivCoreNum_));
