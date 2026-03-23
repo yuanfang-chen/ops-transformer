@@ -958,13 +958,11 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGradForN8Pe
         MicroAPI::Duplicate(sumReg2, 0);
         uint32_t dealMask1 = regCapacityFP32;
         uint32_t dealMask2 = fusionSize_ - regCapacityFP32;
-        MicroAPI::MaskReg mask1;
-        MicroAPI::MaskReg mask2;
+        MicroAPI::MaskReg mask1 = MicroAPI::UpdateMask<P>(dealMask1);
+        MicroAPI::MaskReg mask2 = MicroAPI::UpdateMask<P>(dealMask2);
         for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(dealBSSize); ++bsIdx) {
             uint32_t elemOffset1 = bsIdx * fusionSize_;
             uint32_t elemOffset2 = bsIdx * fusionSize_ + regCapacityFP32;
-            mask1 = MicroAPI::UpdateMask<P>(dealMask1);
-            mask2 = MicroAPI::UpdateMask<P>(dealMask2);
             MicroAPI::RegTensor<P> hMixReg1, invRmsReg1, gatherReg1;
             MicroAPI::RegTensor<P> hMixReg2, invRmsReg2, gatherReg2;
             MicroAPI::RegTensor<P> mul1Reg1, mul2Reg1;
@@ -988,9 +986,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGradForN8Pe
             
             MicroAPI::Add(sumReg1, sumReg1, mul2Reg1, mask1);
             MicroAPI::Add(sumReg2, sumReg2, mul2Reg2, mask2);
-
-            dealMask1 = regCapacityFP32;
-            dealMask2 = fusionSize_ - regCapacityFP32;
         }
         // Reg -> UB
         MicroAPI::StoreAlign(h1GradOut, sumReg1, mask1);
@@ -1044,13 +1039,11 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGradForN8Per
         MicroAPI::Duplicate(sumReg2, 0);
         uint32_t dealMask1 = regCapacityFP32;
         uint32_t dealMask2 = fusionSize_ - regCapacityFP32;
-        MicroAPI::MaskReg mask1;
-        MicroAPI::MaskReg mask2;
+        MicroAPI::MaskReg mask1 = MicroAPI::UpdateMask<P>(dealMask1);
+        MicroAPI::MaskReg mask2 = MicroAPI::UpdateMask<P>(dealMask2);
         for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(curBSSize); ++bsIdx) {
             uint32_t elemOffset1 = bsIdx * fusionSize_;
             uint32_t elemOffset2 = bsIdx * fusionSize_ + regCapacityFP32;
-            mask1 = MicroAPI::UpdateMask<P>(dealMask1);
-            mask2 = MicroAPI::UpdateMask<P>(dealMask2);
             MicroAPI::RegTensor<P> gatherReg1, gatherReg2;
 
             MicroAPI::LoadAlign(gatherReg1, gatherFusion + elemOffset1);
@@ -1058,9 +1051,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGradForN8Per
             
             MicroAPI::Add(sumReg1, sumReg1, gatherReg1, mask1);
             MicroAPI::Add(sumReg2, sumReg2, gatherReg2, mask2);
-
-            dealMask1 = regCapacityFP32;
-            dealMask2 = fusionSize_ - regCapacityFP32;
         }
         MicroAPI::StoreAlign(outBufDst, sumReg1, mask1);
         MicroAPI::StoreAlign(outBufDst + regCapacityFP32, sumReg2, mask2);
