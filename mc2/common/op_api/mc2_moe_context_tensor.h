@@ -15,7 +15,7 @@
 
 #include "mc2_moe_context.h"
 #include "opdev/platform.h"
-#include "hccl/hcom.h"
+#include "hcom.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
 
