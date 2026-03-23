@@ -1444,10 +1444,10 @@ void QSFAPInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.actualSeqLengths.desc = context_->GetOptionalInputDesc(ACT_SEQ_LEN_KV_INPUT_INDEX);
     opParamInfo_.keyDequantScale.tensor = context_->GetOptionalInputTensor(KEY_DEQUANT_SCALE_INPUT_INDEX);
     opParamInfo_.valueDequantScale.tensor = context_->GetOptionalInputTensor(VALUE_DEQUANT_SCALE_INPUT_INDEX);
-    opParamInfo_.keySink.tensor = context_.GetOptionalInputTensor(KEY_SINK_INPUT_INDEX);
-    opParamInfo_.keySink.desc = context_.GetOptionalInputDesc(KEY_SINK_INPUT_INDEX);
-    opParamInfo_.valueSink.tensor = context_.GetOptionalInputTensor(VALUE_SINK_INPUT_INDEX);
-    opParamInfo_.valueSink.desc = context_.GetOptionalInputTensor(VALUE_SINK_INPUT_INDEX);
+    opParamInfo_.keySink.tensor = context_->GetOptionalInputTensor(KEY_SINK_INPUT_INDEX);
+    opParamInfo_.keySink.desc = context_->GetOptionalInputDesc(KEY_SINK_INPUT_INDEX);
+    opParamInfo_.valueSink.tensor = context_->GetOptionalInputTensor(VALUE_SINK_INPUT_INDEX);
+    opParamInfo_.valueSink.desc = context_->GetOptionalInputDesc(VALUE_SINK_INPUT_INDEX);
 }
 
 void QSFAPInfoParser::GetInputParaInfo()
