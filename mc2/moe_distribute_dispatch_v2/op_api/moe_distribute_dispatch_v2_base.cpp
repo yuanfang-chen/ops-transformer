@@ -157,6 +157,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     aclTensor* mc2Context = nullptr;
+    aclnnStatus getWorkspaceSizesRes;
     const char* groupTpDispatchV2Temp = groupTp;
     if (is910B) {
         groupTpDispatchV2Temp = "";
@@ -166,7 +167,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
     int64_t ydtype = expandXOut->GetDataType();
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
-        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
             x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
             groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
