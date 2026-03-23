@@ -60,7 +60,7 @@ using namespace AscendC;
 constexpr uint32_t BUFFER_NUM = 2;
 constexpr uint64_t SYNC_MAX_NUM = 15;
 constexpr uint32_t INOUT_QUEUE_SIZE = 16 * 1024;  // 16KB
-constexpr uint32_t FP32_BUF_SIZE = (192 - 16 * 4) * 1024;  // 128KB
+constexpr uint32_t FP32_BUF_SIZE = (255 - 16 * 5) * 1024;  // 128KB
 constexpr uint32_t PROCESS_V2_CHUNK_SIZE = 64;  // ProcessV2函数使用的chunk大小
 constexpr uint32_t SINGLE_M = 1024;
 constexpr uint32_t ND_BLOCK_SIZE = 128;
@@ -220,7 +220,7 @@ public:
     __aicore__ inline void AllocV0V1Buffers(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers);
     __aicore__ inline void ProcessV0(uint32_t runBSStart, V0V1Buffers<P> &buffers);
     __aicore__ inline void VFDoV0ProcessHPostGrad(__ubuf__ P *hPostIn, __ubuf__ P *PostGradIn, __ubuf__ P *hPostGradOut,
-                                                uint32_t nDSize);
+                                                uint32_t stepLen);
     __aicore__ inline void ProcessV1(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf);
     __aicore__ inline void VFDoV1ProcessInvRmsGrad(__ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, uint16_t dealBSSize);
     __aicore__ inline void InitCube();
@@ -302,6 +302,7 @@ private:
     TQue<QuePosition::VECIN, 0> bf16InQueue_;
     TQue<QuePosition::VECOUT, 1> bf16OutQueue_;
     TQue<QuePosition::VECIN, 1> fp32InQueue_;
+    TQue<QuePosition::VECIN, 1> gradInQueue_;
     TQue<QuePosition::VECOUT, 1> fp32OutQueue_;
 
     TBuf<TPosition::VECCALC> fp32TBuf_;
@@ -387,6 +388,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::Init(InitParams initParams)
         pipe_->InitBuffer(bf16InQueue_, 1, INOUT_QUEUE_SIZE);
         pipe_->InitBuffer(bf16OutQueue_, 1, INOUT_QUEUE_SIZE);
         pipe_->InitBuffer(fp32InQueue_, 1, INOUT_QUEUE_SIZE);
+        pipe_->InitBuffer(gradInQueue_, 1, INOUT_QUEUE_SIZE);
         pipe_->InitBuffer(fp32OutQueue_, 1, INOUT_QUEUE_SIZE);
         pipe_->InitBuffer(fp32TBuf_, FP32_BUF_SIZE);
 
@@ -745,19 +747,16 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0(
     PipeBarrier<PIPE_MTE2>();
     DataCopyPad(fp32InputBuf, hPostGm_[runBSStart * N_], dataCopyParams_, dataCopyPadParams_);
     fp32InQueue_.EnQue(fp32InputBuf);
+    AscendC::LocalTensor<P> fp32Buf = gradInQueue_.AllocTensor<P>();
+    DataCopyPad(fp32Buf, hPostGradGm_[runBSStart * N_], dataCopyParams_, dataCopyPadParams_);
+    gradInQueue_.EnQue(fp32Buf);
+
     LocalTensor<P> hPost = fp32InQueue_.DeQue<P>();
-
-    AscendC::LocalTensor<P> fp32OutputBuf = fp32OutQueue_.AllocTensor<P>();
-    // PipeBarrier<PIPE_MTE2>();
-    DataCopyPad(fp32OutputBuf, hPostGradGm_[runBSStart * N_], dataCopyParams_, dataCopyPadParams_);
-    fp32OutQueue_.EnQue(fp32OutputBuf);
-    LocalTensor<P> hPostGrad = fp32OutQueue_.DeQue<P>();
-
+    LocalTensor<P> hPostGrad = gradInQueue_.DeQue<P>();
     VFDoV0ProcessHPostGrad((__ubuf__ P *)hPost.GetPhyAddr(), (__ubuf__ P *)hPostGrad.GetPhyAddr(),
                         (__ubuf__ P *)buffers.hPostBufS1.GetPhyAddr(), buffers.stepLength);
-
     fp32InQueue_.FreeTensor(hPost);
-    fp32OutQueue_.FreeTensor(hPostGrad);
+    gradInQueue_.FreeTensor(hPostGrad);
 
     fp32InputBuf = fp32InQueue_.AllocTensor<P>();
     PipeBarrier<PIPE_MTE2>();
@@ -791,21 +790,25 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0(
 
 template <class T, class P>
 __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV0ProcessHPostGrad(__ubuf__ P *hPostIn, __ubuf__ P *hPostGradIn,
-                                                                        __ubuf__ P *hPostGradOut, uint32_t nDSize)
+                                                                        __ubuf__ P *hPostGradOut, uint32_t stepLen)
 {
-    uint16_t loopCnt = CeilDiv(nDSize, uint32_t(eleNumPerVf_));
+    uint16_t loopCnt = CeilDiv(stepLen, uint32_t(eleNumPerVf_));
     __VEC_SCOPE__
     {
-        MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(nDSize);
+        MicroAPI::MaskReg mask;
         MicroAPI::RegTensor<P> hPostGradReg, tmpReg;
         for (uint16_t vfBlockIdx = 0; vfBlockIdx < loopCnt; vfBlockIdx++) {
+            mask = MicroAPI::UpdateMask<P>(stepLen);
             MicroAPI::LoadAlign(hPostGradReg, hPostIn + vfBlockIdx * eleNumPerVf_);
+            // MicroAPI::Load<P>(hPostGradReg, hPostIn + vfBlockIdx * eleNumPerVf_);
             MicroAPI::Muls(tmpReg, hPostGradReg, -0.5f, mask);
             MicroAPI::Adds(tmpReg, tmpReg, 1.0f, mask);
             MicroAPI::Mul(hPostGradReg, hPostGradReg, tmpReg, mask);
             MicroAPI::LoadAlign(tmpReg, hPostGradIn + vfBlockIdx * eleNumPerVf_);
+            // MicroAPI::Load<P>(tmpReg, hPostGradIn + vfBlockIdx * eleNumPerVf_);
             MicroAPI::Mul(hPostGradReg, hPostGradReg, tmpReg, mask);
             MicroAPI::StoreAlign(hPostGradOut + vfBlockIdx * eleNumPerVf_, hPostGradReg, mask);
+            // MicroAPI::Store<P>(hPostGradOut + vfBlockIdx * eleNumPerVf_, hPostGradReg);
         }
     }
 }
