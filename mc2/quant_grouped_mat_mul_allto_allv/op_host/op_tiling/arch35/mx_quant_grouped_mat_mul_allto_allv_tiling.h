@@ -19,7 +19,7 @@
 #pragma once
 #include "quant_grouped_mat_mul_allto_allv_tiling_base.h"
 
-namespace optiling {
+namespace MC2Tiling {
 namespace Mc2GroupedMatmul {
 
 constexpr uint64_t GROUP_M_OFFSET = 32;

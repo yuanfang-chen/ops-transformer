@@ -29,7 +29,7 @@
 #include "../../../op_kernel/quant_grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
-namespace optiling {
+namespace MC2Tiling {
 namespace Mc2GroupedMatmul {
 
 struct QuantGmmAlltoAllvParamsInfo {
