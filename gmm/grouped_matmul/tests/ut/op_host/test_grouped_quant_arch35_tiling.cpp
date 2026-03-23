@@ -352,6 +352,14 @@ string MakeParamName(const testing::TestParamInfo<GroupedQuantArch35TilingTestPa
 
 } // namespace
 
+namespace GroupedQuantArch35TilingUT {
+
+const vector<GroupedQuantArch35TilingTestParam> &GetAscend950Params()
+{
+    static const vector<GroupedQuantArch35TilingTestParam> params = GetParams("Ascend950");
+    return params;
+}
+
 class TestGroupedQuantArch35Tiling : public testing::TestWithParam<GroupedQuantArch35TilingTestParam> {
 protected:
     static void SetUpTestCase()
@@ -367,5 +375,7 @@ TEST_P(TestGroupedQuantArch35Tiling, generalTest)
     GetParam().Test();
 }
 
-INSTANTIATE_TEST_CASE_P(GROUPED_QMM_950, TestGroupedQuantArch35Tiling, testing::ValuesIn(GetParams("Ascend950")),
-                        MakeParamName);
+INSTANTIATE_TEST_SUITE_P(GROUPED_QMM_950, TestGroupedQuantArch35Tiling, testing::ValuesIn(GetAscend950Params()),
+                         MakeParamName);
+
+} // namespace GroupedQuantArch35TilingUT
