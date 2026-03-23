@@ -8,6 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/*!
+ * \file block_epliogue_simply_softmax.h
+ * \brief Block Epliogue Simply Softmax Kernel Implementation
+ */
+
 #ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_SIMPLY_SOFTMAX_HPP
 #define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_SIMPLY_SOFTMAX_HPP
 
@@ -81,11 +86,9 @@ public:
         __aicore__ inline
         Params(
             GM_ADDR s_, GM_ADDR softmaxLse_,  GM_ADDR dp_, GM_ADDR blockSparseMask_,
-            // GM_ADDR blockShape_,
             GM_ADDR actualQSeqlen_, GM_ADDR actualKvSeqlen_, GM_ADDR softGradworkspace_, GM_ADDR pWorkspace_, GM_ADDR dsWorkspace_, GM_ADDR tilingData_,
             uint64_t acutualRow_, uint64_t actualCol_, uint64_t processNums_, uint64_t curBatch_, uint64_t curN1_, uint64_t curS1_, uint64_t curT1_
         ) : s(s_), softmaxLse(softmaxLse_), dp(dp_), blockSparseMask(blockSparseMask_),
-            // blockShape(blockShape_),
             actualQSeqlen(actualQSeqlen_), actualKvSeqlen(actualKvSeqlen_),
             softGradworkspace(softGradworkspace_), pWorkspace(pWorkspace_), dsWorkspace(dsWorkspace_), tilingData(tilingData_),
             actualRow(acutualRow_), actualCol(actualCol_), processNums(processNums_),
@@ -289,7 +292,6 @@ public:
             int32_t gmOffset =  rowLoopTimes * bufferRows * col;
             uint64_t tempRow = tailRowNum;
             compute(gmOffset, tempRow, col, curS1, ping);
-            // gmOffset += tempRow * col;
             if (STAGES == DOUBLE_BUFFER) {
                 ping = 1 - ping;
             }
