@@ -18,7 +18,7 @@
 #include "stub_def.h"
 #include "stub_fun.h"
 #else
-#include "kernel_macros.h"
+#include "kernel_common.h"
 #endif
 
 namespace MlaPreprocess {
