@@ -27,7 +27,6 @@ const uint64_t BYTE_PER_DATA_4 = 4;
 const uint64_t BYTE_PER_DATA_2 = 2;
 const uint64_t BYTE_OF_BLOCK = 32;
 const uint64_t BYTE_OF_REPEAT = 256;
-const uint64_t UINT16_MAX = 65535;
 const uint64_t TND_DIM_NUM = 3;
 const uint64_t DIM_NUM = 4;
 const uint64_t DIM_FIRST = 0;
@@ -446,6 +445,7 @@ ge::graphStatus RotateHalfTiling::CheckStrideSupport(const ge::DataType inputDty
     OP_CHECK_IF(stride > UINT16_MAX,
                 OP_LOGE(context, "DataCopy Stride should be less than [%lu], but get [%lu].", UINT16_MAX, stride),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 /**
@@ -554,7 +554,7 @@ ge::graphStatus RotateHalfTiling::DoRotateHalfTiling()
                 return ge::GRAPH_FAILED);
     
     if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
-        OP_CHECK_IF(!CheckStrideSupport(inputDtype), OP_LOGE(context, "Stride is too large to compute."),
+        OP_CHECK_IF(ge::GRAPH_SUCCESS != CheckStrideSupport(inputDtype), OP_LOGE(context, "Stride is too large to compute."),
                     return ge::GRAPH_FAILED);
     }
 
