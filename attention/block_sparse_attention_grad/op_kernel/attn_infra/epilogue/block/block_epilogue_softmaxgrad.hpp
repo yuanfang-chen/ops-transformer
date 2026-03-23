@@ -8,18 +8,17 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/*!
+ * \file block_epliogue_softmaxgrad.h
+ * \brief Block Epliogue Softmax Grad Kernel Implementation
+ */
+
 #ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_SOFTAXGRAD_HPP
 #define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_SOFTAXGRAD_HPP
 
-// #include "catlass/catlass.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
-// #include "catlass/epilogue/tile/tile_copy.hpp"
-// #include "catlass/gemm_coord.hpp"
-// #include "catlass/matrix_coord.hpp"
 #include "kernel_operator.h"
-// #include "common_header.h"
-// #include "fag_common/common_header.h"
 
 using namespace AscendC;
 
@@ -136,12 +135,6 @@ public:
         uint64_t outputBufferLen = CeilDiv(castBufferLen, (uint64_t)dAlign) * 8; // 输出(s1,8)
         uint64_t tempBufferLen = 40 * 1024 - outputBufferLen;
 
-        // 初始化 buffer
-        // d 为128 其softmaxgrad 接口最小临时空间：Srck为input last_aix
-        // needSize = isFront ? elementNumPerBlk + srk + 64 : elementNumPerBlk*2 + srck + 64;
-        // 即最小临时空间：(8 * 2 + 64 + 128) * 4 = 832 byte
-        // 设 input(half or bf16) buffer 大小 ： x + x + 2x + 2x + 2x/16 + 832 = 192 * 1024
-        // x 约= 31k 其实还要保存 128 * sizeof(InputDType) 对齐
         uint64_t offset = 0;
         uint64_t inputBufferLenEeachStage = inputBufferLen / STAGES; // 开启double buffer 后，每一个input的buffer len
         uint64_t castBufferLenEeachStage = castBufferLen / STAGES; // 开启double buffer 后，每一个case的buffer len
@@ -162,14 +155,11 @@ public:
         dyGm.SetGlobalBuffer((__gm__ InputDType *)params.dout);
         attenInGm.SetGlobalBuffer((__gm__ InputDType *)params.out);
         sfmgWorkspaceGm.SetGlobalBuffer((__gm__ float *)params.softGradworkspace);
-        // doutP32Gm.SetGlobalBuffer((__gm__ float *)params.doutWorkspace);
 
         uint64_t normalAxisSize = 0;
         if (INPUT_LAYOUT == TND) {
-            //printf("TND\n");
             normalAxisSize = t1 * n1;
         } else {
-            //printf("BNSD\n");
             normalAxisSize = b * n1 * s1;
         }
 
