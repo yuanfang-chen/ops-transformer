@@ -91,10 +91,19 @@ static ge::graphStatus CheckShapeForMatmulAlltoAll(const gert::InferShapeContext
     const bool* isTransX2 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X2);
     const bool transX2 = ((isTransX2 != nullptr) && (*isTransX2));
     shape.m = x1Shape->GetDim(0U);
-    shape.k = x1Shape->GetDim(1U);
+    shape.k1 = x1Shape->GetDim(1U);
     shape.n = transX2 ? x2Shape->GetDim(0U) : x2Shape->GetDim(1U);
+    shape.k2 = transX2 ? x2Shape->GetDim(1U) : x2Shape->GetDim(0U);
     shape.outputDim = x1Shape->GetDimNum();
-    OP_LOGD(INNER_DEBUG, "Matmul m %ld n %ld k %ld.", shape.m, shape.n, shape.k);
+
+    if (shape.k1 != shape.k2) {
+        OP_LOGE(context->GetNodeName(),
+                "The input tensor x1 and x2 axis k must be the same, but actual get x1.k: %ld, x2.k: %ld.",
+                shape.k1, shape.k2);
+        return ge::GRAPH_FAILED;
+    }
+
+    OP_LOGD(INNER_DEBUG, "Matmul m is: %ld, n is: %ld, k1 is: %ld, k2 is: %ld.", shape.m, shape.n, shape.k1, shape.k2);
     return ge::GRAPH_SUCCESS;
 }
 
