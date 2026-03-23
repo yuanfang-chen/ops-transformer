@@ -39,11 +39,11 @@ constexpr uint64_t NUM_ONE = 1;
 constexpr uint64_t DIM_TWO = 2;
 constexpr int64_t NUM_MINUS_ONE = -1;
 constexpr int64_t NUM_MINUS_TWO = -2;
-constexpr int64_t X1_QUANT_MODE_NUM = 3;
-constexpr int64_t X2_QUANT_MODE_NUM = 2;
+constexpr uint64_t X1_QUANT_MODE_NUM = 3;
+constexpr uint64_t X2_QUANT_MODE_NUM = 2;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: MatmulAlltoAll InferShape Debug";
-const std::set<int64_t> SUPPORT_RANK_NUM{2, 4, 8, 16};
+const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
 
 struct MatmulAlltoAllShapeInfo {
     uint64_t output_dim;
@@ -102,9 +102,9 @@ static ge::graphStatus CheckShapeForMatmulAlltoAll(const gert::InferShapeContext
 static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, MatmulAlltoAllShapeInfo& shape)
 {
     const auto attrs = context->GetAttrs();
-    const int64_t* rankDim = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_WORLD_SIZE);
+    const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
     OPS_CHECK(rankDim == nullptr,
-        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Attr worldSize is nullptr."),
+        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in matmul allto all.", *rankDim),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(SUPPORT_RANK_NUM.find(*rankDim) == SUPPORT_RANK_NUM.end(),
                     OP_LOGE(INNER_DEBUG, "Rank number should be 2 or 4 or 8 or 16, but the actual value is %ld.", *rankDim),
@@ -157,8 +157,8 @@ static ge::graphStatus InferDataTypeMatmulAlltoAll(gert::InferDataTypeContext* c
     OP_LOGD(INNER_DEBUG, "Start to infer datatype of matmul allto all.");
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int64_t* x1_quant_mode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X1_QUANT_MODE);
-    const int64_t* x2_quant_mode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X2_QUANT_MODE);
+    const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
+    const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
     const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
     auto y_type = ge::DataType::DT_UNDEFINED;
     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
