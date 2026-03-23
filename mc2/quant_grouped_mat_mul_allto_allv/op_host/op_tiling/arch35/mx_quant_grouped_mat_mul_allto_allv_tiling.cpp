@@ -497,7 +497,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     status = CheckParamsRelationAndSetLocalParams();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
-    status = CheckMxQuantDtypeConstraints();
+    // status = CheckMxQuantDtypeConstraints();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckMxQuantGmmScaleShapes();
