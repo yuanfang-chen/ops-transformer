@@ -484,7 +484,6 @@ namespace BSA {
         {
             uint32_t vecCoreIdx = AscendC::GetBlockIdx(); // vecore 核数idx
             uint32_t coreIdx = vecCoreIdx / 2; // cube 核数idx
-            uint32_t coreNum = AscendC::GetBlockNum();
 
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
             uint32_t batch = tilingData->batch;
@@ -508,7 +507,7 @@ namespace BSA {
             uint32_t basicKVBlockSize = tilingData->basicKVBlockSize;
             uint32_t taskNumPerCore = tilingData->taskNumPerCore;
             uint32_t tailTaskNum = tilingData->tailTaskNum;
-            uint32_t taskLength = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
+            uint32_t taskLengthVec = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
 
             // Initialize global tensors
             AscendC::GlobalTensor<bool> gBlcokSpaseMask;
@@ -518,10 +517,10 @@ namespace BSA {
             AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
 
-            TaskInfo taskInfo[2]; // 索引以及shape信息
+            TaskInfo taskInfoVec[2]; // 索引以及shape信息
             TaskInfo preTaskInfo;
             initTaskInfo(gActualQseqlen, gActualKvseqlen, tilingData, numHeads, kvHeads, groupSize, headDim,
-                maxQSeqlen, maxKvSeqlen, blockShapeX, basicQBlockSize, inputLayout, coreIdx, taskInfo[0]);
+                maxQSeqlen, maxKvSeqlen, blockShapeX, basicQBlockSize, inputLayout, coreIdx, taskInfoVec[0]);
             uint32_t qBlockNum = (maxQSeqlen + blockShapeX - 1) / blockShapeX;
             uint32_t kvBlockNum = (maxKvSeqlen + blockShapeY - 1) / blockShapeY;
             uint32_t batchBlocks = numHeads * qBlockNum * kvBlockNum;
@@ -537,8 +536,8 @@ namespace BSA {
             // uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
-            for (uint32_t i = 0; i < taskLength; i++) {
-                TaskInfo curInfo = taskInfo[i % 2];
+            for (uint32_t i = 0; i < taskLengthVec; i++) {
+                TaskInfo curInfo = taskInfoVec[i % 2];
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
@@ -610,9 +609,9 @@ namespace BSA {
                     kvBlockOffset += kvBlockNum;
                 }
 
-                if (i != taskLength - 1) {
+                if (i != taskLengthVec - 1) {
                     updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
-                        blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
+                        blockShapeX, basicQBlockSize, inputLayout, taskInfoVec[i % 2], taskInfoVec[(i + 1) % 2]);
                 }
             }
         }
