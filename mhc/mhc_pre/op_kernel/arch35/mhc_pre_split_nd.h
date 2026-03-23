@@ -122,15 +122,15 @@ public:
     GlobalTensor<P> mmResGm_;
     GlobalTensor<P> tempMMResGm_;
 
+    static constexpr uint32_t ND_LENGTH = 2048;
+    static constexpr uint64_t V1_BASE_T = 8;
+
 private:
     uint32_t chunNDSize_ = 320;
     uint32_t curSingleM_ = 2;
     uint32_t minT_ = 1;
     uint32_t vectorCoreNum = 2;
     uint32_t V0_BASE_T = 1;
-    uint64_t V1_BASE_T = 8;
-    uint64_t V1_BASE_D = 32;
-    uint32_t ND_LENGTH = 2048;
 };
 
 template <class T, class P>
@@ -342,16 +342,16 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue()
                 gammaUb_ = gammaInQueue_.DeQue<P>();
 
                 if (offsetNd == 0) {
-                    this->VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                    this->template VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
                 } else {
-                    this->VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                    this->template VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
                 }
                 gammaInQueue_.FreeTensor(gammaUb_);
             } else {
                 if (offsetNd == 0) {
-                    this->VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                    this->template VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
                 } else {
-                    this->VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                    this->template VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
                 }
             }
 
