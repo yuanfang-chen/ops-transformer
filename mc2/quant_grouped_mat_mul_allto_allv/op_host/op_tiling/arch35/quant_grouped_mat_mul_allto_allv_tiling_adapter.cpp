@@ -19,12 +19,12 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace optiling;
+using namespace MC2Tiling;
 using namespace Mc2GroupedMatmulTiling;
 using namespace Mc2GroupedMatmulTiling::GmmConstant;
-using namespace optiling::Mc2GroupedMatmul;
+using namespace MC2Tiling::Mc2GroupedMatmul;
 
-namespace optiling {
+namespace MC2Tiling {
 
 const std::vector<uint32_t> QUANT_MODE_MP = {0, 0, 1, 2, 4, 5, 3}; // 不量化 pertensor perchannel pertoken pergroup perblock mx; 分别对应gmm中各量化的移位数
 
@@ -60,7 +60,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameter
         inputParams_.bQuantMode = static_cast<QuantMode>(1U << (QUANT_MODE_MP[params.gmmWeightQuantMode]));
     }
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
+    inputParams_.groupType = MC2Tiling::Mc2GroupedMatmul::SPLIT_M;
     inputParams_.groupListType = 1;
     inputParams_.aDtype = params.gmmXDtype;
     inputParams_.bDtype = params.gmmWeightDtype;
@@ -89,7 +89,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
         inputParams_.bQuantMode = static_cast<QuantMode>(1U << (QUANT_MODE_MP[params.mmWeightQuantMode]));
     }
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
+    inputParams_.groupType = MC2Tiling::Mc2GroupedMatmul::SPLIT_M;
     // 非负递增为0，非负数列为1
     inputParams_.groupListType = 1;
     inputParams_.aDtype = params.mmXDtype;
