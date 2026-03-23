@@ -155,6 +155,9 @@ function(gen_opapi_symbol)
   )
 
   target_link_libraries(${OPAPI_NAME}
+    PRIVATE c_sec
+            nnopbase
+            -Wl,-Bsymbolic
     PUBLIC
     $<BUILD_INTERFACE:intf_pub>
     -Wl,--whole-archive
