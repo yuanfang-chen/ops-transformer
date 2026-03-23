@@ -17,6 +17,7 @@
 #include "opdev/platform.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
+#include "hccl/hcomm.h"
 
 namespace MC2MoeDistributeContext {
 
