@@ -61,7 +61,8 @@ string GetExeDirPath()
 
 string ToLower(string value)
 {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(tolower(c)); });
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(tolower(c)); });
     return value;
 }
 
@@ -106,11 +107,21 @@ DataType ParseDtype(const string &dtype)
     return it == dtypeMap.end() ? ge::DT_UNDEFINED : it->second;
 }
 
+gert::Shape BuildShape(const vector<int64_t> &dims)
+{
+    gert::Shape shape;
+    shape.SetDimNum(dims.size());
+    for (size_t i = 0; i < dims.size(); ++i) {
+        shape.SetDim(i, dims[i]);
+    }
+    return shape;
+}
+
 gert::StorageShape MakeShape(const vector<int64_t> &originDims, const vector<int64_t> &storageDims)
 {
     gert::StorageShape shape;
-    shape.MutableOriginShape() = gert::Shape(originDims);
-    shape.MutableStorageShape() = gert::Shape(storageDims);
+    shape.MutableOriginShape() = BuildShape(originDims);
+    shape.MutableStorageShape() = BuildShape(storageDims);
     return shape;
 }
 
@@ -152,15 +163,15 @@ public:
     void Prepare(optiling::GMMCompileInfo &compileInfo) const
     {
         compileInfo = {
-            static_cast<uint32_t>(coreNum > 0 ? coreNum : 32),                    // aicNum
-            static_cast<uint32_t>(coreNum > 0 ? coreNum * 2 : 64),                // aivNum
-            262144,                                                                // ubSize
-            524288,                                                                // l1Size
-            196608,                                                                // l2Size
-            262144,                                                                // l0CSize
-            65536,                                                                 // l0ASize
-            65536,                                                                 // l0BSize
-            platform_ascendc::SocVersion::ASCEND950,                               // socVersion
+            static_cast<uint32_t>(coreNum > 0 ? coreNum : 32),     // aicNum
+            static_cast<uint32_t>(coreNum > 0 ? coreNum * 2 : 64), // aivNum
+            262144,                                                // ubSize
+            524288,                                                // l1Size
+            196608,                                                // l2Size
+            262144,                                                // l0CSize
+            65536,                                                 // l0ASize
+            65536,                                                 // l0BSize
+            platform_ascendc::SocVersion::ASCEND950,               // socVersion
             NpuArch::DAV_3510,
         };
     }
@@ -173,11 +184,12 @@ public:
         gert::StorageShape groupListShape = MakeShape({groupNum}, {groupNum});
         gert::StorageShape perTokenScaleShape = MakeShape({m, k / 64, 2}, {m, k / 64, 2});
 
-        vector<int64_t> weightOriginDims = transposeWeight ? vector<int64_t>{groupNum, n, k} : vector<int64_t>{groupNum, k, n};
+        vector<int64_t> weightOriginDims =
+            transposeWeight ? vector<int64_t>{groupNum, n, k} : vector<int64_t>{groupNum, k, n};
         vector<int64_t> weightStorageDims;
         if (weightFormat == "NZ") {
-            weightStorageDims = transposeWeight ? vector<int64_t>{groupNum, (k + 31) / 32, (n + 15) / 16, 16, 32}
-                                                : vector<int64_t>{groupNum, (n + 31) / 32, (k + 15) / 16, 16, 32};
+            weightStorageDims = transposeWeight ? vector<int64_t>{groupNum, (k + 31) / 32, (n + 15) / 16, 16, 32} :
+                                                  vector<int64_t>{groupNum, (n + 31) / 32, (k + 15) / 16, 16, 32};
         } else {
             weightStorageDims = weightOriginDims;
         }
@@ -190,24 +202,18 @@ public:
         gert::TilingContextPara tilingContextPara(
             "GroupedMatmul",
             {
-                {xShape, xDtype, ge::FORMAT_ND},                                                                 // x
-                {weightShape, weightDtype, weightFormat == "NZ" ? ge::FORMAT_FRACTAL_NZ : ge::FORMAT_ND},       // weight
-                {biasShape, biasDtype, ge::FORMAT_ND},                                                           // bias
-                {scaleShape, scaleDtype, ge::FORMAT_ND},                                                         // scale
-                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},                                                 // offset
-                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},                                                 // antiquantScale
-                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},                                                 // antiquantOffset
-                {groupListShape, ge::DT_INT64, ge::FORMAT_ND},                                                   // groupList
-                {perTokenScaleShape, perTokenScaleDtype, ge::FORMAT_ND},                                         // perTokenScale
+                {xShape, xDtype, ge::FORMAT_ND},                                                          // x
+                {weightShape, weightDtype, weightFormat == "NZ" ? ge::FORMAT_FRACTAL_NZ : ge::FORMAT_ND}, // weight
+                {biasShape, biasDtype, ge::FORMAT_ND},                                                    // bias
+                {scaleShape, scaleDtype, ge::FORMAT_ND},                                                  // scale
+                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},                                          // offset
+                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},         // antiquantScale
+                {MakeEmptyShape(), ge::DT_FLOAT, ge::FORMAT_ND},         // antiquantOffset
+                {groupListShape, ge::DT_INT64, ge::FORMAT_ND},           // groupList
+                {perTokenScaleShape, perTokenScaleDtype, ge::FORMAT_ND}, // perTokenScale
             },
-            {
-                {MakeShape({m}, {n}), yDtype, ge::FORMAT_ND}
-            },
-            GetGroupedQmmAttrs(transposeX, transposeWeight, groupType),
-            &compileInfo,
-            "3510",
-            compileInfo.aicNum,
-            compileInfo.ubSize);
+            {{MakeShape({m}, {n}), yDtype, ge::FORMAT_ND}}, GetGroupedQmmAttrs(transposeX, transposeWeight, groupType),
+            &compileInfo, "3510", compileInfo.aicNum, compileInfo.ubSize);
 
         TilingInfo tilingInfo;
         bool tilingResult = ExecuteTiling(tilingContextPara, tilingInfo);
@@ -339,9 +345,8 @@ vector<GroupedQuantArch35TilingTestParam> GetParams(const string &socVersion)
 string MakeParamName(const testing::TestParamInfo<GroupedQuantArch35TilingTestParam> &info)
 {
     string name = info.param.prefix;
-    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
-        return isalnum(c) ? static_cast<char>(c) : '_';
-    });
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char c) { return isalnum(c) ? static_cast<char>(c) : '_'; });
     return name;
 }
 
@@ -349,8 +354,12 @@ string MakeParamName(const testing::TestParamInfo<GroupedQuantArch35TilingTestPa
 
 class TestGroupedQuantArch35Tiling : public testing::TestWithParam<GroupedQuantArch35TilingTestParam> {
 protected:
-    static void SetUpTestCase() {}
-    static void TearDownTestCase() {}
+    static void SetUpTestCase()
+    {
+    }
+    static void TearDownTestCase()
+    {
+    }
 };
 
 TEST_P(TestGroupedQuantArch35Tiling, generalTest)
@@ -358,5 +367,5 @@ TEST_P(TestGroupedQuantArch35Tiling, generalTest)
     GetParam().Test();
 }
 
-INSTANTIATE_TEST_CASE_P(
-    GROUPED_QMM_950, TestGroupedQuantArch35Tiling, testing::ValuesIn(GetParams("Ascend950")), MakeParamName);
+INSTANTIATE_TEST_CASE_P(GROUPED_QMM_950, TestGroupedQuantArch35Tiling, testing::ValuesIn(GetParams("Ascend950")),
+                        MakeParamName);

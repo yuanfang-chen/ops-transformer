@@ -227,7 +227,7 @@ public:
         return {singleCoreM, singleCoreN, mSplitAddrOffset, nSplitAddrOffset};
     }
 
-    __aicore__ inline int64_t GetEndBlockIdx()
+    __aicore__ inline int64_t GetEndBlockIdx() const
     {
         return endBlockIdx_;
     }
