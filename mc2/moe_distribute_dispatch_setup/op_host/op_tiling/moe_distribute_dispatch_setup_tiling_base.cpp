@@ -766,7 +766,7 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckHcclBuffSize()
         hcclBuffSize < hcclBuffSizeGolden,
         OP_LOGE(nodeName_, "HCCL_BUFFSIZE [%lu] < [%lu].", hcclBuffSize, hcclBuffSizeGolden), return ge::GRAPH_FAILED);
 
-    tilingData_->moeDistributeDispatchSetupInfo.totalWinSize = hcclBuffSize;
+    tilingData_->moeDistributeDispatchSetupInfo.totalWinSize = hcclBuffSize / 2;
     return ge::GRAPH_SUCCESS;
 }
 
