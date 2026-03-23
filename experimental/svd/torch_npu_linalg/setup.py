@@ -22,12 +22,15 @@ from torch_npu.utils.cpp_extension import NpuExtension
 def get_base_dir():
     return os.path.dirname(os.path.realpath(__file__))
 
+
 def get_torch_npu_path():
     return os.path.dirname(os.path.abspath(torch_npu.__file__))
+
 
 def collect_sources(base_dir):
     pattern = os.path.join(base_dir, "npu_linalg", "csrc", "*.cpp")
     return glob.glob(pattern, recursive=True)
+
 
 def make_extension():
     base_dir = get_base_dir()

@@ -14,6 +14,9 @@ import os
 import pkgutil
 import warnings
 
+import torch
+import torch_npu
+
 __all__ = list(module for _, module, _ in pkgutil.iter_modules([os.path.dirname(__file__)]))
 
 # 导入so 和 python
@@ -24,10 +27,6 @@ import custom ops as torch_npu ops to support the following usage:
 'torch.ops.npu_linalg.npu_selected_flash_attention()'
 'torch_npu.npu_selected_flash_attention()'
 """
-
-# Ensure that the torch and torch_npu has been successfully imported to avoid subsequent mount operation failures
-import torch
-import torch_npu
 
 # get torch.ops.npu_linalg module
 custom_ops_module = getattr(torch.ops, 'npu_linalg', None)
@@ -44,7 +43,7 @@ if custom_ops_module is not None:
         setattr(torch_npu, op_name, custom_op_func)
 
 else:
-    warn_msg = "torch.ops.npu_linalg module is not found, mount custom ops to torch_npu failed." \
+    WARN_MSG = "torch.ops.npu_linalg module is not found, mount custom ops to torch_npu failed." \
                "Calling by torch_npu.xxx for custom ops is unsupported, please use torch.ops.npu_linalg.xxx."
-    warnings.warn(warn_msg)
-    warnings.filterwarnings("ignore", message=warn_msg)
+    warnings.warn(WARN_MSG)
+    warnings.filterwarnings("ignore", message=WARN_MSG)

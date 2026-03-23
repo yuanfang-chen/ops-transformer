@@ -873,7 +873,8 @@ auto call(Function f, Tuple t) {
     g_hashOffset = kHashBufMaxSize;                                   \
     return;                                                           \
   }                                                                   \
-  memcpy(g_hashBuf + g_hashOffset, data_expression, size_expression); \
+  memcpy_s(g_hashBuf + g_hashOffset, kHashBufSize - g_hashOffset,     \
+           data_expression, size_expression);                         \
   g_hashOffset += size_expression;
 
 
