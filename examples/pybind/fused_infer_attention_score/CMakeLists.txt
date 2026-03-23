@@ -56,7 +56,7 @@ execute_process(
 find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
 
 pybind11_add_module(ascendc_ops SHARED
-    FIA.cpp
+    fused_infer_attention_score.cpp
 )
 
 target_include_directories(ascendc_ops PRIVATE

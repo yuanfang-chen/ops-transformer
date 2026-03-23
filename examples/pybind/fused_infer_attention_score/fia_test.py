@@ -20,13 +20,32 @@ from torch_npu.testing.testcase import TestCase, run_tests
 import numpy as np
 sys.path.append(os.getcwd())
 import ascendc_ops
-
+from typing import NamedTuple
 ERROR_TOL = 5e-3
 DATA_TYPE = np.float32
 
-def gen_golden_data_simple(b, n1, n2, s1, s2, d):
+class FiaInput(NamedTuple):
+    q_tensor: torch.Tensor
+    k_tensor: torch.Tensor
+    v_tensor: torch.Tensor
+    dequant_scale_key: torch.Tensor
+    dequant_scale_value: torch.Tensor
+    dequant_scale_query: torch.Tensor
+    num_query_heads:int
+    softmax_scale: float
+    input_layout: str
+    num_key_value_heads:int
+    query_quant_mode: int
+    key_quant_mode: int
+    value_quant_mode: int
+    inner_precise: int
+    return_softmax_lse: int
+    query_dtype: int
+    key_dtype: int
+    value_dtype: int
 
 
+def gen_golden_data_simple(b, n1, n2, s1, s2, d) -> FiaInput:
     input_layout = 'BNSD'
     scale_value = 0.088388
 
@@ -61,15 +80,21 @@ def gen_golden_data_simple(b, n1, n2, s1, s2, d):
     npu_out = torch.ops.npu.npu_fused_infer_attention_score_v2(q_tensor, k_tensor, v_tensor,
                                                             dequant_scale_key=key_antiquant_scale,
                                                             dequant_scale_value=value_antiquant_scale,
-                                                            dequant_scale_query=dequant_scale_query, num_query_heads=n1,
-                                                            softmax_scale=scale_value, input_layout=input_layout,
+                                                            dequant_scale_query=dequant_scale_query,
+                                                            num_query_heads=n1,
+                                                            softmax_scale=scale_value,
+                                                            input_layout=input_layout,
                                                             num_key_value_heads=n2, query_quant_mode=7,
                                                             key_quant_mode=7, value_quant_mode=7,
                                                             inner_precise=0, return_softmax_lse=0,
                                                             query_dtype=torch_npu.float8_e4m3fn,
                                                             key_dtype=torch_npu.float8_e4m3fn,
                                                             value_dtype=torch_npu.float8_e4m3fn)
-    npu_out[0].cpu().numpy().tofile("./output/golden_out.bin")
+    fia_input = FiaInput(q_tensor, k_tensor, v_tensor, key_antiquant_scale, value_antiquant_scale, dequant_scale_query,
+        n1, scale_value, input_layout, n2, 7, 7, 7, 0, 0, torch_npu.float8_e4m3fn, torch_npu.float8_e4m3fn,
+        torch_npu.float8_e4m3fn)
+    npu_out[0].cpu()
+    return fia_input, npu_out[0].cpu()
 
 def load_bf16_bin(file_path):
     # 读取原始字节
@@ -85,10 +110,10 @@ def load_bf16_bin(file_path):
 
     return bf16_tensor
 
-def verify_result():
+def verify_result(golden):
     output = load_bf16_bin("./output/npu_out.bin")
-    golden = load_bf16_bin("./output/golden_out.bin")
-
+    # golden = load_bf16_bin("./output/golden_out.bin")
+    golden = golden.view(torch.uint16).to(torch.bfloat16).flatten()
     print("output:")
     print(output)
     print("golden:")
@@ -152,11 +177,11 @@ def verify_result():
 
 class TestFia(TestCase):
     def test_fia(self):
-        gen_golden_data_simple(1, 1, 1, 8192, 8192, 128)
+        fia_input, golden = gen_golden_data_simple(1, 1, 1, 8192, 8192, 128)
         ascendc_ops.ascendc_fia(1, 1, 1, 8192, 8192, 128)
 
         try:
-            res = verify_result()
+            res = verify_result(golden)
             if not res:
                 raise ValueError("[ERROR] result error")
             print("test pass")
