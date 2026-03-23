@@ -59,11 +59,15 @@ else()
     execute_process(
         COMMAND sh -c "echo 'Checking source path: ${MAKESELF_PATH}'; echo 'Directory exists:'; ls -la '${MAKESELF_PATH}' || echo 'Source directory does not exist!'; echo 'Contents of makeself.sh:'; ls -la '${MAKESELF_PATH}/makeself.sh' || echo 'makeself.sh does not exist!'; echo 'Contents of makeself-header.sh:'; ls -la '${MAKESELF_PATH}/makeself-header.sh' || echo 'makeself-header.sh does not exist!'"
     )
+    execute_process(
+        COMMAND ls -R ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
 
     execute_process(
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
-        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"
-        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself-header.sh"
+        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself.sh"
+        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself-header.sh"
         RESULT_VARIABLE CHMOD_RESULT
         ERROR_VARIABLE CHMOD_ERROR
         )
