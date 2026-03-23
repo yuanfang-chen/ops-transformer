@@ -108,7 +108,8 @@ class CMakeBuild(build_ext):
 setup(
     name='ascend_ops',
     version='0.0.1',
-    packages=find_packages(),
+    packages=['ascend_ops'],
+    package_dir={'ascend_ops' : 'src'},
     ext_modules=[CMakeExtension("ascend_ops._C", sourcedir=".")],
     cmdclass={'build_ext': CMakeBuild, 'clean': CleanCommand},
     zip_safe=False,
