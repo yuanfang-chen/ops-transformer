@@ -202,25 +202,16 @@ ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
         if (fiaInfo_.isMaxWorkspace) {
             return ge::GRAPH_SUCCESS;
         }
-        // 在入图场景，请求没有打满时，actualseqQ会padding为1，actualseqKv padding为0，此时不校验
+        // s2=0 的 batch（入图padding或空tensor场景）不校验 s1<=s2
         int32_t actualSeqSize = std::min(qSize.size(), kvSize.size());
-        int32_t NonpaddingZeroIndex = -1;
-        for (int32_t i = actualSeqSize - 1; i >= 0; i--) {
-            if (kvSize[i] != 0) {
-                NonpaddingZeroIndex = i;
-                break;
+        for (int32_t i = 0; i < actualSeqSize; i++) {
+            if (kvSize[i] == 0) {
+                continue;
             }
-        }
-        
-        if (NonpaddingZeroIndex == -1) {
-            return ge::GRAPH_SUCCESS;
-        }
-
-        for (uint32_t i = 0; i <= NonpaddingZeroIndex; i++) {
-            OP_CHECK_IF(qSize[i] > kvSize[i], 
-                OP_LOGE(opName_, 
+            OP_CHECK_IF(qSize[i] > kvSize[i],
+                OP_LOGE(opName_,
                         "In %s situation, when sparse is %d, qSize[%d] should less than or equal to kvSize[%d],"
-                        "but got qSize %d and kvSize %d.", 
+                        "but got qSize %d and kvSize %d.",
                         QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]),
             return ge::GRAPH_FAILED);
         }

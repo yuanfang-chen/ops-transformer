@@ -1369,25 +1369,16 @@ ge::graphStatus IFATiling::CheckTreeSparseMask()
         int64_t qActSize = 0;
         int64_t kvActSize = 0;
 
-        // 入图padding场景，最后几个batch s2=0时不校验
-        int32_t NonpaddingZeroIndex = -1;
-        for (int32_t i = actualLenQDims_ - 1; i >= 0; i--) {
-            if (actualSeqKVTnd[i] != 0) {
-                NonpaddingZeroIndex = i;
-                break;
-            }
-        }
-
-        if (NonpaddingZeroIndex == -1) {
-            return ge::GRAPH_SUCCESS;
-        }
-
-        for (int32_t b = 0; b <= NonpaddingZeroIndex; b++) {
-            qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
+        // s2=0 的 batch（入图padding或空tensor场景）不校验 s1<=s2
+        for (int32_t b = 0; b < actualLenQDims_; b++) {
             kvActSize = actualSeqKVTnd[b];
+            if (kvActSize == 0) {
+                continue;
+            }
+            qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
             OP_CHECK_IF(qActSize > kvActSize,
                 OP_LOGE(ifaContext_->opName,
-                    "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).", 
+                    "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).",
                     sparseMode_, qActSize, kvActSize),
             return ge::GRAPH_FAILED);
         }
