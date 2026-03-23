@@ -69,6 +69,8 @@ protected:
     ge::graphStatus CheckContext();
     ge::graphStatus AnalyzeDtype();
     ge::graphStatus AnalyzeShapes();
+    ge::graphStatus AnalyzeShapesParser();
+    ge::graphStatus AnalyzeEmptyTensor();
     ge::graphStatus CalUbSize();
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
@@ -77,6 +79,7 @@ protected:
     bool CheckDimEqual(const gert::Shape a, const int64_t dimA, gert::Shape b, const int64_t dimB, const std::string &nameA,
                        const std::string &nameB, const std::string &dimDesc);
     bool CheckDim(const gert::Shape shape, const size_t dim, const std::string &dimDesc);
+    bool CheckEmptyTensor(const gert::Shape shape, const std::string &dimDesc);
     bool CheckFormat(ge::Format format, const std::string &Desc);
 
     RecurrentGatedDeltaRuleCompileInfo compileInfo_;
