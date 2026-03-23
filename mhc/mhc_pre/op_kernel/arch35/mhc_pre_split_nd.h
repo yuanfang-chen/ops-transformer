@@ -214,6 +214,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::InitLocalBuffers()
     pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P));
     alphaInUb_ = alphaBuf_.template Get<P>();
 
+    uint64_t buffOffset = 0;
     preOffsetBuf_ = tmpBuff_.template GetWithOffset<uint32_t>(uint32_t(N_ * V1_BASE_T), buffOffset);
     buffOffset += N_ * V1_BASE_T * sizeof(uint32_t);
     buffOffset = Ceil(buffOffset, 32) * 32;
