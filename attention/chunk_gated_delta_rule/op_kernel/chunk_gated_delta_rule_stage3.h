@@ -76,8 +76,8 @@ public:
         uint64_t inQueueSize = static_cast<uint64_t>(chunkSize_) *
                                AscendC::Std::max((int64_t)chunkSize_, paddedDv_) * sizeof(float);
         pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, inQueueSize);
-        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ > Dv_ ?
-                          chunkSize_ * chunkSize_ * sizeof(float) : chunkSize_ * Dv_ * sizeof(float));
+        pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ > paddedDv_ ?
+                          chunkSize_ * chunkSize_ * sizeof(float) : chunkSize_ * paddedDv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
         uint32_t buffOffset = 0;
         tmpBuffer1_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
@@ -87,6 +87,7 @@ public:
         maskBuffer_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
 
         // 搬入mask
+        if (GetSubBlockIdx() == 0) {
         DataCopyExtParams inParams{static_cast<uint16_t>(chunkSize_),
                                    static_cast<uint32_t>(chunkSize_ * sizeof(float)),
                                    0, 0, 0};
@@ -94,6 +95,7 @@ public:
         DataCopyPad(maskBuffer_, sTP_->maskTensor, inParams, copyPadParams);
         SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
         WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
+        }
     }
 
     __aicore__ inline void Process()
@@ -109,15 +111,18 @@ public:
             int64_t chunkPos = chunkId * chunkSize_;    // 当前chunk起始位置
             curChunkSize_ = (chunkId == chunkNum_ - 1) ? lastChunkSize : chunkSize_; // 尾块
             if ASCEND_IS_AIV {
+                PipeBarrier<PIPE_ALL>();
                 if (GetSubBlockIdx() == 0) {
                     CalMaskedQKT(tmpGM_[coreId_ * chunkSize_ * chunkSize_], nvId, chunkPos);
                 }
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(0x4);
                 CrossCoreWaitFlag(0x3);
+                PipeBarrier<PIPE_ALL>();
                 if (GetSubBlockIdx() == 0) {
                     CalAttnOut(sTP_->attnInter[nvId * Sp_ * Dv_ + chunkPos * Dv_],
                                sTP_->attnOut[chunkPos * Nv_ * Dv_ + nvId * Dv_]);
                 }
+                PipeBarrier<PIPE_ALL>();
             }
 
             if ASCEND_IS_AIC {
@@ -126,6 +131,7 @@ public:
                            sTP_->vInner[nvId * Sp_ * Dv_ + chunkPos * Dv_],
                            sTP_->attnInter[nvId * Sp_ * Dv_ + chunkPos * Dv_]);
                 CrossCoreSetFlag<0x2, PIPE_FIX>(0x3);
+                PipeBarrier<PIPE_ALL>();
             }
         }
     }
