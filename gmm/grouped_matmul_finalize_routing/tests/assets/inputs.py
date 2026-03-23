@@ -112,7 +112,6 @@ def trans_np_bfloat16_tensor_to_fp4_e2m1(in_tensor):
     fp4_shape[-1] = fp4_shape[-1] // 2
     fp4_tensor = np.zeros(multi_shape//2).astype(np.uint8)
     for i in range(multi_shape//2):
-        # fp4_tensor[i] = (out_tensor[i*2] << 4) | out_tensor[i*2+1]      # 按常规顺序保存b4
         fp4_tensor[i] = (out_tensor[i*2+1] << 4) | out_tensor[i*2]      # 按两两交叉顺序保存b4，比如b4两个数：0100 0010 存为b8后为0010 0100
 
     fp4_tensor = fp4_tensor.reshape(fp4_shape)
@@ -130,7 +129,7 @@ def cvt_bfloat16_to_fp4_e2m1(x):
 
     ef = (x >> 7) & 0xff
     mf = x & 0x7f
-    mLenDelta = 7 - 1 #
+    mLenDelta = 7 - 1
     maxExp = 3 # max E encoding value of e2m1 is 3
     expBias = 1 # Exponent Bias value of e2m1/e1m2 is 1
     eRet = 0
@@ -203,7 +202,6 @@ def trans_np_bfloat16_tensor_to_fp4_e1m2(in_tensor):
         out_tensor[i] = cvt_bfloat16_to_fp4_e1m2(in_tensor[i])
 
     out_tensor = out_tensor.astype(np.uint8)
-
     # 每两个fp4拼成一个uint8保存
     fp4_shape = list(shape_tensor)
     fp4_shape[-1] = fp4_shape[-1] // 2
@@ -225,7 +223,7 @@ def cvt_bfloat16_to_fp4_e1m2(x):
 
     ef = x >> 7 & 0xff
     mf = x & 0x7f
-    mLenDelta = 7 - 2 #
+    mLenDelta = 7 - 2
     maxExp = 1 # max E encoding value of e1m2 is 3
     expBias = 1 # Exponent Bias value of e2m1/e1m2 is 1
 

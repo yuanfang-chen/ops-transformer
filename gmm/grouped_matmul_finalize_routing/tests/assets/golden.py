@@ -61,7 +61,7 @@ def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, gr
     for i in range(group_num):
         scale_g = scale[i]
         #reshape scale to shape n,ceil(k,64)*2
-        if trans_b == False:
+        if trans_b is False:
             scale_g = transform_tensor(scale_g)
         else:
             n, k0, k1 = scale_g.shape
@@ -122,7 +122,6 @@ def trans_np_fp4_e2m1_tensor_to_bfloat16(in_tensor):
     return fp32_tensor
 
 def trans_np_fp4_e1m2_tensor_to_bfloat16(in_tensor):
-    import numpy as np
     shape_tensor = in_tensor.shape
     multi_shape = np.prod(shape_tensor)
     out_tensor = np.zeros(multi_shape)
@@ -143,7 +142,6 @@ def trans_np_fp4_e1m2_tensor_to_bfloat16(in_tensor):
     return fp32_tensor
 
 def convert_to_high_precision(input_tensor, input_type):
-    import torch
     if input_type in ("float8_e4m3fn", "float8_e5m2", "float4_e2m1", "float4_e1m2", "hifloat8"):
         input_tensor = torch.from_numpy(input_tensor.astype(np.float32))
     elif input_type in ("int4"):
@@ -187,7 +185,6 @@ def transform_tensor(input_tensor):
     return result
 
 def single_group_mm_cal(x1, x2, out_dtype):
-    import torch
     out = torch.matmul(x1, x2)
     torch.set_printoptions(threshold=torch.inf)
     # 检查是否有inf

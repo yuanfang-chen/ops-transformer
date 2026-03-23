@@ -120,7 +120,6 @@ def transform_tensor(input_tensor):
     return result
 
 def convert_to_high_precision(input_tensor, input_type):
-    import torch
     if input_type in ("float8_e4m3fn", "float8_e5m2", "float4_e2m1", "float4_e1m2", "hifloat8"):
         input_tensor = torch.from_numpy(input_tensor.astype(np.float32))
     elif input_type in ("int4"):
@@ -131,7 +130,6 @@ def convert_to_high_precision(input_tensor, input_type):
 
 def single_group_mm_cal(x1, x2, deq_scale_tensor,
                         out_dtype, is_mx_quant):
-    import torch
     out = torch.matmul(x1, x2)
     if not is_mx_quant:
         out = out * deq_scale_tensor
