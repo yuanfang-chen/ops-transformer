@@ -107,6 +107,14 @@ public:
     using Base::mmCount_;
     using Base::vec1Count_;
     using Base::eleNumPerVf_;
+    using Base::kAlphaCombBaseOffset;
+    using Base::kAlphaCombIndex;
+    using Base::kAlphaPostIndex;
+    using Base::kAlphaPreIndex;
+    using Base::kDoubleBufferCount;
+    using Base::kSingleBufferCount;
+    using Base::kSupportedN4;
+    using Base::kSupportedN6;
 
     __aicore__ inline MhcPreKernelSplitND(MT &matmul) : Base(matmul) {}
     __aicore__ inline void Init(InitParams initParams);
@@ -130,11 +138,21 @@ public:
     static constexpr uint64_t V1_BASE_T = 8;
 
 private:
+    static constexpr uint32_t kXInQueueBufferBytes = 80 * 1024;
+    static constexpr uint32_t kOutQueueBufferBytes = 32 * 1024;
+    static constexpr uint32_t kTmpBufferBytes = 20 * 1024;
+    static constexpr uint32_t kMinTForN4 = 2;
+    static constexpr uint32_t kMinTForN6 = 4;
+    static constexpr uint32_t kDefaultCurSingleM = 2;
+    static constexpr uint32_t kDefaultMinT = 1;
+    static constexpr uint32_t kDefaultVectorCoreNum = 2;
+    static constexpr uint32_t kDefaultV0BaseT = 1;
+
     uint32_t chunNDSize_ = 320;
-    uint32_t curSingleM_ = 2;
-    uint32_t minT_ = 1;
-    uint32_t vectorCoreNum = 2;
-    uint32_t V0_BASE_T = 1;
+    uint32_t curSingleM_ = kDefaultCurSingleM;
+    uint32_t minT_ = kDefaultMinT;
+    uint32_t vectorCoreNum = kDefaultVectorCoreNum;
+    uint32_t V0_BASE_T = kDefaultV0BaseT;
 };
 
 template <class T, class P>
@@ -156,11 +174,11 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParams initParams)
 
     this->InitFromTilingData(initParams.tilingData);
 
-    if (N_ == 4) {
-        minT_ = 2;
+    if (N_ == kSupportedN4) {
+        minT_ = kMinTForN4;
     }
-    if (N_ == 6) {
-        minT_ = 4;
+    if (N_ == kSupportedN6) {
+        minT_ = kMinTForN6;
     }
 
     chunNDSize_ = Ceil(matrixInfo_.nD, coreNum_);
@@ -203,17 +221,17 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParams initParams)
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::InitLocalBuffers()
 {
-    pipe_->InitBuffer(xInQueue_, 2, 80 * 1024);
-    pipe_->InitBuffer(outQueue_, 2, 32 * 1024);
-    pipe_->InitBuffer(invRmsOutQueue_, 1, Ceil(curSingleM_, 2) * sizeof(P));
+    pipe_->InitBuffer(xInQueue_, kDoubleBufferCount, kXInQueueBufferBytes);
+    pipe_->InitBuffer(outQueue_, kDoubleBufferCount, kOutQueueBufferBytes);
+    pipe_->InitBuffer(invRmsOutQueue_, kSingleBufferCount, Ceil(curSingleM_, kDoubleBufferCount) * sizeof(P));
 
     if (hasGamma_) {
-        pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P));
+        pipe_->InitBuffer(gammaInQueue_, kSingleBufferCount, ND_LENGTH * sizeof(P));
     }
     
-    pipe_->InitBuffer(tmpBuff_, 20 * 1024);
+    pipe_->InitBuffer(tmpBuff_, kTmpBufferBytes);
 
-    pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P));
+    pipe_->InitBuffer(biasInQue_, kSingleBufferCount, mnConfig_.n * sizeof(P));
     pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P));
     alphaInUb_ = alphaBuf_.template Get<P>();
 
@@ -245,7 +263,7 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::Process()
 {
     if ASCEND_IS_AIV {
-        coreIdx_ = GetBlockIdx() / 2;
+        coreIdx_ = GetBlockIdx() / kDoubleBufferCount;
         this->AIVPreLoad();
 
         uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
@@ -279,14 +297,14 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AIVPreLoad()
     invRmsUb_ = invRmsOutQueue_.template AllocTensor<P>();
     AIV1GetHSliceOffset();
 
-    float alphaPre = alphaGm_.GetValue(0);
-    float alphaPost = alphaGm_.GetValue(1);
-    float alphaComb = alphaGm_.GetValue(2);
+    float alphaPre = alphaGm_.GetValue(kAlphaPreIndex);
+    float alphaPost = alphaGm_.GetValue(kAlphaPostIndex);
+    float alphaComb = alphaGm_.GetValue(kAlphaCombIndex);
     for (uint64_t i = 0; i < N_; ++i) {
         alphaInUb_.SetValue(i, alphaPre);
         alphaInUb_.SetValue(i + N_, alphaPost);
         for (uint64_t j = 0; j < N_; ++j) {
-            alphaInUb_.SetValue((2 + i) * N_ + j, alphaComb);
+            alphaInUb_.SetValue((kAlphaCombBaseOffset + i) * N_ + j, alphaComb);
         }
     }
     this->BiasCopyIn();

@@ -93,6 +93,21 @@ struct MNConfig {
 template <class T, class P>
 class MhcPreKernelBase {
 public:
+    static constexpr uint32_t kDoubleBufferCount = 2;
+    static constexpr uint32_t kSingleBufferCount = 1;
+    static constexpr uint32_t kAlphaPreIndex = 0;
+    static constexpr uint32_t kAlphaPostIndex = 1;
+    static constexpr uint32_t kAlphaCombIndex = 2;
+    static constexpr uint32_t kAlphaCombBaseOffset = 2;
+    static constexpr uint32_t kSupportedN4 = 4;
+    static constexpr uint32_t kSupportedN6 = 6;
+    static constexpr uint32_t kSupportedN8 = 8;
+    static constexpr uint32_t kBlockLenSingle = 1;
+    static constexpr uint32_t kAlignmentBytes = 32;
+    static constexpr uint32_t kHalfSplitDivisor = 2;
+    static constexpr float kOneValue = 1.0f;
+    static constexpr float kTwoValue = 2.0f;
+
     __aicore__ inline MhcPreKernelBase(MT &matmul) : mm(matmul) {}
 
     __aicore__ inline void InitPipeAndCoreIdx(TPipe *pipe)
@@ -355,14 +370,14 @@ public:
         invRmsUb_ = invRmsOutQueue_.AllocTensor<P>();
         AIV1GetHSliceOffset();
 
-        float alphaPre = alphaGm_.GetValue(0);
-        float alphaPost = alphaGm_.GetValue(1);
-        float alphaComb = alphaGm_.GetValue(2);
+        float alphaPre = alphaGm_.GetValue(kAlphaPreIndex);
+        float alphaPost = alphaGm_.GetValue(kAlphaPostIndex);
+        float alphaComb = alphaGm_.GetValue(kAlphaCombIndex);
         for (uint64_t i = 0; i < N_; ++i) {
             alphaInUb_.SetValue(i, alphaPre);
             alphaInUb_.SetValue(i + N_, alphaPost);
             for (uint64_t j = 0; j < N_; ++j) {
-                alphaInUb_.SetValue((2 + i) * N_ + j, alphaComb);
+                alphaInUb_.SetValue((kAlphaCombBaseOffset + i) * N_ + j, alphaComb);
             }
         }
         BiasCopyIn();
@@ -400,8 +415,8 @@ public:
                 MicroAPI::LoadAlign(hPreReg, hPreBuffAddr + vfBlockIdx * eleNumPerVf_);
                 MicroAPI::Neg(negReg, hPreReg, mask);
                 MicroAPI::Exp(expReg, negReg, mask);
-                MicroAPI::Adds(addOneReg, expReg, static_cast<P>(1.0), mask);
-                MicroAPI::Duplicate(oneReg, static_cast<P>(1.0), mask);
+                MicroAPI::Adds(addOneReg, expReg, static_cast<P>(kOneValue), mask);
+                MicroAPI::Duplicate(oneReg, static_cast<P>(kOneValue), mask);
                 MicroAPI::Div<P, &divMode>(sigmoidReg, oneReg, addOneReg, mask);
 
                 MicroAPI::Adds(resultReg, sigmoidReg, matrixInfo_.hcEps, mask);
@@ -424,7 +439,7 @@ public:
         uint32_t totalElem = lenT * N_;
         uint32_t regCapacityFp32 = 64;
         uint16_t nLoopCnt = Ceil(totalElem, regCapacityFp32);
-        float scalarValue = 2.0;
+        float scalarValue = kTwoValue;
         uint32_t curElemCnt = totalElem;
 
         __VEC_SCOPE__
@@ -438,8 +453,8 @@ public:
                 MicroAPI::LoadAlign(hPostReg, hPostBuffAddr + elemOffset);
                 MicroAPI::Neg(negReg, hPostReg, mask);
                 MicroAPI::Exp(expReg, negReg, mask);
-                MicroAPI::Adds(addOneReg, expReg, 1.0f, mask);
-                MicroAPI::Duplicate(oneReg, 1.0f, mask);
+                MicroAPI::Adds(addOneReg, expReg, kOneValue, mask);
+                MicroAPI::Duplicate(oneReg, kOneValue, mask);
                 MicroAPI::Div<P, &divMode>(sigmoidReg, oneReg, addOneReg, mask);
 
                 MicroAPI::Muls(resultReg, sigmoidReg, scalarValue, mask);
@@ -481,13 +496,13 @@ public:
                 __ubuf__ T *xInAddr = (__ubuf__ T *)xIn.GetPhyAddr();
                 __ubuf__ T *hinOutAddr = (__ubuf__ T *)hinOut.GetPhyAddr();
                 switch (N_) {
-                    case 4:
+                    case kSupportedN4:
                         VFDoV1ProcessHinForN4(xInAddr, hinOutAddr, lenD, tIdx);
                         break;
-                    case 6:
+                    case kSupportedN6:
                         VFDoV1ProcessHinForN6(xInAddr, hinOutAddr, lenD, tIdx);
                         break;
-                    case 8:
+                    case kSupportedN8:
                         VFDoV1ProcessHinForN8(xInAddr, hinOutAddr, lenD, tIdx);
                         break;
                     default:

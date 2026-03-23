@@ -94,6 +94,9 @@ public:
     using Base::mmCount_;
     using Base::vec1Count_;
     using Base::eleNumPerVf_;
+    using Base::kDoubleBufferCount;
+    using Base::kSingleBufferCount;
+    using Base::kHalfSplitDivisor;
     using Base::ND_LENGTH;
     using Base::PARALLEL_NUM;
     using Base::V0_BASE_T;
@@ -124,7 +127,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::Init(InitParams initParams)
     SyncAll<false>();
 
     if ASCEND_IS_AIV {
-        coreIdx_ = GetBlockIdx() / 2;
+        coreIdx_ = GetBlockIdx() / kDoubleBufferCount;
         this->AIVPreLoad();
     }
 }
@@ -148,17 +151,21 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::InitUbBuffers()
         return;
     }
 
-    pipe_->InitBuffer(xInQueue_, 2, 80 * 1024);
-    pipe_->InitBuffer(outQueue_, 2, 20 * 1024);
-    pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P));
+    static constexpr uint32_t kXInQueueBufferBytes = 80 * 1024;
+    static constexpr uint32_t kOutQueueBufferBytes = 20 * 1024;
+    static constexpr uint32_t kTmpBufferBytes = 40 * 1024;
+
+    pipe_->InitBuffer(xInQueue_, kDoubleBufferCount, kXInQueueBufferBytes);
+    pipe_->InitBuffer(outQueue_, kDoubleBufferCount, kOutQueueBufferBytes);
+    pipe_->InitBuffer(invRmsOutQueue_, kSingleBufferCount, (curSingleT_ / kHalfSplitDivisor) * sizeof(P));
 
     if (hasGamma_) {
-        pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P));
+        pipe_->InitBuffer(gammaInQueue_, kSingleBufferCount, ND_LENGTH * sizeof(P));
     }
 
-    pipe_->InitBuffer(tmpBuff_, 40 * 1024);
+    pipe_->InitBuffer(tmpBuff_, kTmpBufferBytes);
 
-    pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P));
+    pipe_->InitBuffer(biasInQue_, kSingleBufferCount, mnConfig_.n * sizeof(P));
     pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P));
     alphaInUb_ = alphaBuf_.template Get<P>();
 
