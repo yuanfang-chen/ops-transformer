@@ -317,6 +317,9 @@ namespace BSA {
             uint32_t tailTaskNum = tilingData->tailTaskNum;
             uint32_t taskLength = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
 
+            if (groupSize == 0 || blockShapeX == 0 || blockShapeY == 0) {
+                return;
+            }
             // Initialize global tensors
             AscendC::GlobalTensor<ElementA1> gDout;
             gDout.SetGlobalBuffer((__gm__ ElementInput *)params.dout);
