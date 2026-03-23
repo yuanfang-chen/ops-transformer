@@ -107,7 +107,6 @@ def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list, y, scale
 
     real_out = outs if not outs else np.concatenate(outs, axis=0)
     real_out = real_out.reshape(inplace_y.shape)
-    print("real_out=",real_out.shape, inplace_y.shape,flush=True)
     real_out = real_out + inplace_y
     return real_out
 
