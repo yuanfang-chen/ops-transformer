@@ -45,7 +45,7 @@ const aclTensor *KvQuantSparseFlashAttentionPioneer(
         int64_t ropeHeadDim,
         aclOpExecutor *executor)
 {
-    int64_t keyBlockStride = 0;
+    int64_t keyBlockStride = -1;
     auto blockStrides = key->GetViewStrides();
     keyBlockStride = blockStrides[0];
 
