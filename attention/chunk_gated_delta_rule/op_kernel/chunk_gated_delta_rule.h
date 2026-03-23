@@ -201,8 +201,6 @@ public:
         cg.chunkSize = tiling_->chunkSize;
         for (int64_t bid = 0; bid < tiling_->b; bid++) {
             int32_t length = actualSeqLens_.GetValue(bid);
-            SetFlag<HardEvent::S_V>(S_V_EVENT);
-            WaitFlag<HardEvent::S_V>(S_V_EVENT);
             seqStart = seqEnd;
             seqEnd = seqStart + (int64_t)length;
             GlobalTensor<highType> curState = highState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
