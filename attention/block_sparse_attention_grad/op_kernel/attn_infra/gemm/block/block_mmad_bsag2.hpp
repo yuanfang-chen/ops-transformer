@@ -165,8 +165,6 @@ public:
         }
 
         AscendC::SetFlag<AscendC::HardEvent::FIX_M>(pingpongFlag);
-        
-        // pingpongFlag = 1 - pingpongFlag;
     }
 
 protected:
