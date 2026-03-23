@@ -17,7 +17,7 @@
 
 #include "kernel_operator.h"
 
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510 || __NPU_ARCH__ == 3101)
 #define THREAD_NUM 2048
 #endif
 

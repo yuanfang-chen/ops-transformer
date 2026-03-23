@@ -21,7 +21,7 @@
 #include "moe_distribute_combine_setup_tiling_data.h"
 #include "moe_distribute_combine_setup_tiling_key.h"
 
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510 || __NPU_ARCH__ == 3101)
 #include "arch35/moe_distribute_combine_setup_arch35.h"
 #endif // __NPU_ARCH__ == 3510
 
