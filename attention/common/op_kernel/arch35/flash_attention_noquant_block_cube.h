@@ -666,12 +666,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm
         if constexpr (!useDn) {
             fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
             fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
-            if constexpr (isInfer) {
-                bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-                if (IsS1GMerge(constInfo) && isS1Odd) {
-                    fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
-                }
-            }
         }
         if constexpr (bmm2Write2Ub || splitD) {
             fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
@@ -832,12 +826,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos 
             if constexpr (!useDn) {
                 fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
                 fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
-                if constexpr (isInfer) {
-                    bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-                    if (IsS1GMerge(constInfo) && isS1Odd) {
-                        fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
-                    }
-                }
             }
             if constexpr (bmm2Write2Ub) {
                 fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
@@ -940,7 +928,7 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                 GmCoord gmCoord {
                     .bIdx = static_cast<uint32_t>(runInfo.boIdx),
                     .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize),
+                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                     .dIdx = 0,
                     .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
                     .dDealSize = static_cast<uint32_t>(constInfo.dSize)
@@ -1108,13 +1096,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
 
-    if constexpr (isInfer){
-        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if (IsS1GMerge(constInfo) && isS1Odd) {
-            fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
-        }
-    }
-
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放
     outputBuf.SetCrossCore();
@@ -1151,7 +1132,7 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
                 GmCoord gmCoord {
                     .bIdx = static_cast<uint32_t>(runInfo.boIdx),
                     .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize),
+                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                     .dIdx = 0,
                     .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
                     .dDealSize = static_cast<uint32_t>(constInfo.dSize)
@@ -1535,7 +1516,7 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
                 GmCoord gmCoord {
                     .bIdx = static_cast<uint32_t>(runInfo.boIdx),
                     .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize),
+                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                     .dIdx = 0,
                     .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
                     .dDealSize = static_cast<uint32_t>(constInfo.dSize)
@@ -1655,13 +1636,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
 
-    if constexpr (isInfer) {
-        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if (IsS1GMerge(constInfo) && isS1Odd) { 
-            fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
-        }
-    }
-
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
     outputBuf.SetCrossCore();
@@ -1731,7 +1705,7 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
                     GmCoord gmCoord {
                         .bIdx = static_cast<uint32_t>(runInfo.boIdx),
                         .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-                        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize),
+                        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                         .dIdx = static_cast<uint32_t>(k * baseK),
                         .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
                         .dDealSize = static_cast<uint32_t>(realK)
@@ -1837,13 +1811,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
 
-    if constexpr (isInfer) {
-        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if (IsS1GMerge(constInfo) && isS1Odd) {
-            fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
-        }
-    }
-
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放
     outputBuf.SetCrossCore();
@@ -1880,7 +1847,7 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
                 GmCoord gmCoord {
                     .bIdx = static_cast<uint32_t>(runInfo.boIdx),
                     .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
-                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx * s1BaseSize),
+                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                     .dIdx = 0,
                     .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
                     .dDealSize = static_cast<uint32_t>(constInfo.dSize)
