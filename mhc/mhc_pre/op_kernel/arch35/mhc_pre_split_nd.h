@@ -114,6 +114,10 @@ public:
     __aicore__ inline void AICProcess();
     __aicore__ inline void InitLocalBuffers();
     __aicore__ inline void VectorComputeOffset();
+    __aicore__ inline void AIVPreLoad();
+    __aicore__ inline void AIV1GetHSliceOffset();
+    __aicore__ inline void DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen,
+                                                  uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void V0Prologue();
     __aicore__ inline void AIV1Process(uint64_t curBlock, uint64_t tBlockNum);
     __aicore__ inline void AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset);
@@ -270,6 +274,50 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Process()
 }
 
 template <class T, class P>
+__aicore__ inline void MhcPreKernelSplitND<T, P>::AIVPreLoad()
+{
+    invRmsUb_ = invRmsOutQueue_.AllocTensor<P>();
+    AIV1GetHSliceOffset();
+
+    float alphaPre = alphaGm_.GetValue(0);
+    float alphaPost = alphaGm_.GetValue(1);
+    float alphaComb = alphaGm_.GetValue(2);
+    for (uint64_t i = 0; i < N_; ++i) {
+        alphaInUb_.SetValue(i, alphaPre);
+        alphaInUb_.SetValue(i + N_, alphaPost);
+        for (uint64_t j = 0; j < N_; ++j) {
+            alphaInUb_.SetValue((2 + i) * N_ + j, alphaComb);
+        }
+    }
+    this->BiasCopyIn();
+    biasInUb_ = biasInQue_.DeQue<P>();
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernelSplitND<T, P>::AIV1GetHSliceOffset()
+{
+    uint32_t offset1 = 0;
+    uint32_t offset2 = 0;
+    uint32_t offset3 = 0;
+    uint32_t curOffset = 0;
+    uint32_t nSquare = N_ * N_;
+    for (uint32_t i = 0; i < V1_BASE_T; i++) {
+        for (uint32_t j = 0; j < N_; j++) {
+            preOffsetBuf_.SetValue(offset1++, curOffset * sizeof(P));
+            curOffset++;
+        }
+        for (uint32_t j = 0; j < N_; j++) {
+            postOffsetBuf_.SetValue(offset2++, curOffset * sizeof(P));
+            curOffset++;
+        }
+        for (uint32_t j = 0; j < nSquare; j++) {
+            resOffsetBuf_.SetValue(offset3++, curOffset * sizeof(P));
+            curOffset++;
+        }
+    }
+}
+
+template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::AICProcess()
 {
     AscendC::CrossCoreWaitFlag(SYNC_V0toC);
@@ -304,6 +352,21 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::VectorComputeOffset()
         vectorOffset_.singleCoreM = curSingleM_ - vectorOffset_.singleCoreM;
         vectorOffset_.offsetMEnd = curSingleM_;
     }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernelSplitND<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen,
+                                                                          uint32_t curNdLen, uint32_t offsetM,
+                                                                          uint32_t offsetNd)
+{
+    DataCopyExtParams copyParams;
+    copyParams.blockCount = static_cast<uint16_t>(curMLen);
+    copyParams.blockLen = uint32_t(curNdLen * sizeof(P));
+    copyParams.srcStride = uint32_t(0);
+    copyParams.dstStride = uint32_t((matrixInfo_.nD - curNdLen) * sizeof(P));
+
+    uint64_t offset = (globalOffsetM_ + offsetM) * matrixInfo_.nD + offsetNd;
+    DataCopyPad(xFloatGm_[offset], x, copyParams);
 }
 
 template <class T, class P>
