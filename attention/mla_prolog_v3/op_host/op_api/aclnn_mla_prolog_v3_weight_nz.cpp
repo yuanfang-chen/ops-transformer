@@ -85,30 +85,28 @@ private:
     std::string name_;
 };
 
-bool CheckWeightQuantModeValidity(int64_t weightQuantMode) { 
-     std::set<int64_t> supportedWeightQuantMode; 
-     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) { 
-         supportedWeightQuantMode = {0LL, 1LL, 2LL, 3LL}; 
-     } else { 
-         supportedWeightQuantMode = {0LL, 1LL, 2LL}; 
-     } 
- 
- 
-     if (supportedWeightQuantMode.find(weightQuantMode) == supportedWeightQuantMode.end()) { 
-         std::string supportedStr; 
-         for (auto mode : supportedWeightQuantMode) { 
-             supportedStr += std::to_string(mode) + ", "; 
-         } 
-         if (!supportedStr.empty()) { 
-             supportedStr.pop_back();  
-             supportedStr.pop_back(); 
-         } 
-         OP_LOGE(ACLNN_ERR_RUNTIME_ERROR,"WeightQuantMode must be within {%s}, actually is %lld.",  
-                 supportedStr.c_str(), weightQuantMode); 
-         return false; 
-     } 
-     return true; 
- }
+bool CheckWeightQuantModeValidity(int64_t weightQuantMode) {
+    std::set<int64_t> supportedWeightQuantMode;
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        supportedWeightQuantMode = {0LL, 1LL, 2LL, 3LL, 4LL, 5LL};
+    } else {
+        supportedWeightQuantMode = {0LL, 1LL, 2LL};
+    }
+    if (supportedWeightQuantMode.find(weightQuantMode) == supportedWeightQuantMode.end()) {
+        std::string supportedStr;
+        for (auto mode : supportedWeightQuantMode) {
+            supportedStr += std::to_string(mode) + ", ";
+        }
+        if (!supportedStr.empty()) {
+            supportedStr.pop_back();
+            supportedStr.pop_back();
+        }
+        OP_LOGE(ACLNN_ERR_RUNTIME_ERROR,"WeightQuantMode must be within {%s}, actually is %lld.",
+                supportedStr.c_str(), weightQuantMode);
+        return false;
+    }
+    return true;
+}
 
 aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const aclTensor *tokenX,
@@ -161,9 +159,9 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const int KV_CACHE_QUANT_MODE_PER_TENSOR = 1;
     const int KV_CACHE_QUANT_MODE_PER_CHANNEL = 2;
     const int KV_CACHE_QUANT_MODE_PER_TILE = 3;
-    if (!CheckWeightQuantModeValidity(weightQuantMode)){	 
-         return ge::GRAPH_FAILED; 
-     };
+    if (!CheckWeightQuantModeValidity(weightQuantMode)){
+        return ge::GRAPH_FAILED;
+    };
 
     auto dequantScaleQNopeHolder = TensorHolder(dequantScaleQNopeOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNopeOut"));
     aclDataType queryNormDataType = weightQuantMode == WEIGHT_QUANT_MODE_NO_QUANT ? aclDataType::ACL_BF16 : aclDataType::ACL_INT8;
