@@ -22,11 +22,8 @@ def grouped_matmul_add_golden(x, weight, group_list, y, transpose_x: bool = True
                               group_type: int = 2, group_list_type: int = 0, **kwargs):
     
     # group_list_type 0: cumsum, 1: count
-    print("golden 1")
     output_dtypes = kwargs['output_dtypes']
     out_dtype = output_dtypes[0]
-    
-    print("golden 2")
     outs = []
     group_num = len(group_list)
 
@@ -49,9 +46,7 @@ def grouped_matmul_add_golden(x, weight, group_list, y, transpose_x: bool = True
         out = torch.matmul(x_g, weight_g).numpy().astype(out_dtype)
         outs.append(out)
         
-    
     real_out = outs if not outs else np.concatenate(outs, axis=0)
     real_out = real_out.reshape(y.shape)
-    print("real_out=",real_out.shape, y.shape,flush=True)
     real_out = real_out + y
     return real_out

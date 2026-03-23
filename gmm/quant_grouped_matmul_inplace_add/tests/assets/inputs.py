@@ -40,7 +40,6 @@ def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list_ori, y, s
         group_list = group_list_expect
     else:
         group_list = group_list_ori
-    print("GMM INPUT FUNC, group_list: ", group_list)
     group_list_tmp = group_list
     if group_list_type == 1:
         group_list_tmp = np.cumsum(group_list)

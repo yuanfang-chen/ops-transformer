@@ -24,7 +24,6 @@ def grouped_matmul_add_inputs(x, weight, group_list, y, transpose_x: bool = True
     if 'group_list_expect' in kwargs:
         group_list_expect = kwargs['group_list_expect']
         group_list = group_list_expect
-    print("GMM INPUT FUNC, group_list: ", group_list)
     group_list_tmp = group_list
     if group_list_type == 1:
         group_list_tmp = np.cumsum(group_list)
