@@ -374,10 +374,6 @@ namespace BSA {
             SetFlag();
             for (uint32_t i = 0; i < taskLength; i++) {
                 TaskInfo curInfo = taskInfo[i % 2];
-                // LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
-                // AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
-                // blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
-                // blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
                 uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
@@ -431,7 +427,6 @@ namespace BSA {
                     }
                     kvBlockOffset += blockShapeY;
                 }
-                // AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
                 if (i != taskLength - 1) {
                     updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
                         blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
@@ -442,12 +437,12 @@ namespace BSA {
             LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
             LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
             GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
-            blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gDq[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
-
             LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
             LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);
             LayoutC3 layoutC3(preTaskInfo.curCalKVSize, headDim);
             GemmCoord actualShape3{preTaskInfo.curCalKVSize, headDim, preTaskInfo.curCalQSize};
+
+            blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gDq[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
             blockMmad3(gP[preTaskInfo.sOffset], gDout[preTaskInfo.qOffset], gDv[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
