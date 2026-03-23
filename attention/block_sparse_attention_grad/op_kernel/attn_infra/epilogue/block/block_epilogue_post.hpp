@@ -1,15 +1,17 @@
-/*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+/**
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
-#ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP
-#define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP
+/*!
+ * \file block_epliogue_post.h
+ * \brief Block Epliogue Post Kernel Implementation
+ */
 
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
@@ -192,6 +194,7 @@ public:
      * curS: 当前batch的seqlen, 主要要针对tnd格式，s不等场景
      * seqS: actual seqlen list, s 在list是累加的，例如s1 2, s2 3, s3 10, seqS[0, 2, 5, 15]
      * bIdx, nIdx, sIdx : 当前元素索引
+     * shape : 矩阵的shape
     */
     __aicore__ inline
     void InitIndex(uint64_t startIdx, uint64_t& curS, GM_ADDR seqS, uint64_t &bIdx, uint64_t &nIdx, uint64_t &sIdx, struct ShapeBnsd shape)
@@ -282,7 +285,6 @@ public:
                     if (bIdx < b - 1) { // 需要借B
                         bIdx += 1;
                         if constexpr (INPUT_LAYOUT == TND) {
-                            // curS = ((__gm__ int64_t *)seqS)[bIdx + 1] - ((__gm__ uint64_t *)seqS)[bIdx];
                             curS = ((__gm__ int64_t *)seqS)[bIdx];
                         } else {
                             curS = s;
