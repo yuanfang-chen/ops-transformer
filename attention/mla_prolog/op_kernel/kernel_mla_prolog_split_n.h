@@ -2014,8 +2014,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::DequantAndRopeSplitNSyncMMQcQ
     // cube一次处理row*colCube，对应的两个vec一次处理row*colQc，两vec之间切colQc
     // 等cube生产足够数据了以后，vec开始消费
     uint32_t dequantLoopCount = 0;
-    uint32_t totoalDequantLoops = CeilDiv(oriCol, (colQc + colQr));
-    bool needSparseSync = totoalDequantLoops > MAX_SYNC_FLAG_COUNT;
+    uint32_t totalDequantLoops = CeilDiv(oriCol, (colQc + colQr));
+    bool needSparseSync = totalDequantLoops > MAX_SYNC_FLAG_COUNT;
     while (colOffsetCube < oriCol) {    // 循环CeilDiv(oriCol, colCube)次
         colOffsetCube += colCube;
         if (colOffsetCube > oriCol) {   // 当oriCol不被colCube整除时，mm最后一个base块需要刷新col end
@@ -2031,7 +2031,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::DequantAndRopeSplitNSyncMMQcQ
                 CastQcQrSplitN(CastQcQrSplitNParams{mmQnPreDequantOffset, mmQnPreDequantResOffset, 
                                inputOffset, outputOffset, srcStride, dstStride});
             }
-            if (!needSparseSync || dequantLoopCount % 2 == 0 || dequantLoopCount == totoalDequantLoops -1) {
+            if (!needSparseSync || dequantLoopCount % 2 == 0 || dequantLoopCount == totalDequantLoops -1) {
                 CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_MTE3>(FINISH_VEC_DEQUANT_QC_SPLIT_N);
             }
             dequantLoopCount++;
