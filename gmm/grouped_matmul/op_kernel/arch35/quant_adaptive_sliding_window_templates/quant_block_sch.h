@@ -65,8 +65,8 @@ public:
     __aicore__ inline void Init(const TCubeTiling* __restrict &tilingData, uint32_t blockIdx);
     // 每一个group需要更新mm的group偏移和MNK
     template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat = CubeFormat::ND>
-    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx, uint32_t loopIdx,
-                                             uint32_t groupListType, int8_t groupType);
+    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx, uint32_t groupListType,
+                                             int8_t groupType);
     template <bool isGmm>
     __aicore__ inline void UpdateGroupParams(); // 每一个group需要更新mm的参数
     __aicore__ inline void UpdateTailTile();
@@ -126,47 +126,11 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
 
 template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat>
 __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx,
-                                                           uint32_t loopIdx, uint32_t groupListType, int8_t groupType)
+                                                           uint32_t groupListType, int8_t groupType)
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
     const bool isSparseM = (groupListType == QuantUtils::GROUP_LIST_TYPE_SPARSE && groupType == QuantUtils::SPLIT_M);
-    // loopIdx==0 normally means all group offsets start from 0.
-    // But for sparse grouplist ([groupIdx, groupSize]) with M-split, the first loop item may map to groupIdx!=0.
-    // A/C remain compacted by loop order, while B/scale/bias must jump by groupIdx.
-    if (loopIdx == 0 && isSparseM && groupIdx != 0) {
-        if constexpr (QuantUtils::IsFp4<xType>()) {
-            params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) * static_cast<uint64_t>(k) / 2;
-        } else {
-            if constexpr (wFormat == CubeFormat::NZ) {
-                if constexpr (bTrans) {
-                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
-                        QuantUtils::CeilDiv(static_cast<uint64_t>(k), QuantUtils::WEIGHTNZ_K0_32) *
-                        QuantUtils::CeilDiv(static_cast<uint64_t>(n), QuantUtils::WEIGHTNZ_N0_16) *
-                        QuantUtils::WEIGHTNZ_N0_K0;
-                } else {
-                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
-                        QuantUtils::CeilDiv(static_cast<uint64_t>(n), QuantUtils::WEIGHTNZ_N0_32) *
-                        QuantUtils::CeilDiv(static_cast<uint64_t>(k), QuantUtils::WEIGHTNZ_K0_16) *
-                        QuantUtils::WEIGHTNZ_N0_K0;
-                }
-            } else {
-                params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) * static_cast<uint64_t>(k);
-            }
-        }
-        if constexpr (QuantUtils::IsMxType<scaleType>()) {
-            if constexpr (!aTrans) {
-                uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
-                scaleK *= QuantUtils::CeilDiv(static_cast<uint64_t>(k), QuantUtils::MXFP_DIVISOR_SIZE);
-                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) * scaleK;
-            } else {
-                // aTrans mx path uses scaleK derived from bGroupAddrOffset in later rounds; keep unchanged here.
-            }
-        } else {
-            params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n);
-        }
-        params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n);
-    }
-    if (loopIdx > 0) { // loopIdx==0时，起始点均为0，无需计算，减少scalar
+    if (groupIdx != 0) {
         if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
             params_.aGroupAddrOffset += params_.m * params_.k / 2;
             if (isSparseM) {
@@ -213,7 +177,6 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
                 scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
                 params_.xScaleGroupAddrOffset += params_.m * scaleK;
-                // grouplisttype==2 且 M 轴分组：权重按 group 索引连续存放，scale 也需按 groupIdx 直接索引
                 if (isSparseM) {
                     params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n * scaleK;
                 } else {
@@ -228,14 +191,12 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             }
         } else { // 当perChannel/perToken（重点场景）计算offset，kernel侧在perTensor场景下直接使用groupIdx偏移，减少分支判断
             params_.xScaleGroupAddrOffset += params_.m;
-            // grouplisttype==2 且 M 轴分组：B 的 perchannel scale 与 B 一样按 groupIdx 直接索引
             if (isSparseM) {
                 params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
             } else {
                 params_.wScaleGroupAddrOffset += params_.n;
             }
         }
-        // bias 跟随 weight 的分组方式（若为 sparse M 则同样按 groupIdx 直接索引）
         if (isSparseM) {
             params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * params_.n;
         } else {
