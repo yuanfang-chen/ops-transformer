@@ -21,6 +21,13 @@
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
 
+// 一个scale块元素数量为64个，即1个scale块对应64个x的元素
+constexpr int64_t SCALE_BLOCK_SIZE = 64LL;
+// scale的第三维度大小
+constexpr int64_t SCALE_THIRD_DIM_SIZE = 2LL;
+// scale与x的对应系数为32
+constexpr int64_t SCALE_FACTOR_WITH_X = 32LL;
+
 template <typename T>
 class MoeGatherOutMxfp8 {
 public:
@@ -120,16 +127,17 @@ __aicore__ inline void MoeGatherOutMxfp8<T>::Init(GM_ADDR x, GM_ADDR scale, GM_A
     curCoreLastLoopIndicesElements_ = curCoreIndicesElements_ - (indicesLoops_ - 1) * curCorePerLoopIndicesElements_;
 
     xUint8tGm_.SetGlobalBuffer((__gm__ uint8_t *)x, n_ * cols_);
-    xGscaleGm_.SetGlobalBuffer((__gm__ uint8_t *)scale, n_ * cols_ / 32);
+    uint64_t alginSclaeCols = Ops::Base::CeilDiv(cols_, SCALE_BLOCK_SIZE) * SCALE_THIRD_DIM_SIZE;
+    xGscaleGm_.SetGlobalBuffer((__gm__ uint8_t *)scale, n_ * alginSclaeCols);
     expandedXGm_.SetGlobalBuffer((__gm__ uint8_t *)expandedX + blockIdx_ * perCoreIndicesElements_ * cols_,
                                 curCoreIndicesElements_ * cols_);
-    expandedScaleGm_.SetGlobalBuffer((__gm__ uint8_t *)expandedScale + blockIdx_ * perCoreIndicesElements_ * cols_ / 32,
-                                    curCoreIndicesElements_ * cols_ / 32);
+    expandedScaleGm_.SetGlobalBuffer((__gm__ uint8_t *)expandedScale + blockIdx_ * perCoreIndicesElements_ * alginSclaeCols,
+                                    curCoreIndicesElements_ * alginSclaeCols);
 
     pipe_->InitBuffer(expandedRowIdxCopyInQueue_, GATHER_OUT_BUFFER_NUM,
                     AlignBytes(curCorePerLoopIndicesElements_, sizeof(int32_t)));
     pipe_->InitBuffer(xCopyInQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(uint8_t)));
-    pipe_->InitBuffer(scaleCopyInQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(perLoopCols_ / 32, sizeof(uint8_t)));
+    pipe_->InitBuffer(scaleCopyInQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(perLoopCols_ / SCALE_FACTOR_WITH_X, sizeof(uint8_t)));
 
     sortedExpertIdxGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + blockIdx_ * perCoreIndicesElements_,
                                     Align(curCoreIndicesElements_, sizeof(int32_t)));
@@ -209,20 +217,24 @@ __aicore__ inline void MoeGatherOutMxfp8<T>::Process()
             SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
             for (int64_t indicesIndex = 0; indicesIndex < curLoopElements; indicesIndex++) {
                 int64_t rowIdx = subRowIdxLocal.GetValue(indicesIndex);
+                int64_t scaleHCols = Ops::Base::CeilDiv<int64_t>(cols_, SCALE_BLOCK_SIZE) * SCALE_THIRD_DIM_SIZE;
                 int64_t xSrcOffset = rowIdx / k_ * cols_;
-                int64_t scaleSrcOffset = rowIdx / k_ * cols_ / 32;
-                int64_t scaleDstOffset = (curExpertLoopOffset + indicesIndex) * cols_ / 32;
+                int64_t scaleSrcOffset = rowIdx / k_ * scaleHCols;
+                int64_t scaleDstOffset = (curExpertLoopOffset + indicesIndex) * scaleHCols;
                 int64_t xDstOffset = (curExpertLoopOffset + indicesIndex) * cols_;
                 SetWaitFlag<HardEvent::S_MTE2>(HardEvent::S_MTE2);
                 
                 int64_t curLoopCols = perLoopCols_;
+                int64_t perLoopScaleHCols = perLoopCols_ / SCALE_FACTOR_WITH_X; // perLoopCols_再tiling时已是64对齐的
+                int64_t curLoopScaleHCols = perLoopScaleHCols;
                 for (int64_t colsLoop = 0; colsLoop < colsLoops_; colsLoop++) {
                     if (colsLoop == colsLoops_ - 1) {
                         curLoopCols = lastLoopCols_;
+                        curLoopScaleHCols = Ops::Base::CeilDiv<int64_t>(curLoopCols, SCALE_BLOCK_SIZE) * SCALE_THIRD_DIM_SIZE;
                     }
                     if (isInputScale_ == 1) {
-                        CopyScaleIn(scaleSrcOffset + colsLoop * perLoopCols_ / 32, curLoopCols / 32);
-                        CopyScaleOut(scaleDstOffset + colsLoop * perLoopCols_ / 32, curLoopCols / 32);
+                        CopyScaleIn(scaleSrcOffset + colsLoop * perLoopScaleHCols, curLoopScaleHCols);
+                        CopyScaleOut(scaleDstOffset + colsLoop * perLoopScaleHCols, curLoopScaleHCols);
                     }
                     int64_t colsLoopOffset = colsLoop * perLoopCols_;
                     CopyXIn(xSrcOffset + colsLoopOffset, curLoopCols);

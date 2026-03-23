@@ -690,8 +690,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
     if (quantMode_ == QUANT_MODE_UNQUANT) {
         if (scaleDtype_ == ge::DataType::DT_FLOAT8_E8M0) {
             expectedRankScale = RANK_THREE;
-            expectedDim0 = xShape_.GetDim(0) * expertIdxShape_.GetDim(1);
-            expectedDim1 = xShape_.GetDim(1) / 64;
+            expectedDim0 = expertIdxShape_.GetDim(0);
+            expectedDim1 = Ops::Base::CeilDiv(xShape_.GetDim(1), MXFP8_SCALE_BlOCK_SIZE);
             expectedDim2 = NUM_TWO;
         } else {
             expectedRankScale = RANK_ONE;
@@ -863,8 +863,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
         if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == ge::DataType::DT_FLOAT8_E5M2 ||
             xDtype_ == ge::DataType::DT_FLOAT8_E4M3FN)) {
             expectedRank = RANK_THREE;
-            expectedDim0 = expertIdxShape_.GetDim(0);
-            expectedDim1 = xShape_.GetDim(1) / MXFP8_SCALE_BlOCK_SIZE;
+            expectedDim0 = expertIdxShape_.GetDim(0) * expertIdxShape_.GetDim(1);
+            expectedDim1 = Ops::Base::CeilDiv(xShape_.GetDim(1), MXFP8_SCALE_BlOCK_SIZE);
             expectedDim2 = NUM_TWO;
         } else {
             expectedRank = RANK_ONE;
@@ -1211,18 +1211,31 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple) /
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
-    } else {
+    } else if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == ge::DataType::DT_FLOAT8_E5M2 ||
+        xDtype_ == ge::DataType::DT_FLOAT8_E4M3FN)) {
+        perLoopParams.perLoopCols = Ops::Base::CeilAlign(perLoopParams.perLoopCols, MXFP8_SCALE_BlOCK_SIZE);
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
             Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) /
             multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         while (perLoopParams.perLoopMaxIndicesElements <= 0) {
-            perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);
+            perLoopParams.perLoopCols = Ops::Base::CeilAlign(Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO), MXFP8_SCALE_BlOCK_SIZE);
             perLoopParams.perLoopMaxIndicesElements =
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
                 Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) /
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
+    } else {
+        perLoopParams.perLoopMaxIndicesElements =	 
+            (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -	 
+            UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));	 
+ 
+         while (perLoopParams.perLoopMaxIndicesElements <= 0) {	 
+            perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);	 
+            perLoopParams.perLoopMaxIndicesElements =	 
+                (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -	 
+                UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));	 
+         }
     }
     return perLoopParams;
 }
