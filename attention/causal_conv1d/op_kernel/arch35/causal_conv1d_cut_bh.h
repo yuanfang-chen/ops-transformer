@@ -446,7 +446,7 @@ __aicore__ inline void CausalConv1dCutBH<T>::Compute(int32_t batchLoop, int32_t 
         }
 
         UpdateconvStates(xLocal, convStatesLocal, acceptToken, curBatchUbOffset, convStatesIdx, curBatchSeq);
-        SetWaitFlag<HardEvent::MTE2_V>(HardEvent::MTE2_V);
+        SetWaitFlag<HardEvent::MTE3_V>(HardEvent::MTE3_V);
 
         // 情况A：序列位置 j ∈ [0, K-2]，需要使用cache state
         for (int32_t j = 0; j < kernelSize_ - 1 && j < curBatchSeq; j++) {
