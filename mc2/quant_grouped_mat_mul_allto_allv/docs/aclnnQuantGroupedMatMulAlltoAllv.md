@@ -177,42 +177,42 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     <tr>
     <td>gmmXQuantMode</td>
     <td>输入</td>
-    <td>路由专家左矩阵的量化方式。</td>
+    <td>gmmX的量化模式，必须传入量化模式，当前仅支持1，表示pertensor量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>gmmWeightQuantMode</td>
     <td>输入</td>
-    <td>路由专家右矩阵的量化方式。</td>
+    <td>gmmWeight的量化模式，必须传入量化模式，当前仅支持1，表示pertensor量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>mmXQuantMode</td>
     <td>输入</td>
-    <td>共享专家左矩阵的量化方式。</td>
+    <td>mmX的量化模式，mmX不为空，则必须传入量化模式，当前仅支持1，表示pertensor量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>mmWeightQuantMode</td>
     <td>输入</td>
-    <td>共享专家右矩阵的量化方式。</td>
+    <td>mmWeight的量化模式，mmWeight不为空，则必须传入量化模式，当前仅支持1，表示pertensor量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>commQuantMode</td>
     <td>输入</td>
-    <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示非量化。</td>
+    <td>低比特通信量化模式，当前低比特功能预留，必须传入0，表示非量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
     <td>commQuantDtypeOptional</td>
     <td>输入</td>
-    <td>低比特通信的量化类型，预留参数，当前仅支持配置为-1，表示ACL_DT_UNDEFINED。</td>
+    <td>低比特通信的数据类型，当前低比特功能预留，必须传入-1。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
