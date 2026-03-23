@@ -106,7 +106,7 @@ namespace BSA {
         // VEC_Pre ：dQ/dK/dV的workspace清零
         using EpilogueAtlasA2FAGPre = Epilogue::EpilogueAtlasA2FAGPre;
         using EpilogueFAGPre = Epilogue::Block::BlockEpilogue<EpilogueAtlasA2FAGPre, OutputType, UpdateType, InputType>;
-        // using EpilogueFAGPre = Epilogue::Block::BlockSparePre;
+
         // VEC_Sfmg ：dP = SoftmaxGrad(dOut, out)
         using EpilogueAtlasA2FAGSfmg = Epilogue::EpilogueAtlasA2FAGPre;
         using EpilogueFAGSfmg = Epilogue::Block::SoftmaxGrad<InputDtype, float, InputLayout>;
