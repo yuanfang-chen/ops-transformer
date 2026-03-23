@@ -497,7 +497,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
                 }
-                if constexpr (isFd) {
+                if constexpr (hasSink) {
                     runParam.s2LoopEndIdx += 1;
                     runParam.oriKvLoopEndIdx += 1;
                 }
@@ -613,7 +613,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
     int64_t curS2LoopCnt = (runInfo.s2LoopCount >= runParam.oriKvLoopEndIdx) ? (runInfo.s2LoopCount - runParam.oriKvLoopEndIdx) : runInfo.s2LoopCount;
-    if constexpr (isFd) {
+    if constexpr (hasSink) {
         curS2LoopCnt -= 1;
     }
     if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {

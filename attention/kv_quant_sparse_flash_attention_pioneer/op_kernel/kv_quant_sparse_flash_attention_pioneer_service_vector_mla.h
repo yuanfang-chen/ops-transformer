@@ -169,7 +169,7 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
             runInfo.s1oIdx * constInfo.sparseBlockCount; // B, S1, N2(1), K
     }
     int64_t cmpS2LoopCnt = runInfo.s2LoopCount;
-    if constexpr (isFd) {
+    if constexpr (hasSink) {
         cmpS2LoopCnt -= 1;
     }
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
@@ -431,7 +431,7 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
 {
     outputL1.WaitCrossCore(); // 核间同步
 
-    if (isFd && runInfo.s2LoopCount == 0) {
+    if (hasSink && runInfo.s2LoopCount == 0) {
         outputL1.SetCrossCore();
         return;
     }
@@ -439,9 +439,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     blockSize = constInfo.oriBlockSize;
     maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
 
-    // if (!isFd || runInfo.s2LoopCount > 0) {
-    //     ProcessSparseKv(outputL1, runInfo, constInfo);
-    // }
     ProcessSparseKv(outputL1, runInfo, constInfo);
 
     outputL1.SetCrossCore(); // 核间同步
