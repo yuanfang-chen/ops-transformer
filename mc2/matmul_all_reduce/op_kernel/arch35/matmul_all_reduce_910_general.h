@@ -43,6 +43,7 @@ public:
 
     __aicore__ inline void Process()
     {
+        AscendC::printf("********** CHUGUOWEI Process\n");
         InnerProcess(false, this->paramInTiling_->tileCnt, this->tileInfo_);
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
@@ -73,6 +74,7 @@ protected:
             this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
         }
         if constexpr(basedA2aRsAg) {
+            AscendC::printf("********** CHUGUOWEI make sure basedA2aRsAg\n");
             this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }

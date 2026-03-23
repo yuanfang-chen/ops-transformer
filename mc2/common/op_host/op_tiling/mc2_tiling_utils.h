@@ -33,6 +33,7 @@
 
 namespace mc2tiling {
 constexpr uint32_t STANDARD_CARD_4P = 4;
+constexpr uint32_t STANDARD_CARD_8P = 8;
 constexpr uint32_t COMM_MESH = 0b1U;
 constexpr uint32_t COMM_SWITCH = (COMM_MESH << 1U);
 constexpr uint32_t COMM_RING = (COMM_MESH << 2U);
