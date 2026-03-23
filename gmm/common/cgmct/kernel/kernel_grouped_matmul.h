@@ -196,8 +196,8 @@ public:
         listTensorDesc.GetDesc(desc, groupIdx);
         uint64_t dim = desc.GetDim();
         if (weightNzFlag_ && tensorPtr == weightTensorPtr && dim > NUM_THREE) {
-            uint64_t val_k = transB ? desc.GetShape(NUM_ONE) * NUM_SIXTEEN : desc.GetShape(NUM_TWO) * NUM_SIXTEEN;
-            uint64_t val_n = transB ? desc.GetShape(NUM_TWO) * NUM_SIXTEEN : desc.GetShape(NUM_ONE) * NUM_SIXTEEN;
+            uint64_t val_k = transB ? desc.GetShape(dim - NUM_FOUR) * NUM_SIXTEEN : desc.GetShape(dim - NUM_THREE) * NUM_SIXTEEN;
+            uint64_t val_n = transB ? desc.GetShape(dim - NUM_THREE) * NUM_SIXTEEN : desc.GetShape(dim - NUM_FOUR) * NUM_SIXTEEN;
             shape[NUM_ZERO] = transB ? val_n : val_k;
             shape[NUM_ONE] = transB ? val_k : val_n;
         } else {
