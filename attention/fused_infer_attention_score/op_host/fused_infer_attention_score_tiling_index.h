@@ -51,6 +51,7 @@ constexpr uint32_t KEY_ROPE_ANTIQUANT_SCALE_INDEX = 26;
 constexpr uint32_t DEQUANT_SCALE_QUERY_INDEX = 27;
 constexpr uint32_t LEARNABLE_SINK_INDEX = 28;
 constexpr uint32_t Q_START_IDX_INDEX = 29;
+
 constexpr uint32_t KV_START_IDX_INDEX = 30;
 
 // Attributes Index
