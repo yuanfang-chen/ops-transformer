@@ -464,6 +464,7 @@ private:
     ge::graphStatus CheckFeatureMlaAntiquantPa() const;
     ge::graphStatus CheckFeatureMlaAntiquant() const;
     ge::graphStatus CheckFeatureMla() const;
+    ge::graphStatus CheckFeatureSinkParams() const;
     ge::graphStatus CheckFeature() const;
 
 private:
