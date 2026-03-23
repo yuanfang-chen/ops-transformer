@@ -2185,8 +2185,9 @@ __aicore__ inline void CalGQABandIndex(const BandInfo &bandInfo, int64_t j, int6
                     if (x > m) {
                         x = x - m;
                     }
+                } else {
+                    x = L3 + y + x - n;
                 }
-                x = L3 + y + x - n;
             }
             coordinate.batchId = b1*k * N1 + (b_id-1) * N1 + N1_id;
             coordinate.s1Idx = x;

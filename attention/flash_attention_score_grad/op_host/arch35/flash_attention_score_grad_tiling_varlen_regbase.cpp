@@ -211,7 +211,7 @@ protected:
             if (N12 > 0) {
                 deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() +
                                         (actualS1Outer - (actualS2Outer + 1) / NUM_TWO + 1) * (actualS2Outer / NUM_TWO));
-                if (actualS2Outer >= NUM_TWO && fBaseParams.g != 1) {
+                if (fBaseParams.g == 1 || (actualS2Outer >= NUM_TWO && fBaseParams.g != 1)) {
                     m1Max = std::max(m1Max, fBaseParams.g * (actualS1Outer - (actualS2Outer + 1) / NUM_TWO + 1));
                 }
 
