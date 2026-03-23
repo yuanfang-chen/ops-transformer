@@ -135,9 +135,9 @@ static graphStatus FFNExecuteFunc(OpExecuteContext *host_api_ctx)
     auto antiquant_offset2_ge = host_api_ctx->GetOptionalInputTensor(kffnInputantiquantOffset2);
 
     auto output_ge = host_api_ctx->GetOutputTensor(kffnOutput);
+    OP_CHECK_IF((output_ge == nullptr), OP_LOGE("aclnnfallback", "output_ge is null"), return GRAPH_FAILED);
     auto output_acl = GeTensor2AclTensor(output_ge, false, true);
 
-    OP_CHECK_IF((output_ge == nullptr), OP_LOGE("aclnnfallback", "output_ge is null"), return GRAPH_FAILED);
     auto attrs = host_api_ctx->GetAttrs();
     OP_CHECK_IF((attrs == nullptr), OP_LOGE("aclnnfallback", "attrs is null"), return GRAPH_FAILED);
     const char *activation_type_ge = attrs->GetAttrPointer<char>(0);
