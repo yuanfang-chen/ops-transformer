@@ -690,8 +690,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
     if (quantMode_ == QUANT_MODE_UNQUANT) {
         if (scaleDtype_ == ge::DataType::DT_FLOAT8_E8M0) {
             expectedRankScale = RANK_THREE;
-            expectedDim0 = xShape_.GetDim(0) * expertIdxShape_.GetDim(1);
-            expectedDim1 = xShape_.GetDim(1) / 64;
+            expectedDim0 = expertIdxShape_.GetDim(0);
+            expectedDim1 = xShape_.GetDim(1) / MXFP8_SCALE_BlOCK_SIZE;
             expectedDim2 = NUM_TWO;
         } else {
             expectedRankScale = RANK_ONE;
@@ -863,7 +863,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
         if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == ge::DataType::DT_FLOAT8_E5M2 ||
             xDtype_ == ge::DataType::DT_FLOAT8_E4M3FN)) {
             expectedRank = RANK_THREE;
-            expectedDim0 = expertIdxShape_.GetDim(0);
+            expectedDim0 = expertIdxShape_.GetDim(0) * expertIdxShape_.GetDim(1);
             expectedDim1 = xShape_.GetDim(1) / MXFP8_SCALE_BlOCK_SIZE;
             expectedDim2 = NUM_TWO;
         } else {
