@@ -22,10 +22,6 @@
 #include "moe_distribute_dispatch_v2_base.h"
 #include "common/op_api/mc2_moe_context_tensor.h"
 #include "mc2_moe_context.h"
-#include "opdev/platform.h"
-#include "hccl/hcom.h"
-#include "hccl/hccl_rank_graph.h"
-#include "hccl/hccl.h"
 
 using namespace Ops::Transformer;
 using namespace op;
