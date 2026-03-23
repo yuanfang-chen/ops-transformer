@@ -27,20 +27,19 @@ extern "C" __global__ __aicore__ void gather_pa_kv_cache(GM_ADDR keyCache, GM_AD
     AscendC::TPipe pipe;
     GET_TILING_DATA_WITH_STRUCT(GatherPaKvCacheTilingData, tilingData, tiling);
 #if (ORIG_DTYPE_KEY_CACHE == DT_INT8)
-    if (TILING_KEY_IS (618)) {
+    if TILING_KEY_IS (618) {
         GatherPaKvCache::GatherPaKvCacheNd<int8_t> op(&pipe);
         op.Init(keyCache, valueCache, blockTables, seqLens, seqOffset, keyOut, valueOut, &tilingData);
         op.Process();
     }
-#endif
-#if  (ORIG_DTYPE_KEY_CACHE == DT_FLOAT16 || ORIG_DTYPE_KEY_CACHE == DT_BFLOAT16)
-    if (TILING_KEY_IS (619)) {
+#elif (ORIG_DTYPE_KEY_CACHE == DT_FLOAT16 || ORIG_DTYPE_KEY_CACHE == DT_BF16)
+    if TILING_KEY_IS (619) {
         GatherPaKvCache::GatherPaKvCacheNd<half> op(&pipe);
         op.Init(keyCache, valueCache, blockTables, seqLens, seqOffset, keyOut, valueOut, &tilingData);
         op.Process();
     }
 #endif
-    if (TILING_KEY_IS (577)) {
+    if TILING_KEY_IS (577) {
         GatherPaKvCache::GatherPaKvCacheNz<int8_t> op(&pipe);
         op.Init(keyCache, valueCache, blockTables, seqLens, seqOffset, keyOut, valueOut, &tilingData);
         op.Process();
