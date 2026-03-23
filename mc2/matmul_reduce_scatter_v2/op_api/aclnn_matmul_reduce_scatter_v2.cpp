@@ -317,7 +317,7 @@ static const aclTensor *TransX2Tensor(const aclTensor *x2)
                            storageShapeDimNum, x2->GetTensor()->GetAddr());
 }
 
-aclnnStatus matmulReduceScatterV2GetWorkSpaceSizeCcuMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
+aclnnStatus matmulReduceScatterV2GetWorkspaceSizeCcuMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
                                                        const aclTensor* x1Scale, const aclTensor* x2Scale,
                                                        const aclTensor* quantScale, int64_t blockSize,
                                                        const char* group, const char* reduceOp, int64_t commTurn,
@@ -399,7 +399,7 @@ static bool MatmulReduceScatterV2IsWeightNZFormat(const aclTensor* x2)
     return false;
 }
 
-aclnnStatus matmulReduceScatterV2GetWorkSpaceSizeAivMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
+aclnnStatus matmulReduceScatterV2GetWorkspaceSizeAivMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
                                                        const aclTensor* x1Scale, const aclTensor* x2Scale,
                                                        const aclTensor* quantScale, int64_t blockSize,
                                                        const char* group, const char* reduceOp, int64_t commTurn,
@@ -434,10 +434,10 @@ aclnnStatus aclnnMatmulReduceScatterV2GetWorkspaceSize(const aclTensor* x1, cons
 {
     aclnnStatus ret = ACLNN_SUCCESS;
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        ret = matmulReduceScatterV2GetWorkSpaceSizeCcuMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, reduceOp, commTurn,
+        ret = matmulReduceScatterV2GetWorkspaceSizeCcuMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, reduceOp, commTurn,
                                                        streamMode, groupSize, commMode, output, amaxOutOptional, workspaceSize, executor);
     } else if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201) {
-        ret = matmulReduceScatterV2GetWorkSpaceSizeAivMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, reduceOp, commTurn,
+        ret = matmulReduceScatterV2GetWorkspaceSizeAivMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, reduceOp, commTurn,
                                                        streamMode, groupSize, commMode, output, amaxOutOptional, workspaceSize, executor);
     }
     return ret;
