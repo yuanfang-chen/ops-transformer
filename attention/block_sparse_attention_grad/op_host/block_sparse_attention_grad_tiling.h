@@ -117,6 +117,15 @@ private:
 
     ge::graphStatus CalculatePostUbBaseSize(gert::TilingContext *context);
     ge::graphStatus CalculateSoftmaxGradTiling(gert::TilingContext *context);
+
+    ge::graphStatus ProcessTND(gert::TilingContext *context);
+    ge::graphStatus ProcessBNSD(gert::TilingContext *context);
+    ge::graphStatus ProcessAttrs(gert::TilingContext *context);
+
+    ge::graphStatus AssignCoreTasks(uint32_t numHeads, uint32_t kvHeads, uint32_t blockX, uint32_t coreNum, 
+                                    const std::vector<uint32_t>& tasksInBatch, 
+                                    const std::vector<uint64_t>& qPrefixTokenSum, 
+                                    const std::vector<uint64_t>& kvPrefixTokenSum);
     
     uint64_t GenerateTilingKey();
 
