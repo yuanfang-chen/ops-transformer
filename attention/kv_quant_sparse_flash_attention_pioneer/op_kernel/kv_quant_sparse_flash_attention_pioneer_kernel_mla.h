@@ -362,6 +362,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
     constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
     constInfo.sparseBlockSize = 1;
     constInfo.sparseMode = sharedParams.maskMode;
+    constInfo.keyBlockStride = sharedParams.keyBlockStride;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
