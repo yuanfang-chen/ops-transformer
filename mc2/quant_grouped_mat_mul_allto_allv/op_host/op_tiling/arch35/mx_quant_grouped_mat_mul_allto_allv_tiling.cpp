@@ -36,6 +36,16 @@ const std::vector<uint32_t> MX_QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 
+ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::MxCheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
+    const char *opName_)
+{
+    uint64_t dimNum = shape->GetStorageShape().GetDimNum();
+    OP_TILING_CHECK((dimNum != dims),
+        OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
     QuantModePair mode = GetQuantMode(context_, opName_);
@@ -77,17 +87,17 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     OP_TILING_CHECK(yStorageShape == nullptr, OP_LOGE(opName_, "The yStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
-    auto status = CheckShapeDimensions(gmmXStorageShape, DIM_TWO, "gmmXShape", opName_);
+    auto status = MxCheckShapeDimensions(gmmXStorageShape, DIM_TWO, "gmmXShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
 
-    status = CheckShapeDimensions(gmmWeightStorageShape, DIM_THREE, "gmmWeightShape", opName_);
+    status = MxCheckShapeDimensions(gmmWeightStorageShape, DIM_THREE, "gmmWeightShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
 
-    status = CheckShapeDimensions(yStorageShape, DIM_TWO, "yShape", opName_);
+    status = MxCheckShapeDimensions(yStorageShape, DIM_TWO, "yShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
@@ -135,15 +145,15 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
     OP_TILING_CHECK(mmYStorageShape == nullptr, OP_LOGE(opName_, "The mmYStorageShape is nullptr!"),
         return ge::GRAPH_FAILED);
 
-    auto status = CheckShapeDimensions(mmXStorageShape, DIM_TWO, "mmXShape", opName_);
+    auto status = MxCheckShapeDimensions(mmXStorageShape, DIM_TWO, "mmXShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
-    status = CheckShapeDimensions(mmWeightStorageShape, DIM_TWO, "mmWeightShape", opName_);
+    status = MxCheckShapeDimensions(mmWeightStorageShape, DIM_TWO, "mmWeightShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
-    status = CheckShapeDimensions(mmYStorageShape, DIM_TWO, "mmYShape", opName_);
+    status = MxCheckShapeDimensions(mmYStorageShape, DIM_TWO, "mmYShape", opName_);
     if (status != ge::GRAPH_SUCCESS) {
         return status;
     }
@@ -192,9 +202,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_MX,
         OP_LOGE(opName_, "The gmmWeightQuantMode should be MX mode, but actul mode is  %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
-    ge::graphStatus status = CheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
+    ge::graphStatus status = MxCheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
-    status = CheckShapeDimensions(gmmWeightScaleStorageShape, DIM_FOUR, "gmmWeightScaleShape", opName_);
+    status = MxCheckShapeDimensions(gmmWeightScaleStorageShape, DIM_FOUR, "gmmWeightScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
 
     localParams_.gmmQuantSuit = QUANT_PAIR_MX;
@@ -250,9 +260,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_MX,
         OP_LOGE(opName_, "The mmWeightQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
-    ge::graphStatus status = CheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
+    ge::graphStatus status = MxCheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
-    status = CheckShapeDimensions(mmWeightScaleStorageShape, DIM_THREE, "mmWeightScaleShape", opName_);
+    status = MxCheckShapeDimensions(mmWeightScaleStorageShape, DIM_THREE, "mmWeightScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);
 
     localParams_.mmQuantSuit = QUANT_PAIR_MX;
