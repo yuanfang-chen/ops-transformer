@@ -150,12 +150,6 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/hcomm/include
     ${TOP_DIR}/hcomm/include/hccl
     ${TOP_DIR}/hccl/include
-    ${ASCEND_CANN_PACKAGE_PATH}/hcomm/include
-    ${ASCEND_CANN_PACKAGE_PATH}/hcomm/include/hccl
-    ${ASCEND_CANN_PACKAGE_PATH}/hccl/include
-
-    ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/hccl
-    ${TOP_DIR}/pkg_inc/hccl
   )
 else()
   list(APPEND OPAPI_INCLUDE ${OPBASE_INC_DIRS})
