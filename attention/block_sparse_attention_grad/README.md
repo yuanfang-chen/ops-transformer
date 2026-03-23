@@ -17,7 +17,8 @@
 
 * ​算子功能​：aclnnBlockSparseAttention稀疏注意力反向计算，支持灵活的块级稀疏模式，通过BlockSparseMask指定每个Q块选择的KV块，实现高效的稀疏注意力计算。
 * ​计算公式​：
-稀疏块大小：$blockShapeX×blockShapeY$，BlockSparseMask指定稀疏模式。
+
+  稀疏块大小：$blockShapeX×blockShapeY$，BlockSparseMask指定稀疏模式。
   
   已知正向计算公式为：
   
@@ -69,7 +70,7 @@
   dK=(dS^T*Q)*scale
   $$
 
-BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据排布格式支持从多种维度排布解读，可通过qInputLayout和kvInputLayout传入。为了方便理解后续支持的具体排布格式（如 BNSD、TND 等），此处先对排布格式中各缩写字母所代表的维度含义进行统一说明：
+BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据排布格式支持从多种维度排布解读，可通过qInputLayout和kvInputLayout传入。为了方便理解后续支持的具体排布格式（如 BNSD、TND 等），此处先对排布格式中各缩写字母所代表的维度含义进行统一说明：
 
 * B：表示输入样本批量大小（Batch）
 * T：B和S合轴紧密排列的长度（Total tokens）
@@ -210,27 +211,27 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
     <td rowspan="2">actualSeqLengthsOptional（aclIntArray*）</td>
     <td rowspan="2">输入</td>
     <td rowspan="2">query的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 query token 数量。</td>
-    <td> 变长序列场景（当 qInputLayout 为 "TND" 时）：</strong><br>该项输入必须配置</strong>。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
+    <td> 变长序列场景（当 qInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
     <td rowspan="2">-</td>
     <td rowspan="2">-</td>
     <td rowspan="2">1</td>
     <td rowspan="2">-</td>
     </tr>
     <tr>
-    <td>定长/变长场景（当 qInputLayout 为 "BNSD" 时）：</strong><ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 query shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
+    <td>定长/变长场景（当 qInputLayout 为 "BNSD" 时）：<ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 query shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
     </tr>
     <tr>
     <td rowspan="2">actualSeqLengthsKvOptional（aclIntArray*）</td>
     <td rowspan="2">输入</td>
     <td rowspan="2">key/value的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 key/value token 数量。</td>
-    <td> 变长序列场景（当 kvInputLayout 为 "TND" 时）：</strong><br>该项输入必须配置</strong>。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
+    <td> 变长序列场景（当 kvInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
     <td rowspan="2">-</td>
     <td rowspan="2">-</td>
     <td rowspan="2">1</td>
     <td rowspan="2">-</td>
     </tr>
     <tr>
-    <td> 定长/变长场景（当 kvInputLayout 为 "BNSD" 时）：</strong><ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 key/value shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
+    <td> 定长/变长场景（当 kvInputLayout 为 "BNSD" 时）：<ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 key/value shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
     </tr>
     <tr>
     <td>qInputLayout（char*）</td>
@@ -366,7 +367,8 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
 * 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 * actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
 * 根据算子支持的输入 Layout，query 张量 Shape 中对应的 head 维度大小记为 N1，key 和 value 张量 Shape 中对应的 head 维度大小记为 N2。必须满足 N1 >= N2 且 N1 % N2 == 0。(例如：在 BNSD 布局下，N1 对应 query 的第 2 维，N2 对应 key/value 的第 2 维)
-* headdim <= 128
+* headdim=128。
+* 当前只支持 BNSD 和 MHA(N1==N2)。
 
 ## 调用说明
 

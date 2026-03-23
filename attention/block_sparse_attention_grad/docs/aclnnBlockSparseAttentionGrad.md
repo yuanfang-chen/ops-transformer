@@ -85,7 +85,7 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
 
 ## 函数原型
 
-每个算子分为[两段式接口](https://wiki.huawei.com/domains/docs/context/%E4%B8%A4%E6%AE%B5%E5%BC%8F%E6%8E%A5%E5%8F%A3.md)，必须先调用"aclnnBlockSparseAttentionGradGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnBlockSparseAttentionGrad"接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnBlockSparseAttentionGradGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnBlockSparseAttentionGrad"接口执行计算。
 
 <pre class="language-none"><div class="lineNumberForCode"></div><code class="language-c++ hljs language-none">aclnnStatus aclnnBlockSparseAttentionGradGetWorkspaceSize(
   const aclTensor   *dout,
@@ -247,27 +247,27 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
         <td rowspan="2">actualSeqLengthsOptional（aclIntArray*）</td>
         <td rowspan="2">输入</td>
         <td rowspan="2">query的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 query token 数量。</td>
-        <td> 变长序列场景（当 qInputLayout 为 "TND" 时）：</strong><br>该项输入必须配置</strong>。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
+        <td> 变长序列场景（当 qInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
         <td rowspan="2">-</td>
         <td rowspan="2">-</td>
         <td rowspan="2">1</td>
         <td rowspan="2">-</td>
         </tr>
         <tr>
-        <td>定长/变长场景（当 qInputLayout 为 "BNSD" 时）：</strong><ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 query shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
+        <td>定长/变长场景（当 qInputLayout 为 "BNSD" 时）：<ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 query shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
         </tr>
         <tr>
         <td rowspan="2">actualSeqLengthsKvOptional（aclIntArray*）</td>
         <td rowspan="2">输入</td>
         <td rowspan="2">key/value的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 key/value token 数量。</td>
-        <td> 变长序列场景（当 kvInputLayout 为 "TND" 时）：</strong><br>该项输入必须配置</strong>。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
+        <td> 变长序列场景（当 kvInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
         <td rowspan="2">-</td>
         <td rowspan="2">-</td>
         <td rowspan="2">1</td>
         <td rowspan="2">-</td>
         </tr>
         <tr>
-        <td> 定长/变长场景（当 kvInputLayout 为 "BNSD" 时）：</strong><ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 key/value shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
+        <td> 定长/变长场景（当 kvInputLayout 为 "BNSD" 时）：<ul><li>如配置该项，算子会按指定的有效长度处理，忽略 Padding 部分的数据，提升性能；</li><li>如不配置（传 nullptr），算子将默认把 key/value shape 中的 S 维度作为有效长度进行全量处理。</li></ul></td>
         </tr>
         <tr>
         <td>qInputLayout（char*）</td>
@@ -396,7 +396,7 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
 
 * **返回值**：
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](https://wiki.huawei.com/domains/docs/context/aclnn%E8%BF%94%E5%9B%9E%E7%A0%81.md)。
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -477,26 +477,22 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
 
 
 * **返回值：**
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](https://wiki.huawei.com/domains/docs/context/aclnn%E8%BF%94%E5%9B%9E%E7%A0%81.md)。
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
 * 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 * actualSeqLengthsOptional在qInputLayout为“TND”时必选；actualSeqLengthsKvOptional在kvInputLayout为“TND”时必选。
 * 根据算子支持的输入 Layout，query 张量 Shape 中对应的 head 维度大小记为 N1，key 和 value 张量 Shape 中对应的 head 维度大小记为 N2。必须满足 N1 >= N2 且 N1 % N2 == 0。(例如：在 BNSD 布局下，N1 对应 query 的第 2 维，N2 对应 key/value 的第 2 维)
-* headdim <= 128
+* headdim=128。
+* 当前只支持 BNSD 和 MHA(N1==N2)。
+
 
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](https://wiki.huawei.com/domains/docs/context/%E7%BC%96%E8%AF%91%E4%B8%8E%E8%BF%90%E8%A1%8C%E6%A0%B7%E4%BE%8B.md)。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+
 ```Cpp
-
-
-/*!
- * \file test_aclnn_block_sparse_attention_grad.cpp
- * \brief BlockSparseAttentionGrad 算子测试用例 (BNSD Layout)
- */
-
 #include <iostream>
 #include <vector>
 #include <cstring>
