@@ -13,6 +13,9 @@
  * \brief Block Epliogue Post Kernel Implementation
  */
 
+#ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP	 
+#define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_POST_HPP
+
 #include "../../../attn_infra/arch/resource.hpp"
 #include "../../../attn_infra/epilogue/dispatch_policy.hpp"
 #include "kernel_operator.h"
