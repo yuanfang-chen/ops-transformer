@@ -51,7 +51,7 @@ stateDiagram-v2
 	class TSQR TSQRState
 ```
 
-### Custom Kernel Input/Output (I/O)
+## Custom Kernel Input/Output (I/O)
 
 **Parameters description:**  
 B: batch size is zero or more batch dimensions  
@@ -79,31 +79,22 @@ There are 4 linear algebra operators npu_linalg are the core implementation modu
 
 | Ascend        | PyTorch | PyTorch NPU Linalg | Description                         |
 |---------------|:-----|:-----|:-----|
-| QrHauseholder | torch.linalg.qr(A) | torch.ops.npu_linalg.qr_householder(A) | Hauseholder QR decomposition        |
 | Tsqr          | torch.linalg.qr(A) | torch.ops.npu_linalg.tsqr(A) | Tall-skinny matrix QR decomposition |
 | Jacobi        | torch.linalg.svd(A) | torch.ops.npu_linalg.svd(A) | Jacobi rotation SVD                 |
 | SvdLowrank    | torch.svd_lowrank(A, q=6, niter=2) | torch.ops.npu_linalg.svd_lowrank(A, q=6, niter=2) | Low-rank SVD |
 
 **Directory structure**  
+
 ```
 ├── svd                   # Linear algebra components for ShadowKV SVD
    ├── ascendc            # AscendC operators for linear algebra functions
-   |  ├── cmake           # CMake utilities
    |  ├── jacobi/         # Jacobi rotation SVD
-   |  ├── qr_householder/ # Hauseholder QR decomposition
-   |  ├── svd_lowrank/    # Low-rank SVD
-   |  ├── tsqr/           # Tall-skinny QR decomposition (TSQR)
-   |  ├── utils/          # AscendC operator utilities
-   |  |  └── inc/         # Include files for op_host
-   |  └── build.sh        # Script for compilation of AscendC operators
+   |  └── tsqr/           # Tall-skinny QR decomposition (TSQR)
    └── torch_npu_linalg   # NPU linear algebra wrappers for PyTorch
       ├── linalg          # AscendC operators adapters for PyTorch
       |   ├── converter/  # Converter code for the PyTorch operator package
       |   └── csrc/       # Operator adaptation layer C++ code
       ├── tests/          # Directory for linear algebra components tests
-      |   ├── data/       # Test data
-      |   ├── dev/        # Tests for developers
-      |   ├── perf/       # Perormance tests
       |   ├── utils/      # Test utilities
       |   └── test_svd.py # Accuracy tests for all operators
       ├── build_and_install.sh # Compilation NPU linear algebra wheel package
@@ -121,6 +112,7 @@ bash ./run.sh
 **Compilation and use**
 
 1. CANN operator compilation and installation @ 910B2
+
 ```bash
 path="ops-transformer"
 cd $path$/experimental/svd
@@ -128,6 +120,7 @@ bash build.sh -c ascend910b
 ```
 
 2. Python wrapper compilation and installation
+
 ```bash
 cd $path$/experimental/svd/torch_npu_linalg
 pip install -r requirements.txt
@@ -135,23 +128,19 @@ bash build_and_install.sh
 ```
 
 3. Accuracy tests
+
 ```bash
 pytest $path$/experimental/svd/torch_npu_linalg/tests/test_svd.py
 ```
 
 **Examples:**
+
 ```python
 >>> import torch
 >>> import torch_npu
 >>> import npu_linalg
 >>> device = torch.device('npu:6')
 >>> A = torch.randn([32, 16], dtype=torch.float32, device=device)
->>> Qt, R = torch.ops.npu_linalg.qr_householder(A)
->>> Qt.shape, R.shape
-(torch.Size([16, 32]), torch.Size([16, 16]))
->>> torch.dist(A.cpu(), Qt.cpu().T @ R.cpu())
-tensor(1.0486e-06)
-
 >>> U, S, Vt = torch.ops.npu_linalg.svd(A, 2)
 >>> U.shape, S.shape, Vt.shape
 (torch.Size([32, 16, 0]), torch.Size([32, 0]), torch.Size([32, 0, 0]))
