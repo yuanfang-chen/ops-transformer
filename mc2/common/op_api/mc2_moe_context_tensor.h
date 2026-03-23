@@ -16,10 +16,10 @@
 #include "mc2_moe_context.h"
 #include "opdev/platform.h"
 #include "hccl/hccl_rank_graph.h"
-// #include "hccl/hccl.h"
-// #include "hccl/hcom.h"
-#include "adv_api/hccl/hccl.h"
-#include "adv_api/hcomm/hcom.h"
+#include "hccl/hccl.h"
+#include "hccl/hcom.h"
+// #include "adv_api/hccl/hccl.h"
+// #include "adv_api/hcomm/hcom.h"
 
 namespace MC2MoeDistributeContext {
 
