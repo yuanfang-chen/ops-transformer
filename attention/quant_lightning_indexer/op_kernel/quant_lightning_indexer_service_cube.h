@@ -503,7 +503,7 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeWs(uint64_t s1gL0RealSize, uint64
     mmadParams.cmatrixInitVal = true;
     mmadParams.cmatrixSource = false;
     Mmad(cL0_.template ReinterpretCast<float>()[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET +
-                                                s1gOffset * S2_BASIC_BLOCK_L0],
+                                                CeilAlign(s1gOffset, BLOCK_CUBE) * S2_BASIC_BLOCK_L0],
             l0a_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
             l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
             mmadParams);
@@ -566,7 +566,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpResToGm(uint64_t s1L0RealCount, uint
     intriParams.reluPre = 0;
     AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE,
                                  2048);
-    AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * constInfo_.mBaseSize / constInfo_.gSize * constInfo_.s2BaseSize +
+    AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * CeilAlign(constInfo_.mBaseSize / constInfo_.gSize, BLOCK_CUBE) * constInfo_.s2BaseSize +
                                 s1GmOffset * intriParams.dstStride + s2GmOffset],
                       cL0_.template ReinterpretCast<float>()[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET],
                       intriParams);
