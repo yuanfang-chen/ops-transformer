@@ -425,7 +425,7 @@ aclnnStatus aclnnLightningIndexer(
 
 ## 约束说明
 
-- 参数query中的N支持小于等于64，key、value的N支持1。
+- 参数query中的N支持小于等于64，key的N支持1。
 - sparseCount支持[1, 2048]，以及3072、4096、5120、6144、7168、8192。
 - headdim支持128。
 - block_size取值为16的倍数，最大支持1024。
