@@ -56,8 +56,10 @@ aclnnStatus aclnnMoeTokenPermuteGradGetWorkspaceSize(
     auto permutedOutputGradShape = permutedOutputGrad->GetViewShape();
     CHECK_RET(permutedOutputGradShape.GetDimNum() > 0, ACLNN_ERR_PARAM_INVALID);
     int64_t activeNum = permutedOutputGradShape.GetDim(0);
+    auto uniqueExecutor = CREATE_EXECUTOR();
     aclnnStatus ret = aclnnInnerMoeInitRoutingV2GradGetWorkspaceSize(
-        permutedOutputGrad, sortedIndices, numTopk, 0, activeNum, out, workspaceSize, executor);
+        permutedOutputGrad, sortedIndices, numTopk, 0, activeNum, out, workspaceSize, uniqueExecutor.get());
+    uniqueExecutor.ReleaseTo(executor);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(
             ACLNN_ERR_INNER,
