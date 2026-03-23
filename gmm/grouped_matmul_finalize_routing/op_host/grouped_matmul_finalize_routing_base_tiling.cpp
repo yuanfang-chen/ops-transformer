@@ -251,8 +251,9 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8BaseTilingProcess()
             tuningConfig_, avg_m);
     baseM = avg_m < AVG_M_THREHOLD ? A8W4_MSD_SMALLM_BASE_M : A8W4_MSD_BIGM_BASE_M;
     baseN = avg_m < AVG_M_THREHOLD ? A8W4_MSD_SMALLM_BASE_N : A8W4_MSD_BIGM_BASE_N;
-
-    if (baseN > n_) {
+    if (wNZ) {
+        baseN = 96;
+    } else if (baseN > n_) {
         baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
     }
 
@@ -322,8 +323,9 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W4A8L1OptTilingProcess()
             tuningConfig_, avg_m);
     uint32_t baseM = avg_m < AVG_M_THREHOLD ? A8W4_L1OPT_SMALLM_BASE_M : A8W4_L1OPT_BIGM_BASE_M;
     uint32_t baseN = avg_m < AVG_M_THREHOLD ? A8W4_L1OPT_SMALLM_BASE_N : A8W4_L1OPT_BIGM_BASE_N;
-
-    if (baseN > n_) {
+    if (wNZ) {
+        baseN = 96;
+    } else if (baseN > n_) {
         baseN = Ops::Base::CeilAlign(n_, uint64_t(ONE_BLK_SIZE));
     }
 
@@ -388,6 +390,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::W8A8TilingProcess()
         baseM = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_N : BEST_BASE_M;
         baseN = (avg_m > AVG_M_THREHOLD && avg_m <= AVG_M_BIG_THREHOLD) ? BEST_BASE_M : BEST_BASE_N;
     }
+    baseN = 96;
 
     std::cout << "zzzlog [BaseTiling::W8A8TilingProcess] "
               << "tuningConfig=" << tuningConfig_
