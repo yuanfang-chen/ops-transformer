@@ -124,7 +124,8 @@ QuantModePair QuantGmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContex
     }
 
     if (gmmXQuantMode == QUANT_MX && gmmWeightQuantMode == QUANT_MX) {
-        OP_LOGI(opName, "[TILING_BASE] Detected QUANT_PAIR_MX");
+        OP_LOGI(opName, "[MX_] Detected QUANT_PAIR_MX (gmmXQuantMode=%ld, gmmWeightQuantMode=%ld)",
+                gmmXQuantMode, gmmWeightQuantMode);
         return QUANT_PAIR_MX;
     } else {
         OP_LOGD(opName,
