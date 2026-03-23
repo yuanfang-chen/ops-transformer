@@ -240,7 +240,7 @@ void QSFAPMlaTiling::GenTilingKey()
 
     tilingKey_ = GET_TPL_TILING_KEY(hasSink, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
 
-    OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu, hasSink: %u.", tilingKey_, hasSink);
+    OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu.", tilingKey_);
 }
 
 void QSFAPMlaTiling::ZeroTensorProcess() const
