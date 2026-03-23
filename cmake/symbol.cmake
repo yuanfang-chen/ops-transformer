@@ -154,13 +154,14 @@ function(gen_opapi_symbol)
     $<$<TARGET_EXISTS:opbuild_gen_aclnn_all>:$<TARGET_OBJECTS:opbuild_gen_aclnn_all>>
   )
 
-  target_link_libraries(${OPAPI_NAME}
+  target_link_libraries(${OPAPI_NAME}     
     PUBLIC
     $<BUILD_INTERFACE:intf_pub>
     -Wl,--whole-archive
     ops_aclnn
     -Wl,--no-whole-archive
     nnopbase
+    -Wl,-Bsymbolic
     profapi
     ge_common_base
     ascend_dump
