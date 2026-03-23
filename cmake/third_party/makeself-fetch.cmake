@@ -9,6 +9,7 @@
 # -----------------------------------------------------------------------------------------------------------
 
 # --- 打印 CANN_3RD_LIB_PATH 的值 ---
+message(STATUS "Debug: CMAKE_BINARY_DIR is ${CMAKE_BINARY_DIR}")
 message(STATUS "Debug: CANN_3RD_LIB_PATH is ${CANN_3RD_LIB_PATH}")
 # --- 打印结束 ---
 
@@ -66,7 +67,6 @@ else()
 
     execute_process(
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
-        message(STATUS "Debug: CMAKE_BINARY_DIR is ${CMAKE_BINARY_DIR}")
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself-header.sh"
         RESULT_VARIABLE CHMOD_RESULT
