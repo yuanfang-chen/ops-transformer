@@ -38,6 +38,8 @@ public:
     __aicore__ inline void Forward(const GlobalTensor<T>& aGm, const GlobalTensor<T>& qGm,
         const GlobalTensor<T>& rGm, const GlobalTensor<T>& tmpQGm, int32_t blockSize);
     __aicore__ inline void Reorder(const GlobalTensor<T>& qGm, bool onCube);
+    __aicore__ inline void RunMatmul(int M, int N, bool isTransposeB,
+        const GlobalTensor<T>& aGm, const GlobalTensor<T>& bGm, const GlobalTensor<T>& cGm);
     __aicore__ inline void BackwardStep(const GlobalTensor<T>& resultQGm, const GlobalTensor<T>& leftQGm,
         const GlobalTensor<T>& rightQGm, int32_t bsLeft, int32_t numBlocksLeft, bool hasTail);
     __aicore__ inline void Backward(const GlobalTensor<T>& qGm, const GlobalTensor<T>& tmpQGm,
@@ -334,6 +336,33 @@ __aicore__ inline void TsqrKernel<T>::Reorder(const GlobalTensor<T>& qGm, bool o
 }
 
 template <typename T>
+__aicore__ inline void TsqrKernel<T>::RunMatmul(int M, int N, bool isTransposeB,
+    const GlobalTensor<T>& aGm, const GlobalTensor<T>& bGm, const GlobalTensor<T>& cGm) {
+    PipeBarrier<PIPE_ALL>();
+    pipe->Reset();
+    PipeBarrier<PIPE_ALL>();
+    if (isTransposeB) {
+        mm.SetSubBlockIdx(0);
+        mm.Init(&tiling.mmTilingData, pipe);
+        mm.SetOrgShape(M, N, N);
+        mm.SetSingleShape(M, N, N);
+        mm.SetTensorA(aGm, true);
+        mm.SetTensorB(bGm, true);
+        mm.IterateAll(cGm);
+        mm.End();
+    } else {
+        mmF.SetSubBlockIdx(0);
+        mmF.Init(&tiling.mmTilingDataF, pipe);
+        mmF.SetOrgShape(M, N, N);
+        mmF.SetSingleShape(M, N, N);
+        mmF.SetTensorA(aGm, true);
+        mmF.SetTensorB(bGm, false);
+        mmF.IterateAll(cGm);
+        mmF.End();
+    }
+}
+
+template <typename T>
 __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm, const GlobalTensor<T>& leftQGm,
     const GlobalTensor<T>& rightQGm, int32_t bsLeft, int32_t numBlocksLeft, bool hasTail) {
 
@@ -368,25 +397,8 @@ __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm
                 PipeBarrier<PIPE_ALL>();
                 pipe->Reset();
                 PipeBarrier<PIPE_ALL>();
-                if (isFirstIter || isTransfered) {
-                    mm.SetSubBlockIdx(0);
-                    mm.Init(&tiling.mmTilingData, pipe);
-                    mm.SetOrgShape(bsLeft, N_, N_);
-                    mm.SetSingleShape(bsLeft, N_, N_);
-                    mm.SetTensorA(leftQGm[idx * leftOffset], true);
-                    mm.SetTensorB(rightQGm[idx * rightOffset], true);
-                    mm.IterateAll(outQGm[idx * outQOffset]);
-                    mm.End();
-                } else {
-                    mmF.SetSubBlockIdx(0);
-                    mmF.Init(&tiling.mmTilingDataF, pipe);
-                    mmF.SetOrgShape(bsLeft, N_, N_);
-                    mmF.SetSingleShape(bsLeft, N_, N_);
-                    mmF.SetTensorA(leftQGm[idx * leftOffset], true);
-                    mmF.SetTensorB(rightQGm[idx * rightOffset], false);
-                    mmF.IterateAll(outQGm[idx * outQOffset]);
-                    mmF.End();
-                }
+                RunMatmul(bsLeft, N_, (isFirstIter || isTransfered),
+                    leftQGm[idx * leftOffset], rightQGm[idx * rightOffset], outQGm[idx * outQOffset]);
             }
         }
     }
@@ -442,11 +454,10 @@ __aicore__ inline void TsqrKernel<T>::Backward(const GlobalTensor<T>& qGm, const
         hasTail = tail;
         tail = (numBlocks % 2 > 0);
     }
-    numBlocks = M_ / blockSize_;
     if ((numLevels_ - 1) % 2 == 0) {
-        BackwardStep(qGm, tmpQGm, tmpQGm[rightOffset], blockSize_, numBlocks, false);
+        BackwardStep(qGm, tmpQGm, tmpQGm[rightOffset], blockSize_, M_ / blockSize_, false);
     } else {
-        BackwardStep(qGm, tmpQGm, bufferQGlobal_, blockSize_, numBlocks, false);
+        BackwardStep(qGm, tmpQGm, bufferQGlobal_, blockSize_, M_ / blockSize_, false);
     }
 }
 
