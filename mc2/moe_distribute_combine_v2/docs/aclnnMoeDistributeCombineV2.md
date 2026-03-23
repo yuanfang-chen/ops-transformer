@@ -432,7 +432,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
         - `commAlg`当前版本不支持，传空指针即可。
         - `epSendCounts`的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
         - 有TP域通信时`tpSendCountsOptional`为1D shape Tensor，shape为 (tpWorldSize, )。
-        - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
+        - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(Bs, )，2D时shape为(Bs, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
         - `expandScalesOptional`为预留参数，当前版本不支持，传空指针即可。
         - `sharedExpertXOptional`要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
         - `epWorldSize`取值支持[2, 768]。
@@ -449,7 +449,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
         - `commAlg`当前版本不支持，传空指针即可。
         - `epSendCounts`的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
         - `tpSendCountsOptional`当前版本不支持，传空指针即可。
-        - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信。
+        - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(Bs, )，2D时shape为(Bs, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信。
         - `expandScalesOptional`预留参数，当前版本不支持，传空指针即可。
         - `sharedExpertXOptional`要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
         - `epWorldSize`取值支持[2, 768]。
@@ -586,7 +586,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
      - ep通信域内：设置大小要求 (≥ 2) 且满足 (≥ 2 * (localExpertNum * maxBs * epWorldSize * Align512(Align32(2 * H) + 44) + (K + sharedExpertNum) * maxBs * Align512(2 * H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
      - tp通信域内：设置大小要求\>=A * (H * 2 + 128) * 2。
-   - <term>Ascend 950PR/Ascend 950DT</term>：要求 (≥ aivNum * 512 + 2 * epWorldSize * BS * H * 2 * localExpertNum)，其中`aivNum`表示核数，`localExpertNum`需使用MoE专家卡的本卡专家数。
+   - <term>Ascend 950PR/Ascend 950DT</term>：设置大小要求 (≥ 2) 且满足 (≥ 2 * (localExpertNum * maxBs * epWorldSize * Align512(Align32(2 * H) + 44) + (K + sharedExpertNum) * maxBs * Align512(2 * H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
 
 8. **HCCL_INTRA_PCIE_ENABLE和HCCL_INTRA_ROCE_ENABLE**：
    <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该环境变量不再推荐使用，建议通过`commAlg`配置为"hierarchy"。

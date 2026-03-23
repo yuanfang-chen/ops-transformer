@@ -50,7 +50,7 @@
     $$
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该接口必须与`aclnnMoeDistributeCombineV3`配套使用。
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：该接口必须与`aclnnMoeDistributeCombineV3`或`aclnnMoeDistributeCombineAddRmsNormV2`配套使用。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品/Ascend 950PR/Ascend 950DT</term>：该接口必须与`aclnnMoeDistributeCombineV3`或`aclnnMoeDistributeCombineAddRmsNormV2`配套使用。
 
 > 说明：
 > `aclnnMoeDistributeCombineV3`、`aclnnMoeDistributeCombineAddRmsNormV2`算子在后续文档中统称为**CombineV3系列算子**。
@@ -169,7 +169,7 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
     <td>可选择传入有效数据或传入空指针。<br>当输入为1D时，参数为true表示对应的token参与通信，true必须排到false之前，例：{true, false, true} 为非法输入；<br>当输入为2D时，参数为true表示当前token对应的expert_ids参与通信。若当前token对应的K个BOOL值全为false，表示当前token不会参与通信。默认所有token都会参与通信。当每张卡的BS数量不一致时，所有token必须全部有效。</td>
     <td>BOOL</td>
     <td>ND</td>
-    <td><br>当输入1D时，shape为 <code>(BS,)</code>；当输入2D时，shape为 <code>(BS, K)</code></td>
+    <td><br>当输入1D时，shape为 <code>(Bs,)</code>；当输入2D时，shape为 <code>(Bs, K)</code></td>
     <td>√</td>
     </tr>
     <tr>

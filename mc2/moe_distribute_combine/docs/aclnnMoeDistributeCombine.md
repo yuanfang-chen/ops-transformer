@@ -529,7 +529,7 @@ aclnnStatus aclnnMoeDistributeCombine(
       - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：取值范围为 (0 < BS ≤ 512)。
     - **K**：表示选取topK个专家，需满足 (0 < K ≤ moeExpertNum)：
       - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：取值范围为 (0 < K ≤ 16)。
-      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：取值范围为 (0 < K ≤ 8)。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：取值范围为 (0 < K ≤ 8)，且需要满足0 < `K` ≤ moeExpertNum。
     - **serverNum**：表示服务器的节点数，取值仅支持2、4、8。
     - **localExpertNum**：表示本卡专家数量：
       - 对于共享专家卡，(localExpertNum = 1)。
