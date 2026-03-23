@@ -394,12 +394,14 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue()
             uint64_t invRmsOffset = offsetM - vectorOffset_.offsetMStart;
             LocalTensor<P> invRmsUb = invRmsUb_[invRmsOffset];
             xLocal_ = xInQueue_.template AllocTensor<T>();
+            this->DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
             xLocal_ = xInQueue_.template DeQue<T>();
 
             LocalTensor<P> aL1Ub = outQueue_.template AllocTensor<P>();
 
             if (hasGamma_) {
                 gammaUb_ = gammaInQueue_.template AllocTensor<P>();
+                this->DataCopyGamma(curNdLen, offsetNd);
                 gammaUb_ = gammaInQueue_.template DeQue<P>();
 
                 if (offsetNd == 0) {
@@ -525,7 +527,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AIV1Prologue(uint64_t offsetT,
     Gather(hResOutLocal, matmulRes_, resOffsetBuf_, uint32_t(0), lenT * N_ * N_);
     PipeBarrier<PIPE_V>();
 
-    outQueue_.template EnQue(hResOutLocal);
+    outQueue_.EnQue(hResOutLocal);
     hResOutLocal = outQueue_.template DeQue<P>();
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(1);
@@ -552,7 +554,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::HMixProcess(uint64_t offsetT, 
     copyParams.dstStride = uint32_t(0);
     DataCopyPadExtParams<P> copyPadParams{true, 0, 0, 0};
     DataCopyPad(hMixLocal, tempMMResGm_[HMixOffset], copyParams, copyPadParams);
-    xInQueue_.template EnQue(hMixLocal);
+    xInQueue_.EnQue(hMixLocal);
     hMixLocal = xInQueue_.template DeQue<P>();
 
     uint64_t addOffset = 0;
