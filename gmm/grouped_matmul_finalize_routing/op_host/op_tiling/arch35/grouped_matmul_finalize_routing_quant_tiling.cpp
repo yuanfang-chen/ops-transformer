@@ -528,7 +528,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
     tilingData_.matmulTiling.dbL0B = 2; // db switch, 1: off, 2: on
     tilingData_.matmulTiling.dbL0C = basicTiling_.dbL0c;
     // Override: CalL1Tiling may adjust basicTiling_.baseN; keep host output at DEBUG_FIXED_BASE_N.
-    tilingData_.matmulTiling.baseN = static_cast<uint32_t>(DEBUG_FIXED_BASE_N);
+    tilingData_.matmulTiling.set_baseN(static_cast<int32_t>(DEBUG_FIXED_BASE_N));
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         if (basicTiling_.scaleFactorA >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorA <= SCALER_FACTOR_MAX &&
             basicTiling_.scaleFactorB >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorB <= SCALER_FACTOR_MAX) {
@@ -549,7 +549,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
               << ", Kb=" << tilingData_.matmulTiling.Kb
               << ", usedCoreNum=" << tilingData_.matmulTiling.usedCoreNum
               << ", baseM=" << tilingData_.matmulTiling.baseM
-              << ", baseN=" << tilingData_.matmulTiling.baseN
+              << ", baseN=" << tilingData_.matmulTiling.get_baseN()
               << ", baseK=" << tilingData_.matmulTiling.baseK
               << ", forcedBaseN=" << DEBUG_FIXED_BASE_N
               << std::endl;
@@ -588,7 +588,7 @@ void GroupedMatmulFinalizeRoutingQuantTiling::PrintMatmulParams()
     oss << "GMM matmul tiling: M = " << tilingData_.matmulTiling.M << ", N = " << tilingData_.matmulTiling.N
         << ", Ka = " << tilingData_.matmulTiling.Ka << ", Kb = " << tilingData_.matmulTiling.Kb
         << ", usedCoreNum = " << tilingData_.matmulTiling.usedCoreNum << ", baseM = " << tilingData_.matmulTiling.baseM
-        << ", baseN = " << tilingData_.matmulTiling.baseN << ", baseK = " << tilingData_.matmulTiling.baseK;
+        << ", baseN = " << tilingData_.matmulTiling.get_baseN() << ", baseK = " << tilingData_.matmulTiling.baseK;
     OP_LOGD(context_->GetNodeName(), "%s", oss.str().c_str());
 }
 
