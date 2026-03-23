@@ -109,7 +109,7 @@ public:
     using Base::eleNumPerVf_;
 
     __aicore__ inline MhcPreKernelSplitND(MT &matmul) : Base(matmul) {}
-    __aicore__ inline void Init(InitParamsDecode initParams);
+    __aicore__ inline void Init(InitParams initParams);
     __aicore__ inline void Process();
     __aicore__ inline void AICProcess();
     __aicore__ inline void InitLocalBuffers();
@@ -134,7 +134,7 @@ private:
 };
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParamsDecode initParams)
+__aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParams initParams)
 {
     xGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.x));
     phiGm_.SetGlobalBuffer(reinterpret_cast<__gm__ P *>(initParams.phi));

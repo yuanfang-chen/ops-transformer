@@ -26,6 +26,23 @@ namespace MhcPre {
 using namespace matmul;
 using namespace AscendC;
 
+struct InitParams {
+    GM_ADDR x;
+    GM_ADDR phi;
+    GM_ADDR alpha;
+    GM_ADDR bias;
+    GM_ADDR gamma;
+    GM_ADDR hin;
+    GM_ADDR h_post;
+    GM_ADDR h_res;
+    GM_ADDR inv_rms;
+    GM_ADDR h_mix;
+    GM_ADDR h_pre;
+    GM_ADDR workspace;
+    TPipe *tPipeIn;
+    MhcPreTilingData *tilingData;
+};
+
 #ifndef MHC_PRE_COMMON_DEFINED
 #define MHC_PRE_COMMON_DEFINED
 constexpr MicroAPI::CastTrait ctFp32To16 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
