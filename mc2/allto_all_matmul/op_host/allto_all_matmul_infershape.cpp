@@ -69,6 +69,7 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
     const auto x2Shape = context->GetInputShape(INDEX_IN_X2);
     OPS_CHECK_NULL_WITH_CONTEXT(context, x1Shape);
     OPS_CHECK_NULL_WITH_CONTEXT(context, x2Shape);
+
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const auto alltoAllAxesPtr = attrs->GetAttrPointer<gert::ContinuousVector>(INDEX_ATTR_ALLTO_ALL_AXES);
@@ -93,7 +94,15 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
     shape.n = transX2 ? x2Shape->GetDim(0U) : x2Shape->GetDim(1U);
     shape.k2 = transX2 ? x2Shape->GetDim(1U) : x2Shape->GetDim(0U);
     shape.outputDim = x1Shape->GetDimNum();
-    OP_LOGD(INNER_DEBUG, "Matmul m %ld n %ld k1 %ld k2 %ld.", shape.m, shape.n, shape.k1, shape.k2);
+
+    if (shape.k1 != shape.k2) {
+        OP_LOGE(context->GetNodeName(),
+                "The input tensor x1 and x2 axis k must be the same, but actual get x1.k: %ld, x2.k: %ld.",
+                shape.k1, shape.k2);
+        return ge::GRAPH_FAILED;
+    }
+
+    OP_LOGD(INNER_DEBUG, "Matmul m is: %ld, n is: %ld, k1 is: %ld, k2 is: %ld.", shape.m, shape.n, shape.k1, shape.k2);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -206,5 +215,7 @@ static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* c
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(AlltoAllMatmul).InferShape(InferShapeAlltoAllMatmul).InferDataType(InferDataTypeAlltoAllMatmul);
+IMPL_OP_INFERSHAPE(AlltoAllMatmul)
+    .InferShape(InferShapeAlltoAllMatmul)
+    .InferDataType(InferDataTypeAlltoAllMatmul);
 } // namespace ops
