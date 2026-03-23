@@ -333,31 +333,10 @@ auto call(Function f, Tuple t) {
   return call(f, t, std::make_index_sequence<size>{});
 }
 
-inline void MemcpyToBuf(const void *data, size_t size)
-{
-    if (g_hashOffset + size > kHashBufSize) {
-        g_hashOffset = kHashBufMaxSize;
-        return;
-    }
-
-    std::memcpy(g_hashBuf + g_hashOffset, data, size);
-    g_hashOffset += size;
-}
-
 template <std::size_t N>
-void AddParamToBuf(const std::array<bool, N> &value)
-{
-    MemcpyToBuf(value.data(), value.size() * sizeof(bool));
-}
-
+void AddParamToBuf(const std::array<bool, N> &);
 template <typename T>
-void AddParamToBuf(const T &value)
-{
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "AddParamToBuf requires trivially copyable type");
-    MemcpyToBuf(&value, sizeof(T));
-}
-
+void AddParamToBuf(const T &);
 void AddParamToBuf(const at::Tensor &);
 void AddParamToBuf(const at::Scalar &);
 void AddParamToBuf(const at::IntArrayRef &);

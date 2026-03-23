@@ -65,13 +65,14 @@ int getBlockSize(gert::TilingContext* context, int M, int N) {
         if (M / 4 > 1024) blockSize = 1024;
     }
     return blockSize;
-} 
+}
 
 bool checkLimitations(int M, int N, int blockSize, int numBlocks) {
     return (
         M >= 128 && N >= 16 // MIN Shape
         && M <= 8 * 1024 * 1024 && N <= 160 // MAX Shape
         && M >= N * 8
+        && blockSize > 0
         && N * 2 <= blockSize && blockSize <= M / 4
         && N % 8 == 0 && N <= 168
         && M % blockSize == 0
