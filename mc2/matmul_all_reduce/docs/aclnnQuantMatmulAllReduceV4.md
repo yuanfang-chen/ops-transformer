@@ -20,7 +20,7 @@
   - <term>Ascend 950PR/Ascend 950DT</term>：新增perblock、pertile、mxfp量化方式。新增x1，x2输入支持dtype为`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、HIFLOAT8、`FLOAT4_E2M1`。
 - **计算公式**：
 
-  - 公式1，使能低bit通信场景的公式2或公式3场景：
+  - 公式1，使能低bit通信的公式2或公式3场景：
   
     x1，x2为INT8，commQuantScale1Optional, commQuantScale2Optional不为空时:
 
@@ -81,7 +81,7 @@
 
   - 公式7，perblock-perblock量化：
   
-    x1，x2为`FLOAT8_E4M3FN`/`FLOAT8_E5M2`/HIFLOAT8，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，无biasOptional。当x1为(a0, a1)，x2为(b0, b1)时x1ScaleOptional为(ceildiv(a0，128), ceildiv(a1，128))x2Scale为(ceildiv(b0，128), ceildiv(b1，128)), out为FLOAT16/BFLOAT16/FLOAT32:
+    x1，x2为`FLOAT8_E4M3FN`/`FLOAT8_E5M2`/HIFLOAT8，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，无biasOptional。当x1为(a0, a1)，x2为(b0, b1)时x1ScaleOptional为(ceilDiv(a0，128)，ceilDiv(a1，128))，x2Scale为(ceilDiv(b0，128)，ceilDiv(b1，128))，out为FLOAT16/BFLOAT16/FLOAT32:
 
     $$
     output_{pq} = AllReduce(\sum_{0}^{\left \lfloor \frac{k}{128} \right \rfloor} (x1_{pr}@x2_{rq}*(x1ScaleOptional_{pr}*x2Scale_{rq})) + x3Optional)
@@ -786,10 +786,9 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
       const aclIntArray *mat2Size = aclCreateIntArray(shape.data(), shape.size());
       auto ret = aclnnCalculateMatmulWeightSizeV2(mat2Size, ACL_INT8, &size);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnCalculateMatmulWeightSizeV2 failed. ERROR: %d\n", ret); return ret);
-      auto tensorSize = size * sizeof(T);
 
       // 调用aclrtMalloc申请device内存
-      ret = aclrtMalloc(deviceAddr, tensorSize, ACL_MEM_MALLOC_HUGE_FIRST);
+      ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
 
       // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上

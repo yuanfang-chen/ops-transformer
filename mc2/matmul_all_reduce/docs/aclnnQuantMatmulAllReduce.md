@@ -91,7 +91,7 @@ aclnnStatus aclnnQuantMatmulAllReduce(
           <td>x2</td>
           <td>输入</td>
           <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><ul><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li><li>ND格式下支持最后两轴转置情况下的非连续的tensor，其他非连续tensor不支持</li></ul></td>
+          <td><ul><li>支持转置/不转置场景。</li><li>ND格式下支持最后两轴转置情况下的非连续的tensor，其他非连续tensor不支持</li></ul></td>
           <td>INT8</td>
           <td>ND、FRACTAL_NZ</td>
           <td>2</td>
@@ -365,10 +365,9 @@ aclnnStatus aclnnQuantMatmulAllReduce(
         const aclIntArray *mat2Size = aclCreateIntArray(shape.data(), shape.size());
         auto ret = aclnnCalculateMatmulWeightSizeV2(mat2Size, ACL_INT8, &size);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnCalculateMatmulWeightSizeV2 failed. ERROR: %d\n", ret); return    ret);
-        auto tensorSize = size * sizeof(T);
 
         // 调用aclrtMalloc申请device内存
-        ret = aclrtMalloc(deviceAddr, tensorSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
 
         // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上

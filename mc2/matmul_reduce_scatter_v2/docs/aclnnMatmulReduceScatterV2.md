@@ -189,7 +189,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <td>reduceOp</td>
         <td>输入</td>
         <td>reduce操作类型。</td>
-        <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
+        <td>当前版本仅支持“sum”。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>

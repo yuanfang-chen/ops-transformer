@@ -241,7 +241,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduceAddRmsNorm(
           <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>2</td>
+          <td>3</td>
           <td>√</td>
         </tr>
         <tr>
