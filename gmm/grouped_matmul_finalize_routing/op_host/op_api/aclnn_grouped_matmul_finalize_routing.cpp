@@ -556,12 +556,27 @@ static bool IsLastTwoDimsTranspose(const aclTensor *tensor) {
     }
     int64_t dim1 = tensor->GetViewShape().GetDimNum() - 1;
     int64_t dim2 = tensor->GetViewShape().GetDimNum() - 2;
+    // Debug: 打印 stride 判定所需的最后两维信息。
+    // 关注点：weight 在 gmmfrweightnzv2 下如果已经是 FRACTAL_NZ，则该逻辑可能根本不会被调用。
+    OP_LOGI("zzzlog0323 [IsLastTwoDimsTranspose] dimNum=%lld dim1=%lld dim2=%lld "
+            "stride(dim2)=%lld stride(dim1)=%lld dim(dim2)=%lld viewShape=%s",
+        static_cast<long long>(tensor->GetViewShape().GetDimNum()),
+        static_cast<long long>(dim1),
+        static_cast<long long>(dim2),
+        static_cast<long long>(tensor->GetViewStrides()[dim2]),
+        static_cast<long long>(tensor->GetViewStrides()[dim1]),
+        static_cast<long long>(tensor->GetViewShape().GetDim(dim2)),
+        op::ToString(tensor->GetViewShape()).GetString().c_str());
     // BMM 场景下，Batch维度的stride需要等于 N, D 的乘积
     if (tensor->GetViewStrides()[dim2] == 1 && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
         int64_t tmpNxD = tensor->GetViewShape().GetDim(dim1) * tensor->GetViewShape().GetDim(dim2);
         // 多batch连续，3是batch索引
         for (int64_t batchDim = tensor->GetViewShape().GetDimNum() - 3; batchDim >= 0; batchDim--) {
             if (tensor->GetViewStrides()[batchDim] != tmpNxD) {
+                OP_LOGI("zzzlog0323 [IsLastTwoDimsTranspose] batchDim=%lld stride=%lld expected=%lld -> false",
+                    static_cast<long long>(batchDim),
+                    static_cast<long long>(tensor->GetViewStrides()[batchDim]),
+                    static_cast<long long>(tmpNxD));
                 return false;
             }
             tmpNxD *= tensor->GetViewShape().GetDim(batchDim);
@@ -569,8 +584,10 @@ static bool IsLastTwoDimsTranspose(const aclTensor *tensor) {
         if (tensor->GetViewShape().GetDim(dim1) == 1 && tensor->GetViewShape().GetDim(dim2) == 1) {
             return false;
         }
+        OP_LOGI("zzzlog0323 [IsLastTwoDimsTranspose] transposeFlag=true");
         return true;
     }
+    OP_LOGI("zzzlog0323 [IsLastTwoDimsTranspose] stride pattern not match -> false");
     return false;
 }
 
@@ -642,6 +659,8 @@ static inline bool TransposeTensorContiguousProcess(const aclTensor *&contiguous
     }
 
     auto transposeFlag = IsLastTwoDimsTranspose(contiguousTensor);
+    OP_LOGI("zzzlog0323 [TransposeTensorContiguousProcess] transpose(in)=%d transposeFlag=%d view=%s",
+        static_cast<int>(transpose), static_cast<int>(transposeFlag), op::ToString(contiguousTensor->GetViewShape()).GetString().c_str());
     // swap tensor if its viewshape not satisfy request shape without adding a transpose node
     if (transposeFlag) {
         contiguousTensor = executor->CreateView(contiguousTensor, SwapLastTwoDimValue(contiguousTensor->GetViewShape()),
@@ -737,23 +756,41 @@ static const aclTensor *GetNDFormat(const aclTensor *input)
 
 static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, aclOpExecutor *executor)
 {
+    auto primaryFmt = ge::GetPrimaryFormat(x2->GetStorageFormat());
+    auto primaryFmtStr = op::ToString(primaryFmt);
+    auto viewShapeStr = op::ToString(x2->GetViewShape());
+    auto storageShapeStr = op::ToString(x2->GetStorageShape());
+    OP_LOGI("zzzlog0323 [WeightNZCaseProcess] curArch=%d primaryFmt=%s transposeX2(in)=%d x2.view=%s x2.storage=%s",
+        static_cast<int>(op::GetCurrentPlatformInfo().GetCurNpuArch()),
+        primaryFmtStr.GetString().c_str(),
+        static_cast<int>(transposeX2),
+        viewShapeStr.GetString().c_str(),
+        storageShapeStr.GetString().c_str());
+
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+            OP_LOGI("zzzlog0323 [WeightNZCaseProcess] skip: already FRACTAL_NZ and arch!=DAV_3510");
+        }
         if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             if (transposeX2 == false) {
+                OP_LOGI("zzzlog0323 [WeightNZCaseProcess] calling TransposeTensorContiguousProcessForMx (transposeX2=false)");
                 CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
             }
         } 
     } else {
         if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             if (transposeX2 == false) {
+                OP_LOGI("zzzlog0323 [WeightNZCaseProcess] calling TransposeTensorContiguousProcessForMx (primary!=FRACTAL_NZ, DAV_3510, transposeX2=false)");
                 CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
             }
         } else {
+            OP_LOGI("zzzlog0323 [WeightNZCaseProcess] calling TransposeTensorContiguousProcess (primary!=FRACTAL_NZ, arch!=DAV_3510)");
             CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
         }
     }
     x2->SetOriginalShape(x2->GetViewShape());
+    OP_LOGI("zzzlog0323 [WeightNZCaseProcess] transposeX2(out)=%d", static_cast<int>(transposeX2));
     return ACLNN_SUCCESS;
 }
 
@@ -806,9 +843,16 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     
     CHECK_RET(executor != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
     CHECK_RET(CheckNotNull(params), ACLNN_ERR_PARAM_NULLPTR);
+    OP_LOGI("zzzlog0323 [PreMatmulCalcProcess] transposeX1=%d transposeX2(before)=%d x1.view=%s x2.view=%s x2.primaryFmt=%s",
+        static_cast<int>(transposeX1),
+        static_cast<int>(transposeX2),
+        op::ToString(x1->GetViewShape()).GetString().c_str(),
+        op::ToString(x2->GetViewShape()).GetString().c_str(),
+        op::ToString(ge::GetPrimaryFormat(x2->GetStorageFormat())).GetString().c_str());
     CHECK_RET(TransposeTensorContiguousProcess(x1, transposeX1, executor), ACLNN_ERR_INNER_NULLPTR);
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    OP_LOGI("zzzlog0323 [PreMatmulCalcProcess] transposeX2(after)=%d", static_cast<int>(transposeX2));
 
     if (scale != nullptr && CheckType(x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX) && CheckType(scale->GetDataType(), SCALE_TYPE_SUPPORT_LIST_MX)) {
         bool transposescale = false;
