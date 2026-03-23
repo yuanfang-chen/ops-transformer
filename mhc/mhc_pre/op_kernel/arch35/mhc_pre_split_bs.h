@@ -94,6 +94,10 @@ public:
     using Base::mmCount_;
     using Base::vec1Count_;
     using Base::eleNumPerVf_;
+    using Base::ND_LENGTH;
+    using Base::PARALLEL_NUM;
+    using Base::V0_BASE_T;
+    using Base::V1_BASE_T;
 
     __aicore__ inline MhcPreKernelSplitBS(MT &matmul) : Base(matmul) {}
     __aicore__ inline void Init(InitParams initParams);
