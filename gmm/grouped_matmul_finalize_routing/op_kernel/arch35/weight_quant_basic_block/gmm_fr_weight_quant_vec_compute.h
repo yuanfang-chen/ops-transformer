@@ -159,6 +159,8 @@ private:
     constexpr static UbBufferInfo UB_BUFFER_INFO = GetGmmFRMxA8W4BufferInfo<vecConfig>();
     // mte2搬运计数，用于控制weight输入的buffer和 mte2&&V间同步控制
     uint64_t ubMte2LoopIdx_ = 0;
+    uint64_t biasFrMte2LoopIdx_ = 0;
+    uint64_t biasRescaleLoopIdx_ = 0;
     // mte2搬运计数，用于控制antiquantY输入的buffer和 mte2&&V间同步控制
     uint64_t ubMte2AntiquantYLoopIdx_ = 0;
     // vf中标准计算单元(vfNStandardLen, vfKStandardLen)的计数，用于控制weight反量化后输出的buffer和V&&mte3间同步控制
@@ -166,8 +168,10 @@ private:
     uint64_t ubAntiquantYLoopIdx_ = 0;
 
     static constexpr uint32_t EVENT_ID_V_TO_MTE2 = 0;
+    static constexpr uint32_t EVENT_ID_BIAS_FR_V_TO_MTE2 = EVENT_ID_V_TO_MTE2 + QUADRUPLE_BUFFER_NUM;
     static constexpr uint32_t EVENT_ID_MTE2_TO_V = 0;
     static constexpr uint32_t EVENT_ID_MTE3_TO_V = 0;
+    static constexpr uint32_t EVENT_ID_BIAS_FR_MTE3_TO_V = EVENT_ID_MTE3_TO_V + QUADRUPLE_BUFFER_NUM;
     static constexpr uint32_t EVENT_ID_V_TO_MTE3 = 0;
 
     float sharedInputWeight_ = 0.0f;
@@ -259,14 +263,18 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Init(b
     uint64_t ubOffset = UB_BUFFER_INFO.weightInputLowbitUbTotalSize;
     ubHighBitTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, ubOffset, UB_BUFFER_INFO.highBitDataUbTotalSize);
     ubOffset += UB_BUFFER_INFO.highBitDataUbTotalSize;
-    if (hasBias_) {
-        ubBiasTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, ubOffset, UB_BUFFER_INFO.biasUbTotalSize);
-        ubOffset += UB_BUFFER_INFO.biasUbTotalSize * sizeof(half);
-        ubBiasOutTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, ubOffset, UB_BUFFER_INFO.biasReducedUbTotalSize);
-    }
+
+    ubBiasTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, ubOffset, UB_BUFFER_INFO.biasUbTotalSize);
+    ubOffset += UB_BUFFER_INFO.biasUbTotalSize * sizeof(half);
+    ubBiasOutTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, ubOffset, UB_BUFFER_INFO.biasReducedUbTotalSize);
 
     for (uint16_t idx = 0; idx < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; idx++) {
         SetFlag<HardEvent::MTE3_V>(EVENT_ID_MTE3_TO_V + idx);
+    }
+    
+    for (uint16_t idx = 0; idx < DOUBLE_BUFFER_NUM; idx++) {
+        // SetFlag<HardEvent::V_MTE2>(EVENT_ID_BIAS_FR_V_TO_MTE2 + idx);
+        // SetFlag<HardEvent::MTE3_V>(EVENT_ID_BIAS_FR_MTE3_TO_V + idx);
     }
 
     for (uint16_t idx = 0; idx < vecConfig.ubMte2BufferNum; idx++) {
@@ -353,6 +361,22 @@ GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyShareInputUbToGm(uint64_t
 }
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyBiasGmToUb(
+    uint64_t biasGmOffset, uint64_t biasRealSize, uint64_t kGmOffset, const BasicBlockOffsetParam &offsetParam)
+{
+    if (!hasBias_ || kGmOffset != 0 || biasRealSize == 0) {
+        return;
+    }
+
+    DataCopyPad2D(
+        ubBiasTotalBuffer_[(ubMte2LoopIdx_ & 1) * UB_BUFFER_INFO.biasUbSingleBufferSize],
+        biasGlobal_[biasGmOffset], 1, biasRealSize, biasRealSize, biasRealSize);
+
+    SetFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
+    WaitFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
+}
+
+GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WaitVToMTE2()
 {
     WaitFlag<HardEvent::V_MTE2>(EVENT_ID_V_TO_MTE2 + (ubMte2LoopIdx_ & (vecConfig.ubMte2BufferNum - 1)));
@@ -367,75 +391,51 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::SetVTo
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyGmToUb(
-    uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset, uint64_t ubMte2KOffset,
+    uint64_t ubMte2KSize, uint64_t kGmOffset,
     const BasicBlockOffsetParam &offsetParam)
 {
+    CopyBiasGmToUb();
+
     // ubMte2NSize和ubMte2KSize为实际MTE2搬运到UB的有效数据，
     // 其按照ubMte2InnerSize进行跳写，垃圾数据无需操作，搬出的时搬运有效数据即可。
-    if (ubMte2NSize == 0 || ubMte2KSize == 0) {
-        ubMte2LoopIdx_++;  // 避免当前核无任务时，SetVToMTE2()对同一个flagID重复SetFlag的问题
+    if (curOffsetParam.nL1Size == 0 || ubMte2KSize == 0) {
         return;
     }
 
     DataCopyPad2D(ubWeightInputLowBitTotalBuffer_[(ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum) *
                                                     UB_BUFFER_INFO.weightInputLowBitUbSingleBufferSize]
                         .template ReinterpretCast<wType>(),
-                    wGlobal_[ubMte2KOffset * offsetParam.nAlign + ubMte2NOffset * static_cast<uint64_t>(C0_SIZE)],
+                    wGlobal_[kGmOffset * offsetParam.nAlign + curOffsetParam.nOffset * static_cast<uint64_t>(C0_SIZE)],
                     CeilDivide(ubMte2KSize, static_cast<uint64_t>(C0_SIZE)),
-                    CeilAlign(ubMte2NSize, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
-                    CeilAlign(ubMte2NSize, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
+                    CeilAlign(curOffsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
+                    CeilAlign(curOffsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
                     offsetParam.nAlign * C0_SIZE);
-    
-    // Copy bias if needed for MxA8W4
-    if constexpr (wqmmConfig.antiQuantType == QuantType::MX) {
-        if (hasBias_) {
-            CopyMxBiasGmToUb(ubMte2NSize, ubMte2NOffset);
-        }
-    }
     
     SetFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
     WaitFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
 }
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyMxBiasGmToUb(uint64_t ubMte2MxBiasNSize,
-                                                                                        uint64_t ubMte2MxBiasNOffset)
-{
-    if (hasBias_) {
-        DataCopyPad2D(
-            ubBiasTotalBuffer_[(ubMte2LoopIdx_ % QUADRUPLE_BUFFER_NUM) * UB_BUFFER_INFO.biasUbSingleBufferSize],
-            biasGlobal_[ubMte2MxBiasNOffset], 1, ubMte2MxBiasNSize, ubMte2MxBiasNSize, ubMte2MxBiasNSize);
-        // Use const event ID instead of AllocEventID
-        SetFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
-        WaitFlag<HardEvent::MTE2_V>(EVENT_ID_MTE2_TO_V);
-    }
-}
-
-GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAntiQuantComputeNzNk(
-    const UbConsumeConfig &ubConsumeConfig, const LocalTensor<xType> &weightHighBitL1,
-    const L1ConsumeConfig &l1ConsumeConfig, const LocalTensor<biasType> &biasL1)
+    uint64_t kRealSize, uint64_t biasRealSize, const LocalTensor<xType> &weightHighBitL1,
+    const LocalTensor<biasType> &biasL1, const BasicBlockOffsetParam &offsetParam)
 {
     WaitFlag<HardEvent::MTE3_V>(
         EVENT_ID_MTE3_TO_V + (ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)));
 
-    AntiQuantProcessNzMxA8W4(ubConsumeConfig);
-
-    uint64_t weightHighBitL1Offset = ComputeWeightHighBitL1Offset(
-        0, 0, ubConsumeConfig.l1RequireVfComputeRealN, ubConsumeConfig.l1RequireVfComputeRealK, l1ConsumeConfig);
+    AntiQuantProcessNzMxA8W4(biasRealSize, kRealSize, offsetParam);
 
     SetFlag<HardEvent::V_MTE3>(EVENT_ID_V_TO_MTE3);
     WaitFlag<HardEvent::V_MTE3>(EVENT_ID_V_TO_MTE3);
 
-    if (likely(ubConsumeConfig.l1RequireVfComputeRealK > 0)) {
-        CopyWeightHighBitForAligned(weightHighBitL1Offset, ubConsumeConfig.l1RequireVfComputeRealN,
-                                    ubConsumeConfig.l1RequireVfComputeRealK, weightHighBitL1);
+    if (likely(kRealSize > 0)) {
+        CopyWeightHighBitForAligned(offsetParam.nL1Size,
+                                    kRealSize, weightHighBitL1);
     }
-    if (ubConsumeConfig.calcMxBias) {
-        DataCopy(biasL1[l1ConsumeConfig.l1MxBiasSplitNOffset],
-                 ubBiasOutTotalBuffer_[((ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)) *
-                                       UB_BUFFER_INFO.biasReducedSingleBufferSize],
-                 ubConsumeConfig.ubMxBiasNsize);
+    if (hasBias_ && kGmOffset != 0 && biasRealSize != 0) {
+        DataCopy(biasL1,
+             ubBiasOutTotalBuffer_[(ubComputeLoopIdx_ & 1) * UB_BUFFER_INFO.biasReducedSingleBufferSize],
+             biasRealSize);
     }
     SetFlag<HardEvent::MTE3_V>(
         EVENT_ID_MTE3_TO_V + (ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)));
@@ -443,40 +443,12 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Weight
 }
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline uint64_t GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::ComputeWeightHighBitL1Offset(
-    uint64_t antiQuantNOffset, uint64_t antiQuantKOffset, uint64_t nRealLen, uint64_t kRealLen,
-    const L1ConsumeConfig &l1ConsumeConfig)
-{
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-        uint64_t l1RealExternalLenAlign =
-            CeilAlign(l1ConsumeConfig.l1RealExternalLen, static_cast<uint64_t>(BLOCK_CUBE));
-        if constexpr (!wqmmConfig.bTrans) {
-            return l1RealExternalLenAlign * antiQuantNOffset +
-                   (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) * static_cast<uint64_t>(BLOCK_CUBE);
-        } else {
-            return l1RealExternalLenAlign * antiQuantKOffset +
-                   (antiQuantNOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) * static_cast<uint64_t>(BLOCK_CUBE);
-        }
-    } else {
-        if constexpr (!wqmmConfig.bTrans) {
-            uint64_t kRealLenAlign = CeilAlign(kRealLen, static_cast<uint64_t>(BLOCK_CUBE));
-            return kRealLenAlign * (antiQuantNOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
-                   antiQuantKOffset * static_cast<uint64_t>(C0_SIZE);
-        } else {
-            uint64_t nRealLenAlign = CeilAlign(nRealLen, static_cast<uint64_t>(BLOCK_CUBE));
-            return nRealLenAlign * (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
-                   antiQuantNOffset * static_cast<uint64_t>(C0_SIZE);
-        }
-    }
-}
-
-GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::AntiQuantProcessNzMxA8W4(
-    const UbConsumeConfig &ubConsumeConfig)
+    uint64_t biasRealSize, uint64_t ubMte2KSize, const BasicBlockOffsetParam &offsetParam)
 {
     MxA8W4NzParams<xType, wType, biasType> mxA8W4NzParams;
     uint64_t ubMte2BufferIdx = (ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1);
-    mxA8W4NzParams.nRealSizeAlign = CeilAlign(ubConsumeConfig.l1RequireVfComputeRealN, static_cast<uint64_t>(BLOCK_CUBE));
+    mxA8W4NzParams.nRealSizeAlign = CeilAlign(offsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE));
     mxA8W4NzParams.weightLowBitPhyAddr =
         (__ubuf__ wType *)
             ubWeightInputLowBitTotalBuffer_[ubMte2BufferIdx * UB_BUFFER_INFO.weightInputLowBitUbSingleBufferSize]
@@ -487,51 +459,39 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::AntiQu
             ubHighBitTotalBuffer_[(ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)) *
                                   VECTOR_REG_WIDTH]
                 .GetPhyAddr();
-    mxA8W4NzParams.loopKNum = CeilDivide(ubConsumeConfig.l1RequireVfComputeRealK, static_cast<uint64_t>(C0_SIZE));
-    mxA8W4NzParams.innerLoopNum = CeilDivide(CeilAlign(ubConsumeConfig.l1RequireVfComputeRealN, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
+    mxA8W4NzParams.loopKNum = CeilDivide(ubMte2KSize, static_cast<uint64_t>(C0_SIZE));
+    mxA8W4NzParams.innerLoopNum = CeilDivide(CeilAlign(offsetParam.nL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
                                           static_cast<uint64_t>(VECTOR_REG_WIDTH));
     // 跳写UB避免bank冲突
     mxA8W4NzParams.innerDstStride = VECTOR_REG_WIDTH * UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum;
     mxA8W4NzParams.loopKDstStride = mxA8W4NzParams.innerLoopNum * mxA8W4NzParams.innerDstStride;
-    if (ubConsumeConfig.calcMxBias) {
-        mxA8W4NzParams.biasInUbAddr =
-            (__ubuf__ biasType *)ubBiasTotalBuffer_[ubMte2BufferIdx * UB_BUFFER_INFO.biasUbSingleBufferSize]
-                .GetPhyAddr();
-        mxA8W4NzParams.biasOutUbAddr =
-            (__ubuf__ biasType *)ubBiasOutTotalBuffer_[ubMte2BufferIdx * UB_BUFFER_INFO.biasReducedSingleBufferSize]
-                .GetPhyAddr();
-        if (ubConsumeConfig.isBiasSingleVector) {
-            mxA8W4NzParams.biasLoopNum = CeilDivide(ubConsumeConfig.ubMxBiasNsize, VEC_MAX_ELEM_B16);
-            AntiQuantMxA8W4NzNkVf<xType, wType, biasType, true, true>(mxA8W4NzParams);
-        } else {
-            AntiQuantMxA8W4NzNkVf<xType, wType, biasType, true, false>(mxA8W4NzParams);
-        }
+
+    if (hasBias_ && kGmOffset != 0 && biasRealSize != 0) {
+        mxA8W4NzParams.biasInUbAddr = (__ubuf__ biasType *)ubBiasTotalBuffer_.GetPhyAddr(
+            (ubMte2LoopIdx_ & 1) * UB_BUFFER_INFO.biasUbSingleBufferSize);
+        mxA8W4NzParams.biasOutUbAddr = (__ubuf__ biasType *)ubBiasOutTotalBuffer_.GetPhyAddr(
+            (ubComputeLoopIdx_ & 1) * UB_BUFFER_INFO.biasReducedSingleBufferSize);
+        mxA8W4NzParams.biasLoopNum = CeilDivide(biasRealSize, VEC_MAX_ELEM_B16);
+        FrAntiQuantMxA8W4NzNkVf<xType, wType, biasType, true>(mxA8W4NzParams);
     } else {
-        AntiQuantMxA8W4NzNkVf<xType, wType, biasType, false, false>(mxA8W4NzParams);
+        FrAntiQuantMxA8W4NzNkVf<xType, wType, biasType, false>(mxA8W4NzParams);
     }
 }
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyWeightHighBitForAligned(
-    uint64_t weightHighBitL1Offset, uint64_t antiQuantRealN, uint64_t antiQuantRealK,
+    uint64_t antiQuantRealN, uint64_t antiQuantRealK,
     const LocalTensor<xType> &weightHighBitL1)
 {
     DataCopyParams params;
-    if constexpr (!wqmmConfig.bTrans) {
-        params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(BLOCK_CUBE)) *
-                            CeilAlign(antiQuantRealN, static_cast<uint64_t>(C0_SIZE)) / VEC_REG_ELEM;
-    } else {
-        params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(C0_SIZE)) *
-                            CeilAlign(antiQuantRealN, static_cast<uint64_t>(BLOCK_CUBE)) / VEC_REG_ELEM;
-    }
+    params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(C0_SIZE)) *
+                        CeilAlign(antiQuantRealN, static_cast<uint64_t>(BLOCK_CUBE)) / VEC_REG_ELEM;
 
-    params.blockLen = (IsSameType<xType, int8_t>::value || IsSameType<xType, fp8_e4m3fn_t>::value)
-                          ? VEC_REG_ELEM / ONE_BLK_SIZE
-                          : VEC_REG_ELEM / BLOCK_CUBE;
+    params.blockLen = VEC_REG_ELEM / ONE_BLK_SIZE;
     params.srcStride = (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1) * params.blockLen;
     params.dstStride = 0;  // dst地址连续
     DataCopy(
-        weightHighBitL1[weightHighBitL1Offset],
+        weightHighBitL1,
         ubHighBitTotalBuffer_[(ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)) * VEC_REG_ELEM],
         params);
 }

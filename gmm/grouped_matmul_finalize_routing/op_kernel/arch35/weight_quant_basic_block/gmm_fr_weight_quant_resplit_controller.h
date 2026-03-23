@@ -12,10 +12,9 @@
  * \file grouped_matmul_weight_quant_resplit_controller.h
  * \brief
  */
-#ifndef GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
-#define GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
+#ifndef GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
+#define GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
 
-#include "../common/weight_quant_vcv_basic_block_base.h"
 #include "./gmm_fr_weight_quant_tiling_data.h"
 #include "./gmm_fr_weight_quant_vcv_basic_block.h"
 
@@ -33,24 +32,23 @@ using WeightQuantBatchMatmulV2::Arch35::QUADRUPLE_BUFFER_NUM;
 using WeightQuantBatchMatmulV2::Arch35::QuantType;
 using WeightQuantBatchMatmulV2::Arch35::SCALE_FACTOR_B_BIT;
 using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
-using WeightQuantBatchMatmulV2::Arch35::WeightQuantVcvMatmulBasicBlockBaseClass;
 using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
 using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
 using WeightQuantBatchMatmulV2::Arch35::WQFRVcvMatmulBasicBlock;
 using GMMFRTiling = GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData;
 
 namespace GROUPED_MATMUL_FINALIZE_ROUTING {
-#define GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM                                               \
+#define GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM                                               \
     template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, \
               typename perTokenScaleType, typename biasType, typename yType, typename sharedInputDType,                  \
               const WqmmConfig &wqmmConfig,      \
               const VecAntiQuantConfig &vecConfig>
 
-#define GMMFR_WQ_RESPLIT_CONTROLLER_CLASS                                                                              \
+#define GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS                                                                              \
     GMMFRWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, sharedInputDType, \
                                     wqmmConfig, vecConfig>
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
 class GMMFRWeightQuantResplitController {
 public:
     __aicore__ inline GMMFRWeightQuantResplitController(){};
@@ -95,8 +93,8 @@ private:
     uint64_t mxA8W4L1KDynamicConfigMThreshold_; // m轴依赖空间划分，无法静态配置
 };
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR antiquantScale,
     GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
     GM_ADDR y, GM_ADDR shareInput, const GMMFinalizeRoutingWeightQuantTilingData *__restrict baseTiling)
@@ -118,8 +116,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Init(
                                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Process()
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::Process()
 {
     uint32_t cubeBlockIdx = GetBlockIdx();
     if ASCEND_IS_AIV {
@@ -167,8 +165,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::Process()
     basicBlock_.End(offsetParam[GetSwitchedProcessId(ctrlParam)]);
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::InitOffsetParam(
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::InitOffsetParam(
     BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM])
 {
     offsetParam[0].kbL1Size = KB_L1_SIZE;
@@ -186,8 +184,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::InitOffsetParam(
     offsetParam[1].nAlign = offsetParam[0].nAlign;
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
     BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM], BasicBlockControlParam &ctrlParam,
     uint64_t basicBlockCount, uint64_t basicBlockSize)
 {
@@ -221,8 +219,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
     ctrlParam.nOffset += basicBlockSize * basicBlockCount;
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::UpdateGmAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize)
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline void GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::UpdateGmAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize)
 {
     xGm_ += mSize * kSize;
     if constexpr (IsSameType<wType, int4b_t>::value || IsSameType<wType, fp4x2_e2m1_t>::value ||
@@ -252,8 +250,8 @@ __aicore__ inline void GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::UpdateGmAddr(uint64_t 
     yGm_ += mSize * nSize;
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline uint64_t GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::GetSplitValueFromGroupList(uint64_t groupIdx)
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline uint64_t GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::GetSplitValueFromGroupList(uint64_t groupIdx)
 {
     uint64_t splitValue = 0;
     if (tiling_->groupListType == 0) {
@@ -266,18 +264,11 @@ __aicore__ inline uint64_t GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::GetSplitValueFromG
     return splitValue;
 }
 
-GMMFR_WQ_RESPLIT_CONTROLLER_TEMPLATE_PARAM
-__aicore__ inline uint64_t GMMFR_WQ_RESPLIT_CONTROLLER_CLASS::GetSwitchedProcessId(
+GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_TEMPLATE_PARAM
+__aicore__ inline uint64_t GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::GetSwitchedProcessId(
     const BasicBlockControlParam &ctrlParam)
 {
-    // vcv流水0/1倒换，vc流水ctrlParam.processId始终取0
-    if constexpr (std::is_base_of_v<WeightQuantVcvMatmulBasicBlockBaseClass,
-                                    WQFRVcvMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType,
-                                               yType, sharedInputDType, wqmmConfig, vecConfig>>) {
-        return 1 - ctrlParam.processId;
-    } else {
-        return ctrlParam.processId;
-    }
+    return 1 - ctrlParam.processId;
 }
 
 }  // namespace GROUPED_MATMUL
