@@ -52,7 +52,7 @@ struct AllGatherMatmulV2HostUtParamBase {
         this->group_size = stoll(ReadMap(csvMap, "group_size"));
         this->is_gather_out = stoi(ReadMap(csvMap, "is_gather_out"));
         this->is_amax_out = stoi(ReadMap(csvMap, "is_amax_out"));
-        GetDataType(csvMap, "y_dtype", y_dtype);
+        GetDataTypeGE(csvMap, "y_dtype", y_dtype);
         this->comm_mode = ReadMap(csvMap, "comm_mode");
         this->expectResult = ReadMap(csvMap, "expectResult") == "SUCCESS" ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
     }
@@ -90,31 +90,31 @@ struct AllGatherMatmulV2TilingUtParam: public AllGatherMatmulV2HostUtParamBase {
         AllGatherMatmulV2HostUtParamBase(csvMap)
     {
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
+            GetTensorGE(csvMap, "x1_shape", "x1_dtype", "x1_format",
                 x1));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x2_shape", "x2_dtype", "x2_format",
+            GetTensorGE(csvMap, "x2_shape", "x2_dtype", "x2_format",
                 x2));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "bias_shape", "bias_dtype", "bias_format",
+            GetTensorGE(csvMap, "bias_shape", "bias_dtype", "bias_format",
                 bias));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x1_scale_shape", "x1_scale_dtype", "x1_scale_format",
+            GetTensorGE(csvMap, "x1_scale_shape", "x1_scale_dtype", "x1_scale_format",
                 x1_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x2_scale_shape", "x2_scale_dtype", "x2_scale_format",
+            GetTensorGE(csvMap, "x2_scale_shape", "x2_scale_dtype", "x2_scale_format",
                 x2_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "quant_scale_shape", "quant_scale_dtype", "quant_scale_format",
+            GetTensorGE(csvMap, "quant_scale_shape", "quant_scale_dtype", "quant_scale_format",
                 quant_scale));
         this->outputInstance.emplace_back(
-            GetTensor(csvMap, "output_y_shape", "output_y_dtype", "output_y_format",
+            GetTensorGE(csvMap, "output_y_shape", "output_y_dtype", "output_y_format",
                 y));
         this->outputInstance.emplace_back(
-            GetTensor(csvMap, "gather_out_shape", "gather_out_dtype", "gather_out_format",
+            GetTensorGE(csvMap, "gather_out_shape", "gather_out_dtype", "gather_out_format",
                 gather_out));
         this->outputInstance.emplace_back(
-            GetTensor(csvMap, "amax_out_shape", "amax_out_dtype", "amax_out_format",
+            GetTensorGE(csvMap, "amax_out_shape", "amax_out_dtype", "amax_out_format",
                 amax_out));
         this->soc = ReadMap(csvMap, "soc");
         this->coreNum = stoull(ReadMap(csvMap, "core_num"));
