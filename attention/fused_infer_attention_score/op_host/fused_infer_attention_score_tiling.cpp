@@ -1148,8 +1148,8 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
         tempKD = tempK->GetStorageShape().GetDim(DIM_2);
         tempVD = tempV->GetStorageShape().GetDim(DIM_2);
     } else {
-        int32_t kvHeadNum = *(attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX));
-        int32_t inputBlockSize = *(attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX));
+        int64_t kvHeadNum = *(attrs->GetAttrPointer<int64_t>(ATTR_NUM_KV_HEADS_INDEX));
+        int64_t inputBlockSize = *(attrs->GetAttrPointer<int64_t>(ATTR_BLOCK_SIZE_INDEX));
         int64_t cacheBlockSize = 0;
         if (tempK->GetStorageShape().GetDimNum() == 3U) {
             tempKD = (tempK->GetStorageShape().GetDim(DIM_2)) / kvHeadNum;
