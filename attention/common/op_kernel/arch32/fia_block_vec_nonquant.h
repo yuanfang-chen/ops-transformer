@@ -631,14 +631,14 @@ __aicore__ void FiaBlockVecNonQuant<FIAT>::DealAttenMask(
     }
 
     if (!fa_base_vector::IsSkipAttentionmask<TREE_MASK>(maskInfo)) {
-        fa_base_vector::AttentionmaskCopyIn<bool, uint8_t, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
+        fa_base_vector::AttentionmaskCopyIn<bool, bool, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
         AscendC::PipeBarrier<PIPE_V>();
         fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
     }
     if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
         SetFlag<HardEvent::V_MTE2>(eventIdVMte2);
         WaitFlag<HardEvent::V_MTE2>(eventIdVMte2);
-        fa_base_vector::AttentionmaskCopyIn<bool, uint8_t, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
+        fa_base_vector::AttentionmaskCopyIn<bool, bool, TREE_MASK>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
         fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
     }
     inputQue2.FreeTensor(maskUb);
