@@ -813,7 +813,6 @@ namespace SplitFuse {
                                         qkReady,
                                         kvSStartIdx,
                                         doTriUPreMask,
-
                                         doTriUNextMask,
                                         preTokenStartLen,
                                         preTokenEndLen,
