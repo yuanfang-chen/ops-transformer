@@ -454,8 +454,27 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ElewiseCompute(
         }
 
         maskInfo.attenMaskType = fa_base_vector::MASK_BOOL; // compatible with int8/uint8
+
+        // 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
+        // TND场景下mask传入∑s1²，其余场景传入[B,S1,S1]
         LocalTensor<bool> maskUb = inputBuff2.Get<bool>();
         maskUb = maskUb[pingpongFlag * INPUT2_BUFFER_OFFSET / sizeof(bool)];
+        if (maskInfo.sparseMode == fa_base_vector::TREE) {
+            WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF2_FLAG + pingpongFlag);
+            LocalTensor<int16_t> mask16 = maskUb.template ReinterpretCast<int16_t>();
+            AscendC::Duplicate(mask16, static_cast<int16_t>(0), INPUT2_BUFFER_OFFSET / sizeof(int16_t));
+            maskUb = mask16.template ReinterpretCast<bool>();
+            SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF2_FLAG + pingpongFlag);
+            // 修改attenMaskStride、attenMaskBatchStride值
+            maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
+            if (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
+                maskInfo.attenMaskStride = info.actS1Size;
+                maskInfo.attenMaskBatchStride = 0;
+                for (int32_t i = 0; i < maskInfo.batchIdx; i++) {
+                    maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
+                }
+            }
+        }
         LocalTensor<bool> attenMaskTmpUb = attenMaskTmpBuff.Get<bool>();
         LocalTensor<uint8_t> ubWorkSpace = tmpBuf.Get<uint8_t>();
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
