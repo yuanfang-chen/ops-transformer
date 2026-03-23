@@ -205,6 +205,7 @@ struct RunInfo {
     uint32_t actualSeqLenKVSize; /* 用户输入的actualseq_kv的长度 */ \
     /* service mm1 mm2 pageAttention */ \
     uint32_t blockSize; \
+    uint32_t keyBlockStride; \
     uint32_t paLayoutType; \
     uint32_t maxBlockNumPerBatch; \
     uint32_t sparseBlockSize; \
@@ -233,6 +234,7 @@ struct RunInfo {
     /* pa params */  \
     uint32_t blockSize : 12; \
     uint32_t maxBlockNumPerBatch; \
+    uint32_t keyBlockStride; \
     uint32_t usedCoreNum
 
 
