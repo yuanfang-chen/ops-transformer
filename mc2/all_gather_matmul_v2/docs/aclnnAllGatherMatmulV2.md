@@ -263,7 +263,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
         <td>output</td>
         <td>输出</td>
         <td>AllGather通信与MatMul计算的结果，即计算公式中的output。</td>
-        <td>支持空Tensor。</td>
+        <td><ul><li>Ascend 950PR/Ascend 950DT:支持空Tensor。</li><li>Atlas A2 训练系列产品/Atlas A2 推理系列产品:不支持空Tensor。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>2</td>
@@ -273,7 +273,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
         <td>gatherOut</td>
         <td>输出</td>
         <td>仅输出all_gather通信后的结果。即公式中的gatherOut。</td>
-        <td><ul><li>支持空Tensor。</li><li>数据类型与x1的数据类型保持一致。</li></ul></td>
+        <td><ul><li>Ascend 950PR/Ascend 950DT:支持空Tensor。</li><li>Atlas A2 训练系列产品/Atlas A2 推理系列产品:不支持空Tensor。</li><li>数据类型与x1的数据类型保持一致。</li></ul></td>
         <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、INT8、INT4</td>
         <td>ND</td>
         <td>2</td>
@@ -430,7 +430,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
     - 只支持x2矩阵转置/不转置，x1矩阵仅支持不转置场景。
     - 输入x1必须是2维，其shape为\(m, k\)。
     - 输入x2必须是2维，其shape为\(k, n\)，轴满足mm算子入参要求，k轴相等，且k轴取值范围为\[256, 65535\)。
-    - bias为1维，shape为\(n,\)。
+    - bias仅支持输入nullptr。
     - 输出为2维，其shape为\(m*rank\_size, n\), rank\_size为卡数。
     - 不支持空tensor。
     - x1和x2的数据类型需要保持一致。

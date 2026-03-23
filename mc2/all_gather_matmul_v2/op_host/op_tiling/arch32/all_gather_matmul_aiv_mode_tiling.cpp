@@ -90,6 +90,8 @@ int32_t GetValueFromMKNConditionMapAllGather(int32_t m, int32_t k, int32_t n, in
 static void GetTilingKey(uint64_t &tilingKey, const AllGatherMatmulAIVModeInfo &info, const gert::TilingContext *context)
 {
     const gert::StorageShape *matrixBias = context->GetOptionalInputShape(BIAS_INDEX);
+    OP_TILING_CHECK(matrixBias != nullptr,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "AivMode, bias must be nullptr."), return GRAPH_FAILED);
     bool isBias = (matrixBias == nullptr) ? false : true;
     tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeX1, info.isTransposeX2);
 }
