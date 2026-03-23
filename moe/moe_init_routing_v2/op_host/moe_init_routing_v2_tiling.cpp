@@ -92,17 +92,19 @@ ge::graphStatus MoeInitRoutingV2TilingBase::GetPlatformInfo()
     OP_CHECK_IF(platformInfo == nullptr, OP_LOGE(context_->GetNodeName(), "fail to get platform info."),
               return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    aivNum = ascendcPlatform.GetCoreNumAiv();
+
+    auto compileInfoPtr = reinterpret_cast<const MoeInitRoutingV2CompileInfo*>(context_->GetCompileInfo());
+    OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
+    aivNum = compileInfoPtr->aivNum;
     aicoreParams_.numBlocks = aivNum;
-    uint64_t ubSizePlatForm;
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
-    aicoreParams_.ubSize = ubSizePlatForm - SIMT_UB_SIZE_BYTE;
+    aicoreParams_.ubSize = compileInfoPtr->ubSize - SIMT_UB_SIZE_BYTE;
+
     mrgSortListMaxElement = 2048; // DAVID下，单词搬运最大元素个数2048
     regBase = Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_);
     is310P = (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P);
     CHECK_FAIL(context_, (is310P && dropPadMode != 0), "The dropPadMode only support 0 on 310p.");
     if (!regBase) {
-        aicoreParams_.ubSize = ubSizePlatForm;
+        aicoreParams_.ubSize = compileInfoPtr->ubSize;
         mrgSortListMaxElement = 2040; // 单词搬运最大元素个数2040
     }
     moeInitRoutingTilingData.set_coreNum(aivNum);
