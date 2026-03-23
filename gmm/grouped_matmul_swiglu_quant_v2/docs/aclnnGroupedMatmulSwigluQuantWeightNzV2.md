@@ -421,10 +421,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
       - <strong>weight强制视为FRACTAL_NZ格式。</strong>
-      - weight仅支持非转置，INT32为A8W4和A4W4场景下的适配用途，实际1个INT32会被解释为8个INT4数据，A8W8场景不支持ND数据格式。
+      - weight 在A4W4下支持转置，其他输入仅支持非转置，INT32为A8W4和A4W4场景下的适配用途，实际1个INT32会被解释为8个INT4数据，A8W8场景不支持ND数据格式。
       - 支持dequantMode参数：A8W4场景支持取值0和1，A8W8和A4W4场景仅支持取值0。
       - 不支持dequantDtype和quantMode参数。
       - x和weight不支持空Tensor。
+      - weight NZ转置输入时，仅支持单Tensor模式
       - weight、weightScale和weightAssistMatrix支持单Tensor场景（tensorlist长度为1）和多Tensor场景（tensorlist长度大于1）。
 
 
