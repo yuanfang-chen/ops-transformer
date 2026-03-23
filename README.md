@@ -55,6 +55,7 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 │   │   ├── CMakeLists.txt         # 算子编译配置文件
 │   │   ├── docs                   # 算子说明文档
 │   │   ├── examples               # 算子使用示例
+│   │   ├── op_graph               # 算子构图相关目录
 │   │   ├── op_host                # 算子信息库、Tiling、InferShape相关实现目录
 │   │   ├── op_api                 # 可选，算子aclnn接口实现目录，如未提供则表示此算子的aclnn接口会让工程自动生成
 │   │   ├── op_kernel              # 算子kernel目录
