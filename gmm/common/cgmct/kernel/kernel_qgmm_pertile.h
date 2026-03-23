@@ -262,7 +262,7 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     int64_t k = Get<MNK_K>(problemShape_);
     // aBaseOffset += m * k
     Get<IDX_A_OFFSET>(baseOffset_) += m * k;
-    if (groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M) {
+    if (groupType_ == GROUP_TYPE_M) {
         Get<IDX_B_OFFSET>(baseOffset_) = n * k * groupIdx;
     } else {
         // bBaseOffset += n * k
@@ -276,8 +276,8 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     } else { // split m, x1Scale:(m, ceil(k/gs)) x2Scale:(g, ceil(n/gs), ceil(k/gs)) or (g, ceil(k/gs), ceil(n/gs))
         int64_t scaleK = CeilDiv(k, PER_BLOCK_SIZE);
         Get<IDX_X1SCALE_OFFSET>(baseOffset_) += m * scaleK;
-        // grouplisttype==2 且 M 轴分组：权重按 groupIdx 连续存放，B 的 scale 也需按 groupIdx 直接索引
-        if (groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M) {
+        // M轴分组时统一按groupIdx推导B的scale偏移，避免依赖grouplisttype分支
+        if (groupType_ == GROUP_TYPE_M) {
             Get<IDX_X2SCALE_OFFSET>(baseOffset_) = static_cast<int64_t>(groupIdx) * CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
         } else {
             Get<IDX_X2SCALE_OFFSET>(baseOffset_) += CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
