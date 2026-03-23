@@ -341,7 +341,7 @@ bool CheckGammaShape(const aclTensor *gammaOptional, int64_t n, int64_t d)
     return true;
 }
 
-bool CheckDtypeValid_mhc(const MhcParamsBase &params)
+bool CheckDtypeValid(const MhcParamsBase &params)
 {
     const std::initializer_list<DataType> X_SUPPORT_DTYPE_LIST = {DataType::DT_BF16, DataType::DT_FLOAT16};
 
@@ -435,7 +435,7 @@ aclnnStatus CheckParams(const MhcParamsBase &params)
     CHECK_RET(CheckInputOutShape(params), ACLNN_ERR_PARAM_INVALID);
 
     // 4. 检查输入的数据类型是否在支持的数据类型范围之内
-    CHECK_RET(CheckDtypeValid_mhc(params), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
 
     // 5. 检查数据形状是否支持
     CHECK_RET(CheckFormat(params), ACLNN_ERR_PARAM_INVALID);
