@@ -276,7 +276,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Process()
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::AIVPreLoad()
 {
-    invRmsUb_ = invRmsOutQueue_.AllocTensor<P>();
+    invRmsUb_ = invRmsOutQueue_.template AllocTensor<P>();
     AIV1GetHSliceOffset();
 
     float alphaPre = alphaGm_.GetValue(0);
@@ -290,7 +290,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AIVPreLoad()
         }
     }
     this->BiasCopyIn();
-    biasInUb_ = biasInQue_.DeQue<P>();
+    biasInUb_ = biasInQue_.template DeQue<P>();
 }
 
 template <class T, class P>
