@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-* ​接口功能​：aclnnBlockSparseAttention稀疏注意力反向计算，支持灵活的块级稀疏模式，通过BlockSparseMask指定每个Q块选择的KV块，实现高效的稀疏注意力计算。
+* ​算子功能​：aclnnBlockSparseAttention稀疏注意力反向计算，支持灵活的块级稀疏模式，通过BlockSparseMask指定每个Q块选择的KV块，实现高效的稀疏注意力计算。
 * ​计算公式​：
 稀疏块大小：$blockShapeX×blockShapeY$，BlockSparseMask指定稀疏模式。
   
