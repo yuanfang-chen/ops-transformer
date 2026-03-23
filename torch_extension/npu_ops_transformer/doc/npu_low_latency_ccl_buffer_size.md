@@ -1,4 +1,4 @@
-# npu\_low\_latency_dispatch<a name="ZH-CN_TOPIC_0000002343094193"></a>
+# npu\_low\_latency\_ccl\_buffer\_size<a name="ZH-CN_TOPIC_0000002343094194"></a>
 
 ## 产品支持情况
 
@@ -6,155 +6,72 @@
 | ------------------------------------------------------------ | :------: |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>            |    √    |
 
-## 功能说明<a name="zh-cn_topic_0000002203575833_section14441124184110"></a>
+## 功能说明<a name="zh-cn_topic_0000002203575834_section14441124184111"></a>
 
--   API功能：需与[npu\_low\_latency_combine](npu_low_latency_combine.md)配套使用，完成MoE的并行部署下的token的dispatch和combine。
-     - 支持动态量化场景，对token数据先进行量化（可选），进行EP（Expert Parallelism）域的alltoallv通信；
-     - 支持特殊专家场景。
+-   API功能：
+    
+    需与[npu\_low\_latency_dispatch](npu_low_latency_dispatch.md)和[npu\_low\_latency_combine](npu_low_latency_combine.md)配套使用，用于计算dispatch_V3和combine_v3算子所需的HCCL通信buffer_size大小（单位：MB）。该接口为静态方法，可在初始化`MoeDistributeBuffer`前调用。
 -   计算公式：
-    - 动态量化场景：
 
-      若`quant_mode`不为`2`，即非动态量化场景：
+    -   计算token实际长度：
 
-         $$
-         \ quant\_out=
-         \begin{cases}
-         \ x, & \quad \text{if}\ quant\_mode = 0 \\
-         \ CastToInt8(\ CastToFp32(x) \times \ scales ), & \quad \text{if } quant\_mode ≠ 0 \\
-         \end{cases}
-         $$
+        $$token\_actual\_len = Align32(hidden * max\_out\_dtype\_size) + scale\_expand\_index\_buffer$$
 
-         $$\ alltoall\_x\_out= \ alltoallv(\ quant\_out)$$
+        其中max_out_dtype_size为token类型转为字节数，scale_expand_index_buffer为scale（32B）+ expand_idx（3 × 4B）
 
-         $$\ expand\_x= \ alltoall\_x\_out$$
+    -   根据`comm_alg`计算dispatch阶段每个token所需大小：
 
-      若`quant_mode`为`2`，即动态量化场景：
+        若`comm_alg`为"fullmesh\_v2"：
 
-         $$\ x\_fp32= \ CastToFp32(x) \times \ scales$$
+        $$token\_need\_size\_dispatch = Align480(token\_actual\_len) / full\_mesh\_data\_align * win\_addr\_align$$
 
-         $$\ dynamic\_scales\_value = 127.0/Max(Abs(x\_fp32))$$
+        若`comm_alg`为"fullmesh\_v1"或""：
 
-         $$\ quant\_out=CastToInt8(\ x\_fp32 \times \ dynamic\_scales\_value )$$
+        $$token\_need\_size\_dispatch = Align512(token\_actual\_len)$$
 
-         $$\ alltoall\_x\_out= \ alltoallv(\ quant\_out)$$
+    -   计算combine阶段每个token所需大小：
 
-         $$\ alltoall\_dynamic\_scales\_out = alltoall(1.0/dynamic\_scales)$$
+        $$token\_need\_size\_combine = Align512(hidden * max\_out\_dtype\_size)$$
+    
+        其中，full_mesh_data_align为480对齐，win_addr_align为512对齐
 
-         $$\ expand\_x=\ alltoall\_x\_out$$
+    -   计算最ccl_buffer_size大小：
 
-         $$\ dynamic\_scales=\ alltoall\_dynamic\_scales\_out$$
+        $$dispatch\_buffer\_size = 2 * num\_max\_dispatch\_tokens\_per\_rank * token\_need\_size\_dispatch * world\_size * local\_moe\_expert\_num$$
+        $$combine\_buffer\_size = 2 * num\_max\_dispatch\_tokens\_per\_rank * token\_need\_size\_combine * (topk + num\_shared\_expert)$$
+        $$ccl\_buffer\_size = Align1MB(dispatch\_buffer\_size + combine\_buffer\_size) / 1MB$$
 
-
-    - 特殊专家场景：
-
-      零专家场景，即`zero_Expert_Num`不为0：
-
-         $$Moe(ori\_x)=0$$
-
-      拷贝专家场景，即`copy_Expert_Num`不为0：
-
-         $$Moe(ori\_x)=ori\_x$$
-
-      常量专家场景，即`const_expert_num`不为0：
-
-         $$Moe(ori\_x)=const\_expert\_alpha\_1*ori\_x+const\_expert\_alpha\_2*const\_expert\_v$$
-
-      参数ori\_x、const\_expert\_alpha\_1、const\_expert\_alpha\_2、const\_expert\_v见[npu\_low\_latency_combine](npu\_low\_latency_combine.md)文档。
-
-## 函数原型<a name="zh-cn_topic_0000002203575833_section45077510411"></a>
+## 函数原型<a name="zh-cn_topic_0000002203575834_section45077510412"></a>
 
 ```
-npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="", x_smooth_scale=None, x_active_mask=None, topk_weights=None, zero_expert_num=0, copy_expert_num=0, const_expert_num=0, elastic_info=None, expert_shard_type=0, shared_expert_num=1, shared_expert_rank_num=0, expert_token_nums_type=1, num_max_dispatch_tokens_per_rank = 0) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor)
+get_low_latency_ccl_buffer_size(world_size, num_max_dispatch_tokens_per_rank, hidden, num_moe_expert, topk, num_shared_expert=0, num_shared_expert_ranks=0, comm_alg="") -> int
 ```
 
-## 参数说明<a name="zh-cn_topic_0000002203575833_section112637109429"></a>
+## 参数说明<a name="zh-cn_topic_0000002203575834_section112637109430"></a>
 
--   **x** (`Tensor`)：必选参数，表示计算使用的token数据，需根据`topk_idx`来发送给其他卡。要求为2维张量，shape为(BS, H)，表示有BS个token，数据类型支持`bfloat16`、`float16`，数据格式为$ND$，支持非连续的Tensor。
--   **topk\_idx** (`Tensor`)：必选参数，表示每个token的topK个专家索引，决定每个token要发给哪些专家。要求为2维张量，shape为(BS, K)，数据类型支持`int32`，数据格式为$ND$，支持非连续的Tensor。对应[npu\_low\_latency\_combine](npu_low_latency_combine.md)的`topk_idx`输入，张量里value取值范围为\[0, num\_experts\)，且同一行中的K个value不能重复。
--   **num\_experts** (`int`)：必选参数，MoE专家数量，取值范围[1, 1024]，并且满足以下条件：num\_experts\%(ep\_world\_size - shared\_expert\_rank\_num)\=0。
-- <strong>*</strong>：必选参数，代表其之前的变量是位置相关的，必须按照顺序输入；之后的变量是可选参数，位置无关，需要使用键值对赋值，不赋值会使用默认值。
--   **quant\_mode** (`int`)：可选参数，表示量化模式。支持取值：0表示非量化（默认），2表示动态量化。当`quant_mode`为2，`dynamic_scales`不为None；当`quant_mode`为0，`dynamic_scales`为None。
--   **comm\_alg** (`string`)：可选参数，表示通信亲和内存布局算法。当前版本支持""，"fullmesh_v1"，"fullmesh_v2"三种输入方式。
-    - ""：默认值，使能fullmesh_v1模板；
-    - "fullmesh_v1"：使能fullmesh_v1模板；
-    - "fullmesh_v2"：使能fullmesh_v2模板；
--   **x\_smooth\_scales** (`Tensor`)：可选参数，表示每个专家的权重，非量化场景不传，动态量化场景可传可不传。若传值要求为2维张量，如果有共享专家，shape为(shared\_expert\_num+num\_experts, H)，如果没有共享专家，shape为(num\_experts, H)，数据类型支持`float`，数据格式为$ND$，不支持非连续的Tensor。
--   **x\_active\_mask** (`Tensor`)：可选参数，表示token是否参与通信，要求是一个1维或者2维张量。当输入为1维时，shape为(BS, ); 当输入为2维时，shape为(BS, K)。数据类型支持`bool`，数据格式要求为$ND$，支持非连续的Tensor。当输入为1维时，参数为true表示对应的token参与通信，true必须排到false之前，例：{true, false, true} 为非法输入；当输入为2D时，参数为true表示当前token对应的`topk_idx`参与通信，若当前token对应的K个`bool`值全为false，表示当前token不会参与通信。默认所有token都会参与通信。当每张卡的BS数量不一致时，所有token必须全部有效。
--   **topk\_weights** (`Tensor`)：暂不支持该参数，使用默认值即可。
--   **zero\_expert\_num** (`int`)：可选参数，表示零专家的数量，取值范围[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的零专家的ID值是[num\_experts, num\_experts+zero\_expert\_num)。
+-   **world\_size** (`int`)：必选参数，表示通信域的大小。取值范围[2, 768]。
+-   **num\_max\_dispatch\_tokens\_per\_rank** (`int`)：必选参数，表示每张卡上的token数量。当每个rank的BS不同时，最大的BS大小。
+-   **hidden** (`int`)：必选参数，表示hidden size隐藏层大小。取值范围[1024, 8192]。
+-   **num\_moe\_expert** (`int`)：必选参数，MoE专家数量，取值范围[1, 1024]，并且满足以下条件：num\_experts\%(ep\_world\_size - shared\_expert\_rank\_num)\=0。
+-   **topk** (`int`)：必选参数，表示选取topK个专家，取值范围为0 < K ≤ 16，同时满足0 < K ≤ num_experts + zero_expert_num + copy_expert_num + const_expert_num。
+-   **num\_shared\_expert** (`int`)：可选参数，表示共享专家数量，一个共享专家可以复制部署到多个卡上。取值范围[0, 4]，0表示无共享专家，默认值为0。
+-   **num\_shared\_expert\_ranks** (`int`)：可选参数，表示共享专家卡数量。必须满足`world_size - num_shared_expert_ranks > 0`，默认值为0。
+-   **comm\_alg** (`string`)：可选参数，表示通信算法。支持取值："fullmesh\_v1"、"fullmesh\_v2"或""（默认）。
 
--   **copy\_expert\_num** (`int`)：可选参数，表示拷贝专家的数量，取值范围[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的拷贝专家的ID值是[num\_experts+zero\_expert\_num, num\_experts+zero\_expert\_num+copy\_expert\_num)。
+## 输出说明<a name="zh-cn_topic_0000002203575834_section22231435518"></a>
 
--   **const\_expert\_num** (`int`)：可选参数，表示常量专家的数量, 取值范围[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的常量专家的ID值是[moe\_expert\_num+zero\_expert\_num+copy\_expert\_num, moe\_expert\_num+zero\_expert\_num+copy\_expert\_num+const\_expert\_num)。
--   **elastic\_info** (`Tensor`)：预留参数，当前版本不支持，传默认值None即可。
+`int`
 
--   **expert\_shard\_type** (`int`)：可选参数，表示共享专家卡排布类型。当前仅支持0，表示共享专家卡排在MoE专家卡前面。
+表示计算得到的ccl_buffer_size大小，单位为MB。
 
--   **shared\_expert\_num** (`int`)：可选参数，表示共享专家数量，一个共享专家可以复制部署到多个卡上。取值范围[0, 4]，0表示无共享专家，默认值为1。
-
--   **shared\_expert\_rank\_num** (`int`)：可选参数，表示共享专家卡数量。取值范围[0, ep\_world\_size)。取0表示无共享专家，不取0需满足shared\_expert\_rank\_num%shared\_expert\_num=0。
-
--   **expert\_token\_nums\_type** (`int`)：可选参数，表示输出`expert_token_nums`的值类型，取值范围[0, 1]，0表示每个专家收到token数量的前缀和，1表示每个专家收到的token数量（默认）。
-
--   **num\_max\_dispatch\_tokens\_per\_rank** (`int`)：可选参数，表示每张卡上的token数量。当每个rank的BS不同时，最大的BS大小，当每个rank上BS相同时，默认为0。
-
-## 输出说明<a name="zh-cn_topic_0000002203575833_section22231435517"></a>
-
--   **expand\_x** (`Tensor`)：表示本卡收到的token数据，要求为2维张量，shape为(A, H)，A表示在EP通信域可能收到的最大token数，数据类型支持`bfloat16`、`float16`、`int8`。量化时类型为`int8`，非量化时与`x`数据类型保持一致。数据格式为$ND$，支持非连续的Tensor。
--   **dynamic\_scales** (`Tensor`)：表示计算得到的动态量化参数。当`quant_mode`不为0时才有该输出，要求为1维张量，shape为(A,)，数据类型支持`float`，数据格式支持$ND$，支持非连续的Tensor。
--   **assist\_info\_for\_combine** (`Tensor`)：表示给同一专家发送的token个数，要求是一个1维张量，shape为(A \* 128, )。数据类型支持`int32`，数据格式为$ND$，支持非连续的Tensor。对应[npu\_low\_latency\_combine](npu_low_latency_combine.md)的`assist_info_for_combine`输入。
-
--   **expert\_token\_nums** (`Tensor`)：本卡每个专家实际收到的token数量，要求为1维张量，shape为\(local\_expert\_num,\)，数据类型`int64`，数据格式支持$ND$，支持非连续的Tensor。
--   **ep\_recv\_counts** (`Tensor`)：表示EP通信域各卡收到的token数（token数以前缀和的形式表示），要求为1维张量，数据类型`int32`，数据格式支持$ND$，支持非连续的Tensor。对应[npu\_low\_latency\_combine](npu_low_latency_combine.md)的`ep_send_counts`输入。要求shape为\(ep\_world\_size\*local\_expert\_num, \)。
--   **expand\_scales** (`Tensor`)：表示`topk_weights`与`x`一起进行alltoallv之后的输出。暂不支持该输出，返回None。
-
-## 约束说明<a name="zh-cn_topic_0000002203575833_section12345537164214"></a>
-
--   该接口支持推理场景下使用。
--   该接口支持静态图模式，`npu_low_latency_dispatch`和`npu_low_latency_combine`必须配套使用。
--   在不同产品型号、不同通信算法或不同版本中，`npu_low_latency_dispatch`的Tensor输出`assist_info_for_combine`、`ep_recv_counts`、`tp_recv_counts`、`expand_scales`中的元素值可能不同，使用时直接将上述Tensor传给`npu_low_latency_combine`对应参数即可，模型其他业务逻辑不应对其存在依赖。
--   调用接口过程中使用的`num_experts`、`expert_shard_type`、`shared_expert_num`、`shared_expert_rank_num`、`num_max_dispatch_tokens_per_rank`参数取值所有卡需保持一致, `expert_shard_type`、`num_max_dispatch_tokens_per_rank`网络中不同层中也需保持一致，且和[npu\_low\_latency\_combine](npu_low_latency_combine.md)对应参数也保持一致。
--   该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明里的“本卡”均表示单DIE。
--   num_experts + zero_expert_num + copy_expert_num + const_expert_num < MAX_INT32。
--   参数里Shape使用的变量如下：
-    -   A：表示本卡接收的最大token数量，取值范围如下
-        -   对于共享专家，要满足A=BS\*shared\_expert\_num/shared\_expert\_rank\_num。
-        -   对于MoE专家，当`num_max_dispatch_tokens_per_rank`为0时，要满足A\>=BS\*ep\_world\_size\*min\(local\_expert\_num, K\)；当`num_max_dispatch_tokens_per_rank`不为0时，要满足A\>=num_max\_dispatch\_tokens\_per\_rank\* min\(local\_expert\_num, K\)。
-
-    -   H：表示hidden size隐藏层大小。取值为\[1024, 8192\]。
-
-    -   BS：表示batch sequence size，即本卡最终输出的token数量。取值范围为0<BS≤512。
-
-    -   K：表示选取topK个专家，取值范围为0<K≤16，同时满足0 < K ≤ num\_experts + zero_expert_num + copy_expert_num + const_expert_num。
-
-    -   local\_expert\_num：表示本卡专家数量。
-        -   对于共享专家卡，local\_expert\_num为1。
-        -   对于MoE专家卡，local\_expert\_num=num\_experts/\(ep\_world\_size-shared\_expert\_rank\_num)，应满足0 < local_expert_num * ep_world_size ≤ 2048。
-
--   HCCL通信域缓存区大小:
-    调用本接口前需检查HCCL\_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-    - 该场景不仅支持通过环境变量HCCL\_BUFFSIZE配置，还支持通过hccl_buffer_size配置（参考《[PyTorch训练模型迁移调优](https://hiascend.com/document/redirect/canncommercial-ptmigr)》中“性能调优>性能调优方法>通信优化>优化方法>hccl_buffer_size”章节）。
-    - ep通信域内，comm\_alg配置为"fullmesh_v1"或"": 设置大小要求 \>= 2 \* \(local\_expert\_num \* max\_bs \* ep\_world\_size \* Align512\(Align32\(2 \* H\) + 64\) + \(K + shared\_expert\_num\) \* max\_bs \* Align512\(2 \* H\)\)。
-    - ep通信域内，comm\_alg配置为"fullmesh_v2": 设置大小要求 \>= 2 \* \(local\_expert\_num \* max\_bs \* ep\_world\_size \* 480Align512\(Align32\(2 \* H\) + 64\) + \(K + shared\_expert\_num\) \* max\_bs \* Align512\(2 \* H\)\)。
-    - 其中 480Align512(x) = ((x+480-1)/480)\*512,Align512(x) = ((x+512-1)/512)\*512,Align32(x) = ((x+32-1)/32)\*32。
-
+## 约束说明<a name="zh-cn_topic_0000002203575834_section12345537164215"></a>
+-   npu_low_latency_ccl_buffer_size、npu_low_latency_dispatch和npu_low_latency_combine必须配套使用
+-   BS：表示batch sequence size，即本卡最终输出的token数量。取值范围为0<BS≤512。
 -   本文公式中的“/”表示整除。
 
--   通信域使用约束：
+## 调用示例<a name="zh-cn_topic_0000002203575834_section14459801436"></a>
 
-    -   一个模型中的`npu_low_latency_dispatch`和`npu_low_latency_combine`算子仅支持相同EP通信域，且该通信域中不允许有其他算子。
-
-    -   一个模型中的`npu_low_latency_dispatch`和`npu_low_latency_combine`算子仅支持相同TP通信域或都不支持TP通信域，有TP通信域时该通信域中不允许有其他算子。
-
-    -   一个通信域内的节点需在一个超节点内，不支持跨超节点。
-
--   版本配套约束：
-
-     静态图模式下，从Ascend Extension for PyTorch 8.0.0版本开始，Ascend Extension for PyTorch框架会对静态图中最后一个节点输出结果做Meta推导与inferShape推导的结果强校验。当图中只有一个Dispatch算子，若CANN版本落后于Ascend Extension for PyTorch版本，会出现Shape不匹配报错，建议用户升级CANN版本，详细的版本配套关系参见《[Ascend Extension for PyTorch 版本说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-7.3.0/docs/zh/release_notes/release_notes.md)》中“相关产品版本配套说明”。
-
-## 调用示例<a name="zh-cn_topic_0000002203575833_section14459801435"></a>
-
--   单算子模式调用
+-   单算子调用
 
     ```python
     import os
@@ -194,21 +111,6 @@ npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="
     zero_expert_num = 1
     copy_expert_num = 1
     const_expert_num = 0
-
-
-    def gen_const_expert_alpha_1():
-        const_expert_alpha_1 = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_alpha_1
-
-
-    def gen_const_expert_alpha_2():
-        const_expert_alpha_2 = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_alpha_2
-
-
-    def gen_const_expert_v():
-        const_expert_v = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_v
 
 
     def get_new_group(rank):
@@ -330,6 +232,8 @@ npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="
         print(f"local_moe_expert_num={local_moe_expert_num}", flush=True)
         print(f"tp_world_size={tp_world_size}", flush=True)
         print(f"ep_world_size={ep_world_size}", flush=True)
+        buffer_size = MoeDistributeBuffer.get_low_latency_ccl_buffer_size(ep_world_size, bs, h, num_experts, k)
+        os.environ['HCCL_BUFFSIZE'] = f'buffer_size'
 
         if tp_world_size != 1 and local_moe_expert_num > 1:
             print("unSupported tp = 2 and local moe > 1")
@@ -450,21 +354,6 @@ npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="
             return [x_combine_res, output_combine_npu]
 
 
-    def gen_const_expert_alpha_1():
-        const_expert_alpha_1 = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_alpha_1
-
-
-    def gen_const_expert_alpha_2():
-        const_expert_alpha_2 = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_alpha_2
-
-
-    def gen_const_expert_v():
-        const_expert_v = torch.empty(size=[const_expert_num, h], dtype=input_dtype).uniform_(-1, 1)
-        return const_expert_v
-
-
     def get_new_group(rank):
         for i in range(tp_world_size):
             ep_ranks = [x * tp_world_size + i for x in range(ep_world_size)]
@@ -573,6 +462,8 @@ npu_low_latency_dispatch(x, topk_idx, num_experts, *, quant_mode = 0, comm_alg="
         print(f"local_moe_expert_num={local_moe_expert_num}", flush=True)
         print(f"tp_world_size={tp_world_size}", flush=True)
         print(f"ep_world_size={ep_world_size}", flush=True)
+        buffer_size = MoeDistributeBuffer.get_low_latency_ccl_buffer_size(ep_world_size, bs, h, num_experts, k)
+        os.environ['HCCL_BUFFSIZE'] = f'buffer_size'
 
         if tp_world_size != 1 and local_moe_expert_num > 1:
             print("unSupported tp = 2 and local moe > 1")
