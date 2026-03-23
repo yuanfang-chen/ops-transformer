@@ -16,6 +16,7 @@
 #include "grouped_matmul_finalize_routing_quant_tiling.h"
 #include <alog_pub.h>
 #include <climits>
+#include <iostream>
 #include "log/log.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
@@ -24,6 +25,24 @@ using namespace Ops::Transformer::OpTiling;
 using namespace optiling::GroupedMatmulFinalizeRoutingArch35TilingConstant;
 using namespace optiling::GmmConstant;
 using namespace GMMFinalizeRoutingArch35Tiling;
+
+namespace {
+template <typename DimsT>
+std::string DumpDimsToString(const DimsT &dims)
+{
+    std::ostringstream oss;
+    oss << "[";
+    auto dimNum = dims.GetDimNum();
+    for (decltype(dimNum) i = 0; i < dimNum; ++i) {
+        oss << dims[i];
+        if (i + 1 < dimNum) {
+            oss << ",";
+        }
+    }
+    oss << "]";
+    return oss.str();
+}
+} // namespace
 
 namespace optiling {
 
@@ -90,6 +109,9 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeAttrs()
                 return false);
     inputParams_.transA = transposeXPtr != nullptr ? *transposeXPtr : false;
     inputParams_.transB = transposeWeightPtr != nullptr ? *transposeWeightPtr : false;
+    std::cout << "zzzlog0323 [QuantTiling::AnalyzeAttrs] transposeXPtr=" << (transposeXPtr ? 1 : 0)
+              << ", transA=" << inputParams_.transA << ", transposeWeightPtr=" << (transposeWeightPtr ? 1 : 0)
+              << ", transB=" << inputParams_.transB << std::endl;
     inputParams_.groupType = SPLIT_M;
     sharedInputWeight_ = *shareInputWeightPtr;
     OP_CHECK_IF(!CheckOptionalAttr(), OP_LOGE(context_->GetNodeName(), "Check Optional Attrs Failed."), return false);
@@ -379,6 +401,25 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
+    // Debug: dump input shapes for tiling (to diagnose tiling mismatches).
+    // NOTE: only print lightweight shape information (dim sizes) to avoid huge logs.
+    {
+        auto xDims = xStorageShape->GetStorageShape();
+        auto wDims = wStorageShape->GetStorageShape();
+        auto scaleDims = scaleStorageShape->GetStorageShape();
+        auto yDims = yStorageShape->GetStorageShape();
+        std::cout << "zzzlog0323 [QuantTiling::AnalyzeInputs] "
+                  << "xStorage=" << DumpDimsToString(xDims)
+                  << ", wStorage=" << DumpDimsToString(wDims)
+                  << ", scaleStorage=" << DumpDimsToString(scaleDims)
+                  << ", yStorage=" << DumpDimsToString(yDims);
+        if (pertokenScaleStorageShape != nullptr) {
+            auto perDims = pertokenScaleStorageShape->GetStorageShape();
+            std::cout << ", pertokenScaleStorage=" << DumpDimsToString(perDims);
+        }
+        std::cout << std::endl;
+    }
+
     if (!IsMicroScaling()) {
         OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(inputParams_.opName, "In K-C/T-C quant mode, the format of weight must be FRACTAL_NZ"),
@@ -440,13 +481,27 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
     tilingData_.gmmFinalizeRoutingDataParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmFinalizeRoutingDataParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias ? 1 : 0);
 
+    std::cout << "zzzlog0323 [QuantTiling::DoOpTiling] "
+              << "groupNum=" << tilingData_.gmmFinalizeRoutingDataParams.groupNum
+              << ", batch=" << tilingData_.gmmFinalizeRoutingDataParams.batch
+              << ", sharedInputOffset=" << tilingData_.gmmFinalizeRoutingDataParams.sharedInputOffset
+              << ", sharedInputLen=" << tilingData_.gmmFinalizeRoutingDataParams.sharedInputLen
+              << ", residualScale=" << tilingData_.gmmFinalizeRoutingDataParams.residualScale
+              << ", groupListType=" << static_cast<uint32_t>(tilingData_.gmmFinalizeRoutingDataParams.groupListType)
+              << ", hasBias=" << static_cast<uint32_t>(tilingData_.gmmFinalizeRoutingDataParams.hasBias)
+              << std::endl;
+
     PrintQuantParams();
     return ge::GRAPH_SUCCESS;
 }
 
 uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    auto key =
+        GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    std::cout << "zzzlog0323 [QuantTiling::GetTilingKey] transA=" << inputParams_.transA << ", transB=" << inputParams_.transB
+              << ", key=" << key << std::endl;
+    return key;
 }
 
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
@@ -488,6 +543,18 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
                 (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_B_BIT) + SCALER_FACTOR_DEFAULT;
         }
     }
+
+    std::cout << "zzzlog0323 [QuantTiling::DoLibApiTiling] "
+              << "M=" << tilingData_.matmulTiling.M
+              << ", N=" << tilingData_.matmulTiling.N
+              << ", Ka=" << tilingData_.matmulTiling.Ka
+              << ", Kb=" << tilingData_.matmulTiling.Kb
+              << ", usedCoreNum=" << tilingData_.matmulTiling.usedCoreNum
+              << ", baseM=" << tilingData_.matmulTiling.baseM
+              << ", baseN=" << tilingData_.matmulTiling.baseN
+              << ", baseK=" << tilingData_.matmulTiling.baseK
+              << std::endl;
+
     PrintMatmulParams();
 
     return ge::GRAPH_SUCCESS;

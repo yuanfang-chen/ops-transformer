@@ -281,6 +281,10 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
     
     const bool *transposeWeightPtr = attrs->GetBool(weightTransIndex);
     bool transposeWeight = (transposeWeightPtr != nullptr ? *transposeWeightPtr : false);
+    int hasTransposeWeightAttr = (transposeWeightPtr != nullptr) ? 1 : 0;
+    OP_LOGI(op_name,
+            "zzzlog0323 [InferShape] transposeWeightAttr=%d transposeWeight=%d (default=false if null).",
+            hasTransposeWeightAttr, static_cast<int>(transposeWeight));
     
     CheckXandWParams xAndWParams{shape_x1, shape_x2, 0, 0, 0, 0, transposeWeight};
     

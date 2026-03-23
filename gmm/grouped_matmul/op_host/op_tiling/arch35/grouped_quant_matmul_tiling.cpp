@@ -1017,9 +1017,54 @@ void GroupedQmmTiling::CalBasicBlock()
         return;
     }
     basicTiling_.baseN = std::min(inputParams_.nSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
-    basicTiling_.baseN = inputParams_.transB ?
-                             CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
-                             CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    uint64_t baseNBeforeAlign = basicTiling_.baseN;
+
+    // zzzlog0323: gmmfrweightv2 baseN align related attributes (debug).
+    // old behavior:
+    //   transB => align to CUBE_BLOCK
+    //   !transB => align to dtype-aware L1 granularity
+    uint64_t nAlignOld = inputParams_.transB ?
+                              static_cast<uint64_t>(CUBE_BLOCK) :
+                              GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype);
+    // new behavior introduced by last commit (disabled below):
+    //   transB + NZ weight => dtype-aware L1 granularity
+    uint64_t nAlignNew = GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype);
+    if (inputParams_.transB) {
+        nAlignNew = isWeightNz_ ? nAlignNew : static_cast<uint64_t>(CUBE_BLOCK);
+    }
+
+    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    if (enable == 1) {
+        std::string bDtypeStr = ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype);
+        std::cout << "zzzlog0323 [gmmfrweightv2] CalBasicBlock baseN "
+                  << "nSize=" << inputParams_.nSize
+                  << ", transB=" << static_cast<int>(inputParams_.transB)
+                  << ", isWeightNz_=" << static_cast<int>(isWeightNz_)
+                  << ", bDtype=" << bDtypeStr.c_str()
+                  << ", baseN_raw=" << baseNBeforeAlign
+                  << ", nAlign_old=" << nAlignOld
+                  << ", nAlign_new=" << nAlignNew
+                  << ", baseN_aligned=" << CeilAlign(baseNBeforeAlign, nAlignOld)
+                  << std::endl;
+    }
+
+#if 0
+    // disabled: dtype-aware L1 granularity for transB + NZ weights (see commit 216b06ae).
+    if (inputParams_.transB) {
+        // weight NZ with transB uses K0=32 layout; align baseN to 32B element width to
+        // avoid split-n tile shape mismatches between transpose-attr and stride-inferred paths.
+        uint64_t nAlign = CUBE_BLOCK;
+        if (isWeightNz_) {
+            nAlign = GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype);
+        }
+        basicTiling_.baseN = CeilAlign(basicTiling_.baseN, nAlign);
+    } else {
+        basicTiling_.baseN = CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    }
+#endif
+
+    // restored old behavior
+    basicTiling_.baseN = CeilAlign(baseNBeforeAlign, nAlignOld);
     basicTiling_.baseK = CeilAlign(
         std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
         GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
@@ -1069,6 +1114,21 @@ ge::graphStatus GroupedQmmTiling::CalL1Tiling()
         OP_LOGE(context_->GetNodeName(), "L1 space overflow. L1Size: %lu, used space: %lu", totalL1Size, usedSize),
         return ge::GRAPH_FAILED);
     uint64_t leftL1Size = totalL1Size - usedSize;
+    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    if (enable == 1) {
+        std::cout << "zzzlog0323 [gmmfrweightv2] CalL1Tiling "
+                  << "baseN=" << basicTiling_.baseN
+                  << ", singleCoreN=" << basicTiling_.singleCoreN
+                  << ", baseM=" << basicTiling_.baseM
+                  << ", baseK=" << basicTiling_.baseK
+                  << ", dbL0c=" << basicTiling_.dbL0c
+                  << ", biasL1Size=" << singleCoreBiasSize
+                  << ", scaleL1Size=" << singleCoreScaleSize
+                  << ", totalL1Size=" << totalL1Size
+                  << ", usedSize=" << usedSize
+                  << ", leftL1Size=" << leftL1Size
+                  << std::endl;
+    }
     return CalL1Depth(leftL1Size);
 }
 
