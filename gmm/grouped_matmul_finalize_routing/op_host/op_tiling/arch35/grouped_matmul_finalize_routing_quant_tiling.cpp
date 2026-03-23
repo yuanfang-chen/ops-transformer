@@ -109,6 +109,9 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeAttrs()
                 return false);
     inputParams_.transA = transposeXPtr != nullptr ? *transposeXPtr : false;
     inputParams_.transB = transposeWeightPtr != nullptr ? *transposeWeightPtr : false;
+    std::cout << "zzzlog0323 [QuantTiling::AnalyzeAttrs] transposeXPtr=" << (transposeXPtr ? 1 : 0)
+              << ", transA=" << inputParams_.transA << ", transposeWeightPtr=" << (transposeWeightPtr ? 1 : 0)
+              << ", transB=" << inputParams_.transB << std::endl;
     inputParams_.groupType = SPLIT_M;
     sharedInputWeight_ = *shareInputWeightPtr;
     OP_CHECK_IF(!CheckOptionalAttr(), OP_LOGE(context_->GetNodeName(), "Check Optional Attrs Failed."), return false);
@@ -405,7 +408,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
         auto wDims = wStorageShape->GetStorageShape();
         auto scaleDims = scaleStorageShape->GetStorageShape();
         auto yDims = yStorageShape->GetStorageShape();
-        std::cout << "zzzlog [QuantTiling::AnalyzeInputs] "
+        std::cout << "zzzlog0323 [QuantTiling::AnalyzeInputs] "
                   << "xStorage=" << DumpDimsToString(xDims)
                   << ", wStorage=" << DumpDimsToString(wDims)
                   << ", scaleStorage=" << DumpDimsToString(scaleDims)
@@ -478,7 +481,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
     tilingData_.gmmFinalizeRoutingDataParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmFinalizeRoutingDataParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias ? 1 : 0);
 
-    std::cout << "zzzlog [QuantTiling::DoOpTiling] "
+    std::cout << "zzzlog0323 [QuantTiling::DoOpTiling] "
               << "groupNum=" << tilingData_.gmmFinalizeRoutingDataParams.groupNum
               << ", batch=" << tilingData_.gmmFinalizeRoutingDataParams.batch
               << ", sharedInputOffset=" << tilingData_.gmmFinalizeRoutingDataParams.sharedInputOffset
@@ -494,7 +497,11 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
 
 uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    auto key =
+        GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    std::cout << "zzzlog0323 [QuantTiling::GetTilingKey] transA=" << inputParams_.transA << ", transB=" << inputParams_.transB
+              << ", key=" << key << std::endl;
+    return key;
 }
 
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
@@ -537,7 +544,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
         }
     }
 
-    std::cout << "zzzlog [QuantTiling::DoLibApiTiling] "
+    std::cout << "zzzlog0323 [QuantTiling::DoLibApiTiling] "
               << "M=" << tilingData_.matmulTiling.M
               << ", N=" << tilingData_.matmulTiling.N
               << ", Ka=" << tilingData_.matmulTiling.Ka

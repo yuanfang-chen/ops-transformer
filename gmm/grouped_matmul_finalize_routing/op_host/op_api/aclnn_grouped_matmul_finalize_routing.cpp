@@ -1110,7 +1110,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     auto x1StorageShapeStr = op::ToString(x1->GetStorageShape());
     auto x2ViewShapeStr = op::ToString(x2->GetViewShape());
     auto x2StorageShapeStr = op::ToString(x2->GetStorageShape());
-    OP_LOGI("zzzlog WeightNzV2GetWorkspaceSize: transposeX1=%d transposeX2=%d, x1 view=%s storage=%s, x2 view=%s storage=%s",
+    OP_LOGI("zzzlog0323 [WeightNzV2GetWorkspaceSize] transposeX1=%d transposeX2(transposeW)=%d, x1 view=%s storage=%s, x2 view=%s storage=%s",
         static_cast<int>(transposeX1), static_cast<int>(transposeX2),
         x1ViewShapeStr.GetString(), x1StorageShapeStr.GetString(),
         x2ViewShapeStr.GetString(), x2StorageShapeStr.GetString());
@@ -1131,7 +1131,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     std::string offsetOptionalViewShapeStr =
         (offsetOptional != nullptr) ? op::ToString(offsetOptional->GetViewShape()).GetString() : "null";
     OP_LOGI(
-        "zzzlog WeightNzV2GetWorkspaceSize shapes: scale=%s bias=%s offsetOptional=%s pertokenScale=%s groupList=%s sharedInput=%s logit=%s rowIndex=%s out=%s",
+        "zzzlog0323 [WeightNzV2GetWorkspaceSize shapes] scale=%s bias=%s offsetOptional=%s pertokenScale=%s groupList=%s sharedInput=%s logit=%s rowIndex=%s out=%s",
         scaleViewShapeStr.c_str(), biasViewShapeStr.c_str(), offsetOptionalViewShapeStr.c_str(),
         pertokenScaleViewShapeStr.c_str(), groupListViewShapeStr.c_str(), sharedInputViewShapeStr.c_str(),
         logitViewShapeStr.c_str(), rowIndexViewShapeStr.c_str(), outViewShapeStr.c_str());
@@ -1195,7 +1195,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         auto tmpWeightStorageShapeStr = op::ToString(tmpWeight->GetStorageShape());
         auto weightNzShape = GetWeightNzShape(tmpWeight, transposeX2);
         auto weightNzShapeStr = op::ToString(weightNzShape);
-        OP_LOGI("zzzlog WeightNzV2GetWorkspaceSize tmpWeight: dtype=%s view=%s storage=%s weightNzShape=%s",
+        OP_LOGI("zzzlog0323 [WeightNzV2GetWorkspaceSize tmpWeight] dtype=%s view=%s storage=%s weightNzShape=%s",
             op::ToString(tmpWeight->GetDataType()).GetString(),
             tmpWeightViewShapeStr.GetString(),
             tmpWeightStorageShapeStr.GetString(),
