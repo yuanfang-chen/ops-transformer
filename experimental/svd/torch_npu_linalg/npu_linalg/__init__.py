@@ -17,8 +17,6 @@ import warnings
 import torch
 import torch_npu
 
-__all__ = list(module for _, module, _ in pkgutil.iter_modules([os.path.dirname(__file__)]))
-
 # 导入so 和 python
 from . import npu_linalg_lib
 
