@@ -270,6 +270,9 @@ bool GroupedQmmTiling::CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape
 {
     auto xScaleDimNum = xScaleShape.GetDimNum();
     auto wScaleDimNum = wScaleShape.GetDimNum();
+    OP_LOGI(inputParams_.opName, "[MX_] CheckQuantParamsForMXTypeM: xScaleDimNum=%zu, wScaleDimNum=%zu, "
+            "expectedK/32=%lu",
+            xScaleDimNum, wScaleDimNum, CeilDiv(inputParams_.kSize, MXFP_BASEK_FACTOR));
     OP_CHECK_IF(wScaleDimNum != MXFP_TYPE_M_SCALE_DIM_NUM,
                 OP_LOGE(inputParams_.opName,
                         "When split m, the dim num of scale should be 4 in mx quant mode, but actual \
@@ -316,6 +319,10 @@ bool GroupedQmmTiling::CheckQuantParamsForMXTypeK(const gert::Shape &xScaleShape
 {
     auto xScaleDimNum = xScaleShape.GetDimNum();
     auto wScaleDimNum = wScaleShape.GetDimNum();
+    OP_LOGI(inputParams_.opName, "[MX_] CheckQuantParamsForMXTypeK: xScaleDimNum=%zu, wScaleDimNum=%zu, "
+            "expectedKDim=%lu",
+            xScaleDimNum, wScaleDimNum,
+            inputParams_.kSize / MXFP_BASEK_FACTOR + inputParams_.groupNum);
     OP_CHECK_IF(wScaleDimNum != MXFP_TYPE_K_SCALE_DIM_NUM,
                 OP_LOGE(inputParams_.opName,
                         "When split k, the dim num of scale should be 3 in mx quant mode, but actual \
@@ -366,6 +373,10 @@ bool GroupedQmmTiling::CheckQuantParamsForMxQuantMode(const gert::StorageShape *
     OP_CHECK_IF(xScaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "xScaleStorageShape is nullptr."),
                 return false);
     auto &xScaleShape = xScaleStorageShape->GetStorageShape();
+    OP_LOGI(inputParams_.opName, "[MX_] CheckQuantParamsForMxQuantMode: groupType=%d, M=%lu, N=%lu, K=%lu, "
+            "K/32 divisibility=%s",
+            inputParams_.groupType, inputParams_.mSize, inputParams_.nSize, inputParams_.kSize,
+            (inputParams_.kSize % MXFP_BASEK_FACTOR == 0) ? "aligned" : "NOT aligned");
     if (inputParams_.groupType == SPLIT_M) {
         OP_CHECK_IF(!CheckQuantParamsForMXTypeM(xScaleShape, wScaleShape),
                     OP_LOGE(inputParams_.opName, "CheckQuantParamsForMXTypeM failed."), return false);
@@ -695,6 +706,9 @@ bool GroupedQmmTiling::SetQuantMode(const gert::Shape &wScaleShape, const gert::
     if (IsMicroScaling()) {
         inputParams_.bQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
         inputParams_.aQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
+        OP_LOGI(inputParams_.opName, "[MX_] SetQuantMode: detected MX quant mode (scaleDtype=FLOAT8_E8M0), "
+                "aQuantMode=%d, bQuantMode=%d",
+                static_cast<uint32_t>(inputParams_.aQuantMode), static_cast<uint32_t>(inputParams_.bQuantMode));
         return true;
     }
     // scale pertensor: (g,1) 2维或（g,）1维, perchannel:（g, N), 2维
@@ -858,6 +872,15 @@ ge::graphStatus GroupedQmmTiling::DoOpTiling()
     tilingData_.gmmQuantParams.groupType = static_cast<int8_t>(inputParams_.groupType);
     tilingData_.gmmQuantParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmQuantParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias);
+    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+        OP_LOGI(inputParams_.opName, "[MX_] DoOpTiling: groupNum=%u, aQuantMode=%u, bQuantMode=%u, "
+                "groupType=%d, groupListType=%u, M=%lu, N=%lu, K=%lu",
+                tilingData_.gmmQuantParams.groupNum, tilingData_.gmmQuantParams.aQuantMode,
+                tilingData_.gmmQuantParams.bQuantMode,
+                static_cast<int32_t>(tilingData_.gmmQuantParams.groupType),
+                static_cast<uint32_t>(tilingData_.gmmQuantParams.groupListType),
+                inputParams_.mSize, inputParams_.nSize, inputParams_.kSize);
+    }
     errno_t retM = memcpy_s(tilingData_.gmmArray.mList, sizeof(tilingData_.gmmArray.mList), mList_, sizeof(mList_));
     if (retM != EOK) {
         OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", retM);
@@ -915,6 +938,16 @@ ge::graphStatus GroupedQmmTiling::DoLibApiTiling()
                 (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_N_BIT) + (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_M_BIT) +
                 (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_B_BIT) + SCALER_FACTOR_DEFAULT;
         }
+        OP_LOGI(inputParams_.opName, "[MX_] DoLibApiTiling: usedCoreNum=%lu, baseM=%lu, baseN=%lu, baseK=%lu, "
+                "singleCoreM=%lu, singleCoreN=%lu, singleCoreK=%lu, M=%lu, N=%lu, K=%lu, "
+                "mxTypePara=%lu, scaleFactorA=%u, scaleFactorB=%u",
+                tilingData_.mmTilingData.usedCoreNum, tilingData_.mmTilingData.baseM,
+                tilingData_.mmTilingData.baseN, tilingData_.mmTilingData.baseK,
+                tilingData_.mmTilingData.singleCoreM, tilingData_.mmTilingData.singleCoreN,
+                tilingData_.mmTilingData.singleCoreK,
+                tilingData_.mmTilingData.M, tilingData_.mmTilingData.N, tilingData_.mmTilingData.Ka,
+                tilingData_.mmTilingData.mxTypePara,
+                basicTiling_.scaleFactorA, basicTiling_.scaleFactorB);
     }
 
     return ge::GRAPH_SUCCESS;
@@ -1031,6 +1064,10 @@ void GroupedQmmTiling::CalBasicBlock()
             // 64: mx_mmad requires the inner axis to align to 64
             basicTiling_.baseN = CeilAlign(basicTiling_.baseN, static_cast<uint64_t>(64));
         }
+        OP_LOGI(inputParams_.opName, "[MX_] CalBasicBlock: baseM=%lu, baseN=%lu, baseK=%lu (aligned to %lu), "
+                "isFp4=%d, transB=%d",
+                basicTiling_.baseM, basicTiling_.baseN, basicTiling_.baseK,
+                static_cast<uint64_t>(MXFP_BASEK_FACTOR), isFp4Input, inputParams_.transB);
     }
 }
 
@@ -1116,6 +1153,10 @@ ge::graphStatus GroupedQmmTiling::CalL1Depth(uint64_t leftL1Size)
     CalStepKs();
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         CalScaleFactors();
+        OP_LOGI(inputParams_.opName, "[MX_] CalL1Depth: depthA1=%lu, depthB1=%lu, stepKa=%lu, stepKb=%lu, "
+                "scaleFactorA=%u, scaleFactorB=%u",
+                basicTiling_.depthA1, basicTiling_.depthB1, basicTiling_.stepKa, basicTiling_.stepKb,
+                basicTiling_.scaleFactorA, basicTiling_.scaleFactorB);
     }
     return ge::GRAPH_SUCCESS;
 }
