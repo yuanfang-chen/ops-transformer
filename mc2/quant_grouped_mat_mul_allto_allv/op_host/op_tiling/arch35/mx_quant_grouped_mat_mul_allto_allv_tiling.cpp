@@ -536,6 +536,16 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     OP_LOGI(opName_, "[MX_TILING] CheckAndSetInputOutputInfo PASSED");
+
+    // Log kernel scale layout info for debugging
+    uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
+    uint64_t scaleK = gmmxDivH1 * EVEN_ALIGN;  // ceil(H1/MX_SCALE_GROUP) * 2
+    OP_LOGI(opName_, "[MX_] Kernel scale layout: scaleK=%lu (ceil(H1/MX_SCALE_GROUP)*2), "
+            "xScale per-token stride=%lu, wScale per-expert stride=%lu (n1*scaleK), "
+            "A=%lu, ep=%lu, N1=%lu, isGmmWeightTrans=%d",
+            scaleK, scaleK, localParams_.N1 * scaleK,
+            localParams_.A, localParams_.ep, localParams_.N1, localParams_.isGmmWeightTrans);
+
     return ge::GRAPH_SUCCESS;
 }
 
