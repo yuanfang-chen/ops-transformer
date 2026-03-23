@@ -764,7 +764,8 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 } else {
                     maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
                 }
-                maskInfo.gs1dealNum = runInfo.halfS1RealSize;
+                maskInfo.gs1dealNum =
+                    (constInfo.subBlockIdx == 0) ? runInfo.firstHalfS1RealSize : runInfo.halfS1RealSize;
                 maskInfo.s1Size = runInfo.actualS1Size;
                 maskInfo.gSize = constInfo.gSize;
                 maskInfo.s2StartIdx = runInfo.s2LoopCount * s2BaseSize;
@@ -773,7 +774,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.preToken = runInfo.preTokensPerBatch;
                 maskInfo.nextToken = runInfo.nextTokensPerBatch;
                 maskInfo.batchIdx = runInfo.boIdx;
-                maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;
+                maskInfo.attenMaskBatchStride = 0;
                 maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
