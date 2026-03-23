@@ -831,6 +831,10 @@ public:
 
         for (int64_t i = 0; i < processSeqLen; ++i) {
             int64_t cacheIndex = kvSlotMappingGm_(startTIdx + i);
+            // 负索引跳过写
+            if (cacheIndex < 0) {
+                continue;
+            }
             // 计算Bn维度上的索引
             int64_t bnIndex = cacheIndex / tilingData_->blockSize;
             // 计算Bs维度上的索引
@@ -854,6 +858,10 @@ public:
 
         for (int64_t i = 0; i < processSeqLen; ++i) {
             int64_t cacheIndex = kvSlotMappingGm_(startTIdx + i);
+            // 负索引跳过写
+            if (cacheIndex < 0) {
+                continue;
+            }
             // 计算Bn维度上的索引
             int64_t bnIndex = cacheIndex / tilingData_->blockSize;
             // 计算Bs维度上的索引
@@ -870,6 +878,10 @@ public:
         copyScaleOutParams.dstStride = (vScaleCacheActualBs_ - 1) * tilingData_->headDim * DIGIT_TWO * sizeof(uint8_t);
         for (int64_t i = 0; i < processSeqLen / QUANT_BLOCK_SIZE / DIGIT_TWO; ++i) {
             int64_t cacheIndex = vScaleSlotMappingGm_(startTIdx / QUANT_BLOCK_SIZE / DIGIT_TWO + i);
+            // 负索引跳过写
+            if (cacheIndex < 0) {
+                continue;
+            }
             // 计算Bn维度上的索引
             int64_t bnIndex = cacheIndex / vScaleCacheActualBs_;
             // 计算Bs维度上的索引
