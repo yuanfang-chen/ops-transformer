@@ -18,16 +18,17 @@
 using namespace AscendC;
 using namespace MoeGatingTopKSoftmax;
 
-#define TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P  100100
+#define TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P  18
 
 
 #define MOE_GATING_TOP_K_SOFTMAX_310P_IMPL(INPUT_TYPE, BUFFER_NUM)                            \
     do {                                                                                               \
         GET_TILING_DATA_WITH_STRUCT(MoeGatingTopKSoftmax310PTilingData, tiling_data_in, tiling);       \
         const MoeGatingTopKSoftmax310PTilingData* __restrict tilingData = &tiling_data_in;             \
-        MoeGatingTopKSoftmax310P<INPUT_TYPE, BUFFER_NUM> op;                                           \
-        op.Init(gating, finished, out, indicesOut, sourceRowsOut, workspace, tilingData);              \
-        op.Process();                                                                                  \
+        AscendC::TPipe pipe;                                                                           \
+        MoeGatingTopKSoftmax310P<half, int32_t> kernel;                                                \
+        kernel.Init(x, y, expertIdx, workspace, tilingData, &pipe);                                    \
+        kernel.Process();                                                                              \
     } while (0)
 
 extern "C" __global__ __aicore__ void moe_gating_top_k_softmax(GM_ADDR x,
@@ -38,14 +39,8 @@ extern "C" __global__ __aicore__ void moe_gating_top_k_softmax(GM_ADDR x,
                                                                GM_ADDR workspace,
                                                                GM_ADDR tiling)
 {
-    if (TILING_KEY_IS(TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P)) {
+    if (TILING_KEY_IS(18)) {
         MOE_GATING_TOP_K_SOFTMAX_310P_IMPL(half, int32_t);
-        return;
     }
-    GET_TILING_DATA(tilingData, tiling);
-    AscendC::TPipe pipe;
-    MoeGatingTopKSoftmax310P<half, int32_t> kernel;
-    kernel.Init(x, y, expertIdx, workspace, tilingData, &pipe);
-    kernel.Process();
     return;
 }
