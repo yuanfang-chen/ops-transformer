@@ -292,7 +292,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttention(
     void *workspace,
     uint64_t workspaceSize,
     aclOpExecutor *executor,
-    aclrtStream stream)
+    const aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnBlockSparseAttention);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
