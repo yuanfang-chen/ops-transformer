@@ -36,20 +36,20 @@ namespace ge {
 * @li ep_world_size: Required. Input ep comm world size, dtype: int64.
 * @li ep_rank_id: Required. Input ep comm rank Id, dtype: int64.
 * @li moe_expert_num: Required. Input moe expert num, dtype: int64.
-* @li group_tp: Input tp comm group name, tp means tensor parallelism, dtype: String.
-* @li tp_world_size: Input tp comm world size, dtype: int64.
-* @li tp_rank_id: Input tp comm rank Id, dtype: int64.
-* @li expert_shard_type: Input moe shard type, dtype: int64.
-* @li shared_expert_num: Input shared expert num, dtype: int64.
-* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64.
-* @li quant_mode: Input quant mode. The options are 0 (non-quantization), 1 (static quantization), and 2 (dynamic quantization). dtype: int64.
-* @li global_bs: Input global batch size, dtype: int64.
-* @li expert_token_nums_type: Input expert token nums type, dtype: int64.
-* @li comm_alg: Input communication algorithm type, dtype: String.
-* @li zero_expert_num: Input zero expert num, dtype: int64.
-* @li copy_expert_num: Input copy expert num, dtype: int64.
-* @li const_expert_num: Input const expert num, dtype: int64.
-* @li y_dtype: Input output dtype, dtype: int64.
+* @li group_tp: Input tp comm group name, tp means tensor parallelism, dtype: String. Default: ""
+* @li tp_world_size: Input tp comm world size, dtype: int64. Default: 0
+* @li tp_rank_id: Input tp comm rank Id, dtype: int64. Default: 0
+* @li expert_shard_type: Input moe shard type, dtype: int64. Default: 0
+* @li shared_expert_num: Input shared expert num, dtype: int64. Default: 1
+* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64. Default: 0
+* @li quant_mode: Input quant mode. The options are 0 (non-quantization), 1 (static quantization), and 2 (dynamic quantization). dtype: int64. Default: 0
+* @li global_bs: Input global batch size, dtype: int64. Default: 0
+* @li expert_token_nums_type: Input expert token nums type, dtype: int64. Default: 1
+* @li comm_alg: Input communication algorithm type, dtype: String. Default: ""
+* @li zero_expert_num: Input zero expert num, dtype: int64. Default: 0
+* @li copy_expert_num: Input copy expert num, dtype: int64. Default: 0
+* @li const_expert_num: Input const expert num, dtype: int64. Default: 0
+* @li y_dtype: Input output dtype, dtype: int64. Default: 28
 
 * @par Outputs
 * Seven outputs, including:
