@@ -922,22 +922,18 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
             uint64_t addr = reinterpret_cast<uint64_t>(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_);
             srcAddr_T.SetGlobalBuffer((__gm__ YOutType*)(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_));
             LocalTensor<YOutType> tmpToken = tmpTokenBuf_.Get<YOutType>();
-            DataCopyExtParams copyparams = {1U, hOutSizeAlign_ * 8, 0U, 0U, 0U};
+            DataCopyExtParams copyparams = {1U, hOutSizeAlign_,0U,0U,0U};
             DataCopyPadExtParams<YOutType> copyPadExtParams{false, 0U, 0U, *reinterpret_cast<YOutType*>(uint8_t(0))};
             GM_ADDR rankGM_dst = (__gm__ uint8_t*)(GetWindAddrByRankId(epRankId_) + 
                                             (expertPerSizeOnWin_ * 
                                             (epRankId_ * moeExpertNumPerRank_ + expertIdx))); 
             GlobalTensor<YOutType> dstAddr_T;
             dstAddr_T.SetGlobalBuffer((__gm__ YOutType*)(rankGM_dst));
-            DataCopyPad(tmpToken, srcAddr_T, copyparams, copyPadExtParams);
-            SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-            DataCopyPad(dstAddr_T, tmpToken, copyparams);
-            SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
-            if (statusTensor_((preExpertNum + expertIdx) * 8 + 1) > 8){
-                DataCopyPad(tmpToken, srcAddr_T[(statusTensor_((preExpertNum + expertIdx) * 8 + 1) - 8) * hAlignWinCnt_], copyparams, copyPadExtParams);
+            for (uint32_t i=0; i<statusTensor_((preExpertNum + expertIdx) << 3 | 1); i++){
+                DataCopyPad(tmpToken, srcAddr_T[i * hAlignWinCnt_], copyparams, copyPadExtParams);
                 SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-                DataCopyPad(dstAddr_T[(statusTensor_((preExpertNum + expertIdx) * 8 + 1) - 8) * hAlignWinCnt_], tmpToken, copyparams);
-                PipeBarrier<PIPE_MTE3>();
+                DataCopyPad(dstAddr_T[i * hAlignWinCnt_], tmpToken, copyparams);
+                SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
             }
             DataCacheCleanAndInvalid<YOutType, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddr_T);
         }
@@ -945,11 +941,8 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
         SyncFunc<AscendC::HardEvent::MTE3_S>();
         GlobalTensor<int32_t> dstAddrStatus;
         dstAddrStatus.SetGlobalBuffer((__gm__ int32_t*)(GetWindStateAddrByRankId(epRankId_) + (epRankId_ + expertIdx * epWorldSize_) * stateOffset_));
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus);
         dstAddrStatus.SetValue(0, 0x40000000);
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus[0]);
         dstAddrStatus.SetValue(1, statusTensor_((preExpertNum + expertIdx) * 8 + 1));
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddrStatus[1]);
         calCnt += statusTensor_((preExpertNum + expertIdx) * 8 + 1);
     }
     moeStartToken += calCnt;
@@ -996,6 +989,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
         if (cqPi == 0 && cqCi == 0 && !isNotFirstInitCqe) {
             InvalidateCqeStatus(cqInfoU8, cqeTensorU8);
             SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
+            UpdateIsFirstInComm((GM_ADDR)hcclContext_, epRankId_, rankId, true);
         }
         PollCommCQUpdateSQCI(sqInfoU8, cqInfoU8, cqeTensorU8, jfcDoorBellU8, sqCi, cqCi, cqCiLinear);
         UpdateCommWriteSQE(templateSqeU8, sqInfoU8);
@@ -1014,7 +1008,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
                                                         (expertPerSizeOnWin_ * // expert大小
                                                         (epRankId_ * moeExpertNumPerRank_ + expertIdx))); // 当前卡id * 每张卡的moe数目 + 在当前卡的moe的相对位置
                     uint64_t rmtAddr = reinterpret_cast<uint64_t>(rankGM);
-                    uint32_t length = statusTensor_((preExpertNum + expertIdx) * 8 + 1) * (hAlignWinSize_);
+                    uint32_t length = statusTensor_((preExpertNum + expertIdx) * 8 + 1) * (hOutSizeAlign_);
                     // 复制1份WQE模板
                     SyncFunc<AscendC::HardEvent::S_V>();
                     DataCopy(tokenSqeU8[WRITE_SQE_SIZE * tokenSqeNum], templateSqeU8, WRITE_SQE_SIZE);
