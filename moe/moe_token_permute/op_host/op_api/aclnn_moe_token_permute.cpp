@@ -58,9 +58,11 @@ aclnnStatus aclnnMoeTokenPermuteGetWorkspaceSize(
             tokens, indices, numOutTokens, paddedMode, permuteTokensOut, sortedIndicesOut, workspaceSize, executor);
     }
     CHECK_RET(paddedMode == false, ACLNN_ERR_PARAM_INVALID);
+    auto uniqueExecutor = CREATE_EXECUTOR();
     aclnnStatus ret = aclnnInnerMoeInitRoutingV2GetWorkspaceSize(
         tokens, indices, numOutTokens, 0, 0, 0, 0, false, permuteTokensOut, sortedIndicesOut, sortedIndicesOut,
-        sortedIndicesOut, workspaceSize, executor);
+        sortedIndicesOut, workspaceSize, uniqueExecutor.get());
+    uniqueExecutor.ReleaseTo(executor);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(
             ACLNN_ERR_INNER,
