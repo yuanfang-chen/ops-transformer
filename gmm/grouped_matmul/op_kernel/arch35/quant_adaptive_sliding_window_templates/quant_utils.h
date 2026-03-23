@@ -147,6 +147,7 @@ __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx, int32_t 
         }
         else {
             // groupListType 为2的情况, shape为[e,2]
+            // sparse item is [group_idx, split_value], so split value index = groupIdx * 2 + 1
             splitValue = static_cast<int32_t>(groupListGm.GetValue(groupIdx * 2 + 1));
         }
     }
