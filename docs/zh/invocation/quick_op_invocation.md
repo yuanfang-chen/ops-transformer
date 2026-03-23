@@ -294,18 +294,15 @@
         source ${_ASCEND_INSTALL_PATH}/bin/setenv.bash
     
         # 编译可执行文件
-        g++ test_aclnn_flash_attention_score.cpp -I ${static_lib_path}/include -L ${static_lib_path}/lib64 -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
-        -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lmetadef \
-        -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform -ldl -lnnopbase -lgraph_base \
-        -lc_sec -lunified_dlog -lruntime -lhccl_fwk -o test_aclnn_flash_attention_score   # 替换为实际算子可执行文件名
+        g++ test_aclnn_flash_attention_score.cpp \
+        -I ${static_lib_path}/include -I ${ASCEND_HOME_PATH}/include -I ${ASCEND_HOME_PATH}/include/aclnnop \
+        -L ${static_lib_path}/lib64 -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
+        -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group \
+        -lgraph -lmetadef -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform -ldl 
+        -lnnopbase -lgraph_base -lc_sec -lunified_dlog -lruntime -o test_aclnn_flash_attention_score   # 替换为实际算子可执行文件名
 
-        # 对于集合通信和MatMul计算融合、并行的算子，统称为通算融合算子（简称MC2算子），包括AllGatherMatmul、MatmulAllReduce、MatmulReduceScatter等。调用该类算子API时，一般会涉及多线程和HCCL（Huawei Collective Communication Library，集合通信库），因此在g++指令中需要额外添加如下内容，否则无法成功编译。
-
-        # 编译MC2算子可执行文件
-        # g++ test_aclnn_all_gather_matmul.cpp -I ${static_lib_path}/include -L ${static_lib_path}/lib64 -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
-        # -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lmetadef \
-        # -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform -ldl -lnnopbase -lgraph_base \
-        # -lc_sec -lunified_dlog -lruntime -lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk -o test_aclnn_all_gather_matmul   # 替换为实际算子可执行文件名
+        # 编译MC2算子可执行文件时，在编译命令的末尾添加如下链接库
+        # -lruntime -lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk -o 
 
         # 执行程序
         ./test_aclnn_flash_attention_score
