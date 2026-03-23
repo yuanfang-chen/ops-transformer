@@ -32,6 +32,7 @@ const static int64_t SIMT_DCACHE_SIZE = 64 * 1024LL; // UB要给SIMT预留64k的
 const static int64_t SORT_API_MAX_ELEM = 32 * 255LL; // AscendC::Sort全排序模式最多支持一次排序(32*255rep)个元素
 const static int64_t MRG_SORT_API_MAX_ELEM = 1024LL;
 const static int64_t MX_QUANT_BLOCK_SIZE = 32LL;
+const static int64_t MXFP8_SCALE_BlOCK_SIZE = 64LL;
 
 const static int64_t NUM_TWO = 2LL;
 const static int64_t NUM_THREE = 3LL;
@@ -49,6 +50,7 @@ const static int64_t EXPERT_IDX_MAX = 10240LL;
 const static int64_t KV_MODE_EXPERT_IDX_MAX = EXPERT_IDX_MAX / KV_FACTOR;
 const static int64_t RANK_ONE = 1LL;
 const static int64_t RANK_TWO = 2LL;
+const static int64_t RANK_THREE = 3LL;
 const static int64_t BF16_TO_FP32_SIZE_FACTOR = 2LL;
 
 // 输入输出的位置索引
@@ -287,6 +289,7 @@ private:
     int64_t k_ = 0LL;
     int64_t cols_ = 0LL;
     int64_t inputXDtypeSize_;
+    int64_t inputScaleDTypeSize_;
     int64_t isInputScale_ = 0LL;
     int64_t isInputOffset_ = 0LL;
     int64_t sortMode_ = 0LL;
@@ -482,6 +485,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetInputTensorsInfo()
     // 可选输入scale
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(scaleShape_, scaleDtype_, isInputScale_, INPUT_SCALE_INDEX));
     tilingDataPtr_->isInputScale = isInputScale_;
+    inputScaleDTypeSize_ = static_cast<int64_t>(ge::GetSizeByDataType(scaleDtype_));
     // 可选输入offset
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(offsetShape_, offsetDtype_, isInputOffset_, INPUT_SCALE_INDEX));
     tilingDataPtr_->isInputOffset = isInputOffset_;
@@ -631,7 +635,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     using ge::DataType;
     using std::unordered_set;
     static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
-                                                                     DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
+                                                                     DataType::DT_BF16, DataType::DT_INT8,
+                                                                     DataType::DT_HIFLOAT8, DataType::DT_FLOAT8_E5M2,
+                                                                     DataType::DT_FLOAT8_E4M3FN};
     static const unordered_set<DataType> DYNAMIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                      DataType::DT_BF16, DataType::DT_INT8};
     static const std::unordered_set<DataType> MX_OR_HIF8_QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
@@ -680,9 +686,17 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
     int64_t expectedRankScale{-1};
     int64_t expectedDim0{-1};
     int64_t expectedDim1{-1};
+    int64_t expectedDim2{-1};
     if (quantMode_ == QUANT_MODE_UNQUANT) {
-        expectedRankScale = RANK_ONE;
-        expectedDim0 = xShape_.GetDim(0);
+        if (scaleDtype_ == ge::DataType::DT_FLOAT8_E8M0) {
+            expectedRankScale = RANK_THREE;
+            expectedDim0 = xShape_.GetDim(0) * expertIdxShape_.GetDim(1);
+            expectedDim1 = xShape_.GetDim(1) / 64;
+            expectedDim2 = NUM_TWO;
+        } else {
+            expectedRankScale = RANK_ONE;
+            expectedDim0 = xShape_.GetDim(0);
+        }
     } else if (quantMode_ == QUANT_MODE_DYNAMIC) {
         expectedRankScale = RANK_TWO;
         expectedDim0 = expertEnd_ - expertStart_;
@@ -709,10 +723,26 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
                             expectedDim1, quantMode_, dim1),
                     return ge::GRAPH_FAILED);
     }
-    OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT,
-                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d).", xDtype_,
-                        ge::DataType::DT_FLOAT),
-                return ge::GRAPH_FAILED);
+    if (expectedDim2 != -1) {
+        auto dim2 = scaleShape_.GetDim(2);
+        OP_CHECK_IF(dim2 != expectedDim2,
+                    OP_LOGE(context_, "The dim2 of input scale should be %ld under quant_mode %ld, current is %ld",
+                            expectedDim2, quantMode_, dim2),
+                    return ge::GRAPH_FAILED);
+    }
+    if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == ge::DataType::DT_FLOAT8_E5M2 ||
+        xDtype_ == ge::DataType::DT_FLOAT8_E4M3FN)) {
+        OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT8_E8M0,
+            OP_LOGE(context_, "Unsupported dtype of input %d and input scale: %d in quant mode %ld, should be: DT_FLOAT(%d).", xDtype_, 
+            scaleDtype_, QUANT_MODE_UNQUANT, ge::DataType::DT_FLOAT),
+            return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT,
+            OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d).", scaleDtype_,
+                    ge::DataType::DT_FLOAT),
+            return ge::GRAPH_FAILED);
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -828,10 +858,18 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()");
 
-    int64_t expectedRank{-1}, expectedDim0{-1}, expectedDim1{-1};
+    int64_t expectedRank{-1}, expectedDim0{-1}, expectedDim1{-1}, expectedDim2{-1};
     if ((quantMode_ == QUANT_MODE_UNQUANT && isInputScale_ == 1) || (quantMode_ == QUANT_MODE_DYNAMIC)) {
-        expectedRank = RANK_ONE;
-        expectedDim0 = totalLength_;
+        if (quantMode_ == QUANT_MODE_UNQUANT && (xDtype_ == ge::DataType::DT_FLOAT8_E5M2 ||
+            xDtype_ == ge::DataType::DT_FLOAT8_E4M3FN)) {
+            expectedRank = RANK_THREE;
+            expectedDim0 = expertIdxShape_.GetDim(0);
+            expectedDim1 = xShape_.GetDim(1) / MXFP8_SCALE_BlOCK_SIZE;
+            expectedDim2 = NUM_TWO;
+        } else {
+            expectedRank = RANK_ONE;
+            expectedDim0 = totalLength_;
+        }
     } else if ((quantMode_ == QUANT_MODE_MXFP8_E5M2) || (quantMode_ == QUANT_MODE_MXFP8_E4M3FN)) {
         expectedRank = RANK_TWO;
         expectedDim0 = totalLength_;
@@ -865,8 +903,17 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
         OP_CHECK_IF(dim1 != expectedDim1,
                     OP_LOGE(context_,
                             "The dim1 of output expanded_scale should be %ld under "
-                            "quant_mode %ld,, current is %ld.",
+                            "quant_mode %ld, current is %ld.",
                             expectedDim1, quantMode_, dim1),
+                    return ge::GRAPH_FAILED);
+    }
+    if (expectedDim2 != -1) {
+        int64_t dim2 = expandedScaleShape_.GetDim(2);
+        OP_CHECK_IF(dim2 != expectedDim2,
+                    OP_LOGE(context_,
+                            "The dim2 of output expanded_scale should be %ld under "
+                            "quant_mode %ld, current is %ld.",
+                            expectedDim2, quantMode_, dim2),
                     return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
@@ -1167,12 +1214,14 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
     } else {
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
-            UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+            Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) /
+            multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         while (perLoopParams.perLoopMaxIndicesElements <= 0) {
             perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);
             perLoopParams.perLoopMaxIndicesElements =
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
-                UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+                Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) /
+                multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
     }
     return perLoopParams;
