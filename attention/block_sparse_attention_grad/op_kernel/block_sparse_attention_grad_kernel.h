@@ -401,7 +401,6 @@ namespace BSA {
                             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
                             if (count > 0) {
                                 AscendC::WaitEvent(VEC2CUBE);
-                                // AscendC::CrossCoreWaitFlag(VEC2CUBE);
                                 LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
                                 LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
                                 LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
@@ -596,15 +595,12 @@ namespace BSA {
                                 EpilogueFAGOp sStmOp(sfmParams);
                                 sStmOp();
                             }
-                            // PipeBarrier<PIPE_ALL>();
 
                             AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(VEC2CUBE);
 
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
                             preTaskInfo.sOffset = curInfo.sOffset * 2; // float32偏移转成bf16/half偏移
-                            // break;
-                            // count++;
                             kvBlockBasicOffset += basicKVBlockSize;
                         }
                     }
