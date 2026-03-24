@@ -238,6 +238,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     } else {
         constInfo.dSizeRope = 0;
     }
+    // PRINTF("zzyzzy inputParamsRegbase.dSizeRope:%d\n", inputParamsRegbase.dSizeRope);
     constInfo.gSize = inputParamsRegbase.gSize;
     if (inputParamsRegbase.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD) ||
         inputParamsRegbase.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
@@ -292,7 +293,9 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
         constInfo.bN2GDR = bSize * constInfo.n2GDR;
         constInfo.n2GS1DR = constInfo.n2Size * constInfo.gS1DR;
         constInfo.s2BaseN2DR = s2BaseSize * constInfo.n2DR;
+    // PRINTF("111 constInfo.gDR:%d\n", constInfo.gDR);
     }
+    // PRINTF("constInfo.gDR:%d\n", constInfo.gDR);
     constInfo.layoutType = inputParamsRegbase.layoutType;
     constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
