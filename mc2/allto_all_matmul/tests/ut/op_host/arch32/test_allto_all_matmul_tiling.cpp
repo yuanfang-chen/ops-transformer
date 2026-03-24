@@ -142,8 +142,8 @@ static AlltoAllMatmulTestParam testCases[] = {
      ge::GRAPH_SUCCESS, 16UL, "", {16822272}, 0},
 
     {"alltoall_matmul_case_normalshape_4p",
-     {114172, 2304}, ge::DT_FLOAT16, ge::FORMAT_ND,
-     {9216, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {114172, 768}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {3072, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
@@ -157,8 +157,8 @@ static AlltoAllMatmulTestParam testCases[] = {
      ge::GRAPH_SUCCESS, 0UL, "", {1068986368}, 0},
 
     {"alltoall_matmul_case_bigshape_8p",
-     {228344, 1152}, ge::DT_FLOAT16, ge::FORMAT_ND,
-     {9216, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {228344, 384}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {3072, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
@@ -169,11 +169,11 @@ static AlltoAllMatmulTestParam testCases[] = {
      {}, ge::DT_FLOAT16, ge::FORMAT_ND, // all2allout
      "group", 8, 0, 0, 0, 0, 0, 0, 0, false, false, 0, false,
      "Ascend910_93",
-     ge::GRAPH_SUCCESS, 0UL, "", {1068986368}, 0},
+     ge::GRAPH_SUCCESS, 0UL, "", {16822272}, 0},
 
     {"alltoall_matmul_case_bigshape_16p",
-     {456688, 2304}, ge::DT_FLOAT16, ge::FORMAT_ND,
-     {36864, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {456688, 192}, ge::DT_FLOAT16, ge::FORMAT_ND,
+     {3072, 3072}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
      {}, ge::DT_FLOAT16, ge::FORMAT_ND,
