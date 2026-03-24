@@ -331,7 +331,8 @@ int main() {
     ret = aclrtMemcpy(resultData.data(), copySize, queryDeviceAddr, copySize,
                       ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
-    for (int64_t i = 0; i < size; i++) {
+    uint64_t printBufferSize = 32;
+    for (int64_t i = 0; i < printBufferSize; i++) {
         LOG_PRINT("result[%ld] is: %u\n", i, resultData[i]);
     }
 
