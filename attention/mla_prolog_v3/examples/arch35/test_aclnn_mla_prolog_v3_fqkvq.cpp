@@ -54,7 +54,7 @@ int Init(int32_t deviceId, aclrtStream* stream) {
 template <typename T>
 int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                     aclDataType dataType, aclTensor** tensor) {
-    auto size = GetShapeSize(shape) * aclDataTypeSize(dataType);
+    auto size = GetShapeSize(shape) * sizeof(T);
     // 调用aclrtMalloc申请device侧内存
     auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
@@ -65,7 +65,7 @@ int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hos
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, nullptr, 0, aclFormat::ACL_FORMAT_ND,
                               shape.data(), shape.size(), *deviceAddr);
     // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
-    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, size, ACL_MEMCPY_HOST_TO_DEVICE);
+    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, GetShapeSize(shape) * aclDataTypeSize(dataType), ACL_MEMCPY_HOST_TO_DEVICE);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
     return 0;
 }
@@ -73,7 +73,7 @@ int CreateAclTensorND(const std::vector<T>& shape, void** deviceAddr, void** hos
 template <typename T>
 int CreateAclTensorNZ(const std::vector<T>& shape, void** deviceAddr, void** hostAddr,
                     aclDataType dataType, aclTensor** tensor) {
-    auto size = GetShapeSize(shape) * aclDataTypeSize(dataType);
+    auto size = GetShapeSize(shape) * sizeof(T);
     // 调用aclrtMalloc申请device侧内存
     auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
@@ -84,7 +84,7 @@ int CreateAclTensorNZ(const std::vector<T>& shape, void** deviceAddr, void** hos
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, nullptr, 0, aclFormat::ACL_FORMAT_FRACTAL_NZ,
                               shape.data(), shape.size(), *deviceAddr);
     // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
-    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, size, ACL_MEMCPY_HOST_TO_DEVICE);
+    ret = aclrtMemcpy(*deviceAddr, size, *hostAddr, GetShapeSize(shape) * aclDataTypeSize(dataType), ACL_MEMCPY_HOST_TO_DEVICE);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
     return 0;
 }
