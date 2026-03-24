@@ -413,7 +413,7 @@ __aicore__ inline void FlashAttentionScoreKernelBaseFullquant<ChildClass, CubeBl
     
     if (sharedParams.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum:BNSD_NBSD) ||
         sharedParams.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum:BSND_NBSD) ||
-        sharedParams.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum:BSH_NBSD) ||) {
+        sharedParams.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum:BSH_NBSD)) {
         constInfo.t1Size = constInfo.bSize * constInfo.s1Size;
     }
 
