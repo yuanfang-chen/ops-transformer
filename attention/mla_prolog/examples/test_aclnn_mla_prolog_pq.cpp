@@ -13,6 +13,7 @@
  * \brief Example: 部分量化场景 (partial quant with INT8 quantized output)
  */
 
+#include <iostream>
 #include <cstring>
 #include <vector>
 #include "acl/acl.h"
