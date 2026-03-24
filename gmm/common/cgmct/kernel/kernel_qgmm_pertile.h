@@ -255,6 +255,24 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t groupIdx)
 {
+    // sparse split-M 首轮可能出现 groupIdx != 0。首轮 token 侧(A/C)不前移，
+    // 但权重/scale 侧(B/X2Scale)需要直接按真实 groupIdx 跳转。
+    if (groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M &&
+        Get<IDX_A_OFFSET>(baseOffset_) == 0 && Get<IDX_C_OFFSET>(baseOffset_) == 0) {
+        int64_t n = Get<MNK_N>(problemShape_);
+        int64_t k = Get<MNK_K>(problemShape_);
+        Get<IDX_B_OFFSET>(baseOffset_) = static_cast<int64_t>(groupIdx) * n * k;
+        if constexpr (transA) {
+            int64_t m = Get<MNK_M>(problemShape_);
+            int64_t scaleK = (Get<IDX_B_OFFSET>(baseOffset_) / n / PER_BLOCK_SIZE + groupIdx);
+            Get<IDX_X1SCALE_OFFSET>(baseOffset_) = m * scaleK;
+            Get<IDX_X2SCALE_OFFSET>(baseOffset_) = CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+        } else {
+            int64_t scaleK = CeilDiv(k, PER_BLOCK_SIZE);
+            Get<IDX_X2SCALE_OFFSET>(baseOffset_) = static_cast<int64_t>(groupIdx) * CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
+        }
+        return;
+    }
     if (groupIdx == 0) {
         return;
     }
