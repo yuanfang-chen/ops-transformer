@@ -156,6 +156,9 @@ private:
     uint32_t groupNum_;
     int8_t groupType_;
     uint8_t groupListType_;
+    // Stable N/K copied from tiling for M-axis grouping offset calculation.
+    int64_t mAxisGroupConstN_ = 0;
+    int64_t mAxisGroupConstK_ = 0;
 };
 
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
@@ -170,9 +173,10 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
             // sparse grouplist item is [group_idx, split_value], so index = loopIdx * 2
             groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2));
         }
-        UpdateOffset(groupIdx);
-        // Update input parameters M, N, K within the group
+        // Update current-group shape first, then consume it in UpdateOffset.
+        // This avoids stale MNK when sparse groupIdx jumps to a non-zero group.
         SetMNK(loopIdx);
+        UpdateOffset(groupIdx);
         if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_N>(problemShape_) <= 0) {
             if (groupListType_ == GROUP_LIST_TYPE_SPARSE && Get<MNK_M>(problemShape_) <= 0) {
                 break;
@@ -221,6 +225,9 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     groupNum_ = params.gmmParams.groupNum;
     groupType_ = params.gmmParams.groupType;
     groupListType_ = params.gmmParams.groupListType;
+    // In split-M, groupList updates M only; N/K remain invariant across groups.
+    mAxisGroupConstN_ = static_cast<int64_t>(params.gmmParams.n);
+    mAxisGroupConstK_ = static_cast<int64_t>(params.gmmParams.k);
 
     blockIdx_ = AscendC::GetBlockIdx();
     if ASCEND_IS_AIV {
@@ -261,6 +268,12 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     int64_t m = Get<MNK_M>(problemShape_);
     int64_t n = Get<MNK_N>(problemShape_);
     int64_t k = Get<MNK_K>(problemShape_);
+    // For M-axis grouping, N/K are group-invariant and should use tiling fixed values
+    // instead of runtime shape to avoid stale values on sparse group traversal.
+    if (groupType_ == GROUP_TYPE_M) {
+        n = mAxisGroupConstN_;
+        k = mAxisGroupConstK_;
+    }
     // aBaseOffset += m * k
     Get<IDX_A_OFFSET>(baseOffset_) += m * k;
     if (groupType_ == GROUP_TYPE_M) {
