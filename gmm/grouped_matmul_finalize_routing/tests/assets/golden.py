@@ -46,12 +46,9 @@ def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, gr
     pertoken_scale_mx_broadcast = np.repeat(pertoken_scale_mx, 32, axis=-1)
     x1_dims = len(x1.shape)
  
-    if x1_dtype == 'float4_e2m1':
-        x1 = trans_np_fp4_e2m1_tensor_to_bfloat16(x1).astype(np.float32)
-    elif x1_dtype == 'float4_e1m2':
-        x1 = trans_np_fp4_e1m2_tensor_to_bfloat16(x1).astype(np.float32)
- 
-    
+    if x1_dtype == 'float4_e2m1' or x1_dtype == 'float4_e1m2':
+        x1 = x1.astype(np.float32)
+
     x1_pad_len = pertoken_scale_mx_broadcast.shape[-1] - x1.shape[-1]
  
     x1 = np.pad(x1, [(0, 0)] * (x1_dims -1) + [(0, x1_pad_len)], mode='constant', constant_values=0)
@@ -69,10 +66,8 @@ def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, gr
  
         x2 = x2_all[i]
  
-        if x2_dtype == 'float4_e2m1':
-            x2 = trans_np_fp4_e2m1_tensor_to_bfloat16(x2).astype(np.float32)
-        elif x2_dtype == 'float4_e1m2':
-            x2 = trans_np_fp4_e1m2_tensor_to_bfloat16(x2).astype(np.float32)
+        if x2_dtype == 'float4_e2m1' or x2_dtype == 'float4_e1m2':
+            x2 = x2.astype(np.float32)
         # mxFP4单独处理transpose，统一使用(M,K)和(K,N)格式处理mxFP4
         if trans_b:
             x2 = np.swapaxes(x2, -1, -2)
@@ -95,51 +90,8 @@ def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, gr
         outs.append(out)
  
     gmm_out = outs if not outs else np.concatenate(outs, axis=0)
-    gmm_new = torch.from_numpy(gmm_out).to(torch.float32)   # 先转 tensor，再改 dtype
     final_out = combine_func(gmm_out, logit, shared_input, shared_input_weight, row_index, output_bs, shared_input_offset)
-    final_out_new = torch.from_numpy(final_out).to(torch.float32)
     return final_out
-
-def trans_np_fp4_e2m1_tensor_to_bfloat16(in_tensor):
-    import numpy as np
-    shape_tensor = in_tensor.shape
-    multi_shape = np.prod(shape_tensor)
-    out_tensor = np.zeros(multi_shape)
-    in_tensor = in_tensor.reshape(multi_shape)
-
-    # 1个uint8包含两个fp4, 先拆成两个uint8
-    bfloat16_shape = list(shape_tensor)
-    bfloat16_shape[-1] = bfloat16_shape[-1] * 2
-    bfloat16_tensor = np.zeros(multi_shape*2).astype(np.uint16)
-    fp32_tensor = np.zeros(multi_shape*2).astype(np.float32)
-
-    for i in range(multi_shape):
-        bfloat16_tensor[i*2], bfloat16_tensor[i*2+1] = cvt_fp4_e2m1_to_bfloat16(in_tensor[i])
-        fp32_tensor[i*2] = struct.unpack('!f',struct.pack('!I',bfloat16_tensor[i*2]<<16))[0]
-        fp32_tensor[i*2+1] = struct.unpack('!f',struct.pack('!I',bfloat16_tensor[i*2+1]<<16))[0]
-
-    fp32_tensor = fp32_tensor.reshape(bfloat16_shape)
-    return fp32_tensor
-
-def trans_np_fp4_e1m2_tensor_to_bfloat16(in_tensor):
-    shape_tensor = in_tensor.shape
-    multi_shape = np.prod(shape_tensor)
-    out_tensor = np.zeros(multi_shape)
-    in_tensor = in_tensor.reshape(multi_shape)
-
-    # 1个uint8包含两个fp4, 先拆成两个uint8
-    bfloat16_shape = list(shape_tensor)
-    bfloat16_shape[-1] = bfloat16_shape[-1] * 2
-    bfloat16_tensor = np.zeros(multi_shape*2).astype(np.uint16)
-    fp32_tensor = np.zeros(multi_shape*2).astype(np.float32)
-
-    for i in range(multi_shape):
-        bfloat16_tensor[i*2], bfloat16_tensor[i*2+1] = cvt_fp4_e1m2_to_bfloat16(in_tensor[i])
-        fp32_tensor[i*2] = struct.unpack('!f',struct.pack('!I',bfloat16_tensor[i*2]<<16))[0]
-        fp32_tensor[i*2+1] = struct.unpack('!f',struct.pack('!I',bfloat16_tensor[i*2+1]<<16))[0]
-
-    fp32_tensor = fp32_tensor.reshape(bfloat16_shape)
-    return fp32_tensor
 
 def convert_to_high_precision(input_tensor, input_type):
     if input_type in ("float8_e4m3fn", "float8_e5m2", "float4_e2m1", "float4_e1m2", "hifloat8"):
@@ -149,34 +101,6 @@ def convert_to_high_precision(input_tensor, input_type):
     else:
         input_tensor = torch.from_numpy(input_tensor).to(torch.int32)
     return input_tensor
-
-def cvt_fp4_e1m2_to_bfloat16(x):
-    Fp4e1m2ToBf16 = {'0': 0x0, '1': 0x3E80, '2': 0x3F00, '3':0x3F40,
-                     '4': 0x3F80, '5': 0x3FA0, '6': 0x3FC0, '7':0x3FE0,
-                     '8': 0x8000, '9': 0xBE80, '10': 0xBF00, '11':0xBF40,
-                     '12': 0xBF80, '13': 0xBFA0, '14': 0xBFC0, '15':0xBFE0}
-
-    x = int(x)
-    first_fp4val = x & 0x0f
-    second_fp4val = (x >> 4 )& 0x0f
-    first_fp4str = str(first_fp4val)
-    second_fp4str = str(second_fp4val)
-
-    return Fp4e1m2ToBf16[first_fp4str], Fp4e1m2ToBf16[second_fp4str]
-
-def cvt_fp4_e2m1_to_bfloat16(x):
-    Fp4e2m1ToBf16 = {'0': 0x0, '1': 0x3F00, '2': 0x3F80, '3':0x3FC0,
-                     '4': 0x4000, '5': 0x4040, '6': 0x4080, '7':0x40C0,
-                     '8': 0x8000, '9': 0xBF00, '10': 0xBF80, '11':0xBFC0,
-                     '12': 0xC000, '13': 0xC040, '14': 0xC080, '15':0xC0C0}
-
-    x = int(x)
-    first_fp4val = x & 0x0f
-    second_fp4val = (x >> 4 )& 0x0f
-    first_fp4str = str(first_fp4val)
-    second_fp4str = str(second_fp4val)
-
-    return Fp4e2m1ToBf16[first_fp4str], Fp4e2m1ToBf16[second_fp4str]
 
 def transform_tensor(input_tensor):
     transposed = np.transpose(input_tensor, axes=(0, 2, 1))

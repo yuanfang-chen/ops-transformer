@@ -22,8 +22,6 @@ def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list_ori, y, s
     input_deq_scale = scale2
     group_list_shape = group_list_ori
     pertoken_scale = scale1
-    out_dtype = kwargs['output_dtypes'][0]
-    
     # generate fp8_e8m0 scale
     if input_deq_scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
         x1_mx_gm = np.random.uniform(127, 130, size=pertoken_scale.shape).astype(np.uint8) # 127, 130
@@ -34,7 +32,6 @@ def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list_ori, y, s
         x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
         input_deq_scale = x2_mx.astype("float8_e8m0")
 
-    group_num = group_list_shape.shape[0]  # 注意ttk csv里group_num设置的准确性
     if 'group_list_expect' in kwargs:
         group_list_expect = kwargs['group_list_expect']# 全量化组需必传group_list_expect
         group_list = group_list_expect
