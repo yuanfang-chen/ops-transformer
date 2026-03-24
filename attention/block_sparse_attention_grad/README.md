@@ -115,8 +115,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>dout（aclTensor*）</td>
     <td>输入</td>
     <td>反向输出梯度，代表最终输出对当前算子的梯度信息。</td>
-    <td>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -125,8 +125,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>query（aclTensor*）</td>
     <td>输入</td>
     <td>注意力计算中的查询向量，即公式中的query。</td>
-    <td>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -135,8 +135,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>key（aclTensor*）</td>
     <td>输入</td>
     <td>注意力计算中的键向量，即公式中的key。</td>
-    <td>支持的shape为：<ul><li>TND: [totalKTokens, numKeyValueHeads, headDim]。</li><li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalKTokens, numKeyValueHeads, headDim]。</li><li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul></td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -145,8 +145,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>value（aclTensor*）</td>
     <td>输入</td>
     <td>注意力计算中的值向量，即公式中的value。</td>
-    <td>支持的shape为：<ul><li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li><li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalVTokens, numKeyValueHeads, headDim]。</li><li>BNSD: [batch, numKeyValueHeads, maxKvSeqLength, headDim]。</li></ul></td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -155,8 +155,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>attentionOut（aclTensor*）</td>
     <td>输入</td>
     <td>正向 BlockSparseAttention 计算的输出结果，即公式中的attentionOut。</td>
-    <td>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalQTokens, headNum, headDim]。</li><li>BNSD: [batch, headNum, maxQSeqLength, headDim]。</li></ul></td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -165,8 +165,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>softmaxLse（aclTensor*）</td>
     <td>输入</td>
     <td>Softmax计算的log-sum-exp中间结果。用于反向计算梯度的对数和指数逆推。</td>
-    <td>支持的shape为：<ul><li>TND: [totalQTokens, headNum, 1]。</li><li>BNSD: [batch, headNum, maxQSeqLength, 1]。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>支持的shape为：<ul><li>TND: [totalQTokens, headNum, 1]。</li><li>BNSD: [batch, headNum, maxQSeqLength, 1]。</li></ul></td>
+    <td>FLOAT</td>
     <td>ND</td>
     <td>3-4</td>
     <td>×</td>
@@ -175,8 +175,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>blockSparseMaskOptional（aclTensor*）</td>
     <td>输入</td>
     <td>块状稀疏掩码，表示实际的稀疏pattern。决定哪些block实际参与注意力计算。</td>
-    <td>可选输入（当前版本为必选）：<ul><li>shape为[batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]。</li><li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）。</li><li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算。</li></ul></td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>可选输入（当前版本为必选）：<ul><li>shape为[batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]。</li><li>表示按block划分后哪些block需要参与计算（为1），哪些block不参与计算（为0）。</li><li>如传入nullptr，则视为不开启块稀疏计算，即所有token之间的注意力分数都会被计算。</li></ul></td>
+    <td>BOOL</td>
     <td>ND</td>
     <td>4</td>
     <td>×</td>
@@ -185,8 +185,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>attenMaskOptional（aclTensor*）</td>
     <td>输入</td>
     <td>注意力掩码，即公式中的atten_mask。用于屏蔽不应参与计算的特定token。</td>
-    <td>当前不支持，应传入nullptr。</td>
-    <td>-</td>
+    <td>支持空Tensor。<br>当前不支持，应传入nullptr。</td>
+    <td>BOOL</td>
     <td>ND</td>
     <td>2</td>
     <td>×</td>
@@ -196,7 +196,7 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td rowspan="3">输入</td>
     <td rowspan="3">稀疏块形状数组。指定每个稀疏块的二维尺寸（行数和列数）。</td>
     <td> <ul><li>当配置了blockSparseMaskOptional时：如配置此输入，算子会从中获取稀疏块尺寸；如不配置此输入，算子将默认稀疏块尺寸为[128,128]。</li></ul></td>
-    <td rowspan="3">-</td>
+    <td rowspan="3">INT64</td>
     <td rowspan="3">-</td>
     <td rowspan="3">1</td>
     <td rowspan="3">-</td>
@@ -212,7 +212,7 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td rowspan="2">输入</td>
     <td rowspan="2">query的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 query token 数量。</td>
     <td> 变长序列场景（当 qInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
-    <td rowspan="2">-</td>
+    <td rowspan="2">INT64</td>
     <td rowspan="2">-</td>
     <td rowspan="2">1</td>
     <td rowspan="2">-</td>
@@ -225,7 +225,7 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td rowspan="2">输入</td>
     <td rowspan="2">key/value的实际序列长度数组。<br>用于描述变长序列场景下（即含有 Padding 填充数据的场景），每个 Batch 中实际有效的 key/value token 数量。</td>
     <td> 变长序列场景（当 kvInputLayout 为 "TND" 时）：该项输入必须配置。因为 TND 格式为一维连续排布，算子需要依赖该数组来准确切分界定各个序列的真实边界。</td>
-    <td rowspan="2">-</td>
+    <td rowspan="2">INT64</td>
     <td rowspan="2">-</td>
     <td rowspan="2">1</td>
     <td rowspan="2">-</td>
@@ -307,8 +307,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>dq（aclTensor*）</td>
     <td>输出</td>
     <td>query的梯度输出结果，即公式中的dq。</td>
-    <td>数据类型和shape与输入query保持一致。</td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>数据类型和shape与输入query保持一致。</td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>√</td>
@@ -317,8 +317,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>dk（aclTensor*）</td>
     <td>输出</td>
     <td>key的梯度输出结果，即公式中的dk。</td>
-    <td>数据类型和shape与输入key保持一致。</td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>数据类型和shape与输入key保持一致。</td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>√</td>
@@ -327,8 +327,8 @@ BlockSparseAttentionGrad输入dout、query、key、value, attentionOut的数据�
     <td>dv（aclTensor*）</td>
     <td>输出</td>
     <td>value的梯度输出结果，即公式中的dv。</td>
-    <td>数据类型和shape与输入value保持一致。</td>
-    <td>-</td>
+    <td>不支持空Tensor。<br>数据类型和shape与输入value保持一致。</td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>√</td>
