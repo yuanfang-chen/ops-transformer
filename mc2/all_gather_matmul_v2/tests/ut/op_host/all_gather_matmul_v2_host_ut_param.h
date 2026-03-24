@@ -39,7 +39,7 @@ struct AllGatherMatmulV2HostUtParamBase {
     std::string comm_mode;
     ge::graphStatus expectResult;
 
-    AllGatherMatmulV2HostUtParamBase(const csv_map& csvMap)
+    explicit AllGatherMatmulV2HostUtParamBase(const csv_map& csvMap)
     {
         this->case_name = ReadMap(csvMap, "case_name");
         this->group = ReadMap(csvMap, "group");
@@ -86,7 +86,7 @@ struct AllGatherMatmulV2TilingUtParam: public AllGatherMatmulV2HostUtParamBase {
     uint64_t expectTilingKey;
     std::string expectTilingDataHash;
 
-    AllGatherMatmulV2TilingUtParam(const csv_map& csvMap):
+    explicit AllGatherMatmulV2TilingUtParam(const csv_map& csvMap):
         AllGatherMatmulV2HostUtParamBase(csvMap)
     {
         this->inputInstance.emplace_back(
