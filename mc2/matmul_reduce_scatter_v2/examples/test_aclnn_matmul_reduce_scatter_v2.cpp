@@ -17,6 +17,7 @@
 #include <vector>
 #include <thread>
 #include "hccl/hccl.h"
+#include "aclnn/opdev/fp16_t.h"
 #include "aclnnop/aclnn_matmul_reduce_scatter_v2.h"
 
 #define CHECK_RET(cond, return_expr) \
@@ -118,7 +119,7 @@ int LaunchOneThreadMmReduceScatterV2(Args &args)
     std::vector<int32_t> biasHostData(biasShapeSize, 0);
     std::vector<int32_t> x1ScaleHostData(x1ScaleShapeSize, 0);
     std::vector<int32_t> x2ScaleHostData(x2ScaleShapeSize, 0);
-    std::vector<int16_t> outHostData(outShapeSize, 0);
+    std::vector<op::fp16_t> outHostData(outShapeSize, 0);
     // 创建tensor
     ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_INT8, &x1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
