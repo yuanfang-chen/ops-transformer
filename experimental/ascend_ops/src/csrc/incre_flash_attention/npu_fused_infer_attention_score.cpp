@@ -1,13 +1,12 @@
 /**
- * This program is free software, you can redistribute it and/or modify it.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. See LICENSE in the root of
- * the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #include <iostream>
 #include <vector>
@@ -96,12 +95,6 @@ construct_fia_output_tensor_v2(const at::Tensor &query, const at::Tensor &value,
                                query.options().dtype(query.dtype()));
         batchSize = query.size(DIM_0);
         qsSize = query.size(DIM_1);
-    } else if (input_layout_str == "BSH_NBSD") {
-        tmp_output =
-            at::empty({num_query_heads, query.size(DIM_0), query.size(DIM_1), query.size(DIM_2) / num_query_heads},
-                      query.options().dtype(query.dtype()));
-        batchSize = query.size(DIM_0);
-        qsSize = query.size(DIM_1);
     } else if (input_layout_str == "TND_NTD") {
         tmp_output =
             at::empty({query.size(DIM_1), query.size(DIM_0), query.size(DIM_2)}, query.options().dtype(query.dtype()));
@@ -117,50 +110,8 @@ construct_fia_output_tensor_v2(const at::Tensor &query, const at::Tensor &value,
     } else if (input_layout_str == "BNSD") {
         batchSize = query.size(DIM_0);
         qsSize = query.size(DIM_2);
-    } else if (input_layout_str == "TND") {
-        int64_t kv_dim = value.dim();
-        if (block_table.has_value()) {   // IFA目前TND只支持PA场景，PFA目前TND只支持非PA场景
-            if (kv_dim == PA_BBH_DIMS) { // BBH的情况下，D = H / N
-                tmp_output = at::empty({query.size(DIM_0), query.size(DIM_1), value.size(DIM_2) / num_key_value_heads},
-                                       query.options().dtype(query.dtype()));
-            } else if (kv_dim == PA_BNBD_DIMS) { // BNBD情况下取D
-                tmp_output = at::empty({query.size(DIM_0), query.size(DIM_1), value.size(DIM_3)},
-                                       query.options().dtype(query.dtype()));
-            } else if (kv_dim == PA_NZ_DIMS) { // blockNum, N, D / 16, blockSize, 16取DIM2*DIM4
-                tmp_output = at::empty({query.size(DIM_0), query.size(DIM_1), value.size(DIM_2) * value.size(DIM_4)},
-                                       query.options().dtype(query.dtype()));
-            } else {
-                tmp_output = at::empty({query.size(DIM_0), query.size(DIM_1), value.size(DIM_2)},
-                                       query.options().dtype(query.dtype()));
-            }
-        } else {
-            tmp_output = at::empty({query.size(DIM_0), query.size(DIM_1), value.size(DIM_2)},
-                                   query.options().dtype(query.dtype()));
-        }
-    } else if (input_layout_str == "NTD_TND") {
-        int64_t kv_dim = value.dim();
-        if (kv_dim == 0) {
-            kv_dim = query.dim();
-        }
-        if (block_table.has_value()) {   // pa场景
-            if (kv_dim == PA_BBH_DIMS) { // BBH的情况下，D = H / N
-                tmp_output = at::empty({query.size(DIM_1), query.size(DIM_0), value.size(DIM_2) / num_key_value_heads},
-                                       query.options().dtype(query.dtype()));
-            } else if (kv_dim == PA_BNBD_DIMS) { // BNBD情况下取D
-                tmp_output = at::empty({query.size(DIM_1), query.size(DIM_0), value.size(DIM_3)},
-                                       query.options().dtype(query.dtype()));
-            } else if (kv_dim == PA_NZ_DIMS) { // blockNum, N, D / 16, blockSize, 16取DIM2*DIM4
-                tmp_output = at::empty({query.size(DIM_1), query.size(DIM_0), value.size(DIM_2) * value.size(DIM_4)},
-                                       query.options().dtype(query.dtype()));
-            } else {
-                tmp_output = at::empty({query.size(DIM_1), query.size(DIM_0), value.size(DIM_2)},
-                                       query.options().dtype(query.dtype()));
-            }
-        } else {
-            tmp_output = at::empty({query.size(DIM_1), query.size(DIM_0), value.size(DIM_2)},
-                                   query.options().dtype(query.dtype()));
-        }
-    }
+    } 
+
     if (quant_scale_out.has_value()) {
         output = at::empty(tmp_output.sizes(), c10::dtype(c10::ScalarType::Char));
     } else if (query.dtype() == at::kChar) {
@@ -176,35 +127,7 @@ construct_fia_output_tensor_v2(const at::Tensor &query, const at::Tensor &value,
 
     auto lse_opts = output.options().dtype(c10::ScalarType::Float);
     at::Tensor softmax_lse;
-    if (input_layout_str == "TND") {
-        if (block_table.has_value()) {    // IFA目前TND只支持PA场景，PFA目前TND只支持非PA场景
-            if (query.size(DIM_2) == 0) { // 增加softmax lse的情况下，可能存在空tensor的分支
-                softmax_lse = at::empty(
-                    {
-                        query.size(DIM_0),
-                        num_query_heads,
-                        0,
-                    },
-                    lse_opts);
-            } else {
-                softmax_lse = at::empty({query.size(DIM_0), num_query_heads, 1}, lse_opts);
-            }
-        } else {
-            softmax_lse = at::empty({query.size(DIM_0), query.size(DIM_1), 1}, lse_opts);
-        }
-    } else if (input_layout_str == "NTD_TND") {
-        if (block_table.has_value()) {    // pa场景
-            if (query.size(DIM_2) == 0) { // 增加softmax lse的情况下，可能存在空tensor的分支
-                softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 0}, lse_opts);
-            } else {
-                softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 1}, lse_opts);
-            }
-        } else {
-            softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 1}, lse_opts);
-        }
-    } else {
-        softmax_lse = at::empty({batchSize, num_query_heads, qsSize, 1}, lse_opts);
-    }
+    softmax_lse = at::empty({batchSize, num_query_heads, qsSize, 1}, lse_opts);
 
     if (!return_softmax_lse) {
         softmax_lse = at::empty({0}, lse_opts);
@@ -332,9 +255,7 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
 {
-    // convert str
     std::string input_layout_str = std::string(input_layout);
-
     // construct the output tensor
     std::tuple<at::Tensor, at::Tensor> fia_output =
         construct_fia_output_tensor_v2(query, value, input_layout_str, quant_scale_out, block_table, num_query_heads,
@@ -367,11 +288,9 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
         at::empty({static_cast<long>(ifaContext.workSpaceSize)}, at::TensorOptions().dtype(at::kByte).device(query.options().device()));
     // tilingdata
     optiling::IncreFlashAttentionTilingData &tilingData = ifaContext.tilingData.tilingBase;
-
     uint8_t fdFlag = ifaContext.fdFlag;
     uint8_t layoutVal = ifaContext.layoutVal;
     uint8_t antiquantMode = ifaContext.antiquantMode_;
-
     // blockdim
     uint32_t blockDim = tilingData.increFlashAttentionSingleCoreParams.get_usedCoreNum();
 
@@ -420,7 +339,6 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_meta(
     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
 {
-    // convert str
     std::string input_layout_str = std::string(input_layout);
     // construct the output tensor
     std::tuple<at::Tensor, at::Tensor> fia_output =
