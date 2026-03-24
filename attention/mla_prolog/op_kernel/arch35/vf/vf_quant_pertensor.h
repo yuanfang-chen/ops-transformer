@@ -40,7 +40,7 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
     for(uint16_t i = 0; i < uint16_t(repeatTimes); i++) {
         uint16_t loopOffset = i * floatRepSize;
         if constexpr (std::is_same<T, float>::value) {
-            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSrc, inputBuf + loopOffset);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregFloat, inputBuf + loopOffset);
         } else if constexpr (std::is_same<T, bfloat16_t>::value) {
             MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(vregSrc, inputBuf + loopOffset);
             MicroAPI::Cast<float, T, CAST_TRAITB162F32>(vregFloat, vregSrc, pregAll);

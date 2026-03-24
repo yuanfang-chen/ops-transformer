@@ -1672,19 +1672,19 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeAndScatterKr(
     if constexpr ((std::is_same<mmCkvKrOutputType, int32_t>::value || (std::is_same<mmCkvKrOutputType, float>::value &&
         std::is_same<dequantScaleType, float>::value)) && std::is_same<krCacheType, bfloat16_t>::value) {
         LocalTensor<uint8_t> sharedBuf = ropeShareTmpUb.ReinterpretCast<uint8_t>()[baseParams_->dimHeadRope * sizeof(ropeSinCosType)];
-        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType>(
+        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType, false>(
             outputKrLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset], cosLocal, sinLocal, 
             sharedBuf, ropeParams,
             dequantScaleWDkvKrLocal_[baseParams_->headSizeCkv], dequantScaleXLocal);
     } else if constexpr (std::is_same<krCacheType, int8_t>::value) {
         LocalTensor<ropeSinCosType> inputLocal = ropeShareTmpUb.ReinterpretCast<ropeSinCosType>();
         LocalTensor<uint8_t> sharedBuf = ropeShareTmpUb.ReinterpretCast<uint8_t>()[baseParams_->dimHeadRope * sizeof(ropeSinCosType)];
-        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, ropeSinCosType>(
+        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, ropeSinCosType, false>(
             inputLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset], cosLocal, sinLocal, 
             sharedBuf, ropeParams);
         RopePostQuantPerChannel(outputKrLocal, inputLocal, quantScaleCkrLocal_, sharedBuf, vectorRow_ * baseParams_->dimHeadRope);
     } else {
-        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType>(outputKrLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset],
+        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType, false>(outputKrLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset],
             cosLocal, sinLocal, ropeShareTmpUb, ropeParams);
     }
     SetFlag<HardEvent::V_MTE3>(EVENT_ID0);
@@ -1825,12 +1825,12 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeQr(int64_t ropeQrOffset, 
         // MatmulQcQr ──> Rope(Qr) ──> query_rope_out
         if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, hifloat8_t>::value ||
             (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
-            RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType>(outputLocal, mmQcQrResGm_[ropeQrOffset],
+            RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType, false>(outputLocal, mmQcQrResGm_[ropeQrOffset],
                 cosLocal_[baseParams_->dimHeadRope * curVecTokenIdx], sinLocal_[baseParams_->dimHeadRope * curVecTokenIdx], ropeShareTmpUb,
                 ropeParams,
                 channelDeqScaleLocal, dequantTool_.deQuantScaleCqLocal_[(curBlockTokenOffset + curVecTokenIdx) * FP32_BLOCK_ELEMENT_NUM]);
         } else {
-            RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType>(outputLocal, mmQcQrResGm_[ropeQrOffset],
+            RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType, false>(outputLocal, mmQcQrResGm_[ropeQrOffset],
                 cosLocal_[baseParams_->dimHeadRope * curVecTokenIdx], sinLocal_[baseParams_->dimHeadRope * curVecTokenIdx], ropeShareTmpUb, ropeParams);
         }
 
@@ -1939,11 +1939,11 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeQrSplitN(const RopeQrSpli
     if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, hifloat8_t>::value ||
             (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
         GlobalTensor<float> deqScaleRope = deqScaleQcQrW_[ropeQrSplitNParams.ropeQrOffset];
-        RotaryPosEmbPerHead<mmQcQrOutputType, ropeComputType, ropeOutputType>(outputLocalRope, inputGmRope[ropeQrSplitNParams.inputOffsetRope],
+        RotaryPosEmbPerHead<mmQcQrOutputType, ropeComputType, ropeOutputType, true>(outputLocalRope, inputGmRope[ropeQrSplitNParams.inputOffsetRope],
             cosLocal_[ropeQrSplitNParams.sinCosOffset], sinLocal_[ropeQrSplitNParams.sinCosOffset], ropeShareTmpUb, ropeParams, ropeQrSplitNParams.ropeStride, deqScaleRope[ropeQrSplitNParams.deqScaleOffset],
             dequantTool_.deQuantScaleCqLocal_[deQuantScaleCqOffset]);
     } else {
-        RotaryPosEmbPerHead<mmQcQrOutputType, ropeComputType, ropeOutputType>(outputLocalRope, inputGmRope[ropeQrSplitNParams.inputOffsetRope],
+        RotaryPosEmbPerHead<mmQcQrOutputType, ropeComputType, ropeOutputType, true>(outputLocalRope, inputGmRope[ropeQrSplitNParams.inputOffsetRope],
             cosLocal_[ropeQrSplitNParams.sinCosOffset], sinLocal_[ropeQrSplitNParams.sinCosOffset], ropeShareTmpUb, ropeParams, ropeQrSplitNParams.ropeStride);
     }
 
