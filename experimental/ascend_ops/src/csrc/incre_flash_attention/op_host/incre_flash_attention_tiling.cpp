@@ -156,7 +156,6 @@ custom::graphStatus IFATiling::PreProcess()
         return custom::graphStatus::GRAPH_FAILED;
     }
     SetupPerfMode();
-    // IsFdBalanceCase();
     balanceModeFlag_ = IsBalanceSplitCore();
     SetCoreNum();
     UpdateL2CacheOffFlag();
@@ -1897,14 +1896,12 @@ custom::graphStatus IFATiling::CalcInnerSize(uint32_t seqSize)
             sInnerSize_ = 1024U; // 1024: 伪量化场景下，sInnerSize_设置为1024
         }
     }
-
     // PA特性泛化场景，blockSize_可能为112等值，无法被sInnerSize_整除，当step*base跨block时，搬运处理复杂，通过向下对齐避免
     if (pageAttentionFlag_ && blockSize_ != 0U) {
         if (sInnerSize_ % blockSize_ != 0U) {
             sInnerSize_ = (sInnerSize_ / blockSize_) * blockSize_;
         }
     }
-
     sInnerLoopTimes_ = (seqSize + sInnerSize_ - 1U) / sInnerSize_;
     sInnerSizeTail_ = seqSize - (sInnerLoopTimes_ - 1U) * sInnerSize_;
     // tiling下沉 && flash decoder场景时，sInnerSize_基块大小不按照真实值修改
@@ -1912,7 +1909,6 @@ custom::graphStatus IFATiling::CalcInnerSize(uint32_t seqSize)
     if (sInnerSize_ > seqSize && (!(isWorkspace_ && splitKVFlag_))) {
         sInnerSize_ = seqSize;
     }
-
     sInnerSizeAlign_ = Align(sInnerSize_, BYTE_BLOCK); // 元素个数按照基本块大小对齐
     
     CheckUbSpace();
@@ -2213,9 +2209,7 @@ void IFATiling::FillTilingSplitKV() const
         OP_LOGD(ifaContext_->opName, "PA FlashDecode is enabled, sInnerLoopSize is %u, blockSize is %u",
                   sInnerLoopSize_, blockSize_);
     }
-    // if (inputKvType_ == ge::DT_INT4) {
-    //     sInnerLoopSize_ = Align(sInnerLoopSize_, 2U);
-    // }
+
     tilingData_->splitKVParams.set_sInnerLoopSize(sInnerLoopSize_);
     if (inputLayout_ == IfaLayout::TND) {
         tilingData_->splitKVParams.set_accumOutSize(tSeqSize_ * numHeads_ * kvSplitPart_ * headDimAlign_);
@@ -2432,7 +2426,6 @@ custom::graphStatus IFATiling::GenTilingKey() const
     ifaContext_->antiquantMode_ = static_cast<uint8_t>(antiquantMode_);
 
     OP_LOGI(ifaContext_->opName, "IFA tilingKey: %lu.", ifaContext_->tilingKey);
-    // printf("IFA tilingKey: %lu.\n", ifaContext_->tilingKey);
     return custom::graphStatus::GRAPH_SUCCESS;
 }
 
@@ -2639,7 +2632,6 @@ custom::graphStatus IFATiling::DoSubOpTiling(IFAContext& ifaContext) {
         return custom::graphStatus::GRAPH_SUCCESS;
     }
     // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
-    // context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return custom::graphStatus::GRAPH_FAILED;
 }
 } // namespace optiling

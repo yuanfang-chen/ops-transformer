@@ -13,14 +13,23 @@
 
 import os
 import sys
+import logging
 import glob
 import shutil
 import subprocess
 import sysconfig
+import shutil
 from pathlib import Path
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools import Command
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 
 class CleanCommand(Command):
@@ -36,30 +45,30 @@ class CleanCommand(Command):
         # 删除构建目录
         if os.path.exists('build'):
             shutil.rmtree('build')
-            print("Removed build/")
+            logger.info("Removed build/")
         
         # 删除dist目录
         if os.path.exists('dist'):
             shutil.rmtree('dist')
-            print("Removed dist/")
+            logger.info("Removed dist/")
         
         # 删除egg-info目录
         egg_info_dir = f"{self.distribution.get_name().replace('-', '_')}.egg-info"
         if os.path.exists(egg_info_dir):
             shutil.rmtree(egg_info_dir)
-            print(f"Removed {egg_info_dir}/")
+            logger.info(f"Removed {egg_info_dir}/")
         
         # 删除.pyc文件和__pycache__目录
         for root, dirs, files in os.walk('.'):
             for file in files:
                 if file.endswith('.pyc'):
                     os.remove(os.path.join(root, file))
-                    print(f"Removed {os.path.join(root, file)}")
+                    logger.info(f"Removed {os.path.join(root, file)}")
             
-            for dir in dirs:
-                if dir == '__pycache__':
-                    shutil.rmtree(os.path.join(root, dir))
-                    print(f"Removed {os.path.join(root, dir)}/")
+            for item in dirs:
+                if item == '__pycache__':
+                    shutil.rmtree(os.path.join(root, item))
+                    logger.info(f"Removed {os.path.join(root, item)}/")
 
 
 class CMakeExtension(Extension):
@@ -70,10 +79,13 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def run(self):
+        cmake_path = shutil.which("cmake")
+        if not cmake_path:
+            raise RuntimeError("cmake is not found in PATH. Please install cmake or specify full path.")
         try:
-            subprocess.check_output(["cmake", "--version"])
-        except OSError:
-            raise RuntimeError("CMake must be installed to build the extensions")
+            subprocess.check_output([cmake_path, "--version"])
+        except OSError as e:
+            raise RuntimeError("CMake must be installed to build the extensions") from e
 
         for ext in self.extensions:
             self.build_cmake(ext)
