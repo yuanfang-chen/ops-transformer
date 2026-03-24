@@ -289,7 +289,7 @@ private:
     int64_t k_ = 0LL;
     int64_t cols_ = 0LL;
     int64_t inputXDtypeSize_;
-    int64_t inputScaleDtypeSize_;
+    int64_t inputScaleDTypeSize_;
     int64_t isInputScale_ = 0LL;
     int64_t isInputOffset_ = 0LL;
     int64_t sortMode_ = 0LL;
@@ -485,7 +485,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetInputTensorsInfo()
     MIRV3_CHECK_GE_RET(GetTensorShapeDtype<true>(expertIdxShape_, expertIdxDtype_, INPUT_EXPERT_IDX_INDEX));
     // 可选输入scale
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(scaleShape_, scaleDtype_, isInputScale_, INPUT_SCALE_INDEX));
-    inputScaleDtypeSize_ = static_cast<int64_t>(ge::GetSizeByDataType(scaleDtype_));
+    inputScaleDTypeSize_ = static_cast<int64_t>(ge::GetSizeByDataType(scaleDtype_));
     tilingDataPtr_->isInputScale = isInputScale_;
     // 可选输入offset
     MIRV3_CHECK_GE_RET(GetOptionalInputShapeDtype(offsetShape_, offsetDtype_, isInputOffset_, INPUT_SCALE_INDEX));
@@ -726,13 +726,13 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
     auto rankScale = static_cast<int64_t>(scaleShape_.GetDimNum());
     if ((rankScale == 3) && (expectedDim2 != -1)) {
         auto dim2 = scaleShape_.GetDim(2);
-        OP_CHECK_IF(dim2 != expectedDim2, 
+        OP_CHECK_IF(dim2 != expectedDim2,
                     OP_LOGE(context_, "The dim2 of input scale should be %ld under quant_mode %ld, current is %ld",
                             expectedDim2, quantMode_, dim2),
                     return ge::GRAPH_FAILED);
     }
     OP_CHECK_IF(scaleDtype_ != ge::DataType::DT_FLOAT && scaleDtype_ != ge::DataType::DT_FLOAT8_E8M0,
-                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d), DT_FLOAT8_E8M0(%d).", xDtype_,
+                OP_LOGE(context_, "Unsupported dtype of input scale: %d, should be: DT_FLOAT(%d) or DT_FLOAT8_E8M0(%d).", xDtype_,
                         ge::DataType::DT_FLOAT, ge::DataType::DT_FLOAT8_E8M0),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -900,9 +900,11 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
     }
     auto rankScale = static_cast<int64_t>(scaleShape_.GetDimNum());
     if ((rankScale == 3) && (expectedDim2 != -1)) {
-        auto dim2 = expandedScaleShape_.GetDim(2);
-        OP_CHECK_IF(dim2 != expectedDim2, 
-                    OP_LOGE(context_, "The dim2 of input scale should be %ld under quant_mode %ld, current is %ld",
+        int64_t dim2 = expandedScaleShape_.GetDim(2);
+        OP_CHECK_IF(dim2 != expectedDim2,
+                    OP_LOGE(context_,
+                            "The dim2 of output expanded_scale should be %ld under "
+                            "quant_mode %ld,, current is %ld.",
                             expectedDim2, quantMode_, dim2),
                     return ge::GRAPH_FAILED);
     }
@@ -1202,15 +1204,16 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
     } else {
-        perLoopParams.perLoopCols = Ops::Base::CeilAlign(Ops::Base::CeilAlign(perLoopParams.perLoopCols, NUM_TWO), UB_BLOCK_SIZE);
+        perLoopParams.perLoopCols = Ops::Base::CeilAlign(Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO), UB_BLOCK_SIZE);
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
-            Align(perLoopParams.perLoopCols / 32, inputScaleDtypeSize_) * inputScaleDtypeSize_ * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+            Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+
         while (perLoopParams.perLoopMaxIndicesElements <= 0) {
             perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);
             perLoopParams.perLoopMaxIndicesElements =
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
-               Align(perLoopParams.perLoopCols / 32, inputScaleDtypeSize_) * inputScaleDtypeSize_ * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+                Align(perLoopParams.perLoopCols / 32, inputScaleDTypeSize_) * inputScaleDTypeSize_ * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
     }
     return perLoopParams;
