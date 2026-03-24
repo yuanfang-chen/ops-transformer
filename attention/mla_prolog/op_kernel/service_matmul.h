@@ -619,7 +619,7 @@ __aicore__ inline void MatmulL1(const LocalTensor<O_L0C> &cL0, const LocalTensor
         if constexpr (enUnitFlag) {
             mmadParams.unitFlag = (kL1 == kL1Loops - 1) && (kL0Loops == para.stepK - 1) ? UNIT_FLAG_SET : UNIT_FLAG_CHECK;
         }
-        MatmulL0(bufParam, aL1[aOffset], bL1[bOffset], localTensors.aL0Tensor, localTensors.bL0Tensor, cL0, mmadParams,
+        MatmulL0<T, O_L0C, S>(bufParam, aL1[aOffset], bL1[bOffset], localTensors.aL0Tensor, localTensors.bL0Tensor, cL0, mmadParams,
                 para.kL1StepSize, para.k, scaleALocalTensor[aScaleOffset], scaleBLocalTensor[bScaleOffset]);
         aOffset += aOffsetUnit; // 16(BS)*256=4096
         bOffset += bOffsetUnit; // 32(Get<T>)*256=8192
@@ -757,7 +757,7 @@ __aicore__ inline void MatmulFullLoad(const GlobalTensor<O> &tensorCGm, const Gl
         }
         WaitFlag<HardEvent::FIX_M>(L0C_EVENT0 + (bufParam.cL0BufIter & 1u));
         LocalTensor<O_L0C> cL0 = localTensors.cL0Tensor[(bufParam.cL0BufIter & 1u) * (L0C_PP_SIZE / sizeof(O_L0C))];
-        MatmulL0(bufParam, aL1, bL1[para.k * nSplitSize * n], localTensors.aL0Tensor, localTensors.bL0Tensor, cL0,
+        MatmulL0<T, O_L0C, S>(bufParam, aL1, bL1[para.k * nSplitSize * n], localTensors.aL0Tensor, localTensors.bL0Tensor, cL0,
                  mmadParams, para.kL1StepSize);
         GetTensorC<T, O, O_L0C, enUnitFlag>(tensorCGm[n * nSplitSize], cL0, para.m, nSplitSizeAct, mSize, para.orgKc,
                                             bufParam);
