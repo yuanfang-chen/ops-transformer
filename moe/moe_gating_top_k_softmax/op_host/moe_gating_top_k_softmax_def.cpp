@@ -80,15 +80,19 @@ public:
             .Format({ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND});
         config310p.Output("row_idx")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({ge::DT_INT32})
             .Format({ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND});
-        this->Attr("k").Int();
+        this->Attr("k").AttrType(REQUIRED).Int();
         config310p.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
             .DynamicRankSupportFlag(true)
             .DynamicShapeSupportFlag(true)
-            .ExtendCfgInfo("opFile.value", "moe_gating_top_k_softmax_310p");
+            .NeedCheckSupportFlag(false)
+            .PrecisionReduceFlag(true)
+            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
+            .ExtendCfgInfo("opFile.value", "moe_gating_top_k_softmax");
         this->AICore().AddConfig("ascend310p", config310p);
     }
 };
