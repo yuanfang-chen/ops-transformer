@@ -909,6 +909,9 @@ ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::GetPlatformInfo()
 
 ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::DoOpTiling()
 {
+    // 使用SyncAll，需要设置为batch mode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(1);
+    
     OP_LOGD(opName, "try template[%s]", templateName);
     // 无多余操作，分核，目前只实现TND场景分核
     int64_t totalSize = CalcTotalSize();
