@@ -51,7 +51,7 @@ ascend_ops/
     │   │
     │   ├── incre_flash_attention/            # Flash Attention 主算子
     │   │   ├── CMakeLists.txt                # 算子构建配置
-    │   │   ├── npu_fused_infer_attention_score.cpp  # 算子入口
+    │   │   ├── npu_fused_infer_attention_score.cpp  # 算子CPP入口
     │   │   │
     │   │   ├── op_host/                      # Host 端实现（Tiling）
     │   │   │   ├── incre_flash_attention_tiling.cpp
@@ -69,22 +69,17 @@ ascend_ops/
     │   │
     │   └── incre_flash_attention_meta/       # AICPU Tiling下沉算子——计算FA数据分核信息
     │       ├── CMakeLists.txt
-    │       ├── CMakeLists.txt.local
-    │       ├── npu_fused_infer_attention_score_metadata.cpp
+    │       ├── npu_fused_infer_attention_score_metadata.cpp  算子CPP入口
     │       │
-    │       ├── op_kernel/
-    │       │   ├── incre_flash_attention_metadata.cpp
-    │       │   └── ifa_meta_public_define.h
-    │       │
-    │       └── test/
-    │           └── test_meta.py
+    │       └── op_kernel/
+    │           ├── incre_flash_attention_metadata.cpp
+    │           └── ifa_meta_public_define.h
+    │       
     │
-    └── test/                                   # 测试脚本
-        ├── test.py                             # 主测试脚本
-        ├── test_aclgraph.py                    # ACL Graph 测试
-        ├── test_readline_case_csv.py           # CSV 测试用例
-        ├── test_readline_case_bak.py           # 备份测试用例
-        └── testcase.xlsx                       # 测试用例表格
+    └── test/                                  # 测试脚本
+        ├── test.py                            # AICPU Tiling下沉 + <<<>>> 调用 测试
+        ├── test_aclgraph.py                   # AICPU Tiling下沉 + <<<>>> 调用 + ACLGraph 测试
+        └── test_aclgraph_sk.py                # AICPU Tiling下沉 + <<<>>> 调用 + ACLGraph + SK 测试
 ```
 
 ---
@@ -310,14 +305,11 @@ python test_aclgraph_sk.py
 | `batch_size` | int | ✅ | 批次大小 |
 | `query_seq_size` | int | ✅ | Query 序列长度 |
 | `query_head_num` | int | ✅ | Query 头数 |
-| `key_seq_size` | int | ✅ | Key 序列长度 |
+| `head_dim` | int | ✅ | 头维度 |
 | `key_head_num` | int | ✅ | Key 头数 |
 | `block_size` | int | ✅ | 块大小 |
 | `max_block_num_per_batch` | int | ✅ | 每批次最大块数 |
-| `is_accum_seq_query` | bool | ❌ | Query 是否累积序列 |
-| `is_accum_seq_kv` | bool | ❌ | KV 是否累积序列 |
 | `layout_query` | str | ❌ | Query 布局，默认 "BSND" |
-| `layout_key` | str | ❌ | Key 布局，默认 "BSND" |
 
 **返回值**:
 

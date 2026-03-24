@@ -142,7 +142,7 @@ def main():
     print("⚙️ Setting up NPU compiler config...")
     compiler_config = CompilerConfig()
     compiler_config.mode = config.compile_mode
-
+    compiler_config.debug.aclgraph.clone_input = False
     # 5. Get NPU backend
     print("🎯 Getting NPU backend...")
     npu_backend = tng.get_npu_backend(compiler_config=compiler_config)

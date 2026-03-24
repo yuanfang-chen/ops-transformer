@@ -225,14 +225,12 @@ private:
     bool ShapeEqual(const at::IntArrayRef &aShape, const at::IntArrayRef &bShape) const;
 
     custom::graphStatus Split();
-    void GetActualSeqInfo(const at::IntArrayRef& actualSeqKv, ActualSeqInfo &actualSeqInfo) const;
     void GetSeqTilingInfo(const at::IntArrayRef& actualSeqKv, const ActualSeqInfo &actualSeqInfo,
         SeqTilingInfo &seqTilingInfo) const;
     void FillBalancedSplitCoreInfo(const TilingIndexes &tilingIdx, BalancedSplitTilingInfo &tilingInfo);
     void EndSplitForCurrentCore(const TilingIndexes &tilingIdx, const SeqTilingInfo &seqTilingInfo,
         uint32_t &currKvSplitPart, BalancedSplitTilingInfo &tilingInfo);
     void SplitBalancedForEachHeadFd(uint32_t bIdx, const SeqTilingInfo &seqTilingInfo, BalancedSplitTilingInfo &tilingInfo, std::vector<int64_t> &gS1SplitNumOfFdHead, uint32_t s1);
-    void SplitBalancedForEachHead(uint32_t bIdx, const SeqTilingInfo &seqTilingInfo, BalancedSplitTilingInfo &tilingInfo);
     void SplitFDMLa(uint32_t tndFDCoreArrLen, std::vector<int64_t> &gS1SplitNumOfFdHead, uint32_t *s2SplitNumOfFdHead, uint32_t aivCoreNum, SeqTilingInfo &seqTilingInfo);
     custom::graphStatus SplitBalanced();
     custom::graphStatus SplitUnbalanced();
@@ -289,7 +287,6 @@ private:
     void FillTilingCoreParams() const;
     void FillTilingSingleCoreParams() const;
     void FillTilingSingleCoreTensorSize() const;
-    void FillTilingSoftmax() const;
     void FillTilingSoftmaxFlashTiling();
     void FillTilingTranspose();
     void FillTilingOutputParams() const;

@@ -142,6 +142,7 @@ def main():
     print("⚙️ Setting up NPU compiler config...")
     compiler_config = CompilerConfig()
     compiler_config.mode = config.compile_mode
+    compiler_config.debug.aclgraph.clone_input = False
     compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel = True
     compiler_config.experimental_config.aclgraph._super_kernel_optimize = True
     compiler_config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "./"

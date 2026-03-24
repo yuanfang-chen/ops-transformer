@@ -1515,11 +1515,6 @@ custom::graphStatus IFATiling::ProcessGqaKvNz() const
     return custom::graphStatus::GRAPH_SUCCESS;
 }
 
-void IFATiling::GetActualSeqInfo(const at::IntArrayRef& actualSeqKv, ActualSeqInfo &actualSeqInfo) const
-{
-    
-}
-
 void IFATiling::GetSeqTilingInfo(const at::IntArrayRef& actualSeqKv,
                                  const ActualSeqInfo &actualSeqInfo, SeqTilingInfo &seqTilingInfo) const
 {
@@ -1574,13 +1569,6 @@ void IFATiling::EndSplitForCurrentCore(const TilingIndexes &tilingIdx,
         currKvSplitPart += 1U;
     } 
     tilingInfo.needUpdate = false;
-}
-
-
-void IFATiling::SplitBalancedForEachHead(
-    uint32_t bIdx, const SeqTilingInfo &seqTilingInfo, BalancedSplitTilingInfo &tilingInfo)
-{
-
 }
 
 custom::graphStatus IFATiling::SplitBalanced()
@@ -2270,11 +2258,6 @@ void IFATiling::FillTilingSingleCoreTensorSize() const
 {
     tilingData_->increFlashAttentionSingleCoreTensorSize.set_mmResUbSize(mmResUbSize_);
     tilingData_->increFlashAttentionSingleCoreTensorSize.set_bmm2ResUbSize(bmm2ResUbSize_);
-}
-
-void IFATiling::FillTilingSoftmax() const
-{
-
 }
 
 // for zero output
