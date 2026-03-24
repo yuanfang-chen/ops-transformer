@@ -240,10 +240,12 @@ public:
                     subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
                 }
                 // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
-                chunkStartRow[i] = cg_.startPos + curCgId * chunkSize_;
-                SetChunkTensors(i, curNId, curCgId, chunkStartRow[i]);
+                chunkStartRowBatch[i] = cg_.startPos + curCgId * chunkSize_;
+                nIdBatch_[i] = curNId;
+                bgOffsetBatch_[i] = chunkStartRowBatch[i] * nv_ + curNId;
+                SetChunkTensors(i, curNId, curCgId, chunkStartRowBatch[i]);
             }
-            ProcessParaChunk(curParaNum, startTaskId, cgId, chunkStartRow);
+            ProcessParaChunk(curParaNum, taskId, cgId, chunkStartRowBatch);
         }
     }
 
@@ -335,9 +337,8 @@ private:
         if ASCEND_IS_AIV {
             // 获取连续QK
             for (uint32_t i = 0; i < curParaNum; ++i) {
-                uint64_t curTaskId = startTaskId + i;
-                uint64_t nId = curTaskId % nv_;
-                uint64_t subRow = chunkStartRow + subOffset_;
+                uint64_t nId = nIdBatch[i];
+                uint64_t subRow = chunkStartRow[i] + subOffset_;
                 uint64_t qk_base = subRow * nk_ * dk_ + nId * nk_ / nv_ * dk_;
                 queryGm_ = queryBaseGm_[qk_base];
                 keyGm_   = keyBaseGm_[qk_base];
@@ -350,10 +351,7 @@ private:
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9);  //同步0
             if (gOptional_){
                 for (uint32_t i = 0; i < curParaNum; ++i) {
-                    uint64_t curTaskId = startTaskId + i;
-                    uint64_t nId = curTaskId % nv_;
-                    uint64_t bgOffset = chunkStartRow * nv_ + nId;
-                    gGm_ = gBaseGm_[bgOffset];
+                    gGm_ = gBaseGm_[bgOffset[i]];
                     // g_cum_exp = g.cumsum(dim=-1).exp()
                     outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase_[i]];
                     GCumExpCompute(gGm_, outGCumExpGm_, validLenBatch_[i]);
@@ -363,10 +361,7 @@ private:
                 }
             }
             for (uint32_t i = 0; i < curParaNum; ++i) {
-                uint64_t curTaskId = startTaskId + i;
-                uint64_t nId = curTaskId % nv_;
-                uint64_t bgOffset = chunkStartRow * nv_ + nId;
-                betaGm_ = betaBaseGm_[bgOffset];
+                betaGm_ = betaBaseGm_[bgOffset[i]];
                 uint64_t betaUbOffset = i * halfChunkSize_;
                 BetaCopyInWithStride(betaGm_, betaUbFloat_[betaUbOffset], subValidLenBatch_[i]);
             }
@@ -396,10 +391,8 @@ private:
 
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
-                uint64_t curTaskId = startTaskId + i;
-                uint64_t nId = curTaskId % nv_;
                 uint64_t kOffset = i * chunkSize_ * chunkSize_;
-                uint64_t vOffset = chunkStartRow * vRowStride_ + nId * dv_;
+                uint64_t vOffset = chunkStartRow[i] * vRowStride_ + nIdBatch_[i] * dv_;
                 valueGm_ = valueBaseGm_[vOffset];
                 uint64_t betaUbOffset = i * halfChunkSize_;
                 uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
@@ -821,6 +814,8 @@ private:
     uint32_t subValidLenBatch_[MAX_PARALLEL_NUM];
     uint32_t chunkRowBase_[MAX_PARALLEL_NUM];
     uint64_t chunkStartRowBatch[MAX_PARALLEL_NUM];
+    uint64_t nIdBatch_[MAX_PARALLEL_NUM];
+    uint64_t bgOffsetBatch_[MAX_PARALLEL_NUM];
 
     // base GM pointers
     GlobalTensor<bfloat16_t> queryBaseGm_;
