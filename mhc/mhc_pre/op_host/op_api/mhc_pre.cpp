@@ -24,7 +24,7 @@ OP_TYPE_REGISTER(MhcPre);
 
 const std::tuple<aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *>
 MhcPre(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias,
-       const aclTensor *gammaOptional, int64_t outFlag, float normEps, float hcEps, aclOpExecutor *executor)
+       const aclTensor *gammaOptional, int64_t outFlag, double normEps, double hcEps, aclOpExecutor *executor)
 {
     L0_DFX(MhcPre, x, phi, alpha, bias, gammaOptional, outFlag, normEps, hcEps);
 

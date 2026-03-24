@@ -56,8 +56,8 @@ struct MhcParamsBase {
     const aclTensor *alpha = nullptr;
     const aclTensor *bias = nullptr;
     const aclTensor *gammaOptional = nullptr;
-    float normEps;
-    float hcEps;
+    double normEps;
+    double hcEps;
     aclTensor *hIn = nullptr;
     aclTensor *hPost = nullptr;
     aclTensor *hRes = nullptr;
@@ -93,7 +93,7 @@ public:
         return *this;
     }
 
-    MhcBuilder &SetAttr(float normEps, float hcEps)
+    MhcBuilder &SetAttr(double normEps, double hcEps)
     {
         obj_.normEps = normEps;
         obj_.hcEps = hcEps;
@@ -515,8 +515,8 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
 }
 
 aclnnStatus aclnnMhcPreGetWorkspaceSize(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha,
-                                        const aclTensor *bias, const aclTensor *gammaOptional, float normEps,
-                                        float hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
+                                        const aclTensor *bias, const aclTensor *gammaOptional, double normEps,
+                                        double hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
                                         aclTensor *invRmsOptional, aclTensor *hMixOptional, aclTensor *hPreOptional,
                                         uint64_t *workspaceSize, aclOpExecutor **executor)
 {

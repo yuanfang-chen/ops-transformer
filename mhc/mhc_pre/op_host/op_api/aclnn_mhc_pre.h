@@ -40,8 +40,8 @@ extern "C" {
  * @return aclnnStatus: 返回状态码
  */
 ACLNN_API aclnnStatus aclnnMhcPreGetWorkspaceSize(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha,
-                                                  const aclTensor *bias, const aclTensor *gammaOptional, float normEps,
-                                                  float hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
+                                                  const aclTensor *bias, const aclTensor *gammaOptional, double normEps,
+                                                  double hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
                                                   aclTensor *invRmsOptional, aclTensor *hMixOptional,
                                                   aclTensor *hPreOptional, uint64_t *workspaceSize,
                                                   aclOpExecutor **executor);
