@@ -8,6 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+message(STATUS "6666")
 if (BUILD_OPEN_PROJECT)
     set(CMAKE_MODULE_PATH
         ${CMAKE_MODULE_PATH}
@@ -1070,9 +1071,9 @@ if (NOT ENABLE_BUILT_IN AND BUILD_OPEN_PROJECT)
         set(CPACK_EXTERNAL_PACKAGE_SCRIPT ${ASCEND_CMAKE_DIR}/makeself.cmake)
       else()
         message(STATUS "Debug: 5555 - Going into COPY branch")
-        set(CPACK_MAKESELF_PATH ${OPS_TRANSFORMER_DIR}/third_party/makeself)
+        set(CPACK_MAKESELF_PATH ${CANN_3RD_LIB_PATH}/makeself)
         set(CPACK_EXTERNAL_PACKAGE_SCRIPT ${CMAKE_SOURCE_DIR}/cmake/makeself_custom.cmake)
-        message(STATUS "Debug: 5555 is ${OPS_TRANSFORMER_DIR}")
+        message(STATUS "Debug: 5555 is ${CANN_3RD_LIB_PATH}")
       endif()
     endif()
     set(CPACK_EXTERNAL_BUILT_PACKAGES ${CPACK_PACKAGE_DIRECTORY}/_CPack_Packages/Linux/External/${CPACK_PACKAGE_FILE_NAME}/${CPACK_PACKAGE_FILE_NAME})
