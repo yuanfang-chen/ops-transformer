@@ -91,15 +91,15 @@ public:
 
         workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
         attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                   coreIdx_  * paraNum_* chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                   coreIdx_ * paraNum_* chunkSize_ * chunkSize_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
         queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                          coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                          coreIdx_* paraNum_ * chunkSize_ * dk_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * chunkSize_ * dk_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dk_ * sizeof(float);
         keyContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                         coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                         coreIdx_* paraNum_ * chunkSize_ * dk_ * sizeof(float)));
     }
 
     __aicore__ inline void InitLocalBuffers()
@@ -325,29 +325,48 @@ private:
         }
         if ASCEND_IS_AIV {
             // 获取连续QK
-            QKPreProcess();
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                QKPreProcess();
+            }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9);  //同步0
             if (gOptional_){
-                // g_cum_exp = g.cumsum(dim=-1).exp()
-                GCumExpCompute();
-                // attn_1 = (g_cum_exp[:None] / g_cum_exp[None,:]) * mask
-                GammaCompute();
+                for (uint32_t i = 0; i < curParaNum; ++i) {
+                    // g_cum_exp = g.cumsum(dim=-1).exp()
+                    GCumExpCompute();
+                    // attn_1 = (g_cum_exp[:None] / g_cum_exp[None,:]) * mask
+                    GammaCompute();
+                }
             }
-            BetaCopyInWithStride();
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                BetaCopyInWithStride();
+            }
             AscendC::CrossCoreWaitFlag(0x8);  //同步1
-            // attn_1 = kkt * attn_1
-            KKBetaCompute();
-            // attn_1对角块求逆，对角块shape为INVERSE_SHAPE=32
-            InverseCompute();
+
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                // attn_1 = kkt * attn_1
+                KKBetaCompute();
+                // attn_1对角块求逆，对角块shape为INVERSE_SHAPE=32
+                InverseCompute();
+            }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x7);  //同步2
-            // kg = key * (g_cum_exp[-1, None] / g_cum_exp)[..., None] && k_cumdecay = -1.0 * k * beta * g_cum_exp
-            GBKCompute();
+
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                // kg = key * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
+                // k_cumdecay = -1.0 * k * beta * g_cum_exp
+                GBKCompute();
+            }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x6);  //同步3
-            // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
-            VBetaCompute();
+
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
+                VBetaCompute();
+            }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5);  //同步4
-            // q_prime = query * scale_ * g_cum_exp[:, None]       # (C, Dk)
-            QPrimeCompute();
+
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                // q_prime = query * scale_ * g_cum_exp[:, None]  # (C, Dk)
+                QPrimeCompute();
+            }
         }
     }
 
