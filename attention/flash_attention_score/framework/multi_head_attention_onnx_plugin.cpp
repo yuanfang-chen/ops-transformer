@@ -88,19 +88,20 @@ static Status ParseOpToGraphMultiHeadAttention(const ge::Operator& op, ge::Graph
   auto data0 = ge::op::Data((ori_name + "_data0").c_str()).set_attr_index(0);
   auto data1 = ge::op::Data((ori_name + "_data1").c_str()).set_attr_index(1);
   auto data2 = ge::op::Data((ori_name + "_data2").c_str()).set_attr_index(2);
-  auto data4 = ge::op::Data((ori_name + "_data4").c_str()).set_attr_index(4);
-  auto cast_atten_mask = ge::op::Cast((ori_name + "_Cast_atten_mask").c_str()).set_input_x(data4)
-                                                                              .set_attr_dst_type(ACL_UINT8);
+  ge::Operator data4 = ge::op::Data((ori_name + "_data4").c_str()).set_attr_index(4);
   int head_num = 0;
   float scale = 1.0f;
   if ((GetAttr(op, head_num, scale) != SUCCESS)) {
     return FAILED;
   }
+
+  ge::Operator::OpListInt multis = {1, head_num, 1, 1};
+  auto pse_tile = ge::op::TileD((ori_name + "_TileD").c_str()).set_input_x(data4).set_attr_multiples(multis);
   std::string input_layout = "BSH";
-  int sparse_mode = 1;
+  int sparse_mode = 0;
   auto attention_score = ge::op::FlashAttentionScore((ori_name + "_FlashAttentionScore").c_str())
       .set_input_query(data0).set_input_key(data1).set_input_value(data2)
-      .set_input_atten_mask(cast_atten_mask)
+      .set_input_real_shift(pse_tile)
       .set_attr_scale_value(scale)
       .set_attr_input_layout(input_layout)
       .set_attr_sparse_mode(sparse_mode)
