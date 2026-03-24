@@ -23,10 +23,10 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace optiling;
-using namespace optiling::Mc2GroupedMatmul;
+using namespace MC2Tiling;
+using namespace MC2Tiling::Mc2GroupedMatmul;
 
-// namespace Mc2GroupedMatmul {
+namespace MC2Tiling {
 
 const std::vector<uint32_t> QUANT_GMM_X_DTYPE_LIST = {ge::DT_HIFLOAT8,};
 const std::vector<uint32_t> QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_HIFLOAT8,};
@@ -36,12 +36,12 @@ const std::vector<uint32_t> QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF1
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 
-static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
+bool QuantGroupedMatmulAllToAllvTilingBase::IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
     return std::count(list.begin(), list.end(), value) > 0;
 }
 
-static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
+ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
     const char *opName_)
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
@@ -709,8 +709,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::DoQuantGMMTiling()
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
     // GMM 第一个矩阵块
     uint64_t gmmX_epSize = 0;
-    for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
-        gmmX_epSize += localTilingData_.taskTilingInfo.sendCnt[i*localParams_.ep];
+    uint64_t mSize = 0;
+    for (uint64_t expertIdx = 0; expertIdx < localParams_.ep; expertIdx++) {
+        mSize = 0;
+        for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
+            mSize += localTilingData_.taskTilingInfo.sendCnt[i*localParams_.ep  + expertIdx];
+        }
+        gmmX_epSize = std::max(mSize, gmmX_epSize);
+
     }
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, gmmX_epSize));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
@@ -892,4 +898,4 @@ uint64_t QuantGroupedMatmulAllToAllvTilingBase::GetTilingKey() const
     return tilingKey;
 }
 
-// }
+}
