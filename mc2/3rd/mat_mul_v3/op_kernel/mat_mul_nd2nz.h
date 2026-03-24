@@ -255,7 +255,7 @@ __aicore__ inline void MatrixAtoNZV2(GM_ADDR workspace, GM_ADDR src, const TCube
             Nd2nzVnchwMM(tempDstGlobal, tempSrcGlobal, oriN, oriD, batch, tmpBuf, usedCoreNum);
         } else {
             if (nValue * dValue * sizeof(T) * 2 > 192 * 1024){  // nd2nz cannot exceed the size of UB
-                Nd2nzVnchwBMM(tempDstGlobal, tempSrcGlobal, oriN, oriD, batch, tmpBuf, usedCoreNum);
+                Mc2Nd2nzVnchwBMM(tempDstGlobal, tempSrcGlobal, oriN, oriD, batch, tmpBuf, usedCoreNum);
             } else {
                 MatrixtoNZ(oriN, oriD, nValue, dValue, baseAN, baseAD, usedCoreNum, tempSrcGlobal, tempDstGlobal, tmpBuf);
             }
@@ -295,7 +295,7 @@ __aicore__ inline void MatrixBtoNZV2(GM_ADDR workspace, GM_ADDR src, const TCube
             Nd2nzVnchwMM(tempDstGlobal1, tempSrcGlobal1, oriN, oriD, batch, tmpBuf, usedCoreNum);
         } else {
             if (nValue * dValue * sizeof(T) * 2 > 192 * 1024){  // nd2nz cannot exceed the size of UB
-                Nd2nzVnchwBMM(tempDstGlobal1, tempSrcGlobal1, oriN, oriD, batch, tmpBuf, usedCoreNum);
+                Mc2Nd2nzVnchwBMM(tempDstGlobal1, tempSrcGlobal1, oriN, oriD, batch, tmpBuf, usedCoreNum);
             } else {
                 MatrixtoNZ(oriN, oriD, nValue, dValue, baseBN, baseBD, usedCoreNum, tempSrcGlobal1, tempDstGlobal1, tmpBuf);
             }    
