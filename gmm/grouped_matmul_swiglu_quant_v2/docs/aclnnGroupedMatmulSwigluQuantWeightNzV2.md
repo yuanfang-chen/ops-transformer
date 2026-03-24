@@ -357,6 +357,26 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
         <td>-</td>
       </tr>
       <tr>
+        <td>dequantDtype</td>
+        <td rowspan="1">输入</td>
+        <td>表示中间GroupedMatmul的结果数据类型。</td>
+        <td>暂不支持</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>quantMode</td>
+        <td rowspan="1">输入</td>
+        <td>表示量化计算类型，用于确定swiglu结果的量化模式。</td>
+        <td>暂不支持</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>groupListType</td>
         <td rowspan="1">输入</td>
         <td>表示分组的解释方式，用于确定groupList的语义。</td>
