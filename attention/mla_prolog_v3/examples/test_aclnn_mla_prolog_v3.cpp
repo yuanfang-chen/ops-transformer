@@ -269,14 +269,15 @@ int main() {
 
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(queryShape);
-    std::vector<float> resultData(size, 0);
-    ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), queryDeviceAddr, size * sizeof(float),
+    auto copySize = size * aclDataTypeSize(aclDataType::ACL_BF16);
+    std::vector<uint16_t> resultData(size, 0);
+    ret = aclrtMemcpy(resultData.data(), copySize, queryDeviceAddr, copySize,
                       ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
-    
+
     uint64_t printBufferSize = 32;
     for (int64_t i = 0; i < printBufferSize; i++) {
-        LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+        LOG_PRINT("result[%ld] is: %u\n", i, resultData[i]);
     }
     // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改
     aclDestroyTensor(tokenX);
