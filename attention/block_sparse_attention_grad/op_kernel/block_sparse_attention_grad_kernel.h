@@ -490,24 +490,24 @@ namespace BSA {
             uint32_t numHeads = tilingData->numHeads;
             uint32_t kvHeads = tilingData->kvHeads;
             uint32_t groupSize = numHeads / kvHeads;
-            uint32_t headDim = tilingData->headDim;
-            uint32_t maxQSeqlen = tilingData->maxQSeqlen;
-            uint32_t maxKvSeqlen = tilingData->maxKvSeqlen;
             uint32_t inputLayout = tilingData->inputLayout;
             uint32_t blockShapeX = tilingData->blockShapeX;
             uint32_t blockShapeY = tilingData->blockShapeY;
-
-            uint64_t sOutSize = tilingData->sOutSize;
-            uint64_t dPOutSize = tilingData->dPOutSize;
-            uint64_t dQOutSize = tilingData->dQOutSize;
-            uint64_t dKOutSize = tilingData->dKOutSize;
-            uint64_t dVOutSize = tilingData->dVOutSize;
+            uint32_t headDim = tilingData->headDim;
+            uint32_t maxQSeqlen = tilingData->maxQSeqlen;
+            uint32_t maxKvSeqlen = tilingData->maxKvSeqlen;
 
             uint32_t basicQBlockSize = tilingData->basicQBlockSize;
             uint32_t basicKVBlockSize = tilingData->basicKVBlockSize;
             uint32_t taskNumPerCore = tilingData->taskNumPerCore;
             uint32_t tailTaskNum = tilingData->tailTaskNum;
             uint32_t taskLengthVec = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
+
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
 
             // Initialize global tensors
             AscendC::GlobalTensor<bool> gBlcokSpaseMask;
@@ -526,35 +526,20 @@ namespace BSA {
             uint32_t batchBlocks = numHeads * qBlockNum * kvBlockNum;
             uint32_t headBlocks = qBlockNum * kvBlockNum;
 
-            uint64_t actualStrideQ = headDim;
-            uint64_t actualStrideKV = headDim;
-            if (inputLayout == 0) {
-                actualStrideQ = numHeads * headDim;
-                actualStrideKV = kvHeads * headDim;
-            }
-
             // uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
             for (uint32_t i = 0; i < taskLengthVec; i++) {
                 TaskInfo curInfo = taskInfoVec[i % 2];
-                uint64_t kvBlockOffset = 0;
                 uint64_t beginKVOffset = curInfo.kvOffset;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
                     uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
                     if (gBlcokSpaseMask.GetValue(maskOffset)) {
-                        uint64_t kvBlockBasicOffset = 0;
                         uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen - blockShapeY * idx;
                         uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
                             curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
-                            if (inputLayout == 0) {
-                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * kvHeads * headDim;
-                            } else {
-                                curInfo.kvOffset = beginKVOffset + (kvBlockOffset + kvBlockBasicOffset) * headDim;
-                            }
-
                             curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
 
                             uint64_t actualRow = curInfo.curCalQSize;
@@ -603,10 +588,8 @@ namespace BSA {
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
                             preTaskInfo.sOffset = curInfo.sOffset * 2; // float32偏移转成bf16/half偏移
-                            kvBlockBasicOffset += basicKVBlockSize;
                         }
                     }
-                    kvBlockOffset += kvBlockNum;
                 }
 
                 if (i != taskLengthVec - 1) {

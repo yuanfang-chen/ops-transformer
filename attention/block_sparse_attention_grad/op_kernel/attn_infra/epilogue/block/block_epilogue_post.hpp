@@ -239,7 +239,6 @@ public:
     __aicore__ inline
     void operator()<AscendC::AIC>()
     {
-
     }
 
     template <>
