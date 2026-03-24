@@ -73,6 +73,9 @@ public:
             return;
         }
         coreId_ /= 2;
+        if (GetSubBlockIdx() == 1) {
+            return;
+        }
         uint64_t inQueueSize = static_cast<uint64_t>(chunkSize_) *
                                AscendC::Std::max((int64_t)chunkSize_, paddedDv_) * sizeof(float);
         pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, inQueueSize);
@@ -87,7 +90,6 @@ public:
         maskBuffer_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
 
         // 搬入mask
-        if (GetSubBlockIdx() == 0) {
         DataCopyExtParams inParams{static_cast<uint16_t>(chunkSize_),
                                    static_cast<uint32_t>(chunkSize_ * sizeof(float)),
                                    0, 0, 0};
@@ -95,7 +97,6 @@ public:
         DataCopyPad(maskBuffer_, sTP_->maskTensor, inParams, copyPadParams);
         SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
         WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
-        }
     }
 
     __aicore__ inline void Process()
