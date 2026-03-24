@@ -225,6 +225,8 @@ private:
     ge::graphStatus DoNoCompressOpTiling();
     ge::graphStatus DoCompressAlibiOpTiling();
     ge::graphStatus DoCompressRopeAndOmniOpTiling();
+    ge::graphStatus CheckInputShapeNHSD();
+    ge::graphStatus DoNHSDOpTiling();
 private:
     ScatterPaKvCacheMembaseParams params_;
     ScatterPaKvCacheTilingData tilingData_;

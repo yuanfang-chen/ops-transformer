@@ -43,6 +43,8 @@ using namespace AscendC;
 // siso_nct
 #define SISO_NCT_FULLY_LOAD 8001
 #define SISO_NCT_NOT_FULLY_LOAD 8000
+// NHSD
+#define NHSD 9000
 
 extern "C" __global__ __aicore__ void scatter_pa_kv_cache(GM_ADDR key, GM_ADDR key_cache_in, GM_ADDR slot_mapping,
                                                           GM_ADDR value, GM_ADDR value_cache_in, GM_ADDR compress_lens,
@@ -93,6 +95,10 @@ extern "C" __global__ __aicore__ void scatter_pa_kv_cache(GM_ADDR key, GM_ADDR k
         op.Init(&pipe, &tilingData);
         op.Method(key, value, key_cache_in, value_cache_in, slot_mapping, compress_lens, seq_lens, compress_seq_offset,
                   key_cache_out, value_cache_out);
+    } else if (TILING_KEY_IS(NHSD)) {
+        ScatterPaKvCache::ScatterPaKvCacheNHSD<DTYPE_KEY, DTYPE_SLOT_MAPPING> op;
+        op.Init(key, value, slot_mapping, key_cache_out, value_cache_out, &tilingData);
+        op.process();
     }
 #endif
     // siso
