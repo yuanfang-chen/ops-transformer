@@ -287,7 +287,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
     int64_t weightGmOffset = info.tensorWeightsOffset + cuBaseS1Idx * qHeadNum_;
     // 当前需要计算的S1行数，处理尾块场景
     int32_t cuS1ProcNum = cuBaseS1Idx + s1BaseSize_ > info.actS1Size ? info.actS1Size % s1BaseSize_ : s1BaseSize_;
-    int32_t cuProcEleNum = CeilAlign(cuS1ProcNum * gSize_, 64);
+    int32_t cuProcEleNum = CeilAlign(cuS1ProcNum * gSize_, 32);
 
     LocalTensor<half> inWeightsUb = inQueue_.AllocTensor<half>();
     LocalTensor<half> inQScaleUb = inWeightsUb[cuProcEleNum];
@@ -313,7 +313,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
     resUb = outQueue_.DeQue<half>();
     AscendC::DataCopyParams copyOutParams;
     copyOutParams.blockCount = 1;
-    copyOutParams.blockLen = cuProcEleNum * BLOCK_CUBE * sizeof(half);
+    copyOutParams.blockLen = cuS1ProcNum * gSize_ * BLOCK_CUBE * sizeof(half);
     copyOutParams.srcStride = 0;
     copyOutParams.dstStride = 0;
     AscendC::DataCopyPad(vec0OutGm[vec0OutGmOffset], resUb, copyOutParams);

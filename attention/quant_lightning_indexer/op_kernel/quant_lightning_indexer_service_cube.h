@@ -441,7 +441,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadSToL0b(uint64_t s1gL1RealSize, uint6
     loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
 
     // SetLoadToA0Params
-    loadData3DParams.mExtension = constInfo_.gSize;                     // M height维度目的
+    loadData3DParams.mExtension = CeilAlign(constInfo_.gSize, BLOCK_CUBE);                     // M height维度目的
     loadData3DParams.kExtension = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // K   width维度目的
     loadData3DParams.kStartPt = 0;
     loadData3DParams.strideW = 1;
@@ -455,7 +455,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadSToL0b(uint64_t s1gL1RealSize, uint6
     loadData3DParams.enTranspose = 1;
     loadData3DParams.fMatrixCtrl = 0;
 
-    loadData3DParams.mStartPt = mStartPt;
+    loadData3DParams.mStartPt = CeilAlign(mStartPt, BLOCK_CUBE);
     LoadData<half, LOAD3DV2_CONFIG>(
         l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
         sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData3DParams);
