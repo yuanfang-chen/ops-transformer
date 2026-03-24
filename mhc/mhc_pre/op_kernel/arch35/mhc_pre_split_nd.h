@@ -126,7 +126,7 @@ public:
     __aicore__ inline void AIV1GetHSliceOffset();
     __aicore__ inline void DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen,
                                                   uint32_t offsetM, uint32_t offsetNd);
-    __aicore__ inline void V0Prologue();
+    __aicore__ inline void V0Prologue(uint64_t curBlock, uint64_t tBlockNum);
     __aicore__ inline void AIV1Process(uint64_t curBlock, uint64_t tBlockNum);
     __aicore__ inline void AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset);
     __aicore__ inline void HMixProcess(uint64_t offsetT, uint64_t lenT);
@@ -269,7 +269,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Process()
         uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
         if (coreIdx_ < tBlockNum) {
             globalOffsetM_ = coreIdx_ * chunTSize_;
-            V0Prologue();
+            V0Prologue(coreIdx_, tBlockNum);
             AIV1Process(coreIdx_, tBlockNum);
         } else {
             AscendC::CrossCoreSetFlag<0x0, PIPE_MTE3>(SYNC_V0toV0);
@@ -388,8 +388,13 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::DataCopyOutToWorkSpace(LocalTe
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue()
+__aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue(uint64_t curBlock, uint64_t tBlockNum)
 {
+    curSingleM_ = chunTSize_;
+    if (curBlock == tBlockNum - 1) {
+        curSingleM_ = matrixInfo_.totalLength - curBlock * chunTSize_;
+    }
+
     VectorComputeOffset();
     if (vectorOffset_.singleCoreM == 0) {
         AscendC::CrossCoreSetFlag<0x0, PIPE_MTE3>(SYNC_V0toV0);
