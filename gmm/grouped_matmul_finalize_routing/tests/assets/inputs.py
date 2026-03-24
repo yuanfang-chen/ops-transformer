@@ -37,15 +37,6 @@ def grouped_matmul_finalize_routing_inputs(x, w, scale, bias, pertoken_scale, gr
         row_index_test.extend([0] * remain)
     row_index_test = np.array(row_index_test, dtype=np.int64)
     row_index = row_index_test
-    # generate fp8_e8m0 scale
-    if scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
-        x1_mx_gm = np.random.uniform(127, 130, size=pertoken_scale.shape).astype(np.uint8) # 127, 130
-        x1_mx = 2**(x1_mx_gm.astype(np.float64) - 127)
-        pertoken_scale = x1_mx.astype("float8_e8m0")
- 
-        x2_mx_gm = np.random.randint(127, 130, size=scale.shape).astype(np.uint8)
-        x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
-        scale = x2_mx.astype("float8_e8m0")
     if 'group_list_expect' in kwargs:
         group_list = kwargs['group_list_expect']
     else:

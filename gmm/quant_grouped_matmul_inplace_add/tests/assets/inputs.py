@@ -11,26 +11,16 @@
 # ----------------------------------------------------------------------------
 __input__ = {
         "kernel": {
-            "quant_grouped_matmul_inplace_add": "quant_grouped_matmul_inplace_add_golden"
+            "quant_grouped_matmul_inplace_add": "quant_grouped_matmul_inplace_add_inputs"
         }
 }
 
 import numpy as np
 
-def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list_ori, y, scale1, group_list_type:int = 0,
+def quant_grouped_matmul_inplace_add_inputs(x1, x2, scale2, group_list_ori, y, scale1, group_list_type:int = 0,
                                             group_size: int = 0, **kwargs):
     input_deq_scale = scale2
-    group_list_shape = group_list_ori
     pertoken_scale = scale1
-    # generate fp8_e8m0 scale
-    if input_deq_scale.dtype == "float8_e8m0" and pertoken_scale.dtype == "float8_e8m0":
-        x1_mx_gm = np.random.uniform(127, 130, size=pertoken_scale.shape).astype(np.uint8) # 127, 130
-        x1_mx = 2**(x1_mx_gm.astype(np.float64) - 127)
-        pertoken_scale = x1_mx.astype("float8_e8m0")
-
-        x2_mx_gm = np.random.randint(127, 130, size=input_deq_scale.shape).astype(np.uint8)
-        x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
-        input_deq_scale = x2_mx.astype("float8_e8m0")
 
     if 'group_list_expect' in kwargs:
         group_list_expect = kwargs['group_list_expect']# 全量化组需必传group_list_expect
