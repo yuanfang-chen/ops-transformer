@@ -56,8 +56,8 @@ struct MhcParamsBase {
     const aclTensor *alpha = nullptr;
     const aclTensor *bias = nullptr;
     const aclTensor *gammaOptional = nullptr;
-    float normEps;
-    float hcEps;
+    double normEps;
+    double hcEps;
     aclTensor *hIn = nullptr;
     aclTensor *hPost = nullptr;
     aclTensor *hRes = nullptr;
@@ -93,7 +93,7 @@ public:
         return *this;
     }
 
-    MhcBuilder &SetAttr(float normEps, float hcEps)
+    MhcBuilder &SetAttr(double normEps, double hcEps)
     {
         obj_.normEps = normEps;
         obj_.hcEps = hcEps;
@@ -474,9 +474,11 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
     ret = ConvertDataContiguous(params, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    auto outParams =
-        l0op::MhcPre(params.x_contiguous, params.phi_contiguous, params.alpha_contiguous, params.bias_contiguous,
-                     params.gammaOptional_contiguous, params.normEps, params.hcEps, executor);
+    int64_t outFlag =
+        (params.invRmsOptional != nullptr && params.hMixOptional != nullptr && params.hPreOptional != nullptr) ? 1 : 0;
+    auto outParams = l0op::MhcPre(params.x_contiguous, params.phi_contiguous, params.alpha_contiguous,
+                                  params.bias_contiguous, params.gammaOptional_contiguous, outFlag, params.normEps,
+                                  params.hcEps, executor);
     CHECK_RET(outParams != std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), ACLNN_ERR_INNER_NULLPTR);
 
     auto out0 = std::get<0>(outParams);
@@ -513,8 +515,8 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
 }
 
 aclnnStatus aclnnMhcPreGetWorkspaceSize(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha,
-                                        const aclTensor *bias, const aclTensor *gammaOptional, float normEps,
-                                        float hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
+                                        const aclTensor *bias, const aclTensor *gammaOptional, double normEps,
+                                        double hcEps, aclTensor *hIn, aclTensor *hPost, aclTensor *hRes,
                                         aclTensor *invRmsOptional, aclTensor *hMixOptional, aclTensor *hPreOptional,
                                         uint64_t *workspaceSize, aclOpExecutor **executor)
 {
