@@ -200,106 +200,61 @@ namespace SplitFuse {
             uint32_t embedRoundV = NpuArch::Detail::Alignment::RoundUp(embedV, FaiKernel::BLOCK_SIZE);
             uint32_t groupSize = qHeads / kvHeads;
 
-            uint64_t qBOffset = 0;
-            uint64_t kBOffset = 0;
-            uint64_t vBOffset = 0;
-            uint64_t oBOffset = 0;
-            uint64_t lseBOffset = 0;
-            uint64_t blockBOffset = 0;
-
-            uint32_t preTotalTaskNum = 0;
-            uint32_t curBatch = 0;
             uint32_t totalQTokens = static_cast<uint32_t>(gActualQseqlen.GetValue(batch - 1));
-            uint32_t qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch));
-            uint32_t kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch));
-            if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                uint32_t prevQSeqlenSum = (curBatch == 0) ?
-                    0 : static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch - 1));
-                qSeqlen = qSeqlen - prevQSeqlenSum;
-                if constexpr (!PAGED_CACHE_FLAG) {
-                    uint32_t prevKvSeqlenSum = (curBatch == 0) ?
-                        0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch - 1));
-                    kvSeqlen = kvSeqlen - prevKvSeqlenSum;
-                }
-            }
-            uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
-            uint32_t curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile);
-            uint32_t curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
-            uint32_t curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
-            uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
-            uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads);
-            uint32_t curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile);
-            uint32_t curTotalTaskNum = firstBatchTaskNum;
+            uint32_t curKvNBlockTile = GetKvNBlockTile(groupSize, kvHeads);
+            uint32_t curKvNBlockNum = firstBatchTaskNum;
+            uint32_t rowNumConst = groupSize;
+            uint32_t rowNumRoundConst = NpuArch::Detail::Alignment::RoundUp(rowNumConst, FaiKernel::BLOCK_SIZE);
             uint32_t useMainLoopTaskNum = (tailKvNBlockTile > 0) ? mainLoopTaskNum : totalTaskNum;
 
             for (uint32_t taskIdx = coreIdx; taskIdx < useMainLoopTaskNum; taskIdx += uint32_t(coreNum)) {
-                while (taskIdx >= curTotalTaskNum) {
-                    ++curBatch;
-                    preTotalTaskNum = curTotalTaskNum;
-                    qBOffset += qSeqlen * strideQ;
-                    if constexpr (!PAGED_CACHE_FLAG) {
-                        kBOffset += static_cast<uint64_t>(kvSeqlen * strideK);
-                        vBOffset += static_cast<uint64_t>(kvSeqlen * strideV);
-                    } else {
-                        blockBOffset += static_cast<uint64_t>(maxNumBlocksPerBatch);
-                    }
-                    oBOffset += static_cast<uint64_t>(qSeqlen * strideO);
-                    lseBOffset += static_cast<uint64_t>(qSeqlen * qHeads);
+                uint32_t curBatch = taskIdx / firstBatchTaskNum;
+                uint32_t kvNBlockIdx = taskIdx - curBatch * firstBatchTaskNum;
 
-                    qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch));
-                    kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch));
-                    if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                        uint32_t prevQSeqlenSum = (curBatch == 0) ?
-                            0 : static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch - 1));
-                        qSeqlen = qSeqlen - prevQSeqlenSum;
-                        if constexpr (!PAGED_CACHE_FLAG) {
-                            uint32_t prevKvSeqlenSum = (curBatch == 0) ?
-                                0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch - 1));
-                            kvSeqlen = kvSeqlen - prevKvSeqlenSum;
-                        }
+                uint32_t qSeqlen = 1;
+                uint32_t kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch));
+                if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
+                    if constexpr (!PAGED_CACHE_FLAG) {
+                        uint32_t prevKvSeqlenSum = (curBatch == 0) ?
+                            0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch - 1));
+                        kvSeqlen = kvSeqlen - prevKvSeqlenSum;
                     }
-                    curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
-                    curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile);
-                    curQSBlockTile = GetQSBlockTileDecode(qSeqlen);
-                    curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
-                    curQSGBlockTile = curGBlockTile * curQSBlockTile;
-                    curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads);
-                    curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile);
-                    curTotalTaskNum += curQSBlockNum * curGBlockNum * curKvNBlockNum;
                 }
-                uint32_t taskIdxCurBatch = taskIdx - preTotalTaskNum;
-                uint32_t qSBlockIdx = taskIdxCurBatch / (curGBlockNum * curKvNBlockNum);
-                uint32_t gKvNBlockIdx = taskIdxCurBatch - qSBlockIdx * (curGBlockNum * curKvNBlockNum);
-                uint32_t gBlockIdx = gKvNBlockIdx / curKvNBlockNum;
-                uint32_t kvNBlockIdx = gKvNBlockIdx - gBlockIdx * curKvNBlockNum;
+
+                uint64_t qBOffset = static_cast<uint64_t>(curBatch) * strideQ;
+                uint64_t oBOffset = static_cast<uint64_t>(curBatch) * strideO;
+                uint64_t lseBOffset = static_cast<uint64_t>(curBatch) * qHeads;
+                uint64_t kBOffset = 0;
+                uint64_t vBOffset = 0;
+                uint64_t blockBOffset = 0;
+                if constexpr (PAGED_CACHE_FLAG) {
+                    blockBOffset = static_cast<uint64_t>(curBatch) * maxNumBlocksPerBatch;
+                } else {
+                    uint64_t cumKvSeqlen = (curBatch > 0) ?
+                        static_cast<uint64_t>(gActualKvseqlen.GetValue(curBatch - 1)) : 0;
+                    kBOffset = cumKvSeqlen * strideK;
+                    vBOffset = cumKvSeqlen * strideV;
+                }
 
                 uint32_t kvNStartIdx = kvNBlockIdx * curKvNBlockTile;
-                uint32_t qNStartIdx = kvNStartIdx * groupSize + gBlockIdx * curGBlockTile;
+                uint32_t qNStartIdx = kvNStartIdx * groupSize;
 
-                uint32_t qSBlockSize = (qSBlockIdx == (curQSBlockNum - 1U)) ?
-                    (qSeqlen - qSBlockIdx * curQSBlockTile) : curQSBlockTile;
-                uint32_t gBlockSize = (gBlockIdx == (curGBlockNum - 1U)) ?
-                    (groupSize - gBlockIdx * curGBlockTile) : curGBlockTile;
+                uint32_t qSBlockSize = 1;
+                uint32_t gBlockSize = groupSize;
                 uint32_t kvNBlockSize = (kvNBlockIdx == (curKvNBlockNum - 1U)) ?
                     (kvHeads - kvNBlockIdx * curKvNBlockTile) : curKvNBlockTile;
-                uint32_t rowNum = qSBlockSize * gBlockSize;
-                uint32_t rowNumRound = NpuArch::Detail::Alignment::RoundUp(rowNum, FaiKernel::BLOCK_SIZE);
+                uint32_t rowNum = rowNumConst;
+                uint32_t rowNumRound = rowNumRoundConst;
 
-                uint64_t qSOffset = static_cast<uint64_t>(qSBlockIdx * curQSBlockTile) * strideQ;
-                uint64_t qNStartOffset = static_cast<uint64_t>(qNStartIdx * embed);
-                uint64_t kNStartOffset = static_cast<uint64_t>(kvNStartIdx * embed);
-                uint64_t vNStartOffset = static_cast<uint64_t>(kvNStartIdx * embedV);
-                uint64_t oSOffset = static_cast<uint64_t>(qSBlockIdx * curQSBlockTile) * strideO;
-                uint64_t oNStartOffset = static_cast<uint64_t>(qNStartIdx * embedV);
-                uint64_t lseTokenOffset = static_cast<uint64_t>(qSBlockIdx * curQSBlockTile * qHeads);
+                uint64_t qSOffset = 0;
+                uint64_t qNStartOffset = static_cast<uint64_t>(qNStartIdx) * embed;
+                uint64_t kNStartOffset = static_cast<uint64_t>(kvNStartIdx) * embed;
+                uint64_t vNStartOffset = static_cast<uint64_t>(kvNStartIdx) * embedV;
+                uint64_t oSOffset = 0;
+                uint64_t oNStartOffset = static_cast<uint64_t>(qNStartIdx) * embedV;
+                uint64_t lseTokenOffset = 0;
 
-                int64_t noSkipKvS = static_cast<int64_t>(kvSeqlen);
-                if (maskType != 0U) {
-                    int64_t diffS = kvSeqlen - qSeqlen;
-                    diffS = (diffS < 0) ? 0 : diffS;
-                    noSkipKvS = (qSBlockIdx + 1U) * curQSBlockTile + diffS;
-                    noSkipKvS = AscendC::Std::min(static_cast<int64_t>(kvSeqlen), noSkipKvS);
-                }
+                uint32_t noSkipKvS = kvSeqlen;
                 uint32_t kvSLoopNumTotal = NpuArch::Detail::Alignment::CeilDiv(noSkipKvS, pagedBlockSize);
 
                 uint32_t blockStackNum = MAX_KV_STACK_LEN / pagedBlockSize;
@@ -486,151 +441,68 @@ namespace SplitFuse {
                 }
             }
             if (tailKvNBlockTile > 0 && tailLoopTaskNum > 0) {
-                uint64_t tailQBOffset = 0;
-                uint64_t tailKBOffset = 0;
-                uint64_t tailVBOffset = 0;
-                uint64_t tailOBOffset = 0;
-                uint64_t tailLseBOffset = 0;
-                uint64_t tailBlockBOffset = 0;
-
-                for (uint32_t b = 0; b < tailStartBatch; b++) {
-                    uint32_t bQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(b));
-                    uint32_t bKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(b));
-                    if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                        uint32_t prevQSum = (b == 0) ?
-                            0 : static_cast<uint32_t>(gActualQseqlen.GetValue(b - 1));
-                        bQSeqlen = bQSeqlen - prevQSum;
-                        if constexpr (!PAGED_CACHE_FLAG) {
-                            uint32_t prevKvSum = (b == 0) ?
-                                0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(b - 1));
-                            bKvSeqlen = bKvSeqlen - prevKvSum;
-                        }
-                    }
-                    tailQBOffset += bQSeqlen * strideQ;
-                    if constexpr (!PAGED_CACHE_FLAG) {
-                        tailKBOffset += static_cast<uint64_t>(bKvSeqlen * strideK);
-                        tailVBOffset += static_cast<uint64_t>(bKvSeqlen * strideV);
-                    } else {
-                        tailBlockBOffset += static_cast<uint64_t>(maxNumBlocksPerBatch);
-                    }
-                    tailOBOffset += static_cast<uint64_t>(bQSeqlen * strideO);
-                    tailLseBOffset += static_cast<uint64_t>(bQSeqlen * qHeads);
-                }
-
-                uint32_t tailCurBatch = tailStartBatch;
-                uint32_t tailPreTotalTaskNum = 0;
-                uint32_t tailQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch));
-                uint32_t tailKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch));
-                if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                    uint32_t prevQSum = (tailCurBatch == 0) ?
-                        0 : static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch - 1));
-                    tailQSeqlen = tailQSeqlen - prevQSum;
-                    if constexpr (!PAGED_CACHE_FLAG) {
-                        uint32_t prevKvSum = (tailCurBatch == 0) ?
-                            0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch - 1));
-                        tailKvSeqlen = tailKvSeqlen - prevKvSum;
-                    }
-                }
-
-                uint32_t tailCurGBlockTile = GetQNBlockTile(tailQSeqlen, groupSize);
-                uint32_t tailCurGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, tailCurGBlockTile);
-                uint32_t tailCurQSBlockTile = GetQSBlockTile(tailQSeqlen);
-                uint32_t tailCurQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(tailQSeqlen, tailCurQSBlockTile);
-                uint32_t tailFirstBatchKvHeads = kvHeads - tailStartN2;
-                uint32_t tailCurKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(tailFirstBatchKvHeads, tailKvNBlockTile);
-                uint32_t tailCurKvNStartOffset = tailStartN2;
-                uint32_t tailFirstBatchTaskNum_val = tailCurQSBlockNum * tailCurGBlockNum * tailCurKvNBlockNum;
-                uint32_t tailCurTotalTaskNum = tailFirstBatchTaskNum_val;
+                uint32_t tailFirstBatchTasks = kvHeads - tailStartN2;
 
                 for (uint32_t tailTaskIdx = coreIdx; tailTaskIdx < tailLoopTaskNum;
                      tailTaskIdx += uint32_t(coreNum)) {
-                    while (tailTaskIdx >= tailCurTotalTaskNum) {
-                        ++tailCurBatch;
-                        tailPreTotalTaskNum = tailCurTotalTaskNum;
-                        tailQBOffset += tailQSeqlen * strideQ;
-                        if constexpr (!PAGED_CACHE_FLAG) {
-                            tailKBOffset += static_cast<uint64_t>(tailKvSeqlen * strideK);
-                            tailVBOffset += static_cast<uint64_t>(tailKvSeqlen * strideV);
-                        } else {
-                            tailBlockBOffset += static_cast<uint64_t>(maxNumBlocksPerBatch);
-                        }
-                        tailOBOffset += static_cast<uint64_t>(tailQSeqlen * strideO);
-                        tailLseBOffset += static_cast<uint64_t>(tailQSeqlen * qHeads);
-
-                        tailQSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch));
-                        tailKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch));
-                        if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                            uint32_t prevQSum = (tailCurBatch == 0) ?
-                                0 : static_cast<uint32_t>(gActualQseqlen.GetValue(tailCurBatch - 1));
-                            tailQSeqlen = tailQSeqlen - prevQSum;
-                            if constexpr (!PAGED_CACHE_FLAG) {
-                                uint32_t prevKvSum = (tailCurBatch == 0) ?
-                                    0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch - 1));
-                                tailKvSeqlen = tailKvSeqlen - prevKvSum;
-                            }
-                        }
-                        tailCurGBlockTile = GetQNBlockTile(tailQSeqlen, groupSize);
-                        tailCurGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, tailCurGBlockTile);
-                        tailCurQSBlockTile = GetQSBlockTile(tailQSeqlen);
-                        tailCurQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(tailQSeqlen, tailCurQSBlockTile);
+                    uint32_t tailCurBatch;
+                    uint32_t tailKvNBlockIdx;
+                    uint32_t tailCurKvNStartOffset;
+                    if (tailTaskIdx < tailFirstBatchTasks) {
+                        tailCurBatch = tailStartBatch;
+                        tailKvNBlockIdx = tailTaskIdx;
+                        tailCurKvNStartOffset = tailStartN2;
+                    } else {
+                        uint32_t adjustedIdx = tailTaskIdx - tailFirstBatchTasks;
+                        uint32_t batchOffset = adjustedIdx / kvHeads;
+                        tailCurBatch = tailStartBatch + 1 + batchOffset;
+                        tailKvNBlockIdx = adjustedIdx - batchOffset * kvHeads;
                         tailCurKvNStartOffset = 0;
-                        tailCurKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, tailKvNBlockTile);
-                        tailCurTotalTaskNum += tailCurQSBlockNum * tailCurGBlockNum * tailCurKvNBlockNum;
                     }
 
-                    uint32_t tailTaskIdxCurBatch = tailTaskIdx - tailPreTotalTaskNum;
-                    uint32_t tailQSBlockIdx = tailTaskIdxCurBatch / (tailCurGBlockNum * tailCurKvNBlockNum);
-                    uint32_t tailGKvNBlockIdx = tailTaskIdxCurBatch - tailQSBlockIdx * (tailCurGBlockNum * tailCurKvNBlockNum);
-                    uint32_t tailGBlockIdx = tailGKvNBlockIdx / tailCurKvNBlockNum;
-                    uint32_t tailKvNBlockIdx = tailGKvNBlockIdx - tailGBlockIdx * tailCurKvNBlockNum;
-
-                    uint32_t tailKvNStartIdx = tailCurKvNStartOffset + tailKvNBlockIdx * tailKvNBlockTile;
-                    uint32_t tailQNStartIdx = tailKvNStartIdx * groupSize + tailGBlockIdx * tailCurGBlockTile;
-
-                    uint32_t tailQSBlockSize = (tailQSBlockIdx == (tailCurQSBlockNum - 1U)) ?
-                        (tailQSeqlen - tailQSBlockIdx * tailCurQSBlockTile) : tailCurQSBlockTile;
-                    uint32_t tailGBlockSize = (tailGBlockIdx == (tailCurGBlockNum - 1U)) ?
-                        (groupSize - tailGBlockIdx * tailCurGBlockTile) : tailCurGBlockTile;
-                    uint32_t tailKvNBlockSize = tailKvNBlockTile;
-                    uint32_t tailAvailableKvHeads = kvHeads - tailCurKvNStartOffset;
-                    if (tailKvNBlockIdx == (tailCurKvNBlockNum - 1U)) {
-                        tailKvNBlockSize = tailAvailableKvHeads - tailKvNBlockIdx * tailKvNBlockTile;
+                    uint32_t tailQSeqlen = 1;
+                    uint32_t tailKvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch));
+                    if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
+                        if constexpr (!PAGED_CACHE_FLAG) {
+                            uint32_t prevKvSum = (tailCurBatch == 0) ?
+                                0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(tailCurBatch - 1));
+                            tailKvSeqlen = tailKvSeqlen - prevKvSum;
+                        }
                     }
-                    uint32_t rowNum = tailQSBlockSize * tailGBlockSize;
-                    uint32_t rowNumRound = RoundUp(rowNum, FaiKernel::BLOCK_SIZE);
 
-                    uint64_t qSOffset = static_cast<uint64_t>(tailQSBlockIdx * tailCurQSBlockTile) * strideQ;
-                    uint64_t qNStartOffset = static_cast<uint64_t>(tailQNStartIdx * embed);
-                    uint64_t kNStartOffset = static_cast<uint64_t>(tailKvNStartIdx * embed);
-                    uint64_t vNStartOffset = static_cast<uint64_t>(tailKvNStartIdx * embedV);
-                    uint64_t oSOffset = static_cast<uint64_t>(tailQSBlockIdx * tailCurQSBlockTile) * strideO;
-                    uint64_t oNStartOffset = static_cast<uint64_t>(tailQNStartIdx * embedV);
-                    uint64_t lseTokenOffset = static_cast<uint64_t>(tailQSBlockIdx * tailCurQSBlockTile * qHeads);
-
-                    uint32_t qSBlockIdx = tailQSBlockIdx;
-                    uint32_t kvNStartIdx = tailKvNStartIdx;
-                    uint32_t qNStartIdx = tailQNStartIdx;
-                    uint32_t qSBlockSize = tailQSBlockSize;
-                    uint32_t gBlockSize = tailGBlockSize;
-                    uint32_t kvNBlockSize = tailKvNBlockSize;
-
-                    qBOffset = tailQBOffset;
-                    kBOffset = tailKBOffset;
-                    vBOffset = tailVBOffset;
-                    oBOffset = tailOBOffset;
-                    lseBOffset = tailLseBOffset;
-                    blockBOffset = tailBlockBOffset;
-                    qSeqlen = tailQSeqlen;
-                    kvSeqlen = tailKvSeqlen;
-                    curQSBlockTile = tailCurQSBlockTile;
-                    curQSBlockNum = tailCurQSBlockNum;
-
-                    uint32_t noSkipKvS = kvSeqlen;
-                    if (maskType != 0U) {
-                        uint32_t diffS = kvSeqlen - qSeqlen;
-                        noSkipKvS = (qSBlockIdx + 1U) * curQSBlockTile + diffS;
-                        noSkipKvS = AscendC::Std::min((uint32_t)kvSeqlen, noSkipKvS);
+                    uint64_t tailQBOffset = static_cast<uint64_t>(tailCurBatch) * strideQ;
+                    uint64_t tailOBOffset = static_cast<uint64_t>(tailCurBatch) * strideO;
+                    uint64_t tailLseBOffset = static_cast<uint64_t>(tailCurBatch) * qHeads;
+                    uint64_t tailKBOffset = 0;
+                    uint64_t tailVBOffset = 0;
+                    uint64_t tailBlockBOffset = 0;
+                    if constexpr (PAGED_CACHE_FLAG) {
+                        tailBlockBOffset = static_cast<uint64_t>(tailCurBatch) * maxNumBlocksPerBatch;
+                    } else {
+                        uint64_t cumKvSeqlen = (tailCurBatch > 0) ?
+                            static_cast<uint64_t>(gActualKvseqlen.GetValue(tailCurBatch - 1)) : 0;
+                        tailKBOffset = cumKvSeqlen * strideK;
+                        tailVBOffset = cumKvSeqlen * strideV;
                     }
+
+                    uint32_t tailKvNStartIdx = tailCurKvNStartOffset + tailKvNBlockIdx;
+                    uint32_t tailQNStartIdx = tailKvNStartIdx * groupSize;
+
+                    uint32_t tailQSBlockSize = 1;
+                    uint32_t tailGBlockSize = groupSize;
+                    uint32_t tailKvNBlockSize = 1;
+                    uint32_t rowNum = rowNumConst;
+                    uint32_t rowNumRound = rowNumRoundConst;
+
+                    uint64_t qSOffset = 0;
+                    uint64_t qNStartOffset = static_cast<uint64_t>(tailQNStartIdx) * embed;
+                    uint64_t kNStartOffset = static_cast<uint64_t>(tailKvNStartIdx) * embed;
+                    uint64_t vNStartOffset = static_cast<uint64_t>(tailKvNStartIdx) * embedV;
+                    uint64_t oSOffset = 0;
+                    uint64_t oNStartOffset = static_cast<uint64_t>(tailQNStartIdx) * embedV;
+                    uint64_t lseTokenOffset = 0;
+
+                    uint32_t noSkipKvS = tailKvSeqlen;
                     uint32_t kvSLoopNumTotal = NpuArch::Detail::Alignment::CeilDiv(noSkipKvS, pagedBlockSize);
 
                     uint32_t blockStackNum = MAX_KV_STACK_LEN / pagedBlockSize;
@@ -653,19 +525,19 @@ namespace SplitFuse {
                             }
                             uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1U);
 #ifdef __DAV_C220_CUBE__
-                            uint64_t gmOffsetQGmtoL1 = qBOffset + qSOffset + qNStartOffset;
+                            uint64_t gmOffsetQGmtoL1 = tailQBOffset + qSOffset + qNStartOffset;
                             if (kvSIdx == 0) {
-                                uint32_t taskRowNum = rowNum * kvNBlockSize;
+                                uint32_t taskRowNum = rowNum * tailKvNBlockSize;
                                 LayoutQ layoutQL1(taskRowNum, embed);
-                                uint32_t taskColNum = gBlockSize * kvNBlockSize;
-                                blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, kvNBlockSize);
+                                uint32_t taskColNum = tailGBlockSize * tailKvNBlockSize;
+                                blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, tailKvNBlockSize);
                             }
 #endif
 
-                            for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < kvNBlockSize; kvNIncreIdx++) {
-                                uint64_t gmOffsetQ = qBOffset + qSOffset + qNStartOffset +
+                            for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < tailKvNBlockSize; kvNIncreIdx++) {
+                                uint64_t gmOffsetQ = tailQBOffset + qSOffset + qNStartOffset +
                                     static_cast<uint64_t>(kvNIncreIdx * groupSize * embed);
-                                uint64_t gmOffsetK = kBOffset + kNStartOffset +
+                                uint64_t gmOffsetK = tailKBOffset + kNStartOffset +
                                     static_cast<uint64_t>(kvNIncreIdx * embed);
                                 uint32_t sWorkspaceIncreOffset = kvNIncreIdx * rowNum * MAX_KV_STACK_LEN;
                                 uint64_t gmOffsetS =
@@ -679,7 +551,7 @@ namespace SplitFuse {
                                         gQ[gmOffsetQ],
                                         gK[gmOffsetK],
                                         gS[gmOffsetS],
-                                        gBlockTable[blockBOffset],
+                                        gBlockTable[tailBlockBOffset],
                                         layoutQTemp,
                                         layoutKTemp,
                                         layOutS,
@@ -691,19 +563,19 @@ namespace SplitFuse {
                                         kvNIncreIdx);
                                 }
 
-                                if (kvNIncreIdx == kvNBlockSize - 1) {
+                                if (kvNIncreIdx == tailKvNBlockSize - 1) {
                                     Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(qkReady);
                                 }
 #endif
                             }
 #ifdef __DAV_C220_VEC__
-                            LayoutP layOutP(rowNum * kvNBlockSize, stackSeqTile, stackSeqTilePad);
+                            LayoutP layOutP(rowNum * tailKvNBlockSize, stackSeqTile, stackSeqTilePad);
                             uint64_t gmOffsetSBase =
                                 static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                                 curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                             uint64_t gmOffsetPBase = gmOffsetSBase;
-                            LayoutS layOutS(rowNum * kvNBlockSize, stackSeqTile, stackSeqTilePad);
-                            GemmCoord actualBlockShapeQK{rowNum * kvNBlockSize, stackSeqTile, embed};
+                            LayoutS layOutS(rowNum * tailKvNBlockSize, stackSeqTile, stackSeqTilePad);
+                            GemmCoord actualBlockShapeQK{rowNum * tailKvNBlockSize, stackSeqTile, embed};
 
                             epilogueOnlineSoftmax(
                                 gP[gmOffsetPBase],
@@ -713,10 +585,10 @@ namespace SplitFuse {
                                 actualBlockShapeQK,
                                 (stackSeqCount == 0),
                                 0,
-                                qSBlockSize,
-                                gBlockSize,
+                                tailQSBlockSize,
+                                tailGBlockSize,
                                 curStackTileMod,
-                                kvNBlockSize,
+                                tailKvNBlockSize,
                                 gmOffsetSBase,
                                 gmOffsetPBase,
                                 qkReady,
@@ -733,12 +605,12 @@ namespace SplitFuse {
                             }
                             uint32_t curStackTileMod = (stackSeqCount - PRE_LAUNCH) % (PRE_LAUNCH + 1U);
 
-                            for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < kvNBlockSize; kvNIncreIdx++) {
-                                uint64_t gmOffsetV = vBOffset + vNStartOffset +
+                            for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < tailKvNBlockSize; kvNIncreIdx++) {
+                                uint64_t gmOffsetV = tailVBOffset + vNStartOffset +
                                     static_cast<uint64_t>(kvNIncreIdx * embedV);
-                                uint64_t gmOffsetO = oBOffset + oSOffset + oNStartOffset +
+                                uint64_t gmOffsetO = tailOBOffset + oSOffset + oNStartOffset +
                                     static_cast<uint64_t>(kvNIncreIdx * groupSize * embed);
-                                uint64_t gmOffsetLse = lseBOffset + lseTokenOffset + qNStartIdx +
+                                uint64_t gmOffsetLse = tailLseBOffset + lseTokenOffset + tailQNStartIdx +
                                     static_cast<uint64_t>(kvNIncreIdx * groupSize);
                                 uint32_t oWorkspaceIncreOffset = kvNIncreIdx * rowNum * embedRoundV;
                                 uint64_t gmOffsetOTmp =
@@ -756,7 +628,7 @@ namespace SplitFuse {
                                     gP[gmOffsetP],
                                     gV[gmOffsetV],
                                     gOTmp[gmOffsetOTmp],
-                                    gBlockTable[blockBOffset],
+                                    gBlockTable[tailBlockBOffset],
                                     layoutPTemp,
                                     layoutVTemp,
                                     layoutOTmp,
@@ -769,25 +641,25 @@ namespace SplitFuse {
                                     blockStackNum,
                                     softmaxReady,
                                     (kvNIncreIdx == 0));
-                                if (kvNIncreIdx == kvNBlockSize - 1) {
+                                if (kvNIncreIdx == tailKvNBlockSize - 1) {
                                     Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(pvReady);
                                 }
 #endif
                             }
 #ifdef __DAV_C220_VEC__
-                            LayoutO layoutO(qSeqlen, embed * qHeads);
-                            LayoutOTmp layoutUpdate(rowNum * kvNBlockSize, embed, embedRound);
+                            LayoutO layoutO(tailQSeqlen, embed * qHeads);
+                            LayoutOTmp layoutUpdate(rowNum * tailKvNBlockSize, embed, embedRound);
                             LayoutLse layoutLse(totalQTokens, qHeads);
-                            LayoutOTmp layoutOTmp(rowNum * kvNBlockSize, embedV, embedRoundV);
-                            GemmCoord actualBlockShapePV{rowNum * kvNBlockSize, embedV, stackSeqTile};
+                            LayoutOTmp layoutOTmp(rowNum * tailKvNBlockSize, embedV, embedRoundV);
+                            GemmCoord actualBlockShapePV{rowNum * tailKvNBlockSize, embedV, stackSeqTile};
 
                             Arch::CrossCoreWaitFlag(pvReady);
 
-                            uint64_t gmOffsetO = oBOffset + oSOffset + oNStartOffset;
+                            uint64_t gmOffsetO = tailOBOffset + oSOffset + oNStartOffset;
                             uint64_t gmOffsetUpdate = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
                             uint64_t gmOffsetOTmp = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                                     curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
-                            uint64_t gmOffsetLse = lseBOffset + lseTokenOffset + qNStartIdx;
+                            uint64_t gmOffsetLse = tailLseBOffset + lseTokenOffset + tailQNStartIdx;
 
                             epilogueRescaleO(
                                 gO[gmOffsetO],
@@ -799,9 +671,9 @@ namespace SplitFuse {
                                 layoutUpdate,
                                 layoutLse,
                                 actualBlockShapePV,
-                                qSBlockSize,
-                                gBlockSize,
-                                kvNBlockSize,
+                                tailQSBlockSize,
+                                tailGBlockSize,
+                                tailKvNBlockSize,
                                 (stackSeqCount - PRE_LAUNCH == 0),
                                 nowkvSIdx + blockStackNum >= kvSLoopNumTotal,
                                 curStackTileMod,
