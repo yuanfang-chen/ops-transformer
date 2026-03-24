@@ -1,0 +1,14 @@
+case_name,soc_version,expectResult,x_shape,x_dtype,x_format,weight_shape,weight_dtype,weight_format,bias_shape,bias_dtype,scale_shape,scale_dtype,offset_shape,offset_dtype,antiquant_scale_shape,antiquant_scale_dtype,antiquant_offset_shape,antiquant_offset_dtype,group_list_shape,group_list_dtype,pertoken_scale_shape,pertoken_scale_dtype,y_shape,y_dtype,split_item,dtype,transpose_weight,transpose_x,group_type,group_list_type,act_type,expectOutputShape
+quant_int8_basic_success,Ascend910B,SUCCESS,64 128,INT8,ND,2 128 256,INT8,ND,2 256,FLOAT,2 256,FLOAT,,,,,,,2,INT64,64,FLOAT,,FLOAT16,3,0,0,0,0,0,0,64 256
+quant_int8_weight_float8_fail,Ascend910B,FAILED,64 128,INT8,ND,2 128 256,FLOAT8_E4M3FN,ND,2 256,FLOAT,2 256,FLOAT,,,,,,,2,INT64,64,FLOAT,,FLOAT16,3,0,0,0,0,0,0,
+quant_splitk_int8_fail,Ascend910B,FAILED,64 128,INT8,ND,128 256,INT8,ND,,,2,FLOAT,,,,,,,2,INT64,,, ,FLOAT16,3,0,0,0,2,0,0,
+quant_scale_dim_invalid_fail,Ascend910B,FAILED,64 128,INT8,ND,2 128 256,INT8,ND,2 256,FLOAT,2 1 1,FLOAT,,,,,,,2,INT64,64,FLOAT,,FLOAT16,3,0,0,0,0,0,0,
+quant_pertoken_shape_invalid_fail,Ascend910B,FAILED,64 128,INT8,ND,2 128 256,INT8,ND,2 256,FLOAT,2 256,FLOAT,,,,,,,2,INT64,5,FLOAT,,FLOAT16,3,0,0,0,0,0,0,
+quant_group_list_zero_fail,Ascend910B,FAILED,64 128,INT8,ND,0 128 256,INT8,ND,0 256,FLOAT,0 256,FLOAT,,,,,,,0,INT64,64,FLOAT,,FLOAT16,3,0,0,0,0,0,0,
+quant_splitk_float8_success,Ascend910B,SUCCESS,32 128,FLOAT8_E4M3FN,ND,128 256,FLOAT8_E4M3FN,ND,,,2,FLOAT8_E8M0,,,,,,,2,INT64,,, ,FLOAT16,3,0,0,0,2,0,0,2 32 256
+quant_format_invalid_fail,Ascend910B,FAILED,64 128,INT8,FRACTAL_NZ,2 128 256,INT8,ND,2 256,FLOAT,2 256,FLOAT,,,,,,,2,INT64,64,FLOAT,,FLOAT16,3,0,0,0,0,0,0,
+wq_a16w8_success,Ascend950,SUCCESS,64 128,FLOAT16,ND,2 256 128,INT8,ND,2 256,FLOAT16,,,,,2 256,FLOAT16,2 256,FLOAT16,2,INT64,,,,FLOAT16,3,0,1,0,0,0,0,64 256
+wq_missing_antiquant_scale_fail,Ascend950,FAILED,64 128,FLOAT16,ND,2 256 128,INT8,ND,2 256,FLOAT16,,,,,,,2 256,FLOAT16,2,INT64,,,,FLOAT16,3,0,1,0,0,0,0,
+wq_offset_not_empty_fail,Ascend950,FAILED,64 128,FLOAT16,ND,2 256 128,INT8,ND,2 256,FLOAT16,,,2 256,FLOAT,2 256,FLOAT16,2 256,FLOAT16,2,INT64,,,,FLOAT16,3,0,1,0,0,0,0,
+wq_s8s4_success,Ascend950,SUCCESS,64 1024,INT8,ND,2 256 128,INT32,ND,2 256,FLOAT,2 256,FLOAT,,,2 256 8,FLOAT16,,,2,INT64,64,FLOAT,,FLOAT,3,0,1,0,0,0,0,64 256
+wq_s8s4_invalid_groupsize_fail,Ascend950,FAILED,64 1024,INT8,ND,2 256 128,INT32,ND,2 256,FLOAT,2 256,FLOAT,,,2 256 7,FLOAT16,,,2,INT64,64,FLOAT,,FLOAT,3,0,1,0,0,0,0,
