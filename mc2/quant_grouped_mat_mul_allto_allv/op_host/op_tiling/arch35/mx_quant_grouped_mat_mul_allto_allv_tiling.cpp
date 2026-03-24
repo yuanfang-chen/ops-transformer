@@ -53,24 +53,22 @@ static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 
 bool MxQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
-    OP_LOGI(opName_, "[MX_TILING] Enter IsCapable, checking quant mode...");
     QuantModePair mode = GetQuantMode(context_, opName_);
     OP_TILING_CHECK(mode == QUANT_PAIR_ERROR, OP_LOGE(opName_, "Fail to get attr quant mode."), return false);
-    OP_LOGI(opName_, "[MX_TILING] QuantMode=%d, expected MX mode=%d", mode, QUANT_PAIR_MX);
+    OP_LOGD(opName_, "QuantMode=%d, expected MX mode=%d", mode, QUANT_PAIR_MX);
     if (mode == QUANT_PAIR_MX) {
-        OP_LOGI(opName_, "[MX_TILING] MxQuantGroupedMatmulAllToAllvTiling MX mode capable.");
+        OP_LOGD(opName_, "MxQuantGroupedMatmulAllToAllvTiling MX mode capable.");
         return true;
     }
-    OP_LOGI(opName_, "[MX_TILING] Skip MxQuantGroupedMatmulAllToAllvTiling, mode mismatch.");
+    OP_LOGD(opName_, "Skip MxQuantGroupedMatmulAllToAllvTiling, mode mismatch.");
     return false;
 }
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
 {
-    OP_LOGI(opName_, "[MX_TILING] Enter CheckAndSetLocalParamsGmm");
     localParams_.gmmXDtype = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     localParams_.gmmWeightDtype = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType();
-    OP_LOGI(opName_, "[MX_TILING] gmmXDtype=%d, gmmWeightDtype=%d", localParams_.gmmXDtype, localParams_.gmmWeightDtype);
+    OP_LOGD(opName_, "gmmXDtype=%d, gmmWeightDtype=%d", localParams_.gmmXDtype, localParams_.gmmWeightDtype);
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_X_DTYPE_LIST, localParams_.gmmXDtype),
         OP_LOGE(opName_, "The Input gmmX Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ), but gmmX is %s.",
         Ops::Base::ToString(localParams_.gmmXDtype).c_str()), return ge::GRAPH_FAILED);
@@ -78,7 +76,7 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
         OP_LOGE(opName_, "The Input gmmWeight Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ), but gmmWeight is %s.",
         Ops::Base::ToString(localParams_.gmmWeightDtype).c_str()), return ge::GRAPH_FAILED);
     localParams_.yDtype = context_->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
-    OP_LOGI(opName_, "[MX_TILING] yDtype=%d", localParams_.yDtype);
+    OP_LOGD(opName_, "yDtype=%d", localParams_.yDtype);
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_Y_DTYPE_LIST, localParams_.yDtype),
         OP_LOGE(opName_, "The Output y Dtype should be in (DT_FLOAT16, DT_BF16, ), but y Dtype is %s.",
         Ops::Base::ToString(localParams_.yDtype).c_str()), return ge::GRAPH_FAILED);
@@ -121,9 +119,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     localParams_.gmmWeightDim1 = gmmWeightStorageShape->GetStorageShape().GetDim(DIM_ONE);
     localParams_.gmmWeightDim2 = gmmWeightStorageShape->GetStorageShape().GetDim(DIM_TWO);
 
-    OP_LOGI(opName_, "[MX_TILING] A=%lu, H1=%lu, ep=%lu, BsK=%lu, N1=%lu",
+    OP_LOGD(opName_, "A=%lu, H1=%lu, ep=%lu, BsK=%lu, N1=%lu",
             localParams_.A, localParams_.H1, localParams_.ep, localParams_.BsK, localParams_.N1);
-    OP_LOGI(opName_, "[MX_TILING] gmmWeightDim1=%lu, gmmWeightDim2=%lu",
+    OP_LOGD(opName_, "gmmWeightDim1=%lu, gmmWeightDim2=%lu",
             localParams_.gmmWeightDim1, localParams_.gmmWeightDim2);
 
     return ge::GRAPH_SUCCESS;
@@ -131,13 +129,12 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 {
-    OP_LOGI(opName_, "[MX_TILING] Enter CheckAndSetLocalParamsMm, hasSharedMm=%d", localParams_.hasSharedMm);
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
     }
     localParams_.mmXDtype = context_->GetOptionalInputDesc(MM_X_OPTIONAL_INDEX)->GetDataType();
     localParams_.mmWeightDtype = context_->GetOptionalInputDesc(MM_WEIGHT_OPTIONAL_INDEX)->GetDataType();
-    OP_LOGI(opName_, "[MX_TILING] mmXDtype=%d, mmWeightDtype=%d", localParams_.mmXDtype, localParams_.mmWeightDtype);
+    OP_LOGD(opName_, "mmXDtype=%d, mmWeightDtype=%d", localParams_.mmXDtype, localParams_.mmWeightDtype);
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_X_DTYPE_LIST, localParams_.mmXDtype),
         OP_LOGE(opName_, "The Input mmX Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ), but mmX is %s.",
         Ops::Base::ToString(localParams_.mmXDtype).c_str()), return ge::GRAPH_FAILED);
@@ -379,7 +376,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantDtypeConstraint
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes()
 {
-    OP_LOGI(opName_, "[MX_TILING] Enter CheckMxQuantGmmScaleShapes");
     bool TransGmmWeightFlag = false;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "The context Attrs is nullptr."), return ge::GRAPH_FAILED);
@@ -400,8 +396,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     uint64_t gmmWeightScaleDim2 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_TWO);
     uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_THREE);
 
-    OP_LOGI(opName_, "[MX_TILING] gmmXScale shape=(%lu, %lu, %lu)", gmmXScaleDim0, gmmXScaleDim1, gmmXScaleDim2);
-    OP_LOGI(opName_, "[MX_TILING] gmmWeightScale shape=(%lu, %lu, %lu, %lu)",
+    OP_LOGD(opName_, "gmmXScale shape=(%lu, %lu, %lu)", gmmXScaleDim0, gmmXScaleDim1, gmmXScaleDim2);
+    OP_LOGD(opName_, "gmmWeightScale shape=(%lu, %lu, %lu, %lu)",
             gmmWeightScaleDim0, gmmWeightScaleDim1, gmmWeightScaleDim2, gmmWeightScaleDim3);
 
     uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
@@ -490,7 +486,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
 {
-    OP_LOGI(opName_, "[MX_TILING] Enter CheckAndSetInputOutputInfo");
     auto status = CheckOpInputSingleParamsTensor();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
@@ -509,7 +504,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     status = CheckMxQuantMmScaleShapes();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
-    OP_LOGI(opName_, "[MX_TILING] CheckAndSetInputOutputInfo PASSED");
     return ge::GRAPH_SUCCESS;
 }
 
@@ -525,12 +519,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
 
 uint64_t MxQuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 {
-    OP_LOGI(opName_, "[MX_TILING] GetTilingKey: hasSharedMm=%d, isGmmWeightTrans=%d, isMmWeightTrans=%d, gmmQuantSuit=%d, mmQuantSuit=%d",
-            localParams_.hasSharedMm, localParams_.isGmmWeightTrans, localParams_.isMmWeightTrans,
-            localParams_.gmmQuantSuit, localParams_.mmQuantSuit);
     const uint64_t tilingKey = GET_TPL_TILING_KEY(localParams_.hasSharedMm, localParams_.isGmmWeightTrans,
         localParams_.isMmWeightTrans, localParams_.gmmQuantSuit, localParams_.mmQuantSuit);
-    OP_LOGI(opName_, "[MX_TILING] Final TilingKey=%lu", tilingKey);
     OP_LOGD(opName_, "GET_TPL_TILING_KEY: [%d,%d,%d,%d,%d], TilingKey is [%lu].", localParams_.hasSharedMm,
         localParams_.isGmmWeightTrans, localParams_.isMmWeightTrans, localParams_.gmmQuantSuit,
         localParams_.mmQuantSuit, tilingKey);
