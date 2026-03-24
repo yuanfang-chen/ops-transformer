@@ -360,7 +360,9 @@ aclnnStatus aclnnRotaryPositionEmbedding(
       - 当x为BNSD时，cos、sin支持11SD、B1SD、BNSD
         - B * N <= S * 8
       - 当x为BSND时，cos、sin支持1S1D、BS1D、BSND
+        - (N - 1) * D * BytePerData / 32 < UINT16_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
       - 当x为SBND时，cos、sin支持S11D、SB1D、SBND
+        - (B * N - 1) * D * BytePerData / 32 < UINT16_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
       - 当x为TND时，cos、sin支持T1D、TND
 
 ## 调用示例
