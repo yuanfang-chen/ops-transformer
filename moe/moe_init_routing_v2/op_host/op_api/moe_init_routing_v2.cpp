@@ -65,7 +65,7 @@ const std::array<const aclTensor *, 4> MoeInitRoutingV2(
 
     auto expanded_x = executor->AllocTensor(outShapeExpandedX, x->GetDataType(), op::Format::FORMAT_ND);
 
-    op::Shape out outShapeExpandedRowIdx;
+    op::Shape outShapeExpandedRowIdx;
     outShapeExpandedRowIdx.SetDimNum(0);
     outShapeExpandedRowIdx.AppendDim(expandedRowIdxNum);
 

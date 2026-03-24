@@ -40,7 +40,7 @@ const aclTensor* MoeInitRoutingV2Grad(
 
     int64_t gradExpandedXDim1 = -1;
     if (gradExpandedXShape.GetDimNum() != 1) {
-        gradExpandedXDim1 = gradExpandedXShape.GetDim(drop_pad_mode === 1 ? 2 : 1);
+        gradExpandedXDim1 = gradExpandedXShape.GetDim(drop_pad_mode == 1 ? 2 : 1);
     }
 
     // Infer grad_x shape
@@ -64,4 +64,6 @@ const aclTensor* MoeInitRoutingV2Grad(
         return nullptr;
     }
     return grad_x;
-}  // namespace l0op
+}
+
+}   // namespace l0op
