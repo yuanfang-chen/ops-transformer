@@ -101,8 +101,7 @@ static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, cons
 
 // 检查 mm 系列 optional 参数一致性：全空或全非空
 static bool CheckMmOptionalConsistency(const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
-                                       const aclTensor *mmYOptional, const aclTensor *mmXScaleOptional,
-                                       const aclTensor *mmWeightScaleOptional)
+                                       const aclTensor *mmYOptional)
 {
     const bool hasMmX = (mmXOptional != nullptr);
     const bool hasMmWeight = (mmWeightOptional != nullptr);
@@ -116,17 +115,6 @@ static bool CheckMmOptionalConsistency(const aclTensor *mmXOptional, const aclTe
                 hasMmX ? "non-empty" : "empty", hasMmWeight ? "non-empty" : "empty", hasMmY ? "non-empty" : "empty");
         return false;
     }
-    // 如果mmXOptional为空，则mmXScaleOptional, mmWeightScaleOptional也必须为空
-    if (mmXOptional == nullptr) {
-        if (mmXScaleOptional != nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXScaleOptional should be null when mmXOptional is null.");
-            return false;
-        }
-        if (mmWeightScaleOptional != nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional should be null when mmWeightOptional is null.");
-            return false;
-        }
-    }
     return true;
 }
 
@@ -134,8 +122,7 @@ static bool CheckMmOptionalConsistency(const aclTensor *mmXOptional, const aclTe
 static bool CheckNullStatus(const aclTensor *gmmX, const aclTensor *gmmWeight,
                             const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional,
                             const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, const char *group,
-                            const aclTensor *y, const aclTensor *mmYOptional, const aclTensor *mmXScaleOptional,
-                            const aclTensor *mmWeightScaleOptional)
+                            const aclTensor *y, const aclTensor *mmYOptional)
 {
     if ((sendCountsTensorOptional != nullptr) || (recvCountsTensorOptional != nullptr)) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, 
@@ -149,8 +136,7 @@ static bool CheckNullStatus(const aclTensor *gmmX, const aclTensor *gmmWeight,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required group name is Empty.");
         return false;
     }
-    return CheckMmOptionalConsistency(mmXOptional, mmWeightOptional, mmYOptional, mmXScaleOptional,
-                                      mmWeightScaleOptional);
+    return CheckMmOptionalConsistency(mmXOptional, mmWeightOptional, mmYOptional);
 }
 
 static aclnnStatus CheckIntArrayNotEmpty(const aclIntArray *arr, const char *name)
@@ -232,7 +218,6 @@ static bool CheckMmNotEmptyOrAllEmpty(const aclTensor *mmXOptional, const aclTen
                 "is [%ld, %ld].", mmDim0, mmDim1, mmWdim0, mmWdim1, mmYdim0, mmYdim1);
             return false;
         });
-
     return true;
 }
 
@@ -245,143 +230,17 @@ static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeigh
     return CheckMmNotEmptyOrAllEmpty(mmXOptional, mmWeightOptional, mmYOptional);
 }
 
-
-// 检查所有要用到的format是否为ND，不支持私有格式，如果内部不为ND格式，打印warning日志，将format转换为ND格式
-static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
-                        const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXOptional,
-                        const aclTensor *mmWeightOptional, const aclTensor *y, const aclTensor *mmYOptional)
-{
-    // 定义内联检查函数
-    auto checkNotPrivate = [](const aclTensor *tensor, const char *name) -> bool {
-        if (tensor == nullptr) {
-            return true;
-        }
-        if (IsPrivateFormat(tensor->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantGroupMatmulAlltoAll, %s format %s does not support private format.", name,
-                    op::ToString(tensor->GetStorageFormat()).GetString());
-            return false;
-        }
-        return true;
-    };
-
-    // 必传参数检查
-    auto checkRequired = [](const aclTensor *tensor, const char *name) -> bool {
-        if (IsPrivateFormat(tensor->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantGroupMatmulAlltoAll, %s format %s does not support private format.", name,
-                    op::ToString(tensor->GetStorageFormat()).GetString());
-            return false;
-        }
-        return true;
-    };
-
-    // 执行检查
-    if (!checkRequired(gmmX, "gmmX"))
-        return false;
-    if (!checkRequired(gmmWeight, "gmmWeight"))
-        return false;
-    if (!checkNotPrivate(gmmXScaleOptional, "gmmXScaleOptional"))
-        return false;
-    if (!checkNotPrivate(gmmWeightScaleOptional, "gmmWeightScaleOptional"))
-        return false;
-    if (!checkNotPrivate(mmXOptional, "mmXOptional"))
-        return false;
-    if (!checkNotPrivate(mmWeightOptional, "mmWeightOptional"))
-        return false;
-    if (!checkRequired(y, "y"))
-        return false;
-    if (!checkNotPrivate(mmYOptional, "mmYOptional"))
-        return false;
-
-    return true;
-}
-
-static bool ReFormatTensorToND(const aclTensor *tensor, const char *name)
-{
-    if (tensor != nullptr && tensor->GetStorageFormat() != op::Format::FORMAT_ND) {
-        OP_LOGW("%s origin format is %s.", name, op::ToString(tensor->GetStorageFormat()).GetString());
-        tensor = l0op::ReFormat(tensor, op::Format::FORMAT_ND);
-        CHECK_RET(tensor != nullptr, false);
-    }
-    return true;
-}
-
-// 兼容性处理，非ND格式转换为ND格式
-static bool ReFormatNotND(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
-                          const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXOptional,
-                          const aclTensor *mmWeightOptional, const aclTensor *y, const aclTensor *mmYOptional)
-{
-    CHECK_RET(ReFormatTensorToND(gmmX, "gmmX"), false);
-    CHECK_RET(ReFormatTensorToND(gmmWeight, "gmmWeight"), false);
-    CHECK_RET(ReFormatTensorToND(gmmXScaleOptional, "gmmXScaleOptional"), false);
-    CHECK_RET(ReFormatTensorToND(gmmWeightScaleOptional, "gmmWeightScaleOptional"), false);
-    CHECK_RET(ReFormatTensorToND(mmXOptional, "mmXOptional"), false);
-    CHECK_RET(ReFormatTensorToND(mmWeightOptional, "mmWeightOptional"), false);
-    CHECK_RET(ReFormatTensorToND(y, "y"), false);
-    CHECK_RET(ReFormatTensorToND(mmYOptional, "mmYOptional"), false);
-    return true;
-}
-
-static bool CheckMxDType(const aclTensor *x, const aclTensor *weight, const aclTensor *xScale,
-                         const aclTensor *weightScale, const aclTensor *y, const char *xName, const char *weightName)
-{
-    if (!CheckType(x->GetDataType(), MX_INPUT_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "In Mx QuantMode, %s support DTYPE_FLOAT8_E4M3FN and DTYPE_FLOAT8_E5M2, but got %s.", xName,
-                op::ToString(x->GetDataType()).GetString());
-        return false;
-    }
-    if (!CheckType(weight->GetDataType(), MX_INPUT_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "In Mx QuantMode, %s support DTYPE_FLOAT8_E4M3FN and DTYPE_FLOAT8_E5M2, but got %s.", weightName,
-                op::ToString(weight->GetDataType()).GetString());
-        return false;
-    }
-    if (!CheckType(xScale->GetDataType(), MX_SCALE_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In Mx QuantMode, %s support DT_FLOAT_E8M0, but got %s.", xName,
-                op::ToString(xScale->GetDataType()).GetString());
-        return false;
-    }
-    if (!CheckType(weightScale->GetDataType(), MX_SCALE_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In Mx QuantMode, %s support DT_FLOAT_E8M0, but got %s.", weightName,
-                op::ToString(weightScale->GetDataType()).GetString());
-        return false;
-    }
-    if (!CheckType(y->GetDataType(), MX_OUTPUT_DTYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In Mx QuantMode, y support DT_FLOAT16 or DT_BF16, but got %s.",
-                op::ToString(y->GetDataType()).GetString());
-        return false;
-    }
-    return true;
-}
-
-static bool CheckPerTensorQuantMode(const aclTensor *xScale, const aclTensor *weightScale, const char *xName,
-                                    const char *weightName)
+static bool CheckRequiredScaleTensor(const aclTensor *xScale, const aclTensor *weightScale, const char *xName, const char *weightName, const char *modeName)
 {
     if (xScale == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s should not be empty in PerTensor mode.", xName);
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%sScale must not be null when %s quant mode is used.", xName, modeName);
         return false;
     }
     if (weightScale == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s should not be empty in PerTensor mode.", weightName);
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%sScale must not be null when %s quant mode is used.", weightName, modeName);
         return false;
     }
     return true;
-}
-
-static bool CheckMxQuantMode(const aclTensor *xScale, const aclTensor *weightScale, const aclTensor *x,
-                             const aclTensor *weight, const aclTensor *y, const char *xName, const char *weightName)
-{
-    if (xScale == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s should not be empty in MX mode.", xName);
-        return false;
-    }
-    if (weightScale == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s should not be empty in MX mode.", weightName);
-        return false;
-    }
-    return CheckMxDType(x, weight, xScale, weightScale, y, xName, weightName);
 }
 
 static bool CheckUnsupportQuantMode(QuantModeType mode, const char *xName)
@@ -408,9 +267,9 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template unsupport NO_QUAN mode.");
             return false;
         case QuantModeType::PERTENSOR_QUANT:
-            return CheckPerTensorQuantMode(XScaleOptional, WeightScaleOptional, xName, weightName);
+            return CheckRequiredScaleTensor(XScaleOptional, WeightScaleOptional, xName, weightName, "PerTensor");
         case QuantModeType::MX_QUANT:
-            return CheckMxQuantMode(XScaleOptional, WeightScaleOptional, x, weight, y, xName, weightName);
+            return CheckRequiredScaleTensor(XScaleOptional, WeightScaleOptional, xName, weightName, "MX");
         case QuantModeType::PERCHANNEL_QUANT:
         case QuantModeType::PERTOKEN_QUANT:
         case QuantModeType::PERGROUP_QUANT:
@@ -418,30 +277,9 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
         case QuantModeType::DYN_PERTOKEN_QUANT:
             return CheckUnsupportQuantMode(xMode, xName);
         default:
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unknown %s quanMode: %ld.", xName, static_cast<int64_t>(xMode));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unknown %s QuanMode: %ld.", xName, static_cast<int64_t>(xMode));
             return false;
     }
-}
-
-static bool CheckMmConsistency(const aclTensor *gmmX, const aclTensor *gmmWeight,
-                                     const aclTensor *mmXOptional, const aclTensor *mmWeightOptional)
-{
-    if (mmXOptional == nullptr || mmWeightOptional == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "mmX and mmWeight should both be set or both be nullptr.");
-        return false;
-    }
-    if (mmXOptional->GetDataType() != gmmX->GetDataType()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "mmX dtype should be the same as gmmX dtype.");
-        return false;
-    }
-    if (mmWeightOptional->GetDataType() != gmmWeight->GetDataType()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "mmWeight dtype should be the same as gmmWeight dtype.");
-        return false;
-    }
-    return true;
 }
 
 static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmX,
@@ -460,11 +298,7 @@ static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, 
     if (mmXOptional == nullptr && mmWeightOptional == nullptr) {
         return true;
     }
-    // 3) 共享专家强校验：输入类型、转置配置必须与 gmm 一致
-    if (!CheckMmConsistency(gmmX, gmmWeight, mmXOptional, mmWeightOptional)) {
-        return false;
-    }
-    // 4) mm 存在时，mm 不能是非量化，且必须与 gmm 保持完全一致
+    // 3) mm 存在时，mm 不能是非量化，且必须与 gmm 保持完全一致
     if (mmXQuantMode != gmmXQuantMode || mmWeightQuantMode != gmmWeightQuantMode) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "When mm inputs are set, mm quant modes should be exactly the same as gmm quant modes. "
@@ -603,12 +437,9 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     (void)recvCounts;
     CHECK_RET(CheckNotNull(gmmX, gmmWeight, y), ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckNullStatus(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
-                              mmWeightOptional, group, y, mmYOptional, mmXScaleOptional, mmWeightScaleOptional),
+                              mmWeightOptional, group, y, mmYOptional),
               ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, y, mmXOptional, mmWeightOptional, mmYOptional),
-              ACLNN_ERR_PARAM_INVALID);
-    CHECK_RET(CheckFormat(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional, mmWeightOptional, y,
-                          mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckQuantParams(gmmXQuantMode, gmmWeightQuantMode, gmmX, gmmWeight, gmmXScaleOptional,
                                gmmWeightScaleOptional, y, mmXQuantMode, mmWeightQuantMode, mmXOptional,
