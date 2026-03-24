@@ -16,7 +16,7 @@ namespace gmm {
 bool IsTransposeLastTwoDims(const aclTensor *tensor)
 {
     auto shape = tensor->GetViewShape();
-    if(shape.GetDimNum() < MIN_DIM_FOR_TRANSPOSE){
+    if (shape.GetDimNum() < MIN_DIM_FOR_TRANSPOSE) {
         return false;
     }
     int64_t dim1 = shape.GetDimNum() - 1;
@@ -24,7 +24,7 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor)
     auto strides = tensor->GetViewStrides();
     if (strides[dim2] == 1 && strides[dim1] == shape.GetDim(dim2)) {
         int64_t tmpNxD = shape.GetDim(dim1) * shape.GetDim(dim2);
-        if(shape.GetDimNum() == MIN_DIM_FOR_TRANSPOSE){
+        if (shape.GetDimNum() == MIN_DIM_FOR_TRANSPOSE) {
             return true;
         }
         for (int64_t batchDim = shape.GetDimNum() - 3; batchDim >= 0; batchDim--) {
