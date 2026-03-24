@@ -22,6 +22,7 @@
 #include "aclnn_kernels/contiguous.h"
 #include "opdev/tensor_view_utils.h"
 #include "opdev/op_log.h"
+#include "moe/moe_finalize_routing_v2/op_host/op_api/moe_finalize_routing_v2.h"
 
 using namespace op;
 
@@ -67,7 +68,7 @@ aclnnStatus aclnnMoeTokenUnpermuteGetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 固定写法，将输入转换成连续的tensor
-    auto(permutedTokensContiguous = l0op::Contiguous(permutedTokens, uniqueExecutor.get());
+    auto permutedTokensContiguous = l0op::Contiguous(permutedTokens, uniqueExecutor.get());
     CHECK_RET(permutedTokensContiguous != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
     auto sortedIndicesContiguous = l0op::Contiguous(sortedIndices, uniqueExecutor.get());
     CHECK_RET(sortedIndicesContiguous != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);

@@ -18,6 +18,7 @@
 #include "aclnn_kernels/contiguous.h"
 #include "opdev/tensor_view_utils.h"
 #include "opdev/op_log.h"
+#include "moe/moe_init_routing_v2_grad/op_host/op_api/moe_init_routing_v2_grad.h"
 
 using namespace op;
 
