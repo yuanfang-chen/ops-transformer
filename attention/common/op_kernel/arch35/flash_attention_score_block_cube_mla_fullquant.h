@@ -232,10 +232,6 @@ private:
     typename BlockCubeMlaFullquant::KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1VBuffers;
     // 存放偏执矩阵L1中的位置
     BuffersPolicySingleBuffer<BufferType::L1> biasBufL1;
-    // // 存放aVal矩阵L1中的位置
-    // BuffersPolicyDB<BufferType::L1> aValBufL1;
-    // // 存放bVal矩阵L1中的位置
-    // BuffersPolicyDB<BufferType::L1> bValBufL1;
     // 存放偏执矩阵C2的物理位置
     BuffersPolicySingleBuffer<BufferType::C2> tmpBufBias;
     // L0A
@@ -353,10 +349,6 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitLocalBuffer()
         if constexpr (isInt8 && isMlaFullQuant) {
             // 新增初始化bias的buffer
             biasBufL1.Init((*l1BufferManagerPtr), biasSize + avalSize + bvalSize);
-            // // 新增在L1上初始化aVal的buffer
-            // aValBufL1.Init((*l1BufferManagerPtr), BT_AVAL_SIZE * KB_TO_BYTES);
-            // // 新增在L1上初始化bVal的buffer
-            // bValBufL1.Init((*l1BufferManagerPtr), BT_BVAL_SIZE * KB_TO_BYTES);
             // 新增偏执矩阵C2的buffer
             tmpBufBias.Init(l0biasBufferManager, BT_PP_SIZE * KB_TO_BYTES);
         }
@@ -537,8 +529,6 @@ FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetValueGm(RunInfo<isInfer> &runInfo,
         return this->valueGm.gmTensor;
     }
 }
-
-
 
 /* 针对MLA的bmm1*/
 TEMPLATES_DEF_NO_DEFAULT
@@ -955,7 +945,6 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFul
         mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放
         outputBuf.SetCrossCore();
     }              
-    
 }
 
 // 判断是否GS1合轴

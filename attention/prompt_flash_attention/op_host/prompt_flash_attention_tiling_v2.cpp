@@ -2084,14 +2084,6 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
     // check DSize
     OP_CHECK_IF((queryShapeInfo.d != 512), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "When MLAFullQuant enables, the d(%d) size of query should be 512.", queryShapeInfo.d), return false);
-    // check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
-    // OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.kDataType != ge::DT_FLOAT8_E4M3FN ||
-    //     contextKeyParams.vDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.outputDataType != ge::DT_BF16),
-    //     OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3, datatype of output(%s) must be bf16.",
-    //         GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kDataType).c_str(),
-    //         GetPfaDataTypeStr(contextKeyParams.vDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.outputDataType).c_str()),
-    //     return false);
     // 新增对int8的拦截,关于layout的拦截
     const std::vector<std::string> supportedLayoutListInt8 = {"BSH", "BSND", "TND", "BSH_NBSD", "BSND_NBSD", "TND_NTD"};
     OP_CHECK_IF(std::find(supportedLayoutListInt8.begin(), supportedLayoutListInt8.end(), layoutStr) == supportedLayoutListInt8.end() && contextKeyParams.inputDataType == ge::DT_INT8,

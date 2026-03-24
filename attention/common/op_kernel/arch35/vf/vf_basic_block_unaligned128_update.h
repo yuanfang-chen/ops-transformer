@@ -241,7 +241,6 @@ __simd_vf__ void ProcessVec1UpdateGeneralImpl128VF(
                 USE_MLA_FULLQUANT_V1_P(vreg_exp_odd, vreg_rowmax_p, preg_all);
             }
         }
-        
         // dropmask compute
         if constexpr (hasDrop == 1) {
             LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
