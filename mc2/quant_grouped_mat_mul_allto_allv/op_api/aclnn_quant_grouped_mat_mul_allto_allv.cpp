@@ -75,6 +75,9 @@ const std::initializer_list<op::DataType> MX_OUTPUT_DTYPE_SUPPORT_LIST = {op::Da
 
 static int64_t CeilDiv(int64_t a, int64_t b)
 {
+    if (b == 0) {
+      return 0;
+    }
     return (a + b - 1) / b;
 }
 
