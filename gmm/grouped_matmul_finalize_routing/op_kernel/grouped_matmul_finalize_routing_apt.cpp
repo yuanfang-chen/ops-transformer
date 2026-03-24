@@ -53,6 +53,7 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
                                 GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
 #if defined (V310_GMM_FR_ANTI_QUANT)
+#if (ORIG_DTYPE_X == DT_FLOAT8_E4M3FN && (ORIG_DTYPE_W == DT_FLOAT4_E2M1))
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     // Weight Quantization scenario - Use GMMFRWeightQuantResplitController
     REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingWeightQuantTilingData);
@@ -68,6 +69,7 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
     
     controller.Init(x, w, scale, scale, x, bias, group_list, pertoken_scale, y, share_input, tiling);
     controller.Process();
+#endif
 #else
     AscendC::TPipe pipe;
     // Full Quantization scenario

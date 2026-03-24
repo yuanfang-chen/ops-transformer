@@ -174,8 +174,8 @@ bool GMMFRWeightQuantTiling::InferScenario() {
     // GetPrimaryFormat returns the format value masked with 0xFF
     // FORMAT_FRACTAL_NZ = 29, FORMAT_FRACTAL_NZ_C0_32 = 51
 
-    auto scaleDesc = context_->GetOptionalInputDesc(SCALE_INDEX);
-    auto scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : ge::DT_INT8;
+    auto scaleDesc = context_->GetInputDesc(SCALE_INDEX);
+    auto scaleDtype = scaleDesc->GetDataType();
     auto pertokenScaleDesc = context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX);
     auto perTokenScaleDtype =
         pertokenScaleDesc != nullptr ? pertokenScaleDesc->GetDataType() : ge::DT_INT8;
@@ -197,7 +197,10 @@ bool GMMFRWeightQuantTiling::InferScenario() {
         return true;
     }
 
-    OP_LOGE(context_->GetNodeName(), "Only support MX-A8W4-WEIGHT-NZ mode. current xDtype: %s, wDtype: %s, scaleDtype");
+    OP_LOGE(context_->GetNodeName(), "Only support MX-A8W4-WEIGHT-NZ mode. current xDtype: %s, wDtype: %s, scaleDtype: %s",
+        ge::TypeUtils::DataTypeToSerialString(xDtype).c_str(),
+        ge::TypeUtils::DataTypeToSerialString(wDtype).c_str(),
+        ge::TypeUtils::DataTypeToSerialString(scaleDtype).c_str());
     return false;
 }
 

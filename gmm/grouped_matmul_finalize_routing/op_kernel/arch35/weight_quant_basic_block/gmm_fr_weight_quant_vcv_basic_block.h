@@ -101,7 +101,7 @@ protected:
 
     GmmFrVecCompute<xType, wType, antiQuantScaleType, biasType, yType, sharedInputDType, wqmmConfig, vecConfig>
         vecCompute_;
-    GMMFRWeightQuantCubeCompute<xType, int32_t, antiQuantScaleType, perTokenScaleType, int32_t, wqmmConfig>
+    GMMFRWeightQuantCubeCompute<xType, biasType, antiQuantScaleType, perTokenScaleType, float, wqmmConfig>
         cubeCompute_;
 
     uint64_t cvLoopIdx_ = 0;
@@ -192,7 +192,7 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_VCV_BASIC_BLOCK_CLASS::UpdateGlobalAd
     const bool hasBias, const bool weightL2Cacheable)
 {
     if ASCEND_IS_AIC {
-        cubeCompute_.UpdateGlobalAddr(x, y, bias, scale, nullptr, perTokenScale, hasBias);
+        cubeCompute_.UpdateGlobalAddr(x, y, reinterpret_cast<__gm__ biasType*>(bias), scale, nullptr, perTokenScale, hasBias);
     } else {
         // For MX A8W4: scale is perChannelScale (float*), perTokenScale is also float*
         vecCompute_.UpdateGlobalAddr(weight, antiquantScale, antiquantOffset, 
@@ -285,7 +285,7 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_VCV_BASIC_BLOCK_CLASS::IterateNzNkWit
 {
     if (cvLoopIdx_ > 0) {
         WaitAivToAic<PIPE_FIX>(SYNC_AIV_MTE3_AIC_FIX_FLAG);
-        cubeCompute_.GetTensorC(ubOutputF32Buffer_);
+        cubeCompute_.GetTensorC(ubOutputF32Buffer_, curOffsetParam);
         SetAicToAiv<PIPE_FIX>(SYNC_AIC_FIX_AIV_VF_FLAG);
     }
 
@@ -295,13 +295,13 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_VCV_BASIC_BLOCK_CLASS::IterateNzNkWit
                                     ? curOffsetParam.kSize - kbL1Offset
                                     : curOffsetParam.kbL1Size;
         cubeCompute_.WaitScaleMTE1ToMTE2(kbL1Offset);
-        cubeCompute_.CopyMxScaleGmToL1(curOffsetParam, kbL1Offset, cvLoopIdx_);
-        cubeCompute_.WaitMTE1ToMTE2(cvLoopIdx_);
-        cubeCompute_.CopyAAndBiasGmToL1(curOffsetParam, kbL1Offset, kbL1RealSize, curOffsetParam.nL1Size, cvLoopIdx_);
+        cubeCompute_.CopyMxScaleGmToL1(curOffsetParam, kbL1Offset);
+        cubeCompute_.WaitMTE1ToMTE2(kbL1Offset, curOffsetParam);
+        cubeCompute_.CopyAAndBiasGmToL1(curOffsetParam, kbL1Offset, cvLoopIdx_);
         WaitAivToAic<PIPE_MTE1>(SYNC_AIV_AIC_FLAG);
         cubeCompute_.LaunchMatmul(weightL1_[(cvLoopIdx_ & 1) * weightL1DbOffset_], kbL1Offset, kbL1RealSize,
-                                  curOffsetParam, cvLoopIdx_);  // mte1 mmad fixp流水
-        cubeCompute_.SetMTE1ToMTE2(cvLoopIdx_);
+                                  cvLoopIdx_, curOffsetParam);  // mte1 mmad fixp流水
+        cubeCompute_.SetMTE1ToMTE2(kbL1Offset, curOffsetParam);
         cubeCompute_.SetScaleMTE1ToMTE2(kbL1Offset, curOffsetParam);
         SetAicToAiv<PIPE_MTE1>(SYNC_AIC_AIV_FLAG);
     }
@@ -315,10 +315,10 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_VCV_BASIC_BLOCK_CLASS::End(const Basi
     if ASCEND_IS_AIC {
         if (cvLoopIdx_ > 0) {
             WaitAivToAic<PIPE_FIX>(SYNC_AIV_MTE3_AIC_FIX_FLAG);
-            cubeCompute_.GetTensorC(ubOutputF32Buffer_);
+            cubeCompute_.GetTensorC(ubOutputF32Buffer_, curOffsetParam);
             SetAicToAiv<PIPE_FIX>(SYNC_AIC_FIX_AIV_VF_FLAG);
         }
-        cubeCompute_.EndSync(cvLoopIdx_);
+        cubeCompute_.EndSync();
     } else {
         if (cvLoopIdx_ > 0) {
             SetAivToAic<PIPE_MTE3>(SYNC_AIV_MTE3_AIC_FIX_FLAG);
