@@ -228,6 +228,7 @@ public:
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 validLenBatch_[i] = chunkSize_;
                 uint32_t curTaskId = taskId + i;
+                uint64_t curNId = taskId % nv_;
                 uint64_t curCgId = taskId / nv_;
                 // 尾chunk处理
                 if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
@@ -238,10 +239,10 @@ public:
                 } else {
                     subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
                 }
+                // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
+                uint64_t chunkStartRow = cg_.startPos + curCgId * chunkSize_;
+                SetChunkTensors(i, curNId, curCgId, chunkStartRow);
             }
-            // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
-            uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
-            // SetChunkTensors(nId, cgId, chunkStartRow);
             ProcessParaChunk(curParaNum, startTaskId, cgId, chunkStartRow);
         }
     }
@@ -253,32 +254,32 @@ private:
     //   localChunkId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
     // ----------------------------------------------------------
-   __aicore__ inline void SetChunkTensors(uint64_t nId, uint64_t localChunkId, uint64_t chunkStartRow)
+   __aicore__ inline void SetChunkTensors(uint64_t id, uint64_t nId, uint64_t localChunkId, uint64_t chunkStartRow)
     {
-        uint64_t kid = nId * nk_ / nv_;
-        uint64_t subRow = chunkStartRow + subOffset_;
-        uint64_t qk_base = subRow * nk_ * dk_ + kid * dk_;
-        queryGm_ = queryBaseGm_[qk_base];
-        keyGm_   = keyBaseGm_[qk_base];
+        // uint64_t kid = nId * nk_ / nv_;
+        // uint64_t subRow = chunkStartRow + subOffset_;
+        // uint64_t qk_base = subRow * nk_ * dk_ + kid * dk_;
+        // queryGm_ = queryBaseGm_[qk_base];
+        // keyGm_   = keyBaseGm_[qk_base];
 
-        uint64_t vOffset = chunkStartRow * vRowStride_ + nId * dv_;
-        valueGm_ = valueBaseGm_[vOffset];
+        // uint64_t vOffset = chunkStartRow * vRowStride_ + nId * dv_;
+        // valueGm_ = valueBaseGm_[vOffset];
 
-        uint64_t bgOffset = chunkStartRow * nv_ + nId;
-        betaGm_ = betaBaseGm_[bgOffset];
-        if (gOptional_){
-            gGm_ = gBaseGm_[bgOffset];
-        }
+        // uint64_t bgOffset = chunkStartRow * nv_ + nId;
+        // betaGm_ = betaBaseGm_[bgOffset];
+        // if (gOptional_){
+        //     gGm_ = gBaseGm_[bgOffset];
+        // }
 
         uint64_t cgLenPad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
-        uint64_t chunkRowBase = nId * cgLenPad + localChunkId * chunkSize_;
+        chunkRowBase_[id] = nId * cgLenPad + localChunkId * chunkSize_;
 
-        outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase];
-        outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase * dk_];
-        outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase * dk_];
-        outKgGm_ = outKgBaseGm_[chunkRowBase * dk_];
-        outVInnerGm_ = outVInnerBaseGm_[chunkRowBase * dv_];
-        outQkGm_ = outQkBaseGm_[chunkRowBase * chunkSize_];
+        // outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase];
+        // outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase * dk_];
+        // outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase * dk_];
+        // outKgGm_ = outKgBaseGm_[chunkRowBase * dk_];
+        // outVInnerGm_ = outVInnerBaseGm_[chunkRowBase * dv_];
+        // outQkGm_ = outQkBaseGm_[chunkRowBase * chunkSize_];
     }
 
     // ----------------------------------------------------------
@@ -302,7 +303,8 @@ private:
             // query @ key.transpose(-1,-2)   stage1 out
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 uint64_t kOffset = i * chunkSize_ * chunkSize_;
-                AICProcess(queryContinousGm_[kOffset], keyContinousGm_[kOffset], outQkGm_[kOffset],
+                outQkGm_ = outQkBaseGm_[chunkRowBase_[i] * chunkSize_];
+                AICProcess(queryContinousGm_[kOffset], keyContinousGm_[kOffset], outQkGm_,
                            validLenBatch_[i], validLenBatch_[i], dk_, validLenBatch_[i], validLenBatch_[i], dk_, true);
             }
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
@@ -316,7 +318,8 @@ private:
             // attn @ k_cumdecay
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 uint64_t kOffset = i * chunkSize_ * dk_;
-                AICProcess(attnWsGm_[kOffset], gBKWsGm_[kOffset], outKCumdecayGm_[kOffset],
+                outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase_[i] * dk_];
+                AICProcess(attnWsGm_[kOffset], gBKWsGm_[kOffset], outKCumdecayGm_,
                            chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
             }
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
@@ -324,7 +327,8 @@ private:
             // attn @ v_beta    stage1 out
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 uint64_t vOffset = i * chunkSize_ * dv_;
-                AICProcess(attnWsGm_[vOffset], vBetaWsGm_[vOffset], outVInnerGm_[vOffset],
+                outVInnerGm_ = outVInnerBaseGm_[chunkRowBase_[i] * dv_];
+                AICProcess(attnWsGm_[vOffset], vBetaWsGm_[vOffset], outVInnerGm_,
                            chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
             }
         }
@@ -339,8 +343,9 @@ private:
                 keyGm_   = keyBaseGm_[qk_base];
                 uint64_t kOffset = i * chunkSize_ * chunkSize_ + subOffset_ * dk_;
                 uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_ * sizeof(float);
-                QKPreProcess(queryGm_, queryContinousGm_[kOffset], outKgGm_[kOffset], qUbFloatCon_[kUbOffset], subValidLenBatch_[i]);
-                QKPreProcess(keyGm_, keyContinousGm_[kOffset], outKgGm_[kOffset], kUbFloatCon_[kUbOffset], subValidLenBatch_[i], true);
+                outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
+                QKPreProcess(queryGm_, queryContinousGm_[kOffset], outKgGm_,  qUbFloatCon_[kUbOffset], subValidLenBatch_[i]);
+                QKPreProcess(keyGm_, keyContinousGm_[kOffset], outKgGm_,  kUbFloatCon_[kUbOffset], subValidLenBatch_[i], true);
             }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9);  //同步0
             if (gOptional_){
@@ -350,6 +355,7 @@ private:
                     uint64_t bgOffset = chunkStartRow * nv_ + nId;
                     gGm_ = gBaseGm_[bgOffset];
                     // g_cum_exp = g.cumsum(dim=-1).exp()
+                    outGCumExpGm_ = outGCumExpBaseGm_[chunkRowBase_[i]];
                     GCumExpCompute(gGm_, outGCumExpGm_, validLenBatch_[i]);
                     // attn_1 = (g_cum_exp[:None] / g_cum_exp[None,:]) * mask
                     uint64_t gUbOffset = i * chunkSize_ * maxLen  * sizeof(float);
@@ -379,9 +385,10 @@ private:
                 // kg = key * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
                 // k_cumdecay = -1.0 * k * beta * g_cum_exp
                 uint64_t kOffset = i * chunkSize_ * chunkSize_;
+                outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
                 uint64_t betaUbOffset = i * halfChunkSize_ * sizeof(float);
                 uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_ * sizeof(float);
-                GBKCompute(gBKWsGm_[kOffset], outKgGm_[kOffset], betaUbFloat[betaUbOffset], kUbFloatCon[kUbOffset]);
+                GBKCompute(gBKWsGm_[kOffset], outKgGm_, betaUbFloat[betaUbOffset], kUbFloatCon[kUbOffset]);
             }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x6);  //同步3
 
@@ -400,8 +407,8 @@ private:
 
             for (uint32_t i = 0; i < curParaNum; ++i) {
                 // q_prime = query * scale_ * g_cum_exp[:, None]  # (C, Dk)
-                uint64_t kOffset = i * chunkSize_ * chunkSize_;
-                QPrimeCompute(outQPrimeGm_[kOffset]);
+                outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase_[i] * dk_];
+                QPrimeCompute(outQPrimeGm_);
             }
         }
     }
@@ -807,6 +814,7 @@ private:
     uint32_t vStep_;
     uint32_t validLenBatch_[MAX_PARALLEL_NUM];
     uint32_t subValidLenBatch_[MAX_PARALLEL_NUM];
+    uint32_t chunkRowBase_[MAX_PARALLEL_NUM];
 
     // base GM pointers
     GlobalTensor<bfloat16_t> queryBaseGm_;
