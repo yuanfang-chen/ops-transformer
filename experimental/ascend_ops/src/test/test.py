@@ -1,15 +1,27 @@
+# ----------------------------------------------------------------------------
+# This program is free software, you can redistribute it and/or modify it.
+# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# This file is a part of the CANN Open Software.
+# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+# ----------------------------------------------------------------------------
+import os
+import time
+import numpy as np
 import torch
 import torch.nn as nn
 import torchair as tng
 from torch_npu import npu
 import ascend_ops
-import time
-import numpy as np
-import os
 
 # =============================================
 # 🔧 CONFIGURATION CENTER (可配置化)
 # =============================================
+
+
 class AttentionConfig:
     def __init__(self):
         # Attention Dimensions
@@ -31,6 +43,8 @@ class AttentionConfig:
 # =============================================
 # 🧠 MODEL DEFINITION (模块化：模型清晰分离)
 # =============================================
+
+
 class FusedAttentionNetwork(nn.Module):
     def __init__(self):
         super().__init__()
@@ -46,6 +60,8 @@ class FusedAttentionNetwork(nn.Module):
 # =============================================
 # 📥 INPUT GENERATION (输入构造独立函数)
 # =============================================
+
+
 def generate_inputs(config: AttentionConfig):
     # Query
     q = torch.randn(
@@ -120,6 +136,8 @@ def generate_inputs(config: AttentionConfig):
 # =============================================
 # 🏁 MAIN EXECUTION (主入口函数)
 # =============================================
+
+
 def main():
     # 1. Load config
     config = AttentionConfig()
