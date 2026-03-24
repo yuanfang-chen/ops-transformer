@@ -1389,6 +1389,8 @@ CalTNDDenseIndex(const __gm__ uint8_t *actualSeqQlenAddr, const __gm__ uint8_t *
             if constexpr (DETER_SPARSE_TYPE == DETER_CAUSAL) {
                 CalVirtualIndex(flag, m, n);
             } else if constexpr (DETER_SPARSE_TYPE == DETER_BAND) {
+                coordinateInfo.actualS1Len = actualS1Len;
+                coordinateInfo.actualS2Len = actualS2Len;
                 UpdateMNPQ<CUBE_BASEM, CUBE_BASEN, true, IS_N_EQUAL>(actualCalcS1Token, actualCalcS2Token, coordinateInfo, m, n);
                 p = coordinateInfo.p;
                 q = coordinateInfo.q;
