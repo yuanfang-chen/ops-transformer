@@ -474,9 +474,11 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
     ret = ConvertDataContiguous(params, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    auto outParams =
-        l0op::MhcPre(params.x_contiguous, params.phi_contiguous, params.alpha_contiguous, params.bias_contiguous,
-                     params.gammaOptional_contiguous, params.normEps, params.hcEps, executor);
+    int64_t outFlag =
+        (params.invRmsOptional != nullptr && params.hMixOptional != nullptr && params.hPreOptional != nullptr) ? 1 : 0;
+    auto outParams = l0op::MhcPre(params.x_contiguous, params.phi_contiguous, params.alpha_contiguous,
+                                  params.bias_contiguous, params.gammaOptional_contiguous, outFlag, params.normEps,
+                                  params.hcEps, executor);
     CHECK_RET(outParams != std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), ACLNN_ERR_INNER_NULLPTR);
 
     auto out0 = std::get<0>(outParams);
