@@ -573,10 +573,9 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0Main()
     }
 
     uint32_t dealBsNum = dealEndBS_ - dealStartBS_; // 不能加一
-
     uint32_t vecRunTimes = CeilDiv(dealBsNum, vecDealChunk_);
    
-    float alphaPre = alphaGm_.GetValue(0);
+    // float alphaPre = alphaGm_.GetValue(0);
 
     // 临时变量存储alpha. 在V0V1buffer前面加塞了(N^2 + 2N + 24) * 4的空间,24*4用于Padding搬出
     LocalTensor<P> sumBuf = fp32TBuf_.GetWithOffset<P>(fusionSize_, globalUbOffset_);
@@ -620,7 +619,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0Main()
     PipeBarrier<PIPE_V>();
 
     ReduceSum<float, Pattern::Reduce::AR, true>(alphaOutBuf[16], sumBuf, srcShape3, true);
-    PipeBarrier<PIPE_V>();
+    PipeBarrier<PIPE_V>(); // ?下面都做流水间的同步了，为什么还要进行PIPE_V
 
     SetFlag<HardEvent::V_MTE3>(EVENT_ID2);
     WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
@@ -813,11 +812,12 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV0ProcessHPostGrad(__ubuf
     }
 }
 
+// ？把这一整块放到vf函数中，是否有性能提升
 template <class T, class P>
 __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf)
 {
-    uint32_t shapeBiasGrad[] = { runBSEnd - runBSStart, fusionSize_};
+    uint32_t shapeBiasGrad[] = {runBSEnd - runBSStart, fusionSize_};
     constexpr bool isReuse = false;
 
     LocalTensor<P> hMixBuf;
@@ -842,6 +842,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     auto h1GradBuf = buffers.calcTmpBuf;
     int64_t remainDealBsSize = (runBSEnd - runBSStart);
     uint32_t bsOffset = 0;
+    // 因为参与该计算过程的变量的尾轴为n^2 + 2 * n，所以存在onceDealMixBSNum_ < remainDealBsSize(最大为chunk)，这个循环主要处理该情况
+    // onceDealMixBSNum_ = INOUT_QUEUE_SIZE / (fusionSize_ * sizeof(P));
     while (remainDealBsSize > 0) {
         fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
         uint32_t dealBSSize = (remainDealBsSize > onceDealMixBSNum_) ? onceDealMixBSNum_ : remainDealBsSize;
@@ -857,16 +859,16 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(invRmsBufLocal);
 
-        PipeBarrier<PIPE_MTE3>();
+        PipeBarrier<PIPE_MTE3>(); // ？这为什么需要插PIPE_MTE3同步
         Mul(fp32OutBuf, buffers.invRmsBuf, h1GradBuf[bsOffset * fusionSize_], dealBSSize * fusionSize_);
         PipeBarrier<PIPE_V>();
 
+        // 这是V0的计算过程：hMixGrad
         bf16OutQueue_.EnQue(fp32OutBuf);
         LocalTensor<P> hMixGradOutBuf = bf16OutQueue_.DeQue<P>();
-
         dataCopyParams_.blockLen = dealBSSize * fusionSize_ * sizeof(P);
         DataCopyPad(workSpaceGm_[workspaceBuf_.GetHMixGradOffset(runBSStart + bsOffset)], hMixGradOutBuf, dataCopyParams_);
-        PipeBarrier<PIPE_V>();
+        PipeBarrier<PIPE_V>(); // ？这为什么需要插PIPE_V同步
 
         bf16InQueue_.AllocTensor<P>(hMixBuf);
         DataCopyPad(hMixBuf, mmResGm_[(runBSStart + bsOffset) * fusionSize_], dataCopyParams_, dataCopyPadParams_);
@@ -876,7 +878,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         // hmix * h_1_grad, prepare for inv rms grad
         // Mul(h1GradBuf[bsOffset * fusionSize_], h1GradBuf[bsOffset * fusionSize_], hMixBuf, dealBSSize * fusionSize_);
         VFDoV1ProcessInvRmsGrad((__ubuf__ P *)h1GradBuf[bsOffset * fusionSize_].GetPhyAddr(), (__ubuf__ P *)hMixBuf.GetPhyAddr(), dealBSSize);
-        PipeBarrier<PIPE_V>();
+        PipeBarrier<PIPE_V>(); // ？这为什么需要插PIPE_V同步
 
         // TODO
         Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], hMixBuf, buffers.invRmsBuf, dealBSSize * fusionSize_);
@@ -897,18 +899,18 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     uint32_t shape[] = { (runBSEnd - runBSStart), fusionSize_};
     // inv rms grad
     // TODO 暂时存储在invRmsBuf中，后续直接拼接好后搬运出
-    ReduceSum<float, AscendC::Pattern::Reduce::AR, isReuse>(fp32OutBuf, h1GradBuf,
-        buffers.brcbTmpBuf, shape, true);
+    ReduceSum<float, AscendC::Pattern::Reduce::AR, isReuse>(fp32OutBuf, h1GradBuf, buffers.brcbTmpBuf, shape, true);
     PipeBarrier<PIPE_V>();
     bf16OutQueue_.EnQue(fp32OutBuf);
     LocalTensor<P> invRmsOutBuf = bf16OutQueue_.DeQue<P>();
 
     dataCopyParams_.blockLen = (runBSEnd - runBSStart) * sizeof(P);
     DataCopyPad(workSpaceGm_[workspaceBuf_.GetInvRmsGradOffset(runBSStart)], invRmsOutBuf, dataCopyParams_);
-    PipeBarrier<PIPE_V>();
+    PipeBarrier<PIPE_V>(); // ？这为什么需要插PIPE_V同步
     bf16OutQueue_.FreeTensor(invRmsOutBuf);
 
     // alpha grad (inv rms 梯度计算完成，复用h1GradBuf)
+    // 累加维度为第一维（RA），即BS轴
     ReduceSum<float, AscendC::Pattern::Reduce::RA, isReuse>(h1GradBuf, buffers.hFusionBuf1,
         buffers.brcbTmpBuf, shape, true);
     PipeBarrier<PIPE_V>();
@@ -986,7 +988,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessC0C1Pipeline()
         }
     }
 }
-
 
 template <class T, class P>
 __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessC0(uint32_t offsetND, uint32_t currentNDBlock, uint32_t offsetBS, uint32_t currentBSBlock, uint32_t buffId)
