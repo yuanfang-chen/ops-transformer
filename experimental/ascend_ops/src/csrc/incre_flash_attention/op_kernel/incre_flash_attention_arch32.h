@@ -58,7 +58,11 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
             InitMetaData<IncreFlashAttentionMetaData>(metaData, &metaDataTmp);                                         \
             meta_data = &metaDataTmp;                                                                                  \
         }                                                                                                              \
-        op.blockNum = sysArgs->skBlockNum;                                                                        \
+        if ASCEND_IS_AIC {                                                                                             \
+            op.blockNum = sysArgs->skBlockNum;                                                                         \
+        } else {                                                                                                       \
+          op.blockNum = sysArgs->skBlockNum/2;                                                                         \
+        }                                                                                                              \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable, kvPaddingSize,\
                 meta_data, attentionOut, softmaxLse, user, tiling_data, &tPipe);                                       \
         op.InitQuant(deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset,    \
