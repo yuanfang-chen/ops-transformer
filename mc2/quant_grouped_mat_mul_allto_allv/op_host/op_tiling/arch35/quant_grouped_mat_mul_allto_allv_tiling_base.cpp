@@ -23,10 +23,10 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace MC2Tiling;
-using namespace MC2Tiling::Mc2GroupedMatmul;
+using namespace optiling;
+using namespace optiling::Mc2GroupedMatmul;
 
-namespace MC2Tiling {
+// namespace Mc2GroupedMatmul {
 
 const std::vector<uint32_t> QUANT_GMM_X_DTYPE_LIST = {ge::DT_HIFLOAT8,};
 const std::vector<uint32_t> QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_HIFLOAT8,};
@@ -36,12 +36,12 @@ const std::vector<uint32_t> QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF1
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 
-bool QuantGroupedMatmulAllToAllvTilingBase::IsContains(const std::vector<uint32_t> &list, uint32_t value)
+static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
     return std::count(list.begin(), list.end(), value) > 0;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
+static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uint64_t dims, const char *shapeName,
     const char *opName_)
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
@@ -898,4 +898,4 @@ uint64_t QuantGroupedMatmulAllToAllvTilingBase::GetTilingKey() const
     return tilingKey;
 }
 
-}
+// }
