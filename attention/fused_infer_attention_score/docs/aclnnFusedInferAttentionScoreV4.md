@@ -1257,7 +1257,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>类型为FLOAT16。</td>
             </tr>
             <tr>
-                <td rowspan="9">输入FLOAT16或BFLOAT16，输出为INT8的场景</td>
+                <td rowspan="10">输入FLOAT16或BFLOAT16，输出为INT8的场景</td>
                 <td>query</td>
                 <td>类型为FLOAT16或BFLOAT16。</td>
             </tr>
@@ -1301,7 +1301,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>attentionOut</td>
                 <td>类型为INT8。</td>
             </tr>
-            </tr>
+            <tr>
                 <td>sparseMode</td>
                 <td>
                     <ul>
@@ -1315,7 +1315,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                         </ul>
                     </ul>
                 </td>
-            <tr>
+            </tr>
         </tbody>
     </table>
 
