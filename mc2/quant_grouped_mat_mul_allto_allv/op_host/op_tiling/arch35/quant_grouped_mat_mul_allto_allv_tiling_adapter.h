@@ -28,7 +28,7 @@
 #include "register/tilingdata_base.h"
 
 
-namespace MC2Tiling {
+namespace Mc2Tiling {
 // 引用3rd目录中的定义
 using namespace optiling::Mc2GroupedMatmulTiling::GmmConstant;
 using optiling::Mc2GroupedMatmulTiling::QuantMode;
@@ -55,5 +55,5 @@ public:
 };
 
 } // namespace Mc2GroupedMatmul
-} // namespace MC2Tiling
+} // namespace Mc2Tiling
 #endif

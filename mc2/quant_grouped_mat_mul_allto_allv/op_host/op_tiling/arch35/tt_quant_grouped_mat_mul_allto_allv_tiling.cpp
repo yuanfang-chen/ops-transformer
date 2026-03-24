@@ -23,10 +23,10 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace MC2Tiling;
-using namespace MC2Tiling::Mc2GroupedMatmul;
+using namespace Mc2Tiling;
+using namespace Mc2Tiling::Mc2GroupedMatmul;
 
-namespace MC2Tiling {
+namespace Mc2Tiling {
 
 bool TTQuantGroupedMatmulAllToAllvTiling::IsCapable()
 {
