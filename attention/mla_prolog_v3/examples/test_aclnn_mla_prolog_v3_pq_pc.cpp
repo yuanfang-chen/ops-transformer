@@ -286,8 +286,8 @@ int main() {
     // 创建queryRope aclTensor
     ret = CreateAclTensorND(queryRopeShape, &queryRopeDeviceAddr, &queryRopeHostAddr, aclDataType::ACL_BF16, &queryRope);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    // 创建queryNormOut aclTensor
-    ret = CreateAclTensorND(queryNormOutShape, &queryNormOutDeviceAddr, &queryNormOutHostAddr, aclDataType::ACL_BF16, &queryNormOut);
+    // 创建queryNormOut aclTensor (部分量化场景下为INT8)
+    ret = CreateAclTensorND(queryNormOutShape, &queryNormOutDeviceAddr, &queryNormOutHostAddr, aclDataType::ACL_INT8, &queryNormOut);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建dequantScaleQNormOut aclTensor
     ret = CreateAclTensorND(dequantScaleQNormOutShape, &dequantScaleQNormOutDeviceAddr, &dequantScaleQNormOutHostAddr, aclDataType::ACL_FLOAT, &dequantScaleQNormOut);
