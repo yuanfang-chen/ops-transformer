@@ -14,7 +14,6 @@
  */
 
 #include <cstring>
-#include <iostream>
 #include <vector>
 #include "acl/acl.h"
 #include "aclnnop/aclnn_mla_prolog.h"

@@ -14,6 +14,7 @@
  */
 
 #include <iostream>
+#include <cstring>
 #include <vector>
 #include <cstdint>
 #include "acl/acl.h"
