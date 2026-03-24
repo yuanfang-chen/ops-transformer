@@ -480,6 +480,9 @@ struct CVSharedParams<true, false> {
     // prefix
     bool isActualSharedPrefixLenNull;
     int64_t kvPrefixSize;
+
+    int64_t firstFullLoadS1OuterIdx;
+    int64_t totalSize;
 };
 
 template<>
@@ -518,6 +521,9 @@ struct CVSharedParams<true, true> {
     // prefix
     bool isActualSharedPrefixLenNull;
     int64_t kvPrefixSize;
+
+    int64_t firstFullLoadS1OuterIdx;
+    int64_t totalSize;
 };
 }
 
