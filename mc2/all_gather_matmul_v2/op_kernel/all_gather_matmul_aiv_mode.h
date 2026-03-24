@@ -237,9 +237,6 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
     n_loop = tilingData.cocTiling.nLoop;
     k_loop = tilingData.cocTiling.kLoop;
     pValue = tilingData.cocTiling.pValue;
-    if constexpr (std::is_same<X1Type, AscendC::int4b_t>::value) {
-        pValue = pValue * 2;
-    }
 
     max_ub_ping_pong_size = tilingData.cocTiling.ubMoveNum / MAX_BLOCK_COUNT;
     comm_npu_split = tilingData.cocTiling.commNpuSplit;   // tiling 寻优
