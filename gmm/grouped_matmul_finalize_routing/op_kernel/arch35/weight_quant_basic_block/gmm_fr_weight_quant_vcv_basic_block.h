@@ -101,8 +101,7 @@ protected:
 
     GmmFrVecCompute<xType, wType, antiQuantScaleType, biasType, yType, sharedInputDType, wqmmConfig, vecConfig>
         vecCompute_;
-    GMMFRWeightQuantCubeCompute<xType, int32_t, antiQuantScaleType, perTokenScaleType, int32_t, wqmmConfig,
-                                        WqbmmBasicApiV1<xType, biasType, yType, wqmmConfig.aTrans, wqmmConfig.bTrans>>
+    GMMFRWeightQuantCubeCompute<xType, int32_t, antiQuantScaleType, perTokenScaleType, int32_t, wqmmConfig>
         cubeCompute_;
 
     uint64_t cvLoopIdx_ = 0;
@@ -112,7 +111,7 @@ protected:
 
     LocalTensor<xType> weightL1_;
     LocalTensor<biasType> biasL1_;
-    LocalTensor<float32> ubOutputF32Buffer_;
+    LocalTensor<float> ubOutputF32Buffer_;
 };
 
 GMM_FR_WEIGHT_QUANT_VCV_BASIC_BLOCK_TEMPLATE_PARAM

@@ -64,7 +64,6 @@ private:
                                              uint64_t basicBlockSize);
     __aicore__ inline uint64_t GetSplitValueFromGroupList(uint64_t groupIdx);
     __aicore__ inline void UpdateGmAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize);
-    __aicore__ inline void PrefetchA(uint64_t mSize, uint64_t kSize);
     __aicore__ inline uint64_t GetSwitchedProcessId(const BasicBlockControlParam &ctrlParam);
 
     const GMMFinalizeRoutingWeightQuantTilingData *tiling_;
@@ -271,6 +270,6 @@ __aicore__ inline uint64_t GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_CLASS::GetSwit
     return 1 - ctrlParam.processId;
 }
 
-}  // namespace GROUPED_MATMUL
+}  // namespace GROUPED_MATMUL_FINALIZE_ROUTING
 
-#endif  // GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
+#endif  // GMM_FR_WEIGHT_QUANT_RESPLIT_CONTROLLER_H

@@ -15,8 +15,8 @@
 #ifndef GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_H
 #define GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_H
 
-#include "basic_block_config.h"
-#include "custom_policy/wqbmm_custom_policy.h"
+#include "../common/basic_block_config.h"
+#include "gmm_fr_weight_quant_cube_compute_tools.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else
@@ -24,9 +24,7 @@
 #include "kernel_operator_intf.h"
 #endif
 #include "lib/matmul_intf.h"
-#include "tool.h"
-
-#include "../common/basic_api/weight_quant_basic_api_v1.h"
+#include "../common/tool.h"
 
 using AscendC::Dn2NzParams;
 using AscendC::GetBlockIdx;
@@ -44,11 +42,10 @@ namespace WeightQuantBatchMatmulV2::Arch35 {
 
 #define GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_TEMPLATE_PARAM                                                                \
     template <typename xType, typename biasType, typename antiQuantScaleType, typename perTokenScaleType,              \
-              typename yType, const WqmmConfig &wqmmConfig, typename MatmulImplType>
+              typename yType, const WqmmConfig &wqmmConfig>
 
 #define GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS                                                                         \
-    GMMFRWeightQuantCubeCompute<xType, biasType, antiQuantScaleType, perTokenScaleType, yType, wqmmConfig,             \
-                                MatmulImplType>
+    GMMFRWeightQuantCubeCompute<xType, biasType, antiQuantScaleType, perTokenScaleType, yType, wqmmConfig>
 
 GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_TEMPLATE_PARAM
 class GMMFRWeightQuantCubeCompute {
@@ -72,7 +69,7 @@ public:
                                               uint64_t cvLoopIdx);
     __aicore__ inline void CopyMxScaleGmToL1(const BasicBlockOffsetParam &param, uint64_t kbL1Offset);
     __aicore__ inline void GetTensorC(const BasicBlockOffsetParam &param);
-    __aicore__ inline void GetTensorC(LocalTensor<yType> &yUb);
+    __aicore__ inline void GetTensorC(LocalTensor<yType> &yUb, const BasicBlockOffsetParam &param);
     __aicore__ inline void EndSync();
     __aicore__ inline void ClearAFullLoadFlag();
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
@@ -85,6 +82,12 @@ private:
                                                    int64_t kbL1RealSize, int64_t biasRealN, int64_t aGmOffset);
     __aicore__ inline void ConfigScaleDn2NzParams(uint64_t rowNum, uint64_t scaleKGmSize, uint64_t scaleKL1Stride,
                                                   uint64_t scaleKL1RealSize, Dn2NzParams &dn2NzParams);
+
+    using L0DataType = typename AscendC::GetL0DataType<xType, true>::Type;
+
+    static constexpr uint64_t L0_BUF_NUM = 2;
+    static constexpr uint64_t L0_BUF_OFFSET_B8 = 256;
+    static constexpr uint64_t BIAS_TABLE_OFFSET_B32 = 128;
 
     int8_t aL1DbNum_;
     bool isBias_;
@@ -102,6 +105,7 @@ private:
     AscendC::TEventID cubeEventIdsMxScaleMte1ToMte2_[DOUBLE_BUFFER_NUM];
     AscendC::TEventID cubeEventIdsMte1ToMte2_[DOUBLE_BUFFER_NUM];
     AscendC::TEventID cubeEventIdMte2ToMte1_;
+    AscendC::TEventID eventIdMToMte1_;
     GlobalTensor<xType> xGlobal_;
     GlobalTensor<biasType> biasGlobal_;
     GlobalTensor<fp8_e8m0_t> mxScaleAGlobal_;
@@ -111,7 +115,7 @@ private:
     
     static constexpr uint32_t L0A_BUFFER_SIZE_BYTE = 64 * 1024;
     static constexpr uint32_t L0B_BUFFER_SIZE_BYTE = 64 * 1024;
-    static constexpr uint32_t L0C_BUFFER_SIZE_BYTE = 256 * 1024
+    static constexpr uint32_t L0C_BUFFER_SIZE_BYTE = 256 * 1024;
 
     uint64_t l0LoopIdx_ = 0;
 
@@ -338,16 +342,16 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS::LaunchMatmul(cons
         LoadAAndScaleL1ToL0(l0a_[loopId * L0_BUF_OFFSET_B8],
                             aL1_[aL1Offset + mL1AlignSize * (l1KOffset + kbOffset) % param.kaL1Size],
                             mxScaleAL1_[(mxScaleBufIdx_ & 1) * mxScaleAL1DbOffset_ +
-                                        BLOCK_CUBE * (l1KOffset + kbOffset) % MX_SCALE_K_L1_SIZE / MX_GROUP_SIZE],
+                                        BLOCK_CUBE * (l1KOffset + kbOffset) % MX_SCALE_K_L1_SIZE / MX_GROUPSIZE],
                             l0CopyAndCalcParams);
         LoadBAndScaleL1ToL0(
             l0b_[loopId * L0_BUF_OFFSET_B8], weightL1[nL1AlignSize * l1KOffset],
-            mxScaleBL1_[(mxScaleBufIdx_ & 1) * mxScaleBL1DbOffset_ + BLOCK_CUBE * l1KOffset / MX_GROUP_SIZE],
+            mxScaleBL1_[(mxScaleBufIdx_ & 1) * mxScaleBL1DbOffset_ + BLOCK_CUBE * l1KOffset / MX_GROUPSIZE],
             l0CopyAndCalcParams);
 
         if (isBias_ && l0CopyAndCalcParams.isFirstKLoop) {
             LoadBiasToBt(biasTable_[loopId * BIAS_TABLE_OFFSET_B32], biasL1_[(cvLoopIdx & 1) * biasL1DbOffset_],
-                                    l0CopyAndCalcParams)
+                                    l0CopyAndCalcParams);
         }
 
         if(isBias_ && l0CopyAndCalcParams.isFirstKLoop) {
@@ -424,10 +428,6 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS::ConfigScaleDn2NzP
 GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS::EndSync()
 {
-    if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-        mmObj_.End();
-    }
-
     for (uint64_t i = 0; i < DOUBLE_BUFFER_NUM; i++) {
         WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
         if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
@@ -539,8 +539,6 @@ __aicore__ inline void GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS::Init(uint64_t tot
     } else {
         aL1DbNum_ = DOUBLE_BUFFER_NUM;
     }
-    mmObj_.SetSubBlockIdx(0);
-    mmObj_.Init(matmulTiling, tPipe);
     InitSync();
 }
 
