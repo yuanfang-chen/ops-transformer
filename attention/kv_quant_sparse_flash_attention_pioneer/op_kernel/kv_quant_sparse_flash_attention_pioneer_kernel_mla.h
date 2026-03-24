@@ -606,7 +606,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
     if constexpr (hasSink) {
-        int64_t curS2LoopCnt =runInfo.s2LoopCount - 1;
+        int64_t curS2LoopCnt = runInfo.s2LoopCount - 1;
         if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
             runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
             runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
@@ -617,8 +617,6 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
             runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
         }
     }
-
-
 }
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_PIONEER_KERNEL_MLA_H
