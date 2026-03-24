@@ -14,7 +14,6 @@
  */
 
 #include <cstring>
-#include <iostream>
 #include <vector>
 #include "acl/acl.h"
 #include "aclnnop/aclnn_mla_prolog.h"
@@ -254,8 +253,8 @@ int main() {
 
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(queryShape);
-    std::vector<uint16_t> resultData(size, 0);
     auto copySize = size * aclDataTypeSize(aclDataType::ACL_BF16);
+    std::vector<uint16_t> resultData(size, 0);
     ret = aclrtMemcpy(resultData.data(), copySize, queryDeviceAddr, copySize,
                       ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
