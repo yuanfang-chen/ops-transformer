@@ -397,8 +397,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_THREE);
 
     OP_LOGD(opName_, "gmmXScale shape=(%lu, %lu, %lu)", gmmXScaleDim0, gmmXScaleDim1, gmmXScaleDim2);
-    OP_LOGD(opName_, "gmmWeightScale shape=(%lu, %lu, %lu, %lu)",
-            gmmWeightScaleDim0, gmmWeightScaleDim1, gmmWeightScaleDim2, gmmWeightScaleDim3);
 
     uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
     OP_TILING_CHECK((localParams_.A != gmmXScaleDim0) || (gmmxDivH1 != gmmXScaleDim1) || (gmmXScaleDim2 != EVEN_ALIGN),
@@ -493,9 +491,6 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckParamsRelationAndSetLocalParams();
-    if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
-
-    // status = CheckMxQuantDtypeConstraints();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckMxQuantGmmScaleShapes();
