@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include <iostream>
 #include <cstring>
 #include <vector>
 #include <cstdint>

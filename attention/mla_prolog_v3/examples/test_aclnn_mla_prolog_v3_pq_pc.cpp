@@ -13,7 +13,7 @@
  * \brief Example: 部分量化 kvCache per-channel, PA_BLK_BSND, BS合轴, queryNormFlag=true
  */
 
-#include <iostream>
+#include <cstring>
 #include <vector>
 #include <cstdint>
 #include "acl/acl.h"

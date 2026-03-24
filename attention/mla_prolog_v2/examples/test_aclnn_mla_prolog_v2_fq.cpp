@@ -13,7 +13,7 @@
  * \brief Example: int8全量化场景 (full int8 quant with INT8 quantized output)
  */
 
-#include <iostream>
+#include <cstring>
 #include <vector>
 #include <cstdint>
 #include <cstring>
