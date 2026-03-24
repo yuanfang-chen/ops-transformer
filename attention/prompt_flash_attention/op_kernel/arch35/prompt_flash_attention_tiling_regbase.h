@@ -647,6 +647,10 @@ public:
     uint32_t kvAntiquantSInnerSize = 0;
     uint32_t get_kvAntiquantSInnerSize() const { return this->kvAntiquantSInnerSize; }
     void set_kvAntiquantSInnerSize(uint32_t kvAntiquantSInnerSizeParam) { this->kvAntiquantSInnerSize = kvAntiquantSInnerSizeParam; }
+
+    uint32_t firstFullLoadS1OuterIdx = 0;
+    uint32_t get_firstFullLoadS1OuterIdx() const { return this->firstFullLoadS1OuterIdx; }
+    void set_firstFullLoadS1OuterIdx(uint32_t firstFullLoadS1OuterIdxParam) { this->firstFullLoadS1OuterIdx = firstFullLoadS1OuterIdxParam; }
 };
 
 class PromptAttentionSingleCoreTensorSize {
