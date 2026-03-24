@@ -56,7 +56,7 @@ __simd_vf__ inline void CastAndMulWithSharedWeightVf(__ubuf__ float * dstAddr, _
     MicroAPI::RegTensor<float> sharedInputB32Vreg;
     MaskReg maskAll = MicroAPI::CreateMask<uint8_t, AscendC::MicroAPI::MaskPattern::ALL>();
     for (uint16_t loopIdx = 0; loopIdx < loopCount; loopIdx ++) {
-        MicroAPI::AddrReg sharedInputAreg = MicroAPI::CreateAddrReg<sharedInputType>(loopIdx, VEC_MAX_ELEM_B16);
+        MicroAPI::AddrReg sharedInputAreg = MicroAPI::CreateAddrReg<sharedInputType>(loopIdx, VEC_MAX_ELEM_B32);
         MicroAPI::LoadAlign<sharedInputType, MicroAPI::LoadDist::DIST_UNPACK_B16>(sharedInputB16Vreg, srcAddr,
                                                                         sharedInputAreg);
         MicroAPI::Cast<float, sharedInputType, CAST_B16_TO_B32_TRAIT>(
