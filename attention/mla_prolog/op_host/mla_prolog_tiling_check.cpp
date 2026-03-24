@@ -18,7 +18,6 @@
 #include "log/log.h"
 
 using namespace ge;
-using namespace AscendC;
 
 namespace optiling {
 
