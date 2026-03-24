@@ -242,7 +242,7 @@ public:
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
             uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
             SetChunkTensors(nId, cgId, chunkStartRow);
-            ProcessParaChunk(curParaNum);
+            ProcessParaChunk(curParaNum, startTaskId, cgId, chunkStartRow);
         }
     }
 
@@ -281,7 +281,12 @@ private:
         outQkGm_ = outQkBaseGm_[chunkRowBase * chunkSize_];
     }
 
-    __aicore__ inline void ProcessParaChunk(int32_t curParaNum)
+    // ----------------------------------------------------------
+    //   startTaskId
+    //   localChunkId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
+    //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
+    // ----------------------------------------------------------
+    __aicore__ inline void ProcessParaChunk(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId, uint64_t chunkStartRow)
     {
         if ASCEND_IS_AIC {
             AscendC::CrossCoreWaitFlag(0x9);  //同步0
@@ -326,7 +331,15 @@ private:
         if ASCEND_IS_AIV {
             // 获取连续QK
             for (uint32_t i = 0; i < curParaNum; ++i) {
-                QKPreProcess();
+                uint64_t curTaskId = startTaskId + i;
+                uint64_t nId = curTaskId % nv_;
+                uint64_t subRow = chunkStartRow + subOffset_;
+                uint64_t qk_base = subRow * nk_ * dk_ + nId * nk_ / nv_ * dk_;
+                queryGm_ = queryBaseGm_[qk_base];
+                keyGm_   = keyBaseGm_[qk_base];
+                uint64_t kOffset = i * chunkSize_ * chunkSize_;
+                QKPreProcess(queryGm_, queryContinousGm_[kOffset], qUbFloatCon_);
+                QKPreProcess(keyGm_, keyContinousGm_[kOffset], kUbFloatCon_, true);
             }
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9);  //同步0
             if (gOptional_){
@@ -370,7 +383,7 @@ private:
         }
     }
 
-    __aicore__ inline void QKPreProcessCompute(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
+    __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
                                                 LocalTensor<float>& dstBuffer, bool kgFlag = false)
     {
         // copyIn
@@ -401,12 +414,6 @@ private:
             DataCopyPad(outKgGm_[subOffset_ * dk_], tmpTensor, outParams);
         }
         fp32OutQueue_.FreeTensor(tmpTensor);
-    }
-
-    __aicore__ inline void QKPreProcess(){
-        uint64_t outOffset = subOffset_ * dk_;
-        QKPreProcessCompute(queryGm_, queryContinousGm_[outOffset], qUbFloatCon_);
-        QKPreProcessCompute(keyGm_, keyContinousGm_[outOffset], kUbFloatCon_, true);
     }
 
     __aicore__ inline void GCumExpCompute()
@@ -723,15 +730,15 @@ private:
 
     __aicore__ inline void AttnInverseMMCompute(uint64_t curLen, uint64_t offset)
     {
-        uint64_t leftDown = chunkSize_ * curLen;
-        uint64_t rightDown = leftDown + curLen;
+        uint64_t leftDown = offset + chunkSize_ * curLen;
+        uint64_t rightDown = offset + leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[offset], attnWsGm_[offset], attnWsGm_[offset],
+        AICProcess(attnWsGm_[leftDown], attnWsGm_[offset], attnWsGm_[leftDown],
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[offset], attnWsGm_[offset], attnWsGm_[offset],
+        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown],
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
