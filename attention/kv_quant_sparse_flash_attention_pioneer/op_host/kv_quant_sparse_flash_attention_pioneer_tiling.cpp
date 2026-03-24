@@ -1048,6 +1048,67 @@ ge::graphStatus QSFAPTilingCheck::CheckActualSeqLensShape()
     return ge::GRAPH_SUCCESS;
 }
 
+ ge::graphStatus QSFAPTilingCheck::CheckKeySink()
+ {
+    if (ge::GRAPH_SUCCESS != CheckKeySinkDType() ||
+        ge::GRAPH_SUCCESS != CheckKeySinkShape()) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus QSFAPTilingCheck::CheckKeySinkDType()
+{
+    if (opParamInfo_.keySink.tensor == nullptr) {
+        OP_CHECK_IF(valueSink.tensor != nullptr,
+            OP_LOGE(opName_, "keySink is nullptr but valueSink is not nullptr, input mismatch."),
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    }
+    if (opParamInfo_.keySink.desc == nullptr) {
+        OP_LOGE(opName_, "keySink is not empty,"
+            "but keySink's dtype is nullptr.");
+            return ge::GRAPH_FAILED;
+    }
+    if (opParamInfo_.valueSink.desc == nullptr) {
+        OP_LOGE(opName_, "valueSink is not empty,"
+            "but valueSink's dtype is nullptr.");
+            return ge::GRAPH_FAILED;
+    }
+    if (opParamInfo_.keySink.desc->GetDataType() != ge::DT_BF16 && opParamInfo_.keySink.desc->GetDataType() != ge::DT_FLOAT16) {
+        OP_LOGE(opName_, "keySink's dtype is %s, it should be DT_BF16 or DT_FLOAT16.",
+            QSFADataTypeToSerialString(opParamInfo_.keySink.desc->GetDataType()).c_str());
+            return ge::GRAPH_FAILED;
+    }
+    if (opParamInfo_.valueSink.desc->GetDataType() != ge::DT_BF16 && opParamInfo_.valueSink.desc->GetDataType() != ge::DT_FLOAT16) {
+        OP_LOGE(opName_, "valueSink's dtype is %s, it should be DT_BF16 or DT_FLOAT16.",
+            QSFADataTypeToSerialString(opParamInfo_.valueSink.desc->GetDataType()).c_str());
+            return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus QSFAPTilingCheck::CheckKeySinkShape()
+{
+    if (opParamInfo_.keySink.tensor == nullptr) {
+        OP_CHECK_IF(valueSink.tensor != nullptr,
+            OP_LOGE(opName_, "keySink is nullptr but valueSink is not nullptr, input mismatch."),
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    }
+    uint32_t shapeSize = 0;
+    if (GetActualSeqLenSize(shapeSize, opParamInfo_.actualSeqLengthsQ.tensor, qLayout_, "actualSeqLengthsQ") !=
+        ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    if (shapeSize != bSize_) {
+        OP_LOGE(opName_, "actualSeqLengthsQ shape size is %u, it should be equal to batch size[%u]",
+            shapeSize, bSize_);
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus QSFAPTilingCheck::CheckMultiParaConsistency()
 {
     SetQSFAShapeCompare();
