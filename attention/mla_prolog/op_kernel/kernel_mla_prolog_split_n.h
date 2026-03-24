@@ -1890,7 +1890,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeQrSplitNGroupCase(int64_t
         SetFlag<HardEvent::V_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::V_MTE2>(EVENT_ID1);
         
-        RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType>(outputLocal, mmQcQrResGm_[ropeQrOffset],
+        RotaryPosEmbPerTensor<mmQcQrOutputType, ropeComputType, ropeOutputType, false>(outputLocal, mmQcQrResGm_[ropeQrOffset],
             cosLocal_, sinLocal_, ropeShareTmpUb, ropeParams, channelDeqScaleLocal, dequantTool_.deQuantScaleCqLocal_);
 
         SetFlag<HardEvent::V_MTE3>(EVENT_ID0);
