@@ -213,17 +213,18 @@ public:
     __aicore__ inline void AllocV0V1Buffers(uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers);
     __aicore__ inline void ProcessV0(uint32_t runBSStart, V0V1Buffers<P> &buffers);
     __aicore__ inline void ProcessV1(
-        uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf);
+        uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers,
+        uint32_t vecRuntimesId, LocalTensor<P> &sumBuf);
     template <bool isFirstBS>
     __aicore__ inline void VFDoV1ProcessInvRmsGrad(
         __ubuf__ P *h1GradIn, __ubuf__ P *hMixIn, __ubuf__ P *invRmsGradDst, uint16_t dealBSSize);
     __aicore__ inline void VFDoV1ProcessBiasGrad(__ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize);
-    __aicore__ inline void VFDoV1ProcessBiasGradForN8Performance(
+    __aicore__ inline void VFDoV1ProcessBiasGradForN8(
         __ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize);
     __aicore__ inline void VFDoV1ProcessAlphaGrad(
         __ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn, __ubuf__ P *gatherFusionIn,
         __ubuf__ P *hMixIn, uint16_t dealBSSize);
-    __aicore__ inline void VFDoV1ProcessAlphaGradForN8Performance(
+    __aicore__ inline void VFDoV1ProcessAlphaGradForN8(
         __ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn, __ubuf__ P *gatherFusionIn,
         __ubuf__ P *hMixIn, uint16_t dealBSSize);
     __aicore__ inline void VFDoV1ProcessAlphaGradLastSplit(__ubuf__ P *alphaGradOut, __ubuf__ P *sumIn);
@@ -238,7 +239,7 @@ public:
     __aicore__ inline void ProcessV3();
     __aicore__ inline void VFDoV3ProcessAlphaGrad(__ubuf__ P *alphaGradOut, __ubuf__ P *alphaGradIn);
     __aicore__ inline void VFDoV3ProcessBiasGrad(__ubuf__ P *biasGradOut, __ubuf__ P *biasGradIn);
-    __aicore__ inline void VFDoV3ProcessBiasGradForN8Performance(__ubuf__ P *biasGradOut, __ubuf__ P *biasGradIn);
+    __aicore__ inline void VFDoV3ProcessBiasGradForN8(__ubuf__ P *biasGradOut, __ubuf__ P *biasGradIn);
         
 private:
     MT_C0 &mm0;
@@ -819,13 +820,13 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     uint32_t runBSStart, uint32_t runBSEnd, V0V1Buffers<P> &buffers, uint32_t vecRuntimesId, LocalTensor<P> &sumBuf)
 {
     uint32_t curBSSize = runBSEnd - runBSStart;
-    uint32_t shapeBiasGrad[] = { curBSSize, fusionSize_};
-    constexpr bool isReuse = false;
+    // uint32_t shapeBiasGrad[] = { curBSSize, fusionSize_};
+    // constexpr bool isReuse = false;
 
     LocalTensor<P> hMixBuf;
     AscendC::LocalTensor<P> fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
     if (N_ == 8) {
-        VFDoV1ProcessBiasGradForN8Performance(
+        VFDoV1ProcessBiasGradForN8(
             (__ubuf__ P *)fp32OutBuf.GetPhyAddr(), (__ubuf__ P *)buffers.gatherFusionBuf.GetPhyAddr(), curBSSize);
     } else {
         VFDoV1ProcessBiasGrad(
@@ -850,7 +851,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 
     LocalTensor<P> invRmsGradUb = fp32OutQueue_.AllocTensor<P>();
     auto h1GradBuf = buffers.calcTmpBuf;
-    int64_t remainDealBsSize = (curBSSize);
+    int64_t remainDealBsSize = curBSSize;
     uint32_t bsOffset = 0;
     while (remainDealBsSize > 0) {
         fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
@@ -903,7 +904,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         // TODO
         // Mul(buffers.hFusionBuf1[bsOffset * fusionSize_], hMixBuf, buffers.invRmsBuf, dealBSSize * fusionSize_);
         if (N_ == 8) {
-            VFDoV1ProcessAlphaGradForN8Performance(
+            VFDoV1ProcessAlphaGradForN8(
                 (__ubuf__ P *)h1GradBuf.GetPhyAddr(), (__ubuf__ P *)buffers.invRmsBuf.GetPhyAddr(),
                 (__ubuf__ P *)buffers.gatherFusionBuf[bsOffset * fusionSize_].GetPhyAddr(),
                 (__ubuf__ P *)hMixBuf.GetPhyAddr(), dealBSSize);
@@ -927,7 +928,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     }
     // fp32OutBuf = bf16OutQueue_.AllocTensor<P>();
 
-    uint32_t shape[] = { (runBSEnd - runBSStart), fusionSize_};
+    // uint32_t shape[] = { (runBSEnd - runBSStart), fusionSize_};
     // inv rms grad
     // TODO 暂时存储在invRmsBuf中，后续直接拼接好后搬运出
     // ReduceSum<float, AscendC::Pattern::Reduce::AR, isReuse>(fp32OutBuf, h1GradBuf,
@@ -959,7 +960,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGradForN8Performance(
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGradForN8(
     __ubuf__ P *h1GradOut, __ubuf__ P *invRmsIn, __ubuf__ P *gatherFusionIn, __ubuf__ P *hMixIn, uint16_t dealBSSize)
 {
     __VEC_SCOPE__
@@ -1036,7 +1037,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessAlphaGrad(
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGradForN8Performance(
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGradForN8(
     __ubuf__ P *outBufDst, __ubuf__ P *gatherFusion, uint32_t curBSSize)
 {
     __VEC_SCOPE__
@@ -1079,7 +1080,9 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessBiasGrad(
             for (uint16_t bsIdx = 0; bsIdx < static_cast<uint16_t>(curBSSize); ++bsIdx) {
                 uint32_t elemOffset = bsIdx * fusionSize_ + vfBlockIdx * VEC_MAX_ELEM_B32;
                 MicroAPI::RegTensor<P> gatherReg;
+
                 MicroAPI::LoadAlign(gatherReg, gatherFusion + elemOffset);
+
                 MicroAPI::Add(sumReg, sumReg, gatherReg, mask);
             }
             MicroAPI::StoreAlign(outBufDst + vfBlockIdx * VEC_MAX_ELEM_B32, sumReg, mask);
@@ -1529,8 +1532,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
 {
 // alphagrad
 
-    LocalTensor<uint8_t> tmpLocal = fp32TBuf_.GetWithOffset<uint8_t>(hFusionBufLen_ / 4, 0);
-    constexpr bool isReuse = false;
+    // LocalTensor<uint8_t> tmpLocal = fp32TBuf_.GetWithOffset<uint8_t>(hFusionBufLen_ / 4, 0);
+    // constexpr bool isReuse = false;
 
     LocalTensor<P> alphaGradInLocal = fp32InQueue_.AllocTensor<P>();
     LocalTensor<P> alphaGradOutLocal = fp32OutQueue_.AllocTensor<P>();
@@ -1539,7 +1542,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
     dataCopyParams_.blockLen = usedVecCoreNum_ * ALPHA_GRAD_PADDING * sizeof(P);
     dataCopyParams_.srcStride = 0;
     dataCopyParams_.dstStride = 0;
-    DataCopyPad(alphaGradInLocal, workSpaceGm_[workspaceBuf_.GetAlphaGradOffset(0)], dataCopyParams_, dataCopyPadParams_);
+    DataCopyPad(
+        alphaGradInLocal, workSpaceGm_[workspaceBuf_.GetAlphaGradOffset(0)], dataCopyParams_, dataCopyPadParams_);
     fp32InQueue_.EnQue(alphaGradInLocal);
     // alphaGradInLocal = fp32InQueue_.DeQue<P>();
 
@@ -1593,7 +1597,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
     //     true
     // );
     if (N_ == 8) {
-        VFDoV3ProcessBiasGradForN8Performance(
+        VFDoV3ProcessBiasGradForN8(
             (__ubuf__ P *)biasGradOutLocal.GetPhyAddr(), (__ubuf__ P *)biasGradInLocal.GetPhyAddr());
     } else {
         VFDoV3ProcessBiasGrad((__ubuf__ P *)biasGradOutLocal.GetPhyAddr(), (__ubuf__ P *)biasGradInLocal.GetPhyAddr());
@@ -1633,7 +1637,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV3ProcessAlphaGrad(
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV3ProcessBiasGradForN8Performance(
+__aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV3ProcessBiasGradForN8(
     __ubuf__ P *biasGradOut, __ubuf__ P *biasGradIn)
 {
     __VEC_SCOPE__
