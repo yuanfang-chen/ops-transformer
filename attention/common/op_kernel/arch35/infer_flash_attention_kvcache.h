@@ -448,11 +448,6 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
         runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : runParam.s1RealSizeAlign32 / 2;
     } else {
         runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
-        if (constInfo.s1Size > 1 && constInfo.isGqa && (layout == LayOutTypeEnum::LAYOUT_BSH ||
-            layout == LayOutTypeEnum::LAYOUT_TND)) {
-            runParam.halfS1RealSize = (runParam.halfS1RealSize + constInfo.gSize - 1) / constInfo.gSize *
-                constInfo.gSize;
-        }
     }
     runParam.firstHalfS1RealSize = runParam.halfS1RealSize;
     if (constInfo.subBlockIdx == 1) {
