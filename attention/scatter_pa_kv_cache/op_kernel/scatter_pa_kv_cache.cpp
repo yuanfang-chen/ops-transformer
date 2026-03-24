@@ -20,6 +20,7 @@
 #include "scatter_pa_kv_cache_compress_alibi.h"
 #include "scatter_pa_kv_cache_normal_siso.h"
 #include "scatter_pa_kv_cache_compress_omni.h"
+#include "scatter_pa_kv_cache_nhsd.h"
 
 using namespace AscendC;
 // norm
@@ -98,7 +99,7 @@ extern "C" __global__ __aicore__ void scatter_pa_kv_cache(GM_ADDR key, GM_ADDR k
     } else if (TILING_KEY_IS(NHSD)) {
         ScatterPaKvCache::ScatterPaKvCacheNHSD<DTYPE_KEY, DTYPE_SLOT_MAPPING> op;
         op.Init(key, value, slot_mapping, key_cache_out, value_cache_out, &tilingData);
-        op.process();
+        op.Process();
     }
 #endif
     // siso
