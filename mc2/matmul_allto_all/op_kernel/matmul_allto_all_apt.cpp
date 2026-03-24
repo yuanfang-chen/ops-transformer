@@ -32,6 +32,7 @@
 #include "./arch35/mx_quant_matmul_allto_all_arch35.h"
 #endif
 
+
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace MatmulAlltoAllImpl;
