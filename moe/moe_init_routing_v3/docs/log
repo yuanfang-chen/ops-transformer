@@ -1,0 +1,31 @@
+[MIRV3_SQ] Init summary: totalLength=16000 cols=32 n=500 k=32 needCoreNum=64 perCoreRow=250 coreRows=250 perLoopRows=250 rowLoops=1 perLoopCols=32 colLoops=1 dropPadMode=0 rowIdxType=0 activateRows=16000 expertNum=10240 actualExpertNum=8000 expertTotalCount=11436
+
+[MIRV3_SQ] Process begin: dropPadMode=0 rowIdxType=0 needCoreNum=64 rowLoops=1 expertTotalCount=11436 totalLength=16000
+
+[MIRV3_SQ] GatherCopyOut begin: coreRows=250 perLoopRows=250 rowLoops=1 firstOutIndex=0 activateRows=16000
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+
+2026-03-24 11:37:05,070 [ERROR] [620933 moe_init_routing_v3_static_quant_0020 OnCstProfiling] [rts_sequence.py:672]: The 0th (count from 0) output memory out of bound !! All data in the list below should all be 2 (uint8), but got:
+[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 
