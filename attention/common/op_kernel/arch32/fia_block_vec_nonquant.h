@@ -614,7 +614,11 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         }
 
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
-            fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
+            if (maskInfo.sparseMode == fa_base_vector::TREE) {
+                fa_base_vector::AttentionmaskCopyIn<bool, bool, true>(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
+            } else {
+                fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
+            }
             AscendC::PipeBarrier<PIPE_V>();
             fa_base_vector::AttentionMaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
         }
