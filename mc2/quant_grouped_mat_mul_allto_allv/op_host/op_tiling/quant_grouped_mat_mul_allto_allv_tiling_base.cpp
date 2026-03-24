@@ -96,7 +96,6 @@ uint64_t QuantGmmAlltoAllvTilingBase::GetTilingKey() const
 
 QuantModePair QuantGmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContext *context, const char *opName)
 {
-    OP_LOGI(opName, "[TILING_BASE] Enter GetQuantMode");
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     if (attrs == nullptr) {
         OP_LOGE(opName, "Failed to get attrs.");
@@ -111,27 +110,24 @@ QuantModePair QuantGmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContex
     if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_GMM_WEIGHT_QUANT_MODE_INDEX)) {
         gmmWeightQuantMode = *ptr;
     }
-    OP_LOGI(opName, "[TILING_BASE] gmmXQuantMode=%ld, gmmWeightQuantMode=%ld", gmmXQuantMode, gmmWeightQuantMode);
+    OP_LOGD(opName, "gmmXQuantMode=%ld, gmmWeightQuantMode=%ld", gmmXQuantMode, gmmWeightQuantMode);
 
     if (gmmXQuantMode == QUANT_NONE && gmmWeightQuantMode == QUANT_NONE) {
-        OP_LOGI(opName, "[TILING_BASE] Detected QUANT_PAIR_NONE");
         return QUANT_PAIR_NONE;
     }
 
     if (gmmXQuantMode == QUANT_PERTENSOR && gmmWeightQuantMode == QUANT_PERTENSOR) {
-        OP_LOGI(opName, "[TILING_BASE] Detected QUANT_PAIR_TT");
         return QUANT_PAIR_TT;
     }
 
     if (gmmXQuantMode == QUANT_MX && gmmWeightQuantMode == QUANT_MX) {
-        OP_LOGI(opName, "[TILING_BASE] Detected QUANT_PAIR_MX");
         return QUANT_PAIR_MX;
     } else {
         OP_LOGD(opName,
                 "Quantization mode error, currently gmmXQuantMode=%d, gmmWeightQuantMode=%d.",
                 gmmXQuantMode, gmmWeightQuantMode);
     }
-    OP_LOGI(opName, "[TILING_BASE] Detected QUANT_PAIR_ERROR");
+    OP_LOGD(opName, "Detected QUANT_PAIR_ERROR");
     return QUANT_PAIR_ERROR;
 }
 } // namespace
