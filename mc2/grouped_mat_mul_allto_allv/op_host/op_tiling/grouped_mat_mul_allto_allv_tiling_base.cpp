@@ -51,7 +51,7 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
     OP_TILING_CHECK(nullTerminator == nullptr, OP_LOGE(opName_, "The input attr group length is large than 128!"),
                     return ge::GRAPH_FAILED);
     
-    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
     OP_TILING_CHECK(epWorldSizePtr == nullptr, OP_LOGE(opName_, "The input attr epWorldSizePtr is null!"),
