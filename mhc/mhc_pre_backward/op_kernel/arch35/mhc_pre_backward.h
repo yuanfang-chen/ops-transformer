@@ -52,6 +52,7 @@ constexpr uint32_t FP32_BUF_SIZE = (192 - 16 * 4) * 1024;  // 128KB
 constexpr uint32_t PROCESS_V2_CHUNK_SIZE = 64;  // ProcessV2函数使用的chunk大小
 constexpr uint32_t SINGLE_M = 1024;
 constexpr uint32_t ND_BLOCK_SIZE = 128;
+constexpr uint32_t ALPHA_GRAD_LAST_DIM_SIZE = 3;
 constexpr uint32_t ALPHA_GRAD_PADDING = 24;
 constexpr uint32_t ALPHA_GRAD_SHAPE_1_OFFSET = 0;
 constexpr uint32_t ALPHA_GRAD_SHAPE_2_OFFSET = 8;
@@ -436,7 +437,9 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::Init(InitParams initParams)
             usedVecCoreNum_ = 1;
         } else {
             vecDealBSPeCore_ = CeilAlign(vecDealBSPeCore_, uint64_t(16));
-            usedVecCoreNum_ = CeilDiv(totalLength_, vecDealBSPeCore_) > vecCoreNum_ ? vecCoreNum_ : CeilDiv(totalLength_, vecDealBSPeCore_);
+            usedVecCoreNum_ = CeilDiv(totalLength_, vecDealBSPeCore_) > vecCoreNum_ ?
+                                  vecCoreNum_ :
+                                  CeilDiv(totalLength_, vecDealBSPeCore_);
         }
 
         dealStartBS_ = vecDealBSPeCore_ * blockIdx_;
@@ -444,7 +447,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::Init(InitParams initParams)
         if (dealEndBS_ > totalLength_ || blockIdx_ == usedVecCoreNum_ - 1) {
             dealEndBS_ = totalLength_;
         }
-
     }
     InitStage2();
     // 初始化DataCopyParams和DataCopyPadParams
@@ -485,10 +487,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::InitStage2()
         if (dealEndND_ > nD_) {
             dealEndND_ = nD_;
         }
-
     }
-
-
 }
 
 template <class T, class P>
@@ -630,9 +629,9 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV0Main()
 
     // ReduceSum<float, Pattern::Reduce::AR, true>(alphaOutBuf[16], sumBuf, srcShape3, true);
     // PipeBarrier<PIPE_V>();
-    PipeBarrier<PIPE_V>();
+    // PipeBarrier<PIPE_V>();
     VFDoV1ProcessAlphaGradLastSplit((__ubuf__ P *)alphaOutBuf.GetPhyAddr(), (__ubuf__ P *)sumBuf.GetPhyAddr());
-    PipeBarrier<PIPE_V>();
+    // PipeBarrier<PIPE_V>();
 
     SetFlag<HardEvent::V_MTE3>(EVENT_ID2);
     WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
@@ -951,7 +950,7 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
     //     buffers.brcbTmpBuf, shape, true);
     PipeBarrier<PIPE_V>();
 
-    if (vecRuntimesId == 0){
+    if (vecRuntimesId == 0) {
         Adds(sumBuf, h1GradBuf, 0.0f, fusionSize_);
     } else {
         Add(sumBuf, h1GradBuf, sumBuf, fusionSize_);
@@ -1559,14 +1558,14 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
 
     SetFlag<HardEvent::V_S>(EVENT_ID2);
     WaitFlag<HardEvent::V_S>(EVENT_ID2);
-    alphaGradOutLocal.SetValue(1, alphaGradOutLocal.GetValue(8));
-    alphaGradOutLocal.SetValue(2, alphaGradOutLocal.GetValue(16));
+    alphaGradOutLocal.SetValue(1, alphaGradOutLocal.GetValue(ALPHA_GRAD_SHAPE_2_OFFSET));
+    alphaGradOutLocal.SetValue(2, alphaGradOutLocal.GetValue(ALPHA_GRAD_SHAPE_3_OFFSET));
     fp32OutQueue_.EnQue(alphaGradOutLocal);
     alphaGradOutLocal = fp32OutQueue_.DeQue<P>();
     PipeBarrier<PIPE_V>();
 
     dataCopyParams_.blockCount = 1;
-    dataCopyParams_.blockLen = 3 * sizeof(P);
+    dataCopyParams_.blockLen = ALPHA_GRAD_LAST_DIM_SIZE * sizeof(P);
     dataCopyParams_.srcStride = 0;
     dataCopyParams_.dstStride = 0;
     DataCopyPad(alphaGradGm_, alphaGradOutLocal, dataCopyParams_);
