@@ -429,14 +429,10 @@ GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_CLASS::EndSync()
 {
     for (uint64_t i = 0; i < DOUBLE_BUFFER_NUM; i++) {
-        WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
-        if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
-            WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
-        }
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
+        WaitFlag<HardEvent::MTE1_MTE2>(EVENT_ID_SCALE_MTE1_TO_MTE2 + i);
+        WaitFlag<HardEvent::MTE1_MTE2>(EVENT_ID_MTE1_TO_MTE2 + i);
+        WaitFlag<HardEvent::M_MTE1>(EVENT_ID_M_TO_MTE1 + i);
     }
-    GetTPipePtr()->ReleaseEventID<HardEvent::MTE2_MTE1>(cubeEventIdMte2ToMte1_);
 }
 
 GMM_FR_WEIGHT_QUANT_CUBE_COMPUTE_TEMPLATE_PARAM

@@ -566,9 +566,6 @@ __aicore__ inline void GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::End()
         WaitFlag<HardEvent::V_MTE2>(EVENT_ID_V_TO_MTE2 + idx);
     }
 
-    for (uint16_t idx = 0; idx < UB_ANTI_QUANT_Y_BUFFER_NUM; idx++) {
-        WaitFlag<HardEvent::V_MTE2>(vecEventIdAntiQuantYVToMte2_ + idx);
-    }
 }
 
 GMM_FR_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
