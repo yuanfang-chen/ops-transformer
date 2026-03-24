@@ -20,6 +20,7 @@
 #include "acl/acl.h"
 #include "hccl/hccl.h"
 #include "aclnn/opdev/fp16_t.h"
+#include "aclnn/opdev/bfloat16.h"
 #include "aclnnop/aclnn_moe_distribute_dispatch.h"
 #include "aclnnop/aclnn_moe_distribute_combine.h"
 
@@ -188,7 +189,7 @@ int launchOneThreadDispatchAndCombine(Args &args)
     long long expandScalesShapeSize = GetShapeSize(expandScalesShape);
 
     // 构造host侧变量
-    std::vector<op::fp16_t> xHostData(xShapeSize, 1);
+    std::vector<bfloat16_t> xHostData(xShapeSize, 1);
     std::vector<int32_t> expertIdsHostData;
     for (int32_t token_id = 0; token_id < expertIdsShape[0]; token_id++) {
         // 每个token发给moe专家{0, 1, ... k - 1}
@@ -413,8 +414,12 @@ int run_example_on_A2(int rankId, const char* RANK_TABLE_FILE, const char* FIRST
     std::cout << "[INFO] HcclCommInitClusterInfo success, rank_id:" << rank_id << ", rankSize:" << DEV_NUM
               << ", hcclComm:" << hcclComm << std::endl;
 
+    uint32_t epRankId = rank_id / TP_WORLD_SIZE;
+    uint32_t tpRankId = rank_id % TP_WORLD_SIZE;
+
     args.rankId = rankId;
-    args.epRankId = rankId;
+    args.epRankId = epRankId;
+    args.tpRankId = tpRankId;
     args.tpRankId = 0;
     args.hcclEpComm = hcclComm;
     args.dispatchStream = dispatchStream;
@@ -531,7 +536,7 @@ int main(int argc, char *argv[])
     }
     else if (rank_table_file && first_rank_id) {
         EP_WORLD_SIZE = 16;
-        TP_WORLD_SIZE = 0;
+        TP_WORLD_SIZE = 1;
         DEV_NUM = EP_WORLD_SIZE;
         LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
         uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
