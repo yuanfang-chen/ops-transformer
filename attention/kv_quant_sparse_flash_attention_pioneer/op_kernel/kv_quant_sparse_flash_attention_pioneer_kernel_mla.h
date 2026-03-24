@@ -607,6 +607,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
+    int64_t curS2LoopCnt =runInfo.s2LoopCount;
     if constexpr (hasSink) {
         if (runInfo.s2LoopCount == 0) {
             return;
