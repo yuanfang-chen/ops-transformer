@@ -392,6 +392,8 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
 
     int64_t actualS1Len;
     int64_t actualS2Len;
+
+    
     for (int64_t i = 0; i < this->sharedParams.bSize; ++i) {
         this->GetSeqQlenKvlenByBoidx(i, actualS1Len, actualS2Len);
         actualS1Outersize += (CeilDiv(actualS1Len, this->s1BaseSize) * this->constInfo.n2G);
