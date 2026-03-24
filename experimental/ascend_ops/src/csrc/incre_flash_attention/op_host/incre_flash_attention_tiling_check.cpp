@@ -240,10 +240,7 @@ bool IFATiling::IsFlashDecode(uint32_t coreNum, IfaPerfMode perfMode)
             return false;
         }
     }
-    // if (balanceModeFlag_) {
-    //     uint32_t tndFDCoreArrLen = tilingDataMla_.tndSplitCoreParams.get_tndFDCoreArrLen();
-    //     return tndFDCoreArrLen > 0U;
-    // }
+
     if (pageAttentionFlag_ && socVersion_ == IfaSocVersion::SOC_ASCEND_910B &&
         perfMode != IfaPerfMode::CUBE_VIEW_MM_MLA && maxActualseq_ <= 1024U) { // 1024, 经验值
         return false;
@@ -308,11 +305,6 @@ bool IFATiling::EnableCubeViewMM() const
         return false;
     }
 
-    // if (antiQuantFlag_) {
-    //     if (inputKvType_ == ge::DT_INT4) {
-    //         return false;
-    //     }
-    // }
     std::string layOutStr = ifaContext_->layOut;
     if (pageAttentionFlag_ && layOutStr == "BNSD") {
         bool quantFlag = antiQuantFlag_ && (antiquantMode_ == PER_CHANNEL_MODE) && (inputQType_ == at::ScalarType::Half || inputQType_ == at::ScalarType::BFloat16) && (inputKvType_ == at::ScalarType::Char);
@@ -475,9 +467,6 @@ bool IFATiling::EnableCubeViewMMFullLoad()
     }
 
     if (antiQuantFlag_) {
-        // if (inputKvType_ == ge::DT_INT4) {
-        //     return false;
-        // }
         return false;
     } else {
         return false;
@@ -912,8 +901,6 @@ custom::graphStatus IFATiling::CheckGqaAttribute() const
         OP_LOGE(ifaContext_->opName, "In IFA GQA with KV NZ antiquant, only BSH, BSND, BNSD and TND layout are supported, but now it's %s", layout.c_str()),
         return custom::graphStatus::GRAPH_FAILED);
 
-    // OP_CHECK_IF(ifaContext_->keyAntiquantMode == nullptr || ifaContext_->valueAntiquantMode == nullptr,
-    //     OP_LOGE(ifaContext_->opName, "the key's quant mode or the value's quant mode is null!"), return custom::graphStatus::GRAPH_FAILED);
     int64_t keyAntiquantMode = ifaContext_->keyAntiquantMode;
     int64_t valueAntiquantMode = ifaContext_->valueAntiquantMode;
     OP_CHECK_IF(antiquantMode_ == PER_CHANNEL_MODE && (keyAntiquantMode != 0 || valueAntiquantMode != 0),
