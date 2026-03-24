@@ -29,6 +29,9 @@ using namespace AscendC;
 using namespace matmul_tiling;
 namespace optiling {
 namespace v2 {
+
+#define PRINTF_NAME(x) printf(#x);printf(" is %d\n", x);
+
 constexpr uint32_t NUM_0 = 0;
 
 constexpr uint32_t QUERY_INDEX = 0;
@@ -3010,7 +3013,12 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
                 needInit = 1;
             }
         }
+        maxActualseqQ = std::max(maxActualseqQ, actualSeqLengths[i]);
         maxActualseqKV = std::max(maxActualseqKV, actualSeqLengthsKV[i]);
+    }
+
+    for (uint32_t i = LOOP_BEGIN_NUM; i < lenDims; i++) {
+        printf("zzyzzy batch:%d, actualSeqLengths[i]:%d, actualSeqLengthsKV[i]:%d \n", i, actualSeqLengths[i], actualSeqLengthsKV[i]);
     }
 
     return true;
@@ -3119,6 +3127,9 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
     tilingData.promptAttentionBaseParams.set_preTokens(sparsePreTokens);
     tilingData.promptAttentionBaseParams.set_nextTokens(sparseNextTokens);
     tilingData.promptAttentionBaseParams.set_sparseMode(static_cast<uint32_t>(sparseModeVal));
+    PRINTF_NAME(sparsePreTokens);
+    PRINTF_NAME(sparseNextTokens);
+    PRINTF_NAME(sparseModeVal);
 
     bool isActualSeqLengthsNull = isMaxWorkspace ? true : !enableActSeqLen;
     bool isActualSeqLengthsKVNull = isMaxWorkspace ? true : !enableActSeqLenKV;
@@ -3126,6 +3137,10 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
     tilingData.promptAttentionBaseParams.set_isActualSeqLengthsKVNull(static_cast<uint32_t>(isActualSeqLengthsKVNull));
     tilingData.promptAttentionBaseParams.set_actualSeqLengthsSize(actSeqLenDims);
     tilingData.promptAttentionBaseParams.set_actualSeqLengthsKVSize(actSeqLenKVDims);
+    PRINTF_NAME(isActualSeqLengthsNull);
+    PRINTF_NAME(isActualSeqLengthsKVNull);
+    PRINTF_NAME(actSeqLenDims);
+    PRINTF_NAME(actSeqLenKVDims);
 
     tilingData.promptAttentionBaseParams.set_usePseShift(usePseShift);
     tilingData.promptAttentionBaseParams.set_pseShiftTypeByteNum(pseShiftTypeByteNum);
@@ -3133,15 +3148,28 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
     tilingData.promptAttentionSingleCoreParams.set_pseShiftBatch(pseShiftBatch);
     tilingData.promptAttentionBaseParams.set_pseShiftS1Size(pseShiftS1);
     tilingData.promptAttentionBaseParams.set_pseShiftS2Size(pseShiftS2);
+    PRINTF_NAME(usePseShift);
+    PRINTF_NAME(pseShiftTypeByteNum);
+    PRINTF_NAME(pseMaskMaxSize);
+    PRINTF_NAME(pseShiftBatch);
+    PRINTF_NAME(pseShiftS1);
+    PRINTF_NAME(pseShiftS2);
 
     tilingData.promptAttentionBaseParams.set_isKvContinuous(contextKeyParams.isKvContinuous);
     tilingData.promptAttentionBaseParams.set_isQHasLeftPadding(contextKeyParams.queryPaddingSize != nullptr ? 1 : 0);
     tilingData.promptAttentionBaseParams.set_isKVHasLeftPadding(contextKeyParams.kvPaddingSize != nullptr ? 1 : 0);
+    PRINTF_NAME(contextKeyParams.isKvContinuous);
+    PRINTF_NAME(contextKeyParams.queryPaddingSize);
+    PRINTF_NAME(contextKeyParams.kvPaddingSize);
 
     tilingData.promptAttentionBaseParams.set_fromFused((contextKeyParams.fromFused == FROM_FUSED_FLAG) ? 1 : 0);
     tilingData.promptAttentionBaseParams.set_isBSNDOut(contextKeyParams.isBSNDOut);
     tilingData.promptAttentionBaseParams.set_transposeLayout(contextKeyParams.transposeLayout);
     tilingData.promptAttentionBaseParams.set_isSoftMaxLseEnable(contextKeyParams.isSoftMaxLseEnable);
+    PRINTF_NAME(contextKeyParams.fromFused);
+    PRINTF_NAME(contextKeyParams.isBSNDOut);
+    PRINTF_NAME(contextKeyParams.transposeLayout);
+    PRINTF_NAME(contextKeyParams.isSoftMaxLseEnable);
 
     uint32_t originHeadSize = enableIFAMLA ? tilingData.promptAttentionBaseParams.get_headSize() :
                                         tilingData.promptAttentionBaseParams.get_qkHeadSize();
@@ -3153,6 +3181,7 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
     } else {
         tilingData.promptAttentionBaseParams.set_alignedHeadSize(originHeadSize);
     }
+    PRINTF_NAME(tilingData.promptAttentionBaseParams.get_alignedHeadSize());
 }
 
 void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contextKeyParams,
@@ -3184,6 +3213,7 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
     if (enableDN && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d <= 128) && enablePerblockQuant) {
         tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);   // 256U: 设置sInner的dsize
     }
+    PRINTF_NAME(tilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize())
 }
 
 void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo,
@@ -3197,6 +3227,10 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_maskTypeByteNum(maskTypeByteNum);
     tilingData.promptAttentionBaseParams.set_softmaxTypeByteNum(softmaxTypeByteNum);
     tilingData.promptAttentionBaseParams.set_outputTypeByteNum(outputTypeByteNum);
+    PRINTF_NAME(typeByteNum);
+    PRINTF_NAME(maskTypeByteNum);
+    PRINTF_NAME(softmaxTypeByteNum);
+    PRINTF_NAME(outputTypeByteNum);
 
     uint32_t deqScaleTypeFlag = (contextKeyParams.deqScaleType == DT_UINT64) ? 0U : 1U;
     uint32_t deqScale2TypeFlag = (contextKeyParams.deqScale2Type == DT_UINT64) ? 0U : 1U;
@@ -3209,6 +3243,10 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_isQuant2FP16(0);
     // IFA flag
     tilingData.promptAttentionBaseParams.set_isIFA(enableIFA);
+    PRINTF_NAME(deqScaleTypeFlag);
+    PRINTF_NAME(deqScale2TypeFlag);
+    PRINTF_NAME(*contextKeyParams.scaleValue);
+    PRINTF_NAME(enableIFA);
     if (enablePostQuant) {
         if (contextKeyParams.scale2Shape->GetStorageShape().GetShapeSize() > 1) {
             tilingData.promptAttentionBaseParams.set_isQuant2Perchannel(1);
@@ -3224,9 +3262,12 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
 
     if (enablePA) {
         tilingData.promptAttentionBaseParams.set_blockSize(*contextKeyParams.blockSize);
+        PRINTF_NAME(*contextKeyParams.blockSize);
     } else {
         tilingData.promptAttentionBaseParams.set_blockSize(BLOCK_SIZE_BASE);
+        PRINTF_NAME(BLOCK_SIZE_BASE);
     }
+
     tilingData.promptAttentionBaseParams.set_blockTableDim2(blockTableDim2);
     tilingData.promptAttentionBaseParams.set_PABlockNumSum(paBlockNumSum);
     uint32_t isLayoutSH = (inputLayout == InputLayout::SH) ? 1U : 0U;
@@ -3234,10 +3275,19 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_dimNumOfseq(queryShapeInfo.b);
     tilingData.promptAttentionBaseParams.set_headSize(queryShapeInfo.d);
     tilingData.promptAttentionBaseParams.set_ropeHeadSize(queryRopeShapeInfo.d);
+    PRINTF_NAME(blockTableDim2);
+    PRINTF_NAME(paBlockNumSum);
+    PRINTF_NAME(isLayoutSH);
+    PRINTF_NAME(queryShapeInfo.b);
+    PRINTF_NAME(queryShapeInfo.d);
+    PRINTF_NAME(queryRopeShapeInfo.d);
+
     if (enableIFAMLA) {
         tilingData.promptAttentionBaseParams.set_qkHeadSize(queryShapeInfo.d + queryRopeShapeInfo.d);
+        PRINTF_NAME(tilingData.promptAttentionBaseParams.get_qkHeadSize());
     } else {
         tilingData.promptAttentionBaseParams.set_qkHeadSize(queryShapeInfo.d);
+        PRINTF_NAME(queryShapeInfo.d);
     }
     tilingData.promptAttentionBaseParams.set_vHeadSize(valueShapeInfo.d);
     tilingData.promptAttentionBaseParams.set_seqInnerSize(S2);
@@ -3246,6 +3296,13 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_batchSize(queryShapeInfo.b);
     tilingData.promptAttentionBaseParams.set_t1Size(t1Size);
     tilingData.promptAttentionBaseParams.set_t2Size(t2Size);
+    PRINTF_NAME(valueShapeInfo.d);
+    PRINTF_NAME(S2);
+    PRINTF_NAME(queryShapeInfo.s);
+    PRINTF_NAME(queryShapeInfo.n);
+    PRINTF_NAME(queryShapeInfo.b);
+    PRINTF_NAME(t1Size);
+    PRINTF_NAME(t2Size);
     SetTilingDataAttribute(contextKeyParams, tilingData);
 }
 
@@ -3270,9 +3327,35 @@ void PromptFlashAttentionTilingV2::InferTilingMod(const ContextParamsForPFATilin
     }
 }
 
-void PromptFlashAttentionTilingV2::InferSplitCoreMode() 
+void PromptFlashAttentionTilingV2::InferSplitCoreMode(PromptFlashAttentionTilingData& tilingData) 
 {
-    splitCoreMode = SplitCoreMode::SPLIT_NBS_CUBE;
+    uint32_t thresholdS2Size = 0;
+    // thres = L2CacheSize / (bnSize * (D + Dv) * TypeSize * 2);  // 乘2表示K、V
+    uint32_t s1 = maxActualseqQ;
+    uint32_t S1 = tilingData.promptAttentionBaseParams.get_seqSize();
+    uint32_t s2 = maxActualseqKV;
+
+    uint32_t batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
+    uint32_t numHead = tilingData.promptAttentionBaseParams.get_headNumSize();
+    int64_t bnSize = std::min(batchSize * numHead, aicNum);
+    uint32_t sparseMode = tilingData.promptAttentionBaseParams.get_sparseMode();
+
+
+    if((S2 >= thresholdS2Size && !isKVHasPrefix && !enableLeftPadding && !enableAlibiPse && !enablePFAMerge &&
+        !enableKVAntiquant && !enablePostQuant && !enablePertensorQuant && !enablePerblockQuant && !enableIFA && !enableIFAMLA) &&
+      ((sparseMode == SPARSE_MODE_LEFT_UP) ||
+      ((sparseMode == SPARSE_MODE_RIGHT_DOWN) ||
+       (sparseMode == SPARSE_MODE_ALL_MASK) || 
+       (sparseMode == SPARSE_MODE_NO_MASK && !enableMask)))) {
+        splitCoreMode = SplitCoreMode::SPLIT_S1OUT_CUBE;
+        printf("zzyzzy SPLIT_S1OUT_CUBE -------------------------------------------------------------------------- \n");
+    } else {
+        splitCoreMode = SplitCoreMode::SPLIT_NBS_CUBE;
+    }
+
+    // splitCoreMode = SplitCoreMode::SPLIT_S1OUT_CUBE;
+
+    printf("zzyzzy s1:%d, S1:%d, s2:%d, S2:%d, maxActualseqKV:%d, thresholdS2Size:%d, splitCoreMode:%d\n", s1, S1, s2, S2, maxActualseqKV, thresholdS2Size, splitCoreMode);
 }
 
 void PromptFlashAttentionTilingV2::InferConstantization() 
@@ -3894,14 +3977,19 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
     uint32_t batchSize = baseParams->get_dimNumOfseq();
     uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
     uint32_t sInnerSize = singleCoreParams->get_singleProcessSInnerSize();
+    PRINTF_NAME(sOuterSize);
+    PRINTF_NAME(sInnerSize);
+    PRINTF_NAME(CV_RATIO);
+    PRINTF_NAME(curCoreNum);
 
     if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) { // From the perspective of cube
         sOuterSize = sOuterSize * CV_RATIO;
         curCoreNum = curCoreNum / CV_RATIO;
     }
+    PRINTF_NAME(sOuterSize);
+    PRINTF_NAME(curCoreNum);
 
     int64_t totalBlockNumsOneHead = 0; // The calculation amount of all sequences for a single head
-
     uint32_t multiSmaxsInnerLoopTimes = 0U;
     for (uint32_t sIdx = 0; sIdx < batchSize; sIdx++) {
         int64_t actualSeqLengthsTmp = actualSeqLengths[sIdx]; // 用于存放减去行无效后，真实的actseqlen
@@ -3941,6 +4029,54 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
     singleCoreParams->set_actualCoreNums(actualCoreNums);
     int64_t sinnerBlocknum = (baseParams->get_seqInnerSize() + sInnerSize - 1) / sInnerSize;
     SetMultiCoreParamsRegbase((totalBlockNumsOneHead / sinnerBlocknum) * baseParams->get_headNumSize(), static_cast<int64_t>((curIndx + 1)));
+}
+
+void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitOutSeq(PromptFlashAttentionTilingData& tilingData,
+    std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV, bool isAttenMaskUsed) 
+{
+    printf("zzyzzy PromptFlashAttentionSplitOutSeq ===================\n");
+    PromptAttentionBaseParams* baseParams = &tilingData.promptAttentionBaseParams;
+    PromptAttentionSingleCoreParams* singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
+    uint32_t curCoreNum = coreNum;
+    uint32_t batchSize = baseParams->get_dimNumOfseq();
+    uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
+    uint32_t headNumSize = baseParams->get_headNumSize();
+    uint32_t gSize = baseParams->get_headNumRatio();
+    PRINTF_NAME(headNumSize)
+    PRINTF_NAME(gSize)
+
+    sOuterSize = sOuterSize * CV_RATIO;
+    curCoreNum = curCoreNum / CV_RATIO;
+
+    uint32_t totalSize = 0;
+    for (uint32_t sIdx = 0; sIdx < batchSize; sIdx++) {
+        int64_t actualSeqLengthsTmp = actualSeqLengths[sIdx]; // 用于存放减去行无效后，真实的actseqlen
+        int64_t preTokensLeftUp = 0;
+        int64_t nextTokensLeftUp = 0;
+        GetPreNextTokensLeftUp(tilingData, actualSeqLengths[sIdx], actualSeqLengthsKV[sIdx] + actualSharedPrefixLen,
+            preTokensLeftUp, nextTokensLeftUp);
+
+        // 计算各sparse mode情况下，减去行无效后真实的actseqlen
+        FixParamWithRowInvalid(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, preTokensLeftUp, nextTokensLeftUp);
+
+        int64_t outerBlockNums = (actualSeqLengthsTmp + static_cast<int64_t>(sOuterSize) - 1) / static_cast<int64_t>(sOuterSize);
+        totalSize += outerBlockNums * headNumSize;
+        printf("totalSize:%d, headNumSize:%d, outerBlockNums:%d, actualSeqLengthsTmp:%d, sOuterSize:%d, nextTokensLeftUp\n",
+            totalSize, headNumSize, outerBlockNums, actualSeqLengthsTmp, sOuterSize, nextTokensLeftUp);
+    }
+
+    int64_t s1OuterSize = (baseParams->get_seqSize() + sOuterSize - 1) / sOuterSize;
+    faTilingAdapter.multiCoreParamsRegbase.set_s1OuterSize(s1OuterSize);
+    PRINTF_NAME(s1OuterSize)
+    PRINTF_NAME(sOuterSize)
+
+    uint32_t actualUsedCoreNum = std::min(totalSize, curCoreNum);
+    actualUsedCoreNum = 1;
+    singleCoreParams->set_actualCoreNums(actualUsedCoreNum);
+    PRINTF_NAME(totalSize);
+
+    PRINTF_NAME(actualUsedCoreNum);
+    SetMultiCoreParamsRegbase(totalSize, actualUsedCoreNum);
 }
 
 void PromptFlashAttentionTilingV2::PromptFlashAttentionInitSoftmaxLseOutputSplit(int64_t totalSize,
@@ -4160,6 +4296,11 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyEnableKVPrefix()
     enableKVPrefix = isKVHasPrefix;
 }
 
+void PromptFlashAttentionTilingV2::UpdateTilingKeySplitCoreMode() 
+{
+    enableS1OutSplit = (splitCoreMode == SplitCoreMode::SPLIT_S1OUT_CUBE);
+}
+
 bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) 
 {
     auto inputDataType = contextKeyParams.inputDataType; // input q
@@ -4178,6 +4319,7 @@ bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextPar
     UpdateTilingKeyPFAMask(tilingData, inputDataType);
     UpdateTilingKeyPFAMatMulType(tilingData, inputDataType);
     UpdateTilingKeyEnableKVPrefix();
+    UpdateTilingKeySplitCoreMode();
     return true;
 }
 
@@ -4518,6 +4660,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
         "headNumRatio = %u", queryShapeInfo.b, keyShapeInfo.b, queryShapeInfo.n, keyShapeInfo.n, queryShapeInfo.s,
         S2, queryShapeInfo.h, queryShapeInfo.d, tilingData.promptAttentionBaseParams.get_headNumRatio());
 
+    printf("zzyzzy Tiling Info: Q_B is %u, KV_B is %u, Q_N is %u, KV_N is %u, Q_S is %u, KV_S is %u, H is %u, D is %u, "
+        "headNumRatio = %u\n", queryShapeInfo.b, keyShapeInfo.b, queryShapeInfo.n, keyShapeInfo.n, queryShapeInfo.s,
+        S2, queryShapeInfo.h, queryShapeInfo.d, tilingData.promptAttentionBaseParams.get_headNumRatio());
+
     // quant/dequant/antiquant
     if (!CheckQuant(contextKeyParams, queryShapeInfo, keyShapeInfo, valueShapeInfo)) {
         OP_LOGE(contextKeyParams.opName, "Check quant failed!");
@@ -4679,6 +4825,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::AdjustTilingData(ContextParamsForP
     tilingData.promptAttentionSingleCoreParams.set_singleProcessSOuterSize(sOuterFactor);
     tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(sInnerFactor);
     tilingData.promptAttentionBaseParams.set_splitS2(splitS2);
+    PRINTF_NAME(softmaxSOuterFactor)
+    PRINTF_NAME(sOuterFactor)
+    PRINTF_NAME(sInnerFactor)
+    PRINTF_NAME(splitS2)
 
     sOuterFactorTiling = sOuterFactor;
     softmaxSInnerFactorTiling = softmaxSInnerFactor;
@@ -4729,12 +4879,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
     std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV,
     PromptFlashAttentionTilingData& tilingData) 
 {
-    // Compute tiling data.
-    if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
-        bool isAttenMaskUsed = (contextKeyParams.attentionMaskShape != nullptr);
+    bool isAttenMaskUsed = (contextKeyParams.attentionMaskShape != nullptr);
+    if (splitCoreMode == SplitCoreMode::SPLIT_S1OUT_CUBE) {
+        PromptFlashAttentionSplitOutSeq(tilingData, actualSeqLengths, actualSeqLengthsKV, isAttenMaskUsed);
+    } else if(splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
         PromptFlashAttentionSplitNBSeq(tilingData, actualSeqLengths, actualSeqLengthsKV, isAttenMaskUsed);
     }
 
+    PRINTF_NAME(needInit)
     if (needInit == 1) {
         PromptFlashAttentionInitOutputSplit(contextKeyParams.outputShape->GetStorageShape().GetShapeSize(), tilingData);
     }
@@ -4744,6 +4896,8 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
             tilingData);
     }
 
+    PRINTF_NAME(enableIFA)
+    PRINTF_NAME(enablePFAMerge)
     if (enableIFA && !enablePFAMerge) {
         PromptAttentionSingleCoreParams* singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
         uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
@@ -4987,8 +5141,8 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_remain(0); // 默认值
     inputParams.set_attenMaskS2Size(tilingData.promptAttentionBaseParams.get_maskKVsSize());
     inputParams.set_rsv1(0); // 默认值
-    inputParams.set_s1SparseValidSize(0); // 临时默认值
-    inputParams.set_s2SparseValidSize(0); // 临时默认值
+    inputParams.set_s1SparseValidSize(0); // 默认值
+    inputParams.set_s2SparseValidSize(0); // 默认值
     inputParams.set_seed(0); // 默认值
     inputParams.set_offset(0); // 默认值
 
@@ -5144,13 +5298,15 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
 
     // Infering whether the tiling mode is S2 full load, CV diff, and whether to use the matmul norm template.
     InferTilingMod(contextKeyParams, actualSeqLengths, actualSeqLengthsKV, queryShapeInfo.b, queryShapeInfo.d);
-    InferSplitCoreMode();
+    // InferSplitCoreMode();
     // Whether to enable constant templates
     InferConstantization();
 
     if (AdjustTilingData(contextKeyParams, tilingData, queryShapeInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+
+    InferSplitCoreMode(tilingData);
 
     // DN check
     GetEnableDN(contextKeyParams, tilingData, queryShapeInfo, valueShapeInfo, actualSeqLengths, actualSeqLengthsKV);
