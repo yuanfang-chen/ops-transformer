@@ -1096,12 +1096,23 @@ ge::graphStatus GroupedQmmTiling::CalL1Depth(uint64_t leftL1Size)
     uint64_t baseScaleASize = 0;
     uint64_t baseScaleBSize = 0;
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        baseScaleASize = GetSizeWithDataType(
-            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseM,
-            inputParams_.perTokenScaleDtype);
-        baseScaleBSize = GetSizeWithDataType(
-            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseN,
-            inputParams_.scaleDtype);
+        if (inputParams_.groupType == SPLIT_M) {
+            baseScaleASize =
+                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
+                                    inputParams_.perTokenScaleDtype);
+            baseScaleBSize =
+                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
+                                    inputParams_.scaleDtype);
+        } else {
+            baseScaleASize = GetSizeWithDataType(
+                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
+                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseM, // 2 is dim value of last scale dim
+                inputParams_.perTokenScaleDtype);
+            baseScaleBSize = GetSizeWithDataType(
+                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
+                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseN, // 2 is dim value of last pertokenScale dim
+                inputParams_.scaleDtype);
+        }
     }
     uint64_t baseL1Size = baseASize + baseBSize + baseScaleASize + baseScaleBSize;
     OP_CHECK_IF(leftL1Size < baseL1Size,
@@ -1204,8 +1215,8 @@ void GroupedQmmTiling::CalScaleFactors()
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
     uint32_t scaleFactorBMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
-    uint32_t scaleFactorA = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKa * basicTiling_.baseK));
-    uint32_t scaleFactorB = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKb * basicTiling_.baseK));
+    uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
+    uint32_t scaleFactorB = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKb * basicTiling_.baseK));
     basicTiling_.scaleFactorA = std::max(SCALER_FACTOR_MIN, scaleFactorA);
     basicTiling_.scaleFactorB = std::max(SCALER_FACTOR_MIN, scaleFactorB);
     basicTiling_.scaleFactorA = std::min(scaleFactorAMax, basicTiling_.scaleFactorA);

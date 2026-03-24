@@ -83,7 +83,6 @@ ge::graphStatus GroupedQmmBasicApiTiling::DoLibApiTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-// TODO: 可不需要
 ge::graphStatus GroupedQmmBasicApiTiling::PostTiling()
 {
     context_->SetBlockDim(aicoreParams_.aicNum);
