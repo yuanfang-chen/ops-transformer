@@ -2072,10 +2072,10 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
 {
     // check layout
     std::string layoutStr(contextKeyParams.layout);
-    const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND"};
+    const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND", "BSH_NBSD", "BSND_NBSD", "BNSD_NBSD", "TND_NTD"};
     OP_CHECK_IF(std::find(supportedLayoutList.begin(), supportedLayoutList.end(), layoutStr) == supportedLayoutList.end(),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND.", layoutStr.c_str()), return false);
+            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND/BSH_NBSD/BSND_NBSD/BNSD_NBSD/TND_NTD.", layoutStr.c_str()), return false);
     // check DSize
     OP_CHECK_IF((queryShapeInfo.d != 512), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "When MLAFullQuant enables, the d(%d) size of query should be 512.", queryShapeInfo.d), return false);
