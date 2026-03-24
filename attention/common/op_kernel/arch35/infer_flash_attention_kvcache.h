@@ -381,6 +381,8 @@ __aicore__ inline void GetKeyRopeCoreOffsetParam(RunParamStr<isInfer>& runParam,
             runParam.kvLeftPaddingSize * constInfo.dSizeRope;
         runParam.kRopeNBGOffset = kRopeInnerOffsetSize + runParam.n2oIdx * headStrideKV;
     }
+    // PRINTF("runParam.kRopeNBGOffset:%d, kRopeInnerOffsetSize:%d, runParam.n2oIdx:%d, constInfo.dSizeRope:%d, bIdx:%d, constInfo.n2S2DR:%d, runParam.kvLeftPaddingSize:%d, constInfo.n2DR:%d\n",
+    //     runParam.kRopeNBGOffset, kRopeInnerOffsetSize, runParam.n2oIdx, constInfo.dSizeRope, bIdx, constInfo.n2S2DR, runParam.kvLeftPaddingSize, constInfo.n2DR);
 }
 
 TEMPLATE_INTF
@@ -427,6 +429,7 @@ TEMPLATE_INTF
 __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo,
     uint32_t sOuterLoopIdx)
 {
+    // PRINTF("ComputeSouterParam sOuterLoopIdx:%d, runParam.s1RealSize:%d\n", sOuterLoopIdx, runParam.s1RealSize);
     int64_t cubeSOuterOffset = sOuterLoopIdx * (uint32_t)s1TemplateType;
     if (runParam.actualS1Size == 0) {
         runParam.s1RealSize = 0;
@@ -440,6 +443,8 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
                 runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
             }
         }
+        // PRINTF("constInfo.isGqa:%d, runParam.s1RealSize:%d, s1TemplateType:%d, runParam.actualS1Size:%d, constInfo.gSize:%d, cubeSOuterOffset:%d\n", 
+        //     constInfo.isGqa, runParam.s1RealSize, (uint32_t)s1TemplateType, runParam.actualS1Size, constInfo.gSize, cubeSOuterOffset);
     }
 
     cubeSOuterOffset += (runParam.nextTokensPerBatch < 0) ? -runParam.nextTokensPerBatch : 0;
@@ -462,6 +467,7 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
         runParam.sOuterOffset = cubeSOuterOffset;
     }
     runParam.cubeSOuterOffset = cubeSOuterOffset;
+    // PRINTF("ComputeSouterParam end runParam.s1RealSize:%d\n", runParam.s1RealSize);
 }
 
 TEMPLATE_INTF
@@ -519,6 +525,8 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                             runParam.goIdx * constInfo.s1DR + runParam.cubeSOuterOffset * constInfo.dSizeRope;
                     }
                 }
+                // PRINTF("runParam.qRopeNBGOffset:%d, qRopeBOffset:%d, cubeSOuterOffset:%d, n2GDR:%d, n2oIdx:%d, gDR:%d, goIdx:%d, dSizeRope:%d\n", 
+                // runParam.qRopeNBGOffset, runParam.qRopeBOffset, runParam.cubeSOuterOffset, constInfo.n2GDR, runParam.n2oIdx, constInfo.gDR, runParam.goIdx, constInfo.dSizeRope);
             }
         }
     } else {
@@ -623,6 +631,7 @@ TEMPLATE_INTF
 __aicore__ inline bool ComputeParamS1(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo,
     uint32_t sOuterLoopIdx, __gm__ int64_t *actualSeqQlenAddr, PseInfo& pseInfo)
 {
+    // PRINTF("ComputeParamS1 sOuterLoopIdx:%d \n", sOuterLoopIdx);
     // 后续的函数依赖 sOuterOffset
     ComputeSouterParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, sOuterLoopIdx);
 

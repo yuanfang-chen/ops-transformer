@@ -544,6 +544,14 @@ public:
     uint32_t gOfMla = 0;
     uint32_t get_gOfMla() const { return this->gOfMla; }
     void set_gOfMla(uint32_t gOfMlaParam) { this->gOfMla = gOfMlaParam; }
+
+    int64_t s1SparseValidSize = 0;
+    int64_t get_s1SparseValidSize() const {return s1SparseValidSize;}
+    void set_s1SparseValidSize(int64_t s1SparseValidSizeParam) {this->s1SparseValidSize = s1SparseValidSizeParam;}
+
+    int64_t s2SparseValidSize = 0;
+    int64_t get_s2SparseValidSize() const {return s2SparseValidSize;}
+    void set_s2SparseValidSize(int64_t s2SparseValidSizeParam) {this->s2SparseValidSize = s2SparseValidSizeParam;}
 };
 
 #define CORE_NUM 64 // 64: default core num
@@ -647,6 +655,10 @@ public:
     uint32_t kvAntiquantSInnerSize = 0;
     uint32_t get_kvAntiquantSInnerSize() const { return this->kvAntiquantSInnerSize; }
     void set_kvAntiquantSInnerSize(uint32_t kvAntiquantSInnerSizeParam) { this->kvAntiquantSInnerSize = kvAntiquantSInnerSizeParam; }
+
+    uint32_t firstFullLoadS1OuterIdx = 0;
+    uint32_t get_firstFullLoadS1OuterIdx() const { return this->firstFullLoadS1OuterIdx; }
+    void set_firstFullLoadS1OuterIdx(uint32_t firstFullLoadS1OuterIdxParam) { this->firstFullLoadS1OuterIdx = firstFullLoadS1OuterIdxParam; }
 };
 
 class PromptAttentionSingleCoreTensorSize {
