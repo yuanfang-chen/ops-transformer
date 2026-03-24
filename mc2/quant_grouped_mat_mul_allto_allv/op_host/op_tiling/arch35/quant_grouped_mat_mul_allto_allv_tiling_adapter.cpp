@@ -19,12 +19,12 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace MC2Tiling;
+using namespace Mc2Tiling;
 using namespace optiling::Mc2GroupedMatmulTiling;
 using namespace optiling::Mc2GroupedMatmulTiling::GmmConstant;
-using namespace MC2Tiling::Mc2GroupedMatmul;
+using namespace Mc2Tiling::Mc2GroupedMatmul;
 
-namespace MC2Tiling {
+namespace Mc2Tiling {
 
 const std::vector<uint32_t> QUANT_MODE_MP = {0, 0, 1, 2, 4, 5, 3}; // 不量化 pertensor perchannel pertoken pergroup perblock mx; 分别对应gmm中各量化的移位数
 

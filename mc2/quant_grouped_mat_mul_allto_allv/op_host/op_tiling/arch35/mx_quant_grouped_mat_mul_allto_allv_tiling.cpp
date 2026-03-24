@@ -23,10 +23,10 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace MC2Tiling;
-using namespace MC2Tiling::Mc2GroupedMatmul;
+using namespace Mc2Tiling;
+using namespace Mc2Tiling::Mc2GroupedMatmul;
 
-namespace MC2Tiling {
+namespace Mc2Tiling {
 
 const std::vector<uint32_t> MX_QUANT_GMM_X_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, };
 const std::vector<uint32_t> MX_QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, };
