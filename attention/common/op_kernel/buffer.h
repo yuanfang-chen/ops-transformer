@@ -36,6 +36,7 @@ enum class BufferType {
     L0C = 3,
     UB = 4,
     GM = 5,
+    C2 = 6,
 };
 
 enum class SyncType {
@@ -60,6 +61,8 @@ struct BufferInfo{
             return HardEvent::MTE1_M;
         } else if constexpr (Type == BufferType::L0C) {
             return HardEvent::M_FIX;
+        } else if constexpr (Type == BufferType::C2) {
+            return HardEvent::MTE1_M;
         }
     }
 
@@ -72,6 +75,8 @@ struct BufferInfo{
             return HardEvent::M_MTE1;
         } else if constexpr (Type == BufferType::L0C) {
             return HardEvent::FIX_M;
+        } else if constexpr (Type == BufferType::C2) {
+            return HardEvent::M_MTE1;
         }
     }
 
@@ -88,6 +93,8 @@ struct BufferInfo{
             return TPosition::VECIN;
         } else if constexpr (Type == BufferType::GM) {
             return TPosition::GM;
+        } else if constexpr (Type == BufferType::C2) {
+            return TPosition::C2;
         }
     }
 
