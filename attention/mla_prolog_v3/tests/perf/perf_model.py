@@ -792,6 +792,421 @@ def estimate_matmul_split_kn(
 
 
 # ---------------------------------------------------------------------------
+# K-outer loop model (for prefill: B pinned in L1 across M-blocks)
+# ---------------------------------------------------------------------------
+
+def estimate_matmul_k_outer(
+    name: str,
+    M: int, K: int, N: int,
+    active_cores: int,
+    hw: AscendHWSpec,
+    block: MatmulBlockSpec,
+    a_reused: bool = False,
+) -> MatMulTiming:
+    """Estimate matmul with K-outer loop order for prefill.
+
+    Loop order: kL1_loops × m_loops × stepK × inner
+    B is loaded ONCE per kL1 slab and pinned in L1 across M-blocks.
+    A is loaded per M-block (streaming from HBM or L2).
+
+    This amortizes B loading over m_loops M-blocks, enabling cube-bound
+    operation when baseM is large enough for MMAD to dominate L0B loading.
+
+    Falls back to standard estimate_matmul_detailed when B slab doesn't
+    fit in L1 alongside A.
+    """
+    C = max(active_cores, 1)
+    per_core_N = math.ceil(N / C)
+    dtype_a = block.dtype_a_size
+    dtype_b = block.dtype_b_size
+    dtype_c = block.dtype_c_size
+    us = 1e6
+
+    baseM = block.baseM
+    baseK = block.baseK
+
+    # Derive stepK for per_core_N (same as split-N)
+    derived = derive_stepK(block, K, hw, n_per_core=per_core_N, M=M)
+    stepK = derived if derived > 0 else block.stepK
+    kL1StepSize = baseK * stepK
+    kL1_loops = math.ceil(K / kL1StepSize) if kL1StepSize > 0 else 1
+
+    m_loops = math.ceil(M / baseM) if baseM > 0 else 1
+
+    # Check if B slab fits in L1 alongside A (B pinned + A double-buffered)
+    B_slab = kL1StepSize * per_core_N * dtype_b
+    A_slab = baseM * kL1StepSize * dtype_a
+    l1_needed = B_slab + A_slab * 2  # B pinned (1×) + A streaming (2× double buf)
+
+    if l1_needed > hw.cache.l1_size:
+        # B slab too large to pin — fall back to standard model with M-loop
+        # (standard model but multiply by m_loops)
+        single_m_timing = estimate_matmul_detailed(
+            name, M, K, N, active_cores, hw, block, a_reused)
+        # The standard model only covers baseM rows; multiply by m_loops
+        return MatMulTiming(
+            name=name, M=M, K=K, N=N,
+            active_cores=C,
+            load_A_hbm_us=single_m_timing.load_A_hbm_us,
+            load_A_l2_us=single_m_timing.load_A_l2_us,
+            load_B_hbm_us=single_m_timing.load_B_hbm_us,
+            cube_us=single_m_timing.cube_us * m_loops,
+            fixpipe_us=single_m_timing.fixpipe_us * m_loops,
+            total_us=single_m_timing.total_us * m_loops,
+            bound=single_m_timing.bound,
+            a_source=single_m_timing.a_source,
+            l0a_us=single_m_timing.l0a_us,
+            l0b_us=single_m_timing.l0b_us,
+            mmad_us=single_m_timing.mmad_us,
+            mte1_outer_us=single_m_timing.mte1_outer_us,
+            kL1_loops=kL1_loops,
+            inner_bound=single_m_timing.inner_bound + " (fallback)",
+        )
+
+    # --- K-outer loop model: B pinned in L1 ---
+    hbm_bw = hw.per_core_bw("hbm", C)
+    l2_bw = hw.per_core_bw("l2", C)
+    l0a_bw = hw.per_core_bw("l1_to_l0a", C)
+    l0b_bw = hw.per_core_bw("l1_to_l0b", C)
+    fixpipe_bw = hw.per_core_bw("l0c_to_out", C)
+    mmad_tput = hw.mmad_throughput(dtype_a)
+
+    a_source = "L2" if a_reused else "HBM"
+    a_bw = l2_bw if a_reused else hbm_bw
+
+    # B loaded ONCE per kL1 slab from HBM (or L2 if already cached)
+    load_B_once_s = B_slab / hbm_bw if hbm_bw > 0 else 0
+
+    # Per M-block within kL1:
+    load_A_mb_bytes = baseM * kL1StepSize * dtype_a
+    load_A_mb_s = load_A_mb_bytes / a_bw if a_bw > 0 else 0
+
+    # Inner loop (same as standard model)
+    l0a_bytes = baseM * baseK * dtype_a
+    l0b_bytes = baseK * per_core_N * dtype_b
+    l0a_time_s = l0a_bytes / l0a_bw if l0a_bw > 0 else 0
+    l0b_time_s = l0b_bytes / l0b_bw if l0b_bw > 0 else 0
+    mmad_ops = baseM * per_core_N * baseK
+    mmad_time_s = mmad_ops / mmad_tput if mmad_tput > 0 else 0
+    inner_iter_s = max(l0a_time_s, l0b_time_s, mmad_time_s)
+    total_inner_s = stepK * inner_iter_s
+
+    fixpipe_bytes = baseM * per_core_N * dtype_c
+    fixpipe_time_s = fixpipe_bytes / fixpipe_bw if fixpipe_bw > 0 else 0
+
+    per_m_block_s = max(load_A_mb_s, total_inner_s, fixpipe_time_s)
+
+    # Per kL1 slab: B load (once) overlaps with M-block processing
+    m_blocks_total_s = m_loops * per_m_block_s
+    per_kl1_s = max(load_B_once_s, m_blocks_total_s)
+
+    total_s = kL1_loops * per_kl1_s
+
+    # Determine bound
+    if per_m_block_s == total_inner_s:
+        if inner_iter_s == mmad_time_s:
+            mb_bound = "CUBE"
+        elif inner_iter_s == l0b_time_s:
+            mb_bound = "L0B"
+        else:
+            mb_bound = "L0A"
+    elif per_m_block_s == load_A_mb_s:
+        mb_bound = "HBM_A" if not a_reused else "L2_A"
+    else:
+        mb_bound = "FIXPIPE"
+
+    if per_kl1_s == load_B_once_s and load_B_once_s > m_blocks_total_s:
+        bound = "HBM_B"
+        inner_bound = "MTE1_B"
+    else:
+        bound = mb_bound
+        inner_bound = mb_bound
+
+    return MatMulTiming(
+        name=name, M=M, K=K, N=N,
+        active_cores=C,
+        load_A_hbm_us=(load_A_mb_bytes / hbm_bw * us) if hbm_bw > 0 else 0,
+        load_A_l2_us=(load_A_mb_bytes / l2_bw * us) if l2_bw > 0 else 0,
+        load_B_hbm_us=load_B_once_s * us,
+        cube_us=mmad_time_s * stepK * kL1_loops * m_loops * us,
+        fixpipe_us=fixpipe_time_s * kL1_loops * m_loops * us,
+        total_us=total_s * us,
+        bound=bound,
+        a_source=a_source,
+        l0a_us=l0a_time_s * us,
+        l0b_us=l0b_time_s * us,
+        mmad_us=mmad_time_s * us,
+        mte1_outer_us=max(load_A_mb_s, load_B_once_s / max(m_loops, 1)) * us,
+        kL1_loops=kL1_loops,
+        inner_bound=inner_bound,
+    )
+
+
+def estimate_all_stages_k_outer(
+    params,
+    tiling,
+    hw: AscendHWSpec,
+    block_specs=None,
+    mm1_split_kn: 'SplitKNSpec' = None,
+    mm2_split_kn: 'SplitKNSpec' = None,
+):
+    """Estimate all stages with K-outer loop for prefill.
+
+    Uses estimate_matmul_k_outer for each MM (or split-KN for MM1/MM2).
+    Vector ops use full T tokens (single launch processes all tokens).
+    """
+    T = params.T  # All tokens in single launch
+    He = params.He
+    Hcq = params.Hcq
+    Hckv = params.Hckv
+    D = params.D
+    Dr = params.Dr
+    N = params.N
+    qm = params.quant_mode
+
+    act_size = params.activation_dtype_size
+    wt_size = params.weight_dtype_size
+    out_size = params.mm_output_dtype_size
+
+    if block_specs is None:
+        block_specs = get_default_block_specs(params, hw)
+
+    stages = {}
+
+    # MM1: tokenX[T, He] x weightDq[He, Hcq] -> Cq
+    if mm1_split_kn:
+        cube_t, accum_t = estimate_matmul_split_kn(
+            "MM1_Cq", T, He, Hcq, mm1_split_kn,
+            hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
+            vec_cores=hw.aiv_num, out_size=out_size,
+        )
+        stages["MM1_Cq"] = cube_t
+        if accum_t.total_us > 0:
+            stages["AccumCq"] = accum_t
+    else:
+        stages["MM1_Cq"] = estimate_matmul_k_outer(
+            "MM1_Cq", T, He, Hcq,
+            active_cores=hw.aic_num, hw=hw,
+            block=block_specs["MM1_Cq"], a_reused=False,
+        )
+
+    # MM2: tokenX[T, He] x weightCkvKr[He, Hckv+Dr] (A reused from MM1)
+    if mm2_split_kn:
+        cube_t, accum_t = estimate_matmul_split_kn(
+            "MM2_CkvKr", T, He, Hckv + Dr, mm2_split_kn,
+            hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+            vec_cores=hw.aiv_num, out_size=out_size,
+        )
+        stages["MM2_CkvKr"] = cube_t
+        if accum_t.total_us > 0:
+            stages["AccumCkvKr"] = accum_t
+    else:
+        stages["MM2_CkvKr"] = estimate_matmul_k_outer(
+            "MM2_CkvKr", T, He, Hckv + Dr,
+            active_cores=hw.aic_num, hw=hw,
+            block=block_specs["MM2_CkvKr"], a_reused=True,
+        )
+
+    # MM3: Cq[T, Hcq] x weightUqQr[Hcq, N*(D+Dr)] -> QcQr
+    stages["MM3_QcQr"] = estimate_matmul_k_outer(
+        "MM3_QcQr", T, Hcq, N * (D + Dr),
+        active_cores=hw.aic_num, hw=hw,
+        block=block_specs["MM3_QcQr"], a_reused=False,
+    )
+
+    # MM4: Qc[T, D] x Uk[D, Hckv] -> Qn
+    stages["MM4_Qn"] = estimate_matmul_k_outer(
+        "MM4_Qn", T, D, Hckv,
+        active_cores=hw.aic_num, hw=hw,
+        block=block_specs["MM4_Qn"], a_reused=False,
+    )
+
+    vec_cores = hw.aiv_num
+
+    # Vector ops use full T (single launch)
+    stages["RmsNormCq"] = estimate_vector_op(
+        "RmsNormCq", T * Hcq * out_size, T * Hcq * 3, T * Hcq * 2,
+        hw, active_cores=vec_cores)
+
+    ckv_kr_size = Hckv + Dr
+    stages["RmsNormCkvKr"] = estimate_vector_op(
+        "RmsNormCkvKr", T * ckv_kr_size * out_size, T * Hckv * 3, T * Hckv * 2,
+        hw, active_cores=vec_cores)
+
+    stages["RopeKr"] = estimate_vector_op(
+        "RopeKr", T * Dr * 4, T * Dr * 4, T * Dr * 2,
+        hw, active_cores=vec_cores)
+
+    stages["ScatterCkvKr"] = estimate_vector_op(
+        "ScatterCkvKr", T * ckv_kr_size * 2, T * ckv_kr_size, T * ckv_kr_size * 2,
+        hw, active_cores=vec_cores, is_scatter=True)
+
+    if is_full_quant(qm) or is_int8_quant(qm) or is_mxfp8(qm):
+        stages["DequantQc"] = estimate_vector_op(
+            "DequantQc", T * N * D * out_size, T * N * D * 2, T * N * D * 2,
+            hw, active_cores=vec_cores)
+
+    stages["RopeQr"] = estimate_vector_op(
+        "RopeQr", T * N * Dr * 2 + T * Dr * 2, T * N * Dr * 4, T * N * Dr * 2,
+        hw, active_cores=vec_cores)
+
+    if params.query_quant_mode == 1:
+        stages["DynamicQuantQn"] = estimate_vector_op(
+            "DynamicQuantQn", T * N * Hckv * 2, T * N * Hckv * 3, T * N * Hckv,
+            hw, active_cores=vec_cores)
+        stages["MulQr"] = estimate_vector_op(
+            "MulQr", T * N * Dr * 2, T * N * Dr, T * N * Dr * 2,
+            hw, active_cores=vec_cores)
+
+    return stages
+
+
+# ---------------------------------------------------------------------------
+# M-axis split model (for prefill with large T)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SplitMSpec:
+    """M-axis split across cores. Each core handles full N."""
+    name: str
+    m_groups: int         # cores splitting M
+    single_m: int         # ceil(M_total / m_groups)
+
+    @property
+    def total_cores(self) -> int:
+        return self.m_groups
+
+
+def estimate_matmul_split_m(
+    name: str,
+    M_total: int, K: int, N: int,
+    spec: SplitMSpec,
+    hw: AscendHWSpec,
+    block: MatmulBlockSpec,
+    a_reused: bool = False,
+) -> MatMulTiming:
+    """Model matmul with M-axis split across cores (prefill mode).
+
+    Each core computes [M_per_core, K] x [K, N_full].
+    N is tiled into N-blocks within each core (3-level loop):
+      m_loops x kL1_loops x n_blocks x per_nb
+
+    B (weight) matrix is shared across all cores via L2 cache reuse.
+    A (activation) matrix rows are unique per core, loaded from HBM.
+    """
+    us = 1e6
+    m_groups = spec.m_groups
+    M_per_core = spec.single_m
+    dtype_a = block.dtype_a_size
+    dtype_b = block.dtype_b_size
+    dtype_c = block.dtype_c_size
+
+    baseM = block.baseM
+    baseN = block.baseN
+    baseK = block.baseK
+
+    # Re-derive stepK for split-M: L1 holds one N-block's worth of B
+    derived = derive_stepK(block, K, hw, n_per_core=baseN, M=M_per_core)
+    stepK = derived if derived > 0 else block.stepK
+    kL1StepSize = baseK * stepK
+    kL1_loops = math.ceil(K / kL1StepSize) if kL1StepSize > 0 else 1
+
+    m_loops = math.ceil(M_per_core / baseM) if baseM > 0 else 1
+    n_blocks = math.ceil(N / baseN) if baseN > 0 else 1
+
+    # Bandwidth (all m_groups cores contend on HBM)
+    hbm_bw = hw.per_core_bw("hbm", m_groups)
+    l0a_bw = hw.per_core_bw("l1_to_l0a", m_groups)
+    l0b_bw = hw.per_core_bw("l1_to_l0b", m_groups)
+    fixpipe_bw = hw.per_core_bw("l0c_to_out", m_groups)
+    mmad_tput = hw.mmad_throughput(dtype_a)
+
+    # B matrix: shared across cores -> L2 reuse
+    # effective_load_bw models 1/m cold HBM + (m-1)/m warm L2
+    b_bw = hw.effective_load_bw(m_groups, reuse_count=m_groups)
+
+    # A matrix: each core loads unique rows from HBM
+    a_bw = hbm_bw
+    if a_reused:
+        a_bw = hw.per_core_bw("l2", m_groups)
+
+    # --- Per N-block (innermost, double-buffered) ---
+    load_B_nb_bytes = kL1StepSize * baseN * dtype_b
+    load_B_nb_s = load_B_nb_bytes / b_bw if b_bw > 0 else 0
+
+    l0a_bytes = baseM * baseK * dtype_a
+    l0b_bytes = baseK * baseN * dtype_b
+    l0a_time_s = l0a_bytes / l0a_bw if l0a_bw > 0 else 0
+    l0b_time_s = l0b_bytes / l0b_bw if l0b_bw > 0 else 0
+    mmad_ops = baseM * baseN * baseK
+    mmad_time_s = mmad_ops / mmad_tput if mmad_tput > 0 else 0
+
+    inner_iter_s = max(l0a_time_s, l0b_time_s, mmad_time_s)
+    total_inner_s = stepK * inner_iter_s
+
+    fixpipe_bytes = baseM * baseN * dtype_c
+    fixpipe_time_s = fixpipe_bytes / fixpipe_bw if fixpipe_bw > 0 else 0
+
+    per_nb_s = max(load_B_nb_s, total_inner_s, fixpipe_time_s)
+
+    # --- Per kL1 slab ---
+    load_A_kl1_bytes = baseM * kL1StepSize * dtype_a
+    load_A_kl1_s = load_A_kl1_bytes / a_bw if a_bw > 0 else 0
+
+    # A-load overlaps with N-block processing (double-buffered across kL1 iters)
+    n_blocks_total_s = n_blocks * per_nb_s
+    per_kl1_s = max(load_A_kl1_s, n_blocks_total_s)
+
+    # --- Per M-block ---
+    per_m_block_s = kL1_loops * per_kl1_s
+
+    # --- Total ---
+    total_s = m_loops * per_m_block_s
+
+    # Determine bound
+    if per_nb_s == total_inner_s:
+        if inner_iter_s == mmad_time_s:
+            nb_bound = "CUBE"
+        elif inner_iter_s == l0b_time_s:
+            nb_bound = "L0B"
+        else:
+            nb_bound = "L0A"
+    elif per_nb_s == load_B_nb_s:
+        nb_bound = "L2" if b_bw > hbm_bw * 0.5 else "HBM"
+    else:
+        nb_bound = "FIXPIPE"
+
+    if per_kl1_s == load_A_kl1_s and per_kl1_s > n_blocks_total_s:
+        bound = "HBM" if not a_reused else "L2"
+        inner_bound = "MTE1_A"
+    else:
+        bound = nb_bound
+        inner_bound = nb_bound
+
+    a_source = "L2" if a_reused else "HBM"
+
+    return MatMulTiming(
+        name=name, M=M_total, K=K, N=N,
+        active_cores=m_groups,
+        load_A_hbm_us=(load_A_kl1_bytes / hbm_bw * us) if hbm_bw > 0 else 0,
+        load_A_l2_us=(load_A_kl1_bytes / hw.per_core_bw("l2", m_groups) * us)
+            if hw.per_core_bw("l2", m_groups) > 0 else 0,
+        load_B_hbm_us=load_B_nb_s * us,
+        cube_us=mmad_time_s * stepK * kL1_loops * n_blocks * m_loops * us,
+        fixpipe_us=fixpipe_time_s * kL1_loops * n_blocks * m_loops * us,
+        total_us=total_s * us,
+        bound=bound,
+        a_source=a_source,
+        l0a_us=l0a_time_s * us,
+        l0b_us=l0b_time_s * us,
+        mmad_us=mmad_time_s * us,
+        mte1_outer_us=max(load_A_kl1_s, load_B_nb_s) * us,
+        kL1_loops=kL1_loops,
+        inner_bound=inner_bound,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Cross-core K-split model (for MM2 with small N) — legacy wrapper
 # ---------------------------------------------------------------------------
 
@@ -1187,6 +1602,142 @@ def estimate_all_stages(params: OperatorParams, tiling, hw: AscendHWSpec,
         mul_qr_load = T * N * Dr * 2
         mul_qr_compute = T * N * Dr * 1
         mul_qr_store = T * N * Dr * 2
+        stages["MulQr"] = estimate_vector_op(
+            "MulQr", mul_qr_load, mul_qr_compute, mul_qr_store,
+            hw, active_cores=vec_cores,
+        )
+
+    return stages
+
+
+def estimate_all_stages_split_m(
+    params: OperatorParams,
+    tiling,
+    hw: AscendHWSpec,
+    spec: SplitMSpec,
+    block_specs=None,
+):
+    """Estimate timing for all stages under M-axis split (prefill mode).
+
+    Each core handles M_per_core tokens with full N.
+    Vector ops use per-AIC vector cores (aiv_num // aic_num) instead of full pool.
+    """
+    M_per_core = spec.single_m
+    He = params.He
+    Hcq = params.Hcq
+    Hckv = params.Hckv
+    D = params.D
+    Dr = params.Dr
+    N = params.N
+    qm = params.quant_mode
+
+    act_size = params.activation_dtype_size
+    wt_size = params.weight_dtype_size
+    out_size = params.mm_output_dtype_size
+
+    if block_specs is None:
+        block_specs = get_default_block_specs(params, hw)
+
+    stages = {}
+
+    # MM1: tokenX[M_per_core, He] x weightDq[He, Hcq] -> Cq
+    stages["MM1_Cq"] = estimate_matmul_split_m(
+        "MM1_Cq", params.T, He, Hcq, spec,
+        hw=hw, block=block_specs["MM1_Cq"], a_reused=False,
+    )
+
+    # MM2: tokenX[M_per_core, He] x weightCkvKr[He, Hckv+Dr] -> CkvKr
+    # tokenX reused from MM1 (L2 warm)
+    stages["MM2_CkvKr"] = estimate_matmul_split_m(
+        "MM2_CkvKr", params.T, He, Hckv + Dr, spec,
+        hw=hw, block=block_specs["MM2_CkvKr"], a_reused=True,
+    )
+
+    # MM3: Cq[M_per_core, Hcq] x weightUqQr[Hcq, N*(D+Dr)] -> QcQr
+    stages["MM3_QcQr"] = estimate_matmul_split_m(
+        "MM3_QcQr", params.T, Hcq, N * (D + Dr), spec,
+        hw=hw, block=block_specs["MM3_QcQr"], a_reused=False,
+    )
+
+    # MM4: Qc[M_per_core, D] x Uk[D, Hckv] -> Qn
+    stages["MM4_Qn"] = estimate_matmul_split_m(
+        "MM4_Qn", params.T, D, Hckv, spec,
+        hw=hw, block=block_specs["MM4_Qn"], a_reused=False,
+    )
+
+    # Vector ops: each AIC core gets aiv_num // aic_num vector cores
+    vec_cores = max(hw.aiv_num // hw.aic_num, 1)
+
+    # RMSNorm Cq (per core: M_per_core tokens)
+    rmsnorm_cq_load = M_per_core * Hcq * out_size
+    rmsnorm_cq_compute = M_per_core * Hcq * 3
+    rmsnorm_cq_store = M_per_core * Hcq * 2
+    stages["RmsNormCq"] = estimate_vector_op(
+        "RmsNormCq", rmsnorm_cq_load, rmsnorm_cq_compute, rmsnorm_cq_store,
+        hw, active_cores=vec_cores,
+    )
+
+    # RMSNorm CkvKr
+    ckv_kr_size = Hckv + Dr
+    rmsnorm_ckvkr_load = M_per_core * ckv_kr_size * out_size
+    rmsnorm_ckvkr_compute = M_per_core * Hckv * 3
+    rmsnorm_ckvkr_store = M_per_core * Hckv * 2
+    stages["RmsNormCkvKr"] = estimate_vector_op(
+        "RmsNormCkvKr", rmsnorm_ckvkr_load, rmsnorm_ckvkr_compute, rmsnorm_ckvkr_store,
+        hw, active_cores=vec_cores,
+    )
+
+    # RoPE Kr
+    rope_kr_load = M_per_core * Dr * 2 + M_per_core * Dr * 2
+    rope_kr_compute = M_per_core * Dr * 4
+    rope_kr_store = M_per_core * Dr * 2
+    stages["RopeKr"] = estimate_vector_op(
+        "RopeKr", rope_kr_load, rope_kr_compute, rope_kr_store,
+        hw, active_cores=vec_cores,
+    )
+
+    # Scatter CkvKr
+    scatter_load = M_per_core * (Hckv + Dr) * 2
+    scatter_store = M_per_core * (Hckv + Dr) * 2
+    stages["ScatterCkvKr"] = estimate_vector_op(
+        "ScatterCkvKr", scatter_load, M_per_core * (Hckv + Dr), scatter_store,
+        hw, active_cores=vec_cores, is_scatter=True,
+    )
+
+    # DequantQc
+    if is_full_quant(qm) or is_int8_quant(qm) or is_mxfp8(qm):
+        dequant_load = M_per_core * N * D * out_size
+        dequant_compute = M_per_core * N * D * 2
+        dequant_store = M_per_core * N * D * 2
+        stages["DequantQc"] = estimate_vector_op(
+            "DequantQc", dequant_load, dequant_compute, dequant_store,
+            hw, active_cores=vec_cores,
+        )
+
+    # RoPE Qr
+    rope_qr_load = M_per_core * N * Dr * 2 + M_per_core * Dr * 2
+    rope_qr_compute = M_per_core * N * Dr * 4
+    rope_qr_store = M_per_core * N * Dr * 2
+    stages["RopeQr"] = estimate_vector_op(
+        "RopeQr", rope_qr_load, rope_qr_compute, rope_qr_store,
+        hw, active_cores=vec_cores,
+    )
+
+    # DynamicQuant Qn
+    if params.query_quant_mode == 1:
+        dyn_quant_load = M_per_core * N * Hckv * 2
+        dyn_quant_compute = M_per_core * N * Hckv * 3
+        dyn_quant_store = M_per_core * N * Hckv * 1
+        stages["DynamicQuantQn"] = estimate_vector_op(
+            "DynamicQuantQn", dyn_quant_load, dyn_quant_compute, dyn_quant_store,
+            hw, active_cores=vec_cores,
+        )
+
+    # MulQr
+    if params.query_quant_mode == 1:
+        mul_qr_load = M_per_core * N * Dr * 2
+        mul_qr_compute = M_per_core * N * Dr * 1
+        mul_qr_store = M_per_core * N * Dr * 2
         stages["MulQr"] = estimate_vector_op(
             "MulQr", mul_qr_load, mul_qr_compute, mul_qr_store,
             hw, active_cores=vec_cores,

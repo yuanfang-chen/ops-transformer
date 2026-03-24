@@ -15,6 +15,8 @@ try:
         estimate_matmul_detailed, get_default_block_specs,
         estimate_mm2_split_k_cross_core,
         SplitKNSpec, estimate_matmul_split_kn,
+        SplitMSpec, estimate_all_stages_split_m,
+        estimate_matmul_k_outer, estimate_all_stages_k_outer,
     )
 except ImportError:
     from perf_model import (
@@ -25,6 +27,8 @@ except ImportError:
         estimate_matmul_detailed, get_default_block_specs,
         estimate_mm2_split_k_cross_core,
         SplitKNSpec, estimate_matmul_split_kn,
+        SplitMSpec, estimate_all_stages_split_m,
+        estimate_matmul_k_outer, estimate_all_stages_k_outer,
     )
 
 # Constants from mla_prolog_tiling.h / mla_prolog_comm.h
@@ -620,6 +624,255 @@ def search_split_kn(
         combined = _eval(best_mm1.mm1_spec, best_mm2.mm2_spec,
                          f"{best_mm1.label}+{best_mm2.label}")
         results.append(combined)
+
+    results.sort(key=lambda r: r.pipeline_us)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# M-axis split search (for prefill with large T)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SplitMResult:
+    """Result of an M-axis split pipeline evaluation."""
+    m_groups: int = 0
+    single_m: int = 0
+    pipeline_us: float = 0.0
+    mm1_cube_us: float = 0.0
+    mm2_cube_us: float = 0.0
+    mm3_cube_us: float = 0.0
+    mm4_cube_us: float = 0.0
+    vec_total_us: float = 0.0
+    aic_busy_us: float = 0.0
+    aiv_busy_us: float = 0.0
+    cube_utilization: float = 0.0
+    label: str = ""
+
+
+def _get_split_m_block_specs(params: 'OperatorParams', hw: AscendHWSpec,
+                             baseM: int = 32):
+    """Get block specs optimized for split-M (larger baseM for compute overlap)."""
+    specs = get_default_block_specs(params, hw)
+    for name, spec in specs.items():
+        if spec.mode == "full_load":
+            continue
+        # Override baseM — key for split-M to reach cube-bound
+        # Check L0A: baseM × baseK × dtype × 2 ≤ l0a_size
+        new_baseM = baseM
+        while new_baseM > 16:
+            if new_baseM * spec.baseK * spec.dtype_a_size * 2 <= hw.cache.l0a_size:
+                # Also check L0C: baseM × baseN × dtype_c × 2 ≤ l0c_size
+                if new_baseM * spec.baseN * spec.dtype_c_size * 2 <= hw.cache.l0c_size:
+                    break
+            new_baseM //= 2
+        specs[name] = MatmulBlockSpec(
+            spec.name, new_baseM, spec.baseN, spec.baseK, spec.stepK,
+            mode=spec.mode, dtype_a_size=spec.dtype_a_size,
+            dtype_b_size=spec.dtype_b_size, dtype_c_size=spec.dtype_c_size,
+        )
+    return specs
+
+
+def search_split_m(
+    params: OperatorParams,
+    tiling: TilingConfig,
+    hw: AscendHWSpec,
+) -> List[SplitMResult]:
+    """Search M-axis split configs for prefill using full pipeline evaluation.
+
+    Searches m_groups (core count) × baseM (block height) for optimal config.
+    Larger baseM generates more compute per N-block, enabling overlap with B
+    matrix L2 loading (transition from L2-bound to cube-bound).
+    """
+    try:
+        from .pipeline_model import build_pipeline_dag
+        from .perf_model import estimate_all_stages
+    except ImportError:
+        from pipeline_model import build_pipeline_dag
+        from perf_model import estimate_all_stages
+
+    if not hw.has_cycle_spec:
+        return []
+
+    T = params.T
+    if T <= 1:
+        return []
+
+    def _eval(m_groups, block_specs, label):
+        single_m = math.ceil(T / m_groups)
+        spec = SplitMSpec("split_m", m_groups, single_m)
+        stages = estimate_all_stages_split_m(params, tiling, hw, spec,
+                                             block_specs=block_specs)
+        result = build_pipeline_dag(params, tiling, hw, stages)
+        vec_total = sum(
+            s.total_us for s in stages.values()
+            if isinstance(s, VectorOpTiming)
+        )
+        return SplitMResult(
+            m_groups=m_groups,
+            single_m=single_m,
+            pipeline_us=result.total_us,
+            mm1_cube_us=stages["MM1_Cq"].total_us,
+            mm2_cube_us=stages["MM2_CkvKr"].total_us,
+            mm3_cube_us=stages["MM3_QcQr"].total_us,
+            mm4_cube_us=stages["MM4_Qn"].total_us,
+            vec_total_us=vec_total,
+            aic_busy_us=result.aic_busy_us,
+            aiv_busy_us=result.aiv_busy_us,
+            cube_utilization=result.aic_busy_us / result.total_us if result.total_us > 0 else 0,
+            label=label,
+        )
+
+    results = []
+
+    # Search m_groups candidates
+    m_candidates = [m for m in [2, 4, 8, 12, 16, 24, 32]
+                    if m <= hw.aic_num and math.ceil(T / m) >= 16]
+    if hw.aic_num not in m_candidates and math.ceil(T / hw.aic_num) >= 1:
+        m_candidates.append(hw.aic_num)
+
+    # Search baseM candidates: larger baseM enables cube-bound at cost of more m_loops
+    baseM_candidates = [32, 64, 128, 192, 256]
+
+    for m in sorted(set(m_candidates)):
+        best_for_m = None
+        for bm in baseM_candidates:
+            single_m = math.ceil(T / m)
+            if bm > single_m:
+                continue  # baseM can't exceed M_per_core
+            block_specs = _get_split_m_block_specs(params, hw, baseM=bm)
+            label = f"M{m}_bm{bm}"
+            r = _eval(m, block_specs, label)
+            if best_for_m is None or r.pipeline_us < best_for_m.pipeline_us:
+                best_for_m = r
+        if best_for_m is not None:
+            results.append(best_for_m)
+
+    results.sort(key=lambda r: r.pipeline_us)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Prefill K-outer search (B pinned in L1, cube-bound target)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PrefillResult:
+    """Result of a prefill (K-outer) pipeline evaluation."""
+    baseM: int = 0
+    loop_order: str = ""
+    pipeline_us: float = 0.0
+    mm1_cube_us: float = 0.0
+    mm2_cube_us: float = 0.0
+    mm3_cube_us: float = 0.0
+    mm4_cube_us: float = 0.0
+    vec_total_us: float = 0.0
+    aic_busy_us: float = 0.0
+    aiv_busy_us: float = 0.0
+    cube_utilization: float = 0.0
+    mm3_bound: str = ""
+    label: str = ""
+
+
+def search_prefill_optimal(
+    params: OperatorParams,
+    tiling: TilingConfig,
+    hw: AscendHWSpec,
+) -> List[PrefillResult]:
+    """Search K-outer configs for prefill with full pipeline evaluation.
+
+    Searches baseM candidates with K-outer loop order.
+    Also tests combining Split-KN for MM1/MM2 with K-outer for MM3.
+    """
+    try:
+        from .pipeline_model import build_pipeline_dag
+        from .perf_model import estimate_all_stages
+    except ImportError:
+        from pipeline_model import build_pipeline_dag
+        from perf_model import estimate_all_stages
+
+    if not hw.has_cycle_spec:
+        return []
+
+    T = params.T
+    if T <= 1:
+        return []
+
+    def _eval_k_outer(baseM, mm1_kn, mm2_kn, label):
+        block_specs = get_default_block_specs(params, hw)
+        for name, spec in block_specs.items():
+            if spec.mode == "full_load":
+                continue
+            new_bm = baseM
+            while new_bm > 16:
+                if (new_bm * spec.baseK * spec.dtype_a_size * 2 <= hw.cache.l0a_size and
+                    new_bm * spec.baseN * spec.dtype_c_size * 2 <= hw.cache.l0c_size):
+                    break
+                new_bm //= 2
+            block_specs[name] = MatmulBlockSpec(
+                spec.name, new_bm, spec.baseN, spec.baseK, spec.stepK,
+                mode=spec.mode, dtype_a_size=spec.dtype_a_size,
+                dtype_b_size=spec.dtype_b_size, dtype_c_size=spec.dtype_c_size,
+            )
+
+        stages = estimate_all_stages_k_outer(
+            params, tiling, hw, block_specs=block_specs,
+            mm1_split_kn=mm1_kn, mm2_split_kn=mm2_kn,
+        )
+        result = build_pipeline_dag(params, tiling, hw, stages)
+        vec_total = sum(
+            s.total_us for s in stages.values()
+            if isinstance(s, VectorOpTiming)
+        )
+        mm3_bound = stages["MM3_QcQr"].bound if hasattr(stages["MM3_QcQr"], 'bound') else ""
+        return PrefillResult(
+            baseM=baseM,
+            loop_order="k_outer",
+            pipeline_us=result.total_us,
+            mm1_cube_us=stages["MM1_Cq"].total_us,
+            mm2_cube_us=stages["MM2_CkvKr"].total_us,
+            mm3_cube_us=stages["MM3_QcQr"].total_us,
+            mm4_cube_us=stages["MM4_Qn"].total_us,
+            vec_total_us=vec_total,
+            aic_busy_us=result.aic_busy_us,
+            aiv_busy_us=result.aiv_busy_us,
+            cube_utilization=result.aic_busy_us / result.total_us if result.total_us > 0 else 0,
+            mm3_bound=mm3_bound,
+            label=label,
+        )
+
+    results = []
+
+    baseM_candidates = [32, 64, 128, 192, 256]
+
+    # Pure K-outer (no Split-KN)
+    for bm in baseM_candidates:
+        results.append(_eval_k_outer(bm, None, None, f"KO_bm{bm}"))
+
+    # K-outer with Split-KN for MM1/MM2
+    He = params.He
+    Hcq = params.Hcq
+    Hckv = params.Hckv
+    Dr = params.Dr
+    max_cores = hw.aic_num
+
+    best_mm1_kn = None
+    for sn, sk, ng, kg in _gen_kn_candidates(He, Hcq, max_cores):
+        if ng * kg <= max_cores:
+            best_mm1_kn = SplitKNSpec("MM1_Cq", ng, kg, sn, sk)
+            break
+
+    best_mm2_kn = None
+    for sn, sk, ng, kg in _gen_kn_candidates(He, Hckv + Dr, max_cores):
+        if ng * kg <= max_cores:
+            best_mm2_kn = SplitKNSpec("MM2_CkvKr", ng, kg, sn, sk)
+            break
+
+    if best_mm1_kn and best_mm2_kn:
+        for bm in baseM_candidates:
+            results.append(_eval_k_outer(
+                bm, best_mm1_kn, best_mm2_kn, f"KO_bm{bm}+KN"))
 
     results.sort(key=lambda r: r.pipeline_us)
     return results

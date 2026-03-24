@@ -238,6 +238,58 @@ MM1 总时间 = 3.93 us
 
 > **工具**: `python perf_analyzer.py --chip 950 --mode split-kn` 搜索最优 2D 切分并评估完整 Pipeline
 
+### 4.6 模式 D: Split-M (Prefill)
+
+M 轴按核切分，每核处理 `M_per_core = ceil(T / m_groups)` 个 token，N 轴不切分。适用于 Prefill 场景（大 T）。
+
+**核心差异**:
+- 每核处理完整 N → 无需核间同步
+- B（权重）矩阵所有核共享 → L2 复用
+- N 需在核内分块迭代（3 级循环）
+
+**循环结构**: `m_loops × kL1_loops × n_blocks`
+
+```
+per M-block (m_loops = ceil(M_per_core / baseM)):
+  per kL1-slab (kL1_loops = ceil(K / kL1StepSize)):
+    加载 A[baseM, kL1StepSize] from HBM (每核独立行)
+    per N-block (n_blocks = ceil(N / baseN)):
+      加载 B[kL1StepSize, baseN] from L2 (共享权重，L2 复用)
+      stepK × max(L0A, L0B, MMAD)   ← 内层流水
+      FixPipe: 写回 C[baseM, baseN]
+```
+
+**时间模型**:
+
+```
+per_nb = max(load_B_l2, stepK × max(l0a, l0b, mmad), fixpipe)
+per_kl1 = max(load_A_hbm, n_blocks × per_nb)
+总时间 = m_loops × kL1_loops × per_kl1
+```
+
+**示例: MM3 (N=128 heads)** — T=512, BF16, 16 核, M_per_core=32
+
+```
+baseM=32, baseN=256, baseK=64, stepK=2
+m_loops=1, kL1_loops=12, n_blocks=96
+
+per N-block:
+  load_B(L2) = 128×256×2 / 155e9 = 0.0011 us
+  l0b = 64×256×2 / 422.4e9 = 0.078 us
+  mmad = 32×256×64 / 6758.4e9 = 0.077 us
+  total_inner = 2 × 0.078 = 0.156 us
+  per_nb = max(0.0011, 0.156, 0.039) = 0.156 us  ← L0B/MMAD 边界
+
+per_kl1 = max(0.164, 96×0.156) = 14.98 us
+总时间 = 1 × 12 × 14.98 = 179.7 us → L0B/MMAD 边界
+```
+
+**与 Split-N 对比**: Split-N 对 512 tokens 需 4 步 × 88.29 us = 353 us，Split-M 需 783 us（L2 加载 B 全量开销大）。
+
+**关键洞察**: 要达到 Cube bound，需要 `baseM >= dtype_b × mmad_tput / b_bw ≈ 91`（BF16 MM3）。但当 m_groups 较大时 M_per_core 太小，无法使用大 baseM。Split-M 仅在 **N 较小**（如 N=8）时优于 Split-N。
+
+> **工具**: `python perf_analyzer.py --chip 950 --mode split-m` 搜索最优 M 轴切分并与 Split-N 对比
+
 ---
 
 ## 5. Vector 操作建模
@@ -380,6 +432,7 @@ Pipeline 总计: 53.31 us (↓ 39.2%)
 | Split-KN 2D 切分 | N 轴小的 MM (MM1, MM2) | 最高 4.6× (受益于更多核) |
 | L2 复用 | Split-N 共享 A 矩阵 | 已内置 |
 | 增大批量 (Prefill) | T > 512 | 转为计算瓶颈 |
+| Split-M (M 轴切分) | N 较小 + 大 T | 避免核间同步，L2 复用 B |
 
 ### 8.2 计算瓶颈 (AI >> Ridge, 大批量 Prefill)
 
@@ -408,6 +461,7 @@ Pipeline 总计: 53.31 us (↓ 39.2%)
 | Roofline 分析 | `--mode roofline` |
 | 最优 baseM/N/K 搜索 | `--mode block-search` |
 | 2D Split-KN 搜索 | `--mode split-kn` |
+| M 轴切分搜索 (Prefill) | `--mode split-m` |
 | 全部分析 | `--mode full` |
 
 所有命令均需加 `--chip 950` 以使用 per-cycle 模型。

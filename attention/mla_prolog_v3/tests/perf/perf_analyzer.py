@@ -26,11 +26,15 @@ from perf_model import (
     OperatorParams, MatMulTiming, VectorOpTiming,
     estimate_all_stages, is_full_quant, is_int8_quant, is_mxfp8,
     SplitKNSpec, get_default_block_specs,
+    SplitMSpec, estimate_all_stages_split_m,
+    estimate_all_stages_k_outer,
 )
 from tiling_sim import (
     TilingConfig, compute_tiling, search_best_tiling,
     search_all_matmul_blocks, search_mm2_split_k,
     search_split_kn, SplitKNResult,
+    search_split_m, SplitMResult,
+    search_prefill_optimal, PrefillResult,
 )
 from pipeline_model import (
     build_pipeline_dag, estimate_kernel_time, format_timeline, PipelineResult,
@@ -489,6 +493,152 @@ def mode_split_kn(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec
         print(f"\n  Baseline is already optimal at {baseline.pipeline_us:.2f} us")
 
 
+def mode_split_m(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
+    """Search M-axis split configs for prefill scenarios."""
+    import math
+    print_header("SPLIT-M SEARCH — M-axis Parallelism for Prefill")
+
+    if not hw.has_cycle_spec:
+        print("  Requires per-cycle HW spec. Use --chip 950.")
+        return
+
+    if params.T <= 1:
+        print(f"  T={params.T}: split-M is not beneficial for decode (T=1).")
+        print(f"  Use --mode split-kn for decode optimization.")
+        return
+
+    results = search_split_m(params, tiling, hw)
+    if not results:
+        print("  No valid configurations found.")
+        return
+
+    # Split-N baseline: processes stepBatchSize tokens per invocation
+    # For total T tokens: ceil(T / stepBatchSize) sequential invocations
+    baseline_stages = estimate_all_stages(params, tiling, hw)
+    baseline_pipeline = build_pipeline_dag(params, tiling, hw, baseline_stages)
+    baseline_per_step = baseline_pipeline.total_us
+    step_bs = tiling.step_batch_size
+    n_steps = math.ceil(params.T / step_bs)
+    baseline_total = n_steps * baseline_per_step
+    baseline_vec = sum(s.total_us for s in baseline_stages.values()
+                       if isinstance(s, VectorOpTiming))
+
+    print(f"  Parameters: T={params.T}, He={params.He}, N={params.N}, AIC={hw.aic_num}")
+    print(f"  Split-N baseline: {baseline_per_step:.2f} us/step × {n_steps} steps "
+          f"= {baseline_total:.2f} us total")
+    print(f"    Per step ({step_bs} tokens): "
+          f"MM1={baseline_stages['MM1_Cq'].total_us:.2f} "
+          f"MM2={baseline_stages['MM2_CkvKr'].total_us:.2f} "
+          f"MM3={baseline_stages['MM3_QcQr'].total_us:.2f} "
+          f"MM4={baseline_stages['MM4_Qn'].total_us:.2f} "
+          f"Vec={baseline_vec:.2f}")
+    print()
+
+    # Split-M: processes all T tokens in 1 invocation
+    header = (f"  {'Rank':>4} {'Config':<8} {'M/core':>7} | {'Total(us)':>10} {'MM1':>8} {'MM2':>8} "
+              f"{'MM3':>8} {'MM4':>8} {'Vec':>7} | {'CubeUtil':>8} {'vs SplitN':>9}")
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+
+    for i, r in enumerate(results[:15], 1):
+        marker = " <--" if i == 1 else ""
+        delta = baseline_total - r.pipeline_us
+        print(f"  {i:>4} {r.label:<8} {r.single_m:>7} | {r.pipeline_us:>9.2f} {r.mm1_cube_us:>7.2f} "
+              f"{r.mm2_cube_us:>7.2f} {r.mm3_cube_us:>7.2f} {r.mm4_cube_us:>7.2f} "
+              f"{r.vec_total_us:>6.2f} | {r.cube_utilization:>7.1%} {delta:>+8.2f}{marker}")
+
+    best = results[0]
+    delta = baseline_total - best.pipeline_us
+    pct = delta / baseline_total * 100 if baseline_total > 0 else 0
+    if delta > 0:
+        print(f"\n  Best: m_groups={best.m_groups} ({best.single_m} tokens/core) "
+              f"-> {best.pipeline_us:.2f} us "
+              f"(saves {delta:.2f} us / {pct:.1f}% vs split-N total {baseline_total:.2f} us)")
+    else:
+        print(f"\n  Split-N baseline ({baseline_total:.2f} us for {params.T} tokens) "
+              f"is better than all split-M configs")
+
+    # Show per-stage bound for best config
+    if results:
+        best = results[0]
+        spec = SplitMSpec("split_m", best.m_groups, best.single_m)
+        stages = estimate_all_stages_split_m(params, tiling, hw, spec)
+        print(f"\n  Best split-M stage details (m_groups={best.m_groups}, "
+              f"M_per_core={best.single_m}):")
+        for name in ["MM1_Cq", "MM2_CkvKr", "MM3_QcQr", "MM4_Qn"]:
+            s = stages[name]
+            print(f"    {name}: {s.total_us:.2f} us, bound={s.bound}, inner={s.inner_bound}")
+        vec_names = [n for n in stages if isinstance(stages[n], VectorOpTiming)]
+        if vec_names:
+            print(f"    Vector (per core, {hw.aiv_num // hw.aic_num} vec cores):")
+            for vn in vec_names:
+                v = stages[vn]
+                if v.total_us > 0.001:
+                    print(f"      {vn}: {v.total_us:.3f} us, bound={v.bound}")
+
+
+def mode_prefill(params: OperatorParams, tiling: TilingConfig, hw: AscendHWSpec):
+    """K-outer loop analysis for prefill: B pinned in L1 across M-blocks."""
+    import math
+    print_header("PREFILL K-OUTER — B Pinned in L1, Cube-Bound Target")
+
+    if not hw.has_cycle_spec:
+        print("  Requires per-cycle HW spec. Use --chip 950.")
+        return
+
+    if params.T <= 1:
+        print(f"  T={params.T}: prefill analysis requires T > 1.")
+        return
+
+    results = search_prefill_optimal(params, tiling, hw)
+    if not results:
+        print("  No valid configurations found.")
+        return
+
+    # Multi-step split-N baseline
+    baseline_stages = estimate_all_stages(params, tiling, hw)
+    baseline_pipeline = build_pipeline_dag(params, tiling, hw, baseline_stages)
+    baseline_per_step = baseline_pipeline.total_us
+    step_bs = tiling.step_batch_size
+    n_steps = math.ceil(params.T / step_bs)
+    baseline_total = n_steps * baseline_per_step
+
+    print(f"  Parameters: T={params.T}, He={params.He}, N={params.N}, AIC={hw.aic_num}")
+    print(f"  Split-N baseline: {baseline_per_step:.2f} us/step × {n_steps} steps "
+          f"= {baseline_total:.2f} us total")
+    print(f"    MM1={baseline_stages['MM1_Cq'].total_us:.2f} "
+          f"MM2={baseline_stages['MM2_CkvKr'].total_us:.2f} "
+          f"MM3={baseline_stages['MM3_QcQr'].total_us:.2f}({baseline_stages['MM3_QcQr'].bound}) "
+          f"MM4={baseline_stages['MM4_Qn'].total_us:.2f}")
+    print()
+
+    header = (f"  {'Rank':>4} {'Config':<18} | {'Total(us)':>10} {'MM1':>8} {'MM2':>8} "
+              f"{'MM3':>8} {'MM4':>8} {'Vec':>7} | {'MM3 Bound':<10} {'vs Base':>8}")
+    print(header)
+    print("  " + "-" * (len(header) - 2))
+
+    for i, r in enumerate(results[:15], 1):
+        marker = " <--" if i == 1 else ""
+        delta = baseline_total - r.pipeline_us
+        print(f"  {i:>4} {r.label:<18} | {r.pipeline_us:>9.2f} {r.mm1_cube_us:>7.2f} "
+              f"{r.mm2_cube_us:>7.2f} {r.mm3_cube_us:>7.2f} {r.mm4_cube_us:>7.2f} "
+              f"{r.vec_total_us:>6.2f} | {r.mm3_bound:<10} {delta:>+7.2f}{marker}")
+
+    best = results[0]
+    delta = baseline_total - best.pipeline_us
+    pct = delta / baseline_total * 100 if baseline_total > 0 else 0
+    if delta > 0:
+        print(f"\n  Best: {best.label} -> {best.pipeline_us:.2f} us "
+              f"(saves {delta:.2f} us / {pct:.1f}% vs split-N {baseline_total:.2f} us)")
+    else:
+        print(f"\n  Split-N baseline ({baseline_total:.2f} us) is still optimal")
+
+    # Cube utilization for best
+    if best.cube_utilization > 0:
+        print(f"  Cube utilization: {best.cube_utilization:.1%} "
+              f"(AIC={best.aic_busy_us:.2f} AIV={best.aiv_busy_us:.2f})")
+
+
 def build_hw(args) -> AscendHWSpec:
     """Build hardware spec from CLI arguments."""
     import dataclasses
@@ -533,7 +683,8 @@ def main():
     # Analysis mode
     parser.add_argument("--mode", type=str, default="full",
                         choices=["bound", "pipeline", "estimate", "advice",
-                                 "search", "report", "roofline", "block-search", "split-kn", "full"],
+                                 "search", "report", "roofline", "block-search",
+                                 "split-kn", "split-m", "prefill", "full"],
                         help="Analysis mode (default: full = all modes)")
 
     # Hardware
@@ -612,6 +763,8 @@ def main():
         "roofline": mode_roofline,
         "block-search": mode_block_search,
         "split-kn": mode_split_kn,
+        "split-m": mode_split_m,
+        "prefill": mode_prefill,
     }
 
     if args.mode == "full":
@@ -622,6 +775,8 @@ def main():
             mode_roofline(params, tiling, hw)
             mode_block_search(params, tiling, hw)
             mode_split_kn(params, tiling, hw)
+            mode_split_m(params, tiling, hw)
+            mode_prefill(params, tiling, hw)
     else:
         modes[args.mode](params, tiling, hw)
 

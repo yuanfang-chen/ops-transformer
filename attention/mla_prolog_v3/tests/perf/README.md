@@ -117,9 +117,26 @@ Requires `--chip 950`.
 python perf_analyzer.py --chip 950 --batch-size 1 --head-num 128 --mode split-kn
 ```
 
+### `split-m` — M-axis Split Search (Prefill)
+
+Searches M-axis split configurations for prefill scenarios (large T). Each core handles `ceil(T / m_groups)` tokens with the full N dimension — no cross-core synchronization between matmul stages. B (weight) matrix is shared across cores via L2 cache reuse.
+
+Reports per-configuration:
+- **Total**: end-to-end time for all T tokens (1 kernel launch)
+- **MM1–MM4**: per-matmul time, **Vec**: total vector time per core
+- **vs SplitN**: delta vs split-N baseline (`per_step × ceil(T / stepBatchSize)`)
+
+Also searches optimal `baseM` per m_groups to maximize compute overlap with L2 B-loading (transition from L2-bound to cube-bound).
+
+Not beneficial for decode (T=1). Requires `--chip 950`.
+
+```bash
+python perf_analyzer.py --chip 950 --batch-size 512 --head-num 128 --mode split-m
+```
+
 ### `full` — All Modes Combined
 
-Runs bound + pipeline + estimate + advice + search. On Ascend 950, also runs roofline + block-search + split-kn.
+Runs bound + pipeline + estimate + advice + search. On Ascend 950, also runs roofline + block-search + split-kn + split-m.
 
 ## Architecture
 
@@ -136,8 +153,11 @@ perf_analyzer.py    CLI entry point, all analysis modes
 - **Per-cycle model** (950): bandwidth in bytes/cycle + frequency, per-core cache sizes (L0A/L0B/L0C/L1). Models the matmul inner loop (MTE1 → L0 load → MMAD → FixPipe).
 - **Buffer strategy**: double buffer (2×) by default. Full-load single buffer (1×) only when the complete matrix fits and it improves performance.
 - **Split-KN**: 2D core grid (n_groups × k_groups). K-split cores produce float32 partial sums; vector side accumulates. Pipeline DAG captures overlap between accumulation and next matmul.
+- **Split-M**: M-axis split for prefill. Each core handles `M/m_groups` tokens with full N. 3-level tiling (m_loops × kL1 × n_blocks). B matrix shared via L2; A rows unique per core from HBM.
 
 ## Documentation
 
 - **[methodology.md](methodology.md)** — Performance modeling & optimization methodology with worked examples
 - **[report_ascend950.md](report_ascend950.md)** — Comprehensive analysis for Ascend 950 across quantization modes
+- **[report_split_m.md](report_split_m.md)** — Split-M (M-axis split) modeling details with worked examples and scenario comparison
+- **[report_prefill_cube_bound.md](report_prefill_cube_bound.md)** — K-outer loop optimization: achieving cube-bound in prefill (3.3× speedup)
