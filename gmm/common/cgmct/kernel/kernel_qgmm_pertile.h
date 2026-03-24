@@ -126,7 +126,7 @@ public:
 private:
     __aicore__ inline void SetMNK(uint32_t groupIdx);
     __aicore__ inline void ProcessSingleGroup(const Params& params, BlockSchedulerOp& bs, uint32_t groupIdx);
-    __aicore__ inline void UpdateOffset(uint32_t groupIdx);
+    __aicore__ inline void UpdateOffset(uint32_t loopIdx, uint32_t groupIdx);
     __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx);
     __aicore__ inline void UpdateMMGlobalAddr();
     __aicore__ inline void Iterate(int64_t singleCoreM, int64_t singleCoreN);
@@ -170,7 +170,7 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
             // sparse grouplist item is [group_idx, split_value], so index = loopIdx * 2
             groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2));
         }
-        UpdateOffset(groupIdx);
+        UpdateOffset(loopIdx, groupIdx);
         // Update input parameters M, N, K within the group
         SetMNK(loopIdx);
         if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_N>(problemShape_) <= 0) {
@@ -253,9 +253,21 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
 }
 
 QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t groupIdx)
+__aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t loopIdx,
+                                                                                                 uint32_t groupIdx)
 {
+    // sparse split-M 首轮可能出现 groupIdx != 0。首轮 token 侧(A/C)不前移，
+    // 但权重/scale 侧(B/X2Scale)需要直接按真实 groupIdx 跳转。
     if (groupIdx == 0) {
+        return;
+    }
+    if (loopIdx == 0 && groupListType_ == GROUP_LIST_TYPE_SPARSE && groupType_ == GROUP_TYPE_M) {
+        int64_t n = Get<MNK_N>(problemShape_);
+        int64_t k = Get<MNK_K>(problemShape_);
+        Get<IDX_B_OFFSET>(baseOffset_) = n * k * static_cast<int64_t>(groupIdx);
+        int64_t scaleK = CeilDiv(k, PER_BLOCK_SIZE);
+        Get<IDX_X2SCALE_OFFSET>(baseOffset_) =
+            static_cast<int64_t>(groupIdx) * CeilDiv(n, PER_BLOCK_SIZE) * scaleK;
         return;
     }
     int64_t m = Get<MNK_M>(problemShape_);
