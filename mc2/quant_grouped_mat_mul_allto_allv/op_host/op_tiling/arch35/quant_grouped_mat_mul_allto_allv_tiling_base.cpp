@@ -707,7 +707,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::DoQuantGMMTiling()
     // 设置公共信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
-    // GMM 第一个矩阵块
+    // tokens最多的专家作为MM计算的M
     uint64_t gmmX_epSize = 0;
     uint64_t mSize = 0;
     for (uint64_t expertIdx = 0; expertIdx < localParams_.ep; expertIdx++) {
