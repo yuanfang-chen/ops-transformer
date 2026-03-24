@@ -1048,8 +1048,7 @@ ge::graphStatus SFATilingCheck::CheckSoftmaxMax()
         }
     } else {
         OP_CHECK_IF(opParamInfo_.softmaxMax.shape->GetStorageShape().GetShapeSize() != 0,
-                OP_LOGE(opName_, "When return_softmax_lse is false, SoftmaxMax tensor must be empty tensor."),
-                return ge::GRAPH_FAILED);
+                OP_LOGW(opName_, "When return_softmax_lse is false, SoftmaxMax tensor must be empty tensor."));
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1065,8 +1064,7 @@ ge::graphStatus SFATilingCheck::CheckSoftmaxSum()
                 return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(opParamInfo_.softmaxSum.shape->GetStorageShape().GetShapeSize() != 0,
-                OP_LOGE(opName_, "When return_softmax_lse is false, softmaxSum tensor must be empty tensor."),
-                return ge::GRAPH_FAILED);
+                OP_LOGW(opName_, "When return_softmax_lse is false, softmaxSum tensor must be empty tensor."));
     }
     return ge::GRAPH_SUCCESS;
 }
