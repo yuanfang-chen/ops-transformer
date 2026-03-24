@@ -74,8 +74,6 @@ private:
     {
         return (GM_ADDR)(hcclContext_->windowsIn[rankId]) + COMBINE_STATE_OFFSET +
                WIN_STATE_OFFSET * static_cast<uint64_t>(dataState_);
-        // return (GM_ADDR)(hcclContext_->windowsOut[rankId]) + COMBINE_STATE_OFFSET +
-        //        WIN_STATE_OFFSET * static_cast<uint64_t>(dataState_);
     }
 
     TPipe *tpipe_{nullptr};
@@ -141,7 +139,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
     // 在teardown内进行状态切换，到setup内时，state即目标flag
     GlobalTensor<int32_t> selfDataStatusTensor;
     GM_ADDR statusDataSpaceGm = (GM_ADDR)hcclContext_->windowsIn[moeDistributeCombineTeardownInfo_->epRankId];
-    // GM_ADDR statusDataSpaceGm = (GM_ADDR)hcclContext_->windowsOut[moeDistributeCombineTeardownInfo_->epRankId];
     selfDataStatusTensor.SetGlobalBuffer((__gm__ int32_t *)(statusDataSpaceGm + STATE_WIN_OFFSET +
                                                             STATE_SIZE_PER_CORE * static_cast<uint64_t>(coreIdx_)));
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
