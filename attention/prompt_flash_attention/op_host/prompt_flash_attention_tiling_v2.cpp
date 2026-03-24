@@ -3597,7 +3597,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
             } else { // BNSD场景下分核不做优化
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if (enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             nextTokensLeftUp = actualSeqLengthKV * gSize - actualSeqLength;
         }else {
             nextTokensLeftUp = actualSeqLengthKV - actualSeqLength;
@@ -3611,7 +3611,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
                 preTokensLeftUp = SPARSE_MODE_INT_MAX;
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if (enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             preTokensLeftUp = baseParams->get_preTokens() * gSize - actualSeqLengthKV * gSize + actualSeqLength;
             nextTokensLeftUp = baseParams->get_nextTokens() * gSize + actualSeqLengthKV * gSize - actualSeqLength;
         }else {
