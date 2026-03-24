@@ -16,7 +16,7 @@ using json = nlohmann::json;
 
 namespace domi {
 static const int REQ_ATTR_NNUM = 1;
-static Status  ParseParamsMoeComputeExpertTokens(const ge::Operator& op_src, ge::Operator& op_dest)
+static Status ParseParamsMoeComputeExpertTokens(const ge::Operator& op_src, ge::Operator& op_dest)
 {
     AscendString attrs_string;
     int attrCount = 0;
