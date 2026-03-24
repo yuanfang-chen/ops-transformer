@@ -79,7 +79,7 @@ constexpr AscendC::CumSumConfig cumSumConfig{true, true, false};
 using namespace AscendC;
 using namespace Mc2Kernel;
 using namespace MoeDistributeV2Base;
-using namespace MC2MoeDistributeContext;
+using namespace Mc2MoeDistributeContext;
 template <TemplateMC2TypeFullmeshClass>
 class MoeDistributeDispatchV2FullMesh {
 public:

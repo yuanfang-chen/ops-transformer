@@ -24,6 +24,7 @@
 
 using namespace Ops::Transformer;
 using namespace op;
+using namespace Mc2MoeDistributeContext;
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -52,6 +53,9 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
  	     uint64_t* workspaceSize, aclOpExecutor** executor);
  	 
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV3(void* workspace, uint64_t workspaceSize,
+                                                    aclOpExecutor* executor, aclrtStream stream);
+
+extern aclnnStatus aclnnInnerMoeDistributeDispatchV2(void* workspace, uint64_t workspaceSize,
                                                     aclOpExecutor* executor, aclrtStream stream);
 
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
@@ -109,7 +113,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
 {
     if(is950) {
-        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(CommType::MTE)); // 默认MTE为0
+        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(CommType::AIV)); // 默认MTE为0
         if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
             arg = reinterpret_cast<void *>(static_cast<uintptr_t>(CommType::CCU)); //ccu为1
         }
@@ -189,7 +193,7 @@ aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceS
         uintptr_t handleVal = reinterpret_cast<uintptr_t>(arg);
         CommType commType = static_cast<CommType>(handleVal);
         if(commType == CommType::AIV) {
-            OP_LOGD("PRINT inter to the  aclnnInnerMoeDistributeDispatchV2Extend");
+            OP_LOGD("enter to the  aclnnInnerMoeDistributeDispatchV2Extend");
             return aclnnInnerMoeDistributeDispatchV3(workspace, workspaceSize, executor, stream); //mte走新模版
         }
     }
