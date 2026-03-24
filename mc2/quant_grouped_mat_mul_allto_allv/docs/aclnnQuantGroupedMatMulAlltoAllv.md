@@ -13,7 +13,7 @@
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
-## 功能说明
+## 功能说明1
 
 算子功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**，支持T-T[量化模式](../../../docs/zh/context/量化介绍.md)。
 
