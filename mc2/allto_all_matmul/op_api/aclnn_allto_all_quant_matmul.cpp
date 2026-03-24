@@ -11,8 +11,8 @@
 #include "aclnn_allto_all_quant_matmul.h"
 #include "securec.h"
 #include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/utils/op_mc2.h"
+#include "common/utils/op_mc2_def.h"
 #include "mc2/matmul_allto_all/op_api/matmul_allto_all_util.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
@@ -21,7 +21,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
-#include "hccl_util.h"
+#include "common/utils/hccl_util.h"
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/transdata.h"
 
@@ -49,10 +49,10 @@ aclTensor* ConvertTensorToInt4(const aclTensor* input, aclOpExecutor* executor)
 // 对x1和x2进行int32到int4的转换预处理
 void InputPreProcessInt4(const aclTensor *&x1, const aclTensor *&x2, const aclTensor *&alltoallout, aclOpExecutor *executor)
 {
-    if (x2->GetDataType() == DataType::DT_INT32) {
+    if (x2 != nullptr && x2->GetDataType() == DataType::DT_INT32) {
         x2 = ConvertTensorToInt4(x2, executor);
     }
-    if (x1->GetDataType() == DataType::DT_INT32) {
+    if (x1 != nullptr && x1->GetDataType() == DataType::DT_INT32) {
         x1 = ConvertTensorToInt4(x1, executor);
     }
     if (alltoallout != nullptr && alltoallout->GetDataType() == DataType::DT_INT32) {
@@ -504,6 +504,7 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
     CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_INVALID);	// 先检查x2是否合法，避免非法操作
     bool notContiguous = IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
     auto transX2 = x2;    // 复制一个x2
+    OP_LOGI("The notContiguous is: %d , and transposeX2 is: %d", notContiguous, transposeX2);
     if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 not contiguous, and set x2 transpose, it is error!");
         return ACLNN_ERR_PARAM_INVALID;

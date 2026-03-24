@@ -11,9 +11,9 @@
 #include "aclnn_quant_matmul_allto_all.h"
 #include "securec.h"
 #include "matmul_allto_all_util.h"
-#include "op_mc2.h"
+#include "common/utils/op_mc2.h"
 #include "acl/acl.h"
-#include "op_mc2_def.h"
+#include "common/utils/op_mc2_def.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
 #include "aclnn_kernels/common/op_error_check.h"
@@ -23,7 +23,7 @@
 #include "opdev/op_log.h"
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/transdata.h"
-#include "hccl_util.h"
+#include "common/utils/hccl_util.h"
 
 namespace {
 
@@ -433,6 +433,7 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
     CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_INVALID);	// 先检查x2是否合法，避免访问空指针等等非法操作
     bool notContiguous = IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
     auto transX2 = x2;    // 复制一个x2
+    OP_LOGI("The notContiguous is: %d , and transposeX2 is: %d", notContiguous, transposeX2);
     if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 not contiguous, and set x2 transpose, it is error!");
         return ACLNN_ERR_PARAM_INVALID;

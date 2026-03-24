@@ -39,7 +39,6 @@ public:
     __aicore__ inline void FreeEventID();
     __aicore__ inline void ComputeMm1(const QLICommon::RunInfo &runInfo);
 
-    static constexpr IsResetLoad3dConfig LOAD3DV2_CONFIG = {true, true}; // isSetFMatrix isSetPadding;
     static constexpr uint64_t KEY_BUF_NUM = 3;
     static constexpr uint64_t QUERY_BUF_NUM = 2;
     static constexpr uint64_t L0_BUF_NUM = 2;
@@ -53,21 +52,16 @@ public:
     static constexpr uint32_t FIX_M_EVENT = EVENT_ID2;
     static constexpr uint32_t M_FIX_EVENT = EVENT_ID3;
 
-    static constexpr uint64_t M_BASIC_BLOCK = 96;
     static constexpr uint64_t D_BASIC_BLOCK = 128;
     static constexpr uint64_t S2_BASIC_BLOCK = 128;
 
-    static constexpr uint64_t M_BASIC_BLOCK_L0 = 96;
     static constexpr uint64_t D_BASIC_BLOCK_L0 = 128;
     static constexpr uint64_t S2_BASIC_BLOCK_L0 = 128;
 
     static constexpr uint64_t FP8_BLOCK_CUBE = 32;
     static constexpr FixpipeConfig QLI_CFG_ROW_MAJOR_UB = {CO2Layout::ROW_MAJOR, true};   // ROW_MAJOR: 使能NZ2ND，输出数据格式为ND格式; true: 用于用户指定目的地址的位置是否是UB
 
-    static constexpr uint64_t QUERY_BUFFER_OFFSET = M_BASIC_BLOCK * D_BASIC_BLOCK;
     static constexpr uint64_t KEY_BUFFER_OFFSET = S2_BASIC_BLOCK * D_BASIC_BLOCK;
-    static constexpr uint64_t L0AB_BUFFER_OFFSET = M_BASIC_BLOCK_L0 * D_BASIC_BLOCK_L0;
-    static constexpr uint64_t L0C_BUFFER_OFFSET = M_BASIC_BLOCK_L0 * S2_BASIC_BLOCK_L0;
 
 protected:
     __aicore__ inline void Fixp(uint64_t s1gGmOffset, uint64_t s2GmOffset, uint64_t s1gL0RealSize,
@@ -107,6 +101,10 @@ protected:
 
     ConstInfo constInfo_;
 
+    uint64_t queryBufferOffset_ = 0;
+    uint64_t l0abBufferOffset_ = 0;
+    uint64_t l0cBufferOffset_ = 0;
+
 private:
     static constexpr bool PAGE_ATTENTION = QLIT::pageAttention;
 };
@@ -115,6 +113,9 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::InitParams(const ConstInfo &constInfo)
 {
     constInfo_ = constInfo;
+    queryBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK;
+    l0abBufferOffset_ = constInfo.mBaseSize * D_BASIC_BLOCK_L0;
+    l0cBufferOffset_ = constInfo.mBaseSize * S2_BASIC_BLOCK_L0;
 }
 
 template <typename QLIT>
@@ -284,7 +285,7 @@ __aicore__ inline void QLIMatmul<QLIT>::QueryNd2Nz(uint64_t s1gL1RealSize, uint6
     nd2nzPara.srcNdMatrixStride = 0;
     nd2nzPara.dstNzMatrixStride = 0;
     // 默认一块buf最多放两份
-    DataCopy(queryL1_[(queryL1Mte2BufIdx_ % QUERY_BUF_NUM) * QUERY_BUFFER_OFFSET],
+    DataCopy(queryL1_[(queryL1Mte2BufIdx_ % QUERY_BUF_NUM) * queryBufferOffset_],
              queryGm_[runInfo.tensorQueryOffset + s1gGmOffset * constInfo_.headDim], nd2nzPara);
 }
 
@@ -301,8 +302,8 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gGmOffset, uin
     loadData2DParamsV2.dstStride = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.ifTranspose = false;
     
-    LoadData(queryL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET],
-             queryL1_[(queryL1Mte1BufIdx_ % QUERY_BUF_NUM) * QUERY_BUFFER_OFFSET], loadData2DParamsV2);
+    LoadData(queryL0_[(l0BufIdx_ % L0_BUF_NUM) * l0abBufferOffset_],
+             queryL1_[(queryL1Mte1BufIdx_ % QUERY_BUF_NUM) * queryBufferOffset_], loadData2DParamsV2);
 }
 
 template <typename QLIT>
@@ -318,7 +319,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadKeyToL0b(uint64_t s2L1Offset, uint64
     loadData2DParamsV2.dstStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.ifTranspose = false;
     
-    LoadData(keyL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET],
+    LoadData(keyL0_[(l0BufIdx_ % L0_BUF_NUM) * l0abBufferOffset_],
              keyL1_[(keyL1BufIdx_ % KEY_BUF_NUM) * KEY_BUFFER_OFFSET], loadData2DParamsV2);
 }
 
@@ -332,8 +333,8 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeL0c(uint64_t s1gL0RealSize, uint6
     mmadParams.k = constInfo_.headDim;
     mmadParams.cmatrixInitVal = true;
     mmadParams.cmatrixSource = false;
-    Mmad(cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], queryL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET],
-         keyL0_[(l0BufIdx_ % L0_BUF_NUM) * L0AB_BUFFER_OFFSET], mmadParams);
+    Mmad(cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cBufferOffset_], queryL0_[(l0BufIdx_ % L0_BUF_NUM) * l0abBufferOffset_],
+         keyL0_[(l0BufIdx_ % L0_BUF_NUM) * l0abBufferOffset_], mmadParams);
     if ((mmadParams.m / 16) * (mmadParams.n / 16) < 10) {
         PipeBarrier<PIPE_M>();
     }
@@ -347,58 +348,33 @@ __aicore__ inline void QLIMatmul<QLIT>::Fixp(uint64_t s1gGmOffset, uint64_t s2Gm
     WaitFlag<HardEvent::M_FIX>(M_FIX_EVENT + l0BufIdx_ % L0_BUF_NUM);
 
     static_assert(S2_BASIC_BLOCK == S2_BASIC_BLOCK_L0 && S2_BASIC_BLOCK_L0 == 128);
-    if constexpr (std::is_same_v<float, float>) {
-        // s1gL0RealSize：2*gSize(128)对齐, 最大256
-        // s2L0RealSize <= S2_BASIC_BLOCK_L0, 未约束
-        uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3; // 32B对齐
-        uint32_t mSize = (s1gL0RealSize + 1) >> 1 << 1;
-        FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams;
-        // 固定参数
-        fixpipeParams.mSize = mSize;
-        fixpipeParams.srcStride = mSize; // 已16对齐
-        fixpipeParams.dstStride = UB_BANK_DEPTH_STRIDE / sizeof(float); // 落到同一个bank
-        fixpipeParams.dualDstCtl = 1; // 双目标模式，按M维度拆分， M / 2 * N写入每个UB，M必须为2的倍数
+    // s1gL0RealSize：2*gSize(128)对齐, 最大256
+    // s2L0RealSize <= S2_BASIC_BLOCK_L0, 未约束
+    uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3; // 32B对齐
+    uint32_t mSize = (s1gL0RealSize + 1) >> 1 << 1;
+    FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams;
+    // 固定参数
+    fixpipeParams.mSize = mSize;
+    fixpipeParams.srcStride = mSize; // 已16对齐
+    fixpipeParams.dstStride = UB_BANK_DEPTH_STRIDE / sizeof(float); // 落到同一个bank
+    fixpipeParams.dualDstCtl = 1; // 双目标模式，按M维度拆分， M / 2 * N写入每个UB，M必须为2的倍数
 
-        // nSize已保证N方向32B对齐
-        if (nSize <= (256 / sizeof(float))) {
-            // N方向小于一个bank(256B), 只需搬一个ND块, 且不用补齐
-            fixpipeParams.nSize = nSize;
-            fixpipeParams.params.ndNum = 1;
-            fixpipeParams.params.srcNdStride = 0;
-            fixpipeParams.params.dstNdStride = 0;
-        } else {
-            // N方向在(256B, 512B]范围， 直接按512B搬, 注意此时不能开unitflag
-            fixpipeParams.nSize = S2_BASIC_BLOCK_L0 / 2; // 分2个ND搬, S2_BASIC_BLOCK_L0不为128会有问题
-            fixpipeParams.params.ndNum = 2;
-            fixpipeParams.params.srcNdStride = ((fixpipeParams.mSize + 15) / 16) * fixpipeParams.nSize;
-            fixpipeParams.params.dstNdStride = constInfo_.s2BaseSize * constInfo_.mBaseSize / 2; // S2_BASIC_BLOCK * M_BASE_SIZE / 2
-        }
-        Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * constInfo_.s2BaseSize / 2], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
-    } else {
-        // nSize * sizeof(QT) <= 256B, 小于一个UB bank大小(VL)
-        uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3; // 8个元素（32B)对齐
-        uint32_t mSize = (s1gL0RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
-        uint32_t srcStride = ((mSize + 15) / 16) * 16; // L0C上matmul结果相邻连续数据片断间隔（前面一个数据块的头与后面数据块的头的间隔），单位为16 *sizeof(T) //源NZ矩阵中相邻Z排布的起始地址偏移
-        FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C->UB
-        fixpipeParams.nSize = nSize; // N方向全部输出
-        fixpipeParams.mSize = mSize / 2; // M方向每个AIV一半
-        fixpipeParams.srcStride = srcStride;
-        fixpipeParams.dstStride = UB_BANK_DEPTH_STRIDE / sizeof(float); // 落到同一个bank
+    // nSize已保证N方向32B对齐
+    if (nSize <= (256 / sizeof(float))) {
+        // N方向小于一个bank(256B), 只需搬一个ND块, 且不用补齐
+        fixpipeParams.nSize = nSize;
         fixpipeParams.params.ndNum = 1;
         fixpipeParams.params.srcNdStride = 0;
         fixpipeParams.params.dstNdStride = 0;
-        fixpipeParams.dualDstCtl = 0;
-        fixpipeParams.quantPre = F322BF16;
-        fixpipeParams.reluEn = true; // ReLU激活
-        fixpipeParams.subBlockId = 0;
-        Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * (UB_BANK_STRIDE / sizeof(float))], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
-
-        fixpipeParams.subBlockId = 1;
-        Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * (UB_BANK_STRIDE / sizeof(float))], // 未考虑s1gGmOffset和s2GmOffset
-                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET + mSize / 2 * 16], fixpipeParams); // 将matmul结果从L0C搬运到UB
+    } else {
+        // N方向在(256B, 512B]范围， 直接按512B搬, 注意此时不能开unitflag
+        fixpipeParams.nSize = S2_BASIC_BLOCK_L0 / 2; // 分2个ND搬, S2_BASIC_BLOCK_L0不为128会有问题
+        fixpipeParams.params.ndNum = 2;
+        fixpipeParams.params.srcNdStride = ((fixpipeParams.mSize + 15) / 16) * fixpipeParams.nSize;
+        fixpipeParams.params.dstNdStride = constInfo_.s2BaseSize * constInfo_.mBaseSize / 2; // S2_BASIC_BLOCK * M_BASE_SIZE / 2
     }
+    Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * constInfo_.s2BaseSize / 2], // 未考虑s1gGmOffset和s2GmOffset
+                                                cL0_[(l0BufIdx_ % L0_BUF_NUM) * l0cBufferOffset_], fixpipeParams); // 将matmul结果从L0C搬运到UB
 }
 
 template <typename QLIT>

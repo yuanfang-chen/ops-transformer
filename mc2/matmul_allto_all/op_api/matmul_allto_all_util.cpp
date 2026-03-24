@@ -11,8 +11,8 @@
 #include "matmul_allto_all_util.h"
 #include "securec.h"
 #include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/utils/op_mc2.h"
+#include "common/utils/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
@@ -20,7 +20,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
-#include "hccl_util.h"
+#include "common/utils/hccl_util.h"
 
 // 量化与非量化共用的方法和常量、枚举值
 namespace matmul_allto_all_check {
@@ -131,6 +131,10 @@ bool CheckShapeMMAA(const aclTensor* x1, const aclTensor* x2, const aclTensor* b
     }
     auto kdimX1 = x1->GetViewShape().GetDim(1);
     auto kdimX2 = transposeX2 ? x2->GetViewShape().GetDim(1) : x2->GetViewShape().GetDim(0);
+
+    OP_LOGI("The input transposeX2 is: %d, x1 dim0 is: %ld, x1 dim1 is: %ld, x2 dim0 is: %ld, x2 dim1 is: %ld",
+            transposeX2, x1->GetViewShape().GetDim(0), x1->GetViewShape().GetDim(1), x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1));
+
     if (kdimX1 != kdimX2) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
         "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kdimX1, kdimX2);
