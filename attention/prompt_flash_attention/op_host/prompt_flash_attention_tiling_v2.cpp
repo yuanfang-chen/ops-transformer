@@ -3627,7 +3627,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
                 preTokensLeftUp = SPARSE_MODE_INT_MAX;
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if(enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             preTokensLeftUp = baseParams->get_preTokens() * gSize;
             nextTokensLeftUp = baseParams->get_nextTokens() * gSize;
         }else {
@@ -3707,7 +3707,7 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
     nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
     int64_t preTokensError = 0;
-    if (enableIFAMLA) {
+    if (enableIFAMLA || enablePFAMerge) {
         preTokensError = (actualSeqLength > actualSeqLengthKV * gSize + preTokensLeftUp) ?
             (actualSeqLength - actualSeqLengthKV * gSize - preTokensLeftUp) : 0;
     } else {
