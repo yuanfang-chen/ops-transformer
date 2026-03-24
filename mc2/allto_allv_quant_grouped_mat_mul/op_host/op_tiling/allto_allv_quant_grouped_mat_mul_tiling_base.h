@@ -90,10 +90,11 @@ constexpr uint64_t L1_ALIGN_SIZE = 32;
 // quant mode
 constexpr uint64_t NO_QUANT_MODE = 0;
 constexpr uint64_t PERTENSOR_QUANT_MODE = 1;
+constexpr uint64_t MX_QUANT_MODE = 6;
 
-class AlltoAllvGmmTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
+class AlltoAllvQuantGmmTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit AlltoAllvGmmTilingBase(gert::TilingContext *context)
+    explicit AlltoAllvQuantGmmTilingBase(gert::TilingContext *context)
         : Ops::Transformer::OpTiling::TilingBaseClass(context){};
 
 protected:
