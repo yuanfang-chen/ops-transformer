@@ -55,8 +55,28 @@ execute_process(
 )
 find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
 
+set_source_files_properties(
+    fused_infer_attention_score.cpp
+    PROPERTIES LANGUAGE ASC
+)
+
+set_source_files_properties(
+    abc.cpp
+    PROPERTIES LANGUAGE CXX
+)
+
+add_library(xxxlib SHARED
+    abc.cpp
+)
+
+
 pybind11_add_module(ascendc_ops SHARED
     fused_infer_attention_score.cpp
+    # abc.cpp
+)
+
+target_link_libraries(ascendc_ops PRIVATE
+    xxxlib
 )
 
 target_include_directories(ascendc_ops PRIVATE
@@ -92,8 +112,15 @@ target_compile_options(ascendc_ops PRIVATE
     ${TORCH_CXX_FLAGS}
     # $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-2201>
     $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-3101>
-    # "-xasc"
+    "-xasc"
     "-w"
     "-O3"
-    "--asc-aicore-lang"
+    # "--asc-aicore-lang"
+)
+
+target_compile_options(xxxlib PRIVATE
+    ${TORCH_CXX_FLAGS}
+    "--save-temps"
+    "-w"
+    "-O3"
 )

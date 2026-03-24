@@ -27,6 +27,7 @@
 #include "io_utils.h"
 #include "flash_attention_score_tiling_regbase.h"
 #include "fia_entry.h"
+#include "abc.h"
 
 __global__ __aicore__ void FiaKernelFullQuant(
         GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR keyAntiquantScale,
@@ -44,6 +45,7 @@ __global__ __aicore__ void FiaKernelFullQuant(
 namespace ascendc_ops {
 int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uint64_t seqLengthsQ, uint64_t seqLengthsKV, int32_t headDim = 128)
 {
+    fun();
     std::cerr << "Start fused_infer_attention_score demo." << std::endl;
     // -------------------------------------------------------------------------
     // 1. Set the problem shape.
