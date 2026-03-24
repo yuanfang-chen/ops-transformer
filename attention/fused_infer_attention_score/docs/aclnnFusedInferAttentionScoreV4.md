@@ -1336,7 +1336,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
             </tr>
             <tr>
                 <th>antiquantMode</th>
-                <th>antiquantSacle</th>
+                <th>antiquantScale</th>
                 <th>antiquantOffset</th>
                 <th>keyAntiquantMode 和 valueAntiquantMode</th>
                 <th colspan="2">keyAntiquantScaleOptional 和 valueAntiquantScaleOptional</th>
@@ -1607,7 +1607,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="22">query d=512</td>
+            <td rowspan="24">query d=512</td>
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>FLOAT16、BFLOAT16；Q_N=[1,2,4,8,16,32,64,128]</td>
@@ -1975,7 +1975,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>
                 <ul>
                 <li>sparseMode = 0时，attenMaskOptional如果为空指针，或者在左padding场景传入attenMaskOptional，则忽略入参preTokens、nextTokens。</li>
-                <li>sparseMode = 2、3、4时，attenMaskOptional的shape需要为（2048,2048）或（1,2048,2048）或（1,1,2048,2048），且需要用户保证传入的attenMaskOptional为下三角，attenMaskOptional为nullptre或者传入的shape不正确报错。</li>
+                <li>sparseMode = 2、3、4时，attenMaskOptional的shape需要为（2048,2048）或（1,2048,2048）或（1,1,2048,2048），且需要用户保证传入的attenMaskOptional为下三角，attenMaskOptional为nullptr或者传入的shape不正确报错。</li>
                 <li>sparseMode = 1、2、3的场景忽略入参preTokens、nextTokens并按照相关规则赋值。</li>
                 <li>sparseMode取其它值时会报错</li>
                 </ul>
