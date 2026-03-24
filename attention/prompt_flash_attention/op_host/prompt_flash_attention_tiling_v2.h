@@ -209,7 +209,9 @@ protected:
         uint32_t sInnerSize, double coreWightTarget, uint32_t& curCore);
     void PromptFlashAttentionSplitNBSeq(PromptFlashAttentionTilingData& tilingData, std::vector<int64_t>& actualSeqLengths,
         std::vector<int64_t>& actualSeqLengthsKV, bool isAttenMaskUsed);
-    void InferSplitCoreMode();
+    void PromptFlashAttentionSplitOutSeq(PromptFlashAttentionTilingData& tilingData, std::vector<int64_t>& actualSeqLengths,
+        std::vector<int64_t>& actualSeqLengthsKV, bool isAttenMaskUsed);
+    void InferSplitCoreMode(PromptFlashAttentionTilingData& tilingData);
     void InferConstantization();
     bool AdjustCVTilingCVDiff(const ContextParamsForPFATiling& contextKeyParams, uint32_t& sOuterFactor,
         uint32_t& sInnerFactor, uint32_t& softmaxSOuterFactor, PromptFlashAttentionTilingData& tilingData,
@@ -269,6 +271,7 @@ protected:
     void UpdateTilingKeyPFAMask(PromptFlashAttentionTilingData& tilingData, ge::DataType inputDataType);
     void UpdateTilingKeyPFAMatMulType(PromptFlashAttentionTilingData& tilingData, ge::DataType inputDataType);
     void UpdateTilingKeyEnableKVPrefix();
+    void UpdateTilingKeySplitCoreMode();
 
 public:
     uint8_t inOutLayoutType = 0;
@@ -283,6 +286,7 @@ public:
     uint8_t PFAMask = 0;
     uint8_t pFAMatMulType = 0;
     bool enableKVPrefix = false;
+    bool enableS1OutSplit = false;
   
 protected:
     ContextParamsForPFATiling* contextKeyParamsPtr = nullptr;
@@ -366,6 +370,7 @@ protected:
     int64_t sparsePreTokens = 0;
     int64_t sparseNextTokens = 0;
     int32_t sparseModeVal = 0;
+    int64_t maxActualseqQ = 0;
     int64_t maxActualseqKV = 0;
     SplitCoreMode splitCoreMode = SplitCoreMode::SPLIT_NBS_VECTOR;
     bool isConstantization = false;
