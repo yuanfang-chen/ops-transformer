@@ -8,6 +8,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
 
+
+12
 {
 set -e
 RELEASE_TARGETS=("ophost" "opapi" "opgraph")
