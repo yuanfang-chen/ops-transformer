@@ -23,26 +23,26 @@ namespace optiling{
     constexpr int32_t MAX_CORE_NUM_FD = 26;
 
     BEGIN_TILING_DATA_DEF(coreNode)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, startBIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, startN1Idx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, startS1Idx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, startS2Idx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, endBIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, endN1Idx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, endS1Idx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, endS2Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, startBIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, startN1Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, startS1Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, startS2Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, endBIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, endN1Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, endS1Idx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, endS2Idx)
     TILING_DATA_FIELD_DEF_ARR(int64_t, MAX_CORE_NUM_FD, firstSplitKVTaskLseOffset)
     TILING_DATA_FIELD_DEF_ARR(int64_t, MAX_CORE_NUM_FD, firstSplitKVTaskOOffset)
     END_TILING_DATA_DEF
     REGISTER_TILING_DATA_CLASS(coreNodeOp, coreNode)
 
     BEGIN_TILING_DATA_DEF(splitNode)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, batchIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, headStartIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, headEndIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, qStartIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, qEndIdx)
-    TILING_DATA_FIELD_DEF_ARR(int, MAX_CORE_NUM_FD, splitNum)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, batchIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, headStartIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, headEndIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, qStartIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, qEndIdx)
+    TILING_DATA_FIELD_DEF_ARR(int32_t, MAX_CORE_NUM_FD, splitNum)
     TILING_DATA_FIELD_DEF_ARR(int64_t, MAX_CORE_NUM_FD, lseTaskOffset)
     TILING_DATA_FIELD_DEF_ARR(int64_t, MAX_CORE_NUM_FD, oTaskOffset)
     END_TILING_DATA_DEF
@@ -539,19 +539,19 @@ namespace optiling{
 
             bool foundFirstSplitKV = false;
 
-            for (int BIdx = startBIdx; BIdx <= endBIdx; BIdx++) {
+            for (int32_t BIdx = startBIdx; BIdx <= endBIdx; BIdx++) {
                 BatchParams p = getBatchParams(BIdx, groupSize);
                 
-                int curStartN1 = (BIdx == startBIdx) ? startN1Idx : 0;
-                int curEndN1 = (BIdx == endBIdx) ? endN1Idx : p.curQNBlockNum - 1;
+                int32_t curStartN1 = (BIdx == startBIdx) ? startN1Idx : 0;
+                int32_t curEndN1 = (BIdx == endBIdx) ? endN1Idx : p.curQNBlockNum - 1;
                 
-                for (int N1Idx = curStartN1; N1Idx <= curEndN1; N1Idx++) {
-                    int curStartS1 = (BIdx == startBIdx && N1Idx == startN1Idx) ? startS1Idx : 0;
-                    int curEndS1 = (BIdx == endBIdx && N1Idx == endN1Idx) ? endS1Idx : p.curQSBlockNum - 1;
+                for (int32_t N1Idx = curStartN1; N1Idx <= curEndN1; N1Idx++) {
+                    int32_t curStartS1 = (BIdx == startBIdx && N1Idx == startN1Idx) ? startS1Idx : 0;
+                    int32_t curEndS1 = (BIdx == endBIdx && N1Idx == endN1Idx) ? endS1Idx : p.curQSBlockNum - 1;
 
-                    for (int S1Idx = curStartS1; S1Idx <= curEndS1; S1Idx++) {
-                        int curStartS2 = (BIdx == startBIdx && N1Idx == startN1Idx && S1Idx == startS1Idx) ? startS2Idx : 0;
-                        int curEndS2 = (BIdx == endBIdx && N1Idx == endN1Idx && S1Idx == endS1Idx) ? endS2Idx : p.curKSBlockNum;
+                    for (int32_t S1Idx = curStartS1; S1Idx <= curEndS1; S1Idx++) {
+                        int32_t curStartS2 = (BIdx == startBIdx && N1Idx == startN1Idx && S1Idx == startS1Idx) ? startS2Idx : 0;
+                        int32_t curEndS2 = (BIdx == endBIdx && N1Idx == endN1Idx && S1Idx == endS1Idx) ? endS2Idx : p.curKSBlockNum;
 
                         uint32_t coveredS2 = curEndS2 - curStartS2;
                         bool isSplitKV = (coveredS2 > 0 && coveredS2 < p.curKSBlockNum);
