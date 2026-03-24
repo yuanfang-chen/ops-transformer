@@ -251,7 +251,7 @@ static aclnnStatus GetCommEngine(const HcclComm& hcclHandle, CommEngine& engine,
     return ACLNN_ERR_INNER;
 }
 
-extern aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* opName, uint64_t& hcclBuffSize, aclTensor* &mc2Context)
+extern inline aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* opName, uint64_t& hcclBuffSize, aclTensor* &mc2Context)
 {
     OP_LOGD("Start to get Mc2MoeContext Tensor");
     HcclComm hcclHandle;

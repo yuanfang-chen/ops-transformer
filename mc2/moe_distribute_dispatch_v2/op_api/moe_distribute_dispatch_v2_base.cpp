@@ -110,7 +110,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
     return ACLNN_SUCCESS;
 }
 
-void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
+static void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
 {
     if(is950) {
         void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(CommType::AIV)); // 默认MTE为0

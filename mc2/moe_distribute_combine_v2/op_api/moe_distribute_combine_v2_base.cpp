@@ -122,7 +122,7 @@ enum class CommType : uint64_t {
     CCU = 1 // ccu通信设置为1
 };
 
-void SetCommArgs(aclOpExecutor **executor, const bool is910B, const bool is950, const char *commAlg)
+static void SetCommArgs(aclOpExecutor **executor, const bool is910B, const bool is950, const char *commAlg)
 {
     if (is950){
         CommType type = CommType::AIV;
