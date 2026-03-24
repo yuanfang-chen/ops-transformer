@@ -35,7 +35,7 @@ constexpr uint32_t WRITE_SQE_SIZE = 64U;
 constexpr uint32_t WRITE_WITH_NOTIFY_SQE_SIZE = 96U;
 constexpr static uint64_t WIN_STATE_OFFSET = 384U * 1024U;
 constexpr static uint64_t STATE_WIN_OFFSET = WIN_STATE_OFFSET * 2;
-constexpr uint32_t WIN_PICI_OFFSET = STATE_WIN_OFFSET + 50U * 1024U;
+constexpr uint64_t WIN_PICI_OFFSET = STATE_WIN_OFFSET + 50U * 1024U;
 constexpr uint64_t PICI_WIN_SIZE = 512UL;
 constexpr uint32_t NORMAL_CQE_SIZE = 64U;
 constexpr uint32_t CQ_DEPTH_256 =
@@ -554,8 +554,6 @@ __aicore__ inline void GetPICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t
 
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsIn[curRankId] + WIN_PICI_OFFSET +
                                     PICI_WIN_SIZE * dstRankId);
-    // GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
-    //                                 PICI_WIN_SIZE * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
     piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
@@ -576,8 +574,6 @@ __aicore__ inline void GetIsFirstInComm(GM_ADDR hcclContext, uint32_t curRankId,
 
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsIn[curRankId] + WIN_PICI_OFFSET +
                                     PICI_WIN_SIZE * dstRankId);
-    // GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
-    //                                 PICI_WIN_SIZE * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
     piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
@@ -594,8 +590,6 @@ __aicore__ inline void UpdatePICI(GM_ADDR hcclContext, uint32_t curRankId, uint3
 
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsIn[curRankId] + WIN_PICI_OFFSET +
                                     PICI_WIN_SIZE * dstRankId);
-    // GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
-    //                                 PICI_WIN_SIZE * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
     piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
 
@@ -616,8 +610,6 @@ __aicore__ inline void UpdateIsFirstInComm(GM_ADDR hcclContext, uint32_t curRank
 
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsIn[curRankId] + WIN_PICI_OFFSET +
                                     PICI_WIN_SIZE * dstRankId);
-    // GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
-    //                                 PICI_WIN_SIZE * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
     piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
 
