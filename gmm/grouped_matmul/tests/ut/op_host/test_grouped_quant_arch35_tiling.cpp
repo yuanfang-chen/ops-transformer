@@ -23,12 +23,6 @@
 #include <string>
 #include <vector>
 
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
 #include "../../../op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
 #include "../../../op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #include "tiling_case_executor.h"
@@ -38,25 +32,23 @@ using namespace ge;
 
 namespace {
 
-string GetExeDirPath()
+std::string GetExeDirPath()
 {
-#if defined(_WIN32)
-    char path[MAX_PATH] = {0};
-    auto len = GetModuleFileNameA(nullptr, path, MAX_PATH);
-    string exePath(path, len);
-    auto pos = exePath.find_last_of("\\/");
-    return pos == string::npos ? string(".\\") : exePath.substr(0, pos + 1);
-#else
-    char path[4096] = {0};
-    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
-    if (len <= 0) {
-        return "./";
+    std::string exe_path("./");
+    char path[1024];
+    ssize_t n = readlink("/proc/self/exe", path, sizeof(path));
+    if (n > 0) {
+        path[n] = '\0';
+        exe_path.assign(path);
+        auto pos = exe_path.find_last_of('/');
+        if (pos != std::string::npos) {
+        exe_path.erase(pos + 1);
+        } else {
+        exe_path.assign("./");
+        }
     }
-    path[len] = '\0';
-    string exePath(path);
-    auto pos = exePath.find_last_of('/');
-    return pos == string::npos ? string("./") : exePath.substr(0, pos + 1);
-#endif
+    
+    return exe_path;
 }
 
 string ToLower(string value)
