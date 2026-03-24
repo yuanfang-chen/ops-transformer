@@ -33,6 +33,7 @@ constexpr uint64_t UB_REST_BYTES = 100 * 1024;  // 100KB
 constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
+constexpr uint32_t MAX_PARALLEL_NUM = 8;
 
 struct GDRStageOneInitParams {
     // input
@@ -78,21 +79,21 @@ public:
 
         uint64_t workSpaceOffset = 0;
         gBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                  coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                  coreIdx_ * paraNum_ * chunkSize_ * dk_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * chunkSize_ * dk_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dk_ * sizeof(float);
         kkWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                 coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                 coreIdx_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * chunkSize_ * chunkSize_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float);
         vBetaWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                    coreIdx_ * chunkSize_ * dv_ * sizeof(float)));
+                                                                    coreIdx_ * paraNum_ * chunkSize_ * dv_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * chunkSize_ * dv_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
         attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                   coreIdx_ * chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                   coreIdx_  * paraNum_* chunkSize_ * chunkSize_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * chunkSize_ * chunkSize_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
         queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
                                                                           coreIdx_ * chunkSize_ * dk_ * sizeof(float)));
 
@@ -180,6 +181,9 @@ public:
         chunkSize_ = tiling_->chunkSize;
         dk_ = tiling_->dk;
         dv_ = tiling_->dv;
+        paraNum_ = tiling_->stageOneParaNum;
+        kStep_ = (dk_ + paraNum_ - 1) / paraNum_;
+        vStep_ = (dv_ + paraNum_ - 1) / paraNum_;
         dkAligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         dvAligned_ = (dv_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         scale_ = tiling_->scale;
@@ -216,23 +220,29 @@ public:
             end = start + tailChunkNum;
         }
 
-        for (int32_t taskId = start; taskId < end; ++taskId) {
-            validLen_ = chunkSize_;
-            uint64_t nId   = taskId % nv_;
+        for (int32_t taskId = start; taskId < end; taskId += paraNum_) {
+            uint32_t curParaNum = paraNum_ < end - taskId ? paraNum_ : end - taskId;
+            // 获取每个chunk有效长度
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                validLenBatch_[i] = chunkSize_;
+                uint32_t curTaskId = taskId + i;
+                uint64_t curCgId = taskId / nv_;
+                // 尾chunk处理
+                if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
+                    validLenBatch_[i] = cg_.length % chunkSize_;
+                }
+                if (validLenBatch_[i] < halfChunkSize_) {
+                    subValidLenBatch_[i] = (subBlockIdx_ == 0) ? validLenBatch_[i] : 0;
+                } else {
+                    subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
+                }
+            }
+            uint64_t nId = taskId % nv_;
             uint64_t cgId = taskId / nv_;
-            // 尾chunk处理
-            if (cgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
-                validLen_ = cg_.length % chunkSize_;
-            }
-            if (validLen_ < halfChunkSize_) {
-                subValidRows_ = (subBlockIdx_ == 0) ? validLen_ : 0;
-            } else {
-                subValidRows_ = (subBlockIdx_ == 0) ? halfChunkSize_ : validLen_ - halfChunkSize_;
-            }
             // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
             uint64_t chunkStartRow = cg_.startPos + cgId * chunkSize_;
             SetChunkTensors(nId, cgId, chunkStartRow);
-            ProcessOneChunk();
+            ProcessParaChunk(curParaNum);
         }
     }
 
@@ -271,26 +281,47 @@ private:
         outQkGm_ = outQkBaseGm_[chunkRowBase * chunkSize_];
     }
 
-    __aicore__ inline void ProcessOneChunk()
+    __aicore__ inline void ProcessParaChunk(int32_t curParaNum)
     {
         if ASCEND_IS_AIC {
             AscendC::CrossCoreWaitFlag(0x9);  //同步0
+
             // key @ key.transpose(-1,-2)
-            AICProcess(keyContinousGm_, keyContinousGm_, kkWsGm_, 
-                       chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                uint64_t kOffset = i * chunkSize_ * chunkSize_;
+                AICProcess(keyContinousGm_[kOffset], keyContinousGm_[kOffset], kkWsGm_[kOffset],
+                           chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
+            }
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
+
             // query @ key.transpose(-1,-2)   stage1 out
-            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, validLen_, validLen_, dk_, 
-                       validLen_, validLen_, dk_, true);
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                uint64_t kOffset = i * chunkSize_ * chunkSize_;
+                AICProcess(queryContinousGm_[kOffset], keyContinousGm_[kOffset], outQkGm_[kOffset],
+                           validLenBatch_[i], validLenBatch_[i], dk_, validLenBatch_[i], validLenBatch_[i], dk_, true);
+            }
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
+
             // 求逆左下角矩阵
-            AttnInverseMMCompute(INVERSE_SHAPE);
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                AttnInverseMMCompute(INVERSE_SHAPE, i * chunkSize_ * chunkSize_);
+            }
             AscendC::CrossCoreWaitFlag(0x6);  //同步3
+
             // attn @ k_cumdecay
-            AICProcess(attnWsGm_, gBKWsGm_, outKCumdecayGm_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                uint64_t kOffset = i * chunkSize_ * dk_;
+                AICProcess(attnWsGm_[kOffset], gBKWsGm_[kOffset], outKCumdecayGm_[kOffset],
+                           chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
+            }
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
+
             // attn @ v_beta    stage1 out
-            AICProcess(attnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
+            for (uint32_t i = 0; i < curParaNum; ++i) {
+                uint64_t vOffset = i * chunkSize_ * dv_;
+                AICProcess(attnWsGm_[vOffset], vBetaWsGm_[vOffset], outVInnerGm_[vOffset],
+                           chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
+            }
         }
         if ASCEND_IS_AIV {
             // 获取连续QK
@@ -671,23 +702,23 @@ private:
         }
     }
 
-    __aicore__ inline void AttnInverseMMCompute(uint64_t curLen)
+    __aicore__ inline void AttnInverseMMCompute(uint64_t curLen, uint64_t offset)
     {
         uint64_t leftDown = chunkSize_ * curLen;
         uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[leftDown], attnWsGm_, attnWsGm_[leftDown], 
+        AICProcess(attnWsGm_[offset], attnWsGm_[offset], attnWsGm_[offset],
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown], 
+        AICProcess(attnWsGm_[offset], attnWsGm_[offset], attnWsGm_[offset],
                    chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
     }
 
-    __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z, 
+    __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
                                       uint64_t m, uint64_t n, uint64_t k,
                                       uint64_t sm, uint64_t sn, uint64_t sk, bool transB=false)
     {
@@ -721,6 +752,11 @@ private:
     uint32_t coreNum_;
     float scale_;
     bool gOptional_;
+    uint32_t paraNum_;
+    uint32_t kStep_;
+    uint32_t vStep_;
+    uint32_t validLenBatch_[MAX_PARALLEL_NUM];
+    uint32_t subValidLenBatch_[MAX_PARALLEL_NUM];
 
     // base GM pointers
     GlobalTensor<bfloat16_t> queryBaseGm_;
