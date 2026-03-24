@@ -57,7 +57,7 @@ public:
                                 __gm__ uint8_t *sparseIndices, __gm__ uint8_t* keyScale,
                                 __gm__ uint8_t* valueScale, __gm__ uint8_t *blockTable,
                                 __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
-                                __gm__ uint8_t *key_sink, __gm__ uint8_t *value_sink,
+                                __gm__ uint8_t *keySink, __gm__ uint8_t *valueSink,
                                 __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
                                 const KvQuantSparseFlashAttentionPioneerTilingDataMla *__restrict tiling,
 				                TPipe *tPipe);
@@ -121,7 +121,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *sparseIndices, __gm__ uint8_t* keyScale,
     __gm__ uint8_t* valueScale, __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ,
-    __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *key_sink, __gm__ uint8_t *value_sink,
+    __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *keySink, __gm__ uint8_t *valueSink,
     __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const KvQuantSparseFlashAttentionPioneerTilingDataMla *__restrict tiling,
     TPipe *tPipe)
@@ -153,7 +153,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     /* cube侧不依赖sharedParams的scalar前置 */
     InitMMResBuf();
     if ASCEND_IS_AIC {
-        cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query);
+        cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query, keySink);
         /* wait kfc message */
         CrossCoreWaitFlag<SYNC_MODE, PIPE_S>(15);
         auto tempTilingSSbuf = reinterpret_cast<__ssbuf__ uint32_t*>(0); // 从ssbuf的0地址开始拷贝
@@ -494,6 +494,9 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
                 }
+                if constexpr (hasSink) {
+                    runParam.s2LoopEndIdx += 1;
+                }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
             } else {
                 s2LoopLimit = 0;
@@ -602,10 +605,20 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+    if constexpr (hasSink) {
+        int64_t curS2LoopCnt =runInfo.s2LoopCount - 1;
+        if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+            runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
+            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+        }
+    } else {
+        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+        }
     }
+
+
 }
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_PIONEER_KERNEL_MLA_H
