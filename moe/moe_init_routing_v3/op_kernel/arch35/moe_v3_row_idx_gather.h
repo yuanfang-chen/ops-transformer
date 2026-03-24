@@ -24,8 +24,8 @@ using namespace AscendC;
 class RowIdxGather {
 public:
     __aicore__ inline RowIdxGather(){};
-    __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR workspace, const MoeInitRoutingV3Arch35TilingData *tilingData,
-                                TPipe *tPipe);
+    __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR workspace,
+                                const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -51,6 +51,8 @@ private:
 
     int64_t perCoreElements;
     int64_t lastCoreElements;
+    int64_t totalLength_;
+    int64_t expertTotalCount_;
 };
 
 __simt_vf__ __aicore__ LAUNCH_BOUND(SIMT_THREAD_NUM) inline void ComputeSimt(int64_t elements, int64_t indexBase,
@@ -73,8 +75,10 @@ __aicore__ inline void RowIdxGather::Init(GM_ADDR expandedRowIdx, GM_ADDR worksp
     needCoreNum_ = expertTokensCountTilingData_->needCoreNum;
     perCoreElements_ = expertTokensCountTilingData_->perCoreElements;
     actualExpertNum_ = tilingData->actualExpertNum;
+    totalLength_ = tilingData->n * tilingData->k;
+    expertTotalCount_ = 0;
 
-    expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx);
+    expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx, totalLength_);
     if (blockIdx_ < needCoreNum_ - 1) {
         curCoreElements_ = perCoreElements_;
     } else if (blockIdx_ == needCoreNum_ - 1) {
@@ -82,9 +86,9 @@ __aicore__ inline void RowIdxGather::Init(GM_ADDR expandedRowIdx, GM_ADDR worksp
     }
 
     expertTotalCountGm_.SetGlobalBuffer((__gm__ int32_t *)workspace +
-                                            Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2 +
-                                            Align(actualExpertNum_, sizeof(int32_t)));
-    int64_t expertTotalCount_ = expertTotalCountGm_.GetValue(0);
+                                        Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2 +
+                                        Align(actualExpertNum_, sizeof(int32_t)));
+    expertTotalCount_ = expertTotalCountGm_.GetValue(0);
 
     perCoreElements = Ceil(expertTotalCount_, needCoreNum_);
     needCoreNum_ = Ceil(expertTotalCount_, perCoreElements);
@@ -108,11 +112,10 @@ __aicore__ inline void RowIdxGather::Init(GM_ADDR expandedRowIdx, GM_ADDR worksp
         lastLoopElements_ = perCoreLastLoopElements;
     }
 
-    expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx, actualExpertNum_);
     sortedExpertIndicesGm_.SetGlobalBuffer((__gm__ int32_t *)workspace +
                                                Align(tilingData->n * tilingData->k, sizeof(int32_t)) +
                                                blockIdx_ * perCoreElements,
-                                           actualExpertNum_);
+                                           curCoreElements_);
 
     pipe_->InitBuffer(sortedExpertIndicesInQueue_, 1, AlignBytes(perLoopElements_, sizeof(int32_t)));
     pipe_->InitBuffer(copyOutQueue_, 1, AlignBytes(1, sizeof(int32_t)));
@@ -120,6 +123,11 @@ __aicore__ inline void RowIdxGather::Init(GM_ADDR expandedRowIdx, GM_ADDR worksp
 
 __aicore__ inline void RowIdxGather::Process()
 {
+    if (blockIdx_ == 0) {
+        InitOutput(expandedRowIdxGm_, totalLength_, static_cast<int32_t>(-1));
+    }
+    SyncAll();
+
     if (blockIdx_ < needCoreNum_) {
         int64_t elements = (blockIdx_ == needCoreNum_ - 1 ? lastCoreElements : perCoreElements);
         __gm__ int32_t *sortedExpertIndicesGmAddr = (__gm__ int32_t *)sortedExpertIndicesGm_.GetPhyAddr();

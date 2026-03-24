@@ -25,6 +25,8 @@ constexpr int64_t BUFFER_NUM = 2;
 constexpr int64_t DROP_PAD_MODE = 1;
 constexpr int64_t DROPLESS_MODE = 0;
 
+#define MIRV3_STATIC_QUANT_DEBUG_PRINT(fmt, ...) AscendC::printf("[MIRV3_SQ] " fmt "\n", ##__VA_ARGS__)
+
 template <typename T>
 class MoeV3GatherStaticQuant {
 public:
@@ -58,6 +60,7 @@ private:
     GlobalTensor<int32_t> expandedRowIdxGm_;
     GlobalTensor<float> scaleGm_;
     GlobalTensor<float> offsetGm_;
+    GlobalTensor<int32_t> expertTotalCountGm_;
     GlobalTensor<int32_t> expandedRowIdxIndexGm_;
 
     const MoeV3Arch35GatherOutComputeTilingData *gatherOutTilingData_;
@@ -81,6 +84,8 @@ private:
     float scale_;
     float offset_;
     int64_t expertNum_;
+    int64_t actualExpertNum_;
+    int64_t expertTotalCount_;
     int64_t totalLength_;
     int64_t rowIdxType_;
     int64_t perCoreRow_;
@@ -88,6 +93,7 @@ private:
     int64_t indicesOffset_;
     int64_t inputOffset_;
     int64_t outOffset_;
+    int64_t debugInvalidIndexPrintCount_;
 };
 
 template <typename T>
@@ -116,6 +122,11 @@ template <typename T>
 __aicore__ inline void MoeV3GatherStaticQuant<T>::CopyOutZero(int64_t progress)
 {
     LocalTensor<int32_t> indicesLocal = expandedRowIdxIndexCopyInQueue_.DeQue<int32_t>();
+    if (blockIdx_ == 0 && progress == 0) {
+        MIRV3_STATIC_QUANT_DEBUG_PRINT(
+            "CopyOutZero begin: activateRows=%ld currentLoopRows=%ld firstBoundary=%d secondBoundary=%d", activateRows_,
+            currentLoopRows_, indicesLocal.GetValue(0), (currentLoopRows_ > 0 ? indicesLocal.GetValue(1) : -1));
+    }
     if (blockIdx_ == 0) {
         int32_t curIndex = 0;
         int32_t nextIndex = indicesLocal.GetValue(0);
@@ -208,6 +219,12 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::ScatterCopyOut(int64_t progres
     LocalTensor<int32_t> indicesLocal = expandRowIdxCopyInQueue_.DeQue<int32_t>();
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
 
+    if (blockIdx_ == 0 && progress == 0) {
+        MIRV3_STATIC_QUANT_DEBUG_PRINT("ScatterCopyOut begin: coreRows=%ld perLoopRows=%ld rowLoops=%ld firstRowIdx=%d",
+                                       coreRows_, perLoopRows_, rowLoops_,
+                                       (currentLoopRows_ > 0 ? indicesLocal.GetValue(0) : -1));
+    }
+
     for (int64_t indicesIndex = 0; indicesIndex < currentLoopRows_; indicesIndex++) {
         int64_t rowOffset = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
         int64_t rowIdx = indicesLocal.GetValue(indicesIndex);
@@ -243,6 +260,12 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
     colsTileLength_ = perLoopCols_;
 
+    if (blockIdx_ == 0 && progress == 0) {
+        MIRV3_STATIC_QUANT_DEBUG_PRINT(
+            "GatherCopyOut begin: coreRows=%ld perLoopRows=%ld rowLoops=%ld firstOutIndex=%d activateRows=%ld",
+            coreRows_, perLoopRows_, rowLoops_, (currentLoopRows_ > 0 ? indicesLocal.GetValue(0) : -1), activateRows_);
+    }
+
     for (int64_t colsLoop = 0; colsLoop < colLoops_; colsLoop++) {
         int64_t initialRow = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
         int64_t curLoopRow = 0;
@@ -268,7 +291,14 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
                 curLoopRow++;
                 initialRow++;
 
-                if (outIndex == -1 || (dropPadMode_ == DROPLESS_MODE && outIndex >= activateRows_)) {
+                if (outIndex < 0 || outIndex >= totalLength_ ||
+                    (dropPadMode_ == DROPLESS_MODE && outIndex >= activateRows_)) {
+                    if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 8) {
+                        MIRV3_STATIC_QUANT_DEBUG_PRINT("Gather invalid outIndex=%d totalLength=%ld activateRows=%ld "
+                                                       "progress=%ld colsLoop=%ld row=%ld",
+                                                       outIndex, totalLength_, activateRows_, progress, colsLoop, row);
+                        debugInvalidIndexPrintCount_++;
+                    }
                     continue;
                 }
 
@@ -296,9 +326,11 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     k_ = tilingData->k;
     dropPadMode_ = tilingData->dropPadMode;
     expertNum_ = tilingData->expertNum;
+    actualExpertNum_ = tilingData->actualExpertNum;
     totalLength_ = tilingData->n * tilingData->k;
     activateRows_ = gatherOutTilingData_->activeNum;
     rowIdxType_ = tilingData->rowIdxType;
+    debugInvalidIndexPrintCount_ = 0;
 
     // 初始化每核处理的行数
     perCoreRow_ = Ceil(totalLength_, tilingData->coreNum);
@@ -335,9 +367,25 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     scale_ = scaleGm_.GetValue(0);
     offset_ = offsetGm_.GetValue(0);
 
-    expandedRowIdxIndexGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + Align(totalLength_, sizeof(int32_t)) * 2 +
-                                               Align(expertNum_, sizeof(int32_t)) + blockIdx_ * perCoreRow_,
-                                           coreRows_ + 1);
+    expertTotalCountGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + Align(totalLength_, sizeof(int32_t)) * 2 +
+                                            Align(actualExpertNum_, sizeof(int32_t)),
+                                        1);
+    AscendC::DataCacheCleanAndInvalid<int32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
+        expertTotalCountGm_);
+    expertTotalCount_ = expertTotalCountGm_.GetValue(0);
+
+    if (blockIdx_ == 0) {
+        MIRV3_STATIC_QUANT_DEBUG_PRINT(
+            "Init summary: totalLength=%ld cols=%ld n=%ld k=%ld needCoreNum=%ld perCoreRow=%ld coreRows=%ld "
+            "perLoopRows=%ld rowLoops=%ld perLoopCols=%ld colLoops=%ld dropPadMode=%ld rowIdxType=%ld "
+            "activateRows=%ld expertNum=%ld actualExpertNum=%ld expertTotalCount=%ld",
+            totalLength_, cols_, n_, k_, needCoreNum_, perCoreRow_, coreRows_, perLoopRows_, rowLoops_, perLoopCols_,
+            colLoops_, dropPadMode_, rowIdxType_, activateRows_, expertNum_, actualExpertNum_, expertTotalCount_);
+    }
+
+    int64_t expandedRowIdxIndexBase =
+        Align(totalLength_, sizeof(int32_t)) * 2 + Align(actualExpertNum_, sizeof(int32_t)) + blockIdx_ * perCoreRow_;
+    expandedRowIdxIndexGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + expandedRowIdxIndexBase, coreRows_ + 1);
 
     pipe_->InitBuffer(inputXCopyInQueue_, BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(inputXCopyOutQueue_, BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(int8_t)));
@@ -350,6 +398,22 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
 template <typename T>
 __aicore__ inline void MoeV3GatherStaticQuant<T>::Process()
 {
+    if (blockIdx_ == 0) {
+        MIRV3_STATIC_QUANT_DEBUG_PRINT("Process begin: dropPadMode=%ld rowIdxType=%ld needCoreNum=%ld rowLoops=%ld "
+                                       "expertTotalCount=%ld totalLength=%ld",
+                                       dropPadMode_, rowIdxType_, needCoreNum_, rowLoops_, expertTotalCount_,
+                                       totalLength_);
+    }
+
+    if (dropPadMode_ == DROPLESS_MODE && rowIdxType_ == GATHER) {
+        int64_t zeroStartRow = blockIdx_ * perCoreRow_;
+        if (zeroStartRow < totalLength_) {
+            int64_t zeroRows = Min(perCoreRow_, totalLength_ - zeroStartRow);
+            InitOutput(expandedXGm_[zeroStartRow * cols_], zeroRows * cols_, static_cast<int8_t>(0));
+        }
+        SyncAll();
+    }
+
     if (blockIdx_ < needCoreNum_) {
         currentLoopRows_ = perLoopRows_;
         for (int64_t loop = 0; loop < rowLoops_; loop++) {
@@ -374,4 +438,5 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Process()
 }
 
 } // namespace MoeInitRoutingV3
+#undef MIRV3_STATIC_QUANT_DEBUG_PRINT
 #endif // MOE_V3_GATHER_STATIC_QUANT_H_REGBASE

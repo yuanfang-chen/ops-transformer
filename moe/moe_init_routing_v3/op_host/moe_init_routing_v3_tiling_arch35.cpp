@@ -442,10 +442,11 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
         workspaceSize_ += quantTempWorkspaceSize;
     } else if (quantMode_ == QUANT_MODE_STATIC) {
         // STATIC_QUANT: 需要为expandedRowIdxIndexGm_分配空间
-        // 偏移量计算: Align(totalLength_) * 2 + Align(expertNum_) + perCoreRow_ * coreNum
-        int64_t staticQuantWorkspaceSize = AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t))) * NUM_TWO +
-                                           AlignBytes(expertNum_, static_cast<int64_t>(sizeof(int32_t))) +
-                                           AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
+        // 偏移量计算: Align(totalLength_) * 2 + Align(actualExpertNum_) + perCoreRow_ * coreNum
+        int64_t staticQuantWorkspaceSize =
+            AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t))) * NUM_TWO +
+            AlignBytes(tilingDataPtr_->actualExpertNum, static_cast<int64_t>(sizeof(int32_t))) +
+            AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
         workspaceSize_ += staticQuantWorkspaceSize;
     }
     // 这里workspaceSize_除了计算必要的，还会加上16M的AscendC框架用大小
