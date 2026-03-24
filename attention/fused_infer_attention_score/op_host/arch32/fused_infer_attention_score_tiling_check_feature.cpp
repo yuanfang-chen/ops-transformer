@@ -138,7 +138,8 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureAxisInfo() ||
         ge::GRAPH_SUCCESS != CheckFeatureLearnableSink() ||
-        ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
+        ge::GRAPH_SUCCESS != CheckFeatureHeadDim() ||
+        ge::GRAPH_SUCCESS != CheckFeaturePostQuant()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
