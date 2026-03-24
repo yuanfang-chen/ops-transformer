@@ -383,6 +383,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
     #include <vector>
     #include <thread>
     #include "hccl/hccl.h"
+    #include "aclnn/opdev/fp16_t.h"
     #include "aclnnop/aclnn_trans_matmul_weight.h"
     #include "aclnnop/aclnn_quant_matmul_all_reduce_v3.h"
 
@@ -544,10 +545,10 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
         std::vector<int32_t> biasHostData(biasShapeSize, 1);
         std::vector<float> dequantScaleHostData(dequantScaleShapeSize, 1);
         std::vector<float> pertokenScaleHostData(pertokenScaleShapeSize, 1);
-        std::vector<int16_t> commQuantScale1HostData(commQuantScale1ShapeSize, 1);
-        std::vector<int16_t> commQuantScale2HostData(commQuantScale2ShapeSize, 1);
-        std::vector<int16_t> x3HostData(x3ShapeSize, 1);
-        std::vector<int16_t> outHostData(outShapeSize, 0);
+        std::vector<op::fp16_t> commQuantScale1HostData(commQuantScale1ShapeSize, 1);
+        std::vector<op::fp16_t> commQuantScale2HostData(commQuantScale2ShapeSize, 1);
+        std::vector<op::fp16_t> x3HostData(x3ShapeSize, 1);
+        std::vector<op::fp16_t> outHostData(outShapeSize, 0);
         // 创建 tensor
         ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_INT8, &x1);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
