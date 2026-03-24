@@ -138,7 +138,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequantWeightNZ(
       <td>INT8</td>
       <td>FRACTAL_NZ</td>
       <td>5</td>
-      <td>√</td>
+      <td>-</td>
     </tr>
       <tr>
       <td>weightScale</td>
