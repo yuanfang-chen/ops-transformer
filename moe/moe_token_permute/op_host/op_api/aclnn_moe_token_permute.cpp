@@ -18,7 +18,6 @@
 #include "aclnn_kernels/contiguous.h"
 #include "opdev/tensor_view_utils.h"
 #include "opdev/op_log.h"
-#include "moe_init_routing_v2.h"
 
 using namespace op;
 
@@ -33,16 +32,6 @@ extern "C" {
         }                                          \
         return_expr;                               \
     } while (0)
-
-extern aclnnStatus aclnnInnerMoeInitRoutingV2GetWorkspaceSize(
-    const aclTensor* x, const aclTensor* expertIdx, int64_t activeNumOptional, int64_t expertCapacityOptional,
-    int64_t expertNumOptional, int64_t dropPadModeOptional, int64_t expertTokensCountOrCumsumFlagOptional,
-    bool expertTokensBeforeCapacityFlagOptional, const aclTensor* expandedXOut, const aclTensor* expandedRowIdxOut,
-    const aclTensor* expertTokensCountOrCumsumOutOptional, const aclTensor* expertTokensBeforeCapacityOutOptional,
-    uint64_t* workspaceSize, aclOpExecutor** executor);
-
-extern aclnnStatus aclnnInnerMoeInitRoutingV2(
-    void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
 
 extern aclnnStatus aclnnInnerMoeTokenPermuteGetWorkspaceSize(
     const aclTensor* tokens, const aclTensor* indices, int64_t numOutTokens, bool paddedMode,
