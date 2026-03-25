@@ -50,6 +50,15 @@ constexpr uint32_t IS_TRANS_B = 3;
 constexpr uint32_t COMM_TURN = 4;
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64};
 
+// 判断是否使用All2All通信路径（950架构，标准卡4P场景）
+inline bool isUseAll2AllComm(uint32_t rankDim, NpuArch npuArch)
+{
+    if (npuArch != NpuArch::DAV_3510) {
+        return false;
+    }
+    return rankDim == mc2tiling::STANDARD_CARD_4P;
+}
+
 uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingArgs& args, uint32_t maxTileCnt) const
 {
     // 检查允许通信的最大次数
@@ -71,7 +80,7 @@ uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingAr
 
 CutResult MatmulReduceScatterTilingBase::GetTilingResult()
 {
-    if (mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)) {
+    if (isUseAll2AllComm(args_.rankDim, npuArch_)) {
         MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::REDUCE_SCATTER_VIA_ALL_TO_ALL);
         return scatterTiling.GetTiling();
     } else {
@@ -273,7 +282,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetPlatformInfo()
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
     npuArch_ = ascendcPlatform.GetCurNpuArch();
-    isA2APath_ = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_); // 判断是否走标卡4p路径： (All2All + Vec Reduce)
+    isA2APath_ = isUseAll2AllComm(args_.rankDim, npuArch_);
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     return ge::GRAPH_SUCCESS;
 };
