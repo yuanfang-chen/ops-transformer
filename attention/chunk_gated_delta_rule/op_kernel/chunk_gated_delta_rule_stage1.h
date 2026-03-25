@@ -736,7 +736,7 @@ private:
     __aicore__ inline void AttnInverseMMCompute(uint64_t curLen, uint64_t offset)
     {
         uint64_t leftDown = offset + chunkSize_ * curLen;
-        uint64_t rightDown = offset + leftDown + curLen;
+        uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
         InverseAICProcess(attnWsGm_[leftDown], attnWsGm_[offset], attnWsGm_[leftDown], curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
