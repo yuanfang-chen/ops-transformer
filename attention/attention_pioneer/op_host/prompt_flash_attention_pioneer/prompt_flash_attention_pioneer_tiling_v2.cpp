@@ -2670,7 +2670,6 @@ bool PromptFlashAttentionPioneerTilingV2::CheckSparseMode(ContextParamsForPFATil
 }
 
 bool PromptFlashAttentionPioneerTilingV2::CheckSinkLength(ContextParamsForPFATiling& contextKeyParams) {
-    int64_t sinkLength = 0;
     if (contextKeyParams.keySinkInputShape != nullptr) {
         sinkLength = contextKeyParams.keySinkInputShape->GetStorageShape().GetDim(0);
     } else {
@@ -3025,7 +3024,6 @@ bool PromptFlashAttentionPioneerTilingV2::ParseActualSeqLengths(ContextParamsFor
 bool PromptFlashAttentionPioneerTilingV2::CheckSinkLengthCrossover(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo)
 {
-    int64_t sinkLength = 0;
     if (contextKeyParams.keySinkInputShape != nullptr) {
         sinkLength = contextKeyParams.keySinkInputShape->GetStorageShape().GetDim(0);
     } else {
@@ -3036,17 +3034,6 @@ bool PromptFlashAttentionPioneerTilingV2::CheckSinkLengthCrossover(ContextParams
     }
     OP_CHECK_IF(sinkLength != 128, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "sinkLength = %ld is invalid, only support 128", sinkLength), return false);
-    if (enableActSeqLenKV && !enableTensorList) {
-        const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
-        uint32_t actSeqLenKVSize = std::min(static_cast<uint32_t>(actSeqLenKVDims), queryShapeInfo.b);
-        for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLenKVSize; ++i) {
-            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[i] < sinkLength,
-                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "actual_seq_lengths_kv[%u](%ld) must be greater than or equal to sinkLength(%ld)",
-                i, actSeqLenKV->GetData<int64_t>()[i], sinkLength),
-                return false);
-        }
-    }
     OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "dtype only can be bf16 or fp16"), return false);
