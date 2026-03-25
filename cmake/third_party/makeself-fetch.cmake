@@ -66,7 +66,7 @@ else()
     )
 
     execute_process(
-        # COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
+        COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_SOURCE_DIR}/third_party
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"	 
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself-header.sh"
