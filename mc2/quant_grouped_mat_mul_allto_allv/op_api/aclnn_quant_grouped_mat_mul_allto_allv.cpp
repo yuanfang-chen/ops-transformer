@@ -468,29 +468,6 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
     const aclTensor *y, const aclTensor *mmYOptional, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    // MX 量化场景通过 stride 检测 weight/scale 的转置状态
-    bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
-
-    if (isMxQuant) {
-        OP_LOGD("MX quant mode: transGmmWeight(input)=%d, transMmWeight(input)=%d", transGmmWeight, transMmWeight);
-
-        // MX Scale Shape 校验
-        auto scaleRet = CheckMxScaleShape(gmmWeightScaleOptional, "gmmWeightScale");
-        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
-        scaleRet = CheckMxScaleShape(mmWeightScaleOptional, "mmWeightScale");
-        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
-
-        // 检测 weight stride 转置，同时 reshape weight 和 scale
-        auto transRet = HandleGmmMxTranspose(gmmWeight, gmmWeightScaleOptional, transGmmWeight);
-        CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
-        if (mmWeightOptional != nullptr) {
-            transRet = HandleMmMxTranspose(mmWeightOptional, mmWeightScaleOptional, transMmWeight);
-            CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
-        }
-
-        OP_LOGD("Final: transGmmWeight=%d, transMmWeight=%d", transGmmWeight, transMmWeight);
-    }
-
     auto retParam = CheckParams(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, sendCountsTensorOptional,
                                 recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
                                 mmWeightScaleOptional, gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode,
@@ -499,12 +476,27 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     auto retSendAndRecv = CheckSendAndRecv(sendCounts, recvCounts);
     CHECK_RET(retSendAndRecv == ACLNN_SUCCESS, retSendAndRecv);
-
     char *strGroup = const_cast<char *>(group);
-
     int64_t yDtype = y->GetDataType();
     int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
-
+    // MX 量化场景通过 stride 检测 weight/scale 的转置状态
+    bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
+    if (isMxQuant) {
+        OP_LOGD("MX quant mode: transGmmWeight(input)=%d, transMmWeight(input)=%d", transGmmWeight, transMmWeight);
+        // MX Scale Shape 校验
+        auto scaleRet = CheckMxScaleShape(gmmWeightScaleOptional, "gmmWeightScale");
+        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
+        scaleRet = CheckMxScaleShape(mmWeightScaleOptional, "mmWeightScale");
+        CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
+        // 检测 weight stride 转置，同时 reshape weight 和 scale
+        auto transRet = HandleGmmMxTranspose(gmmWeight, gmmWeightScaleOptional, transGmmWeight);
+        CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+        if (mmWeightOptional != nullptr) {
+            transRet = HandleMmMxTranspose(mmWeightOptional, mmWeightScaleOptional, transMmWeight);
+            CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+        }
+        OP_LOGD("Final: transGmmWeight=%d, transMmWeight=%d", transGmmWeight, transMmWeight);
+    }
     aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
         gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional, commQuantScaleOptional,

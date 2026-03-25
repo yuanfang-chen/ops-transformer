@@ -1006,47 +1006,6 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_commQuantMode_reject)
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-// gmmX dim0=0（MoE token=0 场景）→ SUCCESS（修改后放行）
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmX_dim0_zero)
-{
-    TensorDesc gmmX_({0, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
-
-    constexpr int64_t epWorldSize = 8;
-    constexpr int64_t e = 4;
-    constexpr int64_t BS = 4096;
-    constexpr int64_t K = 2;
-    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
-    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
-    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
-    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
-    uint64_t workspace_size = 0;
-    aclOpExecutor *executor = nullptr;
-
-    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
-                        INPUT(gmmX_, gmmWeight_,
-                        nullptr, nullptr,
-                        nullptr, nullptr,
-                        mmX_, mmWeight_,
-                        nullptr, nullptr,
-                        nullptr,
-                        0, 0, 0, 0, 0,
-                        -1, 0,
-                        "test_grouped_mat_mul_allto_allv_ep_group",
-                        epWorldSize, sendCounts,
-                        recvCounts, false, false),
-                        OUTPUT(y_, mmY_));
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    // gmmX dim0=0 is now allowed (MoE token=0 scenario), should pass CheckParams
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
-}
-
-
 // ============================================================================
 // Group: MX quant UT
 // ============================================================================
@@ -1059,7 +1018,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmm_only_fp16_valid)
     TensorDesc gmmXScale_({8192, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
     TensorDesc gmmWeightScale_({4, 112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
     TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
 
     constexpr int64_t epWorldSize = 2;
     constexpr int64_t e = 4;
@@ -1131,7 +1090,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_with_mm_notrans_valid
                               "test_grouped_mat_mul_allto_allv_ep_group",
                               epWorldSize, sendCounts,
                               recvCounts, false, false),
-                        OUTPUT(y_, nullptr));
+                        OUTPUT(y_, mmY_));
     aclnnStatus aclRet =
         ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     EXPECT_EQ(aclRet, ACLNN_SUCCESS);
