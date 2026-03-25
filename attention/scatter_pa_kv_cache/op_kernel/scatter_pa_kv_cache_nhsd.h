@@ -61,7 +61,7 @@ public:
         int64_t blockOffset = 0;
         uint32_t keyCacheStride = static_cast<uint32_t>((blockSize - 1) * kHeadSize);
         uint32_t valueCacheStride = static_cast<uint32_t>((blockSize - 1) * vHeadSize);
-        if (this->blockIdx < this->blockIdx - 1) {
+        if (this->blockIdx < useCoreNum - 1) {
             perCoreDoRowWork = blockFactor;
         } else {
             perCoreDoRowWork = tailBlockFactor;
@@ -89,7 +89,7 @@ private:
     __aicore__ inline void ParseTilingData(const ScatterPaKvCacheTilingData* tilingData) {
         blockFactor = tilingData->blockFactor;
         tailBlockFactor = tilingData->tailBlockFactor;
-
+        useCoreNum = tilingData->usedCoreNum;
         numTokens = tilingData->numTokens;
         numHead = tilingData->numHead;
         kHeadSize = tilingData->kHeadSize;
@@ -149,7 +149,7 @@ private:
     int64_t numBlocks;
     int64_t blockSize;
     int32_t blockIdx;
-
+    int64_t useCoreNum;
     int64_t keyInOffset = 0;
     int64_t valueInOffset = 0;
     int64_t slotmappingOffset = 0;
