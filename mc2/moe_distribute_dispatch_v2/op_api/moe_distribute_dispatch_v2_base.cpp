@@ -25,6 +25,7 @@
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2MoeDistributeContext;
+using namespace MC2Aclnn;
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -170,7 +171,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     } else {
         uint64_t hcclBuffSize = 0;
-        const char * opName = "moe_distribute_dispatch_v2";
+        const char* opName = "moe_distribute_dispatch_v2";
         auto ret = GetMc2ContextTensor(groupEp, opName, hcclBuffSize, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes =  aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
