@@ -53,6 +53,7 @@ __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __
                                                     __gm__ uint8_t* actualSharedPrefixLen, __gm__ uint8_t* queryRope, __gm__ uint8_t* keyRope,
                                                     __gm__ uint8_t* keyRopeAntiquantScale, __gm__ uint8_t* dequantScaleQuery,
                                                     __gm__ uint8_t* learnableSink, __gm__ uint8_t* qStartIdx, __gm__ uint8_t* kvStartIdx,
+                                                    __gm__ uint8_t* alibiCoeff,
                                                     __gm__ uint8_t* attentionOut, __gm__ uint8_t* softmaxLse, __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
     if (quantMode >= FullQuantTiling) {

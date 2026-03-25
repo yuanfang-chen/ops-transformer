@@ -519,6 +519,11 @@ public:
             .DataTypeList({ge::DT_INT64})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
+        this->Input("alibi_coeff")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
         this->Output("attention_out")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
@@ -557,6 +562,8 @@ public:
         this->Attr("query_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("pse_type").AttrType(OPTIONAL).Int(0);
         this->Attr("out_dtype").AttrType(OPTIONAL).Int(0);
+        this->Attr("alibi_left_align").AttrType(OPTIONAL).Bool(false); // todo 需要确认950的config里是不是需要加这个参数，找永光哥确认
+        this->Attr("is_alibi_mask_sqrt").AttrType(OPTIONAL).Bool(false);
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
