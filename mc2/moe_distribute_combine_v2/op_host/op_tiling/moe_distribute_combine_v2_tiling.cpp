@@ -144,7 +144,7 @@ namespace {
         INT12_QUANT = 1,
         INT8_QUANT = 2,
         MXFP8_E5M2_QUANT = 3,
-        MXFP8_E4M5_QUANT = 4
+        MXFP8_E4M3_QUANT = 4
     };
     using CommQuantModeType = std::underlying_type_t<CommQuantMode>;
 }

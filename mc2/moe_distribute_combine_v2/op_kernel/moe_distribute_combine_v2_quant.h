@@ -272,7 +272,7 @@ public:
         else if constexpr (QuantMode == MXFP8_E5M2_COMM_QUANT) {
             DeQuantMxFp8<fp8_e5m2_t>(inLocal, sumTensor);
         } else if constexpr(QuantMode == MXFP8_E4M3_COMM_QUANT) {
-            DeQuantMxFp8<fp8_e4m3_t>(inLocal, sumTensor);
+            DeQuantMxFp8<fp8_e4m3fn_t>(inLocal, sumTensor);
         }
         #endif
     }
