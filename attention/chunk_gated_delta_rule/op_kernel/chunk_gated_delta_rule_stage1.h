@@ -138,10 +138,10 @@ public:
         qUbFloat_ = gBroadUbFloat_;
         buffOffset += chunkSize_ * maxLen_ * sizeof(float) * paraNum_;
         
-        gTransBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen_ * paraNum_), buffOffset);
+        gTransBroadUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen_), buffOffset);
         attnUbFloat_ = gTransBroadUbFloat_;
         gCumExpBroadUbFloat_ = gTransBroadUbFloat_;
-        buffOffset += chunkSize_ * maxLen_ * sizeof(float) * paraNum_;
+        buffOffset += chunkSize_ * maxLen_ * sizeof(float);
 
         qUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_ * paraNum_), buffOffset);
         buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float) * paraNum_;
