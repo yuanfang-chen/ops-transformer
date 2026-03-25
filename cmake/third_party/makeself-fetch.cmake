@@ -10,6 +10,7 @@
 
 set(MAKESELF_NAME "makeself")
 set(MAKESELF_PATH ${CANN_3RD_LIB_PATH}/makeself)
+
 # 默认配置的makeself还是不存在则下载
 if (NOT EXISTS "${MAKESELF_PATH}/makeself-header.sh" OR NOT EXISTS "${MAKESELF_PATH}/makeself.sh")
     set(MAKESELF_DOWNLOAD_URL "https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz")
@@ -44,8 +45,14 @@ if (NOT EXISTS "${MAKESELF_PATH}/makeself-header.sh" OR NOT EXISTS "${MAKESELF_P
     )
 else()
     execute_process(
+        COMMAND ls -R ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+    execute_process(
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
-        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"
+        COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_SOURCE_DIR}/third_party
+        COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"	 
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself-header.sh"
         RESULT_VARIABLE CHMOD_RESULT
         ERROR_VARIABLE CHMOD_ERROR

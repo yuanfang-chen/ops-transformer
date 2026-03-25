@@ -104,7 +104,7 @@ ge::graphStatus FpMatmulAllToAllTilingBaseA3::CheckA3NonQuantTensorDataType(cons
  	                Ops::Base::ToString(biasDtype).c_str()); return ge::GRAPH_FAILED;
  	    }
  	}
-	 // 校验 scale 张量为空（非量化场景
+	 // 校验 scale 张量为空（非量化场景)
  	auto x1ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
  	auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
  	OP_TILING_CHECK((x1ScaleTensorDesc != nullptr || x2ScaleTensorDesc != nullptr),
