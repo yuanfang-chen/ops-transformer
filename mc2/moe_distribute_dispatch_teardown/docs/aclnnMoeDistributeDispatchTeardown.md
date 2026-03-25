@@ -312,14 +312,15 @@ aclnnStatus aclnnMoeDistributeDispatchTeardown(
 
     - <term>Ascend 950PR/Ascend 950DT</term>：
         - groupEp 字符串长度范围为[1, 128)。
-        - epWorldSize 取值范围[2, 384]。
+        - epWorldSize 取值范围[2, 384]。当前仅支持2、8。
         - epRankId 取值范围[0, epWorldSize)。同一个EP通信域中各卡的epRankId不能重复。
         - moeExpertNum 取值范围(0, 512]。
         - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
         - sharedExpertNum 当前取值范围[0, 4]。
         - sharedExpertRankNum 取值范围[0, epWorldSize / 2]。
         - globalBs 当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs = 0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。
-        - commType 当前仅支持0。
+        - expertTokenNumsType当前仅支持1。
+        - commType 当前仅支持2。
         - commAlg 当前版本不支持，传空指针即可。
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
@@ -431,21 +432,20 @@ aclnnStatus aclnnMoeDistributeDispatchTeardown(
 4. 参数说明里shape格式说明：
     * A：表示本卡可能接收的最大token数量，取值范围如下：
       
-      * 对于共享专家，
       * 对于MoE专家，当globalBs为0时，要满足A >= `BS` \* `epWorldSize` \* min(`localExpertNum`, `K`)；当`globalBs`非0时，要满足A >= `globalBs` \* min(`localExpertNum`, `K`)。
       * 对于共享专家，当`globalBs`为0时，要满足A = `BS` \* `epWorldSize` \* `sharedExpertNum` / `sharedExpertRankNum`；当globalBs非0时，要满足A = `globalBs` * `sharedExpertNum` / `sharedExpertRankNum`。
-    * H：表示hidden size隐藏层大小，取值范围[1024, 8192]。
-    * BS：表示batch sequence size，即本卡最终输出的token数量，取值范围为0 < `BS` ≤ 512。
-    * K：表示选取topK个专家，取值范围为0 < `K` ≤ 16同时满足0 < `K` ≤ `moeExpertNum`。
+    * H：表示hidden size隐藏层大小，取值范围[1024, 8192]。当前仅支持4096、7168。
+    * BS：表示batch sequence size，即本卡最终输出的token数量，取值范围为0 < `BS` ≤ 512。当前仅支持8、16、256。
+    * K：表示选取topK个专家，取值范围为0 < `K` ≤ 16同时满足0 < `K` ≤ `moeExpertNum`。当前仅支持6、8。
     * localExpertNum：表示本卡专家数量。
       
       * 对于共享专家卡，localExpertNum = 1
-      * 对于MoE专家卡，localExpertNum = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)。
+      * 对于MoE专家卡，localExpertNum = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)。moeExpertNum当前仅支持32。
     * tokenMsgSize：表示每个token在数据通信时的维度信息。
       * 非量化场景下，tokenMsgSize = Align256(H)。
       * 量化场景下，tokenMsgSize = Align512(Align32(H) + 4 )，其中AlignN(x) = ((x + N - 1) / N) * N。
 
-    * 当前版本暂不支持共享专家。
+    * 当前版本暂不支持共享专家。sharedExpertNum和sharedExpertRankNum当前仅支持0。
 
 5. HCCL_BUFFSIZE：
     - <term>Ascend 950PR/Ascend 950DT</term>：
