@@ -426,14 +426,14 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
   - A：表示本卡需要分发的最大token数量，取值范围如下：
     - 对于共享专家，要满足A = BS \* epWorldSize \* sharedExpertNum / sharedExpertRankNum；当globalBs非0时，要满足A = globalBs\* sharedExpertNum / sharedExpertRankNum。
     - 对于MoE专家，当globalBs为0时，要满足A >= BS \* epWorldSize \* min(localExpertNum, K)；当globalBs非0时，要满足A >= globalBs \* min(localExpertNum, K)。
-  - H：表示hidden size隐藏层大小。取值为[1024, 8196]。当前仅支持4096。
+  - H：表示hidden size隐藏层大小。取值为[1024, 8196]。当前仅支持4096、7168。
   - HS：表示通信时的数据大小，Align512( Align32(H) + Align8(H) / 8 *sizeof(float) )，其中Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32，Align8(x) = ((x + 8 - 1) / 8) \* 8。
-  - BS：表示batch sequence size，即本卡最终输出的token数量。取值范围为0 < BS ≤ 512。当前仅支持16。
-  - K：表示选取topK个专家，取值范围为0 < K ≤ 16同时满足0 < K ≤ moeExpertNum。当前仅支持6。
+  - BS：表示batch sequence size，即本卡最终输出的token数量。取值范围为0 < BS ≤ 512。当前仅支持8、16、256。
+  - K：表示选取topK个专家，取值范围为0 < K ≤ 16同时满足0 < K ≤ moeExpertNum。当前仅支持6、8。
   - localExpertNum：表示本卡专家数量。
     - 对于共享专家卡，localExpertNum = 1
-    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)。
-  - 当前不支持共享专家。
+    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)。moeExpertNum当前仅支持32。
+  - 当前不支持共享专家。sharedExpertNum和sharedExpertRankNum当前仅支持0。
 - HCCL_BUFFSIZE：
   调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
   - Ascend 950PR/Ascend 950DT：
