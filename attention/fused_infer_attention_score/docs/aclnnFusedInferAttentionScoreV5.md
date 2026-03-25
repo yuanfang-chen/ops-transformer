@@ -1469,6 +1469,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>在MLA全量化场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N,
  	                        blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
                         <li>在MLA全量化场景下，当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式</li>
+                        <li>在MLA全量化场景下，当query dtype为INT8时，kv cache排布仅支持NZ格式</li>
                         <li>伪量化场景下，当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv
                             cache排布为（blocknum，KV_N，D/2，blocksize，2）</li>
                         <li>GQA全量化场景不支持PagedAttention</li>
