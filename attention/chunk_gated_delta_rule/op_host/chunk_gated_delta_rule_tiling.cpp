@@ -316,6 +316,20 @@ namespace optiling {
                 return ge::GRAPH_FAILED;
             }
 
+        // 校验空 Tensor（ShapeSize=0）
+        OP_CHECK_IF(queryShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "query tensor is empty"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(keyShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "key tensor is empty"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(valueShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "value tensor is empty"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(betaShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "beta tensor is empty"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(stateShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "state tensor is empty"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(cuSeqlensShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "actual_seq_lengths tensor is empty"),
+            return ge::GRAPH_FAILED);
+
         if (!CheckDimEqual(queryShape, DIM_0, keyShape, DIM_0, "query", "key", "T dimension") ||
             !CheckDimEqual(queryShape, DIM_1, keyShape, DIM_1, "query", "key", "Nk dimension") ||
             !CheckDimEqual(queryShape, DIM_2, keyShape, DIM_2, "query", "key", "Dk dimension") ||
@@ -345,12 +359,22 @@ namespace optiling {
         tilingData_.dv = valueShape.GetDim(DIM_2);
         tilingData_.b = cuSeqlensShape.GetDim(DIM_0);
 
-        OP_CHECK_IF(tilingData_.nk == 0,  // 防止 nk == 0 造成取模除零
-                OP_LOGE(inputParams_.opName, "nk should be greater than 0"), return ge::GRAPH_FAILED);
+        // 校验各维度值必须大于0
+        OP_CHECK_IF(tilingData_.t <= 0 || tilingData_.b <= 0 || tilingData_.nk <= 0 ||
+                    tilingData_.dk <= 0 || tilingData_.nv <= 0 || tilingData_.dv <= 0,
+                OP_LOGE(inputParams_.opName, "T, B, Nk, Dk, Nv, Dv should be greater than 0, "
+                        "but T=%ld, B=%ld, Nk=%ld, Dk=%ld, Nv=%ld, Dv=%ld",
+                        tilingData_.t, tilingData_.b, tilingData_.nk,
+                        tilingData_.dk, tilingData_.nv, tilingData_.dv),
+                return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(tilingData_.nk > 64 || tilingData_.nv > 64,  // 约束 nk/nv 不超过 64
                 OP_LOGE(inputParams_.opName, "nk and nv should no bigger than 64, but nk is %ld, nv is %ld",
                         tilingData_.nk, tilingData_.nv), return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF(tilingData_.dv > 128 || tilingData_.dk > 128,  // 约束 dv/dk 不超过 128
+                OP_LOGE(inputParams_.opName, "dv and dk should be no bigger than 128, but dv is %ld, dk is %ld",
+                        tilingData_.dv, tilingData_.dk), return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(tilingData_.nv % tilingData_.nk != 0,  // 约束 nv 是 nk 的整数倍
                 OP_LOGE(inputParams_.opName, "nv should be an integer multiple of nk, but nv is %ld, nk is %ld",
