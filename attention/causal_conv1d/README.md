@@ -18,6 +18,7 @@
 - 本算子支持以下场景：
 
   - 场景一（prefill场景）：
+
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
@@ -30,9 +31,11 @@
     y: [cu_seq_len, dim]
     runMode: 0
     ```
+
     其中cu_seq_len为batch内所有变长序列拼接后的总长度，每个序列卷积前使用长度为K-1的缓存数据对序列头部进行padding，保证因果性。
 
   - 场景二（decode场景 - 变长序列）：
+
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
@@ -47,6 +50,7 @@
     ```
 
   - 场景三（decode场景 - 固定batch）：
+  
     ```
     x: [batch, m+1, dim]
     weight: [K, dim]，其中K=3
