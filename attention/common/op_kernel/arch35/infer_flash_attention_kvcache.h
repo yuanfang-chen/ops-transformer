@@ -439,12 +439,12 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
         runParam.s1RealSize = 0;
     } else {
         if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
-            s1LoopTimes = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
+            runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
         } else {
             if (constInfo.isGqa) {
-                s1LoopTimes = Min((uint32_t)s1TemplateType, runParam.actualS1Size * constInfo.gSize - cubeSOuterOffset);
+                runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size * constInfo.gSize - cubeSOuterOffset);
             } else {
-                s1LoopTimes = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
+                runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
             }
         }
     }
