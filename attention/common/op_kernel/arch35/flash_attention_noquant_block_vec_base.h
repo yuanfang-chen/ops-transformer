@@ -761,15 +761,19 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                                 layout == LayOutTypeEnum::LAYOUT_BSH ||
                                 layout == LayOutTypeEnum::LAYOUT_SBH) {
                     maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
+                    maskInfo.s2dealNum = runInfo.s2RealSize;
+                    maskInfo.layout = LAYOUT_Q::SG;
+
                 } else {
                     maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
+                    maskInfo.s2dealNum = s2BaseSize;
+                    maskInfo.layout = LAYOUT_Q::GS;
                 }
                 maskInfo.gs1dealNum =
                     (constInfo.subBlockIdx == 0) ? runInfo.firstHalfS1RealSize : runInfo.halfS1RealSize;
                 maskInfo.s1Size = runInfo.actualS1Size;
                 maskInfo.gSize = constInfo.gSize;
                 maskInfo.s2StartIdx = runInfo.s2LoopCount * s2BaseSize;
-                maskInfo.s2dealNum = runInfo.s2RealSize;
                 maskInfo.s2Size = runInfo.actualS2Size;
                 maskInfo.preToken = runInfo.preTokensPerBatch;
                 maskInfo.nextToken = runInfo.nextTokensPerBatch;
@@ -777,11 +781,6 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.attenMaskBatchStride = attenMaskInfoPtr->attenMaskShapeType == 1 ? attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size : 0;
                 maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
-                if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
-                    maskInfo.layout = LAYOUT_Q::SG;
-                } else {
-                    maskInfo.layout = LAYOUT_Q::GS;
-                }
                 maskInfo.attenMaskType = MaskDataType::MASK_BOOL;
                 uint8_t sparseMode = (attenMaskInfoPtr->compressMode == 0) ?            // sparseMode与compressMode定义不同
                     attenMaskInfoPtr->compressMode : attenMaskInfoPtr->compressMode + 1;
