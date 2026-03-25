@@ -87,7 +87,8 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnBlockSparseAttentionGradGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnBlockSparseAttentionGrad"接口执行计算。
 
-<pre class="language-none"><div class="lineNumberForCode"></div><code class="language-c++ hljs language-none">aclnnStatus aclnnBlockSparseAttentionGradGetWorkspaceSize(
+```Cpp
+aclnnStatus aclnnBlockSparseAttentionGradGetWorkspaceSize(
   const aclTensor   *dout,
   const aclTensor   *query,
   const aclTensor   *key,
@@ -111,20 +112,21 @@ BlockSparseAttentionGrad输入dout、 query、key、value, attentionOut的数据
   aclTensor         *dv,
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
-</code><span></span></pre>
+```
 
-<pre class="language-none"><div class="lineNumberForCode"></div><code class="language-c++ hljs language-none">aclnnStatus aclnnBlockSparseAttentionGrad(
+```Cpp
+aclnnStatus aclnnBlockSparseAttentionGrad(
   void             *workspace,
   uint64_t          workspaceSize,
   aclOpExecutor    *executor,
   const aclrtStream stream)
-</code><span></span></pre>
+```
 
 ### aclnnBlockSparseAttentionGradGetWorkspaceSize
 
 * **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1550px">
-<colgroup>
+
+<table style="undefined;table-layout: fixed; width: 1550px"><colgroup>
     <col style="width: 170px">
     <col style="width: 120px">
     <col style="width: 271px">
