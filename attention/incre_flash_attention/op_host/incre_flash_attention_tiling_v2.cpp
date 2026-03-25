@@ -2709,15 +2709,15 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
         "if inputKvType is Int8, inputQType and outputType only must be FP16, now inputQType is %s, outputType is %s.",
                 optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
           return ge::GRAPH_FAILED);
-      OP_CHECK_IF((antiquantMode_ == PER_TOKEN_MODE || antiquantMode_ == PER_TOKEN_PA_MODE)
-                  && (inputKvType_ == ge::DT_FLOAT8_E4M3FN && (outputType_ != ge::DT_BF16 && outputType_ != ge::DT_FLOAT16)),
-        OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 1 or 4, if data type of key/value is float8_e4m3, post quant is not supported."),
-          return ge::GRAPH_FAILED);      
       if (CheckAntiQuantParam(valueAntiquantMode, valueAntiquantScaleTensor, valueAntiquantOffsetTensor,
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
       }
     }
+    OP_CHECK_IF((antiquantMode_ == PER_TOKEN_MODE || antiquantMode_ == PER_TOKEN_PA_MODE)
+                  && (inputKvType_ == ge::DT_FLOAT8_E4M3FN && (outputType_ != ge::DT_BF16 && outputType_ != ge::DT_FLOAT16)),
+        OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 1 or 4, if data type of key/value is float8_e4m3, post quant is not supported."),
+          return ge::GRAPH_FAILED);
     OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && inputLayout_ == IfaLayout::TND),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
                         "the layout of input does not support TND."),
