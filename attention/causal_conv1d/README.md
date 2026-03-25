@@ -22,14 +22,14 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [-1, K-1, dim]
-    queryStartLoc: [batch+1]
-    cacheIndices: [batch]
-    initialStateMode: [batch]
+    conv_states: [-1, K-1, dim]
+    query_start_loc: [batch+1]
+    cache_indices: [batch]
+    initial_state_mode: [batch]
     bias: [dim]（无作用）
-    numAcceptedTokens: [batch]（无作用）
+    num_accepted_tokens: [batch]（无作用）
     y: [cu_seq_len, dim]
-    runMode: 0
+    run_mode: 0
     ```
 
     其中cu_seq_len为batch内所有变长序列拼接后的总长度，每个序列卷积前使用长度为K-1的缓存数据对序列头部进行padding，保证因果性。
@@ -39,14 +39,14 @@
     ```
     x: [cu_seq_len, dim]
     weight: [K, dim]，其中K=3
-    convStates: [-1, K-1, dim]
-    queryStartLoc: [batch+1]
-    cacheIndices: [batch]
-    initialStateMode: [batch]
+    conv_states: [-1, K-1, dim]
+    query_start_loc: [batch+1]
+    cache_indices: [batch]
+    initial_state_mode: [batch]
     bias: [dim]（无作用）
-    numAcceptedTokens: [batch]（用于投机解码）
+    num_accepted_tokens: [batch]（用于投机解码）
     y: [cu_seq_len, dim]
-    runMode: 1
+    run_mode: 1
     ```
 
   - 场景三（decode场景 - 固定batch）：
@@ -54,14 +54,14 @@
     ```
     x: [batch, m+1, dim]
     weight: [K, dim]，其中K=3
-    convStates: [-1, K-1, dim]
-    queryStartLoc: [batch+1]（无作用）
-    cacheIndices: [batch]
-    initialStateMode: [batch]
+    conv_states: [-1, K-1, dim]
+    query_start_loc: [batch+1]（无作用）
+    cache_indices: [batch]
+    initial_state_mode: [batch]
     bias: [dim]（无作用）
-    numAcceptedTokens: [batch]（用于投机解码，m为投机token个数）
+    num_accepted_tokens: [batch]（用于投机解码，m为投机token个数）
     y: [batch, m+1, dim]
-    runMode: 1
+    run_mode: 1
     ```
 
 - 计算公式：
@@ -125,32 +125,32 @@
         <td>weight</td>
         <td>输入</td>
         <td>因果1维卷积核，K固定为3，对应公式中w。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>数据类型与x一致</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>convStates</td>
+        <td>conv_states</td>
         <td>输入/输出</td>
         <td>缓存状态张量，存储各序列的历史token数据，各序列计算完成后原地更新，对应公式中cacheState。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>数据类型与x一致</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>queryStartLoc</td>
+        <td>query_start_loc</td>
         <td>可选输入</td>
-        <td>序列起始位置索引，记录各序列在拼接张量x中的起始位置。queryStartLoc[i]表示第i个序列的起始偏移。</td>
+        <td>序列起始位置索引，记录各序列在拼接张量x中的起始位置。query_start_loc[i]表示第i个序列的起始偏移。</td>
         <td>INT32</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>cacheIndices</td>
+        <td>cache_indices</td>
         <td>可选输入</td>
-        <td>缓存索引，指定每个序列对应的缓存状态在convStates中的索引。</td>
+        <td>缓存索引，指定每个序列对应的缓存状态在conv_states中的索引。</td>
         <td>INT32</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>initialStateMode</td>
+        <td>initial_state_mode</td>
         <td>可选输入</td>
         <td>初始状态标志，表示各序列是否使用缓存数据：0=零填充，1=使用缓存，2=使用缓存但前K-1个输出置0。</td>
         <td>INT32</td>
@@ -160,39 +160,39 @@
         <td>bias</td>
         <td>可选输入</td>
         <td>卷积的偏置。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>数据类型与x一致</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>numAcceptedTokens</td>
+        <td>num_accepted_tokens</td>
         <td>可选输入</td>
         <td>decode场景下的投机token个数。</td>
         <td>INT32</td>
         <td>ND</td>
       </tr>
       <tr>
-        <td>activationMode</td>
+        <td>activation_mode</td>
         <td>属性</td>
         <td>激活函数类型，取值为0、1、2。<br>0：None；<br>1：silu；<br>2：swish。</td>
         <td>INT</td>
         <td>-</td>
       </tr>
       <tr>
-        <td>padSlotId</td>
+        <td>pad_slot_id</td>
         <td>属性</td>
-        <td>用于跳过不需要参与计算的batch，-1表示不跳过。当cacheIndices[i]==padSlotId时跳过该batch。</td>
+        <td>用于跳过不需要参与计算的batch，-1表示不跳过。当cache_indices[i]==pad_slot_id时跳过该batch。</td>
         <td>INT</td>
         <td>-</td>
       </tr>
       <tr>
-        <td>runMode</td>
+        <td>run_mode</td>
         <td>属性</td>
         <td>用于判断是prefill场景或decode场景，取值为0、1。<br>0：prefill场景；<br>1：decode场景。</td>
         <td>INT</td>
         <td>-</td>
       </tr>
       <tr>
-        <td>residualConnection</td>
+        <td>residual_connection</td>
         <td>属性</td>
         <td>是否做残差连接，取值为0、1。<br>0：不做残差连接；<br>1：输出y和输入x相加后输出。</td>
         <td>INT</td>
@@ -202,7 +202,7 @@
         <td>y</td>
         <td>输出</td>
         <td>输出序列，shape与x一致，对应公式中y。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>数据类型与x一致</td>
         <td>ND</td>
       </tr>
     </tbody>
@@ -214,28 +214,26 @@
   - prefill场景：
     - x支持2维[cu_seq_len, dim]。
     - weight必须是2维[K, dim]，其中K固定为3。
-    - convStates必须是3维[..., K-1, dim]，第0维大小不固定且大于等于batch。
+    - conv_states必须是3维[..., K-1, dim]，第0维大小不固定且大于等于batch。
     - cu_seq_len范围[batch, 65536]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
   - decode场景（固定batch）：
     - x支持3维[batch, seq_len, dim]。
     - weight必须是2维[K, dim]，其中K固定为3。
-    - convStates必须是3维[..., K-1+seq_len-1, dim]，第0维大小不固定且大于等于batch。
+    - conv_states必须是3维[..., K-1+seq_len-1, dim]，第0维大小不固定且大于等于batch。
     - seq_len范围[1, 6]，dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
   - decode场景（变长序列）：
     - x支持2维[cu_seq_len, dim]。
     - weight必须是2维[K, dim]，其中K固定为3。
-    - convStates必须是3维[..., state_len, dim]，第0维大小不固定且大于等于batch，state_len必须大于所有batch中最大的token个数加K-1。
+    - conv_states必须是3维[..., state_len, dim]，第0维大小不固定且大于等于batch，state_len必须大于所有batch中最大的token个数加K-1。
     - cu_seq_len范围[batch, batch*6]，每个batch的token个数范围为[1, 6]。dim范围[128, 16384]且是128的倍数，batch范围[1, 256]。
 
 - 输入值域限制：
-  - queryStartLoc是累计偏移量，取值范围[0, cu_seq_len]，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移，queryStartLoc[batch+1]表示最后一个序列的结束位置。
-  - cacheIndices长度为batch，指定每个序列对应的缓存槽索引。
-  - initialStateMode长度为batch，每个元素取值0、1或2。
-  - padSlotId建议值-1，当cacheIndices[i]==padSlotId时跳过该batch。
-  - numAcceptedTokens分为None和非None，非None情况下长度为batch，每个元素取值不超过当前batch的token个数且大于0。
-
-- 输入属性限制：
-  - x、weight、convStates、bias、y的数据类型必须一致。
-  - queryStartLoc、cacheIndices、initialStateMode、numAcceptedTokens的数据类型必须一致。
-  - 输入参数支持非连续Tensor。
-  - <term>Ascend 950PR/Ascend 950DT</term>：x/weight/convStates/bias/y数据类型仅支持FLOAT16、BFLOAT16。
+  - query_start_loc是累计偏移量，取值范围[0, cu_seq_len]，长度为batch+1，query_start_loc[i]表示第i个序列的起始偏移，query_start_loc[batch+1]表示最后一个序列的结束位置。
+  - cache_indices长度为batch，指定每个序列对应的缓存槽索引。
+  - num_accepted_tokens分为None和非None，非None情况下长度为batch，每个元素取值不超过当前batch的token个数且大于0。
+  
+  ## 调用说明
+  
+  | 调用方式  | 样例代码                                                     | 说明                                                         |
+  | --------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | aclnn接口 | [test_aclnn_causal_conv1d_add](./examples/test_aclnn_causal_conv1d_add.cpp) | 通过[aclnnCausalConv1dAdd](./docs/aclnnCausalConv1dAdd.md)调用CausalConv1d算子 |

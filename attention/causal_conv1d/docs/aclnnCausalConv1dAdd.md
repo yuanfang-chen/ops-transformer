@@ -99,7 +99,7 @@
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 "aclnnCausalConv1dAddGetWorkspaceSize"接口获取入参并计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnCausalConv1dAdd"接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 `aclnnCausalConv1dAddGetWorkspaceSize`接口获取入参并计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnCausalConv1dAdd`接口执行计算。
 
 ```Cpp
 aclnnStatus aclnnCausalConv1dAddGetWorkspaceSize(
@@ -159,7 +159,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>x</td>
       <td>输入</td>
       <td>输入序列</td>
-      <td>prefill场景：shape为[cu_seq_len, dim]<br>decode场景：shape为[cu_seq_len, dim]或[batch, seq_len, dim]</td>
+      <td><ul><li>不支持空tensor。</li><li>prefill场景：shape为[cu_seq_len, dim]。</li><li>decode场景：shape为[cu_seq_len, dim]或[batch, seq_len, dim]。</li></ul></td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>2-3</td>
@@ -169,8 +169,8 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>weight</td>
       <td>输入</td>
       <td>因果1维卷积核</td>
-      <td>shape为[K, dim]</td>
-      <td>FLOAT16、BFLOAT16</td>
+      <td><ul><li>不支持空tensor。</li><li>shape为[K, dim]。</li></ul></td>
+      <td>数据类型与x一致</td>
       <td>ND</td>
       <td>2</td>
       <td>√</td>
@@ -178,9 +178,9 @@ aclnnStatus aclnnCausalConv1dAdd(
     <tr>
       <td>convStates</td>
       <td>输入/输出</td>
-      <td>缓存状态张量，存储各序列的历史token数据，各序列计算完成后原地更新</td>
-      <td>shape为[..., K-1, dim]</td>
-      <td>FLOAT16、BFLOAT16</td>
+      <td>缓存状态张量，存储各序列的历史token数据，各序列计算完成后原地更新。</td>
+      <td><ul><li>不支持空tensor。</li><li>shape为[..., K-1, dim]</li></ul></td>
+      <td>数据类型与x一致</td>
       <td>ND</td>
       <td>3</td>
       <td>√</td>
@@ -188,8 +188,8 @@ aclnnStatus aclnnCausalConv1dAdd(
     <tr>
       <td>queryStartLoc</td>
       <td>输入</td>
-      <td>序列起始位置索引，记录各序列在拼接张量x中的起始位置</td>
-      <td>shape为[batch+1]<br>queryStartLoc[i]表示第i个序列的起始偏移</td>
+      <td>序列起始位置索引，记录各序列在拼接张量x中的起始位置。</td>
+      <td><ul><li>不支持空tensor。</li><li>shape为[batch+1]</li><li>queryStartLoc[i]表示第i个序列的起始偏移</li></ul></td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
@@ -198,8 +198,8 @@ aclnnStatus aclnnCausalConv1dAdd(
     <tr>
       <td>cacheIndices</td>
       <td>输入</td>
-      <td>缓存索引，指定每个序列对应的缓存状态在convStates中的索引</td>
-      <td>shape为[batch]</td>
+      <td>缓存索引，指定每个序列对应的缓存状态在convStates中的索引。</td>
+      <td><ul><li>不支持空tensor。</li><li>shape为[batch]。</li></ul></td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
@@ -209,7 +209,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>initialStateMode</td>
       <td>输入</td>
       <td>初始状态标志，表示各序列是否使用缓存数据</td>
-      <td>shape为[batch]<br>取值为0、1、2<br>0：零填充<br>1：使用缓存<br>2：使用缓存但前K-1个输出置0</td>
+      <td><ul><li>不支持空tensor。</li><li>shape为[batch]</li><li>取值为0、1、2<br>0：零填充<br>1：使用缓存<br>2：使用缓存但前K-1个输出置0。</li></ul></td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
@@ -219,8 +219,8 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>bias</td>
       <td>输入</td>
       <td>卷积的偏置</td>
-      <td>shape为[dim]<br>可选输入，可为nullptr</td>
-      <td>FLOAT16、BFLOAT16</td>
+      <td><ul><li>支持空tensor。</li><li>shape为[dim]。</li></ul></td>
+      <td>数据类型与x一致</td>
       <td>ND</td>
       <td>1</td>
       <td>√</td>
@@ -228,8 +228,8 @@ aclnnStatus aclnnCausalConv1dAdd(
     <tr>
       <td>numAcceptedTokens</td>
       <td>输入</td>
-      <td>decode场景下的投机token个数</td>
-      <td>shape为[batch]<br>可选输入，可为nullptr</td>
+      <td>decode场景下的投机token个数。</td>
+      <td><ul><li>支持空tensor。<br>shape为[batch]。</li></ul></td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
@@ -239,7 +239,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>activationMode</td>
       <td>输入</td>
       <td>激活函数类型</td>
-      <td>取值为0、1、2<br>0：None<br>1：silu<br>2：swish<br>建议值：0</td>
+      <td><ul><li>取值为0、1、2<br>0：None<br>1：silu<br>2：swish</li></ul></td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -249,7 +249,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>padSlotId</td>
       <td>输入</td>
       <td>用于跳过不需要参与计算的batch</td>
-      <td>建议值：-1<br>当cacheIndices[i]==padSlotId时跳过该batch</td>
+      <td>当cacheIndices[i]==padSlotId时跳过该batch</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -259,7 +259,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>runMode</td>
       <td>输入</td>
       <td>用于判断是prefill场景或decode场景</td>
-      <td>取值为0、1<br>0：prefill场景<br>1：decode场景<br>建议值：0</td>
+      <td><ul><li>取值为0、1<br>0：prefill场景<br>1：decode场景</li></ul></td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -269,7 +269,7 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>residualConnection</td>
       <td>输入</td>
       <td>是否做残差连接</td>
-      <td>取值为0、1<br>0：不做残差连接<br>1：输出y和输入x相加后输出<br>建议值：1</td>
+      <td><ul><li>取值为0、1<br>0：不做残差连接<br>1：输出y和输入x相加后输出</li></ul></td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -279,8 +279,8 @@ aclnnStatus aclnnCausalConv1dAdd(
       <td>y</td>
       <td>输出</td>
       <td>输出序列</td>
-      <td>shape与x一致<br>数据类型与x一致</td>
-      <td>FLOAT16、BFLOAT16</td>
+      <td>shape与x一致</td>
+      <td>数据类型与x一致</td>
       <td>ND</td>
       <td>2-3</td>
       <td>-</td>
@@ -346,9 +346,6 @@ aclnnStatus aclnnCausalConv1dAdd(
       </td>
     </tr>
   </tbody></table>
-
-- **不同产品支持情况差异**
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：x/weight/convStates/bias/y数据类型仅支持FLOAT16、BFLOAT16。
 
 ## aclnnCausalConv1dAdd
 
@@ -418,14 +415,7 @@ aclnnStatus aclnnCausalConv1dAdd(
 - 输入值域限制：
   - queryStartLoc是累计偏移量，取值范围[0, cu_seq_len]，长度为batch+1，queryStartLoc[i]表示第i个序列的起始偏移，queryStartLoc[batch+1]表示最后一个序列的结束位置。
   - cacheIndices长度为batch，指定每个序列对应的缓存槽索引。
-  - initialStateMode长度为batch，每个元素取值0、1或2。
-  - padSlotId建议值-1，当cacheIndices[i]==padSlotId时跳过该batch。
   - numAcceptedTokens分为None和非None，非None情况下长度为batch，每个元素取值不超过当前batch的token个数且大于0。
-
-- 输入属性限制：
-  - x、weight、convStates、bias、y的数据类型必须一致。
-  - queryStartLoc、cacheIndices、initialStateMode、numAcceptedTokens的数据类型必须一致。
-  - 输入参数支持非连续Tensor。
 
 ## 调用示例
 
