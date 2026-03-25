@@ -260,9 +260,9 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeMm1(const QLICommon::RunInfo &run
     }
     int64_t loopIdx = 0;
     int64_t s2L0LoopCnt = CeilDiv(runInfo.actualSingleProcessSInnerSize, S2_BASIC_BLOCK_L0);  // 2048取128
-    int64_t s1L0LoopCnt = CeilDiv(runInfo.actMBaseSize / constInfo_.gSize, 2);                  // 2 :constInfo.s1BaseSize / 2
-    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(constInfo_.gSize * 2)};
-    int64_t s1gL0RealSize[2] = {s1L0LoopCnt > 1 ? static_cast<int64_t>(constInfo_.gSize * 2) : runInfo.actMBaseSize,
+    int64_t s1L0LoopCnt = CeilDiv(runInfo.actMBaseSize / constInfo_.gSize, constInfo_.s1BaseSize / 2);  // 2 :一次取constInfo.s1BaseSize的一半
+    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(constInfo_.gSize * constInfo_.s1BaseSize / 2)};
+    int64_t s1gL0RealSize[2] = {s1L0LoopCnt > 1 ? static_cast<int64_t>(constInfo_.gSize * constInfo_.s1BaseSize / 2) : runInfo.actMBaseSize,
                                 runInfo.actMBaseSize - s1gL1Offset[1]};
     MmInfo mmInfo[2];
     CalcMmInfo(mmInfo[loopIdx & 1], loopIdx, s1L0LoopCnt, mmInfo[(loopIdx + 1) & 1], runInfo);
@@ -406,9 +406,9 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gL1Offset, uin
     loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
 
     // SetLoadToA0Params
-    loadData3DParams.mExtension = s1gL0RealSize;                         // M height维度目的
+    loadData3DParams.mExtension = CeilAlign(s1gL0RealSize, BLOCK_CUBE);                         // M height维度目的
     loadData3DParams.kExtension = constInfo_.headDim;                    // K   width维度目的
-    loadData3DParams.mStartPt = s1gL1Offset;
+    loadData3DParams.mStartPt = CeilAlign(s1gL1Offset, BLOCK_CUBE);
     loadData3DParams.kStartPt = 0;
     loadData3DParams.strideW = 1;
     loadData3DParams.strideH = 1;
