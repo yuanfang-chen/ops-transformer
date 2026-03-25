@@ -69,6 +69,9 @@ protected:
     ge::graphStatus CheckContext();
     ge::graphStatus AnalyzeDtype();
     ge::graphStatus AnalyzeShapes();
+    ge::graphStatus AnalyzeShapesParser();
+    ge::graphStatus AnalyzeEmptyTensor();
+    ge::graphStatus AnalyzeOptionalShapes();
     ge::graphStatus CalUbSize();
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
