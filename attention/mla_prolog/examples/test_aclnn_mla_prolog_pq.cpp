@@ -130,7 +130,7 @@ int main() {
     std::vector<int64_t> krCacheShape = {16, 128, 1, 64};       // BolckNum,BlockSize,Nkv,Dr
     std::vector<int64_t> queryShape = {8, 1, 32, 512};          // B,S,N,Hckv
     std::vector<int64_t> queryRopeShape = {8, 1, 32, 64};       // B,S,N,Dr
-    std::vector<int64_t> dequantScaleWUqQrShape = {1, 24576};   // 1, N*(D+Dr)
+    std::vector<int64_t> dequantScaleWUqQrShape = {1, 6144};    // 1, N*(D+Dr)
     std::vector<int64_t> quantScaleCkvShape = {1, 512};          // 1, Hckv
     std::vector<int64_t> quantScaleCkrShape = {1, 64};           // 1, Dr
     std::vector<int64_t> smoothScalesCqShape = {1, 1536};        // 1, Hcq
