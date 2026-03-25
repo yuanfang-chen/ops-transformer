@@ -733,7 +733,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 
     无需配置ranktable文件以及环境变量RANK_TABLE_FILE、FIRST_RANK_ID。 
 
-    本示例支持A2算子运行在卡数为[2, 8]的单机环境中，运行前需要将示例代码中的TEST_A2设置为true，确保执行A2分支。
+    本示例支持A2算子运行在卡数为[2, 8]的单机环境中，运行前需要将示例代码中的IS_TEST_A2设置为true，确保执行A2分支。
     同时，用户可以根据需要在示例代码中设置EP_WORLD_SIZE_A2为卡数，并更改launchOneThreadDispatchV2AndCombineV2_A2函数中的moeExpertNum，使得moeExpertNum可以被EP_WORLD_SIZE_A2整除。
 
     算子编译命令如下，moe_distribute_dispatch_v2和moe_distribute_combine_v2算子都需要编译，这两个算子需要成对执行：
@@ -797,7 +797,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     const uint32_t TP_WORLD_SIZE = (!first_rank_id) ? 1 : 0;
     const uint32_t DEV_NUM = (!first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
 
-    const bool TEST_A2 = false;
+    const bool IS_TEST_A2 = false;
     const uint32_t EP_WORLD_SIZE_A2 = 8;
     const uint32_t TP_WORLD_SIZE_A2 = 1;
     const uint32_t DEV_NUM_A2 = EP_WORLD_SIZE_A2 * TP_WORLD_SIZE_A2;
@@ -1500,7 +1500,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     int main(int argc, char *argv[])
     {
         const char* env_var_name = "RANK_TABLE_FILE and FIRST_RANK_ID";
-        if (TEST_A2 == true) {
+        if (IS_TEST_A2) {
             LOG_PRINT("[INFO] %s are not identified and example on <Atlas A2> will be executed!\n", env_var_name);
             int ret = run_example_on_A2();
             return 0;

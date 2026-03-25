@@ -57,7 +57,7 @@ const uint32_t EP_WORLD_SIZE = (!first_rank_id) ? 2 : 16;
 const uint32_t TP_WORLD_SIZE = (!first_rank_id) ? 1 : 0;
 const uint32_t DEV_NUM = (!first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
 
-const bool TEST_A2 = false;
+const bool IS_TEST_A2 = false;
 const uint32_t EP_WORLD_SIZE_A2 = 8;
 const uint32_t TP_WORLD_SIZE_A2 = 1;
 const uint32_t DEV_NUM_A2 = EP_WORLD_SIZE_A2 * TP_WORLD_SIZE_A2;
@@ -762,7 +762,7 @@ int run_example_on_A3A5()
 int main(int argc, char *argv[])
 {
     const char* env_var_name = "RANK_TABLE_FILE and FIRST_RANK_ID";
-    if (TEST_A2 == true) {
+    if (IS_TEST_A2) {
         LOG_PRINT("[INFO] %s are not identified and example on <Atlas A2> will be executed!\n", env_var_name);
         int ret = run_example_on_A2();
         return 0;
