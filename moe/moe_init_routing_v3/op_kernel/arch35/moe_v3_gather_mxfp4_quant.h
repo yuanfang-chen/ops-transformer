@@ -539,7 +539,7 @@ __aicore__ inline void MoeGatherOutMxfp4Quant<T, U>::CopyOut(int64_t dstIdx, int
     LocalTensor<uint8_t> outLocal = xQuantOutQueue_.DeQue<uint8_t>();
 
     DataCopyExtParams copyOutParams = {1, static_cast<uint32_t>(loopCols * sizeof(uint8_t) / 2), 0, 0, 0};
-    DataCopyPad<uint8_t>(expandedXOutGm_[(dstIdx * cols_ + colIdx * perLoopCols_) / 2], outLocal, copyOutParams);
+    DataCopyPad<uint8_t>(expandedXOutGm_[(dstIdx * cols_ + colIdx * perLoopCols_) /], outLocal, copyOutParams);
 
     DataCopyExtParams copyScaleParams = {1, static_cast<uint32_t>(loopScaleCols * sizeof(uint8_t)), 0, 0, 0};
     DataCopyPad<uint8_t>(expandedScaleOutGm_[dstIdx * scaleCols_ + colIdx * perLoopScaleCols_], mxScaleLocal,
