@@ -31,7 +31,6 @@ public:
     __aicore__ inline void ProcessBatch(const GlobalTensor<T>& aGm, const GlobalTensor<T>& qGm, const GlobalTensor<T>& rGm, const GlobalTensor<T>& tmpQGm);
     __aicore__ inline void CallQR(const GlobalTensor<T>& aGm, const GlobalTensor<T>& qGm, const GlobalTensor<T>& rGm, int32_t localM, int32_t localN);
     __aicore__ inline void CopyVec(const GlobalTensor<T>& dst, const GlobalTensor<T>& src, int32_t rows, int32_t columns);
-    __aicore__ inline void CopyCube(const GlobalTensor<T>& dst, const GlobalTensor<T>& src, int32_t rows, int32_t columns);
     __aicore__ inline void ForwardZeroStep(const GlobalTensor<T>& aGm, const GlobalTensor<T>& qGm,
         int rId, int32_t localM, int32_t blockSize);
     __aicore__ inline void ForwardStep(int aId, const GlobalTensor<T>& qGm, int rId, int32_t localM, int32_t blockSize);
@@ -58,7 +57,7 @@ public:
     LocalTensor<T> localTensor;
 
     int32_t M_, N_, batchSize_;
-    int32_t blockSize_, numLevels_;
+    int32_t blockSize_, numLevels_, batchFactor_;
     int64_t tmpQSize_, tmpRSize_, bufferQSize_, maxQrWorkspace_;
     __gm__ uint8_t* qrWorkspace;
     TsqrTilingData tiling;
@@ -82,10 +81,12 @@ __aicore__ inline void TsqrKernel<T>::Init(GM_ADDR a, GM_ADDR q, GM_ADDR r, GM_A
     batchSize_ = tiling.batchSize;
     blockSize_ = tiling.blockSize;
     numLevels_ = tiling.numLevels;
+    batchFactor_ = tiling.batchFactor;
     tmpQSize_ = tiling.tmpQSize;
     tmpRSize_ = tiling.tmpRSize;
     bufferQSize_ = tiling.bufferQSize;
     maxQrWorkspace_ = tiling.maxQrWorkspace;
+    int bufferSize = tiling.bufferSize;
 
     this->tiling = tiling;
     this->pipe = tpipe;
@@ -95,13 +96,12 @@ __aicore__ inline void TsqrKernel<T>::Init(GM_ADDR a, GM_ADDR q, GM_ADDR r, GM_A
     rGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(r), batchSize_ * N_ * N_);
 
     __gm__ uint8_t* tmpQPtr = workspace;
-    __gm__ uint8_t* tmpRPtr = tmpQPtr + tmpQSize_ * (batchSize_ > 1 ? 2 : 1) * sizeof(T);
-    __gm__ uint8_t* bufferQPtr = tmpRPtr + tmpRSize_ * sizeof(T);
-    qrWorkspace = bufferQPtr + bufferQSize_ * sizeof(T);
-    tmpQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpQPtr), (tmpQSize_) * (batchSize_ > 1 ? 2 : 1));
-    tmpRGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpRPtr), tmpRSize_);
-    bufferQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(bufferQPtr), bufferQSize_);
-
+    __gm__ uint8_t* tmpRPtr = tmpQPtr + tmpQSize_ * batchFactor_ * sizeof(T);
+    __gm__ uint8_t* bufferQPtr = tmpRPtr;
+    qrWorkspace = bufferQPtr + bufferSize * batchFactor_ * sizeof(T);
+    tmpQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpQPtr), tmpQSize_ * batchFactor_);
+    tmpRGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpRPtr), tmpRSize_ * batchFactor_);
+    bufferQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(bufferQPtr), bufferQSize_ * batchFactor_);
 }
 
 template <typename T>
@@ -112,8 +112,8 @@ __aicore__ inline GlobalTensor<T> TsqrKernel<T>::getRBlock(int id) {
 
 template <typename T>
 __aicore__ inline void TsqrKernel<T>::Process() {
-    for (int i = 0; i < batchSize_; i++) {
-        ProcessBatch(aGlobal_[M_ * N_ * i], qGlobal_[M_ * N_ * i], rGlobal_[N_ * N_ * i], tmpQGlobal_[tmpQSize_ * (i % 2)]);
+    for (int i = 0; i < batchSize_; i += batchFactor_) {
+        ProcessBatch(aGlobal_[M_ * N_ * i], qGlobal_[M_ * N_ * i], rGlobal_[N_ * N_ * i], tmpQGlobal_);
     }
 }
 
@@ -135,13 +135,11 @@ __aicore__ inline void TsqrKernel<T>::ProcessBatch(const GlobalTensor<T>& aGm, c
         if (GetBlockIdx() == 0) {
             Reorder(tmpQGm, true);
         }
-        CrossCoreSetFlag<0x0, PIPE_FIX>(0x8);
-        CrossCoreWaitFlag(0x8);
     }
     #endif
-    if ASCEND_IS_AIC {
-        Backward(qGm, tmpQGm, blockSize_);
-    }
+    SyncAll<false>();
+    Backward(qGm, tmpQGm, blockSize_);
+    SyncAll<false>();
 }
 
 template <typename T>
@@ -180,26 +178,10 @@ __aicore__ inline void TsqrKernel<T>::CopyVec(const GlobalTensor<T>& dst, const 
 }
 
 template <typename T>
-__aicore__ inline void TsqrKernel<T>::CopyCube(const GlobalTensor<T>& dst, const GlobalTensor<T>& src, int32_t rows, int32_t columns) {
-    PipeBarrier<PIPE_ALL>();
-    pipe->Reset();
-    PipeBarrier<PIPE_ALL>();
-
-    pipe->InitBuffer(cubeBuf, rows * columns * sizeof(T));
-    LocalTensor localTensor = cubeBuf.Get<T>();
-    DataCopyParams params = { static_cast<uint16_t>(columns), static_cast<uint16_t>(rows / 8), 0, 0 };
-    DataCopy(localTensor, src, params);
-    int32_t eventIDMTE2ToMTE3 = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE3));
-    SetFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
-    WaitFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
-    PipeBarrier<PIPE_ALL>();
-    DataCopy(dst, localTensor, params);
-}
-
-template <typename T>
 __aicore__ inline void TsqrKernel<T>::ForwardZeroStep(const GlobalTensor<T>& aGm, const GlobalTensor<T>& qGm,
     int rId, int32_t localM, int32_t blockSize) {
-    int numBlocks = localM / blockSize;
+    int numBlocksPerBatch = localM / blockSize;
+    int numBlocks = numBlocksPerBatch * batchFactor_;
     int coreIdx = AscendC::GetBlockIdx();
     int numCores = GetBlockNum() * 2; // vector cores
     if (numBlocks < numCores) {
@@ -229,8 +211,9 @@ __aicore__ inline void TsqrKernel<T>::ForwardStep(int aId, const GlobalTensor<T>
     int rId, int32_t localM, int32_t blockSize) {
     int numBlocks = localM / blockSize;
     int hasTail = numBlocks % 2;
-    int processedBlocks = numBlocks / 2 + hasTail;
+    int processedBlocksPerBatch = numBlocks / 2 + hasTail;
     blockSize *= 2;
+    int processedBlocks = processedBlocksPerBatch * batchFactor_;
     int coreIdx = AscendC::GetBlockIdx();
     int numCores = GetBlockNum() * 2; // vector cores
     if (processedBlocks < numCores) {
@@ -249,11 +232,13 @@ __aicore__ inline void TsqrKernel<T>::ForwardStep(int aId, const GlobalTensor<T>
         }
         for (int idx = start; idx < end; idx++) {
             int64_t qOffset = idx * blockSize * N_;
-            if (hasTail && (idx == processedBlocks - 1)) {
+            int correction = (idx / processedBlocksPerBatch) * hasTail;
+            if (hasTail && idx > 0 && ((idx + 1) % processedBlocksPerBatch == 0)) {
                 // unpaired block
-                CopyVec(getRBlock(rId + idx), getRBlock(aId + 2 * idx), N_, N_);;
+                CopyVec(getRBlock(rId + idx), getRBlock(aId + 2 * idx - correction), N_, N_);
             } else {
-                CallQR(getRBlock(aId + 2 * idx), qGm[qOffset], getRBlock(rId + idx), blockSize, N_);
+                CallQR(getRBlock(aId + 2 * idx - correction),
+                qGm[qOffset - (int64_t)correction * (blockSize - N_) * N_], getRBlock(rId + idx), blockSize, N_);
             }
         }
     }
@@ -276,9 +261,7 @@ __aicore__ inline void TsqrKernel<T>::Forward(const GlobalTensor<T>& aGm, const 
     int localM = numBlocks * N_;
     for (int lvl = 0; lvl < numLevels_ - 1; lvl++) {
         // tmpRGlobal_ -> tmpQGlobal_, tmpRGlobal_
-
-        ForwardStep(aOffset, tmpQGm[qOffset], rOffset, localM, N_);
-
+        ForwardStep(aOffset * batchFactor_, tmpQGm[qOffset * batchFactor_], rOffset * batchFactor_, localM, N_);
         aOffset += numBlocks;
         qOffset += (numPairs * 2 + tail) * N_ * N_;
         rOffset += (numPairs + tail);
@@ -291,7 +274,9 @@ __aicore__ inline void TsqrKernel<T>::Forward(const GlobalTensor<T>& aGm, const 
     // last iteration
     // tmpRGlobal_ -> tmpQGlobal_, rGm
     if (GetBlockIdx() == 0) {
-        CallQR(getRBlock(aOffset), tmpQGm[qOffset], rGm, 2 * N_, N_);
+        for (int batch = 0; batch < batchFactor_; batch++) {
+            CallQR(getRBlock(aOffset * batchFactor_ + batch * 2), tmpQGm[qOffset * batchFactor_ + batch * 2 * N_ * N_], rGm[batch * N_ * N_], 2 * N_, N_);
+        }
     }
 }
 
@@ -311,7 +296,6 @@ __aicore__ inline void TsqrKernel<T>::Reorder(const GlobalTensor<T>& qGm, bool o
         numPairs = numBlocks / 2;
         tail = (numBlocks % 2 > 0);
     }
-    GlobalTensor<T> global = qGm[qOffset];
 
     LocalTensor<T> localTensor;
     if (onCube) {
@@ -326,13 +310,23 @@ __aicore__ inline void TsqrKernel<T>::Reorder(const GlobalTensor<T>& qGm, bool o
 
     DataCopyParams inParams = { static_cast<uint16_t>(N_), blocks, blocks, 0 };
     DataCopyParams outParams = { n, static_cast<uint16_t>(2 * n / 8), 0, 0 };
-    DataCopy(localTensor, global, inParams);
-    DataCopy(localTensor[N_ * N_], global[N_], inParams);
-    int32_t eventIDMTE2ToMTE3 = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE3));
-    SetFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
-    WaitFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
-    PipeBarrier<PIPE_ALL>();
-    DataCopy(global, localTensor, outParams);
+
+    for (int batch = 0; batch < batchFactor_; batch++) {
+        GlobalTensor<T> global = qGm[qOffset * batchFactor_ + batch * 2 * N_ * N_];
+
+        DataCopy(localTensor, global, inParams);
+        DataCopy(localTensor[N_ * N_], global[N_], inParams);
+
+        int32_t eventIDMTE2ToMTE3 = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE3));
+        SetFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
+        WaitFlag<HardEvent::MTE2_MTE3>(eventIDMTE2ToMTE3);
+
+        DataCopy(global, localTensor, outParams);
+
+        int32_t eventIDMTE3ToMTE2 = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
+        SetFlag<HardEvent::MTE3_MTE2>(eventIDMTE3ToMTE2);
+        WaitFlag<HardEvent::MTE3_MTE2>(eventIDMTE3ToMTE2);
+    }
 }
 
 template <typename T>
@@ -368,17 +362,18 @@ __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm
 
     int coreIdx = AscendC::GetBlockIdx();
     int numCores = GetBlockNum(); // cube cores
-    if (numBlocksLeft < numCores) {
-        numCores = numBlocksLeft; // don't use other cores
+    int processedBlocks = numBlocksLeft * batchFactor_;
+    if (processedBlocks < numCores) {
+        numCores = processedBlocks; // don't use other cores
     }
     if (coreIdx < numCores) {
-        int perCore = numBlocksLeft / numCores;
+        int perCore = processedBlocks / numCores;
         int start, end;
-        if (coreIdx < numBlocksLeft % numCores) {
+        if (coreIdx < processedBlocks % numCores) {
             start = (perCore + 1) * coreIdx;
             end = start + perCore + 1;
         } else {
-            start = perCore * coreIdx + numBlocksLeft % numCores;
+            start = perCore * coreIdx + processedBlocks % numCores;
             end = start + perCore;
         }
         int64_t leftOffset = bsLeft * N_;
@@ -387,16 +382,21 @@ __aicore__ inline void TsqrKernel<T>::BackwardStep(const GlobalTensor<T>& outQGm
         for (int idx = start; idx < end; idx++) {
             PipeBarrier<PIPE_ALL>();
             bool isFirstIter = (numBlocksLeft == 2);
-            bool isTransfered = (idx == numBlocksLeft - 1) && (numBlocksLeft % 2 == 1) && (!hasTail) && firstTail;
-            if (hasTail && (idx == numBlocksLeft - 1)) {
+            bool isTransfered = ((idx + 1) % numBlocksLeft == 0) && (numBlocksLeft % 2 == 1) && (!hasTail) && firstTail;
+            int64_t correction = (idx / numBlocksLeft) * hasTail * (bsLeft - N_) * N_;
+            if (hasTail && idx > 0 && ((idx + 1) % numBlocksLeft == 0)) {
                 // unpaired block
-                CopyCube(outQGm[idx * outQOffset], rightQGm[idx * rightOffset], N_, N_);
+                if ASCEND_IS_AIV {
+                    CopyVec(outQGm[idx * outQOffset - correction], rightQGm[idx * rightOffset], N_, N_);
+                }
             } else {
-                PipeBarrier<PIPE_ALL>();
-                pipe->Reset();
-                PipeBarrier<PIPE_ALL>();
-                RunMatmul(bsLeft, N_, (isFirstIter || isTransfered),
-                    leftQGm[idx * leftOffset], rightQGm[idx * rightOffset], outQGm[idx * outQOffset]);
+                if ASCEND_IS_AIC {
+                    PipeBarrier<PIPE_ALL>();
+                    pipe->Reset();
+                    PipeBarrier<PIPE_ALL>();
+                    RunMatmul(bsLeft, N_, (isFirstIter || isTransfered),
+                        leftQGm[idx * leftOffset - correction], rightQGm[idx * rightOffset], outQGm[idx * outQOffset - correction]);
+                }
             }
         }
     }
@@ -431,15 +431,14 @@ __aicore__ inline void TsqrKernel<T>::Backward(const GlobalTensor<T>& qGm, const
         }
         if ((numLevels_ - 1 - lvl) % 2 == 0) {
             if (lvl == numLevels_ - 1) {
-                BackwardStep(bufferQGlobal_, tmpQGm[leftOffset], tmpQGm[rightOffset], 2 * N_, numBlocks, hasTail);
+                BackwardStep(bufferQGlobal_, tmpQGm[leftOffset * batchFactor_], tmpQGm[rightOffset * batchFactor_], 2 * N_, numBlocks, hasTail);
             } else {
-                BackwardStep(bufferQGlobal_, tmpQGm[leftOffset], tmpQGm[rrightOffset], 2 * N_, numBlocks, hasTail);
+                BackwardStep(bufferQGlobal_, tmpQGm[leftOffset * batchFactor_], tmpQGm[rrightOffset * batchFactor_], 2 * N_, numBlocks, hasTail);
             }
         } else {
-            BackwardStep(tmpQGm[rightOffset], tmpQGm[leftOffset], bufferQGlobal_, 2 * N_, numBlocks, hasTail);
+            BackwardStep(tmpQGm[rightOffset * batchFactor_], tmpQGm[leftOffset * batchFactor_], bufferQGlobal_, 2 * N_, numBlocks, hasTail);
         }
-        CrossCoreSetFlag<0x0, PIPE_FIX>(0x8);
-        CrossCoreWaitFlag(0x8);
+        SyncAll<false>();
     }
     numBlocks = M_ / blockSize_;
     tail = (numBlocks % 2 > 0);
@@ -453,7 +452,7 @@ __aicore__ inline void TsqrKernel<T>::Backward(const GlobalTensor<T>& qGm, const
         tail = (numBlocks % 2 > 0);
     }
     if ((numLevels_ - 1) % 2 == 0) {
-        BackwardStep(qGm, tmpQGm, tmpQGm[rightOffset], blockSize_, M_ / blockSize_, false);
+        BackwardStep(qGm, tmpQGm, tmpQGm[rightOffset * batchFactor_], blockSize_, M_ / blockSize_, false);
     } else {
         BackwardStep(qGm, tmpQGm, bufferQGlobal_, blockSize_, M_ / blockSize_, false);
     }

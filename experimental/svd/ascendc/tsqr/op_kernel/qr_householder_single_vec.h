@@ -355,6 +355,10 @@ inline __aicore__ void QRHouseholderSingleVec::UpdateR(int32_t rowLen, int32_t s
                 PipeBarrier<PIPE_V>();
                 Muls(bcastTensor, bcastTensor, -1.f, FLOAT_MASK);
                 PipeBarrier<PIPE_V>();
+            } else {
+                event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
+                SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
+                WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
             }
             int32_t dstOffset = j * alignedRowLen;
             MulByBlock(rows[dstOffset], wtTensor, bcastTensor[bcastId * 8], rowLen);
