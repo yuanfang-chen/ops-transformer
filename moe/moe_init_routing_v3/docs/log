@@ -30,3 +30,12 @@
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+
+########################
+Performance result:                Comparison result:                 Relative result:                  Memory check:
+DYN_PERF: DYN_OFF                  DYN_GOLD: DYN_OFF                  DYN_REL: DYN_OFF                  DYN_MEM: UNKNOWN                 
+STC_PERF: STC_OFF                  STC_GOLD: STC_OFF                                                    STC_MEM: UNKNOWN                 
+CST_PERF: 696.956                  CST_GOLD: 100.0%,100.0%,100.0%,SUPPRESSED CST_REL: STC_OFF                  CST_MEM: FAIL,OK,OK,OK,OK        
+BIN_PERF: BIN_OFF                  BIN_GOLD: BIN_OFF                  BIN_REL: BIN_OFF                  BIN_MEM: UNKNOWN                 
+STATUS: PASS                       PRECISION_STATUS: PASS
+########################
