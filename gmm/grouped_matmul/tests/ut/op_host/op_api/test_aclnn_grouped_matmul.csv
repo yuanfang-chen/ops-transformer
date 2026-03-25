@@ -1,0 +1,7 @@
+socVersion,caseName,xShape,xDtype,xFormat,weightShape,weightDtype,weightFormat,scaleShape,scaleDtype,scaleFormat,biasShape,biasDtype,biasFormat,perTokenScaleShape,perTokenScaleDtype,perTokenScaleFormat,groupListShape,groupListValues,groupListDtype,groupListFormat,outShape,outDtype,outFormat,splitItem,groupType,groupListType,actType,expectRet,hasBias,hasPerTokenScale
+Ascend950,base_quant_split_m_success,64:256,INT8,ND,2:256:128,INT8,ND,2:128,FLOAT,ND,NONE,INT32,ND,NONE,FLOAT,ND,2,32|64,INT64,ND,64:128,BF16,ND,3,0,0,0,0,false,false
+Ascend950,quant_split_m_with_pertoken_success,64:256,INT8,ND,2:256:128,INT8,ND,2:128,FLOAT,ND,NONE,INT32,ND,64,FLOAT,ND,2,32|64,INT64,ND,64:128,FLOAT16,ND,3,0,0,0,0,false,true
+Ascend950,quant_split_m_with_bias_success,64:256,INT8,ND,2:256:128,INT8,ND,2:128,FLOAT,ND,2:128,INT32,ND,NONE,FLOAT,ND,2,32|64,INT64,ND,64:128,BF16,ND,3,0,0,0,0,true,false
+Ascend950,invalid_group_list_value_fail,64:256,INT8,ND,2:256:128,INT8,ND,2:128,FLOAT,ND,NONE,INT32,ND,NONE,FLOAT,ND,2,30|60,INT64,ND,64:128,BF16,ND,3,0,0,0,161002,false,false
+Ascend950,invalid_scale_shape_fail,64:256,INT8,ND,2:256:128,INT8,ND,2:64,FLOAT,ND,NONE,INT32,ND,NONE,FLOAT,ND,2,32|64,INT64,ND,64:128,BF16,ND,3,0,0,0,161002,false,false
+Ascend910B,soc_not_supported_for_case_fail,64:256,INT8,ND,2:256:128,INT8,ND,2:128,FLOAT,ND,NONE,INT32,ND,NONE,FLOAT,ND,2,32|64,INT64,ND,64:128,BF16,ND,3,0,0,0,161002,false,false
