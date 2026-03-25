@@ -133,12 +133,12 @@ int main() {
     std::vector<int64_t> queryRopeShape = {8, 1, 32, 64};       // B,S,N,Dr
     std::vector<int64_t> dequantScaleXShape = {8, 1};            // B*S, 1
     std::vector<int64_t> dequantScaleWDqShape = {1, 1536};       // 1, Hcq
-    std::vector<int64_t> dequantScaleWUqQrShape = {1, 24576};    // 1, N*(D+Dr)
+    std::vector<int64_t> dequantScaleWUqQrShape = {1, 6144};     // 1, N*(D+Dr)
     std::vector<int64_t> dequantScaleWDkvKrShape = {1, 576};     // 1, Hckv+Dr
     std::vector<int64_t> quantScaleCkvShape = {1, 512};          // 1, Hckv
     std::vector<int64_t> quantScaleCkrShape = {1, 64};           // 1, Dr
     std::vector<int64_t> smoothScalesCqShape = {1, 1536};        // 1, Hcq
-    std::vector<int64_t> dequantScaleQNopeShape = {8, 128, 1};   // B*S, N, 1
+    std::vector<int64_t> dequantScaleQNopeShape = {8, 32, 1};    // B*S, N, 1
     double rmsnormEpsilonCq = 1e-5;
     double rmsnormEpsilonCkv = 1e-5;
     char cacheMode[] = "PA_BSND";
@@ -255,8 +255,8 @@ int main() {
     // 创建kvCache aclTensor (INT8)
     ret = CreateAclTensorND(kvCacheShape, &kvCacheDeviceAddr, &kvCacheHostAddr, aclDataType::ACL_INT8, &kvCache);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    // 创建krCache aclTensor (INT8)
-    ret = CreateAclTensorND(krCacheShape, &krCacheDeviceAddr, &krCacheHostAddr, aclDataType::ACL_INT8, &krCache);
+    // 创建krCache aclTensor (int8全量化场景下krCache为BF16)
+    ret = CreateAclTensorND(krCacheShape, &krCacheDeviceAddr, &krCacheHostAddr, aclDataType::ACL_BF16, &krCache);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建query aclTensor (INT8 output)
     ret = CreateAclTensorND(queryShape, &queryDeviceAddr, &queryHostAddr, aclDataType::ACL_INT8, &query);
@@ -294,7 +294,7 @@ int main() {
     aclOpExecutor* executor = nullptr;
     // 调用aclnnMlaPrologV2WeightNz第一段接口
     ret = aclnnMlaPrologV2WeightNzGetWorkspaceSize(tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin, ropeCos, cacheIndex, kvCache, krCache,
-        dequantScaleX, dequantScaleWDq, dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
+        dequantScaleX, dequantScaleWDq, dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, nullptr, smoothScalesCq,
         rmsnormEpsilonCq, rmsnormEpsilonCkv, cacheMode, query, queryRope, dequantScaleQNope, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnMlaPrologV2WeightNzGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
