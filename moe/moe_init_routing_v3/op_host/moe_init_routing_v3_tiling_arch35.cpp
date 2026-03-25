@@ -857,7 +857,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
     } else if (quantMode_ == QUANT_MODE_MXFP4_E2M1) {
         expectedRank = RANK_THREE;
         expectedDim0 = totalLength_;
-        expectedDim1 = cols_ / (UB_BLOCK_SIZE * NUM_TWO);
+        expectedDim1 = Ops::Base::CeilDiv(cols_, UB_BLOCK_SIZE * NUM_TWO);
         expectedDim2 = NUM_TWO;
     }
     auto rank = static_cast<int64_t>(expandedScaleShape_.GetDimNum());

@@ -257,7 +257,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_SCATTER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_SCATTER)) {
-        // MXFP8量化。由于MXFP8模板用到的指令不支持DTYPE_X为int8_t等类型，因此需要constexpr-if来规避编译
+        // MXFP4量化
         if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value || IsSameType<DTYPE_X, float>::value) && 
             (IsSameType<DTYPE_EXPANDED_X, fp4x2_e2m1_t>::value)) {
             TPipe gatherPipe;
