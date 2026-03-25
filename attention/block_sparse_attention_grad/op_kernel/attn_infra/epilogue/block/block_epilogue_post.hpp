@@ -360,7 +360,7 @@ public:
             uint64_t sCount = singleLoopScount;
             uint64_t totalSCout = i * singleLoopScount;
             uint64_t gmOffset = totalSCout * d;
-            if (i == loopTimes - 1) {
+            if (i == loopTimes - 1 && tailS != 0) {
                 sCount = tailS;
             }
                 
