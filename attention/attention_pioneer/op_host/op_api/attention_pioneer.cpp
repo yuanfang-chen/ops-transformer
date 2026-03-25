@@ -83,7 +83,6 @@ const AttentionPioneerOutputs AttentionPioneer(
     const aclTensor *actualSeqLengthsTensor = nullptr;
     const aclTensor *actualSeqLengthsKvTensor = nullptr;
     const aclTensor *actualSharedPrefixLenTensor = nullptr;
-
     if (executor == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FusedInferAttention: executor is nullptr.");
         return {nullptr, nullptr};
@@ -130,7 +129,6 @@ const AttentionPioneerOutputs AttentionPioneer(
                 static_cast<int32_t>(antiquantMode), softmaxLseFlag,
                 static_cast<int32_t>(keyAntiquantMode), static_cast<int32_t>(valueAntiquantMode),
                 static_cast<int32_t>(queryQuantMode), 0, 0));
-
     const char* err_msg1 = aclGetRecentErrMsg();
     if (err_msg1 != nullptr) {
         std::cout << "INFER SHAPE 错误信息：" << err_msg1 << std::endl;

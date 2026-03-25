@@ -23,7 +23,7 @@
 #include "opdev/shape_utils.h"
 #include "opdev/tensor_view_utils.h"
 #include "attention_pioneer.h"
-#include "aclnn/opdev/op_executor.h"
+// #include "aclnn/opdev/op_executor.h"
 #include "opdev/op_errno.h"
 #include "aclnn/aclnn_base.h"
 #include "aclnn_kernels/contiguous.h"
@@ -39,13 +39,13 @@ namespace {
 
 const uint64_t INT4_NUMS_IN_INT32 = 8;
 
-void TensorPreProcess(const aclTensorList *&tensorListKey, const aclTensorList *&tensorListValue) {
+void TensorPreProcessPionner(const aclTensorList *&tensorListKey, const aclTensorList *&tensorListValue) {
     if (tensorListKey == nullptr) {
-        OP_LOGD("TensorListKey is nullptr,TensorPreProcess exit.");
+        OP_LOGD("TensorListKey is nullptr,TensorPreProcessPionner exit.");
         return;
     }
     if (tensorListValue == nullptr) {
-        OP_LOGD("tensorListValue is nullptr,TensorPreProcess exit.");
+        OP_LOGD("tensorListValue is nullptr,TensorPreProcessPionner exit.");
         return;
     }
     if ((*tensorListKey)[0]->GetDataType() != DataType::DT_INT32) {
@@ -86,13 +86,13 @@ void TensorPreProcess(const aclTensorList *&tensorListKey, const aclTensorList *
 }
 
 
-void PrefixTensorPreProcess(const aclTensor *&tensorKey, const aclTensor *&tensorValue) {
+void PrefixTensorPreProcessPionner(const aclTensor *&tensorKey, const aclTensor *&tensorValue) {
     if (tensorKey == nullptr) {
-        OP_LOGD("TensorListKey is nullptr,TensorPreProcess exit.");
+        OP_LOGD("TensorListKey is nullptr,TensorPreProcessPionner exit.");
         return;
     }
     if (tensorValue == nullptr) {
-        OP_LOGD("tensorListValue is nullptr,TensorPreProcess exit..");
+        OP_LOGD("tensorListValue is nullptr,TensorPreProcessPionner exit..");
         return;
     }
     if (tensorKey->GetDataType() != DataType::DT_INT32) {
@@ -120,7 +120,7 @@ void PrefixTensorPreProcess(const aclTensor *&tensorKey, const aclTensor *&tenso
     OP_LOGD("The conversion of kvPrefix from int32 to int4 is completed.");
 }
 
-aclnnStatus FakeArray(const aclIntArray *inArray, aclTensor *&outTensor) {
+aclnnStatus FakeArrayPionner(const aclIntArray *inArray, aclTensor *&outTensor) {
     OP_LOGD("start fake tensor");
     if (inArray != nullptr) {
         OP_LOGD("input array is not nullptr");
@@ -184,7 +184,7 @@ static const aclTensor* ProcessTensorContiguous(const aclTensor* tensor, aclOpEx
     return tensor;
 }
 
-static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&attenMaskOptional,
+static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&attenMaskOptional, 
                                    const aclTensor *&blockTableOptional, const aclTensor *&queryRopeOptional,
                                    const aclTensor *&keySink, const aclTensor *&keyRopeSink, const aclTensor *&valueSink, aclOpExecutor *executor)
 {
@@ -279,8 +279,8 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
     const aclTensor *learnableSinkOptional,
     const aclIntArray *qStartIdxOptional, 
     const aclIntArray *kvStartIdxOptional,
-    const aclTensor *keySink,
-    const aclTensor *keyRopeSink,
+    const aclTensor *keySink, 
+    const aclTensor *keyRopeSink, 
     const aclTensor *valueSink,
     int64_t numHeads, double scaleValue, int64_t preTokens,
     int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads,
@@ -302,15 +302,14 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
                 DFX_OUT(attentionOut, softmaxLse));
     const aclTensorList *tensorListKey = key;
     const aclTensorList *tensorListValue = value;
-    TensorPreProcess(tensorListKey, tensorListValue);
+    TensorPreProcessPionner(tensorListKey, tensorListValue);
 
     const aclTensor *tensorKeySharedPrefixOptional = keySharedPrefixOptional;
     const aclTensor *tensorValueSharedPrefixOptional = valueSharedPrefixOptional;
-    PrefixTensorPreProcess(tensorKeySharedPrefixOptional, tensorValueSharedPrefixOptional);
+    PrefixTensorPreProcessPionner(tensorKeySharedPrefixOptional, tensorValueSharedPrefixOptional);
 
     const aclTensor *placeHolder = nullptr;
     const aclTensor *tempTensor = nullptr;
-    // AttentionPioneerProcessSoftmaxLse(softmaxLseFlag, softmaxLse, tempTensor, placeHolder);
     if (softmaxLseFlag == false) {
         std::vector<int64_t> shape = {0};
         int64_t addr = 0xff;
@@ -331,7 +330,7 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
     }
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
-    CHECK_RET(ContiguousInput(query, attenMaskOptional, blockTableOptional, queryRopeOptional, keySink, keyRopeSink, valueSink, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(ContiguousInput(query, attenMaskOptional, blockTableOptional, queryRopeOptional, keySink, keyRopeSink, valueSink, l0Executor) == ACLNN_SUCCESS, 
               ACLNN_ERR_INNER_NULLPTR);
 
     // // 将K\V, k_rope 连续、非连续判断处理
@@ -340,18 +339,13 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
     const aclTensor *processKeyRope = ProcessTensorContiguous(keyRopeOptional, l0Executor, "keyRope");
 
     CHECK_RET(processKeyList != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // printf("before l0op::AttentionPioneer3\n");
-    // CHECK_RET(processValueList != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // printf("before l0op::AttentionPioneer2\n");
-    //CHECK_RET(processKeyRope != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
     // 调用 L0 接口 - 使用处理后的 tensor（保留 stride 信息）
     auto l0Outputs = l0op::AttentionPioneer(
         query, processKeyList, processValueList, pseShiftOptional, attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional,
         deqScale1Optional, quantScale1Optional, deqScale2Optional, quantScale2Optional, quantOffset2Optional, antiquantScaleOptional,
         antiquantOffsetOptional, blockTableOptional, queryPaddingSizeOptional, kvPaddingSizeOptional, keyAntiquantScaleOptional,
         keyAntiquantOffsetOptional, valueAntiquantScaleOptional, valueAntiquantOffsetOptional, keySharedPrefixOptional, valueSharedPrefixOptional,
-        actualSharedPrefixLenOptional, queryRopeOptional, processKeyRope, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, keySink, keyRopeSink, valueSink,
+        actualSharedPrefixLenOptional, queryRopeOptional, processKeyRope, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, keySink, keyRopeSink, valueSink, 
         numHeads, scaleValue, preTokens, nextTokens,
         inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize,
         antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0,
@@ -372,7 +366,7 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
     // 获取 workspace 大小
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
-
+    
     return ACLNN_SUCCESS;
 }
 

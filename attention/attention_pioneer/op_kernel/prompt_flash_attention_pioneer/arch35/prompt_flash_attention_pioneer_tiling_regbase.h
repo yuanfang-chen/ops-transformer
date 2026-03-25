@@ -313,6 +313,18 @@ public:
     int32_t get_nextTokens() const { return this->nextTokens; }
     void set_nextTokens(int32_t nextTokensParam) { this->nextTokens = nextTokensParam; }
 
+    int32_t sinkLength = 0;
+    int32_t get_sinkLength() const { return this->sinkLength; }
+    void set_sinkLength(int32_t sinkLengthParam) { this->sinkLength = sinkLengthParam; }
+
+    int32_t keyNoContinuesStride = 0;
+    int32_t get_keyNoContinuesStride() const { return this->keyNoContinuesStride; }
+    void set_keyNoContinuesStride(int32_t keyNoContinuesStrideParam) { this->keyNoContinuesStride = keyNoContinuesStrideParam; }
+
+    int32_t keyRopeNoContinuesStride = 0;
+    int32_t get_keyRopeNoContinuesStride() const { return this->keyRopeNoContinuesStride; }
+    void set_keyRopeNoContinuesStride(int32_t keyRopeNoContinuesStrideParam) { this->keyRopeNoContinuesStride = keyRopeNoContinuesStrideParam; }
+
     int32_t blockSize = 0;
     int32_t get_blockSize() const { return this->blockSize; }
     void set_blockSize(int32_t blockSizeParam) { this->blockSize = blockSizeParam; }

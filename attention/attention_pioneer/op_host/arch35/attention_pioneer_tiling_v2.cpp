@@ -347,7 +347,7 @@ static bool CheckKVPaddingCrossover(gert::TilingContext* context, ContextParamsF
 }
 
 // 0 不转置; 1 BNSD_BSND; 2 BSND_BNSD; 3 BSH_BNSD; 4 BNSD_NBSD; 5 BSND_NBSD; 6 BSH_NBSD; 7 NTD_TND; 8 TND_NTD
-uint32_t GetTransposeLayout(const std::string &layout) {
+uint32_t GetTransposeLayoutPionner(const std::string &layout) {
     const std::map<std::string, uint32_t> transposeLayoutMp = {
         {"BNSD_BSND", 1},
         {"BSND_BNSD", 2},
@@ -364,7 +364,7 @@ uint32_t GetTransposeLayout(const std::string &layout) {
     return 0;
 }
 
-ge::graphStatus ConvertQuantOptionalInputs(const gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
+ge::graphStatus ConvertQuantPionnerOptionalInputs(const gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
     contextKeyParams.deqScale1Shape = context->GetOptionalInputShape(DEQUANT_SCALE1_INDEX);
     contextKeyParams.scale1Shape = context->GetOptionalInputShape(QUANT_SCALE1_INDEX);
     contextKeyParams.deqScale2Shape = context->GetOptionalInputShape(DEQUANT_SCALE2_INDEX);
@@ -449,10 +449,10 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
         context->GetOptionalInputDesc(KEY_SHARED_PREFIX_INDEX)->GetDataType() : contextKeyParams.inputDataType;
     contextKeyParams.valueSharedPrefixDataType = (contextKeyParams.valueSharedPrefix != nullptr) ?
         context->GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX)->GetDataType() : contextKeyParams.inputDataType;
-    // contextKeyParams.learnableSinkDataType = (contextKeyParams.learnableSink != nullptr) ?
+    // contextKeyParams.learnableSinkDataType = (contextKeyParams.learnableSink != nullptr) ? 
     //     context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType() : contextKeyParams.inputDataType;
 
-    auto convertQuantRet = ConvertQuantOptionalInputs(context, contextKeyParams);
+    auto convertQuantRet = ConvertQuantPionnerOptionalInputs(context, contextKeyParams);
     if (convertQuantRet != ge::GRAPH_SUCCESS) {
         OP_LOGE(context->GetNodeName(), "Error occured while convert quant related tilingContext to PFA context!");
         return convertQuantRet;
@@ -476,7 +476,7 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(ATTR_BLOCK_SIZE_INDEX);
     contextKeyParams.workspaceSize = context->GetWorkspaceSizes(1);
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1 : 0;
-    contextKeyParams.transposeLayout = GetTransposeLayout(string(contextKeyParams.layout));
+    contextKeyParams.transposeLayout = GetTransposeLayoutPionner(string(contextKeyParams.layout));
     contextKeyParams.softmaxLseFlag = attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
     contextKeyParams.isSoftMaxLseEnable = (contextKeyParams.softmaxLseFlag == nullptr) ? false : *contextKeyParams.softmaxLseFlag;
     contextKeyParams.queryRopeInputShape = context->GetOptionalInputShape(QUERY_ROPE_INDEX);
@@ -491,7 +491,6 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.kRopeSink = context->GetOptionalInputTensor(KEY_ROPE_SINK_INDEX);
     contextKeyParams.vSink = context->GetOptionalInputTensor(VALUE_SINK_INDEX);
     contextKeyParams.keySinkInputShape = context->GetOptionalInputShape(KEY_SINK_INDEX);
-
     contextKeyParams.keyRopeSinkInputShape = context->GetOptionalInputShape(KEY_ROPE_SINK_INDEX);
     contextKeyParams.valueSinkInputShape = context->GetOptionalInputShape(VALUE_SINK_INDEX);
 

@@ -32,8 +32,8 @@ public:
     __aicore__ inline FABlockCubeNoquantMla() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe,
         __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
-        __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-        const FlashAttentionScoreSimplifiedTilingData *__restrict tiling,
+        __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,__gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, 
+        __gm__ uint8_t *valueSink, const FlashAttentionScoreSimplifiedTilingData *__restrict tiling,
         BufferManager<BufferType::L1>* l1BuffMgr,
         BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD>* mm12Bmm2AL1BuffersPtr);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
@@ -43,8 +43,8 @@ public:
 
 private:
     __aicore__ inline void InitInput(TPipe *pipe, __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
-        __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-        const FlashAttentionScoreSimplifiedTilingData *__restrict tiling);
+        __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,__gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, 
+        __gm__ uint8_t *valueSink, const FlashAttentionScoreSimplifiedTilingData *__restrict tiling);
     __aicore__ inline void InitLocalBuffer(BufferManager<BufferType::L1>* l1BuffMgr,
         BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD>* mm12Bmm2AL1BuffMgr);
     __aicore__ inline int64_t GetQueryRopeOffset(RunInfo<isInfer>& runInfo, ConstInfo<isInfer, hasRope>& constInfo);
@@ -69,6 +69,11 @@ private:
     GlobalTensor<INPUT_T> valueGm;
     GlobalTensor<INPUT_T> queryRopeGm;
     GlobalTensor<INPUT_T> keyRopeGm;
+
+    GlobalTensor<INPUT_T> keySinkGm;
+    GlobalTensor<INPUT_T> keyRopeSinkGm;
+    GlobalTensor<INPUT_T> valueSinkGm;
+
     // block_table
     GlobalTensor<int32_t> blockTableGm;
     uint32_t kvCacheBlockSize = 0;
@@ -103,12 +108,12 @@ private:
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::InitCubeBlock(
     TPipe *pipe, __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
-    __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tiling,
+    __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,__gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, 
+    __gm__ uint8_t *valueSink, const FlashAttentionScoreSimplifiedTilingData *__restrict tiling,
     BufferManager<BufferType::L1>* l1BuffMgr,
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD>* mm12Bmm2AL1BuffMgr)
 {
-    InitInput(pipe, query, key, value, blockTable, queryRope, keyRope, tiling);
+    InitInput(pipe, query, key, value, blockTable, queryRope, keyRope, keySink, keyRopeSink, valueSink, tiling);
     InitLocalBuffer(l1BuffMgr, mm12Bmm2AL1BuffMgr);
 }
 
@@ -116,6 +121,7 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::InitInput(
     TPipe *pipe, __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
+    __gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, __gm__ uint8_t *valueSink,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling)
 {
     this->tilingData = tiling;
@@ -147,6 +153,10 @@ __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::InitInput(
         this->queryRopeGm.SetGlobalBuffer((__gm__ INPUT_T *)queryRope);
         this->keyRopeGm.SetGlobalBuffer((__gm__ INPUT_T *)keyRope);
     }
+
+    this->keySinkGm.SetGlobalBuffer((__gm__ INPUT_T *)keySink);
+    this->keyRopeSinkGm.SetGlobalBuffer((__gm__ INPUT_T *)keyRopeSink);
+    this->valueSinkGm.SetGlobalBuffer((__gm__ INPUT_T *)valueSink);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -180,7 +190,7 @@ __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::IterateBmm1(Buffer<
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm1B;
     // 左矩阵复用 ,s2的第一次循环加载左矩阵
     // 加载左矩阵到L1 当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本块：搬运0
+    if (unlikely((runInfo.s2LoopCount == 0) && ((constInfo.sinkLength == 0) || runInfo.isSinkBlock))) { // sOuter循环第一个基本块：搬运Q
         mm1A = mm1AL1Buffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
@@ -223,27 +233,58 @@ __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::IterateBmm1(Buffer<
     WaitFlag<HardEvent::MTE1_MTE2>(mm1B.GetEventID<HardEvent::MTE1_MTE2>());
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
     if constexpr (isPa) {
-        Position startPos;
-        startPos.bIdx = runInfo.boIdx;
-        startPos.n2Idx = runInfo.n2oIdx;
-        startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;
-        startPos.dIdx = 0; 
-        PAShape shape;
-        shape.blockSize = kvCacheBlockSize;
-        shape.headNum = kvHeadNum;
-        shape.headDim = headDim;
-        shape.actHeadDim = headDim;
-        shape.maxblockNumPerBatch = maxBlockNumPerBatch;
-        shape.copyRowNum = runInfo.s2RealSize;
-        shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
-        PAShape ropeShape = shape;
-        ropeShape.headDim = headDimRope;
-        ropeShape.actHeadDim = headDimRope;
-        uint32_t dstNzC0Stride = (runInfo.s2RealSize + 15) >> 4 << 4;
-        LocalTensor<INPUT_T> mm1BRopeTensor = mm1BTensor[dstNzC0Stride * constInfo.dSize];
-        GlobalTensor<INPUT_T> mm1BNopeGmTensor = this->keyGm;
-        GlobalTensor<INPUT_T> mm1BRopeGmTensor = this->keyRopeGm;
-        GmCopyInToL1HasRopePA<INPUT_T>(mm1BTensor, mm1BRopeTensor, mm1BNopeGmTensor, mm1BRopeGmTensor, blockTableGm, kvLayout, shape, ropeShape, startPos);
+        if (runInfo.isSinkBlock) {
+            runInfo.keyOffset = runInfo.s2LoopCount * s2BaseSize * constInfo.dSize;
+            Nd2NzParams Gm2L1Nd2NzParams;
+            Gm2L1Nd2NzParams.ndNum = 1; // ND矩阵的个数
+            Gm2L1Nd2NzParams.nValue = runInfo.s2RealSize; // 单个ND矩阵的实际行数，单位为元素个数
+            Gm2L1Nd2NzParams.dValue = constInfo.dSize; // 单个ND矩阵的实际列数，单位为元素个数
+            Gm2L1Nd2NzParams.srcNdMatrixStride = 0; // 相邻ND矩阵起始地址之间的偏移， 单位为元素个数
+            Gm2L1Nd2NzParams.srcDValue = constInfo.mm1Kb; // 同一个ND矩阵中相邻行起始地址之间的偏移， 单位为元素个数
+            Gm2L1Nd2NzParams.dstNzC0Stride = (Gm2L1Nd2NzParams.nValue + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移， 单位为Block个数
+            Gm2L1Nd2NzParams.dstNzNStride = 1; // 转换为NZ矩阵后，ND之间相邻两行在NZ矩阵中起始地址之间的偏移， 单位为Block个数
+            Gm2L1Nd2NzParams.dstNzMatrixStride = 0; // 两个NZ矩阵，起始地址之间的偏移， 单位为元素数量
+            DataCopy(mm1BTensor, this->keySinkGm[runInfo.keyOffset], Gm2L1Nd2NzParams);
+            // 拷贝 Krope
+            if constexpr (hasRope) {
+                keyRopeOffset[runInfo.taskIdMod3] = runInfo.s2LoopCount * s2BaseSize * constInfo.dSizeRope;
+                Nd2NzParams Gm2L1Nd2NzParams;
+                Gm2L1Nd2NzParams.ndNum = 1; // ND矩阵的个数
+                Gm2L1Nd2NzParams.nValue = runInfo.s2RealSize; // 单个ND矩阵的实际行数，单位为元素个数
+                Gm2L1Nd2NzParams.dValue = constInfo.dSizeRope; // 单个ND矩阵的实际列数，单位为元素个数
+                Gm2L1Nd2NzParams.srcNdMatrixStride = 0; // 相邻ND矩阵起始地址之间的偏移， 单位为元素个数
+                Gm2L1Nd2NzParams.srcDValue = constInfo.mm1RopeKb; // 同一个ND矩阵中相邻行起始地址之间的偏移， 单位为元素个数
+                Gm2L1Nd2NzParams.dstNzC0Stride = (Gm2L1Nd2NzParams.nValue + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移， 单位为Block个数
+                Gm2L1Nd2NzParams.dstNzNStride = 1; // 转换为NZ矩阵后，ND之间相邻两行在NZ矩阵中起始地址之间的偏移， 单位为Block个数
+                Gm2L1Nd2NzParams.dstNzMatrixStride = 0; // 两个NZ矩阵，起始地址之间的偏移， 单位为元素数量
+                // DumpTensor(this->keyRopeSinkGm[keyRopeOffset[runInfo.taskIdMod3]],556,128*64);
+                DataCopy(mm1BTensor[Gm2L1Nd2NzParams.dstNzC0Stride * constInfo.dSize], this->keyRopeSinkGm[keyRopeOffset[runInfo.taskIdMod3]], Gm2L1Nd2NzParams);
+            }
+        } else {
+            Position startPos;
+            startPos.bIdx = runInfo.boIdx;
+            startPos.n2Idx = runInfo.n2oIdx;
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;
+            startPos.dIdx = 0; 
+            PAShape shape;
+            shape.blockSize = kvCacheBlockSize;
+            shape.headNum = kvHeadNum;
+            shape.headDim = headDim;
+            shape.actHeadDim = headDim;
+            shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+            shape.copyRowNum = runInfo.s2RealSize;
+            shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
+            shape.pageStride = constInfo.keyNoContinuesStride;
+            PAShape ropeShape = shape;
+            ropeShape.headDim = headDimRope;
+            ropeShape.actHeadDim = headDimRope;
+            ropeShape.pageStride = constInfo.keyRopeNoContinuesStride;
+            uint32_t dstNzC0Stride = (runInfo.s2RealSize + 15) >> 4 << 4;
+            LocalTensor<INPUT_T> mm1BRopeTensor = mm1BTensor[dstNzC0Stride * constInfo.dSize];
+            GlobalTensor<INPUT_T> mm1BNopeGmTensor = this->keyGm;
+            GlobalTensor<INPUT_T> mm1BRopeGmTensor = this->keyRopeGm;
+            GmCopyInToL1HasRopePANoContinue<INPUT_T>(mm1BTensor, mm1BRopeTensor, mm1BNopeGmTensor, mm1BRopeGmTensor, blockTableGm, kvLayout, shape, ropeShape, startPos);
+        }
     } else {
         Nd2NzParams Gm2L1Nd2NzParams;
         Gm2L1Nd2NzParams.ndNum = 1; // ND矩阵的个数
@@ -291,7 +332,7 @@ __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::IterateBmm1(Buffer<
         mmL0ABuffers, mmL0BBuffers,
         mm1ResL0C.GetTensor<T>(),
         param);
-    if (unlikely(runInfo.s2LoopCount == runParam.s2LoopEndIdx - 1)) {
+    if (unlikely((runInfo.s2LoopCount == runInfo.s2LoopLimit))) {
         mm1A.Set<HardEvent::MTE1_MTE2>();
     }
     // mm1B.Set<HardEvent::MTE1_MTE2>(); // 释放

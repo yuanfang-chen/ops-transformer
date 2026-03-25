@@ -28,7 +28,7 @@
 #endif
 #include "attention_pioneer_tilingkey.h"
 
-template <uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope,
+template <uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quantMode, bool hasAttenMask, bool hasRope, 
   bool isPa, bool isFd, bool emptyTensor, uint8_t PFAMask, uint8_t pFAMatMulType, bool enableKVPrefix>
 __global__ __aicore__ void attention_pioneer(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
                                                     __gm__ uint8_t* pse_shift, __gm__ uint8_t* attenMask,
@@ -46,10 +46,12 @@ __global__ __aicore__ void attention_pioneer(__gm__ uint8_t* query, __gm__ uint8
                                                     __gm__ uint8_t* keySink, __gm__ uint8_t* keyRopeSink, __gm__ uint8_t* valueSink,
                                                     __gm__ uint8_t* attentionOut, __gm__ uint8_t* softmaxLse, __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
+    //pfa 模板
     prompt_flash_attention_pioneer_FIAS_regbase<inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, PFAMask, pFAMatMulType, enableKVPrefix>(
-                                query, key, value, pse_shift, attenMask, actualSeqLengths, actualSeqLengthsKV, deq_scale1, quant_scale1,
+                                query, key, value, pse_shift, attenMask, actualSeqLengths, actualSeqLengthsKV, deq_scale1, quant_scale1,                                    
                                 deq_scale2, quant_scale2, quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize,
-                                kvPaddingSize, keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
+                                kvPaddingSize, keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,                                    
                                 keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope,
-                                 dequantScaleQuery, 0, keySink, keyRopeSink, valueSink, attentionOut, softmaxLse, workspace, tiling);
+                                dequantScaleQuery, 0, keySink, keyRopeSink, valueSink, attentionOut, softmaxLse, workspace, tiling);
+
 }

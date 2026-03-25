@@ -30,7 +30,6 @@
 namespace optiling {
 namespace v2 {
 // Rename class to avoid symbol conflicts with original PFA in the same link target
-#define PromptFlashAttentionPioneerTilingV2 AP_PromptFlashAttentionPioneerTilingV2
 #define CHECK_D_LIMITED_SCENARIO(dSize) ((dSize) != 64 && (dSize) != 128)
 
 struct PFAShapeInfo {
@@ -180,12 +179,12 @@ protected:
     bool CheckMaskTypeAndShape(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
     void SetSparseType(uint32_t qS);
     bool CheckSparseMode(ContextParamsForPFATiling& contextKeyParams, uint32_t qS);
-    bool CheckSinkLength(ContextParamsForPFATiling& contextKeyParams);
+    bool CheckSinkLength(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
+    bool CheckNocontinuesStirde(ContextParamsForPFATiling& contextKeyParams,PromptFlashAttentionPioneerTilingData& tilingData);
     bool CheckPACrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckMaskCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, 
         PromptFlashAttentionPioneerTilingData& tilingData);
     bool CheckTNDLayoutCrossover(ContextParamsForPFATiling& contextKeyParams);
-    bool CheckSinkLengthCrossver(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckNTDLayoutCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckTransposeLayoutCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckLearnSink(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
@@ -193,6 +192,7 @@ protected:
         std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV);
     bool CheckMultiFeatureCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, 
         std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV, PromptFlashAttentionPioneerTilingData& tilingData);
+    bool CheckSinkLengthCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckPerblockCrossover(ContextParamsForPFATiling& contextKeyParams);
     void SetTilingDataAttribute(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
     void GetEnableDN(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData,
@@ -202,12 +202,13 @@ protected:
     void InferTilingMod(const ContextParamsForPFATiling& contextKeyParams, std::vector<int64_t>& actualSeqLengths,
         std::vector<int64_t>& actualSeqLengthsKV, uint32_t actualSeqArrayLen, uint32_t d);
     int64_t GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd, int64_t innerBlockNums) const;
+    int64_t SinkBlockCount(int64_t actualSeqLength, int64_t actualSeqLengthKV, uint32_t sOuterSize, uint32_t sInnerSize);
     int64_t SumOfArithmeticSeries(int64_t an, int64_t d) const;
     int64_t GetCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqLength, int64_t sInner, int64_t sOuter, int64_t token) const;
     void FixParamWithRowInvalid(int64_t& actualSeqLength, int64_t actualSeqLengthKV, int64_t& preTokensLeftUp,
         int64_t& nextTokensLeftUp) const;
     int64_t GetCalcBlockNumsOneHead(int64_t actualSeqLength, int64_t actualSeqLengthKV, uint32_t sOuterSize,
-        uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) const;
+        uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed);
     void ComputeSplitNBSeq(PromptFlashAttentionPioneerTilingData& tilingData, uint32_t batchSize, const size_t tilingElementArrayLen,
         std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV, uint32_t sOuterSize,
         uint32_t sInnerSize, double coreWightTarget, uint32_t& curCore);
@@ -260,6 +261,9 @@ protected:
     void GetMaxWorkspaceFlag(ContextParamsForPFATiling& contextKeyParams);
     void GetQueryDimAndOutDim(const gert::StorageShape* queryShape, const gert::StorageShape* outShape,
         const std::string &layoutStr, int64_t &tmpqueryDim, int64_t &outDim, uint32_t i) const;
+    int64_t ClipSInnerToken(int64_t sInnerToken, int64_t minValue, int64_t maxValue);
+    int64_t GetCalcBlockNumsForS1G(int64_t actualSeqLength, int64_t actualSeqLengthKV,
+        uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp);
 
     void UpdateTilingKeyLayoutType();
     void UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
@@ -369,6 +373,9 @@ protected:
     uint32_t paLayoutType = 0;
     int64_t sparsePreTokens = 0;
     int64_t sparseNextTokens = 0;
+    int64_t sinkLength = 0;
+    int64_t keyNoContinuesStride = 0;
+    int64_t keyRopeNoContinuesStride = 0;
     int32_t sparseModeVal = 0;
     int64_t maxActualseqKV = 0;
     SplitCoreMode splitCoreMode = SplitCoreMode::SPLIT_NBS_VECTOR;

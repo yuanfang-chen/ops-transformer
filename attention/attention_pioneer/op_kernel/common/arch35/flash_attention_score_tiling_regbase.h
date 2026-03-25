@@ -135,6 +135,9 @@ public:
     uint16_t antiquantPerTensorFlag;
     uint16_t antiquantPerHeadFlag;
     uint32_t antiquantParaSeqSize;
+    uint32_t sinkLength;
+    uint32_t keyNoContinuesStride;
+    uint32_t keyRopeNoContinuesStride;
 
     int64_t get_bSize() const {return bSize;}
     void set_bSize(int64_t bSizeParam) {this->bSize = bSizeParam;}
@@ -284,6 +287,12 @@ public:
     void set_antiquantPerHeadFlag(uint16_t antiquantPerHeadFlagParam) {this->antiquantPerHeadFlag = antiquantPerHeadFlagParam;}
     uint32_t get_antiquantParaSeqSize() const {return antiquantParaSeqSize;}
     void set_antiquantParaSeqSize(uint32_t antiquantParaSeqSizeParam) {this->antiquantParaSeqSize = antiquantParaSeqSizeParam;}
+    uint32_t get_sinkLength() const {return sinkLength;}
+    void set_sinkLength(uint32_t sinkLengthParam) {this->sinkLength = sinkLengthParam;}
+    uint32_t get_keyNoContinuesStride() const {return keyNoContinuesStride;}
+    void set_keyNoContinuesStride(uint32_t keyNoContinuesStrideParam) {this->keyNoContinuesStride = keyNoContinuesStrideParam;}
+    uint32_t get_keyRopeNoContinuesStride() const {return keyRopeNoContinuesStride;}
+    void set_keyRopeNoContinuesStride(uint32_t keyRopeNoContinuesStrideParam) {this->keyRopeNoContinuesStride = keyRopeNoContinuesStrideParam;}
 };
 
 class MultiCoreParamsRegbase {

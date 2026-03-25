@@ -9,13 +9,13 @@
  */
 
 /*!
- * \file flash_attention_noquant_kernel_infer.h
+ * \file flash_attention_score_kernel_infer.h
  * \brief
  */
 
-#ifndef FLASH_ATTENTION_NOQUANT_KERNEL_INFER_H_
-#define FLASH_ATTENTION_NOQUANT_KERNEL_INFER_H_
-#include "./flash_attention_noquant_kernel_base.h"
+#ifndef FLASH_ATTENTION_SCORE_KERNEL_INFER_H_
+#define FLASH_ATTENTION_SCORE_KERNEL_INFER_H_
+#include "./flash_attention_score_kernel_base.h"
 #include "../../../../common/op_kernel/arch35/vf/vf_flash_decode.h"
 #include "./infer_flash_attention_comm.h"
 #include "./infer_flash_attention_kvcache.h"
@@ -23,11 +23,11 @@
 
 namespace BaseApi {
 template <typename CubeBlockType, typename VecBlockType>
-class FlashAttentionNoQuantKernelInfer : public FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
+class FlashAttentionScoreKernelInfer : public FlashAttentionScoreKernelBase<FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-    using BaseClass = FlashAttentionNoQuantKernelBase<FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
+    using BaseClass = FlashAttentionScoreKernelBase<FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
     /* =====================UB变量==================== */
     __aicore__ inline void InitUniqueConstInfo();
     __aicore__ inline void InitUniqueRunInfo(const RunParamStr<isInfer> &runParam, 
@@ -42,7 +42,7 @@ private:
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
+FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
 {
     if constexpr (isFd) {
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
@@ -53,6 +53,7 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstIn
         this->constInfo.isPostQuantBF16 = this->sharedParams.isPostQuantBF16;
     }
     this->constInfo.isRowInvalid = this->sharedParams.isRowInvalid;
+    this->constInfo.sinkLength = this->sharedParams.sinkLength;
     this->constInfo.headNumRatio = this->sharedParams.headNumRatio;
     this->constInfo.isGqa = this->sharedParams.isGqa;
     this->constInfo.isPfaGS1Merge = this->sharedParams.isPfaGS1Merge;
@@ -89,7 +90,7 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueConstIn
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
-FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
+FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, runInfo);
@@ -97,7 +98,7 @@ FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo
 }
 
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ProcessMainLoop()
+__aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::ProcessMainLoop()
 {
     int32_t actualCoreNums = this->sharedParams.coreNum;
     if constexpr (isFd) {
@@ -207,7 +208,7 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
                 }
-                s2LoopLimit = runParam.s2LoopEndIdx - 1;
+                s2LoopLimit = runParam.s2LoopEndIdx - 1 + this->constInfo.sinkBlockCnt;
             } else {
                 s2LoopLimit = 0;
             }
@@ -258,7 +259,7 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
 }
 
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::Process()
+__aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
@@ -276,7 +277,7 @@ __aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockT
 
 // =========================================== private functions ===========================================
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionNoQuantKernelInfer<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
+__aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr<isInfer> &runParam)
 {
     constexpr uint64_t fp8QBlockSize = 128U; // 128 is SOuterSize

@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file flash_attention_noquant_block_vec_infer.h
+ * \file flash_attention_score_block_vec_infer.h
  * \brief
  */
-#ifndef FLASH_ATTENTION_NOQUANT_BLOCK_VEC_INFER_H_
-#define FLASH_ATTENTION_NOQUANT_BLOCK_VEC_INFER_H_
-#include "flash_attention_noquant_block_vec_base.h"
+#ifndef FLASH_ATTENTION_SCORE_BLOCK_VEC_INFER_H_
+#define FLASH_ATTENTION_SCORE_BLOCK_VEC_INFER_H_
+#include "flash_attention_score_block_vec_base.h"
 #include "../../../../common/op_kernel/arch35/util_regbase.h"
 #include "flash_attention_score_common_regbase.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -27,10 +27,10 @@ using namespace regbaseutil;
 
 namespace BaseApi {
 TEMPLATES_DEF
-class FANoQuantBlockVecInfer
-    : public FANoQuantBlockVecBase<FANoQuantBlockVecInfer<TEMPLATE_ARGS>, TEMPLATE_ARGS> {
+class FABlockVecInfer
+    : public FABlockVecBase<FABlockVecInfer<TEMPLATE_ARGS>, TEMPLATE_ARGS> {
 public:
-    using BaseClass = FANoQuantBlockVecBase<FANoQuantBlockVecInfer<TEMPLATE_ARGS>, TEMPLATE_ARGS>;
+    using BaseClass = FABlockVecBase<FABlockVecInfer<TEMPLATE_ARGS>, TEMPLATE_ARGS>;
 public:
     /* ================编译期常量信息======================= */
     static constexpr uint32_t bufferSizeByte32K = 32768;
@@ -67,14 +67,14 @@ public:
     TQue<QuePosition::VECIN, 1> postQuantOffsetQue;; // postQuant
     TQue<QuePosition::VECIN, 1> sinkQue; // AttentionSink
 
-    __aicore__ inline FANoQuantBlockVecInfer() {};
+    __aicore__ inline FABlockVecInfer() {};
     __aicore__ inline void InitCubeVecSharedParams(CVSharedParams<isInfer, isPa> &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
     __aicore__ inline void CleanOutput(__gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut,
         ConstInfo<isInfer, hasRope> &constInfo);
     __aicore__ inline void InitDropOut(__gm__ uint8_t *dropMask, __gm__ uint8_t *workspace) {}
     __aicore__ inline void InitGlobalBuffer(
         __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-        __gm__ uint8_t *pScale, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
+        __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
         __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
         __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax,
         __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
@@ -84,8 +84,6 @@ public:
     __aicore__ inline void GenerateDropoutMask(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<uint8_t> &dropMaskUb) {}
     __aicore__ inline void SoftmaxDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb,
                                               LocalTensor<float> &maxUb);
-    __aicore__ inline void SoftmaxDataCopyOutFp8(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-                                                 LocalTensor<half> &sumUb, LocalTensor<half> &maxUb) {}
     template <typename VEC2_RES_T>
     __aicore__ inline void CopyOutAttentionOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb,
                                                int64_t vec2S1Idx, int64_t vec2CalcSize);
@@ -145,7 +143,7 @@ private:
 };
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedParams(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     CVSharedParams<isInfer, isPa> &sharedParams, int32_t aicIdx, uint8_t subBlockIdx)
 {
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
@@ -165,6 +163,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedP
     }
     sharedParams.preTokens = inputParamsRegbase.preTokens;
     sharedParams.nextTokens = inputParamsRegbase.nextTokens;
+    sharedParams.sinkLength = inputParamsRegbase.sinkLength;
     sharedParams.s1SparseValidSize = inputParamsRegbase.s1SparseValidSize;
     sharedParams.s2SparseValidSize = inputParamsRegbase.s2SparseValidSize;
     sharedParams.bandIndex = inputParamsRegbase.bandIndex;
@@ -232,7 +231,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedP
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_t *softmaxLse,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *attentionOut, ConstInfo<isInfer, hasRope> &constInfo) 
 {
     if ASCEND_IS_AIV {
@@ -254,14 +253,14 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CleanOutput(__gm__
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
-    __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV, __gm__ uint8_t *pScale,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
+    __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
     __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
     __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax,
     __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
-    BaseClass::InitCommonGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, pScale, postQuantScale, prefix, attenMask, learnableSink, workspace, constInfo);
+    BaseClass::InitCommonGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, prefix, attenMask, learnableSink, workspace, constInfo);
     if constexpr (isFd) {
         workspace -= singleCoreOffset * preloadTimes * (aicIdx + 1);             // 让当前的workspace地址回到基地址, workspace偏移了totalOffset + mm2Offset * 3 + ve2offset * 3
         auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
@@ -283,7 +282,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitPostQuant(ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitPostQuant(ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset)
 {
     if constexpr (POST_QUANT) {
         constInfo.isPostQuantOffsetExist = false;
@@ -336,7 +335,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitPostQuant(Cons
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuffer(ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuffer(ConstInfo<isInfer, hasRope> &constInfo)
 {
     if (constInfo.isSoftmaxLseEnable) {
         // 8: 适配TND，每行的结果存为8个重复lse元素（32B对齐）
@@ -362,7 +361,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuf
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitFDBuffers(ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitFDBuffers(ConstInfo<isInfer, hasRope> &constInfo)
 {
     this->tPipe->Reset();
     this->tPipe->InitBuffer(lseTmpBuff, bufferSizeByte32K);
@@ -383,7 +382,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitFDBuffers(Cons
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::FlashDecodeCompute(ConstInfo<isInfer, hasRope> &constInfo,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::FlashDecodeCompute(ConstInfo<isInfer, hasRope> &constInfo,
     GlobalTensor<INPUT_T> &keyGm, __gm__ int64_t *actualSeqKvlenAddr)
 {
     int64_t bIdx = constInfo.aivIdx / constInfo.n2Size;
@@ -403,7 +402,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::FlashDecodeCompute
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb,
     LocalTensor<float> &maxUb)
 {
@@ -422,47 +421,41 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::Vec1SinkCompute(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Vec1SinkCompute(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
 {
     int64_t sinkOffset = runInfo.n2oIdx * constInfo.gSize + runInfo.goIdx;
-    auto sinkRaw = this->sinkGm.GetValue(sinkOffset);
-    float sinkValue;
-    if constexpr (IsSameType<decltype(sinkRaw), half>::value) {
-        sinkValue = static_cast<float>(sinkRaw);
-    } else {
-        sinkValue = ToFloat(sinkRaw);
-    }
+    float sinkValue = ToFloat(this->sinkGm.GetValue(sinkOffset));
     SinkSubExpAddVF<float>(sumUb, maxUb, sinkValue, runInfo.halfS1RealSize);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::Vec1SinkComputeGSFused(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Vec1SinkComputeGSFused(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
 {
     CopySinkIn(runInfo, constInfo);
-    LocalTensor<INPUT_T> sinkUb = sinkQue.DeQue<INPUT_T>();
-    SinkSubExpAddGSFusedVF<float, INPUT_T>(sinkUb, sumUb, maxUb, runInfo.halfS1RealSize);
+    LocalTensor<bfloat16_t> sinkUb = sinkQue.DeQue<bfloat16_t>();
+    SinkSubExpAddGSFusedVF<float, bfloat16_t>(sinkUb, sumUb, maxUb, runInfo.halfS1RealSize);
     sinkQue.FreeTensor(sinkUb);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopySinkIn(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopySinkIn(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
 {
-    LocalTensor<INPUT_T> sinkUbBf16 = sinkQue.AllocTensor<INPUT_T>();
+    LocalTensor<bfloat16_t> sinkUbBf16 = sinkQue.AllocTensor<bfloat16_t>();
     int64_t sinkOffset = runInfo.n2oIdx * constInfo.gSize + constInfo.subBlockIdx * runInfo.halfS1RealSize;
     DataCopyExtParams sinkCopyParams;
     sinkCopyParams.blockCount = 1; // 进行一次连续拷贝
-    sinkCopyParams.blockLen = runInfo.halfS1RealSize * sizeof(INPUT_T); // 实际需要拷贝的字节数
+    sinkCopyParams.blockLen = runInfo.halfS1RealSize * sizeof(bfloat16_t); // 实际需要拷贝的字节数
     sinkCopyParams.srcStride = 0; // 源地址连续
     sinkCopyParams.dstStride = 0; // 目的地址连续
 
-    DataCopyPadExtParams<INPUT_T> sinkCopyPadParams{};
+    DataCopyPadExtParams<bfloat16_t> sinkCopyPadParams{};
     DataCopyPad(sinkUbBf16, this->sinkGm[sinkOffset], sinkCopyParams, sinkCopyPadParams);
     sinkQue.EnQue(sinkUbBf16);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 template <typename VEC2_RES_T>
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyOutAttentionOut(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyOutAttentionOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     if constexpr (isFd) {
@@ -473,7 +466,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyOutAttentionOu
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::GetActualSeqLenKV(ConstInfo<isInfer, hasRope> &constInfo, 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::GetActualSeqLenKV(ConstInfo<isInfer, hasRope> &constInfo, 
     GlobalTensor<INPUT_T> &keyGm, __gm__ int64_t *actualSeqKvlenAddr, int64_t boIdx, int64_t &actualSeqLen)
 {
     int64_t s2InCurrentBatch = constInfo.s2Size;
@@ -504,7 +497,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::GetActualSeqLenKV(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
     LocalTensor<float> &softmaxSumTmp, LocalTensor<float> &softmaxMaxTmp, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
 {
     if (unlikely(runInfo.halfS1RealSize == 0)) {
@@ -561,7 +554,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo<isInfer, hasRope> &constInfo)
 {
     auto &initParams = this->tilingData->initOutputParams;
     uint32_t tailSize = (initParams.totalOutputSize - constInfo.aivIdx * initParams.singleCoreSize) > 0 ?
@@ -575,7 +568,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitOutputSingleCo
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitLseOutputSingleCore(ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitLseOutputSingleCore(ConstInfo<isInfer, hasRope> &constInfo)
 {
     int64_t coreNum = GetBlockNum() * GetTaskRation();
     auto &initParams = this->tilingData->initOutputParams;
@@ -590,7 +583,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::InitLseOutputSingl
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CombineSplitKVRes(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CombineSplitKVRes(
     ConstInfo<isInfer, hasRope> &constInfo, uint64_t attenOutOffset, uint32_t bIdx, uint32_t n2Idx)
 {
     uint32_t gSplitSizeLse =
@@ -655,7 +648,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CombineSplitKVRes(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
     LocalTensor<T> lseMaxUb, LocalTensor<T> lseSumUb, ConstInfo<isInfer, hasRope> &constInfo, 
     uint32_t splitSize, uint64_t lseOffset, uint64_t sinkOffset)
 {
@@ -663,10 +656,10 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
     if (constInfo.isSoftmaxLseEnable) {
         lseOutputUb = softmaxLseQueue.template AllocTensor<T>();
     }
-    LocalTensor<INPUT_T> tmpSinkUb;
+    LocalTensor<bfloat16_t> tmpSinkUb;
     if (constInfo.learnableSinkFlag) {
         CopySinkFDIn(splitSize, sinkOffset);
-        tmpSinkUb = sinkQue.DeQue<INPUT_T>();
+        tmpSinkUb = sinkQue.DeQue<bfloat16_t>();
     }
     ComputeScaleValue_VF(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, splitSize, constInfo.actualCombineLoopSize,
                          constInfo.isSoftmaxLseEnable, constInfo.learnableSinkFlag);
@@ -687,22 +680,22 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopySinkFDIn(uint32_t splitSize, uint64_t sinkOffset)
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopySinkFDIn(uint32_t splitSize, uint64_t sinkOffset)
 {
-    LocalTensor<INPUT_T> sinkUbBf16 = sinkQue.AllocTensor<INPUT_T>();
+    LocalTensor<bfloat16_t> sinkUbBf16 = sinkQue.AllocTensor<bfloat16_t>();
     DataCopyExtParams sinkCopyParams;
     sinkCopyParams.blockCount = 1; // 进行一次连续拷贝
-    sinkCopyParams.blockLen = splitSize * sizeof(INPUT_T); // 实际需要拷贝的字节数
+    sinkCopyParams.blockLen = splitSize * sizeof(bfloat16_t); // 实际需要拷贝的字节数
     sinkCopyParams.srcStride = 0; // 源地址连续
     sinkCopyParams.dstStride = 0; // 目的地址连续
 
-    DataCopyPadExtParams<INPUT_T> sinkCopyPadParams{};
+    DataCopyPadExtParams<bfloat16_t> sinkCopyPadParams{};
     DataCopyPad(sinkUbBf16, this->sinkGm[sinkOffset], sinkCopyParams, sinkCopyPadParams);
     sinkQue.EnQue(sinkUbBf16);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> &vec2ResUb,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> &vec2ResUb,
     RunInfo<isInfer> &runInfo,  ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     LocalTensor<T> attenOut;
@@ -731,7 +724,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTen
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyLseIn(ConstInfo<isInfer, hasRope> &constInfo,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyLseIn(ConstInfo<isInfer, hasRope> &constInfo,
     uint32_t bIdx, uint32_t n2Idx, uint32_t startRow, uint32_t dealRowCount)
 {
     LocalTensor<T> softmaxMaxLocal = softmaxMaxInputQue.AllocTensor<T>();
@@ -760,7 +753,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyLseIn(ConstInf
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyFinalResOut(ConstInfo<isInfer, hasRope> &constInfo, uint64_t attenOutOffset, 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyFinalResOut(ConstInfo<isInfer, hasRope> &constInfo, uint64_t attenOutOffset, 
     LocalTensor<T> &accumOutLocal, uint32_t startRow, uint32_t dealRowCount, uint64_t perChannelQuantOffset)
 {
     LocalTensor<OUTPUT_T> tmpBmm2ResCastTensor = FDResOutputQue.AllocTensor<OUTPUT_T>();
@@ -784,7 +777,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyFinalResOut(Co
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ReduceFinalRes(ConstInfo<isInfer, hasRope> &constInfo, 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ReduceFinalRes(ConstInfo<isInfer, hasRope> &constInfo, 
     uint32_t bIdx, uint32_t n2Idx, LocalTensor<T> &dst, LocalTensor<T> &lseLocal, uint32_t startRow, uint32_t dealRowCount)
 {
     int64_t dSizeAligned64 = (int64_t)dVTemplateType;
@@ -801,7 +794,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ReduceFinalRes(Con
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyAccumOutIn(ConstInfo<isInfer, hasRope> &constInfo, 
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyAccumOutIn(ConstInfo<isInfer, hasRope> &constInfo, 
     uint32_t bIdx, uint32_t n2Idx, uint32_t splitKVIndex, uint32_t startRow, uint32_t dealRowCount)
 {
     LocalTensor<T> accumOutLocal = accumOutInputQue.AllocTensor<T>();
@@ -831,7 +824,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::CopyAccumOutIn(Con
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void
-FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGm(RunInfo<isInfer> &runInfo,
+FABlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGm(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     if (unlikely(runInfo.halfS1RealSize == 0)) {
@@ -861,7 +854,7 @@ FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ComputeLogSumExpAndCopyToGm(RunInfo<isInf
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ReduceFDDataCopyOut(ConstInfo<isInfer, hasRope> &constInfo,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ReduceFDDataCopyOut(ConstInfo<isInfer, hasRope> &constInfo,
     uint64_t attenOutOffset, LocalTensor<OUTPUT_T> &attenOutUb, uint32_t startRow, uint32_t dealRowCount,
     uint32_t columnCount, uint32_t actualColumnCount)
 {
@@ -875,7 +868,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::ReduceFDDataCopyOu
 
 TEMPLATES_DEF_NO_DEFAULT
 template <typename POSTQUANT_PARAMS_T, typename VEC2_RES_T>
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::PostQuantPerChnl(
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuantPerChnl(
     ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, LocalTensor<VEC2_RES_T> &vec2ResUb,
     uint64_t perChannelQuantOffset, uint32_t gSplitSize, uint32_t s1RowCount, uint32_t splitOffset, int64_t dSizeAligned64,
     GlobalTensor<POSTQUANT_PARAMS_T> postQuantScaleGm, GlobalTensor<POSTQUANT_PARAMS_T> postQuantOffsetGm)
@@ -911,7 +904,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::PostQuantPerChnl(
 
 TEMPLATES_DEF_NO_DEFAULT
 template <typename VEC2_RES_T>
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInfer, hasRope> &constInfo,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInfer, hasRope> &constInfo,
                                                                       RunInfo<isInfer> &runInfo, LocalTensor<OUTPUT_T> &attenOut,
                                                                       LocalTensor<VEC2_RES_T> &vec2ResUb,
                                                                       int64_t vec2S1Idx, int64_t dSizeAligned64)
@@ -938,8 +931,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInf
                 }
             }
         } else {
-            uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + vec2S1Idx * runInfo.vec2S1BaseSize * constInfo.dSizeV +
- 	                                                 runInfo.sOuterOffset * constInfo.dSizeV;
+            uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + runInfo.sOuterOffset * constInfo.dSizeV;
             uint64_t perChannelQuantOffset = constInfo.isGqa ?
                                                  perChannelQuantGQAOffset :
                                                  runInfo.n2oIdx * constInfo.gDv + runInfo.goIdx * constInfo.dSizeV;
@@ -971,7 +963,7 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInf
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::FDPostQuant(ConstInfo<isInfer, hasRope> &constInfo,
+__aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::FDPostQuant(ConstInfo<isInfer, hasRope> &constInfo,
                                                                    LocalTensor<OUTPUT_T> &attenOut,
                                                                    LocalTensor<T> &accumOutLocal,
                                                                    uint64_t perChannelQuantOffset,
@@ -992,4 +984,4 @@ __aicore__ inline void FANoQuantBlockVecInfer<TEMPLATE_ARGS>::FDPostQuant(ConstI
     }
 }
 }
-#endif // FLASH_ATTENTION_NOQUANT_BLOCK_VEC_INFER_H_
+#endif // FLASH_ATTENTION_SCORE_BLOCK_VEC_INFER_H_

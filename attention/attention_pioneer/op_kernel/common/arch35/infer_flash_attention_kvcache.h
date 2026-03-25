@@ -543,14 +543,14 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                 if (constInfo.gSize == 128) { // G为128时，基本块位于同一S1行
                     curGIdx = (curS1Idx % 2 == 0) ? curGIdx : (uint32_t)s1TemplateType;
                     curS1Idx /= 2;
-                } else if (constInfo.gSize <= 32) { // G<=32时，每64/G行为一个基本块
-                    curS1Idx = runParam.cubeSOuterOffset / constInfo.gSize;
+                } else {
+                    curGIdx = runParam.cubeSOuterOffset % constInfo.gSize;
+                    curS1Idx = runParam.cubeSOuterOffset / constInfo.gSize; 
                 }
-
                 if (constInfo.subBlockIdx == 1) {
                     int64_t firstCurGIdx = curGIdx;
-                    curGIdx = (firstCurGIdx + runParam.halfS1RealSize) % constInfo.gSize;
-                    curS1Idx += (firstCurGIdx + runParam.halfS1RealSize) / constInfo.gSize;
+                    curGIdx = (firstCurGIdx + runParam.firstHalfS1RealSize) % constInfo.gSize;
+                    curS1Idx = (runParam.cubeSOuterOffset + runParam.firstHalfS1RealSize) / constInfo.gSize; 
                 }
 
                 runParam.attentionOutOffset = attentionOutSeqOffset + // b

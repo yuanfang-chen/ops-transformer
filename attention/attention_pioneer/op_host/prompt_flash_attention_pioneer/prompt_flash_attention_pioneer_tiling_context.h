@@ -50,6 +50,9 @@ struct ContextParamsForPFATiling {
 
     const gert::Tensor *qStartIdx = nullptr;
     const gert::Tensor *kvStartIdx = nullptr;
+    const gert::Tensor *kSink = nullptr;
+    const gert::Tensor *kRopeSink = nullptr;
+    const gert::Tensor *vSink = nullptr;
 
     ge::DataType inputDataType = ge::DataType::DT_FLOAT16;
     ge::DataType kDataType = ge::DataType::DT_FLOAT16;
@@ -81,6 +84,9 @@ struct ContextParamsForPFATiling {
     const gert::StorageShape *blockTableShape = nullptr;
     const gert::StorageShape *outputShape = nullptr;
     const gert::StorageShape *lseoutputShape = nullptr;
+    const gert::StorageShape *keySinkInputShape = nullptr;
+    const gert::StorageShape *keyRopeSinkInputShape = nullptr;
+    const gert::StorageShape *valueSinkInputShape = nullptr;
 
     const gert::StorageShape *dequantScaleQueryShape = nullptr;
     const gert::StorageShape *KeyAntiquantScaleShape = nullptr;
@@ -131,6 +137,8 @@ struct ContextParamsForPFATiling {
     const int64_t *queryQuantMode = nullptr;
     bool hasKeyAntiquantOffset = 0;
     bool hasLearnableSink = 0;
+    uint32_t keyNoContinuesStride = 0;
+    uint32_t keyRopeNoContinuesStride = 0;
 };
 
 } // namespace optiling

@@ -19,7 +19,7 @@
 #include "../../../../common/op_kernel/arch35/attenmask.h"
 #include "../../../../common/op_kernel/arch35/pse.h"
 #include "flash_attention_block_cube_noquant_mla.h"
-#include "flash_attention_noquant_block_vec_infer.h"
+#include "flash_attention_score_block_vec_infer.h"
 
 using namespace fa_base_matmul;
 
@@ -31,8 +31,8 @@ public:
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse,
                                 __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
                                 __gm__ uint8_t *blockTable, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-                                __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-                                __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
+                                __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,__gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, 
+                                __gm__ uint8_t *valueSink, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
                                 const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -107,8 +107,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse,
     __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-    __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-    __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
+    __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,__gm__ uint8_t * keySink, __gm__ uint8_t *keyRopeSink, 
+    __gm__ uint8_t *valueSink, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe)
 {
     this->tilingData = tiling;
@@ -129,7 +129,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Init(
     InitMMResBuf();
 
     if ASCEND_IS_AIC {
-        this->cubeBlock.InitCubeBlock(this->tPipe, query, key, value, blockTable, queryRope, keyRope, tiling, &l1BufferManager, &mm12Bmm2AL1Buffers);
+        this->cubeBlock.InitCubeBlock(this->tPipe, query, key, value, blockTable, queryRope, keyRope, keySink, keyRopeSink, valueSink, tiling, &l1BufferManager, &mm12Bmm2AL1Buffers);
     }
 
     ComputeConstexpr();
@@ -207,7 +207,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::InitInpu
     }
 
     uint64_t singleCoreOffset = 0;
-    this->vecBlock.InitGlobalBuffer(pse, nullptr, nullptr, nullptr, nullptr, postQuantScale, postQuantOffset,
+    this->vecBlock.InitGlobalBuffer(pse, nullptr, nullptr, nullptr, postQuantScale, postQuantOffset,
         nullptr, attenMask, nullptr, nullptr, nullptr, nullptr, nullptr, workspace, singleCoreOffset, this->aicIdx, constInfo);
 }
 
@@ -232,6 +232,9 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     constInfo.n2Size = inputParamsRegbase.n2Size;
     constInfo.s1Size = inputParamsRegbase.s1Size;
     constInfo.s2Size = inputParamsRegbase.s2Size;
+    constInfo.sinkLength = inputParamsRegbase.sinkLength;
+    constInfo.keyNoContinuesStride = inputParamsRegbase.keyNoContinuesStride;
+    constInfo.keyRopeNoContinuesStride = inputParamsRegbase.keyRopeNoContinuesStride;
     if constexpr (isFd) {
         constInfo.splitKVNum = this->sharedParams.splitKVNum;
         constInfo.sInnerLoopSize = CeilDiv(inputParamsRegbase.s2Size, constInfo.splitKVNum);
@@ -460,6 +463,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Process(
     }
 
     int64_t multiCoreInnerIdx = 0;
+    constInfo.sinkBlockCnt = (constInfo.sinkLength + s2BaseSize - 1) / s2BaseSize;
+
     for (uint32_t bnIdx = bnStartIdx; bnIdx < bnEndIdx; bnIdx++) {
         bool lastBN = IsLastBN(bnIdx, bnEndIdx);
         if constexpr (!isFd) {
@@ -496,7 +501,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::Process(
                 continue;
             }
             // s2轴循环计数，支持sparse和非sparse场景
-            s2LoopLimit = runParam.s2LoopEndIdx - 1;
+            runParam.s2LoopEndIdx += constInfo.sinkBlockCnt;//加上sink部分的主流程循环次数 runParam.s2LoopEndIdx 保持含义：当前行需要计算的S2loop次数
+            s2LoopLimit = runParam.s2LoopEndIdx - 1; 
             if (lastLoopThisCore) {
                 isLastBmm1 = true;
                 s2LoopLimit += PRELOAD_N;
@@ -593,6 +599,21 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetRunIn
     runInfo.taskIdMod2 = taskId & 1;
     runInfo.taskIdMod3 = taskId % 3;
     runInfo.s2LoopLimit = s2LoopLimit;
+    if (s2LoopCount < constInfo.sinkBlockCnt) {
+        runInfo.s2StartIdx = 0;
+        runInfo.s2EndIdx = constInfo.sinkLength;
+        runInfo.s2LoopCount = s2LoopCount; //从0开始
+        runInfo.s2LoopLimit = s2LoopLimit; //增大避免触发V侧写出逻辑
+        runInfo.boIdx = 0; // 因为sinkTensor只有1个batch，所有batch共用一个sinkTensor
+        runInfo.isSinkBlock = true;
+    } else {
+        runInfo.s2StartIdx = runParam.s2LineStartIdx;
+        runInfo.s2EndIdx = runParam.s2LineEndIdx;
+        runInfo.s2LoopCount = s2LoopCount - constInfo.sinkBlockCnt;//修正 用于计算offset
+        runInfo.s2LoopLimit = s2LoopLimit - constInfo.sinkBlockCnt;//用于匹配V侧写出逻辑用
+        runInfo.boIdx = runParam.boIdx;
+        runInfo.isSinkBlock = false;
+    }
 
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         GetSeqQlenKvlenByBoidx(runParam.boIdx, constInfo.s1Size, constInfo.s2Size);
@@ -612,7 +633,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::SetRunIn
     this->ComputeBmm1Tail(runInfo, runParam);
     runInfo.qRopeOffset = runParam.qRopeNBGOffset;
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
-    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx
+    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx
         / s2BaseSize, runInfo);
 }
 
@@ -649,7 +670,10 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeB
     // -----------S2 Base Related-----------------
     runInfo.s2RealSize = s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+    if (runInfo.isSinkBlock && runInfo.s2LoopCount == constInfo.sinkBlockCnt - 1) {
+        runInfo.s2RealSize = constInfo.sinkLength - runInfo.s2LoopCount * s2BaseSize;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
+    } else if (!runInfo.isSinkBlock && runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
         runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
