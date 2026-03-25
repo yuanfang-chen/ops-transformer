@@ -725,7 +725,7 @@ ge::graphStatus CausalConv1dCutBHTiling::ComputeIntraCoreUbTiling()
         fixedUBSize += queryStartLocUBSize;
     }
 
-    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUBSize;
+    int64_t availableUbSize = static_cast<int64_t>(ubSize_ - SYSTEM_RESERVED_UB_SIZE) - fixedUBSize;
 
     // Big cores UB params
     ComputeUbFor(mainCoredimLen_, mainCoreBatchNum_, availableUbSize,

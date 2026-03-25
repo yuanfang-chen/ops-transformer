@@ -73,6 +73,7 @@ constexpr int64_t DIM_2 = 2;
 constexpr int64_t DIM_3 = 3;
 constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
 constexpr int64_t BUFFER_NUM = 2;
+constexpr int64_t SYSTEM_RESERVED_UB_SIZE = 8 * 1024;
 
 // Input mode constants
 constexpr int64_t X_INPUT_3D = 0;  // 3D input mode
