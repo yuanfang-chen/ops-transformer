@@ -39,6 +39,8 @@ constexpr uint8_t BUFFER_SWITCH = 2;
 constexpr uint8_t SPLIT_M = 0;
 constexpr uint8_t SPLIT_K = 2;
 constexpr uint8_t GROUP_LIST_TYPE_SPARSE = 2;
+constexpr uint32_t SPARSE_GROUP_LIST_ITEM_STRIDE = 2;
+constexpr uint32_t SPARSE_GROUP_LIST_SPLIT_VALUE_OFFSET = 1;
 constexpr uint64_t CUBE_BLOCK = 16;
 constexpr uint64_t INNER_AXIS_MIN_SPLIT_VAL = 128; // ND2NZ cacheline 128
 
@@ -146,9 +148,8 @@ __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx, int32_t 
             splitValue = static_cast<int32_t>(groupListGm.GetValue(groupIdx));
         }
         else {
-            // groupListType 为2的情况, shape为[e,2]
-            // sparse item is [group_idx, split_value], so split value index = groupIdx * 2 + 1
-            splitValue = static_cast<int32_t>(groupListGm.GetValue(groupIdx * 2 + 1));
+            splitValue = static_cast<int32_t>(groupListGm.GetValue(groupIdx * SPARSE_GROUP_LIST_ITEM_STRIDE +
+                                                                   SPARSE_GROUP_LIST_SPLIT_VALUE_OFFSET));
         }
     }
     return splitValue;

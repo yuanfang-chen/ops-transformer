@@ -41,6 +41,8 @@ using namespace Cgmct::Gemm::GroupedMatmul;
 namespace {
 constexpr uint64_t GROUP_LIST_TYPE_SPARSE = 2UL;
 constexpr uint64_t GROUP_TYPE_M = 0UL;
+constexpr uint64_t SPARSE_GROUP_LIST_ITEM_STRIDE = 2UL;
+constexpr uint64_t SPARSE_GROUP_LIST_SPLIT_VALUE_OFFSET = 1UL;
 constexpr uint64_t IDX_A_OFFSET = 0UL;
 constexpr uint64_t IDX_B_OFFSET = 1UL;
 constexpr uint64_t IDX_X1SCALE_OFFSET = 2UL;
@@ -167,8 +169,7 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     for (uint32_t loopIdx = 0; loopIdx < groupNum_; ++loopIdx) {
         uint32_t groupIdx = loopIdx;
         if (groupListType_ == GROUP_LIST_TYPE_SPARSE) {
-            // sparse grouplist item is [group_idx, split_value], so index = loopIdx * 2
-            groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2));
+            groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * SPARSE_GROUP_LIST_ITEM_STRIDE));
         }
         UpdateOffset(loopIdx, groupIdx);
         // Update input parameters M, N, K within the group
@@ -387,9 +388,8 @@ QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGrou
         } else if (groupListType_ == 1) {
             splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx));
         } else {
-            // groupListType 为2的情况, shape为[e,2]
-            // sparse item is [group_idx, split_value], so split value index = groupIdx * 2 + 1
-            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx * 2 + 1));
+            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx * SPARSE_GROUP_LIST_ITEM_STRIDE +
+                                                                        SPARSE_GROUP_LIST_SPLIT_VALUE_OFFSET));
         }
     }
     return splitValue;
