@@ -64,7 +64,7 @@ public:
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
         }
         if constexpr (commBeforeComputeFlag) {
-            LaunchCommBeforeCompute(startExpertIdx, expertNum, false);
+            LaunchCommBeforeCompute(startExpertIdx, expertNum);
         } else {
             LaunchCommAfterCompute(startExpertIdx, expertNum);
         }
@@ -82,56 +82,45 @@ public:
             }
         }
 
-        uint64_t axis = (H1_ + 63) / 64 * 2;
-
-        // 计算发送和接收的 count 和 offset
-        uint64_t alltoAllvSendCntLocal[MAX_EP_RANK_SIZE] = {0UL};
-        uint64_t alltoAllvRecvCntLocal[MAX_EP_RANK_SIZE] = {0UL};
-        uint64_t alltoAllvSendOffsetLocal[MAX_EP_RANK_SIZE] = {0UL};
-        uint64_t alltoAllvRecvOffsetLocal[MAX_EP_RANK_SIZE] = {0UL};
-
-        // 直接使用 taskTilingInfo_ 中的数据
         const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
         const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
+        uint64_t axis = (H1_ + 63) / 64 * 2;
 
         for (uint64_t i = 0UL; i < rankDim_; i++) {
+            alltoAllvScaleSendCnt[i] = 0UL;
+            alltoAllvScaleRecvCnt[i] = 0UL;
             for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
-                alltoAllvSendCntLocal[i] += static_cast<uint64_t>(sendCnt[expertIdx + i * e_]) * axis;
-                alltoAllvRecvCntLocal[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
+                alltoAllvScaleSendCnt[i] += static_cast<uint64_t>(sendCnt[expertIdx + i * e_]) * axis;
+                alltoAllvScaleRecvCnt[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
             }
         }
 
-        // 计算发送偏移量（使用 axis）
-        alltoAllvSendOffsetLocal[0] = 0UL;
+        alltoAllvScaleSendOffset[0] = 0UL;
         for (uint32_t j = 0U; j < startExpertIdx; j++) {
-            alltoAllvSendOffsetLocal[0] += static_cast<uint64_t>(sendCnt[j]) * axis;
+            alltoAllvScaleSendOffset[0] += static_cast<uint64_t>(sendCnt[j]) * axis;
         }
         for (uint32_t i = 1U; i < rankDim_; i++) {
-            alltoAllvSendOffsetLocal[i] = alltoAllvSendOffsetLocal[i - 1U];
+            alltoAllvScaleSendOffset[i] = alltoAllvScaleSendOffset[i - 1U];
             for (uint32_t j = 0U; j < e_; j++) {
-                alltoAllvSendOffsetLocal[i] +=
-                    static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * axis;
+                alltoAllvScaleSendOffset[i] += static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * axis;
             }
         }
 
-        // 计算接收偏移量
-        alltoAllvRecvOffsetLocal[0] = 0UL;
-        uint64_t alltoAllvRecvOffsetLastSum = 0UL;
         for (uint32_t i = 0U; i < rankDim_; i++) {
             if ((startExpertIdx == 0U) && (i == 0U)) {
-                alltoAllvRecvOffsetLocal[i] = 0UL;
-                alltoAllvRecvOffsetLastSum += alltoAllvRecvCntLocal[0];
+                alltoAllvScaleRecvOffset[i] = 0UL;
+                alltoAllvScaleRecvOffsetLastSum += alltoAllvScaleRecvCnt[0];
             } else {
-                alltoAllvRecvOffsetLocal[i] = alltoAllvRecvOffsetLastSum;
-                alltoAllvRecvOffsetLastSum += alltoAllvRecvCntLocal[i];
+                alltoAllvScaleRecvOffset[i] = alltoAllvScaleRecvOffsetLastSum;
+                alltoAllvScaleRecvOffsetLastSum += alltoAllvScaleRecvCnt[i];
             }
         }
 
-        // 启动 AlltoAllV 并存储句柄
         alltoAllvScaleHandleId_[startExpertIdx] = hccl_.AlltoAllV<true>(
-            (__gm__ uint8_t *)sendScaleGlobalBuffer_.GetPhyAddr(), alltoAllvSendCntLocal, alltoAllvSendOffsetLocal, HCCL_DATA_TYPE_FP8E8M0,
-            (__gm__ uint8_t *)recvScaleGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCntLocal, alltoAllvRecvOffsetLocal, HCCL_DATA_TYPE_FP8E8M0);
+            (__gm__ uint8_t *)sendScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleSendCnt, alltoAllvScaleSendOffset, HCCL_DATA_TYPE_FP8E8M0,
+            (__gm__ uint8_t *)recvScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleRecvCnt, alltoAllvScaleRecvOffset, HCCL_DATA_TYPE_FP8E8M0);
     }
+
 
 
     __aicore__ inline void WaitScale(uint32_t startExpertIdx)
@@ -146,26 +135,6 @@ public:
         }
         hccl_.Wait(alltoAllvScaleHandleId_[startExpertIdx]);
     }
-
-
-    __aicore__ inline void LaunchScale(uint32_t startExpertIdx, uint32_t expertNum)
-    {
-        if ASCEND_IS_AIC {
-            return;
-        }
-        if ASCEND_IS_AIV {
-            if (GetBlockIdx() != 0) {
-                return;
-            }
-        }
-        if constexpr (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
-            hcclDataType_ = HCCL_DATA_TYPE_FP8E8M0;
-        } else {
-            hcclDataType_ = HCCL_DATA_TYPE_FP16;
-        }
-        LaunchCommBeforeCompute(startExpertIdx, expertNum, true);
-    }
-
 
     __aicore__ inline void InitSacleBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
@@ -211,11 +180,11 @@ public:
     }
 
 private:
-    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum, bool isScale = false)
+    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum)
     {
         const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
         const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
-        uint64_t axis = isScale ? (H1_ + 63) / 64 * 2 : H1_;
+        uint64_t axis = H1_;
         for (uint64_t i = 0UL; i < rankDim_; i++) {
             alltoAllvSendCnt[i] = 0UL;
             alltoAllvRecvCnt[i] = 0UL;
@@ -321,6 +290,14 @@ private:
     uint64_t alltoAllvSendOffset[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvRecvCnt[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvRecvOffset[MAX_EP_RANK_SIZE] = {0UL};
+
+    // scale相关的alltoall通信变量
+    uint64_t alltoAllvScaleSendCnt[MAX_EP_RANK_SIZE] = {0UL};
+    uint64_t alltoAllvScaleSendOffset[MAX_EP_RANK_SIZE] = {0UL};
+    uint64_t alltoAllvScaleRecvCnt[MAX_EP_RANK_SIZE] = {0UL};
+    uint64_t alltoAllvScaleRecvOffset[MAX_EP_RANK_SIZE] = {0UL};
+    uint64_t alltoAllvScaleRecvOffsetLastSum = 0UL;
+
 };
 }; // namespace MC2KernelTemplate
 

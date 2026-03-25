@@ -59,7 +59,8 @@ public:
         if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
             uint64_t commOutLen =
                 Align((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1), TENSOR_LIST_SIZE);
-            gmmxScaleCommOutGm = workspaceGM + commOutLen;
+            // permuteOut为true,则将permuteout存放到对应的位置，scale的地址可以从workspaceGM开始
+            gmmxScaleCommOutGm = tilingData_->isPermuteOut ? workspaceGM : workspaceGM + commOutLen;
             gmmxScaleGM = gmmxScaleGM;  // 保存参数到成员变量
             // commOp中已经初始化了上下文，这里只更新地址
             commOp.InitSacleBuffer(gmmxScaleGM, gmmxScaleCommOutGm);

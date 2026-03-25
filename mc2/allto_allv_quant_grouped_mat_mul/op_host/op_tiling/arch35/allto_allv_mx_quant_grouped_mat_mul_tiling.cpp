@@ -79,8 +79,11 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::DoLibApiTiling()
         GE_ASSERT_GRAPH_SUCCESS(mmHelper.SetInputParams(bs_, n2_, h2_, transMmWeight_));
         GE_ASSERT_GRAPH_SUCCESS(mmHelper.Process());
         tilingData->mmQuantTilingData = mmHelper.GetAlltoAllvQuantHelperData();
-        PrintGMMQuantTilingData(tilingData->gmmQuantTilingData);
+        PrintGMMQuantTilingData(tilingData->mmQuantTilingData);
     }
+
+    GetPermuteScaleOutSize();
+    
     OP_LOGD(context_->GetNodeName(), "end DoLibApiTiling.");
     return ge::GRAPH_SUCCESS;
 }
