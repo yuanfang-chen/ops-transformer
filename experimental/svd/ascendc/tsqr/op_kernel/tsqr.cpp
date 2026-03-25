@@ -81,7 +81,7 @@ __aicore__ inline void TsqrKernel<T>::Init(GM_ADDR a, GM_ADDR q, GM_ADDR r, GM_A
     batchSize_ = tiling.batchSize;
     blockSize_ = tiling.blockSize;
     numLevels_ = tiling.numLevels;
-    batchFactor = tiling.batchFactor;
+    batchFactor_ = tiling.batchFactor;
     tmpQSize_ = tiling.tmpQSize;
     tmpRSize_ = tiling.tmpRSize;
     bufferQSize_ = tiling.bufferQSize;
@@ -98,9 +98,9 @@ __aicore__ inline void TsqrKernel<T>::Init(GM_ADDR a, GM_ADDR q, GM_ADDR r, GM_A
     __gm__ uint8_t* tmpRPtr = tmpQPtr + tmpQSize_ * batchFactor_ * sizeof(T);
     __gm__ uint8_t* bufferQPtr = tmpRPtr + tmpRSize_ * batchFactor_ * sizeof(T);
     qrWorkspace = bufferQPtr + bufferQSize_ * batchFactor_ * sizeof(T);
-    tmpQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpQPtr), tmpQSize_ * batchFactor);
-    tmpRGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpRPtr), tmpRSize_ * batchFactor);
-    bufferQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(bufferQPtr), bufferQSize_ * batchFactor);
+    tmpQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpQPtr), tmpQSize_ * batchFactor_);
+    tmpRGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(tmpRPtr), tmpRSize_ * batchFactor_);
+    bufferQGlobal_.SetGlobalBuffer(reinterpret_cast<__gm__ T*>(bufferQPtr), bufferQSize_ * batchFactor_);
 
 }
 
@@ -286,7 +286,7 @@ __aicore__ inline void TsqrKernel<T>::Forward(const GlobalTensor<T>& aGm, const 
     if (GetBlockIdx() == 0) {
         for (int batch = 0; batch < batchFactor_; batch++) {
             CallQR(getRBlock(aOffset * batchFactor_ + batch * 2), tmpQGm[qOffset * batchFactor_ + batch * 2 * N_ * N_], rGm[batch * N_ * N_], 2 * N_, N_);
-        }        
+        }
     }
 }
 

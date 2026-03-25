@@ -61,8 +61,8 @@ int getBlockSize(gert::TilingContext* context, int M, int N) {
     }
     if (!blockSize) {
         blockSize = 1024;
-        while((M % blockSize != 0 || M / blockSize < 4) && blockSize > 8) {
-            blockSize /= 2; 
+        while ((M % blockSize != 0 || M / blockSize < 4) && blockSize > 8) {
+            blockSize /= 2;
         }
     }
     return blockSize;
@@ -77,7 +77,6 @@ bool checkLimitations(int M, int N, int blockSize, int numBlocks) {
         && N * 2 <= blockSize && blockSize <= M / 4
         && N % 8 == 0
         && M % blockSize == 0
-        && ((numBlocks & (numBlocks - 1)) == 0) // Is Power Of Two
     );
 }
 
@@ -159,6 +158,7 @@ ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
         std::cout << "Out of shape limitations" << std::endl;
         return ge::GRAPH_FAILED;
     }
+
     int32_t batchFactor = (batchSize >= 4 && (batchSize % 4 == 0)) ? 4 : 1;
 
     tilingData.set_batchSize(batchSize);
