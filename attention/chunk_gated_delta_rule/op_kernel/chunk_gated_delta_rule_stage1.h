@@ -91,7 +91,7 @@ public:
 
         workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
         attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                   coreIdx_ * paraNum_* chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                   coreIdx_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
 
         workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float);
         queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
@@ -192,8 +192,6 @@ public:
         dk_ = tiling_->dk;
         dv_ = tiling_->dv;
         paraNum_ = tiling_->stageOneParaNum;
-        kStep_ = (dk_ + paraNum_ - 1) / paraNum_;
-        vStep_ = (dv_ + paraNum_ - 1) / paraNum_;
         dkAligned_ = (dk_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         dvAligned_ = (dv_ + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
         scale_ = tiling_->scale;
@@ -226,7 +224,7 @@ public:
         uint32_t formerChunkNum = tailChunkNum + 1;      // former核处理的块数
         uint32_t formerCoreNum = totalChunk % coreNum_;  // former核数量
         uint32_t start, end;
-        if(coreIdx_ < formerCoreNum){
+        if (coreIdx_ < formerCoreNum){
             start = coreIdx_ * formerChunkNum;
             end = start + formerChunkNum;
         } else {
@@ -236,11 +234,8 @@ public:
 
         for (int32_t taskId = start; taskId < end; taskId += paraNum_) {
             uint32_t curParaNum = paraNum_ < end - taskId ? paraNum_ : end - taskId;
-            uint64_t nId = taskId % nv_;
-            uint64_t cgId = taskId / nv_;
             // 获取每个chunk有效长度
             for (uint32_t i = 0; i < curParaNum; ++i) {
-                validLenBatch_[i] = chunkSize_;
                 uint32_t curTaskId = taskId + i;
                 uint64_t curNId = curTaskId % nv_;
                 uint64_t curCgId = curTaskId / nv_;
@@ -257,7 +252,8 @@ private:
     //   curCgId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     // ----------------------------------------------------------
     __aicore__ inline void SetChunkOffset(uint64_t id, uint64_t curNId, uint64_t curCgId)
-    {
+    {   
+        validLenBatch_[id] = chunkSize_;
         // 尾chunk处理
         if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
             validLenBatch_[id] = cg_.length % chunkSize_;
@@ -291,16 +287,16 @@ private:
         AscendC::CrossCoreWaitFlag(0x9); // 同步0
         // key @ key.transpose(-1,-2)
         for (uint32_t i = 0; i < curParaNum; ++i) {
-            AICProcess(keyContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], kkWsGm_[i * ccOffset_], chunkSize_,
-                       chunkSize_, dk_, true);
+            AICProcess(keyContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], kkWsGm_[i * ccOffset_],
+                       chunkSize_, chunkSize_, dk_, true);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8); // 同步1
 
         // query @ key.transpose(-1,-2)   stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
             outQkGm_ = outQkBaseGm_[chunkRowBase_[i] * chunkSize_];
-            AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_, validLenBatch_[i],
-                       validLenBatch_[i], dk_, true);
+            AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_,
+                       validLenBatch_[i], validLenBatch_[i], dk_, true);
         }
         AscendC::CrossCoreWaitFlag(0x7); // 同步2
 
@@ -319,7 +315,6 @@ private:
 
         // attn @ v_beta    stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
-            uint64_t vOffset = i * chunkSize_ * dv_;
             outVInnerGm_ = outVInnerBaseGm_[chunkRowBase_[i] * dv_];
             AICProcess(attnWsGm_[i * ccOffset_], vBetaWsGm_[i * cvOffset_], outVInnerGm_, chunkSize_, dv_, chunkSize_);
         }
