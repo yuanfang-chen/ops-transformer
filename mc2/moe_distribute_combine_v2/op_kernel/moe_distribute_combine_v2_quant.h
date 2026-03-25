@@ -95,7 +95,8 @@ public:
         } else if constexpr(QuantMode == MXFP8_E5M2_COMM_QUANT || QuantMode == MXFP8_E4M3_COMM_QUANT) {
             hAlign32Size_ = Ceil(axisH_, UB_ALIGN) * UB_ALIGN;
             hExpandXAlignSize_ = Align128(axisH) * sizeof(ExpandXType);
-            scaleNum_ = Align2(Ceil32(axisH));
+            quantScaleNum_ = Align2(Ceil32(axisH));
+            scaleNum_ = quantScaleNum_;
             tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_; // int8_align + scale有效个数
         }
     }
