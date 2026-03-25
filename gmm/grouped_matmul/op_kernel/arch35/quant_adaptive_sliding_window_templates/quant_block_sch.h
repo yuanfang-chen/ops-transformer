@@ -65,7 +65,7 @@ public:
     __aicore__ inline void Init(const TCubeTiling* __restrict &tilingData, uint32_t blockIdx);
     // 每一个group需要更新mm的group偏移和MNK
     template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat = CubeFormat::ND>
-    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx);
+    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx, int8_t groupType);
     template <bool isGmm>
     __aicore__ inline void UpdateGroupParams(); // 每一个group需要更新mm的参数
     __aicore__ inline void UpdateTailTile();
@@ -124,16 +124,43 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
 }
 
 template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat>
-__aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx)
+__aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx,
+                                                           int8_t groupType)
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
-    if (groupIdx > 0) { // groupIdx==0时，起始点均为0，无需计算，减少scalar
+    const bool isSplitM = (groupType == QuantUtils::SPLIT_M);
+    if (groupIdx > 0) {
         if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
             params_.aGroupAddrOffset += params_.m * params_.k / 2;
-            params_.bGroupAddrOffset += params_.n * params_.k / 2;
+            if (isSplitM) {
+                // split-M: weight/bias/scale 需要按“真实 groupIdx”跳转；
+                // 首轮可能出现 groupIdx != 0，此时 params_.n/k 仍为 0，需要用当前 n/k 推导偏移。
+                params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) *
+                                             static_cast<uint64_t>(k) / 2;
+            } else {
+                params_.bGroupAddrOffset += params_.n * params_.k / 2;
+            }
         } else {
             params_.aGroupAddrOffset += params_.m * params_.k;
-            if constexpr (wFormat == CubeFormat::NZ) {
+            if (isSplitM) {
+                // M轴分组时统一按groupIdx推导权重偏移，避免依赖grouplisttype分支
+                if constexpr (wFormat == CubeFormat::NZ) {
+                    if constexpr (bTrans) {
+                        params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
+                            QuantUtils::CeilDiv(static_cast<uint32_t>(k), QuantUtils::WEIGHTNZ_K0_32) *
+                            QuantUtils::CeilDiv(static_cast<uint32_t>(n), QuantUtils::WEIGHTNZ_N0_16) *
+                            QuantUtils::WEIGHTNZ_N0_K0;
+                    } else {
+                        params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) *
+                            QuantUtils::CeilDiv(static_cast<uint32_t>(n), QuantUtils::WEIGHTNZ_N0_32) *
+                            QuantUtils::CeilDiv(static_cast<uint32_t>(k), QuantUtils::WEIGHTNZ_K0_16) *
+                            QuantUtils::WEIGHTNZ_N0_K0;
+                    }
+                } else {
+                    params_.bGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) *
+                                                 static_cast<uint64_t>(k);
+                }
+            } else if constexpr (wFormat == CubeFormat::NZ) {
                 if constexpr (bTrans) {
                     params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
                                                 QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) *
@@ -153,19 +180,35 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
                 scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
                 params_.xScaleGroupAddrOffset += params_.m * scaleK;
-                params_.wScaleGroupAddrOffset += params_.n * scaleK;
+                if (isSplitM) {
+                    uint64_t wScaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
+                    wScaleK *= QuantUtils::CeilDiv(static_cast<uint32_t>(k), QuantUtils::MXFP_DIVISOR_SIZE);
+                    params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n) *
+                                                     wScaleK;
+                } else {
+                    params_.wScaleGroupAddrOffset += params_.n * scaleK;
+                }
             } else if constexpr (aTrans && !bTrans) { // mx (k / 64 + G, m, 2)
                 // scaleK from (k0 + k1 + k2 + ... + k_{i - 1}) / 64 + Gi, cumsum
                 // n在host侧已保证不会为0
-                scaleK *= (params_.bGroupAddrOffset / params_.n / QuantUtils::MXFP_DIVISOR_SIZE + groupIdx);
+                scaleK *= (params_.bGroupAddrOffset / static_cast<uint64_t>(n) / QuantUtils::MXFP_DIVISOR_SIZE +
+                           groupIdx);
                 params_.xScaleGroupAddrOffset = params_.m * scaleK;
-                params_.wScaleGroupAddrOffset = params_.n * scaleK;
+                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(n) * scaleK;
             }
         } else { // 当perChannel/perToken（重点场景）计算offset，kernel侧在perTensor场景下直接使用groupIdx偏移，减少分支判断
             params_.xScaleGroupAddrOffset += params_.m;
-            params_.wScaleGroupAddrOffset += params_.n;
+            if (isSplitM) {
+                params_.wScaleGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n);
+            } else {
+                params_.wScaleGroupAddrOffset += params_.n;
+            }
         }
-        params_.biasGroupAddrOffset += params_.n;
+        if (isSplitM) {
+            params_.biasGroupAddrOffset = static_cast<uint64_t>(groupIdx) * static_cast<uint64_t>(n);
+        } else {
+            params_.biasGroupAddrOffset += params_.n;
+        }
     }
 
     // 需要kernel传参m,n,k, 兼容group_type=0,2和多tensor情况
