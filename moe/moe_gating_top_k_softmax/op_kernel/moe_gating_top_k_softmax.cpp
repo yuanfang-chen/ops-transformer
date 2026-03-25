@@ -38,7 +38,6 @@ extern "C" __global__ __aicore__ void moe_gating_top_k_softmax(GM_ADDR x,
                                                                GM_ADDR workspace,
                                                                GM_ADDR tiling)
 {
-    AscendC::printf("\n moe_gating_top_k_softmax [kernel] 310P %d\n");
     if (TILING_KEY_IS(MOE_GATING_SOFTMAX_310P_FLOAT16_OPTIONAL_FINISHED)) {
         MOE_GATING_TOP_K_SOFTMAX_310P_IMPL();
     }
