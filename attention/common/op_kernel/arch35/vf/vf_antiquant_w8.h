@@ -95,8 +95,8 @@ __aicore__ inline void AntiquantVFW8Nz(LocalTensor<KV_T>& antiqInUb, LocalTensor
                                            LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb,
                                            LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                            uint32_t dealRowCount) {
-  static_assert(baseSize % 16 == 0);
-  static_assert(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
+  ASCENDC_ASSERT(baseSize % 16 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
                 "antiquant w8, KV_T must be int8_t or hifloat8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -243,8 +243,8 @@ __aicore__ inline void AntiquantVFW8PerTokenNz(LocalTensor<KV_T>& antiqInUb, Loc
                                                LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb,
                                                LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                                uint32_t dealRowCount) {
-  static_assert(baseSize % 16 == 0);
-  static_assert(IsSameType<KV_T, int8_t>::value, "antiquant w4 PerToken, KV_T must be int4_t");
+  ASCENDC_ASSERT(baseSize % 16 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value, "antiquant w4 PerToken, KV_T must be int4_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ Q_T* ubOffsetAddr = (__ubuf__ Q_T*)antiqOffsetUb.GetPhyAddr();
@@ -256,8 +256,8 @@ __aicore__ inline void AntiquantVFW8PerTokenNz(LocalTensor<KV_T>& antiqInUb, Loc
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8Nz(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                           LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
-  static_assert(baseSize % 16 == 0);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
+  ASCENDC_ASSERT(baseSize % 16 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -323,8 +323,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8D64(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                             LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                             uint32_t dealRowCount) {
-  static_assert(baseSize == 64);
-  static_assert(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
+  ASCENDC_ASSERT(baseSize == 64);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
                 "antiquant w8, KV_T must be int8_t or hifloat8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -426,8 +426,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8PerTokenD64(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                                     LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                                     uint32_t dealRowCount) {
-  static_assert(baseSize == 64);
-  static_assert(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
+  ASCENDC_ASSERT(baseSize == 64);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ Q_T *ubDstAddr_ = ubDstAddr + 16 - (dealRowCount + 1) * 32 * 4 / 2;
@@ -493,8 +493,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8Norm(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize % 128 == 0);
-  static_assert(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
+  ASCENDC_ASSERT(baseSize % 128 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value || IsSameType<KV_T, hifloat8_t>::value,
                 "antiquant w8, KV_T must be int8_t or hifloat8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -573,8 +573,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8PerTokenD128(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 128);
-  static_assert(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
+  ASCENDC_ASSERT(baseSize == 128);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ ANTIQ_PARAMS_T* ubOffsetAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqOffsetUb.GetPhyAddr();
@@ -658,8 +658,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8PerTokenD256(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 256);
-  static_assert(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
+  ASCENDC_ASSERT(baseSize == 256);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ uint8_t* ubSrcAddr1 = ubSrcAddr + 128;
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -771,8 +771,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFW8PerTokenD512(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 512);
-  static_assert(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
+  ASCENDC_ASSERT(baseSize == 512);
+  ASCENDC_ASSERT(IsSameType<KV_T, int8_t>::value, "antiquant perToken w8, KV_T must be int8_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ uint8_t* ubSrcAddr1 = ubSrcAddr + 128;
   __ubuf__ uint8_t* ubSrcAddr2 = ubSrcAddr + 128 * 2;
@@ -901,8 +901,8 @@ __simd_vf__ void AntiquantVFImplFp8D64(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8D64(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                           LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
-  static_assert(baseSize == 64);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
+  ASCENDC_ASSERT(baseSize == 64);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -968,8 +968,8 @@ __simd_vf__ void AntiquantVFImplFp8Norm(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8Norm(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                           LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
-  static_assert(baseSize % 128 == 0);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
+  ASCENDC_ASSERT(baseSize % 128 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -1082,7 +1082,6 @@ __simd_vf__ void AntiquantVFImplFp8PerTokenD64(__ubuf__ uint8_t* ubSrcAddr, __ub
 
     MicroAPI::StoreAlign<Q_T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
         ubDstAddr, vCastRes0, blockStride, repeatStride, qTypeMaskLower64);
-    // 非连续对齐搬出
     MicroAPI::StoreAlign<Q_T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
         ubDstAddr_, vCastRes0, blockStride, repeatStride, qTypeMaskHigher64);
   }
@@ -1093,16 +1092,14 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFFp8PerTokenD64(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                                     LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                                     uint32_t dealRowCount) {
-  static_assert(baseSize == 64);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
+  ASCENDC_ASSERT(baseSize == 64);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ Q_T *ubDstAddr_ = ubDstAddr + 16 - (dealRowCount + 1) * 32 * 4 / 2;  
   __ubuf__ ANTIQ_PARAMS_T* ubOffsetAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqOffsetUb.GetPhyAddr();
   __ubuf__ ANTIQ_PARAMS_T* ubScaleAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqScaleUb.GetPhyAddr();
 
-  PRINTF("------wangke ubSrcAddr = %u, ubDstAddr = %u, ubDstAddr_ = %u, ubOffsetAddr = %u, ubScaleAddr = %u, dealRowCount = %d\n",
-         ubSrcAddr, ubDstAddr, ubDstAddr_, ubOffsetAddr, ubScaleAddr, dealRowCount);
   AntiquantVFImplFp8PerTokenD64<Q_T, KV_T, ANTIQ_PARAMS_T, baseSize, hasOffset>(
     ubSrcAddr, ubDstAddr, ubDstAddr_, ubOffsetAddr, ubScaleAddr, dealRowCount);
 }
@@ -1183,14 +1180,13 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFFp8PerTokenD128(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 128);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
+  ASCENDC_ASSERT(baseSize == 128);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ ANTIQ_PARAMS_T* ubOffsetAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqOffsetUb.GetPhyAddr();
   __ubuf__ ANTIQ_PARAMS_T* ubScaleAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqScaleUb.GetPhyAddr();
-  PRINTF("------wangke ubSrcAddr = %u, ubDstAddr = %u, ubOffsetAddr = %u, ubScaleAddr = %u, dealRowCount = %d\n",
-         ubSrcAddr, ubDstAddr, ubOffsetAddr, ubScaleAddr, dealRowCount);
+
   AntiquantVFImplFp8PerTokenD128<Q_T, KV_T, ANTIQ_PARAMS_T, baseSize, hasOffset>(
     ubSrcAddr, ubDstAddr, ubOffsetAddr, ubScaleAddr, dealRowCount);
 }
@@ -1280,8 +1276,8 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFFp8PerTokenD256(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 256);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
+  ASCENDC_ASSERT(baseSize == 256);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ uint8_t* ubSrcAddr1 = ubSrcAddr + 128;
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
@@ -1329,8 +1325,8 @@ __simd_vf__ void AntiquantVFImplFp8PerTokenD512(__ubuf__ uint8_t* ubSrcAddr, __u
     MicroAPI::LoadUnAlignPre(u1, ubOffsetAddr);
   }
   __ubuf__ Q_T* ubDstAddr1 = ubDstAddr + blockStride * 128;
-  __ubuf__ Q_T* ubDstAddr2 = ubDstAddr + blockStride * 128 * 2;
-  __ubuf__ Q_T* ubDstAddr3 = ubDstAddr + blockStride * 128 * 3;
+  __ubuf__ Q_T* ubDstAddr2 = ubDstAddr + blockStride * 256; // 128*2
+  __ubuf__ Q_T* ubDstAddr3 = ubDstAddr + blockStride * 384; // 128*3
 
   for (uint16_t j = 0; j < static_cast<uint16_t>(dealRowCount); j++) {
     // 读入每行的伪量化参数
@@ -1417,12 +1413,12 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
 __aicore__ inline void AntiquantVFFp8PerTokenD512(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                              LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                              uint32_t dealRowCount) {
-  static_assert(baseSize == 512);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
+  ASCENDC_ASSERT(baseSize == 512);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ uint8_t* ubSrcAddr1 = ubSrcAddr + 128;
-  __ubuf__ uint8_t* ubSrcAddr2 = ubSrcAddr + 128 * 2;
-  __ubuf__ uint8_t* ubSrcAddr3 = ubSrcAddr + 128 * 3;
+  __ubuf__ uint8_t* ubSrcAddr2 = ubSrcAddr + 256; // 128*2
+  __ubuf__ uint8_t* ubSrcAddr3 = ubSrcAddr + 384; // 128*3
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ ANTIQ_PARAMS_T* ubOffsetAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqOffsetUb.GetPhyAddr();
   __ubuf__ ANTIQ_PARAMS_T* ubScaleAddr = (__ubuf__ ANTIQ_PARAMS_T*)antiqScaleUb.GetPhyAddr();
@@ -1525,8 +1521,8 @@ __aicore__ inline void AntiquantVFFp8PerTokenNz(LocalTensor<KV_T>& antiqInUb, Lo
                                                LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb,
                                                LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
                                                uint32_t dealRowCount) {
-  static_assert(baseSize % 16 == 0);
-  static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
+  ASCENDC_ASSERT(baseSize % 16 == 0);
+  ASCENDC_ASSERT(IsSameType<KV_T, fp8_e4m3fn_t>::value, "Antiquant fp8 PerToken, KV_T must be fp8_e4m3.");
   __ubuf__ uint8_t* ubSrcAddr = (__ubuf__ uint8_t*)(antiqInUb.GetPhyAddr());
   __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(antiqResUb.GetPhyAddr());
   __ubuf__ Q_T* ubOffsetAddr = (__ubuf__ Q_T*)antiqOffsetUb.GetPhyAddr();
@@ -1543,7 +1539,7 @@ __aicore__ inline void AntiquantVFImpl(LocalTensor<fp8_e4m3fn_t>& antiqInUb, Loc
     if constexpr (isKvCacheNz) {
         AntiquantVFFp8PerTokenNz<Q_T, fp8_e4m3fn_t, ANTIQ_PARAMS_T, baseSize, hasOffset>
           (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount);
-    }else {
+    } else {
       if constexpr (baseSize == 64) {
         AntiquantVFFp8PerTokenD64<Q_T, fp8_e4m3fn_t, ANTIQ_PARAMS_T, baseSize, hasOffset>
           (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount);
