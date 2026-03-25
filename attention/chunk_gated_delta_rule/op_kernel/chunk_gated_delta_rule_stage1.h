@@ -249,20 +249,20 @@ private:
     {
         // 尾chunk处理
         if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
-            validLenBatch_[i] = cg_.length % chunkSize_;
+            validLenBatch_[id] = cg_.length % chunkSize_;
         }
-        if (validLenBatch_[i] < halfChunkSize_) {
-            subValidLenBatch_[i] = (subBlockIdx_ == 0) ? validLenBatch_[i] : 0;
+        if (validLenBatch_[id] < halfChunkSize_) {
+            subValidLenBatch_[id] = (subBlockIdx_ == 0) ? validLenBatch_[id] : 0;
         } else {
-            subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
+            subValidLenBatch_[id] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[id] - halfChunkSize_;
         }
         // offset
         uint64_t cgLenPad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
         chunkRowBase_[id] = curNId * cgLenPad + curCgId * chunkSize_;
 
-        chunkStartRowBatch_[i] = cg_.startPos + curCgId * chunkSize_;
-        nIdBatch_[i] = curNId;
-        bgOffsetBatch_[i] = chunkStartRowBatch_[i] * nv_ + curNId;
+        chunkStartRowBatch_[id] = cg_.startPos + curCgId * chunkSize_;
+        nIdBatch_[id] = curNId;
+        bgOffsetBatch_[id] = chunkStartRowBatch_[id] * nv_ + curNId;
     }
 
     __aicore__ inline void ProcessParaChunk(int32_t curParaNum)
@@ -360,7 +360,7 @@ private:
             // k_cumdecay = -1.0 * k * beta * g_cum_exp
             outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
             uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_;
-            GBKCompute(gBKWsGm_[i * ckOffset_], outKgGm_, betaUbFloat[betaUbOffset], kUbFloatCon[kUbOffset]);
+            GBKCompute(gBKWsGm_[i * ckOffset_], outKgGm_, betaUbFloat_[betaUbOffset], kUbFloatCon_[kUbOffset]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x6); // 同步3
 
@@ -368,7 +368,7 @@ private:
             // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
             uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
-            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat[valueUbOffset]);
+            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat_[valueUbOffset]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5); // 同步4
 
@@ -377,7 +377,7 @@ private:
             outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase_[i] * dk_];
             uint64_t qUbOffset = i * halfChunkSize_ * dkAligned_;
             uint64_t gUbFloat = i * chunkSize_ * maxLen_;
-            QPrimeCompute(outQPrimeGm_, qUbFloatCon_[qUbOffset], gCumExpBroadUbFloat[gUbFloat]);
+            QPrimeCompute(outQPrimeGm_, qUbFloatCon_[qUbOffset], gCumExpBroadUbFloat_[gUbFloat]);
         }
     }
 
@@ -602,7 +602,7 @@ private:
     __aicore__ inline void VBetaCompute(const GlobalTensor<float> valueGm, const GlobalTensor<float> vBetaWsGm, LocalTensor<float> betaUbFloat, LocalTensor<float> valueUbFloat)
     {
         uint64_t vBeginOffset = subOffset_ * vRowStride_;
-        DataCopyInBf16WithStride(subValidRows_, dv_, valueGm[vBeginOffset], vRowStride_);
+        DataCopyInBf16WithStride(subValidRows_, dv_, valueGm_[vBeginOffset], vRowStride_);
         valueLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
         vBetaLocal_ = fp32OutQueue_.AllocTensor<float>();
         Cast(valueUbFloat, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows_ * dvAligned_);
