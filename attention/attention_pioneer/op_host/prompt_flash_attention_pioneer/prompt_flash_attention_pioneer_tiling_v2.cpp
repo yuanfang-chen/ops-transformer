@@ -4693,12 +4693,6 @@ ge::graphStatus PromptFlashAttentionPioneerTilingV2::CheckSingleAttribute(Contex
         return ge::GRAPH_FAILED;
     }
 
-    // // attention sink check
-    // if (!CheckLearnSink(contextKeyParams, queryShapeInfo)) {
-    //     OP_LOGE(contextKeyParams.opName, "Check sink failed!");
-    //     return ge::GRAPH_FAILED;
-    // }
-
     if (!CheckSinkLength(contextKeyParams)) {
         OP_LOGE(contextKeyParams.opName, "Check sinkLength failed!");
         return ge::GRAPH_FAILED;

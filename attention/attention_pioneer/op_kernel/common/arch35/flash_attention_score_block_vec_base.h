@@ -54,8 +54,6 @@ public:
     static constexpr bool isMlaFullQuant = isFp8 && hasRope;
     static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
     static constexpr bool useDn = false;
-    // IsDn(((IsSameType<INPUT_T, float>::value) || isFp8), (isFp8 && (s2BaseSize == 256)), pseMode, hasAtten, hasDrop,
-    //                                    s1BaseSize == 64, dTemplateType, hasRope, enableKVPrefix);
     static constexpr bool hasPse = pseMode != PseTypeEnum::PSE_NONE_TYPE;
     static constexpr bool hasPseOuter = (pseMode == PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) ||
                                         (pseMode == PseTypeEnum::PSE_OUTER_MUL_ADD_TYPE);
@@ -1271,16 +1269,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
     } else {
         curGIdx = runInfo.s1oIdx * constInfo.s1BaseSize % constInfo.gSize;
     }
-    // else if (constInfo.gSize <= 32) { // G<=32时，每64/G行为一个基本块
-    //     curS1Idx *= (64 / constInfo.gSize); // 64 s1Base基本块
-    // } else if (constInfo.gSize != 64){ // s1BaseSize是64，当QN != 64场景，比如QN=48时
-    //     curGIdx = runInfo.s1oIdx * constInfo.s1BaseSize % constInfo.gSize;
-    // }
 
     if (constInfo.subBlockIdx == 1) {
         int64_t firstCurGIdx = curGIdx;
         curGIdx = (firstCurGIdx + runInfo.firstHalfS1RealSize) % constInfo.gSize;
-        // curS1Idx += (firstCurGIdx + s1DealSize) / constInfo.gSize;
     }
 
     DataCopyExtParams dataCopyParams;
@@ -1292,9 +1284,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
         dataCopyParams.dstStride = (constInfo.t1Size * constInfo.dSizeV - constInfo.dSizeV) * sizeof(OUTPUT_T);
         dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
         dataCopyParams.blockCount = headSize;
-        // AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(123);
-        // AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(123);
-        // DumpTensor(attenOut,555,512);
         DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
     }
 

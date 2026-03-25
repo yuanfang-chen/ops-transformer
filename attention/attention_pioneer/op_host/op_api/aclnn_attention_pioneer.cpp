@@ -23,7 +23,6 @@
 #include "opdev/shape_utils.h"
 #include "opdev/tensor_view_utils.h"
 #include "attention_pioneer.h"
-// #include "aclnn/opdev/op_executor.h"
 #include "opdev/op_errno.h"
 #include "aclnn/aclnn_base.h"
 #include "aclnn_kernels/contiguous.h"
