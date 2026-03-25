@@ -912,7 +912,7 @@
     <td>✓</td>
     <td>✓</td>
     <td>AI Core</td>
-    <td>基于一系列计算得到MHC架构中hidden层的$H^{res}$和$H^{post}$投影矩阵以及Atten或MLP层的输入矩阵$h^{in}$。</td>
+    <td>基于一系列计算得到MHC架构中hidden层的$H^{res}$和$H^{post}$投影矩阵以及Attention或MLP层的输入矩阵$h^{in}$。</td>
   </tr>
   <tr>
     <td>posembedding</td>
