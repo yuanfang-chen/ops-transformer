@@ -194,9 +194,9 @@ bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
     // Keep the sparse grouplist restriction in the no-quant 950 tiling path so the
     // common API check does not need extra quant-state parameters just to distinguish
     // no-quant from weight-quant cases.
-    OP_CHECK_IF(groupType_ == SPLIT_M && groupListType_ != 0 && groupListType_ != 1,
+    OP_CHECK_IF(groupListType_ == 2,
                 OP_LOGE(context->GetNodeName(),
-                        "In no quant case, when groupType is 0, groupListType only supports values 0 or 1, but actual is %u.",
+                        "In no quant case, groupListType does not support value 2(sparse), but actual is %u.",
                         groupListType_),
                 return false);
 

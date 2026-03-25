@@ -29,7 +29,7 @@ public:
                                const GroupedMatmulCommonUtil &commonUtil) const;
     ge::graphStatus InferOutShape(gert::InferShapeContext *context, const GMMAttrs &gmmAttrs);
     ge::graphStatus InferOutDtype(gert::InferDataTypeContext *context);
-    ge::graphStatus GetGroupNumValue(const gert::InferShapeContext *context);
+    ge::graphStatus GetGroupNumValue(const gert::InferShapeContext *context, const GMMAttrs &gmmAttrs);
 private:
     ge::graphStatus CheckFormatValid(const gert::InferShapeContext *context) const;
     ge::graphStatus CheckDtypeValid(const gert::InferDataTypeContext *context) const;

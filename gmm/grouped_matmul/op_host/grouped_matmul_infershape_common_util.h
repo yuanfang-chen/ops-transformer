@@ -74,6 +74,7 @@ struct GMMAttrs {
     int64_t splitItem;
     int64_t outputDtype;
     int64_t groupType;
+    int64_t groupListType;
     bool transposeX;
     bool transposeWeight;
     int64_t activeType;

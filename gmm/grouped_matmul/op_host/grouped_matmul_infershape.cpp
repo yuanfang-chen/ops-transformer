@@ -259,6 +259,11 @@ static ge::graphStatus GetAttrsValue(T context, GMMAttrs &gmmAttrs)
     gmmAttrs.groupType = *groupTypePtr;
     OP_LOGI(context->GetNodeName(), "Attr groupType = %ld", gmmAttrs.groupType);
 
+    const int64_t *groupListTypePtr = attrs->GetAttrPointer<int64_t>(GMM_INDEX_ATTR_GROUP_LIST_TYPE);
+    OP_CHECK_NULL_WITH_CONTEXT(context, groupListTypePtr);
+    gmmAttrs.groupListType = *groupListTypePtr;
+    OP_LOGI(context->GetNodeName(), "Attr groupListType = %ld", gmmAttrs.groupListType);
+
     const bool *transposeWPtr = attrs->GetAttrPointer<bool>(GMM_INDEX_ATTR_TRANSPOSE_W);
     OP_CHECK_NULL_WITH_CONTEXT(context, transposeWPtr);
     gmmAttrs.transposeWeight = *transposeWPtr;
@@ -1430,7 +1435,7 @@ static graphStatus InferShape4DavidQuantGMM(gert::InferShapeContext* context) {
               OP_LOGE(context->GetNodeName(), "GetAttrsValue failed"), return GRAPH_FAILED);
     OP_CHECK_IF(davidQuantGMMChecker.GetXAndWeightDimValue(context, utilForDavidQuantGMM.attrsInfo) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetXAndWeightDimValue failed"), return GRAPH_FAILED);
-    OP_CHECK_IF(davidQuantGMMChecker.GetGroupNumValue(context) != GRAPH_SUCCESS,
+    OP_CHECK_IF(davidQuantGMMChecker.GetGroupNumValue(context, utilForDavidQuantGMM.attrsInfo) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetGroupNumValue failed"), return GRAPH_FAILED);
     OP_CHECK_IF(davidQuantGMMChecker.CheckShape(context, utilForDavidQuantGMM) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "CheckShape failed"), return GRAPH_FAILED);
@@ -1483,7 +1488,7 @@ static ge::graphStatus InferShape4GroupedMatmul(gert::InferShapeContext* context
             return GRAPH_SUCCESS;
         }
     }
-    GMMAttrs gmmAttrs{GMM_X_Y_SEPARATED, 0, GMM_NO_SPLIT, false, false, 0, 0};
+    GMMAttrs gmmAttrs{GMM_X_Y_SEPARATED, 0, GMM_NO_SPLIT, 0, false, false, 0, 0};
     OP_CHECK_IF(GetAttrsValue(context, gmmAttrs) != GRAPH_SUCCESS || CheckAttrs(context, gmmAttrs) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "Failed to get attrs."), return GRAPH_FAILED);
 

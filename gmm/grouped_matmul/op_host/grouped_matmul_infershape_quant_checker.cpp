@@ -488,14 +488,16 @@ ge::graphStatus GroupedMatmulQuantChecker::CheckShapeForQuantParam(const gert::I
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus GroupedMatmulQuantChecker::GetGroupNumValue(const gert::InferShapeContext *context)
+ge::graphStatus GroupedMatmulQuantChecker::GetGroupNumValue(const gert::InferShapeContext *context,
+                                                            const GMMAttrs &gmmAttrs)
 {
     auto groupListShape = context->GetOptionalInputShape(GMM_INDEX_IN_GROUP_LIST);
     OP_CHECK_NULL_WITH_CONTEXT(context, groupListShape);
-    OP_CHECK_IF(groupListShape->GetDimNum() != 1,
+    size_t validGroupListDimNum = (gmmAttrs.groupListType == 2L) ? 2UL : 1UL;
+    OP_CHECK_IF(groupListShape->GetDimNum() != validGroupListDimNum,
                 OP_LOGE(context->GetNodeName(),
-                        "The groupList only support 1 dim num for now, but the actual is [%zu].",
-                        groupListShape->GetDimNum()),
+                        "The groupList dim num should be [%zu] when groupListType is [%ld], but the actual is [%zu].",
+                        validGroupListDimNum, gmmAttrs.groupListType, groupListShape->GetDimNum()),
                 return ge::GRAPH_FAILED);
     groupNum_ = groupListShape->GetDim(0);
     return ge::GRAPH_SUCCESS;
