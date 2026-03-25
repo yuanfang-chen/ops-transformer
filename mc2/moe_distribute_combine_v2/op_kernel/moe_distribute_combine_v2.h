@@ -941,6 +941,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ExpertAlltoAl
             if constexpr ((QuantMode == MXFP8_E5M2_COMM_QUANT) || (QuantMode == MXFP8_E4M3_COMM_QUANT)) {
                 Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(ExpandXType));
             }
+            SyncFunc<AscendC::HardEvent::V_MTE2>();
 #endif
             DataCopyPad(gmTpSendCountTensor_, expandXGM_[tokenGMOffset], expandXCopyParams, copyPadExtParams);
             gmTpSendCountQueue_.EnQue(gmTpSendCountTensor_);
@@ -1251,8 +1252,10 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessMoeExp
     tmpUb = moeSumQueue_.DeQue<XType>();
     LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
     if constexpr (QuantMode > UNQUANT) {
-        quantInst_.DeQuantProcess(tmpUb, outLocalTensor);
-        Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+        quantInst_.DeQuantProcess(tmpUb, outLocalTensor, rowTmpFloatLocal_);
+        if constexpr (QuantMode == INT8_COMM_QUANT){
+            Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+        }
     } else {
         Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
     }
@@ -1356,8 +1359,10 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessExpert
         tmpUb = moeSumQueue_.DeQue<XType>();
         LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
         if constexpr (QuantMode > UNQUANT) {
-            quantInst_.DeQuantProcess(tmpUb, outLocalTensor);
-            Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+            quantInst_.DeQuantProcess(tmpUb, outLocalTensor, rowTmpFloatLocal_);
+            if constexpr (QuantMode == INT8_COMM_QUANT){
+                Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
+            }
         } else {
             Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
         }
