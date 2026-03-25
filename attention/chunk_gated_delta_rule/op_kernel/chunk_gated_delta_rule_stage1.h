@@ -340,13 +340,15 @@ private:
                 GammaCompute(gBroadUbFloat_[gUbOffset], gTransBroadUbFloat_[gUbOffset], gammaUbFloat_[gUbOffset]);
             }
         }
-        uint64_t betaUbOffset = i * halfChunkSize_;
+        
         for (uint32_t i = 0; i < curParaNum; ++i) {
+            uint64_t betaUbOffset = i * halfChunkSize_;
             BetaCopyInWithStride(betaBaseGm_[bgOffsetBatch_[i]], betaUbFloat_[betaUbOffset], subValidLenBatch_[i]);
         }
         AscendC::CrossCoreWaitFlag(0x8); // 同步1
 
         for (uint32_t i = 0; i < curParaNum; ++i) {
+            uint64_t betaUbOffset = i * halfChunkSize_;
             // attn_1 = kkt * attn_1
             KKBetaCompute(kkWsGm_[i * ccOffset_], betaUbFloat_[betaUbOffset]);
             // attn_1对角块求逆，对角块shape为INVERSE_SHAPE=32
@@ -359,6 +361,7 @@ private:
             // kg = key * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
             // k_cumdecay = -1.0 * k * beta * g_cum_exp
             outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
+            uint64_t betaUbOffset = i * halfChunkSize_;
             uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_;
             GBKCompute(gBKWsGm_[i * ckOffset_], outKgGm_, betaUbFloat_[betaUbOffset], kUbFloatCon_[kUbOffset]);
         }
@@ -366,6 +369,7 @@ private:
 
         for (uint32_t i = 0; i < curParaNum; ++i) {
             // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
+            uint64_t betaUbOffset = i * halfChunkSize_;
             uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
             VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat_[valueUbOffset]);
