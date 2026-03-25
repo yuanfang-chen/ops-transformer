@@ -247,7 +247,8 @@ __aicore__ inline void TsqrKernel<T>::ForwardStep(int aId, const GlobalTensor<T>
                 // unpaired block
                 CopyVec(getRBlock(rId + idx), getRBlock(aId + 2 * idx - correction), N_, N_);
             } else {
-                CallQR(getRBlock(aId + 2 * idx - correction), qGm[qOffset - (int64_t)correction], getRBlock(rId + idx), blockSize, N_);
+                CallQR(getRBlock(aId + 2 * idx - correction),
+                qGm[qOffset - (int64_t)correction * (blockSize - N_) * N_], getRBlock(rId + idx), blockSize, N_);
             }
         }
     }
