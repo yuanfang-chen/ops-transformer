@@ -43,7 +43,7 @@ extern "C" {
 __attribute__((visibility("default"))) aclnnStatus aclnnQuantGroupedMatmulDequantWeightNZGetWorkspaceSize(
     const aclTensor *x, const aclTensor *weight, const aclTensor *weightScale, const aclTensor *groupList,
     const aclTensor *biasOptional, const aclTensor *xScaleOptional, const aclTensor *xOffsetOptional,
-    const aclTensor *smoothScaleOptional, char *xQuantMode, bool transposeWeight, const aclTensor *out,
+    const aclTensor *smoothScaleOptional, char *xQuantMode, bool transposeWeight, aclTensor *out,
     uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**

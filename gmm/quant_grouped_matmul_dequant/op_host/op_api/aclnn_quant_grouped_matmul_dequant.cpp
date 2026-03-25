@@ -243,7 +243,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequantGetWorkspaceSize(const aclTensor *x, c
 aclnnStatus aclnnQuantGroupedMatmulDequantWeightNZGetWorkspaceSize(
     const aclTensor *x, const aclTensor *weight, const aclTensor *weightScale, const aclTensor *groupList,
     const aclTensor *biasOptional, const aclTensor *xScaleOptional, const aclTensor *xOffsetOptional,
-    const aclTensor *smoothScaleOptional, char *xQuantMode, bool transposeWeight, const aclTensor *out,
+    const aclTensor *smoothScaleOptional, char *xQuantMode, bool transposeWeight, aclTensor *out,
     uint64_t *workspaceSize, aclOpExecutor **executor) {
   OP_CHECK_COMM_INPUT(workspaceSize, executor);
   L2_DFX_PHASE_1(aclnnQuantGroupedMatmulDequantWeightNZ,
