@@ -40,56 +40,77 @@ aclnnStatus aclnnDistributeBarrier(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1550px"> <colgroup>
+    <col style="width: 170px">
     <col style="width: 120px">
+    <col style="width: 350px">
+    <col style="width: 250px">
+    <col style="width: 200px">
     <col style="width: 120px">
-    <col style="width: 160px">
-    <col style="width: 150px">
-    <col style="width: 80px">
+    <col style="width: 200px">
+    <col style="width: 140px">
     </colgroup>
     <thead>
     <tr>
     <th>参数名</th>
     <th>输入/输出</th>
     <th>描述</th>
+    <th>使用说明</th>
     <th>数据类型</th>
     <th>数据格式</th>
+    <th>维度</th>
+    <th>非连续Tensor</th>
     </tr></thead>
     <tbody>
     <tr>
     <td>xRef</td>
     <td>输入</td>
     <td>无业务语义，仅用于输入Tensor依赖，接口内不做任何操作。</td>
+    <td>待填</td>
     <td>BFLOAT16, FLOAT16、FLOAT32、BOOL、INT8、INT16、INT32、INT64、UINT8、UINT16、UINT32、UINT64、FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT4_E1M2、FLOAT4_E2M1、HIFLOAT8、INT4</td>
     <td>ND</td>
+    <td>待填</td>
+    <td>待填</td>
     </tr>
     <tr>
     <td>group</td>
     <td>输入</td>
     <td>通信域名称，进行所有卡同步的通信域。</td>
+    <td>待填</td>
     <td>STRING</td>
     <td>ND</td>
+    <td>待填</td>
+    <td>待填</td>
     </tr>
     <tr>
     <td>worldSize</td>
     <td>输入</td>
     <td>通信域大小。</td>
+    <td>待填</td>
     <td>UINT64</td>
     <td>ND</td>
+    <td>待填</td>
+    <td>待填</td>
     </tr>
     <tr>
     <td>workspaceSize</td>
     <td>输出</td>
     <td>返回需要在Device侧申请的workspace大小。</td>
+    <td>待填</td>
     <td>UINT64</td>
     <td>ND</td>
+    <td>待填</td>
+    <td>待填</td>
     </tr>
     <tr>
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
+    <td>待填</td>
     <td>UINT64</td>
     <td>ND</td>
+    <td>待填</td>
+    <td>待填</td>
     </tr>
     </tbody></table>
 
@@ -167,7 +188,7 @@ aclnnStatus aclnnDistributeBarrier(
     
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 

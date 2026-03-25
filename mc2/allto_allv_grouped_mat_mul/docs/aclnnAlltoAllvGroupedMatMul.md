@@ -70,12 +70,12 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1010px"><colgroup>
-    <col style="width: 185px">
-    <col style="width: 111px">
-    <col style="width: 429px">
-    <col style="width: 160px">
-    <col style="width: 125px">
+    <table style="undefined;table-layout: fixed; width: 1010px"><colgroup>	 
+     <col style="width: 185px">	 
+     <col style="width: 111px">	 
+     <col style="width: 429px">	 
+     <col style="width: 160px">	 
+     <col style="width: 125px">
     </colgroup>
     <thead>
     <tr>
