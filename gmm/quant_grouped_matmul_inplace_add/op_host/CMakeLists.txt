@@ -35,5 +35,10 @@ if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
     endif()
 
 else()
-    add_modules_sources(OPTYPE quant_grouped_matmul_inplace_add ACLNNTYPE aclnn_exclude)
+    add_modules_sources(
+        # 该变量用于判断op_api目录是否从op_host移出
+        OP_API_INDEPENDENT ON
+        # op_api新的地址
+        OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api
+        OPTYPE quant_grouped_matmul_inplace_add ACLNNTYPE aclnn_exclude)
 endif()
