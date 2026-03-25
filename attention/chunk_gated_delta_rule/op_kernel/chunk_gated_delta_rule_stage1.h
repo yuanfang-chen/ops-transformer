@@ -110,6 +110,9 @@ public:
         maxLen_ = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
         pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen_ * sizeof(float));
         pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen_ * sizeof(float));
+        if (gOptional_) {
+            pipe_->InitBuffer(gOutQueue_, BUFFER_NUM_ONE, chunkSize_ * sizeof(float));
+        }
 
         pipe_->InitBuffer(tmpBuff_, UB_REST_BYTES);
         uint32_t buffOffset = 0;
@@ -438,10 +441,14 @@ private:
         Exp<float, 0, true>(gCumExpUbFloat, gCumUbFloat_, chunkSize_);
         PipeBarrier<PIPE_V>();
         if (subBlockIdx_ == 0){
+            auto tmpOut = gOutQueue_.AllocTensor<float>();
+            DataCopy(tmpOut, gCumExpUbFloat, chunkSize_);
+            gOutQueue_.EnQue<float>(tmpOut);
+            tmpOut = gOutQueue_.DeQue<float>();
             DataCopyExtParams params{static_cast<uint16_t>(1),
-                                     static_cast<uint32_t>(chunkSize_ * sizeof(float)),
-                                     0, 0, 0};
-            DataCopyPad(dst, gCumExpUbFloat, params);  // stage1 out
+                                    static_cast<uint32_t>(chunkSize_ * sizeof(float)), 0, 0, 0};
+            DataCopyPad(dst, tmpOut, params);
+            gOutQueue_.FreeTensor(tmpOut);
         }
         PipeBarrier<PIPE_V>();
     }
@@ -828,6 +835,7 @@ private:
     // UB queues
     TQue<QuePosition::VECIN, 1> fp32InQueue_;
     TQue<QuePosition::VECOUT, 1> fp32OutQueue_;
+    TQue<QuePosition::VECOUT, 1> gOutQueue_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;
 
