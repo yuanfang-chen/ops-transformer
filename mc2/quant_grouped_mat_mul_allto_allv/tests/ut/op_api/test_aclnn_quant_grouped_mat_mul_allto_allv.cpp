@@ -1804,8 +1804,8 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_group_str_len_size_in
                               "test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group_test_grouped_mat_mul_allto_allv_ep_group",
                               epWorldSize, sendCounts,
                               recvCounts, false, false),
-                        OUTPUT(y_, nullptr));
+                        OUTPUT(y_, mmY_));
     aclnnStatus aclRet =
         ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
