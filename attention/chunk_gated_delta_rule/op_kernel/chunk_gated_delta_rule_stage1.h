@@ -603,7 +603,8 @@ private:
         }
     }
 
-    __aicore__ inline void VBetaCompute(const GlobalTensor<float> valueGm, const GlobalTensor<float> vBetaWsGm, LocalTensor<float> betaUbFloat, LocalTensor<float> valueUbFloat)
+    __aicore__ inline void VBetaCompute(const GlobalTensor<bfloat16_t> valueGm, const GlobalTensor<float> vBetaWsGm,
+                                        LocalTensor<float> betaUbFloat, LocalTensor<float> valueUbFloat)
     {
         uint64_t vBeginOffset = subOffset_ * vRowStride_;
         DataCopyInBf16WithStride(subValidRows_, dv_, valueGm_[vBeginOffset], vRowStride_);
