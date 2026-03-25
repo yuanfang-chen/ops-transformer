@@ -761,12 +761,10 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                                 layout == LayOutTypeEnum::LAYOUT_BSH ||
                                 layout == LayOutTypeEnum::LAYOUT_SBH) {
                     maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
-                    maskInfo.s2dealNum = runInfo.s2RealSize;
                     maskInfo.layout = LAYOUT_Q::SG;
 
                 } else {
                     maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
-                    maskInfo.s2dealNum = s2BaseSize;
                     maskInfo.layout = LAYOUT_Q::GS;
                 }
                 maskInfo.gs1dealNum =
@@ -775,6 +773,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.gSize = constInfo.gSize;
                 maskInfo.s2StartIdx = runInfo.s2LoopCount * s2BaseSize;
                 maskInfo.s2Size = runInfo.actualS2Size;
+                maskInfo.s2dealNum = runInfo.s2RealSize;
                 maskInfo.preToken = runInfo.preTokensPerBatch;
                 maskInfo.nextToken = runInfo.nextTokensPerBatch;
                 maskInfo.batchIdx = runInfo.boIdx;
