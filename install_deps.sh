@@ -34,6 +34,8 @@ else
 fi
 
 
+
+
 version_ge() {
     # Version comparison, format: xx.xx.xx
     IFS='.' read -r -a curr_arr <<< "$1"
