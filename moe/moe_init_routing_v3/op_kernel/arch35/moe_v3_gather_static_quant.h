@@ -444,8 +444,8 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     lastLoopCols_ = gatherOutTilingData_->lastLoopCols;
     colLoops_ = gatherOutTilingData_->colsLoops;
 
-    inputXGm_.SetGlobalBuffer((__gm__ T *)inputX);
-    expandedXGm_.SetGlobalBuffer((__gm__ int8_t *)expandedX);
+    inputXGm_.SetGlobalBuffer((__gm__ T *)inputX, n_ * cols_);
+    expandedXGm_.SetGlobalBuffer((__gm__ int8_t *)expandedX, activateRows_ * cols_);
 
     if (rowIdxType_ == SCATTER) {
         // SCATTER模式：从expandedRowIdx参数中读取输出位置索引
