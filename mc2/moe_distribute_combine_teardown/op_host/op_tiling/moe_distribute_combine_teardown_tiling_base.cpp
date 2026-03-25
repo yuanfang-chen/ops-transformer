@@ -623,7 +623,7 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckHcclBuffsize()
     auto localExpertNum = tilingData_->moeDistributeCombineTeardownInfo.moeExpertPerRankNum;
 
     const int64_t tempBuffSize =
-        static_cast<int64_t>(MIN_AVAILABLE_BUFF_SIZE) *
+        MIN_AVAILABLE_BUFF_SIZE *
         (localExpertNum * Bs * epWorldSize *
              ops::CeilAlign((ops::CeilAlign(static_cast<int64_t>(H) * 2, ALIGN_32) + HCCL_BUFFER_SIZE), ALIGN_512) +
          (static_cast<int64_t>(K) + static_cast<int64_t>(sharedExpertNum)) * static_cast<int64_t>(Bs) *

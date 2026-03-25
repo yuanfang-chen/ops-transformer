@@ -387,8 +387,8 @@ aclnnStatus aclnnMoeDistributeCombineSetup(
   - K：表示选取topK个专家，取值范围为0 < K ≤ 16同时满足0 < K ≤ moeExpertNum。当前仅支持6、8。
   - localExpertNum：表示本卡专家数量。
     - 对于共享专家卡，localExpertNum = 1
-    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)。
-  - 当前不支持共享专家。
+    - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)。moeExpertNum当前仅支持32。
+  - 当前不支持共享专家。sharedExpertNum和sharedExpertRankNum当前仅支持0。
 - HCCL_BUFFSIZE：
   调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
   - Ascend 950PR/Ascend 950DT：
