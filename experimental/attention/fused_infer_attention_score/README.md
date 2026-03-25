@@ -68,7 +68,7 @@ source /usr/local/Ascend/cann/set_env.sh
 # source ${install_path}/cann/set_env.sh
 ```
 ## 编译运行
-**注意：首先确认自己的机器是哪种npu型号, 工程默认使用910b(A2)机器，如果是910c(A3)的机器,则需要修改编译命令，将编译命令中的-soc=ascend910b改成-soc=ascend910_93**
+**注意：首先确认自己的机器是哪种npu型号, 工程默认使用910b(A2)机器，如果是910c(A3)的机器，则需要修改编译命令，将编译命令中的-soc=ascend910b改成-soc=ascend910_93**
 
 提供两种方式运行本Demo
 - 一键式安装运行(run.sh脚本默认使用A2命令编译，若在A3上运行需要自行修改脚本内的编译命令)
