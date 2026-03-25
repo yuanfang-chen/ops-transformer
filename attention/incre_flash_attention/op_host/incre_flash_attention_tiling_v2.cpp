@@ -1144,11 +1144,11 @@ ge::graphStatus IFATilingV2::InitInOutMode() {
 }
 
 ge::graphStatus IFATilingV2::ProcessOptionalTensors() {
-  if ((ProcessActualSeqLen() != ge::GRAPH_SUCCESS) || (ProcessPseShift() != ge::GRAPH_SUCCESS) ||
+  if ((ProcessActualSeqLen() != ge::GRAPH_SUCCESS) || (ProcessPrefix() != ge::GRAPH_SUCCESS) ||
       (ProcessAttenMask() != ge::GRAPH_SUCCESS) || (ProcessAttenMaskSparsePFA() != ge::GRAPH_SUCCESS) ||
       (ProcessQuant2() != ge::GRAPH_SUCCESS) || (ProcessAntiQuant() != ge::GRAPH_SUCCESS) ||
       (ProcessBlockTable() != ge::GRAPH_SUCCESS) || (ProcessQPaddingSize() != ge::GRAPH_SUCCESS) ||
-      (ProcessKVPaddingSize() != ge::GRAPH_SUCCESS) || (ProcessPrefix() != ge::GRAPH_SUCCESS)) {
+      (ProcessKVPaddingSize() != ge::GRAPH_SUCCESS) || (ProcessPseShift() != ge::GRAPH_SUCCESS)) {
     return ge::GRAPH_FAILED;
   }
   SetfaRunFlag();   // 判断是否走伪量化新模板
@@ -1593,9 +1593,9 @@ bool IFATilingV2::CheckPseShiftShape(const gert::Tensor* pseShiftInput)
               pseShiftBatch_, pseShiftN, pseShiftS0_, pseShiftS1_),
               return false);
   OP_CHECK_IF(isPFAFlag_ && ((pseShiftBatch_ != NUM1 && pseShiftBatch_ != batchSize_) || (pseShiftN != numHeads_) || (pseShiftS0_ < sOfQuery_) ||
-             (pseShiftS1_ < seqSize_)), OP_LOGE(ifaContext_->opName,
+             (pseShiftS1_ < seqSize_ + actualSharedPrefixLen_)), OP_LOGE(ifaContext_->opName,
              "pseShift shape must be (1 or %u, %u, >=%u, >=%u), but now it is (%u, %u, %u, %u)",
-             pseShiftBatch_, pseShiftN, sOfQuery_, seqSize_, pseShiftBatch_, pseShiftN, pseShiftS0_, pseShiftS1_),
+             pseShiftBatch_, pseShiftN, sOfQuery_, seqSize_ + actualSharedPrefixLen_, pseShiftBatch_, pseShiftN, pseShiftS0_, pseShiftS1_),
              return false);
   OP_CHECK_IF(pseShiftS1_ < seqSize_,
     OP_LOGE(ifaContext_->opName, "The shape of pseShift is (%u, %u, %u, %u), pseShiftS[%u] shouldn't be less than sMax[%u]. "
