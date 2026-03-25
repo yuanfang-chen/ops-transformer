@@ -18,6 +18,7 @@
 
 // Develope scaffold (Remove in release version)
 #define _KV_RNRC_UNLEASH_D_SIZE 1    
+// test kirinx90
 
 namespace KvRmsNormRopeCache {
 using namespace AscendC;
