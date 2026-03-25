@@ -60,7 +60,7 @@
     - 情形4：
 
       $$
-      output[r(i), r(j)] = \sum_{k=1}^{\frac{K}{groupSizeK}} x1Scale[i, k] * x2Scale[k, j] * (AllGather(x1)[r(i), r(j)] @ x2[r(k), r(j)])
+      output[r(i), r(j)] = \sum_{k=1}^{\frac{K}{groupSizeK}} x1Scale[i, k] * x2Scale[k, j] * (AllGather[x1](r(i), r(j)) @ x2[r(k), r(j)])
       $$
 
       $$
@@ -78,7 +78,6 @@
       其中$output\left[r(y), r(z)\right]$表示从output矩阵中取出第$(groupSizeM*(y-1)+1)$到$(groupSizeM*y)$行和$(groupSizeN*(z-1)+1)$到$(groupSizeN*z)$列构成的块。
 
 ## 参数说明
-
 
 <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
   <col style="width: 170px">
@@ -204,6 +203,7 @@
   </tbody></table>
 
 ## 约束说明
+
 * 输入x1为2维，其维度为\(m, k\)。x2必须是2维，其维度为\(k, n\)，轴满足mm算子入参要求，k轴相等，且k轴取值范围为\[256, 65535\)。bias为1维，shape为\(n,\)。
 * 输出output为2维，其维度为\(m*rank\_size, n\)，rank\_size为卡数。
 * 输出gatherout为2维，其维度为\(m*rank\_size, k\)，rank\_size为卡数。
@@ -214,10 +214,9 @@
 * 当x1、x2数据类型为FLOAT16/BFLOAT16/HIFLOAT8/FLOAT8_E4M3FN/FLOAT_E5M2时，x2矩阵支持转置/不转置场景，x1矩阵只支持不转置场景。
 * 当groupSize取值为549764202624，bias必须为空。
 * <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16、32、64卡。
-## 调用说明
 
+## 调用说明
 
 | 调用方式   | 样例代码           | 说明                                         |
 | ---------------- | --------------------------- | --------------------------------------------------- |
 | aclnn接口  | [test_aclnn_all_gather_matmul_v2](./examples/test_aclnn_all_gather_matmul_v2.cpp) | 通过[aclnnAllGatherMatmulV2](./docs/aclnnAllGatherMatmulV2.md)接口方式调用AllGatherMatmulV2算子。 |
-

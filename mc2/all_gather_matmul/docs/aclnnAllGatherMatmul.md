@@ -15,7 +15,6 @@
 
 **说明：** 使用该接口时，请确保驱动固件包和CANN包都为配套的8.0.RC2版本或者配套的更高版本，否则将会引发报错，比如BUS ERROR等。
 
-
 ## 功能说明
 
 - **接口功能**：完成AllGather通信与MatMul计算融合。
@@ -234,7 +233,7 @@ aclnnStatus aclnnAllGatherMatmul(
 
 ## aclnnAllGatherMatmul
 
--   **参数说明：**
+- **参数说明：**
 
     <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
     <col style="width: 173px">
@@ -269,7 +268,7 @@ aclnnStatus aclnnAllGatherMatmul(
     </tr>
     </tbody></table>
 
--   **返回值：**
+- **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -288,13 +287,14 @@ aclnnStatus aclnnAllGatherMatmul(
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：支持2、4、8、16、32卡，并且仅支持HCCS链路double ring组网。
 - <term>Ascend 950PR/Ascend 950DT</term>:
   - 支持2、4、8、16、32、64卡，并且仅支持HCCS链路all mesh组网。
-  - allgather(x1)集合通信数据总量不能超过16*256MB，集合通信数据总量计算方式为：m * k * sizeof(x1_dtype) * 卡数。由于shape不同，算子内部实现可能存在差异，实际支持的总通信量可能略小于该值。
+  - allgather(x1)集合通信数据总量不能超过16*256MB，集合通信数据总量计算方式为：m* k *sizeof(x1_dtype)* 卡数。由于shape不同，算子内部实现可能存在差异，实际支持的总通信量可能略小于该值。
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>:一个模型中的通算融合MC2算子，仅支持相同通信域。
+
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[<<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
 

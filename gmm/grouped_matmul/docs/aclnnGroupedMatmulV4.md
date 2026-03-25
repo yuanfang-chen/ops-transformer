@@ -32,6 +32,7 @@
       - 支持伪量化weight是INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8的输入，不带激活场景，仅支持perchannel模式。
 
 **说明：**
+
   - 单tensor指一个tensor list中所有分组的tensor在groupType指定的分组轴上合并为1个；否则为多tensor。
   - tensor转置：指若tensor shape为[M,K]时，则stride为[1,M],数据排布为[K,M]的场景，即非连续tensor。
 
@@ -549,6 +550,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 
 - 确定性计算：
   - aclnnGroupedMatmulV4默认确定性实现。
+
 <details>
 <summary><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
 
@@ -665,6 +667,7 @@ aclnnStatus aclnnGroupedMatmulV4(
         | 伪量化perchannel | weight多 | $[N_i]$|
         | 伪量化pergroup | weight单 | $[E, G, N]$|
         | 伪量化pergroup | weight多 | $[G_i, N_i]$|
+
     </details>
 
     <a id="a16w8场景约束"></a>
@@ -692,6 +695,7 @@ aclnnStatus aclnnGroupedMatmulV4(
         |:---------:|:-------:| :-------|
         | 伪量化perchannel | weight单 | $[E, N]$|
         | 伪量化perchannel | weight多 | $[N_i]$|
+
     </details>
 
     <a id="a4w4场景约束"></a>
@@ -754,6 +758,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       | 0 | 多个|多个|单个 | 2/3 | 1）groupListOptional可选；<br> 2）若传入groupListOptional，当groupListType为0时，groupListOptional的差值需与x中tensor的第一维一一对应；当groupListType为1时，groupListOptional的数值需与x中tensor的第一维一一对应；当groupListType为2时，groupListOptional第二列的数值需与x中tensor的第一维一一对应；<br> 3）groupListOptional第1维最大支持128，即最多支持128个group |1）x不支持转置；<br> 2）支持weight转置，但weight的tensorList中每个tensor是否转置需保持统一|1）x，weight，y中tensor需为2维；<br> 2）weight中每个tensor的N轴必须相等 |
       | 2 | 单个|单个|单个 | 2/3 | 1）必须传groupListOptional；<br> 2）当groupListType为0时，最后一个值应小于等于x中tensor的第二维；当groupListType为1时，数值的总和与x应小于等于tensor的第二维；当groupListType为2时，第二列数值的总和应小于等于x中tensor的第二维；<br> 3）groupListOptional第1维最大支持1024， 即最多支持1024个group | 1）x必须转置；<br> 2）weight不能转置 |1）x，weight中tensor需为2维，y中tensor需为3维；<br> 2）bias必须传空|
       | 2 | 单个|多个|多个 | 0/1 | groupListOptional必须传空 | 1）x必须转置；<br> 2）weight不能转置| 1）x，weight，y中tensor需为2维。<br> 2）weight长度最大支持128，即最多支持128个group；<br> 3）原始shape中weight每个tensor的第一维之和不应超过x第一维；<br> 4）bias必须传空 |
+
     </details>
 
     <a id="grouplistoptional配置示例"></a>
@@ -777,6 +782,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       - groupListOptional在该模式会将所有非0的group移动到前面，适用于非激活专家较多场景。
       - groupListOptional：`[[0, 123], [2, 333], [5, 333], [1, 0], [3, 0], [4, 0], [6, 0], [7, 0], [8, 0]]`
     </details>
+
 </details>
 
 <a id="ascend_950pr_ascend950dt"></a>
@@ -864,7 +870,7 @@ aclnnStatus aclnnGroupedMatmulV4(
         |groupType| 使用场景 | shape限制 |
         |:---------:|:---------:| :------ |
         |0|weight单tensor|每个tensor 4维，当weight转置时，shape为(g, N, ceil(K / 64), 2)；当weight不转置时，shape为(g, ceil(K / 64), N, 2)|
-        |2|weight单tensor|每个tensor 3维，shape为((K / 64) + g, N, 2)，scale\_i起始地址偏移为((K\_0 + K\_1 + ...+ K\_{i-1})/ 64 + g\_i) * N * 2，即scale_0的起始地 址偏移为0，scale_1的起始地址偏移为（K\_0 / 64 + 1）* N * 2， scale_2的起始地址偏移为((K\_0 + K\_1) / 64 + 2) * N * 2, 依此类推|
+        |2|weight单tensor|每个tensor 3维，shape为((K / 64) + g, N, 2)，scale\_i起始地址偏移为((K\_0 + K\_1 + ...+ K\_{i-1})/ 64 + g\_i) *N* 2，即scale_0的起始地 址偏移为0，scale_1的起始地址偏移为（K\_0 / 64 + 1）*N* 2， scale_2的起始地址偏移为((K\_0 + K\_1) / 64 + 2) *N* 2, 依此类推|
 
     - perTokenScaleOptional要满足下表：
 
@@ -894,7 +900,7 @@ aclnnStatus aclnnGroupedMatmulV4(
         |groupType| 使用场景 | shape限制 |
         |:---------:|:---------:| :------ |
         |0|weight单tensor|每个tensor 3维，weight转置时shape为（g, ceil(N / gsN), ceil (K / gsK)），weight非转置时shape为（g, ceil(K / gsK), ceil(N / gsN)）|
-        |2|weight单tensor|每个tensor 2维，shape为（K / gsK + g, ceil(N / gsN)），scale\_i地址偏移为（(K\_0 + K\_1 + ...+   K\_{i-1})/ gsK + g\_i）* ceil(N /  gsN)，即scale\_0的起始地址偏移为0，scale\_1的起始地址偏移为（K\_0 / gsK + 1）* ceil(N / gsN)， scale_2的起始地址偏移为((K\_0 + K\_1) / gsK + 2) * ceil(N / gsN), 依此类推|
+        |2|weight单tensor|每个tensor 2维，shape为（K / gsK + g, ceil(N / gsN)），scale\_i地址偏移为（(K\_0 + K\_1 + ...+   K\_{i-1})/ gsK + g\_i）*ceil(N /  gsN)，即scale\_0的起始地址偏移为0，scale\_1的起始地址偏移为（K\_0 / gsK + 1）* ceil(N / gsN)， scale_2的起始地址偏移为((K\_0 + K\_1) / gsK + 2) * ceil(N / gsN), 依此类推|
 
     - perTokenScaleOptional要满足下表：
 
@@ -970,6 +976,7 @@ aclnnStatus aclnnGroupedMatmulV4(
           | 2 | 单单单 |1）仅支持splitItem为2/3<br>2）x，weight中tensor需为2维，shape分别为（K, M）和（K, N）；out中tensor需为3维，shape为（g, M, N）<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值不大于x中tensor的第一维，当groupListType为1时，数值的总和不大于x中tensor的第一维<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）x必须转置，weight不能转置<br>6）仅支持非量化和量化<br>7）仅支持ND进ND出|
 
     </details>
+
 </details>
 
 ## 调用示例

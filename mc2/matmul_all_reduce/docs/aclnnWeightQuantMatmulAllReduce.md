@@ -13,7 +13,6 @@
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
-
 **说明：** 使用该接口时，请确保驱动固件包和CANN包都为配套的8.0.RC2版本或者配套的更高版本，否则将会引发报错，比如BUS ERROR等。
 
 ## 功能说明
@@ -47,6 +46,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduceGetWorkspaceSize(
     uint64_t        *workspaceSize,
     aclOpExecutor **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnWeightQuantMatmulAllReduce(
     void             *workspace,
@@ -297,7 +297,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     </tr>
     </tbody></table>
 
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -328,6 +328,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
   - 仅支持k为0的场景，输出为bias + x3，不支持bs/m/n为0的空tensor输入。
 
 输入和输出支持以下数据类型组合：
+
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
   <table style="undefined;table-layout: fixed; width: 600px">
@@ -445,7 +446,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[<<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
 

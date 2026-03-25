@@ -18,7 +18,9 @@
     4. 由于FlashSoftmax计算中的除sum被后移到输出attention_out之前，因此最后需要将ub中的ub_attention_out按行除以softmax_sum并将最终完整的结果保存到输出内存attention_out(Final)上。
 
 ## 2 每个计算阶段的入口
+
 以S1模板为例
+
 1. 得到每个核处理的任务块数后，调用函数：`Process`
 2. Cube1阶段，上图中Cube1，计算入口：`IterateBmm1`
 3. Vector1阶段，上图中Vector1，计算入口：`ProcessVec1`
@@ -32,7 +34,7 @@
 
   根据硬件架构特征，AI Core分成AIC和AIV两个独立的核，AIC和AIV核拥有自己独立的Scalar计算单元，能够独立加载自己的代码段，单独执行。AIC和AIV分离的架构可以使得AIC和AIV并行执行。AIC和AIV之间数据交互的通路是L2和GM（Global Memory，高带宽存储器），两者之间的交互次数对性能影响是比较大的，同时由于AIC和AIV算力差异，两者需要使用不同的基本块大小，本着尽量减少AIC和AIV通信次数和发挥最大算力的原则，CVtiling分离策略应运而生，可以有效地减少CV通信次数，同时根据不同单元的buffer特征，选择不同的基本块进行计算，从而提升算子性能。
 
-  对于FA算子，Vector计算涉及多个输入、输出、中间计算结果、double-buffer设计等，需要将buffer分配成多份，最优分配方案中最大一份为32KB，由于Vector计算使用的数据类型是float32，因此Vector的tiling基本块为8 * 1024。为了充分发挥Cube的算力，在CV之间一轮计算的数据量进行了1:16的配比，又由于Cube侧的输入数据类型是float16，输出是float32，Cube的基本块为128 * 128，所以通过nRatio=8配比出128 * 1024的数据量。伪代码如下：
+  对于FA算子，Vector计算涉及多个输入、输出、中间计算结果、double-buffer设计等，需要将buffer分配成多份，最优分配方案中最大一份为32KB，由于Vector计算使用的数据类型是float32，因此Vector的tiling基本块为8 *1024。为了充分发挥Cube的算力，在CV之间一轮计算的数据量进行了1:16的配比，又由于Cube侧的输入数据类型是float16，输出是float32，Cube的基本块为128* 128，所以通过nRatio=8配比出128 * 1024的数据量。伪代码如下：
 
   ```c++
   // C-Tiling: (S1_c_i,D)x(D,S2_c_i) => (S1_c_i, S2_c_i):(128,1024)
@@ -54,7 +56,6 @@
 2. Ascend 950PR/Ascend 950DT
   Ascend 950PR/Ascend 950DT既支持AIC&AIV分离架构，又支持AIC&AIV融合架构；AIC和AIV之间的交互通路包括L2、GM以及UB(Unified Buffer)，UB是AIC&AIV之间相较于GM更高效的交互通路。AIC可以直接输出到UB上，AIV利用UB上的数据进行vec运算，极大降低了数据搬运的时间。由于UB的容量有限，D_v>128时，mm2的输出依旧需要先保存到GM；mm1的输出始终保存在UB。
 
-
 ## 4 流水设计
 
 为了追求极致性能，必须充分利用硬件资源，通常需要进行不同pipeline的流水设计。流水设计的宗旨是尽量使某一条pipeline达成bound效果，使硬件的某一个单元一直在工作，达到性能上限。
@@ -66,8 +67,6 @@ V侧流水设计需要考虑Vector的搬运及计算过程，实施的优化手�
 将图的流水任务做ping-pong流水间的double buffer处理后，从运行图中可以看出，对于同一片数据，搬运DataCopy与计算Clc之间，串行处理；不同的数据切片，同一时间点，可以有多个任务在并行处理，由此达到任务并行、提升性能的目的。
 
 ![设计图2](./fig/设计图2.png)
-
-
 
 其中ping、pong两块计算数据所占用的内存资源均相互独立。
 ​FA类融合算子V侧计算过程较多，情况也比较复杂，通常简单的double buffer是无法覆盖所有情况的，因此会出现不同的计算流水排布。不同的计算流水适用于不同类的shape特征，以达到在该类特征下最好的流水设计。
@@ -204,7 +203,7 @@ FA（FlashAttentionScore，简称FA）融合算子的多模板设计思路主要
     >    条件：S2 > 1024;
     >    依据: 由于Vector侧FlashSoftmax计算的shape是[S1, S2]，且FlashSoftmax操作需要S2切分的大小尽可能大，所以通常在FlashAttention中设定S2轴的基本块为1024。又由于FlashSoftmax当S2轴切分时会存在刷新流程，不断更新Softmax的结果，所以当S2大于1024时，计算流中会多一些Softmax的更新流程，这一点有别于其他模板。
     >    CV基本块选择:
-    >    S1.i: 默认64，当按64切分时，如果B * N2 * G * S1.o超过Vector核数时，S1.i设置为128，这样做的目的是为了在S1比较小的时候，优先把核数用满，多核用满的性能较高
+    >    S1.i: 默认64，当按64切分时，如果B *N2* G * S1.o超过Vector核数时，S1.i设置为128，这样做的目的是为了在S1比较小的时候，优先把核数用满，多核用满的性能较高
     >    S2.i: 1024
     >
     > 
@@ -217,9 +216,9 @@ FA（FlashAttentionScore，简称FA）融合算子的多模板设计思路主要
     >
     >    kernel代码：ops-transformer-dev/attention/flash_attention_score/op_kernel/flash_attention_score_s1_bn2gs1.h
     >
-    >    条件：(128 < S2 <= 1024) ||  (N2 * G * (align(S1,16) + align(S2,16)) * align(D,16) * sizeof(INPUT_T)>= 512KB) || (N2 * G * (align(S1,16) + align(D,16)) * align(S2,16) * sizeof(INPUT_T))
+    >    条件：(128 < S2 <= 1024) ||  (N2 *G* (align(S1,16) + align(S2,16)) *align(D,16)* sizeof(INPUT_T)>= 512KB) || (N2 *G* (align(S1,16) + align(D,16)) *align(S2,16)* sizeof(INPUT_T))
     >
-    >    依据: 当S2 < 1024时，由于S2不切分，所以不需要更新FlashSoftmax的结果，流程上更精简，不用上面第1点描述的那个泛化模板，由于S2 > 128时，切B模板不会带来性能提升，所以默认走这个模板。同时，在S2 <= 128时，如果不带Batch轴的matmul1或者matmul2的输入已经占满了整个L1，那么也不会走切B模板。切B模板的意思是，把batch轴做切分，核间基本块的大小是B.i * N2 * G * S1 * D (query的D) 或者B.i * N2 * G * S2 * D (key/value的D) 或者B.i * N2 * G * S1 * S2（softmax结果，即为P）；如果切B满足切分的要求 ，那么至少B.i 大于等于2，那么B.i内层的这些轴的乘积需要小于L1的大小。上面条件里面的判断就是基于此，Q * K和P * V中任何一个矩阵乘法的输入大于了L1的Size，那么走切B模板就没有收益。
+    >    依据: 当S2 < 1024时，由于S2不切分，所以不需要更新FlashSoftmax的结果，流程上更精简，不用上面第1点描述的那个泛化模板，由于S2 > 128时，切B模板不会带来性能提升，所以默认走这个模板。同时，在S2 <= 128时，如果不带Batch轴的matmul1或者matmul2的输入已经占满了整个L1，那么也不会走切B模板。切B模板的意思是，把batch轴做切分，核间基本块的大小是B.i *N2* G *S1* D (query的D) 或者B.i *N2* G *S2* D (key/value的D) 或者B.i *N2* G *S1* S2（softmax结果，即为P）；如果切B满足切分的要求 ，那么至少B.i 大于等于2，那么B.i内层的这些轴的乘积需要小于L1的大小。上面条件里面的判断就是基于此，Q *K和P* V中任何一个矩阵乘法的输入大于了L1的Size，那么走切B模板就没有收益。
     >
     >    CV基本块选择: 
     >
@@ -229,7 +228,7 @@ FA（FlashAttentionScore，简称FA）融合算子的多模板设计思路主要
     >
     > 
     >
-    > 3. 核间切分B轴，核内Cube侧不切分S1、S2把B.i, N2, G作为循环轴开循环处理batch matmul，Vector核内会把B.i * N2 * G * S1综合切分，找到最合适的核内基本块。
+    > 3. 核间切分B轴，核内Cube侧不切分S1、S2把B.i, N2, G作为循环轴开循环处理batch matmul，Vector核内会把B.i *N2* G * S1综合切分，找到最合适的核内基本块。
     >
     >    tiling代码文件：ops-transformer-dev/attention/flash_attention_score/op_host/flash_attention_score_tiling_general.cpp
     >
@@ -268,8 +267,6 @@ ops-transformer-dev/attention/flash_attention_score_grad/op_kernel/flash_attenti
 ```
 
 以Cube为主核对于FlashAttention来说由于V0、V1的Matmul任务可以复用左矩阵，且输出的部分结果可以在L0C累加，减少了对于带宽的依赖诉求，大部分场景性能会更优。
-
-
 
 ### 6.2 AscendC低阶API
 

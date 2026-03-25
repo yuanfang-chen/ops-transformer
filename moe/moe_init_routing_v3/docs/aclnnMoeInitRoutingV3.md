@@ -1,8 +1,8 @@
-# aclnnMoeInitRoutingV3	
+# aclnnMoeInitRoutingV3 
 
 [📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_init_routing_v3)
 
-## 产品支持情况	
+## 产品支持情况 
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
@@ -569,7 +569,6 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>在算子输入shape较小的场景，操作间的多核同步时间占比较高，成为性能瓶颈。因此，针对这种特化场景，添加性能模板。该模板中，搬入、排序、计算都在同一个kernel内完成。需要满足如下条件：<ul style="list-style-type: circle;"><li>属性要求：dropPadMode=0<br></td>
       </tr>
     </table>
-
 
 ## 调用示例
 

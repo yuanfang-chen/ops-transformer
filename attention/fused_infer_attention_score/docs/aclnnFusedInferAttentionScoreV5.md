@@ -1,7 +1,7 @@
 
 # aclnnFusedInferAttentionScoreV5
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
 
 ## 产品支持情况
 
@@ -14,10 +14,9 @@
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
 
-
 ## 功能说明
 
--  接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
 
     相比于FusedInferAttentionScoreV4，本接口新增qStartIdxOptional、kvStartIdxOptional、pseType参数。
 
@@ -44,7 +43,6 @@ decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个�
     **说明**：
     <blockquote>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
     <br>Q_S表示query shape中的S，KV_S表示key和value shape中的S，Q_N表示num_query_heads，KV_N表示num_key_value_heads。P表示Softmax(<span>(QK<sup class="superscript">T</sup>) / <span class="sqrt">d</span></span>)的计算结果。</blockquote>
-
 
 ## 函数原型
 
@@ -111,7 +109,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     aclOpExecutor       *executor, 
     const aclrtStream   stream)
 ```
-
 
 ## aclnnFusedInferAttentionScoreV5GetWorkspaceSize
 
@@ -996,7 +993,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-
 ## 约束说明
 
 - 确定性计算：
@@ -1008,7 +1004,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         - query，attentionOut所有tensor的shapeSize不为0，若有lse且lse不为空，并且key，value中所有tensor的shapeSize为0，属于空Tensor。
         - attentionOut和lse都为空时，属于空Tensor。
         - 属于空Tensor时，跳过校验流程；否则，走正常校验流程。
-    -  BNSD_BSND、BSH_BNSD、BSND_BNSD、BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
+    - BNSD_BSND、BSH_BNSD、BSND_BNSD、BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
         - 当query的d等于512时：
           - 仅支持BSH_NBSD、BSND_NBSD、BNSD_NBSD;
           - 仅支持decode mla场景，要求queryRope和keyRope不等于空，queryRope和keyRope的d为64;
@@ -1021,7 +1017,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
           - BSH_BNSD、BSND_BNSD场景下不支持左padding、tensorlist、pse、prefix;
           - BSH_BNSD、BSND_BNSD不支持伪量化;BNSD_BSND支持伪量化;
           - 伪量化场景下，BNSD_BSND不支持QS=1。
-    -  TND、NTD、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
+    - TND、NTD、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
         - 当query的d等于512时：
           - 仅支持TND、TND_NTD;
           - 仅支持decode mla场景，要求queryRope和keyRope不等于空，queryRope和keyRope的d为64;
@@ -1466,7 +1462,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>支持key、value dtype为FLOAT16/BFLOAT16/INT8/INT4(INT32)/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E2M1</li>
                         <li>在非量化场景下，当query的inputLayout为BNSD、TND、BSH、BSND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum,  KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
                         <li>在MLA全量化场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N,
- 	                        blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
+                          blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
                         <li>在MLA全量化场景下，当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式</li>
                         <li>伪量化场景下，当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv
                             cache排布为（blocknum，KV_N，D/2，blocksize，2）</li>
@@ -1755,7 +1751,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                                         <li>per-token叠加per-head并使用page attention模式管理scale/offset</li>
                                     </ul>
                                 </td>
- 	                            <td>INT8</td>
+                              <td>INT8</td>
                             </tr>
                             <tr>
                                 <td>
@@ -1774,7 +1770,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
         </tbody>
     </table>
-
 
 - <a id="MLA"></a>MLA场景（queryRope和keyRope输入不为空时）
     <table style="undefined;table-layout: fixed; width: 1389px"><colgroup>
@@ -1925,7 +1920,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </tr>
         </tbody>
     </table>
-
 
 - qkv FP8 per-block全量化
     <table style="undefined;table-layout: fixed; width: 1151px"><colgroup>

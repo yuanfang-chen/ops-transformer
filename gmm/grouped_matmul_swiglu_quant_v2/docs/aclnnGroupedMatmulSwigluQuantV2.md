@@ -55,13 +55,13 @@
           >
           >注：以上两种不同的分组方式，实际为相同的分组结果。
           >
-          >第0个右矩阵`W[0,:,:]`，对应索引位置[0,3)的token`x[0:3]`（共3-0=3个token），对应`x_scale[0:3]`、`w_scale[0]`、`bias[0]`、`offset[0] `、`Q[0:3]`、`Q_scale[0:3]`、`Q_offset[0:3]`；
+          >第0个右矩阵`W[0,:,:]`，对应索引位置[0,3)的token`x[0:3]`（共3-0=3个token），对应`x_scale[0:3]`、`w_scale[0]`、`bias[0]`、`offset[0]`、`Q[0:3]`、`Q_scale[0:3]`、`Q_offset[0:3]`；
           >
-          >第1个右矩阵`W[1,:,:]`，对应索引位置[3,4)的token`x[3:4]`（共4-3=1个token），对应`x_scale[3:4]`、`w_scale[1]`、`bias[1]`、`offset[1] `、`Q[3:4]`、`Q_scale[3:4]`、`Q_offset[3:4]`；
+          >第1个右矩阵`W[1,:,:]`，对应索引位置[3,4)的token`x[3:4]`（共4-3=1个token），对应`x_scale[3:4]`、`w_scale[1]`、`bias[1]`、`offset[1]`、`Q[3:4]`、`Q_scale[3:4]`、`Q_offset[3:4]`；
           >
-          >第2个右矩阵`W[2,:,:]`，对应索引位置[4,4)的token`x[4:4]`（共4-4=0个token），对应`x_scale[4:4]`、`w_scale[2]`、`bias[2]`、`offset[2] `、`Q[4:4]`、`Q_scale[4:4]`、`Q_offset[4:4]`；
+          >第2个右矩阵`W[2,:,:]`，对应索引位置[4,4)的token`x[4:4]`（共4-4=0个token），对应`x_scale[4:4]`、`w_scale[2]`、`bias[2]`、`offset[2]`、`Q[4:4]`、`Q_scale[4:4]`、`Q_offset[4:4]`；
           >
-          >第3个右矩阵`W[3,:,:]`，对应索引位置[4,6)的token`x[4:6]`（共6-4=2个token），对应`x_scale[4:6]`、`w_scale[3]`、`bias[3]`、`offset[3] `、`Q[4:6]`、`Q_scale[4:6]`、`Q_offset[4:6]`；
+          >第3个右矩阵`W[3,:,:]`，对应索引位置[4,6)的token`x[4:6]`（共6-4=2个token），对应`x_scale[4:6]`、`w_scale[3]`、`bias[3]`、`offset[3]`、`Q[4:6]`、`Q_scale[4:6]`、`Q_offset[4:6]`；
           >
           >注：grouplist中未指定的部分将不会参与更新。
           >例如当groupList=[12,14,18]、GroupListType=cumsum，X的shape为[30，:]时。
@@ -244,6 +244,7 @@
             | FLOAT8_E4M3FN |  8   |
             |  FLOAT8_E5M2  |  15  |
             |  FLOAT4_E2M1  |  2   |
+
           - $blocksize$：指每次量化的元素个数，仅支持32。
     </details>
     <details>
@@ -266,22 +267,23 @@
         * $Q\_scale∈\mathbb{R}^{M}$：量化缩放因子。
       - **计算过程**
         - 1.根据groupList[i]确定当前分组的 token ，$i \in [0,Len(groupList)]$
- 	 
- 	         - 2.根据分组确定的入参进行如下计算：
- 	 
- 	           $C_{i} = (X_{i}\cdot W_{i} )\odot xScale_{i} \odot wScale_{i}$
- 	 
- 	           $C_{i,act}, gate_{i} = split(C_{i})$
- 	 
- 	           $S_{i}=Swish(C_{i,act})\odot gate_{i}$，其中$Swish(x)=\frac{x}{1+e^{-x}}$
- 	           
- 	           其中,$xScale_{i}$代表的是对应token对应的量化因子
- 	         - 3.量化输出结果
- 	 
- 	           $Q\_scale_{i} = \frac{max(|S_{i}|)}{max(type)}$
- 	 
- 	           $Q_{i} = \lfloor \frac{S_{i}}{Q\_scale_{i}} \rceil$
+   
+           - 2.根据分组确定的入参进行如下计算：
+   
+             $C_{i} = (X_{i}\cdot W_{i} )\odot xScale_{i} \odot wScale_{i}$
+   
+             $C_{i,act}, gate_{i} = split(C_{i})$
+   
+             $S_{i}=Swish(C_{i,act})\odot gate_{i}$，其中$Swish(x)=\frac{x}{1+e^{-x}}$
+             
+             其中,$xScale_{i}$代表的是对应token对应的量化因子
+           - 3.量化输出结果
+   
+             $Q\_scale_{i} = \frac{max(|S_{i}|)}{max(type)}$
+   
+             $Q_{i} = \lfloor \frac{S_{i}}{Q\_scale_{i}} \rceil$
     </details>
+
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGroupedMatmulSwigluQuantV2”接口执行计算。
@@ -306,6 +308,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(
     uint64_t            *workspaceSize, 
     aclOpExecutor       **executor)
 ```
+
 ```Cpp
 aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     void          *workspace, 
@@ -552,7 +555,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - x和xScale支持M为0的空Tensor。
       - weight和weightScale支持N为0的空Tensor。
       - weight和weightScale目前仅支持tensorlist长度为1。
-
 
 - **返回值**
   
@@ -947,8 +949,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
           </table>
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+
   - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+
     ```cpp
     #include <iostream>
     #include <vector>
@@ -1175,6 +1180,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     ```
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
+
     ```cpp
     #include <iostream>
     #include <memory>

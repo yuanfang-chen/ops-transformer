@@ -16,9 +16,9 @@
 - 算子功能：当存在TP域通信时，先进行ReduceScatterV通信，再进行AllToAllV通信，最后将接收的数据整合（乘权重再相加）；当不存在TP域通信时，进行AllToAllV通信，最后将接收的数据整合（乘权重再相加）。
 
     相较于MoeDistributeCombineV2算子，该算子变更如下：
-    -   新增`context`入参，存入通信域相关信息；
-    -   新增`ccl_buffer_size`入参，指定当前通信域大小；
-    -   减少`group_ep`以及`group_tp`通信域名称入参;
+    - 新增`context`入参，存入通信域相关信息；
+    - 新增`ccl_buffer_size`入参，指定当前通信域大小；
+    - 减少`group_ep`以及`group_tp`通信域名称入参;
     详细说明请参考以下参数说明。
 - 计算公式：
 
@@ -334,8 +334,8 @@
 
 - 参数说明里shape格式说明：
     - `A`：表示本卡可能接收的最大token数量，取值范围如下：
-        - 对于共享专家，要满足`A` = `Bs` * `ep_world_size` * `shared_expert_num` / `shared_expert_num`。
-        - 对于MoE专家，当`global_bs`为0时，要满足`A` >= `Bs` * `ep_world_size` * min(`local_expert_num`, `K`)；当`global_bs`非0时，要满足`A` >= `global_bs` * min(`local_expert_num`, `K`)。
+        - 对于共享专家，要满足`A` = `Bs` *`ep_world_size`* `shared_expert_num` / `shared_expert_num`。
+        - 对于MoE专家，当`global_bs`为0时，要满足`A` >= `Bs` *`ep_world_size`* min(`local_expert_num`, `K`)；当`global_bs`非0时，要满足`A` >= `global_bs` * min(`local_expert_num`, `K`)。
     - `K`：表示选取topK个专家，取值范围为0 < `K` ≤ 16同时满足0 < `K` ≤ `moe_expert_num` + `zero_expert_num` + `copy_expert_num` + `const_expert_num`。
     - `local_expert_num`：表示本卡专家数量。
         - 对于共享专家卡，`local_expert_num` = 1

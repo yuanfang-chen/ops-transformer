@@ -55,7 +55,7 @@ aclnnStatus aclnnMatmulReduceScatter(
 
 ## aclnnMatmulReduceScatterGetWorkspaceSize
 
--   **参数说明**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
     <col style="width: 170px">
@@ -209,7 +209,7 @@ aclnnStatus aclnnMatmulReduceScatter(
     </tr>
     </tbody></table>
 
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -247,7 +247,7 @@ aclnnStatus aclnnMatmulReduceScatter(
 
 ## aclnnMatmulReduceScatter
 
--   **参数说明**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
     <col style="width: 173px">
     <col style="width: 133px">
@@ -281,10 +281,9 @@ aclnnStatus aclnnMatmulReduceScatter(
     </tr>
     </tbody></table>
 
--   **返回值：**
+- **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
-
 
 ## 约束说明
 
@@ -306,7 +305,7 @@ aclnnStatus aclnnMatmulReduceScatter(
   - 支持2、4、8、16、32卡，并且仅支持hccs链路double ring组网。
   - aclnnMatmulReduceScatter默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16、32、64卡，并且仅支持hccs链路all mesh组网。
-  - ReduceScatter集合通信数据总量不能超过16*256MB，集合通信数据总量计算方式为：m * n * sizeof(output_dtype)。由于shape不同，算子内部实现可能存在差异，实际支持的总通信量可能略小于该值。
+  - ReduceScatter集合通信数据总量不能超过16*256MB，集合通信数据总量计算方式为：m* n * sizeof(output_dtype)。由于shape不同，算子内部实现可能存在差异，实际支持的总通信量可能略小于该值。
   - aclnnMatmulReduceScatter默认为确定性实现。
 
 ## 调用说明

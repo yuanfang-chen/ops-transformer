@@ -30,6 +30,7 @@ $$
 > 注意：该接口必须与`aclnnMoeDistributeDispatchV3`配套使用，相当于按`aclnnMoeDistributeDispatchV3`接口收集数据的路径原路返还。
 
 相较于`aclnnMoeDistributeCombineAddRmsNorm`接口，该接口变更如下：
+
 - 新增支持特殊专家场景：
   - **zeroExpert ≠ 0**：通过传入大于0的`zeroExpertNum`参数使能。
 
@@ -48,7 +49,6 @@ $$
     $$
         Moe(oriXOptional) = constExpertAlpha1Optional * oriXOptional + constExpertAlpha2Optional * constExpertVOptional
     $$
-
 
 ## 函数原型
 
@@ -667,7 +667,6 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-
 ## 约束说明
 
 - 确定性计算：
@@ -684,7 +683,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 
 - Shape变量约束：
     - A：表示本卡需要分发的最大token数量，取值范围如下：
-        - 当globalBs为0时，要满足A >= BS * epWorldSize * min(localExpertNum, K)；
+        - 当globalBs为0时，要满足A >= BS *epWorldSize* min(localExpertNum, K)；
         - 当globalBs非0时，要满足A >= globalBs * min(localExpertNum, K)。
 
     - H：表示hidden size隐藏层大小，取值范围为[1024, 8192]。
@@ -696,7 +695,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
   
 - 环境变量约束：
     - HCCL_BUFFSIZE：调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-        - ep通信域内：设置大小要求 >= 2且满足1024 ^ 2 * (HCCL_BUFFSIZE - 2) / 2 >= BS * 2 * (H + 128) * (epWorldSize * localExpertNum + K + 1)，localExpertNum表示MoE专家卡的本卡专家数。
+        - ep通信域内：设置大小要求 >= 2且满足1024 ^ 2 *(HCCL_BUFFSIZE - 2) / 2 >= BS* 2 *(H + 128)* (epWorldSize * localExpertNum + K + 1)，localExpertNum表示MoE专家卡的本卡专家数。
         - tp通信域内：设置大小要求 \>= (A \* Align512(Align32(h \* 2) + 44) + A \* Align512(h \* 2)) \* 2。
 
 - 通信域使用约束：
@@ -713,6 +712,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>，调用aclnnMoeDistributeDispatchV3和aclnnMoeDistributeCombineAddRmsNormV2接口，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 - 示例代码如下，仅供参考
+
     ```Cpp
     #include <thread>
     #include <iostream>

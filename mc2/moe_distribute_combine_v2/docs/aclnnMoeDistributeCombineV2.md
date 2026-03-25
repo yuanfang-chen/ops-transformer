@@ -413,7 +413,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
         - `commAlg`支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经机内、跨机两次发送减少跨机数据量。
         - 不支持共享专家场景。
-        - `epSendCounts`的shape为 (moeExpertNum + 2 * globalBs * K * serverNum, )，其中K指topK个专家数，前moeExpertNum个数表示从EP通信域各卡接收的token数，后2 * globalBs * K * serverNum个数用于存储机间/机内通信前，combine可提前做reduce的token个数和通信区偏移，globalBs=0时按Bs * epWorldSize计算。
+        - `epSendCounts`的shape为 (moeExpertNum + 2 *globalBs* K *serverNum, )，其中K指topK个专家数，前moeExpertNum个数表示从EP通信域各卡接收的token数，后2* globalBs *K* serverNum个数用于存储机间/机内通信前，combine可提前做reduce的token个数和通信区偏移，globalBs=0时按Bs * epWorldSize计算。
         - 当前不支持TP域通信。
         - `xActiveMaskOptional` 依commAlg取值，"fullmesh"要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）；"hierarchy"当前版本不支持，传空指针即可。
         - `expandScalesOptional` 要求为1D Tensor，shape为 (A, )。
@@ -430,7 +430,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
         - `commAlg`当前版本不支持，传空指针即可。
-        - `epSendCounts`的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
+        - `epSendCounts`的shape为 (epWorldSize *max(tpWorldSize, 1)* localExpertNum, )。
         - 有TP域通信时`tpSendCountsOptional`为1D shape Tensor，shape为 (tpWorldSize, )。
         - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
         - `expandScalesOptional`为预留参数，当前版本不支持，传空指针即可。
@@ -447,7 +447,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 
     - <term>Ascend 950PR/Ascend 950DT</term>：
         - `commAlg`当前版本不支持，传空指针即可。
-        - `epSendCounts`的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
+        - `epSendCounts`的shape为 (epWorldSize *max(tpWorldSize, 1)* localExpertNum, )。
         - `tpSendCountsOptional`当前版本不支持，传空指针即可。
         - `xActiveMaskOptional`要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信。
         - `expandScalesOptional`预留参数，当前版本不支持，传空指针即可。
@@ -560,8 +560,8 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 
 6. 参数说明里shape格式说明：
     - **A**：表示本卡需要分发的最大token数量，取值范围如下：
-      - 对于共享专家，需满足 (A = Bs * epWorldSize * sharedExpertNum / sharedExpertRankNum)。
-      - 对于MoE专家，当`globalBs`为0时，需满足 (A >= Bs * epWorldSize * min(localExpertNum, K))；当`globalBs`非0时，需满足 (A >= globalBs * min(localExpertNum, K))。
+      - 对于共享专家，需满足 (A = Bs *epWorldSize* sharedExpertNum / sharedExpertRankNum)。
+      - 对于MoE专家，当`globalBs`为0时，需满足 (A >= Bs *epWorldSize* min(localExpertNum, K))；当`globalBs`非0时，需满足 (A >= globalBs * min(localExpertNum, K))。
     - **H**：表示hidden size（隐藏层大小）：
       - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 7168]且为32的整数倍；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 10*1024]且为32的整数倍。
       - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：取值为[1024, 8192]。
@@ -581,12 +581,12 @@ aclnnStatus aclnnMoeDistributeCombineV2(
    调用本接口前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB：
    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
      - commAlg为""或nullptr：依HCCL环境变量选择“fullmesh”或“hierarchy”公式。
-     - commAlg为"fullmesh"：设置大小要求 (≥ 2 * (Bs * epWorldSize * min(localExpertNum, K) * H * sizeof(uint16) + 2MB))。
-     - commAlg为"hierarchy"：设置大小要求 (≥ (`moeExpertNum` + `epWorldSize` / 4) * Align512(`maxBs` * (`H` * 2 + 16 * Align8(`K`))) * 1B + 8MB，其中Align8(x) = ((x + 8 - 1) / 8) * 8，Align512(x) = ((x + 512 - 1) / 512) * 512)。
+     - commAlg为"fullmesh"：设置大小要求 (≥ 2 *(Bs* epWorldSize *min(localExpertNum, K)* H * sizeof(uint16) + 2MB))。
+     - commAlg为"hierarchy"：设置大小要求 (≥ (`moeExpertNum` + `epWorldSize` / 4) *Align512(`maxBs`* (`H` *2 + 16* Align8(`K`))) *1B + 8MB，其中Align8(x) = ((x + 8 - 1) / 8)* 8，Align512(x) = ((x + 512 - 1) / 512) * 512)。
    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-     - ep通信域内：设置大小要求 (≥ 2) 且满足 (≥ 2 * (localExpertNum * maxBs * epWorldSize * Align512(Align32(2 * H) + 44) + (K + sharedExpertNum) * maxBs * Align512(2 * H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
-     - tp通信域内：设置大小要求\>=A * (H * 2 + 128) * 2。
-   - <term>Ascend 950PR/Ascend 950DT</term>：要求 (≥ aivNum * 512 + 2 * epWorldSize * BS * H * 2 * localExpertNum)，其中`aivNum`表示核数，`localExpertNum`需使用MoE专家卡的本卡专家数。
+     - ep通信域内：设置大小要求 (≥ 2) 且满足 (≥ 2 *(localExpertNum* maxBs *epWorldSize* Align512(Align32(2 *H) + 44) + (K + sharedExpertNum)* maxBs *Align512(2* H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
+     - tp通信域内：设置大小要求\>=A *(H* 2 + 128) * 2。
+   - <term>Ascend 950PR/Ascend 950DT</term>：要求 (≥ aivNum *512 + 2* epWorldSize *BS* H *2* localExpertNum)，其中`aivNum`表示核数，`localExpertNum`需使用MoE专家卡的本卡专家数。
 
 8. **HCCL_INTRA_PCIE_ENABLE和HCCL_INTRA_ROCE_ENABLE**：
    <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该环境变量不再推荐使用，建议通过`commAlg`配置为"hierarchy"。
@@ -594,11 +594,13 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 9. 本文公式中的“/”表示整除。
 
 10. 通信域使用约束：
+
    - 一个模型中的`aclnnMoeDistributeCombineV2`和`aclnnMoeDistributeDispatchV2`仅支持相同EP通信域，且该通信域中不允许有其他算子。
    - 一个模型中的`aclnnMoeDistributeCombineV2`和`aclnnMoeDistributeDispatchV2`仅支持相同TP通信域或都不支持TP通信域；有TP通信域时，该通信域中不允许有其他算子。
    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：一个通信域内的节点需在一个超节点内，不支持跨超节点。
 
 11. 组网约束：
+
    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：多机场景仅支持交换机组网，不支持双机直连组网。
 
 ## 调用示例
@@ -648,6 +650,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
     - 环境变量配置：
+
         ```bash
         # 运行前需设置RANK_TABLE_FILE环境变量
         export RANK_TABLE_FILE=/home/path/to/rank_table_m2.json
@@ -656,6 +659,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

@@ -13,14 +13,13 @@
     3. 从i = 1开始，需要增加Mul和Add操作，即将上一次的MM[PV]的结果和当前exp相乘，相乘完的结果和本次MM[PV]的结果相加得到的结果保存到ub_attention_out[1]的ub中。以此类推，遍历Skv计算完成。
     4. 由于FlashSoftmax计算中的除sum被后移到输出attention_out之前，因此最后需要将ub中的ub_attention_out按行除以softmax_sum并将最终完整的结果保存到输出内存attention_out(Final)上。
 
-
 ## 2 Tiling设计
 
 Tiling操作的目的是为了找到一种更高效的NPU执行方式，原始的数据量一般是非常大的，没有办法通过一次指令调用就完成所有计算，因此需要将数据量分到多个核上并行计算，且每个核上也需要考虑如何循环计算性能最优，不同的输入可能有不同的最优执行方式，所以需要通过tiling策略决定怎么将数据分配到各个核上进行计算。
 
  根据硬件架构特征，AI Core分成AIC和AIV两个独立的核，AIC和AIV核拥有自己独立的Scalar计算单元，能够独立加载自己的代码段，单独执行。AIC和AIV分离的架构可以使得AIC和AIV并行执行。AIC和AIV之间数据交互的通路是L2和GM（Global Memory，高带宽存储器），两者之间的交互次数对性能影响是比较大的，同时由于AIC和AIV算力差异，两者需要使用不同的基本块大小，本着尽量减少AIC和AIV通信次数和发挥最大算力的原则，CVtiling分离策略应运而生，可以有效地减少CV通信次数，同时根据不同单元的buffer特征，选择不同的基本块进行计算，从而提升算子性能。
 
- 对于FFA算子，Vector计算涉及多个输入、输出、中间计算结果、double-buffer设计等，需要将buffer分配成多份，最优分配方案中最大一份为32KB，由于Vector计算使用的数据类型是float32，因此Vector的tiling基本块为8 * 1024。为了充分发挥Cube的算力，在CV之间一轮计算的数据量进行了4:1的配比，又由于Cube侧的输入数据类型是float16，输出是float32，Cube的基本块为32 * 32，所以通过nRatio=32配比出32 * 1024的数据量。伪代码如下：
+ 对于FFA算子，Vector计算涉及多个输入、输出、中间计算结果、double-buffer设计等，需要将buffer分配成多份，最优分配方案中最大一份为32KB，由于Vector计算使用的数据类型是float32，因此Vector的tiling基本块为8 *1024。为了充分发挥Cube的算力，在CV之间一轮计算的数据量进行了4:1的配比，又由于Cube侧的输入数据类型是float16，输出是float32，Cube的基本块为32* 32，所以通过nRatio=32配比出32 * 1024的数据量。伪代码如下：
 
 ```c++
 // C-Tiling: (S1_c_i,D)x(D,S2_c_i) => (S1_c_i, S2_c_i):(32,1024)
@@ -30,9 +29,9 @@ Tiling操作的目的是为了找到一种更高效的NPU执行方式，原始�
 Bmm((S1_c_i,D)x(D,S2_c_i)) => 32*1024  // 输出结果32*1024，放到workspace上
 // V侧 Vector计算
 for S1_c_i/S1_v_i=32/8:
-	copy_gm_to_ub(S1_v_i*S2_v_i)  // 从bmm的workspace上拷入bmm结果数据
-	Vector(S1_v_i,S2_v_i)         // 进行Vector计算
-	copy_ub_to_gm(S1_v_i*S2_v_i)  // Vector计算结束，得到最终输出数据，拷贝到GM上
+ copy_gm_to_ub(S1_v_i*S2_v_i)  // 从bmm的workspace上拷入bmm结果数据
+ Vector(S1_v_i,S2_v_i)         // 进行Vector计算
+ copy_ub_to_gm(S1_v_i*S2_v_i)  // Vector计算结束，得到最终输出数据，拷贝到GM上
 
 // 由于Cube侧计算数据比Vector侧大，因此，ub内需要再次进行Vector Tiling，从而产生了S1方向的配比：S1_c_i/S1_v_i
 ```
@@ -89,8 +88,6 @@ V侧流水设计需要考虑Vector内部的搬运及计算过程，实施的优�
 | (1, 16, 384, 384, 384, 64)    | 11.53       | 5.18          | **55.07%** |
 | (1, 16, 512, 512, 512, 64)    | 25.50       | 9.13          | **64.20%** |
 
-
-
 ## 5 附录——FusedFloydAttention算子中IterateBatch配置
 
 本方案中涉及两种类型的批量矩阵乘（数据格式ND）
@@ -101,7 +98,7 @@ V侧流水设计需要考虑Vector内部的搬运及计算过程，实施的优�
 
 第一种方案中batch轴在最外轴，M和K可能有切片，这样每次单batch的ND矩阵是连续的，但是不同batch的ND矩阵间可能会存在间隔。
 
-比如M=256, 假设切片为N[0:16]M[128:256]D[:], 每个batch为 128*D 的数据， batch数据起始地址之间间隔256 * D;
+比如M=256, 假设切片为N[0:16]M[128:256]D[:], 每个batch为 128*D 的数据， batch数据起始地址之间间隔256* D;
 
 针对这种情形我们使用IterateBatch的NORMAL数据排布，对于batch数据之间的地址间隔，需要配置matrixStrideA， matrixStrideB等参数；这两个参数能指定输入A矩阵和B矩阵的相邻batch的ND矩阵间的间隔。上述的例子中，将matrixStrideA设置为 256*D。
 
@@ -113,7 +110,7 @@ V侧流水设计需要考虑Vector内部的搬运及计算过程，实施的优�
 
 - **计算一个批次（Batch）矩阵乘计算的数据量 (Bytes)**
 
-  oneBatchBytes = datatype Bytes * D * (K1 + K2)
+  oneBatchBytes = datatype Bytes *D* (K1 + K2)
 
   K1与K2取实际计算的矩阵的轴的切片长度，比如上面例子中M[128:256]对应的是128
 
@@ -124,4 +121,3 @@ V侧流水设计需要考虑Vector内部的搬运及计算过程，实施的优�
 - **对应的循环次数如下**
 
   Loops = Ceil(TotalBatches, maxBatchNums)    # 向上取整
-
