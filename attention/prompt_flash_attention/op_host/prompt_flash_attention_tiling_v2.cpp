@@ -3858,10 +3858,6 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
     sOuterFactor = minFactor;
     sInnerFactor = rectangleFactor;
 
-    // [TODO][SWL] maxfp8 s1=128 s2=512
-    sOuterFactor = SOUTER_FACTOR_DEFAULT;
-    sInnerFactor = 512;
-
     return true;
 }
 
