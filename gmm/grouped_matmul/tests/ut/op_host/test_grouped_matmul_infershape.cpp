@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -129,8 +129,12 @@ ge::Format ParseFormat(const string &format)
 vector<int64_t> ParseDims(const string &value)
 {
     const string trimmed = Trim(value);
-    if (trimmed == "NONE" || trimmed.empty()) {
+    if (trimmed.empty()) {
         return {};
+    }
+    if (trimmed == "NONE") {
+        // Keep compatibility with existing CSVs: NONE means empty optional tensor ([0]).
+        return {0};
     }
     if (trimmed == "ZERO") {
         return {0};
