@@ -78,7 +78,11 @@ __aicore__ inline void RotaryPosEmbPerTensor(LocalTensor<O>& outputLocal, const 
             (uint32_t)cnt, // col
             (uint32_t)cnt  // columnStride
         };
-        Dequant(kFp32Local, kLocal, channelDeqScaleLocal, scale, rectangleParams);
+        if constexpr (std::is_same<T, float>::value) {
+            Dequant(kFp32Local, kFp32Local, channelDeqScaleLocal, scale, rectangleParams);
+        } else {
+            Dequant(kFp32Local, kLocal, channelDeqScaleLocal, scale, rectangleParams);
+        }
         AscendC::PipeBarrier<PIPE_V>();
     } else if constexpr (std::is_same<T, bfloat16_t>::value) {
         Cast(kFp32Local, kLocal, RoundMode::CAST_NONE, cnt);

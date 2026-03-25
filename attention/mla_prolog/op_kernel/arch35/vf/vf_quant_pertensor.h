@@ -32,8 +32,8 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
     static constexpr MicroAPI::CastTrait CAST_TRAITF322HIF8 = {MicroAPI::RegLayout::ZERO,
                 MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_ROUND};
     MicroAPI::RegTensor<T> vregSrc;
-    MicroAPI::RegTensor<T> vregQuantScale;
-    MicroAPI::RegTensor<T> vregFloat;
+    MicroAPI::RegTensor<float> vregQuantScale;
+    MicroAPI::RegTensor<float> vregFloat;
     MicroAPI::RegTensor<U> vregRes;
     // 量化系数broadcast到寄存器所有位置
     MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vregQuantScale, quantScaleBuf);

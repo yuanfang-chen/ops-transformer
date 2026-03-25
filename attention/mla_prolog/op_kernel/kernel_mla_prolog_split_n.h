@@ -1323,7 +1323,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::CopyGlobalParams() {
     // quantScaleCkv
     if constexpr ((std::is_same<rmsNormCkvOutputType, int8_t>::value || std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
         std::is_same<rmsNormCkvOutputType, hifloat8_t>::value) && !isPertile) {
-        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value) {
+        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value ||
+            (std::is_same<mmCkvKrOutputType, float>::value && std::is_same<dequantScaleType, float>::value)) {
             DataCopyExtParams quantCopyParams{1, sizeof(float), 0, 0, 0};
             DataCopyPadExtParams<float> quantPadParams{false, 0, 0, 0};
             DataCopyPad(quantScaleCkvLocal_, quantScaleCkvGm_, quantCopyParams, quantPadParams); 
@@ -1370,7 +1371,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
         WaitFlag<HardEvent::V_MTE2>(EVENT_ID1); // wait for vector operations to finish
 
         // dequantScaleXGm_  [BS , 1] 每个每个token对应一个系数，此处扩展为一个DataBlock
-        if constexpr (std::is_same<mmCqOutputType, int32_t>::value || (std::is_same<mmCqOutputType, int32_t>::value && std::is_same<dequantScaleType, float>::value)) {
+        if constexpr (std::is_same<mmCqOutputType, int32_t>::value || (std::is_same<mmCqOutputType, float>::value && std::is_same<dequantScaleType, float>::value)) {
             DataCopyPad(dequantScaleXLocal, dequantScaleXGm_[tokenIndex], {1, sizeof(float), 0, 0}, {false, 0, 0, 0});
         }
 
