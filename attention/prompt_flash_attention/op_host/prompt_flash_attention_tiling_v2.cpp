@@ -1186,8 +1186,8 @@ bool PromptFlashAttentionTilingV2::CheckMxfp8FullQuantParams(const ContextParams
     const size_t dequeryDim = dequantScaleQueryShape->GetStorageShape().GetDimNum();
     const size_t dekeyDim = keyAntiquantScaleShape->GetStorageShape().GetDimNum();
     const size_t devalueDim = valueAntiquantScaleshape->GetStorageShape().GetDimNum();
-    constexpr uint32_t fp8QKBlockSize = 64U;
-    constexpr uint32_t fp8VBlockSize = 64U;
+    constexpr uint32_t mxfp8QKBlockSize = 64U;
+    constexpr uint64_t mxfp8VBlockSize = 64U;
 
     OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1244,210 +1244,215 @@ bool PromptFlashAttentionTilingV2::CheckMxfp8FullQuantParams(const ContextParams
     //注意确认per-token-group和per-chennel-group量化模式是shape格式
     //todo zhangxin pa和非pa要区分
     if (enablePA) {        
-        // if (inputLayout == InputLayout::TND) {
-        //     OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             " when PA enable, dequantscale's dim must be [4, 5, 5] in mxfp8 quant scenario," 
-        //             "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-        //             dequeryDim, dekeyDim, devalueDim),
-        //         return false);
-        //     if (isMaxWorkspace) return true;
-        //     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.t) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), queryShapeInfo.t, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, fp8QKBlockSize),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false); 
-        //     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.t) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), keyShapeInfo.t, keyShapeInfo.n, CeilDivision(keyShapeInfo.d, fp8QKBlockSize),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
-        //     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != CeilDivision(valueShapeInfo.t, fp8VBlockSize)) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.d)||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), CeilDivision(valueShapeInfo.t, fp8VBlockSize), valueShapeInfo.n, valueShapeInfo.d,
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
-        // } else {
-        OP_CHECK_IF((inputLayout != InputLayout::TND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "PA requires TND input layout, but got [%d]. Only TND format is supported.", inputLayout), 
-        return false);
-        // }
-    } else {
-        // if (inputLayout == InputLayout::BNSD) {
-        //     OP_CHECK_IF((dequeryDim != 5) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantscale's dim must be 4 in mxfp8 quant scenario," 
-        //             "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-        //             dequeryDim, dekeyDim, devalueDim),
-        //         return false);
-        //     if (isMaxWorkspace) return true;
-        //     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(2) != queryShapeInfo.s) ||   // 2 is the dim of dequantscale along s1.
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != CeilDivision(queryShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2),  // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantScaleQueryShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u, %u].",
-        //             queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, CeilDivision(queryShapeInfo.d, fp8QKBlockSize),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3), dequantScaleQueryShape->GetStorageShape().GetDim(4)),
-        //         return false); 
-        //     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != keyShapeInfo.s) || //  2 is the dim of dequantscale along s2.
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != CeilDivision(keyShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "keyAntiquantScaleShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
-        //             keyShapeInfo.b, keyShapeInfo.n, keyShapeInfo.s, CeilDivision(keyShapeInfo.d, fp8QKBlockSize),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3), keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
-        //         return false);
-        //     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, fp8VBlockSize)) || // 2 is the dim of dequantscale along s2.
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != valueShapeInfo.d)||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "valueAntiquantScaleshape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
-        //             valueShapeInfo.b, valueShapeInfo.n, CeilDivision(valueShapeInfo.s, fp8VBlockSize), valueShapeInfo.d,
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3), valueAntiquantScaleshape->GetStorageShape().GetDim(4)),
-        //         return false);
-        // } else if (inputLayout == InputLayout::BSND) {
-        //     OP_CHECK_IF((dequeryDim != 5) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantscale's dim must be 5 in mxfp8 quant scenario," 
-        //             "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-        //             dequeryDim, dekeyDim, devalueDim),
-        //         return false);
-        //     if (isMaxWorkspace) return true;
-        //     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.s) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(2) != queryShapeInfo.n) ||   // 2 is the dim of dequantscale along s1.
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != CeilDivision(queryShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2),  // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantScaleQueryShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u, %u].",
-        //             queryShapeInfo.b, queryShapeInfo.s, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, fp8QKBlockSize),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3), dequantScaleQueryShape->GetStorageShape().GetDim(4)),
-        //         return false); 
-        //     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.s) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != keyShapeInfo.n) || //  2 is the dim of dequantscale along s2.
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != CeilDivision(keyShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "keyAntiquantScaleShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
-        //             keyShapeInfo.b, keyShapeInfo.s, keyShapeInfo.n, CeilDivision(keyShapeInfo.d, fp8QKBlockSize),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3), keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
-        //         return false);
-        //     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != CeilDivision(valueShapeInfo.s, fp8VBlockSize)) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.b) || // 2 is the dim of dequantscale along s2.
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != valueShapeInfo.d)||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "valueAntiquantScaleshape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
-        //             valueShapeInfo.b, CeilDivision(valueShapeInfo.s, fp8VBlockSize), valueShapeInfo.n, valueShapeInfo.d,
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3), keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
-        //         return false);
-        // } else if (inputLayout == InputLayout::BSH) {
-        //     OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantscale's dim must be 4 in mxfp8 quant scenario," 
-        //             "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-        //             dequeryDim, dekeyDim, devalueDim),
-        //         return false);
-        //     if (isMaxWorkspace) return true;
-        //     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.s) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.h, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), queryShapeInfo.b, queryShapeInfo.s, CeilDivision(queryShapeInfo.h, fp8QKBlockSize),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false); 
-        //     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.s) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.h, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), keyShapeInfo.b, keyShapeInfo.s, CeilDivision(keyShapeInfo.h, fp8QKBlockSize),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
-        //     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != CeilDivision(valueShapeInfo.s, fp8VBlockSize)) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.h)||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), valueShapeInfo.b, CeilDivision(valueShapeInfo.s, fp8VBlockSize), valueShapeInfo.h,
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
-        // } else if (inputLayout == InputLayout::TND) {
-        //     OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "dequantscale's dim must be 4 in mxfp8 quant scenario," 
-        //             "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-        //             dequeryDim, dekeyDim, devalueDim),
-        //         return false);
-        //     if (isMaxWorkspace) return true;
-        //     OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.t) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), queryShapeInfo.t, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, fp8QKBlockSize),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-        //             dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false); 
-        //     OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.t) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-        //                 (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.d, fp8QKBlockSize))||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), keyShapeInfo.t, keyShapeInfo.n, CeilDivision(keyShapeInfo.d, fp8QKBlockSize),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-        //             keyAntiquantScaleShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
-        //     OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != CeilDivision(valueShapeInfo.t, fp8VBlockSize)) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-        //                 (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.d)||
-        //                 (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
-        //         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        //             "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
-        //             layoutStr.c_str(), CeilDivision(valueShapeInfo.t, fp8VBlockSize), valueShapeInfo.n, valueShapeInfo.d,
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-        //             valueAntiquantScaleshape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        //         return false);
+        if (inputLayout == InputLayout::TND) {
+            const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
+            const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
+            const int32_t* blockSize = contextKeyParams.blockSize;
+            OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    " when PA enable, dequantscale's dim must be [4, 5, 5] in mxfp8 quant scenario," 
+                    "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                    dequeryDim, dekeyDim, devalueDim),
+                return false);
+            if (isMaxWorkspace) return true;
+            OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.t) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize))||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
+                    layoutStr.c_str(), queryShapeInfo.t, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
+                return false); 
+            OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_0)) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_1)) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != *blockSize )||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != CeilDivision(keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_3), static_cast<int64_t>(mxfp8QKBlockSize)))||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(4) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    layoutStr.c_str(), keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_0), keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_1), *blockSize, CeilDivision(keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_3), static_cast<int64_t>(mxfp8QKBlockSize)), keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
+                return false);
+            OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShape->GetStorageShape().GetDim(KV_CACHE_DIM_0)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShape->GetStorageShape().GetDim(KV_CACHE_DIM_1)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(static_cast<uint64_t>(*blockSize), mxfp8VBlockSize)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != valueShape->GetStorageShape().GetDim(KV_CACHE_DIM_3))||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(4) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    layoutStr.c_str(), keyShape->GetStorageShape().GetDim(KV_CACHE_DIM_0), valueShape->GetStorageShape().GetDim(KV_CACHE_DIM_1),CeilDivision(static_cast<uint64_t>(*blockSize), mxfp8VBlockSize), valueShape->GetStorageShape().GetDim(KV_CACHE_DIM_3),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3), valueAntiquantScaleshape->GetStorageShape().GetDim(4)),
+                return false);
+        } else {
+            OP_CHECK_IF((inputLayout != InputLayout::TND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "PA requires TND input layout, but got [%d]. Only TND format is supported.", inputLayout), 
+            return false);
         }
-    // }
+    } else {
+        if (inputLayout == InputLayout::BNSD) {
+            OP_CHECK_IF((dequeryDim != 5) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantscale's dim must be 4 in mxfp8 quant scenario," 
+                    "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                    dequeryDim, dekeyDim, devalueDim),
+                return false);
+            if (isMaxWorkspace) return true;
+            OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(2) != queryShapeInfo.s) ||   // 2 is the dim of dequantscale along s1.
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(3) != CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize))||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2),  // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantScaleQueryShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u, %u].",
+                    queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3), dequantScaleQueryShape->GetStorageShape().GetDim(4)),
+                return false); 
+            OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != keyShapeInfo.s) || //  2 is the dim of dequantscale along s2.
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize))||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "keyAntiquantScaleShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    keyShapeInfo.b, keyShapeInfo.n, keyShapeInfo.s, CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3), keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
+                return false);
+            OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, mxfp8VBlockSize)) || 
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != valueShapeInfo.d)||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "valueAntiquantScaleshape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    valueShapeInfo.b, valueShapeInfo.n,  CeilDivision(valueShapeInfo.s, mxfp8VBlockSize), valueShapeInfo.d,
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3), valueAntiquantScaleshape->GetStorageShape().GetDim(4)),
+                return false);
+        } else if (inputLayout == InputLayout::BSND) {
+            OP_CHECK_IF((dequeryDim != 5) || (dekeyDim != 5) || (devalueDim != 5),   // 4 is the number of dimensions of the dequant scale.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantscale's dim must be 5 in mxfp8 quant scenario," 
+                    "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                    dequeryDim, dekeyDim, devalueDim),
+                return false);
+            if (isMaxWorkspace) return true;
+            OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.s) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(2) != queryShapeInfo.n) ||   // 2 is the dim of dequantscale along s1.
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(3) != CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize))||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(4) != 2),  // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantScaleQueryShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u, %u].",
+                    queryShapeInfo.b, queryShapeInfo.s, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3), dequantScaleQueryShape->GetStorageShape().GetDim(4)),
+                return false); 
+            OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.s) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != keyShapeInfo.n) || //  2 is the dim of dequantscale along s2.
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize))||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "keyAntiquantScaleShape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    keyShapeInfo.b, keyShapeInfo.s, keyShapeInfo.n, CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3), keyAntiquantScaleShape->GetStorageShape().GetDim(4)),
+                return false);
+            OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != CeilDivision(valueShapeInfo.s, mxfp8VBlockSize)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.b) || // 2 is the dim of dequantscale along s2.
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != valueShapeInfo.d)||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(4) != 2), // 3 is the dim of dequantscale along d.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "valueAntiquantScaleshape must be [%u, %u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u, %u].",
+                    valueShapeInfo.b, CeilDivision(valueShapeInfo.s, mxfp8VBlockSize), valueShapeInfo.n, valueShapeInfo.d,
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3), valueAntiquantScaleshape->GetStorageShape().GetDim(4)),
+                return false);
+        } else if (inputLayout == InputLayout::BSH) {
+            OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantscale's dim must be 4 in mxfp8 quant scenario," 
+                    "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                    dequeryDim, dekeyDim, devalueDim),
+                return false);
+            if (isMaxWorkspace) return true;
+            OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.s) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.h, static_cast<uint64_t>(mxfp8QKBlockSize)))||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
+                    layoutStr.c_str(), queryShapeInfo.b, queryShapeInfo.s, CeilDivision(queryShapeInfo.h,static_cast<uint64_t>(mxfp8QKBlockSize)),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
+                return false); 
+            OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.s) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.h, static_cast<uint64_t>(mxfp8QKBlockSize)))||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
+                    layoutStr.c_str(), keyShapeInfo.b, keyShapeInfo.s, CeilDivision(keyShapeInfo.h, static_cast<uint64_t>(mxfp8QKBlockSize)),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3)),
+                return false);
+            OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != CeilDivision(valueShapeInfo.s, mxfp8VBlockSize)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.h)||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
+                    layoutStr.c_str(), valueShapeInfo.b, CeilDivision(valueShapeInfo.s, mxfp8VBlockSize), valueShapeInfo.h,
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3)),
+                return false);
+        } else if (inputLayout == InputLayout::TND) {
+            OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "dequantscale's dim must be 4 in mxfp8 quant scenario," 
+                    "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                    dequeryDim, dekeyDim, devalueDim),
+                return false);
+            if (isMaxWorkspace) return true;
+            OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.t) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize))||
+                        (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is  [%u, %u, %u, %u].",
+                    layoutStr.c_str(), queryShapeInfo.t, queryShapeInfo.n, CeilDivision(queryShapeInfo.d, mxfp8QKBlockSize),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                    dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
+                return false); 
+            OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.t) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize))||
+                        (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
+                    layoutStr.c_str(), keyShapeInfo.t, keyShapeInfo.n, CeilDivision(keyShapeInfo.d, mxfp8QKBlockSize),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                    keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3)),
+                return false);
+            OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != CeilDivision(static_cast<uint64_t>(valueShapeInfo.t), mxfp8VBlockSize)) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != valueShapeInfo.d)||
+                        (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 2),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u, 2] in mxfp8 quant scenario, now is [%u, %u, %u, %u].",
+                    layoutStr.c_str(), CeilDivision(static_cast<uint64_t>(valueShapeInfo.t), mxfp8VBlockSize), valueShapeInfo.n, valueShapeInfo.d,
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                    valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3)),
+                return false);
+        }
+    }
     
     return true; 
 }
@@ -3856,7 +3861,6 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
     // [TODO][SWL] maxfp8 s1=128 s2=512
     sOuterFactor = SOUTER_FACTOR_DEFAULT;
     sInnerFactor = 512;
-    printf("MXFP8 TEMP============================sInnerFactor: %d\n", sInnerFactor);
 
     return true;
 }
