@@ -179,7 +179,7 @@ protected:
     bool CheckMaskTypeAndShape(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
     void SetSparseType(uint32_t qS);
     bool CheckSparseMode(ContextParamsForPFATiling& contextKeyParams, uint32_t qS);
-    bool CheckSinkLength(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionPioneerTilingData& tilingData);
+    bool CheckSinkLength(ContextParamsForPFATiling& contextKeyParams);
     bool CheckNocontinuesStirde(ContextParamsForPFATiling& contextKeyParams,PromptFlashAttentionPioneerTilingData& tilingData);
     bool CheckPACrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
     bool CheckMaskCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, 

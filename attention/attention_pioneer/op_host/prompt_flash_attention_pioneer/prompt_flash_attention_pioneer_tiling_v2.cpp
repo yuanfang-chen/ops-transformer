@@ -2669,23 +2669,17 @@ bool PromptFlashAttentionPioneerTilingV2::CheckSparseMode(ContextParamsForPFATil
     return true;
 }
 
-bool PromptFlashAttentionPioneerTilingV2::CheckSinkLength(ContextParamsForPFATiling& contextKeyParams,
-    PromptFlashAttentionPioneerTilingData& tilingData) {
-    // const int64_t* sinkNum = contextKeyParams.sinkNumber;
-    // bool sinkNumCheck = false;
-    // if (sinkNum != nullptr) {
-    //     sinkNumCheck = ((*sinkNum < 0) || (*sinkNum > 512) ||
-    //         (*sinkNum % 64 != 0));
-    //     OP_CHECK_IF(sinkNumCheck, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "sinkNumber = %ld is invalid param. Currently only [0, 512] and (sinkNumber %% 64 == 0) are supported.", *sinkNum),
-    //         return false);
-    // }
-    // sinkNumber = *sinkNum;
-    if(contextKeyParams.keySinkInputShape != nullptr) {
+bool PromptFlashAttentionPioneerTilingV2::CheckSinkLength(ContextParamsForPFATiling& contextKeyParams) {
+    int64_t sinkLength = 0;
+    if (contextKeyParams.keySinkInputShape != nullptr) {
         sinkLength = contextKeyParams.keySinkInputShape->GetStorageShape().GetDim(0);
     } else {
         sinkLength = 0;
     }
+    bool sinkLengthCheck = ((sinkLength != 0) && (sinkLength != 128));
+    OP_CHECK_IF(sinkLengthCheck, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "sinkLength = %ld is invalid param, sinkLength must be 0 or 128", sinkLength),
+        return false);
     return true;
 }
 
@@ -3031,60 +3025,50 @@ bool PromptFlashAttentionPioneerTilingV2::ParseActualSeqLengths(ContextParamsFor
 bool PromptFlashAttentionPioneerTilingV2::CheckSinkLengthCrossover(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo)
 {
-    // if (*contextKeyParams.sinkNumber == 0) {
-    //     return true;
-    // }
-    // const int32_t* sparseMode = contextKeyParams.sparseMode;
-    // OP_CHECK_IF((*sparseMode != SPARSE_MODE_BAND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Only sparse_mode Band is supported in param sink scenario"),
-    //     return false);
-    // std::string layoutStr(contextKeyParams.layout);
-    // OP_CHECK_IF((!((enablePFAMLA && (layoutStr == "TND")) || (enableIFAMLA && (layoutStr == "TND_NTD")))), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Only PFAMLA and IFAMLA and TND is supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF((*contextKeyParams.preToken < 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Invalid line is not supported in param sink scenario"),
-    //     return false);
-    // const gert::Tensor* actSeqLen = contextKeyParams.actualSequenceLengthQ;
-    // const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
-    // for (uint32_t i = LOOP_BEGIN_NUM; i < queryShapeInfo.b; ++i) {
-    //     int64_t curActSeq = (i == 0) ? static_cast<uint32_t>(actSeqLen->GetData<int64_t>()[0]) : 
-    //         static_cast<uint32_t>(actSeqLen->GetData<int64_t>()[i] - actSeqLen->GetData<int64_t>()[i-1]);
-    //     int64_t curActSeqKV = static_cast<uint32_t>(actSeqLenKV->GetData<int64_t>()[i]);
-    //     if (!enablePA && i >= 1) {
-    //         curActSeqKV -= static_cast<uint32_t>(actSeqLenKV->GetData<int64_t>()[i-1]);
-    //     }
-    //     OP_CHECK_IF(!isMaxWorkspace && (curActSeqKV < *contextKeyParams.sinkNumber), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //             "Sinknumber must less than or equal to actseqkv"),
-    //         return false);
-    //     OP_CHECK_IF((*contextKeyParams.nextToken < (curActSeq - curActSeqKV + *contextKeyParams.sinkNumber)), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //             "Invalid line is not supported in param sink scenario"),
-    //         return false);
-    // }
-    // OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Only inputdtype equal to bf16 or fp16 is supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF((enablePseShift || enableAlibiPse), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "PSE is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Leftpadding is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF(enableLearnSink, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Learnsink is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Tensorlist is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF(emptyTensor, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Emptytensor is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF(enableKVPrefix, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Prefix is not supported in param sink scenario"),
-    //     return false);
-    // OP_CHECK_IF((enablePostQuant || enablePerblockQuant || enablePertensorQuant), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-    //         "Quant is not supported in param sink scenario"),
-    //     return false);
+    int64_t sinkLength = 0;
+    if (contextKeyParams.keySinkInputShape != nullptr) {
+        sinkLength = contextKeyParams.keySinkInputShape->GetStorageShape().GetDim(0);
+    } else {
+        sinkLength = 0;
+    }
+    if (sinkLength == 0) {
+        return true;
+    }
+    OP_CHECK_IF(sinkLength != 128, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "sinkLength = %ld is invalid, only support 128", sinkLength), return false);
+    if (enableActSeqLenKV && !enableTensorList) {
+        const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
+        uint32_t actSeqLenKVSize = std::min(static_cast<uint32_t>(actSeqLenKVDims), queryShapeInfo.b);
+        for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLenKVSize; ++i) {
+            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[i] < sinkLength,
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "actual_seq_lengths_kv[%u](%ld) must be greater than or equal to sinkLength(%ld)",
+                i, actSeqLenKV->GetData<int64_t>()[i], sinkLength),
+                return false);
+        }
+    }
+    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "dtype only can be bf16 or fp16"), return false);
+    std::string layoutStr(contextKeyParams.layout);
+    OP_CHECK_IF((!((enablePFAMLA && (layoutStr == "TND")) || (enablePFARope && (layoutStr == "TND")) ||
+            (enableIFAMLA && (layoutStr == "TND_NTD")))), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "PFA only support TND and IFA only support TND_NTD"), return false);
+    bool validHeadDim = (enablePFAMLA && queryShapeInfo.d == 192) || (enableIFAMLA && queryShapeInfo.d == 512);
+    OP_CHECK_IF(!validHeadDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "PFA rope should be combined (d=192), IFA rope should be separated (d=512)"), return false);
+    OP_CHECK_IF((enablePseShift || enableAlibiPse), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "PSE is not supported in sink scenario"), return false);
+    OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Leftpadding is not supported in sink scenario"), return false);
+    OP_CHECK_IF(enableLearnSink, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Learnsink is not supported in sink scenario"), return false);
+    OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "TensorList is not supported in sink scenario"), return false);
+    OP_CHECK_IF(enableKVPrefix, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Prefix is not supported in sink scenario"), return false);
+    OP_CHECK_IF(enablePostQuant || enablePerblockQuant || enablePertensorQuant, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Quant is not supported in sink scenario"), return false);
     return true;
 }
 bool PromptFlashAttentionPioneerTilingV2::CheckMultiFeatureCrossover(ContextParamsForPFATiling& contextKeyParams,
@@ -4728,7 +4712,7 @@ ge::graphStatus PromptFlashAttentionPioneerTilingV2::CheckSingleAttribute(Contex
     //     return ge::GRAPH_FAILED;
     // }
 
-    if (!CheckSinkLength(contextKeyParams, tilingData)) {
+    if (!CheckSinkLength(contextKeyParams)) {
         OP_LOGE(contextKeyParams.opName, "Check sinkLength failed!");
         return ge::GRAPH_FAILED;
     }
