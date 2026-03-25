@@ -2530,8 +2530,12 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
               inputKvType_ == ge::DT_FLOAT4_E2M1)),
               OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp8/hifp8/fp4_e2m1, antiquantOffset is not supported."),
               return ge::GRAPH_FAILED);
-  OP_CHECK_IF(((antiquantMode == PER_TENSOR_HEAD_MODE || antiquantMode == PER_TOKEN_PA_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
-            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 2, 4 or 5, input key/value type should be int8, "
+  OP_CHECK_IF(((antiquantMode == PER_TENSOR_HEAD_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
+            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 2 or 5, input key/value type should be int8, "
+                      "but now is %s.", DataTypeToString(inputKvType_).c_str()),
+            return ge::GRAPH_FAILED);
+  OP_CHECK_IF(((antiquantMode == PER_TOKEN_PA_MODE) && (inputKvType_ != ge::DT_INT8 && inputKvType_ != ge::DT_FLOAT8_E4M3FN)),
+            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 4, input key/value type should be int8 or fp8_e4m3, "
                       "but now is %s.", DataTypeToString(inputKvType_).c_str()),
             return ge::GRAPH_FAILED);
   OP_CHECK_IF((antiquantMode == PER_TOKEN_GROUP_MODE && !(inputKvType_ == ge::DT_FLOAT4_E2M1)),
@@ -2705,6 +2709,10 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
         "if inputKvType is Int8, inputQType and outputType only must be FP16, now inputQType is %s, outputType is %s.",
                 optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
           return ge::GRAPH_FAILED);
+      OP_CHECK_IF((antiquantMode_ == PER_TOKEN_MODE || antiquantMode_ == PER_TOKEN_PA_MODE)
+                  && (inputKvType_ == ge::DT_FLOAT8_E4M3FN && (outputType_ != ge::DT_BF16 && outputType_ != ge::DT_FLOAT16)),
+        OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 1 or 4, if data type of key/value is float8_e4m3, post quant is not supported."),
+          return ge::GRAPH_FAILED);      
       if (CheckAntiQuantParam(valueAntiquantMode, valueAntiquantScaleTensor, valueAntiquantOffsetTensor,
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
