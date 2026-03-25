@@ -131,7 +131,8 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureAxisInfo() ||
         ge::GRAPH_SUCCESS != CheckFeatureLearnableSink() ||
-        ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
+        ge::GRAPH_SUCCESS != CheckFeatureHeadDim() ||
+        ge::GRAPH_SUCCESS != CheckFeaturePostQuant()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -725,8 +726,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeaturePostQuant() ||
         ge::GRAPH_SUCCESS != CheckFeatureLeftPadding() ||
         ge::GRAPH_SUCCESS != CheckFeaturePSE() ||
-        ge::GRAPH_SUCCESS != CheckFeatureHeadDim() ||
-        ge::GRAPH_SUCCESS != CheckFeaturePostQuant()) {
+        ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
