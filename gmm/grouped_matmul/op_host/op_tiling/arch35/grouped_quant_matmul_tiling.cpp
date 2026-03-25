@@ -13,6 +13,8 @@
  * \brief
  */
 #include "grouped_quant_matmul_tiling.h"
+#include <sstream>
+
 #include <alog_pub.h>
 
 #include "grouped_quant_basic_api_matmul_tiling.h"
@@ -981,27 +983,15 @@ ge::graphStatus GroupedQmmTiling::GetWorkspaceSize()
 
 ge::graphStatus GroupedQmmTiling::PostTiling()
 {
-    context_->SetBlockDim(aicoreParams_.aicNum);
-    OP_CHECK_IF(sizeof(tilingData_) % sizeof(uint64_t) != 0,
-                OP_LOGE(context_->GetNodeName(), "Tiling data size[%zu] is not aligned to 8", sizeof(tilingData_)),
-                return ge::GRAPH_FAILED);
-    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
-                           reinterpret_cast<void *>(&tilingData_), sizeof(tilingData_));
-    if (ret != EOK) {
-        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", ret);
-        return ge::GRAPH_FAILED;
-    }
-    context_->GetRawTilingData()->SetDataSize(sizeof(tilingData_));
-    return ge::GRAPH_SUCCESS;
+    return SaveTilingDataToContext(tilingData_);
 }
 
-void GroupedQmmTiling::PrintQuantParams()
+void GroupedQmmTiling::LogQuantParams(const GMMQuantParams &params) const
 {
     int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }
-    GMMQuantParams &params = tilingData_.gmmQuantParams;
     std::ostringstream oss;
     oss << "GMMQuantParams: groupNum = " << params.groupNum << ", activeType = " << params.activeType
         << ", aQuantMode = " << params.aQuantMode << ", bQuantMode = " << params.bQuantMode
@@ -1012,6 +1002,11 @@ void GroupedQmmTiling::PrintQuantParams()
         << ", groupListType = " << static_cast<uint32_t>(params.groupListType)
         << ", hasBias = " << static_cast<int32_t>(params.hasBias);
     OP_LOGD(inputParams_.opName, "%s", oss.str().c_str());
+}
+
+void GroupedQmmTiling::PrintQuantParams()
+{
+    LogQuantParams(tilingData_.gmmQuantParams);
 }
 
 void GroupedQmmTiling::CalBasicBlock()
@@ -1056,35 +1051,58 @@ bool GroupedQmmTiling::IsBiasInL1() const
     return inputParams_.hasBias && inputParams_.biasDtype == ge::DT_INT32;
 }
 
-ge::graphStatus GroupedQmmTiling::CalL1Tiling()
+void GroupedQmmTiling::InitCommonL1TilingFields()
 {
     basicTiling_.stepM = 1UL;
     basicTiling_.stepN = 1UL;
     basicTiling_.singleCoreM = std::min(inputParams_.mSize, basicTiling_.baseM);
     basicTiling_.singleCoreN = std::min(inputParams_.nSize, basicTiling_.baseN);
     basicTiling_.singleCoreK = inputParams_.kSize;
-
-    uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
-    uint64_t scaleDtypeSize = ge::GetSizeByDataType(inputParams_.scaleDtype);
-    uint64_t totalL1Size = aicoreParams_.l1Size;
-
     basicTiling_.iterateOrder = 0U;
     basicTiling_.dbL0c =
         (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
-    if (inputParams_.kSize == 0) {
-        return ge::GRAPH_SUCCESS;
-    }
+}
+
+ge::graphStatus GroupedQmmTiling::CalcLeftL1Size(uint64_t &leftL1Size) const
+{
+    uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
+    uint64_t scaleDtypeSize = ge::GetSizeByDataType(inputParams_.scaleDtype);
+    uint64_t totalL1Size = aicoreParams_.l1Size;
     uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t singleCoreScaleSize = inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE &&
                                            inputParams_.kernelType == 0 && inputParams_.cDtype != ge::DT_INT32 ?
                                        basicTiling_.baseN * scaleDtypeSize :
                                        0;
     uint64_t usedSize = singleCoreBiasSize + singleCoreScaleSize;
-    OP_CHECK_IF(
-        totalL1Size <= usedSize,
-        OP_LOGE(context_->GetNodeName(), "L1 space overflow. L1Size: %lu, used space: %lu", totalL1Size, usedSize),
-        return ge::GRAPH_FAILED);
-    uint64_t leftL1Size = totalL1Size - usedSize;
+    OP_CHECK_IF(totalL1Size <= usedSize,
+                OP_LOGE(context_->GetNodeName(), "L1 space overflow. L1Size: %lu, used space: %lu", totalL1Size,
+                        usedSize),
+                return ge::GRAPH_FAILED);
+    leftL1Size = totalL1Size - usedSize;
+    return ge::GRAPH_SUCCESS;
+}
+
+void GroupedQmmTiling::CalcAlignedMxBaseScaleSize(uint64_t &baseScaleASize, uint64_t &baseScaleBSize) const
+{
+    baseScaleASize =
+        GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) *
+                                basicTiling_.baseM,
+                            inputParams_.perTokenScaleDtype);
+    baseScaleBSize =
+        GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) *
+                                basicTiling_.baseN,
+                            inputParams_.scaleDtype);
+}
+
+ge::graphStatus GroupedQmmTiling::CalL1Tiling()
+{
+    InitCommonL1TilingFields();
+    if (inputParams_.kSize == 0) {
+        return ge::GRAPH_SUCCESS;
+    }
+    uint64_t leftL1Size = 0;
+    OP_CHECK_IF(CalcLeftL1Size(leftL1Size) != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "CalcLeftL1Size failed"), return ge::GRAPH_FAILED);
     return CalL1Depth(leftL1Size);
 }
 
@@ -1097,12 +1115,7 @@ ge::graphStatus GroupedQmmTiling::CalL1Depth(uint64_t leftL1Size)
     uint64_t baseScaleBSize = 0;
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         if (inputParams_.groupType == SPLIT_M) {
-            baseScaleASize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
-                                    inputParams_.perTokenScaleDtype);
-            baseScaleBSize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
-                                    inputParams_.scaleDtype);
+            CalcAlignedMxBaseScaleSize(baseScaleASize, baseScaleBSize);
         } else {
             baseScaleASize = GetSizeWithDataType(
                 (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *

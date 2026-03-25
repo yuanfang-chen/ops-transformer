@@ -39,6 +39,7 @@ protected:
     ge::graphStatus DoLibApiTiling() override;
     // 7、保存Tiling数据
     ge::graphStatus PostTiling() override;
+    void PrintQuantParams() override;
     virtual void Reset();
     
 private:

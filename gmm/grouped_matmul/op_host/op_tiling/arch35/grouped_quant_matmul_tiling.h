@@ -199,6 +199,26 @@ protected:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
     void CalStepKs();
     bool IsBiasInL1() const;
+    void InitCommonL1TilingFields();
+    ge::graphStatus CalcLeftL1Size(uint64_t &leftL1Size) const;
+    void CalcAlignedMxBaseScaleSize(uint64_t &baseScaleASize, uint64_t &baseScaleBSize) const;
+    template <typename TTilingData>
+    ge::graphStatus SaveTilingDataToContext(const TTilingData &tilingData)
+    {
+        context_->SetBlockDim(aicoreParams_.aicNum);
+        OP_CHECK_IF(sizeof(tilingData) % sizeof(uint64_t) != 0,
+                    OP_LOGE(context_->GetNodeName(), "Tiling data size[%zu] is not aligned to 8", sizeof(tilingData)),
+                    return ge::GRAPH_FAILED);
+        errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
+                               reinterpret_cast<const void *>(&tilingData), sizeof(tilingData));
+        if (ret != EOK) {
+            OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", ret);
+            return ge::GRAPH_FAILED;
+        }
+        context_->GetRawTilingData()->SetDataSize(sizeof(tilingData));
+        return ge::GRAPH_SUCCESS;
+    }
+    void LogQuantParams(const GroupedMatmulTilingData::GMMQuantParams &params) const;
     GQmmBasicTiling basicTiling_;
     GQmmInputInfo &inputParams_;
 
