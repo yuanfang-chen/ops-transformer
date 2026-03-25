@@ -342,7 +342,7 @@ private:
                                gCumExpUbFloat_[i * chunkSize_], validLenBatch_[i]);
                 // attn_1 = (g_cum_exp[:None] / g_cum_exp[None,:]) * mask
                 uint64_t gUbOffset = i * chunkSize_ * maxLen_;
-                GammaCompute(gBroadUbFloat_[gUbOffset], gTransBroadUbFloat_[gUbOffset],
+                GammaCompute(gBroadUbFloat_[gUbOffset],
                              gammaUbFloat_[gUbOffset], gCumExpUbFloat_[i * chunkSize_]);
             }
         }
@@ -388,8 +388,7 @@ private:
             // q_prime = query * scale_ * g_cum_exp[:, None]  # (C, Dk)
             outQPrimeGm_ = outQPrimeBaseGm_[chunkRowBase_[i] * dk_];
             uint64_t qUbOffset = i * halfChunkSize_ * dkAligned_;
-            uint64_t gUbFloat = i * chunkSize_ * maxLen_;
-            QPrimeCompute(outQPrimeGm_, qUbFloatCon_[qUbOffset], gCumExpBroadUbFloat_[gUbFloat],
+            QPrimeCompute(outQPrimeGm_, qUbFloatCon_[qUbOffset],
                           gCumExpUbFloat_[i * chunkSize_]);
         }
     }
@@ -455,7 +454,7 @@ private:
         PipeBarrier<PIPE_V>();
     }
 
-    __aicore__ inline void GammaCompute(const LocalTensor<float> gBroadUbFloat, LocalTensor<float> gTransBroadUbFloat,
+    __aicore__ inline void GammaCompute(const LocalTensor<float> gBroadUbFloat,
                                         LocalTensor<float> gammaUbFloat, LocalTensor<float> gCumExpUbFloat)
     {
         // BroadCast
@@ -463,10 +462,10 @@ private:
         uint32_t gShape[2] = {chunkSize_, 1};
         uint32_t gTransShape[2] = {1, chunkSize_};
         Broadcast<float, BROADCAST_AXIS, 1>(gBroadUbFloat, gCumExpUbFloat, divShape, gShape);
-        Broadcast<float, BROADCAST_AXIS, 0>(gTransBroadUbFloat, gCumExpUbFloat, divShape, gTransShape);
+        Broadcast<float, BROADCAST_AXIS, 0>(gTransBroadUbFloat_, gCumExpUbFloat, divShape, gTransShape);
         PipeBarrier<PIPE_V>();
         // div
-        Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat, chunkSize_ * chunkSize_);
+        Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat_, chunkSize_ * chunkSize_);
         PipeBarrier<PIPE_V>();
         // mask
         DataCopyInFp32(chunkSize_ * chunkSize_, stageOneMask_[GetBlockIdx() * chunkSize_ * chunkSize_]);
@@ -643,8 +642,7 @@ private:
         DataCopyOutFp32(halfChunkSize_, dv_, dvAligned_, vBetaWsGm[subOffset_ * dv_]);
     }
 
-    __aicore__ inline void QPrimeCompute(const GlobalTensor<float> outQPrimeGm, LocalTensor<float> qUbFloatCon,
-                                         LocalTensor<float> gCumExpBroadUbFloat, LocalTensor<float> gCumExpUbFloat)
+    __aicore__ inline void QPrimeCompute(const GlobalTensor<float> outQPrimeGm, LocalTensor<float> qUbFloatCon, LocalTensor<float> gCumExpUbFloat)
     {
         qPrimeLocal_ = fp32OutQueue_.AllocTensor<float>();
         // query * scale
@@ -653,11 +651,11 @@ private:
             PipeBarrier<PIPE_V>();
             uint32_t gCumExpShape[2] = {halfChunkSize_, 1};
             uint32_t qShape[2] = {halfChunkSize_, dkAligned_};
-            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat, gCumExpUbFloat[subOffset_], 
+            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat[subOffset_], 
                                                 qShape, gCumExpShape);
             PipeBarrier<PIPE_V>();
             // query * scale * g_cum_exp[:, None]       # (C, Dk)
-            Mul(qPrimeLocal_, qUbFloat_, gCumExpBroadUbFloat, halfChunkSize_ * dkAligned_);
+            Mul(qPrimeLocal_, qUbFloat_, gCumExpBroadUbFloat_, halfChunkSize_ * dkAligned_);
         }
         else {
             Muls(qPrimeLocal_, qUbFloatCon, scale_, halfChunkSize_ * dkAligned_);
