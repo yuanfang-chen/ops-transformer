@@ -287,7 +287,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
     int64_t weightGmOffset = info.tensorWeightsOffset + cuBaseS1Idx * qHeadNum_;
     // 当前需要计算的S1行数，处理尾块场景
     int32_t cuS1ProcNum = cuBaseS1Idx + s1BaseSize_ > info.actS1Size ? info.actS1Size % s1BaseSize_ : s1BaseSize_;
-    int32_t cuProcEleNum = CeilAlign(cuS1ProcNum * gSize_, 32);
+    int32_t cuProcEleNum = CeilAlign(cuS1ProcNum * gSize_, 32); // 32: UB对齐
 
     LocalTensor<half> inWeightsUb = inQueue_.AllocTensor<half>();
     LocalTensor<half> inQScaleUb = inWeightsUb[cuProcEleNum];
