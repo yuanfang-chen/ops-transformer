@@ -289,7 +289,7 @@ private:
         // key @ key.transpose(-1,-2)
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(keyContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], kkWsGm_[i * ccOffset_], chunkSize_,
-                       chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
+                       chunkSize_, dk_, true);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8); // 同步1
 
@@ -297,7 +297,7 @@ private:
         for (uint32_t i = 0; i < curParaNum; ++i) {
             outQkGm_ = outQkBaseGm_[chunkRowBase_[i] * chunkSize_];
             AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_, validLenBatch_[i],
-                       validLenBatch_[i], dk_, validLenBatch_[i], validLenBatch_[i], dk_, true);
+                       validLenBatch_[i], dk_, true);
         }
         AscendC::CrossCoreWaitFlag(0x7); // 同步2
 
@@ -310,8 +310,7 @@ private:
         // attn @ k_cumdecay
         for (uint32_t i = 0; i < curParaNum; ++i) {
             outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase_[i] * dk_];
-            AICProcess(attnWsGm_[i * ccOffset_], gBKWsGm_[i * ckOffset_], outKCumdecayGm_, chunkSize_, dk_, chunkSize_,
-                       chunkSize_, dk_, chunkSize_);
+            AICProcess(attnWsGm_[i * ccOffset_], gBKWsGm_[i * ckOffset_], outKCumdecayGm_, chunkSize_, dk_, chunkSize_);
         }
         AscendC::CrossCoreWaitFlag(0x5); // 同步4
 
@@ -319,8 +318,7 @@ private:
         for (uint32_t i = 0; i < curParaNum; ++i) {
             uint64_t vOffset = i * chunkSize_ * dv_;
             outVInnerGm_ = outVInnerBaseGm_[chunkRowBase_[i] * dv_];
-            AICProcess(attnWsGm_[i * ccOffset_], vBetaWsGm_[i * cvOffset_], outVInnerGm_, chunkSize_, dv_, chunkSize_,
-                       chunkSize_, dv_, chunkSize_);
+            AICProcess(attnWsGm_[i * ccOffset_], vBetaWsGm_[i * cvOffset_], outVInnerGm_, chunkSize_, dv_, chunkSize_);
         }
     }
 
@@ -740,25 +738,33 @@ private:
         uint64_t leftDown = offset + chunkSize_ * curLen;
         uint64_t rightDown = offset + leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[leftDown], attnWsGm_[offset], attnWsGm_[leftDown],
-                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        InverseAICProcess(attnWsGm_[leftDown], attnWsGm_[offset], attnWsGm_[leftDown], curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown],
-                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        InverseAICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown], curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
-                                      uint64_t m, uint64_t n, uint64_t k,
-                                      uint64_t sm, uint64_t sn, uint64_t sk, bool transB=false)
+                                      uint64_t m, uint64_t n, uint64_t k, bool transB=false)
     {
         mmFp32.SetOrgShape(m, n, k);
-        mmFp32.SetSingleShape(sm, sn, sk);
+        mmFp32.SetSingleShape(m, n, k);
         mmFp32.SetTensorA(x);
         mmFp32.SetTensorB(y, transB);
+        mmFp32.IterateAll(z);
+        mmFp32.End();
+    }
+
+    __aicore__ inline void InverseAICProcess(GlobalTensor<float> x, GlobalTensor<float> y,
+                                             GlobalTensor<float> z, uint64_t curLen)
+    {
+        mmFp32.SetOrgShape(chunkSize_, chunkSize_, chunkSize_);
+        mmFp32.SetSingleShape(curLen, curLen, curLen);
+        mmFp32.SetTensorA(x);
+        mmFp32.SetTensorB(y);
         mmFp32.IterateAll(z);
         mmFp32.End();
     }
