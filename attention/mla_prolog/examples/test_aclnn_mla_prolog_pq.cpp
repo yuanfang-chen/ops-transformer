@@ -242,7 +242,7 @@ int main() {
     ret = CreateAclTensorND(krCacheShape, &krCacheDeviceAddr, &krCacheHostAddr, aclDataType::ACL_INT8, &krCache);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建query aclTensor
-    ret = CreateAclTensorND(queryShape, &queryDeviceAddr, &queryHostAddr, aclDataType::ACL_INT8, &query);
+    ret = CreateAclTensorND(queryShape, &queryDeviceAddr, &queryHostAddr, aclDataType::ACL_BF16, &query);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建queryRope aclTensor
     ret = CreateAclTensorND(queryRopeShape, &queryRopeDeviceAddr, &queryRopeHostAddr, aclDataType::ACL_BF16, &queryRope);
@@ -284,8 +284,8 @@ int main() {
 
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(queryShape);
-    auto copySize = size * aclDataTypeSize(aclDataType::ACL_INT8);
-    std::vector<uint8_t> resultData(copySize, 0);
+    auto copySize = size * aclDataTypeSize(aclDataType::ACL_BF16);
+    std::vector<uint16_t> resultData(size, 0);
     ret = aclrtMemcpy(resultData.data(), copySize, queryDeviceAddr, copySize, ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
     for (int64_t i = 0; i < size; i++) {
