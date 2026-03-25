@@ -92,13 +92,16 @@ public:
             repeatNum_ = static_cast<uint32_t>(hFloatAlign256Size_ / ALIGNED_LEN); // BlockReduceMax 与 Brcb的重复迭代次数，每次256b参与计算
             mask_ = static_cast<uint32_t>(ALIGNED_LEN / sizeof(float));
             tokenScaleCnt_ = hAlign32Size_ / sizeof(ExpandXType) + quantScaleNum_; // int8_align + scale有效个数
-        } else if constexpr(QuantMode == MXFP8_E5M2_COMM_QUANT || QuantMode == MXFP8_E4M3_COMM_QUANT) {
+        } 
+        #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+        else if constexpr(QuantMode == MXFP8_E5M2_COMM_QUANT || QuantMode == MXFP8_E4M3_COMM_QUANT) {
             hAlign32Size_ = Ceil(axisH_, UB_ALIGN) * UB_ALIGN;
             hExpandXAlignSize_ = Align128(axisH) * sizeof(ExpandXType);
             quantScaleNum_ = Align2(Ceil32(axisH));
             scaleNum_ = quantScaleNum_;
             tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_; // int8_align + scale有效个数
         }
+        #endif
     }
 
     __aicore__ inline void Int8QuantProcess(LocalTensor<ExpandXType> &outLocal, LocalTensor<ExpandXType> &inLocal)
