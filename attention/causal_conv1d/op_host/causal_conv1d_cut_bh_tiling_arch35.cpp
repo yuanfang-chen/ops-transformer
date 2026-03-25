@@ -329,7 +329,7 @@ ge::graphStatus CausalConv1dCutBHTiling::ValidateConvStatesShape()
     if (xInputMode_ == X_INPUT_3D) {
         int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
         int64_t state_len = convStatesOriginShape.GetDim(DIM_1);
-        OP_CHECK_IF(state_len <= expectedCacheLen,
+        OP_CHECK_IF(state_len < expectedCacheLen,
                     OP_LOGE(context_->GetNodeName(),
                             "state_len must be greater than width-1+seq_len-1 = %ld, but got %ld",
                             expectedCacheLen, state_len),
