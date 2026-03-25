@@ -33,7 +33,7 @@ constexpr uint64_t UB_REST_BYTES = 100 * 1024;  // 100KB
 constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
-constexpr uint32_t MAX_PARALLEL_NUM = 8;
+constexpr uint32_t MAX_PARALLEL_NUM = 3;
 
 struct GDRStageOneInitParams {
     // input
@@ -162,13 +162,19 @@ public:
         gCumExpUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * paraNum_), buffOffset);
         buffOffset += chunkSize_ * sizeof(float) * paraNum_;
 
-        for (uint32_t i = 0; i < chunkSize_; ++i) {
+    __aicore__ inline void InitGatherBuffer()
+    {
+       for (uint32_t i = 0; i < chunkSize_; ++i) {
             gatherOffsetFp32_.SetValue(i, i * BLOCK_SIZE);
         }
         for (uint32_t i = 0; i < halfChunkSize_; ++i) {
             gatherOffsetBf16_.SetValue(i, i * BLOCK_SIZE);
         }
-        PipeBarrier<PIPE_V>();
+        for (uint32_t i = 0; i < INVERSE_SHAPE; ++i) {
+            colBuffer_.SetValue<uint32_t>(i, (i * chunkSize_) * sizeof(float));
+        }
+        SetFlag<HardEvent::S_V>(S_V_EVENT);
+        WaitFlag<HardEvent::S_V>(S_V_EVENT); 
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
@@ -206,6 +212,7 @@ public:
         cvOffset_ = chunkSize_ * dv_;
         SetGlobalTensors(initParams);
         InitLocalBuffers();
+        InitGatherBuffer();
     }
 
     __aicore__ inline void Process() 
@@ -241,8 +248,8 @@ public:
 
 private:
     // ----------------------------------------------------------
-    // SetChunkTensors
-    //   curNId    : head 编号 (Nv 维度)
+    // SetChunkOffset
+    //   curNId  : head 编号 (Nv 维度)
     //   curCgId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     // ----------------------------------------------------------
     __aicore__ inline void SetChunkOffset(uint64_t id, uint64_t curNId, uint64_t curCgId)
@@ -541,12 +548,6 @@ private:
         inverseLocal_.SetValue(offset, static_cast<float>(1.0));
         
         uint32_t srcShape[2] = {1, inverseVecLen};
-        uint32_t offsetIdx = 0;
-        for (uint32_t j = 0; j < inverseVecLen; ++j) {
-            colBuffer_.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
-        }
-        SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT);
         for (int i = 1; i < inverseVecLen; ++i) {
             uint32_t curI = i - 1;
             uint32_t validRows = inverseVecLen - i;
