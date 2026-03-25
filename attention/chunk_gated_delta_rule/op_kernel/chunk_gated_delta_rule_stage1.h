@@ -235,7 +235,7 @@ public:
                 uint64_t curCgId = curTaskId / nv_;
                 SetChunkOffset(i, curNId, curCgId);
             }
-            ProcessParaChunk(curParaNum, taskId, cgId);
+            ProcessParaChunk(curParaNum);
         }
     }
 
@@ -265,17 +265,17 @@ private:
         bgOffsetBatch_[i] = chunkStartRowBatch_[i] * nv_ + curNId;
     }
 
-    __aicore__ inline void ProcessParaChunk(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
+    __aicore__ inline void ProcessParaChunk(int32_t curParaNum)
     {
         if ASCEND_IS_AIC {
-            ParaChunkAIC(curParaNum, startTaskId, localChunkId)
+            ParaChunkAIC(curParaNum)
         }
         if ASCEND_IS_AIV {
-            ParaChunkAIV(curParaNum, startTaskId, localChunkId)
+            ParaChunkAIV(curParaNum)
         }
     }
 
-    __aicore__ inline void ParaChunkAIC(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
+    __aicore__ inline void ParaChunkAIC(int32_t curParaNum)
     {
         AscendC::CrossCoreWaitFlag(0x9); // 同步0
         // key @ key.transpose(-1,-2)
@@ -316,7 +316,7 @@ private:
         }
     }
 
-    __aicore__ inline void ParaChunkAIV(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
+    __aicore__ inline void ParaChunkAIV(int32_t curParaNum)
     {
         // 获取连续QK
         for (uint32_t i = 0; i < curParaNum; ++i) {
