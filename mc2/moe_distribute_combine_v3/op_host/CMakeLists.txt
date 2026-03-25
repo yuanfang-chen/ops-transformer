@@ -19,7 +19,7 @@ if (BUILD_OPEN_PROJECT)  # custom
         OPTYPE moe_distribute_combine_v2 ACLNNTYPE aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
     set(MC2_OPT ON PARENT_SCOPE)
-    set(moe_distribute_combine_v3_depends mc2/common mc2/3rd mc2/moe_distribute_dispatch_v2 mc2/moe_distribute_combine_v2 PARENT_SCOPE)
+    set(moe_distribute_combine_v3_depends mc2/common mc2/3rd mc2/moe_distribute_dispatch_v2 mc2/moe_distribute_dispatch_v3 mc2/moe_distribute_combine_v2 PARENT_SCOPE)
 
     target_link_libraries(cust_opapi PRIVATE
         ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so

@@ -18,8 +18,7 @@
 #include "hccl/hcom.h"
 #include "hccl/hccl_rank_graph.h"
 
-namespace MC2Aclnn {
-
+namespace Mc2Aclnn {
 constexpr uint64_t KopyDefaultCtxOffset = 0; // 默认从最开始拷贝
 constexpr uint64_t MaxContextTagSize = 255; // 最大上下文标签大小
 constexpr uint32_t HCCL_COMM_LAYERS_MTE_CCU = 1; // 当走MTE或者CCU通信时， hccl获取的组网层数应该为1
