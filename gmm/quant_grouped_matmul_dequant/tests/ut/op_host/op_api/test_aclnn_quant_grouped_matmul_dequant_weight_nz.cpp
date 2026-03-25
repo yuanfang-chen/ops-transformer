@@ -45,8 +45,7 @@ TEST_F(aclnnQuantGroupedMatmulDequantWeightNz_test, ascend310P_test_opapi_nz_nor
     int64_t g = 4;
 
     auto x_desc = TensorDesc({m, k}, ACL_FLOAT16, ACL_FORMAT_ND);
-    auto weight_desc =
-        TensorDesc({g, n, k}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ, {}, 0, {g, k / 32, n / 16, 16, 32});
+    auto weight_desc = TensorDesc({g, k / 32, n / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ);
     auto weight_scale_desc = TensorDesc({g, n}, ACL_FLOAT, ACL_FORMAT_ND);
     auto group_list_desc = TensorDesc({g}, ACL_INT64, ACL_FORMAT_ND).Value(vector<int64_t>{7, 29, 31, 64});
     aclTensor *bias_desc = nullptr;
@@ -65,6 +64,7 @@ TEST_F(aclnnQuantGroupedMatmulDequantWeightNz_test, ascend310P_test_opapi_nz_nor
 
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(aclnnQuantGroupedMatmulDequantWeightNz_test, ascend310P_test_opapi_nz_int64_scale_case)
@@ -75,8 +75,7 @@ TEST_F(aclnnQuantGroupedMatmulDequantWeightNz_test, ascend310P_test_opapi_nz_int
     int64_t g = 4;
 
     auto x_desc = TensorDesc({m, k}, ACL_FLOAT16, ACL_FORMAT_ND);
-    auto weight_desc =
-        TensorDesc({g, n, k}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ, {}, 0, {g, k / 32, n / 16, 16, 32});
+    auto weight_desc = TensorDesc({g, k / 32, n / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ);
     auto weight_scale_desc = TensorDesc({g, n}, ACL_INT64, ACL_FORMAT_ND);
     auto group_list_desc = TensorDesc({g}, ACL_INT64, ACL_FORMAT_ND).Value(vector<int64_t>{7, 29, 31, 64});
     aclTensor *bias_desc = nullptr;
@@ -95,4 +94,5 @@ TEST_F(aclnnQuantGroupedMatmulDequantWeightNz_test, ascend310P_test_opapi_nz_int
 
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
