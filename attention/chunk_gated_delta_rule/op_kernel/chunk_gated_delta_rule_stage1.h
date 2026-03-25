@@ -202,7 +202,6 @@ public:
         numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
         halfChunkSize_ = chunkSize_ / TASK_RATIO;
-        validLen_ = chunkSize_;
         subValidRows_ = halfChunkSize_;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
@@ -447,7 +446,7 @@ private:
             gOutQueue_.EnQue<float>(tmpOut);
             tmpOut = gOutQueue_.DeQue<float>();
             DataCopyExtParams params{static_cast<uint16_t>(1),
-                                    static_cast<uint32_t>(chunkSize_ * sizeof(float)), 0, 0, 0};
+                                    static_cast<uint32_t>(validLen * sizeof(float)), 0, 0, 0};
             DataCopyPad(dst, tmpOut, params);
             gOutQueue_.FreeTensor(tmpOut);
         }
@@ -787,7 +786,6 @@ private:
     uint32_t subOffset_;
     uint32_t coreIdx_;
     uint32_t chunkSize_;
-    uint32_t validLen_;
     uint32_t maxLen_;
     uint32_t subValidRows_;
     uint32_t coreNum_;
