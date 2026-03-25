@@ -9,9 +9,7 @@
 # -----------------------------------------------------------------------------------------------------------
 
 if(UT_TEST_ALL OR OP_HOST_UT)
-    if(UT_INFERSHAPE_FLAG)
-        add_modules_ut_sources(UT_NAME ${OP_INFERSHAPE_MODULE_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
+    add_modules_ut_sources(UT_NAME ${OP_INFERSHAPE_MODULE_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
