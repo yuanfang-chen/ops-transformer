@@ -4736,7 +4736,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
             tilingData);
     }
 
-    if (enableIFA && !enablePFAMerge) {
+    if (enableIFA && !enablePFAMerge && sparseModeVal == SPARSE_MODE_ALL_MASK) {
         PromptAttentionSingleCoreParams* singleCoreParams = &tilingData.promptAttentionSingleCoreParams;
         uint32_t sOuterSize = singleCoreParams->get_singleProcessSOuterSize();
         uint64_t batchSize = tilingData.promptAttentionBaseParams.get_batchSize();

@@ -30,7 +30,7 @@ extern "C" {
  * @param [in] gmmXScale: 左矩阵的量化参数，数据类型为FLOAT32。
  * @param [in] gmmWeightScale: 右矩阵的量化参数，数据类型为FLOAT32。
  * @param [in] gmmXOffsetOptional: 可选输入，左矩阵的量化偏置，暂不支持。
- * @param [in] gmmWeightOffsetOptional: 可选输入，右矩阵的的量化偏置，暂不支持。
+ * @param [in] gmmWeightOffsetOptional: 可选输入，右矩阵的量化偏置，暂不支持。
  * @param [in] sendCountsTensorOptional: 可选入参，计算输入，Tensor，数据类型支持int32,
  * int64，shape为(e*epWorldSize)，数据格式支持ND，当前版本不支持，传入nullptr。
  * @param [in] recvCountsTensorOptional: 可选入参，计算输入，Tensor，数据类型支持int32,

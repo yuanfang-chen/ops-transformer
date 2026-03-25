@@ -142,7 +142,10 @@ if (BUILD_OPEN_PROJECT)
     endif()
 
     # op tiling
-    add_library(cust_opmaster SHARED)
+    add_library(cust_opmaster SHARED
+        $<$<TARGET_EXISTS:opbase_util_objs>:$<TARGET_OBJECTS:opbase_util_objs>>
+        $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
+    )
     target_include_directories(cust_opmaster PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
@@ -704,7 +707,6 @@ target_sources(cust_opapi PRIVATE
 target_link_libraries(
     cust_opapi
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:opapi_math>>
-    $<$<TARGET_EXISTS:opsbase>:opsbase>
 )
 
 target_link_libraries(
@@ -713,13 +715,11 @@ target_link_libraries(
     PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
     PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
-    $<$<TARGET_EXISTS:opsbase>:opsbase>
 )
 
 target_link_libraries(
     cust_proto
     PUBLIC ${OPHOST_NAME}_infer_obj
-    PRIVATE $<$<TARGET_EXISTS:opsbase>:opsbase>
 )
 if (generate_aclnn_headers)
     install(FILES ${generate_aclnn_headers}
@@ -861,6 +861,13 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/3rd
+)
+
+install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/atvoss
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+)
+install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/op_kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
         
 foreach (op_dir ${OP_DIR_LIST})
