@@ -176,6 +176,16 @@
   </tr>
   <tr>
     <td>attention</td>
+    <td><a href="../../attention/causal_conv1d/README.md">causal_conv1d</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>对序列执行因果一维卷积，沿序列维度使用缓存数据（长度为卷积核宽减1）对各序列头部进行padding，确保输出依赖当前及历史输入；卷积完成后，将当前序列尾部的数据（长度为卷积核宽减1）更新到缓存。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
     <td><a href="../../attention/nsa_compress_attention/README.md">nsa_compress_attention</a></td>
     <td>✓</td>
     <td>✓</td>
