@@ -834,12 +834,12 @@ static ge::graphStatus InferShapeRange4MoeInitRoutingV3(gert::InferShapeRangeCon
         OP_CHECK_NULL_WITH_CONTEXT(context, quantModePtr);
         int64_t quantMode = *quantModePtr;
         if (quantMode == QuantMode::MXQUANT_FP4_E2M1) {
-            expanded_scale->GetMin()->SetDimNum(DIM_THREE);
-            expanded_scale->GetMax()->SetDimNum(DIM_THREE);
-            for (size_t i = 0; i < DIM_THREE; i++) {
-                expanded_scale->GetMin()->SetDim(i, 0);
-                expanded_scale->GetMax()->SetDim(i, -1);
-            }
+            // expanded_scale->GetMin()->SetDimNum(DIM_THREE);
+            // expanded_scale->GetMax()->SetDimNum(DIM_THREE);
+            // for (size_t i = 0; i < DIM_THREE; i++) {
+            //     expanded_scale->GetMin()->SetDim(i, 0);
+            //     expanded_scale->GetMax()->SetDim(i, -1);
+            // }
         } else if (quantMode == QuantMode::MXQUANT_FP8_E5M2 || quantMode == QuantMode::MXQUANT_FP8_E4M3FN) {
             expanded_scale->GetMin()->SetDimNum(DIM_TWO);
             expanded_scale->GetMax()->SetDimNum(DIM_TWO);
