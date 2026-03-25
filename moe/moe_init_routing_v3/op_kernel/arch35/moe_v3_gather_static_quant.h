@@ -258,7 +258,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
 {
     LocalTensor<int32_t> indicesLocal = expandRowIdxCopyInQueue_.DeQue<int32_t>();
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
-    colsTileLength_ = perLoopCols_;
 
     if (blockIdx_ == 0 && progress == 0) {
         MIRV3_STATIC_QUANT_DEBUG_PRINT(
@@ -266,46 +265,25 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
             coreRows_, perLoopRows_, rowLoops_, (currentLoopRows_ > 0 ? indicesLocal.GetValue(0) : -1), activateRows_);
     }
 
-    for (int64_t colsLoop = 0; colsLoop < colLoops_; colsLoop++) {
-        int64_t initialRow = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
-        int64_t curLoopRow = 0;
+    for (int64_t indicesIndex = 0; indicesIndex < currentLoopRows_; indicesIndex++) {
+        int64_t rowOffset = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
+        int64_t rowIdx = indicesLocal.GetValue(indicesIndex);
+        int64_t xSrcOffset = rowIdx / k_ * cols_;
+        int64_t xDstOffset = (rowOffset + indicesIndex) * cols_;
+        int64_t curLoopCols = perLoopCols_;
 
-        if (colsLoop == colLoops_ - 1) {
-            colsTileLength_ = lastLoopCols_;
-        }
+        SetWaitFlag<HardEvent::S_MTE2>(HardEvent::S_MTE2);
 
-        int64_t currentLoopStartRow = initialRow / k_;
-        int64_t currentLoopLastRow = (initialRow + currentLoopRows_ - 1) / k_;
-
-        for (int64_t row = currentLoopStartRow; row <= currentLoopLastRow; row++) {
-            inputOffset_ = row * cols_ + colsLoop * perLoopCols_;
-
-            CopyXIn(inputOffset_, colsTileLength_);
-            Compute();
-
-            LocalTensor<int8_t> outLocal = inputXCopyOutQueue_.DeQue<int8_t>();
-            DataCopyExtParams intriParams{1, static_cast<uint32_t>(colsTileLength_ * sizeof(int8_t)), 0, 0, 0};
-
-            while (curLoopRow < currentLoopRows_ && initialRow / k_ == row) {
-                int32_t outIndex = indicesLocal.GetValue(curLoopRow);
-                curLoopRow++;
-                initialRow++;
-
-                if (outIndex < 0 || outIndex >= totalLength_ ||
-                    (dropPadMode_ == DROPLESS_MODE && outIndex >= activateRows_)) {
-                    if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 8) {
-                        MIRV3_STATIC_QUANT_DEBUG_PRINT("Gather invalid outIndex=%d totalLength=%ld activateRows=%ld "
-                                                       "progress=%ld colsLoop=%ld row=%ld",
-                                                       outIndex, totalLength_, activateRows_, progress, colsLoop, row);
-                        debugInvalidIndexPrintCount_++;
-                    }
-                    continue;
-                }
-
-                outOffset_ = outIndex * cols_ + colsLoop * perLoopCols_;
-                DataCopyPad(expandedXGm_[outOffset_], outLocal, intriParams);
+        for (int64_t colsLoop = 0; colsLoop < colLoops_; colsLoop++) {
+            if (colsLoop == colLoops_ - 1) {
+                curLoopCols = lastLoopCols_;
             }
-            inputXCopyOutQueue_.FreeTensor(outLocal);
+            int64_t colsLoopOffset = colsLoop * perLoopCols_;
+            colsTileLength_ = curLoopCols;
+
+            CopyXIn(xSrcOffset + colsLoopOffset, curLoopCols);
+            Compute();
+            CopyXOut(xDstOffset + colsLoopOffset, curLoopCols);
         }
     }
     expandRowIdxCopyInQueue_.FreeTensor(indicesLocal);
@@ -320,7 +298,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     blockIdx_ = GetBlockIdx();
     gatherOutTilingData_ = &(tilingData->gatherOutComputeParamsOp);
 
-    needCoreNum_ = gatherOutTilingData_->needCoreNum;
     cols_ = tilingData->cols;
     n_ = tilingData->n;
     k_ = tilingData->k;
@@ -331,36 +308,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     activateRows_ = gatherOutTilingData_->activeNum;
     rowIdxType_ = tilingData->rowIdxType;
     debugInvalidIndexPrintCount_ = 0;
-
-    // 初始化每核处理的行数
-    perCoreRow_ = Ceil(totalLength_, tilingData->coreNum);
-
-    if (blockIdx_ == gatherOutTilingData_->needCoreNum - 1) {
-        coreRows_ = gatherOutTilingData_->lastCoreIndicesElements;
-        perLoopRows_ = gatherOutTilingData_->lastCorePerLoopIndicesElements;
-        lastLoopRows_ = gatherOutTilingData_->lastCoreLastLoopIndicesElements;
-        rowLoops_ = gatherOutTilingData_->lastCoreIndicesLoops;
-    } else {
-        coreRows_ = gatherOutTilingData_->perCoreIndicesElements;
-        perLoopRows_ = gatherOutTilingData_->perCorePerLoopIndicesElements;
-        lastLoopRows_ = gatherOutTilingData_->perCoreLastLoopIndicesElements;
-        rowLoops_ = gatherOutTilingData_->perCoreIndicesLoops;
-    }
-
-    perLoopCols_ = gatherOutTilingData_->perLoopCols;
-    lastLoopCols_ = gatherOutTilingData_->lastLoopCols;
-    colLoops_ = gatherOutTilingData_->colsLoops;
-
-    inputXGm_.SetGlobalBuffer((__gm__ T *)inputX);
-    expandedXGm_.SetGlobalBuffer((__gm__ int8_t *)expandedX);
-
-    if (rowIdxType_ == SCATTER) {
-        expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx + blockIdx_ * perCoreRow_,
-                                          Align(coreRows_, sizeof(int32_t)));
-    } else {
-        expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx + blockIdx_ * perCoreRow_,
-                                          Align(coreRows_, sizeof(int32_t)));
-    }
 
     scaleGm_.SetGlobalBuffer((__gm__ float *)scale, 1);
     offsetGm_.SetGlobalBuffer((__gm__ float *)offset, 1);
@@ -373,6 +320,58 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     AscendC::DataCacheCleanAndInvalid<int32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
         expertTotalCountGm_);
     expertTotalCount_ = expertTotalCountGm_.GetValue(0);
+
+    if (rowIdxType_ == GATHER) {
+        // GATHER模式：根据expertTotalCount_动态计算每核处理的有效行数
+        perCoreRow_ = Ceil(expertTotalCount_, tilingData->coreNum);
+        needCoreNum_ = Ceil(expertTotalCount_, perCoreRow_);
+        int64_t lastCoreIndicesElements = expertTotalCount_ - (needCoreNum_ - 1) * perCoreRow_;
+
+        int64_t originPerLoopElements;
+        if (blockIdx_ == needCoreNum_ - 1) {
+            coreRows_ = lastCoreIndicesElements;
+            originPerLoopElements = gatherOutTilingData_->lastCorePerLoopIndicesElements;
+        } else {
+            coreRows_ = perCoreRow_;
+            originPerLoopElements = gatherOutTilingData_->perCorePerLoopIndicesElements;
+        }
+        perLoopRows_ = Min(coreRows_, originPerLoopElements);
+        rowLoops_ = Ceil(coreRows_, perLoopRows_);
+        lastLoopRows_ = coreRows_ - (rowLoops_ - 1) * perLoopRows_;
+    } else {
+        // SCATTER模式：按totalLength_切分
+        perCoreRow_ = Ceil(totalLength_, tilingData->coreNum);
+        needCoreNum_ = gatherOutTilingData_->needCoreNum;
+        if (blockIdx_ == needCoreNum_ - 1) {
+            coreRows_ = gatherOutTilingData_->lastCoreIndicesElements;
+            perLoopRows_ = gatherOutTilingData_->lastCorePerLoopIndicesElements;
+            lastLoopRows_ = gatherOutTilingData_->lastCoreLastLoopIndicesElements;
+            rowLoops_ = gatherOutTilingData_->lastCoreIndicesLoops;
+        } else {
+            coreRows_ = gatherOutTilingData_->perCoreIndicesElements;
+            perLoopRows_ = gatherOutTilingData_->perCorePerLoopIndicesElements;
+            lastLoopRows_ = gatherOutTilingData_->perCoreLastLoopIndicesElements;
+            rowLoops_ = gatherOutTilingData_->perCoreIndicesLoops;
+        }
+    }
+
+    perLoopCols_ = gatherOutTilingData_->perLoopCols;
+    lastLoopCols_ = gatherOutTilingData_->lastLoopCols;
+    colLoops_ = gatherOutTilingData_->colsLoops;
+
+    inputXGm_.SetGlobalBuffer((__gm__ T *)inputX);
+    expandedXGm_.SetGlobalBuffer((__gm__ int8_t *)expandedX);
+
+    if (rowIdxType_ == SCATTER) {
+        // SCATTER模式：从expandedRowIdx参数中读取输出位置索引
+        expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx + blockIdx_ * perCoreRow_,
+                                          Align(coreRows_, sizeof(int32_t)));
+    } else {
+        // GATHER模式：从workspace中读取排好序的原始行索引
+        expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + Align(totalLength_, sizeof(int32_t)) +
+                                              blockIdx_ * perCoreRow_,
+                                          Align(coreRows_, sizeof(int32_t)));
+    }
 
     if (blockIdx_ == 0) {
         MIRV3_STATIC_QUANT_DEBUG_PRINT(
@@ -403,15 +402,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Process()
                                        "expertTotalCount=%ld totalLength=%ld",
                                        dropPadMode_, rowIdxType_, needCoreNum_, rowLoops_, expertTotalCount_,
                                        totalLength_);
-    }
-
-    if (dropPadMode_ == DROPLESS_MODE && rowIdxType_ == GATHER) {
-        int64_t zeroStartRow = blockIdx_ * perCoreRow_;
-        if (zeroStartRow < totalLength_) {
-            int64_t zeroRows = Min(perCoreRow_, totalLength_ - zeroStartRow);
-            InitOutput(expandedXGm_[zeroStartRow * cols_], zeroRows * cols_, static_cast<int8_t>(0));
-        }
-        SyncAll();
     }
 
     if (blockIdx_ < needCoreNum_) {
