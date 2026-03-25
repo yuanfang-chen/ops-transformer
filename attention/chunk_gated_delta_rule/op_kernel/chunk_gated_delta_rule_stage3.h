@@ -181,7 +181,7 @@ public:
         LocalTensor<float> inLocal = inQueue_.AllocTensor<float>();
         DataCopyExtParams inParams{static_cast<uint16_t>(curChunkSize_),
                                    static_cast<uint32_t>(Dv_ * sizeof(float)),
-                                   static_cast<uint32_t>(0), 
+                                   static_cast<uint32_t>(0),
                                    static_cast<uint32_t>((dstStride) * sizeof(float) / BLOCK_SIZE),
                                    0};
         DataCopyPadExtParams<float> copyPadParams{false, 0, 0, 0};
@@ -190,6 +190,7 @@ public:
         auto Fp32AttnIn = inQueue_.DeQue<float>();
         auto attnOut = outQueue_.AllocTensor<bfloat16_t>();
         Cast(attnOut, Fp32AttnIn, RoundMode::CAST_RINT, curChunkSize_ * Bf16PaddingDv);
+        inQueue_.FreeTensor(Fp32AttnIn);  // Cast 完成后立即释放
         outQueue_.EnQue(attnOut);
         auto outLocal = outQueue_.DeQue<bfloat16_t>();
         DataCopyExtParams copyParams;
@@ -199,7 +200,6 @@ public:
         copyParams.dstStride = static_cast<uint32_t>((Nv_ * Dv_ - Dv_) * sizeof(bfloat16_t));
         DataCopyPad(outTensor, outLocal, copyParams);
         outQueue_.FreeTensor(outLocal);
-        inQueue_.FreeTensor(Fp32AttnIn);
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float>tmpGM,

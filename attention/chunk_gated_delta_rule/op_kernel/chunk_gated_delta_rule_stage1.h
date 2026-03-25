@@ -34,6 +34,16 @@ constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
 
+// Matmul 形状参数结构体
+struct MatmulShapeParams {
+    uint64_t m;    // 原始 M 维度
+    uint64_t n;    // 原始 N 维度
+    uint64_t k;    // 原始 K 维度
+    uint64_t sm;   // 单次计算 M 维度
+    uint64_t sn;   // 单次计算 N 维度
+    uint64_t sk;   // 单次计算 K 维度
+};
+
 struct GDRStageOneInitParams {
     // input
     GlobalTensor<bfloat16_t> query;     // (T, Nk, Dk) 
@@ -276,21 +286,23 @@ private:
         if ASCEND_IS_AIC {
             AscendC::CrossCoreWaitFlag(0x9);  //同步0
             // key @ key.transpose(-1,-2)
-            AICProcess(keyContinousGm_, keyContinousGm_, kkWsGm_, 
-                       chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
+            AICProcess(keyContinousGm_, keyContinousGm_, kkWsGm_,
+                       {chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_}, true);
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
             // query @ key.transpose(-1,-2)   stage1 out
-            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, validLen_, validLen_, dk_, 
-                       validLen_, validLen_, dk_, true);
+            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_,
+                       {validLen_, validLen_, dk_, validLen_, validLen_, dk_}, true);
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
             // 求逆左下角矩阵
             AttnInverseMMCompute(INVERSE_SHAPE);
             AscendC::CrossCoreWaitFlag(0x6);  //同步3
             // attn @ k_cumdecay
-            AICProcess(attnWsGm_, gBKWsGm_, outKCumdecayGm_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_);
+            AICProcess(attnWsGm_, gBKWsGm_, outKCumdecayGm_,
+                       {chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_});
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
             // attn @ v_beta    stage1 out
-            AICProcess(attnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_);
+            AICProcess(attnWsGm_, vBetaWsGm_, outVInnerGm_,
+                       {chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_});
         }
         if ASCEND_IS_AIV {
             // 获取连续QK
@@ -676,23 +688,22 @@ private:
         uint64_t leftDown = chunkSize_ * curLen;
         uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[leftDown], attnWsGm_, attnWsGm_[leftDown], 
-                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        AICProcess(attnWsGm_[leftDown], attnWsGm_, attnWsGm_[leftDown],
+                   {chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen});
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
-        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown], 
-                   chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen);
+        AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown],
+                   {chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen});
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
     }
 
-    __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z, 
-                                      uint64_t m, uint64_t n, uint64_t k,
-                                      uint64_t sm, uint64_t sn, uint64_t sk, bool transB=false)
+    __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
+                                      const MatmulShapeParams &shape, bool transB=false)
     {
-        mmFp32.SetOrgShape(m, n, k);
-        mmFp32.SetSingleShape(sm, sn, sk);
+        mmFp32.SetOrgShape(shape.m, shape.n, shape.k);
+        mmFp32.SetSingleShape(shape.sm, shape.sn, shape.sk);
         mmFp32.SetTensorA(x);
         mmFp32.SetTensorB(y, transB);
         mmFp32.IterateAll(z);

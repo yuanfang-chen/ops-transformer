@@ -73,11 +73,11 @@ __aicore__ inline void CopyCast(
             DataCopyPad(inLocal, src[i], inParams, inPadParams);
             inQueue.EnQue(inLocal);
             // cast
-            auto state_in = inQueue.DeQue<srcType>();
-            auto state_out = outQueue.AllocTensor<dstType>();
-            Cast(state_out, state_in, roundMode, blockLen);
-            outQueue.EnQue(state_out);
-            inQueue.FreeTensor(state_in);
+            auto stateIn = inQueue.DeQue<srcType>();
+            auto stateOut = outQueue.AllocTensor<dstType>();
+            Cast(stateOut, stateIn, roundMode, blockLen);
+            outQueue.EnQue(stateOut);
+            inQueue.FreeTensor(stateIn);
             // copy out
             auto outLocal = outQueue.DeQue<dstType>();
             DataCopyExtParams outParams{1, static_cast<uint32_t>(blockLen * sizeof(dstType)), 0, 0, 0};
