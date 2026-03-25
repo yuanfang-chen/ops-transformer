@@ -625,7 +625,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
         QuantModeToSerialString(quantMode_).c_str(), vHeadDim_),
     return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(ropeHeadDim_ > MAX_ROPE_DIM,
+    OP_CHECK_IF(fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && ropeHeadDim_ != MAX_ROPE_DIM,
     OP_LOGE(opName_, "In %s situation, headDim of Rope should be equal to 64, but got %u",
         QuantModeToSerialString(quantMode_).c_str(), ropeHeadDim_),
     return ge::GRAPH_FAILED);
