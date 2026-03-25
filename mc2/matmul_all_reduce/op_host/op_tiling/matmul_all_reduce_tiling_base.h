@@ -271,6 +271,17 @@ protected:
     MMRCtxInfo& mmrCtxInfo_;
     Mc2Tiling::MatmulAllReduceTilingData tilingDataSelf_{};
     Mc2Tiling::MatmulAllReduceTilingData& tilingData_;
+    const std::set<uint32_t> USE_ALLREDUCE_TWO_SHOT {4};
 };
+
+// 判断是否使用AllReduce TwoShot策略（950架构）
+inline bool isUseAllReduceTwoShot(uint32_t rankDim, NpuArch npuArch,
+                                     const std::set<uint32_t>& supportedDims = {mc2tiling::STANDARD_CARD_4P}) {
+    if (npuArch != NpuArch::DAV_3510) {
+        return false;
+    }
+    return supportedDims.count(rankDim) > 0;
+}
+
 } // namespace optiling
 #endif // MC2_MM_ALLREDUCE_TILING_ARCH35_H

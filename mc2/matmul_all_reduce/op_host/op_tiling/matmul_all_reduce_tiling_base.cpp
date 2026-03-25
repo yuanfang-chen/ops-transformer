@@ -306,7 +306,7 @@ CutResult MatmulAllReduceTilingBase::GetTilingResult()
             args_, args_.rankDim, KernelType::ALL_REDUCE, inputSocVersion);
         quantAllReduceTilingHccl.GetTiling();
         mCutAllreduce = quantAllReduceTilingHccl.tilingM_.cutRes;
-    } else if (mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)) {
+    } else if (isUseAllReduceTwoShot(args_.rankDim, npuArch_, USE_ALLREDUCE_TWO_SHOT)) {
         MMAllReduceFitBalanceTiling allReduceTilingHccl(args_, KernelType::ALL_REDUCE_VIA_TWO_SHOT, TopoType::STANDARD_CARD);
         mCutAllreduce = allReduceTilingHccl.GetTiling();
     } else {
