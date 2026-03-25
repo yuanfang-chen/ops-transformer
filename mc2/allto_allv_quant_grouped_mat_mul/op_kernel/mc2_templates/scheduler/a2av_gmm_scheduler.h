@@ -59,9 +59,11 @@ public:
         if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
             uint64_t commOutLen =
                 Align((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1), TENSOR_LIST_SIZE);
-            gmmxScaleCommOutGm = workspaceGM + commOutLen;
+            // permuteOut为true,则将permuteout存放到对应的位置，scale的地址可以从workspaceGM开始
+            gmmxScaleCommOutGm = tilingData_->isPermuteOut ? workspaceGM : workspaceGM + commOutLen;
+            gmmxScaleGM = gmmxScaleGM; // 保存参数到成员变量
             // commOp中已经初始化了上下文，这里只更新地址
-            scaleCommOp.UpdateBuffer(gmmxScaleGM, gmmxScaleCommOutGm);
+            commOp.InitScaleBuffer(gmmxScaleGM, gmmxScaleCommOutGm);
         }
         if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
@@ -79,19 +81,18 @@ public:
             localComputeOp.Process(0);
             SyncAll<false>();
         }
+        // mx场景下先启动全量scale通信
+        if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
+            commOp.LaunchScaleBeforeCompute(0, e_);
+        }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Launch(expertIdx, 1);
-            // MXFP8量化：同时启动xscale的alltoallv
-            if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
-                scaleCommOp.LaunchScale(expertIdx, 1);
-            }
+        }
+        if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
+            commOp.WaitScale(expertIdx);
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
-            // MXFP8量化：等待xscale的alltoallv完成
-            if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
-                scaleCommOp.Wait(expertIdx);
-            }
             SyncAll<false>();
             computeOp.Process(expertIdx);
         }
@@ -102,17 +103,16 @@ protected:
     __aicore__ inline void End()
     {
         commOp.End();
-        scaleCommOp.End();
         computeOp.End();
         localComputeOp.End();
     }
 
 private:
     CommOpType commOp;
-    CommOpType scaleCommOp; // xscale的通信操作
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
     GM_ADDR commOutGm = nullptr;
+    GM_ADDR gmmxScaleGM = nullptr;
     GM_ADDR gmmxScaleCommOutGm = nullptr;
     GM_ADDR computeScaleGM = nullptr;
     const TilingDataType *tilingData_ = nullptr;
