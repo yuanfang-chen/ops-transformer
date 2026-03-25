@@ -89,6 +89,7 @@ protected:
     ge::graphStatus SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType);
     ge::graphStatus SetMc2HcommTwoShot(const char* groupName, const uint32_t reduceType);
     ge::graphStatus SetMc2Hcomm();
+    const std::set<uint32_t> USE_ALLREDUCE_TWO_SHOT {4,8};
 
 private:
     ge::graphStatus CheckBiasInput();
