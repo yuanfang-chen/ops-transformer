@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 
 #include "exe_graph/runtime/tiling_context.h"
@@ -33,6 +34,7 @@
 
 namespace mc2tiling {
 constexpr uint32_t STANDARD_CARD_4P = 4;
+constexpr uint32_t STANDARD_CARD_8P = 8;
 constexpr uint32_t COMM_MESH = 0b1U;
 constexpr uint32_t COMM_SWITCH = (COMM_MESH << 1U);
 constexpr uint32_t COMM_RING = (COMM_MESH << 2U);
@@ -274,9 +276,13 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
     return ge::GRAPH_SUCCESS;
 }
 
-// 临时判断是否为标卡4p形态(4卡，950)
-inline bool IsStandardCard4P(const uint32_t rankDim, const NpuArch npuArch) {
-    return ((rankDim == STANDARD_CARD_4P) && (npuArch == NpuArch::DAV_3510));
+// 判断是否使用AllReduce TwoShot策略（950架构）
+inline bool isUseAllReduceTwoShot(uint32_t rankDim, NpuArch npuArch,
+                                     const std::set<uint32_t>& supportedDims = {STANDARD_CARD_4P}) {
+    if (npuArch != NpuArch::DAV_3510) {
+        return false;
+    }
+    return supportedDims.count(rankDim) > 0;
 }
 }  // namespace mc2tiling
 
