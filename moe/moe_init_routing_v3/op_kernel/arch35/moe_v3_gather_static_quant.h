@@ -105,6 +105,22 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::CopyInIndices(int64_t progress
     DataCopyPadExtParams<int32_t> dataCopyPadParams{false, 0, 0, 0};
     DataCopyPad(indicesLocal, expandedRowIdxGm_[indicesOffset_], dataCopyParams, dataCopyPadParams);
     expandRowIdxCopyInQueue_.EnQue<int32_t>(indicesLocal);
+
+    if (blockIdx_ == 0 && progress == 0 && currentLoopRows_ > 0) {
+        int32_t minIdx = indicesLocal.GetValue(0);
+        int32_t maxIdx = indicesLocal.GetValue(0);
+        for (int64_t i = 1; i < Min(currentLoopRows_, (int64_t)10); i++) {
+            int32_t val = indicesLocal.GetValue(i);
+            if (val < minIdx)
+                minIdx = val;
+            if (val > maxIdx)
+                maxIdx = val;
+        }
+        MIRV3_STATIC_QUANT_DEBUG_PRINT(
+            "CopyInIndices[0]: indicesOffset=%ld currentLoopRows=%ld minIdx=%d maxIdx=%d first5=[%d,%d,%d,%d,%d]",
+            indicesOffset_, currentLoopRows_, minIdx, maxIdx, indicesLocal.GetValue(0), indicesLocal.GetValue(1),
+            indicesLocal.GetValue(2), indicesLocal.GetValue(3), indicesLocal.GetValue(4));
+    }
 }
 
 template <typename T>
@@ -197,6 +213,16 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Compute()
 template <typename T>
 __aicore__ inline void MoeV3GatherStaticQuant<T>::CopyXIn(int64_t xSrcOffset, int64_t curLoopCols)
 {
+    if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 10) {
+        int64_t inputXMaxSize = n_ * cols_;
+        if (xSrcOffset + curLoopCols > inputXMaxSize || xSrcOffset < 0) {
+            MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                "[BOUNDS_CHECK] CopyXIn: xSrcOffset=%ld curLoopCols=%ld xSrcEnd=%ld inputXMaxSize=%ld n=%ld cols=%ld",
+                xSrcOffset, curLoopCols, xSrcOffset + curLoopCols, inputXMaxSize, n_, cols_);
+            debugInvalidIndexPrintCount_++;
+        }
+    }
+
     LocalTensor<T> inLocal = inputXCopyInQueue_.AllocTensor<T>();
     DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>(curLoopCols * sizeof(T)), 0, 0, 0};
     DataCopyPadExtParams<T> dataCopyPadParams{false, 0, 0, 0};
@@ -208,6 +234,19 @@ template <typename T>
 __aicore__ inline void MoeV3GatherStaticQuant<T>::CopyXOut(int64_t xDstOffset, int64_t curLoopCols)
 {
     LocalTensor<int8_t> outLocal = inputXCopyOutQueue_.DeQue<int8_t>();
+
+    if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 10) {
+        int64_t expandedXMaxSize = activateRows_ > 0 ? activateRows_ * cols_ : totalLength_ * cols_;
+        if (xDstOffset + curLoopCols > expandedXMaxSize || xDstOffset < 0) {
+            MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                "[BOUNDS_CHECK] CopyXOut: xDstOffset=%ld curLoopCols=%ld xDstEnd=%ld expandedXMaxSize=%ld", xDstOffset,
+                curLoopCols, xDstOffset + curLoopCols, expandedXMaxSize);
+            MIRV3_STATIC_QUANT_DEBUG_PRINT("[BOUNDS_CHECK] CopyXOut: activateRows=%ld totalLength=%ld cols=%ld",
+                                           activateRows_, totalLength_, cols_);
+            debugInvalidIndexPrintCount_++;
+        }
+    }
+
     DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>(curLoopCols * sizeof(int8_t)), 0, 0, 0};
     DataCopyPad(expandedXGm_[xDstOffset], outLocal, dataCopyParams);
     inputXCopyOutQueue_.FreeTensor(outLocal);
@@ -223,6 +262,10 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::ScatterCopyOut(int64_t progres
         MIRV3_STATIC_QUANT_DEBUG_PRINT("ScatterCopyOut begin: coreRows=%ld perLoopRows=%ld rowLoops=%ld firstRowIdx=%d",
                                        coreRows_, perLoopRows_, rowLoops_,
                                        (currentLoopRows_ > 0 ? indicesLocal.GetValue(0) : -1));
+        MIRV3_STATIC_QUANT_DEBUG_PRINT("ScatterCopyOut bounds: activateRows=%ld totalLength=%ld n=%ld k=%ld cols=%ld",
+                                       activateRows_, totalLength_, n_, k_, cols_);
+        MIRV3_STATIC_QUANT_DEBUG_PRINT("ScatterCopyOut core: blockIdx=%ld perCoreRow=%ld needCoreNum=%ld", blockIdx_,
+                                       perCoreRow_, needCoreNum_);
     }
 
     for (int64_t indicesIndex = 0; indicesIndex < currentLoopRows_; indicesIndex++) {
@@ -232,7 +275,28 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::ScatterCopyOut(int64_t progres
         int64_t xDstOffset = (rowOffset + indicesIndex) * cols_;
         int64_t curLoopCols = perLoopCols_;
 
+        if (blockIdx_ == 0 && progress == 0 && indicesIndex < 5) {
+            MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                "ScatterCopyOut[%ld]: indicesIndex=%ld rowIdx=%ld xSrcOffset=%ld xDstOffset=%ld rowOffset=%ld",
+                indicesIndex, indicesIndex, rowIdx, xSrcOffset, xDstOffset, rowOffset);
+        }
+
+        if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 10) {
+            int64_t maxValidRowIdx = n_ * k_ - 1;
+            if (rowIdx < 0 || rowIdx > maxValidRowIdx) {
+                MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                    "[INDEX_CHECK] ScatterCopyOut: invalid rowIdx=%ld at indicesIndex=%ld, valid range [0, %ld]",
+                    rowIdx, indicesIndex, maxValidRowIdx);
+                debugInvalidIndexPrintCount_++;
+            }
+        }
+
         if (activateRows_ > 0 && dropPadMode_ == DROPLESS_MODE && (rowOffset + indicesIndex) >= activateRows_) {
+            if (blockIdx_ == 0 && progress == 0) {
+                MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                    "ScatterCopyOut: early break at indicesIndex=%ld rowOffset+index=%ld >= activateRows=%ld",
+                    indicesIndex, rowOffset + indicesIndex, activateRows_);
+            }
             break;
         }
 
@@ -263,6 +327,11 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
         MIRV3_STATIC_QUANT_DEBUG_PRINT(
             "GatherCopyOut begin: coreRows=%ld perLoopRows=%ld rowLoops=%ld firstOutIndex=%d activateRows=%ld",
             coreRows_, perLoopRows_, rowLoops_, (currentLoopRows_ > 0 ? indicesLocal.GetValue(0) : -1), activateRows_);
+        MIRV3_STATIC_QUANT_DEBUG_PRINT(
+            "GatherCopyOut bounds: totalLength=%ld expertTotalCount=%ld n=%ld k=%ld cols=%ld", totalLength_,
+            expertTotalCount_, n_, k_, cols_);
+        MIRV3_STATIC_QUANT_DEBUG_PRINT("GatherCopyOut core: blockIdx=%ld perCoreRow=%ld needCoreNum=%ld", blockIdx_,
+                                       perCoreRow_, needCoreNum_);
     }
 
     for (int64_t indicesIndex = 0; indicesIndex < currentLoopRows_; indicesIndex++) {
@@ -271,6 +340,22 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::GatherCopyOut(int64_t progress
         int64_t xSrcOffset = rowIdx / k_ * cols_;
         int64_t xDstOffset = (rowOffset + indicesIndex) * cols_;
         int64_t curLoopCols = perLoopCols_;
+
+        if (blockIdx_ == 0 && progress == 0 && indicesIndex < 5) {
+            MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                "GatherCopyOut[%ld]: indicesIndex=%ld rowIdx=%ld xSrcOffset=%ld xDstOffset=%ld rowOffset=%ld",
+                indicesIndex, indicesIndex, rowIdx, xSrcOffset, xDstOffset, rowOffset);
+        }
+
+        if (blockIdx_ == 0 && debugInvalidIndexPrintCount_ < 10) {
+            int64_t maxValidRowIdx = n_ * k_ - 1;
+            if (rowIdx < 0 || rowIdx > maxValidRowIdx) {
+                MIRV3_STATIC_QUANT_DEBUG_PRINT(
+                    "[INDEX_CHECK] GatherCopyOut: invalid rowIdx=%ld at indicesIndex=%ld, valid range [0, %ld]", rowIdx,
+                    indicesIndex, maxValidRowIdx);
+                debugInvalidIndexPrintCount_++;
+            }
+        }
 
         SetWaitFlag<HardEvent::S_MTE2>(HardEvent::S_MTE2);
 

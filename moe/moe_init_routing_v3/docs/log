@@ -1,26 +1,27 @@
-[MIRV3_SQ] Init summary: totalLength=16000 cols=32 n=500 k=32 needCoreNum=64 perCoreRow=250 coreRows=250 perLoopRows=250 rowLoops=1 perLoopCols=32 colLoops=1 dropPadMode=0 rowIdxType=0 activateRows=16000 expertNum=10240 actualExpertNum=8000 expertTotalCount=11436
+[MIRV3_SQ] Init summary: totalLength=5120 cols=1024 n=80 k=64 needCoreNum=63 perCoreRow=18 coreRows=18 perLoopRows=18 rowLoops=1 perLoopCols=1024 colLoops=1 dropPadMode=0 rowIdxType=0 activateRows=5120 expertNum=10240 actualExpertNum=3000 expertTotalCount=1130
 
-[MIRV3_SQ] Process begin: dropPadMode=0 rowIdxType=0 needCoreNum=64 rowLoops=1 expertTotalCount=11436 totalLength=16000
+[MIRV3_SQ] Process begin: dropPadMode=0 rowIdxType=0 needCoreNum=63 rowLoops=1 expertTotalCount=1130 totalLength=5120
 
-[MIRV3_SQ] GatherCopyOut begin: coreRows=250 perLoopRows=250 rowLoops=1 firstOutIndex=0 activateRows=16000
+[MIRV3_SQ] CopyInIndices[0]: indicesOffset=0 currentLoopRows=18 minIdx=178 maxIdx=4249 first5=[1222,2912,178,3045,289]
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut begin: coreRows=18 perLoopRows=18 rowLoops=1 firstOutIndex=1222 activateRows=5120
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut bounds: totalLength=5120 expertTotalCount=1130 n=80 k=64 cols=1024
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut core: blockIdx=0 perCoreRow=18 needCoreNum=63
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut[0]: indicesIndex=0 rowIdx=1222 xSrcOffset=19456 xDstOffset=0 rowOffset=0
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut[1]: indicesIndex=1 rowIdx=2912 xSrcOffset=46080 xDstOffset=1024 rowOffset=0
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut[2]: indicesIndex=2 rowIdx=178 xSrcOffset=2048 xDstOffset=2048 rowOffset=0
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut[3]: indicesIndex=3 rowIdx=3045 xSrcOffset=48128 xDstOffset=3072 rowOffset=0
 
-[MIRV3_SQ] Gather invalid outIndex=-1 totalLength=16000 activateRows=16000 progress=0 colsLoop=0 row=0
+[MIRV3_SQ] GatherCopyOut[4]: indicesIndex=4 rowIdx=289 xSrcOffset=4096 xDstOffset=4096 rowOffset=0
 
-2026-03-24 11:37:05,070 [ERROR] [620933 moe_init_routing_v3_static_quant_0020 OnCstProfiling] [rts_sequence.py:672]: The 0th (count from 0) output memory out of bound !! All data in the list below should all be 2 (uint8), but got:
+2026-03-25 08:17:30,077 [WARNING] [3114271 moe_init_routing_v3_static_quant_0006 OnCstProfiling] [adx_interface.py:112]: Simt block info length [3109691687] is illegal 
+2026-03-25 08:17:30,611 [ERROR] [3114271 moe_init_routing_v3_static_quant_0006 OnCstProfiling] [rts_sequence.py:672]: The 0th (count from 0) output memory out of bound !! All data in the list below should all be 2 (uint8), but got:
 [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -28,4 +29,4 @@
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
- 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
