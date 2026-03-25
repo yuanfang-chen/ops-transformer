@@ -462,6 +462,9 @@ private:
     ge::graphStatus CheckActualSeqLensDType();
     ge::graphStatus CheckActualSeqLensShape();
     ge::graphStatus CheckMultiParaConsistency();
+    ge::graphStatus CheckKeySink();
+    ge::graphStatus CheckKeySinkDType();
+    ge::graphStatus CheckKeySinkShape();
 
     ge::graphStatus CheckFeatureMlaAntiquantShape() const;
     ge::graphStatus CheckFeatureMlaAntiquantLayout() const;
@@ -525,7 +528,7 @@ private:
     gert::Shape topkShapeCmp_{};
     gert::Shape attenOutShapeCmp_{};
     gert::Shape keySinkShapeCmp_{};
-    gert::Shape valueShapeCmp_{};
+    gert::Shape valueSinkShapeCmp_{};
 };
 
 class QSFAPInfoParser {

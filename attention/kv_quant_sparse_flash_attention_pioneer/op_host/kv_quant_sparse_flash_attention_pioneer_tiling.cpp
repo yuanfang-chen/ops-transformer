@@ -1066,19 +1066,17 @@ ge::graphStatus QSFAPTilingCheck::CheckKeySink()
 ge::graphStatus QSFAPTilingCheck::CheckKeySinkDType()
 {
     if (opParamInfo_.keySink.tensor == nullptr) {
-        OP_CHECK_IF(valueSink.tensor != nullptr,
+        OP_CHECK_IF(opParamInfo_.valueSink.tensor != nullptr,
             OP_LOGE(opName_, "keySink is nullptr but valueSink is not nullptr, input mismatch."),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
     if (opParamInfo_.keySink.desc == nullptr) {
-        OP_LOGE(opName_, "keySink is not empty,"
-            "but keySink's dtype is nullptr.");
+        OP_LOGE(opName_, "keySink is not empty, but keySink's dtype is nullptr.");
             return ge::GRAPH_FAILED;
     }
     if (opParamInfo_.valueSink.desc == nullptr) {
-        OP_LOGE(opName_, "valueSink is not empty,"
-            "but valueSink's dtype is nullptr.");
+        OP_LOGE(opName_, "valueSink is not empty, but valueSink's dtype is nullptr.");
             return ge::GRAPH_FAILED;
     }
     if (opParamInfo_.keySink.desc->GetDataType() != ge::DT_BF16 && opParamInfo_.keySink.desc->GetDataType() != ge::DT_FLOAT16) {
@@ -1097,39 +1095,42 @@ ge::graphStatus QSFAPTilingCheck::CheckKeySinkDType()
 ge::graphStatus QSFAPTilingCheck::CheckKeySinkShape()
 {
     if (opParamInfo_.keySink.tensor == nullptr) {
-        OP_CHECK_IF(valueSink.tensor != nullptr,
+        OP_CHECK_IF(opParamInfo_.valueSink.tensor != nullptr,
             OP_LOGE(opName_, "keySink is nullptr but valueSink is not nullptr, input mismatch."),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
 
-    keySinkShapeCmp_ = opParamInfo_.keySink.shape->GetStorageShape();
-    valueSinkShapeCmp_ = opParamInfo_.valueSink.shape->GetStorageShape();
+    keySinkShapeCmp_ = opParamInfo_.keySink.tensor->GetStorageShape();
+    valueSinkShapeCmp_ = opParamInfo_.valueSink.tensor->GetStorageShape();
     int64_t expectValueSinkDSize = qHeadDim_ - ropeHeadDim_;
+    OP_CHECK_IF(sfaaInfo_.s1Size > sfaaInfo_.s2Size,
+        OP_LOGE(opName_, "s2Size should be bigger or equal s1Size, but got s1Size(= %zu) > s2Size(= %zu).",
+        sfaaInfo_.s1Size, sfaaInfo_.s2Size), return ge::GRAPH_FAILED);
     OP_CHECK_IF(keySinkShapeCmp_.GetDimNum() != DIM_NUM_THREE,
         OP_LOGE(opName_, "key_sink should be 3D [128, N2, D], but got %zu dims.", keySinkShapeCmp_.GetDimNum()),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_ZERO) != SINK_NUM,
-        OP_LOGE(opName_, "key_sink dim0 should be %ld, but got %ld.", SINK_NUM, keySinkShapeCmp_.GetDimNum(0)),
+    OP_CHECK_IF(keySinkShapeCmp_.GetDim(DIM_NUM_ZERO) != SINK_NUM,
+        OP_LOGE(opName_, "key_sink dim0 should be %u, but got %ld.", SINK_NUM, keySinkShapeCmp_.GetDim(0)),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_ONE) != n2Size_,
+    OP_CHECK_IF(keySinkShapeCmp_.GetDim(DIM_NUM_ONE) != n2Size_,
         OP_LOGE(opName_, "key_sink dim0 should be %u(= n2Size), but got %ld.", n2Size_, 
-        keySinkShapeCmp_.GetDimNum(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_TWO) != qHeadDim_,
+        keySinkShapeCmp_.GetDim(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShapeCmp_.GetDim(DIM_NUM_TWO) != qHeadDim_,
         OP_LOGE(opName_, "key_sink dim2 should be %u(= qHeadDim), but got %ld.", qHeadDim_, 
-        keySinkShapeCmp_.GetDimNum(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
+        keySinkShapeCmp_.GetDim(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
     OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum() != DIM_NUM_THREE,
         OP_LOGE(opName_, "value_sink should be 3D [128, N2, D], but got %zu dims.", valueSinkShapeCmp_.GetDimNum()),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_ZERO) != SINK_NUM,
-        OP_LOGE(opName_, "value_sink dim0 should be %ld, but got %ld.", SINK_NUM, valueSinkShapeCmp_.GetDimNum(0)),
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDim(DIM_NUM_ZERO) != SINK_NUM,
+        OP_LOGE(opName_, "value_sink dim0 should be %ld, but got %ld.", SINK_NUM, valueSinkShapeCmp_.GetDim(DIM_NUM_ZERO)),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_ONE) != n2Size_,
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDim(DIM_NUM_ONE) != n2Size_,
         OP_LOGE(opName_, "value_sink dim0 should be %u(= n2Size), but got %ld.", n2Size_, 
-        valueSinkShapeCmp_.GetDimNum(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_TWO) != expectValueSinkDSize,
-        OP_LOGE(opName_, "value_sink dim2 should be %u(= qHeadDim - ropeHeadDim), but got %ld.", expectValueSinkDSize, 
-        valueSinkShapeCmp_.GetDimNum(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
+        valueSinkShapeCmp_.GetDim(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDim(DIM_NUM_TWO) != expectValueSinkDSize,
+        OP_LOGE(opName_, "value_sink dim2 should be %ld(= qHeadDim - ropeHeadDim), but got %ld.", expectValueSinkDSize, 
+        valueSinkShapeCmp_.GetDim(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
