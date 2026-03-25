@@ -60,9 +60,10 @@ int getBlockSize(gert::TilingContext* context, int M, int N) {
         blockSize = *blockSizePtr;
     }
     if (!blockSize) {
-        blockSize = 16;
-        if (blockSize < N * 2) blockSize = N * 2;
-        if (M / 4 > 1024) blockSize = 1024;
+        blockSize = 1024;
+        while((M % blockSize != 0 || M / blockSize < 4) && blockSize > 8) {
+            blockSize /= 2; 
+        }
     }
     return blockSize;
 }
@@ -70,11 +71,11 @@ int getBlockSize(gert::TilingContext* context, int M, int N) {
 bool checkLimitations(int M, int N, int blockSize, int numBlocks) {
     return (
         M >= 128 && N >= 16 // MIN Shape
-        && M <= 8 * 1024 * 1024 && N <= 160 // MAX Shape
+        && M <= 8 * 1024 * 1024 && N <= 168 // MAX Shape
         && M >= N * 8
         && blockSize > 0
         && N * 2 <= blockSize && blockSize <= M / 4
-        && N % 8 == 0 && N <= 168
+        && N % 8 == 0
         && M % blockSize == 0
         && ((numBlocks & (numBlocks - 1)) == 0) // Is Power Of Two
     );
@@ -117,13 +118,13 @@ bool setMatmulTilingData(gert::TilingContext* context, TsqrTilingData& tilingDat
     return true;
 }
 
-int64_t allocWorkspace(TsqrTilingData& tilingData, int M, int N, int blockSize, int numLevels, int batchSize, int coreNum) {
+int64_t allocWorkspace(TsqrTilingData& tilingData, int M, int N, int blockSize, int numLevels, int batchSize, int coreNum, int batchFactor) {
     auto tmpSize = getTmpSize(M, N, blockSize, numLevels);
     int64_t tmpQSize = tmpSize.first + 2 * N * N;
     int64_t tmpRSize = tmpSize.second;
     int64_t bufferQSize = M * N;
     int64_t maxQrWorkspace = N * blockSize;
-    int64_t totalWorkspaceSize = tmpQSize * (batchSize > 1 ? 2 : 1) + bufferQSize + tmpRSize + maxQrWorkspace * coreNum * 2;
+    int64_t totalWorkspaceSize = (tmpQSize + bufferQSize + tmpRSize) * batchFactor + maxQrWorkspace * coreNum * 2;
 
     tilingData.set_tmpQSize(tmpQSize);
     tilingData.set_tmpRSize(tmpRSize);
@@ -149,7 +150,7 @@ ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
         batchSize *= dim > 0 ? dim : 1;
     }
 
-    int32_t coreNum = 20;
+    int32_t coreNum = platformInfo.GetCoreNum() / 2;
     int32_t blockSize = getBlockSize(context, M, N);
     int32_t numBlocks = blockSize > 0 ? M / blockSize : 1;
     int32_t numLevels = (int32_t)(std::ceil(std::log2(numBlocks)));
@@ -158,15 +159,17 @@ ge::graphStatus TsqrTiling::RunBigKernelTiling(gert::TilingContext* context) {
         std::cout << "Out of shape limitations" << std::endl;
         return ge::GRAPH_FAILED;
     }
+    int32_t batchFactor = (batchSize >= 4 && (batchSize % 4 == 0)) ? 4 : 1;
 
     tilingData.set_batchSize(batchSize);
     tilingData.set_m(M);
     tilingData.set_n(N);
     tilingData.set_blockSize(blockSize);
+    tilingData.set_batchFactor(batchFactor);
     tilingData.set_numBlocks(numBlocks);
     tilingData.set_numLevels(numLevels);
     tilingData.set_ubSize(ubSize);
-    int64_t totalWorkspaceSize = allocWorkspace(tilingData, M, N, blockSize, numLevels, batchSize, coreNum);
+    int64_t totalWorkspaceSize = allocWorkspace(tilingData, M, N, blockSize, numLevels, batchSize, coreNum, batchFactor);
 
     if (!setMatmulTilingData(context, tilingData, coreNum, N)) {
         return ge::GRAPH_FAILED;
