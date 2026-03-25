@@ -34,6 +34,7 @@
      FlashAttentionScoreGradS1S2BNGS1S2BaseParamsRegbase *s1s2BNGS1S2BaseParams_ = nullptr;
      FlashAttentionScoreGradS1S2BNGS1S2SplitCoreParamsRegbase *s1s2BNGS1S2SplitCoreParams_ = nullptr;
      BlockNumListParamsRegbase *s1s2BNGS1S2BlockNumList_ = nullptr;
+     BlockNumListParamsRegbase *sinkBlockNumList_ = nullptr;
      PreParamsRegbase *preTilingData_ = nullptr;
      PostParamsRegbase *postTilingData_ = nullptr;
      DeterParamRegbase *deterParam = nullptr;
@@ -57,6 +58,8 @@
      uint8_t GetSparseType();
      void CalcleDeterParam();
      virtual void CalcleTNDDeterParam() {};
+     void ProcessSinkTiling();
+     void CalcSinkBn2s2BlockInfo();
 
      void GetWorkspaceSize4Deter(size_t &workspaceSize);
      void GetIsDeterArr();

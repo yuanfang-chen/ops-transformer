@@ -460,10 +460,71 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::DoBn2MultiBlkSparse(
     return ge::GRAPH_FAILED;
 }
 
+void FlashAttentionScoreGradTilingNormalRegbase::ProcessSinkTiling()
+{
+    // Step 1: 检测是否有 sink 输入 (key_sink / value_sink)
+    if (fBaseParams.sinkOptional != NORMAL_TENSOR) {
+        return;
+    }
+
+    // Step 2: 设置 sink 参数
+    constexpr int64_t sinkNum = 128; // 固定值
+    fBaseParams.sinkS2Size = sinkNum;
+    fBaseParams.sinkS2Token = sinkNum;
+
+    // Step 3: 计算 Sink 块的 BN2S2 分核
+    CalcSinkBn2s2BlockInfo();
+
+    // Step 4: 计算非 Sink 块的确定性计算分核
+    CalcleDeterParam();
+}
+
+void FlashAttentionScoreGradTilingNormalRegbase::CalcSinkBn2s2BlockInfo()
+{
+    // 计算 sinkS2Outer: sink S2 外层循环次数
+    // sinkS2Size=128, s2Inner 通常=128, 所以 sinkS2Outer 通常=1
+    int64_t s2Inner = fBaseParams.s2Inner;
+    int64_t sinkS2Outer = (fBaseParams.sinkS2Size + s2Inner - 1) / s2Inner;
+    fBaseParams.s2SinkOuter = sinkS2Outer;
+    fBaseParams.sinkS2Tail = fBaseParams.sinkS2Size - (sinkS2Outer - 1) * s2Inner;
+
+    // 以下逻辑等同于 DoBn2s2Sparse() else 分支: BN2S2 均匀分核
+    int64_t blockStarts[CORE_LIST_NUM];
+    int64_t blockEnds[CORE_LIST_NUM];
+
+    int64_t fusedOuter = fBaseParams.b * fBaseParams.n2 * fBaseParams.g * sinkS2Outer;
+    int64_t bns2Factor = (fusedOuter + fBaseParams.aicNum - 1) / fBaseParams.aicNum;
+    int64_t blockOuter = (fusedOuter + bns2Factor - 1) / bns2Factor;
+    int64_t totalBlock = fusedOuter * fBaseParams.s1Outer;
+    int64_t blockFactor = bns2Factor * fBaseParams.s1Outer;
+
+    for (int64_t i = 0; i < blockOuter; i++) {
+        blockStarts[i] = blockFactor * i;
+        blockEnds[i] = std::min(blockFactor * (i + 1), totalBlock);
+    }
+    for (uint32_t i = static_cast<uint32_t>(blockOuter); i < CORE_LIST_NUM; i++) {
+        blockStarts[i] = 0;
+        blockEnds[i] = 0;
+    }
+
+    // 写入 fBaseParams.sinkBlockStarts / sinkBlockEnds
+    std::copy(std::begin(blockStarts), std::end(blockStarts), std::begin(fBaseParams.sinkBlockStarts));
+    std::copy(std::begin(blockEnds), std::end(blockEnds), std::begin(fBaseParams.sinkBlockEnds));
+
+    fBaseParams.blockOuter = blockOuter;
+    fBaseParams.blockFactor = blockFactor;
+    fBaseParams.sinkMaxValidBBLen = blockFactor;
+}
+
 ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::DoSparse()
 {
     fBaseParams.sparseType = GetSparseType(); // 非确定性计算下获取sparseType
     fBaseParams.deterSparseType = GetDeterSparseTilingKey();
+    // Sink Tiling: 检测并处理 Sink 场景
+    ProcessSinkTiling();
+    if (fBaseParams.sinkOptional == NORMAL_TENSOR && fBaseParams.sinkS2Size > 0) {
+        return ge::GRAPH_SUCCESS;
+    }
     CalcleDeterParam();
     if (DoBn2s2Sparse() && fBaseParams.blockOuter >= fBaseParams.aicNum) {
         return ge::GRAPH_SUCCESS;
@@ -1113,6 +1174,25 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::GetWorkspaceSize()
         // dsink sum data size
         workspaceSize = (workspaceSize + static_cast<size_t>(fBaseParams.sinkSize) * FP32_BYTES + GM_ALIGN) /
             GM_ALIGN * GM_ALIGN;
+
+        // dkSink workspace: shape [B*N2, sinkNum, D], stored as FP32
+        constexpr int64_t sinkNUM = 128;
+        int64_t kSinkSize =
+            ((fBaseParams.b * fBaseParams.n2 - 1) * sinkNUM + AlignTo(sinkNUM, ALIGN128)) * fBaseParams.d;
+        postTilingData_->set_dkSinkWorkSpaceOffset(workspaceSize);
+        OP_LOGI(context_, "FAG dkSinkWorkSpace offset = %ld, size = %ld.", workspaceSize,
+            static_cast<size_t>(kSinkSize) * FP32_BYTES);
+        workspaceSize = (workspaceSize + static_cast<size_t>(kSinkSize) * FP32_BYTES + GM_ALIGN) /
+            GM_ALIGN * GM_ALIGN;
+
+        // dvSink workspace: shape [B*N2, sinkNum, D_V], stored as FP32
+        int64_t vSinkSize =
+            ((fBaseParams.b * fBaseParams.n2 - 1) * sinkNUM + AlignTo(sinkNUM, ALIGN128)) * fBaseParams.d1;
+        postTilingData_->set_dvSinkWorkSpaceOffset(workspaceSize);
+        OP_LOGI(context_, "FAG dvSinkWorkSpace offset = %ld, size = %ld.", workspaceSize,
+            static_cast<size_t>(vSinkSize) * FP32_BYTES);
+        workspaceSize = (workspaceSize + static_cast<size_t>(vSinkSize) * FP32_BYTES + GM_ALIGN) /
+            GM_ALIGN * GM_ALIGN;
     }
     
     GetWorkspaceSize4Deter(workspaceSize);
@@ -1444,6 +1524,7 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::InitTilingData()
         s1s2BNGS1S2BaseParams_ = &tilingData->s1s2BNGS1S2BaseParams;
         s1s2BNGS1S2SplitCoreParams_ = &tilingData->s1s2BNGS1S2SplitCoreParams;
         s1s2BNGS1S2BlockNumList_ = &tilingData->s1s2BNGS1S2BlockNumList;
+        sinkBlockNumList_ = &tilingData->sinkBlockNumList;
         preTilingData_ = &tilingData->preTilingData;
         postTilingData_ = &tilingData->postTilingData;
         deterParam = &tilingData->deterParam;
@@ -1456,6 +1537,7 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::InitTilingData()
         s1s2BNGS1S2BaseParams_ = &tilingData->s1s2BNGS1S2BaseParams;
         s1s2BNGS1S2SplitCoreParams_ = &tilingData->s1s2BNGS1S2SplitCoreParams;
         s1s2BNGS1S2BlockNumList_ = &tilingData->s1s2BNGS1S2BlockNumList;
+        sinkBlockNumList_ = &tilingData->sinkBlockNumList;
         preTilingData_ = &tilingData->preTilingData;
         postTilingData_ = &tilingData->postTilingData;
         tndSwizzleParam_ = &tilingData->tndSwizzleParam;
@@ -1468,6 +1550,7 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::InitTilingData()
         s1s2BNGS1S2BaseParams_ = &tilingData->s1s2BNGS1S2BaseParams;
         s1s2BNGS1S2SplitCoreParams_ = &tilingData->s1s2BNGS1S2SplitCoreParams;
         s1s2BNGS1S2BlockNumList_ = &tilingData->s1s2BNGS1S2BlockNumList;
+        sinkBlockNumList_ = &tilingData->sinkBlockNumList;
         preTilingData_ = &tilingData->preTilingData;
         postTilingData_ = &tilingData->postTilingData;
         tndParam_ = &tilingData->tndParam;
@@ -1480,6 +1563,7 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::InitTilingData()
         s1s2BNGS1S2BaseParams_ = &tilingData->s1s2BNGS1S2BaseParams;
         s1s2BNGS1S2SplitCoreParams_ = &tilingData->s1s2BNGS1S2SplitCoreParams;
         s1s2BNGS1S2BlockNumList_ = &tilingData->s1s2BNGS1S2BlockNumList;
+        sinkBlockNumList_ = &tilingData->sinkBlockNumList;
         preTilingData_ = &tilingData->preTilingData;
         postTilingData_ = &tilingData->postTilingData;
     }
@@ -1549,9 +1633,15 @@ ge::graphStatus FlashAttentionScoreGradTilingNormalRegbase::SaveToTilingData()
     s1s2BNGS1S2SplitCoreParams_->set_bandIdx(fBaseParams.bandIdx);
     s1s2BNGS1S2BlockNumList_->set_blockStarts(fBaseParams.blockStarts);
     s1s2BNGS1S2BlockNumList_->set_blockEnds(fBaseParams.blockEnds);
+    sinkBlockNumList_->set_blockStarts(fBaseParams.sinkBlockStarts);
+    sinkBlockNumList_->set_blockEnds(fBaseParams.sinkBlockEnds);
     s1s2BNGS1S2SplitCoreParams_->set_blockOuter(fBaseParams.blockOuter);
     s1s2BNGS1S2SplitCoreParams_->set_maxValidBBLen(fBaseParams.maxValidBBLen);
     s1s2BNGS1S2SplitCoreParams_->set_noNeedDeter(fBaseParams.noNeedDeter);
+    s1s2BNGS1S2SplitCoreParams_->set_sinkMaxValidBBLen(fBaseParams.sinkMaxValidBBLen);
+    s1s2BNGS1S2SplitCoreParams_->set_sinkS2Size(fBaseParams.sinkS2Size);
+    s1s2BNGS1S2SplitCoreParams_->set_sinkS2Tail(fBaseParams.sinkS2Tail);
+    s1s2BNGS1S2SplitCoreParams_->set_sinkS2Token(fBaseParams.sinkS2Token);
     s1s2BNGS1S2SplitCoreParams_->set_deterMaxRound(fBaseParams.deterMaxRound);
     if ((fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND) ||
         fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_DENSE)) &&

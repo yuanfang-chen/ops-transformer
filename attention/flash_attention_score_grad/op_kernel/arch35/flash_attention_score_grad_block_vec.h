@@ -49,7 +49,7 @@ public:
     __aicore__ inline void InitGlobalBuffer(GM_ADDR value, GM_ADDR dy, GM_ADDR y, GM_ADDR pseShift, GM_ADDR dropMask,
                                             GM_ADDR attenMask, GM_ADDR softmaxMax, GM_ADDR softmaxSum,
                                             GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy,
-                                            GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR sink, GM_ADDR dsink,
+                                            GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR keySink, GM_ADDR dkSink, GM_ADDR dvSink,
                                             GM_ADDR workspace);
     __aicore__ inline void InitUbBuffer();
     __aicore__ inline void InitCubeVecSharedParams(FagCVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, float qScaleDs);
@@ -121,7 +121,7 @@ public:
     GlobalTensor<uint8_t> dropMaskWorkspaceGm;
     GlobalTensor<float> dsAmaxWorkSpaceGm;
     GlobalTensor<OUTDTYPE> dqGm, dkGm, dvGm;
-    GlobalTensor<float> sinkGm, dsinkGm, dsinkWorkSpaceGm;
+    GlobalTensor<float> sinkGm, dsinkGm, dsinkWorkSpaceGm, dvSinkGm;
  
     // ub buffer
     TQue<QuePosition::VECIN, 1> attenMaskOrYInQue;
@@ -175,7 +175,7 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR valu
                                                                     GM_ADDR softmaxMax, GM_ADDR softmaxSum,
                                                                     GM_ADDR deqScaleQ, GM_ADDR deqScaleK,
                                                                     GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR dq,
-                                                                    GM_ADDR dk, GM_ADDR dv, GM_ADDR sink, GM_ADDR dsink,
+                                                                    GM_ADDR dk, GM_ADDR dv, GM_ADDR keySink, GM_ADDR dkSink, GM_ADDR dvSink,
                                                                     GM_ADDR workspace)
 {
     valueGm.SetGlobalBuffer((__gm__ INPUT_TYPE *)value);
@@ -203,8 +203,9 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR valu
         }
     }
     if (unlikely(tilingData->s1s2BNGS1S2BaseParams.sinkOptional)) {
-        sinkGm.SetGlobalBuffer((__gm__ float *)sink);
-        dsinkGm.SetGlobalBuffer((__gm__ float *)dsink);
+        sinkGm.SetGlobalBuffer((__gm__ float *)keySink);
+        dsinkGm.SetGlobalBuffer((__gm__ float *)dkSink);
+        dvSinkGm.SetGlobalBuffer((__gm__ float *)dvSink);
         dsinkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace + tilingData->postTilingData.dsinkWorkSpaceOffset / sizeof(float));
     }
 }
@@ -1012,7 +1013,7 @@ public:
     __aicore__ inline void InitGlobalBuffer(GM_ADDR value, GM_ADDR dy, GM_ADDR y, GM_ADDR pseShift, GM_ADDR dropMask,
                                             GM_ADDR attenMask, GM_ADDR softmaxMax, GM_ADDR softmaxSum,
                                             GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy,
-                                            GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR sink, GM_ADDR dsink,
+                                            GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR keySink, GM_ADDR dkSink, GM_ADDR dvSink,
                                             GM_ADDR workspace){};
     __aicore__ inline void SetVecBlockParams(TPipe *pipe, FagTilingType tilingData, uint32_t vBlockIdx,
                                              uint32_t cBlockIdx, uint32_t vSubBlockIdx, AttenMaskInfo &attenMaskInfo,

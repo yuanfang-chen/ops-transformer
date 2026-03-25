@@ -434,6 +434,8 @@ struct FuzzyBaseInfoParamsRegbase { // 频繁使用的基础参数
 
     int64_t blockStarts[CORE_LIST_NUM];
     int64_t blockEnds[CORE_LIST_NUM];
+    int64_t sinkBlockStarts[CORE_LIST_NUM];
+    int64_t sinkBlockEnds[CORE_LIST_NUM];
     uint32_t sparseMode;
     uint32_t prefixN[BATCH_MAX_SIZE] = {0};
 
@@ -484,6 +486,10 @@ struct FuzzyBaseInfoParamsRegbase { // 频繁使用的基础参数
     uint64_t sinkSize = 0;
     uint64_t s1SinkOuter = 0;
     uint64_t s2SinkOuter = 0;
+    int64_t sinkS2Size = 0;
+    int64_t sinkS2Tail = 0;
+    int64_t sinkS2Token = 0;
+    uint32_t sinkMaxValidBBLen = 0;
     uint32_t tndMaxSumLayout = 0; // 0: BNS8, 1: TND
 };
 
