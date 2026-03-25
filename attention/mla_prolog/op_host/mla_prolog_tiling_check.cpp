@@ -585,21 +585,24 @@ void MlaPrologTilingCheck::FillFullQuantParamInfo()
     expectedParamInfo_.emplace(DEQUANT_SCALE_W_DKV_KR_NAME,
         std::vector<uint32_t>{1, baseShapeInfo_.hckvSize + baseShapeInfo_.drSize});
 
-    if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
-        expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-        expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-        expectedParamInfo_[WEIGHT_UQ_QR_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-        expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-    } else if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
-        expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_HIFLOAT8;
-        expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_HIFLOAT8;
-        expectedParamInfo_[WEIGHT_UQ_QR_NAME].dtype = ge::DT_HIFLOAT8;
-        expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_HIFLOAT8;
-    } else {
-        expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_INT8;
-        expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_INT8;
-        expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_INT8;
+    expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_INT8;
+    expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_INT8;
+    expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_INT8;
+
+    if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
+        if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
+            expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[WEIGHT_UQ_QR_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+        } else if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
+            expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[WEIGHT_UQ_QR_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_HIFLOAT8;
+        }
     }
+
     expectedParamInfo_[DEQUANT_SCALE_X_NAME].dtype = ge::DT_FLOAT;
     expectedParamInfo_[DEQUANT_SCALE_W_DQ_NAME].dtype = ge::DT_FLOAT;
     expectedParamInfo_[DEQUANT_SCALE_W_DKV_KR_NAME].dtype = ge::DT_FLOAT;
@@ -609,25 +612,24 @@ void MlaPrologTilingCheck::FillFullKVQuantParamInfo()
 {
     FillFullQuantParamInfo();
 
+    expectedParamInfo_[QUERY_NAME].dtype = ge::DT_INT8;
+    expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_INT8;
+    expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_INT8;
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
         expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1});
+        if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
+            expectedParamInfo_[QUERY_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+        } else if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
+            expectedParamInfo_[QUERY_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_HIFLOAT8;
+        }
     } else {
         expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1, baseShapeInfo_.hckvSize});
     }
 
-    if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
-        expectedParamInfo_[QUERY_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-        expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-        expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-    } else if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
-        expectedParamInfo_[QUERY_NAME].dtype = ge::DT_HIFLOAT8;
-        expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_HIFLOAT8;
-        expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_HIFLOAT8;
-    } else {
-        expectedParamInfo_[QUERY_NAME].dtype = ge::DT_INT8;
-        expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_INT8;
-        expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_INT8;
-    }
     expectedParamInfo_[QUANT_SCALE_CKV_NAME].dtype = ge::DT_FLOAT;
 }
 
