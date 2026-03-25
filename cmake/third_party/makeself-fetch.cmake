@@ -8,19 +8,11 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-# --- 打印 CANN_3RD_LIB_PATH 的值 ---
-message(STATUS "Debug: CMAKE_SOURCE_DIR is ${CMAKE_SOURCE_DIR}")
-message(STATUS "Debug: CANN_3RD_LIB_PATH is ${CANN_3RD_LIB_PATH}")
-# --- 打印结束 ---
-
 set(MAKESELF_NAME "makeself")
 set(MAKESELF_PATH ${CANN_3RD_LIB_PATH}/makeself)
 
 # 默认配置的makeself还是不存在则下载
 if (NOT EXISTS "${MAKESELF_PATH}/makeself-header.sh" OR NOT EXISTS "${MAKESELF_PATH}/makeself.sh")
-    # --- 简单标记 ---
-    message(STATUS "Debug: 1111 - Going into DOWNLOAD branch")
-    # --- 标记结束 ---
     set(MAKESELF_DOWNLOAD_URL "https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz")
     set(MAKESELF_ARCHIVE ${CANN_3RD_LIB_PATH}/pkg/makeself-release-2.5.0-patch1.tar.gz)
  	file(MAKE_DIRECTORY ${CANN_3RD_LIB_PATH}/pkg)
@@ -52,21 +44,13 @@ if (NOT EXISTS "${MAKESELF_PATH}/makeself-header.sh" OR NOT EXISTS "${MAKESELF_P
         ERROR_VARIABLE CHMOD_ERROR
     )
 else()
-    # --- 简单标记 ---
-    message(STATUS "Debug: 2222 - Going into COPY branch")
-    # --- 标记结束 ---
-
-    
-    execute_process(
-        COMMAND sh -c "echo 'Checking source path: ${MAKESELF_PATH}'; echo 'Directory exists:'; ls -la '${MAKESELF_PATH}' || echo 'Source directory does not exist!'; echo 'Contents of makeself.sh:'; ls -la '${MAKESELF_PATH}/makeself.sh' || echo 'makeself.sh does not exist!'; echo 'Contents of makeself-header.sh:'; ls -la '${MAKESELF_PATH}/makeself-header.sh' || echo 'makeself-header.sh does not exist!'"
-    )
     execute_process(
         COMMAND ls -R ${CMAKE_BINARY_DIR}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 
     execute_process(
-        
+        COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_BINARY_DIR}
         COMMAND cp -fr ${MAKESELF_PATH} ${CMAKE_SOURCE_DIR}/third_party
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself.sh"	 
         COMMAND chmod 700 "${CMAKE_BINARY_DIR}/makeself/makeself-header.sh"
