@@ -129,8 +129,12 @@ ge::Format ParseFormat(const string &format)
 vector<int64_t> ParseDims(const string &value)
 {
     const string trimmed = Trim(value);
-    if (trimmed == "NONE" || trimmed.empty()) {
+    if (trimmed.empty()) {
         return {};
+    }
+    if (trimmed == "NONE") {
+        // Keep compatibility with existing CSVs: NONE means empty optional tensor ([0]).
+        return {0};
     }
     if (trimmed == "ZERO") {
         return {0};
