@@ -267,10 +267,16 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
         if (*(context_.quantScaleRepoMode) == static_cast<int>(QUANT_SCALE_REPO_MODE::COMBINE)) {
             supportedDtileSize += baseShapeInfo_.hckvSize / static_cast<uint32_t>(*(context_.tileSize)) * (DTYPE_TO_SIZE.at(ge::DT_FLOAT) / DTYPE_TO_SIZE.at(ge::DT_INT8));
         }
-        OP_CHECK_IF(baseShapeInfo_.dtileSize != supportedDtileSize,
-            OP_LOGE(context_.opName, "DtileSize allows only %u, got %u.",
-                supportedDtileSize, baseShapeInfo_.dtileSize),
-            return ge::GRAPH_FAILED);
+        if (baseShapeInfo_.dtileSize != supportedDtileSize) {
+            if (*(context_.kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                OP_LOGE(context_.opName, "When kvQuantMode is PER_TILE, dtileSize allows only %u, got %u.",
+                    supportedDtileSize, baseShapeInfo_.dtileSize);
+            } else {
+                OP_LOGE(context_.opName, "When kvQuantMode is in {NO_QUANT, PER_TENSOR, PER_CHANNEL}, dtileSize allows only %u, got %u.",
+                    supportedDtileSize, baseShapeInfo_.dtileSize);
+            }
+            return ge::GRAPH_FAILED;
+        }
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -750,12 +756,12 @@ ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
         // 校验所有维度的乘积是否为0
         if(context_.krCache.shape->GetStorageShape().GetShapeSize() != 0) {
             isCorrect = ge::GRAPH_FAILED;
-            OP_LOGE(context_.opName, "KrCache %s is not an empty tensor.",
+            OP_LOGE(context_.opName, "When ckvkrRepoMode is COMBINE, KrCache should be empty tensor, but got %s.",
                 GetShapeStr(context_.krCache.shape->GetStorageShape()).c_str());
         }
         if(context_.krCacheOut.shape->GetStorageShape().GetShapeSize() != 0) {
             isCorrect = ge::GRAPH_FAILED;
-            OP_LOGE(context_.opName, "KrCacheOut %s is not an empty tensor.",
+            OP_LOGE(context_.opName, "When ckvkrRepoMode is COMBINE, KrCacheOut should be empty tensor, but got %s.",
                 GetShapeStr(context_.krCacheOut.shape->GetStorageShape()).c_str());
         }    
     }
