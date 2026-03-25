@@ -161,10 +161,11 @@ public:
 
         gCumExpUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * paraNum_), buffOffset);
         buffOffset += chunkSize_ * sizeof(float) * paraNum_;
+    }
 
     __aicore__ inline void InitGatherBuffer()
     {
-       for (uint32_t i = 0; i < chunkSize_; ++i) {
+        for (uint32_t i = 0; i < chunkSize_; ++i) {
             gatherOffsetFp32_.SetValue(i, i * BLOCK_SIZE);
         }
         for (uint32_t i = 0; i < halfChunkSize_; ++i) {
@@ -174,7 +175,7 @@ public:
             colBuffer_.SetValue<uint32_t>(i, (i * chunkSize_) * sizeof(float));
         }
         SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT); 
+        WaitFlag<HardEvent::S_V>(S_V_EVENT);
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
@@ -215,7 +216,7 @@ public:
         InitGatherBuffer();
     }
 
-    __aicore__ inline void Process() 
+    __aicore__ inline void Process()
     {
         uint32_t totalChunk = nv_ * numChunk_;
         uint32_t tailChunkNum = totalChunk / coreNum_;   // tail核处理的块数
