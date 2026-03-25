@@ -384,7 +384,8 @@ private:
             uint64_t betaUbOffset = i * halfChunkSize_;
             uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
-            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat_[valueUbOffset]);
+            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset],
+                         valueUbFloat_[valueUbOffset], subValidLenBatch_[i]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5); // 同步4
 
@@ -623,18 +624,18 @@ private:
     }
 
     __aicore__ inline void VBetaCompute(const GlobalTensor<bfloat16_t> valueGm, const GlobalTensor<float> vBetaWsGm,
-                                        LocalTensor<float> betaUbFloat, LocalTensor<float> valueUbFloat)
+                                        LocalTensor<float> betaUbFloat, LocalTensor<float> valueUbFloat, uint32_t subValidRows)
     {
         uint64_t vBeginOffset = subOffset_ * vRowStride_;
-        DataCopyInBf16WithStride(subValidRows_, dv_, valueGm[vBeginOffset], vRowStride_);
+        DataCopyInBf16WithStride(subValidRows, dv_, valueGm[vBeginOffset], vRowStride_);
         valueLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
         vBetaLocal_ = fp32OutQueue_.AllocTensor<float>();
-        Cast(valueUbFloat, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows_ * dvAligned_);
+        Cast(valueUbFloat, valueLocal_, AscendC::RoundMode::CAST_NONE, subValidRows * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(valueLocal_);
-        if (subValidRows_ < halfChunkSize_) {
-            Duplicate(valueUbFloat[subValidRows_ * dvAligned_], static_cast<float>(0.0f),
-                      (halfChunkSize_ - subValidRows_) * dvAligned_);
+        if (subValidRows < halfChunkSize_) {
+            Duplicate(valueUbFloat[subValidRows * dvAligned_], static_cast<float>(0.0f),
+                      (halfChunkSize_ - subValidRows) * dvAligned_);
             PipeBarrier<PIPE_V>();
         }
         uint32_t betaShape[2] = {halfChunkSize_, 1};
