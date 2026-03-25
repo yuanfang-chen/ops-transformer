@@ -34,6 +34,7 @@ namespace optiling {
 constexpr uint32_t PRE_LOAD_NUM = 2;
 constexpr uint32_t BLOCK_TABLE_ELEM_BYTE = 4;
 constexpr int32_t SPARSE_MODE_BAND = 4;
+constexpr uint32_t SINK_NUM = 128;
 
 static const std::string QUERY_NAME = "query";
 static const std::string KEY_NAME = "key";
@@ -1096,16 +1097,34 @@ ge::graphStatus QSFAPTilingCheck::CheckKeySinkShape()
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
-    uint32_t shapeSize = 0;
-    if (GetActualSeqLenSize(shapeSize, opParamInfo_.actualSeqLengthsQ.tensor, qLayout_, "actualSeqLengthsQ") !=
-        ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-    if (shapeSize != bSize_) {
-        OP_LOGE(opName_, "actualSeqLengthsQ shape size is %u, it should be equal to batch size[%u]",
-            shapeSize, bSize_);
-        return ge::GRAPH_FAILED;
-    }
+
+    keySinkShapeCmp_ = opParamInfo_.keySink.shape->GetStorageShape();
+    valueSinkShapeCmp_ = opParamInfo_.valueSink.shape->GetStorageShape();
+    int64_t expectValueSinkDSize = qHeadDim_ - ropeHeadDim_;
+    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum() != DIM_NUM_THREE,
+        OP_LOGE(opName_, "key_sink should be 3D [128, N2, D], but got %zu dims.", keySinkShapeCmp_.GetDimNum()),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_ZERO) != SINK_NUM,
+        OP_LOGE(opName_, "key_sink dim0 should be %ld, but got %ld.", SINK_NUM, keySinkShapeCmp_.GetDimNum(0)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_ONE) != n2Size_,
+        OP_LOGE(opName_, "key_sink dim0 should be %u(= n2Size), but got %ld.", n2Size_, 
+        keySinkShapeCmp_.GetDimNum(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keySinkShapeCmp_.GetDimNum(DIM_NUM_TWO) != qHeadDim_,
+        OP_LOGE(opName_, "key_sink dim2 should be %u(= qHeadDim), but got %ld.", qHeadDim_, 
+        keySinkShapeCmp_.GetDimNum(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum() != DIM_NUM_THREE,
+        OP_LOGE(opName_, "value_sink should be 3D [128, N2, D], but got %zu dims.", valueSinkShapeCmp_.GetDimNum()),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_ZERO) != SINK_NUM,
+        OP_LOGE(opName_, "value_sink dim0 should be %ld, but got %ld.", SINK_NUM, valueSinkShapeCmp_.GetDimNum(0)),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_ONE) != n2Size_,
+        OP_LOGE(opName_, "value_sink dim0 should be %u(= n2Size), but got %ld.", n2Size_, 
+        valueSinkShapeCmp_.GetDimNum(DIM_NUM_ONE)), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueSinkShapeCmp_.GetDimNum(DIM_NUM_TWO) != expectValueSinkDSize,
+        OP_LOGE(opName_, "value_sink dim2 should be %u(= qHeadDim - ropeHeadDim), but got %ld.", expectValueSinkDSize, 
+        valueSinkShapeCmp_.GetDimNum(DIM_NUM_TWO)), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1117,6 +1136,7 @@ ge::graphStatus QSFAPTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLensQ() ||
         ge::GRAPH_SUCCESS != CheckActualSeqLens() ||
+        ge::GRAPH_SUCCESS != CheckKeySink() ||
         ge::GRAPH_SUCCESS != CheckBlockTable()) {
         return ge::GRAPH_FAILED;
     }
