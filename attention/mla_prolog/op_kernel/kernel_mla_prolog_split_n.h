@@ -375,7 +375,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::ScaleInit(
         dequantScaleWDkvkrGm_.SetGlobalBuffer((__gm__ dequantScaleType *)dequantScaleWDkvkr);
     }
     if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, hifloat8_t>::value ||
-        (std::is_same<mmQcQrInputType, FP8E4M3>::value || std::is_same<dequantScaleType, float>::value)) {
+        (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
         smoothScaleCqGm_.SetGlobalBuffer((__gm__ float *)smoothScaleCq);
         deqScaleQcQrW_.SetGlobalBuffer((__gm__ dequantScaleType *)deqScaleQcQrW);
         quantScaleCkvGm_.SetGlobalBuffer((__gm__ float *)quantScaleCkv);
@@ -1799,7 +1799,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeQr(int64_t ropeQrOffset, 
     LocalTensor<float> channelDeqScaleLocal = shareBuffer_.Get<float>();
 
     if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, hifloat8_t>::value ||
-            (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
+        (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
         uint64_t row = baseParams_->numHeadSize;
         uint64_t col = baseParams_->dimHeadRope;
         DataCopyExtParams copyParams{static_cast<uint16_t>(row), static_cast<uint32_t>(col * sizeof(float)),
@@ -1938,7 +1938,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeQrSplitN(const RopeQrSpli
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 
     if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, hifloat8_t>::value ||
-            (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
+        (std::is_same<mmQcQrInputType, FP8E4M3>::value && std::is_same<dequantScaleType, float>::value)) {
         GlobalTensor<float> deqScaleRope = deqScaleQcQrW_[ropeQrSplitNParams.ropeQrOffset];
         RotaryPosEmbPerHead<mmQcQrOutputType, ropeComputType, ropeOutputType, true>(outputLocalRope, inputGmRope[ropeQrSplitNParams.inputOffsetRope],
             cosLocal_[ropeQrSplitNParams.sinCosOffset], sinLocal_[ropeQrSplitNParams.sinCosOffset], ropeShareTmpUb, ropeParams, ropeQrSplitNParams.ropeStride, deqScaleRope[ropeQrSplitNParams.deqScaleOffset],
