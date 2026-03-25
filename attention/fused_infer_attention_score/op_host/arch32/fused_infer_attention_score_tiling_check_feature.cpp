@@ -218,17 +218,27 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
     if (!fiaInfo_.isOutQuantEnable) {
         return ge::GRAPH_SUCCESS;
     }
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT) {
+        OP_LOGE(opName_, "postquant do not support qkHeadDim = vHeadDim and rope exist");
+        return ge::GRAPH_FAILED;
+    }
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_COMBINE) {
+        OP_LOGE(opName_, "postquant do not support qkHeadDim != vHeadDim");
+        return ge::GRAPH_FAILED;
+    }
+    const std::vector<std::string> layoutSupportList = {
+        "BSND", "BNSD", "BSH", "BNSD_BSND",
+    };
+    std::string layout = opParamInfo_.layOut;
+    if (std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end()) {
+        OP_LOGE(opName_,
+                "when enable postquant, input_layout only supports BSH, BSND, BNSD, "
+                "and BNSD_BSND, but got %s",
+                layout.c_str());
+        return ge::GRAPH_FAILED;
+    }
     if (fiaInfo_.isLegacyIfa) {
         return ge::GRAPH_SUCCESS;
-    }
-    const int64_t D512 = 512;
-    const int64_t D64 = 64;
-    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && fiaInfo_.qkHeadDim == fiaInfo_.vHeadDim &&
-        fiaInfo_.qkHeadDim == D512 && fiaInfo_.ropeHeadDim == D64) {
-        OP_LOGE(opName_,
-                "In %s %s situation, when qkHeadDim = 512, vHeadDim = 512, ropeHeadDim = 64, postquant is unsupported",
-                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str());
-        return ge::GRAPH_FAILED;
     }
     OP_CHECK_IF(
         (fiaInfo_.sparseMode == SPARSE_MODE_BAND && (fiaInfo_.preToken < 0 || fiaInfo_.nextToken < 0)),
@@ -251,8 +261,8 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
         const gert::Tensor *tempDataKV = fiaInfo_.opParamInfo.actualSeqLengths.tensor;
         const int64_t *preTokens = fiaInfo_.opParamInfo.preToken;
         const int64_t *nextTokens = fiaInfo_.opParamInfo.nextToken;
-        uint32_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
-        uint32_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
+        int64_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
+        int64_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
         for (uint32_t i = 0; i < fiaInfo_.bSize; i++) {
             if ((actualLenDims == 0) || (tempData == nullptr) || (tempData->GetData<int64_t>() == nullptr)) {
                 actualSeqLengths[i] = fiaInfo_.s1Size;
