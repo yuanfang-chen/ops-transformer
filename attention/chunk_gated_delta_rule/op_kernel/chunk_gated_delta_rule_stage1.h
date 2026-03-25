@@ -201,6 +201,9 @@ public:
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
         }
+        ccOffset_ = i * chunkSize_ * chunkSize_;
+        ckOffset_ = i * chunkSize_ * dk_;
+        cvOffset_ = i * chunkSize_ * chunkSize_;
         SetGlobalTensors(initParams);
         InitLocalBuffers();
     }
@@ -230,75 +233,51 @@ public:
                 uint32_t curTaskId = taskId + i;
                 uint64_t curNId = curTaskId % nv_;
                 uint64_t curCgId = curTaskId / nv_;
-                // 尾chunk处理
-                if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
-                    validLenBatch_[i] = cg_.length % chunkSize_;
-                }
-                if (validLenBatch_[i] < halfChunkSize_) {
-                    subValidLenBatch_[i] = (subBlockIdx_ == 0) ? validLenBatch_[i] : 0;
-                } else {
-                    subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
-                }
-                // chunk在全局T上的起始行 = chunkGroup起始行 + chunk内偏移
-                chunkStartRowBatch_[i] = cg_.startPos + curCgId * chunkSize_;
-                nIdBatch_[i] = curNId;
-                bgOffsetBatch_[i] = chunkStartRowBatch_[i] * nv_ + curNId;
-                SetChunkTensors(i, curNId, curCgId, chunkStartRowBatch_[i]);
+                SetChunkOffset(i, curNId, curCgId);
             }
-            ProcessParaChunk(curParaNum, taskId, cgId, chunkStartRowBatch_);
+            ProcessParaChunk(curParaNum, taskId, cgId);
         }
     }
 
 private:
     // ----------------------------------------------------------
     // SetChunkTensors
-    //   nId       : head 编号 (Nv 维度)
-    //   localChunkId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
-    //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
+    //   curNId    : head 编号 (Nv 维度)
+    //   curCgId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
     // ----------------------------------------------------------
-   __aicore__ inline void SetChunkTensors(uint64_t id, uint64_t nId, uint64_t localChunkId, uint64_t chunkStartRow)
+    __aicore__ inline void SetChunkOffset(uint64_t id, uint64_t curNId, uint64_t curCgId)
     {
-        // uint64_t kid = nId * nk_ / nv_;
-        // uint64_t subRow = chunkStartRow + subOffset_;
-        // uint64_t qk_base = subRow * nk_ * dk_ + kid * dk_;
-        // queryGm_ = queryBaseGm_[qk_base];
-        // keyGm_   = keyBaseGm_[qk_base];
-
-        // uint64_t vOffset = chunkStartRow * vRowStride_ + nId * dv_;
-        // valueGm_ = valueBaseGm_[vOffset];
-
-        // uint64_t bgOffset = chunkStartRow * nv_ + nId;
-        // betaGm_ = betaBaseGm_[bgOffset];
-        // if (gOptional_){
-        //     gGm_ = gBaseGm_[bgOffset];
-        // }
-
+        // 尾chunk处理
+        if (curCgId == numChunk_ - 1 && cg_.length % chunkSize_ != 0) {
+            validLenBatch_[i] = cg_.length % chunkSize_;
+        }
+        if (validLenBatch_[i] < halfChunkSize_) {
+            subValidLenBatch_[i] = (subBlockIdx_ == 0) ? validLenBatch_[i] : 0;
+        } else {
+            subValidLenBatch_[i] = (subBlockIdx_ == 0) ? halfChunkSize_ : validLenBatch_[i] - halfChunkSize_;
+        }
+        // offset
         uint64_t cgLenPad = (cg_.length + chunkSize_ - 1) / chunkSize_ * chunkSize_;
-        chunkRowBase_[id] = nId * cgLenPad + localChunkId * chunkSize_;
+        chunkRowBase_[id] = curNId * cgLenPad + curCgId * chunkSize_;
+
+        chunkStartRowBatch_[i] = cg_.startPos + curCgId * chunkSize_;
+        nIdBatch_[i] = curNId;
+        bgOffsetBatch_[i] = chunkStartRowBatch_[i] * nv_ + curNId;
     }
 
-    // ----------------------------------------------------------
-    //   startTaskId
-    //   localChunkId : CG 内的 chunk 编号 (0 ~ CG_CHUNKS-1)
-    //   chunkStartRow   : 当前 chunk 在全局 T 上的起始行
-    // ----------------------------------------------------------
-    __aicore__ inline void ProcessParaChunk(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId, uint64_t chunkStartRow)
+    __aicore__ inline void ProcessParaChunk(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
     {
         if ASCEND_IS_AIC {
-            ParaChunkAIC(curParaNum, startTaskId, localChunkId, chunkStartRow)
+            ParaChunkAIC(curParaNum, startTaskId, localChunkId)
         }
         if ASCEND_IS_AIV {
-            ParaChunkAIV(curParaNum, startTaskId, localChunkId, chunkStartRow)
+            ParaChunkAIV(curParaNum, startTaskId, localChunkId)
         }
     }
 
-    __aicore__ inline void ParaChunkAIC(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId,
-                                        uint64_t chunkStartRow)
+    __aicore__ inline void ParaChunkAIC(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
     {
         AscendC::CrossCoreWaitFlag(0x9); // 同步0
-        uint64_t ccOffset_ = i * chunkSize_ * chunkSize_;
-        uint64_t ckOffset_ = i * chunkSize_ * dk_;
-        uint64_t cvOffset_ = i * chunkSize_ * chunkSize_;
         // key @ key.transpose(-1,-2)
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(keyContinousGm_[ckOffset_], keyContinousGm_[ckOffset_], kkWsGm_[ccOffset_], chunkSize_,
@@ -337,8 +316,7 @@ private:
         }
     }
 
-    __aicore__ inline void ParaChunkAIV(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId,
-                                        uint64_t chunkStartRow)
+    __aicore__ inline void ParaChunkAIV(int32_t curParaNum, uint64_t startTaskId, uint64_t localChunkId)
     {
         // 获取连续QK
         for (uint32_t i = 0; i < curParaNum; ++i) {
@@ -395,7 +373,7 @@ private:
 
         for (uint32_t i = 0; i < curParaNum; ++i) {
             // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
-            uint64_t vOffset = chunkStartRow[i] * vRowStride_ + nIdBatch_[i] * dv_;
+            uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             valueGm_ = valueBaseGm_[vOffset];
             uint64_t betaUbOffset = i * halfChunkSize_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
@@ -812,6 +790,9 @@ private:
     uint32_t paraNum_;
     uint32_t kStep_;
     uint32_t vStep_;
+    uint64_t ccOffset_;
+    uint64_t ckOffset_;
+    uint64_t cvOffset_;
     uint32_t validLenBatch_[MAX_PARALLEL_NUM];
     uint32_t subValidLenBatch_[MAX_PARALLEL_NUM];
     uint32_t chunkRowBase_[MAX_PARALLEL_NUM];
