@@ -271,6 +271,7 @@ protected:
     MMRCtxInfo& mmrCtxInfo_;
     Mc2Tiling::MatmulAllReduceTilingData tilingDataSelf_{};
     Mc2Tiling::MatmulAllReduceTilingData& tilingData_;
+    const std::set<uint32_t> USE_ALLREDUCE_TWO_SHOT {4};
 };
 } // namespace optiling
 #endif // MC2_MM_ALLREDUCE_TILING_ARCH35_H
