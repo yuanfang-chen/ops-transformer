@@ -36,6 +36,7 @@
 #include "flash_attention_score_grad_kernel.h"
 #include "flash_attention_score_grad_kernel_deter.h"
 #include "flash_attention_score_grad_kernel_quant.h"
+#include "flash_attention_score_grad_sink_kernel.h"
  
  
 #define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL(                                                                 \
@@ -47,6 +48,38 @@
         opPre.Process();                                                                                               \
         opPre.SyncALLCores();                                                                                          \
         pipeIn.Destroy();                                                                                              \
+        /* Phase 2: Sink block computation (conditional) */                                                            \
+        if (tilingData->s1s2BNGS1S2BaseParams.sinkOptional) {                                                          \
+            TPipe pipeSink;                                                                                            \
+            TSCM<QuePosition::VECIN, 1, GROUP_TSCM_MASK> dsSinkScm;                                                   \
+            TSCM<QuePosition::VECIN, 1, GROUP_TSCM_MASK> pSinkScm;                                                    \
+            pipeSink.InitBuffer(dsSinkScm, 1,                                                                          \
+                (uint32_t)s1TemplateType * (uint32_t)s2TemplateType * sizeof(INPUT_TYPE));                              \
+            pipeSink.InitBuffer(pSinkScm, 1,                                                                           \
+                (uint32_t)s1TemplateType * (uint32_t)s2TemplateType * sizeof(INPUT_TYPE));                              \
+            GlobalTscmArrayStatic sinkTscmArray[TSCM_BUF_NUM];                                                         \
+            gTscmArray = sinkTscmArray;                                                                                \
+            GlobalL0CArrayStatic sinkL0cArray[GET_L0C_BUF_NUM(                                                         \
+                (uint32_t)s1TemplateType, (uint32_t)s2TemplateType, (uint32_t)dTemplateType)];                         \
+            gL0cArray = sinkL0cArray;                                                                                  \
+            InitTSCMBuffer<INPUT_TYPE, s1TemplateType, s2TemplateType, dTemplateType, SPLIT_AXIS,                      \
+                           false>(&pipeSink, gTscmArray);                                                              \
+            InitL0CBuffer<INPUT_TYPE, s1TemplateType, s2TemplateType, dTemplateType, false,                            \
+                          IS_TND>(&pipeSink, gL0cArray);                                                               \
+            FagBaseApi::FlashAttentionScoreGradSinkKernel<INPUT_TYPE, float, OUTDTYPE, IS_ATTEN_MASK, IS_PSE,          \
+                IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE,              \
+                FP8_OPEN_TSCM, IS_TND_SWIZZLE, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType> opSink;     \
+            REGIST_MATMUL_OBJ(&pipeSink, GetSysWorkSpacePtr(), opSink.mm1, (TCubeTiling *)nullptr,                     \
+                              opSink.mm2, (TCubeTiling *)nullptr, opSink.mm3, (TCubeTiling *)nullptr);                 \
+            opSink.Init(key_sink, value_sink, dy, query, pse_shift, drop_mask, atten_mask, attention_in,               \
+                        softmax_lse, prefix, actual_seq_qlen, actual_seq_kvlen,                                        \
+                        deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope, keyRope,                               \
+                        dq, dk, dv, dpse, dqRope, dkRope, user, tilingData, &pipeSink, dsSinkScm, pSinkScm);          \
+            opSink.Process();                                                                                          \
+            opSink.SyncALLCores();                                                                                     \
+            pipeSink.Destroy();                                                                                        \
+        }                                                                                                              \
+        /* Phase 3: Main Deter/Non-Deter computation */                                                                \
         TPipe pipeBase;                                                                                                \
         using CubeBlockType =                                                                                          \
             typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockCube<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, IS_TND_SWIZZLE, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,               \
@@ -58,7 +91,7 @@
         typename std::conditional<(DETER_SPARSE_TYPE) == NO_DETER, FagBaseApi::FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType>, FagBaseApi::FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>>::type op; \
         op.Init(key, value, dy, query, pse_shift, drop_mask, atten_mask, attention_in, softmax_max, softmax_sum,       \
                 prefix, actual_seq_qlen, actual_seq_kvlen, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope,     \
-                keyRope, sink, dq, dk, dv, dpse, dqRope, dkRope, dsink, user, tilingData, &pipeBase);                  \
+                keyRope, key_sink, value_sink, softmax_lse, dq, dk, dv, dpse, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipeBase);                  \
         op.Process();                                                                                                  \
         if (ORIG_DTYPE_QUERY != DT_FLOAT) {                                                                            \
             op.SyncALLCores();                                                                                         \
@@ -67,7 +100,7 @@
             FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE,            \
                                                           DETER_SPARSE_TYPE, IS_TND, IS_TND_SWIZZLE>                                   \
                 opPost;                                                                                                \
-            opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+            opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                    \
             opPost.Process();                                                                                          \
         } else {                                                                                                       \
             pipeBase.Destroy();                                                                                        \
@@ -102,7 +135,7 @@
         FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE,            \
                                                         DETER_SPARSE_TYPE, IS_TND, IS_TND_SWIZZLE>                                   \
             opPost;                                                                                                \
-        opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+        opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                    \
         opPost.Process();                                                                                          \
     } while (0)
  
@@ -152,7 +185,7 @@
             pipeBase.Destroy();                                                                                        \
             TPipe pipePost;                                                                                            \
             FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE, IS_DETER, IS_TND> opPost;    \
-            opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+            opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                               \
             opPost.Process();                                                                                          \
         } else {                                                                                                       \
             pipeBase.Destroy();                                                                                        \
@@ -205,7 +238,7 @@
             pipeBase.Destroy();                                                                                        \
             TPipe pipePost;                                                                                            \
             FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE, IS_DETER, IS_TND> opPost;    \
-            opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+            opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                               \
             opPost.Process();                                                                                          \
         } else {                                                                                                       \
             pipeBase.Destroy();                                                                                        \
@@ -272,7 +305,7 @@
                           (TCubeTiling *)nullptr, op.mm3, (TCubeTiling *)nullptr);                                     \
         op.Init(key, value, dy, query, pse_shift, drop_mask, atten_mask, attention_in, softmax_max, softmax_sum,       \
                 prefix, actual_seq_qlen, actual_seq_kvlen, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope,     \
-                keyRope, sink, dq, dk, dv, dpse, dqRope, dkRope, dsink, user, tilingData, &pipeBase, dsScm, pScm);     \
+                keyRope, key_sink, dq, dk, dv, dpse, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipeBase, dsScm, pScm);     \
         op.Process();                                                                                                  \
         if (ORIG_DTYPE_QUERY != DT_FLOAT) {                                                                            \
             op.SyncALLCores();                                                                                         \
@@ -281,7 +314,7 @@
             FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE,            \
                                                           DETER_SPARSE_TYPE, IS_TND, IS_TND_SWIZZLE>                                   \
                 opPost;                                                                                                \
-            opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+            opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                               \
             opPost.Process();                                                                                          \
             pipePost.Destroy();                                                                                        \
         } else {                                                                                                       \
@@ -324,7 +357,7 @@
         FagBaseApi::FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType> op;                                     \
         op.Init(key, value, dy, query, pse_shift, drop_mask, atten_mask, attention_in, softmax_max, softmax_sum,       \
                 prefix, actual_seq_qlen, actual_seq_kvlen, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope,     \
-                keyRope, sink, dq, dk, dv, dpse, dqRope, dkRope, dsink, user, tilingData, &pipeBase);                  \
+                keyRope, key_sink, dq, dk, dv, dpse, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipeBase);                  \
         op.Process();                                                                                                  \
         if (tilingData->s1s2BNGS1S2BaseParams.sinkOptional) {                                                          \
             op.SyncALLCores();                                                                                         \
@@ -333,7 +366,7 @@
             FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<INPUT_TYPE, float, OUTDTYPE, SPLIT_AXIS, IS_ROPE,            \
                                                           DETER_SPARSE_TYPE, IS_TND, IS_TND_SWIZZLE>                   \
                 opPost;                                                                                                \
-            opPost.Init(dq, dk, dv, dqRope, dkRope, dsink, user, tilingData, &pipePost);                               \
+            opPost.Init(dq, dk, dv, dqRope, dkRope, dk_sink, dv_sink, user, tilingData, &pipePost);                               \
             opPost.Process();                                                                                          \
         } else {                                                                                                       \
             pipeBase.Destroy();                                                                                        \
@@ -363,8 +396,9 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
            __gm__ uint8_t *softmax_in, __gm__ uint8_t *attention_in, __gm__ uint8_t *prefix,
            __gm__ uint8_t *actual_seq_qlen, __gm__ uint8_t *actual_seq_kvlen, __gm__ uint8_t *deqScaleQ,
            __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV, __gm__ uint8_t *deqScaleDy, __gm__ uint8_t *dsScale, __gm__ uint8_t *pScale, __gm__ uint8_t *queryRope,
-           __gm__ uint8_t *keyRope, __gm__ uint8_t *sink, __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv,
-           __gm__ uint8_t *dpse, __gm__ uint8_t *dqRope, __gm__ uint8_t *dkRope, __gm__ uint8_t *dsink,
+           __gm__ uint8_t *keyRope, __gm__ uint8_t *key_sink, __gm__ uint8_t *value_sink, __gm__ uint8_t *softmax_lse,
+           __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv,
+           __gm__ uint8_t *dpse, __gm__ uint8_t *dqRope, __gm__ uint8_t *dkRope, __gm__ uint8_t *dk_sink, __gm__ uint8_t *dv_sink,
            __gm__ uint8_t *workspace, __gm__ uint8_t *tiling_data)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);

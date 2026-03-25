@@ -36,8 +36,9 @@ public:
             GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR query, GM_ADDR pseShift, GM_ADDR dropMask, GM_ADDR attenMask,
             GM_ADDR y, GM_ADDR softmaxMax, GM_ADDR softmaxSum, GM_ADDR prefixN, GM_ADDR actualSeqQlen, GM_ADDR actualSeqKvlen,
             GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR queryRope,
-            GM_ADDR keyRope, GM_ADDR sink, GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope,
-            GM_ADDR dkRope, GM_ADDR dsink, GM_ADDR workspace,
+            GM_ADDR keyRope, GM_ADDR keySink, GM_ADDR valueSink, GM_ADDR softmaxLse,
+            GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope,
+            GM_ADDR dkRope, GM_ADDR dkSink, GM_ADDR dvSink, GM_ADDR workspace,
             FagTilingType ordTilingData, TPipe *pipeIn);
     __aicore__ inline void SetUniqueRunInfo(FagRunInfo &runInfo);
     __aicore__ inline void SetUniqueConstInfo(FagConstInfo &constInfo);
@@ -76,12 +77,13 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
     GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR query, GM_ADDR pseShift, GM_ADDR dropMask, GM_ADDR attenMask,
     GM_ADDR y, GM_ADDR softmaxMax, GM_ADDR softmaxSum, GM_ADDR prefixN, GM_ADDR actualSeqQlen, GM_ADDR actualSeqKvlen,
     GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR queryRope, GM_ADDR keyRope,
-    GM_ADDR sink, GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope, GM_ADDR dkRope,
-    GM_ADDR dsink, GM_ADDR workspace, FagTilingType ordTilingData, TPipe *pipeIn)
+    GM_ADDR keySink, GM_ADDR valueSink, GM_ADDR softmaxLse,
+    GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope, GM_ADDR dkRope,
+    GM_ADDR dkSink, GM_ADDR dvSink, GM_ADDR workspace, FagTilingType ordTilingData, TPipe *pipeIn)
 {
     BaseClass::Init(key, value, dy, query, pseShift, dropMask, attenMask, y, softmaxMax, softmaxSum, prefixN, actualSeqQlen, actualSeqKvlen,
-        deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope, keyRope, sink, dq, dk, dv, dpse, dqRope, dkRope,
-        dsink, workspace, ordTilingData, pipeIn);
+        deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope, keyRope, keySink, valueSink, softmaxLse, dq, dk, dv, dpse, dqRope, dkRope,
+        dkSink, dvSink, workspace, ordTilingData, pipeIn);
  
     dkvWorkSpaceOffet = this->cBlockIdx * this->CUBE_BASEN * this->HEAD_DIM_ALIGN;
     dAlign16 = AlignTo16(this->constInfo.commonConstInfo.dSize);

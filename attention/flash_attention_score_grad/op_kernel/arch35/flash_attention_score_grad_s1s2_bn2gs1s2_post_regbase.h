@@ -34,7 +34,7 @@ class FlashAttentionScoreGradS1S2BNGS1S2PostRegbase {
 public:
     __aicore__ inline FlashAttentionScoreGradS1S2BNGS1S2PostRegbase(){};
     __aicore__ inline void Init(__gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dqRope,
-                                __gm__ uint8_t *dkRope, __gm__ uint8_t *dsink, __gm__ uint8_t *workspace,
+                                __gm__ uint8_t *dkRope, __gm__ uint8_t *dkSink, __gm__ uint8_t *dvSink, __gm__ uint8_t *workspace,
                                 FagTilingType ordTilingData,
                                 TPipe *pipe_in);
     __aicore__ inline void Process();
@@ -58,6 +58,7 @@ public:
     GlobalTensor<float> dqkvWorkspace[3];
     GlobalTensor<float> dsinkWorkspace;
     GlobalTensor<float> dsinkGm;
+    GlobalTensor<float> dvSinkGm;
     GlobalTensor<float> deterGm[2];
     TBuf<> dsinkResBuf;
     uint32_t vBlockIdx;
@@ -74,7 +75,7 @@ public:
 FAG_POST_FUNCTION_TEMPLATE
 __aicore__ inline void FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<FAG_POST_FUNCTION_PARAMS_TEMPLATE>::Init(
     __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dqRope,
-    __gm__ uint8_t *dkRope, __gm__ uint8_t *dsink,  __gm__ uint8_t *workspace,
+    __gm__ uint8_t *dkRope, __gm__ uint8_t *dkSink, __gm__ uint8_t *dvSink,  __gm__ uint8_t *workspace,
     FagTilingType ordTilingData, TPipe *pipe_in)
 {
     vBlockIdx = GetBlockIdx();
@@ -104,7 +105,8 @@ __aicore__ inline void FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<FAG_POST_FU
     if (unlikely(isSink)) {
         dsinkWorkspace.SetGlobalBuffer(
             (__gm__ float *)workspace + tilingData->postTilingData.dsinkWorkSpaceOffset / sizeof(float));
-        dsinkGm.SetGlobalBuffer((__gm__ float *)dsink);
+        dsinkGm.SetGlobalBuffer((__gm__ float *)dkSink);
+        dvSinkGm.SetGlobalBuffer((__gm__ float *)dvSink);
         s1SinkOuter = tilingData->s1s2BNGS1S2BaseParams.s1SinkOuter;
         s2SinkOuter = tilingData->s1s2BNGS1S2BaseParams.s2SinkOuter;
         bSinkSize = tilingData->s1s2BNGS1S2BaseParams.b;

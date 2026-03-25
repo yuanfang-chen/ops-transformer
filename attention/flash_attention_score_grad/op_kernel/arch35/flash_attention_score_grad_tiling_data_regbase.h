@@ -211,7 +211,10 @@ public:
     uint32_t blockOuter;
     uint32_t maxValidBBLen;
     uint32_t noNeedDeter;
-    uint32_t reserved1; // tilingData需要8字节对齐
+    uint32_t sinkMaxValidBBLen;
+    int64_t sinkS2Size;
+    int64_t sinkS2Tail;
+    int64_t sinkS2Token;
     int64_t bandIdx;
     int64_t deterMaxRound;
     uint64_t dqIsNeedDeter[MAX_CORE_NUM];
@@ -228,6 +231,10 @@ public:
     uint32_t get_blockOuter() const { return blockOuter; }
     uint32_t get_maxValidBBLen() const { return maxValidBBLen; }
     uint32_t get_noNeedDeter() const { return noNeedDeter; }
+    uint32_t get_sinkMaxValidBBLen() const { return sinkMaxValidBBLen; }
+    int64_t get_sinkS2Size() const { return sinkS2Size; }
+    int64_t get_sinkS2Tail() const { return sinkS2Tail; }
+    int64_t get_sinkS2Token() const { return sinkS2Token; }
     int64_t get_bandIdx() const { return bandIdx; }
     int64_t get_deterMaxRound() const { return deterMaxRound; }
     const uint64_t* get_dqIsNeedDeter() const { return dqIsNeedDeter; }
@@ -246,6 +253,10 @@ public:
     void set_blockOuter(uint32_t val) { blockOuter = val; }
     void set_maxValidBBLen(uint32_t val) { maxValidBBLen = val; }
     void set_noNeedDeter(uint32_t val) { noNeedDeter = val; }
+    void set_sinkMaxValidBBLen(uint32_t val) { sinkMaxValidBBLen = val; }
+    void set_sinkS2Size(int64_t val) { sinkS2Size = val; }
+    void set_sinkS2Tail(int64_t val) { sinkS2Tail = val; }
+    void set_sinkS2Token(int64_t val) { sinkS2Token = val; }
     void set_bandIdx(int64_t val) { bandIdx = val; }
     void set_deterMaxRound(int64_t value) { deterMaxRound = value; }
     void set_dqIsNeedDeter(const uint64_t* val) { 
@@ -431,6 +442,8 @@ public:
     uint64_t deterWorkSpaceOffset;
     uint64_t sfmgWorkSpaceOffset;
     uint64_t dsinkWorkSpaceOffset;
+    uint64_t dkSinkWorkSpaceOffset;
+    uint64_t dvSinkWorkSpaceOffset;
     uint64_t sinkReduceAxis;
     uint64_t sinkPostBlockTotal;
     uint64_t sinkPostBlockFactor;
@@ -458,6 +471,8 @@ public:
     uint64_t get_deterWorkSpaceOffset() const { return deterWorkSpaceOffset; }
     uint64_t get_sfmgWorkSpaceOffset() const {return sfmgWorkSpaceOffset;}
     uint64_t get_dsinkWorkSpaceOffset() const {return dsinkWorkSpaceOffset;}
+    uint64_t get_dkSinkWorkSpaceOffset() const {return dkSinkWorkSpaceOffset;}
+    uint64_t get_dvSinkWorkSpaceOffset() const {return dvSinkWorkSpaceOffset;}
     uint64_t get_sinkReduceAxis() const { return sinkReduceAxis; }
     uint64_t get_sinkPostBlockTotal() const { return sinkPostBlockTotal; }
     uint64_t get_sinkPostBlockFactor() const { return sinkPostBlockFactor; }
@@ -485,6 +500,8 @@ public:
     void set_deterWorkSpaceOffset(uint64_t value) { deterWorkSpaceOffset = value; }
     void set_sfmgWorkSpaceOffset(uint64_t value) { sfmgWorkSpaceOffset = value; }
     void set_dsinkWorkSpaceOffset(uint64_t value) { dsinkWorkSpaceOffset = value; }
+    void set_dkSinkWorkSpaceOffset(uint64_t value) { dkSinkWorkSpaceOffset = value; }
+    void set_dvSinkWorkSpaceOffset(uint64_t value) { dvSinkWorkSpaceOffset = value; }
     void set_sinkReduceAxis(uint64_t value) { sinkReduceAxis = value; }
     void set_sinkPostBlockTotal(uint64_t value) { sinkPostBlockTotal = value; }
     void set_sinkPostBlockFactor(uint64_t value) { sinkPostBlockFactor = value; }
@@ -617,6 +634,7 @@ public:
     FlashAttentionScoreGradS1S2BNGS1S2BaseParamsRegbase s1s2BNGS1S2BaseParams;
     FlashAttentionScoreGradS1S2BNGS1S2SplitCoreParamsRegbase s1s2BNGS1S2SplitCoreParams;
     BlockNumListParamsRegbase s1s2BNGS1S2BlockNumList;
+    BlockNumListParamsRegbase sinkBlockNumList;
     PreParamsRegbase preTilingData;
     PostParamsRegbase postTilingData;
     typename std::conditional<isNewDeter, DeterParamRegbase, std::nullptr_t>::type deterParam;
