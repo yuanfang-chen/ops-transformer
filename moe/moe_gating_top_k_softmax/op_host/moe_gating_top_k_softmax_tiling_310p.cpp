@@ -20,7 +20,7 @@
 #include "moe_gating_top_k_softmax_tiling_base.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
-#include "moe_gating_top_k_softmax_tiling.h"
+#include "moe_gating_top_k_softmax_tiling_base.h"
 #include "tiling/platform/platform_ascendc.h"
 
 #include <climits>
@@ -174,7 +174,7 @@ uint64_t MoeGatingTopKSoftmax310PTiling::GetTilingKey() const
 {
     switch (dtype) {
         case ge::DataType::DT_FLOAT16:
-            return TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P;
+            return MOE_GATING_SOFTMAX_310P_FLOAT16_OPTIONAL_FINISHED;
         default:
             break;
     }
