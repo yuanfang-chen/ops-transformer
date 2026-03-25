@@ -1288,9 +1288,9 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
             constInfo.sparseMode == PREFIX_COMPRESS) {
             return CheckIsValidBlockForDeter(runInfo, index, s1oDimIdx, s2oDimIdx, taskId);
         } else {
-            uint64_t s2SparseLeft = Max(CUBE_BASEM * s1oDimIdx - constInfo.s1Token, 0);
+            int64_t s2SparseLeft = Max(CUBE_BASEM * s1oDimIdx - constInfo.s1Token, 0);
             s2SparseLeft = s2SparseLeft >> 6 << 6;
-            uint64_t s2SparseRight =
+            int64_t s2SparseRight =
                 AlignTo64(Min(CUBE_BASEM * (s1oDimIdx + 1), constInfo.commonConstInfo.s1Size) + constInfo.s2Token);
             s2SparseRight = Min(s2SparseRight, constInfo.commonConstInfo.s2Size);
             if constexpr (IS_BN2_MULTIBLK) {
