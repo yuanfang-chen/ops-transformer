@@ -1193,6 +1193,8 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mx_gmmWeight_nullptr)
 
     TensorDesc mmX_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
     TensorDesc mmWeight_({}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+    TensorDesc mmXScale_({4096, 112, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
+    TensorDesc mmWeightScale_({112, 4096, 2}, ACL_FLOAT8_E8M0, ACL_FORMAT_ND);
     TensorDesc y_({8192, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
 
