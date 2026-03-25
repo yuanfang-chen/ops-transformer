@@ -77,18 +77,22 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1160px"> <colgroup>
     <col style="width: 120px">
     <col style="width: 120px">
     <col style="width: 160px">
+    <col style="width: 160px">
     <col style="width: 150px">
     <col style="width: 80px">
+    <col style="width: 250px">
+    <col style="width: 120px">
     </colgroup>
     <thead>
     <tr>
     <th>参数名</th>
     <th>输入/输出</th>
     <th>描述</th>
+    <th>使用说明</th>
     <th>数据类型</th>
     <th>数据格式</th>
     <th>维度(shape)</th>
@@ -99,6 +103,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmX</td>
     <td>输入</td>
     <td>该输入进行AlltoAllv通信后结果作为GroupedMatMul计算的左矩阵。</td>
+    <td>待填</td>
     <td>HIFLOAT8</td>
     <td>ND</td>
     <td>支持2维，shape为(BSK, H1)。</td>
@@ -108,6 +113,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmWeight</td>
     <td>输入</td>
     <td>GroupedMatMul计算的右矩阵。</td>
+    <td>待填</td>
     <td>与gmmX保持一致</td>
     <td>ND</td>
     <td>支持3维，shape为(e, H1, N1)。</td>
@@ -117,6 +123,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmXScale</td>
     <td>输入</td>
     <td>gmmX的量化系数。</td>
+    <td>待填</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
@@ -126,6 +133,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmWeightScale</td>
     <td>输入</td>
     <td>gmmWeight的量化系数。</td>
+    <td>待填</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
@@ -135,6 +143,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>sendCountsTensorOptional</td>
     <td>输入</td>
     <td>预留参数，当前版本仅支持传nullptr。</td>
+    <td>待填</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>
@@ -144,6 +153,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>recvCountsTensorOptional</td>
     <td>输入</td>
     <td>预留参数，当前版本仅支持传nullptr。</td>
+    <td>待填</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>
@@ -153,6 +163,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmXOptional</td>
     <td>输入</td>
     <td>可选输入，共享专家MatMul计算中的左矩阵，需与mmWeightOptional同时传入或同为nullptr。</td>
+    <td>待填</td>
     <td>与gmmX保持一致</td>
     <td>ND</td>
     <td>支持2维，shape为(BS, H2)。</td>
@@ -162,6 +173,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmWeightOptional</td>
     <td>输入</td>
     <td>可选输入，共享专家MatMul计算中的右矩阵，需与mmXOptional同时传入或同为nullptr。</td>
+    <td>待填</td>
     <td>与mmX保持一致</td>
     <td>ND</td>
     <td>支持2维，shape为(H2, N2)。</td>
@@ -171,6 +183,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmXScaleOptional</td>
     <td>输入</td>
     <td>mmX的量化系数。</td>
+    <td>待填</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
@@ -180,6 +193,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmWeightScaleOptional</td>
     <td>输入</td>
     <td>mmWeight的量化系数。</td>
+    <td>待填</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
@@ -189,6 +203,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmXQuantMode</td>
     <td>输入</td>
     <td>gmmX的量化模式，当前版本仅支持1。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -198,6 +213,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmWeightQuantMode</td>
     <td>输入</td>
     <td>gmmWeight的量化模式，当前版本仅支持1。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -207,6 +223,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmXQuantMode</td>
     <td>输入</td>
     <td>mmX的量化模式，当前版本仅支持1。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -216,6 +233,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmWeightQuantMode</td>
     <td>输入</td>
     <td>mmWeight的量化模式，当前版本仅支持1。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -225,6 +243,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>group</td>
     <td>输入</td>
     <td>专家并行的通信域名，字符串长度要求(0, 128)。</td>
+    <td>待填</td>
     <td>STRING</td>
     <td>-</td>
     <td>-</td>
@@ -234,6 +253,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>epWorldSize</td>
     <td>输入</td>
     <td>ep通信域大小：<term>Ascend 950PR/Ascend 950DT</term>支持2、4、8、16、32、64、128、256。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -243,6 +263,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>sendCounts</td>
     <td>输入</td>
     <td>表示发送给其他卡的token数，数据类型支持INT64，长度为e * epWorldSize，最大为256。输入类型需为list。</td>
+    <td>待填</td>
     <td>aclIntArray*（元素类型INT64）</td>
     <td>-</td>
     <td>-</td>
@@ -252,6 +273,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>recvCounts</td>
     <td>输入</td>
     <td>表示接收其他卡的token数，数据类型支持INT64，长度为e * epWorldSize，最大为256。输入类型需为list。</td>
+    <td>待填</td>
     <td>aclIntArray*（元素类型INT64）</td>
     <td>-</td>
     <td>-</td>
@@ -261,6 +283,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>transGmmWeight</td>
     <td>输入</td>
     <td>GroupedMatMul的右矩阵是否需要转置，true表示需要转置，false表示不转置。</td>
+    <td>待填</td>
     <td>BOOL</td>
     <td>-</td>
     <td>-</td>
@@ -270,6 +293,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>transMmWeight</td>
     <td>输入</td>
     <td>共享专家MatMul的右矩阵是否需要转置，true表示需要转置，false表示不转置。</td>
+    <td>待填</td>
     <td>BOOL</td>
     <td>-</td>
     <td>-</td>
@@ -279,6 +303,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>groupSize</td>
     <td>输入</td>
     <td>当前版本不支持，传nullptr。</td>
+    <td>待填</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -288,6 +313,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>permuteOutFlag</td>
     <td>输入</td>
     <td>permuteOutOptional是否需要输出，true表明需要输出，false表明不需要输出。</td>
+    <td>待填</td>
     <td>BOOL</td>
     <td>-</td>
     <td>-</td>
@@ -297,6 +323,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmY</td>
     <td>输出</td>
     <td>路由专家计算的输出。</td>
+    <td>待填</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>支持2维，shape为(A, N1)。</td>
@@ -306,6 +333,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmYOptional</td>
     <td>输出</td>
     <td>共享专家计算的输出，数据类型与gmmY保持一致，仅当传入mmXOptional与mmWeightOptional才输出。</td>
+    <td>待填</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>支持2维，shape为(BS, N2)。</td>
@@ -315,6 +343,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>permuteOutOptional</td>
     <td>输出</td>
     <td>permute之后的输出，数据类型与gmmX保持一致，仅当permuteOutFlag为true时输出。</td>
+    <td>待填</td>
     <td>HIFLOAT8</td>
     <td>ND</td>
     <td>支持2维，shape为(A, H1)。</td>
@@ -324,6 +353,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>workspaceSize</td>
     <td>输出</td>
     <td>返回需要在Device侧申请的workspace大小。</td>
+    <td>待填</td>
     <td>UINT64</td>
     <td>-</td>
     <td>-</td>
@@ -333,6 +363,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
+    <td>待填</td>
     <td>aclOpExecutor*</td>
     <td>-</td>
     <td>-</td>
