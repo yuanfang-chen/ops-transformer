@@ -260,9 +260,9 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeMm1(const QLICommon::RunInfo &run
     }
     int64_t loopIdx = 0;
     int64_t s2L0LoopCnt = CeilDiv(runInfo.actualSingleProcessSInnerSize, S2_BASIC_BLOCK_L0);  // 2048取128
-    int64_t s1L0LoopCnt = CeilDiv(runInfo.actMBaseSize / constInfo_.gSize, 2);                  // 2 :constInfo.s1BaseSize / 2
-    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(constInfo_.gSize * 2)};
-    int64_t s1gL0RealSize[2] = {s1L0LoopCnt > 1 ? static_cast<int64_t>(constInfo_.gSize * 2) : runInfo.actMBaseSize,
+    int64_t s1L0LoopCnt = CeilDiv(runInfo.actMBaseSize / constInfo_.gSize, constInfo_.s1BaseSize / 2);  // 2 :一次取constInfo.s1BaseSize的一半
+    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(constInfo_.gSize * constInfo_.s1BaseSize / 2)};
+    int64_t s1gL0RealSize[2] = {s1L0LoopCnt > 1 ? static_cast<int64_t>(constInfo_.gSize * constInfo_.s1BaseSize / 2) : runInfo.actMBaseSize,
                                 runInfo.actMBaseSize - s1gL1Offset[1]};
     MmInfo mmInfo[2];
     CalcMmInfo(mmInfo[loopIdx & 1], loopIdx, s1L0LoopCnt, mmInfo[(loopIdx + 1) & 1], runInfo);
