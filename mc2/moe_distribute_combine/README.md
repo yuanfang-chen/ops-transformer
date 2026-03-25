@@ -11,8 +11,6 @@
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
-
-
 ## 功能说明
 
 算子功能：当存在TP域通信时，先进行ReduceScatterV通信，再进行AlltoAllV通信，最后将接收的数据整合（乘权重再相加）；当不存在TP域通信时，进行AlltoAllV通信，最后将接收的数据整合（乘权重再相加）。
@@ -33,8 +31,6 @@
     $$
 
 注意该算子必须与MoeDistributeDispatch配套使用，相当于按MoeDistributeDispatch算子收集数据的路径原路返还。
-
-
 
 ## 参数说明
 
@@ -262,8 +258,8 @@
 
 - 参数说明里shape格式说明：
     - `A`：表示本卡可能接收的最大token数量，取值范围如下：
-        - 对于共享专家，要满足`A` = `BS` * `epWorldSize` * `sharedExpertNum` / `sharedExpertRankNum`。
-        - 对于MoE专家，当`globalBs`为0时，要满足`A` >= `BS` * `epWorldSize` * min(`localExpertNum`, `K`)；当`globalBs`非0时，要满足`A` >= `globalBs` * min(`localExpertNum`, `K`)。
+        - 对于共享专家，要满足`A` = `BS` *`epWorldSize`* `sharedExpertNum` / `sharedExpertRankNum`。
+        - 对于MoE专家，当`globalBs`为0时，要满足`A` >= `BS` *`epWorldSize`* min(`localExpertNum`, `K`)；当`globalBs`非0时，要满足`A` >= `globalBs` * min(`localExpertNum`, `K`)。
     - `localExpertNum`：表示本卡专家数量。
         - 对于共享专家卡，`localExpertNum` = 1
         - 对于MoE专家卡，`localExpertNum` = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)，`localExpertNum` > 1时，不支持TP域通信。
@@ -279,13 +275,13 @@
         - `H`：表示hidden size隐藏层大小，取值范围(0, 7168]，且保证是32的整数倍。
         - `BS`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 256]。
         - `K`：表示选取topK个专家，需满足0 < `K` ≤ `moeExpertNum`，取值范围为[1, 16]。
-    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= (`BS` * `epWorldSize` * min(`localExpertNum`, `K`) * `H` * 4B + 4MB)。
-    - `HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`：设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0可以减少跨机通信数据量，可能提升算子性能。 此时，要求`HCCL_BUFFSIZE` >= `moeExpertNum` * `BS` * (`H` * 2 + 16 * Align8(`K`))B + 104MB。并且，对于入参`moeExpertNum`，只要求`moeExpertNum` % `epWorldSize` = 0，不要求`moeExpertNum` / `epWorldSize` <= 24，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
+    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= (`BS` *`epWorldSize`* min(`localExpertNum`, `K`) *`H`* 4B + 4MB)。
+    - `HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`：设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0可以减少跨机通信数据量，可能提升算子性能。 此时，要求`HCCL_BUFFSIZE` >= `moeExpertNum` *`BS`* (`H` *2 + 16* Align8(`K`))B + 104MB。并且，对于入参`moeExpertNum`，只要求`moeExpertNum` % `epWorldSize` = 0，不要求`moeExpertNum` / `epWorldSize` <= 24，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
     - 参数约束：
         - `epWorldSize`：取值支持16、32、64。
         - `moeExpertNum`：需满足`moeExpertNum` / `epWorldSize` <= 24。
             - 环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0时，无上述约束。
-        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` * `epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs` * `epWorldSize`或者`globalBs` = 256 * `epWorldSize`，其中`maxBs`表示表示单rank `BS`最大值，建议按`maxBs` * `epWorldSize`传入，固定按256 * `epWorldSize`传入在后续版本BS支持大于256的场景下会无法支持。
+        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` *`epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs`* `epWorldSize`或者`globalBs` = 256 *`epWorldSize`，其中`maxBs`表示表示单rank `BS`最大值，建议按`maxBs`* `epWorldSize`传入，固定按256 * `epWorldSize`传入在后续版本BS支持大于256的场景下会无法支持。
         - `commQuantMode`：2，开启通信int8量化，仅当`HCCL_INTRA_PCIE_ENABLE`为1且`HCCL_INTRA_ROCE_ENABLE`为0且驱动版本不低于25.0.RC1.1时支持。
     - 组网约束：多机场景仅支持交换机组网，不支持双机直连组网。
 
@@ -301,16 +297,16 @@
         - `tpWorldSize`：取值范围[0, 2]，0和1表示无tp域通信，有tp域通信时仅支持2。
         - `tpRankId`：取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复。无TP域通信时，传0即可。
         - `sharedExpertRankNum`：当前取值范围[0, `epWorldSize`)，不为0时需满足`epWorldSize` % `sharedExpertRankNum` = 0。
-        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` * `epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs` * `epWorldSize`，其中`maxBs`表示单卡`BS`最大值。
-    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 * (`HCCL_BUFFSIZE` - 2) / 2 >= `BS` * 2 * (`H` + 128) * (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
+        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` *`epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs`* `epWorldSize`，其中`maxBs`表示单卡`BS`最大值。
+    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 *(`HCCL_BUFFSIZE` - 2) / 2 >= `BS`* 2 *(`H` + 128)* (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
     - 参数约束：
         - `epWorldSize`：取值支持2、4、8、16、32、64、128、144、256、288。
         - `sharedExpertRankNum`：当前取值范围[0, `epWorldSize`)，不为0时需满足`epWorldSize` % `sharedExpertRankNum` = 0。
-        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` * `epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs` * `epWorldSize`，其中`maxBs`表示单卡`BS`最大值。
+        - `globalBs`：当每个rank的`BS`数一致时，`globalBs` = `BS` *`epWorldSize` 或 `globalBs` = 0；当每个rank的`BS`数不一致时，`globalBs` = `maxBs`* `epWorldSize`，其中`maxBs`表示单卡`BS`最大值。
         - `commQuantMode`取值范围0或2，0表示通信不量化，2表示通信int8量化。
-    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 * (`HCCL_BUFFSIZE` - 2) / 2 >= `BS` * 2 * (`H` + 128) * (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
+    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 *(`HCCL_BUFFSIZE` - 2) / 2 >= `BS`* 2 *(`H` + 128)* (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
 
 ## 调用说明
 

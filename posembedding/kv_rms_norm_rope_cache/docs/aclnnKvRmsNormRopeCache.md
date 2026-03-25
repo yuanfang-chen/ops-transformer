@@ -13,7 +13,6 @@
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
-
 ## 功能说明
 
 - 接口功能：对输入张量（kv）的尾轴，拆分出左半边用于rms_norm计算，右半边用于RoPE计算，再将计算结果分别scatter到两块cache中。
@@ -412,8 +411,8 @@ aclnnStatus aclnnKvRmsNormRopeCache(
       * BlockNum为写入cache的内存块数，大小由用户输入场景决定，无明确限制。 
   * index相关约束：
       * 当cacheModeOptional为Norm时，shape为2维[Bkv,Skv]，要求index的value值范围为[-1,Scache)。不同的Bkv下，value数值可以重复。
-      * 当cacheModeOptional为PA_BNSD、PA_NZ时，shape为1维[Bkv * Skv]，要求index的value值范围为[-1,BlockNum * BlockSize)。value数值不能重复。
-      * 当cacheModeOptional为PA_BLK_BNSD、PA_BLK_NZ时，shape为1维[Bkv * ceil_div(Skv,BlockSize)]，要求index的value的数值范围为[-1,BlockNum * BlockSize)。value/BlockSize的值不能重复。
+      * 当cacheModeOptional为PA_BNSD、PA_NZ时，shape为1维[Bkv *Skv]，要求index的value值范围为[-1,BlockNum* BlockSize)。value数值不能重复。
+      * 当cacheModeOptional为PA_BLK_BNSD、PA_BLK_NZ时，shape为1维[Bkv *ceil_div(Skv,BlockSize)]，要求index的value的数值范围为[-1,BlockNum* BlockSize)。value/BlockSize的值不能重复。
   * 量化场景的相关约束：
       * 量化场景支持的情况1：kCacheRef的数据类型为FLOAT16或BFLOAT16，ckvCacheRef的数据类型为INT8、HIFLOAT8、FLOAT8E5M2、FLOAT8E4M3FN。
       * 量化场景支持的情况2：ckvCacheRef的数据类型为FLOAT16或BFLOAT16，kCacheRef的数据类型为INT8、HIFLOAT8、FLOAT8E5M2、FLOAT8E4M3FN。

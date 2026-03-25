@@ -13,13 +13,12 @@
 | <term>Atlas 推理系列产品 </term>                                                |    ×    |
 | <term>Atlas 训练系列产品</term>                                                 |    ×    |
 
-
 ## 功能说明
 
 - 接口功能：执行单路旋转位置编码计算。本接口相较于[aclnnRotaryPositionEmbedding](aclnnRotaryPositionEmbedding.md)，新增入参rotate，在推荐场景中通过输入旋转编码矩阵获得性能收益，请根据实际情况选择合适的接口。
 
 - rotate推荐使用场景
-  - interleave模式，且B * N * S > 28800。
+  - interleave模式，且B *N* S > 28800。
   - half模式仅在以下场景时推荐使用：输入矩阵x需要在最后一个维度切分多份时，每一份都需要调用aclnnRotaryPositionEmbedding接口进行旋转位置编码计算，可以通过构造旋转编码矩阵实现一次调用获得性能收益，以x的layout为BSND需要切分为3份为例：
      x切分为3份，$x = [x1|x2|x3]_{(dim=4)} ∈ R^{B×S×N×D}, x1 ∈ R^{B×S×N×D1},x2 ∈ R^{B×S×N×D2},x3 ∈ R^{B×S×N×D3}, 其中D = D1 + D2 + D3$，那么可以构造一个rotate矩阵，实现调用一次aclnnRotaryPositionEmbeddingV2接口完成x的旋转位置编码计算功能，rotate矩阵构造如下：
      $$rotate = diag(rotate1, rotate2, rotate3) = \begin{pmatrix}rotate1&0&0\\0&rotate2&0\\0&0&rotate3\\\end{pmatrix}$$
@@ -77,8 +76,6 @@
       y = x * cos + x\_rotate * sin
       $$
 
-
-   
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用“aclnnRotaryPositionEmbeddingV2GetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnRotaryPositionEmbeddingV2”接口执行计算。
@@ -314,8 +311,8 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
   - half模式：
     - B，N < 1000;
     - 当x为BNSD时，cos、sin支持11SD、B1SD、BNSD
-      - 当（D/2）% (32/inputDtypeSize) == 0时，需满足B * N <= S * 8
-      - 当（D/2）% (32/inputDtypeSize) != 0时，需满足B * N * 2 <= (S + coreNum -1) / coreNum 或者 D >= 80
+      - 当（D/2）% (32/inputDtypeSize) == 0时，需满足B *N <= S* 8
+      - 当（D/2）% (32/inputDtypeSize) != 0时，需满足B *N* 2 <= (S + coreNum -1) / coreNum 或者 D >= 80
     - 当x为BSND时，cos、sin支持1S1D、BS1D、BSND
     - 当x为SBND时，cos、sin支持S11D、SB1D、SBND
   - interleave模式：

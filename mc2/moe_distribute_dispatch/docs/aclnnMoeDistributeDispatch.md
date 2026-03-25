@@ -451,11 +451,12 @@ aclnnStatus aclnnMoeDistributeDispatch(
     </tr>
     </tbody>
     </table>
+
 ​    
 
 ## aclnnMoeDistributeDispatch
 
--   **参数说明：**
+- **参数说明：**
     
     <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
     <col style="width: 168px">
@@ -493,7 +494,6 @@ aclnnStatus aclnnMoeDistributeDispatch(
     </tbody>
     </table>
 
-
 ## 约束说明
 
 - 确定性计算：
@@ -507,8 +507,8 @@ aclnnStatus aclnnMoeDistributeDispatch(
 
 - 参数说明里shape格式说明：
     - `A`：表示本卡可能接收的最大token数量，取值范围如下：
-        - 对于共享专家，要满足`A` = `BS` * `epWorldSize` * `sharedExpertNum` / `sharedExpertRankNum。`
-        - 对于MoE专家，当`globalBs`为0时，要满足`A` >= `BS` * `epWorldSize` * min(`localExpertNum`, `K`)；当`globalBs`非0时，要满足`A` >= `globalBs` * min(`localExpertNum`, `K`)。
+        - 对于共享专家，要满足`A` = `BS` *`epWorldSize`* `sharedExpertNum` / `sharedExpertRankNum。`
+        - 对于MoE专家，当`globalBs`为0时，要满足`A` >= `BS` *`epWorldSize`* min(`localExpertNum`, `K`)；当`globalBs`非0时，要满足`A` >= `globalBs` * min(`localExpertNum`, `K`)。
     - `localExpertNum`：表示本卡专家数量。
         - 对于共享专家卡，`localExpertNum` = 1
         - 对于MoE专家卡，`localExpertNum` = `moeExpertNum` / (`epWorldSize` - `sharedExpertRankNum`)`，localExpertNum` > 1时，不支持TP域通信。
@@ -520,14 +520,13 @@ aclnnStatus aclnnMoeDistributeDispatch(
     - 一个模型中的`MoeDistributeCombine`和`MoeDistributeDispatch`仅支持相同TP通信域或都不支持TP通信域，有TP通信域时该通信域中不允许有其他算子。
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：一个通信域内的节点需在一个超节点内，不支持跨超节点。
 
-
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - 参数说明里shape格式说明：
         - `H`：表示hidden size隐藏层大小，取值范围(0, 7168]，且保证是32的整数倍。
         - `BS`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 256]。
         - `K`：表示选取topK个专家，需满足0 < `K` ≤ moeExpertNum，取值范围为[1, 16]。
-    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2 * (`BS` * `epWorldSize` * min(`localExpertNum`, `K`) * `H` * sizeof(uint16) + 2MB)。
-    - `HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`：设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0可以减少跨机通信数据量，可能提升算子性能。 此时，要求`HCCL_BUFFSIZE` >= `moeExpertNum` * `BS` * (`H` * sizeof(dtypeX) + 4 * ((`K` + 7) / 8 * 8) * sizeof(uint32)) + 4MB + 100MB。并且，对于入参`moeExpertNum`，只要求`moeExpertNum` % `epWorldSize` = 0，不要求`moeExpertNum` / `epWorldSize` <= 24，但不支持`scales`特性。
+    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2 *(`BS`* `epWorldSize` *min(`localExpertNum`, `K`)* `H` * sizeof(uint16) + 2MB)。
+    - `HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`：设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0可以减少跨机通信数据量，可能提升算子性能。 此时，要求`HCCL_BUFFSIZE` >= `moeExpertNum` *`BS`* (`H` *sizeof(dtypeX) + 4* ((`K` + 7) / 8 *8)* sizeof(uint32)) + 4MB + 100MB。并且，对于入参`moeExpertNum`，只要求`moeExpertNum` % `epWorldSize` = 0，不要求`moeExpertNum` / `epWorldSize` <= 24，但不支持`scales`特性。
     - `epWorldSize`：取值支持16、32、64。
     - `quantMode`相关约束：
         - `quantMode`取值为2时，表示pertoken动态量化场景，`expandX`的数据类型支持`INT8`。
@@ -542,8 +541,8 @@ aclnnStatus aclnnMoeDistributeDispatch(
         - `BS`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 512]。
         - `K`：表示选取topK个专家，需满足0 < `K` ≤ moeExpertNum，取值范围为[1, 8]。
     - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-        - ep通信域内：要求 >= 2且满足1024 ^ 2 * (`HCCL_BUFFSIZE` - 2) / 2 >= `BS` * 2 * (`H` + 128) * (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
-        - tp通信域内：设置大小要求\>=A * (H * 2 + 128) * 2。
+        - ep通信域内：要求 >= 2且满足1024 ^ 2 *(`HCCL_BUFFSIZE` - 2) / 2 >= `BS`* 2 *(`H` + 128)* (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
+        - tp通信域内：设置大小要求\>=A *(H* 2 + 128) * 2。
     - `epWorldSize`：取值支持8、16、32、64、128、144、256、288。
     - `quantMode`相关约束：
         - `quantMode`取值为2时，表示pertoken动态量化场景，`expandX`的数据类型支持`INT8`。
@@ -557,7 +556,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
         - `BS`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 512]。
         - `K`：表示选取topK个专家，取值范围为[1, 8]，且需要满足0 < `K` ≤ moeExpertNum。
     - `epWorldSize`：取值支持2、4、8、16、32、64、128、144、256、288。
-    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 * (`HCCL_BUFFSIZE` - 2) / 2 >= `BS` * 2 * (`H` + 128) * (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
+    - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= 2且满足1024 ^ 2 *(`HCCL_BUFFSIZE` - 2) / 2 >= `BS`* 2 *(`H` + 128)* (`epWorldSize` * `localExpertNum` + `K` + 1)，`localExpertNum`需使用MoE专家卡的本卡专家数。
     - `quantMode`相关约束：
         - `quantMode`取值为0时，表示非量化场景，`expandX`的数据类型支持`FLOAT16`、`BFLOAT16`。
             - `expandX`的数据类型为`FLOAT16`、`BFLOAT16`时，输入`scales`必须传入空指针。
@@ -600,9 +599,11 @@ aclnnStatus aclnnMoeDistributeDispatch(
     
     - 机器数量设置：
         两机16卡场景中，需将参数MACHINE_NUM设置为2，即
+
         ```Cpp
         const uint32_t MACHINE_NUM = 2;
         ```
+
         单机16卡场景则无需修改。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
@@ -618,6 +619,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

@@ -14,8 +14,9 @@
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
 ## 功能说明
--  接口功能：执行单路旋转位置编码计算。
--  计算公式：
+
+- 接口功能：执行单路旋转位置编码计算。
+- 计算公式：
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
@@ -55,7 +56,6 @@
     y = x * cos + x\_rotate * sin
     $$
 
-    
     （3）quarter模式（mode等于2）：
 
     $$
@@ -118,6 +118,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingGetWorkspaceSize(
     uint64_t        *workspaceSize,
     aclOpExecutor   **executor)
 ```
+
 ```c++
 aclnnStatus aclnnRotaryPositionEmbedding(
     void          *workspace,
@@ -125,6 +126,7 @@ aclnnStatus aclnnRotaryPositionEmbedding(
     aclOpExecutor *executor,
     aclrtStream    stream)
 ```
+
 ## aclnnRotaryPositionEmbeddingGetWorkspaceSize
 
 - **参数说明**
@@ -272,7 +274,6 @@ aclnnStatus aclnnRotaryPositionEmbedding(
   </tbody>
   </table>
 
-
 ## aclnnRotaryPositionEmbedding
 
 - **参数说明：**
@@ -337,8 +338,8 @@ aclnnStatus aclnnRotaryPositionEmbedding(
   - half模式：
     - B，N < 1000;
     - 当x为BNSD时，cos、sin支持11SD、B1SD、BNSD
-      - 当（D/2）% (32/inputDtypeSize) == 0时，需满足B * N <= S * 8
-      - 当（D/2）% (32/inputDtypeSize) != 0时，需满足B * N * 2 <= (S + coreNum -1) / coreNum 或者 D >= 80
+      - 当（D/2）% (32/inputDtypeSize) == 0时，需满足B *N <= S* 8
+      - 当（D/2）% (32/inputDtypeSize) != 0时，需满足B *N* 2 <= (S + coreNum -1) / coreNum 或者 D >= 80
     - 当x为BSND时，cos、sin支持1S1D、BS1D、BSND
     - 当x为SBND时，cos、sin支持S11D、SB1D、SBND
     - 当x为TND时，cos、sin支持T1D、TND
@@ -358,11 +359,11 @@ aclnnStatus aclnnRotaryPositionEmbedding(
   - 仅支持half模式：
     - B，N < 1000
     - 当x为BNSD时，cos、sin支持11SD、B1SD、BNSD
-      - B * N <= S * 8
+      - B *N <= S* 8
     - 当x为BSND时，cos、sin支持1S1D、BS1D、BSND
-      - (N - 1) * D * BytePerData / 32 < UINT16\_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
+      - (N - 1) *D* BytePerData / 32 < UINT16\_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
     - 当x为SBND时，cos、sin支持S11D、SB1D、SBND
-      - (B * N - 1) * D * BytePerData / 32 < UINT16\_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
+      - (B *N - 1)* D * BytePerData / 32 < UINT16\_MAX，其中BytePerData当输入数据类型为FLOAT16时，值为2；数据类型为FLOAT32时，值为4
     - 当x为TND时，cos、sin支持T1D、TND
 
 ## 调用示例
@@ -538,6 +539,3 @@ int main() {
     return 0;
 }
 ```
-
-
-

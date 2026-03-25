@@ -34,8 +34,6 @@
 
     其中：$Q$和$K^T$的乘积代表输入$x$的注意力，为避免该值变得过大，通常除以$d$的开根号进行缩放，并对每行进行softmax归一化，与$V$相乘后得到一个n\*d的矩阵。
 
-
-
 ## 函数原型
 
 算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnPromptFlashAttentionGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnPromptFlashAttention”接口执行计算。
@@ -182,7 +180,7 @@ aclnnStatus aclnnPromptFlashAttention(
     <td>输入</td>
     <td>表示attention需要和前几个Token计算关联。</td>
     <td><ul><li>不特意指定时建议传入2147483647。</li></ul>
-      	<ul><li>支持负数。</li></ul></td>
+       <ul><li>支持负数。</li></ul></td>
     <td>INT64</td>
     <td>-</td>
     <td>1</td>
@@ -193,7 +191,7 @@ aclnnStatus aclnnPromptFlashAttention(
     <td>输入</td>
     <td>表示attention需要和后几个Token计算关联。</td>
     <td><ul><li>不特意指定时建议传入0。</li></ul>
-      	<ul><li>支持负数。</li></ul></td>
+       <ul><li>支持负数。</li></ul></td>
     <td>INT64</td>
     <td>-</td>
     <td>1</td>
@@ -253,7 +251,6 @@ aclnnStatus aclnnPromptFlashAttention(
   </tr>
   </tbody></table>
   </div>
-
 
 - **返回值**
 
@@ -332,7 +329,7 @@ aclnnStatus aclnnPromptFlashAttention(
     </table>
     </div>
     
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

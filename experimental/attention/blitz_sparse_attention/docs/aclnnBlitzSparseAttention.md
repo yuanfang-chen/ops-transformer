@@ -1,6 +1,7 @@
 # aclnnBlitzSparseAttention
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
@@ -10,7 +11,7 @@
 
 - 算子功能：全量推理场景的FlashAttention算子，支持sparse优化、actualSeqLengthsKv优化、int8量化功能、innerPrecise参数（用于支持高精度或者高性能模式选择）。
 
--   计算公式：
+- 计算公式：
 
     self-attention（自注意力）利用输入样本自身的关系构建了一种注意力模型。其原理是假设有一个长度为$n$的输入样本序列$x$，$x$的每个元素都是一个$d$维向量，可以将每个$d$维向量看作一个token embedding，将这样一条序列经过3个权重矩阵变换得到3个维度为$n*d$的矩阵。
 
@@ -351,8 +352,6 @@ aclnnStatus aclnnBlitzSparseAttention(
     </tbody></table>
     </div>
     
-  
-  
 - **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
@@ -360,7 +359,7 @@ aclnnStatus aclnnBlitzSparseAttention(
   第一段接口完成入参校验，若出现以下错误码，则对应原因为：
   
     <div style="overflow-x: auto;">
-    <table style="undefined;table-layout: fixed; width: 1030px">			<colgroup>
+    <table style="undefined;table-layout: fixed; width: 1030px">   <colgroup>
     <col style="width: 250px">
     <col style="width: 130px">
     <col style="width: 650px">
@@ -432,8 +431,7 @@ aclnnStatus aclnnBlitzSparseAttention(
     </table>
     </div>
 
-
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
 
@@ -645,6 +643,7 @@ aclnnStatus aclnnBlitzSparseAttention(
    - Shape: `[batch_size, num_heads, num_sabi_rows, num_sabi_cols]` where num_sabi_rows is ceil(sequence_length/128) and num_sabi_cols is ceil(sequence_length/512).
    - Semantis: for a given batch b and head h the sabi[b, h, i, :] specifies a list of 128x512 attention matrix tiles that should be computed. -1 will indicate a "skip" that is "do not compute". 
    - Example of `sabi` of batch_size=1 and 2 heads processing sequence length 4000 (the sabi will have 31 rows and 7 columns):
+
    ```python
     [
       # head 0:

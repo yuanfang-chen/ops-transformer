@@ -13,11 +13,10 @@
 
 **说明：** 使用该接口时，请确保驱动固件包和CANN包都为配套的8.0.RC2版本或者配套的更高版本，否则将会引发报错，比如BUS ERROR等。
 
-
 ## 功能说明
 
--   **接口功能**：实现quant + reduceScatter融合计算。
--   **计算公式**：
+- **接口功能**：实现quant + reduceScatter融合计算。
+- **计算公式**：
 
     $$
     output=Reduce(AllToAllScales * AllToAllData)
@@ -33,7 +32,6 @@
 
     其中的Reduce计算是将来自不同rank的数据进行reduce计算。
     
-
 ## 函数原型
 
 该算子分为两段式接口，必须先调用“aclnnQuantReduceScatterGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantReduceScatter”接口执行计算。
@@ -59,7 +57,7 @@ aclnnStatus aclnnQuantReduceScatter(
 
 ## aclnnQuantReduceScatterGetWorkspaceSize
 
--   **参数说明**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1556px"><colgroup>
     <col style="width: 161px">
@@ -157,7 +155,7 @@ aclnnStatus aclnnQuantReduceScatter(
     </tbody>
     </table>
 
--   **返回值**
+- **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。  
 
@@ -196,7 +194,7 @@ aclnnStatus aclnnQuantReduceScatter(
 
 ## aclnnQuantReduceScatter
 
--   **参数说明**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
     <col style="width: 168px">
@@ -231,7 +229,7 @@ aclnnStatus aclnnQuantReduceScatter(
     </tr>
     </tbody></table>
 
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

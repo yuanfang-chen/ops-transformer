@@ -2,7 +2,6 @@
 
 [📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_token_unpermute)
 
-
 ## 产品支持情况
 
 | 产品                                                         |  是否支持   |
@@ -16,8 +15,8 @@
 
 ## 功能说明
 
--   **接口功能**: 根据sortedIndices存储的下标，获取permutedTokens中存储的输入数据；如果存在probs数据，permutedTokens会与probs相乘；最后进行累加求和，并输出计算结果。
--   **计算公式**： 
+- **接口功能**: 根据sortedIndices存储的下标，获取permutedTokens中存储的输入数据；如果存在probs数据，permutedTokens会与probs相乘；最后进行累加求和，并输出计算结果。
+- **计算公式**： 
 
     - probs非None计算公式如下：
       
@@ -262,7 +261,6 @@ aclnnStatus aclnnMoeTokenUnpermute(
 
 ## 约束说明
 
-
 - 确定性计算：
   - aclnnMoeTokenUnpermute默认确定性实现。
 
@@ -482,4 +480,3 @@ int main() {
   return 0;
 }
 ```
-

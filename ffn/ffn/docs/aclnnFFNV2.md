@@ -13,7 +13,6 @@
 |<term>Atlas 推理系列加速卡产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
 
-
 ## 功能说明
 
 - 接口功能：该FFN算子提供MoeFFN和FFN的计算功能。在没有专家分组（expertTokens为空）时是FFN，有专家分组时是MoeFFN，统称为FFN，属于Moe结构。MoE（Mixture-of-Experts，混合专家系统）是一种用于训练万亿参数量级模型的技术。MoE将预测建模任务分解为若干子任务，在每个子任务上训练一个专家模型（Expert Model），开发一个门控模型（Gating Model），该模型会根据输入数据分配一个或多个专家，最终综合多个专家计算结果作为预测结果。Mixture-of-Experts结构的模型是将输入数据分配给最相关的一个或者多个专家，综合涉及的所有专家的计算结果来确定最终结果。
@@ -541,7 +540,6 @@ N2表示第二个matmul的输出通道数，对应transform中的H。
 - <term>Atlas 推理系列加速卡产品</term>：
   - 只支持无专家场景。
   - 需满足N1=K2。
-
 
 ## 调用示例
 

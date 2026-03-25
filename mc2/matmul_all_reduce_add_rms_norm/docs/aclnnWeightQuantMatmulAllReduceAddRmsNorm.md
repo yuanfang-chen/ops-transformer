@@ -61,6 +61,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduceAddRmsNormGetWorkspaceSize(
     uint64_t        *workspaceSize,
     aclOpExecutor  **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnWeightQuantMatmulAllReduceAddRmsNorm(
     void             *workspace,

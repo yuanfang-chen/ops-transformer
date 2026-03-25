@@ -13,7 +13,6 @@
 |  <term>Kirin X90 处理器系列产品</term> | √ |
 |  <term>Kirin 9030 处理器系列产品</term> | √ |
 
-
 ## 功能说明
 
 - 算子功能：对输入张量(kv)的尾轴，拆分出左半边用于rms_norm计算，右半边用于rope计算，再将计算结果分别scatter到两块cache中。
@@ -66,6 +65,7 @@
   $$
   y=(x/rms)*gamma
   $$
+
 ## 参数说明
 
 <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
@@ -209,8 +209,8 @@
       * 输入张量均不支持空Tensor。
   * 其他限制：
       * 对于index，当cache_mode为Norm时，shape为2维[Bkv,Skv]，要求index的value值范围为[-1,Scache)。不同的Bkv下，value数值可以重复。
-      * 当cache_mode为PA_BNSD、PA_NZ时，shape为1维[Bkv * Skv]，要求index的value值范围为[-1,BlockNum * BlockSize)。value数值不能重复。
-      * 当cache_mode为PA_BLK_BNSD、PA_BLK_NZ时，shape为1维[Bkv * ceil_div(Skv,BlockSize)]，要求index的value的数值范围为[-1,BlockNum * BlockSize)。value/BlockSize的值不能重复。
+      * 当cache_mode为PA_BNSD、PA_NZ时，shape为1维[Bkv *Skv]，要求index的value值范围为[-1,BlockNum* BlockSize)。value数值不能重复。
+      * 当cache_mode为PA_BLK_BNSD、PA_BLK_NZ时，shape为1维[Bkv *ceil_div(Skv,BlockSize)]，要求index的value的数值范围为[-1,BlockNum* BlockSize)。value/BlockSize的值不能重复。
 
 ## 调用说明
 

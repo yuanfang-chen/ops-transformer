@@ -24,7 +24,6 @@
     详细说明请参考以下参数说明。
 - 计算公式：
 
-
     - 情形1：如果quaneMode=0（非量化场景）：
 
     $$
@@ -116,7 +115,6 @@
 
 > 说明：
 > `aclnnMoeDistributeCombineV2`、`aclnnMoeDistributeCombineAddRmsNorm`算子在后续文档中统称为**CombineV2系列算子**。
-
 
 ## 函数原型
 
@@ -481,7 +479,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
         - `moeExpertNum` 取值范围(0, 512]。
         - `groupTp` 当前版本不支持，传空字符即可。
         - `tpWorldSize`、`tpRankId`、`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum` 当前版本不支持，传0即可。
-        - `epRecvCountsOut` 的shape为(moeExpertNum + 2 * globalBs * K * serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
+        - `epRecvCountsOut` 的shape为(moeExpertNum + 2 *globalBs* K * serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
         - 当前不支持TP域通信。
         - `expandScalesOut`要求为1D Tensor，shape为(A,)。
         - `quantMode`支持0（非量化）、2（动态量化）。
@@ -498,7 +496,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
         - `expertShardType`当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
         - `sharedExpertNum`当前取值范围[0, 4]。
         - `sharedExpertRankNum`取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-        - `epRecvCountsOut`的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
+        - `epRecvCountsOut`的shape为(epWorldSize *max(tpWorldSize, 1)* localExpertNum,)。
         - 有TP域通信时`tpRecvCountsOut`为1D shape Tensor，shape为(tpWorldSize,)。
         - `expandScalesOut`当前版本不支持该输出。
         - `quantMode`支持0（非量化）、2（动态量化）。
@@ -515,7 +513,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
         - `expertShardType`当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
         - `sharedExpertNum`当前取值范围[0, 4]。
         - `sharedExpertRankNum`取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-        - `epRecvCountsOut`的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
+        - `epRecvCountsOut`的shape为(epWorldSize *max(tpWorldSize, 1)* localExpertNum,)。
         - `tpRecvCountsOut`当前版本不支持该输出。
         - `expandScalesOut`当前版本不支持该输出。
         - `quantMode`支持0（非量化）、1（静态量化）、2（pertoken动态量化）、3（pergroup动态量化）、4（mxfp8动态量化）。
@@ -619,8 +617,8 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 
 6. 参数说明里shape格式说明：
     - **A**：表示本卡可能接收的最大token数量，取值范围如下：
-      - 对于共享专家，需满足 (A = Bs * epWorldSize * sharedExpertNum / sharedExpertRankNum)。
-      - 对于MoE专家，当`globalBs`为0时，需满足 (A >= Bs * epWorldSize * min(localExpertNum, K))；当`globalBs`非0时，需满足 (A >= globalBs * min(localExpertNum, K))。
+      - 对于共享专家，需满足 (A = Bs *epWorldSize* sharedExpertNum / sharedExpertRankNum)。
+      - 对于MoE专家，当`globalBs`为0时，需满足 (A >= Bs *epWorldSize* min(localExpertNum, K))；当`globalBs`非0时，需满足 (A >= globalBs * min(localExpertNum, K))。
     - **H**：表示hidden size（隐藏层大小）：
       - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 7168]且为32的整数倍；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 10*1024]且为32的整数倍。
       - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：取值范围[1024, 8192]。
@@ -670,12 +668,12 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
    调用本接口前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB：
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
         - commAlg为""或nullptr：依HCCL环境变量选择“fullmesh”或“hierarchy”公式。
-        - commAlg为"fullmesh"：设置大小要求 (≥ 2 * (Bs * epWorldSize * min(localExpertNum, K) * H * sizeof(uint16) + 2MB))。
-        - commAlg为"hierarchy"：设置大小要求 (≥ (`moeExpertNum` + `epWorldSize` / 4) * Align512(`maxBs` * (`H` * 2 + 16 * Align8(`K`))) * 1B + 8MB，其中Align8(x) = ((x + 8 - 1) / 8) * 8，Align512(x) = ((x + 512 - 1) / 512) * 512)。
+        - commAlg为"fullmesh"：设置大小要求 (≥ 2 *(Bs* epWorldSize *min(localExpertNum, K)* H * sizeof(uint16) + 2MB))。
+        - commAlg为"hierarchy"：设置大小要求 (≥ (`moeExpertNum` + `epWorldSize` / 4) *Align512(`maxBs`* (`H` *2 + 16* Align8(`K`))) *1B + 8MB，其中Align8(x) = ((x + 8 - 1) / 8)* 8，Align512(x) = ((x + 512 - 1) / 512) * 512)。
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-        - ep通信域内：设置大小要求 (≥ 2) 且满足 (≥ 2 * (localExpertNum * maxBs * epWorldSize * Align512(Align32(2 * H) + 64) + (K + sharedExpertNum) * maxBs * Align512(2 * H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
-        - tp通信域内：设置大小要求\>=A * (H * 2 + 128) * 2。
-    - <term>Ascend 950PR/Ascend 950DT</term>：要求 (≥ 2) 且满足 >= `aivNum` * 512 + 2 * `epWorldSize` * (`maxBs` * `Align512(alignedH` * 2) * `localExpertNum` + 512)（`aivNum`表示核数；`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；alignedH在不同量化场景下有不同要求：
+        - ep通信域内：设置大小要求 (≥ 2) 且满足 (≥ 2 *(localExpertNum* maxBs *epWorldSize* Align512(Align32(2 *H) + 64) + (K + sharedExpertNum)* maxBs *Align512(2* H)))（`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；`Align32(x) = ((x + 32 - 1) / 32) * 32`）。
+        - tp通信域内：设置大小要求\>=A *(H* 2 + 128) * 2。
+    - <term>Ascend 950PR/Ascend 950DT</term>：要求 (≥ 2) 且满足 >= `aivNum` *512 + 2* `epWorldSize` *(`maxBs`* `Align512(alignedH` *2)* `localExpertNum` + 512)（`aivNum`表示核数；`localExpertNum`需使用MoE专家卡的本卡专家数；`Align512(x) = ((x + 512 - 1) / 512) * 512`；alignedH在不同量化场景下有不同要求：
         - pergroup动态量化场景下，`alignedH = Align128(H) = ((H + 128 - 1) / 128) * 128`。
         - mx量化场景下，`alignedH = Align256(H) = ((H + 256 - 1) / 256) * 256`）。
         - 其余量化模式下`alignedH = Align32(H) = ((H + 32 - 1) / 32) * 32`。
@@ -686,11 +684,13 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 10. 本文公式中的“/”表示整除。
 
 11. 通信域使用约束：
+
    - 一个模型中的CombineV2系列算子和`aclnnMoeDistributeDispatchV2`仅支持相同EP通信域，且该通信域中不允许有其他算子。
    - 一个模型中的CombineV2系列算子和`aclnnMoeDistributeDispatchV2`仅支持相同TP通信域或都不支持TP通信域；有TP通信域时，该通信域中不允许有其他算子。
    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：一个通信域内的节点需在一个超节点内，不支持跨超节点。
 
 12. 组网约束：
+
    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：多机场景仅支持交换机组网，不支持双机直连组网。
 
 ## 调用示例
@@ -727,9 +727,11 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     
     - 机器数量设置：
         两机16卡场景中，需将参数MACHINE_NUM设置为2，即
+
         ```Cpp
         const uint32_t MACHINE_NUM = 2;
         ```
+
         单机16卡场景则无需修改。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
@@ -738,6 +740,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
     - 环境变量配置：
+
         ```bash
         # 运行前需设置RANK_TABLE_FILE环境变量
         export RANK_TABLE_FILE=/home/path/to/rank_table_m2.json
@@ -746,6 +749,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>
