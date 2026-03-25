@@ -178,7 +178,7 @@ public:
         col = params.actualCol;
         align32Col = (col + BLOCK_FP32_NUM - 1) / BLOCK_FP32_NUM * BLOCK_FP32_NUM; // fp32 对齐后的列数
         align16Col = (col + BLOCK_16_NUM - 1) / BLOCK_16_NUM * BLOCK_16_NUM;
-        alignCol = (align32Col != col && (align32Col % BLOCK_16_NUM != 0)) ? align16Col : align32Col;
+        alignCol = (align32Col % BLOCK_16_NUM != 0) ? align16Col : align32Col;
         curCoreBatch = params.curCoreBatch;
         curCoreN1Idx = params.curCoreN1Idx;
         curT1Idx = params.curT1Idx;
