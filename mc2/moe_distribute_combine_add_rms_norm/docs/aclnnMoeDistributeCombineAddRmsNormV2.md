@@ -616,9 +616,12 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>1. 输入和输出的数据类型不在支持的范围内。</td>
     </tr>
     <tr>
-    <td>ACLNN_ERR_INNER_TILING_ERROR</td>
-    <td>561002</td>
-    <td>1. 输入和输出的shape不在支持的范围内；<br>2. 参数的取值不在支持的范围内。</td>
+    <td class="merged-cell" rowspan="2">ACLNN_ERR_INNER_TILING_ERROR</td>
+    <td class="merged-cell" rowspan="2">561002</td>
+    <td>1. 输入和输出的shape不在支持的范围内；</td>
+    </tr>
+    <tr>
+    <td>2. 参数的取值不在支持的范围内。</td>
     </tr>
     </tbody>
     </table>
