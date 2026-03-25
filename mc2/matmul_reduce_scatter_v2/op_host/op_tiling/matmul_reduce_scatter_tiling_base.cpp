@@ -71,7 +71,7 @@ uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingAr
 
 CutResult MatmulReduceScatterTilingBase::GetTilingResult()
 {
-    if (mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)) {
+    if (mc2tiling::isUseAllReduceTwoShot(args_.rankDim, npuArch_)) {
         MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::REDUCE_SCATTER_VIA_ALL_TO_ALL);
         return scatterTiling.GetTiling();
     } else {
@@ -273,7 +273,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetPlatformInfo()
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
     npuArch_ = ascendcPlatform.GetCurNpuArch();
-    isA2APath_ = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_); // 判断是否走标卡4p路径： (All2All + Vec Reduce)
+    isA2APath_ = mc2tiling::isUseAllReduceTwoShot(args_.rankDim, npuArch_); // 判断是否走标卡4p路径： (All2All + Vec Reduce)
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     return ge::GRAPH_SUCCESS;
 };
