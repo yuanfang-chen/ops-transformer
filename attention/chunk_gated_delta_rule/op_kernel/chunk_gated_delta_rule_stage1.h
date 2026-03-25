@@ -201,9 +201,9 @@ public:
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
         }
-        ccOffset_ = i * chunkSize_ * chunkSize_;
-        ckOffset_ = i * chunkSize_ * dk_;
-        cvOffset_ = i * chunkSize_ * chunkSize_;
+        ccOffset_ = chunkSize_ * chunkSize_;
+        ckOffset_ = chunkSize_ * dk_;
+        cvOffset_ = chunkSize_ * dv_;
         SetGlobalTensors(initParams);
         InitLocalBuffers();
     }
@@ -268,10 +268,10 @@ private:
     __aicore__ inline void ProcessParaChunk(int32_t curParaNum)
     {
         if ASCEND_IS_AIC {
-            ParaChunkAIC(curParaNum)
+            ParaChunkAIC(curParaNum);
         }
         if ASCEND_IS_AIV {
-            ParaChunkAIV(curParaNum)
+            ParaChunkAIV(curParaNum);
         }
     }
 
@@ -280,7 +280,7 @@ private:
         AscendC::CrossCoreWaitFlag(0x9); // 同步0
         // key @ key.transpose(-1,-2)
         for (uint32_t i = 0; i < curParaNum; ++i) {
-            AICProcess(keyContinousGm_[ckOffset_], keyContinousGm_[ckOffset_], kkWsGm_[ccOffset_], chunkSize_,
+            AICProcess(keyContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], kkWsGm_[i * ccOffset_], chunkSize_,
                        chunkSize_, dk_, chunkSize_, chunkSize_, dk_, true);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8); // 同步1
@@ -288,21 +288,21 @@ private:
         // query @ key.transpose(-1,-2)   stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
             outQkGm_ = outQkBaseGm_[chunkRowBase_[i] * chunkSize_];
-            AICProcess(queryContinousGm_[ckOffset_], keyContinousGm_[ckOffset_], outQkGm_, validLenBatch_[i],
+            AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_, validLenBatch_[i],
                        validLenBatch_[i], dk_, validLenBatch_[i], validLenBatch_[i], dk_, true);
         }
         AscendC::CrossCoreWaitFlag(0x7); // 同步2
 
         // 求逆左下角矩阵
         for (uint32_t i = 0; i < curParaNum; ++i) {
-            AttnInverseMMCompute(INVERSE_SHAPE, ccOffset_);
+            AttnInverseMMCompute(INVERSE_SHAPE, i * ccOffset_);
         }
         AscendC::CrossCoreWaitFlag(0x6); // 同步3
 
         // attn @ k_cumdecay
         for (uint32_t i = 0; i < curParaNum; ++i) {
             outKCumdecayGm_ = outKCumdecayBaseGm_[chunkRowBase_[i] * dk_];
-            AICProcess(attnWsGm_[ccOffset_], gBKWsGm_[ckOffset_], outKCumdecayGm_, chunkSize_, dk_, chunkSize_,
+            AICProcess(attnWsGm_[i * ccOffset_], gBKWsGm_[i * ckOffset_], outKCumdecayGm_, chunkSize_, dk_, chunkSize_,
                        chunkSize_, dk_, chunkSize_);
         }
         AscendC::CrossCoreWaitFlag(0x5); // 同步4
@@ -311,7 +311,7 @@ private:
         for (uint32_t i = 0; i < curParaNum; ++i) {
             uint64_t vOffset = i * chunkSize_ * dv_;
             outVInnerGm_ = outVInnerBaseGm_[chunkRowBase_[i] * dv_];
-            AICProcess(attnWsGm_[ccOffset_], vBetaWsGm_[cvOffset_], outVInnerGm_, chunkSize_, dv_, chunkSize_,
+            AICProcess(attnWsGm_[i * ccOffset_], vBetaWsGm_[i * cvOffset_], outVInnerGm_, chunkSize_, dv_, chunkSize_,
                        chunkSize_, dv_, chunkSize_);
         }
     }
@@ -322,7 +322,7 @@ private:
         for (uint32_t i = 0; i < curParaNum; ++i) {
             uint64_t subRow = chunkStartRowBatch_[i] + subOffset_;
             uint64_t qk_base = subRow * nk_ * dk_ + nIdBatch_[i] * nk_ / nv_ * dk_;
-            uint64_t wsOffset_ = ckOffset_ + subOffset_ * dk_;
+            uint64_t wsOffset_ = i * ckOffset_ + subOffset_ * dk_;
             uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_;
             outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
             QKPreProcess(queryGm_[qk_base], queryContinousGm_[wsOffset_], outKgGm_, qUbFloatCon_[kUbOffset],
@@ -348,10 +348,10 @@ private:
 
         for (uint32_t i = 0; i < curParaNum; ++i) {
             // attn_1 = kkt * attn_1
-            KKBetaCompute(kkWsGm_[ccOffset_], betaUbFloat_[betaUbOffset]);
+            KKBetaCompute(kkWsGm_[i * ccOffset_], betaUbFloat_[betaUbOffset]);
             // attn_1对角块求逆，对角块shape为INVERSE_SHAPE=32
             uint64_t gammaUbOffset = i * chunkSize_ * maxLen_;
-            InverseCompute(attnWsGm_[ccOffset_], gammaUbFloat[gammaUbOffset]);
+            InverseCompute(attnWsGm_[i * ccOffset_], gammaUbFloat_[gammaUbOffset]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x7); // 同步2
 
@@ -360,7 +360,7 @@ private:
             // k_cumdecay = -1.0 * k * beta * g_cum_exp
             outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
             uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_;
-            GBKCompute(gBKWsGm_[ckOffset_], outKgGm_, betaUbFloat[betaUbOffset], kUbFloatCon[kUbOffset]);
+            GBKCompute(gBKWsGm_[i * ckOffset_], outKgGm_, betaUbFloat[betaUbOffset], kUbFloatCon[kUbOffset]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x6); // 同步3
 
@@ -368,7 +368,7 @@ private:
             // v_beta = value * beta.unsqueeze(-1)  # (C, Dv)
             uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
-            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat[valueUbOffset]);
+            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset], valueUbFloat[valueUbOffset]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5); // 同步4
 
@@ -382,8 +382,8 @@ private:
     }
 
     __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm, 
-                                        const GlobalTensor<float>& outKgGm,
-                                        LocalTensor<float>& dstBuffer, uint32_t subValidRows, bool kgFlag = false)
+                                        const GlobalTensor<float>& outKgGm,const LocalTensor<float>& dstBuffer,
+                                        uint32_t subValidRows, bool kgFlag = false)
     {
         // copyIn
         DataCopyInBf16WithStride(subValidRows, dk_, srcGm, nk_ * dk_);
