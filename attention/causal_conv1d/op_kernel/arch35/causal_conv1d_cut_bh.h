@@ -494,15 +494,18 @@ __aicore__ inline void CausalConv1dCutBH<T>::UpdateconvStates(const LocalTensor<
     uint32_t blockLen = dimSizeInLoop_ * sizeof(T);
     uint32_t dstStrideBytes = (cacheLenSum_ - dimSizeInLoop_) * sizeof(T);
     // === 步骤1：拷贝旧cache state的后cacheLen - seqLen_行（如果需要） ===
-    int32_t convStatesNeedRow = cacheLen_ - curBatchSeq;
-    if(curBatchSeq + kernelSize_ - 1 < cacheLen_) {
-        convStatesNeedRow = kernelSize_ - 1;
+    int32_t convStatesNeedRow = kernelSize_ - 2;
+    int32_t xBlockCount = curBatchSeq;
+    int32_t xUbOffset = curBatchUbOffset;
+    int64_t xToCacheOffset = convStatesGmOffset + convStatesNeedRow * cacheLenSum_;
+    if(curBatchSeq + kernelSize_ - 2 > cacheLen_) {
+        convStatesNeedRow =  cacheLen_ - curBatchSeq;
+        xBlockCount = cacheLen_;
+        xUbOffset = curBatchUbOffset + (curBatchSeq - xBlockCount) * dimSizeInLoop_;
+        xToCacheOffset = convStatesGmOffset;
     }
     if (convStatesNeedRow > 0) {
-        int32_t srcCacheOffset = (acceptToken - 1 + convStatesNeedRow) * dimSizeInLoop_;
-        if(curBatchSeq + kernelSize_ - 1 <= cacheLen_) {
-            srcCacheOffset = (acceptToken - 1) * dimSizeInLoop_;
-        }
+        int32_t srcCacheOffset = (acceptToken) * dimSizeInLoop_;
         DataCopyParams dataCopyParams;
         dataCopyParams.blockCount = convStatesNeedRow;
         dataCopyParams.blockLen = blockLen;
@@ -510,15 +513,13 @@ __aicore__ inline void CausalConv1dCutBH<T>::UpdateconvStates(const LocalTensor<
         dataCopyParams.dstStride = dstStrideBytes;
         DataCopyPad(convStatesGm[convStatesGmOffset], convStatesLocal[srcCacheOffset], dataCopyParams);
     }
-
     // // === 步骤2：拷贝x的所有行到cache state ===
-    int64_t xToCacheOffset = convStatesGmOffset + convStatesNeedRow * cacheLenSum_;
     DataCopyParams xToCacheCopyParams;
-    xToCacheCopyParams.blockCount = curBatchSeq;
+    xToCacheCopyParams.blockCount = xBlockCount;
     xToCacheCopyParams.blockLen = blockLen;
     xToCacheCopyParams.srcStride = 0;
     xToCacheCopyParams.dstStride = dstStrideBytes;
-    DataCopyPad(convStatesGm[xToCacheOffset], xLocal[curBatchUbOffset], xToCacheCopyParams);
+    DataCopyPad(convStatesGm[xToCacheOffset], xLocal[xUbOffset], xToCacheCopyParams);
 }
 
 
