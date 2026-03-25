@@ -24,6 +24,8 @@ namespace optiling {
 constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
 constexpr uint64_t STANDARD_CARD_CGMPAD_WORKSPACE_CNT = 3;
 constexpr uint64_t FIVE_ONE_TWO = 512;
+const std::set<int> USE_ALLREDUCE_TWO_SHOW {4, 8};
+
 bool WeightQuantMatmulAllReduceTilingA5::IsCapable()
 {
     if (isA16W8_ || isA16W4_) {
@@ -212,8 +214,7 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
             SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
         return tilingKey;
     }
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
-    bool isA2ARSAG = isStandardCard4P;
+    bool isA2ARSAG = mc2tiling::isUseAllReduceTwoShot(args_.rankDim, npuArch_, USE_ALLREDUCE_TWO_SHOW);
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_WEIGHT_QUANT_MM,                     \
         WeightQuantTPLPatams_.transB,               \
@@ -270,7 +271,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::GetWorkspaceSize()
             OP_LOGD(opName_, "Empty tensor k is 0, set workspace size=%lu to context.", myWorkSpaceSize_);
         }
     } else {
-        if(mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)){
+        if(mc2tiling::isUseAllReduceTwoShot(args_.rankDim, npuArch_, USE_ALLREDUCE_TWO_SHOW)){
             OP_TILING_CHECK(
                 GetWorkspaceSizeInStandardCard4P() != ge::GRAPH_SUCCESS,
                 OP_LOGE(opName_, "get workspace size By GetWorkspaceSizeInStandardCard4P failed."),
@@ -462,7 +463,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2Hcomm()
     OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return ge::GRAPH_FAILED);
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
     const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
+    bool isUseAllReduceTwoShot = mc2tiling::isUseAllReduceTwoShot(args_.rankDim, npuArch_, USE_ALLREDUCE_TWO_SHOW);
     if (isStandardCard4P) {
         OP_TILING_CHECK(
             SetMc2HcommTwoShot(groupName, reduceType) != ge::GRAPH_SUCCESS,
