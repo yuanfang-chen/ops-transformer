@@ -448,7 +448,7 @@ ge::graphStatus QLIInfoParser::GetGSize()
                return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(gSize_ > G_SIZE_LIMIT,
-               OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must <= 64.", n1Size_, n2Size_),
+               OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must <= %u.", n1Size_, n2Size_, G_SIZE_LIMIT),
                return ge::GRAPH_FAILED);        
     }
     
