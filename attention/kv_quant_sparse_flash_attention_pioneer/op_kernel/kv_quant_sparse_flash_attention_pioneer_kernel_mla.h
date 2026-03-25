@@ -495,7 +495,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
                     continue;
                 }
                 if constexpr (hasSink) {
-                    if (runParam.s2LoopEndIdx > 0) {
+                    if (runParam.s2LoopEndIdx > 1) {
                         runParam.s2LoopEndIdx += 1;
                     }
                 }
