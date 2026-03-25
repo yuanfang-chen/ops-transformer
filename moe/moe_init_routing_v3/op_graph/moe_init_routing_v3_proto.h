@@ -21,13 +21,13 @@ namespace ge {
 /**
 * @brief compute init routing for moe.
 * @par Inputs:
-* @li x: A 2D tensor. Shape is: (B*S, H). Type is:Int8, BFloat16, Float16 or Float32. Format support ND.
+* @li x: A 2D tensor. Shape is: (B*S, H). Type is:Float4, HiFloat8,Int8, BFloat16, Float16 or Float32. Format support ND.
 * @li expert_idx: A 2D tensor. Shape is: (B*S, K). Type is:Int32. Expert index. Format support ND.
 * @li scale: A 1D or 2D tensor. Shape is: (B*S) or (expert_end-expert_start, H) when quant_mode is 1. Type is:Float32. Format support ND.
 * @li offset: A 2D tensor. Shape is: (expert_end - expert_start, 1) or (expert_end - expert_start, H).
                Type is:Float32. Format support ND.
 * @par Outputs:
-* @li expanded_x: A 2D tensor. Shape is: (B*S*K, H). When quant_mode is -1, type is:Int8, BFloat16, Float16 or Float32. The data type must be the same as that of x.
+* @li expanded_x: A 2D tensor. Shape is: (B*S*K, H). When quant_mode is -1, type is:Float4, Int8, BFloat16, Float16 or Float32. The data type must be the same as that of x.
                   When quant_mode in [0, 1], type is Int8.
                   When quant_mode in [2, 3], type is [FLOAT8_E5M2, FLOAT8_E4M3FN] respectively.
                   Format support ND.
@@ -35,7 +35,7 @@ namespace ge {
 * @li expert_tokens_count_or_cumsum: A 1D tensor. represents the number of tokens processed by each expert and the
                                        cumulative value. The value is controlled by expert_tokens_num_flag to output.
                                        Type is:Int64. shape is (expert_end - expert_start, ). Format support ND.
-* @li expanded_scale: A 1D tensor when quant_mode in [-1, 0, 1]. Shape is: (B*S*K). Type is:Float32. The data type must be the same as that of scale. 
+* @li expanded_scale: A 1D tensor when quant_mode in [-1, 0, 1]. Shape is: (B*S*K). Type is:Float32, Float8. The data type must be the same as that of scale. 
                       A 2D tensor when quant_mode in [2, 3]. Shape is: (B*S*K, M), in which M is CeilAlign(CeilDiv(H, 32), 2). Type is: Float8_E8M0. 
                       Format support ND.
 * @par Attributes:
@@ -55,11 +55,11 @@ namespace ge {
 * @li row_idx_type: Optional parameter. Type is:Int. The value is 0(gather) or 1(scatter). Default: 0.
 */
 REG_OP(MoeInitRoutingV3)
-.INPUT(x, TensorType({DT_INT8, DT_FLOAT16, DT_FLOAT, DT_BF16, DT_HIFLOAT8}))
+.INPUT(x, TensorType({DT_INT8, DT_FLOAT16, DT_FLOAT, DT_BF16, DT_HIFLOAT8, DT_FLOAT4_E2M1}))
 .INPUT(expert_idx, TensorType({DT_INT32}))
-.OPTIONAL_INPUT(scale, TensorType({DT_FLOAT}))
+.OPTIONAL_INPUT(scale, TensorType({DT_FLOAT, DT_FLOAT8_E8M0}))
 .OPTIONAL_INPUT(offset, TensorType({DT_FLOAT}))
-.OUTPUT(expanded_x, TensorType({DT_INT8, DT_FLOAT16, DT_FLOAT, DT_BF16, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_HIFLOAT8}))
+.OUTPUT(expanded_x, TensorType({DT_INT8, DT_FLOAT16, DT_FLOAT, DT_BF16, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_HIFLOAT8, DT_FLOAT4_E2M1}))
 .OUTPUT(expanded_row_idx, TensorType({DT_INT32}))
 .OUTPUT(expert_tokens_count_or_cumsum, TensorType({DT_INT64}))
 .OUTPUT(expanded_scale, TensorType({DT_FLOAT, DT_FLOAT8_E8M0}))
