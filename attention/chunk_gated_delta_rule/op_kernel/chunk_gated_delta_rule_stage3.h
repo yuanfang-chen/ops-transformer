@@ -40,7 +40,7 @@ struct StageThreeParams {
     StageThreeMT *mm3;
     TPipe *pipe;
     ChunkGroup *cg;
-    float scale_;
+    float scale;
     int64_t Nv;
     int64_t Nk;
     int64_t Dv;
@@ -82,12 +82,13 @@ public:
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, chunkSize_ > paddedDv_ ?
                           chunkSize_ * chunkSize_ * sizeof(float) : chunkSize_ * paddedDv_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (STAGE3_BUFFER_COUNT * chunkSize_ * chunkSize_ * sizeof(float)));
-        uint32_t buffOffset = 0;
-        tmpBuffer1_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
-        buffOffset += chunkSize_ * chunkSize_ * sizeof(float);
-        tmpBuffer2_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
-        buffOffset += chunkSize_ * chunkSize_ * sizeof(float);
-        maskBuffer_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * chunkSize_), buffOffset);
+        uint64_t buffOffset = 0;
+        uint64_t tmpOffset = chunkSize_ * chunkSize_;
+        tmpBuffer1_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(tmpOffset), buffOffset);
+        buffOffset += tmpOffset * sizeof(float);
+        tmpBuffer2_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(tmpOffset), buffOffset);
+        buffOffset += tmpOffset* sizeof(float);
+        maskBuffer_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(tmpOffset), buffOffset);
 
         // 搬入mask
         DataCopyExtParams inParams{static_cast<uint16_t>(chunkSize_),
@@ -157,7 +158,7 @@ public:
         AlignedCopyIn(sTP_->qkt[nvId * Sp_ * chunkSize_ + chunkPos * chunkSize_], curChunkSize_, curChunkSize_);
         auto qkt = inQueue_.DeQue<float>();
         auto scale_qkt = outQueue_.AllocTensor<float>();
-        Muls(scale_qkt, qkt, sTP_->scale_, curChunkSize_ * chunkSize_);
+        Muls(scale_qkt, qkt, sTP_->scale, curChunkSize_ * chunkSize_);
         Mul(scale_qkt, scale_qkt, tmpBuffer1_, curChunkSize_ * chunkSize_);
         inQueue_.FreeTensor(qkt);
         // mask
@@ -168,7 +169,6 @@ public:
 
     __aicore__ inline void CalAttnOut(GlobalTensor<float> inTensor, GlobalTensor<bfloat16_t> outTensor)
     {
-        int64_t Bf16PaddingDv = Ceil(Dv_, BLOCK_SIZE / sizeof(bfloat16_t)) * (BLOCK_SIZE / sizeof(bfloat16_t));
         // 匹配到BF16对齐, 余数为8以上时自动对齐无需额外偏移
         int64_t dstStride = 0;
         if (Dv_ % BLOCK_BF16_NUM != 0) {
@@ -183,10 +183,10 @@ public:
         DataCopyPadExtParams<float> copyPadParams{false, 0, 0, 0};
         DataCopyPad(inLocal, inTensor, inParams, copyPadParams);
         inQueue_.EnQue(inLocal);
-        auto Fp32AttnIn = inQueue_.DeQue<float>();
+        auto fp32AttnIn = inQueue_.DeQue<float>();
         auto attnOut = outQueue_.AllocTensor<bfloat16_t>();
-        Cast(attnOut, Fp32AttnIn, RoundMode::CAST_RINT, curChunkSize_ * Bf16PaddingDv);
-        inQueue_.FreeTensor(Fp32AttnIn);  // Cast 完成后立即释放
+        Cast(attnOut, fp32AttnIn, RoundMode::CAST_RINT, curChunkSize_ * paddedDv_);
+        inQueue_.FreeTensor(fp32AttnIn);  // Cast 完成后立即释放
         outQueue_.EnQue(attnOut);
         auto outLocal = outQueue_.DeQue<bfloat16_t>();
         DataCopyExtParams copyParams;
