@@ -69,6 +69,10 @@ TILING_DATA_FIELD_DEF(uint64_t, mm2OutSize);
 TILING_DATA_FIELD_DEF(uint64_t, updateSize);
 TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize);
 
+TILING_DATA_FIELD_DEF_STRUCT(BsaMask2IdxTiling, BsaMask2IdxTileInfo);
+TILING_DATA_FIELD_DEF_STRUCT(BsaBaseTiling, BsaBaseTileInfo);
+TILING_DATA_FIELD_DEF_STRUCT(BsaMmPhaseL1Tiling, BsaMmPhaseL1TileInfo);
+
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(BlockSparseAttention, BlockSparseAttentionTilingData)
 
@@ -146,6 +150,12 @@ private:
     ge::graphStatus ParseBlockTable(gert::TilingContext *bsaContext);
     ge::graphStatus CheckSparsePattern(gert::TilingContext *bsaContext, const int64_t defaultShape);
     ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *bsaContext);
+    // 950 exclusive
+    uint32_t GetCurQSTileNum950(int64_t curQSeqlen);
+    void CalcBaseTileTilingParams950();
+    void CalcSplitCoreTilingParams950();
+    void CalcWorkspaceTilingParams950(gert::TilingContext *bsaContext);
+    void CalcMatmulPhaseL1TileInfo950();
     // 910 exclusive
     ge::graphStatus CalculateTaskSplit(gert::TilingContext *bsaContext);
     ge::graphStatus CalculateWorkSpace(gert::TilingContext *bsaContext);
