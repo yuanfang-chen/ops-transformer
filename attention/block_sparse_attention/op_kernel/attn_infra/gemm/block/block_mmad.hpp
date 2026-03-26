@@ -17,6 +17,7 @@
 
 namespace NpuArch::Gemm::Block {
 
+#if (__CCE_AICORE__ == 220)
 template <
     class DispatchPolicy,
     class L1TileShape,
@@ -31,10 +32,34 @@ template <
 struct BlockMmad {
     static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmad is not implemented for this DispatchPolicy");
 };
+#endif
+
+#if (__CCE_AICORE__ == 310)
+template <
+    class DispatchPolicy,
+    class L1TileShape,
+    class L0TileShape,
+    class ElementA,
+    class ElementB,
+    class ElementC,
+    class ElementBias = void,
+    class TileCopy = Gemm::Tile::PackedTileCopyTla<typename DispatchPolicy::ArchTag, ElementA, layout::RowMajor,
+        ElementB, layout::RowMajor, ElementC, layout::RowMajor, ElementBias>,
+    class TileMmad =
+        Gemm::Tile::TileMmadTla<typename DispatchPolicy::ArchTag, ElementA, typename TileCopy::LayoutTagL1A>
+>
+struct BlockMmadTla {
+    static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmadTla is not implemented for this DispatchPolicy");
+};
+#endif
 
 } // namespace NpuArch::Gemm::Block
-
+#if (__CCE_AICORE__ == 220)
 #include "../../../attn_infra/gemm/block/block_mmad_qk.hpp"
 #include "../../../attn_infra/gemm/block/block_mmad_pv.hpp"
-
+#endif
+#if (__CCE_AICORE__ == 310)
+#include "../../../attn_infra/gemm/block/block_mmad_pv_arch35_ABf16_C_to_UB.hpp"
+#include "../../../attn_infra/gemm/block/block_mmad_qk_arch35_ABf16_C_to_UB.hpp"
+#endif
 #endif // GEMM_BLOCK_BLOCK_MMAD_HPP
