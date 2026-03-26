@@ -38,15 +38,15 @@ namespace {
         const aclTensor *key {nullptr};
         const aclTensor *value {nullptr};
         const aclTensor *beta {nullptr};
-        const aclTensor *initial_state {nullptr};
-        const aclTensor *actual_seq_lengths {nullptr};
+        const aclTensor *initialState {nullptr};
+        const aclTensor *actualSeqLengths {nullptr};
         // 可选输入
         const aclTensor *g {nullptr};
         // 常量输入
         float scale {1.0f};
         // 输出
         const aclTensor *out {nullptr};
-        const aclTensor *final_state {nullptr};
+        const aclTensor *finalState {nullptr};
     };
 
     // 校验相关：支持的数据类型
@@ -62,11 +62,11 @@ namespace {
         OP_CHECK_NULL(params.query, return false);
         OP_CHECK_NULL(params.key, return false);
         OP_CHECK_NULL(params.value, return false);
-        OP_CHECK_NULL(params.initial_state, return false);
+        OP_CHECK_NULL(params.initialState, return false);
         OP_CHECK_NULL(params.beta, return false);
-        OP_CHECK_NULL(params.actual_seq_lengths, return false);
+        OP_CHECK_NULL(params.actualSeqLengths, return false);
         OP_CHECK_NULL(params.out, return false);
-        OP_CHECK_NULL(params.final_state, return false);
+        OP_CHECK_NULL(params.finalState, return false);
 
         return true;
     }
@@ -76,9 +76,9 @@ namespace {
         OP_CHECK_DTYPE_NOT_SUPPORT(params.query, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.key, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.value, QKV_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.initial_state, STATE_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(params.initialState, STATE_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.beta, BETA_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.actual_seq_lengths, SEQ_LENS_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(params.actualSeqLengths, SEQ_LENS_TYPE_SUPPORT_LIST, return false);
 
         // gOptional 仅在非空时校验 dtype
         if (params.g != nullptr) {
@@ -86,7 +86,7 @@ namespace {
         }
 
         OP_CHECK_DTYPE_NOT_SUPPORT(params.out, OUT_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.final_state, STATE_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(params.finalState, STATE_TYPE_SUPPORT_LIST, return false);
 
         return true;
     }
@@ -106,9 +106,8 @@ namespace {
         params.key->SetOriginalShape(params.key->GetViewShape());
         params.value->SetOriginalShape(params.value->GetViewShape());
         params.beta->SetOriginalShape(params.beta->GetViewShape());
-        params.initial_state->SetOriginalShape(params.initial_state->GetViewShape());
-        params.actual_seq_lengths->SetOriginalShape(params.actual_seq_lengths->GetViewShape());
-        // 可选输入为 view 时同步原始 shape
+        params.initialState->SetOriginalShape(params.initialState->GetViewShape());
+        params.actualSeqLengths->SetOriginalShape(params.actualSeqLengths->GetViewShape());
         if (params.g != nullptr) {
             params.g->SetOriginalShape(params.g->GetViewShape());
         }

@@ -109,7 +109,7 @@ public:
         }
     }
 
-    __aicore__ inline void InitGlobalTensor()
+    __aicore__ inline void InitMask()
     {
         if ASCEND_IS_AIV {
             // 初始化mask矩阵
@@ -196,7 +196,7 @@ public:
         stageWsAddr_ = user + offset;
 
         InitMatmul();
-        InitGlobalTensor();
+        InitMask();
     }
 
     __aicore__ inline void Process()
