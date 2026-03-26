@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file mainifold_constrained_hyper_connection_tiling.cpp
+ * \file mhc_pre_tiling.cpp
  * \brief
  */
 
@@ -61,6 +61,8 @@ const constexpr uint32_t FLOAT_ELE_SIZE = 8;
 const constexpr uint32_t KERNEL_WIDTH = 8;
 
 const constexpr uint32_t DB_L0C = 2;
+const constexpr uint32_t DB_L0A = 2;
+const constexpr uint32_t DB_L0B = 2;
 const constexpr uint32_t STEP_K = 1;
 const constexpr uint32_t DEPTH_K = 2;
 const constexpr uint32_t STEP_MN = 1;
@@ -120,7 +122,7 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
         return ParseTndFormat(xTensor);
     }
 
-    OP_LOGE(context_->GetNodeName(), "X dimNum must be %ld or %ld, got %u", TND_DIM_NUM, BSND_DIM_NUM, xDims);
+    OP_LOGE(context_->GetNodeName(), "X dimNum must be %ld or %ld, got %zu", TND_DIM_NUM, BSND_DIM_NUM, xDims);
     return ge::GRAPH_FAILED;
 }
 
@@ -365,7 +367,7 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
     auto phiTensor = context_->GetDynamicInputTensor(PHI_INDEX, 0);
     auto phiDims = phiTensor->GetStorageShape().GetDimNum();
     if (phiDims != 2) {
-        OP_LOGE(context_->GetNodeName(), "Phi dims must be 2, got %u", phiDims);
+        OP_LOGE(context_->GetNodeName(), "Phi dims must be 2, but got %u", phiDims);
         return ge::GRAPH_FAILED;
     }
 
@@ -377,13 +379,13 @@ ge::graphStatus MhcPreBaseTiling::ValidateAndSetTilingParams(const gert::Tensor 
         }
     }
     if (!isValidN) {
-        OP_LOGE(context_->GetNodeName(), "N must be 4/6/8, got %lu", N_);
+        OP_LOGE(context_->GetNodeName(), "N must be 4/6/8, but got %lu", N_);
         return ge::GRAPH_FAILED;
     }
 
     if (D_ % D_ALIGNMENT != 0) {
         OP_LOGE(context_->GetNodeName(),
-                "D must be %u bytes aligned, got %lu", D_ALIGNMENT, D_);
+                "D must be aligned to %u elements, but got %lu", D_ALIGNMENT, D_);
         return ge::GRAPH_FAILED;
     }
 
@@ -480,8 +482,8 @@ ge::graphStatus MhcPreBaseTiling::ParseEpsAttributes()
 void MhcPreBaseTiling::FillTilingData()
 {
     tilingData_.matmulTiling.set_dbL0C(DB_L0C);
-    tilingData_.matmulTiling.set_dbL0A(DB_L0C);
-    tilingData_.matmulTiling.set_dbL0B(DB_L0C);
+    tilingData_.matmulTiling.set_dbL0A(DB_L0A);
+    tilingData_.matmulTiling.set_dbL0B(DB_L0B);
     tilingData_.matmulTiling.set_stepKa(STEP_K);
     tilingData_.matmulTiling.set_stepKb(STEP_K);
     tilingData_.matmulTiling.set_depthA1(DEPTH_K);

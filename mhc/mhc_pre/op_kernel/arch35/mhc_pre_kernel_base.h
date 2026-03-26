@@ -146,7 +146,7 @@ public:
         totalLength_ = tiling_->totalLength;
         outFlag_ = (tiling_->outFlag != 0);
         scaleMean_ = tiling_->scaleMean;
-        chunTSize_ = tiling_->chunkTSize;
+        chunkTSize_ = tiling_->chunkTSize;
         v1ChunkDSize_ = tiling_->v1ChunkDSize;
         hasGamma_ = (tiling_->hasGamma != 0);
         eleNumPerVf_ = MhcPreUtils::GetVRegSize() / sizeof(P);
@@ -157,13 +157,13 @@ public:
         mnConfig_.m = matrixInfo_.totalLength;
         mnConfig_.n = matrixInfo_.fusionSize;
         mnConfig_.k = matrixInfo_.nD;
-        mnConfig_.singleCoreM = chunTSize_;
+        mnConfig_.singleCoreM = chunkTSize_;
         mnConfig_.singleCoreN = mnConfig_.n;
         mnConfig_.singleCoreK = ND_LENGTH;
         mnConfig_.curSingleCoreM = mnConfig_.singleCoreM;
         mnConfig_.curSingleCoreN = mnConfig_.singleCoreN;
         mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
-        curSingleT_ = chunTSize_;
+        curSingleT_ = chunkTSize_;
     }
 
     __aicore__ inline void AIV1GetHSliceOffset()
@@ -191,8 +191,8 @@ public:
 
     __aicore__ inline void VectorComputeOffset()
     {
-        uint64_t aliginSingleM = Ceil(curSingleT_ / 2, 8) * 8;
-        vectorOffset_.singleCoreM = aliginSingleM < curSingleT_ ? aliginSingleM : curSingleT_;
+        uint64_t alignSingleM = Ceil(curSingleT_ / 2, 8) * 8;
+        vectorOffset_.singleCoreM = alignSingleM < curSingleT_ ? alignSingleM : curSingleT_;
         if (subBlockIdx_ == 0) {
             vectorOffset_.offsetMStart = 0;
             vectorOffset_.offsetMEnd = vectorOffset_.singleCoreM;
@@ -349,7 +349,7 @@ public:
         copyParams.dstStride = uint32_t(0);
 
         uint64_t offset =
-            chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % PARALLEL_NUM) * coreNum_) + offsetM * curNdLen;
+            chunkTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % PARALLEL_NUM) * coreNum_) + offsetM * curNdLen;
         DataCopyPad(xFloatGm_[offset], x, copyParams);
     }
 
@@ -690,7 +690,7 @@ protected:
     static constexpr uint32_t PARALLEL_NUM = 2;
     static constexpr uint32_t ND_LENGTH = 256;
 
-    uint32_t chunTSize_ = 64;
+    uint32_t chunkTSize_ = 64;
     uint32_t v1ChunkDSize_ = 5120;
     uint32_t curSingleT_ = 64;
     uint32_t coreIdx_ = 0;

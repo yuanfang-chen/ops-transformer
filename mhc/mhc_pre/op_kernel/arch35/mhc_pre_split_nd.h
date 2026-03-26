@@ -13,8 +13,8 @@
  * \brief MHC Pre kernel for ND split mode
  */
 
-#ifndef __MHC_PRE_DECODE_KERNEL_H_
-#define __MHC_PRE_DECODE_KERNEL_H_
+#ifndef MHC_PRE_SPLIT_ND_H_
+#define MHC_PRE_SPLIT_ND_H_
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -145,13 +145,13 @@ private:
     static constexpr uint32_t kMinTForN6 = 4;
     static constexpr uint32_t kDefaultCurSingleM = 2;
     static constexpr uint32_t kDefaultMinT = 1;
-    static constexpr uint32_t kDefaultVectorCoreNum = 2;
+    static constexpr uint32_t kDefaultvectorCoreNum_ = 2;
     static constexpr uint32_t kDefaultV0BaseT = 1;
 
     uint32_t chunNDSize_ = 320;
     uint32_t curSingleM_ = kDefaultCurSingleM;
     uint32_t minT_ = kDefaultMinT;
-    uint32_t vectorCoreNum = kDefaultVectorCoreNum;
+    uint32_t vectorCoreNum_ = kDefaultvectorCoreNum_;
     uint32_t V0_BASE_T = kDefaultV0BaseT;
 };
 
@@ -340,16 +340,16 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AICProcess()
 {
     AscendC::CrossCoreWaitFlag(SYNC_V0toC);
     
-    uint64_t Offset = chunNDSize_ * coreIdx_;
+    uint64_t offset = chunNDSize_ * coreIdx_;
     uint64_t outOffset = mnConfig_.singleCoreM * mnConfig_.singleCoreN * coreIdx_;
-    if (Offset + mnConfig_.singleCoreK > mnConfig_.k) {
-        mnConfig_.curSingleCoreK = mnConfig_.k - Offset;
+    if (offset + mnConfig_.singleCoreK > mnConfig_.k) {
+        mnConfig_.curSingleCoreK = mnConfig_.k - offset;
     }
 
     mm.SetOrgShape(mnConfig_.singleCoreM, mnConfig_.singleCoreN, mnConfig_.k);
     mm.SetSingleShape(mnConfig_.singleCoreM, mnConfig_.singleCoreN, mnConfig_.curSingleCoreK);
-    mm.SetTensorA(xFloatGm_[Offset]);
-    mm.SetTensorB(phiGm_[Offset], true);
+    mm.SetTensorA(xFloatGm_[offset]);
+    mm.SetTensorB(phiGm_[offset], true);
     mm.IterateAll(tempMMResGm_[outOffset], 0);
     mm.End();
     AscendC::CrossCoreSetFlag<0x0, PIPE_FIX>(SYNC_CtoC);
@@ -360,8 +360,8 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AICProcess()
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::VectorComputeOffset()
 {
-    uint64_t aliginSingleM = Ceil(curSingleM_, 2);
-    vectorOffset_.singleCoreM = aliginSingleM <  curSingleM_ ? aliginSingleM : curSingleM_;
+    uint64_t alignSingleM = Ceil(curSingleM_, 2);
+    vectorOffset_.singleCoreM = alignSingleM <  curSingleM_ ? alignSingleM : curSingleM_;
     if (subBlockIdx_ == 0) {
         vectorOffset_.offsetMStart = 0;
         vectorOffset_.offsetMEnd = vectorOffset_.singleCoreM;
@@ -465,7 +465,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::AIV1Process(uint64_t curBlock,
         curSingleM_ = matrixInfo_.totalLength - curBlock * chunTSize_;
     }
     VectorComputeOffset();
-    if (vectorOffset_.singleCoreM <= 0) {
+    if (vectorOffset_.singleCoreM == 0) { // uint64_t类型永远不会小于0
         return;
     }
     AscendC::CrossCoreWaitFlag(SYNC_CtoV1);
@@ -603,4 +603,4 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::HMixProcess(uint64_t offsetT, 
 
 } // namespace MhcPre
 
-#endif // __MHC_PRE_DECODE_KERNEL_H_
+#endif // MHC_PRE_SPLIT_ND_H_

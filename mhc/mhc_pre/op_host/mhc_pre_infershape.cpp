@@ -95,7 +95,7 @@ static ge::graphStatus InferShape4MhcPre(InferShapeContext *context)
                 return GRAPH_FAILED);
     OP_CHECK_IF(
         xDim != BSND_DIM_NUM && xDim != TND_DIM_NUM,
-        OP_LOGE(context->GetNodeName(), "xShapeDim should be %d or %d, but got %ld", BSND_DIM_NUM, TND_DIM_NUM, xDim),
+        OP_LOGE(context->GetNodeName(), "xShapeDim should be %ld or %ld, but got %ld", BSND_DIM_NUM, TND_DIM_NUM, xDim),
         return GRAPH_FAILED);
     uint64_t matK = phiShape->GetDim(0);
     gert::Shape *outShapes[6] = {context->GetOutputShape(OUT_H_IN_INDEX),   context->GetOutputShape(OUT_H_POST_INDEX),

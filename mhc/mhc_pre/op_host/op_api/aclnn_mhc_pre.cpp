@@ -290,7 +290,7 @@ bool ValidateNDParams(int64_t n, int64_t d)
     }
 
     if (d % D_ALIGNMENT != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "D must be 32 bytes aligned, but got d=%ld", d);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "D must be aligned to %u elements, but got d=%ld", D_ALIGNMENT, d);
         return false;
     }
 

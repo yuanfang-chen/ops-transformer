@@ -13,8 +13,8 @@
  * \brief MHC Pre kernel for batch split mode
  */
 
-#ifndef MHC_PRE_SPLIT_BS_KERNEL_H_
-#define MHC_PRE_SPLIT_BS_KERNEL_H_
+#ifndef MHC_PRE_SPLIT_BS_H_
+#define MHC_PRE_SPLIT_BS_H_
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -110,7 +110,7 @@ public:
     __aicore__ inline void InitBlockParams(uint64_t curblock, uint32_t tBlockNum);
     __aicore__ inline void AICProcess(uint32_t offsetNd, uint32_t outOffset);
     __aicore__ inline void V0PostProcess(uint32_t curblock, uint32_t tBlockNum);
-    __aicore__ inline void V0Proluge(uint32_t curNdLen, uint32_t offsetNd);
+    __aicore__ inline void V0Prologue(uint32_t curNdLen, uint32_t offsetNd);
     __aicore__ inline void AIV1Process(uint64_t curBlock, uint64_t tBlockNum);
     __aicore__ inline void AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset);
 };
@@ -206,7 +206,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::Process()
                 if (vectorCount_ >= 2) {
                     AscendC::CrossCoreWaitFlag(SYNC_C2V);
                 }
-                V0Proluge(curNdLen, offsetNd);
+                V0Prologue(curNdLen, offsetNd);
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C);
                 vectorCount_++;
             }
@@ -265,7 +265,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::AICProcess(uint32_t offsetNd, 
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernelSplitBS<T, P>::V0Proluge(uint32_t curNdLen, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernelSplitBS<T, P>::V0Prologue(uint32_t curNdLen, uint32_t offsetNd)
 {
     for (uint32_t offsetM = vectorOffset_.offsetMStart; offsetM < vectorOffset_.offsetMEnd; offsetM += V0_BASE_T) {
         uint32_t curMLen = V0_BASE_T;
