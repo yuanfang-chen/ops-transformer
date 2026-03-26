@@ -34,4 +34,22 @@ bool IsNeedScaleTrans(const aclTensor *mxScaleTensor)
     }
     return transposeFlag;
 }
+
+bool IsTensorContiguous(const aclTensor *tensor) {
+  int dimNum = tensor->GetViewShape().GetDimNum();
+  auto strides = tensor->GetViewStrides();
+  if (strides[dimNum - 1] != 1) { // 如果tensor连续，stride最后一维必须为1
+      return false;
+  }
+  auto shape = tensor->GetViewShape();
+  int expectedStride = 1;
+  for (int i = dimNum - 1; i >= 0; i--) {
+      int currentStride = strides[i];
+      if (currentStride != expectedStride) {
+          return false;
+      }
+      expectedStride *= shape.GetDim(i);
+  }
+}
+
 } // namespace MC2Aclnn
