@@ -1375,9 +1375,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td>per-token模式使用page attention管理scale/offset</td>
             <td>支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
             <td>Q_S>1</td>
-            <td>Q_S=1</td>
             <td>4</td>
             <td>shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
+            </tr>
+            <td>Q_S>1</td>
             </tr>
             <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
             <td>支持kv_dtype为INT8</td>
