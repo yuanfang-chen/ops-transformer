@@ -921,80 +921,80 @@ static ge::graphStatus TilingProcess4PFA(gert::TilingContext *context, const uin
     context->SetBlockDim(blockDimToBeSet);
     pfa_tiling.PromptFlashAttentionSetTilingData(context, pfaTilingData);
 
-    OP_LOGI(context->GetNodeName(), "=== PromptFlashAttentionTilingData Debug Info ===");
-    OP_LOGI(context->GetNodeName(), "tilingKey: %lu", tilingKey);
-    OP_LOGI(context->GetNodeName(), "blockDim: %u", blockDimToBeSet);
-    OP_LOGI(context->GetNodeName(), "--- PromptAttentionBaseParams ---");
-    OP_LOGI(context->GetNodeName(), "batchSize: %u", pfaTilingData.promptAttentionBaseParams.get_batchSize());
-    OP_LOGI(context->GetNodeName(), "headNumSize: %u", pfaTilingData.promptAttentionBaseParams.get_headNumSize());
-    OP_LOGI(context->GetNodeName(), "seqSize: %u", pfaTilingData.promptAttentionBaseParams.get_seqSize());
-    OP_LOGI(context->GetNodeName(), "headSize: %u", pfaTilingData.promptAttentionBaseParams.get_headSize());
-    OP_LOGI(context->GetNodeName(), "scaleValue: %f", pfaTilingData.promptAttentionBaseParams.get_scaleValue());
-    OP_LOGI(context->GetNodeName(), "preTokens: %d", pfaTilingData.promptAttentionBaseParams.get_preTokens());
-    OP_LOGI(context->GetNodeName(), "nextTokens: %d", pfaTilingData.promptAttentionBaseParams.get_nextTokens());
-    OP_LOGI(context->GetNodeName(), "blockSize: %d", pfaTilingData.promptAttentionBaseParams.get_blockSize());
-    OP_LOGI(context->GetNodeName(), "blockTableDim2: %d", pfaTilingData.promptAttentionBaseParams.get_blockTableDim2());
-    OP_LOGI(context->GetNodeName(), "PABlockNumSum: %d", pfaTilingData.promptAttentionBaseParams.get_PABlockNumSum());
-    OP_LOGI(context->GetNodeName(), "dimNumOfseq: %u", pfaTilingData.promptAttentionBaseParams.get_dimNumOfseq());
-    OP_LOGI(context->GetNodeName(), "typeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_typeByteNum());
-    OP_LOGI(context->GetNodeName(), "seqInnerSize: %u", pfaTilingData.promptAttentionBaseParams.get_seqInnerSize());
-    OP_LOGI(context->GetNodeName(), "prefixSeqInnerSize: %u", pfaTilingData.promptAttentionBaseParams.get_prefixSeqInnerSize());
-    OP_LOGI(context->GetNodeName(), "usePseShift: %u", pfaTilingData.promptAttentionBaseParams.get_usePseShift());
-    OP_LOGI(context->GetNodeName(), "useMask: %u", pfaTilingData.promptAttentionBaseParams.get_useMask());
-    OP_LOGI(context->GetNodeName(), "headNumRatio: %u", pfaTilingData.promptAttentionBaseParams.get_headNumRatio());
-    OP_LOGI(context->GetNodeName(), "attenMaskElemType: %u", pfaTilingData.promptAttentionBaseParams.get_attenMaskElemType());
-    OP_LOGI(context->GetNodeName(), "pseShiftTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftTypeByteNum());
-    OP_LOGI(context->GetNodeName(), "pseMaskMaxSize: %u", pfaTilingData.promptAttentionBaseParams.get_pseMaskMaxSize());
-    OP_LOGI(context->GetNodeName(), "maskTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_maskTypeByteNum());
-    OP_LOGI(context->GetNodeName(), "outputTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_outputTypeByteNum());
-    OP_LOGI(context->GetNodeName(), "softmaxTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_softmaxTypeByteNum());
-    OP_LOGI(context->GetNodeName(), "sparseMode: %u", pfaTilingData.promptAttentionBaseParams.get_sparseMode());
-    OP_LOGI(context->GetNodeName(), "alignedHeadSize: %u", pfaTilingData.promptAttentionBaseParams.get_alignedHeadSize());
-    OP_LOGI(context->GetNodeName(), "splitS2: %u", pfaTilingData.promptAttentionBaseParams.get_splitS2());
-    OP_LOGI(context->GetNodeName(), "splitD: %u", pfaTilingData.promptAttentionBaseParams.get_splitD());
-    OP_LOGI(context->GetNodeName(), "layoutType: %u", pfaTilingData.promptAttentionBaseParams.get_layoutType());
-    OP_LOGI(context->GetNodeName(), "PAlayoutType: %u", pfaTilingData.promptAttentionBaseParams.get_PAlayoutType());
-    OP_LOGI(context->GetNodeName(), "pseShiftS1Size: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftS1Size());
-    OP_LOGI(context->GetNodeName(), "pseShiftS2Size: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftS2Size());
-    OP_LOGI(context->GetNodeName(), "maskKVsSize: %u", pfaTilingData.promptAttentionBaseParams.get_maskKVsSize());
-    OP_LOGI(context->GetNodeName(), "maskQsSize: %u", pfaTilingData.promptAttentionBaseParams.get_maskQsSize());
-    OP_LOGI(context->GetNodeName(), "isLayoutSH: %u", pfaTilingData.promptAttentionBaseParams.get_isLayoutSH());
-    OP_LOGI(context->GetNodeName(), "isActualSeqLengthsNull: %u", pfaTilingData.promptAttentionBaseParams.get_isActualSeqLengthsNull());
-    OP_LOGI(context->GetNodeName(), "isActualSeqLengthsKVNull: %u", pfaTilingData.promptAttentionBaseParams.get_isActualSeqLengthsKVNull());
-    OP_LOGI(context->GetNodeName(), "actualSeqLengthsSize: %u", pfaTilingData.promptAttentionBaseParams.get_actualSeqLengthsSize());
-    OP_LOGI(context->GetNodeName(), "actualSeqLengthsKVSize: %u", pfaTilingData.promptAttentionBaseParams.get_actualSeqLengthsKVSize());
-    OP_LOGI(context->GetNodeName(), "deqScaleFlag: %u", pfaTilingData.promptAttentionBaseParams.get_deqScaleFlag());
-    OP_LOGI(context->GetNodeName(), "deqScale2Flag: %u", pfaTilingData.promptAttentionBaseParams.get_deqScale2Flag());
-    OP_LOGI(context->GetNodeName(), "isAntiPerchannel: %u", pfaTilingData.promptAttentionBaseParams.get_isAntiPerchannel());
-    OP_LOGI(context->GetNodeName(), "isRowInvalid: %u", pfaTilingData.promptAttentionBaseParams.get_isRowInvalid());
-    OP_LOGI(context->GetNodeName(), "softmaxOuterSize: %u", pfaTilingData.promptAttentionBaseParams.get_softmaxOuterSize());
-    OP_LOGI(context->GetNodeName(), "isQuant2Perchannel: %u", pfaTilingData.promptAttentionBaseParams.get_isQuant2Perchannel());
-    OP_LOGI(context->GetNodeName(), "isQuant2BF16: %u", pfaTilingData.promptAttentionBaseParams.get_isQuant2BF16());
-    OP_LOGI(context->GetNodeName(), "isKvContinuous: %u", pfaTilingData.promptAttentionBaseParams.get_isKvContinuous());
-    OP_LOGI(context->GetNodeName(), "fromFused: %u", pfaTilingData.promptAttentionBaseParams.get_fromFused());
-    OP_LOGI(context->GetNodeName(), "isIFA: %u", pfaTilingData.promptAttentionBaseParams.get_isIFA());
-    OP_LOGI(context->GetNodeName(), "isSoftMaxLseEnable: %u", pfaTilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
-    OP_LOGI(context->GetNodeName(), "--- PromptAttentionSingleCoreParams ---");
-    OP_LOGI(context->GetNodeName(), "singleProcessSInnerSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize());
-    OP_LOGI(context->GetNodeName(), "singleProcessSOuterSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize());
-    OP_LOGI(context->GetNodeName(), "multiSmaxsInnerLoopTimes: %u", pfaTilingData.promptAttentionSingleCoreParams.get_multiSmaxsInnerLoopTimes());
-    OP_LOGI(context->GetNodeName(), "actualCoreNums: %u", pfaTilingData.promptAttentionSingleCoreParams.get_actualCoreNums());
-    OP_LOGI(context->GetNodeName(), "pseShiftBatch: %u", pfaTilingData.promptAttentionSingleCoreParams.get_pseShiftBatch());
-    OP_LOGI(context->GetNodeName(), "attenMaskBatch: %u", pfaTilingData.promptAttentionSingleCoreParams.get_attenMaskBatch());
-    OP_LOGI(context->GetNodeName(), "kvAntiquantSInnerSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_kvAntiquantSInnerSize());
-    OP_LOGI(context->GetNodeName(), "--- PromptAttentionSingleCoreTensorSize ---");
-    OP_LOGI(context->GetNodeName(), "mmResUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_mmResUbSize());
-    OP_LOGI(context->GetNodeName(), "pseShiftUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_pseShiftUbSize());
-    OP_LOGI(context->GetNodeName(), "attenMaskUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_attenMaskUbSize());
-    OP_LOGI(context->GetNodeName(), "maskSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_maskSize());
-    OP_LOGI(context->GetNodeName(), "softmaxMaxSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxMaxSize());
-    OP_LOGI(context->GetNodeName(), "softmaxSumSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxSumSize());
-    OP_LOGI(context->GetNodeName(), "softmaxExpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxExpSize());
-    OP_LOGI(context->GetNodeName(), "softmaxValueSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxValueSize());
-    OP_LOGI(context->GetNodeName(), "spmTmpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_spmTmpSize());
-    OP_LOGI(context->GetNodeName(), "scmTmpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_scmTmpSize());
-    OP_LOGI(context->GetNodeName(), "bmm2ResUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_bmm2ResUbSize());
-    OP_LOGI(context->GetNodeName(), "=== End PromptFlashAttentionTilingData Debug Info ===");
+    OP_LOGE(context->GetNodeName(), "=== PromptFlashAttentionTilingData Debug Info ===");
+    OP_LOGE(context->GetNodeName(), "tilingKey: %lu", tilingKey);
+    OP_LOGE(context->GetNodeName(), "blockDim: %u", blockDimToBeSet);
+    OP_LOGE(context->GetNodeName(), "--- PromptAttentionBaseParams ---");
+    OP_LOGE(context->GetNodeName(), "batchSize: %u", pfaTilingData.promptAttentionBaseParams.get_batchSize());
+    OP_LOGE(context->GetNodeName(), "headNumSize: %u", pfaTilingData.promptAttentionBaseParams.get_headNumSize());
+    OP_LOGE(context->GetNodeName(), "seqSize: %u", pfaTilingData.promptAttentionBaseParams.get_seqSize());
+    OP_LOGE(context->GetNodeName(), "headSize: %u", pfaTilingData.promptAttentionBaseParams.get_headSize());
+    OP_LOGE(context->GetNodeName(), "scaleValue: %f", pfaTilingData.promptAttentionBaseParams.get_scaleValue());
+    OP_LOGE(context->GetNodeName(), "preTokens: %d", pfaTilingData.promptAttentionBaseParams.get_preTokens());
+    OP_LOGE(context->GetNodeName(), "nextTokens: %d", pfaTilingData.promptAttentionBaseParams.get_nextTokens());
+    OP_LOGE(context->GetNodeName(), "blockSize: %d", pfaTilingData.promptAttentionBaseParams.get_blockSize());
+    OP_LOGE(context->GetNodeName(), "blockTableDim2: %d", pfaTilingData.promptAttentionBaseParams.get_blockTableDim2());
+    OP_LOGE(context->GetNodeName(), "PABlockNumSum: %d", pfaTilingData.promptAttentionBaseParams.get_PABlockNumSum());
+    OP_LOGE(context->GetNodeName(), "dimNumOfseq: %u", pfaTilingData.promptAttentionBaseParams.get_dimNumOfseq());
+    OP_LOGE(context->GetNodeName(), "typeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_typeByteNum());
+    OP_LOGE(context->GetNodeName(), "seqInnerSize: %u", pfaTilingData.promptAttentionBaseParams.get_seqInnerSize());
+    OP_LOGE(context->GetNodeName(), "prefixSeqInnerSize: %u", pfaTilingData.promptAttentionBaseParams.get_prefixSeqInnerSize());
+    OP_LOGE(context->GetNodeName(), "usePseShift: %u", pfaTilingData.promptAttentionBaseParams.get_usePseShift());
+    OP_LOGE(context->GetNodeName(), "useMask: %u", pfaTilingData.promptAttentionBaseParams.get_useMask());
+    OP_LOGE(context->GetNodeName(), "headNumRatio: %u", pfaTilingData.promptAttentionBaseParams.get_headNumRatio());
+    OP_LOGE(context->GetNodeName(), "attenMaskElemType: %u", pfaTilingData.promptAttentionBaseParams.get_attenMaskElemType());
+    OP_LOGE(context->GetNodeName(), "pseShiftTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftTypeByteNum());
+    OP_LOGE(context->GetNodeName(), "pseMaskMaxSize: %u", pfaTilingData.promptAttentionBaseParams.get_pseMaskMaxSize());
+    OP_LOGE(context->GetNodeName(), "maskTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_maskTypeByteNum());
+    OP_LOGE(context->GetNodeName(), "outputTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_outputTypeByteNum());
+    OP_LOGE(context->GetNodeName(), "softmaxTypeByteNum: %u", pfaTilingData.promptAttentionBaseParams.get_softmaxTypeByteNum());
+    OP_LOGE(context->GetNodeName(), "sparseMode: %u", pfaTilingData.promptAttentionBaseParams.get_sparseMode());
+    OP_LOGE(context->GetNodeName(), "alignedHeadSize: %u", pfaTilingData.promptAttentionBaseParams.get_alignedHeadSize());
+    OP_LOGE(context->GetNodeName(), "splitS2: %u", pfaTilingData.promptAttentionBaseParams.get_splitS2());
+    OP_LOGE(context->GetNodeName(), "splitD: %u", pfaTilingData.promptAttentionBaseParams.get_splitD());
+    OP_LOGE(context->GetNodeName(), "layoutType: %u", pfaTilingData.promptAttentionBaseParams.get_layoutType());
+    OP_LOGE(context->GetNodeName(), "PAlayoutType: %u", pfaTilingData.promptAttentionBaseParams.get_PAlayoutType());
+    OP_LOGE(context->GetNodeName(), "pseShiftS1Size: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftS1Size());
+    OP_LOGE(context->GetNodeName(), "pseShiftS2Size: %u", pfaTilingData.promptAttentionBaseParams.get_pseShiftS2Size());
+    OP_LOGE(context->GetNodeName(), "maskKVsSize: %u", pfaTilingData.promptAttentionBaseParams.get_maskKVsSize());
+    OP_LOGE(context->GetNodeName(), "maskQsSize: %u", pfaTilingData.promptAttentionBaseParams.get_maskQsSize());
+    OP_LOGE(context->GetNodeName(), "isLayoutSH: %u", pfaTilingData.promptAttentionBaseParams.get_isLayoutSH());
+    OP_LOGE(context->GetNodeName(), "isActualSeqLengthsNull: %u", pfaTilingData.promptAttentionBaseParams.get_isActualSeqLengthsNull());
+    OP_LOGE(context->GetNodeName(), "isActualSeqLengthsKVNull: %u", pfaTilingData.promptAttentionBaseParams.get_isActualSeqLengthsKVNull());
+    OP_LOGE(context->GetNodeName(), "actualSeqLengthsSize: %u", pfaTilingData.promptAttentionBaseParams.get_actualSeqLengthsSize());
+    OP_LOGE(context->GetNodeName(), "actualSeqLengthsKVSize: %u", pfaTilingData.promptAttentionBaseParams.get_actualSeqLengthsKVSize());
+    OP_LOGE(context->GetNodeName(), "deqScaleFlag: %u", pfaTilingData.promptAttentionBaseParams.get_deqScaleFlag());
+    OP_LOGE(context->GetNodeName(), "deqScale2Flag: %u", pfaTilingData.promptAttentionBaseParams.get_deqScale2Flag());
+    OP_LOGE(context->GetNodeName(), "isAntiPerchannel: %u", pfaTilingData.promptAttentionBaseParams.get_isAntiPerchannel());
+    OP_LOGE(context->GetNodeName(), "isRowInvalid: %u", pfaTilingData.promptAttentionBaseParams.get_isRowInvalid());
+    OP_LOGE(context->GetNodeName(), "softmaxOuterSize: %u", pfaTilingData.promptAttentionBaseParams.get_softmaxOuterSize());
+    OP_LOGE(context->GetNodeName(), "isQuant2Perchannel: %u", pfaTilingData.promptAttentionBaseParams.get_isQuant2Perchannel());
+    OP_LOGE(context->GetNodeName(), "isQuant2BF16: %u", pfaTilingData.promptAttentionBaseParams.get_isQuant2BF16());
+    OP_LOGE(context->GetNodeName(), "isKvContinuous: %u", pfaTilingData.promptAttentionBaseParams.get_isKvContinuous());
+    OP_LOGE(context->GetNodeName(), "fromFused: %u", pfaTilingData.promptAttentionBaseParams.get_fromFused());
+    OP_LOGE(context->GetNodeName(), "isIFA: %u", pfaTilingData.promptAttentionBaseParams.get_isIFA());
+    OP_LOGE(context->GetNodeName(), "isSoftMaxLseEnable: %u", pfaTilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
+    OP_LOGE(context->GetNodeName(), "--- PromptAttentionSingleCoreParams ---");
+    OP_LOGE(context->GetNodeName(), "singleProcessSInnerSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize());
+    OP_LOGE(context->GetNodeName(), "singleProcessSOuterSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize());
+    OP_LOGE(context->GetNodeName(), "multiSmaxsInnerLoopTimes: %u", pfaTilingData.promptAttentionSingleCoreParams.get_multiSmaxsInnerLoopTimes());
+    OP_LOGE(context->GetNodeName(), "actualCoreNums: %u", pfaTilingData.promptAttentionSingleCoreParams.get_actualCoreNums());
+    OP_LOGE(context->GetNodeName(), "pseShiftBatch: %u", pfaTilingData.promptAttentionSingleCoreParams.get_pseShiftBatch());
+    OP_LOGE(context->GetNodeName(), "attenMaskBatch: %u", pfaTilingData.promptAttentionSingleCoreParams.get_attenMaskBatch());
+    OP_LOGE(context->GetNodeName(), "kvAntiquantSInnerSize: %u", pfaTilingData.promptAttentionSingleCoreParams.get_kvAntiquantSInnerSize());
+    OP_LOGE(context->GetNodeName(), "--- PromptAttentionSingleCoreTensorSize ---");
+    OP_LOGE(context->GetNodeName(), "mmResUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_mmResUbSize());
+    OP_LOGE(context->GetNodeName(), "pseShiftUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_pseShiftUbSize());
+    OP_LOGE(context->GetNodeName(), "attenMaskUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_attenMaskUbSize());
+    OP_LOGE(context->GetNodeName(), "maskSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_maskSize());
+    OP_LOGE(context->GetNodeName(), "softmaxMaxSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxMaxSize());
+    OP_LOGE(context->GetNodeName(), "softmaxSumSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxSumSize());
+    OP_LOGE(context->GetNodeName(), "softmaxExpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxExpSize());
+    OP_LOGE(context->GetNodeName(), "softmaxValueSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_softmaxValueSize());
+    OP_LOGE(context->GetNodeName(), "spmTmpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_spmTmpSize());
+    OP_LOGE(context->GetNodeName(), "scmTmpSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_scmTmpSize());
+    OP_LOGE(context->GetNodeName(), "bmm2ResUbSize: %u", pfaTilingData.promptAttentionTensorSizeRect.get_bmm2ResUbSize());
+    OP_LOGE(context->GetNodeName(), "=== End PromptFlashAttentionTilingData Debug Info ===");
 
     return ret;
 }
@@ -1545,38 +1545,38 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     }
     context->SetTilingKey(fai_tiling.GetTilingKey());
     
-    OP_LOGI(context->GetNodeName(), "=== FAInferTilingData Debug Info ===");
-    OP_LOGI(context->GetNodeName(), "numHeads: %u", faiTilingData.get_numHeads());
-    OP_LOGI(context->GetNodeName(), "embeddingSize: %u", faiTilingData.get_embeddingSize());
-    OP_LOGI(context->GetNodeName(), "embeddingSizeV: %u", faiTilingData.get_embeddingSizeV());
-    OP_LOGI(context->GetNodeName(), "numBlocks: %u", faiTilingData.get_numBlocks());
-    OP_LOGI(context->GetNodeName(), "blockSize: %u", faiTilingData.get_blockSize());
-    OP_LOGI(context->GetNodeName(), "maxQSeqlen: %u", faiTilingData.get_maxQSeqlen());
-    OP_LOGI(context->GetNodeName(), "maxKvSeqlen: %u", faiTilingData.get_maxKvSeqlen());
-    OP_LOGI(context->GetNodeName(), "kvHeads: %u", faiTilingData.get_kvHeads());
-    OP_LOGI(context->GetNodeName(), "batch: %u", faiTilingData.get_batch());
-    OP_LOGI(context->GetNodeName(), "maxNumBlocksPerBatch: %u", faiTilingData.get_maxNumBlocksPerBatch());
-    OP_LOGI(context->GetNodeName(), "firstBatchTaskNum: %u", faiTilingData.get_firstBatchTaskNum());
-    OP_LOGI(context->GetNodeName(), "totalTaskNum: %u", faiTilingData.get_totalTaskNum());
-    OP_LOGI(context->GetNodeName(), "maskType: %u", faiTilingData.get_maskType());
-    OP_LOGI(context->GetNodeName(), "mm1OutSize: %lu", faiTilingData.get_mm1OutSize());
-    OP_LOGI(context->GetNodeName(), "smOnlineOutSize: %lu", faiTilingData.get_smOnlineOutSize());
-    OP_LOGI(context->GetNodeName(), "mm2OutSize: %lu", faiTilingData.get_mm2OutSize());
-    OP_LOGI(context->GetNodeName(), "UpdateSize: %lu", faiTilingData.get_UpdateSize());
-    OP_LOGI(context->GetNodeName(), "workSpaceSize: %lu", faiTilingData.get_workSpaceSize());
-    OP_LOGI(context->GetNodeName(), "scaleValue: %f", faiTilingData.get_scaleValue());
-    OP_LOGI(context->GetNodeName(), "pseQ: %lu", faiTilingData.get_pseQ());
-    OP_LOGI(context->GetNodeName(), "pseKv: %lu", faiTilingData.get_pseKv());
-    OP_LOGI(context->GetNodeName(), "preToken: %ld", faiTilingData.get_preToken());
-    OP_LOGI(context->GetNodeName(), "nextToken: %ld", faiTilingData.get_nextToken());
-    OP_LOGI(context->GetNodeName(), "sparseMode: %u", faiTilingData.get_sparseMode());
-    OP_LOGI(context->GetNodeName(), "splitLseTotalSize: %lu", faiTilingData.get_splitLseTotalSize());
-    OP_LOGI(context->GetNodeName(), "splitOTotalSize: %lu", faiTilingData.get_splitOTotalSize());
-    OP_LOGI(context->GetNodeName(), "totalSplitNodeNum: %u", faiTilingData.get_totalSplitNodeNum());
-    OP_LOGI(context->GetNodeName(), "needCoreNum: %u", faiTilingData.get_needCoreNum());
-    OP_LOGI(context->GetNodeName(), "tilingKey: %lu", fai_tiling.GetTilingKey());
-    OP_LOGI(context->GetNodeName(), "blockDim: %u", context->GetBlockDim());
-    OP_LOGI(context->GetNodeName(), "=== End FAInferTilingData Debug Info ===");
+    OP_LOGE(context->GetNodeName(), "=== FAInferTilingData Debug Info ===");
+    OP_LOGE(context->GetNodeName(), "numHeads: %u", faiTilingData.get_numHeads());
+    OP_LOGE(context->GetNodeName(), "embeddingSize: %u", faiTilingData.get_embeddingSize());
+    OP_LOGE(context->GetNodeName(), "embeddingSizeV: %u", faiTilingData.get_embeddingSizeV());
+    OP_LOGE(context->GetNodeName(), "numBlocks: %u", faiTilingData.get_numBlocks());
+    OP_LOGE(context->GetNodeName(), "blockSize: %u", faiTilingData.get_blockSize());
+    OP_LOGE(context->GetNodeName(), "maxQSeqlen: %u", faiTilingData.get_maxQSeqlen());
+    OP_LOGE(context->GetNodeName(), "maxKvSeqlen: %u", faiTilingData.get_maxKvSeqlen());
+    OP_LOGE(context->GetNodeName(), "kvHeads: %u", faiTilingData.get_kvHeads());
+    OP_LOGE(context->GetNodeName(), "batch: %u", faiTilingData.get_batch());
+    OP_LOGE(context->GetNodeName(), "maxNumBlocksPerBatch: %u", faiTilingData.get_maxNumBlocksPerBatch());
+    OP_LOGE(context->GetNodeName(), "firstBatchTaskNum: %u", faiTilingData.get_firstBatchTaskNum());
+    OP_LOGE(context->GetNodeName(), "totalTaskNum: %u", faiTilingData.get_totalTaskNum());
+    OP_LOGE(context->GetNodeName(), "maskType: %u", faiTilingData.get_maskType());
+    OP_LOGE(context->GetNodeName(), "mm1OutSize: %lu", faiTilingData.get_mm1OutSize());
+    OP_LOGE(context->GetNodeName(), "smOnlineOutSize: %lu", faiTilingData.get_smOnlineOutSize());
+    OP_LOGE(context->GetNodeName(), "mm2OutSize: %lu", faiTilingData.get_mm2OutSize());
+    OP_LOGE(context->GetNodeName(), "UpdateSize: %lu", faiTilingData.get_UpdateSize());
+    OP_LOGE(context->GetNodeName(), "workSpaceSize: %lu", faiTilingData.get_workSpaceSize());
+    OP_LOGE(context->GetNodeName(), "scaleValue: %f", faiTilingData.get_scaleValue());
+    OP_LOGE(context->GetNodeName(), "pseQ: %lu", faiTilingData.get_pseQ());
+    OP_LOGE(context->GetNodeName(), "pseKv: %lu", faiTilingData.get_pseKv());
+    OP_LOGE(context->GetNodeName(), "preToken: %ld", faiTilingData.get_preToken());
+    OP_LOGE(context->GetNodeName(), "nextToken: %ld", faiTilingData.get_nextToken());
+    OP_LOGE(context->GetNodeName(), "sparseMode: %u", faiTilingData.get_sparseMode());
+    OP_LOGE(context->GetNodeName(), "splitLseTotalSize: %lu", faiTilingData.get_splitLseTotalSize());
+    OP_LOGE(context->GetNodeName(), "splitOTotalSize: %lu", faiTilingData.get_splitOTotalSize());
+    OP_LOGE(context->GetNodeName(), "totalSplitNodeNum: %u", faiTilingData.get_totalSplitNodeNum());
+    OP_LOGE(context->GetNodeName(), "needCoreNum: %u", faiTilingData.get_needCoreNum());
+    OP_LOGE(context->GetNodeName(), "tilingKey: %lu", fai_tiling.GetTilingKey());
+    OP_LOGE(context->GetNodeName(), "blockDim: %u", context->GetBlockDim());
+    OP_LOGE(context->GetNodeName(), "=== End FAInferTilingData Debug Info ===");
     
     return ge::GRAPH_SUCCESS;
 }
@@ -1755,54 +1755,54 @@ static ge::graphStatus TilingProcess4IFA(gert::TilingContext *context)
     ret = ifaTiling.DoSubOpTiling(ifaContext);
     
     if (ret == ge::GRAPH_SUCCESS) {
-        OP_LOGI(context->GetNodeName(), "=== IncreFlashAttentionContext Debug Info ===");
-        OP_LOGI(context->GetNodeName(), "tilingKey: %lu", ifaContext.tilingKey);
-        OP_LOGI(context->GetNodeName(), "numBlocks: %u", ifaContext.numBlocks);
-        OP_LOGI(context->GetNodeName(), "transposeLayout: %u", ifaContext.transposeLayout);
+        OP_LOGE(context->GetNodeName(), "=== IncreFlashAttentionContext Debug Info ===");
+        OP_LOGE(context->GetNodeName(), "tilingKey: %lu", ifaContext.tilingKey);
+        OP_LOGE(context->GetNodeName(), "numBlocks: %u", ifaContext.numBlocks);
+        OP_LOGE(context->GetNodeName(), "transposeLayout: %u", ifaContext.transposeLayout);
         if (ifaContext.numHeads != nullptr) {
-            OP_LOGI(context->GetNodeName(), "numHeads: %u", *ifaContext.numHeads);
+            OP_LOGE(context->GetNodeName(), "numHeads: %u", *ifaContext.numHeads);
         }
         if (ifaContext.scaleValue != nullptr) {
-            OP_LOGI(context->GetNodeName(), "scaleValue: %f", *ifaContext.scaleValue);
+            OP_LOGE(context->GetNodeName(), "scaleValue: %f", *ifaContext.scaleValue);
         }
         if (ifaContext.layOut != nullptr) {
-            OP_LOGI(context->GetNodeName(), "layOut: %s", ifaContext.layOut);
+            OP_LOGE(context->GetNodeName(), "layOut: %s", ifaContext.layOut);
         }
         if (ifaContext.kvHeadNums != nullptr) {
-            OP_LOGI(context->GetNodeName(), "kvHeadNums: %u", *ifaContext.kvHeadNums);
+            OP_LOGE(context->GetNodeName(), "kvHeadNums: %u", *ifaContext.kvHeadNums);
         }
         if (ifaContext.blockSize != nullptr) {
-            OP_LOGI(context->GetNodeName(), "blockSize: %u", *ifaContext.blockSize);
+            OP_LOGE(context->GetNodeName(), "blockSize: %u", *ifaContext.blockSize);
         }
         if (ifaContext.innerPrecise != nullptr) {
-            OP_LOGI(context->GetNodeName(), "innerPrecise: %u", *ifaContext.innerPrecise);
+            OP_LOGE(context->GetNodeName(), "innerPrecise: %u", *ifaContext.innerPrecise);
         }
         if (ifaContext.antiquantMode != nullptr) {
-            OP_LOGI(context->GetNodeName(), "antiquantMode: %ld", *ifaContext.antiquantMode);
+            OP_LOGE(context->GetNodeName(), "antiquantMode: %ld", *ifaContext.antiquantMode);
         }
         if (ifaContext.softmaxLseFlag != nullptr) {
-            OP_LOGI(context->GetNodeName(), "softmaxLseFlag: %u", *ifaContext.softmaxLseFlag);
+            OP_LOGE(context->GetNodeName(), "softmaxLseFlag: %u", *ifaContext.softmaxLseFlag);
         }
         if (ifaContext.keyAntiquantMode != nullptr) {
-            OP_LOGI(context->GetNodeName(), "keyAntiquantMode: %ld", *ifaContext.keyAntiquantMode);
+            OP_LOGE(context->GetNodeName(), "keyAntiquantMode: %ld", *ifaContext.keyAntiquantMode);
         }
         if (ifaContext.valueAntiquantMode != nullptr) {
-            OP_LOGI(context->GetNodeName(), "valueAntiquantMode: %ld", *ifaContext.valueAntiquantMode);
+            OP_LOGE(context->GetNodeName(), "valueAntiquantMode: %ld", *ifaContext.valueAntiquantMode);
         }
         if (ifaContext.sparseMode != nullptr) {
-            OP_LOGI(context->GetNodeName(), "sparseMode: %u", *ifaContext.sparseMode);
+            OP_LOGE(context->GetNodeName(), "sparseMode: %u", *ifaContext.sparseMode);
         }
         if (ifaContext.queryQuantMode != nullptr) {
-            OP_LOGI(context->GetNodeName(), "queryQuantMode: %ld", *ifaContext.queryQuantMode);
+            OP_LOGE(context->GetNodeName(), "queryQuantMode: %ld", *ifaContext.queryQuantMode);
         }
         if (ifaContext.pseType != nullptr) {
-            OP_LOGI(context->GetNodeName(), "pseType: %ld", *ifaContext.pseType);
+            OP_LOGE(context->GetNodeName(), "pseType: %ld", *ifaContext.pseType);
         }
         if (ifaContext.windowSize != nullptr) {
-            OP_LOGI(context->GetNodeName(), "windowSize: %ld", *ifaContext.windowSize);
+            OP_LOGE(context->GetNodeName(), "windowSize: %ld", *ifaContext.windowSize);
         }
-        OP_LOGI(context->GetNodeName(), "blockDim: %u", context->GetBlockDim());
-        OP_LOGI(context->GetNodeName(), "=== End IncreFlashAttentionContext Debug Info ===");
+        OP_LOGE(context->GetNodeName(), "blockDim: %u", context->GetBlockDim());
+        OP_LOGE(context->GetNodeName(), "=== End IncreFlashAttentionContext Debug Info ===");
     }
     
     return ret;
