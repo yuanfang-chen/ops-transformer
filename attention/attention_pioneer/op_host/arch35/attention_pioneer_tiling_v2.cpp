@@ -481,41 +481,16 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.keyRopeInputShape = context->GetOptionalInputShape(KEY_ROPE_INDEX);
     contextKeyParams.kRopeDataType = (contextKeyParams.keyRopeInputShape != nullptr) ?
         context->GetOptionalInputDesc(KEY_ROPE_INDEX)->GetDataType() : contextKeyParams.kDataType;
-    // contextKeyParams.qStartIdx = context->GetOptionalInputTensor(Q_START_IDX_INDEX);
-    // contextKeyParams.kvStartIdx = context->GetOptionalInputTensor(KV_START_IDX_INDEX);
     contextKeyParams.kSink = context->GetOptionalInputTensor(KEY_SINK_INDEX);
     contextKeyParams.kRopeSink = context->GetOptionalInputTensor(KEY_ROPE_SINK_INDEX);
     contextKeyParams.vSink = context->GetOptionalInputTensor(VALUE_SINK_INDEX);
     contextKeyParams.keySinkInputShape = context->GetOptionalInputShape(KEY_SINK_INDEX);
     contextKeyParams.keyRopeSinkInputShape = context->GetOptionalInputShape(KEY_ROPE_SINK_INDEX);
     contextKeyParams.valueSinkInputShape = context->GetOptionalInputShape(VALUE_SINK_INDEX);
-
-    uint32_t strideDimNum = 0 ;
     auto keyStrideInput = context->GetInputStride(KEY_INDEX);
-    if(keyStrideInput != nullptr) {
-        strideDimNum = keyStrideInput->GetDimNum();
-    } else {
-        strideDimNum = 0;
-    }
-    if(strideDimNum != 0) {
-        contextKeyParams.keyNoContinuesStride = keyStrideInput->GetStride(0);
-    } else {
-        contextKeyParams.keyNoContinuesStride = 0;
-    }
-
+    contextKeyParams.keyNoContinuesStride = (keyStrideInput != nullptr && keyStrideInput->GetDimNum() != 0) ? keyStrideInput->GetStride(0) : 0;
     auto keyRopeNoContinuesStrideInput = context->GetOptionalInputStride(KEY_ROPE_INDEX);
-    if(keyRopeNoContinuesStrideInput != nullptr) {
-        strideDimNum = keyRopeNoContinuesStrideInput->GetDimNum();
-    } else {
-        strideDimNum = 0;
-    }
-    if(strideDimNum != 0){
-        contextKeyParams.keyRopeNoContinuesStride = keyRopeNoContinuesStrideInput->GetStride(0);
-    } else {
-        contextKeyParams.keyRopeNoContinuesStride = 0;
-    }
-
-
+    contextKeyParams.keyRopeNoContinuesStride = (keyRopeNoContinuesStrideInput != nullptr && keyRopeNoContinuesStrideInput->GetDimNum() != 0) ? keyRopeNoContinuesStrideInput->GetStride(0) : 0;
     contextKeyParams.pseType = attrs->GetAttrPointer<int64_t>(PSE_TYPE_INDEX);
 
     const string layoutStr = string(contextKeyParams.layout);
