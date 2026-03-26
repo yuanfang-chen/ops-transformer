@@ -170,9 +170,17 @@ bool KvRmsNormRopeCacheTilingBase::CheckKCacheValid(
     const gert::TilingContext* context, int64_t batchSize, int64_t numHead, int64_t cacheLen, int64_t headSize)
 {
     auto kCacheShapeTuple = GetShapeTuple(context, K_CACHE_INDEX);
+    int64_t kCacheB = std::get<SHAPE_IDX_B>(kCacheShapeTuple);
+    int64_t kCacheN = std::get<SHAPE_IDX_N>(kCacheShapeTuple);
+    if (kCacheB != batchSize) {
+        OP_LOGW(context_->GetNodeName(),
+            "In CacheMode::Norm, the B dimension of k_cache should be %ld, but got %ld.", batchSize, kCacheB);
+    }
+    if (kCacheN != numHead) {
+        OP_LOGW(context_->GetNodeName(),
+            "In CacheMode::Norm, the N dimension of k_cache should be %ld, but got %ld.", numHead, kCacheN);
+    }
     bool isValid = true;
-    isValid = isValid && (std::get<SHAPE_IDX_B>(kCacheShapeTuple) == batchSize);
-    isValid = isValid && (std::get<SHAPE_IDX_N>(kCacheShapeTuple) == numHead);
     isValid = isValid && (std::get<SHAPE_IDX_S>(kCacheShapeTuple) == cacheLen);
     isValid = isValid && (std::get<SHAPE_IDX_D>(kCacheShapeTuple) == headSize);
     return isValid;
@@ -182,9 +190,17 @@ bool KvRmsNormRopeCacheTilingBase::CheckVCacheValid(
     const gert::TilingContext* context, int64_t batchSize, int64_t numHead, int64_t cacheLen, int64_t headSize)
 {
     auto vCacheShapeTuple = GetShapeTuple(context, V_CACHE_INDEX);
+    int64_t vCacheB = std::get<SHAPE_IDX_B>(vCacheShapeTuple);
+    int64_t vCacheN = std::get<SHAPE_IDX_N>(vCacheShapeTuple);
+    if (vCacheB != batchSize) {
+        OP_LOGW(context_->GetNodeName(),
+            "In CacheMode::Norm, the B dimension of v_cache should be %ld, but got %ld.", batchSize, vCacheB);
+    }
+    if (vCacheN != numHead) {
+        OP_LOGW(context_->GetNodeName(),
+            "In CacheMode::Norm, the N dimension of v_cache should be %ld, but got %ld.", numHead, vCacheN);
+    }
     bool isValid = true;
-    isValid = isValid && (std::get<SHAPE_IDX_B>(vCacheShapeTuple) == batchSize);
-    isValid = isValid && (std::get<SHAPE_IDX_N>(vCacheShapeTuple) == numHead);
     isValid = isValid && (std::get<SHAPE_IDX_S>(vCacheShapeTuple) == cacheLen);
     isValid = isValid && (std::get<SHAPE_IDX_D>(vCacheShapeTuple) == headSize);
     return isValid;
