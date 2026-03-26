@@ -451,6 +451,8 @@ ge::graphStatus MhcPreBaseTiling::InitPlatformMemory()
     mm_.SetBufferSpace(l1Size, l0CSize, ubSize);
     blockDim_ = ascendcPlatform.GetCoreNumAic();
 
+    ubSize_ = ubSize;  // 保存UB大小供后续校验使用
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -568,6 +570,41 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
             sizeof(float) * blockDim_;
     }
     workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
+
+    // UB buffer校验：计算kernel所需UB大小并与硬件UB比较
+    size_t fixedBufferSize = 0;                          // 固定buffer: xInQueue + outQueue + tmpBuff
+    size_t dynamicBufferSize = 0;                       // 动态buffer: bias + alpha + invRms + gamma
+    const size_t floatSize = sizeof(float);
+
+    if (tilingMode_ == TilingMode::SPLIT_BS) {
+        fixedBufferSize = 80 * 1024 + 20 * 1024 + 40 * 1024;  // kXInQueue + kOutQueue + kTmpBuffer
+    } else {
+        fixedBufferSize = 80 * 1024 + 32 * 1024 + 20 * 1024;  // kXInQueue + kOutQueue + kTmpBuffer
+    }
+
+    dynamicBufferSize = static_cast<size_t>(matN_) * floatSize * 2;  // bias + alpha
+
+    if (outFlag_) {
+        size_t invRmsSize = 0;
+        if (tilingMode_ == TilingMode::SPLIT_BS) {
+            invRmsSize = (chunkTSize_ / 2) * floatSize;  // invRmsOutQueue_
+        } else {
+            invRmsSize = ((chunkTSize_ + 1) / 2) * floatSize;  // Ceil(curSingleM_, 2) * sizeof(float)
+        }
+        dynamicBufferSize += invRmsSize;
+    }
+
+    if (hasGamma_) {
+        dynamicBufferSize += static_cast<size_t>(D_) * floatSize;  // gammaInQueue_
+    }
+
+    size_t totalUbRequired = fixedBufferSize + dynamicBufferSize;
+    if (totalUbRequired > ubSize_) {
+        OP_LOGE(context_->GetNodeName(),
+                "UB buffer require %zu bytes exceeds ubSize %lu bytes",
+                totalUbRequired, ubSize_);
+        return ge::GRAPH_FAILED;
+    }
 
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, false);
     mm_.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, true);
