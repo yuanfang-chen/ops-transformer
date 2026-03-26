@@ -66,14 +66,14 @@ static inline uint32_t calcGatingAlignCol(const uint32_t col, const ge::DataType
 }
 
 static inline int64_t Align(int64_t x, int64_t y) {
-    if (y == 0) {
+    if (!y) {
         return 0;
     }
     return (x + y - 1) / y * y;
 }
 
 static inline int64_t CeilDiv(int64_t x, int64_t y) {
-    if (y == 0) {
+    if (!y) {
         return 0;
     }
     return (x + y - 1) / y;
@@ -208,7 +208,9 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
     auto TailtopkShape = ge::Shape({tilingData.get_tailRow(), tilingData.get_col()});
     bool TailTopkTilingSuccess = TopKTilingFunc(
         ascendcPlatform,
-        tilingData.get_col(), tilingData.get_tailRow(), tilingData.get_kAlign(),
+        tilingData.get_col(),
+        tilingData.get_tailRow(),
+        tilingData.get_kAlign(),
         dataTypeSize, true, TopKMode::TOPK_NORMAL, true, tilingData.TailTopkTilingData);
     if (!(FormerTopkTilingSuccess && TailTopkTilingSuccess))
         return ge::GRAPH_FAILED;
@@ -216,12 +218,14 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
     uint32_t minsize = 0;
     AscendC::GetTopKMaxMinTmpSize(
         ascendcPlatform,
-        tilingData.get_col(), tilingData.get_oneCoreRow(),
+        tilingData.get_col(),
+        tilingData.get_oneCoreRow(),
         false, true, AscendC::TopKMode::TOPK_NORMAL, true, dataTypeSize, maxsize, minsize);
     tilingData.set_FormerTmpMinsize(minsize);
     AscendC::GetTopKMaxMinTmpSize(
         ascendcPlatform,
-        tilingData.get_col(), tilingData.get_tailRow(),
+        tilingData.get_col(),
+        tilingData.get_tailRow(),
         false, true, AscendC::TopKMode::TOPK_NORMAL, true, dataTypeSize, maxsize, minsize);
     tilingData.set_TailTmpMinsize(minsize);
     const int64_t kAlign = tilingData.get_kAlign();
