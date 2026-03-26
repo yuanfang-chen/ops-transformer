@@ -691,7 +691,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     sharedParams.softmaxScale = 0.04419417; 
     sharedParams.dSize = 576;
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
-
     sharedParams.usedCoreNum = this->tilingData->singleCoreParams.usedCoreNum;
 
     // pageAttention, rope在C侧搬运时使用
