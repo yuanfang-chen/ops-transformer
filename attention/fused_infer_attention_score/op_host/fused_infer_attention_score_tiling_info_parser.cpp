@@ -424,14 +424,14 @@ void FiaInfoParser::GetPreNextToken()
         if (!attenMaskFlag_) {
             // sparse mode need process attention mask when empty tensor scenes as same.
             preToken_ = SPARSE_MODE_INT_MAX;
-            nextToken_ = -(SPARSE_MODE_INT_MAX);
+            nextToken_ = SPARSE_MODE_INT_MAX;
         }
     }
 
     if (sparseMode_ == SPARSE_MODE_NO_MASK && qPaddingSizeFlag_) {
         // For scenes with sparse mode=0 and left padding, the attention mask part is fully calculated
         preToken_ = SPARSE_MODE_INT_MAX;
-        nextToken_ = -(SPARSE_MODE_INT_MAX);
+        nextToken_ = SPARSE_MODE_INT_MAX;
     }
 }
 
@@ -949,7 +949,7 @@ ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
         }
     } else {
         if (maskDimNum == 3U) {
-            attenMaskBatchStride_ = maskTensor->GetStorageShape().GetDim(maskDimNum - 1) *
+            attenMaskBatchStride_ = maskTensor->GetStorageShape().GetDim(maskDimNum - 1) * \
                                     maskTensor->GetStorageShape().GetDim(maskDimNum - 2);
             attenMaskStride_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1);
         } else {
