@@ -571,38 +571,7 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     }
     workspaceSize_ = userWorkspaceSize + systemWorkspaceSize;
 
-    // UB buffer校验：计算kernel所需UB大小并与硬件UB比较
-    size_t fixedBufferSize = 0;                          // 固定buffer: xInQueue + outQueue + tmpBuff
-    size_t dynamicBufferSize = 0;                       // 动态buffer: bias + alpha + invRms + gamma
-    const size_t floatSize = sizeof(float);
-
-    if (tilingMode_ == TilingMode::SPLIT_BS) {
-        fixedBufferSize = 80 * 1024 + 20 * 1024 + 40 * 1024;  // kXInQueue + kOutQueue + kTmpBuffer
-    } else {
-        fixedBufferSize = 80 * 1024 + 32 * 1024 + 20 * 1024;  // kXInQueue + kOutQueue + kTmpBuffer
-    }
-
-    dynamicBufferSize = static_cast<size_t>(matN_) * floatSize * 2;  // bias + alpha
-
-    if (outFlag_) {
-        size_t invRmsSize = 0;
-        if (tilingMode_ == TilingMode::SPLIT_BS) {
-            invRmsSize = (chunkTSize_ / 2) * floatSize;  // invRmsOutQueue_
-        } else {
-            invRmsSize = ((chunkTSize_ + 1) / 2) * floatSize;  // Ceil(curSingleM_, 2) * sizeof(float)
-        }
-        dynamicBufferSize += invRmsSize;
-    }
-
-    if (hasGamma_) {
-        dynamicBufferSize += static_cast<size_t>(D_) * floatSize;  // gammaInQueue_
-    }
-
-    size_t totalUbRequired = fixedBufferSize + dynamicBufferSize;
-    if (totalUbRequired > ubSize_) {
-        OP_LOGE(context_->GetNodeName(),
-                "UB buffer require %zu bytes exceeds ubSize %lu bytes",
-                totalUbRequired, ubSize_);
+    if (CheckUbBufferSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
 
@@ -615,6 +584,42 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     mm_.SetOrgShape(matM_, matN_, matK_);
     if (mm_.GetTiling(tilingData_.matmulTiling) == -1) {
         OP_LOGE(context_->GetNodeName(), "MhcPre tiling get failed, batch: %lu, M: %lu", totalLength_, matM_);
+        return ge::GRAPH_FAILED;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MhcPreBaseTiling::CheckUbBufferSize()
+{
+    size_t fixedBufferSize = 0;
+    size_t dynamicBufferSize = 0;
+    const size_t floatSize = sizeof(float);
+
+    if (tilingMode_ == TilingMode::SPLIT_BS) {
+        fixedBufferSize = 80 * 1024 + 20 * 1024 + 40 * 1024;
+    } else {
+        fixedBufferSize = 80 * 1024 + 32 * 1024 + 20 * 1024;
+    }
+
+    dynamicBufferSize = static_cast<size_t>(matN_) * floatSize * 2;
+
+    if (outFlag_) {
+        size_t invRmsSize = (tilingMode_ == TilingMode::SPLIT_BS)
+            ? (chunkTSize_ / 2) * floatSize
+            : ((chunkTSize_ + 1) / 2) * floatSize;
+        dynamicBufferSize += invRmsSize;
+    }
+
+    if (hasGamma_) {
+        dynamicBufferSize += static_cast<size_t>(D_) * floatSize;
+    }
+
+    size_t totalUbRequired = fixedBufferSize + dynamicBufferSize;
+    if (totalUbRequired > ubSize_) {
+        OP_LOGE(context_->GetNodeName(),
+                "UB buffer require %zu bytes exceeds ubSize %lu bytes",
+                totalUbRequired, ubSize_);
         return ge::GRAPH_FAILED;
     }
 
