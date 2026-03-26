@@ -1832,7 +1832,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <tr>
             <td>actualSeqLengths</td>
             <td></td>
-            <td>当前Ascend 950PR/Ascend 950DT仅在TND/TND_NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
+            <td>当前Ascend 950PR/Ascend 950DT 非量化所有排布均支持配置actualSeqLengthsQ；全量化仅在TND/TND_NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
         </tr>
         <tr>
             <td>inputLayout</td>
