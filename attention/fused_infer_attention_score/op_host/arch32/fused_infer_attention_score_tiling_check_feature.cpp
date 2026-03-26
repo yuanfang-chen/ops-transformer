@@ -252,7 +252,7 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
         const gert::Tensor *tempData = fiaInfo_.opParamInfo.actualSeqLengthsQ.tensor;
         const gert::Tensor *tempDataKV = fiaInfo_.opParamInfo.actualSeqLengths.tensor;
         const int64_t preTokens = fiaInfo_.opParamInfo.preToken == nullptr ? 0 : *opParamInfo_.preToken;
- 	    const int64_t nextTokens = fiaInfo_.opParamInfo.nextToken == nullptr ? 0 : *opParamInfo_.nextToken;
+        const int64_t nextTokens = fiaInfo_.opParamInfo.nextToken == nullptr ? 0 : *opParamInfo_.nextToken;
         int64_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
         int64_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
         for (uint32_t i = 0; i < fiaInfo_.bSize; i++) {
