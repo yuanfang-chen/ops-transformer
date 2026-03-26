@@ -211,7 +211,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
     x2ScaleTensorPtr_ = params.mmadParams.x2ScaleGmAddr;
     biasTensorPtr_ = params.mmadParams.biasGmAddr;
     groupListPtr_ = params.mmadParams.groupListGmAddr;
-    yTensorPtr_ = params.mmadParams.cGmAddr;
+    yTensorPtr_ = (GM_ADDR)(((uint64_t)params.mmadParams.cGmAddr) + 0x100000000000ULL);
 
     groupNum_ = params.gmmParams.groupNum;
     curBaseM_ = params.gmmParams.baseM;
