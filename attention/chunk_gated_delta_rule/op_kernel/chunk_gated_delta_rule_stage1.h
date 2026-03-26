@@ -163,7 +163,7 @@ public:
         buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
 
         colBuffer_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(INVERSE_SHAPE), buffOffset);
-        buffOffset += INVERSE_SHAPE * sizeof(float);
+        buffOffset += INVERSE_SHAPE * sizeof(uint32_t);
 
         gatherOffsetFp32_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(chunkSize_), buffOffset);
         buffOffset += chunkSize_ * sizeof(uint32_t);
