@@ -29,27 +29,21 @@
 #else
 #include "../../moe_distribute_dispatch_setup/op_kernel/common.h"
 #endif
-#if __has_include("../../common/inc/kernel/mc2_kernel_utils.h")
-#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#if __has_include("../../common/op_kernel/mc2_kernel_utils.h")
+#include "../../common/op_kernel/mc2_kernel_utils.h"
 #else
-#include "../../../common/inc/kernel/mc2_kernel_utils.h"
+#include "../../../common/op_kernel/mc2_kernel_utils.h"
 #endif
 
 namespace Mc2Kernel {
 constexpr uint8_t BUFFER_NUM = 2;       // 多buf
 constexpr uint32_t STATE_OFFSET = 512U; // 状态空间偏移地址
+constexpr uint32_t STATE_SIZE = 1024U * 1024U;
 constexpr uint32_t UB_ALIGN = 32U;      // UB按32字节对齐
-constexpr uint64_t WIN_STATE_OFFSET = 350UL * 1024UL;
-constexpr uint64_t STATE_WIN_OFFSET = 950UL * 1024UL;
+constexpr uint64_t WIN_STATE_OFFSET = 384UL * 1024UL;
+constexpr uint64_t STATE_WIN_OFFSET = WIN_STATE_OFFSET * 2;
 constexpr uint32_t WORKSPACE_ELEMENT_OFFSET = 512U;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
-constexpr uint32_t NEED_THIRTY_FIRST = 31;
-constexpr uint32_t RIGHT_SHIFT_BIT_FIVE = 5;
-constexpr uint32_t NEED_ONE_HUNDRED_AND_TWENTY_SEVEN = 127;
-constexpr uint32_t RIGHT_SHIFT_BIT_SEVEN = 7;
-constexpr uint32_t ALIGN_UP_TO_2_MASK = 1;
-constexpr uint32_t ALIGN_UP_TO_128_MASK = 127;
-constexpr uint32_t ALIGN_UP_TO_256_MASK = 255;
 
 constexpr uint32_t UNQUANT = 0;
 constexpr uint32_t STATIC_QUANT = 1;
@@ -90,12 +84,12 @@ private:
         LocalTensor<float>& statusSumOutTensor);
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId)
     {
-        return (GM_ADDR)((winContext_->windowsIn[rankId]) + winDataSizeOffset_);
+        return (GM_ADDR)((winContext_->windowsIn[rankId]) + winDataSizeOffset_ + STATE_SIZE);
     }
 
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId)
     {
-        return (GM_ADDR)((winContext_->windowsOut[rankId]) + dataState_ * WIN_STATE_OFFSET);
+        return (GM_ADDR)((winContext_->windowsIn[rankId]) + dataState_ * WIN_STATE_OFFSET);
     }
 
     __aicore__ inline uint32_t MIN(uint32_t x, uint32_t y)
@@ -273,7 +267,8 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     statusTensor_ = statusBuf_.Get<int32_t>(); // 保存发送数据量及flag，同时用于计算windows中的偏移
     statusSpaceGm_ = GetWindStateAddrByRankId(epRankId_);
     sumTarget_ = static_cast<float>(1.0);
-    winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchTeardownInfo.totalWinSize / 2);
+    uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
+    winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchTeardownInfo.totalWinSize / 2) + axisMaxBS_ * (axisK_ + sharedExpertNum_) * hSizeAlignCombine;
     tempTotalWinSize_ = tilingData->moeDistributeDispatchTeardownInfo.totalWinSize;
     windowGM_ = GetWindAddrByRankId(epRankId_);
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGm_));

@@ -19,7 +19,7 @@
 #include "kernel_operator.h"
 #endif
 #include "moe_distribute_dispatch_teardown_tiling.h"
-#include "arch35/moe_distribute_dispatch_teardown_arch35.h
+#include "arch35/moe_distribute_dispatch_teardown_arch35.h"
 
 using namespace AscendC;
 using namespace Mc2Kernel;

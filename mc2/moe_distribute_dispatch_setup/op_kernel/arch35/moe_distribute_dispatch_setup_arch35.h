@@ -18,27 +18,32 @@
 
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "../moe_distribute_base.h"
 #include "../moe_distribute_dispatch_setup_tiling.h"
+#if __has_include("../../moe_distribute_combine_setup/moe_distribute_base.h")
+#include "../../moe_distribute_combine_setup/moe_distribute_base.h"
+#else
+#include "../../moe_distribute_combine_setup/op_kernel/moe_distribute_base.h"
+#endif
 #if __has_include("../../moe_distribute_dispatch_v2/quantize_functions.h")
 #include "../../moe_distribute_dispatch_v2/quantize_functions.h"
 #else
 #include "../../moe_distribute_dispatch_v2/op_kernel/quantize_functions.h"
 #endif
 #include "common.h"
-#if __has_include("../../common/inc/kernel/mc2_kernel_utils.h")
-#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#if __has_include("../../common/op_kernel/mc2_kernel_utils.h")
+#include "../../common/op_kernel/mc2_kernel_utils.h"
 #else
-#include "../../../common/inc/kernel/mc2_kernel_utils.h"
+#include "../../../common/op_kernel/mc2_kernel_utils.h"
 #endif
 
 #define FLOAT_OVERFLOW_MODE_CTRL 60
 namespace Mc2Kernel {
 constexpr uint8_t BUFFER_NUM = 2;       // 多buf
 constexpr uint32_t STATE_OFFSET = 512U; // 状态空间偏移地址
+constexpr uint32_t STATE_SIZE = 1024U * 1024U;
 constexpr uint32_t UB_ALIGN = 32U;      // UB按32字节对齐
-constexpr uint64_t WIN_STATE_OFFSET = 350UL << 10;
-constexpr uint64_t STATE_WIN_OFFSET = 950UL << 10;
+constexpr uint64_t WIN_STATE_OFFSET = 384UL << 10;
+constexpr uint64_t STATE_WIN_OFFSET = WIN_STATE_OFFSET * 2;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
 constexpr uint32_t SQE_START_OFFSET = 10U << 20;
 constexpr uint32_t WRITE_SQE_SIZE = 64U;
@@ -105,15 +110,12 @@ private:
     __aicore__ inline void CalTokenSendExpertCnt(uint32_t dstExpertId, int32_t calCnt, int32_t& curExpertCnt);
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId)
     {
-        if (epRankId_ == rankId) {
-            return (GM_ADDR)(hcclContext_->windowsIn[epRankId_]) + winDataSizeOffset_;
-        }
-        return (GM_ADDR)((hcclContext_->windowsIn[rankId]) + winDataSizeOffset_);
+        return (GM_ADDR)((hcclContext_->windowsIn[rankId]) + winDataSizeOffset_ + STATE_SIZE);
     }
 
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId)
     {
-        return (GM_ADDR)((hcclContext_->windowsOut[rankId]) + dataState_ * WIN_STATE_OFFSET);
+        return (GM_ADDR)((hcclContext_->windowsIn[rankId]) + dataState_ * WIN_STATE_OFFSET);
     }
 
     __aicore__ inline uint32_t MIN(uint32_t x1, uint32_t x2)
@@ -168,7 +170,7 @@ private:
     TQue<QuePosition::VECIN, 1> xInQueue_;
     TQue<QuePosition::VECOUT, 1> xOutQueue_;
     TQue<QuePosition::VECIN, 1> smoothScalesInQueue_;
-    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 2>
+    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1>
         tmpTokenQueue_;
 
     GM_ADDR yOutGM_;
@@ -271,6 +273,7 @@ private:
     
     uint32_t sortNum_;
     uint32_t sortRepeat_;
+    uint64_t totalUbSize_;
 };
 
 template <TemplateMC2TypeClass>
@@ -283,6 +286,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Init(
     workspaceGM_ = workspaceGM;
     aivId_ = GetBlockIdx();
     aivNum_ = tilingData->moeDistributeDispatchSetupInfo.aivNum;
+    totalUbSize_ = tilingData->moeDistributeDispatchSetupInfo.totalUbSize;
     if (aivId_ >= aivNum_) {
         return;
     }
@@ -355,7 +359,8 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Init(
     Duplicate<int32_t>(statusTensor_, 0x40000000, mask, statusBufCntAlign / 8, 1, 8); // 0x3F800000是float的1
 
     // 当前win区划分为前后区，dispatch/combine不再划分区域
-    winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchSetupInfo.totalWinSize / 2);
+    uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
+    winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchSetupInfo.totalWinSize / 2) + axisMaxBS_ * (axisK_ + sharedExpertNum_) * hSizeAlignCombine;
     windowGM_ = GetWindAddrByRankId(epRankId_);
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGm_));
     hOutAlignUbSize_ = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN;
@@ -830,9 +835,9 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::InitComm
     tpipe_->InitBuffer(templateSqeBuf_, WRITE_SQE_SIZE);
     tpipe_->InitBuffer(tokenSqeBuf_, WRITE_SQE_SIZE * moeExpertNumPerRank_);
     tpipe_->InitBuffer(statusSqeBuf_, WRITE_SQE_SIZE * moeExpertNumPerRank_);
-    remain_ub_space = (tilingData->moeDistributeDispatchSetupInfo->totalUbSize - statusBufCntAlign * UB_ALIGN - sqInfoSize - 
+    remain_ub_space = (totalUbSize_ - statusBufCntAlign * UB_ALIGN - sqInfoSize - 
                     cqInfoSize - 6 * UB_ALIGN - UB_ALIGN * CQ_DEPTH_256 - WRITE_SQE_SIZE - WRITE_SQE_SIZE * moeExpertNumPerRank_ * 2) / 2;
-    tpipe_->InitBuffer(tmpTokenQueue_, remain_ub_space); // double buffer
+    tpipe_->InitBuffer(tmpTokenQueue_, 2, remain_ub_space); // double buffer
 }
 
 template <TemplateMC2TypeClass>
@@ -923,16 +928,16 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
     for (uint32_t expertIdx = 0; expertIdx < moeExpertNumPerRank_; expertIdx++) {
 
         uint64_t sendBytes = static_cast<uint64_t>(statusTensor_((preExpertNum + expertIdx) * 8 + 1)) * hAlignWinSize_;
-        DataCopyExtParams copyparams = {1U, static_cast<uint32_t>(remain_ub_space), 0U, 0U, 0U};
+        DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(remain_ub_space), 0U, 0U, 0U};
         DataCopyPadExtParams<uint8_t> copyPadExtParams{false, 0U, 0U, 0U};
         GlobalTensor<uint8_t> srcAddr_T;
         GlobalTensor<uint8_t> dstAddr_T;
         LocalTensor<uint8_t> expertTokenTmpU8 = tmpTokenQueue_.AllocTensor<uint8_t>();
 
         srcAddr_T.SetGlobalBuffer((__gm__ uint8_t*)(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_));
-        dstAddr_T.SetGlobalBuffer(__gm__ uint8_t*)(GetWindAddrByRankId(epRankId_) + 
+        dstAddr_T.SetGlobalBuffer((__gm__ uint8_t*)(GetWindAddrByRankId(epRankId_) + 
                                             (expertPerSizeOnWin_ * 
-                                            (epRankId_ * moeExpertNumPerRank_ + expertIdx)));
+                                            (epRankId_ * moeExpertNumPerRank_ + expertIdx))));
         uint64_t i = 0;
         for (; sendBytes > remain_ub_space; sendBytes -= remain_ub_space) {
             DataCopyPad(expertTokenTmpU8, srcAddr_T[i * remain_ub_space], copyParams, copyPadExtParams);
@@ -951,7 +956,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
         SyncFunc<AscendC::HardEvent::MTE3_S>();
         GlobalTensor<int32_t> dstAddrStatus;
         dstAddrStatus.SetGlobalBuffer((__gm__ int32_t*)(GetWindStateAddrByRankId(epRankId_) + (epRankId_ + expertIdx * epWorldSize_) * stateOffset_));
-        DataCopy<int32_t>(dstAddrStatus, statusTensor_[(expertIdx + preExpertNum) * 32], 8);
+        DataCopy<int32_t>(dstAddrStatus, statusTensor_[(expertIdx + preExpertNum) * 8], 8);
         calCnt += statusTensor_((preExpertNum + expertIdx) * 8 + 1);
         tmpTokenQueue_.FreeTensor<uint8_t>(expertTokenTmpU8);
     }

@@ -65,7 +65,6 @@ constexpr int64_t BS_UPPER_BOUND = 4UL;
 constexpr int64_t COMM_CMD_INFO_MULTIPLY = 16UL;
 constexpr int64_t MIN_AVAILABLE_BUFF_SIZE = 2UL;
 constexpr int64_t HCCL_BUFFER_SIZE = 44UL;
-constexpr uint32_t USED_AIV_NUMS = 40U;
 
 constexpr int64_t MIN_H = 1024UL;
 constexpr int64_t MAX_H = 8192UL;
@@ -766,7 +765,7 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckHcclBuffSize()
         hcclBuffSize < hcclBuffSizeGolden,
         OP_LOGE(nodeName_, "HCCL_BUFFSIZE [%lu] < [%lu].", hcclBuffSize, hcclBuffSizeGolden), return ge::GRAPH_FAILED);
 
-    tilingData_->moeDistributeDispatchSetupInfo.totalWinSize = hcclBuffSize / 2;
+    tilingData_->moeDistributeDispatchSetupInfo.totalWinSize = hcclBuffSize;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -784,7 +783,7 @@ ge::graphStatus MoeDistributeDispatchSetupTilingBase::SetWorkspace()
 void MoeDistributeDispatchSetupTilingBase::SetPlatformInfo()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    uint32_t aivNum = USED_AIV_NUMS;
+    uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint32_t blockDim = 1U;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);

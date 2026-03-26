@@ -41,19 +41,19 @@ __aicore__ inline T2 Ceil(T1 x, T1 y)
 template <typename T>
 __aicore__ inline T Ceil32(T x)
 {
-    return (x + NEED_THIRTY_FIRST) >> RIGHT_SHIFT_BIT_FIVE;
+    return (x + Mc2Kernel::NEED_THIRTY_FIRST) >> Mc2Kernel::RIGHT_SHIFT_BIT_FIVE;
 }
 
 template <typename T>
 __aicore__ inline T Ceil128(T x)
 {
-    return (x + NEED_ONE_HUNDRED_AND_TWENTY_SEVEN) >> RIGHT_SHIFT_BIT_SEVEN;
+    return (x + Mc2Kernel::NEED_ONE_HUNDRED_AND_TWENTY_SEVEN) >> Mc2Kernel::RIGHT_SHIFT_BIT_SEVEN;
 }
 
 template <typename T>
 __aicore__ inline T Ceil512(T x)
 {
-    return (x + FIVE_HUNDRED_AND_ELEVEN) >> RIGHT_SHIFT_BIT_NINE;
+    return (x + Mc2Kernel::FIVE_HUNDRED_AND_ELEVEN) >> Mc2Kernel::RIGHT_SHIFT_BIT_NINE;
 }
 
 template <typename T1, typename T2>
@@ -65,37 +65,37 @@ __aicore__ inline T2 Align(T1 x, T1 y)
 template <typename T>
 __aicore__ inline T Align2(T x)
 {
-    return (x + ALIGN_UP_TO_2_MASK) & (~ALIGN_UP_TO_2_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_2_MASK) & (~Mc2Kernel::ALIGN_UP_TO_2_MASK);
 }
 
 template <typename T>
 __aicore__ inline T Align32(T x)
 {
-    return (x + ALIGN_UP_TO_32_MASK) & (~ALIGN_UP_TO_32_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_32_MASK) & (~Mc2Kernel::ALIGN_UP_TO_32_MASK);
 }
 
 template <typename T>
 __aicore__ inline T Align64(T x)
 {
-    return (x + ALIGN_UP_TO_64_MASK) & (~ALIGN_UP_TO_64_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_64_MASK) & (~Mc2Kernel::ALIGN_UP_TO_64_MASK);
 }
 
 template <typename T>
 __aicore__ inline T Align128(T x)
 {
-    return (x + ALIGN_UP_TO_128_MASK) & (~ALIGN_UP_TO_128_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_128_MASK) & (~Mc2Kernel::ALIGN_UP_TO_128_MASK);
 }
 
 template <typename T>
 __aicore__ inline T Align256(T x)
 {
-    return (x + ALIGN_UP_TO_256_MASK) & (~ALIGN_UP_TO_256_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_256_MASK) & (~Mc2Kernel::ALIGN_UP_TO_256_MASK);
 }
 
 template <typename T>
 __aicore__ inline T Align512(T x)
 {
-    return (x + ALIGN_UP_TO_512_MASK) & (~ALIGN_UP_TO_512_MASK);
+    return (x + Mc2Kernel::ALIGN_UP_TO_512_MASK) & (~Mc2Kernel::ALIGN_UP_TO_512_MASK);
 }
 
 template <MicroAPI::HistogramsType htype, typename T, typename U>

@@ -81,7 +81,6 @@ constexpr int64_t MAX_BS = 512;
 constexpr int64_t MAX_K = 16;
 
 constexpr uint32_t LOCAL_STREAM_MAX_NUM = 40U;
-constexpr uint32_t USED_AIV_NUMS = 40U;
 constexpr uint32_t TILINGKEY_SCALES = 10U;
 constexpr int64_t MOE_EXPERT_MAX_NUM = 512U;
 constexpr uint32_t SYSTEM_NEED_WORKSAPCE = 16 * 1024 * 1024U;
@@ -724,7 +723,7 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckHcclBuffSize
     OP_TILING_CHECK(
         hcclBuffSize < hcclBuffSizeGolden,
         OP_LOGE(nodeName_, "HCCL_BUFFSIZE [%ld] < [%ld].", hcclBuffSize, hcclBuffSizeGolden), return ge::GRAPH_FAILED);
-    tilingData_->moeDistributeDispatchTeardownInfo.totalWinSize = hcclBuffSize / 2;
+    tilingData_->moeDistributeDispatchTeardownInfo.totalWinSize = hcclBuffSize;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -757,7 +756,7 @@ void MoeDistributeDispatchTeardownTilingBase::SetHcommCfg()
 void MoeDistributeDispatchTeardownTilingBase::SetPlatformInfo()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    uint32_t aivNum = USED_AIV_NUMS;
+    uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
     uint32_t blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);

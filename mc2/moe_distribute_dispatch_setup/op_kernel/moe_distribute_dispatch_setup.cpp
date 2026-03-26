@@ -55,7 +55,7 @@ extern "C" __global__ __aicore__ void moe_distribute_dispatch_setup(GM_ADDR x, G
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchSetupTilingData, tilingData, tilingGM);
         MoeDistributeDispatchSetup<DTYPE_X, DTYPE_Y, PERTOKEN_DYNAMIC_QUANT, true> op;
         op.Init(x, expertIds, scales, xActiveMask, YOut, expandIdxOut, commCmdInfoOut,
-            workspaceGM, &pipe, &tilingData,);
+            workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(1003)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchSetupTilingData, tilingData, tilingGM);
@@ -73,7 +73,7 @@ extern "C" __global__ __aicore__ void moe_distribute_dispatch_setup(GM_ADDR x, G
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchSetupTilingData, tilingData, tilingGM);
         MoeDistributeDispatchSetup<DTYPE_X, DTYPE_Y, MX_QUANT, false> op;
         op.Init(x, expertIds, scales, xActiveMask, YOut, expandIdxOut, commCmdInfoOut,
-            workspaceGM, &pipe, &tilingData,);
+            workspaceGM, &pipe, &tilingData);
         op.Process();
     }
 
