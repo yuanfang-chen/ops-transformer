@@ -191,6 +191,14 @@ void GroupedNoQuantMatmulTiling::SetDisableL2Cache(const gert::TilingContext *co
 bool GroupedNoQuantMatmulTiling::Init(const gert::TilingContext *context)
 {
     OP_CHECK_IF(!GetAttrs(context), OP_LOGE(context->GetNodeName(), "Unable to calculate matmul-tiling"), return false);
+    // Keep the sparse grouplist restriction in the no-quant 950 tiling path so the
+    // common API check does not need extra quant-state parameters just to distinguish
+    // no-quant from weight-quant cases.
+    OP_CHECK_IF(groupListType_ == GroupedMatmul::GROUPLIST_TYPE_SPARSE_M,
+                OP_LOGE(context->GetNodeName(),
+                        "In no quant case, groupListType does not support value %u(sparse), but actual is %u.",
+                        GroupedMatmul::GROUPLIST_TYPE_SPARSE_M, groupListType_),
+                return false);
 
     auto xTensor = context->GetDynamicInputTensor(INDEX_X, 0);
     OP_CHECK_IF(xTensor == nullptr, OP_LOGE(context->GetNodeName(), "xTensor is nullptr."), return false);
