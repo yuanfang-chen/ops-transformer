@@ -20,7 +20,7 @@
 #include "moe_gating_top_k_softmax_tiling_base.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
-#include "moe_gating_top_k_softmax_tiling_base.h"
+#include "moe_gating_top_k_softmax_tiling.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "log/log.h"
 
