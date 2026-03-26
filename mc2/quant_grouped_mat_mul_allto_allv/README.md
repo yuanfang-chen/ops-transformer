@@ -1,4 +1,4 @@
-# GroupedMatMulAlltoAllv
+# QuantGroupedMatMulAlltoAllv
 
 ## 产品支持情况
 
