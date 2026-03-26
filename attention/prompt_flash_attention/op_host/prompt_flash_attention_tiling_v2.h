@@ -372,7 +372,6 @@ protected:
     int64_t sparseNextTokens = 0;
     int32_t sparseModeVal = 0;
     int64_t maxActualseqKV = 0;
-    int64_t l2CacheSize = 0;
     SplitCoreMode splitCoreMode = SplitCoreMode::SPLIT_NBS_VECTOR;
     bool isConstantization = false;
     uint32_t splitS2 = 1; // It can only be 0 when the D axis is split
