@@ -191,8 +191,8 @@ static aclnnStatus ValidateAdditionalParams(int64_t innerPrecise,
                                             uint64_t *workspaceSize,
                                             aclOpExecutor **executor)
 {
-    if (innerPrecise != 0 && innerPrecise != 1) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "innerPrecise must be 0 (float32 softmax) or 1 (fp16 softmax), got %ld.",
+    if (innerPrecise != 0 && innerPrecise != 1 && innerPrecise != 4) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "innerPrecise must be 0 or 1 or 4, got %ld.",
                 innerPrecise);
         return ACLNN_ERR_PARAM_INVALID;
     }

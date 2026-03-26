@@ -25,35 +25,14 @@ struct MmadAtlasA2Base {
     static constexpr uint32_t ASYNC = ASYNC_;
 };
 
+template <bool ASYNC_ = false>
+struct MmadAtlasA5Base {
+    using ArchTag = Arch::AtlasA5;
+    static constexpr uint32_t ASYNC = ASYNC_;
+};
+
 using MmadAtlasA2 = MmadAtlasA2Base<false>;
-
-template <bool PAGED_CACHE_FLAG_ = false, bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2FAIQK : public MmadAtlasA2 {
-    static constexpr uint32_t STAGES = 2;
-    static constexpr bool PAGED_CACHE_FLAG = PAGED_CACHE_FLAG_;
-    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
-};
-
-template <bool PAGED_CACHE_FLAG_ = false, bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2FAIPV : public MmadAtlasA2 {
-    static constexpr uint32_t STAGES = 2;
-    static constexpr bool PAGED_CACHE_FLAG = PAGED_CACHE_FLAG_;
-    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
-};
-
-template <bool PAGED_CACHE_FLAG_ = false, bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2FAITailQK : public MmadAtlasA2 {
-    static constexpr uint32_t STAGES = 2;
-    static constexpr bool PAGED_CACHE_FLAG = PAGED_CACHE_FLAG_;
-    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
-};
-
-template <bool PAGED_CACHE_FLAG_ = false, bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2FAITailPV : public MmadAtlasA2 {
-    static constexpr uint32_t STAGES = 2;
-    static constexpr bool PAGED_CACHE_FLAG = PAGED_CACHE_FLAG_;
-    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
-};
+using MmadAtlasA5 = MmadAtlasA5Base<false>;
 
 template <bool PAGED_CACHE_FLAG_ = false, bool ENABLE_UNIT_FLAG_ = false>
 struct MmadAtlasA2SFAIQK : public MmadAtlasA2 {
@@ -67,6 +46,14 @@ struct MmadAtlasA2SFAIPV : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = 2;
     static constexpr bool PAGED_CACHE_FLAG = PAGED_CACHE_FLAG_;
     static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
+};
+
+struct MmadAtlasA5BsaQK : public MmadAtlasA5 {
+    static constexpr uint32_t L0_STAGES = 2;
+};
+
+struct MmadAtlasA5BsaPV : public MmadAtlasA5 {
+    static constexpr uint32_t L0_STAGES = 2;
 };
 
 }  // namespace NpuArch::Gemm

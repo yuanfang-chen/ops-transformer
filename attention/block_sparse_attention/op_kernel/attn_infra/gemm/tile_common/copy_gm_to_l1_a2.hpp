@@ -16,6 +16,7 @@
 #include "../../../attn_infra/layout/layout.hpp"
 #include "../../../attn_infra/gemm/gemm_type.hpp"
 #include "../../../attn_infra/gemm/tile_common/tile_copy_tla.hpp"
+#include "../../../tla/tensor.hpp"
 
 namespace NpuArch::Gemm::Tile {
 
