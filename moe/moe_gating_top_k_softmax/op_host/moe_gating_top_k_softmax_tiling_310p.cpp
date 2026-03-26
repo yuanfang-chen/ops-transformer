@@ -167,7 +167,13 @@ uint64_t MoeGatingTopKSoftmax310PTiling::GetTilingKey() const
 {
     switch (dtype) {
         case ge::DataType::DT_FLOAT16:
-            return TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P;
+            return doubleBufferFlag ? MOE_GATING_SOFTMAX_FLOAT16_DOUBLE_BUFFER : MOE_GATING_SOFTMAX_FLOAT16;
+        case ge::DataType::DT_FLOAT:
+            return doubleBufferFlag ? MOE_GATING_SOFTMAX_FLOAT_DOUBLE_BUFFER : MOE_GATING_SOFTMAX_FLOAT;
+        case ge::DataType::DT_BF16:
+            return doubleBufferFlag ? MOE_GATING_SOFTMAX_BF16_DOUBLE_BUFFER : MOE_GATING_SOFTMAX_BF16;
+        default:
+            break;
     }
     return tilingKey_;
 }
