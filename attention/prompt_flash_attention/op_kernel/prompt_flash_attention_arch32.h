@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "./arch32/prompt_flash_attention_tilingkey.h"
+#include "prompt_flash_attention_tilingkey.h"
 #if (__CCE_AICORE__ > 200)
 #include "./arch32/prompt_flash_attention_base.h"
 #include "./arch32/prompt_flash_attention_bnstilling_n_s_no_tail.h"
