@@ -167,6 +167,7 @@ function(gen_opapi_symbol)
     ascendalog
     opapi_math
     dl
+    ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
   )
 endfunction()
 
