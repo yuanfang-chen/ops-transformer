@@ -24,9 +24,9 @@ using namespace AscendC;
 template <typename T1, typename T2>
 class ScatterPaKvCacheNHSD {
 public:
-    __aicore__ inline ScatterPaKvCacheNHSD(){};
-    __aicore__ inline void Init(GM_ADDR key, GM_ADDR value, GM_ADDR slot_indices, GM_ADDR key_cache_out,
-                                GM_ADDR value_cache_out, const ScatterPaKvCacheTilingData* tilingData) {
+    __aicore__ inline ScatterPaKvCacheNHSD(TPipe *pipe): pipe_(pipe){};
+    __aicore__ inline void Init(GM_ADDR key, GM_ADDR value, GM_ADDR slotIndices, GM_ADDR keyCacheOut,
+                                GM_ADDR valueCacheOut, const ScatterPaKvCacheTilingData* tilingData) {
         this->blockIdx = AscendC::GetBlockIdx();
         ParseTilingData(tilingData);
 
@@ -38,9 +38,9 @@ public:
         this->perCoreValueSize = numHead * vHeadSize;
         keyInGm.SetGlobalBuffer((__gm__ T1*)key + keyInOffset);
         valueInGm.SetGlobalBuffer((__gm__ T1*)value + valueInOffset);
-        keycacheOutGm.SetGlobalBuffer((__gm__ T1*)key_cache_out);
-        valuecacheOutGm.SetGlobalBuffer((__gm__ T1*)value_cache_out);
-        slotmappingGm.SetGlobalBuffer((__gm__ T2*)slot_indices + slotmappingOffset);
+        keycacheOutGm.SetGlobalBuffer((__gm__ T1*)keyCacheOut);
+        valuecacheOutGm.SetGlobalBuffer((__gm__ T1*)valueCacheOut);
+        slotmappingGm.SetGlobalBuffer((__gm__ T2*)slotIndices + slotmappingOffset);
         pipe.InitBuffer(keyInBuf, this->perCoreKeySize * sizeof(T1));
         pipe.InitBuffer(valueInBuf, this->perCoreValueSize * sizeof(T1));
 
@@ -73,8 +73,8 @@ public:
             DataCopyIn<T1>(valueIn, valueInGm[valueInPerCoreOffset], perCoreDoValueCount);
             PipeSync<AscendC::HardEvent::MTE2_MTE3>();
             int64_t slotmappingValue = static_cast<int64_t>(slotmappingGm.GetValue(n));
-            blockIndex = static_cast<int64_t>(slotmappingValue) / blockSize;
-            blockOffset = static_cast<int64_t>(slotmappingValue) % blockSize;
+            blockIndex = slotmappingValue / blockSize;
+            blockOffset = slotmappingValue % blockSize;
             keycacheOutGmOffset = blockIndex * numHead * blockSize * kHeadSize + blockOffset * kHeadSize;
             valuecacheOutGmOffset = blockIndex * numHead * blockSize * vHeadSize + blockOffset * vHeadSize;
             DataCopyOut<T1>(keycacheOutGm[keycacheOutGmOffset], keyIn,
@@ -94,7 +94,6 @@ private:
         numHead = tilingData->numHead;
         kHeadSize = tilingData->kHeadSize;
         vHeadSize = tilingData->vHeadSize;
-
         numBlocks = tilingData->numBlocks;
         blockSize = tilingData->blockSize;
     }
@@ -125,9 +124,7 @@ private:
         AscendC::WaitFlag<hardEvent>(eventID);
     }
 
-    private:
-    TPipe pipe;
-
+private:
     AscendC::TBuf<AscendC::QuePosition::VECCALC> keyInBuf;
     AscendC::TBuf<AscendC::QuePosition::VECCALC> valueInBuf;
 
@@ -140,22 +137,21 @@ private:
     AscendC::LocalTensor<T1> keyIn;
     AscendC::LocalTensor<T1> valueIn;
 
-    int64_t blockFactor;
-    int64_t tailBlockFactor;
-    int64_t numTokens;
-    int64_t numHead;
-    int64_t kHeadSize;
-    int64_t vHeadSize;
-    int64_t numBlocks;
-    int64_t blockSize;
-    int32_t blockIdx;
-    int64_t useCoreNum;
+    int64_t blockFactor = 0;
+    int64_t tailBlockFactor = 0;
+    int64_t numTokens = 0;
+    int64_t numHead = 0;
+    int64_t kHeadSize = 0;
+    int64_t vHeadSize = 0;
+    int64_t numBlocks = 0;
+    int64_t blockSize = 0;
+    int32_t blockIdx = 0;
+    int64_t useCoreNum = 0;
     int64_t keyInOffset = 0;
     int64_t valueInOffset = 0;
     int64_t slotmappingOffset = 0;
-
-    int64_t perCoreKeySize;
-    int64_t perCoreValueSize;
+    int64_t perCoreKeySize = 0;
+    int64_t perCoreValueSize = 0;
 
 };
 } // namespace ScatterPaKvCache
