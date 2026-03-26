@@ -41,9 +41,9 @@ const aclTensor* FusedCausalConv1d(const aclTensor *x, const aclTensor *weight, 
         OP_OUTPUT(y, convStates), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "FusedCausalConv1d ADD_TO_LAUNCHER_LIST_AICORE failed.");
-        return false;
+        return nullptr;
     }
-    return true;
+    return y;
 }
 
 } // namespace l0op
