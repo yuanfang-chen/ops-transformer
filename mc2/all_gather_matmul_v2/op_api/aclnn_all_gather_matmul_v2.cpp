@@ -186,8 +186,8 @@ static bool IsGatherOut(const aclTensor *gatherOut)
   return true;
 }
 
-static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor *output, const aclTensor *gatherOut,
-                       bool isTransA)
+static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor *x2Scale, const aclTensor *output,
+                       const aclTensor *gatherOut, bool isTransA, bool isTransB, bool isTransX2Scale)
 {
   OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return false);
   OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return false);
@@ -217,6 +217,17 @@ static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
     return false;
   });
+
+  OP_API_CHECK(!isTransB && !MC2Aclnn::IsTensorContiguous(x2), {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2 without transpose must be contiguous, but it is non-contiguous.");
+    return false;
+  });
+
+  OP_API_CHECK(!isTransX2Scale && !MC2Aclnn::IsTensorContiguous(x2Scale), {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2Scale without transpose must be contiguous, but it is non-contiguous.");
+    return false;
+  });
+
   return true;
 }
 
@@ -448,8 +459,10 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeCCUMode(const aclTensor* x1, const 
   uint32_t rankSize = 0;
   bool transposeX1 = IsTransposeLastTwoDims(x1);
   bool transposeX2 = IsTransposeLastTwoDims(x2);
+  bool transposeX2Scale = IsTransposeLastTwoDims(x2Scale);
 
-  CHECK_RET(CheckShape(x1, x2, output, gatherOut, transposeX1), ACLNN_ERR_PARAM_INVALID);
+  CHECK_RET(CheckShape(x1, x2, x2Scale, output, gatherOut, transposeX1, transposeX2, transposeX2Scale),
+            ACLNN_ERR_PARAM_INVALID);
   bool isGatherOut = IsGatherOut(gatherOut);
   bool isAMaxOut = IsAMaxOut(amaxOut);
   // 如果为bf16/fp16的,不能输入amaxout, 如果为低精度，amaxout 数据类型只能为float类型且维度为1维
