@@ -54,6 +54,9 @@ static const size_t KEY_ROPE_INDEX = 25;
 static const size_t KEY_ROPE_ANTIQUANT_SCALE_INDEX = 26;
 static const size_t DEQUANT_SCALE_QUERY_INDEX = 27;
 static const size_t LEARNABLE_SINK_INDEX = 28;
+static const size_t Q_START_IDX_INDEX = 29;
+static const size_t KV_START_IDX_INDEX = 30;
+static const size_t ALIBI_COEFF_INDEX = 31;
 
 static const size_t ATTR_N_INDEX = 0;
 static const size_t ATTR_SCALE_INDEX = 1;
@@ -70,6 +73,8 @@ static const size_t ATTR_KEY_ANTIQUANT_MODE_INDEX = 11;
 static const size_t ATTR_VALUE_ANTIQUANT_MODE_INDEX = 12;
 static const size_t ATTR_QUERY_QUANT_MODE_INDEX = 13;
 static const size_t ATTR_PSE_TYPE_INDEX = 14;
+static const size_t ALIBI_LEFT_ALIGN_INDEX = 16;
+static const size_t IS_ALIBI_MASK_SQRT_INDEX = 17;
 
 static const size_t ATTENTION_OUT_INDEX = 0;
 static const size_t SOFTMAX_LSE_INDEX = 1;
@@ -110,6 +115,7 @@ struct FusedInferHostTensorParams {
     const gert::Tensor *learnableSinkGe = nullptr;
     const gert::Tensor *qStartIdx = nullptr; // not supported in Pytorch interfaces, default nullptr
     const gert::Tensor *kvStartIdx = nullptr; // not supported in Pytorch interfaces, default nullptr
+    const gert::Tensor *alibiCoeffGe = nullptr; // todo 确认下这个的作用，为什么这么写
 };
 
 static graphStatus FiaFillTensorParams(const OpExecuteContext *host_api_ctx, FusedInferHostTensorParams &fiaTensors)
@@ -211,6 +217,8 @@ struct FusedInferHostAttrPtrs {
     const uint32_t *getValueAntiquantMode = nullptr;
     const uint32_t *getQueryQuantMode = nullptr;
     const int64_t *getPseType = nullptr;
+    const bool *getAlibiLeftAlign = nullptr;
+    const bool *getIsAlibiMaskSqrt = nullptr;
 };
 
 static void FillAttrPointers(const gert::RuntimeAttrs *attrs, FusedInferHostAttrPtrs &attrPtrs)
@@ -230,6 +238,8 @@ static void FillAttrPointers(const gert::RuntimeAttrs *attrs, FusedInferHostAttr
     attrPtrs.getValueAntiquantMode = attrs->GetAttrPointer<uint32_t>(ATTR_VALUE_ANTIQUANT_MODE_INDEX);
     attrPtrs.getQueryQuantMode = attrs->GetAttrPointer<uint32_t>(ATTR_QUERY_QUANT_MODE_INDEX);
     attrPtrs.getPseType = attrs->GetAttrPointer<int64_t>(ATTR_PSE_TYPE_INDEX);
+    attrPtrs.getAlibiLeftAlign = attrs->GetAttrPointer<bool>(ALIBI_LEFT_ALIGN_INDEX);
+    attrPtrs.getIsAlibiMaskSqrt = attrs->GetAttrPointer<bool>(IS_ALIBI_MASK_SQRT_INDEX);
 }
 
 struct FusedInferHostScalarParams {
@@ -247,6 +257,8 @@ struct FusedInferHostScalarParams {
     int64_t valueAntiquantMode = 0;
     int64_t queryQuantMode = 0;
     int64_t pseType = 0; // not supported in Pytorch interfaces, default 0
+    bool alibiLeftAlign = false;
+    bool isAlibiMaskSqrt = false;
 };
 
 static void GetFusedInferHostScalarParams(const FusedInferHostAttrPtrs &attrPointers, FusedInferHostScalarParams &params)
@@ -265,6 +277,8 @@ static void GetFusedInferHostScalarParams(const FusedInferHostAttrPtrs &attrPoin
     params.valueAntiquantMode = *(attrPointers.getValueAntiquantMode);
     params.queryQuantMode = *(attrPointers.getQueryQuantMode);
     params.pseType = *(attrPointers.getPseType);
+    params.alibiLeftAlign = *(attrPointers.getAlibiLeftAlign);
+    params.isAlibiMaskSqrt = *(attrPointers.getIsAlibiMaskSqrt);
 }
 
 static graphStatus FusedInferHostExecuteFunc(OpExecuteContext *host_api_ctx)
@@ -318,11 +332,12 @@ static graphStatus FusedInferHostExecuteFunc(OpExecuteContext *host_api_ctx)
         fiaTensors.valueAntiquantScaleGe, fiaTensors.valueAntiquantOffsetGe, fiaTensors.keySharedPrefixGe,
         fiaTensors.valueSharedPrefixGe, actualSeqInfo.actSeqSharedPrefix, fiaTensors.queryRopeGe, fiaTensors.keyRopeGe,
         fiaTensors.keyRopeAntiquantScaleGe, fiaTensors.dequantScaleQueryGe, fiaTensors.learnableSinkGe, fiaTensors.qStartIdx,
-        fiaTensors.kvStartIdx, 
+        fiaTensors.kvStartIdx, fiaTensors.alibiCoeffGe,
         scalarParams.numHeads, scalarParams.dScaleValue, scalarParams.preTokens, scalarParams.nextTokens, attrPointers.layout, 
         scalarParams.kvHeadNum, scalarParams.sparseMode, scalarParams.innerPrecise, scalarParams.blockSize, scalarParams.antiquantMode,
         scalarParams.softmaxLseFlag, scalarParams.keyAntiquantMode, scalarParams.valueAntiquantMode,
-        scalarParams.queryQuantMode, scalarParams.pseType, fiaTensors.output, fiaTensors.softmaxLse);
+        scalarParams.queryQuantMode, scalarParams.pseType, scalarParams.alibiLeftAlign, scalarParams.isAlibiMaskSqrt,
+        fiaTensors.output, fiaTensors.softmaxLse);
 
     OP_CHECK_IF(apiRet != GRAPH_SUCCESS, OP_LOGE(host_api_ctx->GetNodeName(), "apiRet faild:%u", apiRet), return GRAPH_FAILED);
 
