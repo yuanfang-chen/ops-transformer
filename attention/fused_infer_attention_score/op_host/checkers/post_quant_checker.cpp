@@ -44,11 +44,11 @@ ge::graphStatus PostQuantChecker::CheckSingleDtype(const FiaTilingInfo &fiaInfo)
         return ge::GRAPH_FAILED;
     }
     // post-quantization scenarios only support int8/fp8_e4m3fn/hifloat8 output data type
-    if (fiaInfo.isQuantEnable) {
+    if (fiaInfo.isOutQuantEnable) {
         ge::DataType outputType = fiaInfo.opParamInfo.attenOut.desc->GetDataType();
         OP_CHECK_IF(outputType != ge::DT_INT8 && outputType != ge::DT_FLOAT8_E4M3FN && outputType != ge::DT_HIFLOAT8,
                     OP_LOGE(fiaInfo.opName,
-                    "The quantScale2 exits, output data type only support int8/fp8_e4m3fn/hifloat8!"),
+                    "The quantScale2 exists, output data type only supports int8/fp8_e4m3fn/hifloat8!"),
                     return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;

@@ -38,7 +38,7 @@ private:
     // 公共校验函数
     ge::graphStatus CheckSingleDtype(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckExistenceQuantScale2(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureQueryDtype(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckFeatureQueryDType(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureOutputEqual(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeaturePrefix(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureRowValid(const FiaTilingInfo &fiaInfo);

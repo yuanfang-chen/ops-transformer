@@ -18,7 +18,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/intf.cmake)
 set(ATTENTION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../../../attention)
 
 file(GLOB_RECURSE ARCH35_CHECKER_SRC_FILES
-    ${ATTENTION_SRC}/fused_infer_attention_score/op_host/*checker*.cpp)
+    ${ATTENTION_SRC}/fused_infer_attention_score/op_host/checkers/*checker*.cpp)
 set(src_files
   ${ATTENTION_SRC}/common/op_host/fia_tiling_info.cpp
   ${ATTENTION_SRC}/common/op_host/arch32/fia_tiling_nonquant_mla.cpp

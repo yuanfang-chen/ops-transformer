@@ -74,6 +74,8 @@ ge::graphStatus FiaInfoParser::CheckRequiredAttrExistence() const
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.queryQuantMode == nullptr, OP_LOGE(opName_, "attr queryQuantMode is nullptr"),
                 return ge::GRAPH_FAILED);
+    OP_CHECK_IF(opParamInfo_.pseType == nullptr, OP_LOGE(opName_, "attr pseType is nullptr"),
+                return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -361,8 +363,8 @@ void FiaInfoParser::GetUpdateInfo()
     auto attrs = context_->GetAttrs();
     static int32_t SPARSE_ZERO = 0U;
     static int64_t TOKEN_MAX = 2147483647;
-    if (isLegacyIfa_ && (socVersion_ == platform_ascendc::SocVersion::ASCEND310P) ||
-        (socVersion_ == platform_ascendc::SocVersion::ASCEND910B)) {
+    if (isLegacyIfa_ && (socVersion_ == platform_ascendc::SocVersion::ASCEND310P ||
+                         socVersion_ == platform_ascendc::SocVersion::ASCEND910B)) {
         opParamInfo_.sparseMode = &SPARSE_ZERO;
         opParamInfo_.preToken = &TOKEN_MAX;
         opParamInfo_.nextToken = &TOKEN_MAX;
@@ -996,7 +998,7 @@ ge::graphStatus FiaInfoParser::GetAntiQuantInfo()
         if (tmpAntiquant.GetDimNum() != 2 && tmpAntiquant.GetDimNum() != 3) {
             OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 2 or 3 when per-token mode.", tmpAntiquant.GetDimNum());
         }
-        antiquantParaSeqSize_ = tmpAntiquant.GetDim() == 3U ? tmpAntiquant.GetDim(2) : tmpAntiquant.GetDim(1);
+        antiquantParaSeqSize_ = tmpAntiquant.GetDimNum() == 3U ? tmpAntiquant.GetDim(2) : tmpAntiquant.GetDim(1);
     } else if (tmpAntiquantMode == 3) {
         if (tmpAntiquant.GetDimNum() != 3) {
             OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 3 when per-token-head mode.", tmpAntiquant.GetDimNum());
@@ -1153,7 +1155,7 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
             for (uint32_t i = 0; i < loop; i++) {
                 int64_t actLen = actualLenData[i];
                 if (antiQuantFlag_) {
-                    if (qLayout_ == FiaLayout::TND && i > 0 && kvStorageMode != KvStorageMode::PAGE_ATTENTION) {
+                    if (qLayout_ == FiaLayout::TND && i > 0 && kvStorageMode_ != KvStorageMode::PAGE_ATTENTION) {
                         actLen -= actualLenData[i - 1];
                     }
                     if (s1Size_ == 1) {
@@ -1425,7 +1427,7 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
     }
     SetFiaShape();
     GetQueryTSize();
-    GetUpdateInfo()
+    GetUpdateInfo();
     if (ge::GRAPH_SUCCESS != GetQkHeadDim() || ge::GRAPH_SUCCESS != GetValueHeadDim() ||
         ge::GRAPH_SUCCESS != GetLegacyIfaFlag() || ge::GRAPH_SUCCESS != GetBatchSize() ||
         ge::GRAPH_SUCCESS != GetS1Size()) {

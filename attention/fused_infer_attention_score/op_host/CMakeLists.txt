@@ -60,7 +60,7 @@ if(NOT BUILD_OPS_RTY_KERNEL)
     ../../common/op_host/arch32/fia_tiling_empty_tensor.cpp
     ../op_host/arch35/fused_infer_attention_score_tiling_v4.cpp
     ../op_host/arch35/fused_infer_attention_score_tiling_impl.cpp
-    ../op_hostfused_infer_attention_score_tiling_info_parser.cpp
+    ../op_host/fused_infer_attention_score_tiling_info_parser.cpp
     ${ARCH35_CHECKER_SRC_FILES}
     ../op_host/arch32/fused_infer_attention_score_tiling_v3.cpp
     ../op_host/arch32/fused_infer_attention_score_tiling_check.cpp

@@ -2009,14 +2009,14 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
     for (uint32_t i = 0; i < fiaInfo.bSize && fiaInfo.quantMode != FiaQuantMode::ANTI_QUANT; i++) {
         if (fiaInfo.sparseMode == SPARSE_MODE_RIGHT_DOWN) {
             preTokensPerbatch = SPARSE_MODE_INT_MAX;
-            if (fiaInfo.mlaMode == MlaMode::ROPE_SPILT_D512) {
+            if (fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512) {
                 nextTokensPerbatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i] / fiaInfo.gSize;
             } else {
                 nextTokensPerbatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
             }
         } else if (fiaInfo.sparseMode == SPARSE_MODE_BAND) {
             preTokensPerbatch = fiaInfo.preToken - actualSeqLengthsKV_[i] - fiaInfo.systemPrefixLen + actualSeqLengthsQ_[i];
-            preTokensPerbatch = fiaInfo.nextToken + actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
+            nextTokensPerbatch = fiaInfo.nextToken + actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
         } else {
             preTokensPerbatch = fiaInfo.preToken;
             nextTokensPerbatch = fiaInfo.nextToken;
@@ -2028,7 +2028,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
         OP_LOGI(fiaInfo.opName, "preTokensPerbatch[%u] is %ld, nextTokensPerbatch[%u] is %ld",
                 i, preTokensPerbatch, i, nextTokensPerbatch);
         OP_LOGI(fiaInfo.opName,
-                "actualSeqLengths[%u] is %ld, actualSeqLengthsKV[%u] is %ld, actualSharePrefixLen is %ld, needInit is %u",
+                "actualSeqLengths[%u] is %ld, actualSeqLengthsKV[%u] is %ld, actualSharedPrefixLen is %ld, needInit is %u",
                 i, actualSeqLengthsQ_[i], i, actualSeqLengthsKV_[i], fiaInfo.systemPrefixLen, needInit_);
 
     }
@@ -2084,7 +2084,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFATilingData(const FiaTil
     if (fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION) {
         blockTableDim2 = fiaInfo.opParamInfo.blockTable.tensor->GetStorageShape().GetDim(1);
     }
-    inputParams.set_blockTableDim2(fiaInfo.blockTableDim2);
+    inputParams.set_blockTableDim2(blockTableDim2);
     inputParams.set_paBlockNumSum(fiaInfo.totalBlockNum);
     inputParams.set_isRowInvalid((fiaInfo.innerPrecise >> 1) & 1);
     inputParams.set_isPostQuantPerChnl(fiaInfo.isOutQuantPerChnOut);
