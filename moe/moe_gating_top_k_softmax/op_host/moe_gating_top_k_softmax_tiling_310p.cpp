@@ -22,7 +22,6 @@
 #include "tiling/tiling_api.h"
 #include "moe_gating_top_k_softmax_tiling.h"
 #include "tiling/platform/platform_ascendc.h"
-#include "log/log.h"
 
 #include <climits>
 
@@ -104,11 +103,9 @@ private:
 
 bool MoeGatingTopKSoftmax310PTiling::IsCapable()
 {
-    const uint32_t perBlockEleNum = 32 / 2; // block_size / sizeof(float16)
+    const uint32_t perBlockEleNum = 16;
     bool flagAlignExperts = (col % perBlockEleNum == 0);
     if (!flagAlignExperts) {
-        OP_LOGE(context_->GetNodeName(),
-            "expert count (=%u) must be 32 bytes align, please check.", col);
         return false;
     }
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
