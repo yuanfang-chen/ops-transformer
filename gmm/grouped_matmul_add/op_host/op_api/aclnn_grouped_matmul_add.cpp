@@ -70,12 +70,15 @@ static aclnnStatus CheckShape(gmm_add_advanced::GroupedMatmulAddParams params)
     auto weightDimNum = params.weight->GetViewShape().GetDimNum();
     auto xDimNum = params.x->GetViewShape().GetDimNum();
     auto groupListDimNum = params.groupList->GetViewShape().GetDimNum();
+    auto yRefDimNum = params.yRef->GetViewShape().GetDimNum();
     CHECK_COND(xDimNum == 2, ACLNN_ERR_PARAM_INVALID, // 2 max dim num
                "The dimension of x should be 2, but actual is %zu.", xDimNum);
     CHECK_COND(weightDimNum == 2, ACLNN_ERR_PARAM_INVALID, // 2 max dim num
                "The dimension of weight should be 2, but actual is %zu.", weightDimNum);
     CHECK_COND(groupListDimNum == 1, ACLNN_ERR_PARAM_INVALID,
                "The dimension of groupList should be 1, but actual is %ld.", groupListDimNum);
+    CHECK_COND(yRefDimNum == 3, ACLNN_ERR_PARAM_INVALID, // 3： yRef dim num
+               "The dimension of yRef should be 3, but actual is %ld.", yRefDimNum);
     auto aKDim = params.x->GetViewShape().GetDim(0);
     auto bKDim = params.weight->GetViewShape().GetDim(0);
     auto mDim = params.x->GetViewShape().GetDim(1);
