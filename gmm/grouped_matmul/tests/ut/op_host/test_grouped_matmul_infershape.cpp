@@ -450,3 +450,75 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_a16w4_int
     std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
+
+TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_quant_sparse_group_list_dim2_success)
+{
+    size_t M = 16;
+    size_t K = 128;
+    size_t N = 32;
+    size_t E = 2;
+    gert::InfershapeContextPara infershapeContextPara(
+    "GroupedMatmul",
+    { // input info
+        {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
+        {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_ND},        //weight
+        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},             //bias
+        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},             //scale
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //offset
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //antiquantScale
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //antiquantOffset
+        {{{E, 2}, {E, 2}}, ge::DT_INT64, ge::FORMAT_ND},             //groupList
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //perTokenScale
+    },
+    { // output info
+        {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND}
+    },
+    { // attr
+        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
+        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
+        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
+    });
+    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N},};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+}
+
+TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_quant_sparse_group_list_dim3_fail)
+{
+    size_t M = 16;
+    size_t K = 128;
+    size_t N = 32;
+    size_t E = 2;
+    gert::InfershapeContextPara infershapeContextPara(
+    "GroupedMatmul",
+    { // input info
+        {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
+        {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_ND},        //weight
+        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},             //bias
+        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},             //scale
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //offset
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //antiquantScale
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //antiquantOffset
+        {{{E, 2, 1}, {E, 2, 1}}, ge::DT_INT64, ge::FORMAT_ND},       //groupList
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                   //perTokenScale
+    },
+    { // output info
+        {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND}
+    },
+    { // attr
+        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
+        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
+        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
+    });
+    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N},};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
