@@ -77,7 +77,7 @@ aclnnStatus FusedCausalConv1dCommonProcess(const aclTensor *x, const aclTensor *
     // convStates is an in-place update: the same tensor serves as both input and
     // output. y is always contiguous. Both are passed directly to l0op.
     auto ok = l0op::FusedCausalConv1d(xFinal, weight, convStatesFinal, queryStartLoc, cacheIndices, initialStateMode, bias,
-                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
+                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection,
                                  uniqueExecutor.get());
     // CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(ok != nullptr, ACLNN_ERR_INNER_NULLPTR);
