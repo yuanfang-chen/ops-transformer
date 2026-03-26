@@ -1440,7 +1440,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                             MLA场景blocksize需要16对齐且最大不超过1024；
                             GQA场景且query、key、value的headdim=64/128时，blocksize需要16对齐且最大不超过1024；
                             GQA场景且query、key、value的headdim≠64/128，Q_S>1时，blocksize需要128对齐且最大不超过512；
-                            GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512。</li>
+                            GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512；
+                            在MLA全量化场景下，blocksize需等于128。</li>
                         <li>在使能PagedAttention，并且全量化场景下，blockSize需要传入非0值, 且blocksize最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，Q_S=1时：</li>
                             key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；</br>
