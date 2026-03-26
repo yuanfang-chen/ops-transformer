@@ -75,8 +75,6 @@ namespace optiling {
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
 constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 131072;
 constexpr uint32_t NUM3 = 3;
-constexpr uint32_t SOC_VER_950_CODE = 4;
-constexpr uint32_t INF_WINDOW_SIZE_PRE_NEXT = 2147483647;
 
 constexpr uint32_t TILE_SIZE_128 = 128;
 constexpr uint32_t TILE_SIZE_256 = 256;
@@ -127,7 +125,7 @@ ge::graphStatus BSATiling::GetNpuInfo(gert::TilingContext *bsaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *bsaContext)
+ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
 {
     // 只在TND格式时进行校验
     if (qInputLayout_ != RFAQInputLayout::TND_Q || kvCacheLayout_ != RFAKvCacheLayout::TND) {
@@ -139,13 +137,13 @@ ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *bsaContext)
     int64_t sumKvSeqlen = 0;
 
     for (uint32_t i = 0; i < batch_; i++) {
-        sumQSeqlen += qSeqLenList_[i];
-        sumKvSeqlen += kvSeqLenList_[i];
+        sumQSeqlen += qSeqLenList[i];
+        sumKvSeqlen += kvSeqLenList[i];
     }
     
     // 校验qseqlen之和是否等于Q的T
     if (sumQSeqlen != totalTokensT_) {
-        OP_LOGE(bsaContext->GetNodeName(), 
+        OP_LOGE(rfaContext->GetNodeName(), 
                 "TND format validation failed: sum of qseqlen across all batches (%ld) != Q T (%ld)", 
                 sumQSeqlen, totalTokensT_);
         return ge::GRAPH_FAILED;
@@ -153,7 +151,7 @@ ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *bsaContext)
     
     // 校验kvseqlen之和是否等于KV的T
     if (sumKvSeqlen != totalTokensKv_) {
-        OP_LOGE(bsaContext->GetNodeName(), 
+        OP_LOGE(rfaContext->GetNodeName(), 
                 "TND format validation failed: sum of kvseqlen across all batches (%ld) != KV T (%ld)", 
                 sumKvSeqlen, totalTokensKv_);
         return ge::GRAPH_FAILED;
@@ -376,16 +374,37 @@ ge::graphStatus BSATiling::ParseSeqlens(gert::TilingContext *bsaContext)
     return ret;
 }
 
-ge::graphStatus BSATiling::CheckSparsePattern(gert::TilingContext *bsaContext, const int64_t defaultShape)
+ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
 {
+    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
+    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
+    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
+    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
+    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
     const auto *blockSparseMaskShape = bsaContext->GetInputShape(BLOCK_SPARSE_MASK_INDEX);
+    if (blockSparseMaskTensor == nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
+        return ge::GRAPH_FAILED;
+    }
+    if (blockShapeTensor != nullptr) {
+        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
+        if (blockShapeElemNum != 2) {
+            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
+            return ge::GRAPH_FAILED;
+        }
+        blockShapeList = blockShapeTensor->GetData<int64_t>();
+        if (blockShapeList != nullptr) {
+            blockShapeX_ = blockShapeList[0];
+            blockShapeY_ = blockShapeList[1];
+        }
+    }
     if (blockShapeX_ <= 0 || blockShapeY_ <= 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elems must be greater than 0, "
             "but got elem0: %ld, elem1: %ld.", blockShapeX_, blockShapeY_);
         return ge::GRAPH_FAILED;
     }
     // temporary regulation of blockShapeY
-    if (blockShapeY_ % defaultShape != 0) {
+    if (blockShapeY_ % DEFAULT_BLOCK_SHAPE != 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem1 must be a multiple of 128 so far, "
             "but got elem1: %ld.", blockShapeY_);
         return ge::GRAPH_FAILED;
@@ -405,36 +424,6 @@ ge::graphStatus BSATiling::CheckSparsePattern(gert::TilingContext *bsaContext, c
         OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask must have consistent numHeads with context,"
             "but got BlockSparseMask numHeads(dim1): %u, context numHeads: %u.", bsmNumHead, numHeads_);
         return ge::GRAPH_FAILED; 
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
-{
-    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
-    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
-    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
-    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
-    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
-    
-    if (blockSparseMaskTensor == nullptr) {
-        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
-        return ge::GRAPH_FAILED;
-    }
-    if (blockShapeTensor != nullptr) {
-        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
-        if (blockShapeElemNum != 2) {
-            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
-            return ge::GRAPH_FAILED;
-        }
-        blockShapeList = blockShapeTensor->GetData<int64_t>();
-        if (blockShapeList != nullptr) {
-            blockShapeX_ = blockShapeList[0];
-            blockShapeY_ = blockShapeList[1];
-        }
-    }
-    if (CheckSparsePattern(bsaContext, DEFAULT_BLOCK_SHAPE) != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -465,21 +454,13 @@ ge::graphStatus BSATiling::ParseOptionalTensors(gert::TilingContext *bsaContext)
     if (ParseSeqlens(bsaContext) != ge::GRAPH_SUCCESS ||
         ParseSparsePattern(bsaContext) != ge::GRAPH_SUCCESS ||
         ParseAttenMask(bsaContext) != ge::GRAPH_SUCCESS ||
-        ParseBlockTable(bsaContext)  != ge::GRAPH_SUCCESS) {
+        ParseBlockTable(bsaContext)  != ge::GRAPH_SUCCESS
+        ) {
         return ge::GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
-{
-    if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX) == nullptr) {
-        OP_LOGE(bsaContext->GetNodeName(), "numKeyValueHeads is null");
-        return ge::GRAPH_FAILED;
-    }
-    kvHeads_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
+    kvHeads_ = *rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
     
-    if (bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
+    if (rfaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
         scaleValue_ = 1.0f / std::sqrt(static_cast<float>(embeddingSize_));
     } else {
         scaleValue_ = *bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX);
@@ -493,15 +474,23 @@ ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
     if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX) != nullptr) {
         innerPrecise_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
     }
-    auto dtypeQ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
-    if (innerPrecise_ != BsaInnerCalcPrec::ALL_HIGH && innerPrecise_ != BsaInnerCalcPrec::ALL_LOW) {
-        OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, only innerPrec = 0 or 1 is supported, "
-            "but got %u.", innerPrecise_);
-        return ge::GRAPH_FAILED;
-    } else if (innerPrecise_ == BsaInnerCalcPrec::ALL_LOW && dtypeQ == ge::DT_BF16) {
-        OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, when query dtype is bfloat16, "
-            "only innerPrec = 0 is supported, but got %u.", innerPrecise_);
-        return ge::GRAPH_FAILED;
+    if (socVer_ == SOC_VER_950_CODE) {
+        if (innerPrecise_ != BsaInnerCalcPrec::LOW_HIGH_MIXED) {
+            OP_LOGE(bsaContext->GetNodeName(), "On chip 950, only innerPrec = 4 is supported, "
+                "but got %u.", innerPrecise_);
+            return ge::GRAPH_FAILED;
+        }
+    } else {
+        auto dtypeQ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
+        if (innerPrecise_ != BsaInnerCalcPrec::ALL_HIGH && innerPrecise_ != BsaInnerCalcPrec::ALL_LOW) {
+            OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, only innerPrec = 0 or 1 is supported, "
+                "but got %u.", innerPrecise_);
+            return ge::GRAPH_FAILED;
+        } else if (innerPrecise_ == BsaInnerCalcPrec::ALL_LOW && dtypeQ == ge::DT_BF16) {
+            OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, when query dtype is bfloat16, "
+                "only innerPrec = 0 is supported, but got %u.", innerPrecise_);
+            return ge::GRAPH_FAILED;
+        }
     }
     // reserved yet non-configurable attrs
     int64_t blockSize = *bsaContext->GetAttrs()->GetAttrPointer<int64_t>(BLOCK_SIZE_INDEX);
@@ -540,6 +529,50 @@ void BSATiling::CalculateBatchTaskSplit(int64_t qSeqlen, uint32_t groupSize,
     uint32_t curQNBlockNum = qNBlockNumPerGroup * kvHeads_;
     curTaskNum = GetQBlocks(qSeqlen, blockShapeX_) * curQNBlockNum;
     curQBlockNum = CeilDiv(qSeqlen, blockShapeX_) * numHeads_;
+}
+
+uint32_t BSATiling::GetCurQSTileNum950(int64_t curQSeqlen)
+{
+    uint32_t fullXBlockNum = curQSeqlen / blockShapeX_;
+    uint32_t tailXBlockSize = curQSeqlen % blockShapeX_;
+    uint32_t qSTileNumPerFullXBlock = (blockShapeX_ + qBaseTile_ - 1) / qBaseTile_;
+    uint32_t qSTileNumTailXBlock = (tailXBlockSize + qBaseTile_ - 1) / qBaseTile_;
+    uint32_t curQSTileNum = qSTileNumPerFullXBlock * fullXBlockNum + qSTileNumTailXBlock;
+    return curQSTileNum;
+}
+
+void BSATiling::CalcBaseTileTilingParams950()
+{
+    qBaseTile_ = (blockShapeX_ > TILE_SIZE_128) ? TILE_SIZE_128 : blockShapeX_;
+    if (innerPrecise_ == BsaInnerCalcPrec::LOW_HIGH_MIXED && embeddingSize_ <= D_SIZE_128) {
+        kvBaseTile_ = TILE_SIZE_256;
+    } else {
+        kvBaseTile_ = TILE_SIZE_128;
+    }
+}
+
+void BSATiling::CalcSplitCoreTilingParams950()
+{
+    CalcBaseTileTilingParams950();
+    for (uint32_t bIdx = 0; bIdx < batch_; bIdx++) {
+        int64_t curQSeqlen = useUniformQSeqlen_ ? maxQSeqlen_ : qSeqLenList_[bIdx];
+        int64_t curKvSeqlen = useUniformKvSeqlen_ ? maxKvSeqlen_ : kvSeqLenList_[bIdx];
+        uint32_t curQSTileNum = GetCurQSTileNum950(curQSeqlen);
+        uint32_t curBatchTaskNum = curQSTileNum * numHeads_;
+        totalTaskNum_ += curBatchTaskNum;
+        if (bIdx == 0) {
+            firstBatchTaskNum_ = curBatchTaskNum;
+        }
+        maxQSeqlen_ = (curQSeqlen > maxQSeqlen_) ? curQSeqlen : maxQSeqlen_;
+        maxKvSeqlen_ = (curKvSeqlen > maxKvSeqlen_) ? curKvSeqlen : maxKvSeqlen_;
+    }
+    blockDim_ = aicNum_;
+    // mask2idx split core
+    xBlockNumAligned_ = (maxQSeqlen_ + blockShapeX_ - 1) / blockShapeX_;
+    yBlockNumAligned_ = (maxKvSeqlen_ + blockShapeY_ - 1) / blockShapeY_;
+    uint32_t totalRowNumBlockMask = batch_ * numHeads_ * xBlockNumAligned_;
+    avgRowPerSubCore_ = (totalRowNumBlockMask + aivNum_ - 1) / aivNum_;
+    preActiveSubCoreNum_ = (totalRowNumBlockMask + avgRowPerSubCore_ - 1) / avgRowPerSubCore_;
 }
 
 ge::graphStatus BSATiling::CalculateTaskSplit(gert::TilingContext *bsaContext)
@@ -590,6 +623,14 @@ ge::graphStatus BSATiling::CalculateTaskSplit(gert::TilingContext *bsaContext)
     return ge::GRAPH_SUCCESS;
 }
 
+void BSATiling::CalcWorkspaceTilingParams950(gert::TilingContext *bsaContext)
+{
+    selectIdxSize_ = batch_ * numHeads_ * xBlockNumAligned_ * yBlockNumAligned_ * sizeof(int32_t);
+    selectNumIdxSize_ = batch_ * numHeads_ * xBlockNumAligned_ * sizeof(int32_t);
+    workSpaceSize_ = libapiSize_ + selectIdxSize_ + selectNumIdxSize_;
+    bsaContext->GetWorkspaceSizes(1)[0] = workSpaceSize_;
+}
+
 ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *bsaContext)
 {
     if (blockDim_ == 0) {
@@ -613,6 +654,47 @@ ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *bsaContext)
     bsaContext->GetWorkspaceSizes(1)[0] = workSpaceSize_;
     
     return ge::GRAPH_SUCCESS;
+}
+
+void BSATiling::CalcMatmulPhaseL1TileInfo950()
+{
+    uint32_t qBaseTileAligned128 = (qBaseTile_ + TILE_SIZE_128 - 1) / TILE_SIZE_128 * TILE_SIZE_128;
+    uint32_t embeddingSizeAligned128 = (embeddingSize_ + TILE_SIZE_128 - 1) / TILE_SIZE_128 * TILE_SIZE_128;
+    uint32_t kvBaseTileAligned128 = (kvBaseTile_ + TILE_SIZE_128 - 1) / TILE_SIZE_128 * TILE_SIZE_128;
+
+    // 基本原则，Q的基块常驻在L1
+    mm1L1TileM_ = qBaseTileAligned128;
+    mm1L1TileKLeft_ = embeddingSizeAligned128;
+    qL1BufNum_ = SOLO_BUF;
+    if (embeddingSizeAligned128 == D_SIZE_256) {
+        // K矩阵开启2buf，D按256分割，S2按128分割
+        // 可以证明，当Q常驻在L1时，无论D和kvBaseTile_为多少，均不会有QK的MTE2重复搬运
+        mm1L1TileN_ = TILE_SIZE_128;
+        mm1L1TileKRight_ = TILE_SIZE_256;
+        kL1BufNum_ = DUO_BUF;
+        // V矩阵D按256分割，kvBaseTile_不分割，指令提前于核间同步下发，是否开启db取决于kvBaseTile_的大小
+        mm2L1TileN_ = TILE_SIZE_256;
+        mm2L1TileKLeft_ = kvBaseTileAligned128;
+        vL1BufNum_ = TILE_SIZE_256 / kvBaseTileAligned128;
+        // P矩阵在950上会常驻L1，由于基块的prelaunch为2，因此最好有3 buf，以免基块间流水阻塞
+        mm2L1TileM_ = qBaseTileAligned128;
+        mm2L1TileKRight_ = kvBaseTileAligned128;
+        pL1BufNum_ = TRIO_BUF;
+    } else if (embeddingSizeAligned128 == D_SIZE_128) {
+        // K矩阵开启2buf，D按128分割，S2按256分割
+        mm1L1TileN_ = TILE_SIZE_256;
+        mm1L1TileKRight_ = TILE_SIZE_128;
+        kL1BufNum_ = DUO_BUF;
+        // V矩阵开启db，D按128分割，kvBaseTile_不分割，指令同样提前于核间同步下发
+        // 如果kvBaseTile_进一步增大，考虑关闭db，使得kvBaseTile_不分割
+        mm2L1TileN_ = TILE_SIZE_128;
+        mm2L1TileKLeft_ = TILE_SIZE_256;
+        vL1BufNum_ = DUO_BUF;
+        // P矩阵在950上会常驻L1，由于基块的prelaunch为2，因此最好有3 buf，以免基块间流水阻塞
+        mm2L1TileM_ = qBaseTileAligned128;
+        mm2L1TileKRight_ = kvBaseTileAligned128;
+        pL1BufNum_ = TRIO_BUF;
+    }
 }
 
 ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *bsaContext)
@@ -663,6 +745,7 @@ ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *bsaContext)
     tilingData_->set_scaleValue(scaleValue_);
     tilingData_->set_selectNumIdxSize(selectNumIdxSize_);
     tilingData_->set_selectIdxSize(selectIdxSize_);
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -677,7 +760,7 @@ uint64_t BSATiling::GenerateTilingKey(gert::TilingContext *bsaContext)
      * - 位8-10:  PagedCache Flag（千万位）  0=NoCache, 1=WithCache
      * - 位11-13: KV Layout（十亿位）   00=TND, 20=BNSD
      * - 位14-15: Data Type（百亿位）  00=FP16, 22=BF16
-     * - 位16-18: Operator Category（千万亿位） 900=BlockSparseAttention
+     * - 位16-18: Operator Category（千万亿位） 900=BlockSparseAttention910, 905=BlockSparseAttention950
      * 
      * 示例：
      * - FP16, TND, TND, NoCache, Half, NoMask = 9000000030100002
@@ -685,6 +768,9 @@ uint64_t BSATiling::GenerateTilingKey(gert::TilingContext *bsaContext)
      */
     
     uint64_t tilingKey = 9000000000000000ULL;  // RFA基础值（Operator Category = 900）
+    if (socVer_ == SOC_VER_950_CODE) {
+        tilingKey = 9050000000000000ULL;
+    }
     
     // [位14-15] Data Type（百亿位）
     if (dataType_ == ge::DT_FLOAT16) {
@@ -709,6 +795,8 @@ uint64_t BSATiling::GenerateTilingKey(gert::TilingContext *bsaContext)
     // [位5-7] Softmax Precision（十万位）
     if (innerPrecise_ == 1) {
         tilingKey += 100000ULL;  // 1 for Half (FP16) Softmax
+    } else if (innerPrecise_ == 4) {
+        tilingKey += 400000ULL; // 4 for low prec online softmax & high prec rescale O
     }
     // innerPrecise_ == 0: 0 for Float Softmax（默认值）
     
@@ -754,19 +842,31 @@ ge::graphStatus BSATiling::GetBsaTiling(gert::TilingContext *bsaContext,
         OP_LOGE(bsaContext->GetNodeName(), "ValidateTNDSeqlenSum failed");
         return ret;
     }
-
-    ret = CalculateTaskSplit(bsaContext);
+    
+    if (socVer_ == SOC_VER_950_CODE) {
+        CalcSplitCoreTilingParams950();
+        CalcMatmulPhaseL1TileInfo950();
+        CalcWorkspaceTilingParams950(bsaContext);
+    } else {
+        ret = CalculateTaskSplit(bsaContext);
+        if (ret != ge::GRAPH_SUCCESS) {
+            OP_LOGE(bsaContext->GetNodeName(), "CalculateTaskSplit failed");
+            return ret;
+        }
+        ret = CalculateWorkSpace(bsaContext);
+        if (ret != ge::GRAPH_SUCCESS) {
+            OP_LOGE(bsaContext->GetNodeName(), "CalculateWorkSpace failed");
+            return ret;
+        }
+    }
+    
+    ret = CalculateWorkSpace(rfaContext);
     if (ret != ge::GRAPH_SUCCESS) {
-        OP_LOGE(bsaContext->GetNodeName(), "CalculateTaskSplit failed");
+        OP_LOGE(rfaContext->GetNodeName(), "CalculateWorkSpace failed");
         return ret;
     }
-    ret = CalculateWorkSpace(bsaContext);
-    if (ret != ge::GRAPH_SUCCESS) {
-        OP_LOGE(bsaContext->GetNodeName(), "CalculateWorkSpace failed");
-        return ret;
-    }
-
-    ret = FillTilingData(bsaContext);
+    
+    ret = FillTilingData(rfaContext);
     if (ret != ge::GRAPH_SUCCESS) {
         OP_LOGE(bsaContext->GetNodeName(), "FillTilingData failed");
         return ret;
