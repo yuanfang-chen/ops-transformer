@@ -36,7 +36,7 @@ public:
     ge::graphStatus GetOpName();
     ge::graphStatus GetNpuInfo();
     void GetOptionalInputParaMaskInfo();
-    void GetOptionalInputActualSeqLengthInfo();
+    void GetOptionalInputParaActualSeqLengthInfo();
     void GetOptionalInputParaPageAttentionInfo();
     void GetOptionalInputParaPostQuantInfo();
     void GetOptionalInputParaRopeInfo();
@@ -118,7 +118,7 @@ public:
         PSE_OUTER_MUL_ADD_TYPE = 0,
         PSE_INNER_MUL_ADD_TYPE = 2,
         PSE_INNER_MUL_ADD_SQRT_TYPE = 3,
-    }
+    };
 
     // BaseParams
     uint32_t bSize_ = 0;

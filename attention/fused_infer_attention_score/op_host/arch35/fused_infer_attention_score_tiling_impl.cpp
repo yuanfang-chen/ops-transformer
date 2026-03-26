@@ -102,7 +102,7 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
         return;
     }
     if (!fiaInfo.antiQuantFlag && fiaInfo.qkHeadDim > 256U && (fiaInfo.qkHeadDim % 64) != 0) {
-        gsMergeFlag_ = true;
+        gsMergeFlag_ = false;
         return;
     }
     
@@ -115,7 +115,7 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
     }
 
     if (actualSeqLenQFlag_ && !fiaInfo.antiQuantFlag) {
-        const gert::Tensor *actSeqLenQ = fiaInfo.opParamInfo.actualSeqLenghsQ.tensor;
+        const gert::Tensor *actSeqLenQ = fiaInfo.opParamInfo.actualSeqLengthsQ.tensor;
         uint32_t actSeqLenQDims = (actSeqLenQ != nullptr) ? actSeqLenQ->GetShapeSize() : 0;
         uint32_t actSeqLengthSize = std::min(actSeqLenQDims, fiaInfo.bSize);
         for (uint32_t i = 0; i < actSeqLengthSize; ++i) {
@@ -342,7 +342,7 @@ void FusedInferAttentionScoreTilingImpl::FixParamWithRowInvalid(const FiaTilingI
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
     nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
     int64_t preTokensError = 0;
-    if (fiaInfo.mlaMode == MlaMode:ROPE_SPLIT_D512) {
+    if (fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512) {
         preTokensError = (actualSeqLength > actualSeqLengthKV * fiaInfo.gSize + preTokensLeftUp) ?
                 (actualSeqLength - actualSeqLengthKV * fiaInfo.gSize- preTokensLeftUp) : 0;
     } else {
@@ -821,31 +821,31 @@ void FusedInferAttentionScoreTilingImpl::GetActualSeqLength(const FiaTilingInfo 
     uint32_t nNumOfQInOneGroup = 1;
     nNumOfQInOneGroup = fiaInfo.gSize;
     if (fiaInfo.qLayout == FiaLayout::TND) {
-        actualSeqLengsth = bidx == 0 ? fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[0] :
-                                       fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[bidx] -
-                                       fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[bidx - 1];
+        actualSeqLengths = bIdx == 0 ? fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[0] :
+                                       fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[bIdx] -
+                                       fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[bIdx - 1];
         if (gsMergeFlag_) {
             actualSeqLengths *= nNumOfQInOneGroup;
         }
-        actualSeqLengthsKV = fiaInfo.opParamInfo.actualSeqLenghs.tensor->GetData<int64_t>()[bIdx];
+        actualSeqLengthsKV = fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[bIdx];
         if (!fiaInfo.pageAttentionFlag && bIdx > 0) {
-            actualSeqLengthsKV -= fiaInfo.opParamInfo.actualSeqLenghs.tensor->GetData<int64_t>()[bIdx - 1];
+            actualSeqLengthsKV -= fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[bIdx - 1];
         }
     } else {
         if (fiaInfo.actualSeqLenFlag && fiaInfo.actualLenDims > 0 &&
-            fiaInfo.opParamInfo.actualSeqLenghs.tensor->GetData<int64_t>() != nullptr) { // kvLengths
+            fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>() != nullptr) { // kvLengths
             actualSeqLengthsKV = fiaInfo.actualLenDims == NUM1 ?
                                     fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[0] :
                                     fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[bIdx];
         } else {
             actualSeqLengthsKV = fiaInfo.kvListSeqLens.size() == NUM1 ?
-                                    fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[0] :
-                                    fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>()[bIdx];
+                                    fiaInfo.kvListSeqLens[0] :
+                                    fiaInfo.kvListSeqLens[bIdx];
         }
         if (actualSeqLengthsKV < fiaInfo.s2Size) {
             needInit_ = true;
         }
-        if (fiaInfo.actualSeqLenQFlag_) { // qLengths
+        if (actualSeqLenQFlag_) { // qLengths
             actualSeqLengths = fiaInfo.actualLenQDims == NUM1 ?
                                     fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[0] :
                                     fiaInfo.opParamInfo.actualSeqLengthsQ.tensor->GetData<int64_t>()[bIdx];
@@ -859,7 +859,8 @@ void FusedInferAttentionScoreTilingImpl::GetActualSeqLength(const FiaTilingInfo 
     }
 }
 
-int64_t FusedInferAttentionScoreTilingImpl::SumOfArithmeticSeries(int64_t an, int64_t d) {
+int64_t FusedInferAttentionScoreTilingImpl::SumOfArithmeticSeries(int64_t an, int64_t d)
+{
     // 等差数列求和，an：等差数列第n项，d：等差数列公差
     if (d == 0) {
         return 0;
@@ -870,7 +871,7 @@ int64_t FusedInferAttentionScoreTilingImpl::SumOfArithmeticSeries(int64_t an, in
 int64_t FusedInferAttentionScoreTilingImpl::GetAntiQuantCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqLength,
                                                                      int64_t sInner, int64_t sOuter, int64_t token)
 {
-    int64_t blocksNums = 0;
+    int64_t blockNums = 0;
     int64_t blockToken = token > 0 ? ((token + sInner - 1) / sInner * sInner) : (token / sInner * sInner);
     int64_t outDivIn = sOuter > sInner ? sOuter / sInner : 1;
     int64_t InDivOut = sInner > sOuter ? sInner / sOuter : 1;
@@ -921,9 +922,9 @@ int64_t FusedInferAttentionScoreTilingImpl::GetAntiQuantCalcBlockNumsOneHead(
             blockSeqLengthKV - blockSeqLength + preTokensLeftUp + fiaInfo.systemPrefixLen);
         
         // prefix部分单独计算
-        int64_t blockSharePrefix = sInnerLoopTimesPrefix * static_cast<int64_t>(sInnerFactor_);
+        int64_t blockSharedPrefix = sInnerLoopTimesPrefix * static_cast<int64_t>(sInnerFactor_);
         toCalcBlockNums += sInnerLoopTimesPrefix * outerBlockNums;
-        toCalcBlockNums -=  GetAntiQuantCutBlockNums(blockSeqLengthKV, blockSeqLength, 
+        toCalcBlockNums -=  GetAntiQuantCutBlockNums(blockSharedPrefix, blockSeqLength, 
                                                      static_cast<int64_t>(sInnerFactor_),
                                                      static_cast<int64_t>(sOuterFactor_), nextTokensLeftUp);
         toCalcBlockNums -= GetAntiQuantCutBlockNums(
@@ -2003,29 +2004,29 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
     }
 
     // needInit
-    int64_t preTokensPerBatch = 0;
-    int64_t nextTokensPerBatch = 0;
+    int64_t preTokensPerbatch = 0;
+    int64_t nextTokensPerbatch = 0;
     for (uint32_t i = 0; i < fiaInfo.bSize && fiaInfo.quantMode != FiaQuantMode::ANTI_QUANT; i++) {
         if (fiaInfo.sparseMode == SPARSE_MODE_RIGHT_DOWN) {
-            preTokensPerBatch = SPARSE_MODE_INT_MAX;
+            preTokensPerbatch = SPARSE_MODE_INT_MAX;
             if (fiaInfo.mlaMode == MlaMode::ROPE_SPILT_D512) {
-                nextTokensPerBatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i] / fiaInfo.gSize;
+                nextTokensPerbatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i] / fiaInfo.gSize;
             } else {
-                nextTokensPerBatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
+                nextTokensPerbatch = actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
             }
         } else if (fiaInfo.sparseMode == SPARSE_MODE_BAND) {
-            preTokensPerBatch = fiaInfo.preToken - actualSeqLengthsKV_[i] - fiaInfo.systemPrefixLen + actualSeqLengthsQ_[i];
-            nextTokensPerBatch = fiaInfo.nextToken + actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
+            preTokensPerbatch = fiaInfo.preToken - actualSeqLengthsKV_[i] - fiaInfo.systemPrefixLen + actualSeqLengthsQ_[i];
+            preTokensPerbatch = fiaInfo.nextToken + actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen - actualSeqLengthsQ_[i];
         } else {
-            preTokensPerBatch = fiaInfo.preToken;
-            nextTokensPerBatch = fiaInfo.nextToken;
+            preTokensPerbatch = fiaInfo.preToken;
+            nextTokensPerbatch = fiaInfo.nextToken;
         }
-        if ((nextTokensPerBatch < 0) || 
-            (actualSeqLengthsQ_[i] > (actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen + preTokensPerBatch))) {
+        if ((nextTokensPerbatch < 0) || 
+            (actualSeqLengthsQ_[i] > (actualSeqLengthsKV_[i] + fiaInfo.systemPrefixLen + preTokensPerbatch))) {
             needInit_ = true;
         }
-        OP_LOGI(fiaInfo.opName, "preTokensPerBatch[%u] is %ld, nextTokensPerBatch[%u] is %ld",
-                i, preTokensPerBatch, i, nextTokensPerBatch);
+        OP_LOGI(fiaInfo.opName, "preTokensPerbatch[%u] is %ld, nextTokensPerbatch[%u] is %ld",
+                i, preTokensPerbatch, i, nextTokensPerbatch);
         OP_LOGI(fiaInfo.opName,
                 "actualSeqLengths[%u] is %ld, actualSeqLengthsKV[%u] is %ld, actualSharePrefixLen is %ld, needInit is %u",
                 i, actualSeqLengthsQ_[i], i, actualSeqLengthsKV_[i], fiaInfo.systemPrefixLen, needInit_);
@@ -2083,8 +2084,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFATilingData(const FiaTil
     if (fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION) {
         blockTableDim2 = fiaInfo.opParamInfo.blockTable.tensor->GetStorageShape().GetDim(1);
     }
-    baseParams.set_blockTableDim2(blockTableDim2);
-    inputParams.set_blockTableDim2(fiaInfo.maxBlockNumPerBatch);
+    inputParams.set_blockTableDim2(fiaInfo.blockTableDim2);
     inputParams.set_paBlockNumSum(fiaInfo.totalBlockNum);
     inputParams.set_isRowInvalid((fiaInfo.innerPrecise >> 1) & 1);
     inputParams.set_isPostQuantPerChnl(fiaInfo.isOutQuantPerChnOut);

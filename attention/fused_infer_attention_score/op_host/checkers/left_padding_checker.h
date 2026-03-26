@@ -44,7 +44,7 @@ private:
     ge::graphStatus CheckFeaturePageAttention(const FiaTilingInfo &fiaInfo);
 
     // enableNonQuant 相关校验函数
-    ge::graphStatus CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo);
+    ge::graphStatus CheckShapeAndDim(const FiaTilingInfo &fiaInfo);
 
 private:
 };

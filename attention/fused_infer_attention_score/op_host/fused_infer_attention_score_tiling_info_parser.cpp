@@ -155,8 +155,7 @@ ge::graphStatus FiaInfoParser::GetLegacyIfaFlag()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetActualSeqLenQSize(uint32_t &size, const FiaLayout &layout,
-                                                    const std::string &actualSeqLenName, const std::string &attrName)
+ge::graphStatus FiaInfoParser::GetActualSeqLenQSize(uint32_t &size)
 {
     if (opParamInfo_.actualSeqLengthsQ.tensor == nullptr) {
         OP_LOGE(opName_, "when %s's layout is %s, %s must be provided.", QUERY_NAME.c_str(),
@@ -196,7 +195,6 @@ ge::graphStatus FiaInfoParser::GetNpuInfo()
                 return GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
-    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
     if ((socVersion_ != platform_ascendc::SocVersion::ASCEND310P) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND950) &&
@@ -214,7 +212,7 @@ void FiaInfoParser::GetOptionalInputParaInfo()
 {
     // actualSeqLengthsQ和queryPaddingSize在GetUpdateInfo()中获取
     GetOptionalInputParaMaskInfo();
-    GetOptionalInputActualSeqLengthInfo();
+    GetOptionalInputParaActualSeqLengthInfo();
     GetOptionalInputParaPageAttentionInfo();
     GetOptionalInputParaPostQuantInfo();
     GetOptionalInputParaRopeInfo();
@@ -230,7 +228,7 @@ void FiaInfoParser::GetOptionalInputParaMaskInfo()
     opParamInfo_.attenMask.desc = context_->GetOptionalInputDesc(ATTEN_MASK_INDEX);
 }
 
-void FiaInfoParser::GetOptionalInputActualSeqLengthInfo()
+void FiaInfoParser::GetOptionalInputParaActualSeqLengthInfo()
 {
     opParamInfo_.actualSeqLengths.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     opParamInfo_.actualSeqLengths.desc = context_->GetOptionalInputDesc(ACTUAL_SEQ_KV_INDEX);
@@ -264,10 +262,10 @@ void FiaInfoParser::GetOptionalInputParaPseInfo()
 {
     opParamInfo_.pseShift.tensor = context_->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     opParamInfo_.pseShift.desc = context_->GetOptionalInputDesc(PSE_SHIFT_INDEX);
-    opParamInfo_.qStartIdx.tensor = context_->GetOptionalInputTensor(Q_START_SHIFT_INDEX);
-    opParamInfo_.qStartIdx.desc = context_->GetOptionalInputDesc(Q_START_SHIFT_INDEX);
-    opParamInfo_.kvStartIdx.tensor = context_->GetOptionalInputTensor(KV_START_SHIFT_INDEX);
-    opParamInfo_.kvStartIdx.desc = context_->GetOptionalInputDesc(KV_START_SHIFT_INDEX);
+    opParamInfo_.qStartIdx.tensor = context_->GetOptionalInputTensor(Q_START_IDX_INDEX);
+    opParamInfo_.qStartIdx.desc = context_->GetOptionalInputDesc(Q_START_IDX_INDEX);
+    opParamInfo_.kvStartIdx.tensor = context_->GetOptionalInputTensor(KV_START_IDX_INDEX);
+    opParamInfo_.kvStartIdx.desc = context_->GetOptionalInputDesc(KV_START_IDX_INDEX);
 }
 
 void FiaInfoParser::GetOptionalInputParaLeftPaddingInfo()
@@ -288,8 +286,8 @@ void FiaInfoParser::GetOptionalInputParaPrefixInfo()
 
 void FiaInfoParser::GetOptionalInputParaLearnableSinkInfo()
 {
-    opParamInfo_.LearnableSink.tensor = context_->GetOptionalInputTensor(LEARNABLE_SINK_INDEX);
-    opParamInfo_.LearnableSink.desc = context_->GetOptionalInputDesc(LEARNABLE_SINK_INDEX);
+    opParamInfo_.learnableSink.tensor = context_->GetOptionalInputTensor(LEARNABLE_SINK_INDEX);
+    opParamInfo_.learnableSink.desc = context_->GetOptionalInputDesc(LEARNABLE_SINK_INDEX);
 }
 
 void FiaInfoParser::GetOptionalInputParaQuantInfo()
@@ -363,8 +361,8 @@ void FiaInfoParser::GetUpdateInfo()
     auto attrs = context_->GetAttrs();
     static int32_t SPARSE_ZERO = 0U;
     static int64_t TOKEN_MAX = 2147483647;
-    if (isLegacyIfa_ && (socVersion_ != platform_ascendc::SocVersion::ASCEND310P) ||
-        (socVersion_ != platform_ascendc::SocVersion::ASCEND910B)) {
+    if (isLegacyIfa_ && (socVersion_ == platform_ascendc::SocVersion::ASCEND310P) ||
+        (socVersion_ == platform_ascendc::SocVersion::ASCEND910B)) {
         opParamInfo_.sparseMode = &SPARSE_ZERO;
         opParamInfo_.preToken = &TOKEN_MAX;
         opParamInfo_.nextToken = &TOKEN_MAX;
@@ -381,7 +379,6 @@ void FiaInfoParser::GetUpdateInfo()
         opParamInfo_.queryPaddingSize.tensor = context_->GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX);
         opParamInfo_.queryPaddingSize.desc = context_->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX);
     }
-    return ge::GRAPH_SUCCESS;
 }
 
 void FiaInfoParser::GetPreNextToken()
@@ -434,7 +431,6 @@ void FiaInfoParser::GetPreNextToken()
         preToken_ = SPARSE_MODE_INT_MAX;
         nextToken_ = -(SPARSE_MODE_INT_MAX);
     }
-    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FiaInfoParser::GetKvCache()
@@ -592,7 +588,6 @@ void FiaInfoParser::GetKvStorageMode()
             kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
         }
     }
-    return ge::GRAPH_SUCCESS;
 }
 
 void FiaInfoParser::GetQuantMode()
@@ -712,12 +707,12 @@ ge::graphStatus FiaInfoParser::GetMaxBlockNumPerBatch()
         const gert::Tensor *actSeqLenKV = opParamInfo_.actualSeqLengths.tensor;
         int32_t actualSeqKVPerBatch = 0;
         int32_t blockNumPerBatch = 0;
-        int32_t blockNumValid = 0;
+        int64_t blockNumValid = 0;
         maxBlockNumPerBatch_ = 0;
         if (actSeqLenKV->GetData<int64_t>() == nullptr) {
             return ge::GRAPH_SUCCESS;
         }
-        for (uint32_t i = 0; i < bSize_; ++i) {
+        for (uint32_t i = 0; i < bSize_; i++) {
             actualSeqKVPerBatch = (actSeqLenKV->GetShapeSize() > 1) ?
                                       static_cast<int32_t>(actSeqLenKV->GetData<int64_t>()[i]) :
                                       static_cast<int32_t>(actSeqLenKV->GetData<int64_t>()[0]);
@@ -732,18 +727,6 @@ ge::graphStatus FiaInfoParser::GetMaxBlockNumPerBatch()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetBlockTableDim2()
-{
-    uint32_t dimNum = opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum();
-    if (dimNum != 2U) {
-        OP_LOGE(opName_, "the dim num of %s is %u, it should be 2.", BLOCK_TABLE_NAME.c_str(), dimNum);
-        return ge::GRAPH_FAILED;
-    }
-    maxBlockNumPerBatch_ = opParamInfo_.blockTable.tensor->GetStorageShape().GetDim(1);
-    return ge::GRAPH_SUCCESS;
-}
-
-
 ge::graphStatus FiaInfoParser::GetBlockSize()
 {
     if (opParamInfo_.blockSize == nullptr) {
@@ -751,6 +734,17 @@ ge::graphStatus FiaInfoParser::GetBlockSize()
         return ge::GRAPH_FAILED;
     }
     blockSize_ = *(opParamInfo_.blockSize);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus FiaInfoParser::GetBlockTableDim2()
+{
+    uint32_t dimNum = opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum();
+    if (dimNum != 2U) {
+        OP_LOGE(opName_, "the dim num of %s is %u, it should be 2.", BLOCK_TABLE_NAME.c_str(), dimNum);
+        return ge::GRAPH_FAILED;
+    }
+    blockTableDim2_ = opParamInfo_.blockTable.tensor->GetStorageShape().GetDim(1);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -799,7 +793,7 @@ ge::graphStatus FiaInfoParser::GetRopeMode()
     bool existSplitRopeTensor =
         ((opParamInfo_.queryRope.tensor != nullptr) && (opParamInfo_.queryRope.desc != nullptr));
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
-        if (exitSplitRopeTensor) {
+        if (existSplitRopeTensor) {
             ropeMode_ = RopeMode::ROPE_SPLIT;
         } else if (qkHeadDim_ == 192 && vHeadDim_ == 128) {
             ropeMode_ = RopeMode::ROPE_COMBINE;
@@ -908,7 +902,7 @@ ge::graphStatus FiaInfoParser::GetN2Size()
     // 获取N2基准值
     int32_t kvHeadNums = *(opParamInfo_.kvHeadNums);
     if (kvHeadNums < 0) {
-        OP_LOGE(opName_, "%s is %d, it should be greater than 0.", KV_HEADS_NUM_NAME.c_str(), kvHeadNums);
+        OP_LOGE(opName_, "%s is %d, it should be greater than or equal to 0.", KV_HEADS_NUM_NAME.c_str(), kvHeadNums);
         return ge::GRAPH_FAILED;
     }
     n2Size_ = (kvHeadNums == 0) ? n1Size_ : static_cast<uint32_t>(kvHeadNums);
@@ -966,25 +960,25 @@ ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
 
 ge::graphStatus FiaInfoParser::GetAntiQuantInfo()
 {
-    antiQuantFlag_ = inputQType != inputKvType_;
+    antiQuantFlag_ = inputQType_ != inputKvType_;
     if (opParamInfo_.keyAntiquantScale.tensor == nullptr || opParamInfo_.valueAntiquantScale.tensor == nullptr) {
         return ge::GRAPH_SUCCESS;
     }
     if (!antiQuantFlag_) {
         return ge::GRAPH_SUCCESS;
     }
-    bool kPerChnVperTokFlag_ =
+    bool kPerChnVPerTokFlag_ =
          (inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT8) && 
          (*(opParamInfo_.keyAntiquantMode) == 0 && *(opParamInfo_.valueAntiquantMode) == 1);
     
-    auto tmpAntiquanMode = *(opParamInfo_.keyAntiquantMode);
+    auto tmpAntiquantMode = *(opParamInfo_.keyAntiquantMode);
     auto tmpAntiquant = opParamInfo_.keyAntiquantScale.tensor->GetStorageShape();
     if (opParamInfo_.keyAntiquantOffset.tensor != nullptr) {
         tmpAntiquant = opParamInfo_.keyAntiquantOffset.tensor->GetStorageShape();
     }
 
-    if (kPerChnVperTokFlag_) {
-        tmpAntiquanMode = *(opParamInfo_.valueAntiquanMode);
+    if (kPerChnVPerTokFlag_) {
+        tmpAntiquantMode = *(opParamInfo_.valueAntiquantMode);
         tmpAntiquant = opParamInfo_.valueAntiquantScale.tensor->GetStorageShape();
         if (opParamInfo_.valueAntiquantOffset.tensor != nullptr) {
             tmpAntiquant = opParamInfo_.valueAntiquantOffset.tensor->GetStorageShape();
@@ -994,18 +988,18 @@ ge::graphStatus FiaInfoParser::GetAntiQuantInfo()
     if (tmpAntiquantMode == 6) {
         if (systemPrefixFlag_) {
             if (tmpAntiquant.GetDimNum() != 5) {
-                OP_LOGE(opName_, "The dimmension(%lu) of antiquant is illegal, it should be 5 when per-token-group mode.", tmpAntiquant.GetDimNum());
+                OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 5 when per-token-group mode.", tmpAntiquant.GetDimNum());
             }
             antiquantParaSeqSize_ = tmpAntiquant.GetDim(3);
         }
     } else if (tmpAntiquantMode == 1) {
         if (tmpAntiquant.GetDimNum() != 2 && tmpAntiquant.GetDimNum() != 3) {
-            OP_LOGE(opName_, "The dimmension(%lu) of antiquant is illegal, it should be 2 or 3 when per-token mode.", tmpAntiquant.GetDimNum());
+            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 2 or 3 when per-token mode.", tmpAntiquant.GetDimNum());
         }
         antiquantParaSeqSize_ = tmpAntiquant.GetDim() == 3U ? tmpAntiquant.GetDim(2) : tmpAntiquant.GetDim(1);
     } else if (tmpAntiquantMode == 3) {
         if (tmpAntiquant.GetDimNum() != 3) {
-            OP_LOGE(opName_, "The dimmension(%lu) of antiquant is illegal, it should be 3 when per-head mode.", tmpAntiquant.GetDimNum());
+            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 3 when per-token-head mode.", tmpAntiquant.GetDimNum());
         }
         antiquantParaSeqSize_ = tmpAntiquant.GetDim(2);
     }
@@ -1066,10 +1060,10 @@ void FiaInfoParser::GetPaddingSizeFlag()
     if (antiQuantFlag_) {
         if (qPaddingSizeFlag_ || (kvPaddingSizeFlag_ && s1Size_ == 1)) {
             needInit_ = true;
-        } else {
-            if (qPaddingSizeFlag_ || kvPaddingSizeFlag_) {
-                needInit_ = true;
-            }
+        } 
+    } else {
+        if (qPaddingSizeFlag_ || kvPaddingSizeFlag_) {
+            needInit_ = true;
         }
     }
 }
@@ -1091,8 +1085,8 @@ ge::graphStatus FiaInfoParser::GetPseShiftFlag()
                     OP_LOGE(opName_, "PseType(%ld) is not support, pseType must be 0/2/3.", pseType_),
                     return ge::GRAPH_FAILED);
     }
-    if (pseType_ != static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_TYPE) ||
-        pseType_ != static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)){
+    if (pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_TYPE) ||
+        pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)){
         enableAlibiPse_ = true;
     }
     if ((pseShiftShape == nullptr) ||
@@ -1104,15 +1098,14 @@ ge::graphStatus FiaInfoParser::GetPseShiftFlag()
         if (socVersion_ == platform_ascendc::SocVersion::ASCEND910B) {
             pseShiftByBatch_ = pseShiftShape->GetStorageShape().GetDim(0) != 1U ? 1 : 0;
         }
-        pseShiftByBatch_ = (pseShiftShape->GetStorageShape().GetDim(0) != 1U);
         pseShiftS1_ = pseShiftShape->GetStorageShape().GetDim(PSE_SHIFT_S1_INDEX);
         pseShiftS2_ = pseShiftShape->GetStorageShape().GetDim(PSE_SHIFT_S2_INDEX);
     } else if (pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_TYPE) ||
         pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)){
         if (antiQuantFlag_) {
-            pseShiftByBatch_ = pseShiftShape->GetStorageShape().GetDim() != 0 ? 1 : 0;
+            pseShiftByBatch_ = pseShiftShape->GetStorageShape().GetDimNum() != 0 ? 1 : 0;
         } else {
-            pseShiftByBatch_ = pseShiftShape->GetStorageShape().GetDim() == 1 ? 1 : 0;
+            pseShiftByBatch_ = pseShiftShape->GetStorageShape().GetDimNum() == 1 ? 1 : 0;
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -1160,7 +1153,7 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
             for (uint32_t i = 0; i < loop; i++) {
                 int64_t actLen = actualLenData[i];
                 if (antiQuantFlag_) {
-                    if (qLayout_ == FiaLayout::TND && i > 1 && kvStorageMode != KvStorageMode::PAGE_ATTENTION) {
+                    if (qLayout_ == FiaLayout::TND && i > 0 && kvStorageMode != KvStorageMode::PAGE_ATTENTION) {
                         actLen -= actualLenData[i - 1];
                     }
                     if (s1Size_ == 1) {
@@ -1171,7 +1164,7 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
                     if (qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD) {
                         continue;
                     }
-                    if (actLen_ != s2Size_) {
+                    if (actLen != s2Size_) {
                         needInit_ = 1;
                     }
                 }
@@ -1201,26 +1194,25 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
                 }
             }
         }
-    }
 
-    if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
-        preToken_ = SPARSE_MODE_INT_MAX;
-        nextToken_ = SPARSE_MODE_INT_MAX;
-        if (qLayout_ != FiaLayout::TND) {
-            actualLenDims_ = 0;
+        if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
+            preToken_ = SPARSE_MODE_INT_MAX;
+            nextToken_ = SPARSE_MODE_INT_MAX;
+            if (qLayout_ != FiaLayout::TND) {
+                actualLenQDims_ = 0;
+            }
+            qPaddingSizeFlag_ = false;
         }
-        qPaddingSizeFlag_ = false;
     }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FiaInfoParser::GetPostQuantInfo()
 {
-    ge::DataType outputType = opParamInfo_.attenOut.desc->GetStorageShape();
+    ge::DataType outputType = opParamInfo_.attenOut.desc->GetDataType();
     if (outputType != ge::DT_BF16 && outputType != ge::DT_FLOAT16) {
         isPostQuantEnable_ = true;
         if (opParamInfo_.quantScale2.tensor != nullptr && opParamInfo_.quantScale2.desc != nullptr) {
-            isPostQuantEnable_ = true;
             isOutQuantPerChnOut_ = opParamInfo_.quantScale2.tensor->GetStorageShape().GetShapeSize() != 1;
             isOutQuantTypeBf16_ = opParamInfo_.quantScale2.desc->GetDataType() == DT_BF16;
         }
@@ -1228,7 +1220,8 @@ ge::graphStatus FiaInfoParser::GetPostQuantInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetFullQuantMode() {
+ge::graphStatus FiaInfoParser::GetFullQuantMode()
+{
     if (quantMode_ == FiaQuantMode::FULL_QUANT) {
         if (opParamInfo_.deqScale1.tensor != nullptr && opParamInfo_.deqScale1.desc != nullptr) {
             fullQuantMode_ = FiaFullQuantMode::PER_TENSOR_FULL_QUANT;
@@ -1236,6 +1229,7 @@ ge::graphStatus FiaInfoParser::GetFullQuantMode() {
             fullQuantMode_ = FiaFullQuantMode::PER_BLOCK_FULL_QUANT;
         }
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 TilingKeyLayout FiaInfoParser::MapStringToLayout(FiaLayout &layoutString) const
@@ -1273,7 +1267,7 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.pseShiftByBatch = pseShiftByBatch_;
     fiaInfo.pseShiftS1 = pseShiftS1_;
     fiaInfo.pseShiftS2 = pseShiftS2_;
-    fiainfo.enableAlibiPse = enableAlibiPse_;
+    fiaInfo.enableAlibiPse = enableAlibiPse_;
 
     // atten mask
     fiaInfo.attenMaskFlag = attenMaskFlag_;
@@ -1332,7 +1326,7 @@ void FiaInfoParser::GenerateInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.ropeMode = ropeMode_;
     fiaInfo.mlaMode = mlaMode_;
     fiaInfo.quantMode = quantMode_;
-    fiaInfo.fullQuantMode = fullMode_;
+    fiaInfo.fullQuantMode = fullQuantMode_;
     fiaInfo.l2CacheSize = l2CacheSize_;
 
     fiaInfo.kCache = kCache_;
@@ -1375,8 +1369,8 @@ void FiaInfoParser::GenerateAxisInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.qkHeadDim = qkHeadDim_;
     fiaInfo.vHeadDim = vHeadDim_;
     fiaInfo.ropeHeadDim = ropeHeadDim_;
-    fiaInfo.qTSize = qTSize_;
-    fiaInfo.kTSize = kTSize_;
+    fiaInfo.qTSize = queryTSize_;
+    fiaInfo.kTSize = keyTSize_;
 }
 
 void FiaInfoParser::GenerateDtypeInfo(FiaTilingInfo &fiaInfo)
@@ -1430,10 +1424,11 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
         return ge::GRAPH_FAILED;
     }
     SetFiaShape();
-    GetQuerySize();
+    GetQueryTSize();
     GetUpdateInfo()
     if (ge::GRAPH_SUCCESS != GetQkHeadDim() || ge::GRAPH_SUCCESS != GetValueHeadDim() ||
-        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() || ge::GRAPH_SUCCESS != GetBatchSize()) {
+        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() || ge::GRAPH_SUCCESS != GetBatchSize() ||
+        ge::GRAPH_SUCCESS != GetS1Size()) {
         return ge::GRAPH_FAILED;
     }
     if (emptyTensorFlag_) {

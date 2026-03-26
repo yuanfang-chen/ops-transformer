@@ -510,6 +510,12 @@ ge::graphStatus DequantChecker::CheckFeatureMLAFullquant(const FiaTilingInfo &fi
     OP_CHECK_IF(fiaInfo.kvStorageMode == KvStorageMode::TENSOR_LIST,
                 OP_LOGE(fiaInfo.opName, "In MLA fullquant scenario, key/value tensorlist is not supported."),
                 return ge::GRAPH_FAILED);
+    // MLA int8全量化仅支持
+    const uint32_t keyDim = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
+    OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8 &&
+        !(fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION && keyDim == DIM_NUM_5),
+                OP_LOGE(fiaInfo.opName, "In MLA fullquant scenario, key/value layout must be PA_NZ when input datatype is INT8."),
+                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -735,14 +741,18 @@ ge::graphStatus DequantChecker::CheckDequantScaleShapeFullquant(const FiaTilingI
 // check 不同量化方式 支持的数据类型
 ge::graphStatus DequantChecker::CheckInputDTypeFullquant(const FiaTilingInfo &fiaInfo)
 {
-    if (enableIFAMLAFullQuant_) {  // MLA 全量化 QKV : fp8_e4m3 Out: bf16 rope bf16
-        OP_CHECK_IF(!(fiaInfo.inputQType == ge::DT_FLOAT8_E4M3FN && fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN &&
-                      fiaInfo.outputType == ge::DT_BF16),
+    if (enableIFAMLAFullQuant_) {  // MLA 全量化 QKV : fp8_e4m3/int8
+        OP_CHECK_IF(!(fiaInfo.inputQType == ge::DT_FLOAT8_E4M3FN || fiaInfo.inputQType == ge::DT_INT8),
                     OP_LOGE(fiaInfo.opName,
                             "In MLA fullquant scenario, query datatype(%s) and key/value datatype(%s), "
-                            "should be FLOAT8_E4M3FN, attentionOut datatype(%s) should be BF16.",
+                            "should be FLOAT8_E4M3FN or INT8",
                             DataTypeToSerialString(fiaInfo.inputQType).c_str(),
-                            DataTypeToSerialString(fiaInfo.inputKvType).c_str(),
+                            DataTypeToSerialString(fiaInfo.inputKvType).c_str()),
+                    return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF(fiaInfo.outputType != ge::DT_BF16),
+                    OP_LOGE(fiaInfo.opName,
+                            "In MLA fullquant scenario, attentionOut datatype(%s) should be BF16.",
                             DataTypeToSerialString(fiaInfo.outputType).c_str()),
                     return ge::GRAPH_FAILED);
 
@@ -794,13 +804,23 @@ ge::graphStatus DequantChecker::CheckInputLayoutPertensor(const FiaTilingInfo &f
         return ge::GRAPH_SUCCESS;
     }
     const std::string inputLayout = fiaInfo.opParamInfo.layOut;
-    const std::vector<std::string> unsupportedLayoutList = {
-        "BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "BSH_BNSD", "BSND_BNSD", "TND", "NTD", "NTD_TND", "TND_NTD"};
+    const std::vector<std::string> supportedLayoutListFP8 = {
+        "BSH", "BSND", "BNSD", "TND"};
+    const std::vector<std::string> supportedLayoutListINT8 = {
+        "BSH", "BSND", "TND", "BSH_NBSD", "BSND_NBSD", "TND_NTD"};
+    
+    OP_CHECK_IF(fiaInfo.inputQType == ge::DT_FLOAT8_E4M3FN &&
+        (std::find(supportedLayoutListFP8.begin(), supportedLayoutListFP8.end(), inputLayout) ==
+                 supportedLayoutListFP8.end()),
+                OP_LOGE(fiaInfo.opName, "In MLA full quant scenario, input layout(%s) must be BSH/BSND/BNSD/TND "
+                        "When input datatype is float8_e4m3.",fiaInfo.opParamInfo.layOut),
+                return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), inputLayout) !=
-                 unsupportedLayoutList.end()),
-                OP_LOGE(fiaInfo.opName, "In per-tensor quant scenario, input layout(%s) is not supported.",
-                        fiaInfo.opParamInfo.layOut),
+    OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8 &&
+        (std::find(supportedLayoutListINT8.begin(), supportedLayoutListINT8.end(), inputLayout) ==
+                 supportedLayoutListINT8.end()),
+                OP_LOGE(fiaInfo.opName, "In MLA full quant scenario, input layout(%s) must be BSH/BSND/TND/BSH_NBSD/BSND_NBSD/TND_NTD.",
+                        "When input datatype is int8.",fiaInfo.opParamInfo.layOut),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -839,11 +859,20 @@ ge::graphStatus DequantChecker::CheckInputLayoutFullquant(const FiaTilingInfo &f
 ge::graphStatus DequantChecker::CheckN1SizeFullquant(const FiaTilingInfo &fiaInfo)
 {
     if (enableIFAMLAFullQuant_) {
-        static const std::set<uint32_t> supportNumHeadForMLAFullQuant = {32U, 64U, 128U};
-        OP_CHECK_IF((supportNumHeadForMLAFullQuant.find(fiaInfo.n1Size) == supportNumHeadForMLAFullQuant.end()),
+        static const std::set<uint32_t> supportNumHeadForMLAFullQuantFP8 = {32U, 64U, 128U};
+        static const std::set<uint32_t> supportNumHeadForMLAFullQuantINT8 = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U};
+        OP_CHECK_IF(fiaInfo.inputQType == ge::DT_FLOAT8_E4M3FN &&
+            (supportNumHeadForMLAFullQuantFP8.find(fiaInfo.n1Size) == supportNumHeadForMLAFullQuantFP8.end()),
                     OP_LOGE(fiaInfo.opName,
                             "In MLA fullquant scenario, "
-                            "the heads num(%u) of query should be in range of {32, 64, 128}.",
+                            "the heads num(%u) of query should be in range of {32, 64, 128} When input datatype is float8_e4m3",
+                            fiaInfo.n1Size),
+                    return ge::GRAPH_FAILED);
+         OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8 &&
+            (supportNumHeadForMLAFullQuantINT8.find(fiaInfo.n1Size) == supportNumHeadForMLAFullQuantINT8.end()),
+                    OP_LOGE(fiaInfo.opName,
+                            "In MLA fullquant scenario, "
+                            "the heads num(%u) of query should be in range of {1, 2, 4, 8, 16, 32, 64, 128} When input datatype is int8",
                             fiaInfo.n1Size),
                     return ge::GRAPH_FAILED);
     } else {  // QN <= 256
@@ -1260,27 +1289,54 @@ ge::graphStatus DequantChecker::CheckFeatureExtendForAntiquant(const FiaTilingIn
                                 "the layout of input does not support TND."),
         return ge::GRAPH_FAILED);
     if (fiaInfo.s1Size > 1) {
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_INT8 &&
+        int64_t keyAntiquantMode = 0;
+        if (fiaInfo.opParamInfo.keyAntiquantMode != nullptr) {
+            keyAntiquantMode = fiaInfo.opParamInfo.keyAntiquantMode;
+        }
+        OP_CHECK_IF((keyAntiquantMode == PER_TENSOR_HEAD_MODE || keyAntiquantMode == PER_TOKEN_HEAD_MODE ||
+                     keyAntiquantMode == PER_TOKEN_PA_MODE || keyAntiquantMode == PER_TOKEN_HEAD_PA_MODE) &&
+                     fiaInfo.inputKvType == ge::DT_INT8,
+                    OP_LOGE(fiaInfo.opName,
+                            "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                            "if S of query > 1, keyAntiquantMode/valueAntiquantMode 2, 3, 4, 5 are not supported!"),
+                    return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF((keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                    (fiaInfo.inputKvType == ge::DT_INT8 &&
                      (fiaInfo.inputQType != ge::DT_BF16 || fiaInfo.outputType != ge::DT_BF16)),
                     OP_LOGE(fiaInfo.opName,
                             "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                            "the data type of query and output only support BF16."),
+                            "if keyAntiquantMode/valueAntiquantMode is 0 or 1, the data type of query and output only "
+                            "support BF16!"),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_INT8 && !fiaInfo.batchContinuousFlag),
+
+        OP_CHECK_IF(((keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                    fiaInfo.inputKvType == ge::DT_INT8 && fiaInfo.s1Size > NUM_16),
                     OP_LOGE(fiaInfo.opName,
                             "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                            "tensorlist is not supported."),
+                            "if keyAntiquantMode/valueAntiquantMode is 0 or 1, S of query should not be greater than 16!"),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_INT8 && (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag)),
+
+        OP_CHECK_IF((keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                    (fiaInfo.inputKvType == ge::DT_INT8 && !fiaInfo.batchContinuousFlag),
                     OP_LOGE(fiaInfo.opName,
                             "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                            "leftpadding is not supported."),
+                            "if keyAntiquantMode/valueAntiquantMode is 0 or 1, tensorlist is not supported."),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_INT8 && fiaInfo.pageAttentionFlag),
+
+        OP_CHECK_IF((keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                    (fiaInfo.inputKvType == ge::DT_INT8 && (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag)),
                     OP_LOGE(fiaInfo.opName,
                             "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                            "page attention is not supported."),
+                            "if keyAntiquantMode/valueAntiquantMode is 0 or 1, leftpadding is not supported."),
                     return ge::GRAPH_FAILED);
+        OP_CHECK_IF((keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                    (fiaInfo.inputKvType == ge::DT_INT8 && fiaInfo.pageAttentionFlag),
+                    OP_LOGE(fiaInfo.opName,
+                            "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                            "if keyAntiquantMode/valueAntiquantMode is 0 or 1, page attention is not supported."),
+                    return ge::GRAPH_FAILED);
+
         OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_INT4 || fiaInfo.inputKvType == ge::DT_INT32),
                     OP_LOGE(fiaInfo.opName, "In keyAntiquant/valueAntiquant split mode scenario, int4 and int32 data "
                                             "types are not supported for the key and value."),
@@ -1867,6 +1923,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerChannelPerTensorMode(const
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_4) {
         // 维度为4，shape仅支持[1, N, 1, D] 或者 [1, 1, N, D]
         gert::Shape expectedShape1N1D = gert::Shape({1, numKeyValueHeads, 1, headDim});
+        gert::Shape expectedShape11ND = gert::Shape({1, 1, numKeyValueHeads, headDim});
         OP_CHECK_IF(
             ((keyAntiquantScaleTensorShape != expectedShape1N1D && keyAntiquantScaleTensorShape != expectedShape11ND)),
             OP_LOGE(fiaInfo.opName,
@@ -1897,7 +1954,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenMode(const FiaTilingI
         OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != batchSize ||
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u]) is not supported"
+                            "The shape of keyAntiquantScale([%u, %u]) is not supported."
                             "The shape of keyAntiquantScale must be "
                             "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
@@ -1911,7 +1968,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenMode(const FiaTilingI
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u]) is not supported"
+                            "The shape of keyAntiquantScale([%u, %u]) is not supported."
                             "The shape of keyAntiquantScale must be "
                             "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
@@ -1961,7 +2018,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenHeadMode(const FiaTil
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != numKeyValueHeads ||
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u, %u]) is not supported"
+                            "The shape of keyAntiquantScale([%u, %u, %u]) is not supported."
                             "The shape of keyAntiquantScale must be "
                             "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
@@ -2046,7 +2103,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenGroupMode(const FiaTi
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3) < fiaInfo.s2Size ||
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4) != headDim / 32,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u, %u, %u, %u]) is not supported"
+                            "The shape of keyAntiquantScale([%u, %u, %u, %u, %u]) is not supported."
                             "The shape of keyAntiquantScale must be "
                             "[1, B(%llu), N(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
@@ -2054,18 +2111,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenGroupMode(const FiaTi
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4),
-                            batchSize, seqLength, batchSize, seqLength),
-            return ge::GRAPH_FAILED);
-        gert::Shape expectedShape = gert::Shape({1, batchSize, numKeyValueHeads, seqLength, headDim / 32});
-        OP_CHECK_IF(
-            (keyAntiquantScaleTensorShape != expectedShape),
-            OP_LOGE(fiaInfo.opName,
-                    "The shape of keyAntiquantScale[%u, %u, %u, %u] is not [1, B(%u), N(%u), S(%llu), D/32(%u)]. "
-                    "The shape of keyAntiquantScale must be [1, B, N, S, D/32] when "
-                    "keyAntiquantMode is per-token-group mode.",
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
-                    batchSize, numKeyValueHeads, seqLength, headDim / 32),
+                            batchSize, numKeyValueHeads, batchSize, seqLength),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
@@ -2087,7 +2133,7 @@ ge::graphStatus DequantChecker::CheckVScaleShapeForPerTokenMode(const FiaTilingI
         OP_CHECK_IF(valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != batchSize ||
                     valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of valueAntiquantScale([%u, %u]) is not supported"
+                            "The shape of valueAntiquantScale([%u, %u]) is not supported."
                             "The shape of valueAntiquantScale must be "
                             "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when valueAntiquantMode is per-token mode.",
                             valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
@@ -2098,11 +2144,11 @@ ge::graphStatus DequantChecker::CheckVScaleShapeForPerTokenMode(const FiaTilingI
     }
     if (valueAntiquantScaleTensorDimNum == DIM_NUM_3) {
         // [1, B, >=KV_S]
-        OP_CHECK_IF(valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1
+        OP_CHECK_IF(valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1 ||
                     valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
                     valueAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of valueAntiquantScale([%u, %u, %u]) is not supported"
+                            "The shape of valueAntiquantScale([%u, %u, %u]) is not supported."
                             "The shape of valueAntiquantScale must be "
                             "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when valueAntiquantMode is per-token mode.",
                             valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
