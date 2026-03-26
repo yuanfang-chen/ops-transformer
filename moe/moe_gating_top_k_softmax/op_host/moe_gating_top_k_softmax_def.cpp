@@ -57,39 +57,6 @@ public:
             .DynamicShapeSupportFlag(true)
             .ExtendCfgInfo("opFile.value", "moe_gating_top_k_softmax_apt");
         this->AICore().AddConfig("ascend950", regbaseCfg);
-
-        OpAICoreConfig config310p;
-        config310p.Input("x")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND})
-            .UnknownShapeFormat({ge::FORMAT_ND});
-        config310p.Input("finished")
-            .ParamType(OPTIONAL)
-            .DataType({ge::DT_BOOL})
-            .Format({ge::FORMAT_ND})
-            .UnknownShapeFormat({ge::FORMAT_ND});
-        config310p.Output("y")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND})
-            .UnknownShapeFormat({ge::FORMAT_ND});
-        config310p.Output("expert_idx")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_INT32})
-            .Format({ge::FORMAT_ND})
-            .UnknownShapeFormat({ge::FORMAT_ND});
-        config310p.Output("row_idx")
-            .ParamType(OPTIONAL)
-            .DataType({ge::DT_INT32})
-            .Format({ge::FORMAT_ND})
-            .UnknownShapeFormat({ge::FORMAT_ND});
-        this->Attr("k").Int();
-        config310p.DynamicCompileStaticFlag(true)
-            .DynamicRankSupportFlag(true)
-            .DynamicShapeSupportFlag(true)
-            .ExtendCfgInfo("opFile.value", "moe_gating_top_k_softmax_310p");
-        this->AICore().AddConfig("ascend310p", config310p);
     }
 };
 
