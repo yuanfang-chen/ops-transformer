@@ -1366,25 +1366,29 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>2</td>
                 <td>shape为(N),数据类型和query数据类型相同</td>
             </tr>
-            <td>per-token叠加per-head</td>
-            <td>支持kv_dtype为INT8、INT4(INT32)</td>
-            <td>Q_S=1</td>
-            <td>3</td>
-            <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td>per-token叠加per-head</td>
+                <td>支持kv_dtype为INT8、INT4(INT32)</td>
+                <td>Q_S=1</td>
+                <td>3</td>
+                <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
             </tr>
-            <td>per-token模式使用page attention管理scale/offset</td>
-            <td>支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
-            <td>Q_S>1</td>
-            <td>4</td>
-            <td>shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td rowspan="2">per-token模式使用page attention管理scale/offset</td>
+                <td rowspan="2">支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
+                <td>Q_S>1</td>
+                <td rowspan="2">4</td>
+                <td rowspan="2">shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
-            <td>Q_S>1</td>
+            <tr>
+                <td>Q_S=1</td>
             </tr>
-            <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
-            <td>支持kv_dtype为INT8</td>
-            <td>Q_S=1</td>
-            <td>5</td>
-            <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
+                <td>支持kv_dtype为INT8</td>
+                <td>Q_S=1</td>
+                <td>5</td>
+                <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
             <tr>
                 <td rowspan="2"> key支持per-channel叠加value支持per-token</td>
