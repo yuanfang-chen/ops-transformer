@@ -103,6 +103,11 @@ private:
 
 bool MoeGatingTopKSoftmax310PTiling::IsCapable()
 {
+    const uint32_t perBlockEleNum = 16;
+    bool flagAlignExperts = (col % perBlockEleNum == 0);
+    if (!flagAlignExperts) {
+        return false;
+    }
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
     auto is310P = (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P);
     return is310P;
