@@ -13,6 +13,12 @@
 # ACLNNEXTRAVERSION 算子版本(ex., v2, v3, v5, etc.)
 # OPTYPE 和 ACLNNTYPE 需一一对应
 
+function(extract_mc2_ops_name SOURCE_DIR OUTPUT_VAR)
+  get_filename_component(PARENT_DIR ${SOURCE_DIR} DIRECTORY)
+  get_filename_component(MC2_NAME ${PARENT_DIR} NAME)
+  set(${OUTPUT_VAR} ${MC2_NAME} PARENT_SCOPE)
+endfunction()
+
 # 用于custom自定算子包host侧obj生成
 macro(add_modules_sources)
   set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR OP_MC2_ENABLE)
