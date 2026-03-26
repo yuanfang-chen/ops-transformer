@@ -103,7 +103,7 @@ namespace optiling {
         int64_t p = 2;  // 一个chunk组中，单核最大chunk数
         tilingData_.chunkSize = c;   // chunk size取64
         tilingData_.maxGroupLength = p * tilingData_.aiCoreNum * tilingData_.chunkSize;
-        tilingData_.stageOneParaNum = 2; // stage1 的并行数
+        tilingData_.stageOneParaNum = 4; // stage1 的并行数
         
         tilingData_.interWorkspaceSz = 0;
         int64_t sizeHigh = ge::GetSizeByDataType(ge::DT_FLOAT);
