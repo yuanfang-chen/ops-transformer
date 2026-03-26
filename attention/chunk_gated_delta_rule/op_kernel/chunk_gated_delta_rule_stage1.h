@@ -385,7 +385,7 @@ private:
         gCumExpUbFloat_ = gOutQueue_.AllocTensor<float>();
         Exp<float, 0, true>(gCumExpUbFloat_, gCumUbFloat_, chunkSize_);
         gOutQueue_.EnQue<float>(gCumExpUbFloat_);
-        DataCopyOutG(chunkSize_);
+        DataCopyOutG(validLen_);
         PipeBarrier<PIPE_V>();
     }
 
