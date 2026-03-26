@@ -66,16 +66,10 @@ static inline uint32_t calcGatingAlignCol(const uint32_t col, const ge::DataType
 }
 
 static inline int64_t Align(int64_t x, int64_t y) {
-    if (!y) {
-        return 0;
-    }
     return (x + y - 1) / y * y;
 }
 
 static inline int64_t CeilDiv(int64_t x, int64_t y) {
-    if (!y) {
-        return 0;
-    }
     return (x + y - 1) / y;
 }
 
@@ -197,21 +191,29 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
     workspaces[0] = workspaceSize_;
     tilingData.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData.GetDataSize());
+
+    // softmax tilingData
     int32_t dataTypeSize = FP16_SIZE;
+
+    // topk tilingData
     auto FormertopkShape = ge::Shape({tilingData.get_oneCoreRow(), tilingData.get_col()});
     bool FormerTopkTilingSuccess = TopKTilingFunc(
         ascendcPlatform,
         tilingData.get_col(),           // inner
         tilingData.get_oneCoreRow(),    // outter
         tilingData.get_kAlign(),        // k
-        dataTypeSize, true, TopKMode::TOPK_NORMAL, true, tilingData.FormerTopkTilingData);
+        dataTypeSize,
+        true, TopKMode::TOPK_NORMAL, true,
+        tilingData.FormerTopkTilingData);
     auto TailtopkShape = ge::Shape({tilingData.get_tailRow(), tilingData.get_col()});
     bool TailTopkTilingSuccess = TopKTilingFunc(
         ascendcPlatform,
         tilingData.get_col(),
         tilingData.get_tailRow(),
         tilingData.get_kAlign(),
-        dataTypeSize, true, TopKMode::TOPK_NORMAL, true, tilingData.TailTopkTilingData);
+        dataTypeSize, 
+        true, TopKMode::TOPK_NORMAL, true,
+        tilingData.TailTopkTilingData);
     if (!(FormerTopkTilingSuccess && TailTopkTilingSuccess))
         return ge::GRAPH_FAILED;
     uint32_t maxsize = 0;
@@ -220,14 +222,18 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
         ascendcPlatform,
         tilingData.get_col(),
         tilingData.get_oneCoreRow(),
-        false, true, AscendC::TopKMode::TOPK_NORMAL, true, dataTypeSize, maxsize, minsize);
+        false, true, AscendC::TopKMode::TOPK_NORMAL, true,
+        dataTypeSize, maxsize, minsize);
     tilingData.set_FormerTmpMinsize(minsize);
     AscendC::GetTopKMaxMinTmpSize(
         ascendcPlatform,
         tilingData.get_col(),
         tilingData.get_tailRow(),
-        false, true, AscendC::TopKMode::TOPK_NORMAL, true, dataTypeSize, maxsize, minsize);
+        false, true, AscendC::TopKMode::TOPK_NORMAL, true,
+        dataTypeSize, maxsize, minsize);
     tilingData.set_TailTmpMinsize(minsize);
+
+    // Set workspace size
     const int64_t kAlign = tilingData.get_kAlign();
     const int64_t activateCore = tilingData.get_activateCore();
     size_t userWorkspaceSize = 1024 + kAlign * row * activateCore * (sizeof(int16_t) + sizeof(int32_t)) ;
@@ -237,6 +243,7 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
     size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = userWorkspaceSize + systemWorkspaceSize;
     tilingData.set_workspaceSize(currentWorkspace[0]);
+
     return ge::GRAPH_SUCCESS;
 }
 
