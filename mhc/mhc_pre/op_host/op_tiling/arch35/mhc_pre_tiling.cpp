@@ -530,11 +530,7 @@ void MhcPreBaseTiling::FillTilingData()
 
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
-    if (totalLength_ <= DECODE_BS_THRESHOLD) {
-        tilingMode_ = TilingMode::SPLIT_ND;
-    } else {
-        tilingMode_ = TilingMode::SPLIT_BS;
-    }
+    tilingMode_ = (totalLength_ <= DECODE_BS_THRESHOLD) ? TilingMode::SPLIT_ND : TilingMode::SPLIT_BS;
 
     if (tilingMode_ == TilingMode::SPLIT_ND) {
         chunkTSize_ = DECODE_CHUNK_T_SIZE;
