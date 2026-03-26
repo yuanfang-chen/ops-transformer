@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  */
 
 #include <algorithm>
@@ -431,7 +431,7 @@ struct SwigluOpApiCase {
                                         OUTPUT(out1, out2));
                     ret = ut.TestGetWorkspaceSize(&workspaceSize);
                 } else {
-                    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
                                         INPUT(x, weight, weightScale, weightAssist, nullptr, xScale, smoothScale, groupList,
                                               dequantMode, dequantDtype, quantMode, quantDtype, tuningConfigArr),
                                         OUTPUT(out1, out2));
@@ -456,7 +456,7 @@ struct SwigluOpApiCase {
                                         OUTPUT(out1, out2));
                     ret = ut.TestGetWorkspaceSize(&workspaceSize);
                 } else {
-                    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
                                         INPUT(x, weight, weightScale, weightAssist, nullptr, xScale, smoothScale, groupList,
                                               dequantMode, dequantDtype, quantMode, quantDtype, tuningConfigArr),
                                         OUTPUT(out1, out2));
@@ -474,7 +474,7 @@ struct SwigluOpApiCase {
                                         OUTPUT(out1, out2));
                     ret = ut.TestGetWorkspaceSize(&workspaceSize);
                 } else {
-                    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
                                         INPUT(x, weight, weightScale, weightAssist, nullptr, xScale, smoothScale, groupList,
                                               dequantMode, dequantDtype, quantMode, quantDtype, tuningConfigArr),
                                         OUTPUT(out1, out2));
@@ -491,7 +491,7 @@ struct SwigluOpApiCase {
                                         OUTPUT(out1, out2));
                     ret = ut.TestGetWorkspaceSize(&workspaceSize);
                 } else {
-                    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
                                         INPUT(x, weight, weightScale, weightAssist, nullptr, xScale, smoothScale, groupList,
                                               dequantMode, dequantDtype, quantMode, quantDtype, tuningConfigArr),
                                         OUTPUT(out1, out2));
@@ -507,7 +507,7 @@ struct SwigluOpApiCase {
                                         OUTPUT(out1, out2));
                     ret = ut.TestGetWorkspaceSize(&workspaceSize);
                 } else {
-                    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantV2,
                                         INPUT(x, weight, weightScale, weightAssist, nullptr, xScale, smoothScale, groupList,
                                               dequantMode, dequantDtype, quantMode, quantDtype, tuningConfigArr),
                                         OUTPUT(out1, out2));

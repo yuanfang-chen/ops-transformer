@@ -19,7 +19,6 @@
 #include "gtest/gtest.h"
 
 #include "../../../../op_host/op_api/aclnn_grouped_matmul_v3.h"
-#include "../../../../op_host/op_api/aclnn_grouped_matmul_v4.h"
 #include "../../../../op_host/op_api/aclnn_grouped_matmul_v5.h"
 #include "../../../../op_host/op_api/aclnn_grouped_matmul_weight_nz.h"
 #include "op_api_ut_common/op_api_ut.h"
@@ -242,20 +241,20 @@ struct GroupedMatmulOpApiCase {
             1, TensorDesc(ParseDims(perTokenScaleShape), ParseDtype(perTokenScaleDtype), ParseFormat(perTokenScaleFormat))
                    .ValueRange(-10, 10));
 
-        auto offsetOptional = nullptr;
-        auto antiquantScaleOptional = nullptr;
-        auto antiquantOffsetOptional = nullptr;
-        auto activationInputOptional = nullptr;
-        auto activationQuantScaleOptional = nullptr;
-        auto activationQuantOffsetOptional = nullptr;
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
         auto tuningConfigOptional = nullptr;
-        auto activationFeatureOutOptional = nullptr;
-        auto dynQuantScaleOutOptional = nullptr;
-        auto biasOptional = nullptr;
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+    auto biasOptional = nullptr;
         auto scaleOptional = nullptr;
-        auto perTokenScaleOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
 
-        uint64_t workspaceSize = 0;
+    uint64_t workspaceSize = 0;
         aclnnStatus ret = ACL_SUCCESS;
         const bool enableBias = ParseBool(hasBias);
         const bool enableScale = ParseBool(hasScale);
@@ -266,7 +265,7 @@ struct GroupedMatmulOpApiCase {
                 auto ut = OP_API_UT(aclnnGroupedMatmulV3, INPUT(x, weight, bias, scale, offsetOptional,
                                                                 antiquantScaleOptional, antiquantOffsetOptional, groupList,
                                                                 splitItem, groupType),
-                                    OUTPUT(out));
+                        OUTPUT(out));
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             } else if (enableBias && !enableScale) {
                 auto ut = OP_API_UT(aclnnGroupedMatmulV3, INPUT(x, weight, bias, scaleOptional, offsetOptional,
@@ -338,7 +337,7 @@ struct GroupedMatmulOpApiCase {
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             } else if (!enableBias && !enableScale && enablePerToken) {
                 auto ut = OP_API_UT(aclnnGroupedMatmulWeightNz,
-                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
                                           antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
                                           activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
                                           groupListType, actType, tuningConfigOptional, quantGroupSize),
@@ -346,11 +345,11 @@ struct GroupedMatmulOpApiCase {
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             } else {
                 auto ut = OP_API_UT(aclnnGroupedMatmulWeightNz,
-                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
                                           antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
                                           activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
                                           groupListType, actType, tuningConfigOptional, quantGroupSize),
-                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+        OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             }
         } else {
@@ -403,16 +402,16 @@ struct GroupedMatmulOpApiCase {
                                     OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             } else if (!enableBias && !enableScale && enablePerToken) {
-                auto ut = OP_API_UT(aclnnGroupedMatmulV5,
-                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+    auto ut = OP_API_UT(aclnnGroupedMatmulV5,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
                                           antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
                                           activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
                                           groupListType, actType, tuningConfigOptional),
                                     OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             } else {
-                auto ut = OP_API_UT(aclnnGroupedMatmulV5,
-                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+    auto ut = OP_API_UT(aclnnGroupedMatmulV5,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
                                           antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
                                           activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
                                           groupListType, actType, tuningConfigOptional),
