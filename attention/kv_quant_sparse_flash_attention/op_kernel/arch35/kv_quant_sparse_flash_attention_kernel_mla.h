@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -95,7 +95,6 @@ private:
 
     // mm2左矩阵P
     BufferManager<BufferType::L1> l1BufferManager;
-    // BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1PBuffers;
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1RightBuffers;
     CVSharedParams sharedParams;
     /* GM信息 */
@@ -145,8 +144,8 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
         constInfo.needInit = this->sharedParams.needInit;
+        constInfo.dSizeV = 512;
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
     /* cube侧不依赖sharedParams的scalar前置 */
@@ -181,7 +180,7 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     for (uint32_t bIdx = 0; bIdx < constInfo.bSize; bIdx++) {
         uint32_t actBatchS1 = GetBalanceActualSeqLengths(actualSeqLengthsQGm, bIdx); //不切S2，只关注S1
         if (actBatchS1 < constInfo.s1Size) {
-            constInfo.needInit = true; //TODO
+            constInfo.needInit = true;
         }
         totalBaseNum += actBatchS1*actBatchS2;
     }
@@ -314,7 +313,6 @@ KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitMMResBuf()
     uint32_t mm2LeftSize = constInfo.s1BaseSize * constInfo.s2BaseSize * sizeof(Q_T);
     uint32_t mm1RightSize = constInfo.s2BaseSize * 576 * sizeof(Q_T);
     l1BufferManager.Init(pipe, 524288); // 512 * 1024
-    // 保存p结果的L1内存必须放在第一个L1 policy上，保证和vec申请的地址相同
     l1RightBuffers.Init(l1BufferManager, mm1RightSize);
     if ASCEND_IS_AIC {
         l1RightBuffers.Get().SetCrossCore();
@@ -349,8 +347,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = /*this->sharedParams.dSize*/ 512; // TODO
         constInfo.needInit = this->sharedParams.needInit;
+        constInfo.dSizeV = 512;
     }
     constInfo.n2Size = sharedParams.n2Size;
     constInfo.s2Size = sharedParams.s2Size;
@@ -361,10 +359,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     constInfo.tileSize = sharedParams.tileSize;
     constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
     constInfo.sparseBlockSize = 1;
-    constInfo.cmpRatio = sharedParams.cmpRatio;
-    constInfo.oriWinLeft = sharedParams.oriWinLeft;
-    constInfo.oriWinRight = sharedParams.oriWinRight;
-    constInfo.sparseMode = sharedParams.oriMaskMode;
+    constInfo.sparseMode = sharedParams.maskMode;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
@@ -399,10 +394,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     }
     if ASCEND_IS_AIV {
         constInfo.softmaxScale = sharedParams.softmaxScale;
-        constInfo.oriBlockSize = sharedParams.oriBlockSize;
-        constInfo.cmpBlockSize = sharedParams.cmpBlockSize;
-        constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
-        constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
+        constInfo.blockSize = sharedParams.blockSize;
+        constInfo.maxBlockNumPerBatch = sharedParams.maxBlockNumPerBatch;
     }
 
     InitUniqueConstInfo();
@@ -552,12 +545,9 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    if (s2LoopCount < runParam.oriKvLoopEndIdx) {
+    if (s2LoopCount < runParam.kvLoopEndIdx) {
         runInfo.s2StartIdx = runParam.s2LineStartIdx;
         runInfo.s2EndIdx = runParam.s2LineEndIdx;
-    } else {
-        runInfo.s2StartIdx = 0;
-        runInfo.s2EndIdx = runParam.s2CmpLineEndIdx;
     }
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
@@ -609,9 +599,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockTyp
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    int64_t curS2LoopCnt = (runInfo.s2LoopCount >= runParam.oriKvLoopEndIdx) ? (runInfo.s2LoopCount - runParam.oriKvLoopEndIdx) : runInfo.s2LoopCount;
-    if (runInfo.s2StartIdx + (curS2LoopCnt + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-        runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
