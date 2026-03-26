@@ -271,10 +271,6 @@ private:
     uint32_t dealStartND_;
     uint32_t dealEndND_;
 
-<<<<<<< HEAD
-=======
-
->>>>>>> upstream/mhc_pre_backward
     GlobalTensor<T> xGm_;               // 输入 x
     GlobalTensor<P> phiGm_;             // 输入 phi
     GlobalTensor<P> alphaGm_;           // 输入 alpha
