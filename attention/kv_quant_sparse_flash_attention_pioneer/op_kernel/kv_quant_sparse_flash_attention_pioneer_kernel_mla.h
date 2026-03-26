@@ -495,9 +495,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
                     continue;
                 }
                 if constexpr (hasSink) {
-                    if (runParam.s2LoopEndIdx > 0) {
-                        runParam.s2LoopEndIdx += 1;
-                    }
+                    runParam.s2LoopEndIdx += 1;
                 }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
             } else {
@@ -566,8 +564,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
         }
     } else {
         if (s2LoopCount < runParam.kvLoopEndIdx) {
-        runInfo.s2StartIdx = runParam.s2LineStartIdx;
-        runInfo.s2EndIdx = runParam.s2LineEndIdx;
+            runInfo.s2StartIdx = runParam.s2LineStartIdx;
+            runInfo.s2EndIdx = runParam.s2LineEndIdx;
         }
     }
 
