@@ -934,11 +934,6 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                     .dDealSize = static_cast<uint32_t>(constInfo.dSize)
                 };
                 copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
-                if constexpr (hasRope) {
-                    dstTensor.tensor = mm1ATensor[subMSizeAlign * constInfo.dSize];
-                    gmCoord.dDealSize = (uint32_t)constInfo.dSizeRope;
-                    copyQueryGmToL1(dstTensor, this->queryRopeGm, gmCoord);
-                }
             } else {
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	 
                     uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
