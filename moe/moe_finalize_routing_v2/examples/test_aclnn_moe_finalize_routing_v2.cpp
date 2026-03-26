@@ -75,43 +75,63 @@ int main() {
 
   // 2. 构造输入与输出，需要根据API的接口自定义构造
   std::vector<int64_t> expandedXShape = {3 * 2, 4};
+  std::vector<int64_t> expandedRowIdxShape = {3 * 2};
   std::vector<int64_t> x1Shape = {3, 4};
   std::vector<int64_t> x2OptionalShape = {3, 4};
   std::vector<int64_t> biasShape = {2, 4};
   std::vector<int64_t> scalesShape = {3, 2};
   std::vector<int64_t> expandedExpertIdxShape = {3, 2};
-  std::vector<int64_t> expandedRowIdxShape = {3 * 2};
+  std::vector<int64_t> xShape = {};
+  std::vector<int64_t> a1Shape = {};
+  std::vector<int64_t> a2Shape = {};
+  std::vector<int64_t> vShape = {};
   std::vector<int64_t> outShape = {3, 4};
   void* expandedXAddr = nullptr;
+  void* expandedRowIdxAddr = nullptr;
   void* x1Addr = nullptr;
   void* x2OptionalAddr = nullptr;
   void* biasAddr = nullptr;
   void* scalesDeviceAddr = nullptr;
   void* expandedExpertIdxAddr = nullptr;
-  void* expandedRowIdxAddr = nullptr;
+  void* xAddr = nullptr;
+  void* a1Addr = nullptr;
+  void* a2Addr = nullptr;
+  void* vAddr = nullptr;
   void* outDeviceAddr = nullptr;
   
   aclTensor* expandedX = nullptr;
+  aclTensor* expandedRowIdx = nullptr;
   aclTensor* x1 = nullptr;
   aclTensor* x2Optional = nullptr;
   aclTensor* bias = nullptr;
   aclTensor* scales = nullptr;
   aclTensor* expandedExpertIdx = nullptr;
-  aclTensor* expandedRowIdx = nullptr;
+  aclTensor* x = nullptr;
+  aclTensor* a1 = nullptr;
+  aclTensor* a2 = nullptr;
+  aclTensor* v = nullptr;
   aclTensor* out = nullptr;
   std::vector<float> expandedXHostData = {0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1,
                                                      0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1};
+  std::vector<int32_t> expandedRowIdxHostData = {2, 1, 4, 3, 0, 5};
   std::vector<float> x1HostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
   std::vector<float> x2OptionalHostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
   std::vector<float> biasHostData = {0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4};
   std::vector<float> scalesHostData = {1.3, 1.6, 1.2, 1.8, 1.2, 2.3};
   std::vector<int32_t> expandedExpertIdxHostData = {0, 1, 0, 1, 0, 1};
-  std::vector<int32_t> expandedRowIdxHostData = {2, 1, 4, 3, 0, 5};
+  std::vector<float> xHostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
+  std::vector<float> a1HostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
+  std::vector<float> a2HostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
+  std::vector<float> vHostData = {0.2, 1.2, 2.2, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2, 11.2};
   std::vector<float> outHostData(12, 0.0f);
   int64_t dropPadMode = 0;
   // 创建expandedX aclTensor
   ret = CreateAclTensor(expandedXHostData, expandedXShape, &expandedXAddr,
                         aclDataType::ACL_FLOAT, &expandedX);
+  CHECK_RET(ret == ACL_SUCCESS, return ret);
+  // 创建expandedRowIdx aclTensor
+  ret = CreateAclTensor(expandedRowIdxHostData, expandedRowIdxShape, &expandedRowIdxAddr,
+                        aclDataType::ACL_INT32, &expandedRowIdx);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   // 创建x1 aclTensor
   ret = CreateAclTensor(x1HostData, x1Shape, &x1Addr, aclDataType::ACL_FLOAT, &x1);
@@ -125,15 +145,23 @@ int main() {
   // 创建totalWeightOut aclTensor
   ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT, &scales);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  
+  // 创建x aclTensor
+  ret = CreateAclTensor(xHostData, xShape, &xAddr, aclDataType::ACL_FLOAT, &x);
+  CHECK_RET(ret == ACL_SUCCESS, return ret);
+  // 创建a1 aclTensor
+  ret = CreateAclTensor(a1HostData, a1Shape, &a1Addr, aclDataType::ACL_FLOAT, &a1);
+  CHECK_RET(ret == ACL_SUCCESS, return ret);
+  // 创建a2 aclTensor
+  ret = CreateAclTensor(a2HostData, a2Shape, &a2Addr, aclDataType::ACL_FLOAT, &a2);
+  CHECK_RET(ret == ACL_SUCCESS, return ret);
+  // 创建v aclTensor
+  ret = CreateAclTensor(vHostData, vShape, &vAddr, aclDataType::ACL_FLOAT, &v);
+  CHECK_RET(ret == ACL_SUCCESS, return ret);
   // 创建expandedExpertIdx aclTensor
   ret = CreateAclTensor(expandedExpertIdxHostData, expandedExpertIdxShape, &expandedExpertIdxAddr,
                         aclDataType::ACL_INT32, &expandedExpertIdx);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  // 创建expandedRowIdx aclTensor
-  ret = CreateAclTensor(expandedRowIdxHostData, expandedRowIdxShape, &expandedRowIdxAddr,
-                        aclDataType::ACL_INT32, &expandedRowIdx);
-  CHECK_RET(ret == ACL_SUCCESS, return ret);
+
   // 创建Out aclTensor
   ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT, &out);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
