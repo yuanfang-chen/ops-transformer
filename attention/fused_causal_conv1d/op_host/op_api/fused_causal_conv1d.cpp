@@ -24,13 +24,16 @@ using namespace op;
 namespace l0op {
 OP_TYPE_REGISTER(FusedCausalConv1d);
 
-bool FusedCausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
+const aclTensor* FusedCausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
                   const aclTensor *cacheIndices, const aclTensor *initialStateMode, const aclTensor *bias,
                   const aclTensor *numAcceptedToken, int64_t activationMode, int64_t padSlotId, int64_t runMode,
-                  int64_t residualConnection, const aclTensor *y, aclOpExecutor *executor)
+                  int64_t residualConnection, aclOpExecutor *executor)
 {
     L0_DFX(FusedCausalConv1d, x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedToken,
-           activationMode, padSlotId, runMode, residualConnection, y, convStates);
+           activationMode, padSlotId, runMode, residualConnection);
+
+    auto yShape = x->GetViewShape();
+    auto y = executor->AllocTensor(yShape, x->GetDataType(), op::Format::FORMAT_ND);
 
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(
         FusedCausalConv1d,
