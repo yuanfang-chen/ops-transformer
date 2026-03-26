@@ -83,9 +83,10 @@ void CrossCoreSetFlag(CrossCoreFlag &flag)
     AscendC::CrossCoreSetFlag<MODE, PIPE>(flag.id);
 }
 
+template <uint8_t MODE = 0, pipe_t PIPE = PIPE_S>
 __aicore__ inline void CrossCoreWaitFlag(CrossCoreFlag &flag)
 {
-    AscendC::CrossCoreWaitFlag(flag.id);
+    AscendC::CrossCoreWaitFlag<MODE, PIPE>(flag.id);
 }
 
 template <uint8_t MODE, pipe_t PIPE, uint32_t REVERSE_DEPTH>

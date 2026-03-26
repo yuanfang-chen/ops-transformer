@@ -34,6 +34,20 @@ struct EpilogueAtlasA2RescaleO {
     static constexpr LseMode LSE_MODE = LSE_MODE_;
 };
 
+// For AtlasA5
+struct EpilogueBsaMask2Idx{
+    static constexpr uint32_t IO_STAGES = 2;
+    using ArchTag = Arch::AtlasA5;
+};
+
+struct EpilogueOnlineSoftmaxBsa{
+    using ArchTag = Arch::AtlasA5;
+};
+
+struct EpilogueAtlasA5BsaRescaleO{
+    using ArchTag = Arch::AtlasA5;
+};
+
 }  // namespace NpuArch::Epilogue
 
 #endif  // EPILOGUE_DISPATCH_POLICY_HPP
