@@ -723,7 +723,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AlltoAllBuffI
     tpipe_->Reset();
     AlltoAllCommBuffInit();
     if constexpr (QuantMode > UNQUANT) {
-        scaleNumAlignSize_ = Ceil(scaleNum_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
+        scaleNumAlignSize_ = Ceil(scaleNum_, (ALIGNED_LEN / INT8_DIVIVE)) * WIN_ADDR_ALIGN;
         tpipe_->InitBuffer(xAbsBuf_, scaleNumAlignSize_);
         fp16CastTensor_ = mulBuf_.Get<half>();
         absFloatTensor_ = rowTmpFloatBuf_.Get<float>();
