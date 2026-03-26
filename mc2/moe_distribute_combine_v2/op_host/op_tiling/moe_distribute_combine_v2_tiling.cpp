@@ -1409,8 +1409,8 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
     if (*commQuantModePtr == INT8_COMM_QUANT) {
         uint32_t scaleNum = (hExpandXAlign32Size / sizeof(expandXDesc->GetDataType())) / static_cast<uint32_t>(UB_ALIGN / sizeof(float));
         totalBufferSize += (scaleNum * sizeof(float) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN;
-    } else if (*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E5M2_QUANT)) ||
-        (*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E4M3_QUANT)) {
+    } else if ((*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E5M2_QUANT)) ||
+        (*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E4M3_QUANT))) {
         uint32_t scaleNum = (hExpandXAlign32Size / sizeof(expandXDesc->GetDataType()) + UB_ALIGN - 1) / UB_ALIGN;
         totalBufferSize += (scaleNum * sizeof(float) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN;
     }
