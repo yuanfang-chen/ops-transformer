@@ -66,11 +66,11 @@ struct MhcParamsBase {
     aclTensor *hPreOptional = nullptr;
 
     // 用于存储转换后的连续tensor（在ConvertDataContiguous中使用）
-    const aclTensor *x_contiguous = nullptr;
-    const aclTensor *phi_contiguous = nullptr;
-    const aclTensor *alpha_contiguous = nullptr;
-    const aclTensor *bias_contiguous = nullptr;
-    const aclTensor *gammaOptional_contiguous = nullptr;
+    const aclTensor *xContiguous = nullptr;
+    const aclTensor *phiContiguous = nullptr;
+    const aclTensor *alphaContiguous = nullptr;
+    const aclTensor *biasContiguous = nullptr;
+    const aclTensor *gammaOptionalContiguous = nullptr;
 };
 
 class MhcBuilder {
@@ -446,21 +446,21 @@ aclnnStatus CheckParams(const MhcParamsBase &params)
 aclnnStatus ConvertDataContiguous(MhcParamsBase &params, aclOpExecutor *executor)
 {
     // 将输入tensor转换为连续格式
-    params.x_contiguous = l0op::Contiguous(params.x, executor);
-    CHECK_RET(params.x_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    params.xContiguous = l0op::Contiguous(params.x, executor);
+    CHECK_RET(params.xContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    params.phi_contiguous = l0op::Contiguous(params.phi, executor);
-    CHECK_RET(params.phi_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    params.phiContiguous = l0op::Contiguous(params.phi, executor);
+    CHECK_RET(params.phiContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    params.alpha_contiguous = l0op::Contiguous(params.alpha, executor);
-    CHECK_RET(params.alpha_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    params.alphaContiguous = l0op::Contiguous(params.alpha, executor);
+    CHECK_RET(params.alphaContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    params.bias_contiguous = l0op::Contiguous(params.bias, executor);
-    CHECK_RET(params.bias_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    params.biasContiguous = l0op::Contiguous(params.bias, executor);
+    CHECK_RET(params.biasContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     if (params.gammaOptional != nullptr) {
-        params.gammaOptional_contiguous = l0op::Contiguous(params.gammaOptional, executor);
-        CHECK_RET(params.gammaOptional_contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        params.gammaOptionalContiguous = l0op::Contiguous(params.gammaOptional, executor);
+        CHECK_RET(params.gammaOptionalContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
 
     return ACLNN_SUCCESS;
@@ -476,8 +476,8 @@ static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *exe
 
     int64_t outFlag =
         (params.invRmsOptional != nullptr && params.hMixOptional != nullptr && params.hPreOptional != nullptr) ? 1 : 0;
-    auto outParams = l0op::MhcPre(params.x_contiguous, params.phi_contiguous, params.alpha_contiguous,
-                                  params.bias_contiguous, params.gammaOptional_contiguous, outFlag, params.normEps,
+    auto outParams = l0op::MhcPre(params.xContiguous, params.phiContiguous, params.alphaContiguous,
+                                  params.biasContiguous, params.gammaOptionalContiguous, outFlag, params.normEps,
                                   params.hcEps, executor);
     CHECK_RET(outParams != std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), ACLNN_ERR_INNER_NULLPTR);
 
