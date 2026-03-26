@@ -112,18 +112,15 @@ public:
             int64_t chunkPos = chunkId * chunkSize_;    // 当前chunk起始位置
             curChunkSize_ = (chunkId == chunkNum_ - 1) ? lastChunkSize : chunkSize_; // 尾块
             if ASCEND_IS_AIV {
-                PipeBarrier<PIPE_ALL>();
                 if (GetSubBlockIdx() == 0) {
                     CalMaskedQKT(tmpGM_[coreId_ * chunkSize_ * chunkSize_], nvId, chunkPos);
                 }
                 CrossCoreSetFlag<0x2, PIPE_MTE3>(0x4);
                 CrossCoreWaitFlag(0x3);
-                PipeBarrier<PIPE_ALL>();
                 if (GetSubBlockIdx() == 0) {
                     CalAttnOut(sTP_->attnInter[nvId * Sp_ * Dv_ + chunkPos * Dv_],
                                sTP_->attnOut[chunkPos * Nv_ * Dv_ + nvId * Dv_]);
                 }
-                PipeBarrier<PIPE_ALL>();
             }
 
             if ASCEND_IS_AIC {
@@ -132,7 +129,6 @@ public:
                            sTP_->vInner[nvId * Sp_ * Dv_ + chunkPos * Dv_],
                            sTP_->attnInter[nvId * Sp_ * Dv_ + chunkPos * Dv_]);
                 CrossCoreSetFlag<0x2, PIPE_FIX>(0x3);
-                PipeBarrier<PIPE_ALL>();
             }
         }
     }
