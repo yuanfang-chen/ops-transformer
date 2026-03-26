@@ -436,20 +436,18 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
     int64_t quantTempWorkspaceSize = aivCoreNum_ * cols_ * static_cast<int64_t>(sizeof(float));
     workspaceSize_ += sortWorkspaceSize + coreSyncWorkspaceSize + scatterWorkspaceSize +
                       expertTokensCountWorkspaceSize + expertTokenTotalCountWorkspace;
-    if (quantMode_ >= QUANT_MODE_STATIC && quantMode_ != QUANT_MODE_HIF8_CAST &&
+    if (quantMode_ >= QUANT_MODE_DYNAMIC && quantMode_ != QUANT_MODE_HIF8_CAST &&
         quantMode_ != QUANT_MODE_HIF8_PERTENSOR) {
         // DYNAMIC_QUANT、MXFP8_E5M2_QUANT、MXFP8_E4M3FN_QUANT
+        // colLoops > 1 时需要 quantTempGm_ 临时存储 smooth*x 结果
         workspaceSize_ += quantTempWorkspaceSize;
+    } else if (quantMode_ == QUANT_MODE_STATIC) {
+        // STATIC_QUANT: 需要为 expandedRowIdxIndexGm_ 分配空间
+        // 公共 workspace 已覆盖: sortedExpertIdxGm + expandedRowIdxGm + expertCountTempGm + expertTotalCountGm
+        // 追加空间: expandedRowIdxIndexGm_ (DropPad 模式下用于存储 zero boundary index)
+        // 大小: Align(totalLength_) * sizeof(int32_t)
+        workspaceSize_ += AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
     }
-    // } else if (quantMode_ == QUANT_MODE_STATIC) {
-    //     // STATIC_QUANT: 需要为expandedRowIdxIndexGm_分配空间
-    //     // 偏移量计算: Align(totalLength_) * 2 + Align(actualExpertNum_) + perCoreRow_ * coreNum
-    //     int64_t staticQuantWorkspaceSize =
-    //         AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t))) * NUM_TWO +
-    //         AlignBytes(tilingDataPtr_->actualExpertNum, static_cast<int64_t>(sizeof(int32_t))) +
-    //         AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
-    //     workspaceSize_ += staticQuantWorkspaceSize;
-    // }
     // 这里workspaceSize_除了计算必要的，还会加上16M的AscendC框架用大小
     workspaceSize_ += SIZE_16 * LENGTH_1024 * LENGTH_1024;
     OP_LOGD(context_, "Computed workspace size to allocate is %u bytes", workspaceSize_);
