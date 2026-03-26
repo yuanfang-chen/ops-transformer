@@ -452,7 +452,6 @@ template <TemplateDispatchTypeClass>
 __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::CalTokenSendExpertCnt(uint32_t dstExpertId, int32_t calCnt,
     int32_t &curExpertCnt)
 {
-    SyncFunc<AscendC::HardEvent::S_V>();
     if (isQuant_) { // 量化模式下buffer复用
        dstExpIdTensor_ = receiveDataCastFloatBuf_.Get<int32_t>();
        subExpIdTensor_ = smoothScalesBuf_.Get<int32_t>();
