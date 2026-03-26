@@ -75,6 +75,8 @@ namespace optiling {
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
 constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 131072;
 constexpr uint32_t NUM3 = 3;
+constexpr uint32_t SOC_VER_950_CODE = 4;
+constexpr uint32_t INF_WINDOW_SIZE_PRE_NEXT = 2147483647;
 
 constexpr uint32_t TILE_SIZE_128 = 128;
 constexpr uint32_t TILE_SIZE_256 = 256;
@@ -125,7 +127,7 @@ ge::graphStatus BSATiling::GetNpuInfo(gert::TilingContext *bsaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *bsaContext)
 {
     // 只在TND格式时进行校验
     if (qInputLayout_ != RFAQInputLayout::TND_Q || kvCacheLayout_ != RFAKvCacheLayout::TND) {
@@ -137,13 +139,13 @@ ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
     int64_t sumKvSeqlen = 0;
 
     for (uint32_t i = 0; i < batch_; i++) {
-        sumQSeqlen += qSeqLenList[i];
-        sumKvSeqlen += kvSeqLenList[i];
+        sumQSeqlen += qSeqLenList_[i];
+        sumKvSeqlen += kvSeqLenList_[i];
     }
     
     // 校验qseqlen之和是否等于Q的T
     if (sumQSeqlen != totalTokensT_) {
-        OP_LOGE(rfaContext->GetNodeName(), 
+        OP_LOGE(bsaContext->GetNodeName(), 
                 "TND format validation failed: sum of qseqlen across all batches (%ld) != Q T (%ld)", 
                 sumQSeqlen, totalTokensT_);
         return ge::GRAPH_FAILED;
@@ -151,7 +153,7 @@ ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
     
     // 校验kvseqlen之和是否等于KV的T
     if (sumKvSeqlen != totalTokensKv_) {
-        OP_LOGE(rfaContext->GetNodeName(), 
+        OP_LOGE(bsaContext->GetNodeName(), 
                 "TND format validation failed: sum of kvseqlen across all batches (%ld) != KV T (%ld)", 
                 sumKvSeqlen, totalTokensKv_);
         return ge::GRAPH_FAILED;
@@ -374,37 +376,16 @@ ge::graphStatus BSATiling::ParseSeqlens(gert::TilingContext *bsaContext)
     return ret;
 }
 
-ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
+ge::graphStatus BSATiling::CheckSparsePattern(gert::TilingContext *bsaContext, const int64_t defaultShape)
 {
-    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
-    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
-    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
-    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
-    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
     const auto *blockSparseMaskShape = bsaContext->GetInputShape(BLOCK_SPARSE_MASK_INDEX);
-    if (blockSparseMaskTensor == nullptr) {
-        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
-        return ge::GRAPH_FAILED;
-    }
-    if (blockShapeTensor != nullptr) {
-        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
-        if (blockShapeElemNum != 2) {
-            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
-            return ge::GRAPH_FAILED;
-        }
-        blockShapeList = blockShapeTensor->GetData<int64_t>();
-        if (blockShapeList != nullptr) {
-            blockShapeX_ = blockShapeList[0];
-            blockShapeY_ = blockShapeList[1];
-        }
-    }
     if (blockShapeX_ <= 0 || blockShapeY_ <= 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elems must be greater than 0, "
             "but got elem0: %ld, elem1: %ld.", blockShapeX_, blockShapeY_);
         return ge::GRAPH_FAILED;
     }
     // temporary regulation of blockShapeY
-    if (blockShapeY_ % DEFAULT_BLOCK_SHAPE != 0) {
+    if (blockShapeY_ % defaultShape != 0) {
         OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem1 must be a multiple of 128 so far, "
             "but got elem1: %ld.", blockShapeY_);
         return ge::GRAPH_FAILED;
@@ -424,6 +405,36 @@ ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
         OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask must have consistent numHeads with context,"
             "but got BlockSparseMask numHeads(dim1): %u, context numHeads: %u.", bsmNumHead, numHeads_);
         return ge::GRAPH_FAILED; 
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
+{
+    constexpr int64_t DEFAULT_BLOCK_SHAPE = 128;
+    blockShapeX_ = DEFAULT_BLOCK_SHAPE;
+    blockShapeY_ = DEFAULT_BLOCK_SHAPE;
+    const auto *blockSparseMaskTensor = bsaContext->GetOptionalInputTensor(BLOCK_SPARSE_MASK_INDEX);
+    const auto *blockShapeTensor = bsaContext->GetOptionalInputTensor(BLOCK_SHAPE_INDEX);
+    
+    if (blockSparseMaskTensor == nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "BlockSparseMask should be provided so far.");
+        return ge::GRAPH_FAILED;
+    }
+    if (blockShapeTensor != nullptr) {
+        uint32_t blockShapeElemNum = static_cast<uint32_t>(blockShapeTensor->GetShapeSize());
+        if (blockShapeElemNum != 2) {
+            OP_LOGE(bsaContext->GetNodeName(), "BlockShape elem num must be 2.");
+            return ge::GRAPH_FAILED;
+        }
+        blockShapeList = blockShapeTensor->GetData<int64_t>();
+        if (blockShapeList != nullptr) {
+            blockShapeX_ = blockShapeList[0];
+            blockShapeY_ = blockShapeList[1];
+        }
+    }
+    if (CheckSparsePattern(bsaContext, DEFAULT_BLOCK_SHAPE) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -454,13 +465,21 @@ ge::graphStatus BSATiling::ParseOptionalTensors(gert::TilingContext *bsaContext)
     if (ParseSeqlens(bsaContext) != ge::GRAPH_SUCCESS ||
         ParseSparsePattern(bsaContext) != ge::GRAPH_SUCCESS ||
         ParseAttenMask(bsaContext) != ge::GRAPH_SUCCESS ||
-        ParseBlockTable(bsaContext)  != ge::GRAPH_SUCCESS
-        ) {
+        ParseBlockTable(bsaContext)  != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    kvHeads_ = *rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
+{
+    if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX) == nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "numKeyValueHeads is null");
+        return ge::GRAPH_FAILED;
+    }
+    kvHeads_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
     
-    if (rfaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
+    if (bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
         scaleValue_ = 1.0f / std::sqrt(static_cast<float>(embeddingSize_));
     } else {
         scaleValue_ = *bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX);
@@ -518,6 +537,7 @@ ge::graphStatus BSATiling::ParseOptionalTensors(gert::TilingContext *bsaContext)
         OP_LOGE(bsaContext->GetNodeName(), "Attr softmaxLseFlag must be 0 or 1, but got: %ld.", *softmaxLsePtr);
         return ge::GRAPH_FAILED;
     }
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -652,6 +672,9 @@ ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *bsaContext)
     
     workSpaceSize_ = libapiSize_ + mm1OutSize_ + smOnlineOutSize_ + mm2OutSize_ + updateSize_ + selectNumIdxSize_ + selectIdxSize_ + syncSize_;
     bsaContext->GetWorkspaceSizes(1)[0] = workSpaceSize_;
+    uint32_t totalTaskNumMask = batch_ * numHeads_ * maxQBlockNum_;
+    avgRowPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
+    preActiveSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowPerSubCore_);
     
     return ge::GRAPH_SUCCESS;
 }
@@ -719,8 +742,6 @@ ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *bsaContext)
     tilingData_->set_totalQBlocks(totalQBlocks_);
     tilingData_->set_maxKvBlockNum(maxKvBlockNum_);
     tilingData_->set_maxQBlockNum(maxQBlockNum_);
-    tilingData_->set_avgRowPerSubCore(avgRowPerSubCore_);
-    tilingData_->set_preActivateSubCoreNum(preActivateSubCoreNum_);
     
     tilingData_->set_kvCacheLayout(static_cast<uint32_t>(kvCacheLayout_));
     tilingData_->set_queryLayout(static_cast<uint32_t>(qInputLayout_));
@@ -745,7 +766,27 @@ ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *bsaContext)
     tilingData_->set_scaleValue(scaleValue_);
     tilingData_->set_selectNumIdxSize(selectNumIdxSize_);
     tilingData_->set_selectIdxSize(selectIdxSize_);
-    
+    // fill 950 mask2idx tile info
+    tilingData_->BsaMask2IdxTileInfo.set_xBlockNumAligned(xBlockNumAligned_);
+    tilingData_->BsaMask2IdxTileInfo.set_yBlockNumAligned(yBlockNumAligned_);
+    tilingData_->BsaMask2IdxTileInfo.set_avgRowPerSubCore(avgRowPerSubCore_);
+    tilingData_->BsaMask2IdxTileInfo.set_preActiveSubCoreNum(preActiveSubCoreNum_);
+    // fill 950 base tile info
+    tilingData_->BsaBaseTileInfo.set_qBaseTile(qBaseTile_);
+    tilingData_->BsaBaseTileInfo.set_kvBaseTile(kvBaseTile_);
+    // fill 950 matmul phase L1 tile info
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm1L1TileM(mm1L1TileM_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm1L1TileN(mm1L1TileN_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm1L1TileKLeft(mm1L1TileKLeft_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm1L1TileKRight(mm1L1TileKRight_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm2L1TileM(mm2L1TileM_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm2L1TileN(mm2L1TileN_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm2L1TileKLeft(mm2L1TileKLeft_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_mm2L1TileKRight(mm2L1TileKRight_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_qL1BufNum(qL1BufNum_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_kL1BufNum(kL1BufNum_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_vL1BufNum(vL1BufNum_);
+    tilingData_->BsaMmPhaseL1TileInfo.set_pL1BufNum(pL1BufNum_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -859,14 +900,8 @@ ge::graphStatus BSATiling::GetBsaTiling(gert::TilingContext *bsaContext,
             return ret;
         }
     }
-    
-    ret = CalculateWorkSpace(rfaContext);
-    if (ret != ge::GRAPH_SUCCESS) {
-        OP_LOGE(rfaContext->GetNodeName(), "CalculateWorkSpace failed");
-        return ret;
-    }
-    
-    ret = FillTilingData(rfaContext);
+
+    ret = FillTilingData(bsaContext);
     if (ret != ge::GRAPH_SUCCESS) {
         OP_LOGE(bsaContext->GetNodeName(), "FillTilingData failed");
         return ret;

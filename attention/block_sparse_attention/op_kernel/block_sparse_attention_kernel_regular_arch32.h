@@ -274,8 +274,8 @@ namespace BlockSparse {
             maxKvBlockNum = blockSparseAttentionTilingData->maxKvBlockNum;
             uint32_t maxKvBlockNumPad = CeilDiv(maxKvBlockNum, 32) * 32;
             maxQBlockNum = blockSparseAttentionTilingData->maxQBlockNum;
-            avgRowPerSubCore = blockSparseAttentionTilingData->avgRowPerSubCore;
-            preActivateSubCoreNum = blockSparseAttentionTilingData->preActivateSubCoreNum;
+            avgRowPerSubCore = blockSparseAttentionTilingData->BsaMask2IdxTileInfo.avgRowPerSubCore;
+            preActivateSubCoreNum = blockSparseAttentionTilingData->BsaMask2IdxTileInfo.preActiveSubCoreNum;
             
             uint32_t qBlockX = blockSparseAttentionTilingData->blockShapeX;
             uint32_t qBlockY = blockSparseAttentionTilingData->blockShapeY;
