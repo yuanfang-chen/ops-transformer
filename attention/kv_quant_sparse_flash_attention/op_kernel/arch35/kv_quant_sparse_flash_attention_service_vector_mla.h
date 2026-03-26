@@ -692,8 +692,6 @@ TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>
     sharedParams.dSize = 576;
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
     sharedParams.usedCoreNum = this->tilingData->singleCoreParams.usedCoreNum;
-
-    // pageAttention, rope在C侧搬运时使用
     if constexpr (isPa) {
         sharedParams.blockSize = sparseAttnSharedkvBaseParams.blockSize;
         sharedParams.maxBlockNumPerBatch = sparseAttnSharedkvBaseParams.maxBlockNumPerBatch;
