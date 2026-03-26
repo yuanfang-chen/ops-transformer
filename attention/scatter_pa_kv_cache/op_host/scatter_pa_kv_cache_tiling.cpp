@@ -580,10 +580,10 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::DoNHSDOpTiling()
                     >= params_.ubSize),
                     OP_LOGE(context_, "one token key size plus one token value must less than 196608."),
                     return ge::GRAPH_FAILED);
-    OP_CHECK_IF((params_.blockSize * params_.kHeadSize > UIN32_MAX),
+    OP_CHECK_IF((params_.blockSize * params_.kHeadSize > UINT32_MAX),
                     OP_LOGE(context_, "blockSize * kHeadSize must less than UINT32_MAX."),
                     return ge::GRAPH_FAILED);
-    OP_CHECK_IF((params_.blockSize * params_.vHeadSize > UIN32_MAX),
+    OP_CHECK_IF((params_.blockSize * params_.vHeadSize > UINT32_MAX),
                     OP_LOGE(context_, "blockSize * vHeadSize must less than UINT32_MAX."),
                     return ge::GRAPH_FAILED);
     params_.blockFactor = Ops::Base::CeilDiv<int64_t>(params_.numTokens, params_.usedCoreNum);

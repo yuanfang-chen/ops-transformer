@@ -125,6 +125,7 @@ private:
     }
 
 private:
+    TPipe *pipe_;
     AscendC::TBuf<AscendC::QuePosition::VECCALC> keyInBuf;
     AscendC::TBuf<AscendC::QuePosition::VECCALC> valueInBuf;
 
