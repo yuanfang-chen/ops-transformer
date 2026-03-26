@@ -79,7 +79,7 @@ ge::graphStatus PostQuantChecker::CheckFeatureQueryDType(const FiaTilingInfo &fi
     // Post-quantization scale dtype must be FP32. BF16 is allowed only if the query is BF16
     if (fiaInfo.isOutQuantEnable) {
         const ge::DataType quantScale2Type = fiaInfo.opParamInfo.quantScale2.tensor->GetDataType();
-        OP_CHECK_IF(fiaInfo.inputQType != ge::DT_BF16 && quantScale2Type != ge::DT_FLOAT
+        OP_CHECK_IF(fiaInfo.inputQType != ge::DT_BF16 && quantScale2Type != ge::DT_FLOAT,
                     OP_LOGE(fiaInfo.opName,
                             "When query is not bf16, the post quant scale dtype only supports float32!"),
                     return ge::GRAPH_FAILED);
