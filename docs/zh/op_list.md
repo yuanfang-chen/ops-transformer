@@ -176,7 +176,7 @@
   </tr>
   <tr>
     <td>attention</td>
-    <td><a href="../../attention/causal_conv1d/README.md">causal_conv1d</a></td>
+    <td><a href="../../attention/fused_causal_conv1d/README.md">fused_causal_conv1d</a></td>
     <td>✓</td>
     <td>✓</td>
     <td>✓</td>
