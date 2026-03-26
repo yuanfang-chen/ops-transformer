@@ -140,23 +140,31 @@ install_python_deps() {
     fi
 
     # Let pip handle redundancy — it's safe and idempotent
-    pip3 install \
-        "numpy>=1.21.6" \
-        "sympy>=1.10.1" \
-        "psutil>=5.9" \
-        "scipy>=1.7.3" \
-        cloudpickle \
-        ml-dtypes \
-        tornado \
-        absl-py \
-        "decorator>=5.1.0" \
-        attrs \
-        jinja2 \
-        mpmath \
-        -i https://pypi.tuna.tsinghua.edu.cn/simple \
-        --trusted-host pypi.tuna.tsinghua.edu.cn \
-        --no-deps \
-        --timeout=60
+    if ! pip3 install \
+            "numpy>=1.21.6" \
+            "sympy>=1.10.1" \
+            "psutil>=5.9" \
+            "scipy>=1.7.3" \
+            cloudpickle \
+            ml-dtypes \
+            tornado \
+            absl-py \
+            "decorator>=5.1.0" \
+            attrs \
+            jinja2 \
+            mpmath \
+            -i https://pypi.tuna.tsinghua.edu.cn/simple \
+            --trusted-host pypi.tuna.tsinghua.edu.cn \
+            --no-deps \
+            --timeout=60; then
+
+        # 安装失败：红色高亮错误提示 + 华为云镜像配置指导
+        echo -e "\033[31m[Error] Python 依赖安装失败！清华镜像源不可用\033[0m"
+        echo ""
+        echo "解决方案：请先执行以下命令配置华为云镜像源，再重新运行本脚本"
+        echo "pip config set global.index-url https://repo.huaweicloud.com/repository/pypi/simple"
+        exit 1
+    fi
     echo "CANN Python dependencies installed."
 }
 
