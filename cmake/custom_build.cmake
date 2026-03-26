@@ -92,7 +92,6 @@ if (BUILD_OPEN_PROJECT)
             ascend_dump
             ascendalog
             dl
-            hcomm
     )
     set_target_properties(cust_opapi PROPERTIES OUTPUT_NAME
             cust_opapi
