@@ -156,7 +156,7 @@ install_python_deps() {
         -i https://pypi.tuna.tsinghua.edu.cn/simple \
         --trusted-host pypi.tuna.tsinghua.edu.cn \
         --no-deps \
-        --timeout=60
+        --timeout=60; then
     echo "CANN Python dependencies installed."
 }
 
