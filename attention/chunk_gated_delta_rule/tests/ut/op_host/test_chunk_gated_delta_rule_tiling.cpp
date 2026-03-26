@@ -469,8 +469,3 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_NvNotMultipleOfNk_7_8) {
     TilingInfo tilingInfo;
     EXPECT_FALSE(ExecuteTiling(tilingContextPara, tilingInfo));
 }
-
-    TilingInfo tilingInfo;
-    EXPECT_FALSE(ExecuteTiling(tilingContextPara, tilingInfo));
-}
-
