@@ -33,7 +33,7 @@ aclnnStatus FusedCausalConv1dCommonProcess(const aclTensor *x, const aclTensor *
                                       const aclTensor *queryStartLoc, const aclTensor *cacheIndices,
                                       const aclTensor *initialStateMode, const aclTensor *bias,
                                       const aclTensor *numAcceptedTokens, int64_t activationMode, int64_t padSlotId,
-                                      int64_t runMode, int64_t residualConnection, const aclTensor *y,
+                                      int64_t runMode, int64_t residualConnection, aclTensor *y,
                                       uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -76,10 +76,13 @@ aclnnStatus FusedCausalConv1dCommonProcess(const aclTensor *x, const aclTensor *
 
     // convStates is an in-place update: the same tensor serves as both input and
     // output. y is always contiguous. Both are passed directly to l0op.
-    bool ok = l0op::FusedCausalConv1d(xFinal, weight, convStatesFinal, queryStartLoc, cacheIndices, initialStateMode, bias,
-                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
+    auto y_ = l0op::FusedCausalConv1d(xFinal, weight, convStatesFinal, queryStartLoc, cacheIndices, initialStateMode, bias,
+                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection,
                                  uniqueExecutor.get());
-    CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(y_ != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    auto viewCopyYResult = l0op::ViewCopy(y_, y, uniqueExecutor.get());
+    CHECK_RET(viewCopyYResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -92,7 +95,7 @@ ACLNN_API aclnnStatus aclnnFusedCausalConv1dGetWorkspaceSize(
     const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
     const aclTensor *cacheIndices, const aclTensor *initialStateMode, const aclTensor *bias,
     const aclTensor *numAcceptedTokens, int64_t activationMode, int64_t padSlotId, int64_t runMode,
-    int64_t residualConnection, const aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
+    int64_t residualConnection, aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(
         aclnnFusedCausalConv1d,
