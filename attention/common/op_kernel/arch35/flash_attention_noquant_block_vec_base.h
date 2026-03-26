@@ -1673,13 +1673,13 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCo
         .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize),
         .dIdx = 0,
         .gS1DealSize = static_cast<uint32_t>(runInfo.vec2S1RealSize),
-        .dDealSize = static_cast<uint32_t>(constInfo.dSize)
+        .dDealSize = static_cast<uint32_t>(constInfo.dSizeV)
     };
     if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
         FaGmTensor<OUTPUT_T, GmFormat::BSNGD> outGmTensor {
             .gmTensor = this->attentionOutGm,
         };
-        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
+        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSizeV);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BSNGD, UbFormat::S1G> copyAttenOutUbToGm;
         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
@@ -1688,14 +1688,14 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::S1GMergeDataCo
         };
         GlobalTensor<uint64_t> actualSeqQLen;
         actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)this->actualSeqQlenAddr);
-        outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize, actualSeqQLen, constInfo.actualSeqLenSize);
+        outGmTensor.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSizeV, actualSeqQLen, constInfo.actualSeqLenSize);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::TNGD, UbFormat::S1G> copyAttenOutUbToGm;
         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
         FaGmTensor<OUTPUT_T, GmFormat::BNGSD> outGmTensor {
             .gmTensor = this->attentionOutGm,
         };
-        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSize);
+        outGmTensor.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize, constInfo.s1Size, constInfo.dSizeV);
         CopyAttenOutUbToGm<OUTPUT_T, GmFormat::BNGSD, UbFormat::GS1> copyAttenOutUbToGm;
         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     }
