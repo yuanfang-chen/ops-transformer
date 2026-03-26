@@ -383,18 +383,17 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeNHSD()
     params_.kHeadSize = inputKeyShape_.GetDim(DIM_2);
     int64_t numBlocks = inputKeyCacheInShape_.GetDim(DIM_0);
     params_.blockSize = inputKeyCacheInShape_.GetDim(DIM_2);
-
+    bool isAlign = ((params_.kHeadSize * params_.typeByteK) % ALIGN == 0 &&
+                        (params_.vHeadSize * params_.typeByteV) % ALIGN == 0);
+    OP_CHECK_IF((!isAlign), OP_LOGE(context_, "kHeadSize and vHeadSize should be align to 32."),
+                return ge::GRAPH_FAILED);
     OP_CHECK_IF((static_cast<uint64_t>(numBlocks) * params_.blockSize < params_.numTokens),
                 OP_LOGE(context_, "numBlocks * blockSize should larger than numTokens."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.numHead != inputKeyCacheInShape_.GetDim(DIM_1)),
                 OP_LOGE(context_, "dim2 of keyCache should be same as numHead."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((params_.kHeadSize % 16 != DIM_0),
-                OP_LOGE(context_, "the keyheadsize must be aligned to 32 bit."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.kHeadSize != inputKeyCacheInShape_.GetDim(DIM_3)),
                 OP_LOGE(context_, "dim3 of keyCache should be same as kHeadSize."), return ge::GRAPH_FAILED);
     params_.vHeadSize = inputValueShape_.GetDim(DIM_2);
-    OP_CHECK_IF((params_.vHeadSize % 16 != DIM_0),
-                OP_LOGE(context_, "the keyheadsize must be aligned to 32 bit."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.vHeadSize != inputValueCacheInShape_.GetDim(DIM_3)),
                 OP_LOGE(context_, "dim3 of ValueCache should be same as vHeadSize."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((inputKeyShape_.GetDim(DIM_0) != inputValueShape_.GetDim(DIM_0)),
