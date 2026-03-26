@@ -41,8 +41,8 @@ public:
         keycacheOutGm.SetGlobalBuffer((__gm__ T1*)keyCacheOut);
         valuecacheOutGm.SetGlobalBuffer((__gm__ T1*)valueCacheOut);
         slotmappingGm.SetGlobalBuffer((__gm__ T2*)slotIndices + slotmappingOffset);
-        pipe.InitBuffer(keyInBuf, this->perCoreKeySize * sizeof(T1));
-        pipe.InitBuffer(valueInBuf, this->perCoreValueSize * sizeof(T1));
+        pipe_->InitBuffer(keyInBuf, this->perCoreKeySize * sizeof(T1));
+        pipe_->InitBuffer(valueInBuf, this->perCoreValueSize * sizeof(T1));
 
         this->keyIn = keyInBuf.Get<T1>();
         this->valueIn = valueInBuf.Get<T1>();
