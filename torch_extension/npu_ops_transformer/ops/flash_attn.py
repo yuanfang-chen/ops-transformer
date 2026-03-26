@@ -87,7 +87,10 @@ class FlashAttenOpBuilder(OpBuilder):
                 attentionOutSize = (bSize, sSize, nSize, dSize)
 
             
-            return attentionOutSiz, softmaxOutSize#
+            return (
+                torch.empty(attentionOutSize, dtype=q.dtype, device='meta'),
+                torch.empty(softmaxOutSize, dtype=q.dtype, device='meta')
+            )
 
 
 # Instantiate the builder
