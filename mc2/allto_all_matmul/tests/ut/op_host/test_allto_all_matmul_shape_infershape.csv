@@ -1,0 +1,4 @@
+case_name,expectResult,x1_shape,x1_dtype,x1_format,x2_shape,x2_dtype,x2_format,y_dtype,x1_quant_mode,x2_quant_mode,world_size,allto_all_axes,trans_x1,trans_x2,alltoall_out_flag,expectOutputShape
+trans_x1_invalid,FAILED,32 64,FLOAT16,ND,64 128,INT8,ND,FLOAT16,3,2,8,UNDEFINED,1,0,0,
+world_size_invalid,FAILED,32 64,FLOAT16,ND,64 128,INT8,ND,FLOAT16,3,2,3,UNDEFINED,0,0,0,
+k_dim_mismatch,FAILED,32 64,FLOAT16,ND,96 128,INT8,ND,FLOAT16,3,2,8,UNDEFINED,0,0,0,

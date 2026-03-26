@@ -1,0 +1,3 @@
+case_name,expectResult,x1_dtype,x2_dtype,y_dtype,x1_quant_mode,x2_quant_mode,world_size,allto_all_axes,trans_x1,trans_x2,alltoall_out_flag,expect_y_dtype,expect_alltoallout_dtype
+invalid_quant_mode,FAILED,FLOAT16,INT8,FLOAT16,1,2,8,UNDEFINED,0,0,0,FLOAT16,FLOAT16
+invalid_y_dtype,FAILED,FLOAT16,INT8,UNDEFINED,3,2,8,UNDEFINED,0,0,0,FLOAT16,FLOAT16
