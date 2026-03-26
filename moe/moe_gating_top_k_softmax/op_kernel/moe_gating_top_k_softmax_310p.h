@@ -14,6 +14,7 @@
  */
 #include "kernel_operator.h"
 
+namespace MoeGatingTopKSoftmax {
 using namespace AscendC;
 
 namespace {
@@ -213,3 +214,4 @@ private:
     AscendC::LocalTensor<T1> tmpLT;
     AscendC::LocalTensor<int32_t> syncLT;
 };
+}
