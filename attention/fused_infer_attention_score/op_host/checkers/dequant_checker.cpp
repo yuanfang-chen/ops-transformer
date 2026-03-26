@@ -1372,9 +1372,9 @@ ge::graphStatus DequantChecker::CheckFeaturePAForAntiquant(const FiaTilingInfo &
         OP_CHECK_IF(
             (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - 2) < maxBlockNumPerBatch * blockSize),
             OP_LOGE(fiaInfo.opName,
-                    "The last dimension(%u) of keyAntiquantScale is less than "
+                    "The second-to-last dimension(%u) of keyAntiquantScale is less than "
                     "maxBlockNumPerSeq(%u) * blockSize(%u). "
-                    "The last dimension of keyAntiquantScale should be larger than or equal to "
+                    "The second-to-last dimension of keyAntiquantScale should be larger than or equal to "
                     "maxBlockNumPerSeq * blockSize when "
                     "keyAntiquantMode, valueAntiquantMode are per-token-group mode and "
                     "keyAntiquant/valuAntiquant is splited.",
@@ -1577,7 +1577,7 @@ ge::graphStatus DequantChecker::CheckScaleShapeForAntiquant(const FiaTilingInfo 
     gert::Shape valueAntiquantScaleTensorShape = valueAntiquantScaleTensor->GetStorageShape();
     uint32_t keyAntiquantScaleTensorDimNum = keyAntiquantScaleTensorShape.GetDimNum();
     uint32_t valueAntiquantScaleTensorDimNum = valueAntiquantScaleTensorShape.GetDimNum();
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     uint32_t headDim = fiaInfo.qkHeadDim;
     uint32_t batchSize = fiaInfo.bSize;
     uint64_t seqLength = fiaInfo.s2Size;
@@ -1713,7 +1713,7 @@ ge::graphStatus DequantChecker::CheckScaleShapeForPerChannelPerTensorMode(const 
     auto &antiquantScaleTensor = fiaInfo.opParamInfo.antiquantScale.tensor;
     gert::Shape antiquantScaleTensorShape = antiquantScaleTensor->GetStorageShape();
     uint32_t antiquantScaleTensorDimNum = antiquantScaleTensorShape.GetDimNum();
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     uint32_t headDim = fiaInfo.qkHeadDim;
     // per-channel/per-tensor模式
     if (antiquantScaleTensorDimNum == DIM_NUM_1) {
@@ -1812,7 +1812,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerChannelPerTensorMode(const
     auto &keyAntiquantScaleTensor = fiaInfo.opParamInfo.keyAntiquantScale.tensor;
     gert::Shape keyAntiquantScaleTensorShape = keyAntiquantScaleTensor->GetStorageShape();
     uint32_t keyAntiquantScaleTensorDimNum = keyAntiquantScaleTensorShape.GetDimNum();
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     uint32_t headDim = fiaInfo.qkHeadDim;
     // per-channel/per-tensor模式
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_1) {
@@ -1865,17 +1865,17 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerChannelPerTensorMode(const
         return ge::GRAPH_SUCCESS;
     }
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_4) {
-        // 维度为4，shape仅支持[1, N, 1, D]
+        // 维度为4，shape仅支持[1, N, 1, D] 或者 [1, 1, N, D]
         gert::Shape expectedShape1N1D = gert::Shape({1, numKeyValueHeads, 1, headDim});
         OP_CHECK_IF(
-            ((keyAntiquantScaleTensorShape != expectedShape1N1D)),
+            ((keyAntiquantScaleTensorShape != expectedShape1N1D && keyAntiquantScaleTensorShape != expectedShape11ND)),
             OP_LOGE(fiaInfo.opName,
-                    "The shape of keyAntiquantScale([%u, %u, %u, %u]) is not [1, N(%u), 1, D(%u)]. "
-                    "The shape of keyAntiquantScale must be [1, N, 1, D] when "
+                    "The shape of keyAntiquantScale([%u, %u, %u, %u]) is not [1, N(%u), 1, D(%u)] or "
+                    "[1, 1, N(%u), D(%u)]. The shape of keyAntiquantScale must be [1, N, 1, D] when "
                     "keyAntiquantMode is per-channel mode, dimNum of keyAntiquantScale is 4.",
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
                     keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
-                    numKeyValueHeads, headDim),
+                    numKeyValueHeads, headDim, numKeyValueHeads, headDim),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
@@ -1893,29 +1893,29 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenMode(const FiaTilingI
     // per-token模式
     // 支持shape为[1, B, S],[B, S]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_2) {
-        // 维度为2，shape可能为[B, S]
-        gert::Shape expectedShapeBS = gert::Shape({batchSize, seqLength});
-        OP_CHECK_IF((keyAntiquantScaleTensorShape != expectedShapeBS),
+        // 维度为2，shape可能为[B, >=KV_S]
+        OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != batchSize ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) < seqLength,
                     OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u]) is not "
-                            "[1, B(%u), S(%llu)] or [B(%u), S(%llu)]. The shape of keyAntiquantScale must be "
-                            "[1, B, S] or [B, S] when keyAntiquantMode is per-token mode.",
+                            "The shape of keyAntiquantScale([%u, %u]) is not supported"
+                            "The shape of keyAntiquantScale must be "
+                            "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1), batchSize, seqLength, batchSize, seqLength),
                     return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_3) {
-        // 维度为3，shape可能为[1, B, S]
-        gert::Shape expectedShape1BS = gert::Shape({1, batchSize, seqLength});
-        OP_CHECK_IF(
-            (keyAntiquantScaleTensorShape != expectedShape1BS),
-            OP_LOGE(fiaInfo.opName,
-                    "The shape of keyAntiquantScale([%u, %u, %u]) is not "
-                    "[1, B(%u), S(%llu)] or [B(%u), S(%llu)]. The shape of keyAntiquantScale must be "
-                    "[1, B, S] or [B, S] when keyAntiquantMode is per-token mode.",
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2), batchSize, seqLength, batchSize, seqLength),
+        // 维度为3，shape可能为[1, B, >=KV_S]
+        OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1 ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
+                    OP_LOGE(fiaInfo.opName,
+                            "The shape of keyAntiquantScale([%u, %u]) is not supported"
+                            "The shape of keyAntiquantScale must be "
+                            "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1), batchSize, seqLength, batchSize, seqLength),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
@@ -1928,7 +1928,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTensorHeadMode(const FiaTi
     auto &keyAntiquantScaleTensor = fiaInfo.opParamInfo.keyAntiquantScale.tensor;
     gert::Shape keyAntiquantScaleTensorShape = keyAntiquantScaleTensor->GetStorageShape();
     uint32_t keyAntiquantScaleTensorDimNum = keyAntiquantScaleTensorShape.GetDimNum();
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     // per-tensor叠加per-head模式
     // shape仅支持[N]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_1) {
@@ -1952,20 +1952,22 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenHeadMode(const FiaTil
     gert::Shape keyAntiquantScaleTensorShape = keyAntiquantScaleTensor->GetStorageShape();
     uint32_t keyAntiquantScaleTensorDimNum = keyAntiquantScaleTensorShape.GetDimNum();
     uint32_t batchSize = fiaInfo.bSize;
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     uint64_t seqLength = fiaInfo.s2Size;
     // per-token叠加per-head模式
-    // shape仅支持[B, N, S]
+    // shape仅支持[B, N, >=S]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_3) {
-        gert::Shape expectedShapeBNS = gert::Shape({batchSize, numKeyValueHeads, seqLength});
-        OP_CHECK_IF(
-            (keyAntiquantScaleTensorShape != expectedShapeBNS),
-            OP_LOGE(fiaInfo.opName,
-                    "The shape of keyAntiquantScale([%u, %u, %u]) is not [B(%u), N(%u), S(%llu)]. "
-                    "The shape of keyAntiquantScale must be [B, N, S] when "
-                    "keyAntiquantMode is per-token-head mode.",
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2), batchSize, numKeyValueHeads, seqLength),
+        OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != batchSize ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != numKeyValueHeads ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
+                    OP_LOGE(fiaInfo.opName,
+                            "The shape of keyAntiquantScale([%u, %u, %u]) is not supported"
+                            "The shape of keyAntiquantScale must be "
+                            "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1), 
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
+                            batchSize, seqLength, batchSize, seqLength),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
@@ -2003,7 +2005,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenHeadPAMode(const FiaT
     auto &keyAntiquantScaleTensor = fiaInfo.opParamInfo.keyAntiquantScale.tensor;
     gert::Shape keyAntiquantScaleTensorShape = keyAntiquantScaleTensor->GetStorageShape();
     uint32_t keyAntiquantScaleTensorDimNum = keyAntiquantScaleTensorShape.GetDimNum();
-    uint32_t numKeyValueHeads = *fiaInfo.opParamInfo.kvHeadNums;
+    uint32_t numKeyValueHeads = fiaInfo.n2Size;
     // per-token叠加per-head模式并使用page attention管理scale/offset
     // shape仅支持[blockNum, N, blockSize]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_3) {
@@ -2036,8 +2038,24 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenGroupMode(const FiaTi
     uint64_t seqLength = fiaInfo.s2Size;
     uint32_t headDim = fiaInfo.qkHeadDim;
     // per-token-group模式
-    // shape支持[1, B, N, S, D/32]
+    // shape支持[1, B, N, >=KV_S, D/32]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_5) {
+        OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) != numKeyValueHeads ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3) < fiaInfo.s2Size ||
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4) != headDim / 32,
+                    OP_LOGE(fiaInfo.opName,
+                            "The shape of keyAntiquantScale([%u, %u, %u, %u, %u]) is not supported"
+                            "The shape of keyAntiquantScale must be "
+                            "[1, B(%llu), N(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1), 
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
+                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4),
+                            batchSize, seqLength, batchSize, seqLength),
+            return ge::GRAPH_FAILED);
         gert::Shape expectedShape = gert::Shape({1, batchSize, numKeyValueHeads, seqLength, headDim / 32});
         OP_CHECK_IF(
             (keyAntiquantScaleTensorShape != expectedShape),
@@ -2065,31 +2083,33 @@ ge::graphStatus DequantChecker::CheckVScaleShapeForPerTokenMode(const FiaTilingI
     // 校验value支持per-token
     // shape支持[1, B, S]或[B, S]
     if (valueAntiquantScaleTensorDimNum == DIM_NUM_2) {
-        // [B, S]
-        gert::Shape expectedShapeBS = gert::Shape({batchSize, seqLength});
-        OP_CHECK_IF(
-            (valueAntiquantScaleTensorShape != expectedShapeBS),
-            OP_LOGE(fiaInfo.opName,
-                    "The shape of valueAntiquantScale[%u, %u] is not [1, B(%u), S(%llu)] or [B(%u), S(%llu)]. "
-                    "The shape of valueAntiquantScale must be [1, B, S] or [B, S] when "
-                    "valueAntiquantMode is per-token mode.",
-                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0), valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
-                    batchSize, seqLength, batchSize, seqLength),
-            return ge::GRAPH_FAILED);
+        // [B, >=KV_S]
+        OP_CHECK_IF(valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != batchSize ||
+                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1) < seqLength,
+                    OP_LOGE(fiaInfo.opName,
+                            "The shape of valueAntiquantScale([%u, %u]) is not supported"
+                            "The shape of valueAntiquantScale must be "
+                            "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when valueAntiquantMode is per-token mode.",
+                            valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
+                            valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
+                            batchSize, seqLength, batchSize, seqLength),
+                    return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
     if (valueAntiquantScaleTensorDimNum == DIM_NUM_3) {
-        // [1, B, S]
-        gert::Shape expectedShape1BS = gert::Shape({1, batchSize, seqLength});
-        OP_CHECK_IF(
-            (valueAntiquantScaleTensorShape != expectedShape1BS),
-            OP_LOGE(fiaInfo.opName,
-                    "The shape of valueAntiquantScale[%u, %u, %u] is not [1, B(%u), S(%llu)] or [B(%u), S(%llu)]. "
-                    "The shape of valueAntiquantScale must be [1, B, S] or [B, S] when "
-                    "valueAntiquantMode is per-token mode.",
-                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0), valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
-                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_2), batchSize, seqLength, batchSize, seqLength),
-            return ge::GRAPH_FAILED);
+        // [1, B, >=KV_S]
+        OP_CHECK_IF(valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1
+                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
+                    valueAntiquantScaleTensorShape.GetDim(DIM_NUM_2) < seqLength,
+                    OP_LOGE(fiaInfo.opName,
+                            "The shape of valueAntiquantScale([%u, %u, %u]) is not supported"
+                            "The shape of valueAntiquantScale must be "
+                            "[1, B(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when valueAntiquantMode is per-token mode.",
+                            valueAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
+                            valueAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
+                            valueAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
+                            batchSize, seqLength, batchSize, seqLength),
+                    return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
     OP_LOGE(fiaInfo.opName, "The dimNum(%u) of valueAntiquantScale is invalid.", valueAntiquantScaleTensorDimNum);

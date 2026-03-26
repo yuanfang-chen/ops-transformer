@@ -45,8 +45,8 @@ ge::graphStatus LeftPaddingChecker::CheckShapeSupport(const gert::Tensor *tensor
     return ge::GRAPH_SUCCESS;
 }
 
-// CheckSingle
-ge::graphStatus LeftPaddingChecker::CheckSingleDesc(const FiaTilingInfo &fiaInfo)
+// CheckExistence
+ge::graphStatus LeftPaddingChecker::CheckExistenceDesc(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.qPaddingSizeFlag) {
         OP_CHECK_IF(fiaInfo.opParamInfo.queryPaddingSize.desc == nullptr,
@@ -164,14 +164,14 @@ ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInf
 
 ge::graphStatus LeftPaddingChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckSingleDesc(fiaInfo)) {
-        return ge::GRAPH_FAILED;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LeftPaddingChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
+    if (ge::GRAPH_SUCCESS != CheckExistenceDesc(fiaInfo)) {
+        return ge::GRAPH_FAILED;
+    }
     return ge::GRAPH_SUCCESS;
 }
 
