@@ -133,6 +133,123 @@ ge::graphStatus AllGatherMatmulCommonInferShape(gert::InferShapeContext* context
     return GRAPH_SUCCESS;
 }
 
+/**
+ * @brief x1和x2合法性校验
+ *
+ * @param context
+ */
+static ge::graphStatus CheckShapeForX(const gert::InferShapeContext* context)
+{
+    const auto x1Shape = context->GetInputShape(ALL_TO_ALL_MATMUL_INPUT_IDX.INDEX_IN_X1);
+    OPS_CHECK_NULL_WITH_CONTEXT(context, x1Shape);
+    OPS_CHECK(x1Shape->GetDimNum() != DIM_TWO, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+              "x1 shape should be %ld, but the actual value is %ld.", DIM_TWO, x1Shape->GetDimNum()),
+              return ge::GRAPH_FAILED);
+    const auto x2Shape = context->GetInputShape(ALL_TO_ALL_MATMUL_INPUT_IDX.INDEX_IN_X2);
+    OPS_CHECK_NULL_WITH_CONTEXT(context, x2Shape);
+    OPS_CHECK(x2Shape->GetDimNum() != DIM_TWO, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+              "x2 shape should be %ld, but the actual value is %ld.", DIM_TWO, x2Shape->GetDimNum()),
+              return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
+ * @brief x1Scale和x2Scale合法性校验
+ *
+ * @param context
+ * @param shape
+ */
+static ge::graphStatus CheckShapeForXScale(const gert::InferShapeContext* context, AlltoAllMatmulShapeInfo& shape)
+{
+    const auto attrs = context->GetAttrs();
+    const int64_t* x1QuantMode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X1_QUANT_MODE);
+    const int64_t* x2QuantMode = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_X2_QUANT_MODE);
+
+    const auto x1ShapeScale = context->GetInputShape(INDEX_IN_X1_SCALE);
+    if (x1ShapeScale != nullptr) {
+        int64_t x1ShapeScaleDimNum = x1ShapeScale->GetDimNum();
+        if (*x1QuantMode == X1_MXFP8_QUANT_NUM && *x2QuantMode == X2_MXFP8_QUANT_NUM) {
+            // 只有mxfp8量化模式下，x1Scale才是3维
+            OPS_CHECK(x1ShapeScaleDimNum != DIM_THREE, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                      "x1Scale dim num must be %ld, but actual value is: %ld", DIM_THREE, x1ShapeScaleDimNum), return ge::GRAPH_FAILED);
+            // x1Scale最后一维一定是2
+            OPS_CHECK(x1ShapeScale->GetDim(x1ShapeScaleDimNum - 1) != X1_X2_SCALE_LAST_DIM, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                      "x1Scale last dim must be %ld, but actual value is: %ld",
+                      X1_X2_SCALE_LAST_DIM, x1ShapeScale->GetDim(x1ShapeScaleDimNum - 1)), return ge::GRAPH_FAILED);
+        } else {
+            OPS_CHECK(x1ShapeScaleDimNum != DIM_ONE, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                      "x1Scale shape must be %ld, but actual value is: %ld", DIM_ONE, x1ShapeScaleDimNum), return ge::GRAPH_FAILED);
+        }
+        // x1Scale第0维与m轴一致
+        OPS_CHECK(x1ShapeScale->GetDim(0) != shape.m, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                  "x1Scale dim0 must be the same with matmul axis m, but actual x1Scale dim0 is: %ld, axis m is: %ld",
+                  x1ShapeScale->GetDim(0), shape.m), return ge::GRAPH_FAILED);
+    }
+
+    const auto x2ShapeScale = context->GetInputShape(INDEX_IN_X2_SCALE);
+    OPS_CHECK_NULL_WITH_CONTEXT(context, x2ShapeScale);
+    int64_t x2ShapeScaleDimNum = x2ShapeScale->GetDimNum();
+    if (*x1QuantMode == X1_MXFP8_QUANT_NUM && *x2QuantMode == X2_MXFP8_QUANT_NUM) {
+        // 只有mxfp8量化模式下，x2Scale才是3维
+        OPS_CHECK(x2ShapeScaleDimNum != DIM_THREE, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                  "x2Scale dim num must be %ld, but actual value is: %ld", DIM_THREE, x2ShapeScaleDimNum), return ge::GRAPH_FAILED);
+        // x2Scale最后一维一定是2
+        OPS_CHECK(x2ShapeScale->GetDim(x2ShapeScaleDimNum - 1) != X1_X2_SCALE_LAST_DIM, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                  "x2Scale last dim must be %ld, but actual value is: %ld",
+                  X1_X2_SCALE_LAST_DIM, x2ShapeScale->GetDim(x2ShapeScaleDimNum - 1)), return ge::GRAPH_FAILED);
+    } else {
+        OPS_CHECK(x2ShapeScaleDimNum != DIM_ONE, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                  "x2Scale shape must be %ld, but actual value is: %ld", DIM_ONE, x2ShapeScaleDimNum), return ge::GRAPH_FAILED);
+    }
+    // x2Scale第0维与n轴一致
+    OPS_CHECK(x2ShapeScale->GetDim(0) != shape.n, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+              "x2Scale dim0 must be the same with matmul axis n, but actual x2Scale dim0 is: %ld, axis n is: %ld",
+              x2ShapeScale->GetDim(0), shape.n), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
+ * @brief k轴合法性校验
+ *
+ * @param context
+ * @param shape
+ */
+static ge::graphStatus CheckShapeForAxisK(const gert::InferShapeContext* context, AlltoAllMatmulShapeInfo& shape)
+{
+    OPS_CHECK(shape.k1 > AXIS_K_UPPER_LIMIT || shape.k2 > AXIS_K_UPPER_LIMIT, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+                "axis k cannot exceed upper limit %ld, but actual k1 is: %ld, k2 is: %ld",
+                AXIS_K_UPPER_LIMIT, shape.k1, shape.k2), return ge::GRAPH_FAILED);
+    if (shape.k1 != shape.k2 / shape.rankNum) {
+        OP_LOGE(context->GetNodeName(),
+                "In allto_all_matmul x1.k must be the same to x2.k / rankSize, but actual get x1.k: %ld, x2.k: %ld, rankSize: %ld",
+                shape.k1, shape.k2, shape.rankNum);
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CheckShapeForAllToAllMatmul(gert::InferShapeContext* context) {
+
+}
+
+ge::graphStatus AllToAllMatmulCommonInferShape(gert::InferShapeContext* context)
+{
+    OP_LOGE_IF(CheckShapeForAllToAllMatmul(context) != GRAPH_SUCCESS, GRAPH_FAILED,
+               context->GetNodeName(), "Check shape for all_to_all_matmul excute failed.");
+    return GRAPH_SUCCESS;
+}
+
+ge::graphStatus CheckShapeForMatmulAllToAll(gert::InferShapeContext* context) {
+
+}
+
+ge::graphStatus MatmulAllToAllCommonInferShape(gert::InferShapeContext* context)
+{
+    OP_LOGE_IF(CheckShapeForMatmulAllToAll(context) != GRAPH_SUCCESS, GRAPH_FAILED,
+               context->GetNodeName(), "Check shape for matmul_all_to_all excute failed.");
+    return GRAPH_SUCCESS;
+}
+
 ge::graphStatus InferMatmulReduceScatterCommon(gert::InferShapeContext* context)
 {
     CommParas commParas;
