@@ -275,6 +275,11 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
     return ACLNN_ERR_PARAM_INVALID;
   });
+
+  OP_API_CHECK(!isViewTransB && !MC2Aclnn::IsTensorContiguous(x2), {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2 without transpose in aclnnAllGatherMatmulV2 must be contiguous, but it is non-contiguous.");
+    return false;
+  });
   return ACLNN_SUCCESS;
 }
 
