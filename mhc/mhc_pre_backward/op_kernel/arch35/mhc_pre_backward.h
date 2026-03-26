@@ -1531,8 +1531,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
 {
 // alphagrad
 
-    // LocalTensor<uint8_t> tmpLocal = fp32TBuf_.GetWithOffset<uint8_t>(hFusionBufLen_ / 4, 0);
-    // constexpr bool isReuse = false;
+    LocalTensor<uint8_t> tmpLocal = fp32TBuf_.GetWithOffset<uint8_t>(hFusionBufLen_ / 4, 0);
+    constexpr bool isReuse = false;
 
     LocalTensor<P> alphaGradInLocal = fp32InQueue_.AllocTensor<P>();
     LocalTensor<P> alphaGradOutLocal = fp32OutQueue_.AllocTensor<P>();
@@ -1544,17 +1544,17 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV3()
     DataCopyPad(
         alphaGradInLocal, workSpaceGm_[workspaceBuf_.GetAlphaGradOffset(0)], dataCopyParams_, dataCopyPadParams_);
     fp32InQueue_.EnQue(alphaGradInLocal);
-    // alphaGradInLocal = fp32InQueue_.DeQue<P>();
+    alphaGradInLocal = fp32InQueue_.DeQue<P>();
 
-    // uint32_t alphaGradShapeSrc[] = {usedVecCoreNum_, ALPHA_GRAD_PADDING};
-    // ReduceSum<P, AscendC::Pattern::Reduce::RA, isReuse>(
-    //     alphaGradOutLocal,
-    //     alphaGradInLocal,
-    //     tmpLocal,
-    //     alphaGradShapeSrc,
-    //     true
-    // );
-    VFDoV3ProcessAlphaGrad((__ubuf__ P *)alphaGradOutLocal.GetPhyAddr(), (__ubuf__ P *)alphaGradInLocal.GetPhyAddr());
+    uint32_t alphaGradShapeSrc[] = {usedVecCoreNum_, ALPHA_GRAD_PADDING};
+    ReduceSum<P, AscendC::Pattern::Reduce::RA, isReuse>(
+        alphaGradOutLocal,
+        alphaGradInLocal,
+        tmpLocal,
+        alphaGradShapeSrc,
+        true
+    );
+    // VFDoV3ProcessAlphaGrad((__ubuf__ P *)alphaGradOutLocal.GetPhyAddr(), (__ubuf__ P *)alphaGradInLocal.GetPhyAddr());
 
     SetFlag<HardEvent::V_S>(EVENT_ID2);
     WaitFlag<HardEvent::V_S>(EVENT_ID2);
