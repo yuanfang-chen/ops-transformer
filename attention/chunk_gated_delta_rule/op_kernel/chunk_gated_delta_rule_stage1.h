@@ -163,7 +163,6 @@ public:
 
         gCumExpUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * paraNum_), buffOffset);
         buffOffset += chunkSize_ * sizeof(float) * paraNum_;
-        // printf("buffOffset:%u\n", buffOffset/1024);
     }
 
     __aicore__ inline void InitGatherBuffer()
@@ -326,16 +325,9 @@ private:
             uint64_t subRow = chunkStartRowBatch_[i] + subOffset_;
             uint64_t qk_base = subRow * nk_ * dk_ + nIdBatch_[i] * nk_ / nv_ * dk_;
             uint64_t wsOffset_ = i * ckOffset_ + subOffset_ * dk_;
-            uint64_t kUbOffset = i * halfChunkSize_ * dkAligned_;
             outKgGm_ = outKgBaseGm_[chunkRowBase_[i] * dk_];
-            // QKPreProcess(queryGm_[qk_base], queryContinousGm_[wsOffset_], outKgGm_, qUbFloatCon_[kUbOffset],
-            //              subValidLenBatch_[i]);
-            // QKPreProcess(keyGm_[qk_base], keyContinousGm_[wsOffset_], outKgGm_, kUbFloatCon_[kUbOffset],
-            //              subValidLenBatch_[i], true);
-            QKPreProcessNoUb(queryGm_[qk_base], queryContinousGm_[wsOffset_], outKgGm_, qUbFloatCon_[kUbOffset],
-                         subValidLenBatch_[i]);
-            QKPreProcessNoUb(keyGm_[qk_base], keyContinousGm_[wsOffset_], outKgGm_, kUbFloatCon_[kUbOffset],
-                         subValidLenBatch_[i], true);
+            QKPreProcess(queryGm_[qk_base], queryContinousGm_[wsOffset_], outKgGm_, subValidLenBatch_[i]);
+            QKPreProcess(keyGm_[qk_base], keyContinousGm_[wsOffset_], outKgGm_, subValidLenBatch_[i], true);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9); // 同步0
         if (gOptional_) {
@@ -397,9 +389,8 @@ private:
                           gCumExpUbFloat_[i * chunkSize_], queryContinousGm_[wsOffset_]);
         }
     }
-    __aicore__ inline void QKPreProcessNoUb(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm, 
-                                        const GlobalTensor<float>& outKgGm,const LocalTensor<float>& dstBuffer,
-                                        uint32_t subValidRows, bool kgFlag = false)
+    __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm, 
+                                        const GlobalTensor<float>& outKgGm, uint32_t subValidRows, bool kgFlag = false)
     {
         // copyIn
         DataCopyInBf16WithStride(subValidRows, dk_, srcGm, nk_ * dk_);
@@ -416,40 +407,6 @@ private:
         }
         fp32OutQueue_.EnQue(tmpTensor);
         fp32InQueue_.FreeTensor(bf16Tensor);
-        tmpTensor = fp32OutQueue_.DeQue<float>();
-
-        uint32_t srcStride = (dkAligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
-        DataCopyExtParams outParams{static_cast<uint16_t>(halfChunkSize_),
-                                    static_cast<uint32_t>(dk_ * sizeof(float)), srcStride, 0, 0};
-        DataCopyPad(dstGm, tmpTensor, outParams);
-        if (!gOptional_ && kgFlag){
-            DataCopyPad(outKgGm[subOffset_ * dk_], tmpTensor, outParams);
-        }
-        fp32OutQueue_.FreeTensor(tmpTensor);
-    }
-
-    __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm, 
-                                        const GlobalTensor<float>& outKgGm,const LocalTensor<float>& dstBuffer,
-                                        uint32_t subValidRows, bool kgFlag = false)
-    {
-        // copyIn
-        DataCopyInBf16WithStride(subValidRows, dk_, srcGm, nk_ * dk_);
-        // compute
-        LocalTensor<bfloat16_t> bf16Tensor = fp32InQueue_.DeQue<bfloat16_t>();
-        Cast(dstBuffer, bf16Tensor, AscendC::RoundMode::CAST_NONE, subValidRows * dkAligned_);
-        PipeBarrier<PIPE_V>();
-        fp32InQueue_.FreeTensor(bf16Tensor);
-
-        if (subValidRows < halfChunkSize_) {
-            Duplicate(dstBuffer[subValidRows * dkAligned_], static_cast<float>(0.0f),
-                      (halfChunkSize_ - subValidRows) * dkAligned_);
-            PipeBarrier<PIPE_V>();
-        }
-
-        // copyOut
-        auto tmpTensor = fp32OutQueue_.AllocTensor<float>();
-        DataCopy(tmpTensor, dstBuffer, halfChunkSize_ * dkAligned_);
-        fp32OutQueue_.EnQue(tmpTensor);
         tmpTensor = fp32OutQueue_.DeQue<float>();
 
         uint32_t srcStride = (dkAligned_ - dk_) * sizeof(float) / BLOCK_SIZE;
