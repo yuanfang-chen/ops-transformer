@@ -39,14 +39,10 @@ const aclTensor *QuantLightningIndexer(
 {
     int64_t keyBlockStride = 0;
     int64_t keyDequantScaleBlockStride = 0;
-    if (!IsContiguous(key)) {
-        auto keyStride = key->GetViewStrides();
-        keyBlockStride = keyStride[0];
-    }
-    if (!IsContiguous(keyDequantScale)) {
-        auto keyScaleStride = keyDequantScale->GetViewStrides();
-        keyDequantScaleBlockStride = keyScaleStride[0];
-    }
+    auto keyStride = key->GetViewStrides();
+    keyBlockStride = keyStride[0];
+    auto keyScaleStride = keyDequantScale->GetViewStrides();
+    keyDequantScaleBlockStride = keyScaleStride[0];
 
     // L0接口时延统计以及入参打印
     L0_DFX(QuantLightningIndexer, query, key, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional,

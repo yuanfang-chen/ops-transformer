@@ -152,7 +152,6 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context_->GetNodeName(), "attrs got from ge is nullptr"),
                return ge::GRAPH_FAILED);
-    size_t attrNum = attrs->GetAttrNum();
 
     OP_LOGI(context_->GetNodeName(), "GetAttrParaInfo start");
     opParamInfo_.layOutQuery = attrs->GetStr(ATTR_QUERY_LAYOUT_INDEX);
@@ -166,10 +165,8 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
     opParamInfo_.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
     opParamInfo_.preTokens = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKENS_INDEX);
     opParamInfo_.nextTokens = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKENS_INDEX);
-    if (attrNum > ATTR_KEY_BLOCK_STRIDE_INDEX) {
-        opParamInfo_.keyBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_BLOCK_STRIDE_INDEX));
-        opParamInfo_.keyDequantScaleBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_DEQUANT_SCALE_BLOCK_STRIDE_INDEX));
-    }
+    opParamInfo_.keyBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_BLOCK_STRIDE_INDEX));
+    opParamInfo_.keyDequantScaleBlockStride = *(attrs->GetAttrPointer<int64_t>(ATTR_KEY_DEQUANT_SCALE_BLOCK_STRIDE_INDEX));
 
     if (opParamInfo_.layOutQuery != nullptr) {
         OP_LOGI(context_->GetNodeName(), "layout_query is:%s", opParamInfo_.layOutQuery);
@@ -229,10 +226,10 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
     OP_CHECK_IF(*opParamInfo_.nextTokens != 9223372036854775807,
                 OP_LOGE(opName_, "input attr nextTokens only supported 9223372036854775807, but now nextTokens is %ld.",
                 *opParamInfo_.nextTokens), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.keyBlockStride < 0,
+    OP_CHECK_IF(((opParamInfo_.keyBlockStride < 0) && (opParamInfo_.keyBlockStride != -1)),
                 OP_LOGE(opName_, "input attr key_block_stride must >= 0, but now key_block_stride is %u",
                        opParamInfo_.keyBlockStride),return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.keyDequantScaleBlockStride < 0,
+    OP_CHECK_IF(((opParamInfo_.keyDequantScaleBlockStride < 0) && (opParamInfo_.keyDequantScaleBlockStride != -1)),
                 OP_LOGE(opName_, "input attr key_dequant_scale_block_stride must >= 0, but now key_dequant_scale_block_stride is %u",
                        opParamInfo_.keyDequantScaleBlockStride),return ge::GRAPH_FAILED);
 
@@ -765,12 +762,12 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     QLIInfo.preTokens = *opParamInfo_.preTokens;
     QLIInfo.nextTokens = *opParamInfo_.nextTokens;
 
-    if (opParamInfo_.keyBlockStride != 0) {
+    if (opParamInfo_.keyBlockStride != -1) {
         QLIInfo.keyBlockStride = opParamInfo_.keyBlockStride;
     } else {
         QLIInfo.keyBlockStride = blockSize_ * n2Size_ * headDim_;
     }
-    if (opParamInfo_.keyDequantScaleBlockStride != 0) {
+    if (opParamInfo_.keyDequantScaleBlockStride != -1) {
         QLIInfo.keyDequantScaleBlockStride = opParamInfo_.keyDequantScaleBlockStride;
     } else {
         QLIInfo.keyDequantScaleBlockStride = blockSize_;
