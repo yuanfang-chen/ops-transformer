@@ -13,7 +13,7 @@
 -   支持NK、Nv小于等于256，Nv大于等于Nk且Nv需整除Nk。
 -   支持Dk、Dv小于等于512。
 -   支持actual_seq_lengths输入，长度为batch_size。
-    -   actual_seq_lengths中数值需大于等于0且小于等于mtp。
+    -   actual_seq_lengths中数值需大于0且小于等于mtp。
     -   不指定输入时，默认传入长度为batch_size，数值为mtp的数组。
     -   T等于actual_seq_lengths所有元素之和。
 -   支持ssm_state_indices输入，长度为T。
