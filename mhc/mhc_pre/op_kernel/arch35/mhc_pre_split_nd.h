@@ -96,7 +96,7 @@ public:
     using Base::matrixInfo_;
     using Base::vectorOffset_;
     using Base::tiling_;
-    using Base::chunTSize_;
+    using Base::chunkTSize_;
     using Base::v1ChunkDSize_;
     using Base::coreIdx_;
     using Base::subBlockIdx_;
@@ -182,7 +182,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParams initParams)
     }
 
     chunNDSize_ = Ceil(matrixInfo_.nD, coreNum_);
-    chunTSize_ = Ceil(totalLength_, coreNum_);
+    chunkTSize_ = Ceil(totalLength_, coreNum_);
 
     mnConfig_.m = matrixInfo_.totalLength;
     mnConfig_.n = matrixInfo_.fusionSize;
@@ -193,7 +193,7 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Init(InitParams initParams)
     mnConfig_.curSingleCoreM = mnConfig_.singleCoreM;
     mnConfig_.curSingleCoreN = mnConfig_.singleCoreN;
     mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
-    curSingleM_ = chunTSize_;
+    curSingleM_ = chunkTSize_;
 
     constexpr uint64_t kWorkspaceAlignBytes = 32UL;
     uint64_t xFloatWorkspaceBytes = totalLength_ * matrixInfo_.nD * sizeof(P);
@@ -266,9 +266,9 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::Process()
         coreIdx_ = GetBlockIdx() / kDoubleBufferCount;
         this->AIVPreLoad();
 
-        uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
+        uint32_t tBlockNum = Ceil(totalLength_, chunkTSize_);
         if (coreIdx_ < tBlockNum) {
-            globalOffsetM_ = coreIdx_ * chunTSize_;
+            globalOffsetM_ = coreIdx_ * chunkTSize_;
             V0Prologue(coreIdx_, tBlockNum);
             AIV1Process(coreIdx_, tBlockNum);
         } else {
@@ -390,9 +390,9 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::DataCopyOutToWorkSpace(LocalTe
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue(uint64_t curBlock, uint64_t tBlockNum)
 {
-    curSingleM_ = chunTSize_;
+    curSingleM_ = chunkTSize_;
     if (curBlock == tBlockNum - 1) {
-        curSingleM_ = matrixInfo_.totalLength - curBlock * chunTSize_;
+        curSingleM_ = matrixInfo_.totalLength - curBlock * chunkTSize_;
     }
 
     VectorComputeOffset();
@@ -460,9 +460,9 @@ __aicore__ inline void MhcPreKernelSplitND<T, P>::V0Prologue(uint64_t curBlock, 
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitND<T, P>::AIV1Process(uint64_t curBlock, uint64_t tBlockNum)
 {
-    curSingleM_ = chunTSize_;
+    curSingleM_ = chunkTSize_;
     if (curBlock == tBlockNum - 1) {
-        curSingleM_ = matrixInfo_.totalLength - curBlock * chunTSize_;
+        curSingleM_ = matrixInfo_.totalLength - curBlock * chunkTSize_;
     }
     VectorComputeOffset();
     if (vectorOffset_.singleCoreM == 0) { // uint64_t类型永远不会小于0
