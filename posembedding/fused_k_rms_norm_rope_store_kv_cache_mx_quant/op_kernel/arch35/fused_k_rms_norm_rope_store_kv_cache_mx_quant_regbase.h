@@ -19,8 +19,12 @@
 #define FLOAT_OVERFLOW_MODE_CTRL 60
 
 #include "kernel_operator.h"
+#ifdef __CCE_UT_TEST__
 #include "../../../kv_rms_norm_rope_cache/op_kernel/arch35/platform.h"
 #include "../../../../third_party/opbase/pkg_inc/op_common/op_kernel/platform_util.h"
+#else
+#include "op_kernel/platform_util.h"
+#endif
 
 namespace FusedKRmsNormRopeStoreKvCacheMxQuant {
 using namespace AscendC;

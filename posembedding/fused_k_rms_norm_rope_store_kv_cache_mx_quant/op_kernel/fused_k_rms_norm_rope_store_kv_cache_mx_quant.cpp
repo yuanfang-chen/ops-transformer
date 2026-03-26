@@ -31,7 +31,6 @@ extern "C" __global__ __aicore__ void fused_k_rms_norm_rope_store_kv_cache_mx_qu
 #endif
 
     if (TILING_KEY_IS(0)) {
-        REGISTER_TILING_DEFAULT(FusedKRmsNormRopeStoreKvCacheMxQuantTilingData);
         GET_TILING_DATA_WITH_STRUCT(FusedKRmsNormRopeStoreKvCacheMxQuantTilingData, tiling_data_in, tiling);
         const FusedKRmsNormRopeStoreKvCacheMxQuantTilingData *__restrict tilingData = &tiling_data_in;
         FusedKRmsNormRopeStoreKvCacheMxQuantRegbase<DTYPE_QKV, DTYPE_Q> op(&pipe, tilingData);
