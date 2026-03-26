@@ -52,26 +52,26 @@ public:
         const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
         uint64_t hcclCcTilingOffset = offsetof(TilingDataType, hcclA2avTilingInfo) +
                                       offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
-        commOutGm = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
-        commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm);
+        commOutGm_ = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
+        commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm_);
 
         // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用
         if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
             uint64_t commOutLen =
                 Align((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1), TENSOR_LIST_SIZE);
             // permuteOut为true,则将permuteout存放到对应的位置，scale的地址可以从workspaceGM开始
-            gmmxScaleCommOutGm = tilingData_->isPermuteOut ? workspaceGM : workspaceGM + commOutLen;
-            gmmxScaleGM = gmmxScaleGM; // 保存参数到成员变量
+            gmmxScaleCommOutGm_ = tilingData_->isPermuteOut ? workspaceGM : workspaceGM + commOutLen;
+            gmmxScaleGm_ = gmmxScaleGM; // 保存参数到成员变量
             // commOp中已经初始化了上下文，这里只更新地址
-            commOp.InitScaleBuffer(gmmxScaleGM, gmmxScaleCommOutGm);
+            commOp.InitScaleBuffer(gmmxScaleGm_, gmmxScaleCommOutGm_);
         }
         if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe,
                                 isA2avGmmFlag);
         }
-        computeScaleGM = (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) ? gmmxScaleCommOutGm : gmmxScaleGM;
-        computeOp.Init(commOutGm, gmmweightGM, computeScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
+        computeScaleGm_ = (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) ? gmmxScaleCommOutGm_ : gmmxScaleGm_;
+        computeOp.Init(commOutGm_, gmmweightGM, computeScaleGm_, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
                        &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe, isA2avGmmFlag);
     }
 
@@ -111,10 +111,10 @@ private:
     CommOpType commOp;
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
-    GM_ADDR commOutGm = nullptr;
-    GM_ADDR gmmxScaleGM = nullptr;
-    GM_ADDR gmmxScaleCommOutGm = nullptr;
-    GM_ADDR computeScaleGM = nullptr;
+    GM_ADDR commOutGm_ = nullptr;
+    GM_ADDR gmmxScaleGm_ = nullptr;
+    GM_ADDR gmmxScaleCommOutGm_ = nullptr;
+    GM_ADDR computeScaleGm_ = nullptr;
     const TilingDataType *tilingData_ = nullptr;
     uint32_t e_ = 0U;
 };
