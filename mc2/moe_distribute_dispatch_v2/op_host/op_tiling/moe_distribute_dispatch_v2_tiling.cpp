@@ -2044,13 +2044,11 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
     constexpr uint64_t sizeofDtypeX = 2ULL; // token数据类型为float16/bfloat16，每个元素字节数为2
     constexpr uint64_t BUFFER_NUM = 2UL;
     if (isLayered) {
-        constexpr uint64_t BUFFER_ALIGN = 512UL;
         constexpr uint64_t flagBuffSize = 8 * MB_SIZE; // 固定8M空间作为存放同步Flag的区域
         // 每个token发往k个专家时额外需带上专家索引、topk权重、量化系数、到达标志位共4个信息，这些信息对齐到32字节
         const uint64_t extraTokenInfoSize = 4 * ((info.k + 7) / 8 * 8) * sizeof(uint32_t);
         const uint64_t perTokenSize = info.h * sizeofDtypeX + extraTokenInfoSize;
         uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
-        maxRecvTokenNum = (maxRecvTokenNum + BUFFER_ALIGN - 1) / BUFFER_ALIGN * BUFFER_ALIGN;
         minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
             OP_LOGE(nodeName,
