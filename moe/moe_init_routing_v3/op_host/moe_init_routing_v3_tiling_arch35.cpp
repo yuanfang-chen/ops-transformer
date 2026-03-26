@@ -441,13 +441,10 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
         // DYNAMIC_QUANT、MXFP8_E5M2_QUANT、MXFP8_E4M3FN_QUANT
         // colLoops > 1 时需要 quantTempGm_ 临时存储 smooth*x 结果
         workspaceSize_ += quantTempWorkspaceSize;
-    } else if (quantMode_ == QUANT_MODE_STATIC) {
-        // STATIC_QUANT: 需要为 expandedRowIdxIndexGm_ 分配空间
-        // 公共 workspace 已覆盖: sortedExpertIdxGm + expandedRowIdxGm + expertCountTempGm + expertTotalCountGm
-        // 追加空间: expandedRowIdxIndexGm_ (DropPad 模式下用于存储 zero boundary index)
-        // 大小: Align(totalLength_) * sizeof(int32_t)
-        workspaceSize_ += AlignBytes(totalLength_, static_cast<int64_t>(sizeof(int32_t)));
     }
+    // STATIC_QUANT: expandedRowIdxIndexGm_ 复用 expertTotalCountGm_ 之后的空间
+    // 公共 workspace 中 expertTotalCountGm_ 仅占用 Align(1)=32 字节
+    // 剩余空间足够容纳 expandedRowIdxIndexGm_，无需额外分配
     // 这里workspaceSize_除了计算必要的，还会加上16M的AscendC框架用大小
     workspaceSize_ += SIZE_16 * LENGTH_1024 * LENGTH_1024;
     OP_LOGD(context_, "Computed workspace size to allocate is %u bytes", workspaceSize_);
