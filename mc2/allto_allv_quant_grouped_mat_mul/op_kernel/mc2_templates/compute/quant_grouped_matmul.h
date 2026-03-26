@@ -111,8 +111,9 @@ public:
         // 4. 构建 GetTensorAddr 指针表
         GM_ADDR xPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(xAddr), 0);
         GM_ADDR wPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(wAddr), 1);
+        // weightScaleGM_ → kernel scale (weight scale B), xScaleGM_ → kernel perTokenScale (activation scale A)
         GM_ADDR scaleBPtr = BuildPtrTable(weightScaleGM_, 2);
-        GM_ADDR yPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(yAddr), 3); 
+        GM_ADDR yPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(yAddr), 3);
 
         uint64_t groupListToken = isLocal ? bs_ : expertTokenNum_[expertIdx];
         groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
@@ -144,12 +145,11 @@ protected:
         if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
             uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE *
                 Mc2QuantUtils::CeilDiv(h1_, static_cast<uint64_t>(Mc2QuantUtils::MXFP_DIVISOR_SIZE));
-            // scale2 (weight scale, xScaleGM_): per-expert 偏移
+            // x_scale (activation): per-token 偏移
             xScaleGM_ = (GM_ADDR)xScaleGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * scaleK);
-            // scale1 (activation scale, weightScaleGM_): per-token 偏移
+            // weight_scale: per-expert 偏移
             weightScaleGM_ = (GM_ADDR)wScaleGlobalBuffer_.GetPhyAddr(expertIdx * n1_ * scaleK);
-    
-      }
+        }
 
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
