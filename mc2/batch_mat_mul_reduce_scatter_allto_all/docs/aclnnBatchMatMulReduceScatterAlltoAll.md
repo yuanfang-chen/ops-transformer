@@ -66,98 +66,137 @@ aclnnStatus aclnnBatchMatMulReduceScatterAlltoAll(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1010px"><colgroup>
-    <col style="width: 185px">
-    <col style="width: 111px">
-    <col style="width: 429px">
-    <col style="width: 160px">
-    <col style="width: 125px">
+    <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
+    <col style="width: 120px">
+    <col style="width: 80px">
+    <col style="width: 320px">
+    <col style="width: 200px">
+    <col style="width: 140px">
+    <col style="width: 80px">
+    <col style="width: 60px">
+    <col style="width: 120px">
     </colgroup>
     <thead>
     <tr>
     <th>参数名</th>
     <th>输入/输出</th>
     <th>描述</th>
+    <th>使用说明</th>
     <th>数据类型</th>
     <th>数据格式</th>
+    <th>维度</th>
+    <th>非连续Tensor</th>
     </tr></thead>
     <tbody>
     <tr>
     <td>x</td>
     <td>输入</td>
     <td>BatchMatMul计算的左矩阵，必须为3维。</td>
+    <td><ul><li>必须为3维。</li></ul></td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
+    <td>3</td>
+    <td>×</td>
     </tr>
     <tr>
     <td>weight</td>
     <td>输入</td>
     <td>BatchMatMul计算的右矩阵，数据类型与x保持一致，必须为3维。</td>
+    <td><ul><li>数据类型与x保持一致。</li><li>必须为3维。</li></ul></td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
+    <td>3</td>
+    <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
     <td>biasOptional</td>
     <td>输入</td>
     <td>Add计算的bias，需在ReduceScatter通信后执行Add操作。x为FLOAT16时，biasOptional需为FLOAT16；x为BFLOAT16时，biasOptional需为FLOAT32。支持两维或三维，支持传入空指针。</td>
+    <td><ul><li>需在ReduceScatter通信后执行Add操作。</li><li>x为FLOAT16时，biasOptional需为FLOAT16；x为BFLOAT16时，biasOptional需为FLOAT32。</li><li>支持两维或三维，支持传入空指针。</li></ul></td>
     <td>FLOAT16、FLOAT32</td>
     <td>ND</td>
+    <td>2或3</td>
+    <td>×</td>
     </tr>
     <tr>
     <td>groupEp</td>
     <td>输入</td>
     <td>专家并行的通信域名称，字符串长度需大于0且小于128。</td>
+    <td><ul><li>字符串长度需大于0且小于128。</li></ul></td>
     <td>STRING</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>groupTp</td>
     <td>输入</td>
     <td>Tensor并行的通信域名称，字符串长度需大于0且小于128。</td>
+    <td><ul><li>字符串长度需大于0且小于128。</li></ul></td>
     <td>STRING</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
     <td>ep通信域size，支持2、4、8、16、32。</td>
+    <td><ul><li>取值范围：2、4、8、16、32。</li></ul></td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>tpWorldSize</td>
     <td>输入</td>
     <td>tp通信域size，支持2、4、8、16、32。</td>
+    <td><ul><li>取值范围：2、4、8、16、32。</li></ul></td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>yShardType</td>
     <td>输入</td>
     <td>整型，0表示在H维度（BatchMatMul计算结果的第2维，结果共3维，维度索引依次为0、1、2）按tp进行ReduceScatter；1表示在C维度（BatchMatMul计算结果的第1维）按tp进行ReduceScatter。</td>
+    <td><ul><li>0表示在H维度按tp进行ReduceScatter。</li><li>1表示在C维度按tp进行ReduceScatter。</li></ul></td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>out</td>
     <td>输出</td>
     <td>为batch_matmul计算+reduce_scatter计算+all_to_all通信的结果，数据类型与输入x保持一致，必须为3维。</td>
+    <td><ul><li>数据类型与输入x保持一致。</li><li>必须为3维。</li></ul></td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
+    <td>3</td>
+    <td>×</td>
     </tr>
     <tr>
     <td>workspaceSize</td>
     <td>输出</td>
     <td>返回需要在Device侧申请的workspace大小。</td>
+    <td>返回需要在Device侧申请的workspace大小。</td>
     <td>UINT64</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
+    <td>-</td>
     <td>aclOpExecutor*</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     </tbody></table>
 
