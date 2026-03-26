@@ -339,7 +339,8 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::INT8_QUANT)) &&
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E5M2_QUANT)) &&
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E4M3_QUANT)),
-            OP_LOGE(nodeName, "commQuantMode invalid, but got commQuantMode=%ld.",
+            OP_LOGE(nodeName, "commQuantMode only support 0(default) or 2(int8 comm quant)" 
+                "or 3(mxFp8_e5m2) or 4(mxFp8_e4m3) , but got commQuantMode=%ld.",
             *commQuantModePtr), return ge::GRAPH_FAILED);
     }
 
@@ -1405,8 +1406,12 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
         totalBufferSize = maxSizeTokenBuf + maxSizeRowTmpFloatBuf + mulBufSize + hFloatAlign32Size + hExpandXAlign32Size * BUFFER_NUM
             + flagRcvCount * STATE_OFFSET * BUFFER_NUM + UB_ALIGN;
     }
-    if (*commQuantModePtr >= INT8_COMM_QUANT) {
+    if (*commQuantModePtr == INT8_COMM_QUANT) {
         uint32_t scaleNum = (hExpandXAlign32Size / sizeof(expandXDesc->GetDataType())) / static_cast<uint32_t>(UB_ALIGN / sizeof(float));
+        totalBufferSize += (scaleNum * sizeof(float) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN;
+    } else if (*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E5M2_QUANT)) ||
+        (*commQuantModePtr == static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E4M3_QUANT)) {
+        uint32_t scaleNum = (hExpandXAlign32Size / sizeof(expandXDesc->GetDataType()) + UB_ALIGN - 1) / UB_ALIGN;
         totalBufferSize += (scaleNum * sizeof(float) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN;
     }
     if (isInputTokenMaskFlag) {
