@@ -74,7 +74,7 @@ aclnnStatus aclnnMoeTokenPermuteGetWorkspaceSize(
                                           numOutTokens, 0, 0, 0, 0, false,
                                           permuteTokensOut, sortedIndicesOut,
                                           sortedIndicesOut, sortedIndicesOut, uniqueExecutor.get());
-    auto [expandedXOut_, expandedRowIdxOut_] = result;
+    auto [expandedXOut_, expandedRowIdxOut_, expertTokensCountOrCumsumOut_, expertTokensBeforeCapacityOut_] = result;
     bool hasNullptr = (expandedXOut_ == nullptr) || (expandedRowIdxOut_ == nullptr);
     CHECK_RET(hasNullptr != true, ACLNN_ERR_INNER_NULLPTR);
 
