@@ -4415,7 +4415,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     if((contextKeyParams.queryRopeInputShape != nullptr && contextKeyParams.keyRopeInputShape != nullptr) &&
         ((contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN && contextKeyParams.kDataType == ge::DT_FLOAT8_E4M3FN &&
         contextKeyParams.vDataType == ge::DT_FLOAT8_E4M3FN) || (contextKeyParams.inputDataType == ge::DT_INT8 && 
-        contextKeyParams.kDataType == ge::DT_INT8 && contextKeyParams.vDataType == ge::DT_INT8))) {
+        contextKeyParams.kDataType == ge::DT_INT8 && contextKeyParams.vDataType == ge::DT_INT8) || 
+        (contextKeyParams.inputDataType == ge::DT_HIFLOAT8 && contextKeyParams.kDataType == ge::DT_HIFLOAT8 && 
+        contextKeyParams.vDataType == ge::DT_HIFLOAT8))) {
         enableIFAMLAFullQuant = true;
     }
 
