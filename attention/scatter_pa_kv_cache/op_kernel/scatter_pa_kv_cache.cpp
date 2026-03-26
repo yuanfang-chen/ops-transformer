@@ -97,7 +97,7 @@ extern "C" __global__ __aicore__ void scatter_pa_kv_cache(GM_ADDR key, GM_ADDR k
         op.Method(key, value, key_cache_in, value_cache_in, slot_mapping, compress_lens, seq_lens, compress_seq_offset,
                   key_cache_out, value_cache_out);
     } else if (TILING_KEY_IS(NHSD)) {
-        ScatterPaKvCache::ScatterPaKvCacheNHSD<DTYPE_KEY, DTYPE_SLOT_MAPPING> op;
+        ScatterPaKvCache::ScatterPaKvCacheNHSD<DTYPE_KEY, DTYPE_SLOT_MAPPING> op(&pipe);
         op.Init(key, value, slot_mapping, key_cache_out, value_cache_out, &tilingData);
         op.Process();
     }
