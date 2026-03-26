@@ -43,4 +43,13 @@ if (BUILD_OPEN_PROJECT)  # custom
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE moe_distribute_combine_v2 ACLNNTYPE aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE) 
+    
+    target_link_libraries(opapi_transformer PRIVATE
+        ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
+    )
+
+    target_link_libraries(opapi PRIVATE
+        ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
+    )
+
 endif()
