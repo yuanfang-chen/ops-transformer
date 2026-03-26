@@ -283,9 +283,7 @@ pfa@ops-transformer:
         unrelease:
             test_code:  
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch35
-                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch38
                 - ops/ops-transformer/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling_v2.cpp
-                - ops/ops-transformer/attention/prompt_flash_attention/op_host/prompt_flash_attention_tiling_arch38.cpp
                 - ops/ops-transformer/attention/fused_infer_attention_score/op_kernel/attn_infra/
                 - ops/ops-transformer/attention/fused_infer_attention_score/op_host/arch35/fused_infer_attention_score_tiling_v2.cpp
                 - ops/ops-transformer/attention/fused_infer_attention_score/op_host/arch35/fused_infer_attention_score_tiling_v2.h
