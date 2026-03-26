@@ -174,7 +174,7 @@ uint64_t MoeGatingTopKSoftmax310PTiling::GetTilingKey() const
 {
     switch (dtype) {
         case ge::DataType::DT_FLOAT16:
-            return MOE_GATING_SOFTMAX_310P_FLOAT16_OPTIONAL_FINISHED;
+            return TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P;
         default:
             break;
     }
