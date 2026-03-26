@@ -281,7 +281,7 @@ ge::graphStatus PostQuantChecker::CheckParaExistence(const FiaTilingInfo &fiaInf
 
 ge::graphStatus PostQuantChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckFeatureQueryDtype(fiaInfo)) {
+    if (ge::GRAPH_SUCCESS != CheckFeatureQueryDType(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
     if (enableNonQuant_) {
