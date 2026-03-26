@@ -336,7 +336,7 @@ static graphStatus FusedInferHostExecuteFunc(OpExecuteContext *host_api_ctx)
         scalarParams.numHeads, scalarParams.dScaleValue, scalarParams.preTokens, scalarParams.nextTokens, attrPointers.layout, 
         scalarParams.kvHeadNum, scalarParams.sparseMode, scalarParams.innerPrecise, scalarParams.blockSize, scalarParams.antiquantMode,
         scalarParams.softmaxLseFlag, scalarParams.keyAntiquantMode, scalarParams.valueAntiquantMode,
-        scalarParams.queryQuantMode, scalarParams.pseType, sclarParams.alibiLeftAlign, sclarParams.isAlibiMaskSqrt,
+        scalarParams.queryQuantMode, scalarParams.pseType, scalarParams.alibiLeftAlign, scalarParams.isAlibiMaskSqrt,
         fiaTensors.output, fiaTensors.softmaxLse);
 
     OP_CHECK_IF(apiRet != GRAPH_SUCCESS, OP_LOGE(host_api_ctx->GetNodeName(), "apiRet faild:%u", apiRet), return GRAPH_FAILED);
