@@ -94,11 +94,11 @@ ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, g
     contextKeyParams.outputShape = context->GetOutputShape(0);
     auto attrs = context->GetAttrs();
     contextKeyParams.innerPrecisePtr = attrs->GetAttrPointer<int64_t>(INNER_PRECISE_ATTR_INDEX);
-    contextKeyParams.headsNumber = attrs->GetAttrPointer<int32_t>(NUM_HEADS_ATTR_INDEX);
+    contextKeyParams.headsNumber = attrs->GetAttrPointer<int64_t>(NUM_HEADS_ATTR_INDEX);
     contextKeyParams.blockSize = attrs->GetAttrPointer<int32_t>(BLOCK_SIZE_ATTR_INDEX);
     contextKeyParams.scaleValue = attrs->GetAttrPointer<float>(SCALE_VALUE_ATTR_INDEX);
     contextKeyParams.layout = attrs->GetAttrPointer<char>(LAYOUT_ATTR_INDEX);
-    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(KV_NUM_HEADS_ATTR_INDEX);    
+    contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int64_t>(KV_NUM_HEADS_ATTR_INDEX);    
     contextKeyParams.sparseMode = &sparseDefault;
     contextKeyParams.preToken = &tokenDefault;
     contextKeyParams.nextToken = &tokenDefault;
@@ -1195,7 +1195,6 @@ void IFATilingV2::SetfaRunFlag() {
     faRunSparseType_ = static_cast<uint8_t>(IfaSparseEnum::IFA_ALL);
     if (attenMaskFlag_) {
       faRunAttenMaskShapeType_ = 1; // 1 is shape type
-      attenMaskQSize_ = 1;
     } else {
       faRunAttenMaskShapeType_ = 0;
       attenMaskQSize_ = 0;
@@ -1877,6 +1876,7 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
 
   uint32_t minAttenMaskSize = pageAttentionFlag_ ? sMax_ : maxActualseq_;
   attenMaskKvSize_ = maskShape->GetStorageShape().GetDim(maskShape->GetStorageShape().GetDimNum() - 1);
+  attenMaskQSize_ = maskShape->GetStorageShape().GetDim(maskShape->GetStorageShape().GetDimNum() - 2);
   OP_CHECK_IF(attenMaskKvSize_ < minAttenMaskSize,
     OP_LOGE(ifaContext_->opName, "S Size[%u] of attenMask must be greater than or equal to the second dimension of blockTable * blockSize([%u]).",
               attenMaskKvSize_, minAttenMaskSize),
@@ -2709,31 +2709,70 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
       }
+    } else if (pageAttentionFlag_) {
+        uint32_t dimNum = keyAntiquantScaleTensor->GetStorageShape().GetDimNum();
+        if (keyAntiquantMode == PER_TOKEN_MODE) {
+            OP_CHECK_IF(
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1) < maxBlockNumPerSeq_ * blockSize_),
+              OP_LOGE(ifaContext_->opName,
+                      "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
+                      "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
+                      "keyAntiquantMode, valueAntiquantMode are per-token mode and keyAntiquant/valueAntiquant is splited.",
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
+              return ge::GRAPH_FAILED);
+        }
+        if (keyAntiquantMode == PER_TOKEN_HEAD_MODE) {
+            OP_CHECK_IF(
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1) < maxBlockNumPerSeq_ * blockSize_),
+              OP_LOGE(ifaContext_->opName,
+                      "The last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
+                      "The last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
+                      "keyAntiquantMode, valueAntiquantMode are per-token-head mode and keyAntiquant/valueAntiquant is splited.",
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM1), maxBlockNumPerSeq_, blockSize_),
+              return ge::GRAPH_FAILED);
+        }
+        if (keyAntiquantMode == PER_TOKEN_GROUP_MODE) {
+            OP_CHECK_IF(
+              (keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM2) < maxBlockNumPerSeq_ * blockSize_),
+              OP_LOGE(ifaContext_->opName,
+                      "The second-to-last dimension(%u) of keyAntiquantScale is less than maxBlockNumPerSeq(%u) * blockSize(%u). "
+                      "The second-to-last dimension of keyAntiquantScale should be larger than or equal to maxBlockNumPerSeq * blockSize when "
+                      "keyAntiquantMode, valueAntiquantMode are per-token-group mode and keyAntiquant/valueAntiquant is splited.",
+                      keyAntiquantScaleTensor->GetStorageShape().GetDim(dimNum - NUM2), maxBlockNumPerSeq_, blockSize_),
+              return ge::GRAPH_FAILED);
+        }
     }
     OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && inputLayout_ == IfaLayout::TND),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
                         "the layout of input does not support TND."),
                 return ge::GRAPH_FAILED);
     if (isPFAFlag_) {
-      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (inputQType_ != ge::DT_BF16 || outputType_ != ge::DT_BF16)),
+      OP_CHECK_IF((antiquantMode_ == PER_TENSOR_HEAD_MODE || antiquantMode_ == PER_TOKEN_HEAD_MODE || 
+                   antiquantMode_ == PER_TOKEN_PA_MODE || antiquantMode_ == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ == ge::DT_INT8,
+          OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
+                  "if S of query > 1, keyAntiquantMode/valueAntiquantMode 2, 3, 4, 5 are not supported."),
+          return ge::GRAPH_FAILED);
+      OP_CHECK_IF((antiquantMode_ == PER_CHANNEL_MODE || antiquantMode_ == PER_TOKEN_MODE)
+                  && (inputKvType_ == ge::DT_INT8 && (inputQType_ != ge::DT_BF16 || outputType_ != ge::DT_BF16)),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                        "the data type of query and output only support BF16."),
+                        "if keyAntiquantMode/valueAntiquantMode is 0 or 1, the data type of query and output only support BF16."),
                 return ge::GRAPH_FAILED);
-      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionKvLayoutType_ != KvCacheLayout::KV_CACHE_NZ && sOfQuery_ > 16),
+      OP_CHECK_IF((antiquantMode_ == PER_CHANNEL_MODE || antiquantMode_ == PER_TOKEN_MODE) && (inputKvType_ == ge::DT_INT8 && sOfQuery_ > 16),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                        "S of query should not be greater than 16."),
+                        "if keyAntiquantMode/valueAntiquantMode is 0 or 1, S of query should not be greater than 16."),
                 return ge::GRAPH_FAILED);
-      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && !batchContinuousFlag_),
+      OP_CHECK_IF((antiquantMode_ == PER_CHANNEL_MODE || antiquantMode_ == PER_TOKEN_MODE) && (inputKvType_ == ge::DT_INT8 && !batchContinuousFlag_),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                        "tensorlist is not supported."),
+                        "if keyAntiquantMode/valueAntiquantMode is 0 or 1, tensorlist is not supported."),
                 return ge::GRAPH_FAILED);
-      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (ifaContext_->queryPaddingSize.tensor || ifaContext_->kvPaddingSize.tensor)),
+      OP_CHECK_IF((antiquantMode_ == PER_CHANNEL_MODE || antiquantMode_ == PER_TOKEN_MODE)
+                  && (inputKvType_ == ge::DT_INT8 && (ifaContext_->queryPaddingSize.tensor || ifaContext_->kvPaddingSize.tensor)),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                        "leftpadding is not supported."),
+                        "if keyAntiquantMode/valueAntiquantMode is 0 or 1, leftpadding is not supported."),
                 return ge::GRAPH_FAILED);
-      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && pageAttentionFlag_),
+      OP_CHECK_IF((antiquantMode_ == PER_CHANNEL_MODE || antiquantMode_ == PER_TOKEN_MODE) && (inputKvType_ == ge::DT_INT8 && pageAttentionFlag_),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario,"
-                        "page attention is not supported."),
+                        "if keyAntiquantMode/valueAntiquantMode is 0 or 1, page attention is not supported."),
                 return ge::GRAPH_FAILED);
       OP_CHECK_IF((inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT32),
                 OP_LOGE(ifaContext_->opName, "In keyAntiquant/valueAntiquant split mode scenario, int4 and int32 data types are not supported for the key and value."),

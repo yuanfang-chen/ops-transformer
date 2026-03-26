@@ -155,7 +155,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>输入</td>
       <td>公式中的Q。</td>
       <td>数据类型与keyIn/value一致。</td>
-      <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
@@ -165,7 +165,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>输入</td>
       <td>公式中的K。</td>
       <td>数据类型与query/value一致。</td>
-      <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
@@ -185,7 +185,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>输入</td>
       <td>公式中的V。</td>
       <td>数据类型与query/keyIn一致。</td>
-      <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
@@ -195,7 +195,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>输入</td>
       <td>公式中的dY。</td>
       <td>-</td>
-      <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
@@ -300,7 +300,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
       <td>可选输入</td>
       <td>注意力正向的最终输出。</td>
       <td>数据类型和shape与query一致。</td>
-      <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
@@ -619,6 +619,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
   </table>
 
   
+  
 - **返回值：**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -711,7 +712,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
     -   S：取值范围为1\~1M。
     -   D：取值范围为1\~768。
     -   KeepProb：取值范围为(0, 1]。
-- 部分场景下，如果计算量过大可能会导致算子执行超时(aicore error类型报错，errorStr为：timeout or trap error)，此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
+- 部分场景下，如果计算量过大可能会导致算子执行超时（aicore error类型报错，errorStr为：timeout or trap error），此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - prefixOptional稀疏计算仅支持压缩场景，sparseModeOptional=6，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]，当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。当sparseModeOptional=5、prefix的N > Skv或prefixOptional不传时执行全计算，sparseModeOptional=6要求prefixOptional必传。
 - sparseModeOptional=7时，不支持可选输入pseShiftOptional。
 - sparseModeOptional=8时，当每个sequence的q、kv等长时支持可选输入pseShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。

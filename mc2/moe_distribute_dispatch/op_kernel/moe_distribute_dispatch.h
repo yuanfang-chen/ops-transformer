@@ -23,13 +23,13 @@
 #endif
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
-#if __has_include("../common/inc/kernel/moe_distribute_base.h")
-#include "../common/inc/kernel/moe_distribute_base.h"
-#include "../common/inc/kernel/mc2_kernel_utils.h"
+#if __has_include("../common/op_kernel/moe_distribute_base.h")
+#include "../common/op_kernel/moe_distribute_base.h"
+#include "../common/op_kernel/mc2_kernel_utils.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_tiling.h" 
 #else
-#include "../../common/inc/kernel/moe_distribute_base.h"
-#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#include "../../common/op_kernel/moe_distribute_base.h"
+#include "../../common/op_kernel/mc2_kernel_utils.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_tiling.h"
 #endif
 
@@ -897,7 +897,6 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     if(startExpertId_ >=  totalExpertNum_) {
         return;
     }
-    // 获取需要allgather的tokens数量
     GlobalTensor<float> tpwindowInstatusFp32Tensor_;
     GM_ADDR rankGM = (__gm__ uint8_t*)(GetWindStateAddrByRankId(COMM_TP_IDX, tpRankId_) + stateOffset_ * aivId_); // 计算地址偏移
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
@@ -911,11 +910,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     uint32_t preCount = statusFp32Tensor_.ReinterpretCast<int32_t>().GetValue(2);
     gatherCount_ = coreGatherCount;
     preCnt_ = preCount;
-
     GlobalTensor<int32_t> sendCountsGlobal;
     GlobalTensor<int32_t> tpGlobal;
- 
-    // 搬运另一个tp域卡传来的epRcvCnt
     sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(sendCountsOutGM_));
     tpGlobal.SetGlobalBuffer((__gm__ int32_t*)(tpLocalStatusWindowGM_ + TP_STATE_SIZE));
     DataCopyExtParams dataCopyParams = {1U, static_cast<uint32_t>(sendExpertNum_ * sizeof(int32_t)), 0U, 0U, 0U};
@@ -926,11 +922,9 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
     tpTmpTensor_ = xQueue_.DeQue<int32_t>();
     DataCopyPad(sendCountsGlobal[epWorldSize_ + startExpertId_], tpTmpTensor_, dataCopyParams);
     xQueue_.FreeTensor(tpTmpTensor_);
- 
     if (coreGatherCount == 0) {
         return;
     }
-    // 输出起始偏移本卡数据
     GlobalTensor<ExpandXOutType> tokGlobal;
     GlobalTensor<ExpandXOutType> expandXOutGlobal;
 #if !(defined(ASCENDC_OOM) && ASCENDC_OOM == 1)

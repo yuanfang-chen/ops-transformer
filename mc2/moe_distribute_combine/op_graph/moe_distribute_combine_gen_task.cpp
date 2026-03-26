@@ -15,15 +15,16 @@
 #include <vector>
 
 #ifdef BUILD_OPEN_PROJECT
-#include "mc2_gen_task_ops_utils.h"
-#include "mc2_moe_gen_task_ops_utils.h"
+#include "op_graph/mc2_gen_task_ops_utils.h"
+#include "op_graph/mc2_moe_gen_task_ops_utils.h"
 #include "register/op_impl_registry.h"
 #include "mc2_log.h"
+#include "mc2_platform_info.h"
 #else
 #include "ops_error.h"
 #include "mc2_gen_task_moe.h"
-#include "mc2_gen_task_utils.h"
-#include "mc2_a5_gen_task_utils.h"
+#include "op_graph/mc2_gen_task_utils.h"
+#include "op_graph/mc2_a5_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"
 #include "register/op_ext_gentask_registry.h"
 #endif
@@ -40,7 +41,7 @@ ge::Status MoeDistributeCombineGenTaskFunc(const gert::ExeResGenerationContext *
                                             std::vector<std::vector<uint8_t>> &tasks)
 {
     const char *nodeName = context->GetNodeName();
-    if (Mc2GenTaskOpsUtils::IsTargetPlatformSocVersion(nodeName, PLATFORM_A2)) {
+    if (IsTargetPlatformSocVersion(nodeName, PLATFORM_A2)) {
         OPS_LOG_D(context->GetNodeName(), "Do A2 gen task");
         return Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallback(context, tasks);
     }

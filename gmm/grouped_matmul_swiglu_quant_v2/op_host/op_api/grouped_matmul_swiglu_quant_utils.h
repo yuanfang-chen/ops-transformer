@@ -311,6 +311,10 @@ protected:
                     "Contiguous weight failed.");
         CHECK_COND(DataContiguous(gmmDsqParams_.weightScale) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR,
                     "Contiguous weightScale failed.");
+        if (gmmDsqParams_.weightAssistMatrix != nullptr && gmmDsqParams_.weightAssistMatrix->Size() != 0) {
+            CHECK_COND(DataContiguous(gmmDsqParams_.weightAssistMatrix) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR,
+                    "Contiguous weightAssistMatrix failed.");
+        }
 
         gmmDsqParams_.x = l0op::Contiguous(gmmDsqParams_.x, l0Executor_);
         CHECK_COND(gmmDsqParams_.x != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
@@ -338,6 +342,9 @@ public:
         CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
         l0Executor_ = uniqueExecutor.get();
 
+        auto ret = CheckParams();
+        CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
         if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             auto x1MDim = gmmDsqParams_.x->GetViewShape().GetDim(0);
             auto x2NIndex = (*gmmDsqParams_.weight)[0]->GetViewShape().GetDimNum() - 1;
@@ -348,9 +355,6 @@ public:
                 return ACLNN_SUCCESS;
             }
         }
-        auto ret = CheckParams();
-        CHECK_RET(ret == ACLNN_SUCCESS, ret);
-        
         for (size_t i = 0; i < gmmDsqParams_.weight->Size(); i++) {
             auto *w = (*gmmDsqParams_.weight)[i];
             if (IsPrivateFormat(w->GetStorageFormat())) {

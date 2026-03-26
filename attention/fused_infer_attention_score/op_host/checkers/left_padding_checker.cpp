@@ -30,8 +30,6 @@ using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-// 公共校验函数
-
 // Utility functions for common checkers.
 ge::graphStatus LeftPaddingChecker::CheckShapeSupport(const gert::Tensor *tensor,
                                                       const std::vector<int64_t> &expectShapeList) const
@@ -86,15 +84,28 @@ ge::graphStatus LeftPaddingChecker::CheckFeatureActualLen(const FiaTilingInfo &f
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus LeftPaddingChecker::CheckFeatureLayOut(const FiaTilingInfo &fiaInfo)
+ge::graphStatus LeftPaddingChecker::CheckFeatureLayout(const FiaTilingInfo &fiaInfo)
 {
-    // When left-padding is enabled for Query and Key/Value, TND/NTD scenarios are not supported.
+    // When left-padding is enabled for Query and Key/Value, BSH_BNSD/BSND_BNSD/TND/NTD/NTD_TND/TND_NTD scenarios are not supported.
+    std::string layoutStr(fiaInfo.opParamInfo.layOut);
     if (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag) {
-        OP_CHECK_IF(fiaInfo.qLayout == FiaLayout::TND,
+        OP_CHECK_IF(layoutStr == "BSH_BNSD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout BSH_BNSD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "BSND_BNSD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout BSND_BNSD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "TND",
                     OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout TND!"),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(fiaInfo.qLayout == FiaLayout::NTD,
+        OP_CHECK_IF(layoutStr == "NTD",
                     OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout NTD!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "NTD_TND",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout NTD_TND!"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(layoutStr == "TND_NTD",
+                    OP_LOGE(fiaInfo.opName, "QueryLeftPadding illegal condition:input layout TND_NTD!"),
                     return ge::GRAPH_FAILED);
     }
 
@@ -125,7 +136,6 @@ ge::graphStatus LeftPaddingChecker::CheckFeaturePageAttention(const FiaTilingInf
     return ge::GRAPH_SUCCESS;
 }
 
-// enableNonQuant 相关校验函数
 // CheckMuiltPara
 ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo)
 {
@@ -152,72 +162,35 @@ ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInf
     return ge::GRAPH_SUCCESS;
 }
 
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
-
 ge::graphStatus LeftPaddingChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LeftPaddingChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckSingleDesc(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End LeftPaddingChecker::CheckSinglePara!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LeftPaddingChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LeftPaddingChecker::CheckParaExistence!");
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End LeftPaddingChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LeftPaddingChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LeftPaddingChecker::CheckFeature!");
-    if (ge::GRAPH_SUCCESS != CheckFeatureActualLen(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeatureLayOut(fiaInfo) ||
+    if (ge::GRAPH_SUCCESS != CheckFeatureActualLen(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeatureLayout(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckFeatureAlibiPse(fiaInfo) || ge::GRAPH_SUCCESS != CheckFeaturePageAttention(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End LeftPaddingChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus LeftPaddingChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin LeftPaddingChecker::CheckMultiPara!");
     if (enableNonQuant_) {
         if (ge::GRAPH_SUCCESS != CheckMultiParaShapeAndDim(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
     }
-    OP_LOGI(fiaInfo.opName, "End LeftPaddingChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

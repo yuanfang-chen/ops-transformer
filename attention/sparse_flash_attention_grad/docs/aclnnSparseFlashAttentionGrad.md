@@ -248,6 +248,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
                 <li>可选项：当layout为TND，该变量存在。</li>
                 <li>长度与B保持一致。</li>
                 <li>累加和与T1保持一致。</li>
+                <li>取值须为非负数，传入负值可能触发芯片告警（alarm）。</li>
             </ul>
             </td>
             <td>INT32</td>
@@ -494,6 +495,11 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
                 <td>361001</td>
                 <td>API内存调用npu runtime的接口异常。</td>
             </tr>
+            <tr>
+                <td>ACLNN_ERR_INNER_TILING_ERROR</td>
+                <td>561002</td>
+                <td>输入参数（如layout、sparseMode）的取值超出支持范围，或输入Tensor的shape维度不符合约束要求。</td>
+            </tr>
         </tbody>
     </table>
 
@@ -549,6 +555,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 - 公共约束
     - 入参为空的场景处理：
         - query为空Tensor：直接返回。
+    - 当前只支持value和key完全一致的场景。
 
 - Mask
     <table style="undefined;table-layout: fixed; width: 942px"><colgroup>
@@ -666,7 +673,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
         <tr>
             <td>K</td>
             <td>1024、2048、3072、4096、5120、6144、7168、8192</td>
-            <td>-</td>
+            <td>A2/A3：不建议K * sparseBlockSize超过100k，由于内部算法硬件限制可能会导致oom</td>
         </tr>
         <tr>
             <td>layout</td>
@@ -855,9 +862,9 @@ int main() {
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(actSeqKvLenHostData, actSeqKvLenshape, &actSeqKvLenDeviceAddr, aclDataType::ACL_INT32, &actSeqKvLen);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(qRopeHostData, qRopeShape, &dqDeviceAddr, aclDataType::ACL_FLOAT16, &qRope);
+  ret = CreateAclTensor(qRopeHostData, qRopeShape, &qRopeDeviceAddr, aclDataType::ACL_FLOAT16, &qRope);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(kRopeHostData, kRopeShape, &dkDeviceAddr, aclDataType::ACL_FLOAT16, &kRope);
+  ret = CreateAclTensor(kRopeHostData, kRopeShape, &kRopeDeviceAddr, aclDataType::ACL_FLOAT16, &kRope);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(dqHostData, qShape, &dqDeviceAddr, aclDataType::ACL_FLOAT16, &dq);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
