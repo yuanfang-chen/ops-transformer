@@ -82,7 +82,7 @@ public:
     using Base::matrixInfo_;
     using Base::vectorOffset_;
     using Base::tiling_;
-    using Base::chunTSize_;
+    using Base::chunkTSize_;
     using Base::v1ChunkDSize_;
     using Base::curSingleT_;
     using Base::coreIdx_;
@@ -172,7 +172,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::InitUbBuffers()
     preOffsetBuf_ = tmpBuff_.template GetWithOffset<uint32_t>(uint32_t(mnConfig_.n * V1_BASE_T), 0);
     postOffsetBuf_ = preOffsetBuf_[N_ * V1_BASE_T];
     resOffsetBuf_ = postOffsetBuf_[N_ * V1_BASE_T];
-    uint64_t buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t);
+    uint64_t buffOffset = 0;
 
     buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
     hPreBuff_ = tmpBuff_.template GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
@@ -185,7 +185,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::InitUbBuffers()
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitBS<T, P>::Process()
 {
-    uint32_t tBlockNum = Ceil(totalLength_, chunTSize_);
+    uint32_t tBlockNum = Ceil(totalLength_, chunkTSize_);
 
     for (uint64_t curblock = coreIdx_; curblock < tBlockNum; curblock += coreNum_) {
         InitBlockParams(curblock, tBlockNum);
@@ -235,11 +235,11 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::Process()
 template <class T, class P>
 __aicore__ inline void MhcPreKernelSplitBS<T, P>::InitBlockParams(uint64_t curblock, uint32_t tBlockNum)
 {
-    globalOffsetM_ = curblock * chunTSize_;
-    curSingleT_ = chunTSize_;
+    globalOffsetM_ = curblock * chunkTSize_;
+    curSingleT_ = chunkTSize_;
     if (curblock == tBlockNum - 1) {
         mnConfig_.curSingleCoreM = totalLength_ - globalOffsetM_;
-        curSingleT_ = matrixInfo_.totalLength - curblock * chunTSize_;
+        curSingleT_ = matrixInfo_.totalLength - curblock * chunkTSize_;
     }
     if ASCEND_IS_AIV {
         this->VectorComputeOffset();
@@ -253,7 +253,7 @@ __aicore__ inline void MhcPreKernelSplitBS<T, P>::AICProcess(uint32_t offsetNd, 
         mnConfig_.curSingleCoreK = mnConfig_.k - offsetNd;
     }
 
-    uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % PARALLEL_NUM) * coreNum_);
+    uint64_t xOffset = chunkTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % PARALLEL_NUM) * coreNum_);
 
     mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK, mnConfig_.k);
     mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK);
