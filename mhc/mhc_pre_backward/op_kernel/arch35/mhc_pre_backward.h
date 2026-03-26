@@ -527,10 +527,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::InitStage2()
 
     if ASCEND_IS_AIC {
         dealStartND_ = cubeDealnDPeCore_ * blockIdx_;
-<<<<<<< HEAD
-=======
-
->>>>>>> upstream/mhc_pre_backward
         dealEndND_ = dealStartND_ + cubeDealnDPeCore_;
         if (dealEndND_ > nD_) {
             dealEndND_ = nD_;
