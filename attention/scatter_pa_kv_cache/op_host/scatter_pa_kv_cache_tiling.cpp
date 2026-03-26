@@ -390,8 +390,6 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeNHSD()
                         (params_.vHeadSize * params_.typeByteV) % ALIGN == 0);
     OP_CHECK_IF((!isAlign), OP_LOGE(context_, "kHeadSize and vHeadSize should be align to 32."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((params_.blockSize * params_.kHeadSize >= inputKeyCacheInShape_.GetDim(DIM_1)),
-                OP_LOGE(context_, "dim2 of keyCache should be same as numHead."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.numHead != inputKeyCacheInShape_.GetDim(DIM_1)),
                 OP_LOGE(context_, "dim2 of keyCache should be same as numHead."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.numHead > NUM_HEAD_MAX),
