@@ -325,8 +325,8 @@ def run_recurrent_gated_delta_rule_eager(B, mtp, nk, nv, dk, dv, actual_seq_leng
         return
     for i in range(B):
         act_seq = actual_seq_lengths[i]
-        if act_seq < 0 or act_seq > mtp:
-            print(f"Error: actual_seq_lengths[{i}] is {act_seq}, it should >= 0 and <= mtp({mtp})")
+        if act_seq <= 0 or act_seq > mtp:
+            print(f"Error: actual_seq_lengths[{i}] is {act_seq}, it should > 0 and <= mtp({mtp})")
             return
         if has_num_accepted_tokens == True:
             accepted_token = num_accepted_tokens[i]
