@@ -89,7 +89,7 @@ public:
             commOp.Launch(expertIdx, 1);
         }
         if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
-            commOp.WaitScale(expertIdx);
+            commOp.WaitScale(0);
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
