@@ -27,8 +27,8 @@ bool AlltoAllvMXQuantGmmTiling::IsCapable()
         gmmXDataType_ != ge::DT_FLOAT8_E4M3FN) {
         return false;
     }
-    if (gmmXDataType_ != ge::DT_FLOAT8_E5M2 && 
-        gmmXDataType_ != ge::DT_FLOAT8_E4M3FN) {
+    if (gmmWeightDataType_ != ge::DT_FLOAT8_E5M2 && 
+        gmmWeightDataType_ != ge::DT_FLOAT8_E4M3FN) {
         return false;
     }
     OP_LOGD(context_->GetNodeName(), "AlltoAllvMXQuantGmmTiling is capable.");
@@ -94,7 +94,7 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckQuantMode() const
     // check gmmXQuantMode
     int64_t gmmXQuantMode = *gmmXQuantModePtr_;
     OP_TILING_CHECK(gmmXQuantMode != static_cast<int64_t>(MX_QUANT_MODE),
-        OP_LOGE(context_->GetNodeName(), "When mx quant mode, gmmXQuantMode should be 6, but actual is %lu.", \
+        OP_LOGE(context_->GetNodeName(), "When mx quant mode, gmmXQuantMode should be 6, but actual is %ld.", \
             gmmXQuantMode), return ge::GRAPH_FAILED);
     // check gmmWeightQuantMode null
     OP_TILING_CHECK(gmmWeightQuantModePtr_ == nullptr,
@@ -102,18 +102,18 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckQuantMode() const
     // check gmmWeightQuantMode
     int64_t gmmWeightQuantMode = *gmmWeightQuantModePtr_;
     OP_TILING_CHECK(gmmWeightQuantMode != static_cast<int64_t>(MX_QUANT_MODE),
-        OP_LOGE(context_->GetNodeName(), "When mx quant mode, gmmWeightQuantMode should be 6, but actual is %lu.", \
+        OP_LOGE(context_->GetNodeName(), "When mx quant mode, gmmWeightQuantMode should be 6, but actual is %ld.", \
             gmmWeightQuantMode), return ge::GRAPH_FAILED);
     if (hasSharedExpertFlag_) {
         // mmXQuantMode(same as gmmXQuantMode)
         int64_t mmXQuantMode = *mmXQuantModePtr_;
         OP_TILING_CHECK(mmXQuantMode != gmmXQuantMode,
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode, mmXQuantMode should be same as gmmXQuantMode(6), but actual is %lu.", \
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode, mmXQuantMode should be same as gmmXQuantMode(6), but actual is %ld.", \
                 mmXQuantMode), return ge::GRAPH_FAILED);
         // mmWeightQuantMode(same as gmmWeightQuantMode)
         int64_t mmWeightQuantMode = *mmWeightQuantModePtr_;
         OP_TILING_CHECK(mmWeightQuantMode != gmmWeightQuantMode,
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode, mmWeightQuantMode should be same as gmmWeightQuantMode(6), but actual is %lu.", \
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode, mmWeightQuantMode should be same as gmmWeightQuantMode(6), but actual is %ld.", \
                 mmWeightQuantMode), return ge::GRAPH_FAILED);
     }
     GE_ASSERT_GRAPH_SUCCESS(CheckQuantGroupSize());
@@ -228,7 +228,7 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckScaleShape() const
     uint64_t gmmXScaleBSKDim = static_cast<uint64_t>(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO));
     uint64_t gmmXScaleHDim = static_cast<uint64_t>(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ONE));
     OP_TILING_CHECK((gmmXScaleBSKDim != bsk_) || (gmmXScaleHDim != expectedGHValue), 
-        OP_LOGE(context_->GetNodeName(), "When mx quant mode, the expected shape of gmmxscale is (%lu, %lu, 2) but the aclual "
+        OP_LOGE(context_->GetNodeName(), "When mx quant mode, the expected shape of gmmxscale is (%lu, %lu, 2) but the actual "
         "is (%lu, %lu, 2)", bsk_, expectedGHValue, gmmXScaleBSKDim, gmmXScaleHDim), return ge::GRAPH_FAILED);    
     // check gmmWeightScale dimNum
     size_t gmmWeightScaleDimNum = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDimNum();
@@ -241,11 +241,11 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckScaleShape() const
     uint64_t gmmWeightScaleNDim = static_cast<uint64_t>(transGmmWeight_ ? gmmWeightScaleDimOne : gmmWeightScaleDimTwo);
     if (transGmmWeight_) {
         OP_TILING_CHECK((gmmWeightScaleNDim != n1_) || (gmmWeightScaleHDim != expectedGHValue), 
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode and trans gmmWeight, the expected shape of gmmWeightscale is (%lu, %lu, %lu, 2) but the aclual "
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode and trans gmmWeight, the expected shape of gmmWeightscale is (%lu, %lu, %lu, 2) but the actual "
             "is (%lu, %lu, %lu, 2)", e_, n1_, expectedGHValue, e_, gmmWeightScaleNDim, gmmWeightScaleHDim), return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK((gmmWeightScaleNDim != n1_) || (gmmWeightScaleHDim != expectedGHValue), 
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode and not trans gmmWeight, the expected shape of gmmWeightscale is (%lu, %lu, %lu, 2) but the aclual "
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode and not trans gmmWeight, the expected shape of gmmWeightscale is (%lu, %lu, %lu, 2) but the actual "
             "is (%lu, %lu, %lu, 2)", e_, expectedGHValue, n1_, e_, gmmWeightScaleHDim, gmmWeightScaleNDim), return ge::GRAPH_FAILED);
     }
     if (hasSharedExpertFlag_) {
@@ -268,7 +268,7 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckShareExpScaleShape() const
     uint64_t mmXScaleBSDim = static_cast<uint64_t>(context_->GetOptionalInputShape(MM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO));
     uint64_t mmXScaleHDim = static_cast<uint64_t>(context_->GetOptionalInputShape(MM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ONE));
     OP_TILING_CHECK((mmXScaleBSDim != bs_) || (mmXScaleHDim != expectedHValue), 
-        OP_LOGE(context_->GetNodeName(), "When mx quant mode and has shared expert, the expected shape of mmxscale is (%lu, %lu, 2) but the aclual "
+        OP_LOGE(context_->GetNodeName(), "When mx quant mode and has shared expert, the expected shape of mmxscale is (%lu, %lu, 2) but the actual "
         "is (%lu, %lu, 2)", bs_, expectedHValue, mmXScaleBSDim, mmXScaleHDim), return ge::GRAPH_FAILED);  
     // check mmWeightScale dimNum(same as gmmWeightScale)
     size_t mmWeightScaleDimNum = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDimNum();
@@ -282,12 +282,12 @@ ge::graphStatus AlltoAllvMXQuantGmmTiling::CheckShareExpScaleShape() const
     uint64_t mmWeightScaleNDim = static_cast<uint64_t>(transMmWeight_ ? mmWeightScaleDimOne : mmWeightScaleDimTwo);
     if (transMmWeight_) {
         OP_TILING_CHECK((mmWeightScaleNDim != n2_) || (mmWeightScaleHDim != expectedHValue), 
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode and trans mmWeight, the expected shape of mmWeightscale is (%lu, %lu, 2) but the aclual "
-            "is (%lu, %lu, 2)", n1_, expectedHValue, mmWeightScaleNDim, mmWeightScaleHDim), return ge::GRAPH_FAILED);
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode and trans mmWeight, the expected shape of mmWeightscale is (%lu, %lu, 2) but the actual "
+            "is (%lu, %lu, 2)", n2_, expectedHValue, mmWeightScaleNDim, mmWeightScaleHDim), return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK((mmWeightScaleNDim != n2_) || (mmWeightScaleHDim != expectedHValue), 
-            OP_LOGE(context_->GetNodeName(), "When mx quant mode and not trans mmWeight, the expected shape of mmWeightscale is (%lu, %lu, 2) but the aclual "
-            "is (%lu, %lu, 2)", expectedHValue, n1_, mmWeightScaleHDim, mmWeightScaleNDim), return ge::GRAPH_FAILED);
+            OP_LOGE(context_->GetNodeName(), "When mx quant mode and not trans mmWeight, the expected shape of mmWeightscale is (%lu, %lu, 2) but the actual "
+            "is (%lu, %lu, 2)", expectedHValue, n2_, mmWeightScaleHDim, mmWeightScaleNDim), return ge::GRAPH_FAILED);
     }
     OP_LOGD(context_->GetNodeName(), "end CheckShareExpScaleShape."); 
     return ge::GRAPH_SUCCESS;
