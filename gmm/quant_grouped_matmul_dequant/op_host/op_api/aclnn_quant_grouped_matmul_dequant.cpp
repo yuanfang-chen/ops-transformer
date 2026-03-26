@@ -167,7 +167,7 @@ static aclnnStatus PrepareWeightFormat(const aclTensor *&weight, aclOpExecutor *
     return ConvertWeightNdToNz(weight, exec);
   } else if (weightStorageDimNum != NZ_DIMNUM || weight->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ) {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-            "weight is not in 3-dim shape (G, N, K) or 5-dim (G, K//32, N//16, 16, 32), please check");
+            "weight is not in 5-dim (G, K//32, N//16, 16, 32), please check");
     return ACLNN_ERR_PARAM_INVALID;
   }
   return ACLNN_SUCCESS;
