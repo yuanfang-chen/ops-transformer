@@ -133,6 +133,20 @@ ge::graphStatus AllGatherMatmulCommonInferShape(gert::InferShapeContext* context
     return GRAPH_SUCCESS;
 }
 
+// ge::graphStatus AllToAllMatmulCommonInferShape(gert::InferShapeContext* context)
+// {
+//     OP_LOGE_IF(CheckShapeForAllToAllMatmul(context) != GRAPH_SUCCESS, GRAPH_FAILED,
+//                context->GetNodeName(), "Check shape for all_to_all_matmul excute failed.");
+//     return GRAPH_SUCCESS;
+// }
+
+// ge::graphStatus MatmulAllToAllCommonInferShape(gert::InferShapeContext* context)
+// {
+//     OP_LOGE_IF(CheckShapeForMatmulAllToAll(context) != GRAPH_SUCCESS, GRAPH_FAILED,
+//                context->GetNodeName(), "Check shape for matmul_all_to_all excute failed.");
+//     return GRAPH_SUCCESS;
+// }
+
 ge::graphStatus InferMatmulReduceScatterCommon(gert::InferShapeContext* context)
 {
     CommParas commParas;
