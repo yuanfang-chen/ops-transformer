@@ -143,9 +143,7 @@ ge::graphStatus MaskChecker::CheckIFADimAndShape(const FiaTilingInfo &fiaInfo)
     uint32_t attenMaskBatch = maskShape->GetStorageShape().GetDim(DIM_NUM_0);
     uint32_t attenMaskSize = maskShape->GetStorageShape().GetDim(maskShape->GetStorageShape().GetDimNum() - 1);
     if (fiaInfo.pageAttentionFlag) {
-        uint32_t maxBlockNumPerSeq = fiaInfo.opParamInfo.blockTable.tensor->GetStorageShape().GetDim(DIM_NUM_1);
-        uint32_t sMax = maxBlockNumPerSeq * fiaInfo.blockSize;
-        minAttenMaskSize = sMax;
+        minAttenMaskSize = fiaInfo.s2Size;
     } else {
         minAttenMaskSize = fiaInfo.maxActualseq;
     }
@@ -248,6 +246,11 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
 {
     // In PFA mode, the attenmask dimensions must be 2/3/4.
     // The allowed shape specifications for attenmask vary depending on the sparse mode.
+    if ((!fiaInfo.attenMaskFlag) && (fiaInfo.sparseMode != SPARSE_MODE_NO_MASK)) {
+        OP_LOGE(fiaInfo.opName, "When sparse_mode is %d, it not 0, atten_mask should not be null.",
+                fiaInfo.sparseMode);
+        return ge::GRAPH_FAILED;
+    }
     if ((fiaInfo.isMaxWorkspace && fiaInfo.socVersion != platform_ascendc::SocVersion::ASCEND910B) || !fiaInfo.attenMaskFlag) {
         return ge::GRAPH_SUCCESS;
     }

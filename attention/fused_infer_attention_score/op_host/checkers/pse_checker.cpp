@@ -154,20 +154,12 @@ ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
                         return ge::GRAPH_FAILED);
         } else {
             // P_S1 = 1分支
-            uint32_t seqSize = 0;
-            if (fiaInfo.pageAttentionFlag) {
-                uint32_t maxBlockNumPerSeq = fiaInfo.opParamInfo.blockTable.tensor->GetStorageShape().GetDim(DIM_NUM_1);
-                uint32_t sMax = maxBlockNumPerSeq * fiaInfo.blockSize;
-                seqSize = sMax;
-            } else {
-                seqSize = fiaInfo.maxActualseq;
-            }
             OP_CHECK_IF((pseShiftBatch != 1 && pseShiftBatch != batchSize) || (pseShiftN != n1Size) ||
-                            (pseShiftS1 != 1) || (pseShiftS2 < seqSize),
+                            (pseShiftS1 != 1) || (pseShiftS2 < s2Size + actualSharedPrefixLen),
                         OP_LOGE(fiaInfo.opName,
                                 "The shape of pseShift must be [1 or %u,%u,1,>=%u], "
                                 "but now is [%u,%u,%u,%u].",
-                                batchSize, n1Size, seqSize, pseShiftBatch, pseShiftN, pseShiftS1, pseShiftS2),
+                                batchSize, n1Size, s2Size + actualSharedPrefixLen, pseShiftBatch, pseShiftN, pseShiftS1, pseShiftS2),
                         return ge::GRAPH_FAILED);
         }
     }
