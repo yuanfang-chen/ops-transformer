@@ -19,10 +19,18 @@
 #define FLOAT_OVERFLOW_MODE_CTRL 60
 
 #include "kernel_operator.h"
-#include "op_kernel/platform_util.h"
+#include "../../../kv_rms_norm_rope_cache/op_kernel/arch35/platform.h"
+#include "../../../../third_party/opbase/pkg_inc/op_common/op_kernel/platform_util.h"
 
 namespace FusedKRmsNormRopeStoreKvCacheMxQuant {
 using namespace AscendC;
+using AscendC::MicroAPI::CreateMask;
+using AscendC::MicroAPI::LoadDist;
+using AscendC::MicroAPI::MaskPattern;
+using AscendC::MicroAPI::MaskReg;
+using AscendC::MicroAPI::RegTensor;
+using AscendC::MicroAPI::StoreDist;
+using AscendC::MicroAPI::UpdateMask;
 
 constexpr static AscendC::MicroAPI::CastTrait CAST_B16_TO_B32 = {
     AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::UNKNOWN, AscendC::MicroAPI::MaskMergeMode::ZEROING,
@@ -691,7 +699,7 @@ public:
             // 列方向循环
             for (uint16_t i = 0; i < colLoopNum; i++) {
                 // 行方向循环
-                AscendC::MicroAPI::DataCopy<uint16_t, MicroAPI::LoadDist::DIST_NORM>(reversedShareExpRegTensor,
+                DataCopy<uint16_t, LoadDist::DIST_NORM>(reversedShareExpRegTensor,
                                                                                      tmpAddr + i * VL_B16);
                 AscendC::MicroAPI::Cast<float, bfloat16_t, castTraitXdtypetoFp32Zero>(
                     reversedShareExpFP32RegTensor0,
@@ -700,7 +708,7 @@ public:
                     reversedShareExpFP32RegTensor1,
                     (AscendC::MicroAPI::RegTensor<bfloat16_t> &)reversedShareExpRegTensor, pregAll16);
                 for (uint16_t j = 0; j < rowLoopNum; j++) {
-                    AscendC::MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(xRegTensor,
+                    DataCopy<T, LoadDist::DIST_NORM>(xRegTensor,
                                                                                   xAddr + j * dSizeU32 + i * VL_B16);
 
                     AscendC::MicroAPI::Cast<float, T, castTraitXdtypetoFp32Zero>(xFP32RegTensor0, xRegTensor,
