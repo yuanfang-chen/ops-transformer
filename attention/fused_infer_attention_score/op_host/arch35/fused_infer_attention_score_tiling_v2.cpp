@@ -1155,6 +1155,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                                                 pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
                                                 static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix, pfa_tiling.enableS1OutSplit);
         context_->SetTilingKey(gen_tilingkey);
+        printf("zzyzzy pfa gen_tilingkey:%ld\n", gen_tilingkey);
         OP_LOGI(context_->GetNodeName(), "The new template tilingkey is %llu.", gen_tilingkey);
         OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu,"
                 " isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu, pfa_tiling.enableS1OutSplit:%u.",
