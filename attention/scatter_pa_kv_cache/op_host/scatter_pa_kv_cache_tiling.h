@@ -215,6 +215,7 @@ private:
     ge::graphStatus CheckInputDimNumNorm();
     ge::graphStatus CheckInputDimNumNz();
     ge::graphStatus CheckInputDimNumCompress();
+    ge::graphStatus CheckInputDimNumNHSD();
     ge::graphStatus CheckInputDimNum();
     ge::graphStatus CheckInputShapeSiso();
     ge::graphStatus CheckInputShapeNorm();
