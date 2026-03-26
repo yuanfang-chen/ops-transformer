@@ -79,7 +79,7 @@ public:
     }
 
      __aicore__ inline void QuantInit(uint32_t &scaleNum_, uint32_t &hExpandXAlign32Size_, uint32_t &hExpandXAlignSize_,
-                                     uint32_t &hFloatAlign256Size_, uint32_t &tokenScaleCnt_, uint32_t axisH)
+        uint32_t &scaleNumAlignSize_, uint32_t &hFloatAlign256Size_, uint32_t &tokenScaleCnt_, uint32_t axisH)
     {
         axisH_ = axisH;
         if constexpr (QuantMode == INT8_COMM_QUANT) {
@@ -89,16 +89,17 @@ public:
             quantScaleNum_ = (hExpandXAlign32Size_ / sizeof(ExpandXType)) / scaleGranu; // 得到有效scale的个数
             scaleNum_ = quantScaleNum_;
             hExpandXAlignSize_ = hExpandXAlign32Size_;
+            scaleNumAlignSize_ = Ceil(scaleNum_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
             repeatNum_ = static_cast<uint32_t>(hFloatAlign256Size_ / ALIGNED_LEN); // BlockReduceMax 与 Brcb的重复迭代次数，每次256b参与计算
             mask_ = static_cast<uint32_t>(ALIGNED_LEN / sizeof(float));
             tokenScaleCnt_ = hAlign32Size_ / sizeof(ExpandXType) + quantScaleNum_; // int8_align + scale有效个数
         } 
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr(QuantMode == MXFP8_E5M2_COMM_QUANT || QuantMode == MXFP8_E4M3_COMM_QUANT) {
-            hAlign32Size_ = Ceil(axisH_, UB_ALIGN) * UB_ALIGN;
             hExpandXAlignSize_ = Align128(axisH) * sizeof(ExpandXType);
             quantScaleNum_ = Align2(Ceil32(axisH));
             scaleNum_ = quantScaleNum_;
+            scaleNumAlignSize_ = Align128(scaleNum_) * sizeof(ExpandXType) * DOUBLE_BUFFER; // 双搬
             tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_; 
         }
         #endif
