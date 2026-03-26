@@ -234,7 +234,7 @@ static aclnnStatus CheckParams(const aclTensor *x1, const aclTensor *x2, const a
 }
 
 static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *bias, const aclTensor *output,
-                                                const aclTensor *gatherOut, bool isTransA, bool isViewTransB, int64_t streamMode)
+                                                const aclTensor *gatherOut, bool isTransA, bool isTransB, bool isViewTransB, int64_t streamMode)
 {
   CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
 
@@ -274,6 +274,11 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
     return ACLNN_ERR_PARAM_INVALID;
+  });
+
+  OP_API_CHECK(!isTransB && !MC2Aclnn::IsTensorContiguous(x2), {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2 without transpose in aclnnAllGatherMatmulV2 must be contiguous, but it is non-contiguous.");
+    return false;
   });
   return ACLNN_SUCCESS;
 }
@@ -505,7 +510,7 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const 
     bool isAmaxOut = false;
     bool isGatherOut = IsGatherOut(gatherOut);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
-    auto retParam = CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, viewTransposeX2, streamMode);
+    auto retParam = CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, transposeX2, viewTransposeX2, streamMode);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = aclnnInnerAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, quantScale, group,
                                                                 transposeX1, transposeX2, gatherIndex, commTurn,
