@@ -217,7 +217,7 @@ __aicore__ inline void MoeGatherOutMxfp8<T>::Process()
             SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
             for (int64_t indicesIndex = 0; indicesIndex < curLoopElements; indicesIndex++) {
                 int64_t rowIdx = subRowIdxLocal.GetValue(indicesIndex);
-                int64_t scaleHCols = Ops::Base::CeilDiv<int64_t>(cols_, SCALE_BLOCK_SIZE) * SCALE_BLOCK_SIZE;
+                int64_t scaleHCols = Ops::Base::CeilDiv<int64_t>(cols_, SCALE_BLOCK_SIZE) * SCALE_THIRD_DIM_SIZE;
                 int64_t xSrcOffset = rowIdx / k_ * cols_;
                 int64_t scaleSrcOffset = rowIdx / k_ * scaleHCols;
                 int64_t scaleDstOffset = (curExpertLoopOffset + indicesIndex) * scaleHCols;
