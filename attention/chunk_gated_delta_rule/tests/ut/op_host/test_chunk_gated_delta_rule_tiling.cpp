@@ -583,11 +583,3 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_DkExceedMax129) {
     EXPECT_FALSE(ExecuteTiling(tilingContextPara, tilingInfo));
 }
 
-// ============================================================================
-// Main函数
-// ============================================================================
-
-int main(int argc, char **argv) {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
