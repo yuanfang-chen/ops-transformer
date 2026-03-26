@@ -15,10 +15,65 @@
 
 #ifndef FUSED_INFER_ATTENTION_SCORE_TILING_INDEX_H
 #define FUSED_INFER_ATTENTION_SCORE_TILING_INDEX_H
-#include "../../prompt_flash_attention/op_host/prompt_flash_attention_tiling.h"
-#include "../../incre_flash_attention/op_host/incre_flash_attention_tiling.h"
-#include "register/tilingdata_base.h"
+// #include "../../prompt_flash_attention/op_host/prompt_flash_attention_tiling.h"
+// #include "../../incre_flash_attention/op_host/incre_flash_attention_tiling.h"
+// #include "register/tilingdata_base.h"
+#include <cstdint>
+#include <string>
 
+typedef std::uint8_t uint8_t;
+typedef std::int8_t int8_t;
+typedef std::uint16_t uint16_t;
+typedef std::int16_t int16_t;
+typedef std::uint32_t uint32_t;
+typedef std::int32_t int32_t;
+typedef std::uint64_t uint64_t;
+typedef std::int64_t int64_t;
+
+const std::string ACTUAL_SEQ_KV_LEN_NAME = "the key/value's actual sequence lengths";
+const std::string ACTUAL_SEQ_Q_LEN_NAME = "the query's actual sequence lengths";
+const std::string ATTEN_MASK_NAME = "atten_mask";
+const std::string ATTEN_OUT_NAME = "attention_out";
+const std::string BLOCK_SIZE_NAME = "block_size";
+const std::string BLOCK_TABLE_NAME = "block_table";
+const std::string DEQUANT_SCALE_QUERY_NAME = "the query's dequant scale";
+const std::string INNER_PRECISE_NAME = "inner_precise";
+const std::string KEY_NAME = "key";
+const std::string KEY_ANTIQUANT_MODE_NAME = "the key's quant mode";
+const std::string KEY_ANTIQUANT_OFFSET_NAME = "the key's quant offset";
+const std::string KEY_ANTIQUANT_SCALE_NAME = "the key's quant scale";
+const std::string KEY_ROPE_NAME = "key_rope";
+const std::string KEY_ROPE_ANTIQUANT_SCALE_NAME = "the key_rope's dequant scale";
+const std::string KV_HEADS_NUM_NAME = "the key/value's heads num";
+const std::string NEXT_TOKENS_NAME = "next_tokens";
+const std::string PRE_TOKENS_NAME = "pre_tokens";
+const std::string PSE_SHIFT_NAME = "pse_shift";
+const std::string QUANT_OFFSET2_NAME = "the output's dequant offset";
+const std::string QUANT_SCALE2_NAME = "the output's dequant scale";
+const std::string QUERY_NAME = "query";
+const std::string QUERY_HEADS_NUM_NAME = "the query's heads num";
+const std::string QUERY_QUANT_MODE_NAME = "the query's quant mode";
+const std::string QUERY_ROPE_NAME = "query_rope";
+const std::string SOFTMAX_SCALE_NAME = "the softmax's scale";
+const std::string SPARSE_MODE_NAME = "sparse_mode";
+const std::string VALUE_NAME = "value";
+const std::string VALUE_ANTIQUANT_MODE_NAME = "the value's quant mode";
+const std::string VALUE_ANTIQUANT_OFFSET_NAME = "the value's dequant offset";
+const std::string VALUE_ANTIQUANT_SCALE_NAME = "the value's dequant scale";
+
+const std::string ANTIQUANT_MODE_NAME = "antiquant_mode";
+const std::string ANTIQUANT_SCALE_NAME = "antiquant_scale";
+const std::string ANTIQUANT_OFFSET_NAME = "antiquant_offset";
+const std::string DEQUANT_SCALE1_NAME = "dequant_scale1";
+const std::string DEQUANT_SCALE2_NAME = "dequant_scale2";
+const std::string KEY_SHARED_PREFIX_NAME = "key_shared_prefix";
+const std::string KV_PADDING_SIZE_NAME = "kv_padding_size";
+const std::string QUANT_SCALE1_NAME = "quant_scale1";
+const std::string QUERY_PADDING_SIZE_NAME = "query_padding_size";
+const std::string SOFTMAX_LSE_NAME = "softmax_lse";
+const std::string VALUE_SHARED_PREFIX_NAME = "value_shared_prefix";
+const std::string ACTUAL_SHARED_PREFIX_LEN_NAME = "actual_shared_prefix_len";
+const std::string LEARNABLE_SINK_NAME = "learnable_sink";
 namespace optiling {
 // Inputs Index
 constexpr uint32_t QUERY_INDEX = 0;

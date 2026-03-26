@@ -28,10 +28,10 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~MaskChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
@@ -42,15 +42,15 @@ private:
         uint32_t attenMaskSize = 0;
         std::string strMaskShape;
     };
-    ge::graphStatus CheckDtypeAndFormat(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckSparseMode(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckNoQuantIFAMLA(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFullQuantIFAMLA(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQKVDDifferent(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckIFADimAndShape(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus GetMaskInfo(const FiaTilingInfo &fiaInfo, MaskInfo &maskInfo);
-    ge::graphStatus CheckDimAndShape(const FiaTilingInfo &fiaInfo);
+    bool CheckDtypeAndFormat(const FiaTilingInfo &fiaInfo);
+    bool CheckSparseMode(const FiaTilingInfo &fiaInfo);
+    bool CheckNoQuantIFAMLA(const FiaTilingInfo &fiaInfo);
+    bool CheckFullQuantIFAMLA(const FiaTilingInfo &fiaInfo);
+    bool CheckQKVDDifferent(const FiaTilingInfo &fiaInfo);
+    bool CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo);
+    bool CheckIFADimAndShape(const FiaTilingInfo &fiaInfo);
+    bool GetMaskInfo(const FiaTilingInfo &fiaInfo, MaskInfo &maskInfo);
+    bool CheckDimAndShape(const FiaTilingInfo &fiaInfo);
 
 private:
     bool enableIFAMLA = false;

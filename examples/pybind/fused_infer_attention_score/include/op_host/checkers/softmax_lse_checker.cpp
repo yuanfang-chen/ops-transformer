@@ -26,40 +26,39 @@ namespace optiling {
 using std::map;
 using std::string;
 using std::pair;
-using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
 // CheckSinglePara
-ge::graphStatus SoftmaxLSEChecker::CheckSingleDtype(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckSingleDtype(const FiaTilingInfo &fiaInfo)
 {
     // SoftmaxLse only supports output FP32
     if (fiaInfo.softmaxLseFlag) {
-        OP_CHECK_IF(ge::GRAPH_SUCCESS != CheckDtypeSupport(fiaInfo.opParamInfo.lseOut.desc, SOFTMAX_LSE_NAME),
+        OP_CHECK_IF(GRAPH_SUCCESS != CheckDtypeSupport(fiaInfo.opParamInfo.lseOut.desc, SOFTMAX_LSE_NAME),
                     OP_LOGE(fiaInfo.opName, "SoftmaxLse only support dtype FP32, but got %s",
                             DataTypeToSerialString(fiaInfo.opParamInfo.lseOut.desc->GetDataType()).c_str()),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // CheckParaExistence
-ge::graphStatus SoftmaxLSEChecker::CheckExistenceShapeAndDesc(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckExistenceShapeAndDesc(const FiaTilingInfo &fiaInfo)
 {
     // When softmaxLseFlag is true, both the SoftmaxLse shape and the lseOut tensor must not be null.
     if (fiaInfo.softmaxLseFlag) {
         const gert::StorageShape *lseShape = fiaInfo.opParamInfo.lseOut.shape;
         OP_CHECK_IF(lseShape == nullptr,
                     OP_LOGE(fiaInfo.opName, "SoftmaxLse shape is nullptr but softmaxLseFlag is true!"),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         OP_CHECK_IF(fiaInfo.opParamInfo.lseOut.desc == nullptr,
-                    OP_LOGE(fiaInfo.opName, "Desc of lseOut tensor is nullptr!"), return ge::GRAPH_FAILED);
+                    OP_LOGE(fiaInfo.opName, "Desc of lseOut tensor is nullptr!"), return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // CheckMultiPara
-ge::graphStatus SoftmaxLSEChecker::CheckMultiParaDimAndShape(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckMultiParaDimAndShape(const FiaTilingInfo &fiaInfo)
 {
     // When softmaxLseFlag is true and emptyTensorFlag is false:
     // -If the LayOut is TND, the shape must have 3 dimensions (matching TN1).
@@ -71,7 +70,7 @@ ge::graphStatus SoftmaxLSEChecker::CheckMultiParaDimAndShape(const FiaTilingInfo
             OP_CHECK_IF(lseShape->GetStorageShape().GetDimNum() != DIM_NUM_3,
                         OP_LOGE(fiaInfo.opName, "TND/NTD SoftmaxLse shape dim(%zu) should be 3!",
                                 lseShape->GetStorageShape().GetDimNum()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
             OP_CHECK_IF(lseShape->GetStorageShape().GetDim(DIM_NUM_0) != fiaInfo.qTSize ||
                 lseShape->GetStorageShape().GetDim(DIM_NUM_1) != fiaInfo.n1Size ||
                 lseShape->GetStorageShape().GetDim(DIM_NUM_2) != SHAPE_PARAMS_CONST,
@@ -79,12 +78,12 @@ ge::graphStatus SoftmaxLSEChecker::CheckMultiParaDimAndShape(const FiaTilingInfo
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_0),
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_1),
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_2)),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         } else {
             OP_CHECK_IF(lseShape->GetStorageShape().GetDimNum() != DIM_NUM_4,
                         OP_LOGE(fiaInfo.opName, "SoftmaxLse shape dim(%zu) should be 4!",
                                 lseShape->GetStorageShape().GetDimNum()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
             OP_CHECK_IF(lseShape->GetStorageShape().GetDim(DIM_NUM_0) != fiaInfo.bSize ||
                 lseShape->GetStorageShape().GetDim(DIM_NUM_1) != fiaInfo.n1Size ||
                 lseShape->GetStorageShape().GetDim(DIM_NUM_2) != fiaInfo.s1Size ||
@@ -94,40 +93,40 @@ ge::graphStatus SoftmaxLSEChecker::CheckMultiParaDimAndShape(const FiaTilingInfo
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_1),
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_2),
                                 lseShape->GetStorageShape().GetDim(DIM_NUM_3)),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // enableAntiQuant 相关校验函数
-ge::graphStatus SoftmaxLSEChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckSingleDtype(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckSingleDtype(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus SoftmaxLSEChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckExistenceShapeAndDesc(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckExistenceShapeAndDesc(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus SoftmaxLSEChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus SoftmaxLSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+bool SoftmaxLSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckMultiParaDimAndShape(fiaInfo)) {
-            return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckMultiParaDimAndShape(fiaInfo)) {
+            return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 }  // namespace optiling

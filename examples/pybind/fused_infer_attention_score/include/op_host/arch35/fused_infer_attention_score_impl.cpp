@@ -24,16 +24,15 @@
 #include "../fused_infer_attention_score_tiling_utils.h"
 #include "../fused_infer_attention_score_tiling_constants.h"
 
-using namespace ge;
 using namespace AscendC;
 namespace optiling {
 using namespace arch35FIA;
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetPlatMemoryInfo(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetPlatMemoryInfo(optiling::TilingContext *context,
                                                                       const FiaTilingInfo &fiaInfo)
 {
     auto platformInfoPtr = context->GetPlatformInfo();
     OP_CHECK_IF(platformInfoPtr == nullptr, OP_LOGE(fiaInfo.opName, "The platformInfoPtr is null!"),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
     platformInfo_.aivNum = ascendcPlatform.GetCoreNumAiv();
     platformInfo_.aicNum = ascendcPlatform.GetCoreNumAic();
@@ -48,10 +47,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetPlatMemoryInfo(gert::Tili
             platformInfo_.aicNum, platformInfo_.l0aSize, platformInfo_.l0bSize, platformInfo_.l0cSize,
             platformInfo_.ubSize, platformInfo_.l1Size);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetEmptyTensor(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetEmptyTensor(optiling::TilingContext *context,
                                                                    const FiaTilingInfo &fiaInfo)
 {
     auto &initOutputParams = faRunTilingAdapter_.initOutputParams;
@@ -66,16 +65,16 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetEmptyTensor(gert::TilingC
     initOutputParams.set_totalSoftMaxLseOutputSize(lseSize);
     initOutputParams.set_needInit(1);
 
-    OP_CHECK_IF(GenTilingKey(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "GenTilingKey fail."),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(SetBlockDim(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "SetBlockDim fail."),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(GetWorkspace(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "GetWorkspace fail."),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(SetTilingData(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "SetTilingData fail."),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(GenTilingKey(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "GenTilingKey fail."),
+                return GRAPH_FAILED);
+    OP_CHECK_IF(SetBlockDim(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "SetBlockDim fail."),
+                return GRAPH_FAILED);
+    OP_CHECK_IF(GetWorkspace(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "GetWorkspace fail."),
+                return GRAPH_FAILED);
+    OP_CHECK_IF(SetTilingData(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "SetTilingData fail."),
+                return GRAPH_FAILED);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 bool FusedInferAttentionScoreTilingImpl::CheckTransposeLayout(const FiaTilingInfo &fiaInfo){
@@ -222,16 +221,16 @@ void FusedInferAttentionScoreTilingImpl::InitImplParam(const FiaTilingInfo &fiaI
     }
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::AdjustSinnerAndSouter(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::AdjustSinnerAndSouter(optiling::TilingContext *context,
                                                                           const FiaTilingInfo &fiaInfo)
 {
     uint32_t softmaxSOuterFactor = SOUTER_64;
     sOuterFactor_ = SOUTER_64;
     sInnerFactor_ = SINNER_128;
-    OP_CHECK_IF(SetMM1TilingData(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                OP_LOGE(fiaInfo.opName, "set bmm1 tiling data fail."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(SetMM2TilingData(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                OP_LOGE(fiaInfo.opName, "set bmm2 tiling data fail."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(SetMM1TilingData(context, fiaInfo) != GRAPH_SUCCESS,
+                OP_LOGE(fiaInfo.opName, "set bmm1 tiling data fail."), return GRAPH_FAILED);
+    OP_CHECK_IF(SetMM2TilingData(context, fiaInfo) != GRAPH_SUCCESS,
+                OP_LOGE(fiaInfo.opName, "set bmm2 tiling data fail."), return GRAPH_FAILED);
 
     if (fiaInfo.vHeadDim <= DSIZE_128 && fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128) {
         bool checkDtype = fiaInfo.quantMode == FiaQuantMode::NO_QUANT;
@@ -287,7 +286,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::AdjustSinnerAndSouter(gert::
     OP_LOGI(fiaInfo.opName, "Souter:%u SInner:%u softmaxSOuterFactor %u", sOuterFactor_, sInnerFactor_,
             softmaxSOuterFactor);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 void FusedInferAttentionScoreTilingImpl::GetPreNextTokensLeftUp(const FiaTilingInfo &fiaInfo, int64_t actualSeqLength,
                                                                 int64_t actualSeqLengthKV, int64_t &preTokensLeftUp,
@@ -584,7 +583,7 @@ bool FusedInferAttentionScoreTilingImpl::CheckFlashDecode(const FiaTilingInfo &f
     return false;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SplitS2(const FiaTilingInfo &fiaInfo)
+bool FusedInferAttentionScoreTilingImpl::SplitS2(const FiaTilingInfo &fiaInfo)
 {
     uint64_t batchSize = fiaInfo.bSize;
     uint64_t headNumSize = fiaInfo.n1Size;
@@ -603,7 +602,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SplitS2(const FiaTilingInfo 
     faRunTilingAdapter_.inputParamsRegbase.set_logSumExpSize(batchSize * headNumSize * kvSplitPart *
                                                              (BYTE_BLOCK / sizeof(float)));
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // 伪量化
@@ -628,7 +627,7 @@ void FusedInferAttentionScoreTilingImpl::SetDequantBaseSize(const FiaTilingInfo 
     }
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::CalcInnerSize(const FiaTilingInfo &fiaInfo, uint32_t seqSize)
+bool FusedInferAttentionScoreTilingImpl::CalcInnerSize(const FiaTilingInfo &fiaInfo, uint32_t seqSize)
 {
     /**
      * sInnerFactor：s2的切分大小，直接决定了MM的singleN/K和vector的切块大小，但当前切分也并非适用所有case。
@@ -640,7 +639,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::CalcInnerSize(const FiaTilin
         sInnerFactor_ = seqSize;
     }
     sInnerSizeAlign_ = AlignUp(sInnerFactor_, BYTE_BLOCK);  // 元素个数按照基本块大小对齐
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 int64_t FusedInferAttentionScoreTilingImpl::GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd,
@@ -816,14 +815,14 @@ bool FusedInferAttentionScoreTilingImpl::CheckQKVActualSeqLengthsRight(const Fia
     return true;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SplitPolicy(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SplitPolicy(optiling::TilingContext *context,
                                                                 const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.quantMode == FiaQuantMode::ANTI_QUANT) {
         SplitDequant(fiaInfo);
     } else {
-        OP_CHECK_IF(AdjustSinnerAndSouter(context, fiaInfo) != ge::GRAPH_SUCCESS,  // 确认souter/sinner
-                    OP_LOGE(fiaInfo.opName, "Get sinner and souter fail!"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(AdjustSinnerAndSouter(context, fiaInfo) != GRAPH_SUCCESS,  // 确认souter/sinner
+                    OP_LOGE(fiaInfo.opName, "Get sinner and souter fail!"), return GRAPH_FAILED);
 
         dnFlag_ = CheckEnableDN(fiaInfo);
         isQKVActualSeqLengthsRightFlag_ = CheckQKVActualSeqLengthsRight(fiaInfo);
@@ -842,7 +841,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SplitPolicy(gert::TilingCont
             SplitS2(fiaInfo);
         }
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 void FusedInferAttentionScoreTilingImpl::UpdateTilingKeyConfig(const FiaTilingInfo &fiaInfo)
@@ -1071,7 +1070,7 @@ void FusedInferAttentionScoreTilingImpl::UpdateTilingKeyMatmulMode(const FiaTili
     }
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::UpdateTilingKeyInfo(const FiaTilingInfo &fiaInfo)
+bool FusedInferAttentionScoreTilingImpl::UpdateTilingKeyInfo(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.emptyTensorFlag) {
         tilingKeyInfo_.emptyTensor = fiaInfo.emptyTensorFlag;
@@ -1095,10 +1094,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::UpdateTilingKeyInfo(const Fi
         UpdateTilingKeyMatmulMode(fiaInfo);
         tilingKeyInfo_.enableKvPrefix = fiaInfo.sysPrefixFlag;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::GenTilingKey(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::GenTilingKey(optiling::TilingContext *context,
                                                                  const FiaTilingInfo &fiaInfo)
 {
     UpdateTilingKeyInfo(fiaInfo);
@@ -1116,10 +1115,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::GenTilingKey(gert::TilingCon
             tilingKeyInfo_.hasAttenMask, tilingKeyInfo_.hasRope, tilingKeyInfo_.isPa, tilingKeyInfo_.isFd,
             tilingKeyInfo_.emptyTensor, tilingKeyInfo_.maskMode, tilingKeyInfo_.matmulMode,
             tilingKeyInfo_.enableKvPrefix);
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetBlockDim(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetBlockDim(optiling::TilingContext *context,
                                                                 const FiaTilingInfo &fiaInfo)
 {
     auto platformInfoPtr = context->GetPlatformInfo();
@@ -1127,10 +1126,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetBlockDim(gert::TilingCont
     blockDim_ = ascendcPlatform.CalcTschBlockDim(platformInfo_.aivNum, platformInfo_.aicNum, platformInfo_.aivNum);
     context->SetBlockDim(blockDim_);
     OP_LOGI(fiaInfo.opName, "blockDim: %d", blockDim_);
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspaceNormal(const FiaTilingInfo &fiaInfo,
+bool FusedInferAttentionScoreTilingImpl::SetWorkspaceNormal(const FiaTilingInfo &fiaInfo,
                                                                        int64_t &curWorkspaceSize)
 {
     size_t sysWorkspaceSize = platformInfo_.defaultSysWorkspaceSize;
@@ -1181,10 +1180,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspaceNormal(const Fia
         // 2 bmm, db, ensure alignment of each structure 64B, dcci cacheline needs
         curWorkspaceSize += static_cast<uint64_t>(platformInfo_.coreNum) * 2 * 2 * 64;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspaceAntiQuant(const FiaTilingInfo &fiaInfo,
+bool FusedInferAttentionScoreTilingImpl::SetWorkspaceAntiQuant(const FiaTilingInfo &fiaInfo,
                                                                           int64_t &workspaceSize_)
 {
     uint32_t cubeL1UbSize = (512 / 2) * 1024;   // david L1 512K,提供给两个Vec使用,单个vector占用256K
@@ -1211,10 +1210,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspaceAntiQuant(const 
         workspaceSize_ += platformInfo_.coreNum * 64 * 2;  // bmm1 bmm2 2份
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspacePTQuant(const FiaTilingInfo &fiaInfo,
+bool FusedInferAttentionScoreTilingImpl::SetWorkspacePTQuant(const FiaTilingInfo &fiaInfo,
                                                                         int64_t &curWorkspaceSize)
 {
     uint64_t maxSpmSize = 0;  // 待处理 tilingData.promptAttentionTensorSizeRect.get_spmTmpSize();
@@ -1226,31 +1225,31 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetWorkspacePTQuant(const Fi
         // 2 bmm, db, ensure alignment of each structure 64B, dcci cacheline needs
         curWorkspaceSize += static_cast<uint64_t>(platformInfo_.coreNum) * 2 * 2 * 64;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::GetWorkspace(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::GetWorkspace(optiling::TilingContext *context,
                                                                  const FiaTilingInfo &fiaInfo)
 {
     int64_t workspace = 0;
     if (fiaInfo.emptyTensorFlag) {
         workspace = platformInfo_.defaultSysWorkspaceSize;
     } else if (fiaInfo.quantMode == FiaQuantMode::ANTI_QUANT) {
-        OP_CHECK_IF(SetWorkspaceAntiQuant(fiaInfo, workspace) != ge::GRAPH_SUCCESS,
-                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(SetWorkspaceAntiQuant(fiaInfo, workspace) != GRAPH_SUCCESS,
+                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return GRAPH_FAILED);
 
     } else if (fiaInfo.fullQuantMode == FiaFullQuantMode::PER_TENSOR_FULL_QUANT) {
-        OP_CHECK_IF(SetWorkspacePTQuant(fiaInfo, workspace) != ge::GRAPH_SUCCESS,
-                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(SetWorkspacePTQuant(fiaInfo, workspace) != GRAPH_SUCCESS,
+                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return GRAPH_FAILED);
     } else {
-        OP_CHECK_IF(SetWorkspaceNormal(fiaInfo, workspace) != ge::GRAPH_SUCCESS,
-                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(SetWorkspaceNormal(fiaInfo, workspace) != GRAPH_SUCCESS,
+                    OP_LOGE(fiaInfo.opName, "Get workspace failed ."), return GRAPH_FAILED);
     }
 
     OP_LOGI(fiaInfo.opName, "Workspaces: %ld", workspace);
     size_t *workspaces = context->GetWorkspaceSizes(1);
     workspaces[0] = workspace;
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 bool FusedInferAttentionScoreTilingImpl::EnableMTE2BmmPipe(const FiaTilingInfo &fiaInfo,
@@ -1274,8 +1273,8 @@ bool FusedInferAttentionScoreTilingImpl::EnableMTE2BmmPipe(const FiaTilingInfo &
     if (fiaInfo.pageAttentionFlag) {
         baseN = 128;  //128
     }
-    bool res = (bmm.SetFixSplit(baseM, baseN, baseK) == ge::GRAPH_SUCCESS);
-    OP_CHECK_IF(!res, OP_LOGE(fiaInfo.opName, "set fix split fail"), return ge::GRAPH_FAILED);
+    bool res = (bmm.SetFixSplit(baseM, baseN, baseK) == GRAPH_SUCCESS);
+    OP_CHECK_IF(!res, OP_LOGE(fiaInfo.opName, "set fix split fail"), return GRAPH_FAILED);
     //check
     res = bmm.GetTiling(bmmTilingData) != -1;
     return res;
@@ -1284,19 +1283,19 @@ void FusedInferAttentionScoreTilingImpl::GetMatMulType(const FiaTilingInfo &fiaI
                                                        matmul_tiling::DataType &mmInputType,
                                                        matmul_tiling::DataType &mmOutputType)
 {
-    if (fiaInfo.inputQType == ge::DT_FLOAT16 && fiaInfo.innerPrecise == 0) {
+    if (fiaInfo.inputQType == DT_FLOAT16 && fiaInfo.innerPrecise == 0) {
         mmInputType = matmul_tiling::DataType::DT_FLOAT16;
         mmOutputType = matmul_tiling::DataType::DT_FLOAT;
-    } else if (fiaInfo.inputQType == ge::DT_BF16) {
+    } else if (fiaInfo.inputQType == DT_BF16) {
         mmInputType = matmul_tiling::DataType::DT_BF16;
         mmOutputType = matmul_tiling::DataType::DT_FLOAT;
-    } else if (fiaInfo.inputQType == ge::DT_INT8) {
+    } else if (fiaInfo.inputQType == DT_INT8) {
         mmInputType = matmul_tiling::DataType::DT_INT8;
         mmOutputType = matmul_tiling::DataType::DT_INT32;
     }
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM1TilingData(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetMM1TilingData(optiling::TilingContext *context,
                                                                      const FiaTilingInfo &fiaInfo)
 {
     auto platformInfoPtr = context->GetPlatformInfo();
@@ -1315,8 +1314,8 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM1TilingData(gert::Tilin
         qkHeadDim = fiaInfo.qkHeadDim + fiaInfo.ropeHeadDim;
     }
     int32_t ret = bmm1.SetShape(sOuterFactor_, sInnerFactor_, qkHeadDim);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 set shape space failed"),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ret != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 set shape space failed"),
+                return GRAPH_FAILED);
     if ((fiaInfo.qLayout == FiaLayout::BSH) || (fiaInfo.qLayout == FiaLayout::BSND) ||
         (fiaInfo.qLayout == FiaLayout::TND)) {
         if (fiaInfo.qLayout == FiaLayout::TND && fiaInfo.pageAttentionFlag && fiaInfo.kvLayout == FiaLayout::BnNBsD) {
@@ -1337,8 +1336,8 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM1TilingData(gert::Tilin
     }
     bmm1.SetBias(false);
     ret = bmm1.SetBufferSpace(platformInfo_.l1Size, platformInfo_.l0cSize);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 set buffer space failed"),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ret != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 set buffer space failed"),
+                return GRAPH_FAILED);
     if (fiaInfo.ropeMode != RopeMode::ROPE_SPLIT && fiaInfo.pageAttentionFlag) {
         ret = bmm1.SetFixSplit(sOuterFactor_, SINNER_128);
     } else {
@@ -1347,13 +1346,13 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM1TilingData(gert::Tilin
     TCubeTiling &bmm1TilingData = pfaTilingData_.bmm1TilingDataRect;
 
     ret = bmm1.GetTiling(bmm1TilingData);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 get tiling failed, ret:%d", ret),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ret != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm1 get tiling failed, ret:%d", ret),
+                return GRAPH_FAILED);
     uint32_t baseN = std::min(SINNER_128, sInnerFactor_);
     if (fiaInfo.pageAttentionFlag) {
         baseN = SINNER_128;
     }
-    if (ret != ge::GRAPH_SUCCESS) {
+    if (ret != GRAPH_SUCCESS) {
         ret = bmm1.SetFixSplit(sOuterFactor_, baseN, 64U);  // check
         ret = bmm1.GetTiling(bmm1TilingData);
     }
@@ -1369,11 +1368,11 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM1TilingData(gert::Tilin
     }
 
     OP_CHECK_IF(!EnableMTE2BmmPipe(fiaInfo, bmm1, bmm1TilingData), OP_LOGE(fiaInfo.opName, "Bmm1 mte2 bmm pipe fail"),
-                return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+                return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM2TilingData(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetMM2TilingData(optiling::TilingContext *context,
                                                                      const FiaTilingInfo &fiaInfo)
 {
     auto platformInfoPtr = context->GetPlatformInfo();
@@ -1387,7 +1386,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM2TilingData(gert::Tilin
     bmm2.SetCType(matmul_tiling::TPosition::VECCALC, matmul_tiling::CubeFormat::ND_ALIGN, bmm2OutputType);
 
     int32_t ret = bmm2.SetShape(sOuterFactor_, fiaInfo.vHeadDim, sInnerFactor_);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm2 set shape failed"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ret != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm2 set shape failed"), return GRAPH_FAILED);
 
     if ((fiaInfo.qLayout == FiaLayout::BSH) || (fiaInfo.qLayout == FiaLayout::BSND) ||
         (fiaInfo.qLayout == FiaLayout::TND)) {
@@ -1406,16 +1405,16 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetMM2TilingData(gert::Tilin
     bmm2.SetBias(false);
     bmm2.SetBufferSpace(platformInfo_.l1Size, platformInfo_.l0cSize);
     ret = bmm2.GetTiling(pfaTilingData_.bmm2TilingDataRect);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm2 get tiling failed"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ret != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Bmm2 get tiling failed"), return GRAPH_FAILED);
 
     pfaTilingData_.bmm2TilingDataRect.set_shareMode(0);
     pfaTilingData_.bmm2TilingDataRect.set_shareL1Size(platformInfo_.l1Size);
     pfaTilingData_.bmm2TilingDataRect.set_shareL0CSize(platformInfo_.l0cSize);
     pfaTilingData_.bmm2TilingDataRect.set_shareUbSize(0);
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFullQuantTilingData(const FiaTilingInfo &fiaInfo)
+bool FusedInferAttentionScoreTilingImpl::SetFullQuantTilingData(const FiaTilingInfo &fiaInfo)
 {
     auto &baseParams = pfaTilingData_.promptAttentionBaseParams;
     baseParams.set_batchSize(fiaInfo.bSize);
@@ -1497,22 +1496,22 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFullQuantTilingData(const
     singleCoreParams.set_singleProcessSOuterSize(sOuterFactor_);
     singleCoreParams.set_pseShiftBatch(fiaInfo.pseShiftByBatch);
     singleCoreParams.set_kvAntiquantSInnerSize(0);
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-bool FusedInferAttentionScoreTilingImpl::GetMatmulType(ge::DataType getype, matmul_tiling::DataType *mmType)
+bool FusedInferAttentionScoreTilingImpl::GetMatmulType(DataType getype, matmul_tiling::DataType *mmType)
 {
     static struct {
-        ge::DataType a;
+        DataType a;
         matmul_tiling::DataType b;
-    } typeTrans[] = {{ge::DT_FLOAT16, matmul_tiling::DataType::DT_FLOAT16},
-                     {ge::DT_BF16, matmul_tiling::DataType::DT_BF16},
-                     {ge::DT_INT8, matmul_tiling::DataType::DT_INT8},
-                     {ge::DT_FLOAT, matmul_tiling::DataType::DT_FLOAT},
-                     {ge::DT_INT4, matmul_tiling::DataType::DT_INT8},
-                     {ge::DT_HIFLOAT8, matmul_tiling::DataType::DT_INT8},
-                     {ge::DT_FLOAT8_E4M3FN, matmul_tiling::DataType::DT_INT8},
-                     {ge::DT_FLOAT4_E2M1, matmul_tiling::DataType::DT_INT8}};
+    } typeTrans[] = {{DT_FLOAT16, matmul_tiling::DataType::DT_FLOAT16},
+                     {DT_BF16, matmul_tiling::DataType::DT_BF16},
+                     {DT_INT8, matmul_tiling::DataType::DT_INT8},
+                     {DT_FLOAT, matmul_tiling::DataType::DT_FLOAT},
+                     {DT_INT4, matmul_tiling::DataType::DT_INT8},
+                     {DT_HIFLOAT8, matmul_tiling::DataType::DT_INT8},
+                     {DT_FLOAT8_E4M3FN, matmul_tiling::DataType::DT_INT8},
+                     {DT_FLOAT4_E2M1, matmul_tiling::DataType::DT_INT8}};
 
     for (uint32_t i = 0; i < sizeof(typeTrans) / sizeof(typeTrans[0]); i++) {
         if (typeTrans[i].a == getype) {
@@ -1561,7 +1560,7 @@ void FusedInferAttentionScoreTilingImpl::AdjustPABmm2Tiling(const FiaTilingInfo 
             fiaInfo.blockSize, targetBaseK);
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetDequantMMTilingData(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetDequantMMTilingData(optiling::TilingContext *context,
                                                                            const FiaTilingInfo &fiaInfo)
 {
     auto platformInfoPtr = context->GetPlatformInfo();
@@ -1573,7 +1572,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetDequantMMTilingData(gert:
     matmul_tiling::DataType kvType;
 
     OP_CHECK_IF((!GetMatmulType(fiaInfo.inputQType, &qType) || !GetMatmulType(fiaInfo.inputKvType, &kvType)),
-                OP_LOGE(fiaInfo.opName, "Get matmul type error."), return ge::GRAPH_FAILED);
+                OP_LOGE(fiaInfo.opName, "Get matmul type error."), return GRAPH_FAILED);
 
     uint32_t baseN = 512;  // antiquant to split K;
     uint32_t singleM;
@@ -1600,11 +1599,11 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetDequantMMTilingData(gert:
         AlignUp(static_cast<uint32_t>(platformInfo_.l0cSize / sizeof(float) / bmm1BaseN) - NUM_16, NUM_16);
 
     OP_CHECK_IF((bmm1.SetFixSplit(std::min(AlignUp(singleM, NUM_16), bmm1MaxBaseM), AlignUp(bmm1BaseN, NUM_16)) == -1),
-                OP_LOGE(fiaInfo.opName, "Bmm1 SetFixSplit fail."), return ge::GRAPH_FAILED);
+                OP_LOGE(fiaInfo.opName, "Bmm1 SetFixSplit fail."), return GRAPH_FAILED);
     OP_CHECK_IF((bmm1.SetTraverse(matmul_tiling::MatrixTraverse::FIRSTN) == -1),
-                OP_LOGE(fiaInfo.opName, "Bmm1 SetTraverse fail."), return ge::GRAPH_FAILED);
+                OP_LOGE(fiaInfo.opName, "Bmm1 SetTraverse fail."), return GRAPH_FAILED);
     OP_CHECK_IF((bmm1.GetTiling(ifaTilingData_.bmm1TilingData) == -1), OP_LOGE(fiaInfo.opName, "Bmm1 get tiling fail."),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
 
     bmm2.SetShape(singleM, fiaInfo.qkHeadDim, sInnerFactor_);
     bmm2.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, qType, false);
@@ -1614,17 +1613,17 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetDequantMMTilingData(gert:
     // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
     bmm2.SetBias(false);
     OP_CHECK_IF((bmm2.SetFixSplit(std::min(AlignUp(singleM, NUM_16), NUM_128)) == -1),
-                OP_LOGE(fiaInfo.opName, "Bmm2 SetFixSplit fail."), return ge::GRAPH_FAILED);
+                OP_LOGE(fiaInfo.opName, "Bmm2 SetFixSplit fail."), return GRAPH_FAILED);
     OP_CHECK_IF((bmm2.GetTiling(ifaTilingData_.bmm2TilingData) == -1), OP_LOGE(fiaInfo.opName, "Bmm2 get tiling fail."),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
     if (fiaInfo.pageAttentionFlag) {
         AdjustPABmm2Tiling(fiaInfo);
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaTilingInfo &fiaInfo)
+bool FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaTilingInfo &fiaInfo)
 {
     // 处理不能直接从fiaInfo赋值到tiling data
     auto &inputParams = faRunTilingAdapter_.inputParamsRegbase;
@@ -1794,10 +1793,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
     } else {
         inputParams.set_antiquantPerTensorFlag(0);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFATilingData(const FiaTilingInfo &fiaInfo)
+bool FusedInferAttentionScoreTilingImpl::SetFATilingData(const FiaTilingInfo &fiaInfo)
 {
     auto &inputParams = faRunTilingAdapter_.inputParamsRegbase;
     inputParams.set_bSize(fiaInfo.bSize);
@@ -1875,10 +1874,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetFATilingData(const FiaTil
     initOutputParams.set_needInit(fiaInfo.needInit);
     initOutputParams.set_isOneN(0);  // 默认值,当前未使用
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingImpl::SetTilingData(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::SetTilingData(optiling::TilingContext *context,
                                                                   const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.fullQuantMode == FiaFullQuantMode::PER_TENSOR_FULL_QUANT) {
@@ -1894,16 +1893,16 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SetTilingData(gert::TilingCo
     OP_LOGI(fiaInfo.opName, "Tiling Data context GetCapacity: %lu.", cap);
     if (fiaInfo.fullQuantMode == FiaFullQuantMode::PER_TENSOR_FULL_QUANT) {
         PFAFullQuantTilingData *tiling = context_->GetTilingData<PFAFullQuantTilingData>();
-        OP_CHECK_IF(tiling == nullptr, OP_LOGE(fiaInfo.opName, "The tiling data is nullptr"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tiling == nullptr, OP_LOGE(fiaInfo.opName, "The tiling data is nullptr"), return GRAPH_FAILED);
         tiling->MigrateFromLegacyFormat(pfaTilingData_);
     } else {
         PrintAllTilingData(fiaInfo);
         FlashAttentionScoreSimplifiedTilingData *tiling =
             context->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
-        OP_CHECK_IF(tiling == nullptr, OP_LOGE(fiaInfo.opName, "The tiling data is nullptr"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tiling == nullptr, OP_LOGE(fiaInfo.opName, "The tiling data is nullptr"), return GRAPH_FAILED);
         *tiling = faRunTilingAdapter_;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 void FusedInferAttentionScoreTilingImpl::PrintAllTilingData(const FiaTilingInfo &fiaInfo)
@@ -2007,39 +2006,39 @@ void FusedInferAttentionScoreTilingImpl::PrintAllTilingData(const FiaTilingInfo 
     OP_LOGD(fiaInfo.opName, "totalSoftMaxLseOutputSize:%d", faRunTilingAdapter_.initOutputParams.get_totalSoftMaxLseOutputSize());
 
 }
-ge::graphStatus FusedInferAttentionScoreTilingImpl::DoOpTiling(gert::TilingContext *context,
+bool FusedInferAttentionScoreTilingImpl::DoOpTiling(optiling::TilingContext *context,
                                                                const FiaTilingInfo &fiaInfo)
 {
-    OP_CHECK_IF(SetPlatMemoryInfo(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                OP_LOGE(fiaInfo.opName, "Set plat memory info fail."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(SetPlatMemoryInfo(context, fiaInfo) != GRAPH_SUCCESS,
+                OP_LOGE(fiaInfo.opName, "Set plat memory info fail."), return GRAPH_FAILED);
 
     if (fiaInfo.emptyTensorFlag) {
-        OP_CHECK_IF(SetEmptyTensor(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                    OP_LOGE(fiaInfo.opName, "Set emptyt ensor fail."), return ge::GRAPH_FAILED);
-        return ge::GRAPH_SUCCESS;
+        OP_CHECK_IF(SetEmptyTensor(context, fiaInfo) != GRAPH_SUCCESS,
+                    OP_LOGE(fiaInfo.opName, "Set emptyt ensor fail."), return GRAPH_FAILED);
+        return GRAPH_SUCCESS;
     }
 
     InitImplParam(fiaInfo);
 
-    OP_CHECK_IF(SplitPolicy(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                OP_LOGE(fiaInfo.opName, "Excute split policy fail."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(SplitPolicy(context, fiaInfo) != GRAPH_SUCCESS,
+                OP_LOGE(fiaInfo.opName, "Excute split policy fail."), return GRAPH_FAILED);
 
-    OP_CHECK_IF(ComputeTilingData(fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Compute tilingData fail."),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(ComputeTilingData(fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Compute tilingData fail."),
+                return GRAPH_FAILED);
 
-    OP_CHECK_IF(GenTilingKey(context, fiaInfo) != ge::GRAPH_SUCCESS,
-                OP_LOGE(fiaInfo.opName, "Generate tilingKey fail."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(GenTilingKey(context, fiaInfo) != GRAPH_SUCCESS,
+                OP_LOGE(fiaInfo.opName, "Generate tilingKey fail."), return GRAPH_FAILED);
 
-    OP_CHECK_IF(SetBlockDim(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Set blockDim fail."),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(SetBlockDim(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Set blockDim fail."),
+                return GRAPH_FAILED);
 
-    OP_CHECK_IF(GetWorkspace(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Get workspace fail."),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(GetWorkspace(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Get workspace fail."),
+                return GRAPH_FAILED);
 
-    OP_CHECK_IF(SetTilingData(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Set tiling data fail."),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(SetTilingData(context, fiaInfo) != GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Set tiling data fail."),
+                return GRAPH_FAILED);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 }  // namespace optiling

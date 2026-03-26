@@ -29,23 +29,23 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~PSEChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // singlepara
-    ge::graphStatus CheckPseType(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckPseShiftDataType(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckPseShiftShape(const FiaTilingInfo &fiaInfo);
+    bool CheckPseType(const FiaTilingInfo &fiaInfo);
+    bool CheckPseShiftDataType(const FiaTilingInfo &fiaInfo);
+    bool CheckPseShiftShape(const FiaTilingInfo &fiaInfo);
     // existence
-    ge::graphStatus CheckPseShiftExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckPseShiftExistence(const FiaTilingInfo &fiaInfo);
     // feature
-    ge::graphStatus CheckFeaturePA(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo);
+    bool CheckFeaturePA(const FiaTilingInfo &fiaInfo);
+    bool CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo);
     // multipara
-    ge::graphStatus CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo);
+    bool CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo);
 
 private:
 };

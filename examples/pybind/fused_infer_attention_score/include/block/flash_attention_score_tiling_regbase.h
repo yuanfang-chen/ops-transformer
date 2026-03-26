@@ -12,6 +12,8 @@
  * \file flash_attention_score_tiling_regbase.h
  * \brief
  */
+#include "../op_host/fused_infer_attention_score_tiling.h"
+#include <cstdint>
 
 #ifndef FLASH_ATTENTION_SCORE_GRAD_TILING_REGBASE_H_
 #define FLASH_ATTENTION_SCORE_GRAD_TILING_REGBASE_H_
@@ -376,9 +378,154 @@ public:
     InitOutputParams initOutputParams;
 };
 
-void SetTilingData(optiling::FlashAttentionScoreSimplifiedTilingData& tilingData)
+static void ConvertOptionalInputsIFA(optiling::TilingContext &context, IncreFlashAttentionContext &ifaContext)
 {
-    tilingData.inputParamsRegbase.bSize = 1;
+    ifaContext.attenMask.desc = context.GetOptionalInputDesc(ATTEN_MASK_INDEX);
+    ifaContext.attenMask.tensor = context.GetOptionalInputTensor(ATTEN_MASK_INDEX);
+    ifaContext.actualSeqLengthsQ.tensor = context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
+    ifaContext.actualSeqLengths.tensor = context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
+    ifaContext.deqScale1.tensor = context.GetOptionalInputTensor(DEQUANT_SCALE1_INDEX);
+    ifaContext.quantScale1.tensor = context.GetOptionalInputTensor(QUANT_SCALE1_INDEX);
+    ifaContext.deqScale2.tensor = context.GetOptionalInputTensor(DEQUANT_SCALE2_INDEX);
+    ifaContext.quantScale2.tensor = context.GetOptionalInputTensor(QUANT_SCALE2_INDEX);
+    ifaContext.quantOffset2.tensor = context.GetOptionalInputTensor(QUANT_OFFSET2_INDEX);
+    ifaContext.quantScale2.desc = context.GetOptionalInputDesc(QUANT_SCALE2_INDEX);
+    ifaContext.quantOffset2.desc = context.GetOptionalInputDesc(QUANT_OFFSET2_INDEX);
+    ifaContext.antiquantScale.tensor = context.GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
+    ifaContext.antiquantScale.desc = context.GetOptionalInputDesc(ANTIQUANT_SCALE_INDEX);
+    ifaContext.antiquantOffset.tensor = context.GetOptionalInputTensor(ANTIQUANT_OFFSET_INDEX);
+    ifaContext.antiquantOffset.desc = context.GetOptionalInputDesc(ANTIQUANT_OFFSET_INDEX);
+    ifaContext.blockTable.tensor = context.GetOptionalInputTensor(BLOCK_TABLE_INDEX);
+    ifaContext.queryPaddingSize.tensor = context.GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX);
+    ifaContext.kvPaddingSize.tensor = context.GetOptionalInputTensor(KV_PADDING_SIZE_INDEX);
+    ifaContext.keyAntiquantScale.tensor = context.GetOptionalInputTensor(KEY_ANTIQUANT_SCALE_INDEX);
+    ifaContext.keyAntiquantScale.desc = context.GetOptionalInputDesc(KEY_ANTIQUANT_SCALE_INDEX);
+    ifaContext.keyAntiquantOffset.tensor = context.GetOptionalInputTensor(KEY_ANTIQUANT_OFFSET_INDEX);
+    ifaContext.keyAntiquantOffset.desc = context.GetOptionalInputDesc(KEY_ANTIQUANT_OFFSET_INDEX);
+    ifaContext.valueAntiquantScale.tensor = context.GetOptionalInputTensor(VALUE_ANTIQUANT_SCALE_INDEX);
+    ifaContext.valueAntiquantScale.desc = context.GetOptionalInputDesc(VALUE_ANTIQUANT_SCALE_INDEX);
+    ifaContext.valueAntiquantOffset.tensor = context.GetOptionalInputTensor(VALUE_ANTIQUANT_OFFSET_INDEX);
+    ifaContext.valueAntiquantOffset.desc = context.GetOptionalInputDesc(VALUE_ANTIQUANT_OFFSET_INDEX);
+    ifaContext.keySharedPrefix.tensor = context.GetOptionalInputTensor(KEY_SHARED_PREFIX_INDEX);
+    ifaContext.keySharedPrefix.desc = context.GetOptionalInputDesc(KEY_SHARED_PREFIX_INDEX);
+    ifaContext.valueSharedPrefix.tensor = context.GetOptionalInputTensor(VALUE_SHARED_PREFIX_INDEX);
+    ifaContext.valueSharedPrefix.desc = context.GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX);
+    ifaContext.actualSharedPrefixLen.tensor = context.GetOptionalInputTensor(ACTUAL_SHARED_PREFIX_LEN_INDEX);
+    ifaContext.queryRope.tensor = context.GetOptionalInputTensor(QUERY_ROPE_INDEX);
+    ifaContext.queryRope.desc = context.GetOptionalInputDesc(QUERY_ROPE_INDEX);
+    ifaContext.keyRope.tensor = context.GetOptionalInputTensor(KEY_ROPE_INDEX);
+    ifaContext.keyRope.desc = context.GetOptionalInputDesc(KEY_ROPE_INDEX);
+    ifaContext.keyRopeAntiquantScale.tensor = context.GetOptionalInputTensor(KEY_ROPE_ANTIQUANT_SCALE_INDEX);
+    ifaContext.keyRopeAntiquantScale.desc = context.GetOptionalInputDesc(KEY_ROPE_ANTIQUANT_SCALE_INDEX);
+    ifaContext.dequantScaleQuery.tensor = context.GetOptionalInputTensor(DEQUANT_SCALE_QUERY_INDEX);
+    ifaContext.dequantScaleQuery.desc = context.GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX);
+}
+
+static bool ConvertAttrsIFA(optiling::TilingContext &context, IncreFlashAttentionContext &ifaContext)
+{
+    auto attrs = context.GetAttrs();
+    OP_CHECK_IF(attrs.isEmpty(), OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "attrs got from ge is nullptr"),
+        return GRAPH_FAILED);
+
+    ifaContext.numHeads = attrs.GetAttr<uint32_t>(ATTR_N_INDEX);
+    ifaContext.scaleValue = attrs.GetAttr<float>(ATTR_SCALE_INDEX);
+    ifaContext.layOut = attrs.GetAttr<std::string>(ATTR_INPUT_LAYOUT_INDEX);
+    ifaContext.kvHeadNums = attrs.GetAttr<uint32_t>(ATTR_NUM_KV_HEADS_INDEX);
+    ifaContext.blockSize = attrs.GetAttr<uint32_t>(ATTR_BLOCK_SIZE_INDEX);
+    ifaContext.antiquantMode = attrs.GetAttr<int64_t>(ANTIQUANT_MODE_INDEX);
+    ifaContext.softmaxLseFlag = attrs.GetAttr<bool>(SOFTMAX_LSE_FLAG_INDEX);
+    ifaContext.keyAntiquantMode = attrs.GetAttr<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
+    ifaContext.valueAntiquantMode = attrs.GetAttr<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
+    ifaContext.innerPrecise = attrs.GetAttr<uint32_t>(ATTR_INNER_PRECISE_INDEX);
+    ifaContext.sparseMode = attrs.GetAttr<uint32_t>(ATTR_SPARSE_MODE_INDEX);
+    ifaContext.queryQuantMode = attrs.GetAttr<int64_t>(QUERY_QUANT_MODE_INDEX);
+    ifaContext.windowSize = attrs.GetAttr<int64_t>(ATTR_PRE_TOKEN_INDEX);
+
+    return GRAPH_SUCCESS;
+}
+
+static bool ConvertContextToParamsIFA(optiling::TilingContext &context, IncreFlashAttentionContext &ifaContext)
+{
+    if (context.GetNodeName() == nullptr) {
+        OP_LOGE("FusedInferAttentionScore", "opName got from TilingContext is nullptr");
+        return GRAPH_FAILED;
+    }
+    ifaContext.opName = context.GetNodeName();
+    ifaContext.platformInfo = context.GetPlatformInfo();
+    ifaContext.query.desc = context.GetInputDesc(QUERY_INDEX);
+    ifaContext.query.shape = context.GetStorageShape(QUERY_INDEX);
+    ifaContext.key.desc = context.GetInputDesc(KEY_INDEX);
+    ifaContext.key.shape = context.GetStorageShape(KEY_INDEX);
+    OP_CHECK_IF(ifaContext.query.shape.isEmpty(),
+        OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "shape of query of shape of query is null."),
+        return GRAPH_FAILED);
+    OP_CHECK_IF(ifaContext.key.shape.isEmpty(),
+        OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "shape of query of shape of key is null."),
+        return GRAPH_FAILED);
+    auto batchOfQuery = ifaContext.query.shape.GetDim(0);
+    auto batchOfKey = ifaContext.key.shape.GetDim(0);
+    // if (batchOfQuery != batchOfKey) {
+    //     ifaContext.kCache.resize(batchOfQuery);
+    //     ifaContext.vCache.resize(batchOfQuery);
+    //     for (int64_t size = 0; size < batchOfQuery; ++size) {
+    //         ifaContext.kCache[size] = const_cast<gert::StorageShape *>(context.GetDynamicInputShape(KEY_INDEX, size));
+    //         ifaContext.vCache[size] = const_cast<gert::StorageShape *>(context.GetDynamicInputShape(VALUE_INDEX, size));
+    //     }
+    // } else {
+    //     ifaContext.kCache.resize(1);
+    //     ifaContext.vCache.resize(1);
+    //     ifaContext.kCache[0] = const_cast<gert::StorageShape *>(context.GetDynamicInputShape(KEY_INDEX, 0));
+    //     ifaContext.vCache[0] = const_cast<gert::StorageShape *>(context.GetDynamicInputShape(VALUE_INDEX, 0));
+    // }
+
+    ifaContext.value.desc = context.GetInputDesc(VALUE_INDEX);
+    ifaContext.value.shape = context.GetStorageShape(VALUE_INDEX);
+    ifaContext.attenOut.desc = context.GetOutputDesc(ATTENTION_OUT_INDEX);
+    ifaContext.attenOut.shape = context.GetStorageShape(ATTENTION_OUT_INDEX);
+
+    ConvertOptionalInputsIFA(context, ifaContext);
+
+    OP_CHECK_IF(ConvertAttrsIFA(context, ifaContext) != GRAPH_SUCCESS,
+        OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "convert attrs failed"), return GRAPH_FAILED);
+
+    ifaContext.workSpaces = 10086;
+    return GRAPH_SUCCESS;
+}
+
+bool CalcTilingKey(uint64_t& tilingKey, optiling::TilingContext context) {
+    tilingKey = 7;
+    auto inputDataType = context.query.desc.tDataType;  // input q
+    auto kDataType = context.key.desc.tDataType;  // input k
+    auto vDataType = context.value.desc.tDataType;  // input v
+    auto outputDataType = context.key.desc.tDataType;  // output tensor
+
+    if (context.GetPlatformInfo() == "310p") {
+        tilingKey = 12288U; // 12288: 310p tiling
+        if ((inputDataType == DT_FLOAT16)) {
+            tilingKey += 600U;
+        } // innerPrecise 0, add 600
+        return GRAPH_SUCCESS;
+    } else {
+        tilingKey = 12U;
+        tilingKey += (inputDataType == DT_BF16) ? 100U : 0U;
+        tilingKey += (inputDataType == DT_INT8) ? 200U : 0U;
+        tilingKey += (outputDataType == DT_BF16) ? tiling_key_10000U : 0U;
+        tilingKey += (outputDataType == DT_INT8) ? tiling_key_20000U : 0U;
+        if (!context.pseShift
+            && !context.deqScale1Shape && !context.deqScale2Shape
+            && !context.scale1Shape && !context.scale2Shape
+            && !context.offset2Shape) {
+            tilingKey += 2000000000U;
+        }
+        tilingKey += (kDataType == DT_INT8 && vDataType == DT_INT8) ? 100000000000U : 0U;
+    }
+    printf("tilingKey is: %d\n", tilingKey);
+    return GRAPH_SUCCESS;
+}
+
+void SetTilingData(optiling::FlashAttentionScoreSimplifiedTilingData& tilingData, optiling::TilingContext context)
+{
+    tilingData.inputParamsRegbase.bSize = context.GetInputShape(QUERY_INDEX).GetStorageShape().tShape[0];
     tilingData.inputParamsRegbase.t1Size = 0;
     tilingData.inputParamsRegbase.t2Size = 0;
     tilingData.inputParamsRegbase.n2Size = 1;

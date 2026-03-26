@@ -29,41 +29,41 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~ShapeChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
-    ge::graphStatus CheckInputFormat(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckParaExistenceImpl(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckDtypeCommon(const gert::CompileTimeTensorDesc *desc, const std::string &name,
-                                     std::map<std::string, std::vector<ge::DataType>> dataMap);
-    ge::graphStatus CheckPAKeyValue(const FiaTilingInfo &fiaInfo);
+    bool CheckInputFormat(const FiaTilingInfo &fiaInfo);
+    bool CheckParaExistenceImpl(const FiaTilingInfo &fiaInfo);
+    bool CheckDtypeCommon(const gert::CompileTimeTensorDesc *desc, const std::string &name,
+                                     std::map<std::string, std::vector<DataType>> dataMap);
+    bool CheckPAKeyValue(const FiaTilingInfo &fiaInfo);
     bool CheckEmptyTensorList(const FiaTilingInfo &fiaInfo);
     bool CheckNormalTensorList(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckTensorList(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiDtype(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckAxis(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQueryOutConsistency(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckKeyValueConsistency(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQueryShape(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckKeyNHVaild(const FiaTilingInfo &fiaInfo, const gert::Shape &keyShape);
-    ge::graphStatus CheckKeyDVaild(const FiaTilingInfo &fiaInfo, const gert::Shape &keyShape);
-    ge::graphStatus CheckKeyShape(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQueryKeyConsistency(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQueryKeyTensorlistConsistency(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiAttr(const FiaTilingInfo &fiaInfo);
+    bool CheckTensorList(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiDtype(const FiaTilingInfo &fiaInfo);
+    bool CheckAxis(const FiaTilingInfo &fiaInfo);
+    bool CheckQueryOutConsistency(const FiaTilingInfo &fiaInfo);
+    bool CheckKeyValueConsistency(const FiaTilingInfo &fiaInfo);
+    bool CheckQueryShape(const FiaTilingInfo &fiaInfo);
+    bool CheckKeyNHVaild(const FiaTilingInfo &fiaInfo, const gert::Shape &keyShape);
+    bool CheckKeyDVaild(const FiaTilingInfo &fiaInfo, const gert::Shape &keyShape);
+    bool CheckKeyShape(const FiaTilingInfo &fiaInfo);
+    bool CheckQueryKeyConsistency(const FiaTilingInfo &fiaInfo);
+    bool CheckQueryKeyTensorlistConsistency(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiAttr(const FiaTilingInfo &fiaInfo);
     void GetQueryDimAndOutDim(const gert::StorageShape* queryShape, const gert::StorageShape* outShape,
         const std::string &layoutStr, int64_t &tmpQueryDim, int64_t &outDim, uint32_t i);
 
     // enableNonQuant 相关校验函数
-    ge::graphStatus CheckNonQuantDataType(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckNonQuantAttr(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckNonQuantHeadNum(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckNonQuantInputLayout(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckNonQuantInnerPrecise(const FiaTilingInfo &fiaInfo);
+    bool CheckNonQuantDataType(const FiaTilingInfo &fiaInfo);
+    bool CheckNonQuantAttr(const FiaTilingInfo &fiaInfo);
+    bool CheckNonQuantHeadNum(const FiaTilingInfo &fiaInfo);
+    bool CheckNonQuantInputLayout(const FiaTilingInfo &fiaInfo);
+    bool CheckNonQuantInnerPrecise(const FiaTilingInfo &fiaInfo);
     bool CheckTNDLayoutCrossover(const FiaTilingInfo &fiaInfo);
     bool CheckNTDLayoutCrossover(const FiaTilingInfo &fiaInfo);
     bool CheckTransposeLayoutCrossover(const FiaTilingInfo &fiaInfo);

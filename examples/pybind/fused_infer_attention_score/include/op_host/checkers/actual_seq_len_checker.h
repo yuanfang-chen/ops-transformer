@@ -29,30 +29,30 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~ActualSeqLenChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
     // singlepara
-    ge::graphStatus CheckActualSeqLenQDim(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckActualSeqLenQData(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckActualSeqLenKvDim(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckActualSeqLenKvData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenQDim(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenQData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvDim(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvData(const FiaTilingInfo &fiaInfo);
 
     // existence
-    ge::graphStatus CheckExistenceActualSeqLenQ(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckExistenceActualSeqLenKv(const FiaTilingInfo &fiaInfo);
+    bool CheckExistenceActualSeqLenQ(const FiaTilingInfo &fiaInfo);
+    bool CheckExistenceActualSeqLenKv(const FiaTilingInfo &fiaInfo);
 
     // feature
-    ge::graphStatus CheckFeatureAlibi(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureIFAMLA(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureAlibi(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureIFAMLA(const FiaTilingInfo &fiaInfo);
 
     // multipara
-    ge::graphStatus CheckActualSeqLenQTNDLastData(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckActualSeqLenKvTNDLastData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenQTNDLastData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvTNDLastData(const FiaTilingInfo &fiaInfo);
 
     // general
     int64_t GetActualSeqLengthsQData(const FiaTilingInfo &fiaInfo, uint32_t bIdx);

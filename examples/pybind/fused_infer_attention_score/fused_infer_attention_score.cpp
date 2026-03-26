@@ -21,13 +21,16 @@
 #include <iostream>
 #include <cstdlib>
 #include <memory>
+#include <cstdint>
 
 #define FIA_ENABLE_MLA
 #include "common_utils.h"
 #include "io_utils.h"
 #include "flash_attention_score_tiling_regbase.h"
 #include "fia_entry.h"
-#include "abc.h"
+#include "op_host/abc.h"
+#include "op_host/fused_infer_attention_score_tiling.h"
+#include "op_host/fused_infer_attention_score_tiling_constants.h"
 
 __global__ __aicore__ void FiaKernelFullQuant(
         GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR keyAntiquantScale,
@@ -43,9 +46,34 @@ __global__ __aicore__ void FiaKernelFullQuant(
 }
 
 namespace ascendc_ops {
+optiling::TilingContext InitContext() {
+    optiling::TilingContext context;
+    context.SetInputDesc(optiling::QUERY_INDEX, optiling::DT_FLOAT16);
+    // 使用便捷方法
+    context.SetInputShapeFromVector(optiling::QUERY_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::KEY_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::VALUE_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::ATTENTION_OUT_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
+    auto& attrs = context.GetAttrs();
+    attrs.SetAttr(ATTR_N_INDEX, (uint32_t)1);
+    attrs.SetAttr(ATTR_SCALE_INDEX, 3.14f);
+    attrs.SetAttr(ATTR_INPUT_LAYOUT_INDEX, "string");
+    attrs.SetAttr(ATTR_NUM_KV_HEADS_INDEX, (uint32_t)1);
+    attrs.SetAttr(ATTR_BLOCK_SIZE_INDEX, (uint32_t)1);
+    attrs.SetAttr(ANTIQUANT_MODE_INDEX, (int64_t)1);
+    attrs.SetAttr(SOFTMAX_LSE_FLAG_INDEX, true);
+    attrs.SetAttr(KEY_ANTIQUANT_MODE_INDEX, (int64_t)1);
+    attrs.SetAttr(VALUE_ANTIQUANT_MODE_INDEX, (int64_t)1);
+    attrs.SetAttr(ATTR_INNER_PRECISE_INDEX, (uint32_t)1);
+    attrs.SetAttr(ATTR_SPARSE_MODE_INDEX, (uint32_t)1);
+    attrs.SetAttr(QUERY_QUANT_MODE_INDEX, (int64_t)1);
+    attrs.SetAttr(ATTR_PRE_TOKEN_INDEX, (int64_t)1);
+    printf(".isEmpty(): %d\n", attrs.isEmpty());
+    return context;
+}
+
 int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uint64_t seqLengthsQ, uint64_t seqLengthsKV, int32_t headDim = 128)
 {
-    fun();
     std::cerr << "Start fused_infer_attention_score demo." << std::endl;
     // -------------------------------------------------------------------------
     // 1. Set the problem shape.
@@ -56,6 +84,9 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // uint64_t seqLengthsQ = 8192;
     // uint64_t seqLengthsKV = 8192;
     // uint32_t headDim = 128;
+    // 拦截
+    optiling::TilingContext context = InitContext();
+    optiling::DoOpTilingFusedInferAttentionScore(&context);
 
     // -------------------------------------------------------------------------
     // 2. Initialize the ACL runtime and create a stream.
@@ -145,7 +176,8 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     optiling::FlashAttentionScoreSimplifiedTilingData tilingData;
     if (ascendcPlatform->GetCoreNumAic() == 32) {
         std::cerr << "CoreNum is 32." << std::endl;
-        SetTilingData(tilingData);
+        SetTilingData(tilingData, context);
+        printf("after SetTilingData\n");
     } else if (ascendcPlatform->GetCoreNumAic() == 28) {
         SetTilingDataLess(tilingData);
         std::cerr << "CoreNum is 28." << std::endl;
@@ -244,13 +276,19 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // -------------------------------------------------------------------------
     constexpr uint8_t inOutLayoutType = 0;
     constexpr bool hasAttenMask = false;
-    FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
-        queryDevice, keyDevice, valueDevice,
-        keyAntiquantScaleDevice, valueAntiquantScaleDevice, dequantScaleQueryDevice,
-        outputDevice,
-        workspace,
-        tilingDataDevice
-    );
+    IncreFlashAttentionContext ifaContext;
+    ConvertContextToParamsIFA(context, ifaContext);
+    uint64_t tilingKey;
+    CalcTilingKey(tilingKey, context);
+    if (tilingKey == 2000000012) {
+        FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+            queryDevice, keyDevice, valueDevice,
+            keyAntiquantScaleDevice, valueAntiquantScaleDevice, dequantScaleQueryDevice,
+            outputDevice,
+            workspace,
+            tilingDataDevice
+        );
+    }
     
     // Queue the output copy after the kernel launch on the same stream.
     CHECK_COND(

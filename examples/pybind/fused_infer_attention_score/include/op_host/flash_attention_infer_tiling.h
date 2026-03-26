@@ -153,7 +153,7 @@ namespace optiling{
     public:
         FAInferTiling() = default;
         explicit FAInferTiling(const FAInferContext &faInfo);
-        ge::graphStatus DoTiling(FAInferTilingData &tilingdata);
+        bool DoTiling(FAInferTilingData &tilingdata);
         void SetCoreNum(uint32_t blockNum) {
             this->blockNum_ = blockNum;
         }
@@ -650,7 +650,7 @@ namespace optiling{
         faTilingData.set_totalTaskNum(totalTaskNum);
     }
 
-    ge::graphStatus FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
+    bool FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
     {
         FillBasicTilingData(tilingdata);
         if (!faInfo_.isTilingSink) {
@@ -662,7 +662,7 @@ namespace optiling{
             }
         }
         FillWorkSpaceTilingData(tilingdata);
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
 }
 #endif

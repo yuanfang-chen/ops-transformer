@@ -39,7 +39,7 @@ inline __aicore__ void FlashAttentionEntry(__gm__ uint8_t *query, __gm__ uint8_t
     __gm__ uint8_t *tiling)
 {
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
-    FlashAttentionScoreSimplifiedTilingData  tilingDataTemp;
+    FlashAttentionScoreSimplifiedTilingData tilingDataTemp;
     CopyTiling(&tilingDataTemp, tiling);
 
     FlashAttentionScoreSimplifiedTilingData* __restrict tilingData = &tilingDataTemp;

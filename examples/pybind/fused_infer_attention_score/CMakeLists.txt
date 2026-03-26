@@ -61,12 +61,12 @@ set_source_files_properties(
 )
 
 set_source_files_properties(
-    abc.cpp
+    include/op_host/abc.cpp
     PROPERTIES LANGUAGE CXX
 )
 
 add_library(xxxlib SHARED
-    abc.cpp
+    include/op_host/abc.cpp
 )
 
 
@@ -102,7 +102,7 @@ target_link_directories(ascendc_ops PRIVATE
     ${ASCEND_HOME}/lib64
 )
 
-# =======================================================================1===============
+# ======================================================================================
 # NPU 编译选项配置
 #
 # 说明：

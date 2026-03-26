@@ -23,7 +23,6 @@ extern "C" {
 #endif
 namespace fallback {
 
-using namespace ge;
 using namespace gert;
 static const size_t QUERY_INDEX = 0;
 static const size_t KEY_INDEX = 1;

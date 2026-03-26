@@ -54,23 +54,23 @@ struct FiaPlatFormInfo {
 
 class FusedInferAttentionScoreTilingImpl : public FiaTilingBase {
 public:
-    explicit FusedInferAttentionScoreTilingImpl(gert::TilingContext *context) : FiaTilingBase(context) {}
+    explicit FusedInferAttentionScoreTilingImpl(optiling::TilingContext *context) : FiaTilingBase(context) {}
     ~FusedInferAttentionScoreTilingImpl() override = default;
     void InitTilingInfo(TilingInfo *tilingInfo) {}
     bool IsCapable() {}
-    ge::graphStatus DoOpTiling() {}
-    ge::graphStatus DoOpTiling(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool DoOpTiling() {}
+    bool DoOpTiling(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
 
 protected:
-    ge::graphStatus SetPlatMemoryInfo(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetEmptyTensor(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SplitPolicy(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus ComputeTilingData(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus GenTilingKey(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetBlockDim(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus GetWorkspace(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetTilingData(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetFullQuantTilingData(const FiaTilingInfo &fiaInfo);
+    bool SetPlatMemoryInfo(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetEmptyTensor(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SplitPolicy(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool ComputeTilingData(const FiaTilingInfo &fiaInfo);
+    bool GenTilingKey(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetBlockDim(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool GetWorkspace(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetTilingData(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetFullQuantTilingData(const FiaTilingInfo &fiaInfo);
     void UpdateTilingKeyConfig(const FiaTilingInfo &fiaInfo);
     void UpdateTilingKeyLayout(const FiaTilingInfo &fiaInfo);
     void UpdateTilingKeyPseMode(const FiaTilingInfo &fiaInfo);
@@ -78,20 +78,20 @@ protected:
     void UpdateTilingKeyHasRope(const FiaTilingInfo &fiaInfo);
     void UpdateTilingKeyMaskMode(const FiaTilingInfo &fiaInfo);
     void UpdateTilingKeyMatmulMode(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus UpdateTilingKeyInfo(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetWorkspaceNormal(const FiaTilingInfo &fiaInfo, int64_t &curWorkspaceSize);
-    ge::graphStatus SetWorkspaceAntiQuant(const FiaTilingInfo &fiaInfo, int64_t &workspaceSize_);
-    ge::graphStatus SetWorkspacePTQuant(const FiaTilingInfo &fiaInfo, int64_t &curWorkspaceSize);
+    bool UpdateTilingKeyInfo(const FiaTilingInfo &fiaInfo);
+    bool SetWorkspaceNormal(const FiaTilingInfo &fiaInfo, int64_t &curWorkspaceSize);
+    bool SetWorkspaceAntiQuant(const FiaTilingInfo &fiaInfo, int64_t &workspaceSize_);
+    bool SetWorkspacePTQuant(const FiaTilingInfo &fiaInfo, int64_t &curWorkspaceSize);
 
     bool EnableMTE2BmmPipe(const FiaTilingInfo &fiaInfo, matmul_tiling::MatmulApiTiling &bmm,
                            TCubeTiling &bmmTilingData);
     void GetMatMulType(const FiaTilingInfo &fiaInfo, matmul_tiling::DataType &mmInputType,
                        matmul_tiling::DataType &mmOutputType);
-    ge::graphStatus SetMM1TilingData(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetMM2TilingData(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetFATilingData(const FiaTilingInfo &fiaInfo);
+    bool SetMM1TilingData(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetMM2TilingData(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool SetFATilingData(const FiaTilingInfo &fiaInfo);
 
-    ge::graphStatus AdjustSinnerAndSouter(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool AdjustSinnerAndSouter(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
     void GetPreNextTokensLeftUp(const FiaTilingInfo &fiaInfo, int64_t actualSeqLength, int64_t actualSeqLengthKV,
                                 int64_t &preTokensLeftUp, int64_t &nextTokensLeftUp);
     void FixParamWithRowInvalid(int64_t &actualSeqLength, int64_t actualSeqLengthKV, int64_t &preTokensLeftUp,
@@ -110,17 +110,17 @@ protected:
     bool CheckEnableDN(const FiaTilingInfo &fiaInfo);
     bool CheckQKVActualSeqLengthsRight(const FiaTilingInfo &fiaInfo);
     bool CheckFlashDecode(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SplitS2(const FiaTilingInfo &fiaInfo);
+    bool SplitS2(const FiaTilingInfo &fiaInfo);
     void SetDequantBaseSize(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CalcInnerSize(const FiaTilingInfo &fiaInfo, uint32_t seqSize);
+    bool CalcInnerSize(const FiaTilingInfo &fiaInfo, uint32_t seqSize);
     void ComputeDequantSplitNBSeq(const FiaTilingInfo &fiaInfo, std::vector<int64_t> sOuterLoopTimes,
                                   std::vector<int64_t> sInnerLoopTimes, int64_t sInnerLoopTimesPrefix,
                                   double coreWeightTarget, uint32_t &curCore, const size_t tilingElementArrayLen);
     void DequantCubeSplitBNSeq(const FiaTilingInfo &fiaInfo);
     int64_t GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd, int64_t innerBlockNums);
     void SplitDequant(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus SetDequantMMTilingData(gert::TilingContext *context, const FiaTilingInfo &fiaInfo);
-    bool GetMatmulType(ge::DataType getype, matmul_tiling::DataType *mmType);
+    bool SetDequantMMTilingData(optiling::TilingContext *context, const FiaTilingInfo &fiaInfo);
+    bool GetMatmulType(DataType getype, matmul_tiling::DataType *mmType);
     void AdjustPABmm1Tiling(const FiaTilingInfo &fiaInfo, uint32_t &bmm1BaseN);
     void AdjustPABmm2Tiling(const FiaTilingInfo &fiaInfo);
     bool CheckTransposeLayout(const FiaTilingInfo &fiaInfo);

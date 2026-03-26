@@ -19,19 +19,19 @@
 #include "../../../common/op_host/fia_tiling_base.h"
 
 namespace optiling {
-ge::graphStatus TilingFusedInferAttentionScoreV2(gert::TilingContext *context);
+bool TilingFusedInferAttentionScoreV2(optiling::TilingContext *context);
 class FusedInferAttentionScoreTilingV2 : public FiaTilingBase{
 public:
-    explicit FusedInferAttentionScoreTilingV2(gert::TilingContext *context): FiaTilingBase(context) {}
+    explicit FusedInferAttentionScoreTilingV2(optiling::TilingContext *context): FiaTilingBase(context) {}
     ~FusedInferAttentionScoreTilingV2() override = default;
 
 protected:
     void InitTilingInfo(TilingInfo *tilingInfo) override {}
     bool IsCapable() override {return true;}
-    ge::graphStatus DoOpTiling() override;
+    bool DoOpTiling() override;
 };
 
-ge::graphStatus TilingFusedInferAttentionScoreV2(gert::TilingContext *context);
+bool TilingFusedInferAttentionScoreV2(optiling::TilingContext *context);
 
 } // namespace optiling
 #endif  // AIR_CXX_RUNTIME_V2_OP_IMPL_FUSEDINFERATTENTIONSCORE_V2_H_

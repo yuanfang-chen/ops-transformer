@@ -23,7 +23,6 @@
 #include "platform/platform_info.h"
 #include "../../op_kernel/fused_infer_attention_score_template_tiling_key.h"
 
-using namespace ge;
 using namespace AscendC;
 using namespace optiling::v2;
 namespace optiling {
@@ -52,7 +51,7 @@ constexpr uint32_t V_D_PFA_MLA = 128;
 constexpr uint32_t SHAPE_INDEX_TWO = 2;
 
 constexpr uint32_t QUERY_INDEX = 0;
-constexpr uint32_t ATTENTION_OUT_INDEX = 0;
+constexpr uint32_t ATTENTION_OUT_INDEX = 100;
 constexpr uint32_t KEY_INDEX = 1;
 constexpr uint32_t VALUE_INDEX = 2;
 constexpr uint32_t PSE_SHIFT_INDEX = 3;
@@ -116,7 +115,7 @@ static bool CheckEmptyTensorList(ContextParamsForPFATiling& contextKeyParams, in
     return true;
 }
 
-static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
+static bool CheckNormalTensorList(optiling::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
     const string layoutStr, int64_t validBatchOfK) {
     if (layoutStr == "BSH" || layoutStr == "BSH_BNSD" || layoutStr == "BSH_NBSD") { // check all H across batches and KVs are the same under BSH layout
         auto standardKH = contextKeyParams.kTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
@@ -269,7 +268,7 @@ static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsFor
     return true;
 }
 
-static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
+static bool CheckTensorList(optiling::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
     const string layoutStr, int64_t batchOfQ) {
     int64_t validBatchOfK = 0;
     int64_t validBatchOfV = 0;
@@ -318,7 +317,7 @@ static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATil
     return true;
 }
 
-static bool CheckKVPaddingCrossover(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
+static bool CheckKVPaddingCrossover(optiling::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
     OP_CHECK_IF(((contextKeyParams.queryPaddingSize != nullptr) && (contextKeyParams.queryPaddingSize->GetStorageShape().GetShapeSize() != 1 ||
         contextKeyParams.queryPaddingSize->GetStorageShape().GetDimNum() != 1)),
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), 
@@ -362,7 +361,7 @@ uint32_t GetTransposeLayout(const std::string &layout) {
     return 0;
 }
 
-ge::graphStatus ConvertQuantOptionalInputs(const gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
+bool ConvertQuantOptionalInputs(const optiling::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
     contextKeyParams.deqScale1Shape = context->GetOptionalInputShape(DEQUANT_SCALE1_INDEX);
     contextKeyParams.scale1Shape = context->GetOptionalInputShape(QUANT_SCALE1_INDEX);
     contextKeyParams.deqScale2Shape = context->GetOptionalInputShape(DEQUANT_SCALE2_INDEX);
@@ -372,9 +371,9 @@ ge::graphStatus ConvertQuantOptionalInputs(const gert::TilingContext* context, C
     contextKeyParams.antiquantOffsetShape = context->GetOptionalInputShape(ANTIQUANT_OFFSET_INDEX);
 
     contextKeyParams.quantScale2Type = (context->GetOptionalInputDesc(QUANT_SCALE2_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(QUANT_SCALE2_INDEX)->GetDataType() : ge::DT_FLOAT;
+        context->GetOptionalInputDesc(QUANT_SCALE2_INDEX)->GetDataType() : DT_FLOAT;
     contextKeyParams.quantOffset2Type = (context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX)->GetDataType() : ge::DT_FLOAT;
+        context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX)->GetDataType() : DT_FLOAT;
     contextKeyParams.dequantScaleQueryShape = context->GetOptionalInputShape(DEQUANT_SCALE_QUERY_INDEX);
     contextKeyParams.KeyAntiquantScaleShape = context->GetOptionalInputShape(KEY_ANTIQUANT_SCALE_INDEX);
     contextKeyParams.KeyAntiquantOffsetShape = context->GetOptionalInputShape(KEY_ANTIQUANT_OFFSET_INDEX);
@@ -382,19 +381,19 @@ ge::graphStatus ConvertQuantOptionalInputs(const gert::TilingContext* context, C
     contextKeyParams.valueAntiquantOffsetShape = context->GetOptionalInputShape(VALUE_ANTIQUANT_OFFSET_INDEX);
 
     contextKeyParams.dequantScaleQueryType = (context->GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX)->GetDataType() : ge::DT_FLOAT;
+        context->GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX)->GetDataType() : DT_FLOAT;
     contextKeyParams.KeyAntiquantScaleType = (context->GetOptionalInputDesc(KEY_ANTIQUANT_SCALE_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(KEY_ANTIQUANT_SCALE_INDEX)->GetDataType() : ge::DT_FLOAT16;
+        context->GetOptionalInputDesc(KEY_ANTIQUANT_SCALE_INDEX)->GetDataType() : DT_FLOAT16;
     contextKeyParams.valueAntiquantScaleType = (context->GetOptionalInputDesc(VALUE_ANTIQUANT_SCALE_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(VALUE_ANTIQUANT_SCALE_INDEX)->GetDataType() : ge::DT_FLOAT16;
+        context->GetOptionalInputDesc(VALUE_ANTIQUANT_SCALE_INDEX)->GetDataType() : DT_FLOAT16;
 
     contextKeyParams.dequantScaleQuery = context->GetOptionalInputTensor(DEQUANT_SCALE_QUERY_INDEX);
     contextKeyParams.keyAntiquantScale = context->GetOptionalInputTensor(KEY_ANTIQUANT_SCALE_INDEX);
     contextKeyParams.valueAntiquantScale = context->GetOptionalInputTensor(VALUE_ANTIQUANT_SCALE_INDEX);   
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams, bool isMaxWorkspace) {
+static bool ConvertContextToParamsPFA(optiling::TilingContext* context, ContextParamsForPFATiling& contextKeyParams, bool isMaxWorkspace) {
     contextKeyParams.opName = context->GetNodeName();
 
     contextKeyParams.isKvContinuous = 1;
@@ -404,13 +403,13 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.pseShift = context->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMask = context->GetOptionalInputTensor(ATTEN_MASK_INDEX);
     OP_CHECK_IF((contextKeyParams.attentionMask != nullptr) &&
-        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_BOOL) &&
-        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_INT8) &&
-        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_UINT8),
+        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != DT_BOOL) &&
+        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != DT_INT8) &&
+        (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != DT_UINT8),
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), 
         "Invalid attention mask datatype(%s)! Only support BOOL, INT8 and UINT8",
         v2::GetPfaDataTypeStr(context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType()).c_str()),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     contextKeyParams.actualSequenceLengthQ = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     contextKeyParams.actualSequenceLengthKV = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     contextKeyParams.antiquantScale = context->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
@@ -433,7 +432,7 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.maskDataType = (contextKeyParams.attentionMask != nullptr) ?
         context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() : contextKeyParams.inputDataType;
     contextKeyParams.blockTableType = (context->GetOptionalInputDesc(BLOCK_TABLE_INDEX) != nullptr) ?
-        context->GetOptionalInputDesc(BLOCK_TABLE_INDEX)->GetDataType() : ge::DT_INT32;
+        context->GetOptionalInputDesc(BLOCK_TABLE_INDEX)->GetDataType() : DT_INT32;
     contextKeyParams.outputDataType = context->GetOutputDesc(ATTENTION_OUT_INDEX)->GetDataType();
     contextKeyParams.queryInputShape = context->GetInputShape(QUERY_INDEX);
     contextKeyParams.keyInputShape = context->GetDynamicInputShape(KEY_INDEX, 0);
@@ -451,7 +450,7 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
         context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType() : contextKeyParams.inputDataType;
 
     auto convertQuantRet = ConvertQuantOptionalInputs(context, contextKeyParams);
-    if (convertQuantRet != ge::GRAPH_SUCCESS) {
+    if (convertQuantRet != GRAPH_SUCCESS) {
         OP_LOGE(context->GetNodeName(), "Error occured while convert quant related tilingContext to PFA context!");
         return convertQuantRet;
     }
@@ -459,7 +458,7 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     auto attrs = context->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
         "Attributes returned from context is a nullptr"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     contextKeyParams.queryQuantMode = attrs->GetAttrPointer<int64_t>(QUERY_QUANT_MODE_INDEX);
     contextKeyParams.keyAntiquantMode = attrs->GetAttrPointer<int64_t>(KEY_ANTIQUANT_MODE_INDEX);
     contextKeyParams.valueAntiquantMode = attrs->GetAttrPointer<int64_t>(VALUE_ANTIQUANT_MODE_INDEX);
@@ -498,12 +497,12 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
                 int64_t actSeqLenDims = (actSeqLenData != nullptr) ? actSeqLenData->GetShapeSize() : 0;
                 OP_CHECK_IF(((actSeqLenData == nullptr) || (actSeqLenDims == 0) || (actSeqLenData->GetData<int64_t>() == nullptr)),
                     OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD/TND_NTD/NTD_TND, actualSequenceLengthQ is required"),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
                 const gert::Tensor* actSeqLenDataKV = contextKeyParams.actualSequenceLengthKV;
                 int64_t actSeqLenKVDims = (actSeqLenDataKV != nullptr) ? actSeqLenDataKV->GetShapeSize() : 0;
                 OP_CHECK_IF(((actSeqLenDataKV == nullptr) || (actSeqLenKVDims == 0) || (actSeqLenDataKV->GetData<int64_t>() == nullptr)),
                     OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD/TND_NTD/NTD_TND, actualSequenceLengthKV is required"),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
                 batchOfQ = actSeqLenDims;
             }
         }
@@ -523,36 +522,36 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
         OP_CHECK_IF((contextKeyParams.blockTable != nullptr),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "When tensorlist is used, page attention is not supported!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         OP_CHECK_IF((layoutStr == "TND" || layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD"),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "When tensorlist is used, layout TND/NTD/TND_NTD/NTD_TND is not supported!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         OP_CHECK_IF((!CheckTensorList(context, contextKeyParams, layoutStr, batchOfQ)),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "Check Tensorlist failed!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
     OP_CHECK_IF(((contextKeyParams.isKvContinuous == 0) && ((context->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX) != nullptr) ||
         (context->GetOptionalInputDesc(KV_PADDING_SIZE_INDEX) != nullptr))), OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "When tensorlist is used, left padding is not supported!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     OP_CHECK_IF(!CheckKVPaddingCrossover(context, contextKeyParams),
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Check KV PaddingSize failed!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     OP_CHECK_IF(contextKeyParams.workspaceSize == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "WorkSpaceSize is nullptr"),
-        return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+        return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
+static bool ConvertContextToParamsIFA(optiling::TilingContext& context,
                                                  IncreFlashAttentionContext& ifaContext, bool isMaxWorkspace) {
   if (context.GetNodeName() == nullptr) {
     OP_LOGE("FusedInferAttentionScore", "opName got from TilingContext is nullptr");
-    return ge::GRAPH_FAILED;
+    return GRAPH_FAILED;
   }
   ifaContext.opName = context.GetNodeName();
   ifaContext.platformInfo = context.GetPlatformInfo();
@@ -562,7 +561,7 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
   ifaContext.key.shape = context.GetInputShape(KEY_INDEX);
   OP_CHECK_IF((ifaContext.query.shape == nullptr) || (ifaContext.key.shape == nullptr),
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "shape of query of shape of key is null."),
-                  return ge::GRAPH_FAILED);
+                  return GRAPH_FAILED);
 
   ifaContext.value.desc = context.GetInputDesc(VALUE_INDEX);
   ifaContext.value.shape = context.GetInputShape(VALUE_INDEX);
@@ -616,7 +615,7 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
   auto attrs = context.GetAttrs();
   OP_CHECK_IF(attrs == nullptr,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "attrs got from ge is nullptr"),
-                  return ge::GRAPH_FAILED);
+                  return GRAPH_FAILED);
 
   ifaContext.numHeads = attrs->GetAttrPointer<uint32_t>(ATTR_N_INDEX);
   ifaContext.sparseMode = attrs->GetAttrPointer<uint32_t>(ATTR_SPARSE_MODE_INDEX);
@@ -649,7 +648,7 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
     } else {
       OP_CHECK_IF((ifaContext.actualSeqLengthsQ.tensor == nullptr || ifaContext.actualSeqLengths.tensor == nullptr),
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "TND/NTD actualSeqLengths or actualSeqLengthsKv is null."),
-                  return ge::GRAPH_FAILED);
+                  return GRAPH_FAILED);
       batchOfQuery = ifaContext.actualSeqLengthsQ.tensor->GetSize();
       batchOfKey = ifaContext.actualSeqLengths.tensor->GetSize();
     }
@@ -671,35 +670,35 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
 
   OP_CHECK_IF(context.GetWorkspaceSizes(1) == nullptr,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "workSpaceSize got from ge is nullptr"),
-                  return ge::GRAPH_FAILED);
+                  return GRAPH_FAILED);
   ifaContext.workSpaces = context.GetWorkspaceSizes(1);
 
   // IFA（伪量化）模板当前不支持 learnable sink 输入特性
   OP_CHECK_IF(context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "Learnable sink only supports no-quantized GQA mode."),
-                  return ge::GRAPH_FAILED);
+                  return GRAPH_FAILED);
 
   ifaContext.transposeLayout = GetTransposeLayout(string(ifaContext.layOut));
 
-  return ge::GRAPH_SUCCESS;
+  return GRAPH_SUCCESS;
 }
 
-static bool GetMaxWorkspaceFlag(gert::TilingContext& context) {
+static bool GetMaxWorkspaceFlag(optiling::TilingContext& context) {
     bool res = (context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX) != nullptr && context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX)->GetData<int64_t>()  == nullptr) || 
         (context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX) != nullptr && context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX)->GetData<int64_t>() == nullptr);
     return res;
 }
 
-ge::graphStatus TilingFusedInferAttentionScoreV2(gert::TilingContext *context) {
+bool TilingFusedInferAttentionScoreV2(optiling::TilingContext *context) {
     FusedInferAttentionScoreTilingV2 FIATilingV2(context);
     auto ret = FIATilingV2.DoTiling(nullptr);
     return ret;
 }
 
-ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
+bool FusedInferAttentionScoreTilingV2::DoOpTiling() {
     if (context_ == nullptr) {
         OP_LOGE("FusedInferAttentionScore", "tiling context is nullptr!");
-        return ge::GRAPH_FAILED;
+        return GRAPH_FAILED;
     }
     
     bool isMaxWorkspace = GetMaxWorkspaceFlag(*context_);
@@ -714,34 +713,34 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     uint32_t valueD = 1U;
     OP_CHECK_IF((tempQ == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Query input is null pointer!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     OP_CHECK_IF((tempV == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Value input is null pointer!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     OP_CHECK_IF((tempOut == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "AttentionOut is null pointer!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == 0 && tempOut->GetStorageShape().GetShapeSize() != 0) ||
         (tempQ->GetStorageShape().GetShapeSize() != 0 && tempOut->GetStorageShape().GetShapeSize() == 0),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
             tempQ->GetStorageShape().GetShapeSize(), tempOut->GetStorageShape().GetShapeSize()),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     if (tempQ->GetStorageShape().GetShapeSize() == 0 && tempOut->GetStorageShape().GetShapeSize() == 0) {
         qOutEmptyTensor = true;
     }
 
     OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == gert::Shape::kInvalidDimValue),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Get the shape size of Query failed!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     OP_CHECK_IF(attrs == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Attributes returned from GetAttrs() is a nullptr!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     uint32_t tempN = *attrs->GetAttrPointer<uint32_t>(ATTR_N_INDEX);
     uint32_t tempKVN = *attrs->GetAttrPointer<uint32_t>(ATTR_NUM_KV_HEADS_INDEX);
     OP_CHECK_IF(tempN == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Q numhead is 0!"), 
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     if (tempKVN == 0U) {
         tempKVN = tempN;
     }
@@ -770,7 +769,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
             int64_t actSeqLenDims = (actualSeqLength != nullptr) ? actualSeqLength->GetShapeSize() : 0;
             OP_CHECK_IF(((actualSeqLength == nullptr) || (actSeqLenDims == 0) || (actualSeqLength->GetData<int64_t>() == nullptr)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "When layout is TND/TND_NTD, actualSequenceLengthQ is required!"),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
             s = actualSeqLength->GetData<int64_t>()[0];
             for (int i = 1; i < actualSeqLength->GetShapeSize(); ++i) {
                 s = std::max(s, actualSeqLength->GetData<int64_t>()[i] - actualSeqLength->GetData<int64_t>()[i - 1]);
@@ -786,7 +785,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
             int64_t actSeqLenDims = (actualSeqLength != nullptr) ? actualSeqLength->GetShapeSize() : 0;
             OP_CHECK_IF(((actualSeqLength == nullptr) || (actSeqLenDims == 0) || (actualSeqLength->GetData<int64_t>() == nullptr)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "When layout is NTD/NTD_TND, actualSequenceLengthQ is required!"),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
             s = actualSeqLength->GetData<int64_t>()[0];
             for (int i = 1; i < actualSeqLength->GetShapeSize(); ++i) {
                 s = std::max(s, actualSeqLength->GetData<int64_t>()[i] - actualSeqLength->GetData<int64_t>()[i - 1]);
@@ -800,7 +799,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         b = 1;
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "input shape dim should be 3!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2);
         valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2);
         OP_CHECK_IF(((queryD == valueD) && (tempQ->GetStorageShape() != tempOut->GetStorageShape())),
@@ -808,16 +807,16 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
             "Layout is NSD and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
             tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
             tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     } else if (inputLayoutStr == "TND" || inputLayoutStr == "TND_NTD") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, attention out shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2);
         valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2);
         if (inputLayoutStr == "TND") {
@@ -826,7 +825,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     "Layout is TND and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
                     tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                     tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(0) != tempOut->GetStorageShape().GetDim(1)) ||
                 (tempQ->GetStorageShape().GetDim(1) != tempOut->GetStorageShape().GetDim(0)) ||
@@ -835,17 +834,17 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     "Layout is TND_NTD and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
                     tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                     tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else if (inputLayoutStr == "NTD" || inputLayoutStr == "NTD_TND") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, attention out shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2);
         valueD = tempV->GetStorageShape().GetDim(VALUE_DIM_2);
         if (inputLayoutStr == "NTD") {
@@ -854,7 +853,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     "Layout is NTD and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
                     tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                     tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else if (inputLayoutStr == "NTD_TND") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(0) != tempOut->GetStorageShape().GetDim(1)) ||
                     (tempQ->GetStorageShape().GetDim(1) != tempOut->GetStorageShape().GetDim(0)) ||
@@ -863,17 +862,17 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     "Layout is NTD_TND and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
                     tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                     tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else if (inputLayoutStr == "BSH") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, attention out shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2) / tempN;
         valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
         OP_CHECK_IF(((queryD == valueD) && (tempQ->GetStorageShape() != tempOut->GetStorageShape())),
@@ -881,16 +880,16 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is BSH and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld]!",
                 tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     } else if (inputLayoutStr == "BNSD_BSND" || inputLayoutStr == "BNSD" || inputLayoutStr == "BSND" || inputLayoutStr == "BSND_BNSD") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), 
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_3);
         valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_3);
         if (inputLayoutStr == "BNSD_BSND" || inputLayoutStr == "BSND_BNSD") {
@@ -902,23 +901,23 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is %s and Query shape size[%ld, %ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                 inputLayoutStr.c_str(), tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2), tempQ->GetStorageShape().GetDim(QUERY_DIM_3),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         } else if (inputLayoutStr == "BNSD") {
             OP_CHECK_IF(((queryD == valueD) && (tempQ->GetStorageShape() != tempOut->GetStorageShape())),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is BNSD and Query shape size[%ld, %ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                     tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2), tempQ->GetStorageShape().GetDim(QUERY_DIM_3),
                     tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else if (inputLayoutStr == "BSH_BNSD" || inputLayoutStr == "BSH_NBSD") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), 
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_2) / tempN;
         valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_2) / tempKVN;
         if (inputLayoutStr == "BSH_BNSD") {
@@ -929,7 +928,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is %s and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                 inputLayoutStr.c_str(), tempQ->GetStorageShape().GetDim(QUERY_DIM_0), tempQ->GetStorageShape().GetDim(QUERY_DIM_1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         } else if (inputLayoutStr == "BSH_NBSD") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(QUERY_DIM_0) != tempOut->GetStorageShape().GetDim(OUT_DIM_1)) ||
                 (tempQ->GetStorageShape().GetDim(QUERY_DIM_1) != tempOut->GetStorageShape().GetDim(OUT_DIM_2)) ||
@@ -938,17 +937,17 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is %s and Query shape size[%ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                 inputLayoutStr.c_str(), tempQ->GetStorageShape().GetDim(QUERY_DIM_0), tempQ->GetStorageShape().GetDim(QUERY_DIM_1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         }
     } else if (inputLayoutStr == "BSND_NBSD" || inputLayoutStr == "BNSD_NBSD") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
-                tempQ->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempQ->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         OP_CHECK_IF((tempOut->GetStorageShape().GetDimNum() != QUERY_DIM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), 
                 "The current layout is %s, attention out shape dim(%zu) should be 4!", inputLayoutStr.c_str(),
-                tempOut->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                tempOut->GetStorageShape().GetDimNum()), return GRAPH_FAILED);
         queryD = tempQ->GetStorageShape().GetDim(QUERY_DIM_3);
         valueD = enablePA ? valueD : tempV->GetStorageShape().GetDim(VALUE_DIM_3);
         if (inputLayoutStr == "BSND_NBSD") {
@@ -960,7 +959,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is %s and Query shape size[%ld, %ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                 inputLayoutStr.c_str(), tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2), tempQ->GetStorageShape().GetDim(QUERY_DIM_3),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         } else if (inputLayoutStr == "BNSD_NBSD") {
             OP_CHECK_IF(((queryD == valueD) && ((tempQ->GetStorageShape().GetDim(0) != tempOut->GetStorageShape().GetDim(OUT_DIM_1)) ||
                 (tempQ->GetStorageShape().GetDim(QUERY_DIM_1) != tempOut->GetStorageShape().GetDim(0)) ||
@@ -970,23 +969,23 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 "Layout is %s and Query shape size[%ld, %ld, %ld, %ld] does NOT match Attention Out shape size[%ld, %ld, %ld, %ld]!",
                 inputLayoutStr.c_str(), tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2), tempQ->GetStorageShape().GetDim(QUERY_DIM_3),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2), tempOut->GetStorageShape().GetDim(OUT_DIM_3)),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         }
     } else {
         OP_LOGE(context_->GetNodeName(), "Invalid input layout:%s. Currently only TND/NTD/BSH/BNSD/BSND/BSND_BNSD/BNSD_BSND/BSH_BNSD/BSND_NBSD/BNSD_NBSD/BSH_NBSD layout are supported!",
             inputLayoutStr.c_str());
-        return ge::GRAPH_FAILED;
+        return GRAPH_FAILED;
     }
     OP_CHECK_IF((queryD > DLIMIT),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "D of query should be less than or equal to 512, but d = %u!", queryD),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     bool inputOutputIsNullPtr = (context_->GetInputDesc(QUERY_INDEX) == nullptr) || (context_->GetInputDesc(KEY_INDEX) == nullptr) ||
         (context_->GetInputDesc(VALUE_INDEX) == nullptr) || (context_->GetOutputDesc(ATTENTION_OUT_INDEX) == nullptr) ||
         (context_->GetInputShape(QUERY_INDEX) == nullptr) || (context_->GetInputShape(KEY_INDEX) == nullptr) ||
         (context_->GetInputShape(VALUE_INDEX) == nullptr) || (context_->GetOutputShape(ATTENTION_OUT_INDEX) == nullptr);
     OP_CHECK_IF(inputOutputIsNullPtr,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "q, k, v or attenOut is nullptr!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     auto qDType = context_->GetInputDesc(QUERY_INDEX)->GetDataType();
     auto kDType = context_->GetInputDesc(KEY_INDEX)->GetDataType();
     // IFA非MLA或伪量化场景走IFA模板
@@ -1003,21 +1002,21 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     }
     OP_CHECK_IF(((s == 1) && (inputLayoutStr == "BNSD_BSND") && (qDType != kDType)),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "BNSD_BSND layout is not supported when S is 1!"),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     if (usingIFA) {
         // IFA tiling path        
         IncreFlashAttentionContext ifaContext {};
         auto ret = ConvertContextToParamsIFA(*context_, ifaContext, isMaxWorkspace);
-        if (ret != ge::GRAPH_SUCCESS) {
+        if (ret != GRAPH_SUCCESS) {
           OP_LOGE(context_->GetNodeName(), "Error occored while convert tilingContext to ifa context!");
           return ret;
         }
         IFATilingV2 ifaTilingV2(context_);
         ret = ifaTilingV2.DoSubOpTiling(ifaContext);
-        OP_CHECK_IF(ret == ge::GRAPH_FAILED,
+        OP_CHECK_IF(ret == GRAPH_FAILED,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
                                                 static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
                                                 static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType), ifaTilingV2.enableKVPrefix);
@@ -1041,12 +1040,12 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OP_CHECK_IF((attrs->GetAttrPointer<uint64_t>(ANTIQUANT_MODE_INDEX) != nullptr) &&
             (*attrs->GetAttrPointer<uint64_t>(ANTIQUANT_MODE_INDEX) != 0),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "antiquant_mode is not supported!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         auto platformInfoPtr = context_->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr,
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null!"),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
         tempCompileInfoPtr.aivNum = ascendcPlatform.GetCoreNumAiv();
         tempCompileInfoPtr.aicNum = ascendcPlatform.GetCoreNumAic();
@@ -1065,24 +1064,24 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
 
         contextParamsForPFATiling.compileInfoPtr = &tempCompileInfoPtr;
         auto ret = ConvertContextToParamsPFA(context_, contextParamsForPFATiling, isMaxWorkspace);
-        if (ret != ge::GRAPH_SUCCESS) {
+        if (ret != GRAPH_SUCCESS) {
           OP_LOGE(context_->GetNodeName(), "Error occored while convert tilingContext to PFA context!");
           return ret;
         }
         if (lseFlag != false) {
             if (!pfa_tiling.CheckNonEmptyShapeExceptions(contextParamsForPFATiling, contextParamsForPFATiling.lseoutputShape, "softmaxLse")) {
-                return ge::GRAPH_FAILED;
+                return GRAPH_FAILED;
             }
             OP_CHECK_IF(((tempLse == nullptr)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "SoftmaxLse shape is null, but SoftmaxLseFlag is true!"),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
 
             if (!qOutEmptyTensor) { // q、out为空时，lse为空则不输出，不为空则输出inf，不做拦截
                 if (inputLayoutStr == "TND" || inputLayoutStr == "TND_NTD") {
                     OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape TN1
                         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is TND/TND_NTD SoftmaxLse shape dim should be 3, but got %zu!",
                             tempLse->GetStorageShape().GetDimNum()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                     OP_CHECK_IF(
                         (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
                         (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
@@ -1091,12 +1090,12 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                             "Layout is TND SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                 } else if (inputLayoutStr == "NTD" || inputLayoutStr == "NTD_TND") {
                     OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape TN1
                         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is NTD/NTD_TND SoftmaxLse shape dim should be 3, but got %zu!",
                             tempLse->GetStorageShape().GetDimNum()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                     OP_CHECK_IF(
                         (((tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || // 0: the first dimension 1: the second dimension
                         (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
@@ -1105,12 +1104,12 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                             "Layout is NTD SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                 } else {
                     OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_4)), // 4：lse shape BNS1
                         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is %s, SoftmaxLse shape dim should be 4, but got %zu!",
                         inputLayoutStr.c_str(), tempLse->GetStorageShape().GetDimNum()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                     OP_CHECK_IF(
                         (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != b) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
                         (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != s) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_3) != 1))), // 2: the third dimension 3: the fourth dimension
@@ -1119,23 +1118,23 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                             "SoftmaxLse shape size[%ld, %ld, %ld, %ld] does not match BNS1[%ld, %u, %ld, 1]!",
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
                             tempLse->GetStorageShape().GetDim(QUERY_DIM_2), tempLse->GetStorageShape().GetDim(QUERY_DIM_3), b, tempN, s), // 2: the third dimension 3: the fourth dimension
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
                 }
             }
         }
         if (ascendcPlatform.GetCurNpuArch() != NpuArch::DAV_3510) {
-            OP_CHECK_IF((((contextParamsForPFATiling.inputDataType == ge::DT_INT8) || (contextParamsForPFATiling.kDataType == ge::DT_INT8) ||
-                (contextParamsForPFATiling.outputDataType == ge::DT_INT8)) && (queryD % D_ALIGN_32 != 0)),
+            OP_CHECK_IF((((contextParamsForPFATiling.inputDataType == DT_INT8) || (contextParamsForPFATiling.kDataType == DT_INT8) ||
+                (contextParamsForPFATiling.outputDataType == DT_INT8)) && (queryD % D_ALIGN_32 != 0)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "D(%u) of query should be 32 elements aligned when int8 is involved!", queryD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
             OP_CHECK_IF((queryD % D_ALIGN_16 != 0), OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "D(%u) should be 16 elements aligned when FP16/BF16 dtype!", queryD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }        
         ret = pfa_tiling.DoSubOpTiling(pfaTilingData, contextParamsForPFATiling);
-        OP_CHECK_IF(ret == ge::GRAPH_FAILED,
+        OP_CHECK_IF(ret == GRAPH_FAILED,
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
                                                 pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
                                                 static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);

@@ -29,28 +29,28 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~PagedAttentionChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
 
-    ge::graphStatus CheckBlockTableDtype(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckQDtypeSupport(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckBlockTableExistence(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureExistence(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckSeqLengthKVExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckBlockTableDtype(const FiaTilingInfo &fiaInfo);
+    bool CheckQDtypeSupport(const FiaTilingInfo &fiaInfo);
+    bool CheckBlockTableExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckSeqLengthKVExistence(const FiaTilingInfo &fiaInfo);
 
     int64_t GetMaxBlockNumPerBatch(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMaskShape(const FiaTilingInfo &fiaInfo);
+    bool CheckMaskShape(const FiaTilingInfo &fiaInfo);
 
-    ge::graphStatus CheckBlockTableShape(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckBlockSize(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckPADimNum(const FiaTilingInfo &fiaInfo);
+    bool CheckBlockTableShape(const FiaTilingInfo &fiaInfo);
+    bool CheckBlockSize(const FiaTilingInfo &fiaInfo);
+    bool CheckPADimNum(const FiaTilingInfo &fiaInfo);
 
-    ge::graphStatus CheckPACacheShape(const FiaTilingInfo &fiaInfo, const gert::Shape tempShape,
+    bool CheckPACacheShape(const FiaTilingInfo &fiaInfo, const gert::Shape tempShape,
         const std::string& inputName);
 };
 

@@ -18,9 +18,9 @@
 #include "tiling_base/tiling_templates_registry.h"
 
 namespace optiling {
-static ge::graphStatus TilingPrepareForFusedInferAttentionScore(gert::TilingParseContext * /* context */)
+static bool TilingPrepareForFusedInferAttentionScore(gert::TilingParseContext * /* context */)
 {
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 IMPL_OP_OPTILING(FusedInferAttentionScore)
     .TilingInputsDataDependency({ACTUAL_SEQ_Q_INDEX, ACTUAL_SEQ_KV_INDEX, QUERY_PADDING_SIZE_INDEX,

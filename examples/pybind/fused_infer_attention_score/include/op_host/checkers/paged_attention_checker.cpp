@@ -26,53 +26,52 @@ namespace optiling {
 using std::map;
 using std::string;
 using std::pair;
-using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
 // 公共校验函数
-ge::graphStatus PagedAttentionChecker::CheckBlockTableExistence(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckBlockTableExistence(const FiaTilingInfo &fiaInfo)
 {
     OP_CHECK_IF(fiaInfo.opParamInfo.blockTable.tensor == nullptr,
         OP_LOGE(fiaInfo.opName,
                 "When page attention enable, block table should not be null."),
-            return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+            return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckFeatureExistence(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckFeatureExistence(const FiaTilingInfo &fiaInfo)
 {
     OP_CHECK_IF((fiaInfo.opParamInfo.queryPaddingSize.tensor != nullptr) ||
         (fiaInfo.opParamInfo.kvPaddingSize.tensor != nullptr),
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, left padding is not supported."),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     OP_CHECK_IF((fiaInfo.opParamInfo.keySharedPrefix.tensor != nullptr) ||
         (fiaInfo.opParamInfo.valueSharedPrefix.tensor != nullptr),
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, system prefix is not supported."),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     OP_CHECK_IF(fiaInfo.isQKVDDifferent,
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, the head dim of query and key should be equal."),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckSeqLengthKVExistence(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckSeqLengthKVExistence(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.isMaxWorkspace) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     OP_CHECK_IF(fiaInfo.opParamInfo.actualSeqLengths.tensor == nullptr ||
         fiaInfo.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>() == nullptr ||
             fiaInfo.opParamInfo.actualSeqLengths.tensor->GetShapeSize() == 0,
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, actualSeqLengths of KV should not be null."),
-        return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+        return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
 int64_t PagedAttentionChecker::GetMaxBlockNumPerBatch(const FiaTilingInfo &fiaInfo)
@@ -98,12 +97,12 @@ int64_t PagedAttentionChecker::GetMaxBlockNumPerBatch(const FiaTilingInfo &fiaIn
 }
 
 // check mask shape
-ge::graphStatus PagedAttentionChecker::CheckMaskShape(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckMaskShape(const FiaTilingInfo &fiaInfo)
 {
     if ((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK) &&
         fiaInfo.opParamInfo.attenMask.tensor != nullptr) {
         if (fiaInfo.opParamInfo.actualSeqLengths.tensor == nullptr) {
-            return ge::GRAPH_SUCCESS;
+            return GRAPH_SUCCESS;
         }
         const gert::Shape attenMaskShape = fiaInfo.opParamInfo.attenMask.tensor->GetStorageShape();
         int64_t maxBlockNumPerBatch = GetMaxBlockNumPerBatch(fiaInfo);
@@ -114,26 +113,26 @@ ge::graphStatus PagedAttentionChecker::CheckMaskShape(const FiaTilingInfo &fiaIn
                 "When page attention enable and attenMask enable (sparseMode = %u), the last dimension of "
                 "attenMask(%ld) shoule be greater than maxBlockNumPerBatch(%ld) * blockSize(%d).",
                 fiaInfo.sparseMode, attenMaskShape.GetDim(attenMaskDimNum-1), maxBlockNumPerBatch, fiaInfo.blockSize),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // check blocktable dtype
-ge::graphStatus PagedAttentionChecker::CheckBlockTableDtype(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckBlockTableDtype(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.opParamInfo.blockTable.tensor == nullptr) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     const gert::CompileTimeTensorDesc *blockTableDesc = fiaInfo.opParamInfo.blockTable.desc;
-    OP_CHECK_IF(blockTableDesc->GetDataType() != ge::DT_INT32,
+    OP_CHECK_IF(blockTableDesc->GetDataType() != DT_INT32,
         OP_LOGE(fiaInfo.opName, "When page attention enable, blockTable datatype only support INT32."),
-        return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+        return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
 // check pa cache shape
-ge::graphStatus PagedAttentionChecker::CheckPACacheShape(const FiaTilingInfo &fiaInfo, const gert::Shape tempShape,
+bool PagedAttentionChecker::CheckPACacheShape(const FiaTilingInfo &fiaInfo, const gert::Shape tempShape,
     const std::string& inputName)
 {
     uint32_t shapeDim = tempShape.GetDimNum();
@@ -159,33 +158,33 @@ ge::graphStatus PagedAttentionChecker::CheckPACacheShape(const FiaTilingInfo &fi
         OP_CHECK_IF(tempBlockSize != fiaInfo.blockSize,
             OP_LOGE(fiaInfo.opName, "When page attention enable, blocksize of %s(%u) should be %u",
                 inputName.c_str(), tempBlockSize, fiaInfo.blockSize),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
-        if (fiaInfo.inputKvType == ge::DT_INT4) {
+        if (fiaInfo.inputKvType == DT_INT4) {
             OP_CHECK_IF(tempH != fiaInfo.n2Size * compareD,
                 OP_LOGE(fiaInfo.opName, "When page attention enable, if input kv dataType is INT32, "
                     "the axis H of %s(%u) should be %u, "
                     "if input kv dataType is INT4, the axis H of %s(%u) should be %u",
                     inputName.c_str(), tempH / NUM8, fiaInfo.n2Size * compareD / NUM8,
                     inputName.c_str(), tempH, fiaInfo.n2Size * compareD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
 
             OP_CHECK_IF(tempH > H_LIMIT,
                 OP_LOGE(fiaInfo.opName, "When page attention enable and layout is BSH, "
                     "if input kv dataType is INT32, the axis H of %s(%ld) should not > %u."
                     "if input kv dataType is INT4, the axis H of %s(%ld) should not > %u.",
                     inputName.c_str(), tempH / NUM8, H_LIMIT / NUM8, inputName.c_str(), tempH, H_LIMIT),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else {
             OP_CHECK_IF(tempH != fiaInfo.n2Size * compareD,
                 OP_LOGE(fiaInfo.opName, "When page attention enable, the axis H(%u) of kvCache should be %u",
                     tempH, fiaInfo.n2Size * compareD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
 
             OP_CHECK_IF(tempH > H_LIMIT,
                 OP_LOGE(fiaInfo.opName, "When page attention enable and layout is BSH, "
                     "the axis H of %s(%ld) should not > %u.", inputName.c_str(), tempH, H_LIMIT),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else if (shapeDim == DIM_NUM_4) { // [blockNums, N, blockSize, D]
         tempN = tempShape.GetDim(DIM_NUM_1);
@@ -195,67 +194,67 @@ ge::graphStatus PagedAttentionChecker::CheckPACacheShape(const FiaTilingInfo &fi
         OP_CHECK_IF(tempN != fiaInfo.n2Size,
             OP_LOGE(fiaInfo.opName, "When page attention enable, the axis N(%u) of kvCache should be %u",
                 tempN, fiaInfo.n2Size),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         OP_CHECK_IF(tempBlockSize != fiaInfo.blockSize,
             OP_LOGE(fiaInfo.opName, "When page attention enable, blocksize(%u) of kvCache should be %u",
                 tempBlockSize, fiaInfo.blockSize),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         
-        if (fiaInfo.inputKvType == ge::DT_INT4) {
+        if (fiaInfo.inputKvType == DT_INT4) {
             OP_CHECK_IF(tempD != compareD,
                 OP_LOGE(fiaInfo.opName, "When page attention enable, if input kv dataType is INT32, "
                     "the axis D of %s(%u) should be %u, "
                     "if input kv dataType is INT4, the axis D of %s(%u) should be %u",
                     inputName.c_str(), tempD / NUM8, compareD / NUM8,
                     inputName.c_str(), tempD, compareD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else {
             OP_CHECK_IF(tempD != compareD,
                 OP_LOGE(fiaInfo.opName, "When page attention enable, the axis D of %s(%u) should be %u",
                     inputName.c_str(), tempD, compareD),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else { // [blockNums, N, D1, blocksize, D0]
         tempN = tempShape.GetDim(DIM_NUM_1);
         tempD1 = tempShape.GetDim(DIM_NUM_2);
         tempBlockSize = tempShape.GetDim(DIM_NUM_3);
         tempD0 = tempShape.GetDim(DIM_NUM_4);
-        const ge::DataType inputKvType = fiaInfo.inputKvType;
+        const DataType inputKvType = fiaInfo.inputKvType;
         uint32_t d0Size = NUM_16; // D0 = 16
 
         OP_CHECK_IF(tempN != fiaInfo.n2Size,
             OP_LOGE(fiaInfo.opName, "When page attention enable, the axis N of %s(%u) should be %u",
                 inputName.c_str(), tempN, fiaInfo.n2Size),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         OP_CHECK_IF(tempBlockSize != fiaInfo.blockSize,
             OP_LOGE(fiaInfo.opName, "When page attention enable, blocksize of %s(%u) should be %u",
                 inputName.c_str(), tempBlockSize, fiaInfo.blockSize),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         if (enableAntiQuant_) {
             d0Size = NUM_16;
-            if (fiaInfo.inputKvType == ge::DT_INT4) {
+            if (fiaInfo.inputKvType == DT_INT4) {
                 OP_CHECK_IF(tempD0 != d0Size,
                     OP_LOGE(fiaInfo.opName, "When PA_NZ enable, if input kv dataType is INT32, "
                         "the last dim (D0) of kvCache(%u) should be %u; "
                         "if input kv dataType is INT4, the last dim (D0) of %s(%u) should be %u",
                         inputName.c_str(), tempD0/NUM8, d0Size/NUM8, tempD0, d0Size),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
             } else {
                 OP_CHECK_IF(tempD0 != d0Size,
                     OP_LOGE(fiaInfo.opName, "When PA_NZ enable, the last dim (D0) of %s(%u) should be %u",
                         inputName.c_str(), tempD0, d0Size),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
             }
         } else {
-            std::unordered_map<ge::DataType, float> typeSizeMap = {
-                {ge::DT_FLOAT16, static_cast<float>(FLOAT16SIZE)},
-                {ge::DT_BF16, static_cast<float>(BFLOAT16SIZE)},
-                {ge::DT_INT8, static_cast<float>(INT8SIZE)},
-                {ge::DT_HIFLOAT8, static_cast<float>(FLOAT8SIZE)},
-                {ge::DT_FLOAT8_E4M3FN, static_cast<float>(FLOAT8SIZE)}};
+            std::unordered_map<DataType, float> typeSizeMap = {
+                {DT_FLOAT16, static_cast<float>(FLOAT16SIZE)},
+                {DT_BF16, static_cast<float>(BFLOAT16SIZE)},
+                {DT_INT8, static_cast<float>(INT8SIZE)},
+                {DT_HIFLOAT8, static_cast<float>(FLOAT8SIZE)},
+                {DT_FLOAT8_E4M3FN, static_cast<float>(FLOAT8SIZE)}};
             float dataTypeSizeValue = static_cast<float>(FLOAT16SIZE);
             auto inputTypeCheck = typeSizeMap.find(fiaInfo.inputKvType);
             if (inputTypeCheck != typeSizeMap.end()) {
@@ -270,28 +269,28 @@ ge::graphStatus PagedAttentionChecker::CheckPACacheShape(const FiaTilingInfo &fi
             OP_CHECK_IF(tempD0 != d0Size,
                 OP_LOGE(fiaInfo.opName, "When PA_NZ enable, the last dim (D0) of %s(%u) should be %u",
                     inputName.c_str(), tempD0, d0Size),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
 
         OP_CHECK_IF(tempD1 != compareD / d0Size,
             OP_LOGE(fiaInfo.opName, "When PA_NZ enable, the third dim (D1) of %s(%u) should be %u",
                 inputName.c_str(), tempD1, compareD / d0Size),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // check input query dtype
-ge::graphStatus PagedAttentionChecker::CheckQDtypeSupport(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckQDtypeSupport(const FiaTilingInfo &fiaInfo)
 {
-    OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8,
+    OP_CHECK_IF(fiaInfo.inputQType == DT_INT8,
         OP_LOGE(fiaInfo.opName, "When page attention enable, the datatype(%s) of query is not supported.",
                 DataTypeToSerialString(fiaInfo.inputQType).c_str()),
-            return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+            return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckBlockTableShape(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckBlockTableShape(const FiaTilingInfo &fiaInfo)
 {
     const gert::Shape blockTableShape = fiaInfo.opParamInfo.blockTable.tensor->GetStorageShape();
 
@@ -299,16 +298,16 @@ ge::graphStatus PagedAttentionChecker::CheckBlockTableShape(const FiaTilingInfo 
     OP_CHECK_IF(blockTableShape.GetDimNum() != 2,
         OP_LOGE(fiaInfo.opName, "When page attention enable, the dim num(%zu) of blockTable should be 2.",
                 blockTableShape.GetDimNum()),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
     // check blockTable each dim cannot be 0
     OP_CHECK_IF(blockTableShape.GetShapeSize() == 0,
         OP_LOGE(fiaInfo.opName, "When page attention enable, blockTable each dim can not be 0, now is [%ld, %ld].",
             blockTableShape.GetDim(0), blockTableShape.GetDim(1)),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
     
     if (fiaInfo.opParamInfo.actualSeqLengths.tensor == nullptr) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
 
     // 每个batch的 blockNum 小于 blocktable dim2
@@ -318,19 +317,19 @@ ge::graphStatus PagedAttentionChecker::CheckBlockTableShape(const FiaTilingInfo 
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, block table shape should be [%u, >=%ld], now is [%ld, %ld].",
             fiaInfo.bSize, maxBlockNumPerBatch, blockTableShape.GetDim(0), blockTableShape.GetDim(1)),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     // check key cache shape
-    if (ge::GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.key.shape->GetStorageShape(), "key") ||
-        ge::GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.value.shape->GetStorageShape(), "value")) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.key.shape->GetStorageShape(), "key") ||
+        GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.value.shape->GetStorageShape(), "value")) {
+        return GRAPH_FAILED;
     }
 
     // check rope cache shape
     if (fiaInfo.ropeMode == RopeMode::ROPE_SPLIT) {
-        if (ge::GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape(),
+        if (GRAPH_SUCCESS != CheckPACacheShape(fiaInfo, fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape(),
             "keyRope")) {
-            return ge::GRAPH_FAILED;
+            return GRAPH_FAILED;
         }
     }
 
@@ -340,21 +339,21 @@ ge::graphStatus PagedAttentionChecker::CheckBlockTableShape(const FiaTilingInfo 
             "When page attention enable, sequence length(%ld) of kv should <= 20M.",
             maxBlockNumPerBatch * fiaInfo.blockSize);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // check blocksize
-ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaInfo)
 {
     OP_CHECK_IF(fiaInfo.opParamInfo.blockSize == nullptr,
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, blockSize shuld not be null."),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     OP_CHECK_IF(fiaInfo.blockSize == 0,
         OP_LOGE(fiaInfo.opName,
             "When page attention enable, blockSize should not be 0."),
-        return ge::GRAPH_FAILED);
+        return GRAPH_FAILED);
 
     if (enableNonQuant_) { // 非量化
         if (fiaInfo.ropeMode != RopeMode::NO_ROPE) { // MLA场景 [16, 1024]且16对齐
@@ -364,7 +363,7 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                     "In no quant MLA scenario, when page attention enable, blockSize(%d) should be a multiple of "
                     "%u, and should be in range of [%u, %u].",
                     fiaInfo.blockSize, BLOCK_SIZE_ALIGN_SIZE_16, BLOCK_SIZE_ALIGN_SIZE_16, BLOCK_SIZE_MAX_FOR_NO_QUANT),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else if (fiaInfo.qkHeadDim == NUM_64 || fiaInfo.qkHeadDim == NUM_128) { // GQA D =64/128场景 [16, 1024]且16对齐
             OP_CHECK_IF(fiaInfo.blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT || 
                 fiaInfo.blockSize < BLOCK_SIZE_ALIGN_SIZE_16 || fiaInfo.blockSize % BLOCK_SIZE_ALIGN_SIZE_16 != 0,
@@ -373,7 +372,7 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                     "of %u, and should be in range of [%u, %u].",
                     fiaInfo.qkHeadDim, fiaInfo.blockSize, BLOCK_SIZE_ALIGN_SIZE_16,
                     BLOCK_SIZE_ALIGN_SIZE_16, BLOCK_SIZE_MAX_FOR_NO_QUANT),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         } else {
             // GQA D != 64/128, QS > 1 [128, 512]且128对齐
             OP_CHECK_IF((fiaInfo.s1Size > NUM1) && (fiaInfo.blockSize > BLOCK_SIZE_MAX || 
@@ -382,7 +381,7 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                     "In no quant GQA (QS > 1) scenario, when page attention enable, blockSize(%d) should be a multiple "
                     "of %u, and should be in range of [%u, %u].",
                     fiaInfo.blockSize, BLOCK_SIZE_ALIGN_SIZE_128, BLOCK_SIZE_ALIGN_SIZE_128, BLOCK_SIZE_MAX),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
             // GQA D != 64/128, QS = 1 [16, 512]且16对齐
             OP_CHECK_IF((fiaInfo.s1Size == NUM1) && (fiaInfo.blockSize > BLOCK_SIZE_MAX || 
                 fiaInfo.blockSize < BLOCK_SIZE_ALIGN_SIZE_16 || fiaInfo.blockSize % BLOCK_SIZE_ALIGN_SIZE_16 != 0),
@@ -391,16 +390,16 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                     "of %u, and should be in range of [%u, %u].",
                     fiaInfo.s1Size, fiaInfo.blockSize, BLOCK_SIZE_ALIGN_SIZE_16,
                     BLOCK_SIZE_ALIGN_SIZE_16, BLOCK_SIZE_MAX),
-                return ge::GRAPH_FAILED);
+                return GRAPH_FAILED);
         }
     } else if (enableAntiQuant_) {
-        std::unordered_map<ge::DataType, float> typeSizeMap = {{ge::DT_FLOAT16, static_cast<float>(FLOAT16SIZE)},
-                                                               {ge::DT_BF16, static_cast<float>(BFLOAT16SIZE)},
-                                                               {ge::DT_INT8, static_cast<float>(INT8SIZE)},
-                                                               {ge::DT_HIFLOAT8, static_cast<float>(FLOAT8SIZE)},
-                                                               {ge::DT_FLOAT8_E4M3FN, static_cast<float>(FLOAT8SIZE)},
-                                                               {ge::DT_INT4, INT4SIZE},
-                                                               {ge::DT_FLOAT4_E2M1, FLOAT4SIZE}};
+        std::unordered_map<DataType, float> typeSizeMap = {{DT_FLOAT16, static_cast<float>(FLOAT16SIZE)},
+                                                               {DT_BF16, static_cast<float>(BFLOAT16SIZE)},
+                                                               {DT_INT8, static_cast<float>(INT8SIZE)},
+                                                               {DT_HIFLOAT8, static_cast<float>(FLOAT8SIZE)},
+                                                               {DT_FLOAT8_E4M3FN, static_cast<float>(FLOAT8SIZE)},
+                                                               {DT_INT4, INT4SIZE},
+                                                               {DT_FLOAT4_E2M1, FLOAT4SIZE}};
         float dataTypeSizeValue = static_cast<float>(FLOAT16SIZE);
         auto inputTypeCheck = typeSizeMap.find(fiaInfo.inputKvType);
         if (inputTypeCheck != typeSizeMap.end()) {
@@ -416,13 +415,13 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                 "blockSize(%d) should be a multiple of %u, and should be in range of [%u, %u].",
                 DataTypeToSerialString(fiaInfo.inputKvType).c_str(),
                 fiaInfo.blockSize, blockSizeAlign, blockSizeAlign, BLOCK_SIZE_MAX),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     } else { // 全量化
         OP_CHECK_IF(fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512 && fiaInfo.blockSize != NUM_128,
             OP_LOGE(fiaInfo.opName,
                 "In MLA fullquant scenario, when page attention enable, blockSize(%d) should be 128.",
                 fiaInfo.blockSize),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         OP_CHECK_IF(fiaInfo.mlaMode == MlaMode::NO_MLA && (fiaInfo.blockSize > BLOCK_SIZE_MAX || 
             fiaInfo.blockSize < NUM_32 || fiaInfo.blockSize % NUM_32 != 0),
@@ -430,15 +429,15 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                 "In per-tensor quant scenario, when page attention enable, "
                 "blockSize(%d) should be a multiple of %u, and should be in range of [%u, %u].",
                 fiaInfo.blockSize, NUM_32, NUM_32, BLOCK_SIZE_MAX),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckPADimNum(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckPADimNum(const FiaTilingInfo &fiaInfo)
 {
     if (!enableFullQuant_) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     const string inputLayout = fiaInfo.opParamInfo.layOut;
     const uint32_t dimNum = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
@@ -446,80 +445,80 @@ ge::graphStatus PagedAttentionChecker::CheckPADimNum(const FiaTilingInfo &fiaInf
         OP_CHECK_IF(dimNum == 4,
             OP_LOGE(fiaInfo.opName,
                 "When page attention enable and input layout is %s, PA BnNBsD is not supported.", inputLayout.c_str()),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
     if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B) {
         OP_CHECK_IF(fiaInfo.kvLayout == FiaLayout::BnBsH && (fiaInfo.qLayout != FiaLayout::BSH && fiaInfo.qLayout != FiaLayout::BSND &&
                         fiaInfo.qLayout != FiaLayout::BNSD && fiaInfo.qLayout != FiaLayout::TND && fiaInfo.qLayout != FiaLayout::NTD),
             OP_LOGE(fiaInfo.opName, "In %s %s situation, the key/value's layout is BnBsH, query layout must be BSH, BSND, BNSD TND and TND in page attention scene, but got %s",
                 QuantModeToSerialString(fiaInfo.quantMode).c_str(), SituationToSerialString(fiaInfo.ropeMode).c_str(), LayoutToSerialString(fiaInfo.qLayout).c_str()),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         OP_CHECK_IF(fiaInfo.kvLayout == FiaLayout::BnNBsD && (fiaInfo.qLayout != FiaLayout::BSH && fiaInfo.qLayout != FiaLayout::BSND &&
                         fiaInfo.qLayout != FiaLayout::BNSD && fiaInfo.qLayout != FiaLayout::TND && fiaInfo.qLayout != FiaLayout::NTD),
             OP_LOGE(fiaInfo.opName, "In %s %s situation, the key/value's layout is BnNBsD, query layout must be BSH, BSND, BNSD TND and TND in page attention scene, but got %s",
                 QuantModeToSerialString(fiaInfo.quantMode).c_str(), SituationToSerialString(fiaInfo.ropeMode).c_str(), LayoutToSerialString(fiaInfo.qLayout).c_str()),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
 
         OP_CHECK_IF(fiaInfo.kvLayout == FiaLayout::NZ && (fiaInfo.qLayout != FiaLayout::BSH && fiaInfo.qLayout != FiaLayout::BSND &&
                         fiaInfo.qLayout != FiaLayout::BNSD && fiaInfo.qLayout != FiaLayout::TND && fiaInfo.qLayout != FiaLayout::NTD),
             OP_LOGE(fiaInfo.opName, "In %s %s situation, the key/value's layout is BnNBsD, query layout must be BSH, BSND, BNSD TND and TND in page attention scene, but got %s",
                 QuantModeToSerialString(fiaInfo.quantMode).c_str(), SituationToSerialString(fiaInfo.ropeMode).c_str(), LayoutToSerialString(fiaInfo.qLayout).c_str()),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.pageAttentionFlag) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
 
-    if (ge::GRAPH_SUCCESS != CheckBlockTableDtype(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckQDtypeSupport(fiaInfo)) {
-            return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckBlockTableDtype(fiaInfo) ||
+        GRAPH_SUCCESS != CheckQDtypeSupport(fiaInfo)) {
+            return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.pageAttentionFlag) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
 
-    if (ge::GRAPH_SUCCESS != CheckBlockTableExistence(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckFeatureExistence(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckSeqLengthKVExistence(fiaInfo)) {
-            return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckBlockTableExistence(fiaInfo) ||
+        GRAPH_SUCCESS != CheckFeatureExistence(fiaInfo) ||
+        GRAPH_SUCCESS != CheckSeqLengthKVExistence(fiaInfo)) {
+            return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.pageAttentionFlag) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
-    if (ge::GRAPH_SUCCESS != CheckMaskShape(fiaInfo)) {
-            return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckMaskShape(fiaInfo)) {
+            return GRAPH_FAILED;
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PagedAttentionChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+bool PagedAttentionChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
     if (!fiaInfo.pageAttentionFlag) {
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
 
-    if (ge::GRAPH_SUCCESS != CheckBlockSize(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckPADimNum(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckBlockTableShape(fiaInfo)) {
-            return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckBlockSize(fiaInfo) ||
+        GRAPH_SUCCESS != CheckPADimNum(fiaInfo) ||
+        GRAPH_SUCCESS != CheckBlockTableShape(fiaInfo)) {
+            return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 } // namespace optiling

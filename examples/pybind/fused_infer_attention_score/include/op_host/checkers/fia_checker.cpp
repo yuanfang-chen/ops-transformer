@@ -25,14 +25,13 @@ namespace optiling {
 using std::map;
 using std::string;
 using std::pair;
-using namespace ge;
 using namespace AscendC;
 
-ge::graphStatus FIAChecker::Init(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::Init(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.inputQType != fiaInfo.inputKvType) {
         enableAntiQuant_ = true;
-    } else if (fiaInfo.inputQType == ge::DT_FLOAT16 || fiaInfo.inputQType == ge::DT_BF16) {
+    } else if (fiaInfo.inputQType == DT_FLOAT16 || fiaInfo.inputQType == DT_BF16) {
         enableNonQuant_ = true;
     } else {
         enableFullQuant_ = true;
@@ -52,190 +51,190 @@ ge::graphStatus FIAChecker::Init(const FiaTilingInfo &fiaInfo)
     softmaxLSEChecker_ = std::make_unique<SoftmaxLSEChecker>(enableNonQuant_, enableFullQuant_, enableAntiQuant_);
     systemPrefixChecker_ = std::make_unique<SystemPrefixChecker>(enableNonQuant_, enableFullQuant_, enableAntiQuant_);
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FIAChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != shapeChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != shapeChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != maskChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != maskChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != actualSeqLenChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != actualSeqLenChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pagedAttentionChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pagedAttentionChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != postQuantChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != postQuantChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != ropeChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != ropeChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pseChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pseChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != leftPaddingChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != leftPaddingChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != systemPrefixChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != systemPrefixChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != softmaxLSEChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != softmaxLSEChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != learnableSinkChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != learnableSinkChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != dequantChecker_->CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != dequantChecker_->CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FIAChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != shapeChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != shapeChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != maskChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != maskChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != actualSeqLenChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != actualSeqLenChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pagedAttentionChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pagedAttentionChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != postQuantChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != postQuantChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != ropeChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != ropeChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pseChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pseChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != leftPaddingChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != leftPaddingChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != systemPrefixChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != systemPrefixChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != softmaxLSEChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != softmaxLSEChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != learnableSinkChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != learnableSinkChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != dequantChecker_->CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != dequantChecker_->CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FIAChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != shapeChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != shapeChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != maskChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != maskChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != actualSeqLenChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != actualSeqLenChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pagedAttentionChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pagedAttentionChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != postQuantChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != postQuantChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != ropeChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != ropeChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pseChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pseChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != leftPaddingChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != leftPaddingChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != systemPrefixChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != systemPrefixChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != softmaxLSEChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != softmaxLSEChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != learnableSinkChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != learnableSinkChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != dequantChecker_->CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != dequantChecker_->CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FIAChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != shapeChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != shapeChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != maskChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != maskChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != actualSeqLenChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != actualSeqLenChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pagedAttentionChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pagedAttentionChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != postQuantChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != postQuantChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != ropeChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != ropeChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != pseChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != pseChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != leftPaddingChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != leftPaddingChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != systemPrefixChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != systemPrefixChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != softmaxLSEChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != softmaxLSEChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != learnableSinkChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != learnableSinkChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != dequantChecker_->CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != dequantChecker_->CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus FIAChecker::Process(const FiaTilingInfo &fiaInfo)
+bool FIAChecker::Process(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckSinglePara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckSinglePara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != CheckParaExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckParaExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != CheckFeature(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckFeature(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != CheckMultiPara(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckMultiPara(fiaInfo)) {
+        return GRAPH_FAILED;
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 }  // namespace optiling

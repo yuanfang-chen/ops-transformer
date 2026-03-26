@@ -1,0 +1,46 @@
+CMake Warning at /root/miniconda3/envs/pj/lib/python3.11/site-packages/torch/share/cmake/Torch/TorchConfig.cmake:22 (message):
+  static library kineto_LIBRARY-NOTFOUND not found.
+Call Stack (most recent call first):
+  /root/miniconda3/envs/pj/lib/python3.11/site-packages/torch/share/cmake/Torch/TorchConfig.cmake:125 (append_torchlib_if_found)
+  CMakeLists.txt:22 (find_package)
+
+
+-- Found pybind11: /root/miniconda3/envs/pj/lib/python3.11/site-packages/pybind11/include (found version "3.0.2")
+-- Configuring done (12.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build
+[ 50%] Built target xxxlib
+[ 75%] Building ASC object CMakeFiles/ascendc_ops.dir/fused_infer_attention_score.cpp.o
+[100%] Linking ASC shared library ascendc_ops.cpython-311-x86_64-linux-gnu.so
+[100%] Built target ascendc_ops
+Start fused_infer_attention_score demo.
+.isEmpty(): 0
+CoreNum is 32.
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:109: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:203.)
+  bf16_tensor = torch.from_numpy(uint16_array).to(torch.bfloat16)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:129: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  output_nan = np.isnan(output)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:130: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  golden_nan = np.isnan(golden)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:139: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  diff = np.abs(output - golden)
+.
+----------------------------------------------------------------------
+Ran 1 test in 2.171s
+
+OK
+output:
+tensor([32768., 32768., 32768.,  ..., 32768., 32768., 32768.],
+       dtype=torch.bfloat16)
+golden:
+tensor([32768., 32768., 32768.,  ..., 32768., 32768., 32768.],
+       dtype=torch.bfloat16)
+error count: 0
+total count: 1048576
+test pass
+SetTilingData
+after SetTilingData
+ConvertContextToParamsIFA 003
+ConvertContextToParamsIFA 004
+CalcTilingKey
+calculating tilingKey: 2000000012

@@ -29,24 +29,24 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~SystemPrefixChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // singlepara
-    ge::graphStatus CheckSharedPrefixDim(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckSharedPrefixDataType(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckSharedPrefixShape(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckActualSharedPrefixLenData(const FiaTilingInfo &fiaInfo);
+    bool CheckSharedPrefixDim(const FiaTilingInfo &fiaInfo);
+    bool CheckSharedPrefixDataType(const FiaTilingInfo &fiaInfo);
+    bool CheckSharedPrefixShape(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSharedPrefixLenData(const FiaTilingInfo &fiaInfo);
 
     // existence
-    ge::graphStatus CheckSharedPrefixExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckSharedPrefixExistence(const FiaTilingInfo &fiaInfo);
 
     // feature
-    ge::graphStatus CheckUnSupportFeature(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureAntiquant(const FiaTilingInfo &fiaInfo);
+    bool CheckUnSupportFeature(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureAntiquant(const FiaTilingInfo &fiaInfo);
 
     // multipara
 private:

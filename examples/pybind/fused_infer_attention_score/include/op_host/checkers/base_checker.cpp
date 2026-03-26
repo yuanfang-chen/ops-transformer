@@ -22,48 +22,47 @@ namespace optiling {
 using std::map;
 using std::string;
 using std::pair;
-using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
-ge::graphStatus BaseChecker::CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const
+bool BaseChecker::CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const
 {
     if (desc != nullptr) {
         const auto &it = DTYPE_SUPPORT_MAP.find(name);
         OP_CHECK_IF(it == DTYPE_SUPPORT_MAP.end(),
                     OP_LOGE("FusedInferAttentionScore",
                             "%s datatype support list should be specify in DTYPE_SUPPORT_MAP", name.c_str()),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         auto &expectDtypeList = it->second;
         if (std::find(expectDtypeList.begin(), expectDtypeList.end(), desc->GetDataType()) == expectDtypeList.end()) {
-            return ge::GRAPH_FAILED;
+            return GRAPH_FAILED;
         }
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus BaseChecker::CheckFormatSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const
+bool BaseChecker::CheckFormatSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const
 {
     if (desc != nullptr) {
         auto format = desc->GetOriginFormat();
         OP_CHECK_IF((FORMAT_SUPPORT_SET.find(format) == FORMAT_SUPPORT_SET.end()),
                     OP_LOGE("FusedInferAttentionScore", "%s format only supports ND/NCHW/NHWC/NCDHW!", name.c_str()),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 template <typename T>
-ge::graphStatus BaseChecker::CheckValueSupport(const T value, const std::vector<T> &expectValList) const
+bool BaseChecker::CheckValueSupport(const T value, const std::vector<T> &expectValList) const
 {
     if (std::find(expectValList.begin(), expectValList.end(), value) == expectValList.end()) {
-        return ge::GRAPH_FAILED;
+        return GRAPH_FAILED;
     }
 
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-std::string BaseChecker::DataTypeToSerialString(ge::DataType type)
+std::string BaseChecker::DataTypeToSerialString(DataType type)
 {
     const auto it = DATATYPE_TO_STRING_MAP.find(type);
     if (it != DATATYPE_TO_STRING_MAP.end()) {
@@ -75,9 +74,9 @@ std::string BaseChecker::DataTypeToSerialString(ge::DataType type)
 }
 
 // explicit instantiation
-template ge::graphStatus BaseChecker::CheckValueSupport(
-    const std::tuple<ge::DataType, ge::DataType, ge::DataType> value,
-    const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> &expectValList) const;
-template ge::graphStatus BaseChecker::CheckValueSupport(const int32_t value,
+template bool BaseChecker::CheckValueSupport(
+    const std::tuple<DataType, DataType, DataType> value,
+    const std::vector<std::tuple<DataType, DataType, DataType>> &expectValList) const;
+template bool BaseChecker::CheckValueSupport(const int32_t value,
                                                         const std::vector<int32_t> &expectValList) const;
 }

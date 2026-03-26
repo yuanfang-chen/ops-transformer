@@ -34,19 +34,19 @@ public:
     virtual ~BaseChecker() = default;
 
 protected:
-    virtual ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) = 0;
-    virtual ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) = 0;
-    virtual ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) = 0;
-    virtual ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) = 0;
+    virtual bool CheckSinglePara(const FiaTilingInfo &fiaInfo) = 0;
+    virtual bool CheckParaExistence(const FiaTilingInfo &fiaInfo) = 0;
+    virtual bool CheckFeature(const FiaTilingInfo &fiaInfo) = 0;
+    virtual bool CheckMultiPara(const FiaTilingInfo &fiaInfo) = 0;
 
     // public check funcs
-    ge::graphStatus CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
-    ge::graphStatus CheckFormatSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
+    bool CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
+    bool CheckFormatSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
     template <typename T>
-    ge::graphStatus CheckValueSupport(const T value, const std::vector<T> &expectValList) const;
+    bool CheckValueSupport(const T value, const std::vector<T> &expectValList) const;
 
     // public funcs
-    std::string DataTypeToSerialString(ge::DataType type);
+    std::string DataTypeToSerialString(DataType type);
 
 protected:
     bool enableNonQuant_ = false;

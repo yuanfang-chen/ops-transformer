@@ -29,22 +29,22 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~PostQuantChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
-    ge::graphStatus CheckSingleDtype(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckExistenceQuantScale2(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureOutput(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureOutputEqual(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeaturePrefix(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureRowValid(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiParaDtype(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiParaShape(const FiaTilingInfo &fiaInfo);
+    bool CheckSingleDtype(const FiaTilingInfo &fiaInfo);
+    bool CheckExistenceQuantScale2(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureOutput(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureOutputEqual(const FiaTilingInfo &fiaInfo);
+    bool CheckFeaturePrefix(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureRowValid(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiParaQuantOffset2(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiParaDtype(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiParaShape(const FiaTilingInfo &fiaInfo);
 
 private:
 };

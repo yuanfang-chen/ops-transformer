@@ -29,22 +29,22 @@ public:
         BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
     ~LeftPaddingChecker() override = default;
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo) override;
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
 
 private:
     // 公共校验函数
-    ge::graphStatus CheckShapeSupport(const gert::Tensor *tensor, const std::vector<int64_t> &expectShapeList) const;
-    ge::graphStatus CheckSingleDesc(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureActualLen(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureLayout(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureAlibiPse(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeaturePageAttention(const FiaTilingInfo &fiaInfo);
+    bool CheckShapeSupport(const gert::Tensor *tensor, const std::vector<int64_t> &expectShapeList) const;
+    bool CheckSingleDesc(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureActualLen(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureLayout(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureAlibiPse(const FiaTilingInfo &fiaInfo);
+    bool CheckFeaturePageAttention(const FiaTilingInfo &fiaInfo);
 
     // enableNonQuant 相关校验函数
-    ge::graphStatus CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo);
 
 private:
 };

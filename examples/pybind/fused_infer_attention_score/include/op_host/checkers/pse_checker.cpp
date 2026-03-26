@@ -26,7 +26,6 @@ namespace optiling {
 using std::map;
 using std::string;
 using std::pair;
-using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
 
@@ -39,73 +38,73 @@ constexpr int64_t PSE_INNER_MUL_ADD_SQRT_TYPE = 3;
 constexpr int64_t PSE_NONE_TYPE = 9;
 
 // singlepara
-ge::graphStatus PSEChecker::CheckPseType(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckPseType(const FiaTilingInfo &fiaInfo)
 {
     // 校验pseType的合法性
     if (fiaInfo.opParamInfo.pseType == nullptr) {
         // 若pseType不存在，则放弃后续校验
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     int64_t pseType = *fiaInfo.opParamInfo.pseType;
     // pseType支持范围为0,2,3
     OP_CHECK_IF((pseType != PSE_OUTER_MUL_ADD_TYPE) && (pseType != PSE_INNER_MUL_ADD_TYPE) &&
                     (pseType != PSE_INNER_MUL_ADD_SQRT_TYPE),
                 OP_LOGE(fiaInfo.opName, "pseType(%ld) is not supported. pseType must be 0, 2, or 3.", pseType),
-                return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+                return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckPseShiftDataType(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckPseShiftDataType(const FiaTilingInfo &fiaInfo)
 {
     // 校验pseShift的数据类型
     if (fiaInfo.opParamInfo.pseType == nullptr || fiaInfo.opParamInfo.pseShift.desc == nullptr) {
         // 若pseType或者pseShift的数据类型不存在，则放弃后续校验
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     int64_t pseType = *fiaInfo.opParamInfo.pseType;
     auto &pseShiftDesc = fiaInfo.opParamInfo.pseShift.desc;
     if (fiaInfo.enableAlibiPse) {
         // 使能alibi，pseShift的数据类型必须为FLOAT32
-        OP_CHECK_IF((pseShiftDesc->GetDataType() != ge::DT_FLOAT),
+        OP_CHECK_IF((pseShiftDesc->GetDataType() != DT_FLOAT),
                     OP_LOGE(fiaInfo.opName,
                             "The datatype of pseShift(%s) is not FLOAT32. "
                             "The datatype of pseShift must be FLOAT32 when "
                             "pseType is 2 or 3.",
                             DataTypeToSerialString(pseShiftDesc->GetDataType()).c_str()),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     } else {
         // 不使能alibi
         // query的datatype为FLOAT16、INT8时，pseShift的datatype应为FLOAT16
-        if (fiaInfo.inputQType == ge::DT_FLOAT16 || fiaInfo.inputQType == ge::DT_INT8) {
-            OP_CHECK_IF((pseShiftDesc->GetDataType() != ge::DT_FLOAT16),
+        if (fiaInfo.inputQType == DT_FLOAT16 || fiaInfo.inputQType == DT_INT8) {
+            OP_CHECK_IF((pseShiftDesc->GetDataType() != DT_FLOAT16),
                         OP_LOGE(fiaInfo.opName,
                                 "The datatype of pseShift(%s) is not FLOAT16. "
                                 "The datatype of pseShift must be FLOAT16 when "
                                 "the datatype of query is FLOAT16 or INT8 and pseType is 0.",
                                 DataTypeToSerialString(pseShiftDesc->GetDataType()).c_str()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
         // query的datatype为BFLOAT16时，pseShift的datatype应为BFLOAT16
-        if (fiaInfo.inputQType == ge::DT_BF16) {
-            OP_CHECK_IF((pseShiftDesc->GetDataType() != ge::DT_BF16),
+        if (fiaInfo.inputQType == DT_BF16) {
+            OP_CHECK_IF((pseShiftDesc->GetDataType() != DT_BF16),
                         OP_LOGE(fiaInfo.opName,
                                 "The datatype of pseShift(%s) is not BFLOAT16. "
                                 "The datatype of pseShift must be BFLOAT16 when "
                                 "the datatype of query is BFLOAT16 and pseType is 0.",
                                 DataTypeToSerialString(pseShiftDesc->GetDataType()).c_str()),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
 {
     // 校验pseShift的shape
     auto &pseShiftTensor = fiaInfo.opParamInfo.pseShift.tensor;
     if (pseShiftTensor == nullptr) {
         // 若pseShiftTensor不存在，则放弃后续校验
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     auto pseShiftShape = pseShiftTensor->GetStorageShape();
     if (fiaInfo.enableAlibiPse) {
@@ -117,7 +116,7 @@ ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
                             "The shape of pseShift is not supported. The shape of pseShift must be [N]([%u]) when "
                             "pseType is 2 or 3.",
                             numHeads),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     } else {
         uint32_t batchSize = fiaInfo.bSize;
         uint32_t n1Size = fiaInfo.n1Size;
@@ -130,7 +129,7 @@ ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
                             "The dimension number of pseShift must be 4 when pseType is 0, but "
                             "the current dimensioin number of pseShift is %u.",
                             pseShiftDimNum),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         uint32_t pseShiftBatch = pseShiftShape.GetDim(DIM_NUM_0);
         uint32_t pseShiftN = pseShiftShape.GetDim(DIM_NUM_1);
         uint32_t pseShiftS1 = pseShiftShape.GetDim(DIM_NUM_2);
@@ -151,7 +150,7 @@ ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
                                 "but now is [%u,%u,%u,%u].",
                                 batchSize, n1Size, s1Size, s2Size + actualSharedPrefixLen, pseShiftBatch, pseShiftN,
                                 pseShiftS1, pseShiftS2),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         } else {
             // P_S1 = 1分支
             uint32_t seqSize = 0;
@@ -168,37 +167,37 @@ ge::graphStatus PSEChecker::CheckPseShiftShape(const FiaTilingInfo &fiaInfo)
                                 "The shape of pseShift must be [1 or %u,%u,1,>=%u], "
                                 "but now is [%u,%u,%u,%u].",
                                 batchSize, n1Size, seqSize, pseShiftBatch, pseShiftN, pseShiftS1, pseShiftS2),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // existence
-ge::graphStatus PSEChecker::CheckPseShiftExistence(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckPseShiftExistence(const FiaTilingInfo &fiaInfo)
 {
     // 校验pseShift的存在性
     if (fiaInfo.enableAlibiPse) {
         // pseType为2或3时，使能alibi，pseShift必须传
         OP_CHECK_IF((fiaInfo.opParamInfo.pseShift.tensor == nullptr),
                     OP_LOGE(fiaInfo.opName, "pseShift does not exist. pseShift must exist when pseType is 2 or 3."),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
     // 校验pseShift的desc的存在性，若pseShift存在，其desc也必须存在
     if (fiaInfo.opParamInfo.pseShift.tensor != nullptr) {
         OP_CHECK_IF((fiaInfo.opParamInfo.pseShift.desc == nullptr),
                     OP_LOGE(fiaInfo.opName, "pseShift exists, but its datatype does not exist."),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // feature
-ge::graphStatus PSEChecker::CheckFeaturePA(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckFeaturePA(const FiaTilingInfo &fiaInfo)
 {
     if (fiaInfo.opParamInfo.pseType == nullptr || fiaInfo.enableAlibiPse) {
         // 若不存在pseType或pseType = 2/3，则放弃后续校验
-        return ge::GRAPH_SUCCESS;
+        return GRAPH_SUCCESS;
     }
     // Page attention使能场景下，传入的PseShift的最后一维需要大于等于maxBlockNumPerSeq * blockSize
     if (*fiaInfo.opParamInfo.pseType != 0 && fiaInfo.pageAttentionFlag) {
@@ -212,12 +211,12 @@ ge::graphStatus PSEChecker::CheckFeaturePA(const FiaTilingInfo &fiaInfo)
                             "larger than or equal to maxBlockNumPerBatch * blockSize when "
                             "page attention is enabled.",
                             pseShiftS2, maxBlockNumPerBatch, blockSize),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo)
 {
     std::string layoutStr(fiaInfo.opParamInfo.layOut);
     // 校验使能alibi时与其他特性交叉的约束
@@ -227,27 +226,27 @@ ge::graphStatus PSEChecker::CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo
             fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512,
             OP_LOGE(fiaInfo.opName,
                 "MLA do not support pseShift."),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
     } else if (fiaInfo.pseShiftFlag) {
         if (fiaInfo.isMaxWorkspace) {
-            return ge::GRAPH_SUCCESS;
+            return GRAPH_SUCCESS;
         }
         OP_CHECK_IF((fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND310P ||
                      fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B) &&
                     (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag),
                     OP_LOGE(fiaInfo.opName, "When pseShift is enabled, leftPadding is not supported."),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         // 非alibi时，MLA，不支持pse
         OP_CHECK_IF(fiaInfo.mlaMode == MlaMode::ROPE_COMBINE_D128 || fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
             fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512,
             OP_LOGE(fiaInfo.opName,
                 "MLA do not support pseShift."),
-            return ge::GRAPH_FAILED);
+            return GRAPH_FAILED);
         // D不等长时，不支持pse
         OP_CHECK_IF(fiaInfo.isQKVDDifferent,
                     OP_LOGE(fiaInfo.opName,
                             "pseShift is not supported when query and key headDim is not equal to value headDim."),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
         // pse使能时，若inputLayout为BSH_BNSD/BSND_BNSD/TND/NTD/NTD_TND/TND_NTD，不支持pse
         OP_CHECK_IF(layoutStr == "BSH_BNSD" ||
                     layoutStr == "BSND_BNSD" ||
@@ -257,13 +256,13 @@ ge::graphStatus PSEChecker::CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo
                     layoutStr == "TND_NTD",
                     OP_LOGE(fiaInfo.opName,
                         "pse is not supported when the inputLayout is BSH_BNSD/BSND_BNSD/TND/NTD/NTD_TND/TND_NTD."),
-                    return ge::GRAPH_FAILED);
+                    return GRAPH_FAILED);
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 // multipara
-ge::graphStatus PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
 {
     // 使能alibi时，校验qStartIdx和kvStartIdx的取值范围，和kvStartIdx - qStartIdx的取值范围
     // qstartIdx的取值范围应满足[-2147483648, 2147483647]
@@ -280,7 +279,7 @@ ge::graphStatus PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
                                 "qStartIdx(%ld) is not supported. "
                                 "qStartIdx should belongs to [-2147483648, 2147483647].",
                                 qStartIdx),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
     }
     // kvStartIdx的取值范围应满足[-2147483648, 2147483647]
@@ -293,7 +292,7 @@ ge::graphStatus PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
                                 "kvStartIdx(%ld) is not supported. "
                                 "kvStartIdx should belongs to [-2147483648, 2147483647].",
                                 kvStartIdx),
-                        return ge::GRAPH_FAILED);
+                        return GRAPH_FAILED);
         }
     }
     // kvStartIdx - qStartIdx的取值范围应满足[-1048576, 1048576]
@@ -302,41 +301,41 @@ ge::graphStatus PSEChecker::CheckAlibiStartIdx(const FiaTilingInfo &fiaInfo)
                         "kvStartIdx - qStartIdx(%ld) is not supported. "
                         "kvStartIdx - qStartIdx should belongs to [-1048576, 1048576].",
                         kvStartIdx - qStartIdx),
-                return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+                return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckPseType(fiaInfo) || ge::GRAPH_SUCCESS != CheckPseShiftDataType(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckPseShiftShape(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckPseType(fiaInfo) || GRAPH_SUCCESS != CheckPseShiftDataType(fiaInfo) ||
+        GRAPH_SUCCESS != CheckPseShiftShape(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckPseShiftExistence(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckPseShiftExistence(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckFeaturePA(fiaInfo) || ge::GRAPH_SUCCESS != CheckerFeatureCrossover(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckFeaturePA(fiaInfo) || GRAPH_SUCCESS != CheckerFeatureCrossover(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
-ge::graphStatus PSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+bool PSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    if (ge::GRAPH_SUCCESS != CheckAlibiStartIdx(fiaInfo)) {
-        return ge::GRAPH_FAILED;
+    if (GRAPH_SUCCESS != CheckAlibiStartIdx(fiaInfo)) {
+        return GRAPH_FAILED;
     }
-    return ge::GRAPH_SUCCESS;
+    return GRAPH_SUCCESS;
 }
 
 }  // namespace optiling

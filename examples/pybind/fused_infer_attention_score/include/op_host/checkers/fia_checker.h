@@ -40,13 +40,13 @@ class FIAChecker {
 public:
     FIAChecker() = default;
     ~FIAChecker() = default;
-    ge::graphStatus Init(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus Process(const FiaTilingInfo &fiaInfo);
+    bool Init(const FiaTilingInfo &fiaInfo);
+    bool Process(const FiaTilingInfo &fiaInfo);
 
-    ge::graphStatus CheckSinglePara(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckParaExistence(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeature(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckMultiPara(const FiaTilingInfo &fiaInfo);
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo);
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo);
+    bool CheckFeature(const FiaTilingInfo &fiaInfo);
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo);
 
 private:
     std::unique_ptr<ActualSeqLenChecker> actualSeqLenChecker_;
