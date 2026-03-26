@@ -1689,17 +1689,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFA
 bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& contextKeyParams,
     const PFAShapeInfo& queryShapeInfo) const 
 {
-    const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
     if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) { // 256U, 64: d > 256 must be multiple of 64 for memory alignment
-        return false;
-    }
-
-    const int64_t nQ = *contextKeyParams.headsNumber;
-    const int64_t nKV = *contextKeyParams.numKeyValueHeads;
-    if ((nKV > 0) && (static_cast<uint64_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
-        return false;
-    }
-    if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
         return false;
     }
 
@@ -1919,7 +1909,6 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         return false);
     enableIFA = false;
     enableIFAMask = false;
-    enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
     } else {
@@ -2354,9 +2343,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                 "Actual_seq_lengths[%u](%ld) must be in range[0, %u]!", i, actSeqTmp, queryShapeInfo.s),
                 return false);
             // query act seq len padding情况下不支持合轴
-            if (actSeqTmp < queryShapeInfo.s) {
-                enablePFAMerge = false;
-            }
+            // if (actSeqTmp < queryShapeInfo.s) {
+            //     enablePFAMerge = false;
+            // }
         }
         t1Size = actSeqLen->GetData<int64_t>()[actSeqLengthSize - 1];
     }
@@ -3501,17 +3490,17 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_DOUBLE;
             softmaxSOuterFactor = SOUTER_FACTOR_SUB;
-        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge) {
-            minFactor = SOUTER_FACTOR_SUB;
-            rectangleFactor = SINNER_FACTOR_DOUBLE;
+        // } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge) {
+        //     minFactor = SOUTER_FACTOR_SUB;
+        //     rectangleFactor = SINNER_FACTOR_DOUBLE;
         }
     } else if (tilingData.promptAttentionBaseParams.get_vHeadSize() > 128 && !enableIFAMLA && !enableIFA) { // 128 : D size
         if (!faRunFlag_) {
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_SUB;
-        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
-            minFactor = SOUTER_FACTOR_SUB;
-            rectangleFactor = SINNER_FACTOR_DOUBLE;
+        // } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
+        //     minFactor = SOUTER_FACTOR_SUB;
+        //     rectangleFactor = SINNER_FACTOR_DOUBLE;
         } else {
             minFactor = SOUTER_FACTOR_DEFAULT;
             rectangleFactor = SINNER_FACTOR_DEFAULT;
@@ -3648,7 +3637,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
             } else { // BNSD场景下分核不做优化
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if (enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             nextTokensLeftUp = actualSeqLengthKV * gSize - actualSeqLength;
         }else {
             nextTokensLeftUp = actualSeqLengthKV - actualSeqLength;
@@ -3662,7 +3651,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
                 preTokensLeftUp = SPARSE_MODE_INT_MAX;
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if (enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             preTokensLeftUp = baseParams->get_preTokens() * gSize - actualSeqLengthKV * gSize + actualSeqLength;
             nextTokensLeftUp = baseParams->get_nextTokens() * gSize + actualSeqLengthKV * gSize - actualSeqLength;
         }else {
@@ -3678,7 +3667,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
                 preTokensLeftUp = SPARSE_MODE_INT_MAX;
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if(enableIFA){
+        } else if (enableIFA || enablePFAMerge) {
             preTokensLeftUp = baseParams->get_preTokens() * gSize;
             nextTokensLeftUp = baseParams->get_nextTokens() * gSize;
         }else {
@@ -3758,7 +3747,7 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
     nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
     int64_t preTokensError = 0;
-    if (enableIFAMLA) {
+    if (enableIFAMLA || enablePFAMerge) {
         preTokensError = (actualSeqLength > actualSeqLengthKV * gSize + preTokensLeftUp) ?
             (actualSeqLength - actualSeqLengthKV * gSize - preTokensLeftUp) : 0;
     } else {
