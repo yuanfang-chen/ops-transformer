@@ -80,7 +80,7 @@ aclnnStatus FusedCausalConv1dCommonProcess(const aclTensor *x, const aclTensor *
                                  numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection,
                                  uniqueExecutor.get());
     // CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(ok == nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(ok != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
