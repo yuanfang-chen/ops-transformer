@@ -23,6 +23,16 @@
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
+
+template <typename T1, typename T2>
+__aicore__ inline T1 CeilDiv(T1 a, T2 b)
+{
+    if (b == 0) {
+        return 0;
+    }
+    return (a + b - 1) / b;
+}
+
 template <typename hcclDataType, bool commBeforeComputeFlag>
 class HcclA2avOp {
 public:
@@ -89,7 +99,7 @@ public:
 
         const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
         const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
-        uint64_t axis = (H1_ + 63) / 64 * 2;
+        uint64_t axis = CeilDiv(H1_, SCALE_ALIGNMENT_BLOCK_SIZE) * SCALE_MULTIPLIER;
 
         for (uint64_t i = 0UL; i < rankDim_; i++) {
             alltoAllvScaleSendCnt[i] = 0UL;
@@ -265,6 +275,8 @@ private:
 #endif
 
     static constexpr uint64_t MAX_HANDLE_ID_NUM = 64U;
+    static constexpr uint64_t SCALE_ALIGNMENT_BLOCK_SIZE = 64U;
+    static constexpr uint64_t SCALE_MULTIPLIER = 2U;
 
     const TaskTilingInfo *taskTilingInfo_;
 
