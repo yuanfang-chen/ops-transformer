@@ -22,7 +22,7 @@
 #include "arch35/moe_distribute_dispatch_teardown_arch35.h
 
 using namespace AscendC;
-using namespace MoeDistributeDispatchTeardownImpl;
+using namespace Mc2Kernel;
 
 extern "C" __global__ __aicore__ void moe_distribute_dispatch_teardown(
     GM_ADDR x, GM_ADDR y, GM_ADDR expertIds, GM_ADDR commCmdInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,

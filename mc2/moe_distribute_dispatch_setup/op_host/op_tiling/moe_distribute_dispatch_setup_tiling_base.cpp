@@ -143,12 +143,12 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckRequiredAttrVal
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         ((*epRankIdPtr < 0) || (*epRankIdPtr >= *epWorldSizePtr)),
-        OP_LOGE(nodeName_, "epRankId shoud be within the range of [0, %ld], get %ld", *epRankIdPtr, *epWorldSizePtr),
+        OP_LOGE(nodeName_, "epRankId should be within the range of [0, %ld], get %ld", *epRankIdPtr, *epWorldSizePtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         ((*moeExpertNumPtr <= 0) || (*moeExpertNumPtr > MAX_MOE_EXPERT_NUM)),
         OP_LOGE(
-            nodeName_, "moeExpertNum shoud be within the range of [0, %ld], get %ld", MAX_MOE_EXPERT_NUM,
+            nodeName_, "moeExpertNum should be within the range of [0, %ld], get %ld", MAX_MOE_EXPERT_NUM,
             *moeExpertNumPtr),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -235,14 +235,14 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOptionalAttrVal
     OP_TILING_CHECK(
         ((*sharedExpertNumPtr < 0) || (*sharedExpertNumPtr > MAX_SHARED_EXPERT_NUM)),
         OP_LOGE(
-            nodeName_, "sharedExpertNum shoud be within the range of [0, %ld], get %ld", MAX_SHARED_EXPERT_NUM,
+            nodeName_, "sharedExpertNum should be within the range of [0, %ld], get %ld", MAX_SHARED_EXPERT_NUM,
             *sharedExpertNumPtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         ((*sharedExpertRankNumPtr < 0) ||
          (*sharedExpertRankNumPtr > (tilingData_->moeDistributeDispatchSetupInfo.epWorldSize / 2))),
         OP_LOGE(
-            nodeName_, "sharedExpertRankNum shoud be within the range of [0, %u], get %ld.",
+            nodeName_, "sharedExpertRankNum should be within the range of [0, %u], get %ld.",
             tilingData_->moeDistributeDispatchSetupInfo.epWorldSize / 2, *sharedExpertRankNumPtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
@@ -250,15 +250,15 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOptionalAttrVal
         OP_LOGE(nodeName_, "quantMode only support 0 to 4, get %ld.", *quantModePtr), return ge::GRAPH_FAILED);
     // globalBs 会在后面获取 BS 后再次校验
     OP_TILING_CHECK(
-        (*globalBsPtr < 0), OP_LOGE(nodeName_, "globalBs shoud be 0 or maxBs * epWorldSize, get %ld", *globalBsPtr),
+        (*globalBsPtr < 0), OP_LOGE(nodeName_, "globalBs should be 0 or maxBs * epWorldSize, get %ld", *globalBsPtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        (*commTypePtr != SDMA_COMM), OP_LOGE(nodeName_, "commType only support 0, get %ld.", *commTypePtr),
+        (*commTypePtr != URMA_COMM), OP_LOGE(nodeName_, "commType only support 2, get %ld.", *commTypePtr),
         return ge::GRAPH_FAILED);
     if (commAlgPtr != nullptr) {
         const std::string commAlg = std::string(commAlgPtr);
         OP_TILING_CHECK(
-            (commAlg != ""), OP_LOGE(nodeName_, "commAlg shoud be null or empty string."), return ge::GRAPH_FAILED);
+            (commAlg != ""), OP_LOGE(nodeName_, "commAlg should be null or empty string."), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -330,7 +330,7 @@ ge::graphStatus MoeDistributeDispatchSetupTilingBase::GetComplexAttrAndSetTiling
         tilingData_->moeDistributeDispatchSetupInfo.moeExpertPerRankNum =
             moeExpertNum / (epWorldSize - sharedExpertNum);
     } else {
-        // 共同专家卡
+        // 共享专家卡
         tilingData_->moeDistributeDispatchSetupInfo.moeExpertPerRankNum = 1U;
     }
 
