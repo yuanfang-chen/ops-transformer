@@ -553,10 +553,24 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
-    if (s2LoopCount < runParam.kvLoopEndIdx) {
+    if constexpr (hasSink) {
+        if (s2LoopCount == 0) {
+            runInfo.s2StartIdx = 0;
+            runInfo.s2EndIdx = 128;
+        } else {
+            int64_t adjustedS2LoopCount = s2LoopCount - 1;
+            if (adjustedS2LoopCount < runParam.kvLoopEndIdx) {
+                runInfo.s2StartIdx = runParam.s2LineStartIdx;
+                runInfo.s2EndIdx = runParam.s2LineEndIdx;
+            }
+        }
+    } else {
+        if (s2LoopCount < runParam.kvLoopEndIdx) {
         runInfo.s2StartIdx = runParam.s2LineStartIdx;
         runInfo.s2EndIdx = runParam.s2LineEndIdx;
+        }
     }
+
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
         runInfo.s1oIdx = runParam.s1oIdx;
