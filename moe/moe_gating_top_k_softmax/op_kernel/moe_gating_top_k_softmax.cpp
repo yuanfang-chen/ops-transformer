@@ -13,60 +13,6 @@
  * \brief
  */
 #include "kernel_operator.h"
-
-#if __NPU_ARCH__ == 2002
-#include "moe_gating_top_k_softmax_310p.h"
-#include "kernel_tiling/kernel_tiling.h"
-#include "kernel_operator.h"
-
-using namespace AscendC;
-using namespace MoeGatingTopKSoftmax;
-
-#define TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P  18
-
-
-// #define MOE_GATING_TOP_K_SOFTMAX_310P_IMPL(x_dtype, expertIdx_dtype)                            \
-//     do {                                                                                               \
-//         GET_TILING_DATA_WITH_STRUCT(MoeGatingTopKSoftmax310PTilingData, tiling_data_in, tiling);       \
-//         const MoeGatingTopKSoftmax310PTilingData* __restrict tilingData = &tiling_data_in;             \
-//         AscendC::TPipe pipe;                                                                           \
-//         MoeGatingTopKSoftmax310P<x_dtype, expertIdx_dtype> kernel;                                     \
-//         kernel.Init(x, y, expertIdx, workspace, tilingData, &pipe);                                    \
-//         kernel.Process();                                                                              \
-//     } while (0)
-
-#define MOE_GATING_TOP_K_SOFTMAX_310P_IMPL()                                                       \
-    do {                                                                                               \
-        GET_TILING_DATA_WITH_STRUCT(MoeGatingTopKSoftmax310PTilingData, tiling_data_in, tiling);       \
-        MoeGatingTopKSoftmax310P<half, int32_t> op;                                                    \
-        AscendC::TPipe pipe;                                                                           \
-        op.Init(x, y, expertIdx, workspace, tiling_data_in, &pipe);                                    \
-        op.Process();                                                                                  \
-    } while (0)
-
-extern "C" __global__ __aicore__ void moe_gating_top_k_softmax(GM_ADDR x,
-                                                               GM_ADDR finished,
-                                                               GM_ADDR y,
-                                                               GM_ADDR expertIdx,
-                                                               GM_ADDR rowIdx,
-                                                               GM_ADDR workspace,
-                                                               GM_ADDR tiling)
-{
-    AscendC::printf("\n moe_gating_top_k_softmax [kernel] 310P %d\n");
-    if (TILING_KEY_IS(18)) {
-        // GET_TILING_DATA_WITH_STRUCT(MoeGatingTopKSoftmax310PTilingData, tiling_data_in, tiling);
-        // const MoeGatingTopKSoftmax310PTilingData* __restrict tilingData = &tiling_data_in;
-        // AscendC::TPipe pipe;
-        // MoeGatingTopKSoftmax310P<half, int32_t> kernel;
-        // kernel.Init(x, y, expertIdx, workspace, tilingData, &pipe);
-        // kernel.Process();
-        MOE_GATING_TOP_K_SOFTMAX_310P_IMPL();
-    }
-    return;
-}
-
-#else
-
 #include "moe_gating_top_k_softmax_e_k_fullload.h"
 #include "moe_gating_top_k_softmax_k_fullload.h"
 #include "moe_gating_top_k_softmax_perf.h"
@@ -165,5 +111,3 @@ extern "C" __global__ __aicore__ void moe_gating_top_k_softmax(
     }
     return;
 }
-
-#endif

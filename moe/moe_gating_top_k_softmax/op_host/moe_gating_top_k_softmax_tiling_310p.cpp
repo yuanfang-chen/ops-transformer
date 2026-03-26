@@ -97,9 +97,8 @@ private:
 
 bool MoeGatingTopKSoftmax310PTiling::IsCapable()
 {
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    auto is310P = (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P);
-    return is310P;
+    // 待补充算子边界
+    return true;
 }
 
 
@@ -169,8 +168,6 @@ uint64_t MoeGatingTopKSoftmax310PTiling::GetTilingKey() const
     switch (dtype) {
         case ge::DataType::DT_FLOAT16:
             return TILINGKEY_WITHOUT_FINISHED_NEED_PAD_ENGINF_310P;
-        default:
-            break;
     }
     return tilingKey_;
 }
@@ -247,5 +244,5 @@ ge::graphStatus MoeGatingTopKSoftmax310PTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_OPS_TILING_TEMPLATE(MoeGatingTopKSoftmax, MoeGatingTopKSoftmax310PTiling, 200);
+REGISTER_OPS_TILING_TEMPLATE(MoeGatingTopKSoftmax, MoeGatingTopKSoftmax310PTiling, 30000);
 } // namespace optiling

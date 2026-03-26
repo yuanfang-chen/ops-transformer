@@ -121,7 +121,7 @@ TILING_DATA_FIELD_DEF_STRUCT(TopkTiling, FormerTopkTilingData); // 将SoftMaxTil
 TILING_DATA_FIELD_DEF_STRUCT(TopkTiling, TailTopkTilingData); // 将SoftMaxTiling结构体参数增加至TilingData结构体
 END_TILING_DATA_DEF;
 
-REGISTER_TILING_DATA_CLASS(MoeGatingTopKSoftmax_18, MoeGatingTopKSoftmax310PTilingData)
+REGISTER_TILING_DATA_CLASS(MoeGatingTopKSoftmax, MoeGatingTopKSoftmax310PTilingData)
 
 class MoeGatingTopKSoftmaxBaseTiling : public Ops::Transformer::OpTiling::TilingBaseClass
 {
