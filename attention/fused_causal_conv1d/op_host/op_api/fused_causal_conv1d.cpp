@@ -32,10 +32,13 @@ bool FusedCausalConv1d(const aclTensor *x, const aclTensor *weight, aclTensor *c
     L0_DFX(FusedCausalConv1d, x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedToken,
            activationMode, padSlotId, runMode, residualConnection, y, convStates);
 
+    auto yShape = x->GetViewShape();
+    auto y_out = executor->AllocTensor(yShape, x->GetDataType(), Format::FORMAT_ND);
+
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(
         FusedCausalConv1d,
         OP_INPUT(x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias, numAcceptedToken),
-        OP_OUTPUT(y, convStates), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
+        OP_OUTPUT(y_out, convStates), OP_ATTR(activationMode, padSlotId, runMode, residualConnection));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "FusedCausalConv1d ADD_TO_LAUNCHER_LIST_AICORE failed.");
         return false;
