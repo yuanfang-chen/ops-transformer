@@ -23,6 +23,7 @@
 #include "opdev/platform.h"
 #include "common/op_host/op_api/matmul_util.h"
 #include "common/utils/hccl_util.h"
+#include "common/op_api/mc2_aclnn_util.h"
 
 using namespace Ops::Transformer;
 using namespace op;
@@ -101,7 +102,7 @@ static bool IsGatherOut(const aclTensor *gatherOut) {
 }
 
 static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor *output, const aclTensor *gatherOut,
-  bool isTransA) {
+  bool isTransA, bool isTransB) {
   OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return false);
   OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return false);
   OP_API_CHECK(isTransA, {
@@ -136,6 +137,11 @@ static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor
   OP_API_CHECK((nVal1 != nVal2), {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID, 
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
+    return false;
+  });
+
+  OP_API_CHECK(!isTransB && !MC2Aclnn::IsTensorContiguous(x2), {
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2 without transpose must be contiguous, but it is non-contiguous.");
     return false;
   });
 
@@ -198,7 +204,7 @@ aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor *x1, const aclT
   uint32_t rankSize = 0;
   bool transposeX1 = IsTransposeLastTwoDims(x1);
   bool transposeX2 = IsTransposeLastTwoDims(x2);
-  CHECK_RET(CheckShape(x1, x2, output, gatherOut, transposeX1), ACLNN_ERR_PARAM_INVALID);
+  CHECK_RET(CheckShape(x1, x2, output, gatherOut, transposeX1, transposeX2), ACLNN_ERR_PARAM_INVALID);
   bool isGatherOut = IsGatherOut(gatherOut);
   if (IsAscend910A5()) {
     const char *commMode = "ccu";
