@@ -220,10 +220,10 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseFullLoadTiling::DoOpTiling()
         return ge::GRAPH_FAILED);
     if (currentCacheMode_ == CacheMode::Norm) {
         OP_CHECK_IF(
-            !CheckKCacheValid(context_, batchSize, numHead, cacheLength_, dk_),
+            !CheckKCacheValid(context_, batchSize, cacheLength_, dk_),
             OP_LOGE(context_->GetNodeName(), "k_cache shape invalid."), return ge::GRAPH_FAILED);
         OP_CHECK_IF(
-            !CheckVCacheValid(context_, batchSize, numHead, cacheLength_, dv_),
+            !CheckVCacheValid(context_, batchSize, cacheLength_, dv_),
             OP_LOGE(context_->GetNodeName(), "ckv_cache shape invalid."), return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(

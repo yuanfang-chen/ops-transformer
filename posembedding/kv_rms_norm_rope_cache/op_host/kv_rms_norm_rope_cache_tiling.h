@@ -276,9 +276,9 @@ protected:
         const gert::TilingContext* context, int64_t batchSize, int64_t numHead, int64_t seqLen, int64_t headSize);
     bool CheckGammaValid(const gert::TilingContext* context, int64_t headSize);
     bool CheckKCacheValid(
-        const gert::TilingContext* context, int64_t batchSize, int64_t numHead, int64_t cacheLen, int64_t headSize);
+        const gert::TilingContext* context, int64_t batchSize, int64_t cacheLen, int64_t headSize);
     bool CheckVCacheValid(
-        const gert::TilingContext* context, int64_t batchSize, int64_t numHead, int64_t cacheLen, int64_t headSize);
+        const gert::TilingContext* context, int64_t batchSize, int64_t cacheLen, int64_t headSize);
     bool CheckKCacheValidPA(const gert::TilingContext* context, int64_t numHead, int64_t headSize);
     bool CheckVCacheValidPA(const gert::TilingContext* context, int64_t numHead, int64_t headSize);
     bool CheckIndexValid(
