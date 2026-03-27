@@ -83,7 +83,6 @@ AlltoAllKCQuantMatmulPipeLine<CommunicationType, TransposeAndQuantizeType, Compu
         if ASCEND_IS_AIV {
             commStage_->Process(index);
             AscendC::SyncAll<true>();
-
             transAndQuantStage_->Process(index);
         }
         AscendC::SyncAll<false>();
