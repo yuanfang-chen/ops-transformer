@@ -17,12 +17,12 @@
 #include "torch_npu/csrc/framework/OpCommand.h"
 
 namespace npu_ops_transformer_ext {
-    namespace RotaryStride {
-    #include <iostream>
-    #include <stdio.h>
-    #include "kernel_operator.h"
-    #include "tiling/platform/platform_ascendc.h"
-    #include "dtype_convert.h"
+namespace RotaryStride {
+#include <iostream>
+#include <stdio.h>
+#include "kernel_operator.h"
+#include "tiling/platform/platform_ascendc.h"
+#include "dtype_convert.h"
 
         using namespace AscendC;
 
