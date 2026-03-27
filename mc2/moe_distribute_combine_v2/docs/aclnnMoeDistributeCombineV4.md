@@ -1010,29 +1010,6 @@ aclnnStatus aclnnMoeDistributeCombineV4(
         uint64_t combineWorkspaceSize = 0;
         aclOpExecutor *combineExecutor = nullptr;
         void *combineWorkspaceAddr = nullptr;
-        /**************************************** 调用dispatch warm up********************************************/
-        ret = aclnnMoeDistributeDispatchV4GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
-                expertScales, nullptr, nullptr, // performanceInfoOptional
-                hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
-                args.tpRankId, expertShardType, sharedExpertNum,sharedExpertRankNum, quantMode, globalBs,
-                expertTokenNumsType, nullptr, zeroExpertNum, copyExpertNum, constExpertNum, expandX, dynamicScales, expandIdx, expertTokenNums, epRecvCounts,
-                tpRecvCounts, expandScales, &dispatchWorkspaceSize, &dispatchExecutor);
-
-        CHECK_RET(ret == ACL_SUCCESS,
-            LOG_PRINT("[ERROR] warm up aclnnMoeDistributeDispatchV4GetWorkspaceSize failed. ret = %d \n", ret); return ret);
-
-        if (dispatchWorkspaceSize > 0) {
-            ret = aclrtMalloc(&dispatchWorkspaceAddr, dispatchWorkspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
-            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] warm up aclrtMalloc workspace failed. ret = %d \n", ret); return ret);
-        }
-        // 调用第二阶段接口
-        ret = aclnnMoeDistributeDispatchV4(dispatchWorkspaceAddr, dispatchWorkspaceSize,
-                                            dispatchExecutor, args.dispatchStream);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] warm up aclnnMoeDistributeDispatchV4 failed. ret = %d \n", ret);  \
-                return ret);
-        ret = aclrtSynchronizeStreamWithTimeout(args.dispatchStream, 10000);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] warm up aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);  \
-            return ret);
 
         /**************************************** 调用dispatch ********************************************/
         // 调用第一阶段接口
