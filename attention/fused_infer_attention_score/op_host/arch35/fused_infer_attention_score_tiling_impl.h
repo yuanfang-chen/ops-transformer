@@ -139,7 +139,7 @@ protected:
     bool CheckTransposeLayout(const FiaTilingInfo &fiaInfo);
     void PrintAllTilingData(const FiaTilingInfo &fiaInfo);
 
-    PromptFlashAttentionTilingData pfaTilingData_;
+    PromptFlashAttentionTilingDataV2 pfaTilingData_;
     IncreFlashAttentionTilingData ifaTilingData_;
     FlashAttentionScoreSimplifiedTilingData faRunTilingAdapter_;
     FiaTilingKeyInfo tilingKeyInfo_;
