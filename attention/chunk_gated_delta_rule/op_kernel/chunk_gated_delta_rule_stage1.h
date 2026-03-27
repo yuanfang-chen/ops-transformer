@@ -62,8 +62,8 @@ public:
     __aicore__ inline void SetGlobalTensors(const GDRStageOneInitParams &initParams) {
         queryGm_ = initParams.query;
         keyGm_ = initParams.key;
-        valueBaseGm_ = initParams.value;
-        betaBaseGm_ = initParams.beta;
+        valueGm_ = initParams.value;
+        betaGm_ = initParams.beta;
 
         outGCumExpBaseGm_ = initParams.gCumExp;
         outKCumdecayBaseGm_ = initParams.kCumdecay;
@@ -198,7 +198,6 @@ public:
         numChunk_ = (cg_.length + chunkSize_ - 1) / chunkSize_;
         subBlockIdx_ = GetSubBlockIdx();
         halfChunkSize_ = chunkSize_ / TASK_RATIO;
-        subValidRows_ = halfChunkSize_;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
 
@@ -335,14 +334,13 @@ private:
                                gCumExpUbFloat_[i * chunkSize_], validLenBatch_[i]);
                 // attn_1 = (g_cum_exp[:None] / g_cum_exp[None,:]) * mask
                 uint64_t gUbOffset = i * chunkSize_ * maxLen_;
-                GammaCompute(gBroadUbFloat_[gUbOffset],
-                             gammaUbFloat_[gUbOffset], gCumExpUbFloat_[i * chunkSize_]);
+                GammaCompute(gBroadUbFloat_[gUbOffset], gammaUbFloat_[gUbOffset], gCumExpUbFloat_[i * chunkSize_]);
             }
         }
         
         for (uint32_t i = 0; i < curParaNum; ++i) {
             uint64_t betaUbOffset = i * halfChunkSize_;
-            BetaCopyInWithStride(betaBaseGm_[bgOffsetBatch_[i]], betaUbFloat_[betaUbOffset], subValidLenBatch_[i]);
+            BetaCopyInWithStride(betaGm_[bgOffsetBatch_[i]], betaUbFloat_[betaUbOffset], subValidLenBatch_[i]);
         }
         AscendC::CrossCoreWaitFlag(0x8); // 同步1
 
@@ -373,7 +371,7 @@ private:
             uint64_t betaUbOffset = i * halfChunkSize_;
             uint64_t vOffset = chunkStartRowBatch_[i] * vRowStride_ + nIdBatch_[i] * dv_;
             uint64_t valueUbOffset = i * chunkSize_ * maxLen_;
-            VBetaCompute(valueBaseGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset],
+            VBetaCompute(valueGm_[vOffset], vBetaWsGm_[i * cvOffset_], betaUbFloat_[betaUbOffset],
                          valueUbFloat_[valueUbOffset], subValidLenBatch_[i]);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x5); // 同步4
@@ -788,13 +786,10 @@ private:
     uint32_t coreIdx_;
     uint32_t chunkSize_;
     uint32_t maxLen_;
-    uint32_t subValidRows_;
     uint32_t coreNum_;
     float scale_;
     bool gOptional_;
     uint32_t paraNum_;
-    uint32_t kStep_;
-    uint32_t vStep_;
     uint64_t ccOffset_;
     uint64_t ckOffset_;
     uint64_t cvOffset_;
@@ -808,15 +803,13 @@ private:
     // base GM pointers
     GlobalTensor<bfloat16_t> queryGm_;
     GlobalTensor<bfloat16_t> keyGm_;
-    GlobalTensor<bfloat16_t> valueBaseGm_;
-    GlobalTensor<bfloat16_t> betaBaseGm_;
+    GlobalTensor<bfloat16_t> valueGm_;
+    GlobalTensor<bfloat16_t> betaGm_;
     GlobalTensor<float> gGm_;
     GlobalTensor<float> outGCumExpBaseGm_, outVInnerBaseGm_, outKgBaseGm_, outQkBaseGm_;
     GlobalTensor<float> outKCumdecayBaseGm_, outQPrimeBaseGm_;
 
     // per-chunk GM pointers 
-    GlobalTensor<bfloat16_t> valueGm_;
-    GlobalTensor<bfloat16_t> betaGm_;
     GlobalTensor<float> outGCumExpGm_;
     GlobalTensor<float> outKCumdecayGm_;
     GlobalTensor<float> outVInnerGm_;
@@ -830,7 +823,6 @@ private:
     GlobalTensor<float> gBKWsGm_;
     GlobalTensor<float> queryContinousGm_;
     GlobalTensor<float> keyContinousGm_;
-    GlobalTensor<float> querytmpGm_;
     GlobalTensor<float> stageOneMask_;
 
     // UB queues
@@ -851,7 +843,6 @@ private:
     LocalTensor<float> gCumExpUbFloat_;
     LocalTensor<float> gCumExpBroadUbFloat_;
     LocalTensor<float> gBUbFloat_;
-    LocalTensor<float> kUbFloat_;
     LocalTensor<float> qUbFloat_;
     LocalTensor<float> gBroadUbFloat_;
     LocalTensor<float> gTransBroadUbFloat_;
@@ -865,7 +856,6 @@ private:
 
     LocalTensor<bfloat16_t> betaLocal_;
     LocalTensor<bfloat16_t> valueLocal_;
-    LocalTensor<bfloat16_t> kLocal_;
     LocalTensor<float> qPrimeLocal_;
     LocalTensor<float> vBetaLocal_;
     LocalTensor<float> kkLocal_;
