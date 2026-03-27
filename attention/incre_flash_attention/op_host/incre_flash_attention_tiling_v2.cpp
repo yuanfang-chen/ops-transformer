@@ -2593,10 +2593,17 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
   gert::Shape expectedShape1 = gert::Shape({1});
   if (antiquantMode == PER_CHANNEL_MODE) {
     // per-tensor
-    OP_CHECK_IF((ShapeEqual(expectedShape1, keyAntiquantScaleTensorShape) && inputKvType_ != ge::DT_INT8),
-                OP_LOGE(ifaContext_->opName,
-                        "In per-tensor mode, the input key/value type should be int8, but now is %s.", DataTypeToString(inputKvType_).c_str()),
-                return ge::GRAPH_FAILED);
+    if (inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT32) {
+      OP_CHECK_IF((ShapeEqual(expectedShape1, keyAntiquantScaleTensorShape) && inputKvType_ != ge::DT_INT8),
+                  OP_LOGE(ifaContext_->opName,
+                          "In per-tensor mode, the data type of key/value should be int8, but now is INT4/INT32."),
+                  return ge::GRAPH_FAILED);
+    } else {
+      OP_CHECK_IF((ShapeEqual(expectedShape1, keyAntiquantScaleTensorShape) && inputKvType_ != ge::DT_INT8),
+                  OP_LOGE(ifaContext_->opName,
+                          "In per-tensor mode, the data type of key/value should be int8, but now is %s.", DataTypeToString(inputKvType_).c_str()),
+                  return ge::GRAPH_FAILED);
+    }
   }
   return ge::GRAPH_SUCCESS;
 }
