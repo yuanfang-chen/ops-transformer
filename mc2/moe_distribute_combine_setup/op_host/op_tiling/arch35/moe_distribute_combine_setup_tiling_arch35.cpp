@@ -112,21 +112,21 @@ ge::graphStatus MoeDistributeCombineSetupTilingA5::CheckSharedExpertAttr()
 
 ge::graphStatus MoeDistributeCombineSetupTilingA5::CheckMoeExpertNumPerRank()
 {
-    OP_TILING_CHECK((tilingData_->moeDistributeCombineSetupInfo.moeExpertPerRankNum != MOE_EXPERT_NUM_PER_RANK_16),
-                    OP_LOGE(nodeName_, "moeExpertNumPerRank only supports 16, get %ld",
-                            tilingData_->moeDistributeCombineSetupInfo.moeExpertPerRankNum),
-                    return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK((tilingData_->moeDistributeCombineSetupInfo.moeExpertPerRankNum != MOE_EXPERT_NUM_PER_RANK_16),
+    //                 OP_LOGE(nodeName_, "moeExpertNumPerRank only supports 16, get %ld",
+    //                         tilingData_->moeDistributeCombineSetupInfo.moeExpertPerRankNum),
+    //                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MoeDistributeCombineSetupTilingA5::CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k)
 {
-    OP_TILING_CHECK((bs != BS_SIZE_16), OP_LOGE(nodeName_, "Bs should be 16, get %ld", bs), return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK((bs != BS_SIZE_16), OP_LOGE(nodeName_, "Bs should be 16, get %ld", bs), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((h != H_SIZE_4096), OP_LOGE(nodeName_, "H should be 4096, get %ld", h), return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK((h != H_SIZE_4096), OP_LOGE(nodeName_, "H should be 4096, get %ld", h), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((k != K_SIZE_6), OP_LOGE(nodeName_, "K should be 6, get %ld", k), return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK((k != K_SIZE_6), OP_LOGE(nodeName_, "K should be 6, get %ld", k), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
