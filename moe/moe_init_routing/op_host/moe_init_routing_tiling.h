@@ -66,6 +66,7 @@ TILING_DATA_FIELD_DEF(int64_t, lastCorePerLoopRows);
 TILING_DATA_FIELD_DEF(int64_t, lastCoreLastLoopRows);
 TILING_DATA_FIELD_DEF(int64_t, maxColsOneLoop);
 TILING_DATA_FIELD_DEF(int64_t, splitFlag);
+TILING_DATA_FIELD_DEF(int64_t, bufferNum);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GatherOutComputeTilingDataOp, GatherOutComputeTilingData)
 

@@ -123,6 +123,7 @@ protected:
     ge::graphStatus CheckTokenCount(int64_t num, const char *tag);
     virtual ge::graphStatus CheckOutShape(bool isRegbase);
     virtual void Tiling4GatherOutCompute();
+    void SetBufferNum4GatherOut();
     void Tiling4SrcToDstCompute();
     virtual void Tiling4SrcToDstCapacityCompute();
     void Tiling4SortOutCompute();

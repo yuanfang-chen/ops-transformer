@@ -58,6 +58,7 @@ const static int64_t REGIONP_ROPOSA_BUFFER_NUM_310P = 2;
 const static int64_t SYNC_WORKSPACE = 8192;
 const static int64_t EXPERT_TOKENS_COUNT = 2;
 const static int64_t SIMT_UB_SIZE_BYTE = 40960;
+const static int64_t MAX_BUFFER_NUM = 6;
 
 #define CHECK_FAIL(context, cond, ...)                                                                                 \
     do {                                                                                                               \
@@ -663,9 +664,8 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
         tilingData->set_lastCoreLastLoopRows(lastCoreRows);
         tilingData->set_perCoreLoops(1);
         tilingData->set_lastCoreLoops(1);
-        int64_t loopCols = regBase && (rowSize + colSize * NUM_TWO < ubSize) ? cols * NUM_TWO : cols;
-        tilingData->set_perLoopCols(loopCols);
-        tilingData->set_lastLoopCols(loopCols);
+        tilingData->set_perLoopCols(cols);
+        tilingData->set_lastLoopCols(cols);
         tilingData->set_colLoops(1);
     } else {
         int64_t baseMaxCols = MAX_COLS_ONE_LOOP;
@@ -688,6 +688,27 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
         tilingData->set_lastCorePerLoopRows(std::min(lastCoreRows, basePerLoopMaxRows));
         tilingData->set_lastCoreLastLoopRows(GetPerOrLastValue(lastCoreRows, basePerLoopMaxRows));
         tilingData->set_lastCoreLoops((lastCoreRows + basePerLoopMaxRows - 1) / basePerLoopMaxRows);
+    }
+    SetBufferNum4GatherOut();
+}
+
+void SetBufferNum4GatherOut()
+{
+    auto tilingData = &moeInitRoutingTilingData.gatherOutComputeParamsOp;
+    int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize)
+
+	int64_t preLoopRows = tilingData->get_perCorePerLoopRows();
+	int64_t perLoopCols = tilingData->get_perLoopCols();
+	int64_t rowSize = (preLoopRows * sizeof(int32_t) + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+    int64_t colSize = (perLoopCols * inuptXDtypeSize_ + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+
+	int64_t remainingSize = ubSize - (rowSize + colSize) * NUM_TWO;
+	int64_t additionalBufferNum = remainingSize/colSize;
+
+    if (additionalBufferNum > 0) {
+        tilingData->set_bufferNum(std::min(additionalBufferNum + NUM_TWO, MAX_BUFFER_NUM));
+    } else {
+        tilingData->set_bufferNum(NUM_TWO);
     }
 }
 
