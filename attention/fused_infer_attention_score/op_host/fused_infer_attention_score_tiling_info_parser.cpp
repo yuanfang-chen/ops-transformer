@@ -1431,11 +1431,12 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
     if (ge::GRAPH_SUCCESS != GetLegacyIfaFlag()) {
         return ge::GRAPH_FAILED;
     }
-    GetUpdateInfo();
     if (ge::GRAPH_SUCCESS != GetQkHeadDim() || ge::GRAPH_SUCCESS != GetValueHeadDim() ||
-        ge::GRAPH_SUCCESS != GetBatchSize() || ge::GRAPH_SUCCESS != GetS1Size()) {
+        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() || ge::GRAPH_SUCCESS != GetBatchSize() ||
+        ge::GRAPH_SUCCESS != GetS1Size()) {
         return ge::GRAPH_FAILED;
     }
+    GetUpdateInfo();
     if (emptyTensorFlag_) {
         return ge::GRAPH_SUCCESS;
     }
