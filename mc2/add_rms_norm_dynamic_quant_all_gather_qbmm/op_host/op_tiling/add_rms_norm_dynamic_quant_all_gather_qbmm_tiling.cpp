@@ -185,7 +185,7 @@ static void SetBlockDim(gert::TilingContext *context, AddRmsNormDynamicQuantAllG
  * @return
  */
 static void SetTilingKey(gert::TilingContext *context, const bool isSmoothScale,
- 	      const bool isOptionalOutput, const uint32_t M)
+ 	      const bool isOptionalOutput, const uint32_t M, const uint32_t rankSize)
 {
     const char *nodeName = context->GetNodeName();
     // 设置tilingKey模板参数
@@ -193,7 +193,7 @@ static void SetTilingKey(gert::TilingContext *context, const bool isSmoothScale,
     uint64_t tilingKey = INIT_TILINGKEY;
     tilingKey += static_cast<uint64_t>((isSmoothScale ? TILINGKEY_SMOOTH_SCALE : 0));
     tilingKey += static_cast<uint64_t>((isOptionalOutput ? TILINGKEY_OPTIONAL_OUTPUT : 0));
-    tilingKey += static_cast<uint64_t>((M >= TILE_K_M ? TILINGKEY_TILE_K : 0));
+    tilingKey += static_cast<uint64_t>(((M >= TILE_K_M || rankSize != 4) ? TILINGKEY_TILE_K : 0));
     tilingKey += static_cast<uint64_t>((M > SOFT_SYNC_M ? TILINGKEY_SOFT_SYNC : 0));
     context->SetTilingKey(tilingKey);
     OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
@@ -278,6 +278,7 @@ ge::graphStatus CheckInputOutputTensorDim(
     uint64_t x2Dim1Value = x2Shape->GetStorageShape().GetDim(1);
     uint32_t singleCoreM = GetSingleCoreM(x1Dim0Value, tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize);
     bool isSmoothScale = smoothShape != nullptr;
+    bool noTileKCondition = x1Dim0Value >= TILE_K_M || tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize != 4;
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
     uint32_t expectedX2DimNum = (x2Format == ge::FORMAT_FRACTAL_NZ) ? FOUR_DIMS : TWO_DIMS;
@@ -338,8 +339,8 @@ ge::graphStatus CheckInputOutputTensorDim(
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = x2Dim1Value;
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.xNums = x1Dim0Value * x1Dim1Value;
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale = isSmoothScale;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.singleCoreM = x1Dim0Value >= TILE_K_M ? singleCoreM : SINGLE_CORE_M;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.singleCoreK = x1Dim0Value >= TILE_K_M ? x1Dim1Value : SINGLE_CORE_K;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.singleCoreM = noTileKCondition ? singleCoreM : SINGLE_CORE_M;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.singleCoreK = noTileKCondition ? x1Dim1Value : SINGLE_CORE_K;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -589,7 +590,8 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     // 设置tilingKey
     SetTilingKey(context, tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale,
  	            tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput,
- 	            tilingData->addRmsNormDynamicQuantAllGatherTilingData.M);
+ 	            tilingData->addRmsNormDynamicQuantAllGatherTilingData.M,
+                tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize);
 
     // workspace
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
