@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+
 /*!
  * \file fused_infer_attention_score_infershape.cpp
  * \brief
@@ -189,7 +190,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
             return ge::GRAPH_FAILED;
         }
     } else { // 非PA场景
-    
+
         if (valueShape->GetDimNum() != queryShape->GetDimNum()) {
             OP_LOGE("FusedInferAttentionScore", "when Page Attention not enabled, value'dim(%zu) should equal to query's dim(%zu)!",
                 valueShape->GetDimNum(), queryShape->GetDimNum());
