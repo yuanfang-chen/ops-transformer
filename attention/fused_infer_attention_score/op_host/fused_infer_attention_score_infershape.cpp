@@ -201,6 +201,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
         } else if (queryLayout == "TND" || queryLayout == "NTD" || queryLayout == "NSD") {
             valueD = (*valueShape)[FIA_LAYOUT_DIM2];
         }
+
         
     }
     return ge::GRAPH_SUCCESS;
