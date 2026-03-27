@@ -16,6 +16,11 @@
 #ifndef __CHUNK_GATED_DELTA_RULE_UTILS_H__
 #define __CHUNK_GATED_DELTA_RULE_UTILS_H__
 
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
+#include "kernel_operator_list_tensor_intf.h"
+#include "kernel_tiling/kernel_tiling.h"
+
 namespace ChunkGatedDeltaRule {
     // 同步信号
     constexpr uint64_t V_MTE3_EVENT = 0;
