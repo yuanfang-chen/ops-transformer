@@ -13,7 +13,6 @@
 
 
 
-
 /*!
  * \file fused_infer_attention_score_infershape.cpp
  * \brief
