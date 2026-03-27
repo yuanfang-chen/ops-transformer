@@ -16,6 +16,20 @@
 #define MATMUL_H
 #include "buffers_policy.h"
 using namespace AscendC;
+
+#if defined(__DAV_C310__) || defined(__DAV_310R6__)
+__aicore__ inline void set_mark(uint64_t v)
+{
+#if defined(__CCE_KT_TEST__) && __CCE_KT_TEST__ == 1
+
+#else
+    __asm__ __volatile__("");
+    asm volatile("MOV COND, %0\n" : "+l"(v));
+    __asm__ __volatile__("");
+#endif
+}
+#endif
+
 namespace fa_base_matmul {
 
 constexpr uint32_t UNITFLAG_DISABLE = 0;
@@ -172,7 +186,7 @@ __aicore__ inline void LoadDataToL0AMx(LocalTensor<U>& aL0Tensor, const LocalTen
     }
     loadData2DParamsA.dstStride = loadData2DParamsA.ifTranspose ? (mSplitSize + 15) >> 4 : loadData2DParamsA.mStep;
     if constexpr (IsSameType<T, fp8_e5m2_t>::value || IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value) {
-        if (loadData2DParamsA.ifTranspose) {
+        if (loadData2DParamsA.ifTranspose && (loadData2DParamsA.dstStride & 1)) {
             uint32_t l0bLoop = (loadData2DParamsA.mStep + 1) >> 1;
             loadData2DParamsA.mStep = M_STEP_ALIGN_BASE;
             loadData2DMxParamsA.xStep = loadData2DParamsA.mStep ;
@@ -205,6 +219,9 @@ __aicore__ inline void LoadDataToL0B(LocalTensor<T>& bL0Tensor, const LocalTenso
     loadData2DParamsB.ifTranspose = !mmParam.isRightTranspose; // 是否启用转置功能，对每个分型矩阵进行转置
     if (loadData2DParamsB.ifTranspose) {
         loadData2DParamsB.mStep = ((kSplitSize + 15) >> 4 << 4) >> 4; // 以M*K矩阵为例,源矩阵M轴方向搬运长度(S1向上对齐分形(512B),16*16个f16->向上对齐16)，单位为16 element,取值范围：mStep属于[0,255]
+        if constexpr (IsSameType<T, fp8_e5m2_t>::value || IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value || IsSameType<T, int8_t>::value) {
+            loadData2DParamsB.mStep = (loadData2DParamsB.mStep + 1) >> 1 << 1;
+        }
         loadData2DParamsB.kStep = GetBlockNum<T>(nSplitSize); // 以M*K矩阵为例,源矩阵K轴方向搬运长度(qkD个f16)，单位为32B,取值范围：nStep属于[0,255]
     } else {
         loadData2DParamsB.mStep = ((nSplitSize + 15) >> 4 << 4) >> 4; // 以M*K矩阵为例,源矩阵M轴方向搬运长度(S1向上对齐分形(512B),16*16个f16->向上对齐16)，单位为16 element,取值范围：mStep属于[0,255]
@@ -279,7 +296,7 @@ __aicore__ inline void LoadDataToL0BMx(LocalTensor<U>& bL0Tensor, const LocalTen
     loadData2DMxParamsB.srcStride = loadData2DMxParamsB.yStep;
     loadData2DMxParamsB.dstStride = loadData2DMxParamsB.yStep;
     if constexpr (IsSameType<T, fp8_e5m2_t>::value || IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value) {
-        if (loadData2DParamsB.ifTranspose) {
+        if (loadData2DParamsB.ifTranspose && (loadData2DParamsB.dstStride & 1)) {
             uint32_t l0bLoop = (loadData2DParamsB.mStep + 1) >> 1;
             loadData2DParamsB.mStep = M_STEP_ALIGN_BASE;
             loadData2DMxParamsB.xStep = loadData2DParamsB.mStep;
@@ -621,7 +638,7 @@ __aicore__ inline void MatmulKMx(const LocalTensor<A> &aL1Tensor,
             mmadParams.unitFlag = (param.unitFlag == UNITFLAG_EN_OUTER_LAST) && (k == kLoops - 1) ?
                                   UNITFLAG_EN_OUTER_LAST : UNITFLAG_ENABLE;
         }
-
+ 
         Mmad(cL0Tensor, L0ATensor, L0BTensor, mmadParams);
  
         l0aBuffer.Set<HardEvent::M_MTE1>(); // matmul完成后，通知mte1可以开始搬运新数据到L0A

@@ -812,13 +812,20 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf_
     preg_136 = UpdateMask<uint16_t>(sreg_92);
     RegTensor<float> src0, src1, src2, src3;
     RegTensor<float> max0, max1, max2, max3;
-    MaskReg preg_compare0, preg_compare1, preg_compare2, preg_compare3;
+    MaskReg preg_compare0, preg_compare1, preg_compare2, preg_compare3, preg_compare_all;
+    preg_compare_all = CreateMask<T, MaskPattern::ALLF>();
+    MaskReg preg = AscendC::MicroAPI::CreateMask<T, AscendC::MicroAPI::MaskPattern::ALL>();
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_p_scale;
     RegTensor<float> vreg_ln_p_scale;
 
     RegTensor<T2> vreg_x_exp_fp8_0, vreg_x_exp_f8_pack_0;
     RegTensor<T2> vreg_x_exp_fp8_1, vreg_x_exp_f8_pack_1;
+
+    __ubuf__ uint32_t *mask_ub0 = maskUb;
+    __ubuf__ uint32_t *mask_ub1 = maskUb + 16;
+    __ubuf__ uint32_t *mask_ub2 = maskUb + 32;
+    __ubuf__ uint32_t *mask_ub3 = maskUb + 48;
 
     __ubuf__ T2 *x_exp_1;
     // T2是原始的INPUT_T
@@ -836,6 +843,9 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf_
 
     int64_t startCol = s1Idx * s1BaseSize + m * subBlockIdx;
     int64_t startRow = s2Idx * mxfp8s2BaseSize * 2;
+    int64_t maskStart = startCol + threshold + 1;
+    int64_t maskEnd = (maskStart + m) > ubN ? ubN : (maskStart + m);
+    uint32_t invalidNum = 1;
 
     Duplicate(max0, minValue);
     Duplicate(max1, minValue);
@@ -850,84 +860,67 @@ __simd_vf__ inline void ProcessVec1DnNoUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf_
     }
     mem_bar(VST_VLD);
 
-
     if constexpr ((IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                    IsSameType<T2, hifloat8_t>::value)) {
-        if (needAtten) {
-            MaskReg preg = AscendC::MicroAPI::CreateMask<T, AscendC::MicroAPI::MaskPattern::ALL>();
-            for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
-                LoadAlign(src0, src_ub0 + iter_m * m * 4);
-                LoadAlign(src1, src_ub1 + iter_m * m * 4);
-                LoadAlign(src2, src_ub2 + iter_m * m * 4);
-                LoadAlign(src3, src_ub3 + iter_m * m * 4);
-
-                int64_t globalRow0 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4;
-                int64_t globalRow1 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 1;
-                int64_t globalRow2 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 2;
-                int64_t globalRow3 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 3;
-
-                if (globalRow0 - startCol - m >= threshold) { 
-                    preg_compare0 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src0, src0, vreg_min, preg_compare0);
-                } else if (globalRow0 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow0 - threshold - startCol;
-                    preg_compare0 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare0, preg_compare0, preg); // 有效位取反
-                    Select(src0, src0, vreg_min, preg_compare0);
-                }
-
-                if (globalRow1 - startCol - m >= threshold) {
-                    preg_compare1 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src1, src1, vreg_min, preg_compare1);
-                } else if (globalRow1 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow1 - threshold - startCol;
-                    preg_compare1 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare1, preg_compare1, preg); // 有效位取反
-                    Select(src1, src1, vreg_min, preg_compare1);
-                }
-
-                if (globalRow2 - startCol - m >= threshold) {
-                    preg_compare2 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src2, src2, vreg_min, preg_compare2);
-                } else if (globalRow2 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow2 - threshold - startCol;
-                    preg_compare2 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare2, preg_compare2, preg); // 有效位取反
-                    Select(src2, src2, vreg_min, preg_compare2);
-                }
-
-                if (globalRow3 - startCol - m >= threshold) {
-                    preg_compare3 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src3, src3, vreg_min, preg_compare3);
-                } else if (globalRow3 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow3 - threshold - startCol;
-                    preg_compare3 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare3, preg_compare3, preg); // 有效位取反
-                    Select(src3, src3, vreg_min, preg_compare3);
-                }
-                
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
-                Max(max0, max0, src0, preg_108);
-                Max(max1, max1, src1, preg_108);
-                Max(max2, max2, src2, preg_108);
-                Max(max3, max3, src3, preg_108);
-            }
-        } else {
-            // 一次加载4行，stride为m * 4
-            for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
-                LoadAlign(src0, src_ub0 + iter_m * m * 4);
-                LoadAlign(src1, src_ub1 + iter_m * m * 4);
-                LoadAlign(src2, src_ub2 + iter_m * m * 4);
-                LoadAlign(src3, src_ub3 + iter_m * m * 4);
-                Max(max0, max0, src0, preg_108);
-                Max(max1, max1, src1, preg_108);
-                Max(max2, max2, src2, preg_108);
-                Max(max3, max3, src3, preg_108);
-            }
+                    IsSameType<T2, hifloat8_t>::value) && hasAtten) {
+        for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+            LoadAlign(src0, src_ub0 + iter_m * m * 4);
+            LoadAlign(src1, src_ub1 + iter_m * m * 4);
+            LoadAlign(src2, src_ub2 + iter_m * m * 4);
+            LoadAlign(src3, src_ub3 + iter_m * m * 4);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare0, mask_ub0 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare1, mask_ub1 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare2, mask_ub2 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare3, mask_ub3 + iter_m * m);
+            Select(src0, src0, vreg_min, preg_compare0);
+            Select(src1, src1, vreg_min, preg_compare1);
+            Select(src2, src2, vreg_min, preg_compare2);
+            Select(src3, src3, vreg_min, preg_compare3);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+            Max(max0, max0, src0, preg_108);
+            Max(max1, max1, src1, preg_108);
+            Max(max2, max2, src2, preg_108);
+            Max(max3, max3, src3, preg_108);
         }
+        // if (needAtten) {
+        //     for (uint16_t iter_m = maskStart; iter_m < maskEnd; ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m);
+        //         uint32_t tmpInvalidNum = invalidNum;
+        //         preg_compare0 = UpdateMask<T>(tmpInvalidNum);
+        //         Not(preg_compare0, preg_compare0, preg);
+        //         Select(src0, src0, vreg_min, preg_compare0);
+        //         StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m, src0, preg_108);
+        //         invalidNum++;
+        //     }
+        //     for (uint16_t iter_m = maskEnd; iter_m < ubN; ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m);
+        //         Select(src0, src0, vreg_min, preg_compare_all);
+        //         StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m, src0, preg_108);
+        //     }
+        //     for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m * 4);
+        //         LoadAlign(src1, src_ub1 + iter_m * m * 4);
+        //         LoadAlign(src2, src_ub2 + iter_m * m * 4);
+        //         LoadAlign(src3, src_ub3 + iter_m * m * 4);
+        //         Max(max0, max0, src0, preg_108);
+        //         Max(max1, max1, src1, preg_108);
+        //         Max(max2, max2, src2, preg_108);
+        //         Max(max3, max3, src3, preg_108);
+        //     }
+        // } else {
+        //     for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m * 4);
+        //         LoadAlign(src1, src_ub1 + iter_m * m * 4);
+        //         LoadAlign(src2, src_ub2 + iter_m * m * 4);
+        //         LoadAlign(src3, src_ub3 + iter_m * m * 4);
+        //         Max(max0, max0, src0, preg_108);
+        //         Max(max1, max1, src1, preg_108);
+        //         Max(max2, max2, src2, preg_108);
+        //         Max(max3, max3, src3, preg_108);
+        //     }
+        // }
     } else {
         for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
             LoadAlign(src0, src_ub0 + iter_m * m * 4);
@@ -1233,7 +1226,9 @@ __simd_vf__ inline void ProcessVec1DnUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf__ 
     preg_136 = UpdateMask<uint16_t>(sreg_92);
     RegTensor<float> src0, src1, src2, src3;
     RegTensor<float> max0, max1, max2, max3;
-    MaskReg preg_compare0, preg_compare1, preg_compare2, preg_compare3;
+    MaskReg preg_compare0, preg_compare1, preg_compare2, preg_compare3, preg_compare_all;
+    preg_compare_all = CreateMask<T, MaskPattern::ALLF>();
+    MaskReg preg = AscendC::MicroAPI::CreateMask<T, AscendC::MicroAPI::MaskPattern::ALL>();
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_p_scale;
     RegTensor<float> vreg_ln_p_scale;
@@ -1252,9 +1247,16 @@ __simd_vf__ inline void ProcessVec1DnUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf__ 
     __ubuf__ float *src_ub1 = src_ub0 + m;
     __ubuf__ float *src_ub2 = src_ub0 + m * 2;
     __ubuf__ float *src_ub3 = src_ub0 + m * 3;
+    __ubuf__ uint32_t *mask_ub0 = maskUb;
+    __ubuf__ uint32_t *mask_ub1 = maskUb + 16;
+    __ubuf__ uint32_t *mask_ub2 = maskUb + 32;
+    __ubuf__ uint32_t *mask_ub3 = maskUb + 48;
 
     int64_t startCol = s1Idx * s1BaseSize + m * subBlockIdx;
     int64_t startRow = s2Idx * mxfp8s2BaseSize * 2;
+    int64_t maskStart = startCol + threshold + 1;
+    int64_t maskEnd = (maskStart + m) > ubN ? ubN : (maskStart + m);
+    uint32_t invalidNum = 1;
 
     Duplicate(max0, minValue);
     Duplicate(max1, minValue);
@@ -1270,81 +1272,66 @@ __simd_vf__ inline void ProcessVec1DnUpdateMxfp8VF(__ubuf__ T2 *x_exp, __ubuf__ 
     mem_bar(VST_VLD);
 
     if constexpr ((IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                    IsSameType<T2, hifloat8_t>::value)) {
-        if (needAtten) {
-            MaskReg preg = AscendC::MicroAPI::CreateMask<T, AscendC::MicroAPI::MaskPattern::ALL>();
-            for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
-                LoadAlign(src0, src_ub0 + iter_m * m * 4);
-                LoadAlign(src1, src_ub1 + iter_m * m * 4);
-                LoadAlign(src2, src_ub2 + iter_m * m * 4);
-                LoadAlign(src3, src_ub3 + iter_m * m * 4);
-
-                int64_t globalRow0 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4; // 256
-                int64_t globalRow1 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 1; // 257
-                int64_t globalRow2 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 2; // 258
-                int64_t globalRow3 = startRow + subLoop * mxfp8s2BaseSize + iter_m * 4 + 3; // 259
-
-                if (globalRow0 - startCol - m >= threshold) {
-                    preg_compare0 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src0, src0, vreg_min, preg_compare0);
-                } else if (globalRow0 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow0 - threshold - startCol;
-                    preg_compare0 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare0, preg_compare0, preg); // 有效位取反
-                    Select(src0, src0, vreg_min, preg_compare0);
-                }
-
-                if (globalRow1 - startCol - m >= threshold) {
-                    preg_compare1 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src1, src1, vreg_min, preg_compare1);
-                } else if (globalRow1 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow1 - threshold - startCol;
-                    preg_compare1 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare1, preg_compare1, preg); // 有效位取反
-                    Select(src1, src1, vreg_min, preg_compare1);
-                }
-
-                if (globalRow2 - startCol - m >= threshold) {
-                    preg_compare2 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src2, src2, vreg_min, preg_compare2);
-                } else if (globalRow2 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow2 - threshold - startCol;
-                    preg_compare2 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare2, preg_compare2, preg); // 有效位取反
-                    Select(src2, src2, vreg_min, preg_compare2);
-                }
-
-                if (globalRow3 - startCol - m >= threshold) {
-                    preg_compare3 = CreateMask<T, MaskPattern::ALLF>();
-                    Select(src3, src3, vreg_min, preg_compare3);
-                } else if (globalRow3 - startCol > threshold) {
-                    uint32_t invalidNum = globalRow3 - threshold - startCol;
-                    preg_compare3 = UpdateMask<T>(invalidNum);
-                    Not(preg_compare3, preg_compare3, preg); // 有效位取反
-                    Select(src3, src3, vreg_min, preg_compare3);
-                }
-
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
-                StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
-                Max(max0, max0, src0, preg_108);
-                Max(max1, max1, src1, preg_108);
-                Max(max2, max2, src2, preg_108);
-                Max(max3, max3, src3, preg_108);
-            }
-        } else {
-            for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
-                LoadAlign(src0, src_ub0 + iter_m * m * 4);
-                LoadAlign(src1, src_ub1 + iter_m * m * 4);
-                LoadAlign(src2, src_ub2 + iter_m * m * 4);
-                LoadAlign(src3, src_ub3 + iter_m * m * 4);
-                Max(max0, max0, src0, preg_108);
-                Max(max1, max1, src1, preg_108);
-                Max(max2, max2, src2, preg_108);
-                Max(max3, max3, src3, preg_108);
-            }
+                    IsSameType<T2, hifloat8_t>::value) && hasAtten) {
+        for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+            LoadAlign(src0, src_ub0 + iter_m * m * 4);
+            LoadAlign(src1, src_ub1 + iter_m * m * 4);
+            LoadAlign(src2, src_ub2 + iter_m * m * 4);
+            LoadAlign(src3, src_ub3 + iter_m * m * 4);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare0, mask_ub0 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare1, mask_ub1 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare2, mask_ub2 + iter_m * m);
+            LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>(preg_compare3, mask_ub3 + iter_m * m);
+            Select(src0, src0, vreg_min, preg_compare0);
+            Select(src1, src1, vreg_min, preg_compare1);
+            Select(src2, src2, vreg_min, preg_compare2);
+            Select(src3, src3, vreg_min, preg_compare3);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m * 4, src0, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub1 + iter_m * m * 4, src1, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub2 + iter_m * m * 4, src2, preg_108);
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub3 + iter_m * m * 4, src3, preg_108);
+            Max(max0, max0, src0, preg_108);
+            Max(max1, max1, src1, preg_108);
+            Max(max2, max2, src2, preg_108);
+            Max(max3, max3, src3, preg_108);
         }
+        // if (needAtten) {
+        //     for (uint16_t iter_m = maskStart; iter_m < maskEnd; ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m);
+        //         uint32_t tmpInvalidNum = invalidNum;
+        //         preg_compare0 = UpdateMask<T>(tmpInvalidNum);
+        //         Not(preg_compare0, preg_compare0, preg);
+        //         Select(src0, src0, vreg_min, preg_compare0);
+        //         StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m, src0, preg_108);
+        //         invalidNum++;
+        //     }
+        //     for (uint16_t iter_m = maskEnd; iter_m < ubN; ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m);
+        //         Select(src0, src0, vreg_min, preg_compare_all);
+        //         StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(src_ub0 + iter_m * m, src0, preg_108);
+        //     }
+        //     for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m * 4);
+        //         LoadAlign(src1, src_ub1 + iter_m * m * 4);
+        //         LoadAlign(src2, src_ub2 + iter_m * m * 4);
+        //         LoadAlign(src3, src_ub3 + iter_m * m * 4);
+        //         Max(max0, max0, src0, preg_108);
+        //         Max(max1, max1, src1, preg_108);
+        //         Max(max2, max2, src2, preg_108);
+        //         Max(max3, max3, src3, preg_108);
+        //     }
+        // } else {
+        //     for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
+        //         LoadAlign(src0, src_ub0 + iter_m * m * 4);
+        //         LoadAlign(src1, src_ub1 + iter_m * m * 4);
+        //         LoadAlign(src2, src_ub2 + iter_m * m * 4);
+        //         LoadAlign(src3, src_ub3 + iter_m * m * 4);
+        //         Max(max0, max0, src0, preg_108);
+        //         Max(max1, max1, src1, preg_108);
+        //         Max(max2, max2, src2, preg_108);
+        //         Max(max3, max3, src3, preg_108);
+        //     }
+        // }
     } else {
         for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 4); ++iter_m) {
             LoadAlign(src0, src_ub0 + iter_m * m * 4);
