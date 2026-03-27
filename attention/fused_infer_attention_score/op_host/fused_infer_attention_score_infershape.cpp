@@ -8,6 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+
+
+
+
+
 /*!
  * \file fused_infer_attention_score_infershape.cpp
  * \brief
@@ -58,6 +63,7 @@ static constexpr uint32_t FIA_INPUT_KV_PADDING_SIZE_INDEX = 16;
 static constexpr uint32_t FIA_INPUT_ACTUAL_SHARED_PREFIX_LEN_INDEX = 23;
 static constexpr uint32_t FIA_QUERY_ROPE_INDEX = 24;
 static constexpr uint32_t FIA_OUT_DTYPE_INDEX = 15;
+
 
 static const std::map<int64_t, ge::DataType> TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP = {
     {5,  ge::DT_FLOAT16}, 
@@ -188,11 +194,13 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
             return ge::GRAPH_FAILED;
         }
     } else { // 非PA场景
+
         if (valueShape->GetDimNum() != queryShape->GetDimNum()) {
             OP_LOGE("FusedInferAttentionScore", "when Page Attention not enabled, value'dim(%zu) should equal to query's dim(%zu)!",
                 valueShape->GetDimNum(), queryShape->GetDimNum());
             return ge::GRAPH_FAILED;
         }
+
         if (queryLayout == "BSH") {
             valueD = (*valueShape)[FIA_LAYOUT_DIM2] / numKeyValueHeads;
         } else if (queryLayout == "BSND" || queryLayout == "BNSD") {
@@ -200,6 +208,8 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
         } else if (queryLayout == "TND" || queryLayout == "NTD" || queryLayout == "NSD") {
             valueD = (*valueShape)[FIA_LAYOUT_DIM2];
         }
+
+
     }
     return ge::GRAPH_SUCCESS;
 }
