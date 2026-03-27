@@ -1217,7 +1217,7 @@ __aicore__ inline void FABlockCubeMxFullquant<TEMPLATE_ARGS>::IterateBmm1MxFp8(
             mm1ResL0C.GetTensor<T>(),
             param);
     } else {
-        MatmulMMx<INPUT_T, INPUT_T, T, s1BaseSize / 2, 128, dBaseSize, ABLayout::MK, ABLayout::KN, L0AType, L0BType, QK_SCALE_T, QK_SCALE_T, mx_fp8_e4m3_t, mx_fp8_e4m3_t>(
+        MatmulMMx<INPUT_T, INPUT_T, T, 128, 128, dBaseSize, ABLayout::MK, ABLayout::KN, L0AType, L0BType, QK_SCALE_T, QK_SCALE_T, mx_fp8_e4m3_t, mx_fp8_e4m3_t>(
             mm1A.GetTensor<INPUT_T>(), mm1B.GetTensor<INPUT_T>(),
             mm1A.GetTensor<QK_SCALE_T>(offsetKScaleByElement), mm1B.GetTensor<QK_SCALE_T>(offsetQScaleByElement),
             mmL0ABuffers, mmL0BBuffers,
@@ -1225,7 +1225,7 @@ __aicore__ inline void FABlockCubeMxFullquant<TEMPLATE_ARGS>::IterateBmm1MxFp8(
             param);
     }
 
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit && subLoop == 1)) {
+    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit && (((runInfo.s2RealSize > 256) && (subLoop % 2 == 1) ) || (runInfo.s2RealSize <= 256)))) {
         mm1B.Set<HardEvent::MTE1_MTE2>(); // 释放L1Q
     }
     mm1A.Set<HardEvent::MTE1_MTE2>(); // 释放L1K
@@ -1371,7 +1371,6 @@ __aicore__ inline void FABlockCubeMxFullquant<TEMPLATE_ARGS>::IterateBmm2MxFp8(m
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
-
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm2A = inputBuf.Get();
     mm2A.WaitCrossCore();
     Buffer<BufferType::L1> mm2AScale = PScaleBuffers.Get(); // todo: pScale: 动态量化
@@ -1498,7 +1497,7 @@ __aicore__ inline void FABlockCubeMxFullquant<TEMPLATE_ARGS>::IterateBmm2MxFp8(m
     mm2ResL0C.Wait<HardEvent::FIX_M>(); // 占用
     MMParam param = {(uint32_t)runInfo.s1RealSize,  // singleM 128
                     (uint32_t)constInfo.dSizeV, // singleN 128
-                    (uint32_t) (((runInfo.s2RealSize + 63) >> 6) << 6),  // singleK
+                    (uint32_t) (((runInfo.s2RealSize + 63) >> 6) << 6),  // singleK 256
                     useDn,    // isLeftTranspose
                     false,    // isRightTranspose
                     };
