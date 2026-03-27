@@ -1075,7 +1075,7 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
             break;
         }
     }
-    
+
     OP_CHECK_IF((validBatchOfK > 1) || (validBatchOfV > 1),
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "Split fuse senario does not support incontinuous kv tensor list"),
@@ -1098,6 +1098,7 @@ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context)
     auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
     auto queryShape = context->GetInputShape(QUERY_INDEX);
     auto learnableSinkShape = context->GetOptionalInputShape(LEARNABLE_SINK_INDEX);
+    
 
     auto attrs = context->GetAttrs();
     int32_t tempInnerPrecise = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX)));
