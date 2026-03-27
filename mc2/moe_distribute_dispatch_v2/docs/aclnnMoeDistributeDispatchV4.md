@@ -743,8 +743,6 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
         ret = HcclGetCommName(args.hcclEpComm, hcomEpName);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpCommName failed, ret %d\n", ret); return -1);
         char hcomTpName[128] = {0};
-        ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
         LOG_PRINT("[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, dispatchStream = %p, combineStream = %p, \
                     context = %p\n", args.rankId, hcomEpName, hcomTpName, args.dispatchStream, args.combineStream,                 \
                     args.context);
@@ -753,9 +751,9 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
         int64_t H = 7168;
         int64_t K = 3;
         int64_t expertShardType = 0;
-        int64_t sharedExpertNum = 1;
-        int64_t sharedExpertRankNum = 1;
-        int64_t moeExpertNum = 7;
+        int64_t sharedExpertNum = 0;
+        int64_t sharedExpertRankNum = 0;
+        int64_t moeExpertNum = 8;
         int64_t quantMode = 0;
         int64_t globalBs = Bs * EP_WORLD_SIZE;
         int64_t expertTokenNumsType = 1;
