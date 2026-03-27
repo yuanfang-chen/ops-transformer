@@ -494,12 +494,11 @@ ge::graphStatus GroupedMatmulQuantChecker::GetGroupNumValue(const gert::InferSha
 {
     auto groupListShape = context->GetOptionalInputShape(GMM_INDEX_IN_GROUP_LIST);
     OP_CHECK_NULL_WITH_CONTEXT(context, groupListShape);
-    OP_CHECK_IF(groupListShape->GetDimNum() != GROUP_LIST_DIM_NUM &&
-                    groupListShape->GetDimNum() != GROUP_LIST_SPARSE_DIM_NUM,
-                OP_LOGE(context->GetNodeName(),
-                        "The groupList dim num should be [%zu] or [%zu], but the actual is [%zu].",
-                        GROUP_LIST_DIM_NUM, GROUP_LIST_SPARSE_DIM_NUM, groupListShape->GetDimNum()),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(
+        groupListShape->GetDimNum() != GROUP_LIST_DIM_NUM && groupListShape->GetDimNum() != GROUP_LIST_SPARSE_DIM_NUM,
+        OP_LOGE(context->GetNodeName(), "The groupList dim num should be [%zu] or [%zu], but the actual is [%zu].",
+                GROUP_LIST_DIM_NUM, GROUP_LIST_SPARSE_DIM_NUM, groupListShape->GetDimNum()),
+        return ge::GRAPH_FAILED);
     groupNum_ = groupListShape->GetDim(0);
     return ge::GRAPH_SUCCESS;
 }
