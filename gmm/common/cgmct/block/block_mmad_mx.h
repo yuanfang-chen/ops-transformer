@@ -525,23 +525,37 @@ public:
     __aicore__ inline void CopyOut(const AscendC::GlobalTensor<CType> &cGlobal,
                                    const AscendC::LocalTensor<float> &c1Local, uint64_t baseM, uint64_t baseN)
     {
-        AscendC::DataCopyCO12DstParams intriParams;
-        intriParams.nSize = baseN;
-        intriParams.mSize = baseM;
-        intriParams.dstStride = n_;
-        intriParams.srcStride = Cgmct::Gemm::Align(baseM, AscendC::BLOCK_CUBE);
-        // set mode according to dtype
+        //AscendC::DataCopyCO12DstParams intriParams;
+        //intriParams.nSize = baseN;
+        //intriParams.mSize = baseM;
+        //intriParams.dstStride = n_;
+        //intriParams.srcStride = Cgmct::Gemm::Align(baseM, AscendC::BLOCK_CUBE);
+        //// set mode according to dtype
+        //if constexpr (AscendC::IsSameType<CType, bfloat16_t>::value) {
+        //    intriParams.quantPre = QuantMode_t::F322BF16;
+        //} else if (AscendC::IsSameType<CType, half>::value) {
+        //    intriParams.quantPre = QuantMode_t::F322F16;
+        //} else if (AscendC::IsSameType<CType, float>::value) {
+        //    intriParams.quantPre = QuantMode_t::NoQuant;
+        //}
+        //intriParams.nz2ndEn = true;
+        //intriParams.unitFlag = FINAL_ACCUMULATION; // 3 unitflag
+        //AscendC::SetFixpipeNz2ndFlag(1, 1, 1);
+        //AscendC::DataCopy(cGlobal, c1Local, intriParams);
+
+        AscendC::FixpipeParamsC310<AscendC::CO2Layout::ROW_MAJOR> fixpipeParams(
+            baseN, baseM, Cgmct::Gemm::Align(baseM, AscendC::BLOCK_CUBE), n_); // dstStride is 128
         if constexpr (AscendC::IsSameType<CType, bfloat16_t>::value) {
-            intriParams.quantPre = QuantMode_t::F322BF16;
+            fixpipeParams.quantPre = QuantMode_t::F322BF16;
         } else if (AscendC::IsSameType<CType, half>::value) {
-            intriParams.quantPre = QuantMode_t::F322F16;
+            fixpipeParams.quantPre = QuantMode_t::F322F16;
         } else if (AscendC::IsSameType<CType, float>::value) {
-            intriParams.quantPre = QuantMode_t::NoQuant;
+            fixpipeParams.quantPre = QuantMode_t::NoQuant;
         }
-        intriParams.nz2ndEn = true;
-        intriParams.unitFlag = FINAL_ACCUMULATION; // 3 unitflag
+        fixpipeParams.unitFlag = FINAL_ACCUMULATION; // 3 unitflag
         AscendC::SetFixpipeNz2ndFlag(1, 1, 1);
-        AscendC::DataCopy(cGlobal, c1Local, intriParams);
+        AscendC::Fixpipe<CType, float, AscendC::Impl::CFG_ROW_MAJOR_UB>(
+            cGlobal, c1Local, fixpipeParams);
     }
 
     __aicore__ inline void UpdateKAL1(TileL1L0Param &tileL1L0Param, uint64_t offsetKAL1)

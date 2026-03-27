@@ -317,6 +317,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Iterate(int6
 {
     AscendC::Std::tuple<int64_t, int64_t, int64_t> blockShape{singleCoreM, singleCoreN,
                                                               static_cast<int64_t>(Get<MNK_K>(problemShape_))};
+    yGlobal_.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_DISABLE);
     if (isBias_) {
         mmadOp_(aGlobal_[Get<IDX_A_OFFSET>(blockOffset_)], bGlobal_[Get<IDX_B_OFFSET>(blockOffset_)],
                 x1ScaleGlobal_[Get<IDX_X1SCALE_OFFSET>(blockOffset_)],
