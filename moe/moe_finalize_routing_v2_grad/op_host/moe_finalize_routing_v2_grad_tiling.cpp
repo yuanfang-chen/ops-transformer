@@ -14,6 +14,26 @@
  */
 #include "moe_finalize_routing_v2_grad_tiling.h"
 
+#include <iostream>
+#include <execinfo.h> // backtrace 函数
+#include <unistd.h> 
+
+void print_stack_trace() {
+    void* callstack[128];
+    // 获取调用栈地址，最多128层
+    int frames = backtrace(callstack, 128);
+    // 将地址转换为可读字符串
+    char** strs = backtrace_symbols(callstack, frames);
+    
+    if (strs != nullptr) {
+        std::cerr << "Call stack:\n";
+        for (int i = 0; i < frames; ++i) {
+            std::cerr << strs[i] << "\n";
+        }
+        free(strs); // 释放内存
+    }
+}
+
 namespace optiling {
 constexpr size_t WORKSPACE_SIZE = 16 * 1024 * 1024;
 constexpr int64_t NUM_TWO = 2;
@@ -33,10 +53,13 @@ constexpr int64_t ATTR_3_IDX = 3;
 
 ge::graphStatus MoeFinalizeRoutingV2GradTiling::GetPlatformInfo()
 {
+    print_stack_trace();
     auto platformInfo = context_->GetPlatformInfo();
+    OP_LOGI(nodeName_, "platformInfo address: %p", platformInfo);
      OP_CHECK_NULL_WITH_CONTEXT(context_, platformInfo);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     aicoreParams_.numBlocks = ascendcPlatform.GetCoreNumAiv();
+    OP_LOGI(nodeName_, "GetPlatformInfo - numBlocks: %d", aicoreParams_.numBlocks);
      OP_CHECK_IF(
         (aicoreParams_.numBlocks <= 0), OP_LOGE(nodeName_, "get aiv core num failed."),
         return ge::GRAPH_FAILED);
@@ -44,13 +67,17 @@ ge::graphStatus MoeFinalizeRoutingV2GradTiling::GetPlatformInfo()
     uint64_t totalUbSize;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, totalUbSize);
     aicoreParams_.ubSize = totalUbSize;
+    OP_LOGI(nodeName_, "GetPlatformInfo - ubSize: %lu", aicoreParams_.ubSize);
      OP_CHECK_IF(
         (aicoreParams_.ubSize <= 0), OP_LOGE(nodeName_, "get ub size failed."),
         return ge::GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
+    OP_LOGI(nodeName_, "GetPlatformInfo - socVersion: %d", socVersion_);
     blockSize_ = Ops::Base::GetUbBlockSize(context_);
+    OP_LOGI(nodeName_, "GetPlatformInfo - blockSize: %lu", blockSize_);
     vlFp32_ = Ops::Base::GetVRegSize(context_) / sizeof(float);
+    OP_LOGI(nodeName_, "GetPlatformInfo - vlFp32: %d", vlFp32_);
 
     return ge::GRAPH_SUCCESS;
 }
