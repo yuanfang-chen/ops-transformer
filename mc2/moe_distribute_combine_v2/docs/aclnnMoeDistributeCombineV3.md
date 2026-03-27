@@ -768,7 +768,7 @@ aclnnStatus aclnnMoeDistributeCombineV3(
         aclrtContext context;
     };
 
-    constexpr uint32_t EP_WORLD_SIZE = 8;
+    constexpr uint32_t EP_WORLD_SIZE = 2;
     constexpr uint32_t TP_WORLD_SIZE = 1;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
