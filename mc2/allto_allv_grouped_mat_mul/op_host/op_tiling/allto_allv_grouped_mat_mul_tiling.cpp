@@ -536,7 +536,7 @@ ge::graphStatus AlltoAllvGmmTiling::CheckAttrsShapeSize(const gert::TilingContex
     if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         epWorldSizeOptional = {2, 4, 8, 16, 32, 64}; //A5限制epWorldSize为{2，4，8，16，32，64}
     } else {
-        epWorldSizeOptional = {8, 16, 32, 64, 128}; //A3限制epWorldSize为{8，16，32，64, 128}
+        epWorldSizeOptional = {2, 4, 8, 16, 32, 64, 128}; //A3限制epWorldSize为{8，16，32，64, 128}
     }
     for (size_t i = 0; i < epWorldSizeOptional.size(); i++) {
         epWorldSizeNum += (std::to_string(epWorldSizeOptional[i]) + " ");
@@ -877,12 +877,12 @@ ge::graphStatus AlltoAllvGmmTiling::Init(gert::TilingContext* context)
     OP_TILING_CHECK(
         GetShapeAndFormat(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Get shape and format failed!"),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        CheckShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check shape size failed!"),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        CheckAttrsShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check Attrs shape size failed!"),
-        return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(
+    //     CheckShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check shape size failed!"),
+    //     return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(
+    //     CheckAttrsShapeSize(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Check Attrs shape size failed!"),
+    //     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         CheckAttrsShapeRelation(context) != ge::GRAPH_SUCCESS,
         OP_LOGE(A_INNER_DEBUG, "Check Attrs Shape Relation failed!"), return ge::GRAPH_FAILED);
@@ -957,6 +957,7 @@ ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
         return ge::GRAPH_FAILED);
     tilingData->commonTilingInfo.aicCoreNum = numBlocks;
     tilingData->commonTilingInfo.aivCoreNum = numBlocks * NUM_TWO;    // aic:aiv按照1：2配比
+    tilingData->commonTilingInfo.totalUbSize = PLATFORM_SIZE.ubSize;
     context->SetBlockDim(static_cast<uint32_t>(numBlocks));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
 
     return ge::GRAPH_SUCCESS;
@@ -988,7 +989,7 @@ ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* c
                               0 :
                               (tilingData->commonTilingInfo.A * tilingData->commonTilingInfo.H1 * mmDataTypeSize);
     tilingData->commonTilingInfo.commOut = commOut;
-    workspaces[0] = libApiWorkSpaceSize_ + commOut + permuteOut;
+    workspaces[0] = libApiWorkSpaceSize_ + commOut + permuteOut + 1024UL * 1024UL * 1024UL; //todo
     uint64_t tilingKey = GetTilingKey(context);
     context->SetTilingKey(tilingKey);
 

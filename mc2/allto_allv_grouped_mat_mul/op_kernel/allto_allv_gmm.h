@@ -137,7 +137,7 @@ __aicore__ inline void GMMProcess<ComputeType>::Process(
 
         while (curBlock < curCount) {
             MnBlockIdxCompute(mnConfig, curBlock, count, thresholdM_dimN);
-            computeOp.MMCompute(mnConfig, wIndex, rankId);
+            computeOp.MMCompute(mnConfig, wIndex + computerIdx, rankId);
             curBlock += coreNum;
         }
         count = curCount % coreNum;
