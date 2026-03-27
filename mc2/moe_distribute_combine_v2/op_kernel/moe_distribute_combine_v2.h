@@ -518,8 +518,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::Init(
     InitAttrs(mc2Context, tilingData);
 
     if constexpr (QuantMode > UNQUANT) {
-        quantInst_.QuantInit(scaleNum_, hExpandXAlign32Size_, hExpandXAlignSize_, scaleNumAlignSize_,
-            hFloatAlign256Size_, tokenScaleCnt_, axisH_);
+        quantInst_.QuantInit(scaleNum_, hExpandXAlign32Size_, hExpandXAlignSize_, hFloatAlign256Size_, tokenScaleCnt_, axisH_);
     }
     PipeBarrier<PIPE_ALL>();
     // 当前win区划分为前后两半区，连续两次dispatch，切换半区
@@ -580,8 +579,11 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::BuffInit()
             fp16CastTensor_ = xAbsBuf_.Get<half>();
             Duplicate(absFloatTensor_, float(0), hFloatAlign256Cnt); // 统一写0
             quantInst_.SetQuantInitParams(winTpSendCountFloatTensor_, fp16CastTensor_, absFloatTensor_, reduceMaxFloatTensor_, scaleDupLocalTensor_);
-        }else {
+        } else {
             tpipe_->InitBuffer(gmTpSendCountQueue_, BUFFER_NUM, hExpandXAlign32Size_);   // 28K 存储搬入token
+        }
+        if (isScalingDownFlag_) {
+            elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
         }
     }
     tpipe_->InitBuffer(indexCountsBuf_, sendCntNum_ * EXPAND_IDX_INFO * sizeof(int32_t));
@@ -723,6 +725,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AlltoAllBuffI
     tpipe_->Reset();
     AlltoAllCommBuffInit();
     if constexpr (QuantMode > UNQUANT) {
+        scaleNumAlignSize_ = Ceil(scaleNum_, (ALIGNED_LEN / INT8_DIVIVE)) * WIN_ADDR_ALIGN;
         tpipe_->InitBuffer(xAbsBuf_, scaleNumAlignSize_);
         fp16CastTensor_ = mulBuf_.Get<half>();
         absFloatTensor_ = rowTmpFloatBuf_.Get<float>();
