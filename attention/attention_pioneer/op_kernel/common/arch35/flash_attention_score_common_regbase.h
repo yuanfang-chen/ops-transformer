@@ -23,7 +23,7 @@
 #include "lib/matmul_intf.h"
 #include "stdarg.h"
 #include "../../../../common/op_kernel/arch35/pse.h"
-#include "../../../../common/op_kernel/arch35/util_regbase.h"
+#include "util_regbase.h"
 
 using matmul::MatmulType;
 using namespace AscendC;
