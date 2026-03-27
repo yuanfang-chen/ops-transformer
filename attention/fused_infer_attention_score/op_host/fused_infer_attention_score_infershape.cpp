@@ -189,12 +189,13 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
             return ge::GRAPH_FAILED;
         }
     } else { // 非PA场景
+    
         if (valueShape->GetDimNum() != queryShape->GetDimNum()) {
             OP_LOGE("FusedInferAttentionScore", "when Page Attention not enabled, value'dim(%zu) should equal to query's dim(%zu)!",
                 valueShape->GetDimNum(), queryShape->GetDimNum());
             return ge::GRAPH_FAILED;
         }
-        
+
         if (queryLayout == "BSH") {
             valueD = (*valueShape)[FIA_LAYOUT_DIM2] / numKeyValueHeads;
         } else if (queryLayout == "BSND" || queryLayout == "BNSD") {
