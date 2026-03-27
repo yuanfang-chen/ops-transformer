@@ -383,7 +383,8 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Pro
     for (uint32_t loopIdx = 0; loopIdx < groupNum_; ++loopIdx) {
         uint32_t groupIdx = loopIdx;
         if (groupListType_ == QuantUtils::GROUP_LIST_TYPE_SPARSE) {
-            groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * QuantUtils::SPARSE_GROUP_LIST_ITEM_STRIDE));
+            groupIdx =
+                static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * QuantUtils::SPARSE_GROUP_LIST_ITEM_STRIDE));
         }
         int32_t mSize;
         int32_t nSize;
