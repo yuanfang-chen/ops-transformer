@@ -110,11 +110,10 @@ static bool CheckNullStatus(const aclTensor *gmmX, const aclTensor *gmmWeight,
                             const aclTensor *y, const aclTensor *mmYOptional)
 {
     if ((sendCountsTensorOptional != nullptr) || (recvCountsTensorOptional != nullptr)) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, 
-            "sendCountsTensorOptional and recvCountsTensorOptional should be all empty, "
-            "but got: sendCountsTensorOptional is %s, recvCountsTensorOptional is %s.",
-            sendCountsTensorOptional ? "non-empty" : "empty",
-            recvCountsTensorOptional ? "non-empty" : "empty");
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
+                "sendCountsTensorOptional and recvCountsTensorOptional should be all empty, "
+                "but got: sendCountsTensorOptional is %s, recvCountsTensorOptional is %s.",
+                sendCountsTensorOptional ? "non-empty" : "empty", recvCountsTensorOptional ? "non-empty" : "empty");
         return false;
     }
     if ((group == nullptr) || (strnlen(group, HCCL_GROUP_NAME_MAX) == 0)) { // HCCL_GROUP_NAME_MAX = 128U
@@ -197,12 +196,14 @@ static bool CheckMmNotEmptyOrAllEmpty(const aclTensor *mmXOptional, const aclTen
     const bool mmYEmpty = (mmYdim0 == 0 || mmYdim1 == 0);
     const bool allEmpty = mmXEmpty && mmWEmpty && mmYEmpty;
     const bool allNonEmpty = !mmXEmpty && !mmWEmpty && !mmYEmpty;
-    OP_API_CHECK((!allEmpty && !allNonEmpty), { OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+    OP_API_CHECK((!allEmpty && !allNonEmpty), {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "mmXOptional, mmWeightOptional, and mmYOptional must be either all empty or all non-empty,"
                 "but got: mmXOptional shape is [%ld, %ld], mmWeightOptional shape is [%ld, %ld], mmYOptional shape "
-                "is [%ld, %ld].", mmDim0, mmDim1, mmWdim0, mmWdim1, mmYdim0, mmYdim1);
-            return false;
-        });
+                "is [%ld, %ld].",
+                mmDim0, mmDim1, mmWdim0, mmWdim1, mmYdim0, mmYdim1);
+        return false;
+    });
     return true;
 }
 
@@ -215,7 +216,8 @@ static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeigh
     return CheckMmNotEmptyOrAllEmpty(mmXOptional, mmWeightOptional, mmYOptional);
 }
 
-static bool CheckRequiredScaleTensor(const aclTensor *xScale, const aclTensor *weightScale, const char *xName, const char *weightName, const char *modeName)
+static bool CheckRequiredScaleTensor(const aclTensor *xScale, const aclTensor *weightScale, const char *xName,
+                                     const char *weightName, const char *modeName)
 {
     if (xScale == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%sScale must not be null when %s quant mode is used.", xName, modeName);
@@ -242,12 +244,8 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
     QuantModeType xMode = static_cast<QuantModeType>(xQuantMode);
     QuantModeType wMode = static_cast<QuantModeType>(weightQuantMode);
     if (xMode != wMode) {
-<<<<<<< HEAD
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.", xName,
-=======
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.", xName,
->>>>>>> 81111d1e (QauntGMMAll2Allv aclnn 评审意见修改；docx补充Mx量化内容)
-                weightName, static_cast<int64_t>(xMode), static_cast<int64_t>(wMode));
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.",
+                xName, weightName, static_cast<int64_t>(xMode), static_cast<int64_t>(wMode));
         return false;
     }
     // 按量化模式分支校验
@@ -273,14 +271,14 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
 
 static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmX,
                              const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
-                             const aclTensor *gmmWeightScaleOptional, const aclTensor *y,
-                             int64_t mmXQuantMode, int64_t mmWeightQuantMode, const aclTensor *mmXOptional,
-                             const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
-                             const aclTensor *mmWeightScaleOptional, const aclTensor *mmYOptional)
+                             const aclTensor *gmmWeightScaleOptional, const aclTensor *y, int64_t mmXQuantMode,
+                             int64_t mmWeightQuantMode, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
+                             const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
+                             const aclTensor *mmYOptional)
 {
     // 1) gmm 一定要有量化模式，且当前只支持 TT(1) / MX(6)
-    if (!CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional,
-                        gmmX, gmmWeight, y, "gmmX", "gmmWeight")) {
+    if (!CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional, gmmX, gmmWeight,
+                        y, "gmmX", "gmmWeight")) {
         return false;
     }
     // 2) mm 不存在时，允许没有量化模式
@@ -295,8 +293,8 @@ static bool CheckQuantParams(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, 
                 gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode);
         return false;
     }
-    if (!CheckQuantMode(mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional,
-                        mmXOptional, mmWeightOptional, mmYOptional, "mmX", "mmWeight")) {
+    if (!CheckQuantMode(mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional, mmXOptional,
+                        mmWeightOptional, mmYOptional, "mmX", "mmWeight")) {
         return false;
     }
     return true;
@@ -327,14 +325,13 @@ static aclnnStatus CheckMxScaleShape(const aclTensor *scale, const char *name)
     }
     uint64_t scaleDimNum = scale->GetViewShape().GetDimNum();
     if (scaleDimNum < DIM_THREE) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "In MX quant mode, %s dim num should be >= 3, but got %lu.", name, scaleDimNum);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MX quant mode, %s dim num should be >= 3, but got %lu.", name,
+                scaleDimNum);
         return ACLNN_ERR_PARAM_INVALID;
     }
     int64_t lastDim = scale->GetViewShape().GetDim(scaleDimNum - 1);
     if (lastDim != DIM_TWO) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "In MX quant mode, %s last dim should be 2, but got %ld.", name, lastDim);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MX quant mode, %s last dim should be 2, but got %ld.", name, lastDim);
         return ACLNN_ERR_PARAM_INVALID;
     }
     return ACLNN_SUCCESS;
@@ -361,8 +358,8 @@ static const aclTensor *SwapTensorDims(const aclTensor *tensor, uint64_t dimA, u
     std::swap(stride[dimA], stride[dimB]);
     auto offset = tensor->GetViewOffset();
     aclFormat format = aclFormat::ACL_FORMAT_ND;
-    return aclCreateTensor(viewDim.data(), viewShapeDimNum, dataType, stride.data(), offset, format,
-                           storageDim.data(), storageShapeDimNum, tensor->GetTensor()->GetAddr());
+    return aclCreateTensor(viewDim.data(), viewShapeDimNum, dataType, stride.data(), offset, format, storageDim.data(),
+                           storageShapeDimNum, tensor->GetTensor()->GetAddr());
 }
 
 // 检测 gmmWeight stride 转置，同时 reshape weight 和 scale（swap dim[1]/dim[2]）
@@ -505,4 +502,4 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_
     aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllv(workspace, workspaceSize, executor, stream);
     return ret;
 }
-} // namespace 
+} // namespace
