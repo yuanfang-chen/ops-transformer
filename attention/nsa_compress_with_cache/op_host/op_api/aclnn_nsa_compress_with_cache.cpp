@@ -146,6 +146,11 @@ aclnnNsaCompressWithCacheGetWorkspaceSize(const aclTensor *input, const aclTenso
                                           int64_t actSeqLenType, int64_t pageBlockSize, aclTensor *outputCache,
                                           uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    // L2接口阶段1
+    L2_DFX_PHASE_1(aclnnNsaCompressWithCache,
+                   DFX_IN(input, weight, slotMapping, outputCache, actSeqLenOptional, blockTableOptional,
+                          layoutOptional, compressBlockSize, compressStride, actSeqLenType, pageBlockSize),
+                   DFX_OUT(outputCache));
     // 检查入参
     CHECK_RET(CheckNsaCompressWithCacheParam(input, weight, slotMapping, outputCache, workspaceSize, executor) ==
                   ACLNN_SUCCESS,
@@ -160,11 +165,7 @@ aclnnNsaCompressWithCacheGetWorkspaceSize(const aclTensor *input, const aclTenso
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "[NSACompressWithCache] All input tensors (input/weight/slotMapping/blockTableOptional/outputCache) must be in ND format");
         return ACLNN_ERR_PARAM_INVALID;
     }
-    // L2接口阶段1
-    L2_DFX_PHASE_1(aclnnNsaCompressWithCache,
-                   DFX_IN(input, weight, slotMapping, outputCache, actSeqLenOptional, blockTableOptional,
-                          layoutOptional, compressBlockSize, compressStride, actSeqLenType, pageBlockSize),
-                   DFX_OUT(outputCache));
+
     CHECK_RET(InputDtypeCheck(input, weight, slotMapping, blockTableOptional, outputCache) == ACLNN_SUCCESS,
               ACLNN_ERR_PARAM_INVALID);
     // 获取executor
