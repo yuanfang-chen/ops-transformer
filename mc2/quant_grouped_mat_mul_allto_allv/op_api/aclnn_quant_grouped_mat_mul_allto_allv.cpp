@@ -66,21 +66,6 @@ extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllv(void *workspace, ui
                                                              aclOpExecutor *executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
-const std::initializer_list<op::DataType> MX_INPUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E4M3FN,
-                                                                         op::DataType::DT_FLOAT8_E5M2};
-const std::initializer_list<op::DataType> MX_SCALE_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
-const std::initializer_list<op::DataType> MX_OUTPUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT16,
-                                                                          op::DataType::DT_BF16};
-
-
-static int64_t CeilDiv(int64_t a, int64_t b)
-{
-    if (b == 0) {
-      return 0;
-    }
-    return (a + b - 1) / b;
-}
-
 // 检查必要输入是否为空，必须非空
 static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *y)
 {
@@ -245,31 +230,31 @@ static bool CheckRequiredScaleTensor(const aclTensor *xScale, const aclTensor *w
 
 static bool CheckUnsupportQuantMode(QuantModeType mode, const char *xName)
 {
-    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s quantMode (%ld) is not support yet.", xName, static_cast<int64_t>(mode));
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s quantMode (%ld) is not supported yet.", xName, static_cast<int64_t>(mode));
     return false;
 }
 
 // 检查量化参数是否合法
-static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const aclTensor *XScaleOptional,
-                           const aclTensor *WeightScaleOptional, const aclTensor *x, const aclTensor *weight,
+static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const aclTensor *xScaleOptional,
+                           const aclTensor *weightScaleOptional, const aclTensor *x, const aclTensor *weight,
                            const aclTensor *y, const char *xName, const char *weightName)
 {
     QuantModeType xMode = static_cast<QuantModeType>(xQuantMode);
     QuantModeType wMode = static_cast<QuantModeType>(weightQuantMode);
     if (xMode != wMode) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s QuantMode and %s QuanMode should be the same, but got %ld and %ld.", xName,
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.", xName,
                 weightName, static_cast<int64_t>(xMode), static_cast<int64_t>(wMode));
         return false;
     }
     // 按量化模式分支校验
     switch (xMode) {
         case QuantModeType::NO_QUANT:
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template unsupport NO_QUAN mode.");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template does not support NO_QUANT mode.");
             return false;
         case QuantModeType::PERTENSOR_QUANT:
-            return CheckRequiredScaleTensor(XScaleOptional, WeightScaleOptional, xName, weightName, "PerTensor");
+            return CheckRequiredScaleTensor(xScaleOptional, weightScaleOptional, xName, weightName, "PerTensor");
         case QuantModeType::MX_QUANT:
-            return CheckRequiredScaleTensor(XScaleOptional, WeightScaleOptional, xName, weightName, "MX");
+            return CheckRequiredScaleTensor(xScaleOptional, weightScaleOptional, xName, weightName, "MX");
         case QuantModeType::PERCHANNEL_QUANT:
         case QuantModeType::PERTOKEN_QUANT:
         case QuantModeType::PERGROUP_QUANT:
@@ -277,7 +262,7 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
         case QuantModeType::DYN_PERTOKEN_QUANT:
             return CheckUnsupportQuantMode(xMode, xName);
         default:
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unknown %s QuanMode: %ld.", xName, static_cast<int64_t>(xMode));
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unknown %s QuantMode: %ld.", xName, static_cast<int64_t>(xMode));
             return false;
     }
 }
