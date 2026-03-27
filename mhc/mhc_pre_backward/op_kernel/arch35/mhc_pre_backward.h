@@ -69,7 +69,8 @@ constexpr uint64_t SYNC_MAX_NUM = 15;
 constexpr uint32_t INOUT_QUEUE_SIZE = 16 * 1024;  // 16KB
 constexpr uint32_t FP32_BUF_SIZE = (248 - 16 * 5) * 1024;  // 248
 constexpr uint32_t PROCESS_V2_CHUNK_SIZE = 64;  // ProcessV2函数使用的chunk大小
-constexpr uint32_t SINGLE_M = 1024;
+// constexpr uint32_t SINGLE_M = 1024;
+constexpr uint32_t SINGLE_M = 512;
 constexpr uint32_t ND_BLOCK_SIZE = 128;
 constexpr uint32_t ALPHA_GRAD_PADDING = 24;
 
@@ -497,10 +498,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::InitStage2()
 
     if ASCEND_IS_AIC {
         dealStartND_ = cubeDealnDPeCore_ * blockIdx_;
-<<<<<<< HEAD
-=======
-
->>>>>>> upstream/mhc_pre_backward
         dealEndND_ = dealStartND_ + cubeDealnDPeCore_;
         if (dealEndND_ > nD_) {
             dealEndND_ = nD_;
