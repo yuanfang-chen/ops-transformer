@@ -202,7 +202,7 @@ ge::graphStatus FiaInfoParser::GetNpuInfo()
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
         (npuArch_ != NpuArch::DAV_3510) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910_55)) {
-        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d]/NpuArch[%d] is not support.", static_cast<int32_t>(socVersion_), static_cast<int32_t>(npuArch));
+        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d]/NpuArch[%d] is not support.", static_cast<int32_t>(socVersion_), static_cast<int32_t>(npuArch_));
         return GRAPH_FAILED;
     }
 
