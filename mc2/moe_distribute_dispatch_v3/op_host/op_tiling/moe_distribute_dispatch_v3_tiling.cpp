@@ -36,9 +36,8 @@
 #include "../../../moe_distribute_dispatch_v2/op_host/op_tiling/moe_distribute_dispatch_tiling_v2.h"
 #include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_tiling.h"
 #include "mc2_hcom_topo_info.h"
-#include "cann_version.h"
 
-#if CANN_VERSION_NUM >= 90000000
+#ifdef MC2_EXCEPTION_HANDLER
 #include "mc2_exception_dump.h"
 using namespace Mc2Exception;
 #endif
@@ -95,7 +94,7 @@ IMPL_OP_OPTILING(MoeDistributeDispatchV3)
     .Tiling(MoeDistributeDispatchV3TilingFunc)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV3);
 
-#if CANN_VERSION_NUM >= 90000000
+#ifdef MC2_EXCEPTION_HANDLER
 // Register exception func
 inline void MoeDistributeDispatchV3ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
