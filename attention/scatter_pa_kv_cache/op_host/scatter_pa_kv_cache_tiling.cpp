@@ -46,7 +46,7 @@ constexpr uint64_t INPUT_STRIDES_INDEX = 2;
 constexpr uint64_t INPUT_OFFSET_INDEX = 3;
 constexpr uint64_t ALIGN = 32;
 constexpr uint64_t RESERVED_BUFFER = 1024;
-constexpr uint64_t NUM_HEAD_MAX = 4095;
+constexpr uint64_t NUM_HEAD_MAX = 4095;  // datacopypad基础接口中跳搬的块数，最大维4095
 
 constexpr uint64_t TILING_ID_TEMPLATE = 1000;
 constexpr uint64_t TILING_ID_FULL = 1;
@@ -180,7 +180,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::GetInputDtypeKv()
             return ge::GRAPH_FAILED;
         }
     }
-    if ((params_.templateType == TEMPLATE_NHSD)) {
+    if (params_.templateType == TEMPLATE_NHSD) {
         if (inputKeyDtype_ != inputValueDtype_) {
             OP_LOGE(context_, "key and value must be same dtype.");
             return ge::GRAPH_FAILED;
@@ -294,15 +294,15 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputDimNumNHSD()
     size_t slotDimNum = slotMappingShape_.GetDimNum();
     size_t vDimNum = inputValueShape_.GetDimNum();
     size_t vCacheDimNum = inputValueCacheInShape_.GetDimNum();
-    OP_CHECK_IF((slotDimNum != static_cast<size_t>(DIM_1)), OP_LOGE(context_, "slot_mapping should be is 1 dim."),
+    OP_CHECK_IF((slotDimNum != static_cast<size_t>(DIM_1)), OP_LOGE(context_, "slot_mapping should be 1 dim."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((kCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "key_cache should be is 4 dim."),
+    OP_CHECK_IF((kCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "key_cache should be 4 dim."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((kDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "key should be is 3 dim."),
+    OP_CHECK_IF((kDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "key should be 3 dim."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "value_cache should be is 4 dim."),
+    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "value_cache should be 4 dim."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((vDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "value should be is 3 dim."),
+    OP_CHECK_IF((vDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "value should be 3 dim."),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -391,9 +391,9 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeNHSD()
     OP_CHECK_IF((!isAlign), OP_LOGE(context_, "kHeadSize and vHeadSize should be align to 32."),
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.numHead != inputKeyCacheInShape_.GetDim(DIM_1)),
-                OP_LOGE(context_, "dim2 of keyCache should be same as numHead."), return ge::GRAPH_FAILED);
+                OP_LOGE(context_, "dim1 of keyCache should be same as numHead."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.numHead > NUM_HEAD_MAX),
-                OP_LOGE(context_, "num head must less than 4095."), return ge::GRAPH_FAILED);
+                OP_LOGE(context_, "num head must less than or equal 4095."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((static_cast<uint64_t>(numBlocks) * params_.blockSize < params_.numTokens),
                 OP_LOGE(context_, "numBlocks * blockSize should larger than numTokens."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((inputKeyCacheInShape_.GetDim(DIM_2) != inputValueCacheInShape_.GetDim(DIM_2)),
@@ -575,7 +575,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::GetShapeAttrsInfo()
 ge::graphStatus ScatterPaKvCacheMembaseTiling::DoNHSDOpTiling()
 {
     OP_CHECK_IF(((params_.numHead * params_.kHeadSize + params_.numHead * params_.vHeadSize) * params_.typeByteK 
-                    >= params_.ubSize),
+                    > params_.ubSize),
                     OP_LOGE(context_, "one token key size plus one token value must less than 196608."),
                     return ge::GRAPH_FAILED);
     OP_CHECK_IF((params_.blockSize * params_.kHeadSize > UINT32_MAX),

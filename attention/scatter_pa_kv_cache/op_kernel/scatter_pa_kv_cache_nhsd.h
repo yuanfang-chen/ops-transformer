@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 /*!
- * \file scatter_pa_kv_cache_normal.h
+ * \file scatter_pa_kv_cache_nnhsd.h
  * \brief
  */
 
@@ -48,7 +48,7 @@ public:
         this->valueIn = valueInBuf.Get<T1>();
     }
 
-        __aicore__ inline void Process()
+    __aicore__ inline void Process()
     {
         int64_t perCoreDoKeyCount = numHead * kHeadSize;
         int64_t perCoreDoValueCount = numHead * vHeadSize;
@@ -94,7 +94,6 @@ private:
         numHead = tilingData->numHead;
         kHeadSize = tilingData->kHeadSize;
         vHeadSize = tilingData->vHeadSize;
-        numBlocks = tilingData->numBlocks;
         blockSize = tilingData->blockSize;
     }
 
@@ -144,7 +143,6 @@ private:
     int64_t numHead = 0;
     int64_t kHeadSize = 0;
     int64_t vHeadSize = 0;
-    int64_t numBlocks = 0;
     int64_t blockSize = 0;
     int32_t blockIdx = 0;
     int64_t useCoreNum = 0;
