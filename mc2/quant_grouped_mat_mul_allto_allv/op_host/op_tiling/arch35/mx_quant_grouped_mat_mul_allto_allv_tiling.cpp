@@ -259,11 +259,11 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
         return ge::GRAPH_FAILED);
     
     OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "The mmXQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmXQuantMode),
+        OP_LOGE(opName_, "mmXQuantMode only supports MX mode (value=%d), but got %ld !", QUANT_MX, localParams_.mmXQuantMode),
         return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_MX,
-        OP_LOGE(opName_, "The mmWeightQuantMode should be MX mode, but actul mode is %ld !", localParams_.mmWeightQuantMode),
+        OP_LOGE(opName_, "mmWeightQuantMode only supports MX mode (value=%d), but got %ld !", QUANT_MX, localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
     ge::graphStatus status = MxCheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
     OP_TILING_CHECK(status != ge::GRAPH_SUCCESS, "", return ge::GRAPH_FAILED);

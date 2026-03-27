@@ -46,7 +46,7 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((dimNum != dims),
-        OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "The %s dimNum should be %lu, but got %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -267,7 +267,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckAndSetLocalParamsAtt
     OP_TILING_CHECK(commQuantDtypeptr == nullptr, OP_LOGE(opName_, "commQuantDtypeptr is null."), return ge::GRAPH_FAILED);
     localParams_.commQuantDtype = *commQuantDtypeptr;
     OP_TILING_CHECK(localParams_.commQuantMode != QUANT_NONE,
-        OP_LOGE(opName_, "not support commQuant now, but commQuantMode is %ld !", localParams_.commQuantMode),
+        OP_LOGE(opName_, "commQuant is not supported yet; only 0 is allowed, but commQuantMode is %ld !", localParams_.commQuantMode),
         return ge::GRAPH_FAILED);
 
     auto mmXQuantModeptr = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_MODE_INDEX);
@@ -522,7 +522,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsAttrEpAndSetLo
             OP_LOGE(opName_, "experts(ep * epWorldSize) max is %lu, but now is %lu !", MAX_EXPERT_NUM, expertNum),
             return ge::GRAPH_FAILED);
     } else {
-        OP_LOGE(opName_, "E_ep[%lu] should be in (0, %ld]!", localParams_.ep, MAX_EXPERT_NUM_PER_RANK);
+        OP_LOGE(opName_, "ep (experts per rank) should be in range (0, %ld], but got %lu.", MAX_EXPERT_NUM_PER_RANK, localParams_.ep);
         return ge::GRAPH_FAILED;
     }
 
@@ -581,13 +581,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckAndSetSendRecvCounts
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckLocalParams()
 {
     OP_TILING_CHECK((localParams_.H1 == 0) || (localParams_.H1 >= MAX_H1_VALUE),
-        OP_LOGE(opName_, "H1 should be less than %lu, but got %lu.", MAX_H1_VALUE, localParams_.H1),
+        OP_LOGE(opName_, "H1 should be in range (0, %lu), but got %lu.", MAX_H1_VALUE, localParams_.H1),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.BsK >= MAX_BSK_VALUE),
-        OP_LOGE(opName_, "BSK should be less than %lu, but got %lu.", MAX_BSK_VALUE, localParams_.BsK),
+        OP_LOGE(opName_, "BSK should be in range (0, %lu), but got %lu.", MAX_BSK_VALUE, localParams_.BsK),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.N1 == 0) || (localParams_.N1 >= MAX_N1_VALUE),
-        OP_LOGE(opName_, "N1 should be less than %lu, but got %lu.", MAX_N1_VALUE, localParams_.N1),
+        OP_LOGE(opName_, "N1 should be in range (0, %lu), but got %lu.", MAX_N1_VALUE, localParams_.N1),
         return ge::GRAPH_FAILED);
 
     if (!localParams_.hasSharedMm) {
@@ -601,10 +601,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckLocalParams()
         OP_LOGE(opName_, "K (BSK / BS) should be in [%lu, %lu], but got %lu.", MIN_K_VALUE, MAX_K_VALUE, k),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.H2 == 0) || (localParams_.H2 > MAX_SHARED_H_SHAPE_SIZE),
-        OP_LOGE(opName_, "H2 should be less than %lu, but got %lu.", MAX_SHARED_H_SHAPE_SIZE, localParams_.H2),
+        OP_LOGE(opName_, "H2 should be in range (0, %lu), but got %lu.", MAX_SHARED_H_SHAPE_SIZE, localParams_.H2),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.N2 == 0) || (localParams_.N2 >= MAX_N2_VALUE),
-        OP_LOGE(opName_, "N2 should be less than %lu, but got %lu.", MAX_N2_VALUE, localParams_.N2),
+        OP_LOGE(opName_, "N2 should be in range (0, %lu), but got %lu.", MAX_N2_VALUE, localParams_.N2),
         return ge::GRAPH_FAILED);
     
     return ge::GRAPH_SUCCESS;
@@ -643,7 +643,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationAndSet
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::GetPlatformInfo()
 {
     fe::PlatFormInfos *platformInfo = context_->GetPlatformInfo();
-    OP_TILING_CHECK(platformInfo == nullptr, OP_LOGE(opName_, "Fail to get platform info."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(platformInfo == nullptr, OP_LOGE(opName_, "Failed to get platform info."), return ge::GRAPH_FAILED);
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     localParams_.aivCoreNum = ascendcPlatform.GetCoreNumAiv();
@@ -751,7 +751,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::SetHcclTiling()
     auto outputDataType = context_->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
-        OP_LOGE(opName_, "%s is Unsupported outputdata type!", Ops::Base::ToString(outputDataType).c_str()),
+        OP_LOGE(opName_, "Unsupported output data type: %s.", Ops::Base::ToString(outputDataType).c_str()),
         return ge::GRAPH_FAILED);
 
     auto alltoAllvDstDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(outputDataType)->second);
@@ -866,7 +866,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::PostTiling()
     context_->SetBlockDim(localParams_.aicCoreNum);
     QuantGmmA2avTilingData *outTilingData = context_->GetTilingData<QuantGmmA2avTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
-    OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "failed to get tiling data from context"),
+    OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Failed to get tiling data from context"),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((tilingBufCap < sizeof(localTilingData_)),
         OP_LOGE(opName_, "TilingBuffer too small, capacity = %zu, need = %zu.", tilingBufCap, sizeof(localTilingData_)),
@@ -877,7 +877,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::PostTiling()
     errno_t ret = memcpy_s(
         outTilingData, tilingBufCap, reinterpret_cast<void *>(&localTilingData_), sizeof(localTilingData_));
     if (ret != EOK) {
-        OP_LOGE(opName_, "postTiling: memcpy_s tiling data failed, ret=%d.", ret);
+        OP_LOGE(opName_, "postTiling: memcpy_s failed with ret=%d.", ret);
         return ge::GRAPH_FAILED;
     }
     context_->GetRawTilingData()->SetDataSize(sizeof(localTilingData_));
@@ -887,7 +887,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::PostTiling()
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Failed to get workspace."), return ge::GRAPH_FAILED);
     workspaces[0] = workSpaceSize_;
     OP_LOGD(opName_, "Workspaces[0] size=%ld", workspaces[0]);
 
