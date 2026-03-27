@@ -177,7 +177,8 @@ public:
         for (uint32_t i = 0; i < halfChunkSize_; ++i) {
             gatherOffsetBf16_.SetValue(i, i * BLOCK_SIZE);
         }
-        PipeBarrier<PIPE_V>();
+        SetFlag<HardEvent::S_V>(S_V_EVENT);
+        WaitFlag<HardEvent::S_V>(S_V_EVENT);
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
