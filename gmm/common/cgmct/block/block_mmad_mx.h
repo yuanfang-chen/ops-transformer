@@ -552,7 +552,6 @@ public:
         } else if (AscendC::IsSameType<CType, float>::value) {
             fixpipeParams.quantPre = QuantMode_t::NoQuant;
         }
-        fixpipeParams.nz2ndEn = true;
         fixpipeParams.unitFlag = FINAL_ACCUMULATION; // 3 unitflag
         AscendC::SetFixpipeNz2ndFlag(1, 1, 1);
         AscendC::Fixpipe<CType, float, AscendC::Impl::CFG_ROW_MAJOR_UB>(
@@ -747,7 +746,6 @@ public:
                                const AscendC::GlobalTensor<BiasType> &biasGlobal,
                                const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
     {
-        cGlobal.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_DISABLE);
         TileL1L0Param tileL1L0Param;
         tileL1L0Param.curM = Get<IDX_M_TILE_IDX>(singleShape);
         tileL1L0Param.curN = Get<IDX_N_TILE_IDX>(singleShape);
