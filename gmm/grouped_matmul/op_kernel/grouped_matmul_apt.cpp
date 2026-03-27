@@ -265,7 +265,7 @@ if constexpr (wFormat == CubeFormat::ND) {
                                           Cgmct::Gemm::layout::RowMajor);
     }
 }
-#else // mxfp4
+#else
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
         GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&

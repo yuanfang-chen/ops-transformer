@@ -426,10 +426,9 @@ bool GroupedQmmTiling::CheckFp4Shape() const
                         "When the dtype of x is FLOAT4, the k size should be even number, but actual k size is %lu",
                         inputParams_.kSize),
                 return false);
-    // 2: mxfp4场景下不支持K轴为2
-    OP_CHECK_IF(inputParams_.kSize == 2,
-                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should not be 2, \
-but actual is 2."),
+    OP_CHECK_IF(inputParams_.kSize <= 2UL,
+                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should be greater than 2, \
+but actual is %lu.", inputParams_.kSize),
                 return false);
     if (!inputParams_.transB) {
         OP_CHECK_IF(
@@ -1190,9 +1189,10 @@ void GroupedQmmTiling::CalStepKs()
     if (basicTiling_.stepKb * basicTiling_.baseK >= inputParams_.kSize) {
         basicTiling_.stepKb = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
     }
-    // G-B量化场景下，限制stepK最大为4, 防止issue queue阻塞
+    // G-B量化和MX量化场景下，限制stepK最大为4, 防止issue queue阻塞
     if (inputParams_.aQuantMode == optiling::QuantMode::PERGROUP_MODE &&
-        inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE) {
+            (inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE ||
+             inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE)) {
         basicTiling_.stepKa = std::min(basicTiling_.stepKa, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
         basicTiling_.stepKb = std::min(basicTiling_.stepKb, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
     }
