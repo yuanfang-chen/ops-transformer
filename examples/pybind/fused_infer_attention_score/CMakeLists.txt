@@ -48,12 +48,12 @@ set(TORCH_NPU_INCLUDE_DIRS
 )
 set(TORCH_NPU_LIBRARIES ${TORCH_NPU_PATH}/lib)
 
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import pybind11; print(pybind11.get_cmake_dir())"
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    OUTPUT_VARIABLE PYBIND11_CMAKE_PREFIX_PATH
-)
-find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
+# execute_process(
+#     COMMAND ${Python3_EXECUTABLE} -c "import pybind11; print(pybind11.get_cmake_dir())"
+#     OUTPUT_STRIP_TRAILING_WHITESPACE
+#     OUTPUT_VARIABLE PYBIND11_CMAKE_PREFIX_PATH
+# )
+# find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
 
 set_source_files_properties(
     fused_infer_attention_score.cpp
@@ -69,14 +69,18 @@ add_library(xxxlib SHARED
     include/op_host/abc.cpp
 )
 
-
-pybind11_add_module(ascendc_ops SHARED
+add_library(ascendc_ops SHARED
     fused_infer_attention_score.cpp
-    # abc.cpp
 )
+
+# pybind11_add_module(ascendc_ops SHARED
+#     fused_infer_attention_score.cpp
+#     # abc.cpp
+# )
 
 target_link_libraries(ascendc_ops PRIVATE
     xxxlib
+    Python3::Python
 )
 
 target_include_directories(ascendc_ops PRIVATE

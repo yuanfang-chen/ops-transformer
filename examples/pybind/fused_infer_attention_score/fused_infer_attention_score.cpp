@@ -9,7 +9,7 @@
 */
 
 
-#include <pybind11/pybind11.h>
+// #include <pybind11/pybind11.h>
 #include <torch/extension.h>
 #include "torch_npu/csrc/core/npu/NPUStream.h"
 
@@ -264,8 +264,18 @@ at::Tensor ascendc_fia(const at::Tensor& queryTensor, const at::Tensor& keyTenso
 }
 } // namespace ascendc_ops
 
-PYBIND11_MODULE(ascendc_ops, m)
+TORCH_LIBRARY(ascendc_ops, m)
 {
-    m.doc() = "ascendc_fia pybind11 interfaces";
-    m.def("ascendc_fia", &ascendc_ops::ascendc_fia, "");
+    m.def("ascendc_fia(Tensor query, Tensor key, Tensor value, Tensor keyAntiquantScale, Tensor valueAntiquantScale, Tensor queryAntiquantScale) -> Tensor");
 }
+
+TORCH_LIBRARY_IMPL(ascendc_ops, PrivateUse1, m)
+{
+    m.impl("ascendc_fia", TORCH_FN(ascendc_ops::ascendc_fia));
+}
+
+// PYBIND11_MODULE(ascendc_ops, m)
+// {
+//     m.doc() = "ascendc_fia pybind11 interfaces";
+//     m.def("ascendc_fia", &ascendc_ops::ascendc_fia, "");
+// }

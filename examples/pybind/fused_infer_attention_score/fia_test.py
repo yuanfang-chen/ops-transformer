@@ -16,10 +16,11 @@ import sys
 import os
 import torch
 import torch_npu
+torch.ops.load_library("libascendc_ops.so")
 from torch_npu.testing.testcase import TestCase, run_tests
 import numpy as np
-sys.path.append(os.getcwd())
-import ascendc_ops
+# sys.path.append(os.getcwd())
+# import ascendc_ops
 from typing import NamedTuple
 ERROR_TOL = 5e-3
 DATA_TYPE = np.float32
@@ -179,7 +180,9 @@ def verify_result(golden, output):
 class TestFia(TestCase):
     def test_fia(self):
         fia_input, golden = gen_golden_data_simple(1, 1, 1, 8192, 8192, 128)
-        output = ascendc_ops.ascendc_fia(fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
+        # output = ascendc_ops.ascendc_fia(fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
+        #     fia_input.dequant_scale_key, fia_input.dequant_scale_value, fia_input.dequant_scale_query)
+        output = torch.ops.ascendc_ops.ascendc_fia(fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
             fia_input.dequant_scale_key, fia_input.dequant_scale_value, fia_input.dequant_scale_query)
 
         import pdb;pdb.set_trace()

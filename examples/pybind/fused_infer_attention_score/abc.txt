@@ -5,29 +5,28 @@ Call Stack (most recent call first):
   CMakeLists.txt:22 (find_package)
 
 
--- Found pybind11: /root/miniconda3/envs/pj/lib/python3.11/site-packages/pybind11/include (found version "3.0.2")
--- Configuring done (13.8s)
+-- Configuring done (12.6s)
 -- Generating done (0.0s)
 -- Build files have been written to: /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build
 [ 50%] Built target xxxlib
 [ 75%] Building ASC object CMakeFiles/ascendc_ops.dir/fused_infer_attention_score.cpp.o
-[100%] Linking ASC shared library ascendc_ops.cpython-311-x86_64-linux-gnu.so
+[100%] Linking ASC shared library libascendc_ops.so
 [100%] Built target ascendc_ops
 Start fused_infer_attention_score demo.
 dtype: signed char shape: 1 1 8192 128
 .isEmpty(): 0
 CoreNum is 32.
-> /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/fia_test.py(187)test_fia()
+> /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/fia_test.py(190)test_fia()
 -> try:
-(Pdb) /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:131: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+(Pdb) /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:132: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
   output_nan = np.isnan(output)
-/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:132: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:133: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
   golden_nan = np.isnan(golden)
-/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:140: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:141: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
   diff = np.abs(output - golden)
 .
 ----------------------------------------------------------------------
-Ran 1 test in 14.361s
+Ran 1 test in 8.980s
 
 OK
 output:
