@@ -82,8 +82,8 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     int64_t rankSize = *ranksize;
     bool isTransX2 = *transposeX2;
     OP_CHECK_IF(groupStr == nullptr, OP_LOGE(context->GetNodeName(), "Get group failed."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(rankSize != 4, OP_LOGE(context->GetNodeName(),
-        "ranksize shoule be 4, but got %ld", rankSize), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(rankSize != 4 && rankSize != 2, OP_LOGE(context->GetNodeName(),
+ 	    "ranksize shoule be 2 or 4, but got %ld", rankSize), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*dtype != -1, OP_LOGE(context->GetNodeName(),
         "dtype shoule be -1, but got %ld", *dtype), return ge::GRAPH_FAILED);
     OP_CHECK_IF(isTransX2, OP_LOGE(context->GetNodeName(),
