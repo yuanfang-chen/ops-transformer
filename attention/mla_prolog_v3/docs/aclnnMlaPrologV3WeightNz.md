@@ -720,6 +720,7 @@ A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[
 
   ```Cpp
   #include <iostream>
+  #include <cstring>
   #include <vector>
   #include <cstdint>
   #include "acl/acl.h"
@@ -1114,6 +1115,7 @@ A5示例代码如下，仅供参考。
 
   ```Cpp
 #include <iostream>
+#include <cstring>
 #include <vector>
 #include <cstdint>
 #include "acl/acl.h"
