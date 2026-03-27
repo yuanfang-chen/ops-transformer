@@ -1429,7 +1429,7 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
     SetFiaShape();
     GetQueryTSize();
     if (ge::GRAPH_SUCCESS != GetQkHeadDim() || ge::GRAPH_SUCCESS != GetValueHeadDim() ||
-        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() ) {
+        ge::GRAPH_SUCCESS != GetLegacyIfaFlag()) {
         return ge::GRAPH_FAILED;
     }
     GetUpdateInfo();
