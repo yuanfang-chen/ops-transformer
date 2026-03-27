@@ -1812,7 +1812,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>Q_N=[1,2,4,8,16,32,64,128]</td>
-            <td>当前Ascend 950PR/Ascend 950DT有Q_S=[1-16]约束，会在后续发布版本放开限制</td>
+            <td>-</td>
         </tr>
         <tr>
             <td>key</td>
