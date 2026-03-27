@@ -695,7 +695,7 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
 void MoeInitRoutingV2TilingBase::SetBufferNum4GatherOut()
 {
     auto tilingData = &moeInitRoutingTilingData.gatherOutComputeParamsOp;
-    int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize)
+    int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize);
 
 	int64_t preLoopRows = tilingData->get_perCorePerLoopRows();
 	int64_t perLoopCols = tilingData->get_perLoopCols();
