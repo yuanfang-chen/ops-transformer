@@ -242,11 +242,7 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
     QuantModeType xMode = static_cast<QuantModeType>(xQuantMode);
     QuantModeType wMode = static_cast<QuantModeType>(weightQuantMode);
     if (xMode != wMode) {
-<<<<<<< HEAD
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.", xName,
-=======
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "%s QuantMode and %s QuantMode should be the same, but got %ld and %ld.", xName,
->>>>>>> 81111d1e (QauntGMMAll2Allv aclnn 评审意见修改；docx补充Mx量化内容)
                 weightName, static_cast<int64_t>(xMode), static_cast<int64_t>(wMode));
         return false;
     }
