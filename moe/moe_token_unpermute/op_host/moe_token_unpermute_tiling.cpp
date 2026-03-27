@@ -27,7 +27,7 @@ static inline int64_t AlignN(const int64_t x, const int64_t N)
 {
     return (x + N - 1) & ~(N - 1);
 }
-
+ 
 static inline int64_t GetLengthByType(const int32_t dtype)
 {
     switch (dtype) {
