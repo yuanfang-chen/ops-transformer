@@ -104,6 +104,7 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     COMMON_RUN_PARAM;
     /* 推理新增 */
     int64_t s1LoopTimes;
+    int64_t gS1Idx;
     // BN循环生产的数据
     int64_t s2InCurrentBatch;                 // Tensorlist场景，不同batch的S2长度，后续用计算KvStride
     int64_t preTokensPerBatch = MAX_PRE_NEXT_TOKENS; // 左上顶点的pretoken
@@ -185,7 +186,8 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     uint8_t taskIdMod3; \
     uint8_t multiCoreIdxMod2 = 0; \
     uint8_t multiCoreIdxMod3 = 0; \
-    int64_t sOuterOffset
+    int64_t sOuterOffset; \
+    bool isSinkBlock = false
 
 template<bool isInfer = false>
 struct RunInfo;
@@ -194,6 +196,7 @@ template <>
 struct RunInfo<true> {
     COMMON_RUN_INFO;
     // 推理新增
+    int64_t gS1Idx;
     uint64_t pseShiftOffset;              // vector1 pse 的 offset
     int64_t queryLeftPaddingSize;
     int64_t kvLeftPaddingSize;
@@ -293,7 +296,11 @@ struct RunInfo<false> {
     float scaleValue; \
     int64_t matmulMSize;     /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */ \
     bool learnableSinkFlag = false; /* attentionsink */ \
-    float pScale
+    float pScale;\
+    int64_t sinkLength;\
+    int64_t sinkBlockCnt;\
+    int64_t keyNoContinuesStride;\
+    int64_t keyRopeNoContinuesStride;
 
 
 #define ROPE_INFO \
@@ -391,7 +398,8 @@ struct RunInfo<false> {
     uint32_t sparseType : 8;  \
     uint32_t dSizeRope : 11; \
     uint32_t splitCoreMode : 1; \
-    uint32_t coreNum;
+    uint32_t coreNum;\
+    uint32_t sinkLength;
 
 #define FAG_CV_SHARED_PARAMS \
     /* base params */ \

@@ -19,6 +19,7 @@
 
 - 计算公式：
   - 场景一：
+
     ```
     key:[batch * seq_len, num_head, k_head_size]
     keyCache:[num_blocks, block_size, num_head, k_head_size]
@@ -31,6 +32,7 @@
     $$
 
   - 场景二：
+
     ```
     key:[batch, seq_len, num_head, k_head_size]
     keyCache:[num_blocks, block_size, 1, k_head_size]
@@ -50,6 +52,7 @@
     $$
 
   - 场景三：
+
     ```
     key:[batch, seq_len, num_head, k_head_size]
     keyCache:[num_blocks, block_size, 1, k_head_size]
@@ -198,7 +201,7 @@ aclnnStatus aclnnScatterPaCache(
       <td class="tg-0lax">-</td>
     </tr>
     <tr>
-      <td class="tg-0lax">executor(aclOpExecutor**）</td>
+      <td class="tg-0lax">executor(aclOpExecutor**)</td>
       <td class="tg-0lax">输出</td>
       <td class="tg-0lax">返回op执行器，包含了算子计算流程。</td>
       <td class="tg-0lax">-</td>
@@ -208,7 +211,6 @@ aclnnStatus aclnnScatterPaCache(
       <td class="tg-0lax">-</td>
     </tr>
   </tbody></table>
-
 
 - **返回值**
 

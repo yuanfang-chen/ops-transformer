@@ -63,6 +63,7 @@ aclnnStatus aclnnLightningIndexer(
 - **参数说明：**
 
 > [!NOTE]
+
 > - query、key、weights参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 > - S1表示query shape中的S，S2表示key shape中的S，T1表示query shape中的T，T2表示key shape中的T，N1表示query shape中的N，N2表示key shape中的N。
 
@@ -333,7 +334,6 @@ aclnnStatus aclnnLightningIndexer(
 
   第一段接口会完成入参校验，出现以下场景时报错：
 
-
     <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
     <col style="width: 319px">
     <col style="width: 144px">
@@ -403,10 +403,11 @@ aclnnStatus aclnnLightningIndexer(
 
 ## 约束说明
 
-- 参数query中的N支持小于等于64，key、value的N支持1。
-- sparseCount支持[1, 2048]，以及3072、4096、5120、6144、7168、8192。
+- 参数query中的N支持小于等于64，key的N支持1。
 - headdim支持128。
 - block_size取值为16的倍数，最大支持1024。
+- 参数query、key的数据类型应保持一致。
+- 参数weights不为`float32`时，参数query、key、weights的数据类型应保持一致。
 
 ## 调用示例
 

@@ -87,6 +87,7 @@ if (BUILD_OPEN_PROJECT)
             -Wl,--no-whole-archive
         #     -lopapi
             nnopbase
+            -Wl,-Bsymbolic
             profapi
             ge_common_base
             ascend_dump
@@ -146,7 +147,9 @@ if (BUILD_OPEN_PROJECT)
         $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
     )
     target_include_directories(cust_opmaster PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/utils
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_host/op_tiling
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
     )
     target_compile_options(cust_opmaster PRIVATE
@@ -285,16 +288,13 @@ else()
     # genop新增非experimental算子分类
     # add_subdirectory(${op_class})
     add_subdirectory(attention)
-endif()
-
-if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
-        add_subdirectory(tests/ut/framework_normal)
+    add_subdirectory(mhc)
 endif()
 
 # 编译AICPU算子
-if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")	 
-     add_subdirectory(examples/add_example)	 
-     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})	 
+if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")
+     add_subdirectory(examples/add_example)
+     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
 # 编译examples目录下算子
@@ -312,6 +312,10 @@ endforeach()
 
 list(APPEND OP_LIST ${COMPILED_OPS})
 list(APPEND OP_DIR_LIST ${COMPILED_OP_DIRS})
+
+if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
+        add_subdirectory(tests/ut/framework_normal)
+endif()
 
 if(ENABLE_TEST)
     foreach (OP_DIR ${OP_DIR_LIST})
@@ -546,26 +550,8 @@ if (BUILD_OPEN_PROJECT)
     endif()
 
     if(NOT ENABLE_BUILT_IN)
-        # op dir to be updated
-        set(FILTER_OP_DIR
-            "mc2"
-        )
         set(update_proto_srcs)
-        
         foreach(OP_DIR ${OP_DIR_LIST})
-            # filter op dir to be updated
-            set(need_update_proto FALSE)
-            foreach(filter_op_frag ${FILTER_OP_DIR})
-                if(${OP_DIR} MATCHES ".*${filter_op_frag}.*")
-                    set(need_update_proto TRUE)
-                    break()
-                endif()        
-            endforeach()
-            if(NOT need_update_proto)
-                message(STATUS "Skip proto update: ${OP_DIR}")
-                continue()
-            endif()
-
             # copy updated proto cpps to autogen
             file(GLOB OP_PROTO_HEADER ${OP_DIR}/op_graph/*_proto.h)
             if(OP_PROTO_HEADER)
@@ -629,7 +615,7 @@ if (BUILD_OPEN_PROJECT)
 
         set(generate_proto_srcs ${generate_proto_srcs_filtered})
     endif()
-    
+
     set_source_files_properties(${generate_proto_srcs}
             PROPERTIES GENERATED TRUE
     )
@@ -711,16 +697,59 @@ target_link_libraries(
 target_link_libraries(
     cust_opmaster
     PUBLIC ${OPHOST_NAME}_tiling_obj
-    PUBLIC $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
-    PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
+    PUBLIC $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:${COMMON_NAME}_obj>
     PRIVATE $<$<BOOL:${BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG}>:$<BUILD_INTERFACE:optiling>>
 )
 
 target_link_libraries(
     cust_proto
     PUBLIC ${OPHOST_NAME}_infer_obj
+    PUBLIC $<$<TARGET_EXISTS:${OPGRAPH_NAME}_gentask_obj>:${OPGRAPH_NAME}_gentask_obj>
 )
+
+function(filter_aclnn_headers_by_skip_flag input_headers output_headers)
+    set(filtered_headers)
+    foreach(header_file ${input_headers})
+        set(skip_this_header FALSE)
+
+        get_filename_component(header_name ${header_file} NAME)
+
+        if(header_name MATCHES "aclnn_([^.]+)\\.h$")
+            set(op_name ${CMAKE_MATCH_1})
+            string(TOUPPER ${op_name} op_name_upper)
+            string(REPLACE "-" "_" op_name_upper ${op_name_upper})
+
+            set(skip_var_name "${op_name_upper}_SKIP_HEADER")
+            if(DEFINED ${skip_var_name} AND ${skip_var_name})
+                message(STATUS "Skipping header packaging for operator: ${op_name}")
+                set(skip_this_header TRUE)
+            endif()
+        endif()
+
+        if(NOT skip_this_header AND header_name MATCHES "aclnn_([^_]+)_v[0-9]+\\.h$")
+            set(op_name ${CMAKE_MATCH_1})
+            string(TOUPPER ${op_name} op_name_upper)
+            string(REPLACE "-" "_" op_name_upper ${op_name_upper})
+
+            set(skip_var_name "${op_name_upper}_SKIP_HEADER")
+            if(DEFINED ${skip_var_name} AND ${skip_var_name})
+                message(STATUS "Skipping header packaging for operator: ${op_name}")
+                set(skip_this_header TRUE)
+            endif()
+        endif()
+
+        if(NOT skip_this_header)
+            list(APPEND filtered_headers ${header_file})
+        endif()
+    endforeach()
+
+    set(${output_headers} ${filtered_headers} PARENT_SCOPE)
+endfunction()
+
 if (generate_aclnn_headers)
+    filter_aclnn_headers_by_skip_flag("${generate_aclnn_headers}" filtered_generate_aclnn_headers)
+    set(generate_aclnn_headers ${filtered_generate_aclnn_headers})
+
     install(FILES ${generate_aclnn_headers}
             DESTINATION ${ACLNN_INC_INSTALL_DIR} OPTIONAL
     )
@@ -922,8 +951,8 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
 install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
-install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/op_kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
@@ -931,12 +960,12 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
 )
 
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/atvoss
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 install(DIRECTORY ${OPBASE_SOURCE_PATH}/pkg_inc/op_common/op_kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/common
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
-        
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")

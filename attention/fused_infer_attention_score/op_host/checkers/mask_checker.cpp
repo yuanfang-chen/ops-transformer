@@ -110,49 +110,22 @@ ge::graphStatus MaskChecker::CheckQKVDDifferent(const FiaTilingInfo &fiaInfo)
     return ge::GRAPH_SUCCESS;
 }
 
-// CheckMultiPara
-ge::graphStatus MaskChecker::CheckNoMaskPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
+ge::graphStatus MaskChecker::CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
 {
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK) && (fiaInfo.nextToken < 0) &&
-                    ((fiaInfo.nextToken * (-1)) >= static_cast<int32_t>(fiaInfo.s1Size)),
-                OP_LOGE(fiaInfo.opName,
-                        "NextTokens absolute value should be smaller than length of query, nextTokens = %ld, "
-                        "length of query = %u.",
-                        fiaInfo.nextToken, fiaInfo.s1Size),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK) && (fiaInfo.preToken < 0) &&
-                    ((fiaInfo.preToken * (-1)) >=
-                     (static_cast<int32_t>(fiaInfo.s2Size) + static_cast<int32_t>(fiaInfo.systemPrefixLen))),
-                OP_LOGE(fiaInfo.opName,
-                        "PreToken absolute value should be smaller than length of key and value "
-                        "(length of key and value + length of prefix when enable prefix), "
-                        "preTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = %ld",
-                        fiaInfo.preToken, fiaInfo.s2Size, fiaInfo.systemPrefixLen),
-                return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus MaskChecker::CheckBandPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
-{
+    // In PFA mode, the values of pretoken and nexttoken must ensure the mask range remains valid.
+    isIFAFlag = (enableAntiQuant_) && (fiaInfo.s1Size == 1);
     ge::DataType outputType = fiaInfo.opParamInfo.attenOut.desc->GetDataType();
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_BAND) && (fiaInfo.preToken < 0) &&
-                    ((fiaInfo.preToken * (-1)) >= static_cast<int32_t>(fiaInfo.s1Size)),
+    if (isIFAFlag) {
+        return ge::GRAPH_SUCCESS;
+    }
+    OP_CHECK_IF((fiaInfo.nextToken * (-1)) > fiaInfo.preToken,
                 OP_LOGE(fiaInfo.opName,
-                        "PreTokens absolute value should be smaller than length of query in band mode, preTokens = "
-                        "%ld, length of query = %u.",
-                        fiaInfo.preToken, fiaInfo.s1Size),
+                        "Nexttoken line should be higher than pretoken line, preTokens = %ld, nextTokens = %ld.",
+                        fiaInfo.preToken, fiaInfo.nextToken),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((fiaInfo.sparseMode == SPARSE_MODE_BAND) && (fiaInfo.nextToken < 0) &&
-                    ((fiaInfo.nextToken * (-1)) >=
-                     (static_cast<int32_t>(fiaInfo.s2Size) + static_cast<int32_t>(fiaInfo.systemPrefixLen))),
-                OP_LOGE(fiaInfo.opName,
-                        "NextToken absolute value should be smaller than length of key and value in band mode"
-                        "(length of key and value + length of prefix when enable prefix), "
-                        "NextTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = %ld",
-                        fiaInfo.nextToken, fiaInfo.s2Size, fiaInfo.systemPrefixLen),
-                return ge::GRAPH_FAILED);
+    // Check the specific conditions that pretoken and nexttoken must satisfy under the band mode.
     OP_CHECK_IF(
-        (fiaInfo.sparseMode == SPARSE_MODE_BAND && outputType == ge::DT_INT8 &&
+        (fiaInfo.antiQuantFlag && fiaInfo.sparseMode == SPARSE_MODE_BAND && outputType == ge::DT_INT8 &&
          ((fiaInfo.preToken < 0) || fiaInfo.nextToken < 0)),
         OP_LOGE(fiaInfo.opName,
                 "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
@@ -161,32 +134,10 @@ ge::graphStatus MaskChecker::CheckBandPretokenAndNexttoken(const FiaTilingInfo &
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MaskChecker::CheckPretokenAndNexttoken(const FiaTilingInfo &fiaInfo)
-{
-    // In PFA mode, the values of pretoken and nexttoken must ensure the mask range remains valid.
-    isIFAFlag = (enableAntiQuant_) && (fiaInfo.s1Size == 1);
-    if (isIFAFlag) {
-        return ge::GRAPH_SUCCESS;
-    }
-    if (fiaInfo.isMaxWorkspace) {
-        return ge::GRAPH_SUCCESS;
-    }
-    OP_CHECK_IF((fiaInfo.nextToken * (-1)) > fiaInfo.preToken,
-                OP_LOGE(fiaInfo.opName,
-                        "Nexttoken line should be higher than pretoken line, preTokens = %ld, nextTokens = %ld.",
-                        fiaInfo.preToken, fiaInfo.nextToken),
-                return ge::GRAPH_FAILED);
-    // Check the specific conditions that pretoken and nexttoken must satisfy under the sparse mode.
-    if (ge::GRAPH_SUCCESS != CheckNoMaskPretokenAndNexttoken(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckBandPretokenAndNexttoken(fiaInfo)) {
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus MaskChecker::CheckIFADimAndShape(const FiaTilingInfo &fiaInfo)
 {
     uint32_t minAttenMaskSize = 0;
+    std::string layoutStr(fiaInfo.opParamInfo.layOut);
     const gert::Tensor *maskShape = fiaInfo.opParamInfo.attenMask.tensor;
     size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
     uint32_t attenMaskBatch = maskShape->GetStorageShape().GetDim(DIM_NUM_0);
@@ -199,10 +150,28 @@ ge::graphStatus MaskChecker::CheckIFADimAndShape(const FiaTilingInfo &fiaInfo)
         minAttenMaskSize = fiaInfo.maxActualseq;
     }
     if (attenMaskDim == MASK_DIM_SS) {
-        OP_LOGE(fiaInfo.opName,
+        if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B && (fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK)) {
+            if (fiaInfo.ropeMode == RopeMode::NO_ROPE ) {
+                const std::vector<std::string> layoutSupportList = {
+                    "BSH", "BSND", "BNSD", "BNSD_BSND",
+                };
+                OP_CHECK_IF(std::find(layoutSupportList.begin(), layoutSupportList.end(), layoutStr) == layoutSupportList.end(),
+                    OP_LOGE(fiaInfo.opName,
+                        "In gqa noquant situation, rope not exits and qkHeadDim = vHeadDim, when sparseMode = 0 or 1, "
+                        "two dim mask only support for layout BSH,BSND,BNSD,BNSD_BSND, but got %s",
+                        layoutStr.c_str()),
+                    return ge::GRAPH_FAILED);
+            } else {
+                OP_LOGE(fiaInfo.opName,
+                        "In gqa noquant situation, rope exits or qkHeadDim != vHeadDim, when sparseMode = 0 or 1, two dim mask is not supported.");
+                return ge::GRAPH_FAILED;
+            }
+        } else {
+            OP_LOGE(fiaInfo.opName,
                 "The current dimension of the mask is 2. "
                 "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\].");
-        return ge::GRAPH_FAILED;
+            return ge::GRAPH_FAILED;
+        }
     } else {
         bool checkMask = (attenMaskSize >= minAttenMaskSize) &&
                     ((attenMaskBatch == fiaInfo.bSize) || (attenMaskBatch == DIM_NUM_1));
@@ -221,12 +190,33 @@ ge::graphStatus MaskChecker::GetMaskInfo(const FiaTilingInfo &fiaInfo, MaskInfo 
     const gert::Tensor *maskShape = fiaInfo.opParamInfo.attenMask.tensor;
     size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
     if (attenMaskDim == MASK_DIM_SS) {
-        if (fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK) {
+       if ((fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK) && fiaInfo.socVersion != platform_ascendc::SocVersion::ASCEND910B) {
             OP_LOGE(fiaInfo.opName,
                     "Attenmask does not support inputs with dim 2 when sparse mode = %u. "
                     "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\].",
                     fiaInfo.sparseMode);
             return ge::GRAPH_FAILED;
+        }
+        else {
+            if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B && (fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK)) {
+                if (fiaInfo.ropeMode == RopeMode::NO_ROPE) {
+                    const std::vector<std::string> layoutSupportList = {
+                        "BSH", "BSND", "BNSD", "BNSD_BSND",
+                    };
+                    std::string layoutStr(fiaInfo.opParamInfo.layOut);
+                    std::string layout = layoutStr;
+                    OP_CHECK_IF(std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end(),
+                        OP_LOGE(fiaInfo.opName,
+                            "In gqa no quant situation, rope not exits and qkHeadDim = vHeadDim, when sparseMode = 0 or 1, "
+                            "two dim mask only support for layout BSH,BSND,BNSD,BNSD_BSND, but got %s",
+                            layout.c_str()),
+                        return ge::GRAPH_FAILED);
+                } else {
+                    OP_LOGE(fiaInfo.opName,
+                            "In gqa no quant situation, rope exits or qkHeadDim != vHeadDim, when sparseMode = 0 or 1, two dim mask is not supported.");
+                    return ge::GRAPH_FAILED;
+                }
+            }
         }
         maskInfo.attenMaskQSize = maskShape->GetStorageShape().GetDim(DIM_NUM_0);
         maskInfo.attenMaskSize = maskShape->GetStorageShape().GetDim(DIM_NUM_1);
@@ -258,8 +248,13 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
 {
     // In PFA mode, the attenmask dimensions must be 2/3/4.
     // The allowed shape specifications for attenmask vary depending on the sparse mode.
-    if (!fiaInfo.attenMaskFlag) {
+    if ((fiaInfo.isMaxWorkspace && fiaInfo.socVersion != platform_ascendc::SocVersion::ASCEND910B) || !fiaInfo.attenMaskFlag) {
         return ge::GRAPH_SUCCESS;
+    }
+    if (fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND910B && (fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK)) {
+        if (fiaInfo.isMaxWorkspace) {
+            return ge::GRAPH_SUCCESS;
+        }
     }
     isIFAFlag = (fiaInfo.antiQuantFlag) && (fiaInfo.s1Size == 1);
     if (isIFAFlag) {
@@ -270,11 +265,6 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
     if (GetMaskInfo(fiaInfo, maskInfo) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-
-    if (fiaInfo.isMaxWorkspace) {
-        return ge::GRAPH_SUCCESS;
-    }
-
     bool checkMask = false;
     if (fiaInfo.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo.sparseMode == SPARSE_MODE_ALL_MASK) {
         checkMask = (maskInfo.attenMaskQSize >= fiaInfo.s1Size) && (maskInfo.attenMaskSize >= fiaInfo.s2Size) &&
@@ -308,47 +298,22 @@ ge::graphStatus MaskChecker::CheckDimAndShape(const FiaTilingInfo &fiaInfo)
     }
     return ge::GRAPH_SUCCESS;
 }
-// enableNonQuant 相关校验函数
-
-// enableFullQuant 相关校验函数
-
-// enableAntiQuant 相关校验函数
 
 ge::graphStatus MaskChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckSinglePara!");
     if (ge::GRAPH_SUCCESS != CheckDtypeAndFormat(fiaInfo) || ge::GRAPH_SUCCESS != CheckSparseMode(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckSinglePara!");
-
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckParaExistence(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckParaExistence!");
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckParaExistence!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckFeature!");
     if (enableNonQuant_) {
         if (ge::GRAPH_SUCCESS != CheckNoQuantIFAMLA(fiaInfo) || ge::GRAPH_SUCCESS != CheckQKVDDifferent(fiaInfo)) {
             return ge::GRAPH_FAILED;
@@ -357,27 +322,15 @@ ge::graphStatus MaskChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
         if (ge::GRAPH_SUCCESS != CheckFullQuantIFAMLA(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
-    } else if (enableAntiQuant_) {
-        ;
     }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckFeature!");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MaskChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
-    OP_LOGI(fiaInfo.opName, "Begin MaskChecker::CheckMultiPara!");
     if (ge::GRAPH_SUCCESS != CheckPretokenAndNexttoken(fiaInfo) || ge::GRAPH_SUCCESS != CheckDimAndShape(fiaInfo)) {
         return ge::GRAPH_FAILED;
     }
-    if (enableNonQuant_) {
-        ;
-    } else if (enableFullQuant_) {
-        ;
-    } else if (enableAntiQuant_) {
-        ;
-    }
-    OP_LOGI(fiaInfo.opName, "End MaskChecker::CheckMultiPara!");
     return ge::GRAPH_SUCCESS;
 }
 

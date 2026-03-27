@@ -156,7 +156,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>output</td>
         <td>输出</td>
         <td>AllGather通信与MatMul计算的结果，即计算公式中的output。</td>
-        <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
+        <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
@@ -166,7 +166,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>gatherOut</td>
         <td>输出</td>
         <td>仅输出AllGather通信后的结果，即计算公式中的gatherOut。</td>
-        <td><ul><li>与x1的数据类型保持一致。</li></ul></td>
+        <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
@@ -276,7 +276,7 @@ aclnnStatus aclnnAllGatherMatmul(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnAllGatherMatmul默认确定性实现。
+  - <term>Ascend 950PR/Ascend 950DT</term>aclnnAllGatherMatmul默认确定性实现。
 
 - 输入x1为2维，其shape为(m, k)。x2必须是2维，其shape为(k, n)，轴满足MatMul算子入参要求，k轴相等，且k轴取值范围为[256, 65535)。
 - x1/x2支持的空tensor场景，m和n可以为空，k不可为空，且需要满足以下条件：
@@ -286,10 +286,10 @@ aclnnStatus aclnnAllGatherMatmul(
 - 输出为2维，其shape为(m*rank_size, n), rank_size为卡数。
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡，并且仅支持HCCS链路all mesh组网。
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：支持2、4、8、16、32卡，并且仅支持HCCS链路double ring组网。
-- <term>Ascend 950PR/Ascend 950DT</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>:
   - 支持2、4、8、16、32、64卡，并且仅支持HCCS链路all mesh组网。
   - allgather(x1)集合通信数据总量不能超过16*256MB，集合通信数据总量计算方式为：m * k * sizeof(x1_dtype) * 卡数。由于shape不同，算子内部实现可能存在差异，实际支持的总通信量可能略小于该值。
-
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>:一个模型中的通算融合MC2算子，仅支持相同通信域。
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。

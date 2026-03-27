@@ -31,6 +31,12 @@ void GroupedMatmulSwigluQuantV2Tiling950::Reset()
     return;
 }
 
+ge::graphStatus GroupedMatmulSwigluQuantV2Tiling950::GetShapeAttrsInfo()
+{
+    inputParams_.Reset();
+    return GroupedQmmTiling::GetShapeAttrsInfo();
+}
+
 bool GroupedMatmulSwigluQuantV2Tiling950::AnalyzeAttrsPertoken()
 {
     auto attrs = context_->GetAttrs();
@@ -259,7 +265,6 @@ bool GroupedMatmulSwigluQuantV2Tiling950::CheckDims() const
         IsFp4Input() && (aInnerSize % B4_DATACOPY_MIN_NUM != 0 || bInnerSize % B4_DATACOPY_MIN_NUM != 0),
         OP_LOGE(inputParams_.opName, "When inputs are FLOAT4, x and weight inner axis element number should be even."),
         return false);
-
 
     // MXFP4场景不支持K=2
     OP_CHECK_IF(IsFp4Input() && inputParams_.kSize == MXFP4_K_MIN_VALUE,

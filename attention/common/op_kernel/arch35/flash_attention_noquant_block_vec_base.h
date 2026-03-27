@@ -25,6 +25,7 @@
 #include "vf/vf_div_cast.h"
 #include "vf/vf_flash_decode.h"
 #include "flash_attention_score_tiling_regbase.h"
+#include "attenmask_gs1.h"
 
 using namespace AscendC;
 using namespace FaVectorApi;
@@ -53,6 +54,7 @@ public:
                                   IsSameType<INPUT_T, hifloat8_t>::value;
     static constexpr bool isMlaFullQuant = isFp8 && hasRope;
     static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
+    static constexpr bool isGqaNoQuant = !isFp8 && isInfer && !isMlaNoQuant && !isMlaFullQuant;
     static constexpr bool useDn = IsDn(((IsSameType<INPUT_T, float>::value) || isFp8), (isFp8 && (s2BaseSize == 256)), pseMode, hasAtten, hasDrop,
                                        s1BaseSize == 64, dTemplateType, hasRope, enableKVPrefix, isInfer, IsSameType<INPUT_T, hifloat8_t>::value);
     static constexpr bool useNz = IsSameType<INPUT_T, hifloat8_t>::value && !isInfer;
@@ -74,6 +76,8 @@ public:
     using pseShiftW8InType = typename AscendC::Conditional<isInfer, half, OUTPUT_T>::type;
     using pseShiftType = typename AscendC::Conditional<isW8In, pseShiftW8InType, INPUT_T>::type;
     static constexpr int64_t FP8_QUANT_KV_BLOCK_SIZE = 256;
+    static constexpr T BOOL_ATTEN_MASK_SCALAR_VALUE = -1000000000000.0; // 用于mask为bool类型
+ 	uint32_t negativeIntScalar = *((uint32_t *)&BOOL_ATTEN_MASK_SCALAR_VALUE);
 
     /*HIFLOAT8场景 K_BLOCK_SIZE = 256 V_BLOCK_SIZE = 512*/
     static constexpr int64_t FP8_QUANT_K_BLOCK_SIZE = 256;
@@ -156,7 +160,8 @@ public:
         return static_cast<ChildClass*>(this);
     }
 protected:
-    __aicore__ inline void BroadCastAndCopyOut(RunInfo<isInfer> &runInfo, GlobalTensor<T> &sumGm,
+    __aicore__ inline void BroadCastAndCopyOut(RunInfo<isInfer> &runInfo,
+                                               ConstInfo<isInfer, hasRope> &constInfo, GlobalTensor<T> &sumGm,
                                                GlobalTensor<T> &maxGm, int64_t gmOffset, int64_t calculateSize);
 
     /* VEC2_RES_T 表示bmm2ResUb当前的类型，VEC2_RES_T = INPUT_T那么不需要做Cast。另外，无效行场景当前默认需要做Cast */
@@ -512,7 +517,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::InvalidLinePro
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::BroadCastAndCopyOut(
-    RunInfo<isInfer> &runInfo, GlobalTensor<T> &sumGm,
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, GlobalTensor<T> &sumGm,
     GlobalTensor<T> &maxGm, int64_t gmOffset, int64_t calculateSize)
 {
     // Copy sum to gm
@@ -527,7 +532,12 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::BroadCastAndCo
         FaVectorApi::BroadcastMaxSum(sumOutTensor, sumTensor, runInfo.halfS1RealSize);
         sumBrdcst.template EnQue(sumOutTensor);
         sumBrdcst.template DeQue<float>();
-        DataCopy(sumGm[gmOffset], sumOutTensor, calculateSize);
+        if (this->tilingData->inputParamsRegbase.tndSoftmaxOut == 1) {
+            DataCopy(sumGm[gmOffset], sumOutTensor, {static_cast<uint16_t>(runInfo.halfS1RealSize),
+                1, 0, static_cast<uint16_t>(constInfo.n2G - 1)});
+        } else {
+            DataCopy(sumGm[gmOffset], sumOutTensor, calculateSize);
+        }
         sumBrdcst.template FreeTensor(sumOutTensor);
     }
 
@@ -545,7 +555,12 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::BroadCastAndCo
         FaVectorApi::BroadcastMaxSum(maxOutTensor, maxTensor, runInfo.halfS1RealSize);
         maxBrdcst.template EnQue(maxOutTensor);
         maxBrdcst.template DeQue<float>();
-        DataCopy(maxGm[gmOffset], maxOutTensor, calculateSize);
+        if (this->tilingData->inputParamsRegbase.tndSoftmaxOut == 1) {
+            DataCopy(maxGm[gmOffset], maxOutTensor, {static_cast<uint16_t>(runInfo.halfS1RealSize),
+                1, 0, static_cast<uint16_t>(constInfo.n2G - 1)});
+        } else {
+            DataCopy(maxGm[gmOffset], maxOutTensor, calculateSize);
+        }
         maxBrdcst.template FreeTensor(maxOutTensor);
     }
 }
@@ -743,11 +758,59 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         if constexpr (isMlaFullQuant || isMlaNoQuant) {
             this->MlaAttenMaskCopyIn(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
                 this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
+            attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
+        } else if constexpr (isGqaNoQuant) {
+            if (constInfo.isPfaGS1Merge) {
+                MaskInfo maskInfo;
+                maskInfo.gs1StartIdx = (constInfo.subBlockIdx == 0) ? 0 : runInfo.firstHalfS1RealSize;
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_TND ||
+                                layout == LayOutTypeEnum::LAYOUT_BSH ||
+                                layout == LayOutTypeEnum::LAYOUT_SBH) {
+                    maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
+                } else {
+                    maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
+                }
+                maskInfo.gs1dealNum = runInfo.halfS1RealSize;
+                maskInfo.s1Size = runInfo.actualS1Size;
+                maskInfo.gSize = constInfo.gSize;
+                maskInfo.s2StartIdx = runInfo.s2LoopCount * s2BaseSize;
+                maskInfo.s2dealNum = s2BaseSize;
+                maskInfo.s2Size = runInfo.actualS2Size;
+                maskInfo.preToken = runInfo.preTokensPerBatch;
+                maskInfo.nextToken = runInfo.nextTokensPerBatch;
+                maskInfo.batchIdx = runInfo.boIdx;
+                maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;
+                maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
+                maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
+                    maskInfo.layout = LAYOUT_Q::SG;
+                } else {
+                    maskInfo.layout = LAYOUT_Q::GS;
+                }
+                maskInfo.attenMaskType = MaskDataType::MASK_BOOL;
+                uint8_t sparseMode = (attenMaskInfoPtr->compressMode == 0) ?            // sparseMode与compressMode定义不同
+                    attenMaskInfoPtr->compressMode : attenMaskInfoPtr->compressMode + 1;
+                maskInfo.sparseMode = static_cast<SparseMode>(sparseMode);
+                maskInfo.maskValue = negativeIntScalar;
+                maskInfo.s1LeftPaddingSize = runInfo.queryLeftPaddingSize;
+                maskInfo.s2LeftPaddingSize = runInfo.kvLeftPaddingSize;
+
+                attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
+                if (maskInfo.layout == LAYOUT_Q::SG) {
+                    AttentionmaskCopyInForSgLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
+                } else if (maskInfo.layout == LAYOUT_Q::GS) {
+                    AttentionmaskCopyInForGsLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
+                }
+            } else {
+                AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
+                    this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
+                attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
+            }
         } else {
             AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
                 this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
+            attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
         }
-        attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
     }
     LocalTensor<uint8_t> dropMaskUb;
     GetDerived()->GenerateDropoutMask(runInfo, constInfo, dropMaskUb);

@@ -100,19 +100,23 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGeneralQuantShape() const
             GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDim(weightNIndex) == 0) {
             return ACLNN_SUCCESS;
         }
-        auto weightKIndex = GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDimNum() - LAST_TWO_DIM_INDEX;
-        CHECK_COND(GetInputTensor(gmmParams_.x, i)->GetViewShape().GetDim(1) > 0, ACLNN_ERR_PARAM_INVALID,
-                "When the M or N value is not 0, the K value[%ld] in %s should be positive.",
-                GetInputTensor(gmmParams_.x, i)->GetViewShape().GetDim(1), xName_.c_str());
-        CHECK_COND(GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDim(weightKIndex) > 0,
-                ACLNN_ERR_PARAM_INVALID, "When the M or N value is not 0, The K value[%ld] in %s should be positive.",
-                GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDim(weightKIndex), weightName_.c_str());
         if (gmmParams_.groupType == SPLIT_K) {
             CHECK_COND(GetInputTensor(gmmParams_.y, i)->GetViewShape().GetDim(0) == groupNum, ACLNN_ERR_PARAM_INVALID,
                        "When groupType is 2 (split K), the first dim of %s[%ld] should be equal to that of \
 %s[%ld].",
                        yName_.c_str(), GetInputTensor(gmmParams_.y, i)->GetViewShape().GetDim(0),
                        groupTensorName_.c_str(), groupNum);
+        } else {
+            auto weightKIndex = GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDimNum() - LAST_TWO_DIM_INDEX;
+            CHECK_COND(GetInputTensor(gmmParams_.x, i)->GetViewShape().GetDim(1) > 0, ACLNN_ERR_PARAM_INVALID,
+                       "When groupType is 0 (split M) and when the M or N value is not 0, the K value[%ld] in %s \
+should be positive.",
+                       GetInputTensor(gmmParams_.x, i)->GetViewShape().GetDim(1), xName_.c_str());
+            CHECK_COND(GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDim(weightKIndex) > 0,
+                       ACLNN_ERR_PARAM_INVALID,
+                       "When groupType is 0 (split M) and when the M or N value is not 0, The K value[%ld] in %s \
+should be positive.",
+                       GetInputTensor(gmmParams_.weight, i)->GetViewShape().GetDim(weightKIndex), weightName_.c_str());
         }
     }
     return ACLNN_SUCCESS;
@@ -191,11 +195,26 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckWeightNzSpecialParams() co
                "WeightNz feature is only supported in aclnnGroupedMatmulWeightNz");
 
     auto wDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
-    CHECK_COND(
-        gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
-        "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8, but x dtype is %s, weight \
-dtype is %s",
-        op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+    bool isInputFp8e4m3 = gmmParams_.xDtype == DataType::DT_FLOAT8_E4M3FN && wDtype == DataType::DT_FLOAT8_E4M3FN;
+    CHECK_COND((gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8) || isInputFp8e4m3,
+               ACLNN_ERR_PARAM_INVALID,
+               "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8/float8_e4m3fn, but x \
+dtype is %s, weight dtype is %s",
+               op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+    if (isInputFp8e4m3) {
+        CHECK_COND(
+            gmmParams_.perTokenScaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
+            "When format of weight is FRACTAL_NZ and in mxfp8 case, perTokenScaleOptional should not be nullptr.");
+        DataType scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
+        DataType perTokenDtype = GetInputTensor(gmmParams_.perTokenScaleOptional)->GetDataType();
+        CHECK_COND(
+            (scaleDtype == DataType::DT_FLOAT8_E8M0 && perTokenDtype == DataType::DT_FLOAT8_E8M0),
+            ACLNN_ERR_PARAM_INVALID,
+            "When format of weight is FRACTAL_NZ and the inputs are float8_e4m3fn, scale and perTokenScale should be \
+float8_e8m0, but scale dtype is %s, pertokenScale dtype is %s",
+            op::ToString(scaleDtype).GetString(), op::ToString(perTokenDtype).GetString());
+    }
+
     auto yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     CHECK_COND(yDtype != DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
                "When format of weight is FRACTAL_NZ, the y dtype should not be int8.");
@@ -571,6 +590,12 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckNonPerGroupQuantDim() cons
                    "In non-pergroup quantification mode, the dim num of %s should be 1 or 2, but actual dim \
 num is %lu",
                    scaleName_.c_str(), scaleDimNumber);
+        if (GetInputTensor(gmmParams_.y)->GetDataType() == DataType::DT_INT8) {
+            // 2: (E, N)
+            CHECK_COND(scaleDimNumber == 2, ACLNN_ERR_PARAM_INVALID,
+                       "When y dtype is int8, the dim num of %s should be 2, but actual dim num is %lu.",
+                       scaleName_.c_str(), scaleDimNumber);
+        }
 
         if (gmmParams_.perTokenScaleOptional != nullptr) {
             auto perTokenDimNumber = GetInputTensor(gmmParams_.perTokenScaleOptional, i)->GetViewShape().GetDimNum();

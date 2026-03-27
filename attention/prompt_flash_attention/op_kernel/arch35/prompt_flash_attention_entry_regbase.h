@@ -57,11 +57,11 @@ using namespace regbaseutil;
 
 #if defined(__DAV_C310_CUBE__) || (defined __DAV_310R6_CUBE__)
 #define INVOKE_PFA_TILING_DATA_95(tiling)                                                                               \
-    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, bmm1TilingDataRect, bmm1TilingData, tiling);                 \
-    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, bmm2TilingDataRect, bmm2TilingData, tiling);                 \
+    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingDataV2, bmm1TilingDataRect, bmm1TilingData, tiling);                 \
+    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingDataV2, bmm2TilingDataRect, bmm2TilingData, tiling);                 \
     const TCubeTiling* __restrict bmm1tiling = &bmm1TilingData;                                                         \
     const TCubeTiling* __restrict bmm2tiling = &bmm2TilingData;                                                         \
-    const PromptFlashAttentionTilingData* __restrict tiling_data = nullptr;                                             \
+    const PromptFlashAttentionTilingDataV2* __restrict tiling_data = nullptr;                                             \
     AscendC::Impl::Detail::PFAGlobalTscmArray tscmArray;                                                                   \
     AscendC::Impl::Detail::tscmGlobalPFA = &tscmArray;                                                                     \
     TSCM<QuePosition::VECIN, 1, 0x4> bmm2Scm[2];                                                                        \
@@ -76,11 +76,11 @@ using namespace regbaseutil;
 
 #define INVOKE_PFA_TILING_DATA_55(tiling)                                                                               \
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);                                                                  \
-    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, bmm1TilingDataRect, bmm1TilingData, tiling);                 \
-    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, bmm2TilingDataRect, bmm2TilingData, tiling);                 \
+    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingDataV2, bmm1TilingDataRect, bmm1TilingData, tiling);                 \
+    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingDataV2, bmm2TilingDataRect, bmm2TilingData, tiling);                 \
     const TCubeTiling* __restrict bmm1tiling = &bmm1TilingData;                                                         \
     const TCubeTiling* __restrict bmm2tiling = &bmm2TilingData;                                                         \
-    const PromptFlashAttentionTilingData* __restrict tiling_data = nullptr;                                             \
+    const PromptFlashAttentionTilingDataV2* __restrict tiling_data = nullptr;                                             \
     AscendC::Impl::Detail::PFAGlobalTscmArray tscmArray;                                                                   \
     AscendC::Impl::Detail::tscmGlobalPFA = &tscmArray;                                                                     \
     TSCM<QuePosition::VECIN, 1, 0x4> bmm2Scm[2];                                                                        \
@@ -95,10 +95,10 @@ using namespace regbaseutil;
 
 #else
 #define INVOKE_PFA_TILING_DATA_V2(tiling)                                                                             \
-    PromptFlashAttentionTilingData tiling_data_in;                                                                    \
+    PromptFlashAttentionTilingDataV2 tiling_data_in;                                                                    \
     GET_TILING_DATA_WITH_STRUCT(PFAFullQuantTilingData, tiling_data_in_new, tiling);                       \
     TilingDataCopy(tiling_data_in, tiling_data_in_new);                                                               \
-    const PromptFlashAttentionTilingData* __restrict tiling_data = &tiling_data_in;                                   \
+    const PromptFlashAttentionTilingDataV2* __restrict tiling_data = &tiling_data_in;                                   \
     const TCubeTiling* __restrict bmm1tiling = &(tiling_data->bmm1TilingDataRect);                                    \
     const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect)
 
@@ -179,7 +179,7 @@ using namespace regbaseutil;
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FABlockVecFullquantDummy<__VA_ARGS__>, BaseApi::FABlockVecInferGqaFullquant<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
-            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, quant_scale1, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, nullptr, &tPipe);            \
         op.Process();                                                                                                                   \
     } while (0)
@@ -254,7 +254,7 @@ using namespace regbaseutil;
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FABlockVecFullquantDummy<__VA_ARGS__>, BaseApi::FABlockVecInferGqaFullquant<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
-            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, quant_scale1, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
         op.Process();                                                                                                                   \
     } while (0)
@@ -578,6 +578,17 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
             INVOKE_GQA_FULLQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInferGqaFullquant, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+                static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
+        }
+    #endif
+    #if (ORIG_DTYPE_QUERY == DT_INT8 && ORIG_DTYPE_KEY == DT_INT8 && ORIG_DTYPE_ATTENTION_OUT == DT_BF16)
+        PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
+        constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
+        if constexpr (quantMode == FULLQUANT_MODE_PER_TOKEN_HEAD) { // mla fullquant
+            constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dVTemplateType) >> 1),
+                static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dVTemplateType) >> 1)) * 2;
+            INVOKE_MLA_FULLQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInferMlaFullquant, vec1ResultSize, qkvSizeRsv2, int8_t, float, bfloat16_t,
                 ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }

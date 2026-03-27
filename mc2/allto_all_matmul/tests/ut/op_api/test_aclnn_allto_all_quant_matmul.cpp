@@ -13,6 +13,7 @@
 #include <vector>
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
+#include "test_allto_all_matmul_api_ut_param.h"
 #include "../../../op_api/aclnn_allto_all_quant_matmul.h"
 #include "op_api_ut_common/tensor_desc.h"
 #include "op_api_ut_common/op_api_ut.h"
@@ -603,10 +604,6 @@ static AlltoAllQuantMatmulAclnnTestParam MXQuant_cases_params[] = {
         ACL_FLOAT8_E5M2, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT8_E5M2,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         0, MX_GROUP_SIZE, {-2, -1}, "ut_test_allto_all_quant_matmul", false, false, ACLNN_ERR_PARAM_INVALID}, // 异常场景：transposeX2为false
-    {"AAQMM_MX-error33", 2, 6, 6, {256, 64}, {256, 128}, {256}, {256, 1, 2}, {256, 2, 2}, {128, 256}, {128, 128},
-        ACL_FLOAT8_E5M2, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT8_E5M2,
-        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
-        0, 778, {-2, -1}, "ut_test_allto_all_quant_matmul", false, true, ACLNN_ERR_PARAM_INVALID}, // 异常场景：groupSize取值非法
     {"AAQMM_MX-error34", 2, 6, 6, {256}, {256, 128}, {256}, {256, 1, 2}, {256, 2, 2}, {128, 256}, {128, 128},
         ACL_FLOAT8_E5M2, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_FLOAT8_E8M0, ACL_FLOAT8_E8M0, ACL_FLOAT, ACL_FLOAT8_E5M2,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -713,3 +710,58 @@ TEST_F(test_aclnn_allto_all_quant_matmul, MXQuant_cases_params)
         }
     }
 }
+
+
+namespace AlltoAllMatmulUT {
+
+class AclnnAlltoAllQuantMatmulTest : public testing::TestWithParam<AlltoAllMatmulApiUtParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        std::cout << "AlltoAllMatmul AclnnAlltoAllQuantMatmulTest SetUp" << std::endl;
+    }
+
+    static void TearDownTestCase()
+    {
+        std::cout << "AlltoAllMatmul AclnnAlltoAllQuantMatmulTest TearDown" << std::endl;
+    }
+};
+
+TEST_P(AclnnAlltoAllQuantMatmulTest, param)
+{
+    auto param = GetParam();
+    op::SetPlatformSocVersion(param.soc);
+    aclTensor* bias_opt = param.bias.GetViewDims().empty() ? nullptr : param.bias.ToAclTypeRawPtr();
+    aclTensor* x1_scale_opt = param.x1Scale.GetViewDims().empty() ? nullptr : param.x1Scale.ToAclTypeRawPtr();
+    aclTensor* allto_all_out_opt = param.alltoAllOut.GetViewDims().empty() ? nullptr : param.alltoAllOut.ToAclTypeRawPtr();
+    aclTensor* comm_scale = nullptr;
+    aclTensor* x1_offset = nullptr;
+    aclTensor* x2_offset = nullptr;
+    int64_t comm_quant_mode = 0;
+    int64_t comm_quant_dtype = -1;
+    auto ut = OP_API_UT(
+        aclnnAlltoAllQuantMatmul,
+        INPUT(param.x1, param.x2, bias_opt, x1_scale_opt, param.x2Scale, comm_scale,
+              x1_offset, x2_offset, param.group.c_str(), param.alltoAllAxes,
+              param.x1QuantMode, param.x2QuantMode, comm_quant_mode, comm_quant_dtype, param.x1QuantDtype,
+              param.groupSize, param.transposeX1, param.transposeX2),
+        OUTPUT(param.output, allto_all_out_opt)
+    );
+    uint64_t workspace_size = 0;
+    aclOpExecutor* executor = nullptr;
+    auto aclnnRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    if (param.expectResult == ACLNN_SUCCESS) {
+        EXPECT_NE(ACLNN_ERR_PARAM_INVALID, aclnnRet);
+    } else {
+        EXPECT_EQ(param.expectResult, aclnnRet);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AlltoAllMatmul,
+    AclnnAlltoAllQuantMatmulTest,
+    testing::ValuesIn(GetCasesFromCsv<AlltoAllMatmulApiUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    PrintCaseInfoString<AlltoAllMatmulApiUtParam>
+);
+
+} // namespace AlltoAllMatmulUT

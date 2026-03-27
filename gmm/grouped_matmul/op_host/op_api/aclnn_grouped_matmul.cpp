@@ -1868,8 +1868,8 @@ static aclnnStatus CheckZeroShape(gmm::GroupedMatmulParams &params, uint64_t *wo
 
 static aclnnStatus CheckZeroShapeSplitK(gmm::GroupedMatmulParams &params, uint64_t *workspaceSize) {
     // all M or N be zero, get true
-    bool zeroM = false;
-    bool zeroN = false;
+    bool zeroM = true;
+    bool zeroN = true;
     // current view_shape transpose is always false false
     for (size_t i = 0; i < params.x->Size(); ++i) {
       // return ACLNN_SUCCESS,后续校验报错即可
@@ -1879,7 +1879,7 @@ static aclnnStatus CheckZeroShapeSplitK(gmm::GroupedMatmulParams &params, uint64
       // return ACLNN_SUCCESS,后续校验报错即可
       CHECK_COND(xDimNum == gmm::MIN_FM_DIM, ACLNN_SUCCESS,
                 "When groupType = 2 GroupedMatmul x dim num should be 2, but actual is %zu.", xDimNum);
-      zeroM = zeroM || (xShape.GetDim(1) == 0);
+      zeroM = zeroM && (xShape.GetDim(1) == 0);
     }
     for (size_t i = 0; i < params.weight->Size(); ++i) {
       // return ACLNN_SUCCESS,后续校验报错即可
@@ -1889,7 +1889,7 @@ static aclnnStatus CheckZeroShapeSplitK(gmm::GroupedMatmulParams &params, uint64
       // return ACLNN_SUCCESS,后续校验报错即可
       CHECK_COND(wShape.GetDimNum() == gmm::MIN_FM_DIM, ACLNN_SUCCESS,
                 "When groupType = 2 GroupedMatmul weight dim num should be 2, but actual %zu.", wShape.GetDimNum());
-      zeroN = zeroN || (wShape.GetDim(wShape.GetDimNum() - 1) == 0);
+      zeroN = zeroN && (wShape.GetDim(wShape.GetDimNum() - 1) == 0);
     }
     if (zeroM || zeroN) {
         *workspaceSize = 0UL;
@@ -2140,6 +2140,9 @@ static aclnnStatus CheckQuantGMMWeightNz(DataType x1Dtype, DataType weightDtype,
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str(),
             gmm::dTypeToString(yDtype).c_str());
         return ACLNN_SUCCESS;
+    } else if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+               x1Dtype == DataType::DT_FLOAT8_E4M3FN && weightDtype == DataType::DT_FLOAT8_E4M3FN) {
+        return ACLNN_SUCCESS;
     }
     return ACLNN_ERR_PARAM_INVALID;
 }
@@ -2177,7 +2180,7 @@ static aclnnStatus ParamsWeightNzDtype(gmm::GroupedMatmulParams &params) {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
             "The dtypes of x[%s]-weight[%s] do not match with required dtype."
             "Only supported x-weight: INT8-INT8, BF16-BF16, FP16-FP16, INT8-INT4, INT4-INT4, FP16/BF16-FP4_E2M1, "
-            "FP8_E4M3FN-FP4_E2M1",
+            "FP8_E4M3FN-FP4_E2M1, FP8_E4M3FN-FP8_E4M3FN.",
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str());
     return ACLNN_ERR_PARAM_INVALID;
 }
