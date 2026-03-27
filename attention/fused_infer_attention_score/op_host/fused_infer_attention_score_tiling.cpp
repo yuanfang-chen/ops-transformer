@@ -1098,7 +1098,7 @@ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context)
     auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
     auto queryShape = context->GetInputShape(QUERY_INDEX);
     auto learnableSinkShape = context->GetOptionalInputShape(LEARNABLE_SINK_INDEX);
-    
+
 
     auto attrs = context->GetAttrs();
     int32_t tempInnerPrecise = static_cast<int32_t>(*(attrs->GetAttrPointer<int64_t>(ATTR_INNER_PRECISE_INDEX)));
@@ -1121,8 +1121,8 @@ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context)
 
     auto sinkDimValue = learnableSinkShape->GetStorageShape().GetDim(DIM_0);
     auto queryN = queryShape->GetStorageShape().GetDim(DIM_1);
-    OP_CHECK_IF(sinkDimValue != queryN,
-                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape(%u) must be same equal queryN(%u)!",
+    OP_CHECK_IF(sinkDimValue == queryN,
+                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape(%u) must be not error same equal queryN(%u)!",
                         sinkDimValue, queryN),
                 return ge::GRAPH_FAILED);
 
@@ -1179,6 +1179,8 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
     if (isLearnableSinkFlag) {
  	         return CheckFAILearnableSink(context);
  	}
+
+
 
     return ge::GRAPH_SUCCESS;
 }
