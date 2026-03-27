@@ -33,7 +33,7 @@ aclnnStatus FusedCausalConv1dCommonProcess(const aclTensor *x, const aclTensor *
                                       const aclTensor *queryStartLoc, const aclTensor *cacheIndices,
                                       const aclTensor *initialStateMode, const aclTensor *bias,
                                       const aclTensor *numAcceptedTokens, int64_t activationMode, int64_t padSlotId,
-                                      int64_t runMode, int64_t residualConnection, const aclTensor *y,
+                                      int64_t runMode, int64_t residualConnection, aclTensor *y,
                                       uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -95,7 +95,7 @@ ACLNN_API aclnnStatus aclnnFusedCausalConv1dGetWorkspaceSize(
     const aclTensor *x, const aclTensor *weight, aclTensor *convStates, const aclTensor *queryStartLoc,
     const aclTensor *cacheIndices, const aclTensor *initialStateMode, const aclTensor *bias,
     const aclTensor *numAcceptedTokens, int64_t activationMode, int64_t padSlotId, int64_t runMode,
-    int64_t residualConnection, const aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
+    int64_t residualConnection, aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(
         aclnnFusedCausalConv1d,
