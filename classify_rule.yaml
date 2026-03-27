@@ -271,8 +271,8 @@ pfa@ops-transformer:
                 - ops/ops-transformer/attention/prompt_flash_attention/op_host  
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/prompt_flash_attention_obp.h  
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/prompt_flash_attention_310p.h  
-                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_attention_prefill.h  
-                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/unpad_flash_attention_common.h  
+                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/prompt_attention_prefill.h  
+                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/unpad_flash_attention_common.h  
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_base_api.h  
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_base_common.h  
                 - ops/ops-transformer/attention/prompt_flash_attention/examples/test_aclnn_prompt_flash_attention.cpp  
