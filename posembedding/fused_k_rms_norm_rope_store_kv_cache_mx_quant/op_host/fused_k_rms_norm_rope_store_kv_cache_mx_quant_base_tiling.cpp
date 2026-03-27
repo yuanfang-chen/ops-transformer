@@ -140,8 +140,18 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckCosSinValid
         OP_LOGE(context_->GetNodeName(), "cos must be 3D tensor [T, 1, D].");
         return ge::GRAPH_FAILED;
     }
+    if (cosShape.GetDim(DIM_ZERO) != seqLengthSum_) {
+        OP_LOGE(context_->GetNodeName(), "cos T dimension must be %ld, got %ld.", seqLengthSum_,
+                cosShape.GetDim(DIM_ZERO));
+        return ge::GRAPH_FAILED;
+    }
     if (cosShape.GetDim(DIM_ONE) != DIM_ONE) {
         OP_LOGE(context_->GetNodeName(), "cos second dimension must be 1.");
+        return ge::GRAPH_FAILED;
+    }
+    if (cosShape.GetDim(DIM_TWO) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "cos D dimension must be %ld, got %ld.", headDim_,
+                cosShape.GetDim(DIM_TWO));
         return ge::GRAPH_FAILED;
     }
 
@@ -149,8 +159,33 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckCosSinValid
         OP_LOGE(context_->GetNodeName(), "sin must be 3D tensor [T, 1, D].");
         return ge::GRAPH_FAILED;
     }
+    if (sinShape.GetDim(DIM_ZERO) != seqLengthSum_) {
+        OP_LOGE(context_->GetNodeName(), "sin T dimension must be %ld, got %ld.", seqLengthSum_,
+                sinShape.GetDim(DIM_ZERO));
+        return ge::GRAPH_FAILED;
+    }
     if (sinShape.GetDim(DIM_ONE) != DIM_ONE) {
         OP_LOGE(context_->GetNodeName(), "sin second dimension must be 1.");
+        return ge::GRAPH_FAILED;
+    }
+    if (sinShape.GetDim(DIM_TWO) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "sin D dimension must be %ld, got %ld.", headDim_,
+                sinShape.GetDim(DIM_TWO));
+        return ge::GRAPH_FAILED;
+    }
+
+    auto cosDesc = context_->GetInputDesc(COS_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, cosDesc);
+    if (cosDesc->GetDataType() != qkvDtype_) {
+        OP_LOGE(context_->GetNodeName(), "cos dtype must match qkv dtype, expected %d, got %d.",
+                qkvDtype_, cosDesc->GetDataType());
+        return ge::GRAPH_FAILED;
+    }
+    auto sinDesc = context_->GetInputDesc(SIN_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, sinDesc);
+    if (sinDesc->GetDataType() != qkvDtype_) {
+        OP_LOGE(context_->GetNodeName(), "sin dtype must match qkv dtype, expected %d, got %d.",
+                qkvDtype_, sinDesc->GetDataType());
         return ge::GRAPH_FAILED;
     }
 
@@ -164,8 +199,9 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckGammaValid(
         OP_LOGE(context_->GetNodeName(), "gamma must be 1D tensor [D].");
         return ge::GRAPH_FAILED;
     }
-    if (gammaShape.GetDim(DIM_ZERO) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "gamma dimension must be positive.");
+    if (gammaShape.GetDim(DIM_ZERO) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "gamma dimension must be %ld, got %ld.", headDim_,
+                gammaShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -176,6 +212,11 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckKvSlotMappi
     auto& kvSlotMappingShape = context_->GetInputShape(KV_SLOT_MAPPING_INDEX)->GetStorageShape();
     if (kvSlotMappingShape.GetDimNum() != DIM_ONE) {
         OP_LOGE(context_->GetNodeName(), "kv_slot_mapping must be 1D tensor [T].");
+        return ge::GRAPH_FAILED;
+    }
+    if (kvSlotMappingShape.GetDim(DIM_ZERO) != seqLengthSum_) {
+        OP_LOGE(context_->GetNodeName(), "kv_slot_mapping length must be %ld, got %ld.", seqLengthSum_,
+                kvSlotMappingShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
     auto kvSlotMappingDesc = context_->GetInputDesc(KV_SLOT_MAPPING_INDEX);
@@ -193,6 +234,12 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckVScaleSlotM
     auto& vScaleSlotMappingShape = context_->GetInputShape(V_SCALE_SLOT_MAPPING_INDEX)->GetStorageShape();
     if (vScaleSlotMappingShape.GetDimNum() != DIM_ONE) {
         OP_LOGE(context_->GetNodeName(), "v_scale_slot_mapping must be 1D tensor [T/32/2].");
+        return ge::GRAPH_FAILED;
+    }
+    int64_t expectedLen = seqLengthSum_ / QUANT_BLOCK_SIZE / DIGIT_TWO;
+    if (vScaleSlotMappingShape.GetDim(DIM_ZERO) != expectedLen) {
+        OP_LOGE(context_->GetNodeName(), "v_scale_slot_mapping length must be %ld (T/32/2), got %ld.", expectedLen,
+                vScaleSlotMappingShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
     auto vScaleSlotMappingDesc = context_->GetInputDesc(V_SCALE_SLOT_MAPPING_INDEX);
@@ -220,8 +267,9 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckKCacheValid
         OP_LOGE(context_->GetNodeName(), "k_cache Bs dimension must be positive.");
         return ge::GRAPH_FAILED;
     }
-    if (kCacheShape.GetDim(DIM_THREE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "k_cache D dimension must be positive.");
+    if (kCacheShape.GetDim(DIM_THREE) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "k_cache D dimension must be %ld, got %ld.", headDim_,
+                kCacheShape.GetDim(DIM_THREE));
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -234,16 +282,25 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckKScaleCache
         OP_LOGE(context_->GetNodeName(), "k_scale_cache must be 5D tensor [Bn, Nk, Bs, D/32/2, 2].");
         return ge::GRAPH_FAILED;
     }
-    if (kScaleCacheShape.GetDim(DIM_ZERO) <= 0 || kScaleCacheShape.GetDim(DIM_ONE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "k_scale_cache Bn and Nk dimensions must be positive.");
+    if (kScaleCacheShape.GetDim(DIM_ZERO) != blockNum_) {
+        OP_LOGE(context_->GetNodeName(), "k_scale_cache Bn must be %ld, got %ld.", blockNum_,
+                kScaleCacheShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
-    if (kScaleCacheShape.GetDim(DIM_TWO) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "k_scale_cache Bs dimension must be positive.");
+    if (kScaleCacheShape.GetDim(DIM_ONE) != numHeadK_) {
+        OP_LOGE(context_->GetNodeName(), "k_scale_cache Nk must be %ld, got %ld.", numHeadK_,
+                kScaleCacheShape.GetDim(DIM_ONE));
         return ge::GRAPH_FAILED;
     }
-    if (kScaleCacheShape.GetDim(DIM_THREE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "k_scale_cache D/32/2 dimension must be positive.");
+    if (kScaleCacheShape.GetDim(DIM_TWO) != blockSize_) {
+        OP_LOGE(context_->GetNodeName(), "k_scale_cache Bs must be %ld, got %ld.", blockSize_,
+                kScaleCacheShape.GetDim(DIM_TWO));
+        return ge::GRAPH_FAILED;
+    }
+    int64_t expectedScaleDim = headDim_ / QUANT_BLOCK_SIZE / DIGIT_TWO;
+    if (kScaleCacheShape.GetDim(DIM_THREE) != expectedScaleDim) {
+        OP_LOGE(context_->GetNodeName(), "k_scale_cache D/32/2 dimension must be %ld, got %ld.", expectedScaleDim,
+                kScaleCacheShape.GetDim(DIM_THREE));
         return ge::GRAPH_FAILED;
     }
     if (kScaleCacheShape.GetDim(DIM_SIZE) != DIGIT_TWO) {
@@ -260,16 +317,23 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckVCacheValid
         OP_LOGE(context_->GetNodeName(), "v_cache must be 4D tensor [Bn, Nv, Bs, D].");
         return ge::GRAPH_FAILED;
     }
-    if (vCacheShape.GetDim(DIM_ZERO) <= 0 || vCacheShape.GetDim(DIM_ONE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_cache Bn and Nv dimensions must be positive.");
+    if (vCacheShape.GetDim(DIM_ZERO) != blockNum_) {
+        OP_LOGE(context_->GetNodeName(), "v_cache Bn must be %ld, got %ld.", blockNum_,
+                vCacheShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
-    if (vCacheShape.GetDim(DIM_TWO) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_cache Bs dimension must be positive.");
+    if (vCacheShape.GetDim(DIM_ONE) <= 0) {
+        OP_LOGE(context_->GetNodeName(), "v_cache Nv dimension must be positive.");
         return ge::GRAPH_FAILED;
     }
-    if (vCacheShape.GetDim(DIM_THREE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_cache D dimension must be positive.");
+    if (vCacheShape.GetDim(DIM_TWO) != blockSize_) {
+        OP_LOGE(context_->GetNodeName(), "v_cache Bs must be %ld, got %ld.", blockSize_,
+                vCacheShape.GetDim(DIM_TWO));
+        return ge::GRAPH_FAILED;
+    }
+    if (vCacheShape.GetDim(DIM_THREE) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "v_cache D dimension must be %ld, got %ld.", headDim_,
+                vCacheShape.GetDim(DIM_THREE));
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -282,16 +346,25 @@ ge::graphStatus FusedKRmsNormRopeStoreKvCacheMxQuantTilingBase::CheckVScaleCache
         OP_LOGE(context_->GetNodeName(), "v_scale_cache must be 5D tensor [Bn, Nv, Bs/32/2, D, 2].");
         return ge::GRAPH_FAILED;
     }
-    if (vScaleCacheShape.GetDim(DIM_ZERO) <= 0 || vScaleCacheShape.GetDim(DIM_ONE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_scale_cache Bn and Nv dimensions must be positive.");
+    if (vScaleCacheShape.GetDim(DIM_ZERO) != blockNum_) {
+        OP_LOGE(context_->GetNodeName(), "v_scale_cache Bn must be %ld, got %ld.", blockNum_,
+                vScaleCacheShape.GetDim(DIM_ZERO));
         return ge::GRAPH_FAILED;
     }
-    if (vScaleCacheShape.GetDim(DIM_TWO) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_scale_cache Bs/32/2 dimension must be positive.");
+    if (vScaleCacheShape.GetDim(DIM_ONE) != numHeadV_) {
+        OP_LOGE(context_->GetNodeName(), "v_scale_cache Nv must be %ld, got %ld.", numHeadV_,
+                vScaleCacheShape.GetDim(DIM_ONE));
         return ge::GRAPH_FAILED;
     }
-    if (vScaleCacheShape.GetDim(DIM_THREE) <= 0) {
-        OP_LOGE(context_->GetNodeName(), "v_scale_cache D dimension must be positive.");
+    int64_t expectedBsScale = blockSize_ / QUANT_BLOCK_SIZE / DIGIT_TWO;
+    if (vScaleCacheShape.GetDim(DIM_TWO) != expectedBsScale) {
+        OP_LOGE(context_->GetNodeName(), "v_scale_cache Bs/32/2 dimension must be %ld, got %ld.", expectedBsScale,
+                vScaleCacheShape.GetDim(DIM_TWO));
+        return ge::GRAPH_FAILED;
+    }
+    if (vScaleCacheShape.GetDim(DIM_THREE) != headDim_) {
+        OP_LOGE(context_->GetNodeName(), "v_scale_cache D dimension must be %ld, got %ld.", headDim_,
+                vScaleCacheShape.GetDim(DIM_THREE));
         return ge::GRAPH_FAILED;
     }
     if (vScaleCacheShape.GetDim(DIM_SIZE) != DIGIT_TWO) {
