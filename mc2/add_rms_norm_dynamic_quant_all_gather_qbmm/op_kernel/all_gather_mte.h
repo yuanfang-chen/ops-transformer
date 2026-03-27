@@ -136,7 +136,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::InitParams(
     remoteRankId_ = aicId_ / sendCoreNumPerRank_;
     // task 先按 mDim 为3份调整，innerLoop 再做循环调整
     mBlockIdx_ = modCoreIndex % mDim_;
-    kBlockIdx_ = modCoreIndex % kDim_;
+    kBlockIdx_ = modCoreIndex / mDim_;
     mMteCoreM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitSize;
     kMteCoreK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize;
     singleCoreM_ = tilingData->matmulTiling.singleCoreM;
