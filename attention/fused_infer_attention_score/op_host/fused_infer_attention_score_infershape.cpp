@@ -194,6 +194,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
                 valueShape->GetDimNum(), queryShape->GetDimNum());
             return ge::GRAPH_FAILED;
         }
+        
         if (queryLayout == "BSH") {
             valueD = (*valueShape)[FIA_LAYOUT_DIM2] / numKeyValueHeads;
         } else if (queryLayout == "BSND" || queryLayout == "BNSD") {
@@ -202,7 +203,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
             valueD = (*valueShape)[FIA_LAYOUT_DIM2];
         }
 
-        
+
     }
     return ge::GRAPH_SUCCESS;
 }
