@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file quant_matmul.h
@@ -28,11 +28,6 @@ struct KCQuantMMAdditionalData {
 // 量化场景的相关逻辑实现
 template <typename MMTilingType, typename MMType>
 class MC2KCQuantMMWrapper {
-protected:
-    MC2MMContext<KCQuantMMAdditionalData, MMTilingType> MMcontext_;
-    MMType MMImpl_;
-    AscendC::TPipe *tPipePtr_;
-
 public:
     __aicore__ inline MC2KCQuantMMWrapper(AscendC::TPipe *tPipe) : tPipePtr_(tPipe){};
     // 初始化方法
@@ -43,6 +38,11 @@ public:
     __aicore__ inline void Process(uint32_t taskIndex);
     // 结束方法
     __aicore__ inline void End();
+
+protected:
+    MC2MMContext<KCQuantMMAdditionalData, MMTilingType> MMcontext_;
+    MMType MMImpl_;
+    AscendC::TPipe *tPipePtr_;
 };
 
 template <typename MMTilingType, typename MMType>
