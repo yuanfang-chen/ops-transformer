@@ -353,6 +353,72 @@ struct GroupedMatmulOpApiCase {
                                     OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
                 ret = ut.TestGetWorkspaceSize(&workspaceSize);
             }
+        } else if (api == "V4") {
+            if (enableBias && enableScale && enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, bias, scale, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (enableBias && enableScale && !enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, bias, scale, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (enableBias && !enableScale && enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, bias, scaleOptional, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (enableBias && !enableScale && !enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, bias, scaleOptional, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (!enableBias && enableScale && enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, biasOptional, scale, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (!enableBias && enableScale && !enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, biasOptional, scale, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else if (!enableBias && !enableScale && enablePerToken) {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScale, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            } else {
+                auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                                    INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                                          antiquantOffsetOptional, perTokenScaleOptional, groupList, activationInputOptional,
+                                          activationQuantScaleOptional, activationQuantOffsetOptional, splitItem, groupType,
+                                          groupListType, actType),
+                                    OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+                ret = ut.TestGetWorkspaceSize(&workspaceSize);
+            }
         } else {
             if (enableBias && enableScale && enablePerToken) {
                 auto ut = OP_API_UT(aclnnGroupedMatmulV5,
