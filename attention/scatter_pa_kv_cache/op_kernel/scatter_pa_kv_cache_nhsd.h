@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 /*!
- * \file scatter_pa_kv_cache_nnhsd.h
+ * \file scatter_pa_kv_cache_nhsd.h
  * \brief
  */
 
