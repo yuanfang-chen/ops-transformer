@@ -104,9 +104,6 @@ public:
 
     __aicore__ inline void InitLocalBuffers()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         maxLen_ = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
         pipe_->InitBuffer(fp32InQueue_, 1, chunkSize_ * maxLen_ * sizeof(float));
         pipe_->InitBuffer(fp32OutQueue_, 1, chunkSize_ * maxLen_ * sizeof(float));
@@ -204,15 +201,16 @@ public:
         subValidRows_ = halfChunkSize_;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
-        if ASCEND_IS_AIV{
-            coreIdx_ /= TASK_RATIO;
-        }
+
         ccOffset_ = chunkSize_ * chunkSize_;
         ckOffset_ = chunkSize_ * dk_;
         cvOffset_ = chunkSize_ * dv_;
         SetGlobalTensors(initParams);
-        InitLocalBuffers();
-        InitGatherBuffer();
+        if ASCEND_IS_AIV {
+            coreIdx_ /= TASK_RATIO;
+            InitLocalBuffers();
+            InitGatherBuffer();
+        }
     }
 
     __aicore__ inline void Process()
