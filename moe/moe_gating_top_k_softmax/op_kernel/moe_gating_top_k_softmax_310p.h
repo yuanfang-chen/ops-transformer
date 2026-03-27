@@ -1,34 +1,36 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
-
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+ 
 /*!
  * \file moe_gating_top_k_softmax_310p.h
  * \brief
  */
 #include "kernel_operator.h"
-
+ 
 namespace MoeGatingTopKSoftmax {
 using namespace AscendC;
-
+ 
 namespace {
     constexpr int64_t ALIGN_FACTOR = 16;
     const constexpr uint32_t FP16_PER_REPEAT = 16;
     const constexpr uint32_t MAX_UB_SIZE = 262144;
+    const constexpr uint32_t BLOCK_SIZE = 8;
+    const constexpr uint32_t BLOCK_BYTES = 32;
 }
-
+ 
 template<typename T1, typename T2>  // T1 T1 : gating, y (half float16)  // T2 : expertIdx (int32)
 class MoeGatingTopKSoftmax310P {
 public:
-
+ 
     __aicore__ inline MoeGatingTopKSoftmax310P<T1, T1, T2>(){};
-
+ 
     __aicore__ inline void Init(
             GM_ADDR x, GM_ADDR y, GM_ADDR expertIdx, GM_ADDR workspace,
             const MoeGatingTopKSoftmax310PTilingData &tilingData, AscendC::TPipe *pipeIn)
@@ -41,31 +43,38 @@ public:
         gmXOffset_ = oneCoreRow_ * numCol_; // input data offset
         gmYOffset_ = oneCoreRow_ * k_; // * numCol_;
         gmExpertIdxOffset_ = oneCoreRow_ * k_;
-
-        gmX_.SetGlobalBuffer((__gm__ T1 *)x + AscendC::GetBlockIdx() * gmXOffset_, gmXOffset_); //  每一个 core 起始address
+ 
+        gmX_.SetGlobalBuffer((__gm__ T1 *)x + AscendC::GetBlockIdx() * gmXOffset_,
+                             gmXOffset_);  //  每一个 core 起始address
         gmY_.SetGlobalBuffer((__gm__ T1 *)y + AscendC::GetBlockIdx() * gmYOffset_, gmYOffset_);
-        gmExpertIdx_.SetGlobalBuffer((__gm__ T2 *)expertIdx + AscendC::GetBlockIdx() * gmExpertIdxOffset_, gmExpertIdxOffset_);
-        gmSync_.SetGlobalBuffer((__gm__ int32_t *)workspace, 8 * 32 * sizeof(int32_t));
-        gmYTmp_.SetGlobalBuffer((__gm__ T1*)workspace + 8 * 32 * sizeof(int32_t) / sizeof(T1) + GetBlockIdx() * oneCoreRow_ * kAlign_, rowWork_ * kAlign_);
-        gmExpertTmp_.SetGlobalBuffer((__gm__ T2*)workspace + 8 * 32 * sizeof(int32_t) / sizeof(T2) + numRow_ * kAlign_ * sizeof(T1) / sizeof(T2) + GetBlockIdx() * oneCoreRow_ * kAlign_, rowWork_ * kAlign_);
-        offset0 = 0; // input x
-        offset1 = offset0 + oneCoreRow_ * numCol_ * sizeof(T1); // output Y
-        offset2 = offset1 + oneCoreRow_ * kAlign_ * sizeof(T1); // output ExpertIdx
-        offset3 = offset2 + oneCoreRow_ * kAlign_ * sizeof(T2); 
+        gmExpertIdx_.SetGlobalBuffer((__gm__ T2 *)expertIdx + AscendC::GetBlockIdx() * gmExpertIdxOffset_,
+                                     gmExpertIdxOffset_);
+        gmSync_.SetGlobalBuffer((__gm__ int32_t *)workspace, BLOCK_SIZE * BLOCK_BYTES * sizeof(int32_t));
+        gmYTmp_.SetGlobalBuffer((__gm__ T1 *)workspace + BLOCK_SIZE * BLOCK_BYTES * sizeof(int32_t) / sizeof(T1) +
+                                    GetBlockIdx() * oneCoreRow_ * kAlign_,
+                                rowWork_ * kAlign_);
+        gmExpertTmp_.SetGlobalBuffer((__gm__ T2 *)workspace + BLOCK_SIZE * BLOCK_BYTES * sizeof(int32_t) / sizeof(T2) +
+                                         numRow_ * kAlign_ * sizeof(T1) / sizeof(T2) +
+                                         GetBlockIdx() * oneCoreRow_ * kAlign_,
+                                     rowWork_ * kAlign_);
+        offset0 = 0;                                             // input x
+        offset1 = offset0 + oneCoreRow_ * numCol_ * sizeof(T1);  // output Y
+        offset2 = offset1 + oneCoreRow_ * kAlign_ * sizeof(T1);  // output ExpertIdx
+        offset3 = offset2 + oneCoreRow_ * kAlign_ * sizeof(T2);
         offset4 = offset3 + oneCoreRow_ * numCol_ * sizeof(T1);
-        offset5 = offset4 + 0;// to the end
-        pipe->InitBuffer(bufUb_, MAX_UB_SIZE - 8 * 32 * sizeof(int32_t)); 
-        pipe->InitBuffer(syncIn, 8 * 32 * sizeof(int32_t));
-
+        offset5 = offset4 + 0;  // to the end
+        pipe->InitBuffer(bufUb_, MAX_UB_SIZE - BLOCK_SIZE * BLOCK_BYTES * sizeof(int32_t));
+        pipe->InitBuffer(syncIn, BLOCK_SIZE * BLOCK_BYTES * sizeof(int32_t));
+ 
         xLT = bufUb_.GetWithOffset<T1>(1, offset0);
         yLT = bufUb_.GetWithOffset<T1>(1, offset1);
         expertIdxLT = bufUb_.GetWithOffset<T2>(1, offset2);
         yTmpLT = bufUb_.GetWithOffset<T1>(1, offset3);
         tmpLT = bufUb_.GetWithOffset<T1>(1, offset4);
-
+ 
         syncLT = syncIn.Get<int32_t>();
     }
-
+ 
     __aicore__ inline void ParesTiling(const MoeGatingTopKSoftmax310PTilingData* __restrict tilingData)
     {
         tilingKey = tilingData->tilingKey;
@@ -74,53 +83,53 @@ public:
         k_ = tilingData->k;
         kAlign_ = tilingData->kAlign;
         numCore_ = tilingData->blockNum;
-
+ 
         oneCoreRow_ = tilingData->oneCoreRow;
         activateCore_ = tilingData->activateCore;
         tailRow_ = tilingData->tailRow;
-
+ 
         hasFinished_ = tilingData->hasFinished;
-
+ 
         workspaceSize_ = tilingData->workspaceSize;
         FormerSoftmaxTilingData = tilingData->FormerSoftmaxTilingData;
         TailSoftmaxTilingData = tilingData->TailSoftmaxTilingData;
-
+ 
         FormerTopkTilingData = tilingData->FormerTopkTilingData;
         TailTopkTilingData = tilingData->TailTopkTilingData;
-
+ 
         tmp_minsize = tilingData->FormerTmpMinsize;
     }
-
+ 
     __aicore__ inline void Process()
     {
         if (GetBlockIdx() >= activateCore_)
             return;
-
+ 
         CopyIn();
         AscendC::SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
         AscendC::WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
-
+ 
         Compute();
         AscendC::SetFlag<HardEvent::V_MTE3>(EVENT_ID1);
         AscendC::WaitFlag<HardEvent::V_MTE3>(EVENT_ID1);
         CopyOut();
     }
-
+ 
     __aicore__ inline int64_t Align16(const int64_t elementNum)
     {
         return (elementNum + ALIGN_FACTOR - 1) / ALIGN_FACTOR * ALIGN_FACTOR;
     }
-
+ 
     __aicore__ inline  void CopyIn()
     {
         int32_t rowWork_ = (AscendC::GetBlockIdx() < activateCore_ - 1) ? oneCoreRow_ : tailRow_;
         DataCopy<T1>(xLT, gmX_, rowWork_ * numCol_);
     }
-        
+ 
     __aicore__ inline  void Compute()
     {
         int32_t rowWork_ = (AscendC::GetBlockIdx() < activateCore_ - 1) ? oneCoreRow_ : tailRow_;
-        // softmax 
+        // softmax
         SoftMaxShapeInfo softmaxShapeInfoData;
         softmaxShapeInfoData.srcK = Align16(numCol_);
         softmaxShapeInfoData.srcM = rowWork_;
@@ -140,7 +149,7 @@ public:
         AscendC::LocalTensor<uint8_t> softmaxTmpUint8LT = softmaxTmpLT.template ReinterpretCast<uint8_t>();
         SoftMax<T1, false, false>(yTmpLT, sumTmpLT, maxTmpLT, xLT, softmaxTmpUint8LT, *softmaxTilingData, softmaxShapeInfoData);
         AscendC::PipeBarrier<PIPE_V>();
-
+ 
         // Init TopK
         AscendC::LocalTensor<T2> srcIndexLocal = tmpLT.template ReinterpretCast<T2>();
         AscendC::LocalTensor<bool> finishedLocal;
@@ -152,7 +161,7 @@ public:
             kAlign_, *TopkTilingData, topkInfo, true);
         AscendC::PipeBarrier<PIPE_V>();
     }
-
+ 
     __aicore__ inline  void CopyOut()
     {
         int32_t rowWork_ = (AscendC::GetBlockIdx() < activateCore_ - 1) ? oneCoreRow_ : tailRow_;
@@ -170,7 +179,7 @@ public:
         DataCopy(gmExpertIdx_, expertIdxLT, Align16(rowWork_ * k_));
         PipeBarrier<PIPE_ALL>();
     }
-
+ 
 private:
     TPipe* pipe;
     AscendC::TBuf<AscendC::TPosition::VECCALC> bufUb_;
