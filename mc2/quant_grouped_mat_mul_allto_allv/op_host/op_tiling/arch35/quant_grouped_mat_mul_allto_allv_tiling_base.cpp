@@ -107,7 +107,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckOpInputSingleParamsT
     bool isMmXNull = (mmXTensorShape == nullptr);
     bool isMmWeightNull = (mmWeightTensorShape == nullptr);
     bool isMmYNull = (mmYShape == nullptr);
-
+    if (!isMmYNull) {
+        auto mmYDimNum = mmYShape->GetStorageShape().GetDimNum();
+        isMmYNull = mmYDimNum == 0;
+    }
     bool isAllSame = (isMmXNull == isMmWeightNull) && (isMmWeightNull == isMmYNull);
     OP_TILING_CHECK(!isAllSame, 
                     OP_LOGE(opName_, "mmXTensor, mmWeightTensor, mmYTensor must exist or not exist at same time."),
@@ -693,8 +696,11 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::SetGmmA2avWorkspaceInfo()
     inferredInfo_.gmmResultLen = mc2tiling::AlignUp(
         localParams_.A * localParams_.N1 * gmmYDtypeSize, alignAddrLen);
     localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo_.gmmResultLen;
-    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
+    // GmmComputeOp workspace 内部布局: groupList (ep * 8B) + ptrTable (4 * 16B = 64B)
+    constexpr uint64_t ptrTableSize = 128;
+    uint64_t gmmComputeWsSize = localParams_.ep * sizeof(int64_t) + ptrTableSize;
+    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = mc2tiling::AlignUp(gmmComputeWsSize, alignAddrLen);
+    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = mc2tiling::AlignUp(gmmComputeWsSize, alignAddrLen);
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo_.gmmResultLen +
         localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
         localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
