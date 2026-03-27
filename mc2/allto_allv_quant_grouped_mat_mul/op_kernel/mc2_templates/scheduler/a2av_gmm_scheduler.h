@@ -44,11 +44,12 @@ public:
                                 GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM,
                                 GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM,
                                 GmmArrayAddrType *gmmArrayAddrIn, GmmArrayAddrType *mmArrayAddrIn, TPipe *tPipe,
-                                bool isA2avGmmFlag)
+                                bool isA2avGmmFlag, bool isMxScene)
     {
         GET_TILING_DATA(tilingData, tilingGM);
         tilingData_ = &tilingData;
         e_ = tilingData_->taskTilingInfo.e;
+        isMxSceneFlag_ = isMxScene;
         const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
         uint64_t hcclCcTilingOffset = offsetof(TilingDataType, hcclA2avTilingInfo) +
                                       offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
@@ -56,7 +57,7 @@ public:
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm_);
 
         // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用
-        if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
+        if (isMxSceneFlag_) {
             uint64_t commOutLen =
                 Align((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1), TENSOR_LIST_SIZE);
             // permuteOut为true,则将permuteout存放到对应的位置，scale的地址可以从workspaceGM开始
@@ -70,7 +71,7 @@ public:
                                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe,
                                 isA2avGmmFlag);
         }
-        computeScaleGm_ = (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) ? gmmxScaleCommOutGm_ : gmmxScaleGm_;
+        computeScaleGm_ = (isMxSceneFlag_) ? gmmxScaleCommOutGm_ : gmmxScaleGm_;
         computeOp.Init(commOutGm_, gmmweightGM, computeScaleGm_, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
                        &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe, isA2avGmmFlag);
     }
@@ -82,13 +83,13 @@ public:
             SyncAll<false>();
         }
         // mx场景下先启动全量scale通信
-        if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
+        if (isMxSceneFlag_) {
             commOp.LaunchScaleBeforeCompute(0, e_);
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Launch(expertIdx, 1);
         }
-        if (AscendC::IsSameType<DTYPE_GMM_X_SCALE, fp8_e8m0_t>::value) {
+        if (isMxSceneFlag_) {
             commOp.WaitScale(0);
         }
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
@@ -117,6 +118,7 @@ private:
     GM_ADDR computeScaleGm_ = nullptr;
     const TilingDataType *tilingData_ = nullptr;
     uint32_t e_ = 0U;
+    bool isMxSceneFlag_ = false;
 };
 }; // namespace MC2KernelTemplate
 #endif
