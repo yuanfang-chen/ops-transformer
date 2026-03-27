@@ -9,8 +9,18 @@
  */
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include "../allto_all_matmul_host_ut_param.h"
 #include "tiling_case_executor.h"
+
+static std::string GetCsvPath(const char* file)
+{
+    const char* envPath = std::getenv("CSV_CASE_PATH");
+    if (envPath != nullptr && strlen(envPath) > 0) {
+        return std::string(envPath);
+    }
+    return ReplaceFileExtension2Csv(file);
+}
 
 namespace AlltoAllMatmulUT {
 
@@ -68,7 +78,7 @@ TEST_P(AlltoAllMatmulArch35TilingTest, param)
 INSTANTIATE_TEST_SUITE_P(
     AlltoAllMatmulTilingUT,
     AlltoAllMatmulArch35TilingTest,
-    testing::ValuesIn(GetCasesFromCsv<AlltoAllMatmulTilingUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    testing::ValuesIn(GetCasesFromCsv<AlltoAllMatmulTilingUtParam>(GetCsvPath(__FILE__))),
     PrintCaseInfoString<AlltoAllMatmulTilingUtParam>
 );
 

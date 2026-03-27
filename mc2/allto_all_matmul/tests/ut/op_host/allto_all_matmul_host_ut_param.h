@@ -48,7 +48,7 @@ struct AlltoAllMatmulTilingUtParam {
     std::vector<size_t> expectWorkspaces;
     uint64_t mc2TilingDataReservedLen;
 
-    AlltoAllMatmulTilingUtParam(const csv_map& csvMap)
+    explicit AlltoAllMatmulTilingUtParam(const csv_map& csvMap)
     {
         this->case_name = ReadMap(csvMap, "caseName");
         GetTensorGE(csvMap, "x1Shape", "x1Dtype", "x1Format", this->x1);
