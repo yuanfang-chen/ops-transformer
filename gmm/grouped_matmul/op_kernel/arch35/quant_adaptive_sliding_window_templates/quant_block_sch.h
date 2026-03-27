@@ -143,7 +143,8 @@ __aicore__ inline uint64_t QuantASWBlockSch::CalcNzWeightSize(uint64_t n, uint64
 }
 
 template <bool bTrans, class xType, CubeFormat wFormat>
-__aicore__ inline void QuantASWBlockSch::UpdateAAndBGroupOffsets(uint32_t groupIdx, uint64_t curN, uint64_t curK, bool isSplitM)
+__aicore__ inline void QuantASWBlockSch::UpdateAAndBGroupOffsets(uint32_t groupIdx, uint64_t curN, uint64_t curK,
+                                                                 bool isSplitM)
 {
     if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
         params_.aGroupAddrOffset += params_.m * params_.k / 2;
@@ -173,7 +174,8 @@ __aicore__ inline void QuantASWBlockSch::UpdateAAndBGroupOffsets(uint32_t groupI
 }
 
 template <bool aTrans, bool bTrans, class scaleType>
-__aicore__ inline void QuantASWBlockSch::UpdateScaleGroupOffsets(uint32_t groupIdx, uint64_t curN, uint64_t curK, bool isSplitM)
+__aicore__ inline void QuantASWBlockSch::UpdateScaleGroupOffsets(uint32_t groupIdx, uint64_t curN, uint64_t curK,
+                                                                 bool isSplitM)
 {
     if constexpr (QuantUtils::IsMxType<scaleType>()) {
         uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
