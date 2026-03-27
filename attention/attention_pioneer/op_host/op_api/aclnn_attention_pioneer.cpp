@@ -10,7 +10,7 @@
 
 #include <cstring>
 #include "graph/types.h"
-#include "aclnn_attention_pioneer.h"
+// #include "aclnn_attention_pioneer.h"
 
 #include "opdev/common_types.h"
 #include "opdev/data_type_utils.h"
