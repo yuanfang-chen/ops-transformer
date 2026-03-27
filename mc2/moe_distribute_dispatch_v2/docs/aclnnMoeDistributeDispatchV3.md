@@ -705,7 +705,7 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
         aclrtContext context;
     };
 
-    constexpr uint32_t EP_WORLD_SIZE = 8;
+    constexpr uint32_t EP_WORLD_SIZE = 2;
     constexpr uint32_t TP_WORLD_SIZE = 1;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
@@ -755,9 +755,9 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
         int64_t H = 7168;
         int64_t K = 3;
         int64_t expertShardType = 0;
-        int64_t sharedExpertNum = 1;
-        int64_t sharedExpertRankNum = 1;
-        int64_t moeExpertNum = 7;
+        int64_t sharedExpertNum = 0;
+        int64_t sharedExpertRankNum = 0;
+        int64_t moeExpertNum = 8;
         int64_t quantMode = 0;
         int64_t globalBs = Bs * EP_WORLD_SIZE;
         int64_t expertTokenNumsType = 1;
@@ -890,18 +890,6 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
         std::vector<float> expandScalesHostData(expandScalesShapeSize, 0);
         std::vector<int16_t> sharedExpertXHostData(sharedExpertXShapeSize, 1);
 
-        int32_t isElastic = 1;
-        int32_t rankNumAfterElastic = 4;
-        int32_t sharedExpertRankNumAfterElastic = sharedExpertRankNum;
-        int32_t moeExpertNumAfterElastic = rankNumAfterElastic - sharedExpertRankNumAfterElastic;
-        std::unordered_set<int16_t> availableRank{
-            0, 1, /*2, 3, 4, 5,*/ 6, 7
-        };
-        std::vector<int32_t> elasticInfoHostData{
-            isElastic, rankNumAfterElastic, sharedExpertRankNumAfterElastic, moeExpertNumAfterElastic,
-            0, 1, -1, -1, -1, -1, 2, 3,
-            0, 1, 6, 7, -1, -1, -1, -1
-        };
         std::vector<int16_t> oriXHostData(oriXSize, 1);
         std::vector<int16_t> constExpertAlpha1HostData(constExpertAlpha1Size, 0);
         std::vector<int16_t> constExpertAlpha2HostData(constExpertAlpha2Size, 0);
@@ -982,8 +970,7 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
             return ret);
 
         /**************************************** 调用dispatch ********************************************/
-        if (availableRank.find(args.rankId) != availableRank.end()) {
-            // 调用第一阶段接口
+        // 调用第一阶段接口
         ret = aclnnMoeDistributeDispatchV3GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
                 expertScales, elasticInfo, hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
                 args.tpRankId, expertShardType, sharedExpertNum,sharedExpertRankNum, quantMode, globalBs,
@@ -1005,10 +992,8 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
         ret = aclrtSynchronizeStreamWithTimeout(args.dispatchStream, 10000);
                     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] dispatch aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);  \
                 return ret);
-        }
         /**************************************** 调用combine ********************************************/
         // 调用第一阶段接口
-        if (availableRank.find(args.rankId) != availableRank.end()) {
         ret = aclnnMoeDistributeCombineV3GetWorkspaceSize(expandX, expertIds,
                                                             expandIdx, epRecvCounts,
                                                             expertScales, tpRecvCounts,
@@ -1038,7 +1023,6 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
             return ret);
         LOG_PRINT("[INFO] device_%d aclnnMoeDistributeDispatchV3 and aclnnMoeDistributeCombineV3                      \
                     execute successfully.\n", args.rankId);
-        }
         // 释放device资源
         if (dispatchWorkspaceSize > 0) {
             aclrtFree(dispatchWorkspaceAddr);

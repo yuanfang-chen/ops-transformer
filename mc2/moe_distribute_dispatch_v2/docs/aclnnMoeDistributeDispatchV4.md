@@ -703,7 +703,7 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
         aclrtContext context;
     };
 
-    constexpr uint32_t EP_WORLD_SIZE = 8;
+    constexpr uint32_t EP_WORLD_SIZE = 2;
     constexpr uint32_t TP_WORLD_SIZE = 1;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
@@ -888,18 +888,6 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
         std::vector<float> expandScalesHostData(expandScalesShapeSize, 0);
         std::vector<int16_t> sharedExpertXHostData(sharedExpertXShapeSize, 1);
 
-        int32_t isElastic = 1;
-        int32_t rankNumAfterElastic = 4;
-        int32_t sharedExpertRankNumAfterElastic = sharedExpertRankNum;
-        int32_t moeExpertNumAfterElastic = rankNumAfterElastic - sharedExpertRankNumAfterElastic;
-        std::unordered_set<int16_t> availableRank{
-            0, 1, /*2, 3, 4, 5,*/ 6, 7
-        };
-        std::vector<int32_t> elasticInfoHostData{
-            isElastic, rankNumAfterElastic, sharedExpertRankNumAfterElastic, moeExpertNumAfterElastic,
-            0, 1, -1, -1, -1, -1, 2, 3,
-            0, 1, 6, 7, -1, -1, -1, -1
-        };
         std::vector<int16_t> oriXHostData(oriXSize, 1);
         std::vector<int16_t> constExpertAlpha1HostData(constExpertAlpha1Size, 0);
         std::vector<int16_t> constExpertAlpha2HostData(constExpertAlpha2Size, 0);
@@ -981,8 +969,7 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
             return ret);
 
         /**************************************** 调用dispatch ********************************************/
-        if (availableRank.find(args.rankId) != availableRank.end()) {
-            // 调用第一阶段接口
+        // 调用第一阶段接口
         ret = aclnnMoeDistributeDispatchV4GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
                 expertScales, elasticInfo, nullptr,// performanceInfoOptional
                 hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
@@ -1005,10 +992,8 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
         ret = aclrtSynchronizeStreamWithTimeout(args.dispatchStream, 10000);
                     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] dispatch aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);  \
                 return ret);
-        }
         /**************************************** 调用combine ********************************************/
         // 调用第一阶段接口
-        if (availableRank.find(args.rankId) != availableRank.end()) {
         ret = aclnnMoeDistributeCombineV4GetWorkspaceSize(expandX, expertIds,
                                                             expandIdx, epRecvCounts,
                                                             expertScales, tpRecvCounts,
@@ -1039,7 +1024,6 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
             return ret);
         LOG_PRINT("[INFO] device_%d aclnnMoeDistributeDispatchV4 and aclnnMoeDistributeCombineV4                      \
                     execute successfully.\n", args.rankId);
-        }
         // 释放device资源
         if (dispatchWorkspaceSize > 0) {
             aclrtFree(dispatchWorkspaceAddr);
