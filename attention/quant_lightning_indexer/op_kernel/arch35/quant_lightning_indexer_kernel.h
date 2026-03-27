@@ -270,6 +270,12 @@ template <typename QLIT>
 __aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t &coreNum, 
                                                 QLICommon::SplitCoreInfo &info) 
 { 
+    if(curCoreIdx < coreNum){
+        splitCoreInfo.isCoreEnable = true;
+    }else{
+        splitCoreInfo.isCoreEnable = false;
+        return;
+    }
     uint32_t totalBlockNum = GetTotalBaseBlockNum(); 
     uint32_t minBlockPerCore = totalBlockNum / coreNum; 
     uint32_t deal1MoreBlockCoreNum = totalBlockNum % coreNum; 
@@ -277,12 +283,6 @@ __aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t
     uint32_t lastGS1RemainBlockCnt = 0; 
     uint32_t coreDealBlockCnt = coreIdx < deal1MoreBlockCoreNum ? minBlockPerCore + 1 : minBlockPerCore; 
     coreNum = minBlockPerCore == 0 ? deal1MoreBlockCoreNum : coreNum; 
-    if(curCoreIdx < coreNum){
-        splitCoreInfo.isCoreEnable = true;
-    }else{
-        splitCoreInfo.isCoreEnable = false;
-        return;
-    }
 
     bool findLastCoreEnd = true; 
     uint32_t actS1Size, actS2Size, actS2SizeOrig; 
