@@ -197,11 +197,12 @@ ge::graphStatus FiaInfoParser::GetNpuInfo()
                 return GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
     if ((socVersion_ != platform_ascendc::SocVersion::ASCEND310P) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
-        (socVersion_ != platform_ascendc::SocVersion::ASCEND950) &&
+        (npuArch_ != NpuArch::DAV_3510) &&
         (socVersion_ != platform_ascendc::SocVersion::ASCEND910_55)) {
-        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
+        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d]/NpuArch[%d] is not support.", static_cast<int32_t>(socVersion_), static_cast<int32_t>(npuArch));
         return GRAPH_FAILED;
     }
 
@@ -794,7 +795,7 @@ ge::graphStatus FiaInfoParser::GetRopeMode()
 {
     bool existSplitRopeTensor =
         ((opParamInfo_.queryRope.tensor != nullptr) && (opParamInfo_.queryRope.desc != nullptr));
-    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+    if (npuArch_ == NpuArch::DAV_3510) {
         if (existSplitRopeTensor) {
             ropeMode_ = RopeMode::ROPE_SPLIT;
         } else if (qkHeadDim_ == 192 && vHeadDim_ == 128) {
@@ -1044,7 +1045,7 @@ ge::graphStatus FiaInfoParser::GetAttenMaskInfo()
 
 void FiaInfoParser::GetPaddingSizeFlag()
 {
-    qPaddingSizeFlag_ = ((!isLegacyIfa_ || socVersion_ == platform_ascendc::SocVersion::ASCEND950) &&
+    qPaddingSizeFlag_ = ((!isLegacyIfa_ || npuArch_ == NpuArch::DAV_3510) &&
                 (opParamInfo_.queryPaddingSize.tensor != nullptr));
 
     if (isLegacyIfa_) {
