@@ -223,10 +223,6 @@ ge::graphStatus PSEChecker::CheckerFeatureCrossover(const FiaTilingInfo &fiaInfo
         if (fiaInfo.isMaxWorkspace) {
             return ge::GRAPH_SUCCESS;
         }
-        OP_CHECK_IF((fiaInfo.socVersion == platform_ascendc::SocVersion::ASCEND950) &&
-                        (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag),
-                    OP_LOGE(fiaInfo.opName, "When pseShift is enabled, leftPadding is not supported."),
-                    return ge::GRAPH_FAILED);
         // 非alibi时，MLA，不支持pse
         OP_CHECK_IF(fiaInfo.mlaMode == MlaMode::ROPE_COMBINE_D128 || fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
                         fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512,
