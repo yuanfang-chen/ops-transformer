@@ -1416,6 +1416,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>INT4(INT32)、FLOAT4_E2M1伪量化场景不支持后量化</li>
                         <li>FLOAT8_E4M3伪量化场景下，当keyAntiquantMode和valueAntiquantMode为1或4时不支持后量化</li>
                         <li>INT8伪量化场景下，当keyAntiquantMode=0且valueAntiquantMode=1时，query和output仅支持FP16</li>
+                        <li>INT8/INT4(INT32)伪量化场景下，当keyAntiquantMode和valueAntiquantMode为2/3/4/5时，Q_S仅支持1</li>
                     </ul>
                 <td>
             <tr>
