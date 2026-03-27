@@ -2092,11 +2092,11 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when the dtype of query is int8 in MLA, KV layout must be PANZ."), return false);
     // check QKV dtype for fp8_e4m3/int8, output dtype for bf16, QK Rope Type for bf16
-    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT8_E4M3FN, ge::DT_INT8};
+    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT8_E4M3FN, ge::DT_INT8, ge::DT_HIFLOAT8};
     auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), contextKeyParams.inputDataType);
     OP_CHECK_IF((inputTypeCheck == allowedDtypes.end() || contextKeyParams.outputDataType != ge::DT_BF16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3/int8, datatype of output(%s) must be bf16.",
+            "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3/int8/hifloat8, datatype of output(%s) must be bf16.",
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kDataType).c_str(),
             GetPfaDataTypeStr(contextKeyParams.vDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.outputDataType).c_str()),
         return false);
