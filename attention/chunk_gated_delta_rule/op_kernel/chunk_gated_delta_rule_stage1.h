@@ -200,16 +200,15 @@ public:
         halfChunkSize_ = chunkSize_ / TASK_RATIO;
         subOffset_ = subBlockIdx_ * halfChunkSize_;
         coreIdx_ = GetBlockIdx();
-
         ccOffset_ = chunkSize_ * chunkSize_;
         ckOffset_ = chunkSize_ * dk_;
         cvOffset_ = chunkSize_ * dv_;
-        SetGlobalTensors(initParams);
         if ASCEND_IS_AIV {
             coreIdx_ /= TASK_RATIO;
             InitLocalBuffers();
             InitGatherBuffer();
         }
+        SetGlobalTensors(initParams);
     }
 
     __aicore__ inline void Process()
