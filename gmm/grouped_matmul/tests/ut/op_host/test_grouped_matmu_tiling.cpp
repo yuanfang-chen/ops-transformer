@@ -5232,7 +5232,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_A8W8O8_3510)
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
 }
 
-TEST_F(GroupedMatmulTiling, test_tiling_A8W8O8_sparse_2d_grouplist_3510)
+TEST_F(GroupedMatmulTiling, test_tiling_A8W8O8_sparse_2d_grouplist_3510_error)
 {
     size_t M = 8;
     size_t K = 4096;
@@ -5275,11 +5275,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_A8W8O8_sparse_2d_grouplist_3510)
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
-    int64_t expectTilingKey = 1L;
-
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
 }
 
 TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_3510)
@@ -5382,7 +5378,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_notrans)
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
 }
 
-TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_sparse_2d_grouplist)
+TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_sparse_2d_grouplist_error)
 {
     size_t M = 512;
     size_t K = 2048;
@@ -5425,11 +5421,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_sparse_2d_grouplist)
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
-    int64_t expectTilingKey = 0L;
-
-    TilingInfo tilingInfo;
-    ExecuteTiling(tilingContextPara, tilingInfo);
-    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED);
 }
 
 TEST_F(GroupedMatmulTiling, test_tiling_A8W8O8_sparse_1d_grouplist_3510_error)
