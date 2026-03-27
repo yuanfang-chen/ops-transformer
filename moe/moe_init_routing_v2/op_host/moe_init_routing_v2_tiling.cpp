@@ -692,7 +692,7 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
     SetBufferNum4GatherOut();
 }
 
-void SetBufferNum4GatherOut()
+void MoeInitRoutingV2TilingBase::SetBufferNum4GatherOut()
 {
     auto tilingData = &moeInitRoutingTilingData.gatherOutComputeParamsOp;
     int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize)
