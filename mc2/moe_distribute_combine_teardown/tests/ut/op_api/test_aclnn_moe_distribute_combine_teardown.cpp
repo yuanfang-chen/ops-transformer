@@ -26,6 +26,25 @@
 using namespace op;
 using namespace std;
 
+static aclTensor* CreateAclTensor(const std::vector<int64_t> shape, aclDataType dataType, aclFormat format) {
+    void* storage_data = nullptr;
+    std::vector<int64_t> strides(shape.size(), 1);
+    for (int64_t i = shape.size() - 2; i >= 0; i--) {
+        strides[i] = shape[i + 1] * strides[i + 1];
+    }
+    aclTensor* tensor = aclCreateTensor(shape.data(), shape.size(), dataType,
+        strides.data(), 0, format, shape.data(), shape.size(), storage_data);
+    assert(tensor != nullptr);
+    return tensor;
+}
+
+static aclTensor* CreateAclTensorOrNull(const std::vector<int64_t> shape, aclDataType dataType, aclFormat format) {
+    if (shape.empty()) {
+        return nullptr;
+    }
+    return CreateAclTensor(shape, dataType, format);
+}
+
 class TestAclnnMoeDistributeCombineTeardown : public testing::Test {
 protected:
     static void SetUpTestCase()
@@ -43,7 +62,6 @@ protected:
 
 struct MoeDistributeCombineTeardownAclnnTestParam {
     string case_name;
-    bool testNullptr;
     vector<int64_t> expandXShape;
     vector<int64_t> quantExpandXShape;
     vector<int64_t> expertIdsShape;
@@ -86,36 +104,146 @@ struct MoeDistributeCombineTeardownAclnnTestParam {
 };
 
 static MoeDistributeCombineTeardownAclnnTestParam g_casesParams[] = {
-    {"combine_teardown_1", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_true", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
         "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
         ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_SUCCESS},
-    {"combine_teardown_2", {512, 4096}, {512, 4096}, {512, 1}, {512, 1}, {512, 1}, {1024}, {512}, {512, 4096}, {8, 4096},
+    {"test_aclnn_moe_distribute_combine_teardown_BS512_H4096_FLOAT16_INT8_FLOAT16_true", {512, 4096}, {512, 4096}, {512, 1}, {512, 1}, {512, 1}, {1024}, {512}, {512, 4096}, {8, 4096},
         "moe_distribute_combine_teardown_test_group", 8, 0, 8, 0, 0, 0, 64, 0, 0, nullptr,
         ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_SUCCESS},
-    {"combine_teardown_3", {48, 7168}, {48, 7168}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 7168}, {8, 7168},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H7168_BF16_INT8_BF16_true", {48, 7168}, {48, 7168}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 7168}, {8, 7168},
         "moe_distribute_combine_teardown_test_group", 8, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
         ACL_BF16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_BF16, ACL_BF16,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_SUCCESS},
-    {"combine_teardown_4", {64, 7168}, {64, 7168}, {64, 1}, {64, 1}, {64, 1}, {1024}, {64}, {64, 7168}, {8, 7168},
+    {"test_aclnn_moe_distribute_combine_teardown_BS64_H7168_BF16_INT8_BF16_true", {64, 7168}, {64, 7168}, {64, 1}, {64, 1}, {64, 1}, {1024}, {64}, {64, 7168}, {8, 7168},
         "moe_distribute_combine_teardown_test_group", 2, 0, 8, 0, 0, 0, 16, 0, 0, nullptr,
         ACL_BF16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_BF16, ACL_BF16,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_SUCCESS},
-    {"ACLNN_COMBINE_TEARDOWN-error1", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_INT32_INT8_FLOAT16_false_invalid_expandXDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
         "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
         ACL_INT32, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
         ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_ERR_PARAM_INVALID},
-    {"ACLNN_COMBINE_TEARDOWN-error2", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_xActiveMaskOptionalDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_FLOAT16, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_expandXShape", {}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
         "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
         ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
-        ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_FLOAT16_FLOAT16_false_invalid_quantExpandXDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_FLOAT16, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
         ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_quantExpandXFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_quantExpandXShape", {48, 4096}, {}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expertIdsDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_FLOAT16, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expertIdsFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_expertIdsShape", {48, 4096}, {48, 4096}, {}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expandIdxDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_FLOAT16, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expandIdxFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_expandIdxShape", {48, 4096}, {48, 4096}, {48, 1}, {}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expertScalesDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT16, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_expertScalesFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_expertScalesShape", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_commCmdInfoDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_FLOAT16, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_commCmdInfoFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_commCmdInfoShape", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_xActiveMaskOptionalDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_FLOAT16, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_xActiveMaskOptionalFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_INT32_false_invalid_xOutDtype", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_INT32,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_BS48_H4096_FLOAT16_INT8_FLOAT16_false_invalid_xOutFormat", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z,
+        ACLNN_ERR_PARAM_INVALID},
+    {"test_aclnn_moe_distribute_combine_teardown_empty_xOutShape", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {},
+        "moe_distribute_combine_teardown_test_group", 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
+    {"test_aclnn_moe_distribute_combine_teardown_null_groupEp", {48, 4096}, {48, 4096}, {48, 1}, {48, 1}, {48, 1}, {1024}, {48}, {48, 4096}, {8, 4096},
+        nullptr, 2, 0, 6, 0, 0, 0, 0, 0, 0, nullptr,
+        ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16, ACL_FLOAT16,
+        ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
+        ACLNN_ERR_PARAM_NULLPTR},
 };
 
 static void TestOneParamCase(const MoeDistributeCombineTeardownAclnnTestParam& param)
@@ -164,69 +292,15 @@ static void TestOneParamCase(const MoeDistributeCombineTeardownAclnnTestParam& p
     aclFormat sharedExpertXOptionalFormat = param.sharedExpertXOptionalFormat;
     aclFormat xOutFormat = param.xOutFormat;
     aclnnStatus retStatus = param.aclnnStatusUt;
-    TensorDesc expandX = TensorDesc(expandXShape, expandXDtype, expandXFormat);
-    TensorDesc quantExpandX = TensorDesc(quantExpandXShape, quantExpandXDtype, quantExpandXFormat);
-    TensorDesc expertIds = TensorDesc(expertIdsShape, expertIdsDtype, expertIdsFormat);
-    TensorDesc expandIdx = TensorDesc(expandIdxShape, expandIdxDtype, expandIdxFormat);
-    TensorDesc expertScales = TensorDesc(expertScalesShape, expertScalesDtype, expertScalesFormat);
-    TensorDesc commCmdInfo = TensorDesc(commCmdInfoShape, commCmdInfoDtype, commCmdInfoFormat);
-    TensorDesc xActiveMaskOptional = TensorDesc(xActiveMaskOptionalShape, xActiveMaskOptionalDtype, xActiveMaskOptionalFormat);
-    TensorDesc sharedExpertXOptional = TensorDesc(sharedExpertXOptionalShape, sharedExpertXOptionalDtype, sharedExpertXOptionalFormat);
-    TensorDesc xOut = TensorDesc(xOutShape, xOutDtype, xOutFormat);
-    auto ut = OP_API_UT(aclnnMoeDistributeCombineTeardown,
-                        INPUT(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo,
-                              xActiveMaskOptional, sharedExpertXOptional,
-                              groupEp, epWorldSize, epRankId, moeExpertNum, expertShardType, sharedExpertNum,
-                              sharedExpertRankNum, globalBs, commQuantMode, commType, commAlg),
-                        OUTPUT(xOut));
-    uint64_t workspaceSize = 0;
-    aclOpExecutor* executor = nullptr;
-    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-    if (retStatus == ACLNN_SUCCESS) {
-        EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    } else {
-        EXPECT_EQ(aclRet, retStatus);
-    }
-}
-    vector<int64_t> expandXShape = param.expandXShape;
-    vector<int64_t> quantExpandXShape = param.quantExpandXShape;
-    vector<int64_t> expertIdsShape = param.expertIdsShape;
-    vector<int64_t> expandIdxShape = param.expandIdxShape;
-    vector<int64_t> expertScalesShape = param.expertScalesShape;
-    vector<int64_t> commCmdInfoShape = param.commCmdInfoShape;
-    vector<int64_t> xActiveMaskOptionalShape = param.xActiveMaskOptionalShape;
-    vector<int64_t> sharedExpertXOptionalShape = param.sharedExpertXOptionalShape;
-    vector<int64_t> xOutShape = param.xOutShape;
-    char* groupEp = param.groupEp;
-    int64_t epWorldSize = param.epWorldSize;
-    int64_t epRankId = param.epRankId;
-    int64_t moeExpertNum = param.moeExpertNum;
-    int64_t expertShardType = param.expertShardType;
-    int64_t sharedExpertNum = param.sharedExpertNum;
-    int64_t sharedExpertRankNum = param.sharedExpertRankNum;
-    int64_t globalBs = param.globalBs;
-    int64_t commQuantMode = param.commQuantMode;
-    int64_t commType = param.commType;
-    char* commAlg = param.commAlg;
-    aclDataType expandXDtype = param.expandXDtype;
-    aclDataType quantExpandXDtype = param.quantExpandXDtype;
-    aclDataType expertIdsDtype = param.expertIdsDtype;
-    aclDataType expandIdxDtype = param.expandIdxDtype;
-    aclDataType expertScalesDtype = param.expertScalesDtype;
-    aclDataType commCmdInfoDtype = param.commCmdInfoDtype;
-    aclDataType xActiveMaskOptionalDtype = param.xActiveMaskOptionalDtype;
-    aclDataType sharedExpertXOptionalDtype = param.sharedExpertXOptionalDtype;
-    aclDataType xOutDtype = param.xOutDtype;
-    aclnnStatus retStatus = param.aclnnStatusUt;
-    TensorDesc expandX = TensorDesc(expandXShape, expandXDtype, ACL_FORMAT_ND);
-    TensorDesc quantExpandX = TensorDesc(quantExpandXShape, quantExpandXDtype, ACL_FORMAT_ND);
-    TensorDesc expertIds = TensorDesc(expertIdsShape, expertIdsDtype, ACL_FORMAT_ND);
-    TensorDesc expandIdx = TensorDesc(expandIdxShape, expandIdxDtype, ACL_FORMAT_ND);
-    TensorDesc expertScales = TensorDesc(expertScalesShape, expertScalesDtype, ACL_FORMAT_ND);
-    TensorDesc commCmdInfo = TensorDesc(commCmdInfoShape, commCmdInfoDtype, ACL_FORMAT_ND);
-    TensorDesc xActiveMaskOptional = TensorDesc(xActiveMaskOptionalShape, xActiveMaskOptionalDtype, ACL_FORMAT_ND);
-    TensorDesc sharedExpertXOptional = TensorDesc(sharedExpertXOptionalShape, sharedExpertXOptionalDtype, ACL_FORMAT_ND);
-    TensorDesc xOut = TensorDesc(xOutShape, xOutDtype, ACL_FORMAT_ND);
+    aclTensor* expandX = CreateAclTensorOrNull(expandXShape, expandXDtype, expandXFormat);
+    aclTensor* quantExpandX = CreateAclTensorOrNull(quantExpandXShape, quantExpandXDtype, quantExpandXFormat);
+    aclTensor* expertIds = CreateAclTensorOrNull(expertIdsShape, expertIdsDtype, expertIdsFormat);
+    aclTensor* expandIdx = CreateAclTensorOrNull(expandIdxShape, expandIdxDtype, expandIdxFormat);
+    aclTensor* expertScales = CreateAclTensorOrNull(expertScalesShape, expertScalesDtype, expertScalesFormat);
+    aclTensor* commCmdInfo = CreateAclTensorOrNull(commCmdInfoShape, commCmdInfoDtype, commCmdInfoFormat);
+    aclTensor* xActiveMaskOptional = CreateAclTensorOrNull(xActiveMaskOptionalShape, xActiveMaskOptionalDtype, xActiveMaskOptionalFormat);
+    aclTensor* sharedExpertXOptional = CreateAclTensorOrNull(sharedExpertXOptionalShape, sharedExpertXOptionalDtype, sharedExpertXOptionalFormat);
+    aclTensor* xOut = CreateAclTensorOrNull(xOutShape, xOutDtype, xOutFormat);
     auto ut = OP_API_UT(aclnnMoeDistributeCombineTeardown,
                         INPUT(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo,
                               xActiveMaskOptional, sharedExpertXOptional,
