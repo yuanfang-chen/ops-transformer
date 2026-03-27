@@ -1079,13 +1079,14 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "Split fuse senario does not support incontinuous kv tensor list"),
             return ge::GRAPH_FAILED);
+            
 
     const std::string inputLayoutStr = std::string(context->GetAttrs()->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
     if (inputLayoutStr == "TND") {
         if (CheckFAIIsTND(context, isPageAttention) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        
+
     }
     return ge::GRAPH_SUCCESS;
 }
