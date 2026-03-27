@@ -30,18 +30,23 @@ QUANT_BLOCK_SIZE = 32
 EPSILON = 1e-5
 
 # ============== Fixed network cases ==============
-# Each case: (T, Nq, Nk, Nv, D, Bs)
+# Each case: (T, Nq, Nk, Nv, D, Bs, skip_ratio)
 # T: sequence length sum, Nq/Nk/Nv: query/key/value head count
 # D: head dimension, Bs: block size (PagedAttention), Bn = ceil(T / Bs)
+# skip_ratio: fraction of slot_mapping entries set to -1 (skip write)
 NETWORK_CASES = [
     # Case 1: T=2048, Nq=20, Nk=2, Nv=2, D=128, Bs=512, Bn=4
-    (2048, 20, 2, 2, 128, 512),
+    (2048, 20, 2, 2, 128, 512, 0.0),
     # Case 2: T=2048, Nq=80, Nk=8, Nv=8, D=128, Bs=512, Bn=4
-    (2048, 80, 8, 8, 128, 512),
+    (2048, 80, 8, 8, 128, 512, 0.0),
     # Case 3: T=10240, Nq=20, Nk=2, Nv=2, D=128, Bs=512, Bn=20
-    (10240, 20, 2, 2, 128, 512),
+    (10240, 20, 2, 2, 128, 512, 0.0),
     # Case 4: T=10240, Nq=80, Nk=8, Nv=8, D=128, Bs=512, Bn=20
-    (10240, 80, 8, 8, 128, 512),
+    (10240, 80, 8, 8, 128, 512, 0.0),
+    # Case 5: T=2048, skip_ratio=0.25, 约 25% slot 为 -1 跳过写入
+    (2048, 20, 2, 2, 128, 512, 0.25),
+    # Case 6: T=2048, skip_ratio=0.25, 大头数 + 部分跳过
+    (2048, 80, 8, 8, 128, 512, 0.25),
 ]
 
 def golden_reference(qkv, cos, sin, gamma, kv_slot, v_scale_slot,
@@ -76,7 +81,7 @@ def golden_reference(qkv, cos, sin, gamma, kv_slot, v_scale_slot,
     v_scale_cache = v_scale_cache.permute(0, 2, 1, 3, 4).contiguous()
 
     # K MXQuant + PA scatter
-    # k (T, NK, D), view(-1, NK, D) aligns with flattened cache format
+    # npu_scatter_nd_update_ 对负索引同样跳过写入，与融合算子行为一致
     k_fp8, k_scale = torch_npu.npu_dynamic_mx_quant(k, dst_type=torch.float8_e4m3fn)
     torch_npu.npu_scatter_nd_update_(
         k_cache.view(torch.int8).view(-1, NK, D), kv_slot,
@@ -114,8 +119,14 @@ def golden_reference(qkv, cos, sin, gamma, kv_slot, v_scale_slot,
 
 
 # ============== Input creation ==============
-def create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu"):
-    """Create test input tensors for a given network case."""
+def create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu", skip_ratio=0.0):
+    """Create test input tensors for a given network case.
+
+    Args:
+        skip_ratio: Fraction of slot_mapping entries to set to -1 (skip write).
+                    0.0 means no skip, 1.0 means all skip. Must be a multiple
+                    of QUANT_BLOCK_SIZE*2/T granularity for v_scale alignment.
+    """
     N = Nq + Nk + Nv
 
     qkv = torch.randn(T, N, D, dtype=torch.bfloat16, device=device)
@@ -126,6 +137,21 @@ def create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu"):
     # 随机打乱 slot_mapping，测试 scatter 功能
     kv_slot_mapping = torch.randperm(T, dtype=torch.int64, device=device)
     v_scale_slot_mapping = torch.randperm(T // QUANT_BLOCK_SIZE // 2, dtype=torch.int64, device=device)
+
+    # 按 skip_ratio 将部分 slot 设为 -1（跳过写入）
+    if skip_ratio > 0.0:
+        # kv_slot_mapping: 按 QUANT_BLOCK_SIZE*2 对齐的粒度设 -1，保证 v_scale 对齐
+        v_tile = QUANT_BLOCK_SIZE * 2
+        num_tiles = T // v_tile
+        num_skip_tiles = max(1, int(num_tiles * skip_ratio))
+        # 随机选择要跳过的 tile
+        skip_tile_indices = torch.randperm(num_tiles, device=device)[:num_skip_tiles]
+        for tile_idx in skip_tile_indices:
+            start = tile_idx * v_tile
+            kv_slot_mapping[start:start + v_tile] = -1
+        # v_scale_slot_mapping: 对应的 tile 也设为 -1
+        for tile_idx in skip_tile_indices:
+            v_scale_slot_mapping[tile_idx] = -1
 
     # NPU does not support direct float8 tensor creation, create as uint8 and view
     k_cache = torch.zeros(Bn, Nk, Bs, D, dtype=torch.uint8, device=device).view(torch.float8_e4m3fn)
@@ -199,11 +225,13 @@ def test_npu_execution():
         print("[SKIP] NPU device not available")
         return
 
-    for T, Nq, Nk, Nv, D, Bs in NETWORK_CASES:
+    for T, Nq, Nk, Nv, D, Bs, skip_ratio in NETWORK_CASES:
         Bn = (T + Bs - 1) // Bs
         desc = case_desc(T, Nq, Nk, Nv, D, Bn, Bs)
+        if skip_ratio > 0:
+            desc += f", skip={skip_ratio:.0%}"
 
-        inputs = create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu")
+        inputs = create_test_inputs(T, Nq, Nk, Nv, D, Bn, Bs, device="npu", skip_ratio=skip_ratio)
         qkv, cos, sin, gamma, kv_slot_mapping, v_scale_slot_mapping, \
             k_cache, k_scale_cache, v_cache, v_scale_cache = inputs
 
