@@ -28,11 +28,6 @@ struct MXQuantMMAdditionalData {
 // 量化场景的相关逻辑实现
 template <typename MMTilingType, typename MMType>
 class MC2MXQuantMMWrapper {
-protected:
-    MC2MMContext<MXQuantMMAdditionalData, MMTilingType> MMcontext_;
-    MMType MMImpl_;
-    AscendC::TPipe *tPipePtr_;
-
 public:
     __aicore__ inline MC2MXQuantMMWrapper(AscendC::TPipe *tPipe) : tPipePtr_(tPipe){};
     // 初始化方法
@@ -43,6 +38,11 @@ public:
     __aicore__ inline void Process(uint32_t taskIndex);
     // 结束方法
     __aicore__ inline void End();
+
+protected:
+    MC2MMContext<MXQuantMMAdditionalData, MMTilingType> MMcontext_;
+    MMType MMImpl_;
+    AscendC::TPipe *tPipePtr_;
 };
 
 template <typename MMTilingType, typename MMType>
