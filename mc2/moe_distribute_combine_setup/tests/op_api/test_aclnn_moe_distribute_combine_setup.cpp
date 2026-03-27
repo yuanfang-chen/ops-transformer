@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file test_aclnn_moe_distribute_combine_teardown.cpp
+ * \file test_aclnn_moe_distribute_combine_setup.cpp
  * \brief aclnn ut
  */
-
+ 
 #include <iostream>
 #include <thread>
 #include <vector>
 #include <string>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "../../../op_api/aclnn_moe_distribute_combine_teardown.h"
+#include "../../../op_api/aclnn_moe_distribute_combine_setup.h"
 #include "op_api_ut_common/tensor_desc.h"
 #include "op_api_ut_common/op_api_ut.h"
 #include "opdev/platform.h"
@@ -28,22 +28,22 @@ namespace {
 
 using namespace op;
 
-class test_aclnn_moe_distribute_combine_teardown : public testing::Test {
+class test_aclnn_moe_distribute_combine_setup : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
         op::SetPlatformNpuArch(NpuArch::DAV_3510);
-        std::cout << "test_aclnn_moe_distribute_combine_teardown SetUp" << std::endl;
+        std::cout << "test_aclnn_moe_distribute_combine_setup SetUp" << std::endl;
     }
     static void TearDownTestCase()
     {
         op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-        std::cout << "test_aclnn_moe_distribute_combine_teardown TearDown" << std::endl;
+        std::cout << "test_aclnn_moe_distribute_combine_setup TearDown" << std::endl;
     }
 };
 
 // 定义用例信息结构体
-struct MoeDistributeCombineTeardownAclnnTestParam {
+struct MoeDistributeCombineSetupAclnnTestParam {
     string case_name;
 
     // 输入信息shape
@@ -101,9 +101,9 @@ struct MoeDistributeCombineTeardownAclnnTestParam {
 };
 
 // 用例列表集
-static MoeDistributeCombineTeardownAclnnTestParam test_cases[] = {
+static MoeDistributeCombineSetupAclnnTestParam test_cases[] = {
     //===============================================Ascend910C===================================================
-    {"test_aclnn_moe_distribute_combine_teardown",
+    {"test_aclnn_moe_distribute_combine_setup",
      {1536, 4096}, {1536, 6144}, {16, 6}, {96}, {16, 6}, {24832}, {}, {},
      ACL_FLOAT16, ACL_INT8, ACL_INT32, ACL_INT32, ACL_FLOAT, ACL_INT32, ACL_BOOL, ACL_FLOAT16,
      ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -111,7 +111,7 @@ static MoeDistributeCombineTeardownAclnnTestParam test_cases[] = {
      {16, 4096}, ACL_FLOAT16, ACL_FORMAT_ND, ACLNN_SUCCESS},
 };
 
-static void TestOneParamCase(const MoeDistributeCombineTeardownAclnnTestParam &param)
+static void TestOneParamCase(const MoeDistributeCombineSetupAclnnTestParam &param)
 {
     std::cout << "run case " << param.case_name << std::endl;
 
@@ -131,7 +131,7 @@ static void TestOneParamCase(const MoeDistributeCombineTeardownAclnnTestParam &p
     // 输出信息
     TensorDesc outputX = TensorDesc(param.outputXShape, param.outputXDtype, param.outputXFormat);
 
-    auto ut = OP_API_UT(aclnnMoeDistributeCombineTeardown,
+    auto ut = OP_API_UT(aclnnMoeDistributeCombineSetup,
                         INPUT(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo, xActiveMask,
                               sharedExpertX, groupEp, param.epWorldSize, param.epRankId, param.moeExpertNum,
                               param.expertShardType, param.sharedExpertNum, param.sharedExpertRankNum, param.globalBs,
@@ -143,7 +143,7 @@ static void TestOneParamCase(const MoeDistributeCombineTeardownAclnnTestParam &p
     EXPECT_EQ(aclRet, param.expectStatus);
 }
 
-TEST_F(test_aclnn_moe_distribute_combine_teardown, test_cases)
+TEST_F(test_aclnn_moe_distribute_combine_setup, test_cases)
 {
     if (std::size(test_cases) != 0) {
         uint64_t numCases = sizeof(test_cases) / sizeof(test_cases[0]);
