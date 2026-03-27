@@ -184,6 +184,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlobalA
     xGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<xType>(0, xTensorPtr_) + block_.params_.aGroupAddrOffset);
     wGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<wType>(0, weightTensorPtr_) +
                                 block_.params_.bGroupAddrOffset);
+    yGlobal_.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_DISABLE);
     yGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<yType>(0, yTensorPtr_) + block_.params_.cGroupAddrOffset);
     if (gmmQuantParams_->hasBias) {
         biasGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<biasType>(0, biasTensorPtr_) +
