@@ -77,6 +77,7 @@ public:
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
             .ExtendCfgInfo("softsync.flag", "true");
+        this->AICore().AddConfig("ascend910_93");
         this->AICore().AddConfig("ascend910b", aicoreConfig);
     }
 };
