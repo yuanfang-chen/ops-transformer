@@ -1848,8 +1848,8 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
     return ge::GRAPH_SUCCESS;
   }
   OP_CHECK_IF((sparseMode_ != SPARSE_MODE_NO_MASK),
-    OP_LOGE(ifaContext_->opName, "When S of query equal to 1, sparseMode only support 0(defaultMask),
-            but got %u.", sparseMode_),
+    OP_LOGE(ifaContext_->opName, "When S of query equal to 1, sparseMode only support 0(defaultMask),"
+            "but got %u.", sparseMode_),
             return ge::GRAPH_FAILED);
   auto maskShape = ifaContext_->attenMask.tensor;  // input shape = 4
   if (maskShape == nullptr) {
