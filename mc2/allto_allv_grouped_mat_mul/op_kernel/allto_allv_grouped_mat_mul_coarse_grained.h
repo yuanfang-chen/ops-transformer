@@ -116,6 +116,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR contextGM, const AlltoAllvGmmTilingData *tilingData,
     __gm__ void *hcclInitTiling, __gm__ void *alltoAllvCcTiling, TPipe *tPipe)
 {
+    printf("[PRINT] in kernel\n");
     gmmxGM_ = gmmxGM;
     gmmwGM_ = gmmweightGM;
     sendCntsGM_ = sendCountsTensorOptionalGM;
@@ -148,8 +149,10 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
         hcclDataType_ = HCCL_DATA_TYPE_BFP16;
     }
 
-    expertNumInGroup_ = 2; // todo
+    expertNumInGroup_ = 4; // todo
     groupNum_ = Ceil(expertNumInOneRank_, expertNumInGroup_);
+    printf("[PRINT] expertNumInGroup_: %d\n", expertNumInGroup_);
+    printf("[PRINT] groupNum_: %d\n", groupNum_);
 
     gmmxGMTensor_.SetGlobalBuffer((__gm__ DataType *)this->gmmxGM_);
     permutedGMTensor_.SetGlobalBuffer((__gm__ DataType *)this->permuteOutGM_);
@@ -237,7 +240,42 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
             }
         }
 
+        printf("[PRINT][HcclAlltoAllvPrepare] sendCnt\n");
+        for (uint32_t i = 0; i < rankDim_; i++) {
+            for (uint32_t e = 0; e < expertNumInOneRank_; e++) {
+                printf("%d ", sendCnt[i * expertNumInOneRank_ + e]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+        printf("[PRINT][HcclAlltoAllvPrepare] recvCnt\n");
+        for (uint32_t i = 0; i < rankDim_; i++) {
+            for (uint32_t e = 0; e < expertNumInOneRank_; e++) {
+                printf("%d ", recvCnt[i * expertNumInOneRank_ + e]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+
+        printf("[PRINT][HcclAlltoAllvPrepare] sendGroupCnt\n");
+        for (uint32_t i = 0; i < rankDim_; i++) {
+            for (uint32_t eGroup = 0; eGroup < groupNum_; eGroup++) {
+                printf("%d ", sendGroupCnt[i * groupNum_ + eGroup]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+        printf("[PRINT][HcclAlltoAllvPrepare] recvGroupCnt\n");
+        for (uint32_t i = 0; i < rankDim_; i++) {
+            for (uint32_t eGroup = 0; eGroup < groupNum_; eGroup++) {
+                printf("%d ", recvGroupCnt[i * groupNum_ + eGroup]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+
         for (uint32_t e = 0U; e < groupNum_; e++) {
+            printf("[PRINT][HcclAlltoAllvPrepare] e: %d\n", e);
             // 计算sendcnts/recvcnts
             for (uint32_t i = 0U; i < rankDim_; i++) {
                 alltoAllvSendCnt[i] = static_cast<uint64_t>(sendGroupCnt[i * groupNum_ + e]) * axisH1_;
@@ -278,6 +316,7 @@ template <typename DataType, bool IsNeedMM, bool IsTranGmmW, bool IsTranMmW>
 __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW, IsTranMmW>::DoPermuted(
     uint32_t eGroup, uint64_t *recvSumCntBefore, uint64_t *recvSumCntAfter)
 {
+    printf("[PRINT][DoPermuted] in DoPermuted\n");
     auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
 
     uint32_t eStart = eGroup * expertNumInGroup_;
@@ -290,8 +329,8 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
             uint32_t posBefore = 0;
             uint32_t posAfter = 0;
 
-            if(posStart + rIndex * expertNumInGroup_ + e - eStart != 0) {
-                posBefore = recvSumCntBefore[posStart + rIndex * expertNumInGroup_ + e - eStart - 1];
+            if(posStart + rIndex * (eEnd - eStart) + e - eStart != 0) {
+                posBefore = recvSumCntBefore[posStart + rIndex * (eEnd - eStart) + e - eStart - 1];
             }
             if(posStart + (e - eStart) * rankDim_ + rIndex != 0) {
                 posAfter = recvSumCntAfter[posStart + (e - eStart) * rankDim_ + rIndex - 1];
@@ -323,6 +362,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
 template <typename DataType, bool IsNeedMM, bool IsTranGmmW, bool IsTranMmW>
 __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW, IsTranMmW>::HcclAlltoAllvExec()
 {
+    printf("[PRINT][HcclAlltoAllvExec] in HcclAlltoAllvExec\n");
     gmm_.Init(&(tilingData_->gmmTilingData));
     GMMCompute<gmmType> computeOp(gmm_);
     computeOp.Init(permuteOutGM_, gmmwGM_, gmmyGM_);
@@ -345,7 +385,7 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
             uint32_t eStart = groupId * expertNumInGroup_;
             uint32_t eEnd = min(eStart + expertNumInGroup_, expertNumInOneRank_);
             for (uint32_t e = eStart; e < eEnd; e++) {
-                uint32_t pos = groupId * rankDim_ * expertNumInGroup_ + rIndex * expertNumInGroup_ + e - eStart;
+                uint32_t pos = groupId * rankDim_ * expertNumInGroup_ + rIndex * (eEnd - eStart) + e - eStart;
                 recvSumCntBefore[pos] = recvCnt[rIndex * expertNumInOneRank_ + e];
                 if(pos != 0) {
                     recvSumCntBefore[pos] += recvSumCntBefore[pos - 1];
@@ -364,10 +404,27 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
         }
     }
 
+    printf("[PRINT][HcclAlltoAllvExec] recvSumCntBefore\n");
+    for (uint32_t i = 0; i < rankDim_; i++) {
+        for (uint32_t e = 0; e < expertNumInOneRank_; e++) {
+            printf("%d ", recvSumCntBefore[i * expertNumInOneRank_ + e]);
+        }
+    }
+    printf("\n");
+    printf("[PRINT][HcclAlltoAllvExec] recvSumCntAfter\n");
+    for (uint32_t i = 0; i < rankDim_; i++) {
+        for (uint32_t e = 0; e < expertNumInOneRank_; e++) {
+            printf("%d ", recvSumCntAfter[i * expertNumInOneRank_ + e]);
+        }
+    }
+    printf("\n");
+
     for (uint32_t e = 0U; e < groupNum_; e++) {
+        printf("[PRINT][HcclAlltoAllvExec] e: %d\n", e);
         if ASCEND_IS_AIV {
             if (GetBlockIdx() == 0) {
                 hccl_.Wait(alltoAllvHandleId_[e]);
+                printf("[PRINT][HcclAlltoAllvExec] after wait\n");
             }
         }
 
@@ -376,8 +433,10 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
             DoPermuted(e, recvSumCntBefore, recvSumCntAfter);
         }
         SyncAll<false>();
+        printf("[PRINT][HcclAlltoAllvExec] before gmm\n");
 
-        for (uint32_t i = 0; i < expertNumInGroup_; i++) {
+        int32_t calNum = min(expertNumInGroup_, expertNumInOneRank_ - e * expertNumInGroup_);
+        for (uint32_t i = 0; i < calNum; i++) {
             if(i == 0 && e == 0) {
                 mmInOffset[i] = 0;
                 mmOutOffset[i] = 0;
@@ -388,11 +447,14 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
                 tokenNum[i] = recvSumCntAfter[expertNumInGroup_ * rankDim_ * e + (i + 1) * rankDim_ - 1] -
                               recvSumCntAfter[expertNumInGroup_ * rankDim_ * e + i * rankDim_ - 1];
             }
+            printf("[PRINT][HcclAlltoAllvExec] mmInOffset[%d]: %d\n", i, mmInOffset[i]);
+            printf("[PRINT][HcclAlltoAllvExec] mmOutOffset[%d]: %d\n", i, mmOutOffset[i]);
+            printf("[PRINT][HcclAlltoAllvExec] tokenNum[%d]: %d\n", i, tokenNum[i]);
         }
         
         if ASCEND_IS_AIC {
             if (tokenNum[0] != 0) {
-                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, expertNumInGroup_, e * expertNumInGroup_);
+                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, calNum, e * expertNumInGroup_);
             }
         }
     }
