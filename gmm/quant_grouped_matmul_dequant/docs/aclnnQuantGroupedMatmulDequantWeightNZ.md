@@ -95,6 +95,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequantWeightNZ(
   aclrtStream    stream)
 ```
 
+
 ## aclnnQuantGroupedMatmulDequantWeightNZGetWorkspaceSize
 
 - **参数说明**
@@ -332,6 +333,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequantWeightNZ(
     </tr>
   </tbody>
   </table>
+
 
 - **返回值**
 

@@ -57,8 +57,6 @@ public:
     {
     }
 
-    static constexpr bool transA = BlockMmad::transA;
-    static constexpr bool transB = BlockMmad::transB;
     // schedulerOp
     using BlockSchedulerOp = typename Block::BlockSchedulerSelector<ProblemShape, typename BlockMmad::L1TileShape,
                                                                     typename BlockMmad::L0TileShape, BlockScheduler,
@@ -72,6 +70,8 @@ public:
     using CType = typename BlockMmad::CType;
     using BiasType = typename BlockMmad::BiasType;
     using LayoutB = typename BlockMmad::LayoutB;
+    static constexpr bool transA = BlockMmad::transA;
+    static constexpr bool transB = BlockMmad::transB;
     static constexpr CubeFormat formatB = TagToFormat<LayoutB>::format;
 
     using TupleShape = AscendC::Shape<int64_t, int64_t, int64_t>;

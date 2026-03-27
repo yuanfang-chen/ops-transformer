@@ -252,15 +252,28 @@ namespace {
 #define GMM_CV_SPLIT_IMP_A8W4_MSD(computeClass, cfg)                                                               \
     do {                                                                                                           \
         GET_TILING_DATA_MEMBER(GMMTilingData, gmmBaseParams, gmmBaseParams_, tiling);                              \
-        if ASCEND_IS_AIV {                                                                                         \
-            GMMA8W4PreProcess op1;                                                                                 \
-            op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                              \
-            op1.Process();                                                                                         \
+        if ASCEND_IS_AIV {
+            //begin
+            if gmmBaseParams_.isA8W4MSDPreNZ == 1:
+                GMMA8W4PreProcess op1;                                                                                     
+                op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                                                             
+                op1.Process();                                        
+            else:
+                GMMA8W4PreProcessNZ op1;
+                op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                                                             
+                op1.Process();                                                                                         
             tPipe.Reset();                                                                                         \
             tPipe.Destroy();                                                                                       \
-            tPipe.Init();                                                                                          \
+            tPipe.Init(); 
+            //end                                                                                         \
         }                                                                                                          \
-        using aT = MatmulType<TPosition::GM, CubeFormat::ND, DTYPE_X_DEV_A8W4MSD, false>;                          \
+        //using aT = MatmulType<TPosition::GM, CubeFormat::ND, DTYPE_X_DEV_A8W4MSD, false>;
+        //begin
+        if gmmBaseParams_.isA8W4MSDPreNZ == 1:
+            MatmulType<TPosition::GM, CubeFormat::NZ, DTYPE_X_DEV_A8W4MSD, false>;
+        else:
+            MatmulType<TPosition::GM, CubeFormat::ND, DTYPE_X_DEV_A8W4MSD, false>;
+        //end                 
         using bT = MatmulType<TPosition::GM, wFormat, DTYPE_WEIGHT_DEV_A8W4MSD, false>;                            \
         using biasT = MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;                                   \
         using cT = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;                                         \

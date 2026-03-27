@@ -219,7 +219,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(
     uint64_t            *workspaceSize, 
     aclOpExecutor       **executor)
 ```
-
 ```Cpp
 aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
     void          *workspace, 
@@ -358,35 +357,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
         <td>-</td>
       </tr>
       <tr>
-        <td>dequantDtype</td>
-        <td rowspan="1">输入</td>
-        <td>表示中间GroupedMatmul的结果数据类型。</td>
-        <td><ul>
-          <li>暂不支持，默认行为28。</li>
-          <li>0表示FLOAT。</li>
-          <li>1表示FLOAT16。</li>
-          <li>27表示BFLOAT16。</li>
-          <li>28表示UNDEFINED。</li>
-        </ul></td>
-        <td>INT64</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>quantMode</td>
-        <td rowspan="1">输入</td>
-        <td>表示量化计算类型，用于确定swiglu结果的量化模式。</td>
-        <td><ul>
-          <li>暂不支持，默认行为0。</li>
-          <li>0表示per-token。</li>
-        </td>
-        <td>INT64</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
         <td>groupListType</td>
         <td rowspan="1">输入</td>
         <td>表示分组的解释方式，用于确定groupList的语义。</td>
@@ -457,6 +427,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
       - x和weight不支持空Tensor。
       - weight NZ转置输入时，仅支持单Tensor模式
       - weight、weightScale和weightAssistMatrix支持单Tensor场景（tensorlist长度为1）和多Tensor场景（tensorlist长度大于1）。
+
 
 - **返回值**
   
@@ -686,11 +657,8 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
       - 多tensor场景下，即tensorlist长度大于1时，weight、weightScale和weightAssistMatrix的shape需要按照E的维度展平，例如{(E, K, N)}需要变成{E个(K, N)}。
 
 ## 调用示例
-
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
-
   - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-
     ```cpp
     #include <iostream>
     #include <vector>

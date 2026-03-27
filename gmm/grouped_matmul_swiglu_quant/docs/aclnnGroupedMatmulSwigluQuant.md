@@ -147,6 +147,7 @@
         $Q_{i} = \left\lfloor \frac{S_{i}}{Q\_scale_{i}} \right\rceil$
     </details>
 
+
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulSwigluQuantGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGroupedMatmulSwigluQuant”接口执行计算。
@@ -166,7 +167,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantGetWorkspaceSize(
   uint64_t        *workspaceSize, 
   aclOpExecutor  **executor)
 ```
-
 ```Cpp
 aclnnStatus aclnnGroupedMatmulSwigluQuant(
   void          *workspace, 
@@ -394,6 +394,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuant(
     </tr>
   </tbody>
   </table>
+
 
 ## aclnnGroupedMatmulSwigluQuant
 

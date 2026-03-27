@@ -31,12 +31,6 @@ void GroupedMatmulSwigluQuantV2Tiling950::Reset()
     return;
 }
 
-ge::graphStatus GroupedMatmulSwigluQuantV2Tiling950::GetShapeAttrsInfo()
-{
-    inputParams_.Reset();
-    return GroupedQmmTiling::GetShapeAttrsInfo();
-}
-
 bool GroupedMatmulSwigluQuantV2Tiling950::AnalyzeAttrsPertoken()
 {
     auto attrs = context_->GetAttrs();

@@ -36,12 +36,6 @@ void GroupedMatmulFinalizeRoutingQuantTiling::Reset()
     return;
 }
 
-ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::GetShapeAttrsInfo()
-{
-    inputParams_.Reset();
-    return GroupedQmmTiling::GetShapeAttrsInfo();
-}
-
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalAttr()
 {
     auto *attrs = context_->GetAttrs();

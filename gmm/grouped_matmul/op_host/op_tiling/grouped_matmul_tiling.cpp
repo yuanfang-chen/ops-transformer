@@ -2115,8 +2115,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
       bool isQuant = xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
                      (ge::GetSizeByDataType(xDType) == 1 && ge::GetSizeByDataType(weightDtype) == 1);
       if (isQuant) {
-          std::vector<int32_t> registerList = {0, 1};
-          return TilingRegistry::GetInstance().DoTilingImpl(context, registerList);
+          return TilingRegistry::GetInstance().DoTilingImpl(context);
       } else if (xDType != weightDtype) {
           GroupedWeightQuantBatchMatmulTiling groupedWeightQuantTiling;
           OP_CHECK_IF(!groupedWeightQuantTiling.SetTiling(context),
