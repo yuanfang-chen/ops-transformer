@@ -33,6 +33,44 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
+struct DtypeRule {
+    const char *name;
+    const aclTensor *tensor;
+    std::initializer_list<op::DataType> supportedTypes;
+    std::initializer_list<op::Format> supportedFormat;
+};
+
+static const std::vector<DtypeRule> kTensorRulesTemplate = {
+    {"expandX", nullptr, {op::DataType::DT_FLOAT16, op::DataType::DT_BF16}, {op::Format::FORMAT_ND}},
+    {"quantExpandX", nullptr, {op::DataType::DT_INT8}, {op::Format::FORMAT_ND}},
+    {"expertIds", nullptr, {op::DataType::DT_INT32}, {op::Format::FORMAT_ND}},
+    {"expandIdx", nullptr, {op::DataType::DT_INT32}, {op::Format::FORMAT_ND}},
+    {"expertScales", nullptr, {op::DataType::DT_FLOAT}, {op::Format::FORMAT_ND}},
+    {"commCmdInfo", nullptr, {op::DataType::DT_INT32}, {op::Format::FORMAT_ND}},
+    {"xActiveMaskOptional", nullptr, {op::DataType::DT_BOOL}, {op::Format::FORMAT_ND}},
+    {"sharedExpertXOptional", nullptr, {op::DataType::DT_FLOAT16, op::DataType::DT_BF16}, {op::Format::FORMAT_ND}},
+    {"xOut", nullptr, {op::DataType::DT_FLOAT16, op::DataType::DT_BF16}, {op::Format::FORMAT_ND}}
+};
+
+static std::vector<DtypeRule> BindTensors(const aclTensor* expandX, const aclTensor* quantExpandX,
+                                          const aclTensor* expertIds, const aclTensor* expandIdx,
+                                          const aclTensor* expertScales, const aclTensor* commCmdInfo,
+                                          const aclTensor* xActiveMaskOptional, const aclTensor* sharedExpertXOptional,
+                                          aclTensor* xOut)
+{
+    std::vector<DtypeRule> rules = kTensorRulesTemplate;
+    rules[0].tensor = expandX;
+    rules[1].tensor = quantExpandX;
+    rules[2].tensor = expertIds;
+    rules[3].tensor = expandIdx;
+    rules[4].tensor = expertScales;
+    rules[5].tensor = commCmdInfo;
+    rules[6].tensor = xActiveMaskOptional;
+    rules[7].tensor = sharedExpertXOptional;
+    rules[8].tensor = xOut;
+    return rules;
+}
+
 static bool CheckNotNull(const aclTensor *expandX, const aclTensor *quantExpandX, const aclTensor *expertIds,
                          const aclTensor *expandIdx, const aclTensor *expertScales, const aclTensor *commCmdInfo,
                          const aclTensor *xActiveMaskOptional, const aclTensor *sharedExpertXOptional,
@@ -54,6 +92,42 @@ static bool CheckNotNull(const aclTensor *expandX, const aclTensor *quantExpandX
     return true;
 }
 
+static bool CheckInputDataType(const aclTensor* expandX, const aclTensor* quantExpandX, const aclTensor* expertIds,
+                               const aclTensor* expandIdx, const aclTensor* expertScales, const aclTensor* commCmdInfo,
+                               const aclTensor* xActiveMaskOptional, const aclTensor* sharedExpertXOptional, aclTensor* xOut)
+{
+    auto rules = BindTensors(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo,
+                             xActiveMaskOptional, sharedExpertXOptional, xOut);
+
+    for (const auto &rule : rules) {
+        if (!rule.tensor) continue;
+        if (!CheckType(rule.tensor->GetDataType(), rule.supportedTypes)) {
+            OP_LOGD("Tensor %s has unsupported data type!", rule.name);
+            return false;
+        }
+    }
+    return true;
+}
+
+// 校验数据格式
+static bool CheckInputDataFormat(const aclTensor* expandX, const aclTensor* quantExpandX, const aclTensor* expertIds,
+                                 const aclTensor* expandIdx, const aclTensor* expertScales, const aclTensor* commCmdInfo,
+                                 const aclTensor* xActiveMaskOptional, const aclTensor* sharedExpertXOptional, aclTensor* xOut)
+{
+    auto rules = BindTensors(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo,
+                             xActiveMaskOptional, sharedExpertXOptional, xOut);
+
+    for (const auto &rule : rules) {
+        if (!rule.tensor) continue;
+        if (!CheckType(rule.tensor->GetFormat(), rule.supportedFormat)) {
+            OP_LOGD("Tensor %s has unsupported data format!", rule.name);
+            return false;
+        }
+    }
+    return true;
+}
+
+// 根据API定义，列举
 static aclnnStatus CheckParams(const aclTensor *expandX, const aclTensor *quantExpandX, const aclTensor *expertIds,
                                const aclTensor *expandIdx, const aclTensor *expertScales, const aclTensor *commCmdInfo,
                                const aclTensor *xActiveMaskOptional, const aclTensor *sharedExpertXOptional,
@@ -64,8 +138,11 @@ static aclnnStatus CheckParams(const aclTensor *expandX, const aclTensor *quantE
 {
     OP_LOGD("aclnn_moe_distribute_combine_teardown checkparams start");
     CHECK_RET(CheckNotNull(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo, xActiveMaskOptional,
-                           sharedExpertXOptional, groupEp, xOut),
-              ACLNN_ERR_PARAM_NULLPTR);
+                           sharedExpertXOptional, groupEp, xOut),ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(CheckInputDataType(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo, xActiveMaskOptional,
+                                    sharedExpertXOptional, xOut), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckInputDataFormat(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo, xActiveMaskOptional,
+                                    sharedExpertXOptional, xOut), ACLNN_ERR_PARAM_INVALID);
     if (strnlen(groupEp, HCCL_GROUP_NAME_MAX) >= HCCL_GROUP_NAME_MAX) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Required groupEp name exceeds %zu.", HCCL_GROUP_NAME_MAX);
         return ACLNN_ERR_PARAM_INVALID;
