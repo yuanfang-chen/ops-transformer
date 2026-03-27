@@ -149,7 +149,6 @@ private:
     uint32_t moeExpertNum_{0};
     uint32_t moeExpertRankNum_{0}; // moe专家卡数，等于epWorldSize_ - sharedExpertRankNum_
     uint32_t moeExpertNumPerRank_{0};
-    uint32_t dealRankPerCore_{0};
     uint32_t hOutSize_{0};
     uint32_t hAlignWinSize_{0};
     uint32_t hAlignWinCnt_{0};
@@ -236,7 +235,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     expertIdsCnt_ = axisBS_ * axisK_;
     recvWinBlockNum_ = epWorldSize_ * moeExpertNumPerRank_;
     moeUsedAivNum_ = aivNum_ - sharedUsedAivNum_;
-    dealRankPerCore_ = (recvWinBlockNum_ + aivNum_ - 1) / aivNum_;
     stateOffset_ = ((recvWinBlockNum_ > 512) ? (STATE_OFFSET / 2) : STATE_OFFSET);
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
     dataState_ = selfDataStatusTensor(0);
@@ -246,6 +244,7 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
         selfDataStatusTensor(0) = 0;
     }
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
+    // 接收状态数
     if constexpr (IsShareExpertRank) {
         rscvStatusNum_ = epWorldSize_;
     } else {
@@ -253,7 +252,7 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     }
     recStatusNumPerCore_ = rscvStatusNum_ / aivNum_; // 每个aiv需要处理的专家数
     remainderRankNum_ = rscvStatusNum_ % aivNum_;
-    startStatusIndex_ = recStatusNumPerCore_ * aivId_; // + sharedExpertRankNum_, 每个aiv发送的
+    startStatusIndex_ = recStatusNumPerCore_ * aivId_;
     if (aivId_ < remainderRankNum_) {                  // 前remainderRankNum个aiv需要多发1个卡的数据
         recStatusNumPerCore_ += 1;
         startStatusIndex_ += aivId_;
@@ -261,7 +260,7 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
         startStatusIndex_ += remainderRankNum_;
     }
     uint32_t waitStatusBufSize = (((recStatusNumPerCore_ * UB_ALIGN) > 256) ? (recStatusNumPerCore_ * UB_ALIGN) : 256);
-    tpipe_->InitBuffer(waitStatusBuf_, waitStatusBufSize);      // 1024/24 * 32B = 43 * 32B
+    tpipe_->InitBuffer(waitStatusBuf_, waitStatusBufSize);
     uint32_t statusBufCntAlign = Ceil(recvWinBlockNum_, 8) * 8; // 8 = UB_ALIGN / sizeof(int32_t)
     tpipe_->InitBuffer(statusBuf_, statusBufCntAlign * UB_ALIGN);
     statusTensor_ = statusBuf_.Get<int32_t>(); // 保存发送数据量及flag，同时用于计算windows中的偏移

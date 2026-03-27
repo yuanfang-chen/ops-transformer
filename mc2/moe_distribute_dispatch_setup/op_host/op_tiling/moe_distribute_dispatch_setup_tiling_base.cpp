@@ -76,15 +76,15 @@ constexpr uint32_t TILINGKEY_SCALES = 10U;
 constexpr int64_t MOE_EXPERT_MAX_NUM = 512U;
 constexpr int64_t MB_SIZE = 1024UL * 1024UL;
 constexpr int64_t WIN_ADDR_ALIGN = 512UL;
-constexpr int64_t SCALE_EXPAND_IDX_BUFFER = 44UL;
-constexpr int64_t DOUBLE_DATA_BUFFER = 2UL;
-constexpr int64_t MAX_OUT_DTYPE_SIZE = 2UL;
 constexpr int64_t EVEN_ALIGN = 2;
 constexpr int64_t UB_ALIGN = 32UL;
 constexpr int64_t ALIGN_32 = 32UL;
 constexpr int64_t ALIGN_128 = 128UL;
 constexpr int64_t ALIGN_256 = 256UL;
 constexpr int64_t ALIGN_512 = 512UL;
+constexpr int64_t SCALE_EXPAND_IDX_BUFFER = 44UL;
+constexpr int64_t DOUBLE_DATA_BUFFER = 2UL;
+constexpr int64_t MAX_OUT_DTYPE_SIZE = 2UL;
 constexpr int64_t AICPUNUM = 4UL;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
 constexpr uint32_t SDMA_NEED_WORKSPACE = 16U * 1024 * 1024;
@@ -160,9 +160,9 @@ ge::graphStatus MoeDistributeDispatchSetupTilingBase::GetRequiredAttrAndSetTilin
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName_, "attrs is null."), return ge::GRAPH_FAILED);
 
     auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
 
     // 判空
     OP_TILING_CHECK(groupEpPtr == nullptr, OP_LOGE(nodeName_, "groupEp is null."), return ge::GRAPH_FAILED);
