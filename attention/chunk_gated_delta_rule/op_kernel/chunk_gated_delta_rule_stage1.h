@@ -79,27 +79,27 @@ public:
 
         uint64_t workSpaceOffset = 0;
         gBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                  coreIdx_ * paraNum_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                  coreIdx_ * paraNum_ * ckOffset_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dk_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * ckOffset_ * sizeof(float);
         kkWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                 coreIdx_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                 coreIdx_ * paraNum_ * ccOffset_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * ccOffset_ * sizeof(float);
         vBetaWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                    coreIdx_ * paraNum_ * chunkSize_ * dv_ * sizeof(float)));
+                                                                    coreIdx_ * paraNum_ * cvOffset_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dv_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * cvOffset_ * sizeof(float);
         attnWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                   coreIdx_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float)));
+                                                                   coreIdx_ * paraNum_ * ccOffset_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * chunkSize_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * ccOffset_ * sizeof(float);
         queryContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                          coreIdx_* paraNum_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                          coreIdx_* paraNum_ * ckOffset_ * sizeof(float)));
 
-        workSpaceOffset += coreNum_ * paraNum_ * chunkSize_ * dk_ * sizeof(float);
+        workSpaceOffset += coreNum_ * paraNum_ * ckOffset_ * sizeof(float);
         keyContinousGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset +
-                                                                         coreIdx_* paraNum_ * chunkSize_ * dk_ * sizeof(float)));
+                                                                         coreIdx_* paraNum_ * ckOffset_ * sizeof(float)));
     }
 
     __aicore__ inline void InitLocalBuffers()
@@ -455,12 +455,12 @@ private:
         Broadcast<float, BROADCAST_AXIS, 0>(gTransBroadUbFloat_, gCumExpUbFloat, divShape, gTransShape);
         PipeBarrier<PIPE_V>();
         // div
-        Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat_, chunkSize_ * chunkSize_);
+        Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat_, ccOffset_);
         PipeBarrier<PIPE_V>();
         // mask
-        DataCopyInFp32(chunkSize_ * chunkSize_, stageOneMask_[GetBlockIdx() * chunkSize_ * chunkSize_]);
+        DataCopyInFp32(ccOffset_, stageOneMask_[GetBlockIdx() * ccOffset_]);
         kkLocal_ = fp32InQueue_.DeQue<float>();
-        Mul(gammaUbFloat, gammaUbFloat, kkLocal_, chunkSize_ * chunkSize_);
+        Mul(gammaUbFloat, gammaUbFloat, kkLocal_, ccOffset_);
         fp32InQueue_.FreeTensor(kkLocal_);
         PipeBarrier<PIPE_V>();
     }
