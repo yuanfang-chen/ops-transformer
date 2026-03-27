@@ -33,7 +33,7 @@ using GMMQuantParams = GroupedMatmulTilingData::GMMQuantParams;
 namespace {
 static optiling::GroupedQuantMatmulInfoFactory g_groupedQuantMatmulInfoFactory;
 
-bool CheckGroupListType(const GQmmInputInfo &inputParams)
+bool CheckGroupListType(const optiling::GQmmInputInfo &inputParams)
 {
     OP_CHECK_IF(
         inputParams.groupListType != GROUPLIST_TYPE_CUMSUM && inputParams.groupListType != GROUPLIST_TYPE_COUNT &&
