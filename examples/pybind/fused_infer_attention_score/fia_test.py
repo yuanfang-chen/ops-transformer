@@ -110,10 +110,12 @@ def load_bf16_bin(file_path):
 
     return bf16_tensor
 
-def verify_result(golden):
-    output = load_bf16_bin("./output/npu_out.bin")
+def verify_result(golden, output):
+    # output = load_bf16_bin("./output/npu_out.bin")
     # golden = load_bf16_bin("./output/golden_out.bin")
-    golden = golden.view(torch.uint16).to(torch.bfloat16).flatten()
+    golden = golden.view(torch.uint16).to(torch.bfloat16).flatten().cpu()
+    aa = output
+    output = output.view(torch.uint16).to(torch.bfloat16).flatten().cpu()
     print("output:")
     print(output)
     print("golden:")
@@ -128,7 +130,6 @@ def verify_result(golden):
 
     output_nan = np.isnan(output)
     golden_nan = np.isnan(golden)
-
     both_nan = output_nan & golden_nan
     nan_mismatch = output_nan ^ golden_nan
 
@@ -178,10 +179,13 @@ def verify_result(golden):
 class TestFia(TestCase):
     def test_fia(self):
         fia_input, golden = gen_golden_data_simple(1, 1, 1, 8192, 8192, 128)
-        ascendc_ops.ascendc_fia(1, 1, 1, 8192, 8192, 128)
+        output = ascendc_ops.ascendc_fia(fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
+            fia_input.dequant_scale_key, fia_input.dequant_scale_value, fia_input.dequant_scale_query)
+
+        import pdb;pdb.set_trace()
 
         try:
-            res = verify_result(golden)
+            res = verify_result(golden, output)
             if not res:
                 raise ValueError("[ERROR] result error")
             print("test pass")

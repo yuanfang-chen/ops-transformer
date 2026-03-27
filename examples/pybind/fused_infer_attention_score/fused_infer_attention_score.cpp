@@ -46,14 +46,14 @@ __global__ __aicore__ void FiaKernelFullQuant(
 }
 
 namespace ascendc_ops {
-optiling::TilingContext InitContext() {
+optiling::TilingContext InitContext(std::vector<int64_t> shapeQueryTensor, std::vector<int64_t> shapeKeyTensor, std::vector<int64_t> shapeValueTensor) {
     optiling::TilingContext context;
     context.SetInputDesc(optiling::QUERY_INDEX, optiling::DT_FLOAT16);
     // 使用便捷方法
-    context.SetInputShapeFromVector(optiling::QUERY_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
-    context.SetInputShapeFromVector(optiling::KEY_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
-    context.SetInputShapeFromVector(optiling::VALUE_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
-    context.SetInputShapeFromVector(optiling::ATTENTION_OUT_INDEX, {1, 1, 64, 512}, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::QUERY_INDEX, shapeQueryTensor, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::KEY_INDEX, shapeKeyTensor, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::VALUE_INDEX, shapeValueTensor, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::ATTENTION_OUT_INDEX, shapeQueryTensor, optiling::DT_FLOAT16);
     auto& attrs = context.GetAttrs();
     attrs.SetAttr(ATTR_N_INDEX, (uint32_t)1);
     attrs.SetAttr(ATTR_SCALE_INDEX, 3.14f);
@@ -72,20 +72,41 @@ optiling::TilingContext InitContext() {
     return context;
 }
 
-int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uint64_t seqLengthsQ, uint64_t seqLengthsKV, int32_t headDim = 128)
+static std::vector<int64_t> getTensorShape(const at::Tensor &tensor)
+{
+    std::vector<int64_t> shape;
+    try {
+        shape = std::vector<int64_t>(tensor.sizes().begin(), tensor.sizes().end());
+    } catch (const std::exception &e) {
+        std::cerr << "Error getting tensor shpae: " << e.what() << std::endl;
+        shape = {0};
+    }
+    return shape;
+}
+
+at::Tensor ascendc_fia(const at::Tensor& queryTensor, const at::Tensor& keyTensor, const at::Tensor& valueTensor,
+    const at::Tensor& keyAntiquantScaleTensor, const at::Tensor& valueAntiquantScaleTensor, const at::Tensor& queryQuantScaleTensor)
 {
     std::cerr << "Start fused_infer_attention_score demo." << std::endl;
+    std::vector<int64_t> shapeQueryTensor = getTensorShape(queryTensor);
+    std::vector<int64_t> shapeKeyTensor = getTensorShape(keyTensor);
+    std::vector<int64_t> shapeValueTensor = getTensorShape(valueTensor);
+    std::vector<int64_t> shapeKeyAntiquantScale = getTensorShape(keyAntiquantScaleTensor);
+    std::vector<int64_t> shapeValueAntiquantScale = getTensorShape(valueAntiquantScaleTensor);
+    std::vector<int64_t> shapeQueryQuantScaler = getTensorShape(queryQuantScaleTensor);
+    std::cerr << "dtype: " << queryTensor.dtype() << " shape: " << shapeQueryTensor << std::endl;
+    at::Tensor outputTensor = at::empty({shapeQueryTensor[0], shapeQueryTensor[1], shapeQueryTensor[2], shapeQueryTensor[3] * 2}, at::dtype(queryTensor.dtype()).device(queryTensor.device()).layout(queryTensor.layout()));
     // -------------------------------------------------------------------------
     // 1. Set the problem shape.
     // -------------------------------------------------------------------------
-    // uint32_t batchSize = 1;
-    // uint32_t numHeadsQ = 1;
-    // uint32_t numHeadsKV = 1;
-    // uint64_t seqLengthsQ = 8192;
-    // uint64_t seqLengthsKV = 8192;
-    // uint32_t headDim = 128;
+    uint32_t batchSize = shapeQueryTensor[0];
+    uint32_t numHeadsQ = shapeQueryTensor[1];
+    uint32_t numHeadsKV = shapeKeyTensor[1];
+    uint64_t seqLengthsQ = shapeQueryTensor[2];
+    uint64_t seqLengthsKV = shapeKeyTensor[2];
+    uint32_t headDim = shapeQueryTensor[3];
     // 拦截
-    optiling::TilingContext context = InitContext();
+    optiling::TilingContext context = InitContext(shapeQueryTensor, shapeKeyTensor, shapeValueTensor);
     optiling::DoOpTilingFusedInferAttentionScore(&context);
 
     // -------------------------------------------------------------------------
@@ -111,12 +132,6 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // Host buffers hold the packed input tensors loaded from disk and receive
     // the output tensor copied back from device memory.
     // -------------------------------------------------------------------------
-    uint8_t* queryHost = nullptr;
-    uint8_t* keyHost = nullptr;
-    uint8_t* valueHost = nullptr;
-    uint8_t* keyAntiquantScaleHost = nullptr;
-    uint8_t* valueAntiquantScaleHost = nullptr;
-    uint8_t* dequantScaleQueryHost = nullptr;
     uint8_t* outputHost = nullptr;
 
     // -------------------------------------------------------------------------
@@ -126,12 +141,6 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // `GM_ADDR` is the generic "global memory address" type used by the kernel
     // launch interface in Ascend C samples.
     // -------------------------------------------------------------------------
-    GM_ADDR queryDevice = nullptr;
-    GM_ADDR keyDevice = nullptr;
-    GM_ADDR valueDevice = nullptr;
-    GM_ADDR keyAntiquantScaleDevice = nullptr;
-    GM_ADDR valueAntiquantScaleDevice = nullptr;
-    GM_ADDR dequantScaleQueryDevice = nullptr;
     GM_ADDR outputDevice = nullptr;
     GM_ADDR workspace = nullptr;
     GM_ADDR tilingDataDevice = nullptr;
@@ -151,12 +160,6 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     //
     // keyAntiquantScale and valueAntiquantScale:
     //   float32 input tensor shape [batchSize, numHeadsKV, seqLengthsKV / 256, 1].
-    size_t querySize = (batchSize * numHeadsQ * seqLengthsQ * headDim) * sizeof(uint8_t);
-    size_t keySize = (batchSize * numHeadsKV * seqLengthsKV * headDim) * sizeof(uint8_t);
-    size_t valueSize = (batchSize * numHeadsKV * seqLengthsKV * headDim) * sizeof(uint8_t);
-    size_t queryQuantScaleSize = (batchSize * numHeadsQ * (seqLengthsQ / 128) * 1) * sizeof(float);
-    size_t keyAntiquantScaleSize = (batchSize * numHeadsKV * (seqLengthsKV / 256) * 1) * sizeof(float);
-    size_t valueAntiquantScaleSize = (batchSize * numHeadsKV * (seqLengthsKV / 256) * 1) * sizeof(float);
     size_t outputSize = (batchSize * numHeadsQ * seqLengthsQ * headDim) * sizeof(uint16_t);
     size_t workspaceSize = 200 * 2048 * 1024 * sizeof(uint8_t);
     size_t tilingDataSize = sizeof(optiling::FlashAttentionScoreSimplifiedTilingData);
@@ -177,7 +180,6 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     if (ascendcPlatform->GetCoreNumAic() == 32) {
         std::cerr << "CoreNum is 32." << std::endl;
         SetTilingData(tilingData, context);
-        printf("after SetTilingData\n");
     } else if (ascendcPlatform->GetCoreNumAic() == 28) {
         SetTilingDataLess(tilingData);
         std::cerr << "CoreNum is 28." << std::endl;
@@ -191,48 +193,13 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // Pinned buffers are used because they are the typical choice for explicit
     // async H2D / D2H copies in standalone performance samples.
     // -------------------------------------------------------------------------
-    CHECK_COND(aclrtMallocHost((void**)&queryHost, querySize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostQ(queryHost, aclrtFreeHost);
-    CHECK_COND(aclrtMallocHost((void**)&keyHost, keySize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostK(keyHost, aclrtFreeHost);
-    CHECK_COND(aclrtMallocHost((void**)&valueHost, valueSize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostV(valueHost, aclrtFreeHost);
-    CHECK_COND(aclrtMallocHost((void**)&keyAntiquantScaleHost, keyAntiquantScaleSize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostKScale(keyAntiquantScaleHost, aclrtFreeHost);
-    CHECK_COND(aclrtMallocHost((void**)&valueAntiquantScaleHost, valueAntiquantScaleSize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostVScale(valueAntiquantScaleHost, aclrtFreeHost);
-    CHECK_COND(aclrtMallocHost((void**)&dequantScaleQueryHost, queryQuantScaleSize) == ACL_SUCCESS, "aclrtMallocHost failed.");
-    std::unique_ptr<void, aclError (*)(void*)> HostQScale(dequantScaleQueryHost, aclrtFreeHost);
     CHECK_COND(aclrtMallocHost((void**)&outputHost, outputSize) == ACL_SUCCESS, "aclrtMallocHost failed.");
     std::unique_ptr<void, aclError (*)(void*)> HostO(outputHost, aclrtFreeHost);
 
-    // Load pre-generated test tensors from disk.
-    //
-    // The sample keeps input generation out of the main executable so that
-    // compute code stays easy to follow and data can be reproduced offline.
-    ReadFile("./input/input_0.bin", querySize, queryHost, querySize);
-    ReadFile("./input/input_1.bin", keySize, keyHost, keySize);
-    ReadFile("./input/input_2.bin", valueSize, valueHost, valueSize);
-    ReadFile("./input/input_15.bin", keyAntiquantScaleSize, keyAntiquantScaleHost, keyAntiquantScaleSize);
-    ReadFile("./input/input_17.bin", valueAntiquantScaleSize, valueAntiquantScaleHost, valueAntiquantScaleSize);
-    ReadFile("./input/input_27.bin", queryQuantScaleSize, dequantScaleQueryHost, queryQuantScaleSize);
 
     // -------------------------------------------------------------------------
     // 6. Allocate global memory on device.
     // -------------------------------------------------------------------------
-    CHECK_COND(aclrtMalloc((void**)&queryDevice, querySize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceQ(queryDevice, aclrtFree);
-    CHECK_COND(aclrtMalloc((void**)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceK(keyDevice, aclrtFree);
-    CHECK_COND(aclrtMalloc((void**)&valueDevice, valueSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceV(valueDevice, aclrtFree);
-    CHECK_COND(aclrtMalloc((void**)&keyAntiquantScaleDevice, keyAntiquantScaleSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceKScale(keyAntiquantScaleDevice, aclrtFree);
-    CHECK_COND(aclrtMalloc((void**)&valueAntiquantScaleDevice, valueAntiquantScaleSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceVScale(valueAntiquantScaleDevice, aclrtFree);
-    CHECK_COND(aclrtMalloc((void**)&dequantScaleQueryDevice, queryQuantScaleSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
-    std::unique_ptr<void, aclError (*)(void*)> DeviceQScale(dequantScaleQueryDevice, aclrtFree);
-
     CHECK_COND(aclrtMalloc((void**)&outputDevice, outputSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
     std::unique_ptr<void, aclError (*)(void*)> DeviceO(outputDevice, aclrtFree);
     CHECK_COND(aclrtMalloc((void**)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS, "aclrtMalloc failed.");
@@ -246,24 +213,7 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     // These copies are queued on the same stream that will later launch the
     // kernel, which preserves execution order without extra synchronization.
     // -------------------------------------------------------------------------
-    CHECK_COND(
-        aclrtMemcpyAsync(queryDevice, querySize, queryHost, querySize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
-    CHECK_COND(
-        aclrtMemcpyAsync(keyDevice, keySize, keyHost, keySize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
-    CHECK_COND(
-        aclrtMemcpyAsync(valueDevice, valueSize, valueHost, valueSize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
-    CHECK_COND(
-        aclrtMemcpyAsync(keyAntiquantScaleDevice, keyAntiquantScaleSize, keyAntiquantScaleHost, keyAntiquantScaleSize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
-    CHECK_COND(
-        aclrtMemcpyAsync(valueAntiquantScaleDevice, valueAntiquantScaleSize, valueAntiquantScaleHost, valueAntiquantScaleSize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
-    CHECK_COND(
-        aclrtMemcpyAsync(dequantScaleQueryDevice, queryQuantScaleSize, dequantScaleQueryHost, queryQuantScaleSize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
-        "aclrtMemcpyAsync failed.");
+
     CHECK_COND(
         aclrtMemcpyAsync(tilingDataDevice, tilingDataSize, &tilingData, tilingDataSize, ACL_MEMCPY_HOST_TO_DEVICE, stream) == ACL_SUCCESS,
         "aclrtMemcpyAsync failed.");
@@ -282,9 +232,13 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     CalcTilingKey(tilingKey, context);
     if (tilingKey == 2000000012) {
         FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
-            queryDevice, keyDevice, valueDevice,
-            keyAntiquantScaleDevice, valueAntiquantScaleDevice, dequantScaleQueryDevice,
-            outputDevice,
+            (uint8_t*)(queryTensor.mutable_data_ptr()),
+            (uint8_t*)(keyTensor.mutable_data_ptr()),
+            (uint8_t*)(valueTensor.mutable_data_ptr()),
+            (uint8_t*)(keyAntiquantScaleTensor.mutable_data_ptr()),
+            (uint8_t*)(valueAntiquantScaleTensor.mutable_data_ptr()),
+            (uint8_t*)(queryQuantScaleTensor.mutable_data_ptr()),
+            (uint8_t*)(outputTensor.mutable_data_ptr()),
             workspace,
             tilingDataDevice
         );
@@ -306,7 +260,7 @@ int ascendc_fia(uint32_t batchSize, uint32_t numHeadsQ, uint32_t numHeadsKV, uin
     aclrtDestroyStream(stream);
     aclrtResetDevice(deviceId);
     // aclFinalize();
-    return 0;
+    return outputTensor;
 }
 } // namespace ascendc_ops
 

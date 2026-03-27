@@ -528,12 +528,14 @@ void SetTilingData(optiling::FlashAttentionScoreSimplifiedTilingData& tilingData
     tilingData.inputParamsRegbase.bSize = context.GetInputShape(QUERY_INDEX).GetStorageShape().tShape[0];
     tilingData.inputParamsRegbase.t1Size = 0;
     tilingData.inputParamsRegbase.t2Size = 0;
-    tilingData.inputParamsRegbase.n2Size = 1;
-    tilingData.inputParamsRegbase.gSize = 1;
-    tilingData.inputParamsRegbase.s1Size = 8192;
-    tilingData.inputParamsRegbase.s2Size = 8192;
+    tilingData.inputParamsRegbase.n2Size = context.GetInputShape(KEY_INDEX).GetStorageShape().tShape[1];
+    tilingData.inputParamsRegbase.gSize = context.GetInputShape(QUERY_INDEX).GetStorageShape().tShape[1];
+    tilingData.inputParamsRegbase.s1Size = context.GetInputShape(QUERY_INDEX).GetStorageShape().tShape[2];
+    tilingData.inputParamsRegbase.s2Size = context.GetInputShape(KEY_INDEX).GetStorageShape().tShape[2];
     tilingData.inputParamsRegbase.alignedS2 = 0;
-    tilingData.inputParamsRegbase.dSize = 128;
+    tilingData.inputParamsRegbase.dSize = context.GetInputShape(QUERY_INDEX).GetStorageShape().tShape[3];
+    printf("b: %d, n1: %d, s1: %d, n2: %d, s2: %d, d: %d\n", tilingData.inputParamsRegbase.bSize, tilingData.inputParamsRegbase.gSize, 
+        tilingData.inputParamsRegbase.s1Size, tilingData.inputParamsRegbase.n2Size, tilingData.inputParamsRegbase.s2Size, tilingData.inputParamsRegbase.dSize);
     tilingData.inputParamsRegbase.dSizeV = 128;
     tilingData.inputParamsRegbase.dSizeRope = 64;
     tilingData.inputParamsRegbase.keepProb = 0.000000;
