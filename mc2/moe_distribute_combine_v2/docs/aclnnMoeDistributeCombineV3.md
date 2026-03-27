@@ -816,9 +816,9 @@ aclnnStatus aclnnMoeDistributeCombineV3(
         int64_t H = 7168;
         int64_t K = 3;
         int64_t expertShardType = 0;
-        int64_t sharedExpertNum = 0;
-        int64_t sharedExpertRankNum = 0;
-        int64_t moeExpertNum = 8;
+        int64_t sharedExpertNum = 1;
+        int64_t sharedExpertRankNum = 1;
+        int64_t moeExpertNum = 7;
         int64_t quantMode = 0;
         int64_t globalBs = Bs * EP_WORLD_SIZE;
         int64_t expertTokenNumsType = 1;
@@ -985,8 +985,6 @@ aclnnStatus aclnnMoeDistributeCombineV3(
         ret = CreateAclTensor(sharedExpertXHostData, sharedExpertXShape, &sharedExpertXDeviceAddr, aclDataType::ACL_BF16, &sharedExpertX);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-        ret = CreateAclTensor(elasticInfoHostData, elasticInfoShape, &elasticInfoDeviceAddr, aclDataType::ACL_INT32, &elasticInfo);
-        CHECK_RET(ret == ACL_SUCCESS, return ret);
         ret = CreateAclTensor(oriXHostData, oriXShape, &oriXDeviceAddr, aclDataType::ACL_BF16, &oriX);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
         ret = CreateAclTensor(constExpertAlpha1HostData, constExpertAlpha1Shape, &constExpertAlpha1DeviceAddr, aclDataType::ACL_BF16, &constExpertAlpha1);
@@ -1030,7 +1028,7 @@ aclnnStatus aclnnMoeDistributeCombineV3(
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] warm up aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);  \
             return ret);
 
-        /**************************************** 调用dispatch ********************************************/        
+        /**************************************** 调用dispatch ********************************************/
         // 调用第一阶段接口
         ret = aclnnMoeDistributeDispatchV3GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
                 expertScales, elasticInfo, hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
