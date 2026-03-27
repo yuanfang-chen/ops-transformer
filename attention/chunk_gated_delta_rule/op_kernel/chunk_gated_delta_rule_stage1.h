@@ -503,7 +503,7 @@ private:
             Mul(attnUbFloat_, attnUbFloat_, gammaUbFloat[subOffset_ * chunkSize_], curVecLen);
         }
         else {
-            DataCopyInFp32(curVecLen, stageOneMask_[subOffset_ * chunkSize_]);
+            DataCopyInFp32(curVecLen, stageOneMask_[GetBlockIdx() * ccOffset_ + subOffset_ * chunkSize_]);
             kkLocal_ = fp32InQueue_.DeQue<float>();
             Mul(attnUbFloat_, attnUbFloat_, kkLocal_, curVecLen);
             fp32InQueue_.FreeTensor(kkLocal_);  
@@ -602,10 +602,10 @@ private:
             Mul(kgLocal_, kgLocal_, kUbFloatCon, halfChunkSize_ * dkAligned_);
             PipeBarrier<PIPE_V>();
             fp32OutQueue_.EnQue<float>(kgLocal_);
-            fp32InQueue_.FreeTensor(kUbFloatCon);
             uint64_t kgBeginOffset = subOffset_ * dk_;
             DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, outKgGm[kgBeginOffset]);  // stage1 out
         }
+        fp32InQueue_.FreeTensor(kUbFloatCon);
     }
 
     __aicore__ inline void VBetaCompute(const GlobalTensor<bfloat16_t> valueGm, const GlobalTensor<float> vBetaWsGm,
