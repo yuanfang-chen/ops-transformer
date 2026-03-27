@@ -161,7 +161,6 @@ function(gen_opapi_symbol)
     ops_aclnn
     -Wl,--no-whole-archive
     nnopbase
-    -Wl,-Bsymbolic
     profapi
     ge_common_base
     ascend_dump
