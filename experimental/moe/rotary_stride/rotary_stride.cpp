@@ -6,7 +6,7 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+ */
 
 #include <ATen/Operators.h>
 #include <torch/all.h>
@@ -18,11 +18,11 @@
 
 namespace npu_ops_transformer_ext {
     namespace RotaryStride {
-        #include <iostream>
-        #include <stdio.h>
-        #include "kernel_operator.h"
-        #include "tiling/platform/platform_ascendc.h"
-        #include "dtype_convert.h"
+    #include <iostream>
+    #include <stdio.h>
+    #include "kernel_operator.h"
+    #include "tiling/platform/platform_ascendc.h"
+    #include "dtype_convert.h"
 
         using namespace AscendC;
 
@@ -129,7 +129,8 @@ namespace npu_ops_transformer_ext {
 
         private:
             __aicore__ inline void CopyIn(int64_t task_index, int64_t offset_inout, int64_t offset_sincos,
-                int64_t bkn_offset, int64_t bkn_len) {
+                int64_t bkn_offset, int64_t bkn_len)
+                {
                 LocalTensor<T> local_in  = inQueIn_.AllocTensor<T>();
                 LocalTensor<T> local_sin = inQueSin_.AllocTensor<T>();
                 LocalTensor<T> local_cos = inQueCos_.AllocTensor<T>();
@@ -138,7 +139,7 @@ namespace npu_ops_transformer_ext {
                 copy_pas.blockCount  = (uint16_t)(bkn_len);
                 copy_pas.blockLen    = (uint32_t)(bkHalfD_ * sizeof(T));
                 copy_pas.srcStride   = (uint32_t)((stride_ - bkHalfD_) * sizeof(T));
-                copy_pas.dstStride   = (uint32_t)(2 * (bkAlignHalfD_*sizeof(T)/32) - 
+                copy_pas.dstStride   = (uint32_t)(2 * (bkAlignHalfD_*sizeof(T)/32) -
                 (AlignUp(bkHalfD_*sizeof(T), 32)/32));
                 DataCopyPadExtParams<T> pad_pas;
 
@@ -159,7 +160,8 @@ namespace npu_ops_transformer_ext {
             }
 
             __aicore__ inline void Compute(int64_t task_index, int64_t offset_inout, int64_t offset_sincos,
-                int64_t bkn_offset, int64_t bkn_len) {
+                int64_t bkn_offset, int64_t bkn_len)
+                {
                 LocalTensor<T> local_in  = inQueIn_.DeQue<T>();
                 LocalTensor<T> local_sin = inQueSin_.DeQue<T>();
                 LocalTensor<T> local_cos = inQueCos_.DeQue<T>();
@@ -214,7 +216,8 @@ namespace npu_ops_transformer_ext {
             }
 
             __aicore__ inline void CopyOut(int64_t task_index, int64_t offset_inout, int64_t offset_sincos,
-                int64_t bkn_offset, int64_t bkn_len) {
+                int64_t bkn_offset, int64_t bkn_len)
+                {
                 LocalTensor<T> local_out = outQueOut_.DeQue<T>();
 
                 DataCopyExtParams copy_pas;
@@ -277,7 +280,8 @@ namespace npu_ops_transformer_ext {
             return ((number / alignSize + 1) * alignSize);
         }
 
-        int judge_rotary_stride_launch(const int64_t gbB,  const int64_t gbD, const int64_t ubSize) {
+        int judge_rotary_stride_launch(const int64_t gbB,  const int64_t gbD, const int64_t ubSize)
+        {
             int64_t gbB_;
             int64_t gbD_;
             int64_t gbAlignB_;
@@ -302,7 +306,7 @@ namespace npu_ops_transformer_ext {
             bkMaxN_ = used_bytes / ((bkAlignHalfD_ * 2 * sizeof(uint16_t) * 2) +
             (bkAlignHalfD_ * 2 * sizeof(float) * 4));
 
-            if (bkMaxN_ < 1) { 
+            if (bkMaxN_ < 1) {
                 std::cout << __FUNCTION__ << ": bkMaxN = " << bkMaxN_ << std::endl;
                 return 1;
             }
@@ -340,19 +344,20 @@ namespace npu_ops_transformer_ext {
         }
 
         int64_t rotary_stride_npu(int64_t blockDim, torch::Tensor &in, torch::Tensor &sin, torch::Tensor &cos,
-            torch::Tensor &out, const int64_t hiddenDim) {
+            torch::Tensor &out, const int64_t hiddenDim)
+            {
             TORCH_CHECK(torch_npu::utils::is_npu(in), "input tensor must be on NPU device");
             TORCH_CHECK(torch_npu::utils::is_npu(sin), "sin tensor must be on NPU device");
             TORCH_CHECK(torch_npu::utils::is_npu(cos), "cosin tensor must be on NPU device");
             TORCH_CHECK(torch_npu::utils::is_npu(out), "output tensor must be on NPU device");
             TORCH_CHECK(in.scalar_type() == at::kBFloat16 || in.scalar_type() == at::kHalf,
-            "dtype of input tensor is invalid, only BF16 or FP16 is supported.");
+                "dtype of input tensor is invalid, only BF16 or FP16 is supported.");
             TORCH_CHECK(out.scalar_type() == at::kBFloat16 || out.scalar_type() == at::kHalf,
-            "dtype of output tensor is invalid, only BF16 or FP16 is supported.");
+                "dtype of output tensor is invalid, only BF16 or FP16 is supported.");
             TORCH_CHECK(sin.scalar_type() == at::kBFloat16 || sin.scalar_type() == at::kHalf,
-            "dtype of sin tensor is invalid, only BF16 or FP16 is supported.");
+                "dtype of sin tensor is invalid, only BF16 or FP16 is supported.");
             TORCH_CHECK(cos.scalar_type() == at::kBFloat16 || cos.scalar_type() == at::kHalf,
-            "dtype of cos tensor is invalid, only BF16 or FP16 is supported.");
+                "dtype of cos tensor is invalid, only BF16 or FP16 is supported.");
 
             auto stream = c10_npu::getCurrentNPUStream().stream(false);
             torch::Tensor psql = torch::arange(0, in.size(0) * in.size(1), in.size(1)).to(at::Device("npu"));
