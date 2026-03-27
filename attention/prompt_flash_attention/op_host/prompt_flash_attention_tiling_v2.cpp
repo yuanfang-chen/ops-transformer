@@ -1861,15 +1861,10 @@ bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contex
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
                 "in range of [1, %u] when enable ifa mla fullquant", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
             return false);
-        static const std::set<uint32_t> supportNumHeadInIfaMlaInt8 = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U}; // ifa mla fullquant int8场景qN支持范围
-        OP_CHECK_IF((supportNumHeadInIfaMlaInt8.find(queryShapeInfo.n) == supportNumHeadInIfaMlaInt8.end() && contextKeyParams.inputDataType == ge::DT_INT8),
+        static const std::set<uint32_t> supportNumHeadInIfaMla = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U}; // ifa mla fullquant int8场景qN支持范围
+        OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
-                "{1, 2, 4, 8, 16, 32, 64, 128} when enable ifa mla int8 fullquant", queryShapeInfo.n),
-            return false);
-        static const std::set<uint32_t> supportNumHeadInIfaMlaFp8 = {32U, 64U, 128U}; // ifa mla fp8场景qN支持范围
-        OP_CHECK_IF((supportNumHeadInIfaMlaFp8.find(queryShapeInfo.n) == supportNumHeadInIfaMlaFp8.end() && contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
-                "{32, 64, 128} when enable ifa mla fp8 fullquant", queryShapeInfo.n),
+                "{1, 2, 4, 8, 16, 32, 64, 128} when enable ifa mla fullquant", queryShapeInfo.n),
             return false);
     } else {
         OP_CHECK_IF((queryShapeInfo.s < 1),
@@ -2077,10 +2072,10 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
 {
     // check layout
     std::string layoutStr(contextKeyParams.layout);
-    const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND"};
-    OP_CHECK_IF(std::find(supportedLayoutList.begin(), supportedLayoutList.end(), layoutStr) == supportedLayoutList.end() && contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN,
+    const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND", "BSH_NBSD", "BSND_NBSD", "BNSD_NBSD", "TND_NTD"};
+    OP_CHECK_IF(std::find(supportedLayoutList.begin(), supportedLayoutList.end(), layoutStr) == supportedLayoutList.end() && (contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN || contextKeyParams.inputDataType == ge::DT_HIFLOAT8),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND.", layoutStr.c_str()), return false);
+            "When MLAFullQuant FP8/HiFP8 enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND/BSH_NBSD/BSND_NBSD/BNSD_NBSD/TND_NTD", layoutStr.c_str()), return false);
     // check DSize
     OP_CHECK_IF((queryShapeInfo.d != 512), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "When MLAFullQuant enables, the d(%d) size of query should be 512.", queryShapeInfo.d), return false);
@@ -2097,11 +2092,11 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when the dtype of query is int8 in MLA, KV layout must be PANZ."), return false);
     // check QKV dtype for fp8_e4m3/int8, output dtype for bf16, QK Rope Type for bf16
-    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT8_E4M3FN, ge::DT_INT8};
+    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT8_E4M3FN, ge::DT_INT8, ge::DT_HIFLOAT8};
     auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), contextKeyParams.inputDataType);
     OP_CHECK_IF((inputTypeCheck == allowedDtypes.end() || contextKeyParams.outputDataType != ge::DT_BF16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3/int8, datatype of output(%s) must be bf16.",
+            "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3/int8/hifloat8, datatype of output(%s) must be bf16.",
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kDataType).c_str(),
             GetPfaDataTypeStr(contextKeyParams.vDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.outputDataType).c_str()),
         return false);
@@ -4420,7 +4415,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     if((contextKeyParams.queryRopeInputShape != nullptr && contextKeyParams.keyRopeInputShape != nullptr) &&
         ((contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN && contextKeyParams.kDataType == ge::DT_FLOAT8_E4M3FN &&
         contextKeyParams.vDataType == ge::DT_FLOAT8_E4M3FN) || (contextKeyParams.inputDataType == ge::DT_INT8 && 
-        contextKeyParams.kDataType == ge::DT_INT8 && contextKeyParams.vDataType == ge::DT_INT8))) {
+        contextKeyParams.kDataType == ge::DT_INT8 && contextKeyParams.vDataType == ge::DT_INT8) || 
+        (contextKeyParams.inputDataType == ge::DT_HIFLOAT8 && contextKeyParams.kDataType == ge::DT_HIFLOAT8 && 
+        contextKeyParams.vDataType == ge::DT_HIFLOAT8))) {
         enableIFAMLAFullQuant = true;
     }
 

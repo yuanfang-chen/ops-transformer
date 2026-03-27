@@ -1500,8 +1500,10 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::Bmm2DataCopy
     }
 
     if constexpr (isInfer) {
-        if (isMlaFullQuant && isInt8) {
-            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+        if (isMlaFullQuant) {
+            if (isFp8 && constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD)) {
+                MlaTranspose2DataCopyOut(runInfo, constInfo, attenOut);
+            } else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
                 constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
                 constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
                 MlaTransposeDataCopyOut(runInfo, constInfo, attenOut);
