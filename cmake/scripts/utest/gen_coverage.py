@@ -157,7 +157,7 @@ class GenCoverage:
         logging.critical("================================================================================")
 
         # 生成覆盖率
-        cmd = f"lcov -c -d {param.data_dir} -o {param.info_file} {lcov_log_tag}"
+        cmd = f"lcov -c -d {param.data_dir} -o {param.info_file} --ignore-errors mismatch {lcov_log_tag}"
         logging.debug("[DEBUG] Generate origin coverage file, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=log_quiet, check=True, encoding='utf-8')
         ret.check_returncode()
@@ -166,7 +166,7 @@ class GenCoverage:
             return
         logging.debug("[DEBUG] Generated origin coverage file %s", param.info_file)
         # 滤掉某些文件/路径的覆盖率信息
-        cmd = f"lcov --remove {param.info_file} {param.filter_str} -o {param.info_file_filtered} {lcov_log_tag}"
+        cmd = f"lcov --remove {param.info_file} {param.filter_str} -o {param.info_file_filtered} --ignore-errors empty,unused {lcov_log_tag}"
         logging.debug("[DEBUG] Generate filtered coverage file, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=log_quiet, check=True, encoding='utf-8')
         ret.check_returncode()
