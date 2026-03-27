@@ -20,9 +20,9 @@ ge::graphStatus TilingMoeTokenUnpermute(gert::TilingContext* context);
 
 ge::graphStatus TilingMoeTokenUnpermute(gert::TilingContext* context)
 {     // 设置workspace 
-    size_t sysWorkspaceSize = 16 * 1024 * 1024; 
-    size_t* currentWorkspace = context->GetWorkspaceSizes(1); 
-    currentWorkspace[0] = sysWorkspaceSize;
+     size_t sysWorkspaceSize = 16 * 1024 * 1024; 
+     size_t* currentWorkspace = context->GetWorkspaceSizes(1); 
+     currentWorkspace[0] = sysWorkspaceSize;
     return TilingCompute(context, -1);
 }
 
@@ -363,6 +363,10 @@ ge::graphStatus TilingCompute(gert::TilingContext* context, const int64_t topK)
     SetTilingKey(context, param);
     SetTilingData(context, param);
     DebugPrint(context, param);
+    const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    size_t* workspaces = context->GetWorkspaceSizes(1);
+    workspaces[0] = ascendcPlatform.GetLibApiWorkSpaceSize();
+    OP_LOGD(context->GetNodeName(), "workspace is %zu", workspaces[0]);
     return context->SetTilingKey(param.core.tilingKey);
 }
 

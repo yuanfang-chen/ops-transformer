@@ -363,6 +363,7 @@ ge::graphStatus TilingCompute(gert::TilingContext* context, const int64_t topK)
     SetTilingKey(context, param);
     SetTilingData(context, param);
     DebugPrint(context, param);
+    OP_LOGD(context->GetNodeName(), "workspace is %zu", workspaces[0]);
     return context->SetTilingKey(param.core.tilingKey);
 }
 
