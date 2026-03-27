@@ -191,9 +191,10 @@ static void SetTilingKey(gert::TilingContext *context, const bool isSmoothScale,
     // 设置tilingKey模板参数
     // const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_COMM);
     uint64_t tilingKey = INIT_TILINGKEY;
+    bool noTileKCondition = (M >= TILE_K_M && M <= SOFT_SYNC_M) || rankSize != 4;
     tilingKey += static_cast<uint64_t>((isSmoothScale ? TILINGKEY_SMOOTH_SCALE : 0));
     tilingKey += static_cast<uint64_t>((isOptionalOutput ? TILINGKEY_OPTIONAL_OUTPUT : 0));
-    tilingKey += static_cast<uint64_t>(((M >= TILE_K_M || rankSize != 4) ? TILINGKEY_TILE_K : 0));
+    tilingKey += static_cast<uint64_t>((noTileKCondition ? TILINGKEY_TILE_K : 0));
     tilingKey += static_cast<uint64_t>((M > SOFT_SYNC_M ? TILINGKEY_SOFT_SYNC : 0));
     context->SetTilingKey(tilingKey);
     OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
@@ -278,7 +279,7 @@ ge::graphStatus CheckInputOutputTensorDim(
     uint64_t x2Dim1Value = x2Shape->GetStorageShape().GetDim(1);
     uint32_t singleCoreM = GetSingleCoreM(x1Dim0Value, tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize);
     bool isSmoothScale = smoothShape != nullptr;
-    bool noTileKCondition = x1Dim0Value >= TILE_K_M || tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize != 4;
+    bool noTileKCondition = (x1Dim0Value >= TILE_K_M  && x1Dim0Value <= SOFT_SYNC_M) || tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize != 4;
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
     uint32_t expectedX2DimNum = (x2Format == ge::FORMAT_FRACTAL_NZ) ? FOUR_DIMS : TWO_DIMS;
@@ -327,9 +328,9 @@ ge::graphStatus CheckInputOutputTensorDim(
     }
     // 暂不支持bias传入
     OP_CHECK_IF((biasShape != nullptr), OP_LOGE(context->GetNodeName(), "bias input is not support currently."), return ge::GRAPH_FAILED);
-    // M暂时不支持大于128
-    OP_CHECK_IF(x1Dim0Value > MAX_M_VALUE, OP_LOGE(context->GetNodeName(),
-        "axis M can't be greater than 128, but currently is %lu.", x1Dim0Value), return ge::GRAPH_FAILED);
+    // // M暂时不支持大于128
+    // OP_CHECK_IF(x1Dim0Value > MAX_M_VALUE, OP_LOGE(context->GetNodeName(),
+    //     "axis M can't be greater than 128, but currently is %lu.", x1Dim0Value), return ge::GRAPH_FAILED);
     // K暂时不支持大于5120
     OP_CHECK_IF(x1Dim1Value > MAX_K_VALUE,
         OP_LOGE(context->GetNodeName(), "axis K must be less than or equal to 5120, but currently is %lu.", x1Dim1Value),

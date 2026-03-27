@@ -332,7 +332,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             ReadDataBlock(innerCurXOffset, mTail);
         }
         SyncAll<true>();
-        CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+        CrossCoreSetFlag<0x2, PIPE_MTE3>(9);
     } else {
         uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
         if (kBlockIdx_ < tileK_ % kDim_) {
@@ -374,11 +374,11 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
                 ReadDataBlock(innerCurXOffset, mMteCoreM_);
                 PipeBarrier<PIPE_MTE3>();
                 SyncAll<true>();
-                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(9);
             }
             if (kLoop < ((tileK_ + kDim_ - 1) / kDim_)) {
                 SyncAll<true>();
-                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(9);
             }
         }
     }

@@ -48,7 +48,7 @@ constexpr static uint8_t BUFFER_NUM = 2; // 多Buf
 constexpr static uint32_t UB_ALIGN = 32; // UB按32字节对齐
 constexpr static uint32_t WIN_ALIGN = 512; // win offset 512字节对齐
 constexpr static uint32_t SINGLE_CORE_K = 512; // Matmul切K轴后每份长度
-constexpr static uint64_t SYNC_AIC_TO_AIV = 5;
+constexpr static uint64_t SYNC_AIC_TO_AIV = 10;
 
 template<TemplateMC2TypeClass>
 class AddRmsNormDynamicQuantAllGatherQbmm {
@@ -552,7 +552,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     if (nCoreIndx < nDimNeed) {
         CalcOffset(0, mCoreIndx, nCoreIndx);
         if constexpr (SyncMode == NO_TILE_K) {
-            CrossCoreWaitFlag(6);
+            CrossCoreWaitFlag(9);
             MMCompute(singleCoreM_, singleCoreNUpdate, 0);
         } else {
             uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
@@ -561,7 +561,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
                     CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
                 } else {
                     if (kBlockIdx % 2 == 0) {
-                        CrossCoreWaitFlag(6);
+                        CrossCoreWaitFlag(9);
                     }
                 }
                 // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
@@ -580,7 +580,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
             break;
         }
         CalcOffset(nDimLoopIdx * nDimReal, mCoreIndx, nCoreIndx);
-        if constexpr (SyncMode > NO_TILE_K) {
+        if constexpr (SyncMode == NO_TILE_K) {
             MMCompute(singleCoreM_, singleCoreNUpdate, 0);
         } else {
             for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
@@ -623,6 +623,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DequantInit()
 {
+    if (GetSubBlockIdx() == 0) {
+        return;
+    }
     tpipe_->Reset();
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
@@ -747,12 +750,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     uint32_t gmUseN = n_ - nCoreIndx * singleCoreN_;
     uint32_t singleCoreNUpdate = gmUseN < singleCoreN_ ? gmUseN : singleCoreN_;
 
-    if (GetSubBlockIdx() == 0) {
-        for (uint32_t nDimLoopIdx = 0; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
-            CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
-        }
-        return;
-    }
     DequantInit();
     for (uint32_t nDimLoopIdx = 0; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
         if (nDimLoopIdx * nDimReal + nCoreIndx >= nDimNeed) {
@@ -761,7 +758,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         }
         CalcOffset(nDimLoopIdx * nDimReal, mCoreIndx, nCoreIndx);
         CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
-        DequantCompute(mmOutGm_, 0, 0, singleCoreMUpdate, singleCoreNUpdate);
+        if (GetSubBlockIdx() == 1) {
+            DequantCompute(mmOutGm_, 0, 0, singleCoreMUpdate, singleCoreNUpdate);
+        }
     }
 }
 
@@ -771,12 +770,15 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     if (GetSubBlockIdx() == 1) {
         if constexpr (SyncMode == NO_TILE_K) {
             SyncAll<true>();
-            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+            CrossCoreSetFlag<0x2, PIPE_MTE3>(9);
         } else if constexpr (SyncMode < NO_TILE_K) {
             uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
+            if (kMteCoreK_ % X_PER_BLOCK_NUM != 0) {
+                kLoop++;
+            }
             for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
                 SyncAll<true>();
-                CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+                CrossCoreSetFlag<0x2, PIPE_MTE3>(9);
             }
         }
         return;
