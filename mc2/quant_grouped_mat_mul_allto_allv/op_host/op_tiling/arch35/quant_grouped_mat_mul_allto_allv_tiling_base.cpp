@@ -86,8 +86,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckOpInputSingleParamsT
 // quant must support param
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckOpInputSingleParamsTensorSupport()
 {
-    auto gmmXScaleTensorShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
-    auto gmmWeightScaleTensorShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    auto gmmXScaleTensorShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX);
+    auto gmmWeightScaleTensorShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX);
     bool gmmXScaleTensorShapeNull = gmmXScaleTensorShape == nullptr;
     bool gmmWeightScaleTensorShapeNull = gmmWeightScaleTensorShape == nullptr;
     OP_TILING_CHECK(gmmXScaleTensorShapeNull || gmmWeightScaleTensorShapeNull,
@@ -290,9 +290,9 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckFormat()
         OP_LOGE(opName_, "gmmX storage format should be ND."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
         OP_LOGE(opName_, "gmmWeight storage format should be ND."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
         OP_LOGE(opName_, "gmmXScale storage format should be ND."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
         OP_LOGE(opName_, "gmmWeightScale storage format should be ND."), return ge::GRAPH_FAILED);
     auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK(yDesc == nullptr,
@@ -380,8 +380,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationGmmTra
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationGmm()
 {
-    localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
-    localParams_.gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
+    localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX)->GetDataType();
+    localParams_.gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX)->GetDataType();
     OP_TILING_CHECK(!IsContains(QUANT_GMM_X_SCALE_DTYPE_LIST, localParams_.gmmXScaleDtype),
         OP_LOGE(opName_, "The Input gmmX Scale Dtype should be in (DT_FLOAT, ), but Scale is %s.",
         Ops::Base::ToString(localParams_.gmmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
@@ -389,8 +389,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsRelationGmm()
         OP_LOGE(opName_, "The Input gmmWeight Scale Dtype should be in (DT_FLOAT, ), but Scale is %s.",
         Ops::Base::ToString(localParams_.gmmWeightScaleDtype).c_str()), return ge::GRAPH_FAILED);
 
-    const gert::StorageShape* gmmXScaleStorageShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
-    const gert::StorageShape* gmmWeightScaleStorageShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
+    const gert::StorageShape* gmmXScaleStorageShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX);
+    const gert::StorageShape* gmmWeightScaleStorageShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX);
     OP_TILING_CHECK(gmmXScaleStorageShape == nullptr, OP_LOGE(opName_, "gmmXScaleStorageShape is null!"),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmWeightScaleStorageShape == nullptr, OP_LOGE(opName_, "gmmWeightScaleStorageShape is null!"),
@@ -696,7 +696,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::SetGmmA2avWorkspaceInfo()
     inferredInfo_.gmmResultLen = mc2tiling::AlignUp(
         localParams_.A * localParams_.N1 * gmmYDtypeSize, alignAddrLen);
     localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo_.gmmResultLen;
-    // GmmComputeOp workspace 内部布局: groupList (ep * 8B) + ptrTable (4 * 16B = 64B)
+    // GmmComputeOp workspace 内部布局: groupList (ep * 8B) + ptrTable (4 * 32B = 128B)
     constexpr uint64_t ptrTableSize = 128;
     uint64_t gmmComputeWsSize = localParams_.ep * sizeof(int64_t) + ptrTableSize;
     localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = mc2tiling::AlignUp(gmmComputeWsSize, alignAddrLen);
