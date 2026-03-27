@@ -21,8 +21,9 @@ template <typename SchedulerType, typename SchedulerContextType, typename AlltoA
 class AlltoAllKcQuantMatmulArch35 {
 public:
     __aicore__ inline AlltoAllKcQuantMatmulArch35(SchedulerType *pipeLine) : pipeLine_(pipeLine){};
-    __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, GM_ADDR all2all_out,
-                                GM_ADDR smooth_scale, GM_ADDR x2_scale, GM_ADDR x2_offset, GM_ADDR workspaceGM,
+    __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y, 
+                                GM_ADDR all2all_out, GM_ADDR smooth_scale, 
+                                GM_ADDR x2_scale, GM_ADDR x2_offset, GM_ADDR workspaceGM,
                                 AlltoAllMatmulTilingDataType *tilingData, AscendC::TPipe *tPipe);
     __aicore__ inline void Process();
 
