@@ -79,6 +79,7 @@ AlltoAllMatmulPipeLine<CommunicationType, TransposeType, ComputationType, Contex
             commStage_->Process(index);
             AscendC::SyncAll<true>();
             transStage_->Process(index);
+            // 核间使用软同步，当前搭配的matmul没有使用软同步标识索引8和9，后续如果matmul有变化需要同步调整
             AscendC::CrossCoreSetFlag<0, PIPE_MTE3>(8);
             AscendC::CrossCoreWaitFlag(8);
             AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(9);

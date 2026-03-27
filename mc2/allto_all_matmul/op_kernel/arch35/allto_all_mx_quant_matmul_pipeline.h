@@ -85,12 +85,12 @@ __aicore__ inline void AlltoAllMXQuantMatmulPipeLine<CommunicationType, Transpos
                                                      ComputationType, ContextType>::Process(uint32_t taskCnt)
 {
     commStage_->PrepareAll(taskCnt);
-    uint32_t index;
-    for (index = 0; index < taskCnt; index++) {
+    for (uint32_t index = 0; index < taskCnt; index++) {
         if ASCEND_IS_AIV {
             commStage_->Process(index);
             AscendC::SyncAll<true>();
             transStage_->Process(index);
+            // 核间使用软同步，当前搭配的matmul没有使用软同步标识索引8和9，后续如果matmul有变化需要同步调整
             AscendC::CrossCoreSetFlag<0, PIPE_MTE3>(8);
             AscendC::CrossCoreWaitFlag(8);
             AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(9);
