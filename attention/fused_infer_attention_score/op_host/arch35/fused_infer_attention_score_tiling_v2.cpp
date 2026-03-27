@@ -1153,12 +1153,14 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     return ge::GRAPH_FAILED);
         uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
                                                 pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
-                                                static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
+                                                static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix, pfa_tiling.enableS1OutSplit);
         context_->SetTilingKey(gen_tilingkey);
+
         OP_LOGI(context_->GetNodeName(), "The new template tilingkey is %llu.", gen_tilingkey);
-        OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
+        OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu,"
+                " isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu, pfa_tiling.enableS1OutSplit:%u.",
                 static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
-                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
+                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix, pfa_tiling.enableS1OutSplit);
         OP_LOGI(context_->GetNodeName(), "All the FIASTiling work is done.");
         return ret;
     }
