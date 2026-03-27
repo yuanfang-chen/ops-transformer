@@ -28,6 +28,7 @@ from atk.tasks.api_execute.base_api import BaseApi
 from atk.tasks.api_execute.aclnn_base_api import AclnnBaseApi
 from atk.tasks.backends.lib_interface.acl_wrapper import AclIntArray,pointer
 
+
 # ifa
 def get_np_dtype(type_str):
     type_dict = {
