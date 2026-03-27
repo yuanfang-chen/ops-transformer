@@ -111,13 +111,13 @@ transformer-2@ops-transformer:
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_s1s2_bns1_mla.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_s1s2_bns1_x910_base.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_bnstilling_n_s_tail.h
-                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/kernel_data_copy_transpose.h
+                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/kernel_data_copy_transpose.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/mla_custom_matmul_policy_d192.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_split_n_s_no_tail.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_var_len_score_sab.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/mla_common.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_bnstilling_n_s_tailWBNSD.h
-                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/kernel_operator_softmax_compute_nz.h
+                - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/kernel_operator_softmax_compute_nz.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_s1s2_bns1_mla_baseapi.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/mla_custom_matmul_policy_common.h
                 - ops/ops-transformer/attention/prompt_flash_attention/op_kernel/arch32/prompt_flash_attention_bnstilling_n_s_no_tailWBNSD.h
