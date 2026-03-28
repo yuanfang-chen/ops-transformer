@@ -80,7 +80,7 @@ public:
         }
     }
 
-     __aicore__ inline void InitScaleBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
+    __aicore__ inline void InitScaleBuffer(GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
         sendScaleGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
         recvScaleGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
@@ -117,7 +117,8 @@ public:
         for (uint32_t i = 1U; i < rankDim_; i++) {
             alltoAllvScaleSendOffset[i] = alltoAllvScaleSendOffset[i - 1U];
             for (uint32_t j = 0U; j < e_; j++) {
-                alltoAllvScaleSendOffset[i] += static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * axis;
+                alltoAllvScaleSendOffset[i] +=
+                    static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * axis;
             }
         }
 
@@ -132,11 +133,10 @@ public:
         }
 
         alltoAllvScaleHandleId_[startExpertIdx] = hccl_.AlltoAllV<true>(
-            (__gm__ uint8_t *)sendScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleSendCnt, alltoAllvScaleSendOffset, HCCL_DATA_TYPE_FP8E8M0,
-            (__gm__ uint8_t *)recvScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleRecvCnt, alltoAllvScaleRecvOffset, HCCL_DATA_TYPE_FP8E8M0);
+            (__gm__ uint8_t *)sendScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleSendCnt, alltoAllvScaleSendOffset,
+            HCCL_DATA_TYPE_FP8E8M0, (__gm__ uint8_t *)recvScaleGlobalBuffer_.GetPhyAddr(), alltoAllvScaleRecvCnt,
+            alltoAllvScaleRecvOffset, HCCL_DATA_TYPE_FP8E8M0);
     }
-
-
 
     __aicore__ inline void WaitScale(uint32_t startExpertIdx)
     {
@@ -150,7 +150,6 @@ public:
         }
         hccl_.Wait(alltoAllvScaleHandleId_[startExpertIdx]);
     }
-
 
     __aicore__ inline void Wait(uint32_t startExpertIdx)
     {
@@ -308,7 +307,6 @@ private:
     uint64_t alltoAllvScaleRecvCnt[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvScaleRecvOffset[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvScaleRecvOffsetLastSum = 0UL;
-
 };
 }; // namespace MC2KernelTemplate
 
