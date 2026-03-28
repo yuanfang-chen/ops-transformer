@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="260" viewBox="0 0 800 260">
+  <style>
+    .txt { font-family: system-ui, sans-serif; font-size: 12px; fill: #334155; }
+    .t { font-size: 14px; font-weight: 600; fill: #0f172a; }
+    .ok { fill: #bbf7d0; stroke: #16a34a; }
+    .bad { fill: #fecaca; stroke: #dc2626; }
+  </style>
+  <text x="400" y="28" text-anchor="middle" class="t">>n}Gaù” image32	</text>
+  <g transform="translate(80, 75)">
+    <text x="120" y="-8" text-anchor="middle" class="txt">Before</text>
+    <rect x="0" y="0" width="70" height="50" class="ok"/>
+    <rect x="75" y="0" width="70" height="50" class="ok"/>
+    <rect x="150" y="0" width="70" height="50" class="ok"/>
+    <rect x="0" y="55" width="70" height="50" class="bad"/>
+  </g>
+  <g transform="translate(450, 75)">
+    <text x="120" y="-8" text-anchor="middle" class="txt">After</text>
+    <rect x="0" y="0" width="70" height="50" class="ok"/>
+    <rect x="75" y="0" width="70" height="50" class="ok"/>
+    <rect x="150" y="0" width="70" height="50" class="ok"/>
+    <rect x="0" y="55" width="55" height="50" class="ok"/>
+    <rect x="60" y="55" width="55" height="50" class="ok"/>
+    <rect x="120" y="55" width="55" height="50" class="ok"/>
+    <rect x="180" y="55" width="55" height="50" class="ok"/>
+  </g>
+  <text x="400" y="210" text-anchor="middle" class="txt">Mc2ComputeBasicOptiLoop >W round ¦</text>
+</svg>
