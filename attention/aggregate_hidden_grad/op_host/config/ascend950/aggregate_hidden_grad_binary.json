@@ -38,7 +38,7 @@
                 {
                     "name": "mask",
                     "index": 3,
-                    "dtype": "int8",
+                    "dtype": "uint8",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -105,7 +105,7 @@
                 {
                     "name": "mask",
                     "index": 3,
-                    "dtype": "int8",
+                    "dtype": "uint8",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [

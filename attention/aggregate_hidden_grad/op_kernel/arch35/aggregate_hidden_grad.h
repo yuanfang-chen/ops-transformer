@@ -12,8 +12,8 @@
  * \file aggregate_hidden_grad.h
  * \brief Arch35 AICore kernel for aggregate_hidden_grad (W=3)
  */
-#ifndef OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_KERNEL_H
-#define OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_KERNEL_H
+#ifndef AGGREGATE_HIDDEN_GRAD_H
+#define AGGREGATE_HIDDEN_GRAD_H
 
 #include "kernel_operator.h"
 #include "vf/compute.h"
@@ -45,9 +45,9 @@ public:
         hMainSize_ = td_->hMainSize; hTailSize_ = td_->hTailSize;
 
         // compute this core's H start/len
-        uint64_t blkNum = GetBlockNum();
+
         uint64_t blkIdx = GetBlockIdx();
-        (void)blkNum;
+
         if (blkIdx < static_cast<uint64_t>(hMainCoreCnt_)) {
             hStart_ = blkIdx * hMainSize_;
             hLen_ = hMainSize_;
