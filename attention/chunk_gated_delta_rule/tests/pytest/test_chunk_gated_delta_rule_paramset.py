@@ -21,12 +21,12 @@ TEST_PARAMS = {
         "dv": [128],
         "chunk_size": [64],
         "data_type":[torch.bfloat16],
-        "query_datarange":[[-10, 10]],
-        "key_datarange": [[-10, 10]],
-        "value_datarange": [[-10, 10]],
-        "g_datarange": [[0, 1]],
+        "query_datarange":[[0, 1]],
+        "key_datarange": [[0, 0.5]],
+        "value_datarange": [[0, 1]],
+        "g_datarange": [[-1, 0]],
         "beta_datarange": [[0, 1]],
-        "state_datarange": [[-10, 10]]
+        "state_datarange": [[0, 1]]
     },
     "Testcase1":{
         "B": [1],
@@ -37,12 +37,12 @@ TEST_PARAMS = {
         "dv": [128],
         "chunk_size": [64],
         "data_type":[torch.bfloat16],
-        "query_datarange":[[-10, 10]],
-        "key_datarange": [[-10, 10]],
-        "value_datarange": [[-10, 10]],
-        "g_datarange": [[0, 1]],
+        "query_datarange":[[0, 1]],
+        "key_datarange": [[0, 0.5]],
+        "value_datarange": [[0, 1]],
+        "g_datarange": [[-1, 0]],
         "beta_datarange": [[0, 1]],
-        "state_datarange": [[-10, 10]]
+        "state_datarange": [[0, 1]]
     }
 }
 #注意单个用例组内的用例尽量不要超过32

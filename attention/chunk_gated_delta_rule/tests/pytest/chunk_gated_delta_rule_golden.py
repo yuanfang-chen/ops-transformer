@@ -349,7 +349,7 @@ def run_chunk_gated_delta_rule_eager(B, seqlen, nk, nv, dk, dv, chunk_size=64,
     value = rand_range((B, nv, seqlen, dv), value_datarange, data_type)
     g = rand_range((B, nv, seqlen), g_datarange, dtype=torch.float32)
     beta = rand_range((B, nv, seqlen), beta_datarange, data_type)
-    initial_state = None
+    initial_state = rand_range((B, nv, dv, dk), state_datarange, data_type)
     # ======================== gen input data finish =============================
 
     # ======================== execute cpu start =================================
@@ -365,9 +365,10 @@ def run_chunk_gated_delta_rule_eager(B, seqlen, nk, nv, dk, dv, chunk_size=64,
     value_npu = value.to("npu:%s" % DEVICE_ID)
     g_npu = g.to("npu:%s" % DEVICE_ID)
     beta_npu = beta.to("npu:%s" % DEVICE_ID)
+    initial_state_npu = initial_state.to("npu:%s" % DEVICE_ID)
 
     npu_out, npu_state = torch_npu.npu_chunk_gated_delta_rule(
-        query_npu, key_npu, value_npu, initial_state, g=g_npu, beta=beta_npu, chunk_size=chunk_size
+        query_npu, key_npu, value_npu, initial_state_npu, g=g_npu, beta=beta_npu, chunk_size=chunk_size
     )
     # ======================== execute npu finish ================================
 
