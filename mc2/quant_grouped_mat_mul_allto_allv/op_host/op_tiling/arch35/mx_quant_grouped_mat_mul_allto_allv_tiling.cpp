@@ -225,8 +225,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
                             Ops::Base::ToString(localParams_.gmmWeightScaleDtype).c_str()),
                     return ge::GRAPH_FAILED);
 
-    const gert::StorageShape *gmmXScaleStorageShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX);
-    const gert::StorageShape *gmmWeightScaleStorageShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX);
+    const gert::StorageShape *gmmXScaleStorageShape = context_->GetInputShape(GMM_X_SCALE_INDEX);
+    const gert::StorageShape *gmmWeightScaleStorageShape = context_->GetInputShape(GMM_WEIGHT_SCALE_INDEX);
     OP_TILING_CHECK(gmmXScaleStorageShape == nullptr, OP_LOGE(opName_, "The gmmXScaleStorageShape is nullptr!"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmWeightScaleStorageShape == nullptr,
@@ -436,8 +436,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     if (isTransGmmWeight) {
         TransGmmWeightFlag = *isTransGmmWeight;
     }
-    const gert::StorageShape *gmmXScaleShape = context_->GetOptionalInputShape(GMM_X_SCALE_INDEX);
-    const gert::StorageShape *gmmWeightScaleShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX);
+    const gert::StorageShape *gmmXScaleShape = context_->GetInputShape(GMM_X_SCALE_INDEX);
+    const gert::StorageShape *gmmWeightScaleShape = context_->GetInputShape(GMM_WEIGHT_SCALE_INDEX);
     OP_TILING_CHECK((gmmXScaleShape == nullptr), OP_LOGE(opName_, "The gmmXScaleShape is nullptr"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((gmmWeightScaleShape == nullptr), OP_LOGE(opName_, "The gmmWeightScale is nullptr"),
