@@ -159,17 +159,17 @@ public:
         __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
         __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
         __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
-        __ubuf__ uint16_t* mxScaleLocalAddr = 
+        __ubuf__ uint16_t* mxScaleLocalAddr =
             (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].GetPhyAddr();
         quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
         if constexpr (QuantMode == MXFP8_E5M2_COMM_QUANT) {
             // 计算scales并填充
-            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
+            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum);
             quant::ComputeData<ExpandXType, fp8_e5m2_t, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         } else if constexpr (QuantMode == MXFP8_E4M3_COMM_QUANT) {
             // 计算scales并填充
-            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
+            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum);
             quant::ComputeData<ExpandXType, fp8_e4m3fn_t,
             AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
@@ -242,8 +242,8 @@ public:
                 MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_E2B_B32>(dyScaleFp32Reg, dyScaleFp32Ptr + i * 8);
                 // 接收到的token float8_e5m2_t
                 MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_UNPACK4_B8>(tokenSrcReg,
-                    tokenPtr0 + i * fp32RepeatSize); 
-                MicroAPI::Cast<float, T, FP82BF16CastTraitZero>(tokenFp32SrcReg, tokenSrcReg, maskReg2); 
+                    tokenPtr0 + i * fp32RepeatSize);
+                MicroAPI::Cast<float, T, FP82BF16CastTraitZero>(tokenFp32SrcReg, tokenSrcReg, maskReg2);
                 MicroAPI::Mul(sumLocalDstReg, dyScaleFp32Reg, tokenFp32SrcReg, maskReg2); // token与量化参数相乘
                 MicroAPI::DataCopy(sumDstPtr + i * fp32RepeatSize, sumLocalDstReg, maskReg2); // 最后搬出 float类型
             }
