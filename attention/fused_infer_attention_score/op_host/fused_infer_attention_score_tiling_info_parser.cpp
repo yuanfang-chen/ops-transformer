@@ -404,9 +404,6 @@ void FiaInfoParser::GetPreNextToken()
     } else if (sparseMode_ == SPARSE_MODE_LEFT_UP || sparseMode_ == SPARSE_MODE_RIGHT_DOWN) {
         nextToken_ = 0;
         preToken_ = SPARSE_MODE_INT_MAX;
-    } else if (sparseMode_ == SPARSE_MODE_TREE) {
-        nextToken_ = 0;
-        preToken_ = SPARSE_MODE_INT_MAX;
     }
 
     // 边界场景需要更新值
@@ -933,89 +930,60 @@ ge::graphStatus FiaInfoParser::GetGSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
-{
-    // sparse9时，mask形状：TND时传入∑s1²，其余场景传入[B,S1,S1]
-    auto *maskTensor = opParamInfo_.attenMask.tensor;
-    uint32_t maskDimNum = maskTensor->GetStorageShape().GetDimNum();
-
-    // TND传入的mask
-    if (qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD) {
-        if (maskDimNum == 1U) {
-            attenMaskBatchStride_ = 1;
-            attenMaskStride_ = 1;
-        } else {
-            OP_LOGE(opName_, "When layout is TND/NTD, Tree mask(%u) matrix dim only support 1.",
-                    *opParamInfo_.sparseMode);
-        }
-    } else {
-        if (maskDimNum == 3U) {
-            attenMaskBatchStride_ = maskTensor->GetStorageShape().GetDim(maskDimNum - 1) * \
-                                    maskTensor->GetStorageShape().GetDim(maskDimNum - 2);
-            attenMaskStride_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1);
-        } else {
-            OP_LOGE(opName_, "When layout is not TND/NTD, Tree mask(%u) matrix dim only support 3.",
-                    *opParamInfo_.sparseMode);
-        }
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus FiaInfoParser::GetAntiQuantInfo()
-{
-    antiQuantFlag_ = inputQType_ != inputKvType_;
-    if (opParamInfo_.keyAntiquantScale.tensor == nullptr || opParamInfo_.valueAntiquantScale.tensor == nullptr) {
-        return ge::GRAPH_SUCCESS;
-    }
-    if (!antiQuantFlag_) {
-        return ge::GRAPH_SUCCESS;
-    }
-    bool kPerChnVPerTokFlag_ =
-         (inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT8) && 
-         (*(opParamInfo_.keyAntiquantMode) == 0 && *(opParamInfo_.valueAntiquantMode) == 1);
+ge::graphStatus FiaInfoParser::GetAntiQuantInfo() 
+{ 
+    antiQuantFlag_ = inputQType_ != inputKvType_; 
+    if (opParamInfo_.keyAntiquantScale.tensor == nullptr || opParamInfo_.valueAntiquantScale.tensor == nullptr) { 
+        return ge::GRAPH_SUCCESS; 
+    } 
+    if (!antiQuantFlag_) { 
+        return ge::GRAPH_SUCCESS; 
+    } 
+    bool kPerChnVPerTokFlag_ = 
+        (inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT8) &&  
+        (*(opParamInfo_.keyAntiquantMode) == 0 && *(opParamInfo_.valueAntiquantMode) == 1); 
     
-    auto tmpAntiquantMode = *(opParamInfo_.keyAntiquantMode);
-    auto tmpAntiquant = opParamInfo_.keyAntiquantScale.tensor->GetStorageShape();
-    if (opParamInfo_.keyAntiquantOffset.tensor != nullptr) {
-        tmpAntiquant = opParamInfo_.keyAntiquantOffset.tensor->GetStorageShape();
-    }
+    auto tmpAntiquantMode = *(opParamInfo_.keyAntiquantMode); 
+    auto tmpAntiquant = opParamInfo_.keyAntiquantScale.tensor->GetStorageShape(); 
+    if (opParamInfo_.keyAntiquantOffset.tensor != nullptr) { 
+        tmpAntiquant = opParamInfo_.keyAntiquantOffset.tensor->GetStorageShape(); 
+    } 
 
-    if (kPerChnVPerTokFlag_) {
-        tmpAntiquantMode = *(opParamInfo_.valueAntiquantMode);
-        tmpAntiquant = opParamInfo_.valueAntiquantScale.tensor->GetStorageShape();
-        if (opParamInfo_.valueAntiquantOffset.tensor != nullptr) {
-            tmpAntiquant = opParamInfo_.valueAntiquantOffset.tensor->GetStorageShape();
-        }
-    }
 
-    if (tmpAntiquantMode == 6) {
-        if (systemPrefixFlag_) {
-            if (tmpAntiquant.GetDimNum() != 5) {
-                OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 5 when per-token-group mode.", tmpAntiquant.GetDimNum());
-            }
-            antiquantParaSeqSize_ = tmpAntiquant.GetDim(3);
-        }
-    } else if (tmpAntiquantMode == 1) {
-        if (tmpAntiquant.GetDimNum() != 2 && tmpAntiquant.GetDimNum() != 3) {
-            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 2 or 3 when per-token mode.", tmpAntiquant.GetDimNum());
-        }
-        antiquantParaSeqSize_ = tmpAntiquant.GetDimNum() == 3U ? tmpAntiquant.GetDim(2) : tmpAntiquant.GetDim(1);
-    } else if (tmpAntiquantMode == 3) {
-        if (tmpAntiquant.GetDimNum() != 3) {
-            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 3 when per-token-head mode.", tmpAntiquant.GetDimNum());
-        }
-        antiquantParaSeqSize_ = tmpAntiquant.GetDim(2);
-    }
-    return ge::GRAPH_SUCCESS;
+    if (kPerChnVPerTokFlag_) { 
+        tmpAntiquantMode = *(opParamInfo_.valueAntiquantMode); 
+        tmpAntiquant = opParamInfo_.valueAntiquantScale.tensor->GetStorageShape(); 
+        if (opParamInfo_.valueAntiquantOffset.tensor != nullptr) { 
+            tmpAntiquant = opParamInfo_.valueAntiquantOffset.tensor->GetStorageShape(); 
+        } 
+    } 
+
+
+    if (tmpAntiquantMode == 6) { 
+        if (systemPrefixFlag_) { 
+            if (tmpAntiquant.GetDimNum() != 5) { 
+                OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 5 when per-token-group mode.", tmpAntiquant.GetDimNum()); 
+            } 
+            antiquantParaSeqSize_ = tmpAntiquant.GetDim(3); 
+        } 
+    } else if (tmpAntiquantMode == 1) { 
+        if (tmpAntiquant.GetDimNum() != 2 && tmpAntiquant.GetDimNum() != 3) { 
+            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 2 or 3 when per-token mode.", tmpAntiquant.GetDimNum()); 
+        } 
+        antiquantParaSeqSize_ = tmpAntiquant.GetDimNum() == 3U ? tmpAntiquant.GetDim(2) : tmpAntiquant.GetDim(1); 
+    } else if (tmpAntiquantMode == 3) { 
+        if (tmpAntiquant.GetDimNum() != 3) { 
+            OP_LOGE(opName_, "The dimension(%lu) of antiquant is illegal, it should be 3 when per-token-head mode.", tmpAntiquant.GetDimNum()); 
+        } 
+        antiquantParaSeqSize_ = tmpAntiquant.GetDim(2); 
+    } 
+    return ge::GRAPH_SUCCESS; 
 }
 
 ge::graphStatus FiaInfoParser::GetAttenMaskInfo()
 {
     // only bss & b1ss & bs need to calc attenMaskSize_ , attenMaskSize_ is uesed to calc batch offset
     if (attenMaskFlag_) {
-        if (*opParamInfo_.sparseMode == 9U) {
-            return GetAttenMaskSparse9Info();
-        }
         auto *maskTensor = opParamInfo_.attenMask.tensor;
         uint32_t maskDimNum = maskTensor->GetStorageShape().GetDimNum();
         if (maskDimNum == 2U) {
