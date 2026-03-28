@@ -53,7 +53,7 @@ static constexpr int64_t DIM_THREE = 3;
 
 struct MxTransposeCtx {
     const aclTensor *gmmWeightTmp = nullptr;
-    const aclTensor *gmmWeightScasleTmp = nullptr;
+    const aclTensor *gmmWeightScaleTmp = nullptr;
     const aclTensor *mmWeightTmp = nullptr;
     const aclTensor *mmWeightScasleTmp = nullptr;
 };
@@ -66,8 +66,8 @@ static void DestoryTmpTensorCtx(MxTransposeCtx *ctx)
     if (ctx->gmmWeightTmp != nullptr) {
         aclDestroyTensor(const_cast<aclTensor *>(ctx->gmmWeightTmp));
     }
-    if (ctx->gmmWeightScasleTmp != nullptr) {
-        aclDestroyTensor(const_cast<aclTensor *>(ctx->gmmWeightScasleTmp));
+    if (ctx->gmmWeightScaleTmp != nullptr) {
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->gmmWeightScaleTmp));
     }
     if (ctx->mmWeightTmp != nullptr) {
         aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightTmp));
@@ -554,7 +554,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         DestoryTmpTensorCtx(tmpCtx);
         return ret;
     }
-    if (tmpCtx->gmmWeightTmp != nullptr || tmpCtx->gmmWeightScasleTmp != nullptr) {
+    if (tmpCtx->gmmWeightTmp != nullptr || tmpCtx->gmmWeightScaleTmp != nullptr) {
         NnopbaseSetUserHandle(*executor, tmpCtx);
     } else {
         delete tmpCtx;
