@@ -21,13 +21,11 @@
 #include "kernel_dependency/mc2_mat_mul_asw_block.h"
 #include "all_gather_matmul_tiling.h"
 
-namespace AllGatherMatmulImpl
-{
+namespace AllGatherMatmulImpl {
 using namespace AscendC;
 
 template <typename AType, typename BType, typename BiasType, typename CType>
-class AllGatherMatmulFP16BF16
-{
+class AllGatherMatmulFP16BF16 {
 public:
     __aicore__ inline AllGatherMatmulFP16BF16()
     {
