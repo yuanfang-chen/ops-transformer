@@ -132,6 +132,14 @@ constexpr int FINISH_MM_QCQR_SPLIT_N = 0X6;
 constexpr int FINISH_VEC_DEQUANT_QC_SPLIT_N = 0X6;
 constexpr int FINISH_MM_QN_SPLIT_N = 0X6;
 
+// Split-KN sync flags (Ascend 950 only)
+#if __CCE_AICORE__ == 310
+constexpr int FINISH_MM_CQ_KN = 0x9;
+constexpr int FINISH_MM_CKVKR_KN = 0x6;
+constexpr int FINISH_ACCUM_CQ = 0x7;
+constexpr int FINISH_ACCUM_CKVKR = 0x8;
+#endif
+
 #ifdef ENABLE_DUMP_DATA
 #define DO_DUMP_DATA(srcTensor, id, len) AscendC::DumpTensor(srcTensor, id, len)
 #else
@@ -240,6 +248,8 @@ struct MLAPType {
     using dequantScaleQNopeType = float;      // dequantScaleQNope的类型
     using dequantScaleQNormType = float;      // dequantScaleQNorm的类型
     using dequantScaleType = float;
+    using mmCqAccumType = typename std::conditional<std::is_same<X_T, int8_t>::value, int32_t, float>::type;
+    using mmCkvKrAccumType = typename std::conditional<std::is_same<X_T, int8_t>::value, int32_t, float>::type;
 
     static constexpr CACHE_MODE cacheMode = C_M;
     static constexpr bool enableDequantOpt = ENABLE_DEQUANT_OPT;
@@ -274,6 +284,8 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, C_M, ENABLE_DEQUANT_OPT,
     using dequantScaleQNopeType = float;      // dequantScaleQNope的类型
     using dequantScaleQNormType = AscendC::fp8_e8m0_t;      // dequantScaleQNormType的类型
     using dequantScaleType = AscendC::fp8_e8m0_t;
+    using mmCqAccumType = float;
+    using mmCkvKrAccumType = float;
 
     static constexpr CACHE_MODE cacheMode = C_M;
     static constexpr bool enableDequantOpt = ENABLE_DEQUANT_OPT;
