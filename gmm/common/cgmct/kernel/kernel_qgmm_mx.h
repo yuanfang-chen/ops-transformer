@@ -248,7 +248,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBalance
                                                                                  int64_t baseM)
 {
     if constexpr (!transA) {
-        int64_t mCnt = CeilDiv(m, baseM);
+        int64_t mCnt = 1;
         curBaseM_ = CeilAlign(CeilDiv(m, mCnt), AscendC::BLOCK_CUBE);
         bs.UpdateBaseM(curBaseM_);
     }
@@ -396,6 +396,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMMGlob
     // Update global tensor addresses for the current grouped matmul instance.
     aGlobal_.SetGlobalBuffer(GetTensorAddr<AType>(0, xTensorPtr_) + Get<IDX_A_OFFSET>(baseOffset_));
     bGlobal_.SetGlobalBuffer(GetTensorAddr<BType>(0, wTensorPtr_) + Get<IDX_B_OFFSET>(baseOffset_));
+    bGlobal_.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_DISABLE);
     if (isBias_) {
         biasGlobal_.SetGlobalBuffer(GetTensorAddr<BiasType>(0, biasTensorPtr_) + Get<IDX_BIAS_OFFSET>(baseOffset_));
     }
