@@ -517,6 +517,10 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
         OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
             x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
     }
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "xyf --- here.");
+    int64_t storageDim0 = x2->GetStorageShape().GetDim(0);
+    int64_t storageDim1 = x2->GetStorageShape().GetDim(1);
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "[AFTER] storageDim0 is: %ld, storageDim1 is: %ld.", storageDim0, storageDim1);
     // 只在DAV_2201架构上对x1和x2进行int32到int4的转换预处理
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201 && executor != nullptr) {
         auto uniqueExecutor = CREATE_EXECUTOR();
