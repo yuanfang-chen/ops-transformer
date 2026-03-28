@@ -153,8 +153,8 @@ TEST_F(L2AllGatherMatmulTest, TestAllGatherFirstApiX2NonContiguousWithoutTranspo
 
     // 设置x2非转置非连续步长，假设每行之间间隔10个元素[64 + 10, 1]，实际内存存储storageShape为[512, 64 + 10]
     TensorDesc x2Desc = TensorDesc({512, 64}, ACL_FLOAT16, ACL_FORMAT_ND, {64 + 10, 1}, 0, {512, 64 + 10});
-    TensorDesc outDesc = TensorDesc({128, 64}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gatherOutDesc = TensorDesc({128, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc outDesc = TensorDesc({16, 64}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gatherOutDesc = TensorDesc({16, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
 
     auto ut = OP_API_UT(aclnnAllGatherMatmul, 
                         INPUT(x1Desc, x2Desc, nullptr, "test_all_gather_group", 0, 8, 1),
@@ -174,8 +174,8 @@ TEST_F(L2AllGatherMatmulTest, TestAllGatherFirstApiX2TransposedNonContiguous)
 
     // 设置x2转置非连续步长，实际内存存储storageShape为[64, 512]
     TensorDesc x2Desc = TensorDesc({512, 64}, ACL_FLOAT16, ACL_FORMAT_ND, {1, 64});
-    TensorDesc outDesc = TensorDesc({128, 64}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc gatherOutDesc = TensorDesc({128, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc outDesc = TensorDesc({16, 64}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gatherOutDesc = TensorDesc({16, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
 
     auto ut = OP_API_UT(aclnnAllGatherMatmul, 
                         INPUT(x1Desc, x2Desc, nullptr, "test_all_gather_group", 0, 8, 1),
