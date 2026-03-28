@@ -85,9 +85,8 @@ ge::graphStatus MoeDistributeCombineSetupTilingA5::CheckMoeExpertNum()
     auto attrs = context_->GetAttrs();
     auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
 
-    OP_TILING_CHECK(!((*moeExpertNumPtr == MOE_EXPERT_NUM_32)),
-                    OP_LOGE(nodeName_, "moeExpertNum shoud be 32, get %lu", *moeExpertNumPtr),
-                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!(*moeExpertNumPtr == MOE_EXPERT_NUM_32),
+                    OP_LOGE(nodeName_, "moeExpertNum shoud be 32, get %lu", *moeExpertNumPtr), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
