@@ -25,6 +25,9 @@
 #include "service_scatter_cache.h"
 #include "service_dequant.h"
 #include "service_dynamic_quant_qn_mul_qr.h"
+#if __CCE_AICORE__ == 310
+#include "service_split_kn_accum.h"
+#endif
 #include "mla_prolog_tiling_data.h"
 #include "mla_prolog_template_tiling_key.h"
 
@@ -59,6 +62,13 @@ public:
     MMParams mmCkvKrParam_;
     MMParams mmQcQrParam_;
     MMParams mmQnParam_;
+
+#if __CCE_AICORE__ == 310
+    GlobalTensor<float> cqPartialsGm_;
+    GlobalTensor<float> ckvKrPartialsGm_;
+    MMParams mmCqKnParam_;
+    MMParams mmCkvKrKnParam_;
+#endif
 
     __aicore__ inline MlaPrologVecS1CubS2(TPipe* pipe, const optiling::MlaPrologTilingData* __restrict tilingData,
                                           const optiling::MlaPrologBaseParams* __restrict baseParams)
@@ -657,6 +667,22 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::WorkspaceInit(__gm__ uint8_t 
         dequantScaleCqSize_ = baseParams_->headSizeCq / FP8_E4M3_BLOCK_SIZE;
     }
     dequantScaleCqSize_ = Align(dequantScaleCqSize_, BYTE_BLOCK);
+#if __CCE_AICORE__ == 310
+    // Ascend 950: allocate partial sum buffers for Split-KN
+    if (baseParams_->mm1KnKGroups > 0) {
+        cqPartialsGm_.SetGlobalBuffer((__gm__ float *)(workspace + workspaceOffset));
+        workspaceOffset += static_cast<int64_t>(baseParams_->mm1KnKGroups)
+                         * static_cast<int64_t>(baseParams_->stepBatchSize)
+                         * static_cast<int64_t>(baseParams_->headSizeCq) * sizeof(float);
+    }
+    if (baseParams_->mm2KnKGroups > 0) {
+        ckvKrPartialsGm_.SetGlobalBuffer((__gm__ float *)(workspace + workspaceOffset));
+        workspaceOffset += static_cast<int64_t>(baseParams_->mm2KnKGroups)
+                         * static_cast<int64_t>(baseParams_->stepBatchSize)
+                         * static_cast<int64_t>(baseParams_->headSizeCkv + baseParams_->dimHeadRope)
+                         * sizeof(float);
+    }
+#endif
     if constexpr (MLAPT::enableGroupComputeOpt || MLAPT::enableDequantOpt) {
         dequantTool_.deQuantScaleCqGm_.SetGlobalBuffer((__gm__ dequantScaleType *)(workspace + workspaceOffset));
         workspaceOffset += baseParams_->stepBatchSize * dequantScaleCqSize_;
@@ -815,6 +841,37 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AicProcess(AicOffset &aicOffs
     int64_t dequantScaleXOffset = batchOffset * static_cast<int64_t>(baseParams_->headSizeX) / 32;
     // MatmulCq ──> RmsNorm(Cq)
     // [32, 7168] * [7168, 1536] = [32, 1536]
+#if __CCE_AICORE__ == 310
+    // Ascend 950: Split-KN for MM1 (MatmulCq)
+    {
+        uint32_t kGroups1 = baseParams_->mm1KnKGroups;
+        uint32_t nGroup1 = blockIdx_ / kGroups1;
+        uint32_t kGroup1 = blockIdx_ % kGroups1;
+        uint32_t kStart1 = kGroup1 * baseParams_->mm1KnSingleK;
+        uint32_t nStart1 = nGroup1 * baseParams_->mm1KnSingleN;
+        uint32_t singleK1 = baseParams_->mm1KnSingleK;
+        uint32_t singleN1 = baseParams_->mm1KnSingleN;
+
+        // Partial output offset: [kGroup][stepBS][Hcq] layout, write to [nStart] columns
+        int64_t partialOff = static_cast<int64_t>(kGroup1) * baseParams_->stepBatchSize * baseParams_->headSizeCq + nStart1;
+
+        // Use existing MatmulSplitN with adjusted params for K-slice
+        MMParams mmCqKn = mmCqParam_;
+        mmCqKn.n = singleN1;
+        mmCqKn.k = singleK1;
+        MatmulSplitN<mmInputType, float, dequantScaleType>(
+            cqPartialsGm_[partialOff],
+            tokenXGm_[tokenXOffset + kStart1],  // A: offset to K-slice start column
+            weightDqGm_[static_cast<int64_t>(kStart1) * baseParams_->headSizeCq + nStart1],
+            mmCqKn, UsedBlockParams{static_cast<uint32_t>(blockIdx_), static_cast<uint32_t>(blockIdx_) + 1});
+
+        // All-cube sync then signal AIV
+        CrossCoreSetFlag<SYNC_MODE_ALL_CUBE, PIPE_FIX>(FINISH_MM_CQ_KN);
+        CrossCoreWaitFlag(FINISH_MM_CQ_KN);
+        CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_FIX>(FINISH_MM_CQ);
+    }
+#else
+    // Other chips: existing Split-N
     if constexpr (std::is_same<mmInputType, FP8E4M3>::value) {
         MatmulSplitN<mmInputType, mmCqOutputType, dequantScaleType>(mmCqResGm_[aicOffset.cqResOffset], tokenXGm_[tokenXOffset], weightDqGm_[aicOffset.weightDqOffset],
             mmCqParam_, UsedBlockParams{0, baseParams_->mm1BlockNum}, dequantScaleXGm_[dequantScaleXOffset], dequantScaleWDqGm_[aicOffset.dequantScaleWDqOffset]);
@@ -823,9 +880,40 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AicProcess(AicOffset &aicOffs
             mmCqParam_, UsedBlockParams{0, baseParams_->mm1BlockNum});
     }
     CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_FIX>(FINISH_MM_CQ);
+#endif
     // MatmulCkvKr ──> RmsNorm(Ckv)
     //            └──> Rope(Kr)
     // [32, 7168] * [7168, 512+64] = [32, 576]
+#if __CCE_AICORE__ == 310
+    // Ascend 950: Split-KN for MM2 (MatmulCkvKr)
+    {
+        uint32_t kGroups2 = baseParams_->mm2KnKGroups;
+        uint32_t nGroup2 = blockIdx_ / kGroups2;
+        uint32_t kGroup2 = blockIdx_ % kGroups2;
+        uint32_t kStart2 = kGroup2 * baseParams_->mm2KnSingleK;
+        uint32_t nStart2 = nGroup2 * baseParams_->mm2KnSingleN;
+        uint32_t singleK2 = baseParams_->mm2KnSingleK;
+        uint32_t singleN2 = baseParams_->mm2KnSingleN;
+
+        // Partial output offset: [kGroup][stepBS][Hckv+Dr] layout
+        int64_t partialOff2 = static_cast<int64_t>(kGroup2) * baseParams_->stepBatchSize
+                            * (baseParams_->headSizeCkv + baseParams_->dimHeadRope) + nStart2;
+
+        MMParams mmCkvKrKn = mmCkvKrParam_;
+        mmCkvKrKn.n = singleN2;
+        mmCkvKrKn.k = singleK2;
+        MatmulSplitN<mmInputType, float, dequantScaleType, true>(
+            ckvKrPartialsGm_[partialOff2],
+            tokenXGm_[tokenXOffset + kStart2],  // A: offset to K-slice start column
+            weightDkvKrGm_[static_cast<int64_t>(kStart2) * (baseParams_->headSizeCkv + baseParams_->dimHeadRope) + nStart2],
+            mmCkvKrKn, UsedBlockParams{static_cast<uint32_t>(blockIdx_), static_cast<uint32_t>(blockIdx_) + 1});
+
+        CrossCoreSetFlag<SYNC_MODE_ALL_CUBE, PIPE_FIX>(FINISH_MM_CKVKR_KN);
+        CrossCoreWaitFlag(FINISH_MM_CKVKR_KN);
+        CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_FIX>(FINISH_MM_CKVKR);
+    }
+#else
+    // Other chips: existing Split-N
     if constexpr (std::is_same<mmInputType, FP8E4M3>::value) {
         MatmulSplitN<mmInputType, mmCkvKrOutputType, dequantScaleType, true>(mmCkvKrResGm_[aicOffset.ckvKrResOffset],
             tokenXGm_[tokenXOffset], weightDkvKrGm_[aicOffset.weightDkvKrOffset], mmCkvKrParam_,
@@ -837,6 +925,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AicProcess(AicOffset &aicOffs
             UsedBlockParams{0, baseParams_->mm2BlockNum});
     }
     CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_FIX>(FINISH_MM_CKVKR);
+#endif
     CrossCoreWaitFlag(FINISH_VEC_RMSNORM_CQ);
 
     if constexpr (std::is_same<mmInputType, FP8E4M3>::value) {
@@ -879,6 +968,29 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AivProcess(AivOffset &aivOffs
     CopyInSinCos(tokenIndex, aivOffset.curVecToken, batchOffset, curStepBatchSize);
     CrossCoreWaitFlag(FINISH_MM_CQ);
     WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
+
+#if __CCE_AICORE__ == 310
+    // Ascend 950: Accumulate Split-KN Cq partials before RmsNorm
+    if (baseParams_->mm1KnKGroups > 0) {
+        uint32_t nPerVec = CeilDivT(baseParams_->headSizeCq, static_cast<uint32_t>(vectorCoreNum_));
+        uint32_t nStart = blockIdx_ * nPerVec;
+        uint32_t nLen = (nStart + nPerVec > baseParams_->headSizeCq) ?
+                        (baseParams_->headSizeCq - nStart) : nPerVec;
+        if (nStart < baseParams_->headSizeCq) {
+            AccumulateKnPartials<float, mmCqOutputType>(
+                mmCqResGm_,
+                cqPartialsGm_,
+                static_cast<uint32_t>(curStepBatchSize), baseParams_->headSizeCq,
+                nStart, nLen,
+                0, static_cast<uint32_t>(curStepBatchSize),
+                baseParams_->mm1KnKGroups,
+                baseParams_->stepBatchSize * baseParams_->headSizeCq,
+                shareBuffer_);
+        }
+        WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
+    }
+#endif
+
     RmsNormCq(tokenIndex, aivOffset.rmsNormCqOffset, rmsNormCqResOffset,
         aivOffset.curVecToken, aivOffset.curBlockTokenOffset);
     // 由于RmsNormCq和MatmulQcQr的分核策略不一样，需要等所有vector上的RmsNormCq执行完成后才能启动MatmulQcQr
@@ -892,6 +1004,29 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AivProcess(AivOffset &aivOffs
     CrossCoreSetFlag<SYNC_MODE_CUBE_VEC, PIPE_MTE3>(FINISH_VEC_RMSNORM_CQ);
     CrossCoreWaitFlag(FINISH_MM_CKVKR);
     WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
+
+#if __CCE_AICORE__ == 310
+    // Ascend 950: Accumulate Split-KN CkvKr partials before RmsNorm/Rope
+    if (baseParams_->mm2KnKGroups > 0) {
+        uint32_t ckvKrN = baseParams_->headSizeCkv + baseParams_->dimHeadRope;
+        uint32_t nPerVec = CeilDivT(ckvKrN, static_cast<uint32_t>(vectorCoreNum_));
+        uint32_t nStart = blockIdx_ * nPerVec;
+        uint32_t nLen = (nStart + nPerVec > ckvKrN) ? (ckvKrN - nStart) : nPerVec;
+        if (nStart < ckvKrN) {
+            AccumulateKnPartials<float, mmCkvKrOutputType>(
+                mmCkvKrResGm_,
+                ckvKrPartialsGm_,
+                static_cast<uint32_t>(curStepBatchSize), ckvKrN,
+                nStart, nLen,
+                0, static_cast<uint32_t>(curStepBatchSize),
+                baseParams_->mm2KnKGroups,
+                baseParams_->stepBatchSize * ckvKrN,
+                shareBuffer_);
+        }
+        WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
+    }
+#endif
+
     RmsNormRopeScatterCkvKr(tokenIndex, aivOffset.rmsNormCkvOffset, aivOffset.ropeKrOffset, aivOffset.curVecToken);
 
     // 根据不同分支条件处理
