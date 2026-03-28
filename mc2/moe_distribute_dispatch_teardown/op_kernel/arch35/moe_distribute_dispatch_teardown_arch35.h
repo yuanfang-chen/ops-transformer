@@ -38,10 +38,8 @@
 namespace Mc2Kernel {
 constexpr uint8_t BUFFER_NUM = 2;       // 多buf
 constexpr uint32_t STATE_OFFSET = 512U; // 状态空间偏移地址
-// constexpr uint32_t STATE_SIZE = 1024U * 1024U;
+constexpr uint32_t STATE_SIZE = 1024U * 1024U;
 constexpr uint32_t UB_ALIGN = 32U;      // UB按32字节对齐
-// constexpr uint64_t WIN_STATE_OFFSET = 384UL * 1024UL;
-// constexpr uint64_t STATE_WIN_OFFSET = WIN_STATE_OFFSET * 2;
 constexpr uint32_t WORKSPACE_ELEMENT_OFFSET = 512U;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
 
@@ -265,7 +263,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     statusTensor_ = statusBuf_.Get<int32_t>(); // 保存状态，用于计算windows中的偏移
     statusSpaceGm_ = GetWindStateAddrByRankId(epRankId_);
     sumTarget_ = static_cast<float>(1.0);
-    // uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchTeardownInfo.totalWinSize / 2);
     tempTotalWinSize_ = tilingData->moeDistributeDispatchTeardownInfo.totalWinSize;
     windowGM_ = GetWindAddrByRankId(epRankId_);
