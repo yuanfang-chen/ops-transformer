@@ -334,7 +334,6 @@ function(add_opapi_modules)
       ascend_dump
       ascendalog
       dl
-      ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
       )
   endif()
 endfunction()
