@@ -45,7 +45,7 @@ TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
     };
 
     gert::TilingContextPara tilingContextPara(
-        "AggregateHidden",
+        "AggregateHiddenGrad",
         {
             // Input 0: x - (batch=4, seq_len=1, dim=512)
             {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
