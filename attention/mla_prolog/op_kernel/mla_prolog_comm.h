@@ -132,6 +132,14 @@ constexpr int FINISH_MM_QCQR_SPLIT_N = 0X6;
 constexpr int FINISH_VEC_DEQUANT_QC_SPLIT_N = 0X6;
 constexpr int FINISH_MM_QN_SPLIT_N = 0X6;
 
+// Split-KN sync flags (Ascend 950 only)
+#if __CCE_AICORE__ == 310
+constexpr int FINISH_MM_CQ_KN = 0x9;
+constexpr int FINISH_MM_CKVKR_KN = 0x6;
+constexpr int FINISH_ACCUM_CQ = 0x7;
+constexpr int FINISH_ACCUM_CKVKR = 0x8;
+#endif
+
 #ifdef ENABLE_DUMP_DATA
 #define DO_DUMP_DATA(srcTensor, id, len) AscendC::DumpTensor(srcTensor, id, len)
 #else
