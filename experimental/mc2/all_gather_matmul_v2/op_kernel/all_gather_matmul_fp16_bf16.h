@@ -21,19 +21,18 @@
 #include "kernel_dependency/mc2_mat_mul_asw_block.h"
 #include "all_gather_matmul_tiling.h"
 
-namespace AllGatherMatmulImpl
-{
+namespace AllGatherMatmulImpl {
 using namespace AscendC;
 
 template <typename AType, typename BType, typename BiasType, typename CType>
-class AllGatherMatmulFP16BF16
-{
+class AllGatherMatmulFP16BF16 {
 public:
     __aicore__ inline AllGatherMatmulFP16BF16()
     {
     }
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM,
-                                GM_ADDR workspaceGM, GM_ADDR gatherOut, Mc2Tiling::AllGatherMatmulTilingData* tilingData,
+                                GM_ADDR workspaceGM, GM_ADDR gatherOut, 
+                                Mc2Tiling::AllGatherMatmulTilingData* tilingData,
                                 __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe);
     __aicore__ inline void Process();
 
@@ -66,7 +65,8 @@ private:
 template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::Init(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM, GM_ADDR workspaceGM, GM_ADDR gatherOut,
-    Mc2Tiling::AllGatherMatmulTilingData* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
+    Mc2Tiling::AllGatherMatmulTilingData* tilingData, __gm__ void* mc2InitTiling,
+     __gm__ void* mc2CcTiling, TPipe* tPipe)
 {
     // 获取tilingdata数据
     tilingData_ = tilingData;
