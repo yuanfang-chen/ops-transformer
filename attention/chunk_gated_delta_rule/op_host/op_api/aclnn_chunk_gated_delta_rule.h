@@ -6,7 +6,7 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+  */
 
 #ifndef OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
 #define OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
@@ -36,7 +36,7 @@ extern "C" {
  */
 ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     const aclTensor *query,
-    const aclTensor *key, 
+    const aclTensor *key,
     const aclTensor *value,
     const aclTensor *beta,
     const aclTensor *initialState,
@@ -44,12 +44,12 @@ ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     const aclTensor *gOptional,
     float scaleValue,
     const aclTensor *out,
-    const aclTensor *finalState, 
+    const aclTensor *finalState,
     uint64_t *workspaceSize,
     aclOpExecutor **executor);
 
 /**
- * @brief 
+ * @brief
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
  * @param [in] workspaceSize: 在npu
  * device侧申请的workspace大小，由第一段接口aclnnRecurrentGatedDeltaRuleGetWorkspaceSize获取。
@@ -58,8 +58,8 @@ ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
  * @return aclnnStatus: 返回状态码
  */
 ACLNN_API aclnnStatus aclnnChunkGatedDeltaRule(
-    void *workspace, 
-    uint64_t workspaceSize, 
+    void *workspace,
+    uint64_t workspaceSize,
     aclOpExecutor *executor,
     aclrtStream stream);
 

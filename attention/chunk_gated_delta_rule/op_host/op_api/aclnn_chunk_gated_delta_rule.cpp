@@ -58,7 +58,8 @@ namespace {
     static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 
     // 校验函数：做指针非空校验，gOptional 为可选输入，不做非空校验
-    static inline bool CheckNotNull(const ChunkGatedDeltaRuleParams &params) {
+    static inline bool CheckNotNull(const ChunkGatedDeltaRuleParams &params)
+    {
         OP_CHECK_NULL(params.query, return false);
         OP_CHECK_NULL(params.key, return false);
         OP_CHECK_NULL(params.value, return false);
@@ -72,7 +73,8 @@ namespace {
     }
 
     // 校验函数：做 dtype 校验
-    static inline bool CheckDtypeValid(const ChunkGatedDeltaRuleParams &params) {
+    static inline bool CheckDtypeValid(const ChunkGatedDeltaRuleParams &params)
+    {
         OP_CHECK_DTYPE_NOT_SUPPORT(params.query, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.key, QKV_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(params.value, QKV_TYPE_SUPPORT_LIST, return false);
@@ -92,7 +94,8 @@ namespace {
     }
 
     // 校验函数：这里校验 dtype，shape/rank 约束由 tiling 侧保证
-    static aclnnStatus CheckParams(ChunkGatedDeltaRuleParams &params) {
+    static aclnnStatus CheckParams(ChunkGatedDeltaRuleParams &params)
+    {
         CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
         OP_LOGD("ChunkGatedDeltaRule check params success.");
 
@@ -118,17 +121,17 @@ namespace {
 
 aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     const aclTensor *query,
-    const aclTensor *key, 
+    const aclTensor *key,
     const aclTensor *value,
     const aclTensor *beta,
     const aclTensor *initialState,
     const aclTensor *actualSeqLengths,
     const aclTensor *gOptional,
     float scaleValue,
-    const aclTensor *out, 
+    const aclTensor *out,
     const aclTensor *finalState,
     uint64_t *workspaceSize,
-    aclOpExecutor **executor) 
+    aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(aclnnChunkGatedDeltaRule,
         DFX_IN(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
@@ -189,8 +192,8 @@ aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
 }
 
 aclnnStatus aclnnChunkGatedDeltaRule(
-    void *workspace, 
-    uint64_t workspaceSize, 
+    void *workspace,
+    uint64_t workspaceSize,
     aclOpExecutor *executor,
     aclrtStream stream)
 {
