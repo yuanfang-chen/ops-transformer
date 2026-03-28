@@ -105,6 +105,7 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
     }
 
     OP_LOGD(INNER_DEBUG, "Matmul m is: %ld, n is: %ld, k1 is: %ld, k2 is: %ld.", shape.m, shape.n, shape.k1, shape.k2);
+
     return ge::GRAPH_SUCCESS;
 }
 
