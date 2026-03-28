@@ -1,5 +1,5 @@
-﻿/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+/**
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -67,7 +67,6 @@ protected:
 // ============================================================================
 // 1. 基础正确性测试 - 有/无 gamma
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, BasicWithGamma)
 {
     optiling::ChunkGatedDeltaRuleCompileInfo compileinfo = {48, 196608};
@@ -159,7 +158,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, BasicWithoutGamma)
 // ============================================================================
 // 2. 不同 batch size 测试
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, SingleBatch)
 {
     optiling::ChunkGatedDeltaRuleCompileInfo compileinfo = {48, 196608};
@@ -226,7 +224,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, MaxBatch8)
 // ============================================================================
 // 3. GQA 模式测试（nv 是 nk 的整数倍）
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, GQA_2x)
 {
     // GQA: nv = 2 * nk
@@ -320,7 +317,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, MaxHeads48)
 // ============================================================================
 // 4. 不同维度测试
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, Dim128)
 {
     // 最大维度 dk=dv=128
@@ -384,7 +380,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, DifferentDKDV)
 // ============================================================================
 // 5. scale 参数变化测试
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, ScaleInvSqrt)
 {
     // scale = 1/sqrt(dk) = 1/sqrt(64) = 0.125
@@ -418,7 +413,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, ScaleInvSqrt)
 // ============================================================================
 // 6. 异常输入测试 - nv 不是 nk 的整数倍（期望失败）
 // ============================================================================
-
 TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_NvNotMultipleOfNk_3_4)
 {
     // nv=3, nk=4: 3 % 4 != 0, 期望失败
@@ -511,7 +505,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_NvNotMultipleOfNk_7_8)
 // ============================================================================
 // 7. Dtype 异常场景（期望失败）
 // ============================================================================
-
 // 输出 out 的 dtype 非 BF16，期望在 AnalyzeDtype 中被拦截
 TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_OutDtype_Fp16)
 {
@@ -636,7 +629,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_GammaDtype_Bf16)
 // ============================================================================
 // 8. Shape / Rank 异常场景（期望失败）
 // ============================================================================
-
 // query 的 rank 错误（2 维而非 3 维），期望在 AnalyzeShapes 中被拦截
 TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_QueryRank2)
 {
@@ -730,7 +722,6 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_FinalStateShape_TInsteadOfB)
 // ============================================================================
 // 9. Format 异常场景（期望失败）
 // ============================================================================
-
 // state 的 format 非允许格式（当前仅允许 ND/NCHW），期望在 AnalyzeFormat 中被拦截
 TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_StateFormat_NCL)
 {

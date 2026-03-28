@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+  */
 
 /*!
  * \file chunk_gated_delta_rule.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_H_
-#define __CHUNK_GATED_DELTA_RULE_H_
+#ifndef CHUNK_GATED_DELTA_RULE_H
+#define CHUNK_GATED_DELTA_RULE_H
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -22,6 +22,7 @@
 #include "chunk_gated_delta_rule_stage1.h"
 #include "chunk_gated_delta_rule_stage2.h"
 #include "chunk_gated_delta_rule_stage3.h"
+#include "chunk_gated_delta_rule_utils.h"
 
 namespace ChunkGatedDeltaRule {
 
@@ -59,13 +60,12 @@ __aicore__ inline void CopyCast(
         if (endPos > totalDataCount) {
             endPos = totalDataCount;
         }
-        uint32_t tileLen = 1024;   // 1024 = 1kb，经测试1kb和10kb性能差异很小
-        TQue<QuePosition::VECIN, 2> inQueue;      // use 2 buffer
-        TQue<QuePosition::VECOUT, 2> outQueue;    // use 2 buffer
-        pipe->InitBuffer(inQueue, 2, tileLen * sizeof(srcType));   // use 2 buffer
-        pipe->InitBuffer(outQueue, 2, tileLen * sizeof(dstType));  // use 2 buffer
-        for (int64_t i = startPos; i < endPos; i += tileLen) {
-            uint32_t blockLen = i + tileLen > endPos ? endPos - i : tileLen;
+        TQue<QuePosition::VECIN, TQUE_DEPTH_TWO> inQueue;
+        TQue<QuePosition::VECOUT, TQUE_DEPTH_TWO> outQueue;
+        pipe->InitBuffer(inQueue, BUFFER_NUM_TWO, TILE_LEN * sizeof(srcType));   // use 2 buffer
+        pipe->InitBuffer(outQueue, BUFFER_NUM_TWO, TILE_LEN * sizeof(dstType));  // use 2 buffer
+        for (int64_t i = startPos; i < endPos; i += TILE_LEN) {
+            uint32_t blockLen = i + TILE_LEN > endPos ? endPos - i : TILE_LEN;
             // copy in
             DataCopyExtParams inParams{1, static_cast<uint32_t>(blockLen * sizeof(srcType)), 0, 0, 0};
             DataCopyPadExtParams<srcType> inPadParams{false, 0, 0, 0};
@@ -117,8 +117,9 @@ public:
             pipe_->InitBuffer(tmpBuff_, cBlockSize * sizeof(float));
             auto cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(cBlockSize), 0);
             Duplicate<float>(cCFloat_, 0, tiling_->chunkSize);
-            SetFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
-            WaitFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
+            int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::V_MTE3));
+            SetFlag<HardEvent::V_MTE3>(eventID);
+            WaitFlag<HardEvent::V_MTE3>(eventID);
             DataCopyExtParams copyParams;
             copyParams.blockCount = static_cast<uint16_t>(1);
             copyParams.blockLen = static_cast<uint32_t>(tiling_->chunkSize * sizeof(float));
@@ -126,15 +127,18 @@ public:
             copyParams.dstStride = static_cast<uint32_t>((0) * sizeof(float));
             for (int i = 0; i < tiling_->chunkSize; ++i) {
                 DataCopyPad(stageOneMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
-                SetFlag<HardEvent::MTE3_S>(MTE3_S_EVENT);
-                WaitFlag<HardEvent::MTE3_S>(MTE3_S_EVENT);
+                eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE3_S));
+                SetFlag<HardEvent::MTE3_S>(eventID);
+                WaitFlag<HardEvent::MTE3_S>(eventID);
                 cCFloat_.SetValue(i, 1);
-                SetFlag<HardEvent::S_MTE3>(S_MTE3_EVENT);
-                WaitFlag<HardEvent::S_MTE3>(S_MTE3_EVENT);
+                eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_MTE3));
+                SetFlag<HardEvent::S_MTE3>(eventID);
+                WaitFlag<HardEvent::S_MTE3>(eventID);
                 DataCopyPad(stageThreeMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
             }
-            SetFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT); // 这里必须同步, 否则会有提前拷出的问题
-            WaitFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);            
+            eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE3_MTE2));
+            SetFlag<HardEvent::MTE3_MTE2>(eventID); // 这里必须同步, 否则会有提前拷出的问题
+            WaitFlag<HardEvent::MTE3_MTE2>(eventID);
             pipe_->Reset();
         }
     }
@@ -325,4 +329,4 @@ private:
 };
 
 } // namespace ChunkGatedDeltaRule
-#endif  // __CHUNK_GATED_DELTA_RULE_H_
+#endif  // CHUNK_GATED_DELTA_RULE_H

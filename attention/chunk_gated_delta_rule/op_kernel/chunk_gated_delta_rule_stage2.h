@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
  * \file chunk_gated_delta_rule_stage2.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE2_H_
-#define __CHUNK_GATED_DELTA_RULE_STAGE2_H_
+#ifndef CHUNK_GATED_DELTA_RULE_STAGE2_H
+#define CHUNK_GATED_DELTA_RULE_STAGE2_H
 
-#include "kernel_operator.h"
-#include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "chunk_gated_delta_rule_utils.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 
 namespace ChunkGatedDeltaRule {
@@ -74,12 +73,12 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE, 
+        pipe_->InitBuffer(inQueue_, BUFFER_NUM_ONE,
                           chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
-        uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float), 
+        uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float),
                                                   (uint64_t)Dv_ * curDk_ * sizeof(bfloat16_t));
         pipe_->InitBuffer(outQueue_, BUFFER_NUM_ONE, outQueueSize);
-        pipe_->InitBuffer(tmpBuff_, 
+        pipe_->InitBuffer(tmpBuff_,
                           chunkSize_ > Dv_ ? chunkSize_ * curDk_ * sizeof(float) : Dv_ * curDk_ * sizeof(float));
     }
 
@@ -122,8 +121,9 @@ public:
                     CrossCoreWaitFlag(0x3);
                     CalStateNew(sTP_->vInner[mm_offset1], sTP_->kg[mm_offset0], curState);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x4);
-                    SetFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
-                    WaitFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
+                    int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+                    SetFlag<HardEvent::FIX_MTE2>(eventID);
+                    WaitFlag<HardEvent::FIX_MTE2>(eventID);
                 }
             }
         }
@@ -138,11 +138,7 @@ public:
         float last_g_cum_exp = gOptional_? gCumExp.GetValue(curChunkSize_ - 1) : 1.0f;
         auto state_in = inQueue_.DeQue<float>();
         auto state_out = outQueue_.AllocTensor<float>();
-        SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
-        WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
         Muls(state_out, state_in, last_g_cum_exp, Dv_ * curDk_);
-        SetFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
-        WaitFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
         outQueue_.EnQue(state_out);
         CopyOut<float>(stateNew, Dv_, Dk_);
         inQueue_.FreeTensor(state_in);
@@ -178,7 +174,7 @@ public:
                                        GlobalTensor<float> kg,
                                        GlobalTensor<float> state)
     {
-        // state_out = v_new.transpose(0, 1) @ kg 
+        // state_out = v_new.transpose(0, 1) @ kg
         sTP_->mm1->SetOrgShape(Dv_, Dk_, curChunkSize_);    // MNK
         sTP_->mm1->SetSingleShape(Dv_, Dk_, curChunkSize_); // SingleCoreMNK
         sTP_->mm1->SetTensorA(vInner, true);
@@ -193,7 +189,7 @@ public:
         LocalTensor<inType> inLocal = inQueue_.AllocTensor<inType>();
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
                                    static_cast<uint32_t>(col * sizeof(inType)),                // 非对齐情况需要补0
-                                   static_cast<uint32_t>(0), 
+                                   static_cast<uint32_t>(0),
                                    0, 0};
         int padding = Ceil(col, BLOCK_SIZE / sizeof(inType)) * (BLOCK_SIZE / sizeof(inType)) - col;
         DataCopyPadExtParams<inType> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
@@ -240,4 +236,4 @@ private:
     bool gOptional_;
 };
 } // namespace ChunkGatedDeltaRule
-#endif
+#endif // CHUNK_GATED_DELTA_RULE_STAGE2_H

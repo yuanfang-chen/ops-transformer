@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
  * \file chunk_gated_delta_rule_stage3.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE3_H_
-#define __CHUNK_GATED_DELTA_RULE_STAGE3_H_
+#ifndef CHUNK_GATED_DELTA_RULE_STAGE3_H
+#define CHUNK_GATED_DELTA_RULE_STAGE3_H
 
-#include "kernel_operator.h"
-#include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "chunk_gated_delta_rule_utils.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 
 namespace ChunkGatedDeltaRule {
@@ -96,8 +95,9 @@ public:
                                    0, 0, 0};
         DataCopyPadExtParams<float> copyPadParams{false, 0, 0, 0};
         DataCopyPad(maskBuffer_, sTP_->maskTensor, inParams, copyPadParams);
-        SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
-        WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(eventID);
+        WaitFlag<HardEvent::MTE2_V>(eventID);
     }
 
     __aicore__ inline void Process()
@@ -142,7 +142,7 @@ public:
             auto g_cum_exp = inQueue_.DeQue<float>();
             const uint32_t srcShape1[] = {static_cast<uint32_t>(chunkSize_), static_cast<uint32_t>(1)};
             const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(chunkSize_)};
-            const uint32_t dstShape[] = {static_cast<uint32_t>(chunkSize_), 
+            const uint32_t dstShape[] = {static_cast<uint32_t>(chunkSize_),
                                          static_cast<uint32_t>(chunkSize_)};
             Broadcast<float, BROADCAST_AXIS, 1>(tmpBuffer1_, g_cum_exp, dstShape, srcShape1);
             Broadcast<float, BROADCAST_AXIS, 0>(tmpBuffer2_, g_cum_exp, dstShape, srcShape2);
@@ -259,11 +259,11 @@ private:
     int64_t paddedDv_;
     int32_t chunkNum_;
     int32_t coreNum_;
-    int32_t curChunkSize_; 
+    int32_t curChunkSize_;
     int32_t chunkSize_;
     int32_t coreId_;
     bool gOptional_;
 };
 
 } // namespace ChunkGatedDeltaRule
-#endif
+#endif // CHUNK_GATED_DELTA_RULE_STAGE3_H
