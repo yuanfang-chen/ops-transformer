@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -19,8 +19,7 @@
 #include "mat_mul_asw_kernel.h"
 #include "mc2_mat_mul_asw_block.h"
 
-namespace MC2MatmulV3
-{
+namespace MC2MatmulV3 {
 
 using namespace AscendC;
 using namespace matmul;
@@ -28,15 +27,14 @@ using namespace Mc2MatmulV3Advanced;
 
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, class BLOCK_TYPE = Mc2MatmulAswBlock,
           const MatmulConfig& MM_CFG = MM_CFG_NO_PRELOAD>
-class MC2MatmulAswKernelDerive : public Mc2MatmulAswKernel<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BLOCK_TYPE, MM_CFG>
-{
+class MC2MatmulAswKernelDerive : public Mc2MatmulAswKernel<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BLOCK_TYPE, MM_CFG> {
 public:
     __aicore__ inline MC2MatmulAswKernelDerive()
     {
     }
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, GM_ADDR offsetGM,
-                                GM_ADDR workspaceGM, const void* tilingData, TPipe* pipe, Mc2Tiling::RCSTiling cfg, bool isTail,
-                                bool isGather);
+                                GM_ADDR workspaceGM, const void* tilingData, TPipe* pipe, Mc2Tiling::RCSTiling cfg, 
+                                bool isTail, bool isGather);
     __aicore__ inline void InitInputs(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, bool isGather);
     __aicore__ inline void UpdateSlice(uint32_t idx, bool isTail);
     __aicore__ inline void Process(bool isLast = true, uint8_t enAtomic = 0);
@@ -82,8 +80,8 @@ __aicore__ inline void MC2MatmulAswKernelDerive<A_TYPE, B_TYPE, C_TYPE, BIAS_TYP
 }
 
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, class BLOCK_TYPE, const MatmulConfig& MM_CFG>
-__aicore__ inline void MC2MatmulAswKernelDerive<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BLOCK_TYPE, MM_CFG>::Process(bool isLast,
-    uint8_t enAtomic)
+__aicore__ inline void MC2MatmulAswKernelDerive<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BLOCK_TYPE, MM_CFG>::Process(
+    bool isLast, uint8_t enAtomic)
 {
     if ASCEND_IS_AIV {
         return;

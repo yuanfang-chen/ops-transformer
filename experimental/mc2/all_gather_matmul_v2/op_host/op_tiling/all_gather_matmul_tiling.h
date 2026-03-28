@@ -26,8 +26,7 @@ namespace optiling {
 
 using namespace mc2_matmul_v3_advanced;
 
-class AllGatherMatmulTiling : public AllGatherMatmulTilingBase
-{
+class AllGatherMatmulTiling : public AllGatherMatmulTilingBase {
 public:
     explicit AllGatherMatmulTiling(gert::TilingContext *context);
     ~AllGatherMatmulTiling() override = default;

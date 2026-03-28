@@ -18,14 +18,13 @@
 #pragma once
 #include "op_host/op_tiling/mc2_fit_based_balance_tiling.h"
 
-class AllGatherMMFitBalanceTiling : public Mc2FitBasedBalanceTiling
-{
+class AllGatherMMFitBalanceTiling : public Mc2FitBasedBalanceTiling {
 public:
     double frontMMTime_ = 0;
 
     explicit AllGatherMMFitBalanceTiling(const mc2tiling::TilingArgs& args, KernelType kernelType,
-        TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950) :
-        Mc2FitBasedBalanceTiling(args, kernelType, topoType, socVersion)
+        TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950)
+        : Mc2FitBasedBalanceTiling(args, kernelType, topoType, socVersion)
     {
         commPerf_.SetCommShapeLen(mmInfo_.kValue);
         commPerf_.SetCommDTypeSize(mmInfo_.inMatrixADtypeSize);

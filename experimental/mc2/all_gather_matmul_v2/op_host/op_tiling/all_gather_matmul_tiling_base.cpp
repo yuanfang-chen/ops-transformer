@@ -37,8 +37,7 @@ using namespace AscendC;
 using namespace ge;
 using namespace Mc2Tiling;
 
-namespace optiling
-{
+namespace optiling {
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64};
 constexpr uint64_t BLOCK_SIZE_INDEX = 6;
 
@@ -142,7 +141,8 @@ void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rc
             (rcsCfg.gatherLen == 0), args_.orgKValue, args_.orgNValue);
 }
 
-ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg, mc2tiling::Mc2QuantMode quantMmMode)
+ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg, 
+                                                           mc2tiling::Mc2QuantMode quantMmMode)
 {    
     if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
         return ge::GRAPH_SUCCESS;
@@ -156,7 +156,8 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
         OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting, the size still exceeds 256MB."), 
         return ge::GRAPH_FAILED);
     
-    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, 
+                                               mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
     tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
     rcfCfg.tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
     rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
@@ -246,7 +247,6 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
 
 CutResult AllGatherMatmulTilingBase::GetTilingResult()
 {
-   
     AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
     return tileFormulate.GetTiling();
 }
