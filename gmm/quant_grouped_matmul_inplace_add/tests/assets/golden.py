@@ -18,19 +18,21 @@ __golden__ = {
 import torch
 import numpy as np
 
-def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list, y, scale1, group_list_type:int = 0,
+def quant_grouped_matmul_inplace_add_golden(x1, x2, scale2, group_list, y, scale1 = None, group_list_type:int = 0,
                                             group_size: int = 0, **kwargs):
 
 
     scale, inplace_y, pertoken_scale = scale2, y, scale1
-    x1_dtype, x2_dtype, scale_dtype, _, inplace_y_dtype, pertoken_scale_dtype = kwargs['input_dtypes']
+    x1_dtype, x2_dtype = x1.dtype, x2.dtype
+    if scale is not None:
+        scale_dtype = scale.dtype
     output_dtypes = kwargs['output_dtypes']
     out_dtype = output_dtypes[0]
 
     # mxFP4/8
     outs = []
     group_num = len(group_list) # 不管什么分组，分组数一定等于该group_list长度
-    is_mx_quant = x1_dtype in ("float4_e2m1", "float4_e1m2", "float8_e4m3fn", "float8_e5m2") and scale_dtype == "float8_e8m0"
+    is_mx_quant = x1_dtype in ("float4_e2m1", "float4_e1m2", "float8_e4m3fn", "float8_e5m2") and scale is not None and scale_dtype == "float8_e8m0"
 
     # group_list_type 0: cumsum, 1: count
     if group_list_type == 1:

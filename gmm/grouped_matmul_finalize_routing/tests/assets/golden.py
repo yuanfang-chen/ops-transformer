@@ -17,52 +17,57 @@ __golden__ = {
 
 from typing import List
 import numpy as np
-import struct
 import torch
 
-def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, group_list, shared_input, logit, row_index,
-                                           offset, dtype: int = 0, shared_input_weight: float = 1.0,
+def grouped_matmul_finalize_routing_golden(x, w, scale = None, bias = None, pertoken_scale = None, group_list = None, 
+                                           shared_input = None, logit = None, row_index = None, offset = None, 
+                                           dtype: int = 0, shared_input_weight: float = 1.0,
                                            shared_input_offset: int = 0, transpose_x: bool = False,
                                            transpose_w: bool = False, output_bs: int = 0, group_list_type: int = 1,
                                            tuning_config: List[int] = [0], **kwargs):
     x1, x2_all = x, w
-    input_dtypes = kwargs['input_dtypes']
-    x1_dtype, x2_dtype, scale_dtype, bias_dtype, pertoken_scale_dtype, _, shared_input_dtype, logit_dtype, row_index_dtype, _ = input_dtypes
+    x1_dtype = x1.dtype.name
+    x2_dtype = x2.dtype.name
     output_dtypes = kwargs['output_dtypes']
     out_dtype = output_dtypes[0]
     trans_b = transpose_w
     # mxFP4/8
     outs = []
-    group_num = len(group_list)
+    if group_list is not None:
+        group_num = len(group_list)
  
     # group_list_type 0: cumsum, 1: count
-    if group_list_type == 1:
+    if group_list_type == 1 and group_list is not None:
         group_list = np.cumsum(group_list)
     M = x1.shape[0]
     N = x2_all.shape[-1]
-    pertoken_scale_mx = pertoken_scale # pertoken_scale为x_scale,shape为(m, ceil(k/64), 2),scale为weight_scale,shape为(G, n, ceil(k/64), 2) True或(G, ceil(k/64), n,  2) False
-    m, k0, k1 = pertoken_scale_mx.shape
-    pertoken_scale_mx = pertoken_scale_mx.reshape(m, k0 * k1)
-    pertoken_scale_mx_broadcast = np.repeat(pertoken_scale_mx, 32, axis=-1)
+    if pertoken_scale is not None:
+        pertoken_scale_mx = pertoken_scale # pertoken_scale为x_scale,shape为(m, ceil(k/64), 2),scale为weight_scale,shape为(G, n, ceil(k/64), 2) True或(G, ceil(k/64), n,  2) False
+        m, k0, k1 = pertoken_scale_mx.shape
+        pertoken_scale_mx = pertoken_scale_mx.reshape(m, k0 * k1)
+        pertoken_scale_mx_broadcast = np.repeat(pertoken_scale_mx, 32, axis=-1)
     x1_dims = len(x1.shape)
  
     if x1_dtype == 'float4_e2m1' or x1_dtype == 'float4_e1m2':
         x1 = x1.astype(np.float32)
 
-    x1_pad_len = pertoken_scale_mx_broadcast.shape[-1] - x1.shape[-1]
+    if pertoken_scale is not None:
+        x1_pad_len = pertoken_scale_mx_broadcast.shape[-1] - x1.shape[-1]
  
-    x1 = np.pad(x1, [(0, 0)] * (x1_dims -1) + [(0, x1_pad_len)], mode='constant', constant_values=0)
-    x1 = x1 * pertoken_scale_mx_broadcast
+        x1 = np.pad(x1, [(0, 0)] * (x1_dims -1) + [(0, x1_pad_len)], mode='constant', constant_values=0)
+        x1 = x1 * pertoken_scale_mx_broadcast
     x1 = convert_to_high_precision(x1, x1_dtype)
  
+    
     for i in range(group_num):
-        scale_g = scale[i]
-        #reshape scale to shape n,ceil(k,64)*2
-        if trans_b is False:
-            scale_g = transform_tensor(scale_g)
-        else:
-            n, k0, k1 = scale_g.shape
-            scale_g = scale_g.reshape(n, k0 * k1)
+        if scale is not None:
+            scale_g = scale[i]
+            #reshape scale to shape n,ceil(k,64)*2
+            if trans_b is False:
+                scale_g = transform_tensor(scale_g)
+            else:
+                n, k0, k1 = scale_g.shape
+                scale_g = scale_g.reshape(n, k0 * k1)
  
         x2 = x2_all[i]
  
@@ -71,13 +76,16 @@ def grouped_matmul_finalize_routing_golden(x, w, scale, bias, pertoken_scale, gr
         # mxFP4单独处理transpose，统一使用(M,K)和(K,N)格式处理mxFP4
         if trans_b:
             x2 = np.swapaxes(x2, -1, -2)
-            scale_g = scale_g.transpose()
+            if scale is not None:
+                scale_g = scale_g.transpose()
         # broadcast，每个数对应32个数
-        deq_scale_mx_broadcast = np.repeat(scale_g, 32, axis=-2)
+        if scale is not None:
+            deq_scale_mx_broadcast = np.repeat(scale_g, 32, axis=-2)
         x2_dims = len(x2.shape)
-        x2_pad_len = deq_scale_mx_broadcast.shape[-2] - x2.shape[-2]
-        x2 = np.pad(x2, [(0, 0)] * (x2_dims -2) + [(0, x2_pad_len)] + [(0, 0)], mode='constant', constant_values=0)
-        x2 = x2 * deq_scale_mx_broadcast
+        if scale is not None:
+            x2_pad_len = deq_scale_mx_broadcast.shape[-2] - x2.shape[-2]
+            x2 = np.pad(x2, [(0, 0)] * (x2_dims -2) + [(0, x2_pad_len)] + [(0, 0)], mode='constant', constant_values=0)
+            x2 = x2 * deq_scale_mx_broadcast
         # 升精度 & 转torch
         if i == 0:
             x1_temp = x1[:group_list[i], :]
