@@ -37,7 +37,8 @@ public:
 
 class ChunkGatedDeltaRuleTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit ChunkGatedDeltaRuleTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
+    explicit ChunkGatedDeltaRuleTiling(gert::TilingContext *context)
+        : Ops::Transformer::OpTiling::TilingBaseClass(context)
     {
         InitCompileInfo();
     };
@@ -65,7 +66,7 @@ protected:
 
     // 6、计算Workspace 大小
     ge::graphStatus GetWorkspaceSize() override;
-    
+
     // 7、保存Tiling数据
     ge::graphStatus PostTiling() override;
 
@@ -76,26 +77,24 @@ protected:
     ge::graphStatus CheckContext();
     ge::graphStatus AnalyzeDtype();
     ge::graphStatus AnalyzeShapes();
-    ge::graphStatus ValidateNonEmpty(
-        const gert::Shape &queryShape, const gert::Shape &keyShape,
-        const gert::Shape &valueShape, const gert::Shape &betaShape,
-        const gert::Shape &stateShape, const gert::Shape &cuSeqlensShape);
-    ge::graphStatus ValidateDimConsistency(
-        const gert::Shape &queryShape, const gert::Shape &keyShape,
-        const gert::Shape &valueShape, const gert::Shape &betaShape,
-        const gert::Shape &stateShape, const gert::Shape &cuSeqlensShape);
-    ge::graphStatus ValidateDimConstraints();
+    ge::graphStatus CheckInputShapeConstraints(const gert::Shape &queryShape, const gert::Shape &keyShape,
+                                               const gert::Shape &valueShape, const gert::Shape &betaShape,
+                                               const gert::Shape &stateShape, const gert::Shape &actualSeqLengthsShape,
+                                               const gert::Shape *gShape);
+    ge::graphStatus CheckOutputShapeConstraints(const gert::Shape &valueShape, const gert::Shape &stateShape,
+                                                const gert::Shape &outShape, const gert::Shape &finalStateShape);
+    ge::graphStatus CheckDerivedDimConstraints();
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
     ge::graphStatus AnalyzeFormat();
     ge::graphStatus DoMatmulTiling();
 
-    bool CheckDimEqual(
-        const gert::Shape &a, const int64_t dimA, 
-        const gert::Shape &b, const int64_t dimB, 
-        const std::string &nameA, const std::string &nameB, const std::string &dimDesc);
+    bool CheckShapeNotEmpty(const gert::Shape &shape, const std::string &shapeName);
+    bool CheckDimEqual(const gert::Shape &a, const int64_t dimA, const gert::Shape &b, const int64_t dimB,
+                       const std::string &nameA, const std::string &nameB, const std::string &dimDesc);
     bool CheckDim(const gert::Shape &shape, const size_t dim, const std::string &dimDesc);
-    bool CheckFormat(const ge::Format format, const std::string &Desc);
+    bool CheckFormat(const gert::CompileTimeTensorDesc *desc, const ge::Format expectFormat0,
+                     const ge::Format expectFormat1, const std::string &name);
 
     ChunkGatedDeltaRuleCompileInfo compileInfo_;
     ChunkGatedDeltaRule::ChunkGatedDeltaRuleTilingData tilingData_;

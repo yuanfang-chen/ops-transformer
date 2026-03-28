@@ -60,12 +60,14 @@ static ge::graphStatus InferShapeChunkGatedDeltaRule(InferShapeContext *context)
         return ge::GRAPH_FAILED;
     }
 
-    // 校验 value 的维度数
-    if (shapeValue->GetDimNum() != VALUE_DIM) {
-        OP_LOGE(opName, "value shape dim num should be %zu, but got %zu",
-            VALUE_DIM, shapeValue->GetDimNum());
-        return ge::GRAPH_FAILED;
-    }
+    // GetDim 之前先校验 value 和 initialState 的 DimNum 是否符合要求
+    OP_CHECK_IF(shapeValue->GetDimNum() != VALUE_DIM,
+                OP_LOGE(opName, "value dim num should be %zu, but got %zu", VALUE_DIM, shapeValue->GetDimNum()),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(
+        shapeInitialState->GetDimNum() != STATE_DIM,
+        OP_LOGE(opName, "initial_state dim num should be %zu, but got %zu", STATE_DIM, shapeInitialState->GetDimNum()),
+        return ge::GRAPH_FAILED);
 
     // out 形状来自 value 的前三维 (T, Nv, Dv)
     shapeOut->SetDimNum(VALUE_DIM);
@@ -75,13 +77,6 @@ static ge::graphStatus InferShapeChunkGatedDeltaRule(InferShapeContext *context)
     shapeOut->SetDim(DIM_0, outDim0);
     shapeOut->SetDim(DIM_1, outDim1);
     shapeOut->SetDim(DIM_2, outDim2);
-
-    // 校验 initial_state 的维度数
-    if (shapeInitialState->GetDimNum() != STATE_DIM) {
-        OP_LOGE(opName, "initial_state shape dim num should be %zu, but got %zu",
-            STATE_DIM, shapeInitialState->GetDimNum());
-        return ge::GRAPH_FAILED;
-    }
 
     // final_state 形状与 initial_state 保持一致
     shapeFinalState->SetDimNum(STATE_DIM);
@@ -103,10 +98,8 @@ static ge::graphStatus InferDataTypeChunkGatedDeltaRule(gert::InferDataTypeConte
         OP_LOGE("ChunkGatedDeltaRule", "inference context is null");
         return ge::GRAPH_FAILED;
     }
-
+    // 根据 query 的输入 dtype 推导两个输出的 dtype
     auto queryDtype = context->GetInputDataType(QUERY_INDEX);
-
-    // 输出 dtype 跟随 query 的输入 dtype
     context->SetOutputDataType(OUTPUT_OUT_IDX, queryDtype);
     context->SetOutputDataType(OUTPUT_FINAL_STATE_IDX, queryDtype);
     return ge::GRAPH_SUCCESS;
