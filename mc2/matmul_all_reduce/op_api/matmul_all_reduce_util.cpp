@@ -62,7 +62,8 @@ bool MatmulAllReduceCheckFormat(const aclTensor* x2)
     return true;
 }
 
-bool MatmulAllReduceCheckValidContiguous(const aclTensor* x2) {
+bool MatmulAllReduceCheckValidContiguous(const aclTensor* x2)
+{
     bool transposeX2 = IsTransposeLastTwoDims(x2);
     // x2非连续时仅支持转置场景
     if (!transposeX2 && !MC2Aclnn::IsTensorContiguous(x2)) {
