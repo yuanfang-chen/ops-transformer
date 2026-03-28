@@ -1076,7 +1076,7 @@ protected:
     __aicore__ inline void PreProcess(const uint32_t processIdx);
     __aicore__ inline void ProcessSoftmax(uint32_t processIdx);
     __aicore__ inline void SoftmaxComputeVecInGmOffset(uint32_t bn2Idx, uint32_t ridx);
-    __aicore__ inline void SoftmaxCopyIn(DataCopyParams &splitCopyinParams,uint32_t ridx);
+    __aicore__ inline void SoftmaxCopyIn(DataCopyParams &splitCopyinParams, uint32_t ridx);
     __aicore__ inline void SoftmaxCompute(uint32_t ridx);
     __aicore__ inline void SoftmaxCopyOut(DataCopyParams &splitCopyoutParams,
         DataCopyParams &splitCopyout32Params, uint32_t ridx);
@@ -1393,7 +1393,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessSoftmax(ui
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(0); // softmax搬入等待softmax计算结束
 
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(4); // softmax搬入等待softmax搬出结束
-        SoftmaxCopyIn(splitCopyinParams,ridx);
+        SoftmaxCopyIn(splitCopyinParams, ridx);
 
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(0); // softmax计算等待softmax搬入结束
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(0); // softmax计算等待softmax搬入结束
@@ -1420,7 +1420,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxComputeVec
     softmaxTmpVecGmOffset = vecBlockIdx / 2 * workSpaceElemNum +
                             mm1ResPingPongFlag * (mm1ResWorkSpaceSize / DOUBLE_BUFFER / sizeof(float)) +
                             vecInSplitOffset + ridx * softmaxBasicRowLen * alignedColLen;
-    mm2InWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + 
+    mm2InWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum +
                            mm2InPingPongFlag * (mm2InWorkSpaceSize / DOUBLE_BUFFER / sizeof(half)) +
                            vecOutSplitOffset + ridx * softmaxBasicRowLen * curSeqlen;
     scoreInWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + vecOutSplitOffsetOut +
@@ -1429,7 +1429,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxComputeVec
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyIn(
-    DataCopyParams &splitCopyinParams,uint32_t ridx)
+    DataCopyParams &splitCopyinParams, uint32_t ridx)
 {
     // 非对齐拷贝，不填充
     DataCopyPadParams padParams{false, 0, 0, 0};
@@ -1492,7 +1492,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::MaskOperation(
     ComputeCurrentTokenOffset(startIdx);
     // 判断是否需要mask
     int64_t currentQSeqlen = actualQSeqLenGm.GetValue(bIdx);
-    if(currentQSeqlen - currentQSeqLenOffset - 1 > tailKvTokens) {
+    if (currentQSeqlen - currentQSeqLenOffset - 1 > tailKvTokens) {
         AddMask(ridx, startIdx, endIdx);
     }
 }
@@ -2024,13 +2024,13 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::TopkCompute()
 {
     TopKInfo topkinfo;
     topkinfo = {(int32_t)(1), (int32_t)(alignedTok32), (int32_t)(outS2)};
-    for(int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
         arithbuffer.SetValue(i, i);
     }
     AscendC::SetFlag<AscendC::HardEvent::S_V>(0);
     AscendC::WaitFlag<AscendC::HardEvent::S_V>(0);
     uint32_t topindexloop = alignedTok32 / 8;
-    for(int i = 1; i < topindexloop; i++) {
+    for (int i = 1; i < topindexloop; i++) {
         Adds(arithbuffer[i * 8], arithbuffer, (int32_t)i * 8, 8);
         PipeBarrier<PIPE_V>();
     }

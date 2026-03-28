@@ -82,24 +82,24 @@ NsaCompressAttentionInfer(const aclTensor *query,
     auto topKOutput = executor->AllocTensor(DataType::DT_INT32, Format::FORMAT_ND, Format::FORMAT_ND);
 
     auto ret = INFER_SHAPE(NsaCompressAttentionInfer,
-                            OP_INPUT(query, key, value, attentionMaskOptional, blockTableOptional, actualSeqQLen,
+                           OP_INPUT(query, key, value, attentionMaskOptional, blockTableOptional, actualSeqQLen,
                                     actualCmpSeqKvLen, actualSelKvLen, topKMaskOptional),
-                            OP_OUTPUT(output, topKOutput),
-                            OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount, compressBlockSize,
-                                    compressBlockStride, static_cast<float>(scaleValue), layoutOptional, pageBlockSize,
-                                    sparseMode));
+                           OP_OUTPUT(output, topKOutput),
+                           OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount, compressBlockSize,
+                                   compressBlockStride, static_cast<float>(scaleValue), layoutOptional, pageBlockSize,
+                                   sparseMode));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "NsaCompressAttentionInfer InferShape failed.");
         return {nullptr, nullptr};
     }
 
     ADD_TO_LAUNCHER_LIST_AICORE(NsaCompressAttentionInfer,
-                            OP_INPUT(query, key, value, attentionMaskOptional, blockTableOptional, actualSeqQLen,
-                                    actualCmpSeqKvLen, actualSelKvLen, topKMaskOptional),
-                            OP_OUTPUT(output, topKOutput),
-                            OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount, compressBlockSize,
-                                    compressBlockStride, static_cast<float>(scaleValue), layoutOptional, pageBlockSize,
-                                    sparseMode));
+                                OP_INPUT(query, key, value, attentionMaskOptional, blockTableOptional, actualSeqQLen,
+                                         actualCmpSeqKvLen, actualSelKvLen, topKMaskOptional),
+                                OP_OUTPUT(output, topKOutput),
+                                OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount, compressBlockSize,
+                                        compressBlockStride, static_cast<float>(scaleValue), layoutOptional, pageBlockSize,
+                                        sparseMode));
     return {output, topKOutput};
 }
 

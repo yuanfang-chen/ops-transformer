@@ -101,7 +101,8 @@ ge::graphStatus NCAITiling::CheckQkvShape()
         headNumInQ = ncaiContext_->query.shape->GetStorageShape().GetDim(DIM_1);
         OP_CHECK_IF(qSeqSize_ > 1 && queryDim0 != qSeqLenCumSum_,
             OP_LOGE(ncaiContext_->opName,
-                "when layOut is TND and qSeqLen > 1, queryDim0 must be equal to qSeqLenCumSum"), return ge::GRAPH_FAILED);
+                "when layOut is TND and qSeqLen > 1, queryDim0 must be equal to qSeqLenCumSum"),
+                return ge::GRAPH_FAILED);
     } else if (strcmp(ncaiContext_->layOut, "BSND") == 0) {
         headNumInQ = ncaiContext_->query.shape->GetStorageShape().GetDim(DIM_2);
         uint32_t qSeqLen = ncaiContext_->query.shape->GetStorageShape().GetDim(DIM_1);
@@ -293,7 +294,7 @@ ge::graphStatus NCAITiling::ProcessEpilogue()
 ge::graphStatus NCAITiling::ProcessInput()
 {
     if (ProcessEpilogue() != ge::GRAPH_SUCCESS ||
-        ProcessQkv() != ge::GRAPH_SUCCESS ) {
+        ProcessQkv() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     if (CheckAttr() != ge::GRAPH_SUCCESS) {
@@ -478,7 +479,7 @@ ge::graphStatus NCAITiling::TopKTiling()
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(this->ncaiContext_->platformInfo);
     AscendC::TopKTilingFunc(ascendcPlatform, alignedTopkIn, 1, selectNum_, dtypesize, true,
         AscendC::TopKMode::TOPK_NORMAL, true, tilingData_->topkTilingData);
-    AscendC::GetTopKMaxMinTmpSize(ascendcPlatform, alignedTopkIn, 1, false, true , AscendC::TopKMode::TOPK_NORMAL,
+    AscendC::GetTopKMaxMinTmpSize(ascendcPlatform, alignedTopkIn, 1, false, true, AscendC::TopKMode::TOPK_NORMAL,
         true, dtypesize, maxsize, minsize);
 
     return ge::GRAPH_SUCCESS;
