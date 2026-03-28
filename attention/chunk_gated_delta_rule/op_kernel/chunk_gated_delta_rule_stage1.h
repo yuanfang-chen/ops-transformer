@@ -64,9 +64,9 @@ struct GDRStageOneInitParams {
     bool gOptional;
 };
 
-class GDRStageOne {
+class Stage1 {
 public:
-    __aicore__ inline GDRStageOne(StageOneMT &mmFp32) : mmFp32(mmFp32) {}
+    __aicore__ inline Stage1(StageOneMT &mmFp32) : mmFp32(mmFp32) {}
     __aicore__ inline void SetGlobalTensors(const GDRStageOneInitParams &initParams)
     {
         queryBaseGm_ = initParams.query;
@@ -158,7 +158,7 @@ public:
         kUbFloatCon_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dkAligned_), buffOffset);
         buffOffset += halfChunkSize_ * dkAligned_ * sizeof(float);
 
-        inverseUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * 
+        inverseUbFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ *
                                                         INVERSE_COUNT), buffOffset);
         buffOffset += halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT * sizeof(float);
 
@@ -435,8 +435,7 @@ private:
         uint64_t curVecLen = chunkSize_ * halfChunkSize_;
         if (gOptional_) {
             Mul(attnUbFloat_, attnUbFloat_, gammaUbFloat_[subOffset_ * chunkSize_], curVecLen);
-        }
-        else {
+        } else {
             DataCopyInFp32(curVecLen, stageOneMask_[subOffset_ * chunkSize_]);
             kkLocal_ = fp32InQueue_.DeQue<float>();
             Mul(attnUbFloat_, attnUbFloat_, kkLocal_, curVecLen);
@@ -747,7 +746,7 @@ private:
     GlobalTensor<float> outGCumExpBaseGm_, outVInnerBaseGm_, outKgBaseGm_, outQkBaseGm_;
     GlobalTensor<float> outKCumdecayBaseGm_, outQPrimeBaseGm_;
 
-    // chunk GM pointers 
+    // chunk GM pointers
     GlobalTensor<bfloat16_t> queryGm_;
     GlobalTensor<bfloat16_t> keyGm_;
     GlobalTensor<bfloat16_t> valueGm_;
