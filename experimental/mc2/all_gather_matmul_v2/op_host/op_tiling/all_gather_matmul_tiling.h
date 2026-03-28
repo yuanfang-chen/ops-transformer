@@ -26,12 +26,11 @@ namespace optiling {
 
 using namespace mc2_matmul_v3_advanced;
 
-class AllGatherMatmulTiling : public AllGatherMatmulTilingBase
-{
+class AllGatherMatmulTiling : public AllGatherMatmulTilingBase {
 public:
     explicit AllGatherMatmulTiling(gert::TilingContext *context);
     ~AllGatherMatmulTiling() override = default;
-    ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg, 
+    ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg,
                                      Mc2MatMulV3TilingData &tilingData);
 
 protected:

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ namespace Mc2MatmulV3Advanced {
 using namespace AscendC;
 using namespace matmul;
 
-class Mc2MatmulDaswBlock: public Mc2MatmulAswBlock {
+class Mc2MatmulDaswBlock : public Mc2MatmulAswBlock {
 public:
     __aicore__ inline Mc2MatmulDaswBlock() {}
     template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE>

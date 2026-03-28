@@ -37,8 +37,7 @@ using namespace AscendC;
 using namespace ge;
 using namespace Mc2Tiling;
 
-namespace optiling
-{
+namespace optiling {
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64};
 constexpr uint64_t BLOCK_SIZE_INDEX = 6;
 
@@ -100,7 +99,7 @@ void AllGatherMatmulTilingBase::SetTilingArgsGatherStatus()
         int64_t mulGatherShape = 1;
         for (uint32_t i = 0; i < gatherOutShape->GetStorageShape().GetDimNum(); i++) {
             mulGatherShape = mulGatherShape * gatherOutShape->GetStorageShape().GetDim(i);
-            OP_LOGD("AllGatherMatmul", "gatherOutShape StorageShape=%ld, Dim=%u.", 
+            OP_LOGD("AllGatherMatmul", "gatherOutShape StorageShape=%ld, Dim=%u.",
                     gatherOutShape->GetStorageShape().GetDim(i), i);
         }
         if (mulGatherShape == 0) {
@@ -132,7 +131,7 @@ ge::graphStatus AllGatherMatmulTilingBase::AnalyzeShapeAttr()
 }
 
 
-void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, 
+void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg,
                                                         ::TCubeTiling& mmTiling,
                                                         ::TCubeTiling& tailTiling)
 {
@@ -142,8 +141,9 @@ void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rc
             (rcsCfg.gatherLen == 0), args_.orgKValue, args_.orgNValue);
 }
 
-ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg, mc2tiling::Mc2QuantMode quantMmMode)
-{    
+ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg,
+                                                           mc2tiling::Mc2QuantMode quantMmMode)
+{  
     if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
         return ge::GRAPH_SUCCESS;
     }
@@ -153,10 +153,11 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
         tileMValue_, rcfCfg.tileCnt, tailMValue_, rcfCfg.tailCnt);
     
     OP_TILING_CHECK((quantMmMode == mc2tiling::Mc2QuantMode::PERBLOCK_MODE),
-        OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting, the size still exceeds 256MB."), 
+        OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting, the size still exceeds 256MB."),
         return ge::GRAPH_FAILED);
     
-    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim,
+                                               mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
     tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
     rcfCfg.tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
     rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
@@ -174,8 +175,8 @@ ge::graphStatus AllGatherMatmulTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling&
 
 // tiling
 
-void AllGatherMatmulTilingBase::DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, 
-                                                  ::TCubeTiling& mmTiling, 
+void AllGatherMatmulTilingBase::DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg,
+                                                  ::TCubeTiling& mmTiling,
                                                   ::TCubeTiling& tailTiling, uint32_t& dataType)
 {
     SetMC2AllGatherDataInfo(rcsCfg, mmTiling, tailTiling);
@@ -246,7 +247,6 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
 
 CutResult AllGatherMatmulTilingBase::GetTilingResult()
 {
-   
     AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
     return tileFormulate.GetTiling();
 }
@@ -323,7 +323,7 @@ bool AllGatherMatmulTilingBase::AnalyzeAttrs()
                     return false);
     OP_TILING_CHECK(
         *commTurn != 0,
-        VECTOR_INNER_ERR_REPORT_TILING(opName_, "The expected value of commTurn is 0, but the actual value is %d.", 
+        VECTOR_INNER_ERR_REPORT_TILING(opName_, "The expected value of commTurn is 0, but the actual value is %d.",
                                         *commTurn), return false);
     args_.isATrans = isTransA ? *isTransA : 0;
     args_.isBTrans = isTransB ? *isTransB : 0;

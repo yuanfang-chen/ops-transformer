@@ -69,11 +69,10 @@ struct MC2GmAddrs {
     GM_ADDR workspaceGM;
 };
 
-enum Mc2CoreType
-{
+enum Mc2CoreType {
     ON_CUBE_AND_VECTOR = 0,
     ON_VECTOR,
-    ON_CUBE,  
+    ON_CUBE,
 };
 
 template <Mc2CoreType coreType>
