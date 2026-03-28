@@ -27,6 +27,7 @@
 #include "common/op_host/op_api/matmul_util.h"
 #include "common/op_api/mc2_aclnn_util.h"
 #include "aclnn_matmul_reduce_scatter_v2.h"
+#include "common/op_api/mc2_aclnn_util.h"
 
 using namespace op;
 
@@ -163,6 +164,15 @@ static aclnnStatus CheckAivModeParams(const aclTensor* x1, const aclTensor* x2, 
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
+
+    // 【A2】检查x2矩阵非连续合法性
+    if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
+        if (!Ops::Transformer::IsTransposeLastTwoDims(x2) && !MC2Aclnn::IsTensorContiguous(x2)) {
+            OP_LOGW("The x2 without transpose in MatmulReduceScatter must be contiguous,
+                    but it is non-contiguous.");
+            return ACLNN_ERR_PARAM_INVALID;
+        }
+    }
     // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(CheckAivModeDtypeValid(x1, x2, output), ACLNN_ERR_PARAM_INVALID);
 
