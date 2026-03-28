@@ -57,7 +57,6 @@ attention/fused_infer_attention_score/
 │       ├── kernel/                                 # Kernel相关
 │       ├── memcopy/                                # 内存拷贝相关
 │       ├── utils/                                  # 工具函数
-│       └── vf/                                     # VF相关
 └── examples/                                       # 调用示例
     └── test_aclnn_fused_infer_attention_score.cpp
 ```
@@ -78,7 +77,6 @@ attention/fused_infer_attention_score/
 │   │   └── flash_attention_score_kernel_infer.h      # Kernel Infer实现
 │   ├── memcopy/                                      # 内存拷贝相关
 │   ├── utils/                                        # 工具函数
-│   └── vf/                                           # VF相关
 └── op_host/                                          # Host侧代码
     ├── fallback_fused_infer_attention_score.cpp      # Fallback实现
     ├── flash_attention_infer_tiling.h                # Flash Attention Tiling
@@ -129,7 +127,6 @@ set(TORCH_NPU_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcopy
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/vf
     ${ASCEND_HOME}/include
     ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api/impl
     ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api
@@ -598,7 +595,6 @@ aclrtDestroyStream(stream);
 | 按需裁剪 TilingKey 分支 | 减少代码体积 |
 | 修改 `ListTensorDesc` 初始化 | 改用 `SetGlobalBuffer` 方式 |
 | 手动拷贝 TilingData | Host 侧分配设备内存并拷贝 |
-| 使用 `__NPU_DEVICE__` 宏 | 规避 VF 相关编译问题 |
 | 适配 `<<<>>>` 接口 | <<<>>>直接启动 Kernel |
 
 ---
