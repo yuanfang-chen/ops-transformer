@@ -1,0 +1,42 @@
+CMake Warning at /root/miniconda3/envs/pj/lib/python3.11/site-packages/torch/share/cmake/Torch/TorchConfig.cmake:22 (message):
+  static library kineto_LIBRARY-NOTFOUND not found.
+Call Stack (most recent call first):
+  /root/miniconda3/envs/pj/lib/python3.11/site-packages/torch/share/cmake/Torch/TorchConfig.cmake:125 (append_torchlib_if_found)
+  CMakeLists.txt:22 (find_package)
+
+
+-- Configuring done (12.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build
+[ 50%] Built target xxxlib
+[ 75%] Building ASC object CMakeFiles/ascendc_ops.dir/fused_infer_attention_score.cpp.o
+[100%] Linking ASC shared library libascendc_ops.so
+[100%] Built target ascendc_ops
+Start fused_infer_attention_score demo.
+dtype: signed char shape: 1 1 8192 128
+.isEmpty(): 0
+CoreNum is 32.
+> /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/fia_test.py(190)test_fia()
+-> try:
+(Pdb) /home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:132: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  output_nan = np.isnan(output)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:133: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  golden_nan = np.isnan(golden)
+/home/835995/ops-transformer/examples/pybind/fused_infer_attention_score/build/../fia_test.py:141: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  diff = np.abs(output - golden)
+.
+----------------------------------------------------------------------
+Ran 1 test in 8.980s
+
+OK
+output:
+tensor([32768., 32768., 32768.,  ..., 32768., 32768., 32768.],
+       dtype=torch.bfloat16)
+golden:
+tensor([32768., 32768., 32768.,  ..., 32768., 32768., 32768.],
+       dtype=torch.bfloat16)
+error count: 0
+total count: 1048576
+test pass
+b: 1, n1: 1, s1: 8192, n2: 1, s2: 8192, d: 128
+tilingKey is: 2000000012

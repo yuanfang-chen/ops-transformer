@@ -1,0 +1,63 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file actual_seq_len_checker.h
+ * \brief
+ */
+
+#ifndef ACTUAL_SEQ_LEN_CHECKER_H
+#define ACTUAL_SEQ_LEN_CHECKER_H
+
+#include <map>
+#include <numeric>
+#include "tiling/tiling_api.h"
+#include "base_checker.h"
+
+namespace optiling {
+
+class ActualSeqLenChecker : public BaseChecker {
+public:
+    ActualSeqLenChecker(bool enableNonQuant, bool enableFullQuant, bool enableAntiQuant) :
+        BaseChecker(enableNonQuant, enableFullQuant, enableAntiQuant) {}
+    ~ActualSeqLenChecker() override = default;
+
+    bool CheckSinglePara(const FiaTilingInfo &fiaInfo) override;
+    bool CheckParaExistence(const FiaTilingInfo &fiaInfo) override;
+    bool CheckFeature(const FiaTilingInfo &fiaInfo) override;
+    bool CheckMultiPara(const FiaTilingInfo &fiaInfo) override;
+
+private:
+    // 公共校验函数
+    // singlepara
+    bool CheckActualSeqLenQDim(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenQData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvDim(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvData(const FiaTilingInfo &fiaInfo);
+
+    // existence
+    bool CheckExistenceActualSeqLenQ(const FiaTilingInfo &fiaInfo);
+    bool CheckExistenceActualSeqLenKv(const FiaTilingInfo &fiaInfo);
+
+    // feature
+    bool CheckFeatureAlibi(const FiaTilingInfo &fiaInfo);
+    bool CheckFeatureIFAMLA(const FiaTilingInfo &fiaInfo);
+
+    // multipara
+    bool CheckActualSeqLenQTNDLastData(const FiaTilingInfo &fiaInfo);
+    bool CheckActualSeqLenKvTNDLastData(const FiaTilingInfo &fiaInfo);
+
+    // general
+    int64_t GetActualSeqLengthsQData(const FiaTilingInfo &fiaInfo, uint32_t bIdx);
+    int64_t GetActualSeqLengthsKvData(const FiaTilingInfo &fiaInfo, uint32_t bIdx);
+};
+
+} // namespace optiling
+#endif // ACTUAL_SEQ_LEN_CHECKER_H
