@@ -640,6 +640,11 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
 static ge::graphStatus MoeDistributeDispatchA3A5TilingCheckAttr(gert::TilingContext *context, 
     uint32_t &quantMode, bool &isScales)
 {
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    auto ret = context->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret);
+    
     const char *nodeName = context->GetNodeName();
     MoeDistributeDispatchTilingData *tilingData = context->GetTilingData<MoeDistributeDispatchTilingData>();
     std::string groupEp = "";
