@@ -4,7 +4,11 @@
 
 ### 1.1 改造背景
 
-原始算子采用传统的 Host/Kernel 传递模式，需要通过 aclnn 二段式接口进行调用。
+原始算子位于 `op_kernel/fused_infer_attention_score` 目录下，采用传统的 Host/Kernel 传递模式：
+
+- **op_host**: 包含 Tiling 校验、Shape 推导等 Host 侧代码（如 `fused_infer_attention_score_tiling.h`）
+- **op_kernel**: 包含核函数实现、算子计算逻辑等 Kernel 侧代码
+- **op_api**: 包含 aclnn 二段式接口封装
 
 改造后的算子采用 `torch.library` 直调模式：
 - 使用 `TORCH_LIBRARY_FRAGMENT` 注册算子 Schema
