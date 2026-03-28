@@ -485,7 +485,6 @@ moe:
       examples: False # aclnn_util.h报错
     options:
       - moe_finalize_routing_v2
-      - moe_token_unpermute
 
   moe_compute_expert_tokens:
     module: True
