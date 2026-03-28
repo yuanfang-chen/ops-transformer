@@ -1,7 +1,7 @@
 
 # aclnnFusedInferAttentionScoreV5
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
 
 ## 产品支持情况
 
@@ -14,10 +14,9 @@
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
 
-
 ## 功能说明
 
--  接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。
 
     相比于FusedInferAttentionScoreV4，本接口新增qStartIdxOptional、kvStartIdxOptional、pseType参数。
 
@@ -44,7 +43,6 @@ decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个�
     **说明**：
     <blockquote>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
     <br>Q_S表示query shape中的S，KV_S表示key和value shape中的S，Q_N表示num_query_heads，KV_N表示num_key_value_heads。P表示Softmax(<span>(QK<sup class="superscript">T</sup>) / <span class="sqrt">d</span></span>)的计算结果。</blockquote>
-
 
 ## 函数原型
 
@@ -111,7 +109,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     aclOpExecutor       *executor, 
     const aclrtStream   stream)
 ```
-
 
 ## aclnnFusedInferAttentionScoreV5GetWorkspaceSize
 
@@ -216,7 +213,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <ul>
             <li>不指定序列长度可传入nullptr，表示和query的shape的S长度相同。</li>
             <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
-        <ul>
+        </ul>
         </td>
         <td>INT64</td>
         <td>-</td>
@@ -597,7 +594,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>(Q_N)</a></td>
+        <td>(Q_N)</td>
         <td>×</td>
     </tr>
     <tr> 
@@ -996,7 +993,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-
 ## 约束说明
 
 - 确定性计算：
@@ -1008,7 +1004,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         - query，attentionOut所有tensor的shapeSize不为0，若有lse且lse不为空，并且key，value中所有tensor的shapeSize为0，属于空Tensor。
         - attentionOut和lse都为空时，属于空Tensor。
         - 属于空Tensor时，跳过校验流程；否则，走正常校验流程。
-    -  BNSD_BSND、BSH_BNSD、BSND_BNSD、BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
+    - BNSD_BSND、BSH_BNSD、BSND_BNSD、BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
         - 当query的d等于512时：
           - 仅支持BSH_NBSD、BSND_NBSD、BNSD_NBSD;
           - 仅支持decode mla场景，要求queryRope和keyRope不等于空，queryRope和keyRope的d为64;
@@ -1021,7 +1017,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
           - BSH_BNSD、BSND_BNSD场景下不支持左padding、tensorlist、pse、prefix;
           - BSH_BNSD、BSND_BNSD不支持伪量化;BNSD_BSND支持伪量化;
           - 伪量化场景下，BNSD_BSND不支持QS=1。
-    -  TND、NTD、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
+    - TND、NTD、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
         - 当query的d等于512时：
           - 仅支持TND、TND_NTD;
           - 仅支持decode mla场景，要求queryRope和keyRope不等于空，queryRope和keyRope的d为64;
@@ -1063,7 +1059,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td>S</td>
-                <td><ul><li>Q_S>1时，S轴支持小于等于20971520（20M）。部分长序列场景下，如果计算量过大可能会导致本算子执行超时（aicore error类型报错，errorStr为:timeout or trap error），此场景下建议做S切分处理，注：这里计算量会受B、S、N、D等的影响，值越大计算量越大</br>
+                <td><ul><li>Q_S>1时，S轴支持小于等于20971520（20M）。部分长序列场景下，如果计算量过大可能会导致本算子执行超时（aicore error类型报错，errorStr为:timeout or trap error），此场景下建议做S切分处理，注：这里计算量会受B、S、N、D等的影响，值越大计算量越大<br>
                     典型的会超时的长序列（即B、S、N、D的乘积较大）场景包括但不限于： <ul>
                     <li>B=1, Q_N=20, Q_S=2097152, D = 256, KV_N=1, KV_S=2097152;</li>
                     <li>B=1, Q_N=2, Q_S=20971520, D = 256, KV_N=2, KV_S=20971520;</li>
@@ -1085,7 +1081,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td colspan="3"><ul>
                     <li>Q_S=1时，query、key、value输入类型均为INT8的场景暂不支持</li>
                    <li>参数key、value中的tensor的shape一般情况下需要完全一致，但在非量化场景下支持参数query、key的head dim与value的head dim不相等，并且三者的head dim都应小于等于128，本场景下除了sparse=0/2/3、mask、FD、行无效以外不支持叠加其他高阶特性</li></ul></td>
-                </tr>
             </tr>
         </tbody>
     </table>
@@ -1290,8 +1285,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td>TND</td>
-                <td>该入参必须传入</br>
-                    在非PA场景下，第b个值表示前b个batch的S轴累加长度，其值应递增（大于等于前一个值）排列，且该入参长度代表总batch数</br>
+                <td>该入参必须传入<br>
+                    在非PA场景下，第b个值表示前b个batch的S轴累加长度，其值应递增（大于等于前一个值）排列，且该入参长度代表总batch数<br>
                     在PA场景下，其长度等于key/value的batch值，代表每个batch的实际长度，值不大于KV_S</td>
             </tr>
         </tbody>
@@ -1362,27 +1357,33 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <tr>
                 <td>per-tensor叠加per-head</td>
                 <td>支持kv_dtype为INT8</td>
-                <td>-</td>
+                <td>Q_S=1</td>
                 <td>2</td>
                 <td>shape为(N),数据类型和query数据类型相同</td>
             </tr>
-            <td>per-token叠加per-head</td>
-            <td>支持kv_dtype为INT8、INT4(INT32)</td>
-            <td>-</td>
-            <td>3</td>
-            <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td>per-token叠加per-head</td>
+                <td>支持kv_dtype为INT8、INT4(INT32)</td>
+                <td>Q_S=1</td>
+                <td>3</td>
+                <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
             </tr>
-            <td>per-token模式使用page attention管理scale/offset</td>
-            <td>支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
-            <td>-</td>
-            <td>4</td>
-            <td>shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td rowspan="2">per-token模式使用page attention管理scale/offset</td>
+                <td rowspan="2">支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
+                <td>Q_S>1</td>
+                <td rowspan="2">4</td>
+                <td rowspan="2">shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
-            <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
-            <td>支持kv_dtype为INT8</td>
-            <td>-</td>
-            <td>5</td>
-            <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
+            <tr>
+                <td>Q_S=1</td>
+            </tr>
+            <tr>
+                <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
+                <td>支持kv_dtype为INT8</td>
+                <td>Q_S=1</td>
+                <td>5</td>
+                <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
             <tr>
                 <td rowspan="2"> key支持per-channel叠加value支持per-token</td>
@@ -1410,10 +1411,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>INT4(INT32)、FLOAT4_E2M1伪量化场景不支持后量化</li>
                         <li>FLOAT8_E4M3伪量化场景下，当keyAntiquantMode和valueAntiquantMode为1或4时不支持后量化</li>
                         <li>INT8伪量化场景下，当keyAntiquantMode=0且valueAntiquantMode=1时，query和output仅支持FP16</li>
+                        <li>INT8/INT4(INT32)伪量化场景下，当keyAntiquantMode和valueAntiquantMode为2/3/4/5时，Q_S仅支持1</li>
                     </ul>
-                <td>
-            <tr>
-        <tbody>
+                </td>
+            </tr>
+        </tbody>
     </table>
 
 - <a id="PagedAttention"></a>PagedAttention
@@ -1445,11 +1447,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                             GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512；在MLA全量化场景下，blocksize需等于128。</li>
                         <li>在使能PagedAttention，并且全量化场景下，blockSize需要传入非0值, 且blocksize最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，Q_S=1时：</li>
-                            key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；</br>
-                            key、value 输入类型为INT8/HIFLOAT8/FLOAT8_E4M3FN时需要32对齐；</br>
-                            key、value输入类型为FLOAT4_E2M1/INT4（INT32）时需要64对齐；</br>
+                            key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；<br>
+                            key、value 输入类型为INT8/HIFLOAT8/FLOAT8_E4M3FN时需要32对齐；<br>
+                            key、value输入类型为FLOAT4_E2M1/INT4（INT32）时需要64对齐；<br>
                         <li>在使能PagedAttention，并且全量化场景下，Q_S>1时：</li>
-                            blockSize最小为128, 最大为512，且要求是128的倍数。</br>
+                            blockSize最小为128, 最大为512，且要求是128的倍数。<br>
                     </ul>
                 </td>
                 <td>blockSize是用户自定义的参数，该参数的取值会影响PagedAttention的性能，通常情况下，PagedAttention可以提高吞吐量，但会带来性能上的下降。</td>
@@ -1473,7 +1475,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>在MLA全量化场景下，当query dtype为INT8时，kv cache排布仅支持NZ格式</li>
                         <li>伪量化场景下，当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv
                             cache排布为（blocknum，KV_N，D/2，blocksize，2）</li>
-                        <li>GQA全量化场景不支持PagedAttention</li>
+                        <li>GQA全量化场景不支持PagedAttention</li></ul>
                 </td>
                 <td>
                 <ul>
@@ -1675,7 +1677,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                         <li>与attenMask参数一起使能时，需要保证attenMask含义正确，即能够正确的对无效数据进行隐藏。否则将引入精度问题</li>
                     </ul>
                 </td>
-            <tr>
+            </tr>
         </tbody>
     </table>
 
@@ -1778,7 +1780,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </tbody>
     </table>
 
-
 - <a id="MLA"></a>MLA场景（queryRope和keyRope输入不为空时）
     <table style="undefined;table-layout: fixed; width: 1389px"><colgroup>
         <col style="width: 158px">
@@ -1812,7 +1813,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>Q_N=[1,2,4,8,16,32,64,128]</td>
-            <td>当前Ascend 950PR/Ascend 950DT有Q_S=[1-16]约束，会在后续发布版本放开限制</td>
+            <td>-</td>
         </tr>
         <tr>
             <td>key</td>
@@ -1832,7 +1833,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <tr>
             <td>actualSeqLengths</td>
             <td></td>
-            <td>当前Ascend 950PR/Ascend 950DT仅在TND/TND_NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
+            <td>当前Ascend 950PR/Ascend 950DT 非量化所有排布均支持配置actualSeqLengthsQ；全量化仅在TND/TND_NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
         </tr>
         <tr>
             <td>inputLayout</td>
@@ -1929,7 +1930,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </tbody>
     </table>
 
-
 - qkv FP8 per-block全量化
     <table style="undefined;table-layout: fixed; width: 1151px"><colgroup>
     <col style="width: 330px">
@@ -1996,7 +1996,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                     <li>与不支持叠加任何高阶特性</li>
                 </ul>
             </td>
-        <tr>
+        </tr>
     </tbody>
     </table>
 
