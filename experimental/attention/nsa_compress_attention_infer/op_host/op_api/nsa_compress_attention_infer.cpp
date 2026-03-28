@@ -97,9 +97,9 @@ NsaCompressAttentionInfer(const aclTensor *query,
                                 OP_INPUT(query, key, value, attentionMaskOptional, blockTableOptional, actualSeqQLen,
                                          actualCmpSeqKvLen, actualSelKvLen, topKMaskOptional),
                                 OP_OUTPUT(output, topKOutput),
-                                OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount, compressBlockSize,
-                                        compressBlockStride, static_cast<float>(scaleValue), layoutOptional, pageBlockSize,
-                                        sparseMode));
+                                OP_ATTR(numHeads, numKeyValueHeads, selectBlockSize, selectBlockCount,
+                                        compressBlockSize, compressBlockStride, static_cast<float>(scaleValue),
+                                        layoutOptional, pageBlockSize, sparseMode));
     return {output, topKOutput};
 }
 
