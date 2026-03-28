@@ -60,10 +60,10 @@ __aicore__ inline void CopyCast(
         if (endPos > totalDataCount) {
             endPos = totalDataCount;
         }
-        TQue<QuePosition::VECIN, 2> inQueue;      // use 2 buffer
-        TQue<QuePosition::VECOUT, 2> outQueue;    // use 2 buffer
-        pipe->InitBuffer(inQueue, 2, TILE_LEN * sizeof(srcType));   // use 2 buffer
-        pipe->InitBuffer(outQueue, 2, TILE_LEN * sizeof(dstType));  // use 2 buffer
+        TQue<QuePosition::VECIN, TQUE_DEPTH_TWO> inQueue;
+        TQue<QuePosition::VECOUT, TQUE_DEPTH_TWO> outQueue;
+        pipe->InitBuffer(inQueue, BUFFER_NUM_TWO, TILE_LEN * sizeof(srcType));   // use 2 buffer
+        pipe->InitBuffer(outQueue, BUFFER_NUM_TWO, TILE_LEN * sizeof(dstType));  // use 2 buffer
         for (int64_t i = startPos; i < endPos; i += TILE_LEN) {
             uint32_t blockLen = i + TILE_LEN > endPos ? endPos - i : TILE_LEN;
             // copy in
