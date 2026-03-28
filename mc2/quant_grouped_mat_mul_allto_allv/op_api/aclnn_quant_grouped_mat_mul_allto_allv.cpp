@@ -55,7 +55,7 @@ struct MxTransposeCtx {
     const aclTensor *gmmWeightTmp = nullptr;
     const aclTensor *gmmWeightScaleTmp = nullptr;
     const aclTensor *mmWeightTmp = nullptr;
-    const aclTensor *mmWeightScasleTmp = nullptr;
+    const aclTensor *mmWeightScaleTmp = nullptr;
 };
 
 static void DestoryTmpTensorCtx(MxTransposeCtx *ctx)
@@ -72,8 +72,8 @@ static void DestoryTmpTensorCtx(MxTransposeCtx *ctx)
     if (ctx->mmWeightTmp != nullptr) {
         aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightTmp));
     }
-    if (ctx->mmWeightScasleTmp != nullptr) {
-        aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightScasleTmp));
+    if (ctx->mmWeightScaleTmp != nullptr) {
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightScaleTmp));
     }
     delete ctx;
 }
