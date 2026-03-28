@@ -1,301 +1,93 @@
-# FusedInferAttentionScore 算子 pybind11 → torch.library 改造指南
-
 ## 1. 概述
 
-本文档介绍如何将 `fused_infer_attention_score` 算子从 **pybind11** 方式改造为 **torch.library** 方式注册，实现通过 `torch.ops.xxx` 调用算子。
+本文档介绍将 `fused_infer_attention_score` 算子从传统的 **Host/Kernel 传递模式** 改造为 **torch.library 直调模式** 的方法，实现通过 `<<<>>>` 语法直接启动核函数，使算子能够通过 PyTorch 的 `torch.library` 机制被直接调用。
 
 ### 1.1 改造背景
 
-当前样例使用 pybind11 注册算子，Python 侧通过 `import ascendc_ops` 调用。改造后使用 torch.library 注册，Python 侧通过 `torch.ops.ascendc_ops.ascendc_fia()` 调用，与 PyTorch 生态更契合。
+原始算子采用传统的 Host/Kernel 传递模式，需要通过 aclnn 二段式接口进行调用。
 
-### 1.2 改造前后对比
+改造后的算子采用 `torch.library` 直调模式：
+- 使用 `TORCH_LIBRARY_FRAGMENT` 注册算子 Schema
+- 使用 `TORCH_LIBRARY_IMPL` 注册实现
+- 通过 `<<<>>>` 语法直接启动核函数
 
-| 维度 | pybind11（改造前） | torch.library（改造后） |
-|------|-------------------|------------------------|
-| 头文件 | `<pybind11/pybind11.h>` | `<torch/library.h>` |
-| CMake 命令 | `pybind11_add_module` | `add_library` |
-| 注册宏 | `PYBIND11_MODULE` | `TORCH_LIBRARY_FRAGMENT` + `TORCH_LIBRARY_IMPL` |
-| Python 调用 | `ascendc_ops.ascendc_fia()` | `torch.ops.ascendc_ops.ascendc_fia()` |
-| 图模式支持 | 不支持 | 支持（需 Meta 函数） |
+### 1.2 改造目标
+
+参考链接：[PR #3010](https://gitcode.com/cann/ops-transformer/pull/3010)
+
+- 在 `examples/torch_lib/fused_infer_attention_score` 目录中新增 `<<<>>>` 直调方法
+- 提供从 PyTorch 接口到 Kernel 的一整套流程
+- 提供 Python 测试脚本以供验证
+
+### 1.3 改造前后对比
+
+| 维度 | 传递模式（原始） | 直调模式（改造） |
+|------|-----------------|-------------------|
+| 代码组织 | `op_host` + `op_kernel` 分离 | 单一目录统一编译 |
+| Host 入口 | `gert::TilingContext*` GE 上下文 | 自定义 `optiling::TilingContext` |
+| Kernel 启动 | 二段式调度 | `<<<blockDim, nullptr, stream>>>` |
+| Python 绑定 | aclnn API | `torch.library` 绑定 |
+| TilingKey | 全量支持 | 按需裁剪 |
 
 ---
 
-## 2. 需要修改的文件
+## 2. 目录结构
+
+### 2.1 改造后目录结构
 
 ```
-examples/pybind/fused_infer_attention_score/
-├── CMakeLists.txt                      # 修改
-├── fused_infer_attention_score.cpp     # 修改
-├── fia_test.py                         # 修改
-└── include/                            # 不变
+examples/torch_lib/fused_infer_attention_score/
+├── CMakeLists.txt                                    # 编译配置
+├── fused_infer_attention_score.cpp                   # 主C++文件（Kernel入口 + PyTorch绑定）
+├── fia_test.py                                       # Python测试脚本
+├── include/
+│   ├── block/
+│   │   ├── attenmask.h                               # 注意力掩码处理
+│   │   ├── flash_attention_score_block_cube.h        # Block Cube实现
+│   │   └── ...                                       # 其他Block相关头文件
+│   ├── kernel/                                       # Kernel相关头文件
+│   ├── memcopy/                                      # 内存拷贝相关
+│   ├── utils/                                        # 工具函数
+│   └── vf/                                           # VF相关
+├── common/                                           # 公共头文件
+└── op_host/
+    ├── abc.cpp                                       # Host侧实现
+    ├── abc.h                                         # Host侧头文件
+    ├── fused_infer_attention_score_tiling.h          # TilingData定义
+    └── fused_infer_attention_score_tiling_constants.h # Tiling常量
 ```
 
 ---
 
-## 3. CMakeLists.txt 改造
+## 3. CMakeLists.txt 配置详解
 
-### 3.1 删除 pybind11 相关配置
-
-```diff
-- execute_process(
--     COMMAND ${Python3_EXECUTABLE} -c "import pybind11; print(pybind11.get_cmake_dir())"
--     OUTPUT_STRIP_TRAILING_WHITESPACE
--     OUTPUT_VARIABLE PYBIND11_CMAKE_PREFIX_PATH
-- )
-- find_package(pybind11 REQUIRED HINTS ${PYBIND11_CMAKE_PREFIX_PATH})
-```
-
-### 3.2 修改目标定义
-
-```diff
-- pybind11_add_module(ascendc_ops SHARED
--     fused_infer_attention_score.cpp
--     # abc.cpp
-- )
-+ add_library(ascendc_ops SHARED
-+     fused_infer_attention_score.cpp
-+ )
-```
-
-### 3.3 添加 torch 链接库
-
-```diff
-  target_link_libraries(ascendc_ops PRIVATE
-+     torch
-+     torch_cpu
-      torch_npu
-      ascendcl
-      platform
-      register
-      tiling_api
-      runtime
-  )
-```
-
-### 3.4 改造后完整 CMakeLists.txt
+### 3.1 编译配置要点
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
-find_package(ASC REQUIRED)
-project(kernel_samples LANGUAGES ASC CXX)
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import torch; print(torch.utils.cmake_prefix_path)"
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    OUTPUT_VARIABLE TORCH_CMAKE_PREFIX_PATH
-)
-find_package(Torch REQUIRED HINTS ${TORCH_CMAKE_PREFIX_PATH})
-
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import os, torch_npu; print(os.path.dirname(torch_npu.__file__))"
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    OUTPUT_VARIABLE TORCH_NPU_PATH
-)
-set(TORCH_NPU_INCLUDE_DIRS
-    ${TORCH_NPU_PATH}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/block
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/memcopy
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/vf
-    ${ASCEND_HOME}/include
-    ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api/impl
-    ${ASCEND_HOME}/${CMAKE_SYSTEM_PROCESSOR}-linux/ascendc/include/basic_api
-    ${ASCEND_HOME}/include/ascendc
-    ${ASCEND_HOME}/include/ascendc/basic_api/interface
-    ${ASCEND_HOME}/include/ascendc/basic_api
-    ${ASCEND_HOME}/pkg_inc/op_common
-    ${ASCEND_HOME}/pkg_inc/base
-    ${ASCEND_HOME}/pkg_inc
-)
-set(TORCH_NPU_LIBRARIES ${TORCH_NPU_PATH}/lib)
-
-set_source_files_properties(
-    fused_infer_attention_score.cpp
-    PROPERTIES LANGUAGE ASC
-)
-
-set_source_files_properties(
-    include/op_host/abc.cpp
-    PROPERTIES LANGUAGE CXX
-)
-
-add_library(xxxlib SHARED
-    include/op_host/abc.cpp
-)
-
-# torch.library 模式：使用 add_library 替代 pybind11_add_module
-add_library(ascendc_ops SHARED
-    fused_infer_attention_score.cpp
-)
-
-target_link_libraries(ascendc_ops PRIVATE
-    xxxlib
-)
-
-target_include_directories(ascendc_ops PRIVATE
-    ${TORCH_INCLUDE_DIRS}
-    ${TORCH_NPU_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../..
-    ${CMAKE_CURRENT_SOURCE_DIR}/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${COMMON_INCLUDE_DIRS}
-)
-
-target_link_libraries(ascendc_ops PRIVATE
-    torch
-    torch_cpu
-    torch_npu
-    ascendcl
-    platform
-    register
-    tiling_api
-    runtime
-)
-
-target_link_directories(ascendc_ops PRIVATE
-    ${TORCH_NPU_LIBRARIES}
-    ${ASCEND_HOME}/lib64
-)
-
+# 关键编译选项配置
 target_compile_options(ascendc_ops PRIVATE
     ${TORCH_CXX_FLAGS}
-    # $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-2201>
-    $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-3101>
+    $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=dav-3101>  # 指定NPU架构
     "-xasc"
     "-w"
     "-O3"
 )
-
-target_compile_options(xxxlib PRIVATE
-    ${TORCH_CXX_FLAGS}
-    "--save-temps"
-    "-w"
-    "-O3"
-)
 ```
+
+**说明**：
+- `--npu-arch=dav-3101`: 指定目标NPU架构为Ascend 910B
+- `-xasc`: 指定使用Ascend C编译
+- 库依赖：`torch_npu`, `ascendcl`, `platform`, `register`, `tiling_api`, `runtime`
 
 ---
 
-## 4. fused_infer_attention_score.cpp 改造
+## 4. Kernel 侧改造详解
 
-### 4.1 头文件修改
+### 4.1 Kernel 入口改造
 
-```diff
-- #include <pybind11/pybind11.h>
-+ #include <torch/library.h>
-  #include <torch/extension.h>
-```
-
-### 4.2 新增 Meta 函数
-
-Meta 函数用于图模式下的 shape 推导，不需要实际执行计算：
+**直调模式**：使用 `<<<>>>` 语法直接启动核函数
 
 ```cpp
-// Meta 函数：仅推导输出 shape 和 dtype，不执行实际计算
-at::Tensor ascendc_fia_meta(
-    const at::Tensor& queryTensor,
-    const at::Tensor& keyTensor,
-    const at::Tensor& valueTensor,
-    const at::Tensor& keyAntiquantScaleTensor,
-    const at::Tensor& valueAntiquantScaleTensor,
-    const at::Tensor& queryQuantScaleTensor)
-{
-    auto query_sizes = queryTensor.sizes().vec();
-    std::vector<int64_t> output_sizes = {
-        query_sizes[0],   // B
-        query_sizes[1],   // N
-        query_sizes[2],   // S
-        query_sizes[3] * 2  // D * 2
-    };
-    return at::empty(output_sizes,
-        at::dtype(queryTensor.dtype()).device(queryTensor.device()));
-}
-```
-
-### 4.3 注册算子 Schema
-
-```cpp
-// 1. 注册算子 Schema（定义输入输出签名）
-TORCH_LIBRARY_FRAGMENT(ascendc_ops, m)
-{
-    m.def("ascendc_fia("
-          "Tensor query, "
-          "Tensor key, "
-          "Tensor value, "
-          "Tensor key_antiquant_scale, "
-          "Tensor value_antiquant_scale, "
-          "Tensor query_quant_scale"
-          ") -> Tensor");
-}
-```
-
-### 4.4 注册 NPU 实现
-
-```cpp
-// 2. 注册 NPU 实现（实际计算逻辑）
-TORCH_LIBRARY_IMPL(ascendc_ops, PrivateUse1, m)
-{
-    m.impl("ascendc_fia", &ascendc_ops::ascendc_fia);
-}
-```
-
-### 4.5 注册 Meta 实现
-
-```cpp
-// 3. 注册 Meta 实现（图模式 shape 推导）
-TORCH_LIBRARY_IMPL(ascendc_ops, Meta, m)
-{
-    m.impl("ascendc_fia", &ascendc_fia_meta);
-}
-```
-
-### 4.6 删除 pybind11 注册
-
-```diff
-- PYBIND11_MODULE(ascendc_ops, m)
-- {
--     m.doc() = "ascendc_fia pybind11 interfaces";
--     m.def("ascendc_fia", &ascendc_ops::ascendc_fia, "");
-- }
-```
-
-### 4.7 改造后完整代码结构
-
-```cpp
-/**
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* ...
-*/
-
-#include <torch/library.h>        // 改动：替换 pybind11
-#include <torch/extension.h>
-#include "torch_npu/csrc/core/npu/NPUStream.h"
-
-#include "acl/acl.h"
-#include "tiling/platform/platform_ascendc.h"
-#include "kernel_operator.h"
-#include "kernel_operator_list_tensor_intf.h"
-
-#include <iostream>
-#include <cstdlib>
-#include <memory>
-#include <cstdint>
-
-#define FIA_ENABLE_MLA
-#include "common_utils.h"
-#include "io_utils.h"
-#include "flash_attention_score_tiling_regbase.h"
-#include "fia_entry.h"
-#include "op_host/abc.h"
-#include "op_host/fused_infer_attention_score_tiling.h"
-#include "op_host/fused_infer_attention_score_tiling_constants.h"
-
-// ========== 核函数（不变） ==========
 __global__ __aicore__ void FiaKernelFullQuant(
         GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR keyAntiquantScale,
         GM_ADDR valueAntiquantScale, GM_ADDR dequantScaleQuery, GM_ADDR attentionOut,
@@ -308,296 +100,375 @@ __global__ __aicore__ void FiaKernelFullQuant(
         workspace, tiling);
     return;
 }
+```
 
-// ========== 命名空间内函数（不变） ==========
-namespace ascendc_ops {
+### 4.2 TilingKey 设计
 
-optiling::TilingContext InitContext(...) { ... }
-
-static std::vector<int64_t> getTensorShape(const at::Tensor &tensor) { ... }
-
-at::Tensor ascendc_fia(
-    const at::Tensor& queryTensor,
-    const at::Tensor& keyTensor,
-    const at::Tensor& valueTensor,
-    const at::Tensor& keyAntiquantScaleTensor,
-    const at::Tensor& valueAntiquantScaleTensor,
-    const at::Tensor& queryQuantScaleTensor)
-{
-    // ... 原有实现不变 ...
+```cpp
+// TilingKey 说明
+// 2000000012: 全量化模式
+uint64_t tilingKey;
+CalcTilingKey(tilingKey, context);
+if (tilingKey == 2000000012) {
+    FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+        (uint8_t*)(queryTensor.mutable_data_ptr()),
+        (uint8_t*)(keyTensor.mutable_data_ptr()),
+        (uint8_t*)(valueTensor.mutable_data_ptr()),
+        (uint8_t*)(keyAntiquantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(valueAntiquantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(queryQuantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(outputTensor.mutable_data_ptr()),
+        workspace,
+        tilingDataDevice
+    );
 }
+```
 
-} // namespace ascendc_ops
+---
 
-// ========== 新增：Meta 函数 ==========
-at::Tensor ascendc_fia_meta(
-    const at::Tensor& queryTensor,
-    const at::Tensor& keyTensor,
-    const at::Tensor& valueTensor,
-    const at::Tensor& keyAntiquantScaleTensor,
-    const at::Tensor& valueAntiquantScaleTensor,
-    const at::Tensor& queryQuantScaleTensor)
+## 5. PyTorch 绑定实现
+
+### 5.1 Schema 注册
+
+```cpp
+TORCH_LIBRARY(ascendc_ops, m)
 {
-    auto query_sizes = queryTensor.sizes().vec();
-    std::vector<int64_t> output_sizes = {
-        query_sizes[0], query_sizes[1], query_sizes[2], query_sizes[3] * 2
-    };
-    return at::empty(output_sizes,
-        at::dtype(queryTensor.dtype()).device(queryTensor.device()));
+    m.def("ascendc_fia(Tensor query, Tensor key, Tensor value, "
+          "Tensor keyAntiquantScale, Tensor valueAntiquantScale, "
+          "Tensor queryAntiquantScale) -> Tensor");
 }
+```
 
-// ========== 新增：torch.library 注册 ==========
-TORCH_LIBRARY_FRAGMENT(ascendc_ops, m)
-{
-    m.def("ascendc_fia("
-          "Tensor query, "
-          "Tensor key, "
-          "Tensor value, "
-          "Tensor key_antiquant_scale, "
-          "Tensor value_antiquant_scale, "
-          "Tensor query_quant_scale"
-          ") -> Tensor");
-}
+### 5.2 实现注册
 
+```cpp
 TORCH_LIBRARY_IMPL(ascendc_ops, PrivateUse1, m)
 {
-    m.impl("ascendc_fia", &ascendc_ops::ascendc_fia);
+    m.impl("ascendc_fia", TORCH_FN(ascendc_ops::ascendc_fia));
 }
+```
 
-TORCH_LIBRARY_IMPL(ascendc_ops, Meta, m)
+### 5.3 NPU 调用函数
+
+```cpp
+at::Tensor ascendc_fia(const at::Tensor& queryTensor, const at::Tensor& keyTensor,
+    const at::Tensor& valueTensor, const at::Tensor& keyAntiquantScaleTensor,
+    const at::Tensor& valueAntiquantScaleTensor, const at::Tensor& queryQuantScaleTensor)
 {
-    m.impl("ascendc_fia", &ascendc_fia_meta);
+    // 1. 获取输入Tensor的shape信息
+    std::vector<int64_t> shapeQueryTensor = getTensorShape(queryTensor);
+
+    // 2. 创建输出Tensor
+    at::Tensor outputTensor = at::empty({shapeQueryTensor[0], shapeQueryTensor[1],
+        shapeQueryTensor[2], shapeQueryTensor[3] * 2},
+        at::dtype(queryTensor.dtype()).device(queryTensor.device()).layout(queryTensor.layout()));
+
+    // 3. 初始化TilingContext并执行Tiling
+    optiling::TilingContext context = InitContext(shapeQueryTensor, shapeKeyTensor, shapeValueTensor);
+    optiling::DoOpTilingFusedInferAttentionScore(&context);
+
+    // 4. 创建ACL运行时和流
+    aclrtStream stream = nullptr;
+    aclrtCreateStream(&stream);
+
+    // 5. 分配设备内存
+    GM_ADDR workspace = nullptr;
+    GM_ADDR tilingDataDevice = nullptr;
+    aclrtMalloc((void**)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&tilingDataDevice, tilingDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    // 6. 拷贝Tiling数据到设备
+    aclrtMemcpyAsync(tilingDataDevice, tilingDataSize, &tilingData, tilingDataSize,
+                     ACL_MEMCPY_HOST_TO_DEVICE, stream);
+
+    // 7. 启动Kernel
+    FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+        (uint8_t*)(queryTensor.mutable_data_ptr()),
+        (uint8_t*)(keyTensor.mutable_data_ptr()),
+        (uint8_t*)(valueTensor.mutable_data_ptr()),
+        (uint8_t*)(keyAntiquantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(valueAntiquantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(queryQuantScaleTensor.mutable_data_ptr()),
+        (uint8_t*)(outputTensor.mutable_data_ptr()),
+        workspace,
+        tilingDataDevice
+    );
+
+    // 8. 同步流并清理
+    aclrtSynchronizeStream(stream);
+    aclrtDestroyStream(stream);
+
+    return outputTensor;
 }
 ```
 
 ---
 
-## 5. fia_test.py 改造
+## 6. Python 调用示例
 
-### 5.1 修改 import 方式
-
-```diff
-- sys.path.append(os.getcwd())
-- import ascendc_ops
-+ # 加载自定义算子库
-+ torch.ops.load_library("./build/libascendc_ops.so")
-```
-
-### 5.2 修改调用方式
-
-```diff
-- output = ascendc_ops.ascendc_fia(
--     fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
--     fia_input.dequant_scale_key, fia_input.dequant_scale_value,
--     fia_input.dequant_scale_query)
-+ output = torch.ops.ascendc_ops.ascendc_fia(
-+     fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
-+     fia_input.dequant_scale_key, fia_input.dequant_scale_value,
-+     fia_input.dequant_scale_query)
-```
-
-### 5.3 改造后完整 Python 代码
+### 6.1 加载库
 
 ```python
-#!/usr/bin/python3
-# coding=utf-8
-
-import sys
-import os
 import torch
 import torch_npu
-from torch_npu.testing.testcase import TestCase, run_tests
-import numpy as np
-from typing import NamedTuple
+torch.ops.load_library("libascendc_ops.so")
+```
 
-ERROR_TOL = 5e-3
-DATA_TYPE = np.float32
+### 6.2 调用算子
 
-# 加载自定义算子库（关键改动）
-torch.ops.load_library("./build/libascendc_ops.so")
+```python
+# 准备输入Tensor
+q_tensor = torch.randint(-127, 127, (b, n1, s1, d), dtype=torch.int8).npu()
+k_tensor = torch.randint(-127, 127, (b, n2, s2, d), dtype=torch.int8).npu()
+v_tensor = torch.randint(-127, 127, (b, n2, s2, d), dtype=torch.int8).npu()
+key_antiquant_scale = torch.rand((1, 1, 32, 1), dtype=torch.float32).npu()
+value_antiquant_scale = torch.rand((1, 1, 32, 1), dtype=torch.float32).npu()
+dequant_scale_query = torch.rand((1, 1, 64, 1), dtype=torch.float32).npu()
 
-class FiaInput(NamedTuple):
-    q_tensor: torch.Tensor
-    k_tensor: torch.Tensor
-    v_tensor: torch.Tensor
-    dequant_scale_key: torch.Tensor
-    dequant_scale_value: torch.Tensor
-    dequant_scale_query: torch.Tensor
-    num_query_heads: int
-    softmax_scale: float
-    input_layout: str
-    num_key_value_heads: int
-    query_quant_mode: int
-    key_quant_mode: int
-    value_quant_mode: int
-    inner_precise: int
-    return_softmax_lse: int
-    query_dtype: int
-    key_dtype: int
-    value_dtype: int
-
-
-def gen_golden_data_simple(b, n1, n2, s1, s2, d) -> FiaInput:
-    input_layout = 'BNSD'
-    scale_value = 0.088388
-
-    q_tensor = torch.randint(-127, 127, (b, n1, s1, d), dtype=torch.int8)
-    k_tensor = torch.randint(-127, 127, (b, n2, s2, d), dtype=torch.int8)
-    v_tensor = torch.randint(-127, 127, (b, n2, s2, d), dtype=torch.int8)
-    key_antiquant_scale = torch.rand((1, 1, 32, 1), dtype=torch.float32)
-    value_antiquant_scale = torch.rand((1, 1, 32, 1), dtype=torch.float32)
-    dequant_scale_query = torch.rand((1, 1, 64, 1), dtype=torch.float32)
-
-    os.makedirs("input", exist_ok=True)
-    os.makedirs("output", exist_ok=True)
-
-    q_tensor.npu()
-    k_tensor.npu()
-    v_tensor.npu()
-    key_antiquant_scale = key_antiquant_scale.npu()
-    value_antiquant_scale = value_antiquant_scale.npu()
-    dequant_scale_query = dequant_scale_query.npu()
-
-    npu_out = torch.ops.npu.npu_fused_infer_attention_score_v2(
-        q_tensor.npu(), k_tensor.npu(), v_tensor.npu(),
-        dequant_scale_key=key_antiquant_scale,
-        dequant_scale_value=value_antiquant_scale,
-        dequant_scale_query=dequant_scale_query,
-        num_query_heads=n1,
-        softmax_scale=scale_value,
-        input_layout=input_layout,
-        num_key_value_heads=n2, query_quant_mode=7,
-        key_quant_mode=7, value_quant_mode=7,
-        inner_precise=0, return_softmax_lse=0,
-        query_dtype=torch_npu.float8_e4m3fn,
-        key_dtype=torch_npu.float8_e4m3fn,
-        value_dtype=torch_npu.float8_e4m3fn)
-
-    fia_input = FiaInput(
-        q_tensor, k_tensor, v_tensor,
-        key_antiquant_scale, value_antiquant_scale, dequant_scale_query,
-        n1, scale_value, input_layout, n2, 7, 7, 7, 0, 0,
-        torch_npu.float8_e4m3fn, torch_npu.float8_e4m3fn, torch_npu.float8_e4m3fn)
-
-    return fia_input, npu_out[0].cpu()
-
-
-def verify_result(golden, output):
-    golden = golden.view(torch.uint16).to(torch.bfloat16).flatten().cpu()
-    output = output.view(torch.uint16).to(torch.bfloat16).flatten().cpu()
-    print("output:")
-    print(output)
-    print("golden:")
-    print(golden)
-
-    output = output.float()
-    golden = golden.float()
-
-    output_nan = np.isnan(output)
-    golden_nan = np.isnan(golden)
-    both_nan = output_nan & golden_nan
-    nan_mismatch = output_nan ^ golden_nan
-
-    diff = np.abs(output - golden)
-    diff_mask = diff > 1
-    error_mask = (diff_mask | nan_mismatch) & (~both_nan)
-    diff_indices = np.where(error_mask)[0]
-
-    error_ratio = diff_indices.size / golden.numpy().size
-    print("error count:", diff_indices.size)
-    print("total count:", golden.numpy().size)
-
-    return error_ratio <= ERROR_TOL
-
-
-class TestFia(TestCase):
-    def test_fia(self):
-        fia_input, golden = gen_golden_data_simple(1, 1, 1, 8192, 8192, 128)
-
-        # 关键改动：使用 torch.ops 调用
-        output = torch.ops.ascendc_ops.ascendc_fia(
-            fia_input.q_tensor, fia_input.k_tensor, fia_input.v_tensor,
-            fia_input.dequant_scale_key,
-            fia_input.dequant_scale_value,
-            fia_input.dequant_scale_query)
-
-        try:
-            res = verify_result(golden, output)
-            if not res:
-                raise ValueError("[ERROR] result error")
-            print("test pass")
-        except Exception as e:
-            print(e)
-            sys.exit(1)
-
-
-if __name__ == "__main__":
-    run_tests()
+# 调用算子
+output = torch.ops.ascendc_ops.ascendc_fia(
+    q_tensor, k_tensor, v_tensor,
+    key_antiquant_scale, value_antiquant_scale, dequant_scale_query
+)
 ```
 
 ---
 
-## 6. 改动总结
+## 7. 构建与安装
 
-| 文件 | 改动项 | 说明 |
-|------|--------|------|
-| `CMakeLists.txt` | 删除 pybind11 依赖 | 移除 `find_package(pybind11)` |
-| `CMakeLists.txt` | `pybind11_add_module` → `add_library` | 生成 .so 而非 .pyd |
-| `CMakeLists.txt` | 添加 `torch` `torch_cpu` 链接库 | torch.library 依赖 |
-| `fused_infer_attention_score.cpp` | 头文件替换 | `pybind11.h` → `torch/library.h` |
-| `fused_infer_attention_score.cpp` | 新增 Meta 函数 | 图模式 shape 推导 |
-| `fused_infer_attention_score.cpp` | 新增 Schema 注册 | `TORCH_LIBRARY_FRAGMENT` |
-| `fused_infer_attention_score.cpp` | 新增实现注册 | `TORCH_LIBRARY_IMPL` (PrivateUse1 + Meta) |
-| `fused_infer_attention_score.cpp` | 删除 pybind11 注册 | 移除 `PYBIND11_MODULE` |
-| `fia_test.py` | 修改 import | `import ascendc_ops` → `torch.ops.load_library()` |
-| `fia_test.py` | 修改调用方式 | `ascendc_ops.xxx` → `torch.ops.ascendc_ops.xxx` |
-
----
-
-## 7. 编译运行
+### 7.1 编译命令
 
 ```bash
-cd examples/pybind/fused_infer_attention_score
+# 进入算子目录
+cd examples/torch_lib/fused_infer_attention_score
+
+# 创建构建目录
 mkdir -p build && cd build
+
+# 配置CMake
 cmake ..
+
+# 编译
 make -j
-python3 ../fia_test.py
+```
+
+### 7.2 运行测试
+
+```bash
+# 返回算子目录
+cd ..
+
+# 运行Python测试
+python fia_test.py
 ```
 
 ---
 
-## 8. 常见问题
+## 8. 关键改造点
 
-### 8.1 库名问题
+### 8.1 TilingContext 初始化
 
-- pybind11 生成：`ascendc_ops.cpython-311-x86_64-linux-gnu.so`
-- torch.library 生成：`libascendc_ops.so`
+```cpp
+optiling::TilingContext InitContext(std::vector<int64_t> shapeQueryTensor,
+    std::vector<int64_t> shapeKeyTensor, std::vector<int64_t> shapeValueTensor) {
+    optiling::TilingContext context;
+    context.SetInputDesc(optiling::QUERY_INDEX, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::QUERY_INDEX, shapeQueryTensor, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::KEY_INDEX, shapeKeyTensor, optiling::DT_FLOAT16);
+    context.SetInputShapeFromVector(optiling::VALUE_INDEX, shapeValueTensor, optiling::DT_FLOAT16);
 
-Python 侧加载时注意路径和库名：
+    // 设置属性
+    auto& attrs = context.GetAttrs();
+    attrs.SetAttr(ATTR_N_INDEX, (uint32_t)1);
+    attrs.SetAttr(ATTR_SCALE_INDEX, 3.14f);
+    attrs.SetAttr(ATTR_INPUT_LAYOUT_INDEX, "string");
+    // ... 更多属性设置
+
+    return context;
+}
+```
+
+### 8.2 核函数启动
+
+```cpp
+// 计算blockDim
+auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+uint32_t blockDimToBeSet = ascendcPlatform->CalcTschBlockDim(
+    ascendcPlatform->GetCoreNumAiv(),
+    ascendcPlatform->GetCoreNumAic(),
+    ascendcPlatform->GetCoreNumAiv()
+);
+
+// 设置TilingData
+optiling::FlashAttentionScoreSimplifiedTilingData tilingData;
+if (ascendcPlatform->GetCoreNumAic() == 32) {
+    SetTilingData(tilingData, context);
+} else if (ascendcPlatform->GetCoreNumAic() == 28) {
+    SetTilingDataLess(tilingData);
+}
+
+// 分配设备内存并拷贝TilingData
+aclrtMalloc((void**)&tilingDataDevice, tilingDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+aclrtMemcpyAsync(tilingDataDevice, tilingDataSize, &tilingData, tilingDataSize,
+                 ACL_MEMCPY_HOST_TO_DEVICE, stream);
+
+// 启动Kernel
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(...);
+```
+
+---
+
+## 9. 改造清单
+
+### 9.1 必须改造项
+
+| 序号 | 改造项 | 说明 |
+|-----|--------|------|
+| 1 | 创建 `fused_infer_attention_score.cpp` | 主C++文件，包含Kernel入口和PyTorch绑定 |
+| 2 | 创建 `CMakeLists.txt` | 编译配置 |
+| 3 | 实现 `TORCH_LIBRARY` 注册 | Schema注册 |
+| 4 | 实现 `TORCH_LIBRARY_IMPL` 注册 | 实现注册 |
+| 5 | 实现 TilingContext 初始化 | 替换 GE Context 依赖 |
+| 6 | 实现 `<<<>>>` 直调 | Kernel启动 |
+
+### 9.2 可选改造项
+
+| 序号 | 改造项 | 说明 |
+|-----|--------|------|
+| 1 | 移除不必要的TilingKey分支 | 按需裁剪 |
+| 2 | 简化Kernel模板 | 仅保留必要数据类型 |
+| 3 | 优化内存分配 | 复用workspace |
+
+---
+
+## 10. 注意事项
+
+### 10.1 TilingKey 选择
+
+改造后的 TilingKey 与原始模式可能不同，需要根据实际场景重新设计：
+- 原始模式：使用模板化的 TilingKey 编码
+- 直调模式：使用简化的 TilingKey 编码
+
+### 10.2 数据类型映射
+
+| PyTorch 类型 | Ascend C 类型 |
+|-------------|--------------|
+| `torch.int8` | `int8_t` |
+| `torch.float16` | `float16_t` |
+| `torch.bfloat16` | `bfloat16_t` |
+| `torch.float32` | `float32_t` |
+
+### 10.3 NPU 架构配置
+
+不同 NPU 架构需要设置不同的编译参数：
+- `ascend910b`: `--npu-arch=dav-2201`
+- `ascend910_93`: `--npu-arch=dav-2201`
+- `ascend950`: `--npu-arch=dav-3101`
+
+### 10.4 内存管理
+
+- workspace 由 PTA 接口内构造，使用 Tensor 作为输入传入 kernel
+- 使用 `aclrtMalloc` 分配设备内存
+- 使用 `aclrtMemcpyAsync` 进行异步内存拷贝
+- 使用 `unique_ptr` 自动管理内存释放
+
+---
+
+## 11. 总结
+
+通过 `torch.library` 直调改造，`fused_infer_attention_score` 算子实现了以下目标：
+
+### 11.1 PTA 接口侧修改
+
+- **对外接口**
+
 ```python
-torch.ops.load_library("./build/libascendc_ops.so")
+import torch
+torch.ops.ascendc_ops.ascendc_fia
 ```
 
-### 8.2 Namespace 冲突
+- **PTA 侧**
 
-`TORCH_LIBRARY_FRAGMENT` 的 namespace 必须与 Python 调用时的 namespace 一致：
-```python
-torch.ops.ascendc_ops.ascendc_fia(...)
-#              ^^^^^^^^^^^^ 对应 TORCH_LIBRARY_FRAGMENT(ascendc_ops, m)
+```cpp
+at::Tensor ascendc_fia(const at::Tensor& queryTensor, const at::Tensor& keyTensor,
+    const at::Tensor& valueTensor, const at::Tensor& keyAntiquantScaleTensor,
+    const at::Tensor& valueAntiquantScaleTensor, const at::Tensor& queryQuantScaleTensor)
 ```
 
-### 8.3 Schema 签名
+- **PTA 调用 kernel**
 
-Schema 中的参数名必须与 C++ 函数签名顺序一致，类型使用 Tensor 类型别名：
+```cpp
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+    (uint8_t*)(queryTensor.mutable_data_ptr()),
+    (uint8_t*)(keyTensor.mutable_data_ptr()),
+    (uint8_t*)(valueTensor.mutable_data_ptr()),
+    (uint8_t*)(keyAntiquantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(valueAntiquantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(queryQuantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(outputTensor.mutable_data_ptr()),
+    workspace,
+    tilingDataDevice
+);
 ```
-Tensor query      → const at::Tensor&
-Tensor key        → const at::Tensor&
-...
+
+### 11.2 PTA 侧详细流程
+
+1. **PTA 对外接口定义**
+
+```cpp
+at::Tensor ascendc_fia(const at::Tensor& queryTensor, const at::Tensor& keyTensor, ...)
+```
+
+2. **PTA 对外接口注册**
+
+```cpp
+TORCH_LIBRARY(ascendc_ops, m)
+{
+    m.def("ascendc_fia(Tensor query, Tensor key, Tensor value, "
+          "Tensor keyAntiquantScale, Tensor valueAntiquantScale, "
+          "Tensor queryAntiquantScale) -> Tensor");
+}
+TORCH_LIBRARY_IMPL(ascendc_ops, PrivateUse1, m) {
+    m.impl("ascendc_fia", TORCH_FN(ascendc_ops::ascendc_fia));
+}
+```
+
+3. **PTA 接口内检测输入是否合规**
+
+4. **PTA 接口内构造输出**
+
+```cpp
+at::Tensor outputTensor = at::empty({shapeQueryTensor[0], shapeQueryTensor[1],
+    shapeQueryTensor[2], shapeQueryTensor[3] * 2},
+    at::dtype(queryTensor.dtype()).device(queryTensor.device()).layout(queryTensor.layout()));
+```
+
+5. **PTA 接口构造 tilingdata**
+
+```cpp
+optiling::TilingContext context = InitContext(shapeQueryTensor, shapeKeyTensor, shapeValueTensor);
+optiling::DoOpTilingFusedInferAttentionScore(&context);
+```
+
+6. **PTA 结构构造 kernel 输入**
+
+```cpp
+// 获取 blockDim 和 stream
+uint32_t blockDimToBeSet = ascendcPlatform->CalcTschBlockDim(...);
+aclrtStream stream = nullptr;
+aclrtCreateStream(&stream);
+```
+
+7. **<<<>>> 直调 kernel**
+
+```cpp
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(...);
 ```
 
 ---
 
 ## 参考链接
 
+- [PR #3010 - fused_infer_attention_score算子torch.library直调](https://gitcode.com/cann/ops-transformer/pull/3010)
 - [torch.library 官方文档](https://pytorch.org/docs/stable/library.html)
-- [ops-transformer torch.library 参考](https://gitcode.com/cann/ops-transformer/pull/2141)
+- [Ascend C 算子开发指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/)
