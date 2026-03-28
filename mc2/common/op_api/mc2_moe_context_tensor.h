@@ -71,6 +71,16 @@ static bool LoadSymbol(void* handle, T& func_ptr, const char* symbol_name)
     return true;
 }
 
+#define LOAD_HCCL_SYMBOL(hcclHandle, symbol, name) \
+    do { \
+        if (!LoadSymbol(hcclHandle, symbol, name)) { \
+            OP_LOGD("load %s symbol error", name); \
+            dlclose(hcclHandle); \
+            hcclHandle = nullptr; \
+            return ACLNN_ERR_INNER; \
+        } \
+    } while (0)
+
 static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle)
 {
     OP_LOGD("Start to get HCCL communication handle");
@@ -380,98 +390,31 @@ static bool GetBuiltinLibPath(string &libPath)
     return true;
 }
 
-// 加载libhcomm.so并链接 Hccl 接口函数指针
+// 加载 libhcomm.so 并链接 Hccl 接口函数指针
 extern inline aclnnStatus LoadBuiltinOpApi(const std::string &libPath)
 {
     OP_LOGI("Load op api in path: %s", libPath.c_str());
     string soRealPath = libPath + "libhcomm.so";
     void *hcclHandle = dlopen(soRealPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
-    if (hcclHandle != nullptr) {
-        OP_LOGI("Load op hcomm so successfully, so path: %s", soRealPath.c_str());
 
-        if (!LoadSymbol(hcclHandle, g_HcomGetCommHandleByGroup, "HcomGetCommHandleByGroup")) {
-            OP_LOGD("load HcomGetCommHandleByGroup symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclRankGraphGetLinks, "HcclRankGraphGetLinks")) {
-            OP_LOGD("load HcclRankGraphGetLinks symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclRankGraphGetLayers, "HcclRankGraphGetLayers")) {
-            OP_LOGD("load HcclRankGraphGetLayers symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclChannelAcquire, "HcclChannelAcquire")) {
-            OP_LOGD("load HcclChannelAcquire symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclGetHcclBuffer, "HcclGetHcclBuffer")) {
-            OP_LOGD("load HcclGetHcclBuffer symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclChannelGetHcclBuffer, "HcclChannelGetHcclBuffer")) {
-            OP_LOGD("load HcclChannelGetHcclBuffer symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclEngineCtxCreate, "HcclEngineCtxCreate")) {
-            OP_LOGD("load HcclEngineCtxCreate symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }        
-
-        
-        if (!LoadSymbol(hcclHandle, g_HcclEngineCtxGet, "HcclEngineCtxGet")) {
-            OP_LOGD("load HcclEngineCtxGet symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclEngineCtxCopy, "HcclEngineCtxCopy")) {
-            OP_LOGD("load HcclEngineCtxCopy symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclGetRankId, "HcclGetRankId")) {
-            OP_LOGD("load HcclGetRankId symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        if (!LoadSymbol(hcclHandle, g_HcclGetRankSize, "HcclGetRankSize")) {
-            OP_LOGD("load HcclGetRankSize symbol error");
-            dlclose(hcclHandle);
-            hcclHandle = nullptr;
-            return ACLNN_ERR_INNER;
-        }
-
-        OP_LOGD("All Hccl symbols loaded successfully");
-    } else {
+    if (hcclHandle == nullptr) {
         OP_LOGW("Load op hcomm so failed, so path: %s", soRealPath.c_str());
         return ACLNN_ERR_INNER;
     }
+    
+    OP_LOGI("Load op hcomm so successfully, so path: %s", soRealPath.c_str());
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcomGetCommHandleByGroup, "HcomGetCommHandleByGroup");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclRankGraphGetLinks, "HcclRankGraphGetLinks");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclRankGraphGetLayers, "HcclRankGraphGetLayers");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclChannelAcquire, "HcclChannelAcquire");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclGetHcclBuffer, "HcclGetHcclBuffer");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclChannelGetHcclBuffer, "HcclChannelGetHcclBuffer");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclEngineCtxCreate, "HcclEngineCtxCreate");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclEngineCtxGet, "HcclEngineCtxGet");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclEngineCtxCopy, "HcclEngineCtxCopy");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclGetRankId, "HcclGetRankId");
+    LOAD_HCCL_SYMBOL(hcclHandle, g_HcclGetRankSize, "HcclGetRankSize");
+    OP_LOGD("All Hccl symbols loaded successfully");
 
     return ACLNN_SUCCESS;
 }
