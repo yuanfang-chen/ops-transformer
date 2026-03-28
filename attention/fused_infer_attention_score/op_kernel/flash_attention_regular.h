@@ -618,8 +618,8 @@ namespace SplitFuse {
                 LayoutQ layoutQTemp(rowNum, embed);
                 LayoutK layoutKTemp(strideK, stackSeqTile);
                 LayoutV layoutVTemp(stackSeqTile, strideV);
-                blockMmadQK.resetBlockStart();
-                blockMmadPV.resetBlockStart();
+                lockMmadQK.resetBlockStart(kvStart, pagedBlockSize);
+                blockMmadPV.resetBlockStart(kvStart, pagedBlockSize);
                 blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qHeads);
 #endif
                 for (uint32_t kvSIdx = kvStart; kvSIdx < kvEnd + preKVNum; kvSIdx++) {
