@@ -103,8 +103,6 @@ public:
     __aicore__ inline void UpdateBaseM(uint32_t baseM)
     {
         baseM_ = baseM;
-        baseN_ = 65536 / baseM_ / 16 * 16;
-        baseK_ = 64;
     }
 
     __aicore__ inline void SetTailAlign(uint32_t mTailAlign, uint32_t nTailAlign)

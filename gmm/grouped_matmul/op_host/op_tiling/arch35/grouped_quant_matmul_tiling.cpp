@@ -1017,6 +1017,7 @@ void GroupedQmmTiling::CalBasicBlock()
     basicTiling_.baseM = !inputParams_.transA ?
                              CeilAlign(basicTiling_.baseM, CUBE_BLOCK) :
                              CeilAlign(basicTiling_.baseM, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.aDtype));
+    basicTiling_.baseM = inputParams_.mSize / 48;
     if (isGBQuantMode) {
         // 不管M/K轴分组，单单单场景下，N不变，可以确定baseN
         if (inputParams_.nSize <= PER_BLOCK_GROUP_SIZE || basicTiling_.baseM > PER_BLOCK_GROUP_SIZE) {
@@ -1031,10 +1032,11 @@ void GroupedQmmTiling::CalBasicBlock()
     basicTiling_.baseN = inputParams_.transB ?
                              CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
                              CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    basicTiling_.baseN = 128;
     basicTiling_.baseK = CeilAlign(
         std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
         GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
-
+    basicTiling_.baseK = 64;
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         basicTiling_.baseK = CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
         bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1;
