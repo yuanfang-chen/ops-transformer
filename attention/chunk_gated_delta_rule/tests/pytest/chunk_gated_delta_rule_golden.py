@@ -370,6 +370,8 @@ def run_chunk_gated_delta_rule_eager(B, seqlen, nk, nv, dk, dv, chunk_size=64,
         ret = False
     print("PASSED" if ret else "FAILED")
     return ret
+
+
 def run_precision_test(inputs):
     run_chunk_gated_delta_rule_eager(
         inputs['B'], inputs['seqlen'], inputs['nk'],
