@@ -6,19 +6,19 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
-import random
+import time
 import torch
 import torch_npu
 import torch.nn.functional as F
 import numpy as np
-from torch_npu.testing.testcase import TestCase, run_tests
 import logging
 import datetime
 import os
 import sys
 import argparse
+from typing import Optional
 
-np.random.seed(21)  # 固定随机种子
+np.random.seed(21)
 np.set_printoptions(suppress=True)
 
 DEVICE_ID = 0
@@ -27,221 +27,68 @@ torch.npu.config.allow_internal_format = True
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
-def cal_relative_diff_np_isclose(real_data, expect_data, type_str='fp16'):
-    diff = abs(float(real_data) - float(expect_data))
-    result = diff / (np.abs(expect_data) + 10e-10)
-    return result
-
-def display_output_np_isclose(real_data, expect_data, start, end, expect_fp32_data=None):
-    def display_inner(idx):
-        j = idx + start
-        diff_rate = cal_relative_diff_np_isclose(
-            real_data[j], expect_data[j])
-
-        if "inf" in str(expect_data[j]) or "nan" in str(expect_data[j]):
-            diff_abs = "inf" if "inf" in str(expect_data[j]) else "nan"
-            if expect_fp32_data is not None:
-                print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
-            else:
-                print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
-        else:
-            diff_abs = abs(np.float64(
-                expect_data[j]) - np.float64(real_data[j]))
-            if expect_fp32_data is not None:
-                print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
-            else:
-                print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
-
-    print_log(
-        '---------------------------------------------------------------------------------------')
-    if expect_fp32_data is not None:
-        print_log(
-            'Loop \t ExpFP32Out \t ExpFP16Out \t NPUOut \tFpDiff(min) \t RateDiff')
-    else:
-        print_log('Loop \t ExpectOut \t RealOut \t FpDiff \t RateDiff')
-    print_log(
-        '---------------------------------------------------------------------------------------')
-    split_count = int(end - start)
-    if split_count <= 20:
-        for i in range(split_count + 1):
-            display_inner(i)
-    else:
-        for i in range(10):
-            display_inner(i)
-        print_log('...   \t   ...   \t   ...   \t   ...    \t   ...')
-        for i in range(split_count - 10 + 1, split_count + 1):
-            display_inner(i)
 
 def print_log(data=None, level='INFO'):
     print("[%s] [%s]-%s:%s - %s" % (datetime.datetime.now().strftime(
         "%Y/%m/%d %H:%M:%S"), level, os.path.basename(sys._getframe().f_back.f_code.co_filename),
                                     str(sys._getframe().f_back.f_lineno).zfill(4), data))
 
-def display_error_output(real_data, expect_data, err_idx, relative_diff):
-    print_log(
-        'Error Line-----------------------------------------------------------------------------')
-    print_log('Loop \t ExpectOut \t RealOut \t FpDiff \t RateDiff')
-    print_log(
-        '---------------------------------------------------------------------------------------')
-    count = 0
-    len_err = len(err_idx)
-    for i in err_idx:
-        count += 1
-        if count < 10 or (90 < count < 100):
-            print_log('%08d \t %.7f \t %.7f \t %.7f \t %.7f' % (
-                i, expect_data[i], real_data[i], abs(np.float64(
-                    expect_data[i]) - np.float64(real_data[i])),
-                relative_diff[count - 1]))
-        elif count == 10 or (count == 100 and len_err > 100):
-            dot_3 = '...'
-            print_log('%08s \t %07s \t %07s \t %07s \t %07s' %
-                      (dot_3, dot_3, dot_3, dot_3, dot_3))
-        elif count > 100:
-            break
 
-    print_log(
-        'Max-RE line:---------------------------------------------------------------------------')
-    max_error = max(relative_diff)
-    m_idx_list = err_idx[np.where(relative_diff == max_error)]
-    m_count = 0
-    for m_idx in m_idx_list:
-        m_count += 1
-        if m_count < 4:
-            print_log('%08d \t %.7f \t %.7f \t %.7f \t %.7f' % (
-                m_idx, expect_data[m_idx], real_data[m_idx],
-                abs(np.float64(expect_data[m_idx]) -
-                    np.float64(real_data[m_idx])),
-                max_error))
-        else:
-            break
-    print_log(
-        '---------------------------------------------------------------------------------------')
+def chunk_gated_delta_rule_npu(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    g: torch.Tensor,
+    beta: torch.Tensor,
+    scale: float = None,
+    initial_state: torch.Tensor = None,
+    cu_seqlens: Optional[torch.LongTensor] = None,
+):
+    num_heads = q.shape[-2]
+    num_value_heads = v.shape[-2]
 
-# fuzz 中precision_method == 1的精度对比方式
-def check_result(expect, result, data_type, pct_thd = 0.005):
-    real_data = result.cpu().numpy()
-    data_compe = expect.cpu().numpy()
-    real_data = real_data.flatten()
-    data_compe = data_compe.flatten()
-    if real_data.size == 0 and real_data.size == data_compe.size:
-        print_log(
-            'The npu_output is [],and it is same as bm_output, the result of data_compare is \"Pass\"')
-        return  100.0, "Pass"
-    start = 0
-    end = real_data.size - 1
-    if end < start:
-        end = start
-    max_error = 0
-    result = "Failed"
+    if num_value_heads // num_heads > 1:
+        q = q.repeat_interleave(num_value_heads // num_heads, dim=2)
+        k = k.repeat_interleave(num_value_heads // num_heads, dim=2)
 
-    if real_data.size != data_compe.size:
-        print_log(
-            'Error,the size of npu output[%s] and benchmark[%s] is not equal.' % (real_data.size, data_compe.size))
-        return 0.0, result
-    overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
+    batch_size = initial_state.shape[0]
+    core_attn_out = []
+    last_recurrent_state = torch.empty_like(initial_state)
 
+    for b_idx in range(batch_size):
+        start, end = cu_seqlens[b_idx], cu_seqlens[b_idx + 1]
+        cur_q = q[:, start:end, ...]
+        cur_k = k[:, start:end, ...]
+        cur_v = v[:, start:end, ...]
+        cur_g = g[:, start:end, ...]
+        cur_beta = beta[:, start:end, ...]
+        cur_state = initial_state[b_idx].unsqueeze(0)
 
-    if overflows_count > 0:
-        print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
-            overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
+        cur_core_attn_out, cur_last_recurrent_state = chunk_gated_delta_rule_native(
+            query=cur_q,
+            key=cur_k,
+            value=cur_v,
+            g=cur_g,
+            beta=cur_beta,
+            initial_state=cur_state,
+            output_final_state=True,
+            use_qk_l2norm_in_kernel=True,
+        )
+        core_attn_out.append(cur_core_attn_out)
+        last_recurrent_state[b_idx] = cur_last_recurrent_state
 
-    if data_type == 'bfloat16':
-        diff_thd=0.005
-        max_diff_hd=10.0
-        rtol=0.0078125
-        atol=0.0001
-        max_error_idx = 10000000
-    else:
-        diff_thd=0.005
-        max_diff_hd=10.0
-        rtol=0.005
-        atol=0.000025
-        max_error_idx = 10000000
+    tar_dtype = core_attn_out[0].dtype
+    tar_device = core_attn_out[0].device
+    tar_shape = list(core_attn_out[0].shape)
+    tar_shape[1] = cu_seqlens[-1]
+    final_cor_attn_out = torch.empty(tar_shape, dtype=tar_dtype, device=tar_device)
 
-    split_count = int(end - start + 1) if end != start else 1
-    print_log('split_count:%s; max_diff_hd:%s;' %
-              (float(split_count), max_diff_hd))
+    for b_idx in range(batch_size):
+        start, end = cu_seqlens[b_idx], cu_seqlens[b_idx + 1]
+        final_cor_attn_out[:, start:end, ...] = core_attn_out[b_idx]
 
-    has_nan_inf = False
-    if 'nan' in str(real_data) or 'inf' in str(real_data) or 'nan' in str(data_compe) or 'inf' in str(data_compe):
-        has_nan_inf = True
+    return final_cor_attn_out, last_recurrent_state
 
-    if str(real_data.dtype) == 'bfloat16':
-        diff_result = np.isclose(real_data.astype(np.float32), data_compe.astype(np.float32), rtol=rtol, atol=atol,
-                                    equal_nan=True)
-    elif str(real_data.dtype) == 'float8_e4m3fn':
-        nan_mask = np.isnan(real_data)
-        real_data[nan_mask] = 0
-        arr_string = real_data.tobytes()
-        real_data = np.frombuffer(arr_string, dtype="uint8")
-        nan_mask = np.isnan(data_compe)
-        data_compe[nan_mask] = 0
-        arr_string = data_compe.tobytes()
-        data_compe = np.frombuffer(arr_string, dtype="uint8")
-        diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
-    elif str(real_data.dtype) == 'float8_e5m2':
-        nan_mask = np.isnan(real_data)
-        real_data[nan_mask] = 0
-        nan_pos_inf = np.isposinf(real_data)
-        real_data[nan_pos_inf] = 57344
-        nan_neg_inf = np.isneginf(real_data)
-        real_data[nan_neg_inf] = -57344
-
-        arr_string = real_data.tobytes()
-        real_data = np.frombuffer(arr_string, dtype="uint8")
-        nan_mask = np.isnan(data_compe)
-        data_compe[nan_mask] = 0
-        nan_pos_inf = np.isposinf(data_compe)
-        data_compe[nan_pos_inf] = 57344
-        nan_neg_inf = np.isneginf(data_compe)
-        data_compe[nan_neg_inf] = -57344
-
-        arr_string = data_compe.tobytes()
-        data_compe = np.frombuffer(arr_string, dtype="uint8")
-        diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
-    else:
-        diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
-    err_idx = np.where(diff_result != np.array((True,)))[0]
-
-    if str(data_compe.dtype) == 'bool':
-        data_compe = data_compe.astype(np.int8)
-        real_data = real_data.astype(np.int8)
-    diff_abs = abs(data_compe - real_data)
-    b1 = np.maximum(np.abs(real_data), (np.abs(data_compe)))
-    b2 = float((1.0 / (1 << 14)) / diff_thd)
-    b = np.add(np.maximum(b1, b2), 10e-10)
-    eps = 10e-10
-    err_diff = diff_abs / (b + eps)
-    err_diff = err_diff[err_idx]
-
-    fulfill_percent = float(split_count - err_idx.size) / \
-                        float(split_count) * 100.0
-
-    display_output_np_isclose(real_data, data_compe, start, end)
-    pct_thd = (1 - pct_thd) * 100.0
-    result = "Pass" if (fulfill_percent >= pct_thd) else "Failed"
-    if len(err_diff) > 0:
-        max_error = max(err_diff[0:max_error_idx])
-        if max_error >= max_diff_hd:
-            result = "Failed"
-    print_log(
-        '---------------------------------------------------------------------------------------')
-    print_log('Rtol   \t Atol   \t PctThd   \t PctRlt   \t Result')
-    print_log(
-        '---------------------------------------------------------------------------------------')
-    print_log('%.4f    \t %.6f  \t %.2f%%   \t %.6f%%   \t %s' %
-                (rtol, atol, pct_thd, fulfill_percent, result))
-    if len(err_diff) > 0:
-        print_log('Max-RelativeError is: %s. Threshold is: %s.' %
-                    (max_error, max_diff_hd))
-    if result == "Failed":
-        display_error_output(real_data, data_compe,
-                                err_idx, err_diff[0:max_error_idx])
-    return fulfill_percent, result
 
 def chunk_gated_delta_rule_native(
     query,
@@ -255,9 +102,6 @@ def chunk_gated_delta_rule_native(
     use_qk_l2norm_in_kernel=False,
 ):
     initial_dtype = query.dtype
-    # if use_qk_l2norm_in_kernel:
-    #     query = F.normalize(query, p=2, dim=-1)
-    #     key = F.normalize(key, p=2, dim=-1)
     query, key, value, beta, g = [
         x.transpose(1, 2).contiguous().to(torch.float32)
         for x in (query, key, value, beta, g)
@@ -287,7 +131,6 @@ def chunk_gated_delta_rule_native(
         torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device),
         diagonal=0,
     )
-
     # chunk decay
     g = g.cumsum(dim=-1)
     decay_mask = ((g.unsqueeze(-1) - g.unsqueeze(-2)).tril().exp().float()).tril()
@@ -309,7 +152,6 @@ def chunk_gated_delta_rule_native(
         torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device),
         diagonal=1,
     )
-
     # for each chunk
     for i in range(0, tot_heads // chunk_size):
         q_i, k_i, v_i = query[:, :, i], key[:, :, i], value[:, :, i]
@@ -325,7 +167,6 @@ def chunk_gated_delta_rule_native(
             )
             @ v_new
         )
-
     if not output_final_state:
         last_recurrent_state = None
     core_attn_out = core_attn_out.reshape(
@@ -335,94 +176,116 @@ def chunk_gated_delta_rule_native(
     core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)
     return core_attn_out, last_recurrent_state
 
-def rand_range(shape, data_range=[-10, 10], dtype=torch.bfloat16, device=None):
-    return data_range[0] + (data_range[1] - data_range[0]) * torch.rand(shape, dtype=dtype, device=device)
+
+def compare_cv(golden, bench, npu, name=""):
+    # 简单对比
+    all_close = torch.allclose(golden, npu)
+    if not all_close:
+        print(f"{name} compare failed.")
+        print(f"  golden vs npu max abs diff: {torch.abs(golden - npu).max().item()}")
+        print(f"  golden vs bench max abs diff: {torch.abs(golden - bench).max().item()}")
+        print(f"  bench vs npu max abs diff: {torch.abs(bench - npu).max().item()}")
+    return all_close
+
+
+def cgdr_golden(q, k, v, g, beta, scale, initial_state, actual_seq_lengths, use_float64=False):
+    t0 = time.time()
+    cu_seqlens = F.pad(actual_seq_lengths, (1, 0)).cumsum(dim=0)
+    if use_float64:
+        v = v.cpu().to(torch.float64)
+    else:
+        v = v.to(torch.float32)
+    if g is None:
+        g = torch.zeros((v.shape[0], v.shape[1])).to(v.device).to(v.dtype)
+    o_golden, state_golden = chunk_gated_delta_rule_npu(
+        q.unsqueeze(0).to(v.device).to(v.dtype),
+        k.unsqueeze(0).to(v.device).to(v.dtype),
+        v.unsqueeze(0).to(v.device).to(v.dtype),
+        g.unsqueeze(0).to(v.device).to(v.dtype),
+        beta.unsqueeze(0).to(v.device).to(v.dtype),
+        scale=scale,
+        initial_state=initial_state.transpose(-1, -2).clone().to(v.device).to(v.dtype),
+        cu_seqlens=cu_seqlens.to(v.device)
+    )
+    o_golden = o_golden[0]
+    state_golden = state_golden.transpose(-1, -2)
+    print(f"cgdr_golden {use_float64=} time cost: {time.time() - t0} s")
+    return o_golden.to(torch.float32).npu(), state_golden.to(torch.float32).npu()
+
+
+def cgdr_benchmark(q, k, v, g, beta, scale, initial_state, actual_seq_lengths):
+    cu_seqlens = F.pad(actual_seq_lengths, (1, 0)).cumsum(dim=0)
+    if g is None:
+        g = torch.zeros((v.shape[0], v.shape[1])).to(v.device).to(torch.float32)
+    o_bench, state_bench = chunk_gated_delta_rule_npu(
+        q.unsqueeze(0),
+        k.unsqueeze(0),
+        v.unsqueeze(0),
+        g.unsqueeze(0) if g is not None else None,
+        beta.unsqueeze(0),
+        scale=scale,
+        initial_state=initial_state.transpose(-1, -2).clone(),
+        cu_seqlens=cu_seqlens
+    )
+    o_bench = o_bench[0].to(torch.float32)
+    state_bench = state_bench.transpose(-1, -2).to(torch.float32)
+    return o_bench, state_bench
+
+
+def cgdr_npu(q, k, v, g, beta, scale, initial_state, actual_seq_lengths):
+    o_npu, state_npu = torch_npu.npu_chunk_gated_delta_rule(
+        q, k, v,
+        beta=beta,
+        initial_state=initial_state.clone(),
+        actual_seq_lengths=actual_seq_lengths,
+        scale=scale,
+        g=g
+    )
+    o_npu = o_npu.to(torch.float32)
+    state_npu = state_npu.to(torch.float32)
+    return o_npu, state_npu
+
 
 def run_chunk_gated_delta_rule_eager(B, seqlen, nk, nv, dk, dv, chunk_size=64,
-                                     data_type=torch.bfloat16, query_datarange=[-10, 10], key_datarange=[-10, 10],
-                                     value_datarange=[-10, 10], g_datarange=[0, 1],
-                                     beta_datarange=[0, 1], state_datarange=[-10, 10]):
+                                     data_type=torch.bfloat16):
     torch_npu.npu.set_device(int(DEVICE_ID))
     # ======================== gen input data start =============================
-    query = rand_range((B, nk, seqlen, dk), query_datarange, data_type)
-    key = rand_range((B, nk, seqlen, dk), key_datarange, data_type)
-    value = rand_range((B, nv, seqlen, dv), value_datarange, data_type)
-    g = rand_range((B, nv, seqlen), g_datarange, dtype=torch.float32)
-    beta = rand_range((B, nv, seqlen), beta_datarange, data_type)
-    initial_state = rand_range((B, nv, dv, dk), state_datarange, data_type)
+    T = B * seqlen
+    q = torch.rand((T, nk, dk), dtype=data_type, device="npu:%s" % DEVICE_ID)
+    k = torch.rand((T, nk, dk), dtype=data_type, device="npu:%s" % DEVICE_ID)
+    v = torch.rand((T, nv, dv), dtype=data_type, device="npu:%s" % DEVICE_ID)
+    g = torch.rand((T, nv), dtype=torch.float32, device="npu:%s" % DEVICE_ID) * -1.0
+    beta = torch.rand((T, nv), dtype=data_type, device="npu:%s" % DEVICE_ID)
+    q = torch.nn.functional.normalize(q, p=2, dim=-1)
+    k = torch.nn.functional.normalize(k, p=2, dim=-1)
+    scale = 1 / (dk ** 0.5)
+    initial_state = torch.rand((B, nv, dv, dk), dtype=data_type, device="npu:%s" % DEVICE_ID)
+    actual_seq_lengths = torch.tensor([seqlen] * B, dtype=torch.int32, device="npu:%s" % DEVICE_ID)
     # ======================== gen input data finish =============================
 
-    # ======================== execute cpu start =================================
-    cpu_out, cpu_state_output = chunk_gated_delta_rule_native(
-        query, key, value, g, beta, chunk_size=chunk_size,
-        initial_state=initial_state, output_final_state=False
-    )
-    # ======================== execute cpu finish ================================
-
-    # ======================== execute npu start =================================
-    query_npu = query.to("npu:%s" % DEVICE_ID)
-    key_npu = key.to("npu:%s" % DEVICE_ID)
-    value_npu = value.to("npu:%s" % DEVICE_ID)
-    g_npu = g.to("npu:%s" % DEVICE_ID)
-    beta_npu = beta.to("npu:%s" % DEVICE_ID)
-    initial_state_npu = initial_state.to("npu:%s" % DEVICE_ID)
-
-    npu_out, npu_state = torch_npu.npu_chunk_gated_delta_rule(
-        query_npu, key_npu, value_npu, initial_state_npu, g=g_npu, beta=beta_npu, chunk_size=chunk_size
-    )
-    # ======================== execute npu finish ================================
-
-    print(f"query: shape {query.shape}, dtype: {query.dtype}")
-    print(f"key: shape {key.shape}, dtype: {key.dtype}")
-    print(f"value: shape {value.shape}, dtype: {value.dtype}")
-    print(f"g: shape {g.shape}, dtype: {g.dtype}")
-    print(f"beta: shape {beta.shape}, dtype: {beta.dtype}")
-    print(f"cpu_out: shape {cpu_out.shape}")
-    print(f"npu_out: shape {npu_out.shape}")
-
-    # 结果精度对比
-    data_type_str = str(npu_out.dtype)
-    print("--------------------------------------------------------------check result-------------------------------------------------------------")
-    check_result(cpu_out.to(torch.float32), npu_out.cpu().to(torch.float32), data_type_str)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--B', required=True, type=int, help='batch size')
-    parser.add_argument('--seqlen', required=True, type=int, help='sequence length')
-    parser.add_argument('--nk', required=True, type=int, help='num heads for key')
-    parser.add_argument('--nv', required=True, type=int, help='num heads for value')
-    parser.add_argument('--dk', required=True, type=int, help='head dim for key')
-    parser.add_argument('--dv', required=True, type=int, help='head dim for value')
-    parser.add_argument('--chunk_size', type=int, default=64, help='chunk size')
-    parser.add_argument('--data_type', type=str, default="bfloat16", help='bfloat16')
-    parser.add_argument('--query_datarange', type=list, default=[-10, 10])
-    parser.add_argument('--key_datarange', type=list, default=[-10, 10])
-    parser.add_argument('--value_datarange', type=list, default=[-10, 10])
-    parser.add_argument('--g_datarange', type=list, default=[0, 1])
-    parser.add_argument('--beta_datarange', type=list, default=[0, 1])
-    parser.add_argument('--state_datarange', type=list, default=[-10, 10])
-    args = parser.parse_args()
-
-    if args.data_type == "float16" or args.data_type == "FP16" or args.data_type == "fp16":
-        data_type = torch.float16
-    elif args.data_type == "bfloat16" or args.data_type == "BF16" or args.data_type == "bf16":
-        data_type = torch.bfloat16
-    else:
-        raise ValueError("Error: data_type only support bfloat16 and float16")
-        sys.exit(1)
-
+    # ======================== execute golden/benchmark/npu ================================
+    o_golden, state_golden = cgdr_golden(q, k, v, g, beta, scale, initial_state, actual_seq_lengths, use_float64=False)
+    o_bench, state_bench = cgdr_benchmark(q, k, v, g, beta, scale, initial_state, actual_seq_lengths)
+    o_npu, state_npu = cgdr_npu(q, k, v, g, beta, scale, initial_state, actual_seq_lengths)
+    # ======================== check result ================================
+    ret = True
+    if not compare_cv(o_golden, o_bench, o_npu, name="o"):
+        print("compare o failed.")
+        err_o = torch.abs(o_golden - o_npu).flatten()
+        idx = torch.argmax(err_o)
+        print(f"idx={idx}, err_o={err_o[idx]}, o_golden={o_golden.flatten()[idx]}, o_npu={o_npu.flatten()[idx]}, o_bench={o_bench.flatten()[idx]}")
+        ret = False
+    if not compare_cv(state_golden, state_bench, state_npu, name="state"):
+        print("compare state failed.")
+        err_s = torch.abs(state_golden - state_npu).flatten()
+        idx = torch.argmax(err_s)
+        print(f"idx={idx}, err_s={err_s[idx]}, state_golden={state_golden.flatten()[idx]}, state_npu={state_npu.flatten()[idx]}, state_bench={state_bench.flatten()[idx]}")
+        ret = False
+    print("PASSED" if ret else "FAILED")
+    return ret
+def run_precision_test(inputs):
     run_chunk_gated_delta_rule_eager(
-            args.B,
-            args.seqlen,
-            args.nk,
-            args.nv,
-            args.dk,
-            args.dv,
-            args.chunk_size,
-            data_type,
-            args.query_datarange,
-            args.key_datarange,
-            args.value_datarange,
-            args.g_datarange,
-            args.beta_datarange,
-            args.state_datarange)
+        inputs['B'], inputs['seqlen'], inputs['nk'],
+        inputs['nv'], inputs['dk'], inputs['dv'], inputs['chunk_size'],
+        data_type=inputs['data_type']
+    )

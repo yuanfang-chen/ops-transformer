@@ -1,3 +1,4 @@
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -27,9 +28,7 @@ for _, params in enumerate(ENABLED_PARAMS):
 
     # 生成所有参数组合
     param_names = [
-        "B", "seqlen", "nk", "nv", "dk", "dv", "chunk_size", "data_type",
-        "query_datarange", "key_datarange", "value_datarange",
-        "g_datarange", "beta_datarange", "state_datarange"
+        "B", "seqlen", "nk", "nv", "dk", "dv", "chunk_size", "data_type"
     ]
 
     param_values = [
@@ -41,12 +40,6 @@ for _, params in enumerate(ENABLED_PARAMS):
         locals()["param_dv"],
         locals()["param_chunk_size"],
         locals()["param_data_type"],
-        locals()["param_query_datarange"],
-        locals()["param_key_datarange"],
-        locals()["param_value_datarange"],
-        locals()["param_g_datarange"],
-        locals()["param_beta_datarange"],
-        locals()["param_state_datarange"],
     ]
 
     # 生成所有的组合，并转换为字典列表
@@ -66,18 +59,10 @@ for _, params in enumerate(ENABLED_PARAMS):
         dv = param_combinations['dv']
         chunk_size = param_combinations['chunk_size']
         data_type = param_combinations['data_type']
-        query_datarange = param_combinations['query_datarange']
-        key_datarange = param_combinations['key_datarange']
-        value_datarange = param_combinations['value_datarange']
-        g_datarange = param_combinations['g_datarange']
-        beta_datarange = param_combinations['beta_datarange']
-        state_datarange = param_combinations['state_datarange']
 
-        test_data = B, seqlen, nk, nv, dk, dv, chunk_size, data_type, \
-                    query_datarange, key_datarange, value_datarange, \
-                    g_datarange, beta_datarange, state_datarange
+        test_data = B, seqlen, nk, nv, dk, dv, chunk_size, data_type
 
         torch_npu.npu.set_device(0)
 
-        # 获得cpu结果(真值)和算子结果（测试值）
-        chunk_gated_delta_rule_operator_single.output_operator(test_data)
+        # 豀得cpu结果(真值)和算子结果（测试值)
+        chunk_gated_delta_rule_operator_single.run_precision_test(test_data)
