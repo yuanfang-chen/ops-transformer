@@ -28,6 +28,7 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "aclnn_kernels/contiguous.h"
+#include "common\op_host\op_tiling\mc2_tiling_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -105,6 +106,8 @@ bool QuantMatmulAllReduceCheckShape(
     const aclTensor* pertokenScale, const aclTensor* x3, const aclTensor* output);
 bool MatmulAllReduceIsWeightNZFormat(const aclTensor* x2);
 bool QuantMatmulAllReduceIsWeightNZFormat(const aclTensor* x2);
+
+bool MatmulAllReduceCheckValidContiguous(const aclTensor* x2);
 
 // 全量化
 bool QuantMatmulAllReduceIsAclnnPreTransposed(const aclTensor* x2);
