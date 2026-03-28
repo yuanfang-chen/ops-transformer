@@ -359,12 +359,13 @@ ge::graphStatus FiaInfoParser::GetAttrParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetUpdateInfo()
+void FiaInfoParser::GetUpdateInfo()
 {
     auto attrs = context_->GetAttrs();
     static int32_t SPARSE_ZERO = 0U;
     static int64_t TOKEN_MAX = 2147483647;
-    if (isLegacyIfa_) {
+    if (isLegacyIfa_ && (socVersion_ == platform_ascendc::SocVersion::ASCEND310P ||
+                         socVersion_ == platform_ascendc::SocVersion::ASCEND910B)) {
         opParamInfo_.sparseMode = &SPARSE_ZERO;
         opParamInfo_.preToken = &TOKEN_MAX;
         opParamInfo_.nextToken = &TOKEN_MAX;
@@ -381,9 +382,6 @@ ge::graphStatus FiaInfoParser::GetUpdateInfo()
         opParamInfo_.queryPaddingSize.tensor = context_->GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX);
         opParamInfo_.queryPaddingSize.desc = context_->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX);
     }
-    OP_CHECK_IF(opParamInfo_.sparseMode == nullptr, OP_LOGE(opName_, "attr sparseMode is nullptr"),
-               return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
 }
 
 void FiaInfoParser::GetPreNextToken()
@@ -991,12 +989,10 @@ void FiaInfoParser::GetPaddingSizeFlag()
     }
 }
 
-ge::graphStatus FiaInfoParser::GetMaskFlag()
+void FiaInfoParser::GetMaskFlag()
 {
     auto *maskTensor = opParamInfo_.attenMask.tensor;
     attenMaskFlag_ = (maskTensor != nullptr) && (maskTensor->GetStorageShape().GetShapeSize() != 0);
-
-    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FiaInfoParser::GetPseShiftFlag()
@@ -1322,6 +1318,9 @@ ge::graphStatus FiaInfoParser::Parse(FiaTilingInfo &fiaInfo)
     GetKvStorageMode();
     GetQuantMode();
     if (ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag()) {
+        return ge::GRAPH_FAILED;
+    }
+    if (ge::GRAPH_SUCCESS != GetAntiQuantInfo()) {
         return ge::GRAPH_FAILED;
     }
     if (ge::GRAPH_SUCCESS != GetQueryAndOutLayout() || ge::GRAPH_SUCCESS != GetKvLayout()) {

@@ -94,6 +94,7 @@ ge::graphStatus GetUpdateInfo();
     ge::graphStatus GetPostQuantInfo();
     ge::graphStatus GetFullQuantMode();
     ge::graphStatus GetOldIfaGqaFlag();
+    ge::graphStatus GetAntiQuantInfo();
     TilingKeyLayout MapStringToLayout(FiaLayout &layoutString) const;
     void GenerateAxisInfo(FiaTilingInfo &fiaInfo);
     void GenerateDtypeInfo(FiaTilingInfo &fiaInfo);
