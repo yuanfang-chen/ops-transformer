@@ -22,6 +22,7 @@
 #include "chunk_gated_delta_rule_stage1.h"
 #include "chunk_gated_delta_rule_stage2.h"
 #include "chunk_gated_delta_rule_stage3.h"
+#include "chunk_gated_delta_rule_utils.h"
 
 namespace ChunkGatedDeltaRule {
 
@@ -59,13 +60,12 @@ __aicore__ inline void CopyCast(
         if (endPos > totalDataCount) {
             endPos = totalDataCount;
         }
-        uint32_t tileLen = 1024;   // 1024 = 1kb，经测试1kb和10kb性能差异很小
         TQue<QuePosition::VECIN, 2> inQueue;      // use 2 buffer
         TQue<QuePosition::VECOUT, 2> outQueue;    // use 2 buffer
-        pipe->InitBuffer(inQueue, 2, tileLen * sizeof(srcType));   // use 2 buffer
-        pipe->InitBuffer(outQueue, 2, tileLen * sizeof(dstType));  // use 2 buffer
-        for (int64_t i = startPos; i < endPos; i += tileLen) {
-            uint32_t blockLen = i + tileLen > endPos ? endPos - i : tileLen;
+        pipe->InitBuffer(inQueue, 2, TILE_LEN * sizeof(srcType));   // use 2 buffer
+        pipe->InitBuffer(outQueue, 2, TILE_LEN * sizeof(dstType));  // use 2 buffer
+        for (int64_t i = startPos; i < endPos; i += TILE_LEN) {
+            uint32_t blockLen = i + TILE_LEN > endPos ? endPos - i : TILE_LEN;
             // copy in
             DataCopyExtParams inParams{1, static_cast<uint32_t>(blockLen * sizeof(srcType)), 0, 0, 0};
             DataCopyPadExtParams<srcType> inPadParams{false, 0, 0, 0};
