@@ -83,8 +83,8 @@ public:
     ge::graphStatus GetN1Size();
     ge::graphStatus GetN2Size();
     ge::graphStatus GetGSize();
-ge::graphStatus GetUpdateInfo();
-    ge::graphStatus GetMaskFlag();
+    void GetUpdateInfo();
+    void GetMaskFlag();
     ge::graphStatus GetAttenMaskInfo();
     void GetPaddingSizeFlag();
     ge::graphStatus GetActualSeqInfo();
