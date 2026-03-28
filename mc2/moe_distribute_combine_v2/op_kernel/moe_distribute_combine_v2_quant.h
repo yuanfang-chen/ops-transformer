@@ -36,7 +36,8 @@ namespace Mc2Kernel {
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
 
-template <typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, uint8_t QuantMode, bool HasAddRmsNorm>
+template <typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter,
+    uint8_t QuantMode, bool HasAddRmsNorm>
 class MoeDistributeCombineQuant{
 public:
     float scaleValFloat_;
@@ -59,7 +60,7 @@ public:
 
     __aicore__ inline void SetQuantInitParams(LocalTensor<float> winTpSendCountFloatTensor,
         LocalTensor<half> fp16CastTensor, LocalTensor<float> absFloatTensor,
-        LocalTensor<float> reduceMaxFloatTensor, LocalTensor<float> scaleDupLocalTensor) 
+        LocalTensor<float> reduceMaxFloatTensor, LocalTensor<float> scaleDupLocalTensor)
     {
         winTpSendCountFloatTensor_ = winTpSendCountFloatTensor;
         floatLocalTemp_ = winTpSendCountFloatTensor;
@@ -70,7 +71,7 @@ public:
     }
 
     __aicore__ inline void SetDeQuantInitParams(LocalTensor<half> fp16CastTensor, LocalTensor<float> absFloatTensor,
-        LocalTensor<float> scaleDupLocalTensor, LocalTensor<float> scaleDivFloatTensor) 
+        LocalTensor<float> scaleDupLocalTensor, LocalTensor<float> scaleDivFloatTensor)
     {
         fp16CastTensor_ = fp16CastTensor;
         absFloatTensor_ = absFloatTensor;
@@ -90,17 +91,17 @@ public:
             scaleNum_ = quantScaleNum_;
             hExpandXAlignSize_ = hExpandXAlign32Size_;
             scaleNumAlignSize_ = Ceil(scaleNum_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
-            repeatNum_ = static_cast<uint32_t>(hFloatAlign256Size_ / ALIGNED_LEN); // BlockReduceMax 与 Brcb的重复迭代次数，每次256b参与计算
+            repeatNum_ = static_cast<uint32_t>(hFloatAlign256Size_ / ALIGNED_LEN); // 每次256b参与计算
             mask_ = static_cast<uint32_t>(ALIGNED_LEN / sizeof(float));
             tokenScaleCnt_ = hAlign32Size_ / sizeof(ExpandXType) + quantScaleNum_; // int8_align + scale有效个数
-        } 
+        }
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr(QuantMode == MXFP8_E5M2_COMM_QUANT || QuantMode == MXFP8_E4M3_COMM_QUANT) {
             hExpandXAlignSize_ = Align128(axisH) * sizeof(ExpandXType);
             quantScaleNum_ = Align2(Ceil32(axisH));
             scaleNum_ = quantScaleNum_;
             scaleNumAlignSize_ = Align128(scaleNum_) * sizeof(ExpandXType) * BUFFER_NUM; // 双搬
-            tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_; 
+            tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_;
         }
         #endif
     }
@@ -158,15 +159,19 @@ public:
         __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
         __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
         __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
-        __ubuf__ uint16_t* mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].GetPhyAddr();
+        __ubuf__ uint16_t* mxScaleLocalAddr = 
+            (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].GetPhyAddr();
         quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
         if constexpr (QuantMode == MXFP8_E5M2_COMM_QUANT) {
-            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
+            // 计算scales并填充
+            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
             quant::ComputeData<ExpandXType, fp8_e5m2_t, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         } else if constexpr (QuantMode == MXFP8_E4M3_COMM_QUANT) {
-            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
-            quant::ComputeData<ExpandXType, fp8_e4m3fn_t, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
+            // 计算scales并填充
+            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
+            quant::ComputeData<ExpandXType, fp8_e4m3fn_t,
+            AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         }
     }
@@ -176,18 +181,18 @@ public:
     {
         LocalTensor<T> castFp8LocalTensor_ = inLocal.template ReinterpretCast<T>();
         // bf16/fp16量化为mxfp8后，字节差2倍
-        LocalTensor<fp8_e8m0_t> scaleDivFp8Tensor_ = 
-            inLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].template ReinterpretCast<fp8_e8m0_t>(); 
-        __ubuf__ bfloat16_t *dyScaleBf16Ptr = (__ubuf__ bfloat16_t *)scaleDivFloatTensor_.GetPhyAddr(); 
+        LocalTensor<fp8_e8m0_t> scaleDivFp8Tensor_ =
+            inLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].template ReinterpretCast<fp8_e8m0_t>();
+        __ubuf__ bfloat16_t *dyScaleBf16Ptr = (__ubuf__ bfloat16_t *)scaleDivFloatTensor_.GetPhyAddr();
         __ubuf__ float *dyScaleFp32Ptr = (__ubuf__ float *)scaleDupLocalTensor_.GetPhyAddr(); // 大小是h*4字节
-        __ubuf__ fp8_e8m0_t *srcPtr0 = (__ubuf__ fp8_e8m0_t *)scaleDivFp8Tensor_.GetPhyAddr(); 
+        __ubuf__ fp8_e8m0_t *srcPtr0 = (__ubuf__ fp8_e8m0_t *)scaleDivFp8Tensor_.GetPhyAddr();
         __ubuf__ T *tokenPtr0 = (__ubuf__ T *)castFp8LocalTensor_.GetPhyAddr();
         __ubuf__ float *sumDstPtr = (__ubuf__ float *)sumTensor.GetPhyAddr();
-        uint32_t bf16RepeatSize = quant::GetVRegSizeDispatch() / sizeof(bfloat16_t); 
-        uint32_t fp32RepeatSize = quant::GetVRegSizeDispatch() / sizeof(float);  
-        uint16_t repeatTimes = Ceil(quantScaleNum_, bf16RepeatSize);  
-        uint16_t fp32RepeatTimes = Ceil(axisH_, fp32RepeatSize);  
-        uint16_t repeatTimes2 = Ceil(quantScaleNum_ * INT8_DIVIVE, fp32RepeatSize); 
+        uint32_t bf16RepeatSize = quant::GetVRegSizeDispatch() / sizeof(bfloat16_t);
+        uint32_t fp32RepeatSize = quant::GetVRegSizeDispatch() / sizeof(float);
+        uint16_t repeatTimes = Ceil(quantScaleNum_, bf16RepeatSize);
+        uint16_t fp32RepeatTimes = Ceil(axisH_, fp32RepeatSize);
+        uint16_t repeatTimes2 = Ceil(quantScaleNum_ * INT8_DIVIVE, fp32RepeatSize);
         uint32_t quantCount2 = quantScaleNum_ * INT8_DIVIVE;
         __VEC_SCOPE__
         {
@@ -212,13 +217,13 @@ public:
             AscendC::MicroAPI::MaskReg maskReg2;
 
             for (uint16_t i = 0; i < repeatTimes; i++) {
-                maskReg = AscendC::MicroAPI::UpdateMask<bfloat16_t>(quantScaleNum_); 
+                maskReg = AscendC::MicroAPI::UpdateMask<bfloat16_t>(quantScaleNum_);
                 // 一次搬128个u8 unpack成128个u16
                 MicroAPI::DataCopy<fp8_e8m0_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(vSrcReg,
                     srcPtr0 + i * bf16RepeatSize);
                 MicroAPI::Cast<bfloat16_t, fp8_e8m0_t, FP82BF16CastTraitZero>(vDstReg, vSrcReg, maskReg);
                 MicroAPI::DataCopy<bfloat16_t, MicroAPI::StoreDist::DIST_INTLV_B16>(
-                    dyScaleBf16Ptr + i * bf16RepeatSize * INT8_DIVIVE, vDstReg, vDstReg,maskReg); // bf16，双搬出元素
+                    dyScaleBf16Ptr + i * bf16RepeatSize * INT8_DIVIVE, vDstReg, vDstReg, maskReg); // bf16，双搬出元素
             }
             MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
             for (uint16_t i = 0; i < repeatTimes2; i++) {
