@@ -209,7 +209,10 @@ protected:
         uint32_t sInnerSize, double coreWightTarget, uint32_t& curCore);
     void PromptFlashAttentionSplitNBSeq(PromptFlashAttentionTilingDataV2& tilingData, std::vector<int64_t>& actualSeqLengths,
         std::vector<int64_t>& actualSeqLengthsKV, bool isAttenMaskUsed);
-    void InferSplitCoreMode();
+    void PromptFlashAttentionSplitOutSeq(PromptFlashAttentionTilingDataV2& tilingData, std::vector<int64_t>& actualSeqLengths,
+        std::vector<int64_t>& actualSeqLengthsKV);
+    void InferSplitCoreMode(PromptFlashAttentionTilingDataV2& tilingData);
+    bool CheckS1OutSplit(PromptFlashAttentionTilingDataV2& tilingData);
     void InferConstantization();
     bool AdjustCVTilingCVDiff(const ContextParamsForPFATiling& contextKeyParams, uint32_t& sOuterFactor,
         uint32_t& sInnerFactor, uint32_t& softmaxSOuterFactor, PromptFlashAttentionTilingDataV2& tilingData,
@@ -269,6 +272,7 @@ protected:
     void UpdateTilingKeyPFAMask(PromptFlashAttentionTilingDataV2& tilingData, ge::DataType inputDataType);
     void UpdateTilingKeyPFAMatMulType(PromptFlashAttentionTilingDataV2& tilingData, ge::DataType inputDataType);
     void UpdateTilingKeyEnableKVPrefix();
+    void UpdateTilingKeySplitCoreMode();
 
 public:
     uint8_t inOutLayoutType = 0;
@@ -283,6 +287,7 @@ public:
     uint8_t PFAMask = 0;
     uint8_t pFAMatMulType = 0;
     bool enableKVPrefix = false;
+    bool enableS1OutSplit = false;
   
 protected:
     ContextParamsForPFATiling* contextKeyParamsPtr = nullptr;
