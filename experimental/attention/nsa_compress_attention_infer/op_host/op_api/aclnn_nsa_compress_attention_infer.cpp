@@ -31,7 +31,7 @@ extern "C" {
 
 namespace {
 
-__attribute__((visibility("default"))) aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(    
+__attribute__((visibility("default"))) aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
@@ -57,9 +57,9 @@ __attribute__((visibility("default"))) aclnnStatus aclnnNsaCompressAttentionInfe
     aclOpExecutor **executor);
 
 aclnnStatus nsaCompressAttentionInferContiguous(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
-                        const aclTensor *attentionMaskOptional, const aclTensor *&blockTableOptional,
-                        const aclTensor *&topKMaskOptional,
-                        aclOpExecutor *executor)
+    const aclTensor *attentionMaskOptional, const aclTensor *&blockTableOptional,
+    const aclTensor *&topKMaskOptional,
+    aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
     CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
@@ -137,7 +137,7 @@ aclnnStatus nsaCompressAttentionInferValidateParam(
 {
     Shape qShape = query->GetViewShape();
     auto batchSize = qShape[0];
-    if (batchSize > 10000U || batchSize < 1U ) {
+    if (batchSize > 10000U || batchSize < 1U) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "batchSize %ld not in  [1, 10000], please check", batchSize);
         return ACLNN_ERR_PARAM_INVALID;
     }
@@ -146,7 +146,10 @@ aclnnStatus nsaCompressAttentionInferValidateParam(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus nsaCompressAttentionInferCheckTensorNull(const aclTensor *query, const aclTensor *key, const aclTensor *value,
+aclnnStatus nsaCompressAttentionInferCheckTensorNull(
+    const aclTensor *query,
+    const aclTensor *key,
+    const aclTensor *value,
     const aclTensor *blockTableOptional,
     const aclIntArray *actualCmpKvSeqLenOptional,
     const char *layoutOptional,
@@ -167,7 +170,8 @@ aclnnStatus nsaCompressAttentionInferCheckTensorNull(const aclTensor *query, con
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus FakeArray_cai(const aclIntArray *inArray, aclIntArray *&outArray) {
+aclnnStatus FakeArray_cai(const aclIntArray *inArray, aclIntArray *&outArray)
+{
     OP_LOGD("start fake array");
     if (inArray != nullptr) {
         OP_LOGD("input array is not nullptr");
@@ -184,7 +188,7 @@ aclnnStatus FakeArray_cai(const aclIntArray *inArray, aclIntArray *&outArray) {
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(    
+aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
@@ -207,7 +211,8 @@ aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(
     const aclTensor *output,
     const aclTensor *topKOutput,
     uint64_t *workspaceSize,
-    aclOpExecutor **executor){
+    aclOpExecutor **executor)
+{
         aclIntArray *fakeActualCmpKvSeqLenOptional{nullptr};
         // nullptr不处理， nullptr是空指针，这样不会影响原来就不传入actual seq length为空的逻辑
         aclnnStatus ret = FakeArray_cai(actualCmpKvSeqLenOptional, fakeActualCmpKvSeqLenOptional);
@@ -234,8 +239,7 @@ aclnnStatus aclnnNsaCompressAttentionInferGetMaxWorkspaceSize(
                                                              output,
                                                              topKOutput,
                                                              workspaceSize,
-                                                             executor
-        );
+                                                             executor);
         aclDestroyIntArray(fakeActualCmpKvSeqLenOptional);
         return ret;
     }
@@ -266,16 +270,16 @@ aclnnStatus aclnnNsaCompressAttentionInferGetWorkspaceSize(
     aclOpExecutor **executor)
 {
     CHECK_RET(nsaCompressAttentionInferCheckTensorNull(query, key, value, blockTableOptional,
-        actualCmpKvSeqLenOptional, layoutOptional, output, topKOutput, 
-    workspaceSize) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
+        actualCmpKvSeqLenOptional, layoutOptional, output, topKOutput,
+        workspaceSize) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(nsaCompressAttentionInferValidateParam(query, key, value, blockTableOptional,
         output, topKOutput) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     L2_DFX_PHASE_1(aclnnNsaCompressAttentionInfer,
-                    DFX_IN(query, key, value, attentionMaskOptional, blockTableOptional, actualQSeqLenOptional,
-                    actualCmpKvSeqLenOptional, actualSelKvSeqLenOptional, topKMaskOptional, numHeads, numKeyValueHeads,
-                    selectBlockSize, selectBlockCount, compressBlockSize, compressBlockStride, scaleValue,
-                    layoutOptional, pageBlockSize, sparseMode),
-                    DFX_OUT(output, topKOutput));
+        DFX_IN(query, key, value, attentionMaskOptional, blockTableOptional, actualQSeqLenOptional,
+        actualCmpKvSeqLenOptional, actualSelKvSeqLenOptional, topKMaskOptional, numHeads, numKeyValueHeads,
+        selectBlockSize, selectBlockCount, compressBlockSize, compressBlockStride, scaleValue,
+        layoutOptional, pageBlockSize, sparseMode),
+        DFX_OUT(output, topKOutput));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
@@ -293,7 +297,8 @@ aclnnStatus aclnnNsaCompressAttentionInferGetWorkspaceSize(
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
-    CHECK_RET(nsaCompressAttentionInferContiguous(query, key, value, attentionMaskOptional, blockTableOptional, topKMaskOptional, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(nsaCompressAttentionInferContiguous(query, key, value, attentionMaskOptional, blockTableOptional,
+                                                  topKMaskOptional, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
     string inputLayoutStr = op::ToString(layoutOptional).GetString();
     auto l0NsaCompressAttentionInferOuts = l0op::NsaCompressAttentionInfer(

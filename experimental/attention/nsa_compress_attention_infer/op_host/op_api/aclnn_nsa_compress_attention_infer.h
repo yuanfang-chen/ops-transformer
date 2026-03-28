@@ -56,7 +56,7 @@ aclnnStatus aclnnNsaCompressAttentionInferGetWorkspaceSize(
     const aclIntArray *actualQSeqLenOptional,
     const aclIntArray *actualCmpKvSeqLenOptional,
     const aclIntArray *actualSelKvSeqLenOptional,
-    const aclTensor *topKMaskOptional, 
+    const aclTensor *topKMaskOptional,
     int64_t numHeads,
     int64_t numKeyValueHeads,
     int64_t selectBlockSize,

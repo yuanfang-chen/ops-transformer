@@ -39,10 +39,10 @@ public:
     using KV_T = typename NCAIType::kvType;
     using OUT_T = typename NCAIType::outputType;
     static constexpr LAYOUT LAYOUT_T = NCAIType::layout;
-    
+
     __aicore__ inline NsaCompressAttentionInferAic(){};
 
-    __aicore__ inline void Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, 
+    __aicore__ inline void Init(GM_ADDR query, GM_ADDR key, GM_ADDR value,
         GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output,
         GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData);
 
@@ -53,12 +53,12 @@ protected:
     /* tiling data */
     NsaCompressAttentionInferBaseParams baseTilingData;
     NsaCompressAttentionInferSplitBNParams splitBNTilingData;
-    
+
     /* variable */
     AscendC::GlobalTensor<Q_T> queryGm;
     AscendC::GlobalTensor<KV_T> keyGm;
     AscendC::GlobalTensor<KV_T> valueGm;
-    AscendC::GlobalTensor<OUT_T> outGm;  
+    AscendC::GlobalTensor<OUT_T> outGm;
 
     GlobalTensor<int32_t> blockTableGm;
     GlobalTensor<int64_t> actualQSeqLenGm;
@@ -175,7 +175,8 @@ protected:
     __aicore__ inline void ProcessMm1(const uint32_t processIdx);
     __aicore__ inline void ProcessMm2(const uint32_t processIdx);
     __aicore__ inline void PreProcess(const uint32_t processIdx);
-    __aicore__ inline uint8_t CeilCubeBlock(uint32_t len, uint32_t block_size) {
+    __aicore__ inline uint8_t CeilCubeBlock(uint32_t len, uint32_t block_size)
+    {
         return (len + block_size - 1) / block_size;
     }
     __aicore__ inline void ProcessImportanceScore(const uint32_t processIdx, const uint32_t kvHeadOffset,
@@ -188,7 +189,7 @@ protected:
 };
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, 
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR query, GM_ADDR key, GM_ADDR value,
     GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut,
     GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
 {
@@ -238,8 +239,9 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR quer
     impScoreL0cTensor = buf.GetBuffer<BufferType::ASCEND_L0C, float>(0);
 }
 
-template <typename NCAIType> 
-__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::InitTilingData(const NsaCompressAttentionInferTilingData *__restrict tilingData)
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::InitTilingData(
+    const NsaCompressAttentionInferTilingData *__restrict tilingData)
 {
     batchSize = tilingData->baseParams.batchSize;
     qSeqSize = tilingData->baseParams.qSeqSize;
@@ -283,9 +285,11 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyQToL1(const u
 {
     AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1qPingPongFlag + 6);
     for (uint32_t qSeqLenCurProcessIdx = 0; qSeqLenCurProcessIdx < qSeqLenCurProcess; qSeqLenCurProcessIdx++) {
-        uint64_t qCoreOffset = (qSeqLenCumSum + qSeqLenOffset + qSeqLenCurProcessIdx) * qHeadNum * headSizeQk + actualKvHeadIdx * groupSize * headSizeQk;
+        uint64_t qCoreOffset = (qSeqLenCumSum + qSeqLenOffset + qSeqLenCurProcessIdx) * qHeadNum * headSizeQk
+                             + actualKvHeadIdx * groupSize * headSizeQk;
         if (qRowNum != 1) {
-            AscendC::DataCopy(l1qBufAddrTensor[l1qPingPongFlag * BASE_L1_BLOCK_ELEM_NUM_QKV + qSeqLenCurProcessIdx * groupSize * 16],
+            AscendC::DataCopy(
+                l1qBufAddrTensor[l1qPingPongFlag * BASE_L1_BLOCK_ELEM_NUM_QKV + qSeqLenCurProcessIdx * groupSize * 16],
                             queryGm[qCoreOffset],
                             AscendC::Nd2NzParams(1,           // ndNum
                                                 groupSize, // nValue
@@ -564,13 +568,13 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyOToGm(const u
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm1(const uint32_t processIdx)
-{   
+{
     uint64_t strideQ = qHeadNum * headSizeQk;
     uint64_t strideK = kvHeadNum * headSizeQk;
     uint32_t headSizeQkRound = AlignUp(headSizeQk, 16U);
     uint32_t mm1ResPingPongFlag = (processIdx / aicNum) % 2;
     for (uint32_t curKvHeadIdx = 0; curKvHeadIdx < curKvHeadNum; curKvHeadIdx++) {
-        uint32_t actualKvHeadIdx = kvHeadOffset + curKvHeadIdx;        
+        uint32_t actualKvHeadIdx = kvHeadOffset + curKvHeadIdx;
         uint32_t l1qPingPongFlag = curKvHeadIdx % 2;
         uint32_t qRowNum = groupSize * qSeqLenCurProcess;
         uint32_t qRowNumRound = (qRowNum + 16U - 1) / 16U * 16U;
@@ -607,15 +611,17 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm1(const 
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm2(const uint32_t processIdx)
-{   
+{
     uint64_t strideO = qHeadNum * headSizeVo;
     uint64_t strideV = kvHeadNum * headSizeVo;
     uint32_t mm2InPingPongFlag = (processIdx / aicNum) % 2;
     for (uint32_t curKvHeadIdx = 0; curKvHeadIdx < curKvHeadNum; curKvHeadIdx++) {
         uint32_t actualKvHeadIdx = kvHeadOffset + curKvHeadIdx;
 
-        for (uint32_t qSeqLenCurProcessIndex = 0; qSeqLenCurProcessIndex < qSeqLenCurProcess; qSeqLenCurProcessIndex++) {
-            uint64_t oCoreOffset = (qSeqLenCumSum + qSeqLenOffset + qSeqLenCurProcessIndex) * strideO + actualKvHeadIdx * groupSize * headSizeVo;
+        for (uint32_t qSeqLenCurProcessIndex = 0; qSeqLenCurProcessIndex < qSeqLenCurProcess;
+             qSeqLenCurProcessIndex++) {
+            uint64_t oCoreOffset = (qSeqLenCumSum + qSeqLenOffset + qSeqLenCurProcessIndex) * strideO
+                                 + actualKvHeadIdx * groupSize * headSizeVo;
 
             uint32_t pRowNum = groupSize;
             uint32_t pRowNumRound = AlignUp(pRowNum, 16U);
@@ -624,16 +630,18 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm2(const 
             uint32_t kvSeqTile = blockSize;
             uint32_t l0cPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) % 2;
             for (uint32_t sIdx = 0; sIdx < sLoop; sIdx++) {
-                uint32_t l1pvPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
-                uint32_t l0abPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
+                uint32_t l1pvPingPongFlag =
+                    (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
+                uint32_t l0abPingPongFlag =
+                    (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
                 if (sIdx == sLoop - 1) {
                     kvSeqTile = curSeqlen_ - sIdx * blockSize;
                 }
                 uint32_t kvSeqTileRound = AlignUp(kvSeqTile, 16U);
-                uint64_t pCoreOffset = mm2InPingPongFlag * (mm2InWorkSpaceSize / 2 / 2) +
-                                    cubeBlockIdx * workSpaceElemNum +
-                                    (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) * groupSize * curSeqlen_ +
-                                    sIdx * blockSize;
+                uint64_t pCoreOffset = mm2InPingPongFlag * (mm2InWorkSpaceSize / 2 / 2)
+                    + cubeBlockIdx * workSpaceElemNum
+                    + (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) * groupSize * curSeqlen_
+                    + sIdx * blockSize;
                 uint32_t blockTableOffset = maxBlockNumPerBatch * bIdx + sIdx;
                 uint32_t blockIdx = blockTableGm.GetValue(blockTableOffset);
                 uint32_t vBlockOffset = blockIdx * blockSize * strideV;
@@ -913,7 +921,7 @@ public:
 
     __aicore__ inline NsaCompressAttentionInferAiv(){};
 
-    __aicore__ inline void Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR blockTable, GM_ADDR actualQSeqLen, 
+    __aicore__ inline void Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR blockTable, GM_ADDR actualQSeqLen,
         GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut,
         GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData);
 
@@ -1015,7 +1023,7 @@ protected:
     uint32_t softmaxTileLength;
     uint32_t halfTileLength;
     uint32_t groupNumPerSubCore; // 每个vector核分到的N2数量
-    uint32_t currentQSeqLenOffset; //当前softmaxloop属于哪一个token
+    uint32_t currentQSeqLenOffset; // 当前softmaxloop属于哪一个token
 
     AscendC::LocalTensor<float> softmaxInputbufTensor;
     AscendC::LocalTensor<float> softmaxOut32bufTensor;
@@ -1048,7 +1056,7 @@ protected:
     AscendC::LocalTensor<float> pslcTmpTensor;
     AscendC::LocalTensor<uint8_t> pslcSharedBuffer;
 
-    //topk params
+    // topk params
     uint8_t topkRightPadding;
     uint32_t alignedoutS2;
     uint32_t alignedTok32;
@@ -1070,7 +1078,8 @@ protected:
     __aicore__ inline void SoftmaxComputeVecInGmOffset(uint32_t bn2Idx, uint32_t ridx);
     __aicore__ inline void SoftmaxCopyIn(DataCopyParams &splitCopyinParams,uint32_t ridx);
     __aicore__ inline void SoftmaxCompute(uint32_t ridx);
-    __aicore__ inline void SoftmaxCopyOut(DataCopyParams &splitCopyoutParams, DataCopyParams &splitCopyout32Params, uint32_t ridx);
+    __aicore__ inline void SoftmaxCopyOut(DataCopyParams &splitCopyoutParams,
+        DataCopyParams &splitCopyout32Params, uint32_t ridx);
     __aicore__ inline void ComputeCurrentTokenOffset(uint32_t startIdx);
     __aicore__ inline void AddMask(uint32_t ridx, uint32_t startIdx, uint32_t endIdx);
     __aicore__ inline void MaskOperation(uint32_t ridx, uint32_t startIdx, uint32_t endIdx);
@@ -1084,17 +1093,18 @@ protected:
     __aicore__ inline void ProcessImportanceScoreForCube(uint32_t processIdx);
     __aicore__ inline void ComputeImportanceScoreReduce(uint32_t colLoopIdx, uint32_t reduceCol, uint32_t reduceColPad,
                                                         uint32_t srcOffset);
-    __aicore__ inline void ProcessImpScoreS2Loop(uint32_t loopCnt, uint32_t processIdx, uint32_t taskId, uint32_t startRowIdx, uint32_t endRowIdx);
-    __aicore__ inline void ComputeImpScoreValue(uint32_t loopCnt, uint32_t loopOutS2, uint32_t taskId, uint32_t baseS2Id, uint32_t startRowIdx,
-                                                uint32_t endRowIdx, uint32_t startJ);
+    __aicore__ inline void ProcessImpScoreS2Loop(uint32_t loopCnt, uint32_t processIdx, uint32_t taskId,
+        uint32_t startRowIdx, uint32_t endRowIdx);
+    __aicore__ inline void ComputeImpScoreValue(uint32_t loopCnt, uint32_t loopOutS2, uint32_t taskId,
+        uint32_t baseS2Id, uint32_t startRowIdx, uint32_t endRowIdx, uint32_t startJ);
     __aicore__ inline void ImpScoreDataCopyIn(int64_t offset, uint16_t blockCount, uint32_t blockLength);
-    __aicore__ inline void ImpScoreDataCopyOut(uint32_t taskId, uint32_t baseS2Id, int64_t offset, uint16_t blockCount, uint32_t blockLength,
-                                               uint32_t srcStride);
+    __aicore__ inline void ImpScoreDataCopyOut(uint32_t taskId, uint32_t baseS2Id, int64_t offset,
+        uint16_t blockCount, uint32_t blockLength, uint32_t srcStride);
     __aicore__ inline void ImpScoreTransposeTensor(uint32_t height, uint32_t width);
     __aicore__ inline void ImpScoreAccumulation(uint32_t startJ, uint32_t rowCount, uint32_t offsetS2Split);
     __aicore__ inline void ImpScoreReduceSum(uint32_t startJ, uint32_t rowCount, uint32_t outNewS2);
 
-    //topk
+    // topk
     __aicore__ inline void ProcessTopK();
     __aicore__ inline void TopkComputeVecInGmOffset();
     __aicore__ inline void TopkCopyIn(DataCopyParams &splitCopyintopkParams);
@@ -1104,8 +1114,8 @@ protected:
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Init(GM_ADDR query, GM_ADDR key, GM_ADDR value,
-    GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut,
-    GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
+    GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output,
+    GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
 {
     this->aicNum = GetBlockNum();
 
@@ -1133,8 +1143,9 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Init(GM_ADDR quer
     impScoreParamGm_.SetGlobalBuffer((__gm__ float *)(workspace + offset));
 }
 
-template <typename NCAIType> 
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::InitTilingData(const NsaCompressAttentionInferTilingData *__restrict tilingData)
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::InitTilingData(
+    const NsaCompressAttentionInferTilingData *__restrict tilingData)
 {
     batchSize = tilingData->baseParams.batchSize;
     qSeqSize = tilingData->baseParams.qSeqSize;
@@ -1239,9 +1250,9 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::PreProcess(const 
     topksharedTmpBuffer = buf.GetBuffer<BufferType::ASCEND_UB, uint8_t>(topktempbufOffset);
 }
 
-template <typename NCAIType> 
+template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::InitImportanceScoreParams()
-{   
+{
     baseBlockSize = (ubSize - 18*1024 - 32*1024) / (2 + 0) / sizeof(float);
     uint32_t t = (curSeqlen-1) * compStrideD + compSizeL;
     gHeadNums = qHeadNum / kvHeadNum;
@@ -1275,7 +1286,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::InitImportanceSco
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::PreProcessOffset(const uint32_t processIdx)
-{   
+{
     qSeqLenCumSum = 0;
     uint32_t processCumSum = 0;
     int64_t curQSeqlen = 0;
@@ -1362,11 +1373,12 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Process()
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessSoftmax(uint32_t processIdx)
-{   
+{
     for (uint32_t ridx = 0; ridx < softmaxRowLoop; ridx++) {
         basicRowLenCal =
-                static_cast<uint32_t>((ridx == softmaxRowLoop - 1) ? (softmaxRowLenPerCore - (softmaxRowLoop - 1) * softmaxBasicRowLen)
-                                                            : softmaxBasicRowLen);  // 每核处理的最后一个行循环单独处理
+                static_cast<uint32_t>((ridx == softmaxRowLoop - 1) ?
+                                      (softmaxRowLenPerCore - (softmaxRowLoop - 1) * softmaxBasicRowLen)
+                                      : softmaxBasicRowLen);  // 每核处理的最后一个行循环单独处理
         DataCopyParams splitCopyinParams;
         DataCopyParams splitCopyoutParams;
         DataCopyParams splitCopyout32Params;
@@ -1396,7 +1408,8 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessSoftmax(ui
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxComputeVecInGmOffset(uint32_t processIdx, uint32_t ridx)
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxComputeVecInGmOffset(
+    uint32_t processIdx, uint32_t ridx)
 {
     uint32_t mm1ResPingPongFlag = (processIdx / aicNum) % 2;
     uint32_t mm2InPingPongFlag = (processIdx / aicNum) % 2;
@@ -1404,15 +1417,19 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxComputeVec
     uint32_t vecOutSplitOffset = (vecBlockIdx % 2 == 0) ? 0 : rowNumVec0 * curSeqlen;  // 输出不对齐
     uint32_t vecOutSplitOffsetOut = (vecBlockIdx % 2 == 0) ? 0 : workSpaceElemNum / 2;
     // 计算从哪个数据开始处理
-    softmaxTmpVecGmOffset = vecBlockIdx / 2 * workSpaceElemNum + mm1ResPingPongFlag * (mm1ResWorkSpaceSize / DOUBLE_BUFFER / sizeof(float)) + 
+    softmaxTmpVecGmOffset = vecBlockIdx / 2 * workSpaceElemNum +
+                            mm1ResPingPongFlag * (mm1ResWorkSpaceSize / DOUBLE_BUFFER / sizeof(float)) +
                             vecInSplitOffset + ridx * softmaxBasicRowLen * alignedColLen;
-    mm2InWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + mm2InPingPongFlag * (mm2InWorkSpaceSize / DOUBLE_BUFFER / sizeof(half)) + 
+    mm2InWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + 
+                           mm2InPingPongFlag * (mm2InWorkSpaceSize / DOUBLE_BUFFER / sizeof(half)) +
                            vecOutSplitOffset + ridx * softmaxBasicRowLen * curSeqlen;
-    scoreInWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + vecOutSplitOffsetOut + ridx * softmaxBasicRowLen * curSeqlen;
+    scoreInWorkSpaceOffset = vecBlockIdx / 2 * workSpaceElemNum + vecOutSplitOffsetOut +
+                             ridx * softmaxBasicRowLen * curSeqlen;
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyIn(DataCopyParams &splitCopyinParams,uint32_t ridx)
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyIn(
+    DataCopyParams &splitCopyinParams,uint32_t ridx)
 {
     // 非对齐拷贝，不填充
     DataCopyPadParams padParams{false, 0, 0, 0};
@@ -1420,8 +1437,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyIn(Dat
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyOut(DataCopyParams &splitCopyoutParams, DataCopyParams &splitCopyout32Params, uint32_t ridx)
-{   
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyOut(DataCopyParams &splitCopyoutParams,
+    DataCopyParams &splitCopyout32Params,
+    uint32_t ridx)
+{
     DataCopyPad(mm2InGm[mm2InWorkSpaceOffset], softmaxOut16bufTensor, splitCopyoutParams);
 
     if constexpr(!NCAIType::IMP_SCORE_OPT) {
@@ -1445,7 +1464,8 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeCurrentTok
 
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::AddMask(uint32_t ridx, uint32_t startIdx, uint32_t endIdx)
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::AddMask(
+    uint32_t ridx, uint32_t startIdx, uint32_t endIdx)
 {
     const int32_t targetCol = curSeqlen - 1; // 目标列索引
     const float minValue = FLOAT_MIN_MASK; // 需设置的常量值
@@ -1459,7 +1479,8 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::AddMask(uint32_t 
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::MaskOperation(uint32_t ridx, uint32_t startIdx, uint32_t endIdx)
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::MaskOperation(
+    uint32_t ridx, uint32_t startIdx, uint32_t endIdx)
 {
     // 根据当前qseqidx、kvseq的长度（alignedColLen）、压缩的l(压缩窗口的大小)判断当前seq是否需要掩蔽
     // 计算压缩的时候，原始序列多余的token
@@ -1471,14 +1492,14 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::MaskOperation(uin
     ComputeCurrentTokenOffset(startIdx);
     // 判断是否需要mask
     int64_t currentQSeqlen = actualQSeqLenGm.GetValue(bIdx);
-    if(currentQSeqlen - currentQSeqLenOffset - 1 > tailKvTokens){
+    if(currentQSeqlen - currentQSeqLenOffset - 1 > tailKvTokens) {
         AddMask(ridx, startIdx, endIdx);
     }
 }
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::MaskApply(uint32_t ridx)
-{   
+{
     AscendC::SetFlag<AscendC::HardEvent::V_S>(1);
     AscendC::WaitFlag<AscendC::HardEvent::V_S>(1);
     uint32_t startRowIdx = (vecBlockIdx % 2 == 0) ? ridx * softmaxBasicRowLen : ridx * softmaxBasicRowLen + rowNumVec0;
@@ -1522,7 +1543,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCompute(ui
     PipeBarrier<PIPE_V>();
 
     // Mask处理
-    if (attenMaskFlag == 1){
+    if (attenMaskFlag == 1) {
         MaskApply(ridx);
     }
 
@@ -1530,9 +1551,11 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCompute(ui
     AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(0); // softmax搬入等待softmax计算结束
     PipeBarrier<PIPE_V>();
     if (std::is_same<OUT_T, __bf16>::value) {
-        AscendC::Cast(softmaxOut16bufTensor, softmaxOut32bufTensor, AscendC::RoundMode::CAST_RINT, softmaxOut32bufTensor.GetSize());
+        AscendC::Cast(softmaxOut16bufTensor, softmaxOut32bufTensor, AscendC::RoundMode::CAST_RINT,
+                      softmaxOut32bufTensor.GetSize());
     } else {
-        AscendC::Cast(softmaxOut16bufTensor, softmaxOut32bufTensor, AscendC::RoundMode::CAST_NONE, softmaxOut32bufTensor.GetSize());
+        AscendC::Cast(softmaxOut16bufTensor, softmaxOut32bufTensor, AscendC::RoundMode::CAST_NONE,
+                      softmaxOut32bufTensor.GetSize());
     }
     PipeBarrier<PIPE_V>();
 }
@@ -1588,25 +1611,30 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::GenerateImpScoreP
     uint64_t mask[] = {(1UL << (cmpNum)) - 1};
     uint64_t rsvdCnt = 0;
     for (uint32_t i = 0; i < slcNum; ++i) {
-        AscendC::Adds(slideWindowTensor[ALIGNED_8], slideWindowTensor[ALIGNED_8], 1.0f, mask, 1, {1, 1, ALIGNED_8, ALIGNED_8});
+        AscendC::Adds(slideWindowTensor[ALIGNED_8], slideWindowTensor[ALIGNED_8], 1.0f, mask, 1,
+                      {1, 1, ALIGNED_8, ALIGNED_8});
         AscendC::PipeBarrier<PIPE_V>();
         mask[0] <<= 1;
     }
     if (hasPrefix) {
-         patternTensor.SetValue(0, mask[0]);
-         AscendC::GatherMask(impScoreParamTensor, slideWindowTensor[ALIGNED_8], patternTensor, true, NUM64, {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
-         AscendC::PipeBarrier<PIPE_V>();
-         ++row;
-     }
-    for (uint32_t dstBaseOffset = paramCol, dstRelativeOffset = 0, dstActualOffset = 0, dstActualOffsetPad = 0; row < paramRow; ++row) {
+        patternTensor.SetValue(0, mask[0]);
+        AscendC::GatherMask(impScoreParamTensor, slideWindowTensor[ALIGNED_8], patternTensor, true, NUM64,
+                             {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
+        AscendC::PipeBarrier<PIPE_V>();
+        ++row;
+    }
+    for (uint32_t dstBaseOffset = paramCol, dstRelativeOffset = 0, dstActualOffset = 0, dstActualOffsetPad = 0;
+         row < paramRow; ++row) {
         dstActualOffset = dstBaseOffset + dstRelativeOffset;
         uint32_t remain = dstActualOffset % ALIGNED_8;
         if (remain == 0) {
-            AscendC::Copy(impScoreParamTensor[dstActualOffset], slideWindowTensor[ALIGNED_8], windowSize, 1, {1, 1, ALIGNED_8, ALIGNED_8});
+            AscendC::Copy(impScoreParamTensor[dstActualOffset], slideWindowTensor[ALIGNED_8], windowSize, 1,
+                          {1, 1, ALIGNED_8, ALIGNED_8});
         } else {
             dstActualOffsetPad = dstActualOffset - remain;
             patternTensor.SetValue(0, ((1UL << (windowSize + remain)) - 1) << (ALIGNED_8 - remain));
-            AscendC::GatherMask(impScoreParamTensor[dstActualOffsetPad], slideWindowTensor, patternTensor, true, NUM64, {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
+            AscendC::GatherMask(impScoreParamTensor[dstActualOffsetPad], slideWindowTensor, patternTensor, true, NUM64,
+                                {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
         }
         AscendC::PipeBarrier<PIPE_V>();
         dstBaseOffset += paramCol;
@@ -1648,7 +1676,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImportance
                 1,                                      // blockCount
                 (uint16_t)(reduceCol * sizeof(float)),  // blockLen
                 0,                                      // srcStride
-                0                                       //dstStride
+                0                                       // dstStride
             };
             AscendC::DataCopyPad(topKInGm[dstOffset], impScoreReduceResult_, copyOutParam);
 
@@ -1701,14 +1729,16 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImportance
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImpScoreS2Loop(uint32_t loopCnt, uint32_t processIdx, uint32_t taskId, uint32_t startRowIdx, uint32_t endRowIdx)
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImpScoreS2Loop(
+    uint32_t loopCnt, uint32_t processIdx, uint32_t taskId, uint32_t startRowIdx, uint32_t endRowIdx)
 {
     // S2方向上的切分
     uint32_t loopOutS2 =  CeilDiv(outS2, maxBaseJ);
     uint32_t vecOutSplitOffset = (vecBlockIdx % 2 == 0) ? 0 : workSpaceElemNum / 2;
     uint32_t impScoreOutputSubCoreOffset = (vecBlockIdx % 2 == 0) ? 0 : rowNumVec0 / gHeadNums * maxOutS2;
     impScoreInputGmOffset = vecBlockIdx / 2 * workSpaceElemNum + vecOutSplitOffset + startRowIdx * curSeqlen;
-    impScoreOutputGmOffset = vecBlockIdx / 2 * workSpaceElemNum / gHeadNums + impScoreOutputSubCoreOffset + startRowIdx * outS2 / gHeadNums;
+    impScoreOutputGmOffset = vecBlockIdx / 2 * workSpaceElemNum / gHeadNums + impScoreOutputSubCoreOffset +
+                             startRowIdx * outS2 / gHeadNums;
 
     for (uint32_t baseS2Id = 0; baseS2Id < loopOutS2; baseS2Id++) {
         uint32_t startJ = baseS2Id * maxBaseJ;
@@ -1717,7 +1747,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImpScoreS2
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImpScoreValue(uint32_t loopCnt, uint32_t loopOutS2, uint32_t taskId, uint32_t baseS2Id, uint32_t startRowIdx, uint32_t endRowIdx, uint32_t startJ) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImpScoreValue(
+    uint32_t loopCnt, uint32_t loopOutS2, uint32_t taskId, uint32_t baseS2Id, uint32_t startRowIdx, uint32_t endRowIdx,
+    uint32_t startJ)
+{
     int32_t offsetS2Split = (startJ + 1) * strideOut - maxM - maxN;
     offsetS2Split = offsetS2Split < 0 ? 0 : offsetS2Split;
     int64_t inputOffsetGm = impScoreInputGmOffset + offsetS2Split;
@@ -1772,7 +1805,9 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImpScoreVa
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreTransposeTensor(uint32_t height, uint32_t width) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreTransposeTensor(
+    uint32_t height, uint32_t width)
+{
     ConfusionTransposeTiling tiling;
     uint32_t blockSizeT = 8;
     uint32_t highBlock = height / 16;
@@ -1791,7 +1826,9 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreTranspose
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreAccumulation(uint32_t startJ, uint32_t rowCount, uint32_t offsetS2Split) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreAccumulation(
+    uint32_t startJ, uint32_t rowCount, uint32_t offsetS2Split)
+{
     uint32_t actualStartJ = startJ + 1;
     uint32_t addLoop = maxM + maxN + 1;
     uint32_t times = 1;
@@ -1817,7 +1854,7 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreAccumulat
             uint32_t pslcOffset = (j - actualStartJ) * rowAlign;
 
             int64_t pIdx = strideOut * j - pIdxOffset;
-            
+
             uint32_t pcmpOffsetLocal = pIdx * rowAlign;
             if (pIdx < 0) {
                 continue;
@@ -1840,17 +1877,19 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreAccumulat
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreReduceSum(uint32_t startJ, uint32_t rowCount, uint32_t outNewS2) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreReduceSum(
+    uint32_t startJ, uint32_t rowCount, uint32_t outNewS2)
+{
     uint32_t rowAlign = (rowCount + 15) / 16 * 16;
     uint32_t groupNum = rowCount / gHeadNums;
     LocalTensor<int32_t> tmpLocal = pslcTensor.template ReinterpretCast<int32_t>();
-    if (startJ == 0 || outNewS2 == 1 ) {
+    if (startJ == 0 || outNewS2 == 1) {
         Duplicate(tmpLocal[0], FLOAT_TYPE_MASK, rowCount);
     }
     if ((outNewS2+startJ) == (outS2 - 1)) {
         Duplicate(tmpLocal[(outNewS2-1)*rowAlign], FLOAT_TYPE_MASK, rowAlign);
     }
-    if (outNewS2 > 1 && (outNewS2+startJ) >= outS2 ) {
+    if (outNewS2 > 1 && (outNewS2+startJ) >= outS2) {
         Duplicate(tmpLocal[ (outNewS2-2)*rowAlign], FLOAT_TYPE_MASK, rowAlign*2);
     }
     PipeBarrier<PIPE_V>();
@@ -1862,14 +1901,17 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreReduceSum
     PipeBarrier<PIPE_V>();
     for (uint32_t i = 0; i < groupNum; i++) {
         for (uint32_t j = 0; j < gHeadNums; j++) {
-            Add(pslcTensor[i*outNewS2Align], pslcTensor[i*outNewS2Align], pslcCalcTensor[(i * gHeadNums + j) *outNewS2Align], outNewS2Align);
+            Add(pslcTensor[i*outNewS2Align], pslcTensor[i*outNewS2Align],
+                pslcCalcTensor[(i * gHeadNums + j) *outNewS2Align], outNewS2Align);
             PipeBarrier<PIPE_V>();
         }
     }
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreDataCopyIn(int64_t offset, uint16_t blockCount, uint32_t blockLength) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreDataCopyIn(
+    int64_t offset, uint16_t blockCount, uint32_t blockLength)
+{
     uint32_t srcStride = curSeqlen * 4 - blockLength;
     DataCopyPadExtParams<float> padParams{false, 0, 0, 0};
     uint32_t dstStride = 0;
@@ -1892,8 +1934,9 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreDataCopyI
 }
 
 template <typename NCAIType>
-__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreDataCopyOut(uint32_t taskId, uint32_t baseS2Id, int64_t offset, uint16_t blockCount,
-                                                                                   uint32_t blockLength, uint32_t srcStride) {
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ImpScoreDataCopyOut(
+    uint32_t taskId, uint32_t baseS2Id, int64_t offset, uint16_t blockCount, uint32_t blockLength, uint32_t srcStride)
+{
     if (taskId == 0 && baseS2Id == 0) {
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
     }
@@ -1926,7 +1969,8 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessTopK()
     splitCopyouttopkParams = {1, (uint16_t)(selectNum * sizeof(int32_t)), 0, 0};
     // S1方向切分
     for (uint32_t taskId = 0; taskId < perCoreGroup; taskId++) {
-        topkInputGmOffset = vecBlockIdx / 2 * workSpaceElemNum / gHeadNums + impScoreOutputSubCoreOffset + taskId * outS2;
+        topkInputGmOffset = vecBlockIdx / 2 * workSpaceElemNum / gHeadNums + impScoreOutputSubCoreOffset +
+        taskId * outS2;
         // 推算, taskId，qSeqLenCurProcess中第几个qSeqLen，第几个kvHeadSplit, 第几个kvHead
         uint32_t actualRowIdx = taskId + coreRowOffset;
         uint32_t kvHeadIdxInSplit = actualRowIdx / qSeqLenCurProcess;
@@ -1971,27 +2015,28 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::TopkCopyIn(DataCo
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::TopkCopyOut(DataCopyParams &splitCopyouttopkParams)
-{   
+{
     DataCopyPad(topkOutGm[topkOutputGmOffset], topkoutindexLocal[0], splitCopyouttopkParams);
 }
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::TopkCompute()
-{   
+{
     TopKInfo topkinfo;
     topkinfo = {(int32_t)(1), (int32_t)(alignedTok32), (int32_t)(outS2)};
-    for(int i=0; i<8; i++){
+    for(int i = 0; i < 8; i++) {
         arithbuffer.SetValue(i, i);
     }
     AscendC::SetFlag<AscendC::HardEvent::S_V>(0);
     AscendC::WaitFlag<AscendC::HardEvent::S_V>(0);
     uint32_t topindexloop = alignedTok32 / 8;
-    for(int i=1; i<topindexloop; i++){
+    for(int i = 1; i < topindexloop; i++) {
         Adds(arithbuffer[i * 8], arithbuffer, (int32_t)i * 8, 8);
         PipeBarrier<PIPE_V>();
     }
     AscendC::TopK<float, true, false, false, AscendC::TopKMode::TOPK_NORMAL>(topkoutvalueLocal,
-        topkoutindexLocal, topkInputbufTensor, arithbuffer, topksrcLocalFinish, topksharedTmpBuffer, selectNum, this->topkTilingData, topkinfo, true);
+        topkoutindexLocal, topkInputbufTensor, arithbuffer, topksrcLocalFinish, topksharedTmpBuffer, selectNum,
+        this->topkTilingData, topkinfo, true);
     PipeBarrier<PIPE_V>();
 }
 
@@ -2003,21 +2048,22 @@ public:
 
     __aicore__ inline NsaCompressAttentionInfer(){};
 
-    __aicore__ inline void Run(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR blockTable, GM_ADDR actualQSeqLen, 
+    __aicore__ inline void Run(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR blockTable, GM_ADDR actualQSeqLen,
         GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output,
-        GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData) {
-        #ifdef __DAV_C220_CUBE__
+        GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
+    {
+#ifdef __DAV_C220_CUBE__
             NsaCompressAttentionInferAic<NCAIType> opAic;
             opAic.Init(query, key, value, blockTable, actualQSeqLen, actualKvSeqLen, output,
                 topkIndicesOut, workspace, tilingData);
             opAic.Process();
 
-        #elif __DAV_C220_VEC__
+#elif __DAV_C220_VEC__
             NsaCompressAttentionInferAiv<NCAIType> opAiv;
-            opAiv.Init(query, key, value, blockTable, actualQSeqLen, actualKvSeqLen, actualSelKvSeqLen, output, topkIndicesOut, 
-                workspace, tilingData);
+            opAiv.Init(query, key, value, blockTable, actualQSeqLen, actualKvSeqLen, actualSelKvSeqLen, output,
+                topkIndicesOut, workspace, tilingData);
             opAiv.Process();
-        #endif
+#endif
     }
 };
 } // namespace NSA_COMPRESS_ATTENTION_INFER

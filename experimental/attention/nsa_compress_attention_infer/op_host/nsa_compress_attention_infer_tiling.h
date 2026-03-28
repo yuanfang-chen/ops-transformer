@@ -98,7 +98,7 @@ struct NsaCompressAttentionInferCompileInfo {
     uint32_t dataNumSingleUb = 1;  // UB空间可处理的最大数据量
     uint32_t blockNum = 1;        // 32B对齐使用 //
     uint32_t cacheLineLen = 1;     // 512B对齐使用
-    
+
     uint32_t coreNum = 1;
     uint32_t aivNum = 0;
     uint32_t aicNum = 0;
@@ -109,7 +109,7 @@ struct NsaCompressAttentionInferCompileInfo {
     uint64_t l0CSize = 0;
     uint64_t sysWorkspaceSize = 0;
     platform_ascendc::SocVersion socVersion;
-};     
+};
 
 
 struct RequiredParaInfo {
@@ -145,7 +145,7 @@ struct NsaCompressAttentionInferContext {
     const uint32_t *compSizeL;
     const uint32_t *compStrideD;
     const float *scaleValue;
-    
+
     const char *layOut;
     const uint32_t *blockSize;
     const uint32_t *sparseMode;
@@ -219,7 +219,7 @@ private:
     uint32_t processPerBatch_ = 0;
     uint32_t processNum_ = 0;
     bool pagedAttentionFlag_ = true;
-    
+
     bool isWorkspace_ = false;
     uint32_t blockDim_ = 0;
     uint32_t aivNum_ = 0;
@@ -265,5 +265,5 @@ private:
     NsaCompressAttentionInferTilingData *tilingData_ = nullptr;
 };
 
-}// namespace optiling
+} // namespace optiling
 #endif  // NSA_COMPRESS_ATTENTION_INFER_TILING_H

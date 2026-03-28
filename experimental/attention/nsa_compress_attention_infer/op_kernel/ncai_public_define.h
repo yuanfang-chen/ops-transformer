@@ -53,7 +53,7 @@ enum class LAYOUT : uint8_t {
     BSND
 };
 
-template <typename Q_T, typename KV_T, typename OUT_T, LAYOUT LAYOUT_T = LAYOUT::TND, bool IMP_SCORE_OPT_=false,
+template <typename Q_T, typename KV_T, typename OUT_T, LAYOUT LAYOUT_T = LAYOUT::TND, bool IMP_SCORE_OPT_ = false,
           typename... Args>
 struct NCAIType {
     using queryType = Q_T;
