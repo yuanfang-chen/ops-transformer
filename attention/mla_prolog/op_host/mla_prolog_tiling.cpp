@@ -837,6 +837,7 @@ MLA_EXTERN_C ge::graphStatus TilingMlaProlog(gert::TilingContext *context)
     if (mlaPrologTiling.RunBigKernelTiling(mlaPrologContext, tilingData) == ge::SUCCESS) {
         context->SetTilingKey(mlaPrologContext.tilingKey);
         context->SetBlockDim(mlaPrologContext.blockDim);
+        context->SetScheduleMode(1);
         return ge::GRAPH_SUCCESS;
     }
     return ge::GRAPH_FAILED;
