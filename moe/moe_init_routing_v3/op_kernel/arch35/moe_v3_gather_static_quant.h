@@ -22,7 +22,6 @@ namespace MoeInitRoutingV3 {
 using namespace AscendC;
 
 constexpr int64_t BUFFER_NUM = 2;
-constexpr int64_t DROP_PAD_MODE = 1;
 constexpr int64_t DROPLESS_MODE = 0;
 
 template <typename T>
@@ -41,8 +40,6 @@ private:
     __aicore__ inline void ScatterCopyOut(int64_t progress);
     __aicore__ inline void CopyXIn(int64_t xSrcOffset, int64_t curLoopCols);
     __aicore__ inline void CopyXOut(int64_t xDstOffset, int64_t curLoopCols);
-    __aicore__ inline void CopyInZeroIndices(int64_t progress);
-    __aicore__ inline void CopyOutZero(int64_t progress);
 
 private:
     TPipe *pipe_;
@@ -51,7 +48,6 @@ private:
     TQue<QuePosition::VECOUT, BUFFER_NUM> inputXCopyOutQueue_;
     TQue<QuePosition::VECOUT, 1> floatQueue_;
     TQue<QuePosition::VECOUT, 1> halfQueue_;
-    TQue<QuePosition::VECIN, BUFFER_NUM> expandedRowIdxIndexCopyInQueue_;
 
     GlobalTensor<T> inputXGm_;
     GlobalTensor<int8_t> expandedXGm_;
@@ -115,49 +111,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::CopyInIndices(int64_t progress
                 maxIdx = val;
         }
     }
-}
-
-template <typename T>
-__aicore__ inline void MoeV3GatherStaticQuant<T>::CopyInZeroIndices(int64_t progress)
-{
-    indicesOffset_ = progress * perLoopRows_;
-    LocalTensor<int32_t> expandedRowIdxIndexLocal = expandedRowIdxIndexCopyInQueue_.AllocTensor<int32_t>();
-    DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>((currentLoopRows_ + 1) * sizeof(int32_t)), 0, 0, 0};
-    DataCopyPadExtParams<int32_t> dataCopyPadParams{false, 0, 0, 0};
-    DataCopyPad(expandedRowIdxIndexLocal, expandedRowIdxIndexGm_[indicesOffset_], dataCopyParams, dataCopyPadParams);
-    expandedRowIdxIndexCopyInQueue_.EnQue<int32_t>(expandedRowIdxIndexLocal);
-}
-
-template <typename T>
-__aicore__ inline void MoeV3GatherStaticQuant<T>::CopyOutZero(int64_t progress)
-{
-    LocalTensor<int32_t> indicesLocal = expandedRowIdxIndexCopyInQueue_.DeQue<int32_t>();
-    if (blockIdx_ == 0) {
-        int32_t curIndex = 0;
-        int32_t nextIndex = indicesLocal.GetValue(0);
-        int32_t count = nextIndex - curIndex;
-        if (count > 0) {
-            InitOutput(expandedXGm_[curIndex * cols_], count * cols_, static_cast<int8_t>(0));
-        }
-    }
-    for (int i = 0; i < currentLoopRows_; i++) {
-        int32_t curIndex = indicesLocal.GetValue(i) + 1;
-        if (activateRows_ <= curIndex) {
-            break;
-        }
-        int32_t nextIndex;
-        if (blockIdx_ == gatherOutTilingData_->needCoreNum - 1 && progress == rowLoops_ - 1 &&
-            i == currentLoopRows_ - 1) {
-            nextIndex = activateRows_;
-        } else {
-            nextIndex = indicesLocal.GetValue(i + 1);
-        }
-        int32_t count = nextIndex - curIndex;
-        if (count > 0) {
-            InitOutput(expandedXGm_[curIndex * cols_], count * cols_, static_cast<int8_t>(0));
-        }
-    }
-    expandedRowIdxIndexCopyInQueue_.FreeTensor(indicesLocal);
 }
 
 template <typename T>
@@ -379,7 +332,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Init(GM_ADDR inputX, GM_ADDR s
     pipe_->InitBuffer(expandRowIdxCopyInQueue_, BUFFER_NUM, AlignBytes(perLoopRows_, sizeof(int32_t)));
     pipe_->InitBuffer(floatQueue_, 1, AlignBytes(perLoopCols_, sizeof(float)));
     pipe_->InitBuffer(halfQueue_, 1, AlignBytes(perLoopCols_, sizeof(half)));
-    pipe_->InitBuffer(expandedRowIdxIndexCopyInQueue_, BUFFER_NUM, AlignBytes(perLoopRows_ + 1, sizeof(int32_t)));
 }
 
 template <typename T>
@@ -390,11 +342,6 @@ __aicore__ inline void MoeV3GatherStaticQuant<T>::Process()
         for (int64_t loop = 0; loop < rowLoops_; loop++) {
             if (loop == rowLoops_ - 1) {
                 currentLoopRows_ = lastLoopRows_;
-            }
-
-            if (dropPadMode_ == DROP_PAD_MODE) {
-                CopyInZeroIndices(loop);
-                CopyOutZero(loop);
             }
 
             CopyInIndices(loop);
