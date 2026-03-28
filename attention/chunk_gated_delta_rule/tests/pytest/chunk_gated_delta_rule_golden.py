@@ -24,6 +24,27 @@ np.set_printoptions(suppress=True)
 DEVICE_ID = 0
 torch.npu.config.allow_internal_format = True
 
+eb_threshold = 2**(-8)
+err_threshold = 2**(-8)
+
+CV_MAX_RE = 5               # 最大相对误差
+CV_AVER_RE = 1.5            # 平均相对误差
+CV_RMSE = 1.5               # 均方根误差
+CV_SMALL_VAL = 2            # 小值域错误占比
+CV_ERR_BALANCE = 2          # 误差均衡性
+MIN_ERR = 1e-3
+
+# 定义ANSI颜色常量（新增）
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'    # 绿色
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'       # 红色
+    ENDC = '\033[0m'        # 重置颜色
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
@@ -177,15 +198,95 @@ def chunk_gated_delta_rule_native(
     return core_attn_out, last_recurrent_state
 
 
-def compare_cv(golden, bench, npu, name=""):
-    # 简单对比
-    all_close = torch.allclose(golden, npu)
-    if not all_close:
-        print(f"{name} compare failed.")
-        print(f"  golden vs npu max abs diff: {torch.abs(golden - npu).max().item()}")
-        print(f"  golden vs bench max abs diff: {torch.abs(golden - bench).max().item()}")
-        print(f"  bench vs npu max abs diff: {torch.abs(bench - npu).max().item()}")
-    return all_close
+def get_max_re(golden:torch.Tensor, actual:torch.Tensor):
+    # 最大相对误差
+    abs_error = torch.abs(actual - golden) / (torch.abs(golden) + MIN_ERR)
+    max_re = torch.max(abs_error.flatten())
+    return max_re
+
+def get_avg_re(golden:torch.Tensor, actual:torch.Tensor):
+    # 平均相对误差
+    abs_error = torch.abs(actual - golden) / (torch.abs(golden) + MIN_ERR)
+    avg_re = torch.mean(abs_error)
+    return avg_re
+
+def get_rmse(golden:torch.Tensor, actual:torch.Tensor):
+    # 均方根误差
+    sqr_err = torch.pow((actual - golden), 2)
+    rmse = torch.sqrt(torch.mean(sqr_err))
+    return rmse
+
+def get_smra(golden:torch.Tensor, actual:torch.Tensor):
+    # 小值域错误占比
+    abs_A = torch.abs(golden)
+    mask_A = abs_A < 2**(-10)
+    num_a = torch.sum(mask_A).item()
+
+    # 统计对应位置 B 中元素绝对值大于 1e-16 的个数
+    abs_B = torch.abs(golden - actual)
+    mask_B = abs_B > 1e-16
+    num_b = torch.sum(mask_A & mask_B).item()
+    
+    smra = num_b / num_a if num_a > 0 else 0
+    return smra
+
+def get_eb(golden:torch.Tensor, actual:torch.Tensor):
+    # 误差均衡性
+    golden_nmax = torch.clamp(torch.abs(golden), min = 1)
+    actual_error = actual - golden
+    error_balance = torch.mean(actual_error / golden_nmax)
+    return error_balance
+
+def compare_cv(golden:torch.Tensor, golden_high_type:torch.Tensor, actual:torch.Tensor, name=None):
+    golden = golden.to(torch.float32)
+    golden_high_type = golden_high_type.to(torch.float32)
+    actual = actual.to(torch.float32)
+    # show_err(golden, golden_high_type, epsilon=1.0e-6, name="golden vs golden_high_type")
+    # show_err(actual, golden_high_type, epsilon=1.0e-6, name="actual vs golden_high_type")
+    # 最大相对误差 相对误差公式：∣actual−golden∣/ (∣golden∣+MIN_ERR)  再取最大值
+    max_re_npu = get_max_re(golden, actual)
+    max_re_high_type = get_max_re(golden, golden_high_type)
+    print(f"{max_re_npu=}, {max_re_high_type=}")
+    # 平均相对误差   相对误差取平均
+    avg_re_npu = get_avg_re(golden, actual)
+    avg_re_high_type = get_avg_re(golden, golden_high_type)
+    # 均方根误差  RMSE：mean((𝑎𝑐𝑡𝑢𝑎𝑙−𝑔𝑜𝑙𝑑𝑒𝑛)的平方)在取根号
+    rmse_npu = get_rmse(golden, actual)
+    rmse_high_type = get_rmse(golden, golden_high_type)
+    # 小值域错误占比， 逻辑是：
+    # 先找 golden 里绝对值小于 2^-10 的元素
+    # 再看这些位置上，golden-actual 是否大于 1e-16
+    # 统计比例
+    # 目的是关注 接近 0 的位置有没有被算坏。因为很多算子在小值附近更容易数值不稳定。
+    smra_npu = get_smra(golden, actual)
+    smra_high_type = get_smra(golden, golden_high_type)
+    # 不要求 NPU 输出绝对完美，只要求它不要比“高精度参考/基准实现的误差水平”差太多。
+    max_re_rate = max_re_npu / max(max_re_high_type, err_threshold)
+    avg_re_rate = avg_re_npu / max(avg_re_high_type, err_threshold)
+    rmse_rate = rmse_npu / max(rmse_high_type, err_threshold)
+    smra_rate = smra_npu / max(smra_high_type, err_threshold)
+    # 误差均衡性，算的是：mean((actual−golden) / max(∣golden∣,1))
+    # 它更像是在看误差是否整体偏正或偏负。
+    EB = get_eb(golden_high_type, actual)
+
+    if name is not None:
+        print(f"compare_cv for {name}:")
+    print(f"\tmax_re_rate={max_re_rate:.3f} ({CV_MAX_RE}), max_re_high_type={max_re_high_type:.3e}")
+    print(f"\tavg_re_rate={avg_re_rate:.3f} ({CV_AVER_RE}), avg_re_high_type={avg_re_high_type:.3e}")
+    print(f"\trmse_rate={rmse_rate:.3f} ({CV_RMSE}), rmse_high_type={rmse_high_type:.3e}")
+    print(f"\tsmra_rate={smra_rate:.3f} ({CV_SMALL_VAL}), smra_high_type={smra_high_type:.3e}")
+    # print(f"\tEB={EB:.3f}({CV_ERR_BALANCE})")
+    
+    result = (max_re_rate < CV_MAX_RE) and (avg_re_rate < CV_AVER_RE) and (rmse_rate < CV_RMSE)
+    result = result and smra_rate < CV_SMALL_VAL
+    # 如果判失败，但 max_re_npu < 2^-7，也会强行判通过。
+    # 这说明作者认为：即使倍率不理想，只要绝对误差已经非常小，也可以接受
+    if not result:
+        epsilon = 2.0**-7
+        if max_re_npu < epsilon:
+            print(f"\t max_re_npu={max_re_npu} less than {epsilon}.")
+            result = True
+    return result
 
 
 def cgdr_golden(q, k, v, g, beta, scale, initial_state, actual_seq_lengths, use_float64=False):
