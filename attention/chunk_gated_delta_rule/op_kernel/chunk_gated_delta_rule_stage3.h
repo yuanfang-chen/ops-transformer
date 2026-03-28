@@ -15,9 +15,8 @@
 #ifndef __CHUNK_GATED_DELTA_RULE_STAGE3_H_
 #define __CHUNK_GATED_DELTA_RULE_STAGE3_H_
 
-#include "kernel_operator.h"
-#include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "chunk_gated_delta_rule_utils.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 
 namespace ChunkGatedDeltaRule {

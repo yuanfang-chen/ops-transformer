@@ -15,9 +15,8 @@
 #ifndef __CHUNK_GATED_DELTA_RULE_STAGE2_H_
 #define __CHUNK_GATED_DELTA_RULE_STAGE2_H_
 
-#include "kernel_operator.h"
-#include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "chunk_gated_delta_rule_utils.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 
 namespace ChunkGatedDeltaRule {
@@ -138,11 +137,7 @@ public:
         float last_g_cum_exp = gOptional_? gCumExp.GetValue(curChunkSize_ - 1) : 1.0f;
         auto state_in = inQueue_.DeQue<float>();
         auto state_out = outQueue_.AllocTensor<float>();
-        SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
-        WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
         Muls(state_out, state_in, last_g_cum_exp, Dv_ * curDk_);
-        SetFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
-        WaitFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
         outQueue_.EnQue(state_out);
         CopyOut<float>(stateNew, Dv_, Dk_);
         inQueue_.FreeTensor(state_in);
