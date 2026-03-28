@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -80,18 +80,16 @@ constexpr MatmulConfig MM_CFG_MULTI_BATCH_OUT_SING_BIAS = GetMMConfig<MatmulConf
 constexpr MatmulConfig MM_CFG_ORDER_M = GetNormalConfig(false, false, false, BatchMode::BATCH_LESS_THAN_L1, true,
     IterateOrder::ORDER_M);
 // set enMultiBatch & ORDER_M
-constexpr MatmulConfig MM_CFG_MULTI_BATCH_OUT = GetNormalConfig(false, false, false, BatchMode::BATCH_LESS_THAN_L1, true,
-    IterateOrder::ORDER_M, ScheduleType::INNER_PRODUCT, true, false, BatchOutMode::MULTI_BATCH);
+constexpr MatmulConfig MM_CFG_MULTI_BATCH_OUT = GetNormalConfig(false, false, false, BatchMode::BATCH_LESS_THAN_L1,
+    true, IterateOrder::ORDER_M, ScheduleType::INNER_PRODUCT, true, false, BatchOutMode::MULTI_BATCH);
 
-enum class ND2NZ_SELECT : int32_t
-{
+enum class ND2NZ_SELECT : int32_t {
     ONLY_A = 1,
     ONLY_B = 2,
     BOTH_AB = 3
 };
 
-enum class FIXPIPE_OPT_SELECT : int32_t
-{
+enum class FIXPIPE_OPT_SELECT : int32_t {
     BASE = 0,
     BASE_ENABLE_ALIGNOUT = 1,
     VEC_NZ2ND_UNALIGNOUT = 2
@@ -167,7 +165,8 @@ __aicore__ inline uint64_t GetCurrentBlockIdx()
 }
 
 #if !defined(__DAV_C310__)
-__aicore__ inline uint64_t MMLcm(uint64_t m, uint64_t n) {
+__aicore__ inline uint64_t MMLcm(uint64_t m, uint64_t n)
+{
     if (m == 0 || n == 0) {
         return 0; // 处理输入为0的情况
     }
@@ -186,7 +185,7 @@ __aicore__ inline void WaitFlagDevLocal(int64_t flagID)
     CrossCoreWaitFlag(flagID);
 }
 
-//supportMmadS8S4平台无L2cacheUseInfo，用宏隔离
+// supportMmadS8S4平台无L2cacheUseInfo，用宏隔离
 #if !(defined(__NPU_ARCH__) && (__NPU_ARCH__ == 5102))
 template <class A_T, class B_T, class C_T, class BiasT>
 __aicore__ inline void SetL2CacheEnable(const Mc2L2cacheUseInfo& l2EnableInfo,

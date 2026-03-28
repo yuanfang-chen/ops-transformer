@@ -1,9 +1,22 @@
+# -----------------------------------------------------------------------------------------------------------
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+# -----------------------------------------------------------------------------------------------------------
+
+"AllGatherMatmulV2样例测试"
+
 import numpy as np
 import torch
 import torch_npu
 import torch.distributed as dist
 from torch.multiprocessing import Process, Manager
 import torch.multiprocessing as mp
+
 
 def test_multiprocess(input_list):
     x1_list, x2_list, world_size = input_list
@@ -21,11 +34,12 @@ def test_multiprocess(input_list):
         proc.join()
     output_list = [None] * world_size
     gather_out_list = [None] * world_size
-    for proc in proc_list:
+    for _ in proc_list:
         rank, output, gather_output = result_queue.get()
         output_list[rank] = output
         gather_out_list[rank] = gather_output
     return output_list, gather_out_list
+
 
 def gen_golden_data(x1_list, x2_list):
     golden_gather_out = np.concatenate(x1_list, axis=0)
@@ -35,6 +49,7 @@ def gen_golden_data(x1_list, x2_list):
         out_list.append(out)
     
     return golden_gather_out, out_list
+
 
 def gen_npu(x1, x2, world_size, rank, queue):
     torch_npu.npu.set_device(rank)
@@ -49,6 +64,7 @@ def gen_npu(x1, x2, world_size, rank, queue):
     output_npu, gather_output_npu = torch_npu.npu_all_gather_base_mm(x1, x2, hcom_name, world_size, gather_output=True)
     queue.put((rank, output_npu.cpu().numpy(), gather_output_npu.cpu().numpy()))
 
+
 def cal_relativediff_numpy(data_check, data_exepect, diff_thd):
     a = np.abs(np.subtract(data_check, data_exepect))
     b1 = np.maximum(np.abs(data_check), (np.abs(data_exepect)))
@@ -56,6 +72,7 @@ def cal_relativediff_numpy(data_check, data_exepect, diff_thd):
     b = np.add(np.maximum(b1, b2), 10e-10)
     result = np.where(a < diff_thd, a, a / b)
     return result
+
 
 def data_compare(data_check, data_exepect, diff_thd=0.005, pct_thd=0.005):
     npu_shape = data_check.shape
@@ -74,6 +91,7 @@ def data_compare(data_check, data_exepect, diff_thd=0.005, pct_thd=0.005):
     lt_pct = float(lt_num) / float(split_count) * 100
     pct_thd = (1 - pct_thd) * 100.0
     return (lt_pct >= pct_thd)
+
 
 def verify_result(gather_out, out, golden_gather_out, golden_out):
     for i in range(world_size):

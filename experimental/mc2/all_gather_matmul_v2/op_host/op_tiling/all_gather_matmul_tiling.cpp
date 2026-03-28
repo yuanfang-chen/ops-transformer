@@ -37,8 +37,7 @@ using namespace Mc2Log;
 using namespace AscendC;
 using namespace Mc2Tiling;
 
-namespace optiling
-{
+namespace optiling {
 ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext* context);
 ge::graphStatus TilingParseForAllGatherMatmul(gert::TilingParseContext* context);
 
@@ -82,8 +81,9 @@ ge::graphStatus AllGatherMatmulTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherMatmulTiling::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg, Mc2MMRegisterCfg& registerCfg,
-                                                          Mc2MatMulV3TilingData& tilingData)
+ge::graphStatus AllGatherMatmulTiling::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg& tilingCfg,
+                                                        Mc2MMRegisterCfg& registerCfg,
+                                                        Mc2MatMulV3TilingData& tilingData)
 {
     tilingCfg.SetRankDim(args_.rankDim - 1);
     tilingCfg.SetMatMulV3TilingData(tilingData);
@@ -100,7 +100,6 @@ ge::graphStatus AllGatherMatmulTiling::DoVersion2Tiling()
 {
     // 获取芯片平台信息
     auto platformInfo = context_->GetPlatformInfo();
-
     // 获取 compileInfo
     if (mc2_matmul_v3_advanced::InitCompileInfo(platformInfo, &compileInfo_) != ge::GRAPH_SUCCESS) {
         OP_LOGE(opName_, "Fail to Init CompileInfo!");
@@ -151,11 +150,11 @@ ge::graphStatus AllGatherMatmulTiling::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     std::string algConfig = "AllGather=level0:fullmesh";
-    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER), 
-                                        algConfig, 0, 
-                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER),
+                                        algConfig, 0,
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)),
                                         static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingData_->param.gatherLen == 0) ? 
+    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingData_->param.gatherLen == 0) ?
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
     mc2CcTilingConfig.SetSkipBufferWindowCopy(skipBufferWindowCopy);
@@ -170,7 +169,7 @@ AllGatherMatmulTiling::AllGatherMatmulTiling(gert::TilingContext* context)
     : AllGatherMatmulTilingBase(context), allGatherMatmulTilingData_(&allGatherMatmulTilingDataSelf_)
 {
 }
-//注册Tiling类
+// 注册Tiling类
 REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmulV2, AllGatherMatmulTiling, \
                                    static_cast<int32_t>(NpuArch::DAV_3510), 0);
 

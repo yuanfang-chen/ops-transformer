@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ struct MC2HcommCfg {
     uint32_t reduceType;           // reduce类型
     uint32_t srcDataType;          // 输入数据类型
     uint32_t dstDataType;          // 输出数据类型
-};// 280 bytes
+}; // 280 bytes
 
 struct Mc2Msg {                  // 同aicpu_hccl_def KFCTilingData
     uint32_t preparePosition;   // 任务准备位置：0表示在host完成所有通信任务的准备，1表示在kernel侧完成

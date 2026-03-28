@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -19,8 +19,7 @@
 #include "mat_mul_asw_block.h"
 #include "mc2_tiling_struct.h"
 
-namespace MC2MatmulV3
-{
+namespace MC2MatmulV3 {
 
 constexpr uint64_t DEVICE_NUM = 64;         // group 内卡数， 目前定义为64，后续根据情况扩展
 constexpr uint64_t SLIDING_WINDOW_LEN = 4;  // 滑窗m方向大小
@@ -29,8 +28,7 @@ using namespace AscendC;
 using namespace matmul;
 using namespace Mc2MatmulV3Advanced;
 
-class MC2MatmulAswBlockDerive : public Mc2MatmulAswBlock
-{
+class MC2MatmulAswBlockDerive : public Mc2MatmulAswBlock {
 public:
     // constructor
     __aicore__ inline MC2MatmulAswBlockDerive()
@@ -85,8 +83,8 @@ __aicore__ inline void MC2MatmulAswBlockDerive::Init(const void* tilingData)
     params_.totalSplitCnt = params_.mBaseSplitCnt * params_.nBaseSplitCnt;
 }
 
-__aicore__ inline void MC2MatmulAswBlockDerive::InitForMC2(const void* tilingData, const Mc2Tiling::RCSTiling& cfg, bool isTail,
-                                                     bool isGather)
+__aicore__ inline void MC2MatmulAswBlockDerive::InitForMC2(const void* tilingData, const Mc2Tiling::RCSTiling& cfg,
+                                                           bool isTail, bool isGather)
 {
     cfg_ = cfg;
     rankM_ = isGather ? cfg.rankM : cfg.rankM / cfg.rankDim;

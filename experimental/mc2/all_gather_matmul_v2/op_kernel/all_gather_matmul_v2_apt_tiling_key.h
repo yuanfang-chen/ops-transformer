@@ -18,7 +18,7 @@
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
-namespace Mc2Tiling{
+namespace Mc2Tiling {
 
 // 通用参数
 #define TPL_PARAMS_COMM bool INPUT_IS_BF16FP16, bool TRANS_B, uint8_t OUTPUTDTYPE
