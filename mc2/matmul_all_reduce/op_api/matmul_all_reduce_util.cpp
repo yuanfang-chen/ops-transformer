@@ -91,7 +91,7 @@ aclnnStatus MatmulAllReduceCheckParams(
         CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
     }
 
-    // 4. 检查attr是否符合规则
+    // 3. 检查attr是否符合规则
     CHECK_RET(MatmulAllReduceCheckAttr(reduceOp, streamMode), ACLNN_ERR_PARAM_INVALID);
 
     // 4. 非量化场景不支持B矩阵Nz格式 除了310P
