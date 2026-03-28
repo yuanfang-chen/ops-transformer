@@ -28,7 +28,7 @@ typedef HcclResult (*HcomGetCommHandleByGroup_t)(const char* group, HcclComm* co
 typedef HcclResult (*HcclRankGraphGetLinks_t)(HcclComm comm, uint32_t layers, uint32_t srcRank,
     uint32_t dstRank, CommLink** links, uint32_t* linkNum);
 typedef HcclResult (*HcclRankGraphGetLayers_t)(HcclComm comm, uint32_t** layerList, uint32_t* layerNum);
-typedef HcclResult (*HcclChannelAcquire_t)(HcclComm comm, CommEngine engine, HcclChannelDesc* desc, 
+typedef HcclResult (*HcclChannelAcquire_t)(HcclComm comm, CommEngine engine, HcclChannelDesc* desc,
     uint32_t channelNum, ChannelHandle* handle);
 typedef HcclResult (*HcclGetHcclBuffer_t)(HcclComm comm, void** buffer, uint64_t* size);
 typedef HcclResult (*HcclChannelGetHcclBuffer_t)(HcclComm comm, ChannelHandle handle,
@@ -64,7 +64,7 @@ static bool LoadSymbol(void* handle, T& func_ptr, const char* symbol_name)
     const char* error = dlerror();
     if (error) {
         OP_LOGE(ACLNN_ERR_INNER, "Failed to load symbol '%s' : %s", symbol_name, error);
-        return false;    
+        return false;
     }
     OP_LOGD("Loaded symbol: %s", symbol_name);
 
@@ -85,7 +85,7 @@ static aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle)
 {
     OP_LOGD("Start to get HCCL communication handle");
     auto ret = g_HcomGetCommHandleByGroup(groupEp, &hcclHandle); // 获取HCCL通信句柄
-    if(ret != HCCL_SUCCESS) {
+    if (ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Communication handle failed groupEp is:%s", groupEp);
         return ACLNN_ERR_INNER;
     }
@@ -109,7 +109,7 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
         return ACLNN_ERR_INNER;
     }
     uint32_t linksIndex = 0;
-    while(linksIndex < netLinkNum) { // 遍历组网支持的协议
+    while (linksIndex < netLinkNum) { // 遍历组网支持的协议
         if (linksList[linksIndex].linkAttr.linkProtocol == protocol) { // 如果与目标协议相同返回对应的link
             links = &linksList[linksIndex];
             break;
@@ -150,7 +150,7 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
     netLayers = netLayerNum - 1; // 组网拓扑层级，从0开始，则最大为num - 1
 
     hcclRet = HcclChannelDescInit(channelDesc.data(), channelNum);
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed");
         return ACLNN_ERR_INNER;
     }
@@ -171,7 +171,7 @@ static aclnnStatus GetHcclCommChannel(const HcclComm hcclHandle, const uint32_t 
         channelDesc[channelId].remoteEndpoint = links->dstEndpointDesc;
     }
     hcclRet = g_HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), channelNum, channeles.data());
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Channel Resource failed, engine is:%d", engine);
         return ACLNN_ERR_INNER;
     }
@@ -200,7 +200,7 @@ static aclnnStatus GetHcclCommResource(const HcclComm hcclHandle, const CommEngi
             uint32_t channelIndex = rankIdIndex < rankId ? rankIdIndex : rankIdIndex - 1;
             hcclRet = g_HcclChannelGetHcclBuffer(hcclHandle, channels[channelIndex], &tempBuffer, &buffersize);
         }
-        if(hcclRet != HCCL_SUCCESS) { 
+        if (hcclRet != HCCL_SUCCESS) {
             OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Communicate Buffer Failed,\
                     srcRankId:%d, dstRankId:%d", rankId, rankIdIndex);
             return ACLNN_ERR_INNER;
@@ -222,20 +222,20 @@ static aclnnStatus CreatMc2Context(const HcclComm hcclHandle, const std::string&
     uint64_t ctxSize = sizeof(Mc2MoeContext); // 需要分配的context结构体大小
 
     hcclRet = g_HcclEngineCtxCreate(hcclHandle, mc2ContextTag.c_str(), engine, ctxSize, &ctx);
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Context Memory failed, mc2ContextTag is:%s, engine is:%d",\
                 mc2ContextTag.c_str(), engine);
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("Get HCCL Context Memory success");
     hcclRet = g_HcclGetRankId(hcclHandle, &mc2ContextStruct->epRankId); // 获取本卡ID
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get HCCL Rank Id failed");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("Get HCCL Rank Id success");
     hcclRet = g_HcclGetRankSize(hcclHandle, &mc2ContextStruct->epRankSize); // 获取通讯域存在多少卡
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
         return ACLNN_ERR_INNER;
     }
@@ -244,7 +244,7 @@ static aclnnStatus CreatMc2Context(const HcclComm hcclHandle, const std::string&
     CHECK_RET(aclnnRet == ACLNN_SUCCESS, aclnnRet);
     // 把host对应的数据拷贝到device侧
     hcclRet = g_HcclEngineCtxCopy(hcclHandle, engine, mc2ContextTag.c_str(), mc2ContextStruct, ctxSize, dstCtxOffset);
-    if(hcclRet != HCCL_SUCCESS) {
+    if (hcclRet != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Failed to copy Mc2MoeContext from host to device");
         return ACLNN_ERR_INNER;
     }
@@ -255,7 +255,7 @@ static aclnnStatus CreatMc2Context(const HcclComm hcclHandle, const std::string&
 static aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
 {
     OP_LOGD("Start to create Mc2Context Tensor");
-    if(ctx == nullptr) {
+    if (ctx == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "Create Mc2Context Tensor failed ctx is nullptr.");
         return ACLNN_ERR_INNER;
     }
@@ -263,9 +263,9 @@ static aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
     mc2Context = aclCreateTensor(
-        shap, 1, aclDataType::ACL_INT32, strides, 0, 
+        shap, 1, aclDataType::ACL_INT32, strides, 0,
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx); // 创建mc2Context Tensor
-    if(mc2Context == nullptr) {
+    if (mc2Context == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "Create Mc2Context Tensor failed.");
         return ACLNN_ERR_INNER;
     }
@@ -273,7 +273,7 @@ static aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, uint64_t& hcclBuffSize) 
+static aclnnStatus GetHcclBufferSize(const HcclComm& hcclHandle, uint64_t& hcclBuffSize)
 {
     // 多轮次调用的时候，host侧没有保存mc2contxet结构体的数据，需要重新获取hccl buffer 大小
     void* tempBuffer = nullptr;
@@ -304,7 +304,7 @@ static aclnnStatus GetCommEngine(const HcclComm& hcclHandle, CommEngine& engine,
         OP_LOGD("Get CommEngine Success engine is:%d, protocol is:%d", engine, protocol);
         return ACLNN_SUCCESS;
     }
-    OP_LOGE(ACLNN_ERR_INNER,"Current version only supports MTE communication mode, other modes are not supported.");
+    OP_LOGE(ACLNN_ERR_INNER, "Current version only supports MTE communication mode, other modes are not supported.");
     return ACLNN_ERR_INNER;
 }
 
@@ -323,8 +323,7 @@ extern inline aclnnStatus GetMc2ContextTensor(const char* groupEp, const char* o
         return ACLNN_ERR_INNER;
     }
     HcclComm hcclHandle;
-    aclnnStatus aclnnRet;
-    aclnnRet = GetCommHandle(groupEp, hcclHandle); // 根据EP域名称获取通信上下文句柄
+    aclnnStatus aclnnRet = GetCommHandle(groupEp, hcclHandle); // 根据EP域名称获取通信上下文句柄
     CHECK_RET(aclnnRet == ACLNN_SUCCESS, aclnnRet);
     aclnnRet = GetCommEngine(hcclHandle, engine, protocol); // 获取对应的通信引擎和通信协议
     CHECK_RET(aclnnRet == ACLNN_SUCCESS, aclnnRet);
