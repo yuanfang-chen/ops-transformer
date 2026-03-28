@@ -12,8 +12,8 @@
  * \file chunk_gated_delta_rule.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_H_
-#define __CHUNK_GATED_DELTA_RULE_H_
+#ifndef CHUNK_GATED_DELTA_RULE_H
+#define CHUNK_GATED_DELTA_RULE_H
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
@@ -325,4 +325,4 @@ private:
 };
 
 } // namespace ChunkGatedDeltaRule
-#endif  // __CHUNK_GATED_DELTA_RULE_H_
+#endif  // CHUNK_GATED_DELTA_RULE_H

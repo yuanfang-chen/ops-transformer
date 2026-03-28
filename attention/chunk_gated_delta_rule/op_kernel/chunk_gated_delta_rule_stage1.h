@@ -12,8 +12,8 @@
  * \file chunk_gated_delta_rule_stage1.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE1_H_
-#define __CHUNK_GATED_DELTA_RULE_STAGE1_H_
+#ifndef CHUNK_GATED_DELTA_RULE_STAGE1_H
+#define CHUNK_GATED_DELTA_RULE_STAGE1_H
 
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_utils.h"
@@ -809,4 +809,4 @@ private:
     LocalTensor<float> fp32OutLocal_;
 };
 } // namespace ChunkGatedDeltaRule
-#endif
+#endif // CHUNK_GATED_DELTA_RULE_STAGE1_H

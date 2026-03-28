@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef __CHUNK_GATED_DELTA_RULE_TILING_DATA_H__
-#define __CHUNK_GATED_DELTA_RULE_TILING_DATA_H__
+#ifndef CHUNK_GATED_DELTA_RULE_TILING_DATA_H
+#define CHUNK_GATED_DELTA_RULE_TILING_DATA_H
 
 #include "kernel_tiling/kernel_tiling.h"
 

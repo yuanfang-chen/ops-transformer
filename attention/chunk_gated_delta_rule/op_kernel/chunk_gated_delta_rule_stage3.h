@@ -12,8 +12,8 @@
  * \file chunk_gated_delta_rule_stage3.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE3_H_
-#define __CHUNK_GATED_DELTA_RULE_STAGE3_H_
+#ifndef CHUNK_GATED_DELTA_RULE_STAGE3_H
+#define CHUNK_GATED_DELTA_RULE_STAGE3_H
 
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_utils.h"
@@ -265,4 +265,4 @@ private:
 };
 
 } // namespace ChunkGatedDeltaRule
-#endif
+#endif // CHUNK_GATED_DELTA_RULE_STAGE3_H
