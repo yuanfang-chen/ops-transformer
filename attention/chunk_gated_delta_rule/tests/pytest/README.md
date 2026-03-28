@@ -14,8 +14,8 @@
 
 - 支持batch_size大于0。
 - 支持seqlen序列长度。
-- 支持NK、NV head数。
-- 支持DK、DV head维度。
+- 支持NK、NV head数，NV需要为NK倍数。
+- 支持DK、DV 不超过128。
 - 支持data_type为BF16。
 
 ### 环境配置
