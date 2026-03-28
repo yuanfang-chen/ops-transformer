@@ -17,7 +17,7 @@
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "aggregate_hidden_grad_arch35.h"
+#include "aggregate_hidden_grad_tiling_arch35.h"
 
 namespace optiling {
 
