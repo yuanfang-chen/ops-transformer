@@ -815,4 +815,6 @@ FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(...);
 ## 参考链接
 
 - [torch.library 官方文档](https://pytorch.org/docs/stable/library.html)
+- [torch.library注册自定义算子直调样例]((https://gitcode.com/cann/asc-devkit/tree/master/examples/01_simd_cpp_api/02_features/02_framework/00_pytorch/torch_library))
 - [Ascend C 算子开发指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/)
+- [原始算子代码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
