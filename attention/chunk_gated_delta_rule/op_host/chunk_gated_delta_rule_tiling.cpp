@@ -14,7 +14,6 @@
  */
 
 #include "chunk_gated_delta_rule_tiling.h"
-
 #include "tiling_base/tiling_templates_registry.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
@@ -55,7 +54,7 @@ constexpr uint32_t MATMUL_BASE_M = 128;
 constexpr uint32_t MATMUL_BASE_K = 128;
 constexpr uint32_t MATMUL_BASE_N = 128;
 
-// 初始化编译信息, 读取平台资源, 并缓存核数到 tilingData_
+// 初始化编译信息，读取平台资源，并缓存核数到 tilingData_
 void ChunkGatedDeltaRuleTiling::InitCompileInfo()
 {
     auto platformInfoPtr = context_->GetPlatformInfo();
@@ -255,9 +254,13 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::CheckContext()
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetOutputDesc(OUTPUT_FINAL_STATE_IDX));
 
     auto gDesc = context_->GetOptionalInputDesc(G_INDEX);
+    auto gTensor = context_->GetOptionalInputTensor(G_INDEX);
     auto gShape = context_->GetOptionalInputShape(G_INDEX);
-    OP_CHECK_IF((gDesc == nullptr) != (gShape == nullptr),
-                OP_LOGE(context_->GetNodeName(), "gamma desc and shape should both exist or both be null"),
+    bool hasDesc = (gDesc != nullptr);
+    bool hasTensor = (gTensor != nullptr);
+    bool hasShape = (gShape != nullptr);
+    OP_CHECK_IF((hasDesc != hasTensor) || (hasDesc != hasShape),
+                OP_LOGE(context_->GetNodeName(), "gamma desc, tensor and shape should all exist or all be null"),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -299,19 +302,6 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeDtype()
     return ge::GRAPH_SUCCESS;
 }
 
-// 校验两个 shape 指定维度是否相等，用于跨输入一致性检查
-bool ChunkGatedDeltaRuleTiling::CheckDimEqual(const gert::Shape &a, const int64_t dimA, const gert::Shape &b,
-                                              const int64_t dimB, const std::string &nameA, const std::string &nameB,
-                                              const std::string &dimDesc)
-{
-    if (a.GetDim(dimA) != b.GetDim(dimB)) {
-        OP_LOGE(context_->GetNodeName(), "The %s of %s and %s should be the same, but %s is %ld while %s is %ld",
-                dimDesc.c_str(), nameA.c_str(), nameB.c_str(), nameA.c_str(), a.GetDim(dimA), nameB.c_str(),
-                b.GetDim(dimB));
-        return false;
-    }
-    return true;
-}
 
 // 校验 shape 的维度数是否符合预期
 bool ChunkGatedDeltaRuleTiling::CheckDim(const gert::Shape &shape, const size_t dim, const std::string &dimDesc)
@@ -324,83 +314,44 @@ bool ChunkGatedDeltaRuleTiling::CheckDim(const gert::Shape &shape, const size_t 
     return true;
 }
 
-// 校验输入是否为空，其次检查 shape 各维度是否大于 0
-bool ChunkGatedDeltaRuleTiling::CheckShapeNotEmpty(const gert::Shape &shape, const std::string &shapeName)
-{
-    OP_CHECK_IF(shape.GetDimNum() == 0, OP_LOGE(context_->GetNodeName(), "%s shape is empty", shapeName.c_str()),
-                return false);
-
-    for (size_t i = 0; i < shape.GetDimNum(); ++i) {
-        OP_CHECK_IF(shape.GetDim(i) <= 0,
-                    OP_LOGE(context_->GetNodeName(), "%s dim %zu should be greater than 0, but got %ld",
-                            shapeName.c_str(), i, shape.GetDim(i)),
-                    return false);
-    }
-    return true;
-}
-
-// 统一校验输入 shape/rank 约束和跨输入维度关系
-ge::graphStatus ChunkGatedDeltaRuleTiling::CheckInputShapeConstraints(
+// 统一校验所有输入输出 shape 是否与理想 shape 一致
+ge::graphStatus ChunkGatedDeltaRuleTiling::CheckExpectedShapes(
     const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &valueShape,
     const gert::Shape &betaShape, const gert::Shape &stateShape, const gert::Shape &actualSeqLengthsShape,
-    const gert::Shape *gShape)
+    const gert::Shape &outShape, const gert::Shape &finalStateShape, const gert::Shape *gShape)
 {
-    if (!CheckShapeNotEmpty(queryShape, "query") || !CheckShapeNotEmpty(keyShape, "key") ||
-        !CheckShapeNotEmpty(valueShape, "value") || !CheckShapeNotEmpty(betaShape, "beta") ||
-        !CheckShapeNotEmpty(stateShape, "state") || !CheckShapeNotEmpty(actualSeqLengthsShape, "actual_seq_lengths")) {
-        return ge::GRAPH_FAILED;
-    }
+    const gert::Shape expectQueryShape = gert::Shape({tilingData_.t, tilingData_.nk, tilingData_.dk});
+    const gert::Shape expectKeyShape = gert::Shape({tilingData_.t, tilingData_.nk, tilingData_.dk});
+    const gert::Shape expectValueShape = gert::Shape({tilingData_.t, tilingData_.nv, tilingData_.dv});
+    const gert::Shape expectBetaShape = gert::Shape({tilingData_.t, tilingData_.nv});
+    const gert::Shape expectStateShape = gert::Shape({tilingData_.b, tilingData_.nv, tilingData_.dv, tilingData_.dk});
+    const gert::Shape expectActualSeqLengthsShape = gert::Shape({tilingData_.b});
+    const gert::Shape expectOutShape = gert::Shape({tilingData_.t, tilingData_.nv, tilingData_.dv});
+    const gert::Shape expectFinalStateShape =
+        gert::Shape({tilingData_.b, tilingData_.nv, tilingData_.dv, tilingData_.dk});
 
-    if (!CheckDim(queryShape, QKV_DIM_NUM, "query") || !CheckDim(keyShape, QKV_DIM_NUM, "key") ||
-        !CheckDim(valueShape, QKV_DIM_NUM, "value") || !CheckDim(betaShape, BETA_DIM_NUM, "beta") ||
-        !CheckDim(stateShape, STATE_DIM_NUM, "state") ||
-        !CheckDim(actualSeqLengthsShape, ACTUAL_SEQ_LENGTHS_DIM_NUM, "actual_seq_lengths")) {
-        return ge::GRAPH_FAILED;
-    }
+    OP_CHECK_IF(queryShape != expectQueryShape, OP_LOGE(context_->GetNodeName(), "query shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(keyShape != expectKeyShape, OP_LOGE(context_->GetNodeName(), "key shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(valueShape != expectValueShape, OP_LOGE(context_->GetNodeName(), "value shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(betaShape != expectBetaShape, OP_LOGE(context_->GetNodeName(), "beta shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(stateShape != expectStateShape, OP_LOGE(context_->GetNodeName(), "state shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(actualSeqLengthsShape != expectActualSeqLengthsShape,
+                OP_LOGE(context_->GetNodeName(), "actual_seq_lengths shape is invalid"), return ge::GRAPH_FAILED);
 
-    if (!CheckDimEqual(queryShape, DIM_0, keyShape, DIM_0, "query", "key", "T dimension") ||
-        !CheckDimEqual(queryShape, DIM_1, keyShape, DIM_1, "query", "key", "Nk dimension") ||
-        !CheckDimEqual(queryShape, DIM_2, keyShape, DIM_2, "query", "key", "Dk dimension") ||
-        !CheckDimEqual(stateShape, DIM_1, valueShape, DIM_1, "state", "value", "Nv dimension") ||
-        !CheckDimEqual(stateShape, DIM_2, valueShape, DIM_2, "state", "value", "Dv dimension") ||
-        !CheckDimEqual(valueShape, DIM_0, queryShape, DIM_0, "value", "query", "T dimension") ||
-        !CheckDimEqual(betaShape, DIM_0, queryShape, DIM_0, "beta", "query", "T dimension") ||
-        !CheckDimEqual(betaShape, DIM_1, valueShape, DIM_1, "beta", "value", "Nv dimension") ||
-        !CheckDimEqual(stateShape, DIM_3, queryShape, DIM_2, "state", "query", "Dk dimension") ||
-        !CheckDimEqual(actualSeqLengthsShape, DIM_0, stateShape, DIM_0, "actual_seq_lengths", "state", "B dimension")) {
-        return ge::GRAPH_FAILED;
-    }
+    OP_CHECK_IF(outShape != expectOutShape, OP_LOGE(context_->GetNodeName(), "out shape is invalid"),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(finalStateShape != expectFinalStateShape,
+                OP_LOGE(context_->GetNodeName(), "final_state shape is invalid"), return ge::GRAPH_FAILED);
 
     if (gShape != nullptr) {
-        if (!CheckShapeNotEmpty(*gShape, "g") || !CheckDim(*gShape, G_DIM_NUM, "g") ||
-            !CheckDimEqual(*gShape, DIM_0, valueShape, DIM_0, "g", "value", "T dimension") ||
-            !CheckDimEqual(*gShape, DIM_1, valueShape, DIM_1, "g", "value", "Nv dimension")) {
-            return ge::GRAPH_FAILED;
-        }
-        return ge::GRAPH_SUCCESS;
-    }
-
-    return ge::GRAPH_SUCCESS;
-}
-
-// 校验输出 shape 和输出维度是否具有一致性
-ge::graphStatus ChunkGatedDeltaRuleTiling::CheckOutputShapeConstraints(const gert::Shape &valueShape,
-                                                                       const gert::Shape &stateShape,
-                                                                       const gert::Shape &outShape,
-                                                                       const gert::Shape &finalStateShape)
-{
-    if (!CheckDim(outShape, QKV_DIM_NUM, "out") || !CheckDim(finalStateShape, STATE_DIM_NUM, "final_state")) {
-        return ge::GRAPH_FAILED;
-    }
-
-    if (!CheckDimEqual(outShape, DIM_0, valueShape, DIM_0, "out", "value", "T dimension") ||
-        !CheckDimEqual(outShape, DIM_1, valueShape, DIM_1, "out", "value", "Nv dimension") ||
-        !CheckDimEqual(outShape, DIM_2, valueShape, DIM_2, "out", "value", "Dv dimension") ||
-        !CheckDimEqual(finalStateShape, DIM_0, stateShape, DIM_0, "final_state", "state", "B dimension") ||
-        !CheckDimEqual(finalStateShape, DIM_1, stateShape, DIM_1, "final_state", "state", "Nv dimension") ||
-        !CheckDimEqual(finalStateShape, DIM_2, stateShape, DIM_2, "final_state", "state", "Dv dimension") ||
-        !CheckDimEqual(finalStateShape, DIM_3, stateShape, DIM_3, "final_state", "state", "Dk dimension")) {
-        return ge::GRAPH_FAILED;
+        const gert::Shape expectGShape = gert::Shape({tilingData_.t, tilingData_.nv});
+        OP_CHECK_IF(*gShape != expectGShape, OP_LOGE(context_->GetNodeName(), "g shape is invalid"),
+                    return ge::GRAPH_FAILED);
     }
 
     return ge::GRAPH_SUCCESS;
@@ -435,7 +386,7 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::CheckDerivedDimConstraints()
     return ge::GRAPH_SUCCESS;
 }
 
-// 读取输入输出 shape，完成基础校验，并填充 tilingData_ 中的维度信息
+// 统一校验输入输出 shape/rank 约束，并从锚点 shape 中解析 tilingData 维度
 ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeShapes()
 {
     const auto &queryShape = context_->GetInputShape(QUERY_INDEX)->GetOriginShape();
@@ -444,74 +395,67 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeShapes()
     const auto &betaShape = context_->GetInputShape(BETA_INDEX)->GetOriginShape();
     const auto &stateShape = context_->GetInputShape(STATE_INDEX)->GetOriginShape();
     const auto &actualSeqLengthsShape = context_->GetInputShape(ACTUAL_SEQ_LENGTHS_INDEX)->GetOriginShape();
-
     const auto &outShape = context_->GetOutputShape(OUTPUT_OUT_IDX)->GetOriginShape();
     const auto &finalStateShape = context_->GetOutputShape(OUTPUT_FINAL_STATE_IDX)->GetOriginShape();
-
     const gert::Shape *gShape = nullptr;
-    if (tilingData_.hasGamma != 0) {
-        gShape = &context_->GetOptionalInputShape(G_INDEX)->GetOriginShape();
+
+    // 先校验锚点 rank，保证后续 GetDim 安全
+    if (!CheckDim(queryShape, QKV_DIM_NUM, "query") || !CheckDim(valueShape, QKV_DIM_NUM, "value") ||
+        !CheckDim(stateShape, STATE_DIM_NUM, "state")) {
+        return ge::GRAPH_FAILED;
     }
 
-    OP_CHECK_IF(CheckInputShapeConstraints(queryShape, keyShape, valueShape, betaShape, stateShape,
-                                           actualSeqLengthsShape, gShape) != ge::GRAPH_SUCCESS,
-                OP_LOGE(inputParams_.opName, "Invalid input shape constraints."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(CheckOutputShapeConstraints(valueShape, stateShape, outShape, finalStateShape) != ge::GRAPH_SUCCESS,
-                OP_LOGE(inputParams_.opName, "Invalid output shape constraints."), return ge::GRAPH_FAILED);
-
+    // 从锚点 shape 中解析公共参数
     tilingData_.t = queryShape.GetDim(DIM_0);
     tilingData_.nk = queryShape.GetDim(DIM_1);
     tilingData_.dk = queryShape.GetDim(DIM_2);
     tilingData_.nv = valueShape.GetDim(DIM_1);
     tilingData_.dv = valueShape.GetDim(DIM_2);
-    tilingData_.b = actualSeqLengthsShape.GetDim(DIM_0);
+    tilingData_.b = stateShape.GetDim(DIM_0);
 
     OP_CHECK_IF(CheckDerivedDimConstraints() != ge::GRAPH_SUCCESS,
                 OP_LOGE(inputParams_.opName, "Invalid derived dim constraints."), return ge::GRAPH_FAILED);
 
+    if (tilingData_.hasGamma != 0) {
+        gShape = &context_->GetOptionalInputShape(G_INDEX)->GetOriginShape();
+    }
+
+    OP_CHECK_IF(CheckExpectedShapes(queryShape, keyShape, valueShape, betaShape, stateShape, actualSeqLengthsShape,
+                                    outShape, finalStateShape, gShape) != ge::GRAPH_SUCCESS,
+                OP_LOGE(inputParams_.opName, "Invalid shape constraints."), return ge::GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 
-// tiling 阶段校验 tensor 的主格式。
-// 当前链路下，q/k/v 以 NCL 参与 tiling，state 以 NCHW 参与 tiling，
-// 其余输入输出保持 ND，因此这里按各 tensor 的允许格式做严格校验。
-bool ChunkGatedDeltaRuleTiling::CheckFormat(const gert::CompileTimeTensorDesc *desc, const ge::Format expectFormat0,
-                                            const ge::Format expectFormat1, const std::string &name)
+// tiling 阶段基于 primary format 做格式校验。
+// GetPrimaryFormat() 可以吸收一部分派生格式，但 NCL/NCHW 等布局不会统一折回 ND。
+// 因此这里只拦截当前明确不支持的 FRACTAL_NZ，以避免误拦其他合法的 ND 派生布局。
+bool ChunkGatedDeltaRuleTiling::CheckFormat(const gert::CompileTimeTensorDesc *desc, const std::string &name)
 {
     auto primaryFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(desc->GetStorageFormat()));
-    if (primaryFormat != expectFormat0 && primaryFormat != expectFormat1) {
-        if (expectFormat0 == expectFormat1) {
-            OP_LOGE(context_->GetNodeName(), "%s format should be %s, but got %s", name.c_str(),
-                    ge::TypeUtils::FormatToSerialString(expectFormat0).c_str(),
-                    ge::TypeUtils::FormatToSerialString(primaryFormat).c_str());
-        } else {
-            OP_LOGE(context_->GetNodeName(), "%s format should be %s or %s, but got %s", name.c_str(),
-                    ge::TypeUtils::FormatToSerialString(expectFormat0).c_str(),
-                    ge::TypeUtils::FormatToSerialString(expectFormat1).c_str(),
-                    ge::TypeUtils::FormatToSerialString(primaryFormat).c_str());
-        }
-        return false;
-    }
+    OP_CHECK_IF(primaryFormat == ge::FORMAT_FRACTAL_NZ,
+                OP_LOGE(context_->GetNodeName(), "%s format %s is not supported", name.c_str(),
+                        ge::TypeUtils::FormatToSerialString(primaryFormat).c_str()),
+                return false);
     return true;
 }
 
-// 校验输入 format，可选 gamma 存在时也需要校验
+// 校验输入输出 format，可选 gamma 存在时也需要校验
 ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeFormat()
 {
-    if (!CheckFormat(context_->GetInputDesc(QUERY_INDEX), ge::FORMAT_ND, ge::FORMAT_NCL, "query") ||
-        !CheckFormat(context_->GetInputDesc(KEY_INDEX), ge::FORMAT_ND, ge::FORMAT_NCL, "key") ||
-        !CheckFormat(context_->GetInputDesc(VALUE_INDEX), ge::FORMAT_ND, ge::FORMAT_NCL, "value") ||
-        !CheckFormat(context_->GetInputDesc(BETA_INDEX), ge::FORMAT_ND, ge::FORMAT_ND, "beta") ||
-        !CheckFormat(context_->GetInputDesc(STATE_INDEX), ge::FORMAT_ND, ge::FORMAT_NCHW, "state") ||
-        !CheckFormat(context_->GetInputDesc(ACTUAL_SEQ_LENGTHS_INDEX), ge::FORMAT_ND, ge::FORMAT_ND,
-                     "actual_seq_lengths") ||
-        !CheckFormat(context_->GetOutputDesc(OUTPUT_OUT_IDX), ge::FORMAT_ND, ge::FORMAT_ND, "out") ||
-        !CheckFormat(context_->GetOutputDesc(OUTPUT_FINAL_STATE_IDX), ge::FORMAT_ND, ge::FORMAT_ND, "final_state")) {
+    if (!CheckFormat(context_->GetInputDesc(QUERY_INDEX), "query") ||
+        !CheckFormat(context_->GetInputDesc(KEY_INDEX), "key") ||
+        !CheckFormat(context_->GetInputDesc(VALUE_INDEX), "value") ||
+        !CheckFormat(context_->GetInputDesc(BETA_INDEX), "beta") ||
+        !CheckFormat(context_->GetInputDesc(STATE_INDEX), "state") ||
+        !CheckFormat(context_->GetInputDesc(ACTUAL_SEQ_LENGTHS_INDEX), "actual_seq_lengths") ||
+        !CheckFormat(context_->GetOutputDesc(OUTPUT_OUT_IDX), "out") ||
+        !CheckFormat(context_->GetOutputDesc(OUTPUT_FINAL_STATE_IDX), "final_state")) {
         return ge::GRAPH_FAILED;
     }
 
     if (tilingData_.hasGamma != 0) {
-        if (!CheckFormat(context_->GetOptionalInputDesc(G_INDEX), ge::FORMAT_ND, ge::FORMAT_ND, "gamma")) {
+        if (!CheckFormat(context_->GetOptionalInputDesc(G_INDEX), "gamma")) {
             return ge::GRAPH_FAILED;
         }
     }
@@ -529,15 +473,17 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::GetScale()
     return ge::GRAPH_SUCCESS;
 }
 
-// 负责判断 gamma 是否存在，把存在状态写进 tilingData_.hasGamma (0 或 1)
+// 负责判断 gamma 是否存在，并将状态写入 tilingData_.hasGamma（0 或 1）
 ge::graphStatus ChunkGatedDeltaRuleTiling::GetOptionalInput()
 {
     auto gDesc = context_->GetOptionalInputDesc(G_INDEX);
-    auto gShapePtr = context_->GetOptionalInputShape(G_INDEX);
-    tilingData_.hasGamma =
-        (gDesc != nullptr && gShapePtr != nullptr && gShapePtr->GetOriginShape().GetDimNum() != 0) ? 1 : 0;
+    auto gTensor = context_->GetOptionalInputTensor(G_INDEX);
+    auto gShape = context_->GetOptionalInputShape(G_INDEX);
+
+    tilingData_.hasGamma = (gDesc != nullptr && gTensor != nullptr && gShape != nullptr) ? 1 : 0;
     return ge::GRAPH_SUCCESS;
 }
+
 
 void ChunkGatedDeltaRuleTiling::PrintTilingData()
 {

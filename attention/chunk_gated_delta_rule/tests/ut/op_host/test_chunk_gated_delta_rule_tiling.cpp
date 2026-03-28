@@ -722,8 +722,8 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_FinalStateShape_TInsteadOfB)
 // ============================================================================
 // 9. Format 异常场景（期望失败）
 // ============================================================================
-// state 的 format 非允许格式（当前仅允许 ND/NCHW），期望在 AnalyzeFormat 中被拦截
-TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_StateFormat_NCL)
+// state 的 format 为当前不支持的 FRACTAL_NZ，期望在 AnalyzeFormat 阶段校验失败
+TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_StateFormat_NZ)
 {
     optiling::ChunkGatedDeltaRuleCompileInfo compileinfo = {48, 196608};
     uint32_t bs = 2, seqLen = 64, t = bs * seqLen;
@@ -741,7 +741,7 @@ TEST_F(ChunkGatedDeltaRuleTilingTest, Invalid_StateFormat_NCL)
                                                {keyShape, ge::DT_BF16, ge::FORMAT_ND},
                                                {valueShape, ge::DT_BF16, ge::FORMAT_ND},
                                                {betaShape, ge::DT_BF16, ge::FORMAT_ND},
-                                               {stateShape, ge::DT_BF16, ge::FORMAT_NCL},
+                                               {stateShape, ge::DT_BF16, ge::FORMAT_FRACTAL_NZ},
                                                {seqLengthsShape, ge::DT_INT32, ge::FORMAT_ND}},
                                               {{{{t, nv, dv}, {t, nv, dv}}, ge::DT_BF16, ge::FORMAT_ND},
                                                {{{bs, nv, dv, dk}, {bs, nv, dv, dk}}, ge::DT_BF16, ge::FORMAT_ND}},

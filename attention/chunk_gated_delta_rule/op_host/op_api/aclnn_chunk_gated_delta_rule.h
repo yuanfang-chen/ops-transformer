@@ -35,18 +35,9 @@ extern "C" {
  * @return aclnnStatus: 返回状态码
  */
 ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
-    const aclTensor *query,
-    const aclTensor *key,
-    const aclTensor *value,
-    const aclTensor *beta,
-    const aclTensor *initialState,
-    const aclTensor *actualSeqLengths,
-    const aclTensor *gOptional,
-    float scaleValue,
-    const aclTensor *out,
-    const aclTensor *finalState,
-    uint64_t *workspaceSize,
-    aclOpExecutor **executor);
+    const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *beta,
+    const aclTensor *initialState, const aclTensor *actualSeqLengths, const aclTensor *gOptional, float scaleValue,
+    const aclTensor *out, const aclTensor *finalState, uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief
@@ -57,15 +48,11 @@ ACLNN_API aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnChunkGatedDeltaRule(
-    void *workspace,
-    uint64_t workspaceSize,
-    aclOpExecutor *executor,
-    aclrtStream stream);
+ACLNN_API aclnnStatus aclnnChunkGatedDeltaRule(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                               aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif // OP_API_ACLNN_CHUNK_GATED_DELTA_RULE_H
-
