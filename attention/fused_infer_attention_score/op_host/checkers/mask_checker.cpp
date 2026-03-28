@@ -164,7 +164,7 @@ ge::graphStatus MaskChecker::CheckFeatureSparseMode(const FiaTilingInfo &fiaInfo
         // s2=0 的 batch（入图padding或空tensor场景）不校验 s1<=s2
         int32_t actualSeqSize = std::min(fiaInfo.qSize.size(), fiaInfo.kvSize.size());
         for (int32_t i = 0; i < actualSeqSize; i++) {
-            if (kvSize[i] == 0) {
+            if (fiaInfo.kvSize[i] == 0) {
                 continue;
             }
             OP_CHECK_IF(fiaInfo.qSize[i] > fiaInfo.kvSize[i],
@@ -268,7 +268,7 @@ ge::graphStatus MaskChecker::GetMaskInfo(const FiaTilingInfo &fiaInfo, MaskInfo 
                 return ge::GRAPH_SUCCESS;
             }
 
-            for (uint32_t i = 0; i < qSize.size(); i++) {
+            for (uint32_t i = 0; i < fiaInfo.qSize.size(); i++) {
                 sSize += fiaInfo.qSize[i] * fiaInfo.qSize[i];
             }
         } else {
