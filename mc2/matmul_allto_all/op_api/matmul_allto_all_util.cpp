@@ -164,10 +164,25 @@ bool CheckShapeAAMM(const aclTensor* x1, const aclTensor* x2, const aclTensor* b
 bool IsTransposeLastTwoDims(const aclTensor *tensor) {
     // 当输入tensor的shape小于2或者大于6的时候，返回错误
     if (tensor->GetViewShape().GetDimNum() < 2 || tensor->GetViewShape().GetDimNum() > 6) {
+        OP_LOGI("view shape dim num is: %ld", tensor->GetViewShape().GetDimNum());
         return false;
     }
+
+    int64_t tensor_dim0 = tensor->GetViewShape().GetDim(0);
+    int64_t tensor_dim1 = tensor->GetViewShape().GetDim(1);
+    OP_LOGI("tensor_dim0 is: %ld, tensor_dim1 is: %ld.", tensor_dim0, tensor_dim1);
+
+    int64_t stride_dim0 = tensor->GetViewStrides()[0];
+    int64_t stride_dim1 = tensor->GetViewStrides()[1];
+    OP_LOGI("stride_dim0 is: %ld, stride_dim1 is: %ld.", stride_dim0, stride_dim1);
+
+    int64_t storage_dim0 = tensor->GetStorageShape().GetDim(0);
+    int64_t storage_dim1 = tensor->GetStorageShape().GetDim(1);
+    OP_LOGI("storage_dim0 is: %ld, storage_dim1 is: %ld.", storage_dim0, storage_dim1);
+
     int64_t dim1 = tensor->GetViewShape().GetDimNum() - 1;
     int64_t dim2 = tensor->GetViewShape().GetDimNum() - 2;
+
     // BMM 场景下，Batch维度的stride需要等于 N, D 的乘积
     if (tensor->GetViewStrides()[dim2] == 1
       && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
@@ -175,6 +190,7 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
           && tensor->GetViewShape().GetDim(dim2) == 1) {
             return false;
           }
+        OP_LOGI("current tensor is not contiguous.");
         return true;
       }
     return false;
