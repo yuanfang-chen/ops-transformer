@@ -296,7 +296,8 @@ private:
     DataCopyParams hCommuCopyOutParams_;
     DataCopyExtParams scaleOutParams_;
 
-    MoeDistributeDispatchV2Quant<XInType, ExpandXOutType, XOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> quantInst_;
+    MoeDistributeDispatchV2Quant<XInType, ExpandXOutType,
+                XOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> quantInst_;
     MoeDistributeElastic elasticInst_;
 };
 
@@ -644,7 +645,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Proc
     } else {
         xTmpTensor_ = xQueue_.AllocTensor<XOutType>();
         if constexpr (!IsSmoothScaleExist) {
-            DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * axisH_], xCopyParams_, padParams); 
+            DataCopyPad(xTmpTensor_, xGMTensor_[tokenIndex * axisH_], xCopyParams_, padParams);
         }
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else {
@@ -1265,7 +1266,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Loca
     if (startExpertId_ >= rscvStatusNum_) {return;} // 分核已与前面的waitDispatch里保持一致return;
     GetCumSum(outCountLocal, aivId_);
     // hOutElemCount为expandXOutGlobal申请每个token的GM Buffer空间大小
-    uint32_t index = 0, beginIdx = outCountLocal.GetValue(0), hOutElemCount = hOutSize_ / sizeof(XOutType); 
+    uint32_t index = 0, beginIdx = outCountLocal.GetValue(0), hOutElemCount = hOutSize_ / sizeof(XOutType);
     preCnt_ = beginIdx, statusTensor_ = waitStatusBuf_.Get<int32_t>();
     DataCopyPadParams padParams = {false, 0U, 0U, 0U};
     DataCopyExtParams dataCopyExpandIdxParams{1U, sizeof(int32_t) * EXPAND_IDX_INFO, 0U, 0U, 0U};
@@ -1294,7 +1295,8 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Loca
             if constexpr (IsNeedAllgather) {
                 DataCopyPad(winTpGatherOutGMTensor_[(beginIdx + j) * hAlignWinCnt_], xTmpTensor_, hCommuCopyOutParams_);
             }
-            expandXOutGlobal.SetGlobalBuffer((__gm__ XOutType*)(expandXOutGM_) + (beginIdx + j) * hOutElemCount, hOutElemCount);
+            expandXOutGlobal.SetGlobalBuffer((__gm__ XOutType*)(expandXOutGM_) + \
+                (beginIdx + j) * hOutElemCount, hOutElemCount);
             DataCopyPad(expandXOutGlobal, xTmpTensor_, expandXCopyParams_);
             xQueue_.FreeTensor(xTmpTensor_);
         }

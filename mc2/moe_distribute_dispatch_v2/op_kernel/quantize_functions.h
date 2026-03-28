@@ -100,10 +100,10 @@ __aicore__ inline void ComputeMaxExp(__ubuf__ T* srcAddr, __ubuf__ uint16_t* max
                     scaleMask1); // 将FP16非正常指数位与每个元素的指数位进行与操作，消除尾数位
                 MicroAPI::And(vdExpSelect1, (MicroAPI::RegTensor<uint16_t>&)vdExp1, invalidMaskFP16,
                     scaleMask1);
-                MicroAPI::Compare<uint16_t, CMPMODE::NE>( // 将FP16非正常指数位与实际指数位作对比，生成非正常指数位掩码
+                MicroAPI::Compare<uint16_t, CMPMODE::NE>(// 将FP16非正常指数位与实际指数位作对比，生成非正常指数位掩码
                     invalidDataMask0, vdExpSelect0, invalidMaskFP16, scaleMask1);
                 MicroAPI::Compare<uint16_t, CMPMODE::NE>(
-                    invalidDataMask1, vdExpSelect1, invalidMaskFP16, scaleMask1);   
+                    invalidDataMask1, vdExpSelect1, invalidMaskFP16, scaleMask1);
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp0BF16, vdExp0, scaleMask1);
                 MicroAPI::Cast<bfloat16_t, T, castTraitHalf2Bf16>(vdExp1BF16, vdExp1, scaleMask1);
                 MicroAPI::And(vdExpExtract0, (MicroAPI::RegTensor<uint16_t>&)vdExp0BF16, expMaskBF16,

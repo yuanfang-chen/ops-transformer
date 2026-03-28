@@ -27,7 +27,8 @@ namespace Mc2Kernel {
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
 
-template <typename XInType, typename ExpandXOutType, typename XOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
+template <typename XInType, typename ExpandXOutType, typename XOutType, int32_t QuantMode, bool IsSmoothScaleExist, \
+                bool IsNeedAllgather>
 class MoeDistributeDispatchV2Quant{
 public:
     uint32_t axisH_{0};
@@ -62,7 +63,7 @@ public:
     {
         axisH_ = axisH;
         hOutSizeAlign_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN; // scale起始放置偏移
-        hAlignSize_ = Ceil(axisH_ * sizeof(XInType), UB_ALIGN) * UB_ALIGN; //用于搬入token数据xInQueue_大小申请
+        hAlignSize_ = Ceil(axisH_ * sizeof(XInType), UB_ALIGN) * UB_ALIGN; // 用于搬入token数据xInQueue_大小申请
         if constexpr ((QuantMode == UNQUANT) && IsSmoothScaleExist) {
             hOutSizeAlign_ += scaleInBytes_;
             hAlignSize_ += scaleInBytes_;
@@ -95,8 +96,8 @@ public:
         hScaleIdxSize_ = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
     }
 
-    __aicore__ inline void QuantProcess(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, uint32_t expertIndex,
-                                        uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
+    __aicore__ inline void QuantProcess(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal,
+                    uint32_t expertIndex, uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (QuantMode == STATIC_QUANT) {
             QuantStatic(outLocal, inLocal, expertIndex, scalesCount_, scalesGMTensor_);
@@ -112,8 +113,8 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantStatic(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, uint32_t expertIndex, 
-                                       uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
+    __aicore__ inline void QuantStatic(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal,
+                    uint32_t expertIndex, uint32_t scalesCount_, GlobalTensor<float> &scalesGMTensor_)
     {
         Cast(floatLocalTemp_, inLocal, RoundMode::CAST_NONE, axisH_);
         if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
@@ -148,7 +149,7 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal,
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         float dynamicScale = 0.0;
@@ -200,7 +201,7 @@ public:
     }
 
     #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
-    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerGroup(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal,
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
@@ -215,14 +216,13 @@ public:
             __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
             __ubuf__ float* scaleOutLocalAddr = (__ubuf__ float*)outLocal[Align128<uint32_t>(axisH_)].GetPhyAddr();
 
-            quant::ComputePerTileDynamic<XInType, ExpandXOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(srcAddr,
-                smoothLocalAddr, scaleOutLocalAddr, outLocalAddr, axisH_);
+            quant::ComputePerTileDynamic<XInType, ExpandXOutType, AscendC::RoundMode::CAST_RINT, IsSmoothScaleExist>(
+                srcAddr, smoothLocalAddr, scaleOutLocalAddr, outLocalAddr, axisH_);
         }
     }
 
     __aicore__ inline void QuantDynamicMx(LocalTensor<XOutType>& outLocal, LocalTensor<XInType>& inLocal)
     {
-        
         uint32_t mxScaleNum = Align2(Ceil32(axisH_));
         __ubuf__ XInType* srcAddr = (__ubuf__ XInType*)inLocal.GetPhyAddr();
         __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
@@ -231,18 +231,22 @@ public:
         __ubuf__ uint16_t* mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_)].GetPhyAddr();
         if constexpr (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
             Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value) {
-            mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].GetPhyAddr();
+            mxScaleLocalAddr = (__ubuf__ uint16_t*)outLocal[
+                Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].GetPhyAddr();
         }
 
         quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
-        quant::ComputeScale<ExpandXOutType>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); // 计算scales并填充
+        // 计算scales并填充
+        quant::ComputeScale<ExpandXOutType>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum);
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
-            quant::ComputeFp8Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
-                srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
+            // 计算量化后的expandx并填充
+            quant::ComputeFp8Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC,
+                AscendC::RoundMode::CAST_RINT>(srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_);
         } else {
-            quant::ComputeFp4Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
-                srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
+            // 计算量化后的expandx并填充
+            quant::ComputeFp4Data<XInType, ExpandXOutType, AscendC::RoundMode::CAST_TRUNC,
+                AscendC::RoundMode::CAST_RINT>(srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_);
         }
     }
     #endif
@@ -256,7 +260,8 @@ public:
             #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
             if constexpr ((QuantMode == MX_QUANT) && (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
                 Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value)) {
-                scaleLT = quantTok[Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>();
+                scaleLT = quantTok[
+                    Align256<uint32_t>(Ceil(axisH_, FP4_ELEMS_PER_BYTE))].template ReinterpretCast<uint8_t>();
             } else if constexpr ((QuantMode == MX_QUANT) && (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value ||
                 Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value)) {
                 scaleLT = quantTok[Align256<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
@@ -264,7 +269,8 @@ public:
                 scaleLT = quantTok[Align128<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
             } else if constexpr ((QuantMode == UNQUANT) && (Std::IsSame<ExpandXOutType, fp4x2_e2m1_t>::value ||
                 Std::IsSame<ExpandXOutType, fp4x2_e1m2_t>::value)) {
-                scaleLT = quantTok[(Ceil(Ceil(axisH_, FP4_ELEMS_PER_BYTE), UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
+                scaleLT = quantTok[
+                    (Ceil(Ceil(axisH_, FP4_ELEMS_PER_BYTE), UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
             }
             #endif
             DataCopyPad(dynamicScalesOutGMTensor_[currentTokenIndex * scaleOutBytes], scaleLT, scaleOutParams);
