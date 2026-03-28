@@ -13,8 +13,8 @@
  * \brief Common constants for chunk_gated_delta_rule kernels
  */
 
-#ifndef __CHUNK_GATED_DELTA_RULE_UTILS_H__
-#define __CHUNK_GATED_DELTA_RULE_UTILS_H__
+#ifndef CHUNK_GATED_DELTA_RULE_UTILS_H__
+#define CHUNK_GATED_DELTA_RULE_UTILS_H__
 
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
