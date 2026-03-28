@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="280" viewBox="0 0 820 280">
+  <style>
+    .txt { font-family: system-ui, sans-serif; font-size: 12px; fill: #334155; }
+    .t { font-size: 14px; font-weight: 600; fill: #0f172a; }
+    .bar { fill: #93c5fd; stroke: #1d4ed8; stroke-width: 1; }
+    .bar2 { fill: #86efac; stroke: #15803d; stroke-width: 1; }
+  </style>
+  <text x="410" y="26" text-anchor="middle" class="t">Double Bufferω” image33	</text>
+  <text x="410" y="50" text-anchor="middle" class="txt">φτtσ</text>
+  <g transform="translate(60, 75)">
+    <text x="0" y="-10" class="txt">Buffer A</text>
+    <rect x="0" y="0" width="140" height="36" class="bar"/><text x="70" y="23" text-anchor="middle" fill="#1e3a8a" font-size="11px">Load k</text>
+    <rect x="150" y="0" width="140" height="36" class="bar2"/><text x="220" y="23" text-anchor="middle" fill="#14532d" font-size="11px">Compute k</text>
+    <rect x="300" y="0" width="140" height="36" class="bar"/><text x="370" y="23" text-anchor="middle" fill="#1e3a8a" font-size="11px">Load k+1</text>
+    <rect x="450" y="0" width="140" height="36" class="bar2"/><text x="520" y="23" text-anchor="middle" fill="#14532d" font-size="11px">Compute k+1</text>
+  </g>
+  <g transform="translate(60, 145)">
+    <text x="0" y="-10" class="txt">Buffer B</text>
+    <rect x="0" y="0" width="140" height="36" class="bar2"/><text x="70" y="23" text-anchor="middle" fill="#14532d" font-size="11px">Compute k</text>
+    <rect x="150" y="0" width="140" height="36" class="bar"/><text x="220" y="23" text-anchor="middle" fill="#1e3a8a" font-size="11px">Load k+1</text>
+    <rect x="300" y="0" width="140" height="36" class="bar2"/><text x="370" y="23" text-anchor="middle" fill="#14532d" font-size="11px">Compute k+1</text>
+    <rect x="450" y="0" width="140" height="36" class="bar"/><text x="520" y="23" text-anchor="middle" fill="#1e3a8a" font-size="11px">Load k+2</text>
+  </g>
+  <text x="410" y="250" text-anchor="middle" class="txt">Quant BMMbatch  K n!ΰ φΜ²Ο GM 0 L1 φί</text>
+</svg>
