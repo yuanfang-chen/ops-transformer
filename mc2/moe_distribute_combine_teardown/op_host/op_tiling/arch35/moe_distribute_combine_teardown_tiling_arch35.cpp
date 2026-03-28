@@ -111,10 +111,8 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckAttrsComplex()
                     return ge::GRAPH_FAILED);
 
     auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
-    OP_TILING_CHECK(!((*moeExpertNumPtr == MOE_EXPERT_NUM_32) || (*moeExpertNumPtr == MOE_EXPERT_NUM_64) ||
-                      (*moeExpertNumPtr == MOE_EXPERT_NUM_128)),
-                    OP_LOGE(nodeName_, "moeExpertNum shoud be in {32, 64, 128}, get %lu", *moeExpertNumPtr),
-                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!(*moeExpertNumPtr == MOE_EXPERT_NUM_32),
+                    OP_LOGE(nodeName_, "moeExpertNum shoud be 32, get %lu", *moeExpertNumPtr), return ge::GRAPH_FAILED);
 
     auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
     OP_TILING_CHECK((*sharedExpertRankNumPtr != 0),
@@ -127,10 +125,6 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckAttrsComplex()
                 "moeExpertNum should follow moeExpertNum %% (epWorldSize - sharedExpertRankNum) = 0, got %ld",
                 (*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr))),
         return ge::GRAPH_FAILED);
-
-    OP_TILING_CHECK((*moeExpertNumPtr != MOE_EXPERT_NUM_32),
-                    OP_LOGE(nodeName_, "moeExpertNumPerRank shoud be 32, get %lu", *moeExpertNumPtr),
-                    return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }

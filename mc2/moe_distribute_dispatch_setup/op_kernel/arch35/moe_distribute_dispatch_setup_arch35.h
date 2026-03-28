@@ -40,10 +40,8 @@
 namespace Mc2Kernel {
 constexpr uint8_t BUFFER_NUM = 2;       // 多buf
 constexpr uint32_t STATE_OFFSET = 512U; // 状态空间偏移地址
-// constexpr uint32_t STATE_SIZE = 1024U * 1024U;
+constexpr uint32_t STATE_SIZE = 1024U * 1024U;
 constexpr uint32_t UB_ALIGN = 32U;      // UB按32字节对齐
-// constexpr uint64_t WIN_STATE_OFFSET = 384UL << 10;
-// constexpr uint64_t STATE_WIN_OFFSET = WIN_STATE_OFFSET * 2;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
 constexpr uint32_t SQE_START_OFFSET = 10U << 20;
 constexpr uint32_t WRITE_SQE_SIZE = 64U;
@@ -359,7 +357,6 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Init(
     Duplicate<int32_t>(statusTensor_, 0x40000000, mask, statusBufCntAlign / 8, 1, 8); // 0x3F800000是float的1
 
     // 当前win区划分为前后区，dispatch/combine不再划分区域
-    // uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchSetupInfo.totalWinSize / 2);
     windowGM_ = GetWindAddrByRankId(epRankId_);
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGm_));
