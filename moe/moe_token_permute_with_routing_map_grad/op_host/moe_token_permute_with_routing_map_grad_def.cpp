@@ -18,6 +18,7 @@
 namespace ops {
 class MoeTokenPermuteWithRoutingMapGrad : public OpDef
 {
+    
 public:
     explicit MoeTokenPermuteWithRoutingMapGrad(const char* name) : OpDef(name)
     {
