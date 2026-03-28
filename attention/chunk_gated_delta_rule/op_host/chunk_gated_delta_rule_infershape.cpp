@@ -104,32 +104,7 @@ static ge::graphStatus InferDataTypeChunkGatedDeltaRule(gert::InferDataTypeConte
         return ge::GRAPH_FAILED;
     }
 
-    auto opName = context->GetNodeName();
-    // 预先做类型校验，失败则提前报错
     auto queryDtype = context->GetInputDataType(QUERY_INDEX);
-    auto keyDtype = context->GetInputDataType(KEY_INDEX);
-    auto valueDtype = context->GetInputDataType(VALUE_INDEX);
-    auto betaDtype = context->GetInputDataType(BETA_INDEX);
-    auto stateDtype = context->GetInputDataType(STATE_INDEX);
-    auto seqLenDtype = context->GetInputDataType(ACTUAL_SEQ_LENGTHS_INDEX);
-    auto gammaDtype = context->GetOptionalInputDataType(G_INDEX); // g 为可选输入
-
-    OP_CHECK_IF(queryDtype != ge::DT_BF16, OP_LOGE(opName, "query dtype should be bfloat16"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(keyDtype != ge::DT_BF16, OP_LOGE(opName, "key dtype should be bfloat16"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(valueDtype != ge::DT_BF16, OP_LOGE(opName, "value dtype should be bfloat16"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(betaDtype != ge::DT_BF16, OP_LOGE(opName, "beta dtype should be bfloat16"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(stateDtype != ge::DT_BF16, OP_LOGE(opName, "initial_state dtype should be bfloat16"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(seqLenDtype != ge::DT_INT32, OP_LOGE(opName, "actual_seq_lengths dtype should be int32"),
-        return ge::GRAPH_FAILED);
-    if (gammaDtype != ge::DT_UNDEFINED) {
-        OP_CHECK_IF(gammaDtype != ge::DT_FLOAT, OP_LOGE(opName, "gamma dtype should be float32"),
-            return ge::GRAPH_FAILED);
-    }
 
     // 输出 dtype 跟随 query 的输入 dtype
     context->SetOutputDataType(OUTPUT_OUT_IDX, queryDtype);
