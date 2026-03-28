@@ -206,8 +206,8 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 {
-    auto gmmXScaleDesc = context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX);
-    auto gmmWeightScaleDesc = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX);
+    auto gmmXScaleDesc = context_->GetInputDesc(GMM_X_SCALE_INDEX);
+    auto gmmWeightScaleDesc = context_->GetInputDesc(GMM_WEIGHT_SCALE_INDEX);
     OP_TILING_CHECK(gmmXScaleDesc == nullptr, OP_LOGE(opName_, "The gmmXScaleDesc is nullptr."),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmWeightScaleDesc == nullptr, OP_LOGE(opName_, "The gmmWeightScaleDesc is nullptr."),
