@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -97,7 +97,7 @@ struct Mc2MatMulV3BasicTilingData {
     uint8_t isHf32 = 0;
     uint8_t l1BufferNum = 0;
     uint8_t l0cDB = 1; // 默认不开db为1
-    uint8_t ubDB = 1; //ub默认不开db为1
+    uint8_t ubDB = 1; // ub默认不开db为1
 };
 #pragma pack(pop)
 

@@ -25,8 +25,7 @@
 #include "../../op_kernel/all_gather_matmul_tiling.h"
 
 using Ops::Transformer::OpTiling::TilingBaseClass;
-namespace optiling
-{
+namespace optiling {
 constexpr size_t INPUT_X1 = 0;
 constexpr size_t INPUT_X2 = 1;
 constexpr size_t BIAS = 2;
@@ -52,8 +51,7 @@ constexpr size_t Y_DTYPE = 10;
 
 constexpr uint32_t COMM_VERSION3 = 3U;
 
-class AllGatherMatmulTilingBase : public TilingBaseClass
-{
+class AllGatherMatmulTilingBase : public TilingBaseClass {
 public:
     explicit AllGatherMatmulTilingBase(gert::TilingContext* context) : TilingBaseClass(context)
     {
@@ -79,7 +77,7 @@ protected:
     bool AnalyzeInputs();
     bool SetCommAlgo();
     // tiling
-    void DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
+    void DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling,
                            ::TCubeTiling& tailTiling, uint32_t& dataType);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
@@ -97,7 +95,7 @@ protected:
     void SetTilingArgsDim();
     void SetTilingArgsDataType();
     void SetTilingArgsGatherStatus();
-    void SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
+    void SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling,
                                  ::TCubeTiling& tailTiling);
     ge::graphStatus AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcsCfg, mc2tiling::Mc2QuantMode quantMmMode);
 

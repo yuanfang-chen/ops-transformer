@@ -1,6 +1,14 @@
 # 基于CCU通信的AllGatherMatmul算子样例
 
-本篇文档提供如何跑通基于CCU通信方式的AllGatherMatmul通信算子用例。
+# 概述
+
+本文档介绍基于CCU通信方式的AllGatherMatmul算子的实现原理及优化实践。通过分步优化策略，帮助开发者快速掌握算子性能调优的核心技术，提升算子在昇腾平台上的执行效率。
+
+- **平台**：NPU多卡环境
+- **芯片型号**：Ascend 950PR/950DT
+- **数据类型**：fp16/bf16
+- **测试规格**：`x1[1024, 10240] x2[10240, 5120] fp16 → y [1024, 5120] fp16`
+- **最佳结果**：`1635μs → 1315μs`，总加速比 **1.24x**
 
 ## 🚀 快速开始
 
@@ -18,6 +26,13 @@ cmake --version | head -1
 # 检查编译器
 which bisheng
 # 预期返回bisheng的绝对路径
+
+# 检查PyTorch及torch_npu
+python3 -c "import torch;import torch_npu; a = torch.randn(3, 4).npu(); print(a + a);"
+# 输出如下类似信息说明安装成功
+# tensor([[-0.6066,  6.3385,  0.0379,  3.3356],
+#         [2.9243,  3.3134, -1.5465,  0.1916],
+#         [-2.1807,  0.2008, -1.1431,  2.1523]], device='npu:0')
 ```
 
 ### 步骤2：编译运行示例
@@ -45,46 +60,33 @@ chmod +x *.run
 ./*.run --install-path=/usr/local/Ascend/cann
 ```
 
-#### 2.4 torch_npu编包及安装
-
-拉取目标版本的pytorch仓代码到本地，进入到op-plugin仓
-
-```
-git clone https://gitcode.com/Ascend/pytorch.git -b v2.7.1 --recursive
-```
-
-修改`AllGatherBaseMatmulKernelOpApi.cpp`，调用的aclnn函数名及入参修改如下：
-
-```
-EXEC_NPU_CMD(aclnnAllGatherMatmul, self, x2, bias_real, hcom_ptr,
-            gather_index, comm_turn, stream_mode, comm_mode_ptr, out_gather_mm, out_gather);
-
-```
-
-编译torch_npu包并安装在测试环境下。
-
-#### 2.5 执行测试脚本
+#### 2.4 执行测试脚本
 
 ```
 cd script
 python test.py
 ```
+该脚本以$worldsize = 4$，$m, k, n = 1024, 10240, 5120$ 为示例shape大小，输入示例数据类型为fp16；运行完成后，该脚本会逐卡比对小算子级联（即AllGhater通信+Matmul计算串行执行）与AllGatherMatmul算子的$output$与$gatherOut$，并打印一致性结果。
 
 > 💡 **提示**：如果遇到环境配置问题，请确保：
 > 1. `ASCEND_HOME_PATH`环境变量已正确设置
 > 2. Bisheng编译器已安装并可用
 > 3. CMake版本为3.16或更高
+> 4. torch及torch_npu已安装并可用
 
 ## 💻 实战示例：AllGatherMatmul优化
 
 ### AllGatherMatmul计算流程
 
-AllGatherMatmul算子实现了AllGather通信和Matmul矩阵乘法的融合。算子逻辑为：对输入的通信矩阵a做AllGather通信得到Matmul计算的左矩阵，即通信结果gather_out，将gather_out和右矩阵b做Matmul运算得到输出c。对应的数学表达式为：
+AllGatherMatmul算子实现了AllGather通信和Matmul矩阵乘法的融合。算子逻辑为：当对输入的通信矩阵$x1$做AllGather通信得到Matmul计算的左矩阵，即通信结果$gatherOut$，将$gatherOut$和右矩阵$x2$做Matmul运算得到输出c。对应的数学表达式为：
 
-```
-gather_out = AllGather(a)
-c = gather_out ∗ b
-```
+$$
+output=AllGather(x1)@x2 + bias
+$$
+
+$$
+gatherOut=AllGather(x1)
+$$
 
 MC<sup>2</sup>通算融合算子的性能收益主要来自于通信、计算的并行执行，即将输入数据切分为多个子块，子块的计算和通信任务形成两条流水线，通过两条流水线上任务的并行执行，实现流水掩盖，从而提升算子性能。如下图所示，相比于先做AllGather通信、后Matmul计算的场景，AllGatherMatmul算子通过将通信输入的矩阵切分为多块，前一块数据的Matmul计算和后一块数据的通信可以并行执行，从而达到计算和通信时间相互掩盖的目的。
 
@@ -113,6 +115,16 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::P
 
 - **通信前计算单元空闲**。AllGather通信首次启动前，本卡数据已准备好计算，此时计算单元闲置
 - **单次通信数据量不足导致CUBE核利用率低**。Matmul计算GatherOut主块数据时，内存地址不连续，Cube核利用效率低
+
+**性能统计**
+
+以$worldsize = 4$，输入shape为$m, k, n = 1024, 10240, 5120$，输入数据类型fp16为例，原始AllGatherMatmul算子性能如下：
+
+AllGatherMatmul耗时：1511μs
+
+小算子级联耗时：1635μs
+
+加速比：1.08x
 
 ### 优化实现1-local块提前启动
 
@@ -145,6 +157,16 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     }
 }
 ```
+**性能统计**
+
+加入local块提前启动后，AllGatherMatmul算子性能如下：
+
+AllGatherMatmul耗时：1316μs
+
+小算子级联耗时：1635μs
+
+加速比：1.23x
+
 
 ### 优化实现2-非连续转连续
 
@@ -179,11 +201,17 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::M
 }
 ```
 
+**性能统计**
+
+加入local块提前启动和非连续转连续后，AllGatherMatmul算子性能如下：
+
+AllGatherMatmul耗时：1315μs
+
+小算子级联耗时：1635μs
+
+加速比：1.24x
+
 **优化亮点**：
 
-1. 通过通信启动即计算启动的策略，实现对通信延迟的自然掩蔽，充分释放计算性能。
+1. 通过通信启动即计算启动的策略，实现对通信延迟的自然掩盖，充分释放计算性能。
 2. 将分散、非连续的GatherOut数据块融合为连续数据流，实现Cube核高效利用。
-
-## 支持架构
-
-NPU ARCH 3510
