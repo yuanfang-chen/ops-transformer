@@ -92,8 +92,8 @@ extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize,
                                                              aclOpExecutor *executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
-extern "C" void __attribute__((weak)) NnopbaseSetUserHandle(void *executor, void *handle);
-extern "C" void __attribute__((weak)) NnopbaseGetUserHandle(void *executor);
+extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
+extern "C" void *NnopbaseGetUserHandle(void *executor);
 
 
 // 检查必要输入是否为空，必须非空
