@@ -31,7 +31,7 @@
   o := \frac{S_t q_t}{\sqrt{d_k}}
   $$
 
-  其中，$S_{t-1},S_t \in R^{d_v \times d_k}$，$q_t, k_t \in R^{d_k}$，$v_t \in R^{d_v}$，$\alpha_t \in R$，$\alpha_k \in R^{d_k}$，$\beta_t \in R$，$o \in R^{d_v}$
+  其中，$S_{t-1},S_t \in R^{d_v \times d_k}$，$q_t, k_t \in R^{d_k}$，$v_t \in R^{d_v}$，$\alpha_t \in R$，$\alpha_{kt} \in R^{d_k}$，$\beta_t \in R$，$o \in R^{d_v}$
 
 ## 函数原型
 
