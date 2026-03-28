@@ -14,6 +14,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
+#include "common/op_api/mc2_aclnn_util.h"
 
 using namespace op;
 
@@ -61,6 +62,17 @@ bool MatmulAllReduceCheckFormat(const aclTensor* x2)
     return true;
 }
 
+bool MatmulAllReduceCheckValidContiguous(const aclTensor* x2) {
+    bool transposeX2 = IsTransposeLastTwoDims(x2);
+    // x2非连续时仅支持转置场景
+    if (!transposeX2 && !MC2Aclnn::IsTensorContiguous(x2)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "The x2 without transpose in MatmulAllReduce must be contiguous, but it is non-contiguous.");
+        return false;
+    }
+    return true;
+}
+
 aclnnStatus MatmulAllReduceCheckParams(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* x3, const aclTensor* bias, const char* reduceOp,
     int64_t streamMode, const aclTensor* output)
@@ -73,7 +85,12 @@ aclnnStatus MatmulAllReduceCheckParams(
     // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(MatmulAllReduceCheckDtypeValid(x1, x2, x3, bias, output, is310P), ACLNN_ERR_PARAM_INVALID);
 
-    // 3. 检查attr是否符合规则
+    // 【A2】检查x2矩阵非连续合法性
+    if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
+        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
+    }
+
+    // 4. 检查attr是否符合规则
     CHECK_RET(MatmulAllReduceCheckAttr(reduceOp, streamMode), ACLNN_ERR_PARAM_INVALID);
 
     // 4. 非量化场景不支持B矩阵Nz格式 除了310P
@@ -201,6 +218,11 @@ aclnnStatus QuantMatmulAllReduceCheckParams(
     CHECK_RET(
         QuantMatmulAllReduceCheckDtypeValid(x1, x2, bias, dequantScale, pertokenScale, x3, output),
         ACLNN_ERR_PARAM_INVALID);
+    
+    // 【A2】检查x2矩阵非连续合法性
+    if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
+        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
+    }
 
     // 3. 检查attr是否符合规则
     CHECK_RET(MatmulAllReduceCheckAttr(reduceOp, streamMode), ACLNN_ERR_PARAM_INVALID);
