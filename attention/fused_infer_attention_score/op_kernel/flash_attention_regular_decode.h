@@ -284,7 +284,8 @@ namespace SplitFuse {
                             uint32_t taskRowNum = rowNum * kvNBlockSize;
                             LayoutQ layoutQL1(taskRowNum, embed);
                             uint32_t taskColNum = gBlockSize * kvNBlockSize;
-                            blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, kvNBlockSize);
+                            blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum,
+                                taskColNum, qHeads, kvNBlockSize);
                         }
 #endif
 
@@ -530,7 +531,8 @@ namespace SplitFuse {
                                 uint32_t taskRowNum = rowNum * tailKvNBlockSize;
                                 LayoutQ layoutQL1(taskRowNum, embed);
                                 uint32_t taskColNum = tailGBlockSize * tailKvNBlockSize;
-                                blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, tailKvNBlockSize);
+                                blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum,
+                                    taskColNum, qHeads, tailKvNBlockSize);
                             }
 #endif
 
@@ -657,8 +659,9 @@ namespace SplitFuse {
 
                             uint64_t gmOffsetO = tailOBOffset + oSOffset + oNStartOffset;
                             uint64_t gmOffsetUpdate = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-                            uint64_t gmOffsetOTmp = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
-                                    curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
+                            uint64_t gmOffsetOTmp = 
+                                static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
+                                curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                             uint64_t gmOffsetLse = tailLseBOffset + lseTokenOffset + tailQNStartIdx;
 
                             epilogueRescaleO(
