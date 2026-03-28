@@ -142,7 +142,7 @@ public:
             auto g_cum_exp = inQueue_.DeQue<float>();
             const uint32_t srcShape1[] = {static_cast<uint32_t>(chunkSize_), static_cast<uint32_t>(1)};
             const uint32_t srcShape2[] = {static_cast<uint32_t>(1), static_cast<uint32_t>(chunkSize_)};
-            const uint32_t dstShape[] = {static_cast<uint32_t>(chunkSize_), 
+            const uint32_t dstShape[] = {static_cast<uint32_t>(chunkSize_),
                                          static_cast<uint32_t>(chunkSize_)};
             Broadcast<float, BROADCAST_AXIS, 1>(tmpBuffer1_, g_cum_exp, dstShape, srcShape1);
             Broadcast<float, BROADCAST_AXIS, 0>(tmpBuffer2_, g_cum_exp, dstShape, srcShape2);
