@@ -859,7 +859,6 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::TokenSca
     LocalTensor<float> sortedLocal = sortedBuf_.Get<float>(GetSortLen<float>(sortNum_));
     PipeBarrier<PIPE_V>();
     Sort<float, true>(sortedLocal, concatLocal, indexU32LT, tempTensor, sortRepeat_);
-    PipeBarrier<PIPE_V>();
     SyncFunc<HardEvent::V_MTE2>();
     Extract(sortedOutF32LT_, sortedIndex1LT_, sortedLocal, sortRepeat_);
 }
