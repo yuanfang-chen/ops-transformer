@@ -613,7 +613,6 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
                     maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
                 }
             }
-            inputQue2.FreeTensor(maskUb);
         }
 
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
