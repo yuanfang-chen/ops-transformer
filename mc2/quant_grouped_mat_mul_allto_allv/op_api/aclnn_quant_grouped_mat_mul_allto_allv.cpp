@@ -64,16 +64,16 @@ static void DestoryTmpTensorCtx(MxTransposeCtx *ctx)
         return;
     }
     if (ctx->gmmWeightTmp != nullptr) {
-        aclDestoryTensor(const_cast<aclTensor *>(ctx->gmmWeightTmp));
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->gmmWeightTmp));
     }
     if (ctx->gmmWeightScasleTmp != nullptr) {
-        aclDestoryTensor(const_cast<aclTensor *>(ctx->gmmWeightScasleTmp));
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->gmmWeightScasleTmp));
     }
     if (ctx->mmWeightTmp != nullptr) {
-        aclDestoryTensor(const_cast<aclTensor *>(ctx->mmWeightTmp));
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightTmp));
     }
     if (ctx->mmWeightScasleTmp != nullptr) {
-        aclDestoryTensor(const_cast<aclTensor *>(ctx->mmWeightScasleTmp));
+        aclDestroyTensor(const_cast<aclTensor *>(ctx->mmWeightScasleTmp));
     }
     delete ctx;
 }
@@ -409,7 +409,7 @@ static aclnnStatus HandleGmmMxTranspose(const aclTensor *&weight, const aclTenso
         if (scale != nullptr) {
             newscale = SwapTensorDims(scale, 1, 2);
             if (newscale == nullptr) {
-                aclDestoryTensor(const_cast<aclTensor *>(newWeight));
+                aclDestroyTensor(const_cast<aclTensor *>(newWeight));
                 return ACLNN_ERR_INNER_NULLPTR;
             }
         }
@@ -442,7 +442,7 @@ static aclnnStatus HandleMmMxTranspose(const aclTensor *&weight, const aclTensor
         if (scale != nullptr) {
             newscale = SwapTensorDims(scale, 0, 1);
             if (newscale == nullptr) {
-                aclDestoryTensor(const_cast<aclTensor *>(newWeight));
+                aclDestroyTensor(const_cast<aclTensor *>(newWeight));
                 return ACLNN_ERR_INNER_NULLPTR;
             }
         }
