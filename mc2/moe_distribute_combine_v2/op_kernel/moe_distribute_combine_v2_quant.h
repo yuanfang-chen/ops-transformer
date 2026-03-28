@@ -99,7 +99,7 @@ public:
             hExpandXAlignSize_ = Align128(axisH) * sizeof(ExpandXType);
             quantScaleNum_ = Align2(Ceil32(axisH));
             scaleNum_ = quantScaleNum_;
-            scaleNumAlignSize_ = Align128(scaleNum_) * sizeof(ExpandXType) * BUFFER_NUM; // 双搬
+            scaleNumAlignSize_ = Align128(scaleNum_) * sizeof(ExpandXType) * DOUBLE_BUFFER; // 双搬
             tokenScaleCnt_ = Align256(axisH) / sizeof(ExpandXType) + scaleNum_; 
         }
         #endif
