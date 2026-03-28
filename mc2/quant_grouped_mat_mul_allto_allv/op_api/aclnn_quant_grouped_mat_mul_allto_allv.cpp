@@ -51,6 +51,25 @@ enum class NnopbaseHcclServerType : uint32_t { // HCCL Server
 static constexpr int64_t DIM_TWO = 2;
 static constexpr int64_t DIM_THREE = 3;
 
+struct MxTransposeCtx {
+    const aclTensor *gmmWeightTmp = nullptr;
+    const aclTensor *gmmWeightScasleTmp = nullptr;
+};
+
+static void DestroyTmpTensorCtx(MxTransposeCtx *ctx)
+{
+    if (ctx == nullptr) {
+        return;
+    }
+    if (ctx->gmmWeightTmp != nullptr){
+        aclDestoryTensor(const_cast<aclTensor *>(ctx->gmmWeightTmp));
+    }
+    if (ctx->gmmWeightScasleTmp != nullptr){
+        aclDestoryTensor(const_cast<aclTensor *>(ctx->gmmWeightScasleTmp));
+    }
+    delete ctx;
+}
+
 extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
@@ -66,20 +85,6 @@ extern "C" aclnnStatus aclnnInnerQuantGroupedMatMulAlltoAllv(void *workspace, ui
                                                              aclOpExecutor *executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
-const std::initializer_list<op::DataType> MX_INPUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E4M3FN,
-                                                                         op::DataType::DT_FLOAT8_E5M2};
-const std::initializer_list<op::DataType> MX_SCALE_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
-const std::initializer_list<op::DataType> MX_OUTPUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT16,
-                                                                          op::DataType::DT_BF16};
-
-
-static int64_t CeilDiv(int64_t a, int64_t b)
-{
-    if (b == 0) {
-      return 0;
-    }
-    return (a + b - 1) / b;
-}
 
 // 检查必要输入是否为空，必须非空
 static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *y)
@@ -377,7 +382,7 @@ static const aclTensor *SwapTensorDims(const aclTensor *tensor, uint64_t dimA, u
 }
 
 // 检测 gmmWeight stride 转置，同时 reshape weight 和 scale（swap dim[1]/dim[2]）
-static aclnnStatus HandleGmmMxTranspose(const aclTensor *&weight, const aclTensor *&scale, bool &transWeight)
+static aclnnStatus HandleGmmMxTranspose(const aclTensor *&weight, const aclTensor *&scale, bool &transWeight, MxTransposeCtx *ctx)
 {
     bool notContiguous = IsTransposeLastTwoDims(weight);
     OP_LOGD("gmmWeight notContiguous=%d, transWeight(before)=%d", notContiguous, transWeight);
@@ -386,14 +391,24 @@ static aclnnStatus HandleGmmMxTranspose(const aclTensor *&weight, const aclTenso
         return ACLNN_ERR_PARAM_INVALID;
     }
     if (notContiguous && op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        transWeight = !transWeight;
-        OP_LOGD("gmmWeight transposed detected: transWeight flipped to %d", transWeight);
-        weight = SwapTensorDims(weight, 1, 2);
-        CHECK_RET(weight != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        const aclTensor *newWeight = SwapTensorDims(weight, 1, 2);
+        CHECK_RET(newWeight != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        const aclTensor *newscale = nullptr;
         if (scale != nullptr) {
-            scale = SwapTensorDims(scale, 1, 2);
-            CHECK_RET(scale != nullptr, ACLNN_ERR_INNER_NULLPTR);
+            newscale = SwapTensorDims(scale, 1, 2);
+            if(newscale == nullptr){
+                aclDestoryTensor(const_cast<aclTensor *>(newWeight));
+                return ACLNN_ERR_INNER_NULLPTR;
+            }
         }
+        transWeight = !transWeight;
+        weight = newWeight;
+        scale = newscale;
+        if (ctx != nullptr) {
+            ctx->gmmWeightTmp = newWeight;
+            ctx->gmmWeightScaleTmp = newscale;
+        }
+        OP_LOGD("gmmWeight transposed detected: transWeight flipped to %d", transWeight);
     }
     return ACLNN_SUCCESS;
 }
@@ -479,6 +494,8 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     char *strGroup = const_cast<char *>(group);
     int64_t yDtype = y->GetDataType();
     int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
+    MxTransposeCtx *tmpCtx = new(std::nothrow) MxTransposeCtx();
+    CHECK_RET(tmpCtx != nullptr, ACLNN_ERR_INNER_NULLPTR);
     // MX 量化场景通过 stride 检测 weight/scale 的转置状态
     bool isMxQuant = (gmmXQuantMode == static_cast<int64_t>(QuantModeType::MX_QUANT));
     if (isMxQuant) {
@@ -488,12 +505,19 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
         scaleRet = CheckMxScaleShape(mmWeightScaleOptional, "mmWeightScale");
         CHECK_RET(scaleRet == ACLNN_SUCCESS, scaleRet);
+
         // 检测 weight stride 转置，同时 reshape weight 和 scale
-        auto transRet = HandleGmmMxTranspose(gmmWeight, gmmWeightScaleOptional, transGmmWeight);
-        CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+        auto transRet = HandleGmmMxTranspose(gmmWeight, gmmWeightScaleOptional, transGmmWeight, tmpCtx);
+        if (transRet != ACLNN_SUCCESS) {
+            delete tmpCtx;
+            return transRet;
+        }
         if (mmWeightOptional != nullptr) {
-            transRet = HandleMmMxTranspose(mmWeightOptional, mmWeightScaleOptional, transMmWeight);
-            CHECK_RET(transRet == ACLNN_SUCCESS, transRet);
+            transRet = HandleMmMxTranspose(mmWeightOptional, mmWeightScaleOptional, transMmWeight, tmpCtx);
+            if (transRet != ACLNN_SUCCESS) {
+                DestoryTmpTensorCtx(tmpCtx);
+                return transRet;
+            }
         }
         OP_LOGD("Final: transGmmWeight=%d, transMmWeight=%d", transGmmWeight, transMmWeight);
     }
@@ -503,6 +527,15 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
         strGroup, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight, gmmXQuantMode, gmmWeightQuantMode,
         mmXQuantMode, mmWeightQuantMode, commQuantMode, groupSize, commQuantDtypeOptional, yDtype, mmDtype, y,
         mmYOptional, workspaceSize, executor);
+    if (ret != ACLNN_SUCCESS){
+        DestoryTmpTensorCtx(tmpCtx);
+        return ret;
+    }
+    if (tmpCtx->gmmWeightTmp != nullptr || tmpCtx->gmmWeightScasleTmp != nullptr) {
+        NnopbaseSetUserHandle(*executor, tmpCtx);
+    }else {
+        delete tmpCtx;
+    }
     return ret;
 }
 
@@ -515,6 +548,10 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_
         }
     }
     aclnnStatus ret = aclnnInnerQuantGroupedMatMulAlltoAllv(workspace, workspaceSize, executor, stream);
+    MxTransposeCtx *tmpCtx = reinterpret_cast<MxTransposeCtx *>(NnopbaseGetUserHandle(executor));
+    if(tmpCtx != nullptr) {
+        DestoryTmpTensorCtx(tmpCtx);
+    }
     return ret;
 }
 } // namespace 
