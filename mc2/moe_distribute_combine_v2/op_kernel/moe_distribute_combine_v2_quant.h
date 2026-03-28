@@ -159,17 +159,17 @@ public:
         __ubuf__ uint16_t* maxExpAddr = (__ubuf__ uint16_t*)floatLocalTemp_.GetPhyAddr();
         __ubuf__ uint16_t* halfScaleLocalAddr = (__ubuf__ uint16_t*)floatLocalTemp_[Align32(mxScaleNum)].GetPhyAddr();
         __ubuf__ int8_t* outLocalAddr = (__ubuf__ int8_t*)outLocal.GetPhyAddr();
-        __ubuf__ uint16_t* mxScaleLocalAddr = 
+        __ubuf__ uint16_t* mxScaleLocalAddr =
             (__ubuf__ uint16_t*)outLocal[Align256<uint32_t>(axisH_) / INT8_DIVIVE].GetPhyAddr();
         quant::ComputeMaxExp(srcAddr, maxExpAddr, axisH_); // 计算最大Exp
         if constexpr (QuantMode == MXFP8_E5M2_COMM_QUANT) {
             // 计算scales并填充
-            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
+            quant::ComputeScale<fp8_e5m2_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum);
             quant::ComputeData<ExpandXType, fp8_e5m2_t, AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
         } else if constexpr (QuantMode == MXFP8_E4M3_COMM_QUANT) {
             // 计算scales并填充
-            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum); 
+            quant::ComputeScale<fp8_e4m3fn_t>(maxExpAddr, mxScaleLocalAddr, halfScaleLocalAddr, mxScaleNum);
             quant::ComputeData<ExpandXType, fp8_e4m3fn_t,
             AscendC::RoundMode::CAST_TRUNC, AscendC::RoundMode::CAST_RINT>(
                 srcAddr, halfScaleLocalAddr, outLocalAddr, axisH_); // 计算量化后的expandx并填充
@@ -219,29 +219,31 @@ public:
             for (uint16_t i = 0; i < repeatTimes; i++) {
                 maskReg = AscendC::MicroAPI::UpdateMask<bfloat16_t>(quantScaleNum_);
                 // 一次搬128个u8 unpack成128个u16
-                MicroAPI::DataCopy<fp8_e8m0_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(vSrcReg,srcPtr0 + i * bf16RepeatSize); 
-                MicroAPI::Cast<bfloat16_t, fp8_e8m0_t, FP82BF16CastTraitZero>(vDstReg, vSrcReg, maskReg); 
+                MicroAPI::DataCopy<fp8_e8m0_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(vSrcReg,
+                    srcPtr0 + i * bf16RepeatSize);
+                MicroAPI::Cast<bfloat16_t, fp8_e8m0_t, FP82BF16CastTraitZero>(vDstReg, vSrcReg, maskReg);
                 MicroAPI::DataCopy<bfloat16_t, MicroAPI::StoreDist::DIST_INTLV_B16>(
                     dyScaleBf16Ptr + i * bf16RepeatSize * INT8_DIVIVE, vDstReg, vDstReg, maskReg); // bf16，双搬出元素
             }
             MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
             for (uint16_t i = 0; i < repeatTimes2; i++) {
                 maskReg1 = AscendC::MicroAPI::UpdateMask<float>(quantCount2);
-                MicroAPI::DataCopy<bfloat16_t, MicroAPI::LoadDist::DIST_UNPACK_B16>(dyScaleBf16Reg, 
+                MicroAPI::DataCopy<bfloat16_t, MicroAPI::LoadDist::DIST_UNPACK_B16>(dyScaleBf16Reg,
                     dyScaleBf16Ptr + i * fp32RepeatSize); // 128/2=64 搬入64个u16 unpack成64个u32
                 MicroAPI::Cast<float, bfloat16_t, FP162FP32CastTraitZero>(dyScaleFp32Reg, dyScaleBf16Reg, maskReg1);
                 MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>(
-                    dyScaleFp32Ptr + i * fp32RepeatSize * INT8_DIVIVE, dyScaleFp32Reg, dyScaleFp32Reg,maskReg1); 
+                    dyScaleFp32Ptr + i * fp32RepeatSize * INT8_DIVIVE, dyScaleFp32Reg, dyScaleFp32Reg, maskReg1);
             }
 
             MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
             for (uint16_t i = 0; i < fp32RepeatTimes; i++) {
                 maskReg2 = AscendC::MicroAPI::UpdateMask<float>(axisH_);
                 // 广播4B->32B，8倍
-                MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_E2B_B32>(dyScaleFp32Reg, dyScaleFp32Ptr + i * 8); 
+                MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_E2B_B32>(dyScaleFp32Reg, dyScaleFp32Ptr + i * 8);
                 // 接收到的token float8_e5m2_t
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_UNPACK4_B8>(tokenSrcReg, tokenPtr0 + i * fp32RepeatSize); 
-                MicroAPI::Cast<float, T, FP82BF16CastTraitZero>(tokenFp32SrcReg, tokenSrcReg,maskReg2); 
+                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_UNPACK4_B8>(tokenSrcReg,
+                    tokenPtr0 + i * fp32RepeatSize);
+                MicroAPI::Cast<float, T, FP82BF16CastTraitZero>(tokenFp32SrcReg, tokenSrcReg, maskReg2);
                 MicroAPI::Mul(sumLocalDstReg, dyScaleFp32Reg, tokenFp32SrcReg, maskReg2); // token与量化参数相乘
                 MicroAPI::DataCopy(sumDstPtr + i * fp32RepeatSize, sumLocalDstReg, maskReg2); // 最后搬出 float类型
             }
@@ -259,8 +261,8 @@ public:
         }
         #endif
     }
-    __aicore__ inline void DeQuantProcess(LocalTensor<XType>& inLocal, LocalTensor<XType>& outLocal, 
-                            LocalTensor<float>& sumTensor)
+    __aicore__ inline void DeQuantProcess(LocalTensor<XType>& inLocal, LocalTensor<XType>& outLocal,
+        LocalTensor<float>& sumTensor)
     {
         if constexpr (QuantMode == INT8_COMM_QUANT) {
             Int8DequantProcess(inLocal, outLocal);

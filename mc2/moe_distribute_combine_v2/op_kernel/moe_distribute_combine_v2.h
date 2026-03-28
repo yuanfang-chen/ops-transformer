@@ -580,7 +580,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::BuffInit()
             scaleDupLocalTensor_ = xScaleMulBuf_.Get<float>();
             fp16CastTensor_ = xAbsBuf_.Get<half>();
             Duplicate(absFloatTensor_, float(0), hFloatAlign256Cnt); // 统一写0
-            quantInst_.SetQuantInitParams(winTpSendCountFloatTensor_, fp16CastTensor_, absFloatTensor_, reduceMaxFloatTensor_, scaleDupLocalTensor_);
+            quantInst_.SetQuantInitParams(winTpSendCountFloatTensor_, fp16CastTensor_, absFloatTensor_,
+                reduceMaxFloatTensor_, scaleDupLocalTensor_);
         } else {
             tpipe_->InitBuffer(gmTpSendCountQueue_, BUFFER_NUM, hExpandXAlign32Size_);   // 28K 存储搬入token
         }
@@ -1256,7 +1257,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessMoeExp
     LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
     if constexpr (QuantMode > UNQUANT) {
         quantInst_.DeQuantProcess(tmpUb, outLocalTensor, rowTmpFloatLocal_);
-        if constexpr (QuantMode == INT8_COMM_QUANT){
+        if constexpr (QuantMode == INT8_COMM_QUANT) {
             Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
         }
     } else {
@@ -1363,7 +1364,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::ProcessExpert
         LocalTensor<XType> outLocalTensor = fp16CastTensor_.template ReinterpretCast<XType>();
         if constexpr (QuantMode > UNQUANT) {
             quantInst_.DeQuantProcess(tmpUb, outLocalTensor, rowTmpFloatLocal_);
-            if constexpr (QuantMode == INT8_COMM_QUANT){
+            if constexpr (QuantMode == INT8_COMM_QUANT) {
                 Cast(rowTmpFloatLocal_, outLocalTensor, AscendC::RoundMode::CAST_NONE, processLen);
             }
         } else {
