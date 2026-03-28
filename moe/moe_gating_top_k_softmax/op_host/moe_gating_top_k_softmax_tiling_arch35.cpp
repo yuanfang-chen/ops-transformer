@@ -79,10 +79,10 @@ private:
 
 bool MoeGatingTopKSoftmaxRegbaseTiling::IsCapable()
 {
-    if (!Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
-        return false;
-    }
-    return true;
+    //  if (false) {  // 950 now uses 910b implementation
+    //      return false;
+    //  }
+     return true;
 }
 
 
