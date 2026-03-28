@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file chunk_gated_delta_rule_tiling.cpp
@@ -299,37 +299,33 @@ namespace optiling {
         return true;
     }
 
-    // 校验函数：在此处做输入 shape/rank 的统一校验，并计算 tilingData（T/Nk/Dk/Nv/Dv/B 等）
-    ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeShapes() {
-        const auto &queryShape = context_->GetInputShape(QUERY_INDEX)->GetOriginShape();
-        const auto &keyShape = context_->GetInputShape(KEY_INDEX)->GetOriginShape();
-        const auto &valueShape = context_->GetInputShape(VALUE_INDEX)->GetOriginShape();
-        const auto &betaShape = context_->GetInputShape(BETA_INDEX)->GetOriginShape();
-        const auto &stateShape = context_->GetInputShape(STATE_INDEX)->GetOriginShape();
-        const auto &cuSeqlensShape = context_->GetInputShape(CUSEQLENS_INDEX)->GetOriginShape();
-        auto gShapePtr = context_->GetOptionalInputShape(G_INDEX);
-        
-        if (!CheckDim(queryShape, QKV_DIM_NUM, "query") || !CheckDim(keyShape, QKV_DIM_NUM, "key") ||
-            !CheckDim(valueShape, QKV_DIM_NUM, "value") || !CheckDim(betaShape, BETA_DIM_NUM, "beta") ||
-            !CheckDim(stateShape, STATE_DIM_NUM, "state") ||
-            !CheckDim(cuSeqlensShape, CUSEQLENS_DIM_NUM, "actual_seq_lengths")) {
-                return ge::GRAPH_FAILED;
-            }
-
-        // 校验空 Tensor（ShapeSize=0）
-        OP_CHECK_IF(queryShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "query tensor is empty"),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(keyShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "key tensor is empty"),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(valueShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "value tensor is empty"),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(betaShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "beta tensor is empty"),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(stateShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "state tensor is empty"),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(cuSeqlensShape.GetShapeSize() == 0, OP_LOGE(inputParams_.opName, "actual_seq_lengths tensor is empty"),
-            return ge::GRAPH_FAILED);
-
+    // 校验空 Tensor
+    ge::graphStatus ChunkGatedDeltaRuleTiling::ValidateNonEmpty(
+        const gert::Shape &queryShape, const gert::Shape &keyShape,
+        const gert::Shape &valueShape, const gert::Shape &betaShape,
+        const gert::Shape &stateShape, const gert::Shape &cuSeqlensShape)
+    {
+        OP_CHECK_IF(queryShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "query tensor is empty"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(keyShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "key tensor is empty"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(valueShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "value tensor is empty"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(betaShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "beta tensor is empty"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(stateShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "state tensor is empty"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(cuSeqlensShape.GetShapeSize() == 0,
+            OP_LOGE(inputParams_.opName, "actual_seq_lengths tensor is empty"), return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    }
+ 
+    // 跨输入维度一致性校验
+    ge::graphStatus ChunkGatedDeltaRuleTiling::ValidateDimConsistency(
+        const gert::Shape &queryShape, const gert::Shape &keyShape,
+        const gert::Shape &valueShape, const gert::Shape &betaShape,
+        const gert::Shape &stateShape, const gert::Shape &cuSeqlensShape)
+    {
         if (!CheckDimEqual(queryShape, DIM_0, keyShape, DIM_0, "query", "key", "T dimension") ||
             !CheckDimEqual(queryShape, DIM_1, keyShape, DIM_1, "query", "key", "Nk dimension") ||
             !CheckDimEqual(queryShape, DIM_2, keyShape, DIM_2, "query", "key", "Dk dimension") ||
@@ -340,9 +336,65 @@ namespace optiling {
             !CheckDimEqual(betaShape, DIM_1, valueShape, DIM_1, "beta", "value", "Nv dimension") ||
             !CheckDimEqual(stateShape, DIM_3, queryShape, DIM_2, "state", "query", "Dk dimension") ||
             !CheckDimEqual(cuSeqlensShape, DIM_0, stateShape, DIM_0, "actual_seq_lengths", "state", "B dimension")) {
-                return ge::GRAPH_FAILED;
-            }
-
+            return ge::GRAPH_FAILED;
+        }
+        return ge::GRAPH_SUCCESS;
+    }
+ 
+    // 校验各维度值范围约束（正数、上限、整除关系）
+    ge::graphStatus ChunkGatedDeltaRuleTiling::ValidateDimConstraints()
+    {
+        OP_CHECK_IF(tilingData_.t <= 0 || tilingData_.b <= 0 || tilingData_.nk <= 0 ||
+                    tilingData_.dk <= 0 || tilingData_.nv <= 0 || tilingData_.dv <= 0,
+                OP_LOGE(inputParams_.opName, "T, B, Nk, Dk, Nv, Dv should be greater than 0, "
+                        "but T=%ld, B=%ld, Nk=%ld, Dk=%ld, Nv=%ld, Dv=%ld",
+                        tilingData_.t, tilingData_.b, tilingData_.nk,
+                        tilingData_.dk, tilingData_.nv, tilingData_.dv),
+                return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tilingData_.nk > 64 || tilingData_.nv > 64,
+                OP_LOGE(inputParams_.opName, "nk and nv should no bigger than 64, but nk is %ld, nv is %ld",
+                        tilingData_.nk, tilingData_.nv), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tilingData_.dv > 128 || tilingData_.dk > 128,
+                OP_LOGE(inputParams_.opName, "dv and dk should be no bigger than 128, but dv is %ld, dk is %ld",
+                        tilingData_.dv, tilingData_.dk), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tilingData_.nv % tilingData_.nk != 0,
+                OP_LOGE(inputParams_.opName, "nv should be an integer multiple of nk, but nv is %ld, nk is %ld",
+                        tilingData_.nv, tilingData_.nk), return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    }
+ 
+    // 校验函数：在此处做输入 shape/rank 的统一校验，并计算 tilingData（T/Nk/Dk/Nv/Dv/B 等）
+    ge::graphStatus ChunkGatedDeltaRuleTiling::AnalyzeShapes()
+    {
+        const auto &queryShape = context_->GetInputShape(QUERY_INDEX)->GetOriginShape();
+        const auto &keyShape = context_->GetInputShape(KEY_INDEX)->GetOriginShape();
+        const auto &valueShape = context_->GetInputShape(VALUE_INDEX)->GetOriginShape();
+        const auto &betaShape = context_->GetInputShape(BETA_INDEX)->GetOriginShape();
+        const auto &stateShape = context_->GetInputShape(STATE_INDEX)->GetOriginShape();
+        const auto &cuSeqlensShape = context_->GetInputShape(CUSEQLENS_INDEX)->GetOriginShape();
+        auto gShapePtr = context_->GetOptionalInputShape(G_INDEX);
+ 
+        // rank 校验
+        if (!CheckDim(queryShape, QKV_DIM_NUM, "query") || !CheckDim(keyShape, QKV_DIM_NUM, "key") ||
+            !CheckDim(valueShape, QKV_DIM_NUM, "value") || !CheckDim(betaShape, BETA_DIM_NUM, "beta") ||
+            !CheckDim(stateShape, STATE_DIM_NUM, "state") ||
+            !CheckDim(cuSeqlensShape, CUSEQLENS_DIM_NUM, "actual_seq_lengths")) {
+            return ge::GRAPH_FAILED;
+        }
+ 
+        // 空 Tensor 校验
+        if (ValidateNonEmpty(queryShape, keyShape, valueShape,
+                             betaShape, stateShape, cuSeqlensShape) != ge::GRAPH_SUCCESS) {
+            return ge::GRAPH_FAILED;
+        }
+ 
+        // 跨输入维度一致性校验
+        if (ValidateDimConsistency(queryShape, keyShape, valueShape,
+                                   betaShape, stateShape, cuSeqlensShape) != ge::GRAPH_SUCCESS) {
+            return ge::GRAPH_FAILED;
+        }
+ 
+        // 可选输入 g 校验
         if (gShapePtr != nullptr && gShapePtr->GetOriginShape().GetDimNum() != 0) {
             const auto &gShape = gShapePtr->GetOriginShape();
             if (!CheckDim(gShape, G_DIM_NUM, "gOptional") ||
@@ -351,36 +403,17 @@ namespace optiling {
                 return ge::GRAPH_FAILED;
             }
         }
-
-        tilingData_.t = queryShape.GetDim(DIM_0);
+ 
+        // 写入 tilingData
+        tilingData_.t  = queryShape.GetDim(DIM_0);
         tilingData_.nk = queryShape.GetDim(DIM_1);
         tilingData_.dk = queryShape.GetDim(DIM_2);
         tilingData_.nv = valueShape.GetDim(DIM_1);
         tilingData_.dv = valueShape.GetDim(DIM_2);
-        tilingData_.b = cuSeqlensShape.GetDim(DIM_0);
-
-        // 校验各维度值必须大于0
-        OP_CHECK_IF(tilingData_.t <= 0 || tilingData_.b <= 0 || tilingData_.nk <= 0 ||
-                    tilingData_.dk <= 0 || tilingData_.nv <= 0 || tilingData_.dv <= 0,
-                OP_LOGE(inputParams_.opName, "T, B, Nk, Dk, Nv, Dv should be greater than 0, "
-                        "but T=%ld, B=%ld, Nk=%ld, Dk=%ld, Nv=%ld, Dv=%ld",
-                        tilingData_.t, tilingData_.b, tilingData_.nk,
-                        tilingData_.dk, tilingData_.nv, tilingData_.dv),
-                return ge::GRAPH_FAILED);
-
-        OP_CHECK_IF(tilingData_.nk > 64 || tilingData_.nv > 64,  // 约束 nk/nv 不超过 64
-                OP_LOGE(inputParams_.opName, "nk and nv should no bigger than 64, but nk is %ld, nv is %ld",
-                        tilingData_.nk, tilingData_.nv), return ge::GRAPH_FAILED);
-
-        OP_CHECK_IF(tilingData_.dv > 128 || tilingData_.dk > 128,  // 约束 dv/dk 不超过 128
-                OP_LOGE(inputParams_.opName, "dv and dk should be no bigger than 128, but dv is %ld, dk is %ld",
-                        tilingData_.dv, tilingData_.dk), return ge::GRAPH_FAILED);
-
-        OP_CHECK_IF(tilingData_.nv % tilingData_.nk != 0,  // 约束 nv 是 nk 的整数倍
-                OP_LOGE(inputParams_.opName, "nv should be an integer multiple of nk, but nv is %ld, nk is %ld",
-                        tilingData_.nv, tilingData_.nk), return ge::GRAPH_FAILED);
-
-        return ge::GRAPH_SUCCESS;
+        tilingData_.b  = cuSeqlensShape.GetDim(DIM_0);
+ 
+        // 维度值范围约束校验
+        return ValidateDimConstraints();
     }
 
     // 仅支持 ND，拒绝 FORMAT_FRACTAL_NZ
