@@ -168,6 +168,19 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
     }
     int64_t dim1 = tensor->GetViewShape().GetDimNum() - 1;
     int64_t dim2 = tensor->GetViewShape().GetDimNum() - 2;
+
+    int64_t tensor_dim0 = tensor->GetViewShape().GetDim(0);
+    int64_t tensor_dim1 = tensor->GetViewShape().GetDim(1);
+    OP_LOGD(ACLNN_ERR_PARAM_INVALID, "tensor_dim0 is: %ld, tensor_dim1 is: %ld.", tensor_dim0, tensor_dim1);
+
+    int64_t stride_dim0 = tensor->GetViewStrides()[0];
+    int64_t stride_dim1 = tensor->GetViewStrides()[1];
+    OP_LOGD(ACLNN_ERR_PARAM_INVALID, "stride_dim0 is: %ld, stride_dim1 is: %ld.", stride_dim0, stride_dim1);
+
+    int64_t storageDim0 = tensor->GetStorageShape().GetDim(0);
+    int64_t storageDim1 = tensor->GetStorageShape().GetDim(1);
+    OP_LOGD(ACLNN_ERR_PARAM_INVALID, "storageDim0 is: %ld, storageDim1 is: %ld.", storageDim0, storageDim1);
+
     // BMM 场景下，Batch维度的stride需要等于 N, D 的乘积
     if (tensor->GetViewStrides()[dim2] == 1
       && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
@@ -175,6 +188,7 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
           && tensor->GetViewShape().GetDim(dim2) == 1) {
             return false;
           }
+        OP_LOGD(ACLNN_ERR_PARAM_INVALID, "current tensor is not contiguous.");
         return true;
       }
     return false;
