@@ -1371,7 +1371,8 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         }
         if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1 && faInfo.maskType == MaskType::NO_MASK &&
             (batch >= aicoreNum) &&
-            !faInfo.lseFlag && !faInfo.learnableSinkFlag && (faInfo.innerPrecise == 0) && ((faInfo.numHeads / faInfo.kvHeads) <= GROUP_SIZE_128)) {
+            !faInfo.lseFlag && !faInfo.learnableSinkFlag && (faInfo.innerPrecise == 0) &&
+            ((faInfo.numHeads / faInfo.kvHeads) <= GROUP_SIZE_128)) {
             faInfo.decodingFlag = true;
         }
     } else {
