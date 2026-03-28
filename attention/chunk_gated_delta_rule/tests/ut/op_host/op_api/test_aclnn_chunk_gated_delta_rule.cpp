@@ -106,7 +106,7 @@ public:
         actualSeqLengths = TensorDesc({bs}, ACL_INT32, ACL_FORMAT_ND).Value(actualSeqLens);
         gOptional = TensorDesc({t, nv}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
         out = TensorDesc({t, nv, dv}, ACL_BF16, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
-        finalState = TensorDesc({t, nv, dv, dk}, ACL_BF16, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
+        finalState = TensorDesc({bs, nv, dv, dk}, ACL_BF16, ACL_FORMAT_ND).ValueRange(kValueLow, kValueHigh);
         ApplyInvalidDtype(validIdx, kValueLow, kValueHigh);
         aclnnStatus aclRet = utTest(nullIdx);
         // 仅 gOptional 允许为空（nullIdx == 7）时仍视为合法
