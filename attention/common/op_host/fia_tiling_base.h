@@ -23,6 +23,8 @@
 #include <tiling/platform/platform_ascendc.h>
 #include "err/ops_err.h"
 
+
+
 #ifdef ASCENDC_OP_TEST
 #define ASCENDC_EXTERN_C extern "C"
 #else
