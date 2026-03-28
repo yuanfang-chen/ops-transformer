@@ -121,8 +121,9 @@ public:
                     CrossCoreWaitFlag(0x3);
                     CalStateNew(sTP_->vInner[mm_offset1], sTP_->kg[mm_offset0], curState);
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x4);
-                    SetFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
-                    WaitFlag<HardEvent::FIX_MTE2>(FIX_MTE2_EVENT);
+                    int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+                    SetFlag<HardEvent::FIX_MTE2>(eventID);
+                    WaitFlag<HardEvent::FIX_MTE2>(eventID);
                 }
             }
         }

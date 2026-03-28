@@ -117,8 +117,9 @@ public:
             pipe_->InitBuffer(tmpBuff_, cBlockSize * sizeof(float));
             auto cCFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(cBlockSize), 0);
             Duplicate<float>(cCFloat_, 0, tiling_->chunkSize);
-            SetFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
-            WaitFlag<HardEvent::V_MTE3>(V_MTE3_EVENT);
+            int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::V_MTE3));
+            SetFlag<HardEvent::V_MTE3>(eventID);
+            WaitFlag<HardEvent::V_MTE3>(eventID);
             DataCopyExtParams copyParams;
             copyParams.blockCount = static_cast<uint16_t>(1);
             copyParams.blockLen = static_cast<uint32_t>(tiling_->chunkSize * sizeof(float));
@@ -126,15 +127,18 @@ public:
             copyParams.dstStride = static_cast<uint32_t>((0) * sizeof(float));
             for (int i = 0; i < tiling_->chunkSize; ++i) {
                 DataCopyPad(stageOneMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
-                SetFlag<HardEvent::MTE3_S>(MTE3_S_EVENT);
-                WaitFlag<HardEvent::MTE3_S>(MTE3_S_EVENT);
+                eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE3_S));
+                SetFlag<HardEvent::MTE3_S>(eventID);
+                WaitFlag<HardEvent::MTE3_S>(eventID);
                 cCFloat_.SetValue(i, 1);
-                SetFlag<HardEvent::S_MTE3>(S_MTE3_EVENT);
-                WaitFlag<HardEvent::S_MTE3>(S_MTE3_EVENT);
+                eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_MTE3));
+                SetFlag<HardEvent::S_MTE3>(eventID);
+                WaitFlag<HardEvent::S_MTE3>(eventID);
                 DataCopyPad(stageThreeMask_[GetBlockIdx() * cBlockSize + i * tiling_->chunkSize], cCFloat_, copyParams);
             }
-            SetFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT); // 这里必须同步, 否则会有提前拷出的问题
-            WaitFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);            
+            eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE3_MTE2));
+            SetFlag<HardEvent::MTE3_MTE2>(eventID); // 这里必须同步, 否则会有提前拷出的问题
+            WaitFlag<HardEvent::MTE3_MTE2>(eventID);
             pipe_->Reset();
         }
     }

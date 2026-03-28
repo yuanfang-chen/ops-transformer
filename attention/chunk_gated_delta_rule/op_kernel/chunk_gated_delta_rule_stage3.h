@@ -95,8 +95,9 @@ public:
                                    0, 0, 0};
         DataCopyPadExtParams<float> copyPadParams{false, 0, 0, 0};
         DataCopyPad(maskBuffer_, sTP_->maskTensor, inParams, copyPadParams);
-        SetFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
-        WaitFlag<HardEvent::MTE2_V>(MTE2_V_EVENT);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(eventID);
+        WaitFlag<HardEvent::MTE2_V>(eventID);
     }
 
     __aicore__ inline void Process()
@@ -258,7 +259,7 @@ private:
     int64_t paddedDv_;
     int32_t chunkNum_;
     int32_t coreNum_;
-    int32_t curChunkSize_; 
+    int32_t curChunkSize_;
     int32_t chunkSize_;
     int32_t coreId_;
     bool gOptional_;

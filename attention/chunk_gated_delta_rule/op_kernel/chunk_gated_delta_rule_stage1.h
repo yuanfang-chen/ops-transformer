@@ -176,8 +176,9 @@ public:
         for (uint32_t i = 0; i < halfChunkSize_; ++i) {
             gatherOffsetBf16_.SetValue(i, i * BLOCK_SIZE);
         }
-        SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+        SetFlag<HardEvent::S_V>(eventID);
+        WaitFlag<HardEvent::S_V>(eventID);
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
@@ -470,8 +471,9 @@ private:
         for (uint32_t j = 0; j < inverseVecLen; ++j) {
             colBuffer_.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
         }
-        SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+        SetFlag<HardEvent::S_V>(eventID);
+        WaitFlag<HardEvent::S_V>(eventID);
         for (int i = 1; i < inverseVecLen; ++i) {
             uint32_t curI = i - 1;
             uint32_t validRows = inverseVecLen - i;
@@ -486,8 +488,9 @@ private:
             PipeBarrier<PIPE_V>();
             ei.SetValue(i - 1, static_cast<float>(0.0));
             ei.SetValue(i, static_cast<float>(1.0));
-            SetFlag<HardEvent::S_V>(S_V_EVENT);
-            WaitFlag<HardEvent::S_V>(S_V_EVENT);
+            eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+            SetFlag<HardEvent::S_V>(eventID);
+            WaitFlag<HardEvent::S_V>(eventID);
             // xi = (I - SUM) / Lii = I - SUM
             Sub(inverseLocal_[offset + i * chunkSize_], ei, yLocal[i * inverseVecLen], inverseVecLen);
             PipeBarrier<PIPE_V>();
@@ -690,13 +693,15 @@ private:
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
         AICProcess(attnWsGm_[leftDown], attnWsGm_, attnWsGm_[leftDown],
                    {chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen});
-        SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
-        WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+        SetFlag<HardEvent::FIX_MTE2>(eventID);
+        WaitFlag<HardEvent::FIX_MTE2>(eventID);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
         AICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown],
                    {chunkSize_, chunkSize_, chunkSize_, curLen, curLen, curLen});
-        SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
-        WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
+        eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+        SetFlag<HardEvent::FIX_MTE2>(eventID);
+        WaitFlag<HardEvent::FIX_MTE2>(eventID);
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
