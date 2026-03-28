@@ -37,7 +37,7 @@ protected:
 
 TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
 {
-    optiling::AggregateHiddenGradCompileInfo compileInfo = {
+    optiling::AggregateHiddenGradArch35CompileInfo compileInfo = {
         64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
@@ -45,7 +45,7 @@ TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
     };
 
     gert::TilingContextPara tilingContextPara(
-        "FusedCausalConv1d",
+        "AggregateHidden",
         {
             // Input 0: x - (batch=4, seq_len=1, dim=512)
             {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
