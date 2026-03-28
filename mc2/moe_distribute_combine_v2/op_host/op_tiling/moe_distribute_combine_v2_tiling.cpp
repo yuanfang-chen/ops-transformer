@@ -339,8 +339,8 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::INT8_QUANT)) &&
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E5M2_QUANT)) &&
             (*commQuantModePtr != static_cast<CommQuantModeType>(CommQuantMode::MXFP8_E4M3_QUANT)),
-            OP_LOGE(nodeName, "commQuantMode only support 0(default) or 2(int8 comm quant)" 
-                "or 3(mxFp8_e5m2) or 4(mxFp8_e4m3) , but got commQuantMode=%ld.",
+            OP_LOGE(nodeName, "commQuantMode only support 0(default) or 2(int8 comm quant)"
+                "or 3(mxFp8_e5m2) or 4(mxFp8_e4m3), but got commQuantMode=%ld.",
             *commQuantModePtr), return ge::GRAPH_FAILED);
     }
 
