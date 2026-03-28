@@ -400,9 +400,212 @@ void SetTilingData(FusedInferAttentionScoreTilingData &tilingData, optiling::Til
 
 ---
 
-## 6. Python 调用示例
+## 6. Kernel 侧改造详解
 
-### 6.1 加载库
+### 6.1 基本原则
+
+Kernel 侧代码基本保持不变，主要变化：
+
+1. 移除 `GET_TILING_DATA_WITH_STRUCT` 宏，改为直接传递 `TilingData`
+2. 移除不必要的 TilingKey 分支，按需裁剪
+3. 使用 `<<<>>>` 语法直接启动核函数
+
+### 6.2 Kernel 入口改造
+
+**传递模式**：使用宏注册 Kernel
+
+```cpp
+// 原始代码 (op_kernel/fused_infer_attention_score.cpp)
+extern "C" __global__ __aicore__ void fused_infer_attention_score(
+    GM_ADDR query, GM_ADDR key, GM_ADDR value,
+    GM_ADDR attentionOut, GM_ADDR workspace, GM_ADDR tiling)
+{
+    GET_TILING_DATA_WITH_STRUCT(FusedInferAttentionScoreTilingData, tilingData, tiling);
+    // ...
+}
+```
+
+**直调模式**：直接定义 Kernel 函数
+
+```cpp
+// 改造后代码 (fused_infer_attention_score.cpp)
+__global__ __aicore__ void FiaKernelFullQuant(
+    GM_ADDR query, GM_ADDR key, GM_ADDR value,
+    GM_ADDR keyAntiquantScale, GM_ADDR valueAntiquantScale,
+    GM_ADDR dequantScaleQuery, GM_ADDR attentionOut,
+    GM_ADDR workspace, GM_ADDR tiling)
+{
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    FlashAttentionEntry(
+        query, key, value,
+        keyAntiquantScale, valueAntiquantScale, dequantScaleQuery, attentionOut,
+        workspace, tiling);
+    return;
+}
+```
+
+### 6.3 TilingKey 设计
+
+**传递模式**：使用模板化的 TilingKey 编码
+
+```cpp
+// 原始代码
+template <typename INPUT_T, typename T, CubeFormat FORMAT, LayOutTypeEnum LAYOUT, ...>
+void FlashAttentionInferKernelImpl(...);
+```
+
+**直调模式**：按需裁剪，仅保留必要的数据类型分支
+
+```cpp
+// 改造后代码
+void FlashAttentionEntry(GM_ADDR query, GM_ADDR key, GM_ADDR value,
+    GM_ADDR keyAntiquantScale, GM_ADDR valueAntiquantScale,
+    GM_ADDR dequantScaleQuery, GM_ADDR attentionOut,
+    GM_ADDR workspace, GM_ADDR tiling)
+{
+    // 获取 TilingData
+    __gm__ uint8_t *tilingBuffer = (__gm__ uint8_t *)tiling;
+    FusedInferAttentionScoreTilingData *tilingData =
+        (FusedInferAttentionScoreTilingData *)tilingBuffer;
+
+    // 根据 TilingKey 分发
+    uint32_t tilingKey = tilingData->tilingKey;
+    switch (tilingKey) {
+        case 2000000012: // 全量化模式
+            FlashAttentionKernelFullQuant<...>(...);
+            break;
+        case 2000000013: // 半量化模式
+            FlashAttentionKernelHalfQuant<...>(...);
+            break;
+        // ... 其他分支按需保留
+        default:
+            break;
+    }
+}
+```
+
+### 6.4 blockDim 计算
+
+**传递模式**：由 GE 框架自动计算
+
+**直调模式**：在 Host 侧手动计算
+
+```cpp
+// Host 侧代码
+auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+uint32_t blockDimToBeSet = ascendcPlatform->CalcTschBlockDim(
+    ascendcPlatform->GetCoreNumAiv(),
+    ascendcPlatform->GetCoreNumAic(),
+    ascendcPlatform->GetCoreNumAiv()
+);
+
+// 启动 Kernel
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(...);
+```
+
+### 6.4 GM Tensor 初始化方式改造
+
+**传递模式**：使用 `ListTensorDesc` 初始化 GM
+
+```cpp
+// 原始代码
+ListTensorDesc keyListTensorDescInit((__gm__ void *)key);
+__gm__ uint8_t* tempKeyValueGmPtr =
+    (__gm__ uint8_t*)keyListTensorDesc.GetDataPtr<__gm__ uint8_t>(runInfo.boIdx);
+tempKeyValueGm.SetGlobalBuffer((__gm__ INPUT_T*)tempKeyValueGmPtr);
+```
+
+**直调模式**：直接使用 `SetGlobalBuffer` 初始化
+
+```cpp
+// 改造后代码
+this->keyGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)key);
+this->valueGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)value);
+```
+
+### 6.5 手动拷贝 TilingData 到 Kernel 侧
+
+**传递模式**：由 GE 框架自动传递 TilingData
+
+**直调模式**：需要手动将 TilingData 拷贝到设备内存并传入 Kernel
+
+```cpp
+// Host 侧：分配设备内存并拷贝 TilingData
+FusedInferAttentionScoreTilingData tilingData;
+// ... 填充 tilingData ...
+
+GM_ADDR tilingDataDevice = nullptr;
+aclrtMalloc((void**)&tilingDataDevice, sizeof(FusedInferAttentionScoreTilingData),
+             ACL_MEM_MALLOC_HUGE_FIRST);
+aclrtMemcpyAsync(tilingDataDevice, sizeof(FusedInferAttentionScoreTilingData),
+                 &tilingData, sizeof(FusedInferAttentionScoreTilingData),
+                 ACL_MEMCPY_HOST_TO_DEVICE, stream);
+
+// 启动 Kernel，传入 TilingData 设备指针
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+    query, key, value, ..., workspace, tilingDataDevice
+);
+```
+
+### 6.6 适配<<<>>>调用接口
+
+**传递模式**：使用二段式调度
+
+**直调模式**：使用 `<<<blockDim, nullptr, stream>>>` 语法直接启动
+
+```cpp
+// Host 侧代码
+aclrtStream stream = nullptr;
+aclrtCreateStream(&stream);
+
+// 计算 blockDim
+auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+uint32_t blockDimToBeSet = ascendcPlatform->CalcTschBlockDim(
+    ascendcPlatform->GetCoreNumAiv(),
+    ascendcPlatform->GetCoreNumAic(),
+    ascendcPlatform->GetCoreNumAiv()
+);
+
+// 三个参数：<<<blockDim, l2ctrl, stream>>>
+// - blockDim: 计算核数量
+// - l2ctrl: L2 cache控制，通常为 nullptr
+// - stream: NPU 流
+FiaKernelFullQuant<<<blockDimToBeSet, nullptr, stream>>>(
+    (uint8_t*)(queryTensor.mutable_data_ptr()),
+    (uint8_t*)(keyTensor.mutable_data_ptr()),
+    (uint8_t*)(valueTensor.mutable_data_ptr()),
+    (uint8_t*)(keyAntiquantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(valueAntiquantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(queryQuantScaleTensor.mutable_data_ptr()),
+    (uint8_t*)(outputTensor.mutable_data_ptr()),
+    workspace,
+    tilingDataDevice
+);
+
+// 同步并清理
+aclrtSynchronizeStream(stream);
+aclrtDestroyStream(stream);
+```
+
+### 6.7 Kernel 侧改造清单
+
+| 改造项 | 说明 |
+|--------|------|
+| 移除 `extern "C"` | 直调模式不需要 C 链接 |
+| 移除 `GET_TILING_DATA_WITH_STRUCT` | 直接接收 TilingData 指针 |
+| 保留 `KERNEL_TASK_TYPE_DEFAULT` | 指定 Kernel 任务类型 |
+| 保留 `FlashAttentionEntry` | 核心计算逻辑不变 |
+| 按需裁剪 TilingKey 分支 | 减少代码体积 |
+| 修改 `ListTensorDesc` 初始化 | 改用 `SetGlobalBuffer` 方式 |
+| 手动拷贝 TilingData | Host 侧分配设备内存并拷贝 |
+| 使用 `__NPU_DEVICE__` 宏 | 规避 VF 相关编译问题 |
+| 适配 `<<<>>>` 接口 | <<<>>>直接启动 Kernel |
+
+---
+
+## 7. Python 调用示例
+
+### 7.1 加载库
 
 ```python
 import torch
@@ -410,7 +613,7 @@ import torch_npu
 torch.ops.load_library("libascendc_ops.so")
 ```
 
-### 6.2 调用算子
+### 7.2 调用算子
 
 ```python
 # 准备输入Tensor
@@ -430,9 +633,9 @@ output = torch.ops.ascendc_ops.ascendc_fia(
 
 ---
 
-## 7. 构建与安装
+## 8. 构建与安装
 
-### 7.1 编译命令
+### 8.1 编译命令
 
 ```bash
 # 进入算子目录
@@ -448,7 +651,7 @@ cmake ..
 make -j
 ```
 
-### 7.2 运行测试
+### 8.2 运行测试
 
 ```bash
 # 返回算子目录
@@ -460,9 +663,9 @@ python fia_test.py
 
 ---
 
-## 8. 改造清单
+## 9. 改造清单
 
-### 8.1 必须改造项
+### 9.1 必须改造项
 
 | 序号 | 改造项 | 说明 |
 |-----|--------|------|
@@ -473,7 +676,7 @@ python fia_test.py
 | 5 | 实现 TilingContext 初始化 | 替换 GE Context 依赖 |
 | 6 | 实现 `<<<>>>` 直调 | Kernel启动 |
 
-### 8.2 可选改造项
+### 9.2 可选改造项
 
 | 序号 | 改造项 | 说明 |
 |-----|--------|------|
@@ -483,15 +686,15 @@ python fia_test.py
 
 ---
 
-## 9. 注意事项
+## 10. 注意事项
 
-### 9.1 TilingKey 选择
+### 10.1 TilingKey 选择
 
 改造后的 TilingKey 与原始模式可能不同，需要根据实际场景重新设计：
 - 原始模式：使用模板化的 TilingKey 编码
 - 直调模式：使用简化的 TilingKey 编码
 
-### 9.2 数据类型映射
+### 10.2 数据类型映射
 
 | PyTorch 类型 | Ascend C 类型 |
 |-------------|--------------|
@@ -500,14 +703,14 @@ python fia_test.py
 | `torch.bfloat16` | `bfloat16_t` |
 | `torch.float32` | `float32_t` |
 
-### 9.3 NPU 架构配置
+### 10.3 NPU 架构配置
 
 不同 NPU 架构需要设置不同的编译参数：
 - `ascend910b`: `--npu-arch=dav-2201`
 - `ascend910_93`: `--npu-arch=dav-2201`
 - `ascend950`: `--npu-arch=dav-3101`
 
-### 9.4 内存管理
+### 10.4 内存管理
 
 - workspace 由 PTA 接口内构造，使用 Tensor 作为输入传入 kernel
 - 使用 `aclrtMalloc` 分配设备内存
