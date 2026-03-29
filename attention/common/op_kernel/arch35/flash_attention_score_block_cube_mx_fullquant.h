@@ -1446,7 +1446,7 @@ __aicore__ inline void FABlockCubeMxFullquant<TEMPLATE_ARGS>::IterateBmm2MxFp8(m
         scaleShape.blockSize = kvCacheBlockSize / MX_FP8_PTG_PCG_SCALE_PARAM / 2;
         scaleShape.headDim = constInfo.dSizeV;
         scaleShape.actHeadDim = constInfo.dSizeV;
-        scaleShape.copyRowNum = runInfo.s2RealSize / MX_FP8_PTG_PCG_SCALE_PARAM;
+        scaleShape.copyRowNum = runInfo.s2RealSize / MX_FP8_PTG_PCG_SCALE_PARAM / 2;
         scaleShape.copyRowNumAlign = (scaleShape.copyRowNum + 31) >> 5 << 5; // 对齐到32
 
         scaleStartPos.s2Offset = scaleStartPos.s2Offset / MX_FP8_PTG_PCG_SCALE_PARAM / 2;

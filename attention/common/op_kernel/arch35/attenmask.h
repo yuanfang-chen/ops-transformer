@@ -607,7 +607,9 @@ __aicore__ inline void AttenMaskCopyInDn(TQue<QuePosition::VECIN, 1> &attenMaskI
         if (attenMaskInfo.computeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE) {
             int32_t s2RealSize = runInfo.s2RealSize;
             if constexpr (isMxfp8FullQuant) {
-                s2RealSize /= 2;
+                if (runInfo.s2RealSize > 256) {
+                    s2RealSize = subLoop == 0 ? 256 : runInfo.s2RealSize - 256;
+                }
             }
             BoolCopyInRegbase<isInfer>(attenMaskUb, srcTensor, maskOffset, s2RealSize,
                                        constInfo.s1BaseSize >> 1, attenMaskInfo.attenMaskS2Size, constInfo.s1BaseSize >> 1, constInfo);
