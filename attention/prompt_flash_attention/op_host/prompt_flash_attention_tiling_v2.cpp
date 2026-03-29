@@ -4105,38 +4105,46 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
     actualSeqLength -= preTokensError;
 }
 
-int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(int64_t actualSeqLength, int64_t actualSeqLengthKV,
-    uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) const
+int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(PromptFlashAttentionTilingDataV2& tilingData,
+    int64_t actualSeqLength, int64_t actualSeqLengthKV, uint32_t sOuterSize, uint32_t sInnerSize, bool isAttenMaskUsed)
 {
+    // 针对行无效情况修正actualseqlen
+    int64_t preTokensLeftUp = 0;
+    int64_t nextTokensLeftUp = 0;
+    GetPreNextTokensLeftUp(tilingData, actualSeqLength, actualSeqLengthKV + actualSharedPrefixLen,
+        preTokensLeftUp, nextTokensLeftUp);
+    FixParamWithRowInvalid(actualSeqLength, actualSeqLengthKV + actualSharedPrefixLen,
+        preTokensLeftUp, nextTokensLeftUp);
+
     if (!isAttenMaskUsed) {
         int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
         int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize + (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize; 
         int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
         return toCalcBlockNums;
     } else {
-        int64_t innerBlockNums = (actualSeqLengthKV + static_cast<int64_t>(sInnerSize) - 1) /
-            static_cast<int64_t>(sInnerSize);
-        int64_t blockSeqLengthKV = innerBlockNums * static_cast<int64_t>(sInnerSize);
-        int64_t outerBlockNums = (actualSeqLength + static_cast<int64_t>(sOuterSize) - 1) /
-            static_cast<int64_t>(sOuterSize);
-        int64_t blockSeqLength = outerBlockNums * static_cast<int64_t>(sOuterSize);
-        int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
-        // 必须满足pretoken + nexttoken > 0，否则会减出小于0的块数，这里需要去除prefix影响
-        toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize),
-            static_cast<int64_t>(sOuterSize), nextTokensLeftUp - actualSharedPrefixLen);
-        toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize),
-            static_cast<int64_t>(sOuterSize), blockSeqLengthKV - blockSeqLength + preTokensLeftUp + actualSharedPrefixLen);
-
-        // prefix部分单独计算
-        int64_t innerBlockNumsPrefix = (actualSharedPrefixLen + static_cast<int64_t>(sInnerSize) - 1) /
-            static_cast<int64_t>(sInnerSize);
-        int64_t blockSharedPrefix = innerBlockNumsPrefix * static_cast<int64_t>(sInnerSize);
-        toCalcBlockNums += innerBlockNumsPrefix * outerBlockNums;
-        toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize),
-            static_cast<int64_t>(sOuterSize), nextTokensLeftUp);
-        toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize),
-            static_cast<int64_t>(sOuterSize), blockSharedPrefix - blockSeqLength + preTokensLeftUp);
- 
+        int64_t innerBlockNumsPrefix = (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
+        int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
+        int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize;
+        int64_t toCalcBlockNums = 0;
+        for (uint32_t sOuterIndex = 0; sOuterIndex < outerBlockNums; sOuterIndex++) {
+            // 非prefix部分计算，去除prefix影响
+            int64_t preTokensNoPrefix = preTokensLeftUp + actualSharedPrefixLen;
+            int64_t nextTokensNoPrefix = nextTokensLeftUp - actualSharedPrefixLen;
+            int64_t sInnerIndexStart = -(preTokensNoPrefix > 0 ? (preTokensNoPrefix + static_cast<int64_t>(sInnerSize) - 1) /
+                static_cast<int64_t>(sInnerSize) : preTokensNoPrefix / static_cast<int64_t>(sInnerSize));
+            int64_t sInnerIndexEnd = nextTokensNoPrefix > 0 ? (nextTokensNoPrefix + static_cast<int64_t>(sInnerSize) - 1) /
+                static_cast<int64_t>(sInnerSize) : nextTokensNoPrefix / static_cast<int64_t>(sInnerSize);
+            // prefix部分单独计算
+            int64_t sInnerIndexStartPrefix = -(preTokensLeftUp > 0 ? (preTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
+                static_cast<int64_t>(sInnerSize) : preTokensLeftUp / static_cast<int64_t>(sInnerSize));
+            int64_t sInnerIndexEndPrefix = nextTokensLeftUp > 0 ? (nextTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
+                static_cast<int64_t>(sInnerSize) : nextTokensLeftUp / static_cast<int64_t>(sInnerSize);
+            // 当前这一行有多少基本块需要计算
+            toCalcBlockNums += GetActualInnerBlockNums(sInnerIndexStart, sInnerIndexEnd, innerBlockNums) +
+                GetActualInnerBlockNums(sInnerIndexStartPrefix, sInnerIndexEndPrefix, innerBlockNumsPrefix);
+            preTokensLeftUp -= sOuterSize;
+            nextTokensLeftUp += sOuterSize;
+        }
         return toCalcBlockNums;
     }
 }
@@ -4260,22 +4268,13 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
 
     uint32_t multiSmaxsInnerLoopTimes = 0U;
     for (uint32_t sIdx = 0; sIdx < batchSize; sIdx++) {
-        int64_t actualSeqLengthsTmp = actualSeqLengths[sIdx]; // 用于存放减去行无效后，真实的actseqlen
-        int64_t preTokensLeftUp = 0;
-        int64_t nextTokensLeftUp = 0;
-        GetPreNextTokensLeftUp(tilingData, actualSeqLengths[sIdx], actualSeqLengthsKV[sIdx] + actualSharedPrefixLen,
-            preTokensLeftUp, nextTokensLeftUp);
-
-        // 计算各sparse mode情况下，减去行无效后真实的actseqlen
-        FixParamWithRowInvalid(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, preTokensLeftUp, nextTokensLeftUp);
-
         // sinner方向块数，prefix和origin是分开切的。
         uint32_t sInnerLoopTimes = (actualSeqLengthsKV[sIdx] + sInnerSize - 1) / sInnerSize +
             (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
         multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes);
 
-        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx], sOuterSize,
-            sInnerSize, preTokensLeftUp, nextTokensLeftUp, isAttenMaskUsed);
+        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(tilingData, actualSeqLengths[sIdx], actualSeqLengthsKV[sIdx],
+            sOuterSize, sInnerSize, isAttenMaskUsed);
     }
     singleCoreParams->set_multiSmaxsInnerLoopTimes(multiSmaxsInnerLoopTimes);
 
