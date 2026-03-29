@@ -198,13 +198,13 @@ ge::graphStatus AlltoAllvQuantGmmTilingBase::CheckCommCountsRange()
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(e_ * epWorldSize_ != sendCountsSize,
             OP_LOGE(context_->GetNodeName(),
-            "The first dim of gmmWeight(e, H1, N1) %lu  multi epWorldSize_ %lu shoubl be equal to the size of "
-            "sendCounts(e*ep) %lu!",
+            "The first dim of gmmWeight(e, H1, N1) %lu  multi epWorldSize %lu shoubl be equal to the size of "
+            "sendCounts(e * ep) %lu!",
             e_, epWorldSize_, sendCountsSize),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK((e_ * epWorldSize_ <= EXPERT_MIN_VALUE) || (e_ * epWorldSize_ > EXPERT_MAX_VALUE),
             OP_LOGE(context_->GetNodeName(),
-            "The size of send_counts(e*ep) and recv_counts(e*ep) should be in (%lu, %lu], but got %lu!", EXPERT_MIN_VALUE,
+            "The size of send_counts(e * ep) and recv_counts(e * ep) should be in (%lu, %lu], but got %lu!", EXPERT_MIN_VALUE,
             EXPERT_MAX_VALUE, e_ * epWorldSize_),
             return ge::GRAPH_FAILED);
     }
