@@ -198,7 +198,7 @@ ge::graphStatus AlltoAllvQuantGmmTilingBase::CheckCommCountsRange()
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(e_ * epWorldSize_ != sendCountsSize,
             OP_LOGE(context_->GetNodeName(),
-            "The first dim of gmmWeight(e, H1, N1) %lu  multi epWorldSize %lu shoubl be equal to the size of "
+            "The first dim of gmmWeight(e, H1, N1) %lu  multiplied by epWorldSize %lu should be equal to the size of "
             "sendCounts(e * ep) %lu!",
             e_, epWorldSize_, sendCountsSize),
             return ge::GRAPH_FAILED);
