@@ -130,8 +130,7 @@ public:
     constexpr static int64_t OUTINDEX = -1;
     constexpr static uint32_t DETER_DKV_UB_SIZE = VECTOR_BASEM * VECTOR_BASEN * sizeof(CALC_TYPE);
     constexpr static uint16_t OFFSET_NUM = 3;
-
-                        
+    
     // vector gm addr
     GlobalTensor<INPUT_TYPE> valueGm;
     GlobalTensor<OUTDTYPE> yGm, pseGm, dyGm;
