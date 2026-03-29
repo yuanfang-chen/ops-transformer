@@ -367,7 +367,7 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::ProcessVec1D
     bmm1ResBuf.WaitCrossCore();
     LocalTensor<uint8_t> attenMaskUb;
     if constexpr (isFp8 && hasAtten) {
-        AttenMaskCopyInDn<hasAtten, false, true, isMxfp8FullQuant>(this->attenMaskInQue[0], this->attenMaskGmInt,
+        AttenMaskCopyInDn<hasAtten, hasRope, isInfer, isMxfp8FullQuant>(this->attenMaskInQue[0], this->attenMaskGmInt,
                                     runInfo, constInfo, *attenMaskInfoPtr,
                                     (runInfo.s2EndIdx - s1BaseSize < s2BaseSize) ||
                                     ((runInfo.s2EndIdx - s1BaseSize >= s2BaseSize) &&
@@ -390,21 +390,24 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::ProcessVec1D
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
     static constexpr int32_t mxfp8s2BaseSize = s2BaseSize / 2;
 
-    uint32_t s1RealSizeAlign64 = ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6;
+    uint32_t mxfp8s2RealSize = runInfo.s2RealSize;
+    if (runInfo.s2RealSize > 256) {
+        mxfp8s2RealSize = subLoop == 0 ? mxfp8s2BaseSize : runInfo.s2RealSize - mxfp8s2BaseSize;
+    }
 
     if (unlikely(runInfo.s2LoopCount == 0)) {
         if constexpr (isFp8) {
             if (attenMaskInfoPtr->computeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE) {
                 FaVectorApi::ProcessVec1VfDnMxfp8<T, INPUT_T, false, hasAtten, mxfp8s2BaseSize>(
                     stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
-                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize / 2, runInfo.s2RealSize / 2,
+                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize / 2, mxfp8s2RealSize,
                     static_cast<T>(constInfo.scaleValue), descaleQK, constInfo.pScale,
                     negativeFloatScalar, constInfo.keepProb, true, preLoopMaxUb, preLoopSumUb, firstLoopSumUb,
                     subLoop, threshold, s1BaseSize, mxfp8s2BaseSize, runInfo.s1oIdx, runInfo.s2LoopCount, constInfo.subBlockIdx);
             } else {
                 FaVectorApi::ProcessVec1VfDnMxfp8<T, INPUT_T, false, false, mxfp8s2BaseSize>(
                     stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
-                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize / 2, runInfo.s2RealSize / 2,
+                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize / 2, mxfp8s2RealSize,
                     static_cast<T>(constInfo.scaleValue), descaleQK, constInfo.pScale,
                     negativeFloatScalar, constInfo.keepProb, false, preLoopMaxUb, preLoopSumUb, firstLoopSumUb,
                     subLoop, threshold, s1BaseSize, mxfp8s2BaseSize, runInfo.s1oIdx, runInfo.s2LoopCount, constInfo.subBlockIdx);
@@ -415,14 +418,14 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::ProcessVec1D
             if (attenMaskInfoPtr->computeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE) {
                 FaVectorApi::ProcessVec1VfDnMxfp8<T, INPUT_T, true, hasAtten, mxfp8s2BaseSize>(
                     stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
-                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize  / 2, runInfo.s2RealSize / 2,
+                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize  / 2, mxfp8s2RealSize,
                     static_cast<T>(constInfo.scaleValue), descaleQK, constInfo.pScale,
                     negativeFloatScalar, constInfo.keepProb, true, preLoopMaxUb, preLoopSumUb, firstLoopSumUb, subLoop,
                     threshold, s1BaseSize, mxfp8s2BaseSize, runInfo.s1oIdx, runInfo.s2LoopCount, constInfo.subBlockIdx);
             } else {
                 FaVectorApi::ProcessVec1VfDnMxfp8<T, INPUT_T, true, false, mxfp8s2BaseSize>(
                     stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
-                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize  / 2, runInfo.s2RealSize / 2,
+                    ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize  / 2, mxfp8s2RealSize,
                     static_cast<T>(constInfo.scaleValue), descaleQK, constInfo.pScale,
                     negativeFloatScalar, constInfo.keepProb, false, preLoopMaxUb, preLoopSumUb, firstLoopSumUb, subLoop,
                     threshold, s1BaseSize, mxfp8s2BaseSize, runInfo.s1oIdx, runInfo.s2LoopCount, constInfo.subBlockIdx);
@@ -437,9 +440,8 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::ProcessVec1D
     LocalTensor<INPUT_T> mm2AL1Tensor = outputBuf.GetTensor<INPUT_T>();
 
     if constexpr (isFp8) {
-        uint32_t mxfp8s2RealSize = runInfo.s2RealSize / 2;
         // 按照64对齐搬运
-        int64_t subloopoffset = mxfp8s2RealSize * s1BaseSize * subLoop;
+        int64_t subloopoffset = mxfp8s2BaseSize * s1BaseSize * subLoop;
         DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1HalfS1BaseSize * ((mxfp8s2RealSize + 63) >> 6 << 6) + subloopoffset] ,
             stage1CastTensor, {static_cast<uint16_t>((mxfp8s2RealSize + 63) >> 6), 64, 66, 0});
         DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1HalfS1BaseSize * ((mxfp8s2RealSize + 63) >> 6 << 6) +
