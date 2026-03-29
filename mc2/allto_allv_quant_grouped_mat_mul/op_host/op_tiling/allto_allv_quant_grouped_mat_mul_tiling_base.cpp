@@ -204,8 +204,8 @@ ge::graphStatus AlltoAllvQuantGmmTilingBase::CheckCommCountsRange()
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK((e_ * epWorldSize_ <= EXPERT_MIN_VALUE) || (e_ * epWorldSize_ > EXPERT_MAX_VALUE),
             OP_LOGE(context_->GetNodeName(),
-            "The size of send_counts(e * ep) and recv_counts(e * ep) should be in (%lu, %lu], but got %lu!", EXPERT_MIN_VALUE,
-            EXPERT_MAX_VALUE, e_ * epWorldSize_),
+            "The size of send_counts(e * ep) and recv_counts(e * ep) should be in (%lu, %lu], but got %lu!",
+            EXPERT_MIN_VALUE, EXPERT_MAX_VALUE, e_ * epWorldSize_),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
