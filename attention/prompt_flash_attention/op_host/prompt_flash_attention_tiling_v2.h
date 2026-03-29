@@ -206,8 +206,8 @@ protected:
     int64_t GetCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqLength, int64_t sInner, int64_t sOuter, int64_t token) const;
     void FixParamWithRowInvalid(int64_t& actualSeqLength, int64_t actualSeqLengthKV, int64_t& preTokensLeftUp,
         int64_t& nextTokensLeftUp) const;
-    int64_t GetCalcBlockNumsOneHead(int64_t actualSeqLength, int64_t actualSeqLengthKV, uint32_t sOuterSize,
-        uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) const;
+    int64_t GetCalcBlockNumsOneHead(PromptFlashAttentionTilingDataV2& tilingData, int64_t actualSeqLength, int64_t actualSeqLengthKV,
+        uint32_t sOuterSize, uint32_t sInnerSize, bool isAttenMaskUsed);
     void ComputeSplitNBSeq(PromptFlashAttentionTilingDataV2& tilingData, uint32_t batchSize, const size_t tilingElementArrayLen,
         std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV, uint32_t sOuterSize,
         uint32_t sInnerSize, double coreWightTarget, uint32_t& curCore);
