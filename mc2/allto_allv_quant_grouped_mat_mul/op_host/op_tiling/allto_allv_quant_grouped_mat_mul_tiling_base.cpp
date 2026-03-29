@@ -190,7 +190,7 @@ ge::graphStatus AlltoAllvQuantGmmTilingBase::CheckCommCountsRange()
     // check sendCounts/recvCounts size
     uint64_t sendCountsSize = sendCountsPtr_->GetSize();
     uint64_t recvCountsSize = recvCountsPtr_->GetSize();
-    if (e_ > E_MIN_VALUE && e <= E_MAX_VALUE) {
+    if (e_ > E_MIN_VALUE && e_ <= E_MAX_VALUE) {
         OP_TILING_CHECK(sendCountsSize != recvCountsSize,
             OP_LOGE(context_->GetNodeName(),
             "The size of sendCounts(e * epWorldSize) %lu should be equal to recvCounts(e * epWorldSize) %lu !",
