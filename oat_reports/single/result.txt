@@ -1,0 +1,17 @@
+===================================
+OAT Scan Result Summary
+===================================
+Scan Time: 2026-03-29 13:26:45
+Project: ops-transformer_0302
+Files Checked: 2
+
+-----------------------------------
+Invalid File Type Total Count: 0
+
+-----------------------------------
+License Header Invalid Total Count: 1
+Name:	License Header Invalid	Content:	CANN-2.0	Line:	0	Project:	ops-transformer_0302	File:	D:/WorkSpace/ops-transformer_0302/mc2/moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_layered.h
+
+===================================
+Full report: D:/WorkSpace/ops-transformer_0302/oat_reports/single/PlainReport_ops-transformer_0302.txt
+===================================
