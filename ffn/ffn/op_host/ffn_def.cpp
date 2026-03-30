@@ -14,6 +14,8 @@
  */
 #include "register/op_def_registry.h"
 
+
+
 namespace ops {
 class FFN : public OpDef {
 public:
