@@ -383,12 +383,16 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
         uniqueExecutor.ReleaseTo(executor);
         return ACLNN_SUCCESS;
     }
-    CHECK_RET(ProcessUselessParams(pseShiftOptional, deqScale1Optional, quantScale1Optional, deqScale2Optional,
-              quantScale2Optional, quantOffset2Optional, antiquantScaleOptional, antiquantOffsetOptional, queryPaddingSizeOptional,
-              kvPaddingSizeOptional, keyAntiquantScaleOptional, keyAntiquantOffsetOptional, valueAntiquantScaleOptional,
-              valueAntiquantOffsetOptional, keySharedPrefixOptional, valueSharedPrefixOptional, keyRopeAntiquantScaleOptional, 
-              dequantScaleQueryOptional, learnableSinkOptional) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-              
+    CHECK_RET(ProcessUselessParams(pseShiftOptional, deqScale1Optional, quantScale1Optional,
+        deqScale2Optional,quantScale2Optional, quantOffset2Optional, antiquantScaleOptional,
+        antiquantOffsetOptional, queryPaddingSizeOptional,
+        kvPaddingSizeOptional, keyAntiquantScaleOptional,
+        keyAntiquantOffsetOptional, valueAntiquantScaleOptional,
+        valueAntiquantOffsetOptional, keySharedPrefixOptional,
+        valueSharedPrefixOptional, keyRopeAntiquantScaleOptional,
+        dequantScaleQueryOptional, learnableSinkOptional) == ACLNN_SUCCESS,
+        ACLNN_ERR_PARAM_INVALID);
+
     aclOpExecutor *l0Executor = uniqueExecutor.get();
     CHECK_RET(ContiguousInput(query, attenMaskOptional, blockTableOptional, queryRopeOptional, keySink, keyRopeSink, valueSink, l0Executor) == ACLNN_SUCCESS, 
               ACLNN_ERR_INNER_NULLPTR);
