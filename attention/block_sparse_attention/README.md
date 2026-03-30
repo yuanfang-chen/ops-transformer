@@ -74,8 +74,8 @@ aclnnStatus aclnnBlockSparseAttention(
   - 稀疏Mask: [batch, headNum, ceilDiv(maxQSeqLength, blockShapeX), ceilDiv(maxKvSeqLength, blockShapeY)]
 
 - **blockShapeOptional**: 
-  - blockShapeX: Q方向块大小
-  - blockShapeY: KV方向块大小
+  - blockShapeX：Q方向块大小
+  - blockShapeY：KV方向块大小
 
 ### 输出参数
 
