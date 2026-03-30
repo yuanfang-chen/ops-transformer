@@ -110,7 +110,8 @@ static aclnnStatus InputDtypeCheck(const aclTensor *input, const aclTensor *weig
     return ACLNN_SUCCESS;
 }
 
-static bool IsSupportedFormat(ge::Format format) {
+static bool IsSupportedFormat(ge::Format format)
+{
     return format == ge::FORMAT_ND ||
            format == ge::FORMAT_NCL ||
            format == ge::FORMAT_NCHW ||
@@ -128,7 +129,6 @@ static aclnnStatus CheckNDFormat(const aclTensor *input, const aclTensor *weight
         blockTableOptionalFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(blockTableOptional->GetStorageFormat()));
     }
     auto outputCacheFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(outputCache->GetStorageFormat()));
-
     if (!IsSupportedFormat(inputFormat) || !IsSupportedFormat(weightFormat) ||
         !IsSupportedFormat(slotMappingFormat) || !IsSupportedFormat(blockTableOptionalFormat) ||
         !IsSupportedFormat(outputCacheFormat)) {
@@ -171,7 +171,8 @@ aclnnNsaCompressWithCacheGetWorkspaceSize(const aclTensor *input, const aclTenso
     }
     // 检查是否支持格式
     if (!CheckNDFormat(input, weight, slotMapping, blockTableOptional, outputCache)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "[NSACompressWithCache] All input tensors (input/weight/slotMapping/blockTableOptional/outputCache) must be in ND, NCL, NCHW or NCDHW format");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "[NSACompressWithCache] All input tensors must be in ND, NCL, NCHW or NCDHW format");
         return ACLNN_ERR_PARAM_INVALID;
     }
     CHECK_RET(InputDtypeCheck(input, weight, slotMapping, blockTableOptional, outputCache) == ACLNN_SUCCESS,
