@@ -1090,7 +1090,7 @@ ge::graphStatus DequantChecker::CheckInputKVTypeForAntiquant(const FiaTilingInfo
                                 "Datatype of key and value(%s) is not supported. "
                                 "Datatype of key and value must be INT8 when "
                                 "keyAntiquantMode is per-tensor mode and valueAntiquantMode is per-tensor mode.",
- 	                            DataTypeToString(inputKvType).c_str()),
+ 	                            DataTypeToSerialString(inputKvType).c_str()),
  	                    return ge::GRAPH_FAILED);
  	    }
     }
