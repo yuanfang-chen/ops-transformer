@@ -65,8 +65,8 @@ TEST_P(FusedInferAttentionScoreInferShapeTest, param)
     if (param.inputInstance[30] == 1) inputTensorDesc.emplace_back(param.kv_start_idx);
 
     std::vector<gert::InfershapeContextPara::TensorDescription> outputTensorDesc;
-    if (param.outputInstance[0] == 1) inputTensorDesc.emplace_back(param.attention_out);
-    if (param.outputInstance[1] == 1) inputTensorDesc.emplace_back(param.softmax_lse);
+    if (param.outputInstance[0] == 1) outputTensorDesc.emplace_back(param.attention_out);
+    if (param.outputInstance[1] == 1) outputTensorDesc.emplace_back(param.softmax_lse);
 
     gert::InfershapeContextPara infershapeContextPara(
         "FusedInferAttentionScore",
@@ -88,7 +88,7 @@ TEST_P(FusedInferAttentionScoreInferShapeTest, param)
             {"value_antiquant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.value_antiquant_mode)},
             {"query_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.query_quant_mode)},
             {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.pse_type)},
-            {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.out_dtype)},
+            {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.out_dtype)}
         },
         param.inputInstance,
         param.outputInstance
