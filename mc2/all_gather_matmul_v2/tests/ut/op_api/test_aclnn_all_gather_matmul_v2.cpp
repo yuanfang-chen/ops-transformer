@@ -311,13 +311,13 @@ TEST_F(AllGatherMatmulV2AclnnTest, TestAllGatherMatmulTransPerblock)
 TEST_F(AllGatherMatmulV2AclnnTest, TestAllGatherV2X2NonContiguousWithoutTranspose)
 {
     // 测试场景：非转置的连续x2输入，应返回校验失败
-	TensorDesc x1 = TensorDesc({32, 256}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
-	// 设置x2非转置非连续步长，假设每行之间间隔10个元素[128 + 10, 1]，实际内存存储storageShape为[256, 128 + 10]
-	TensorDesc x2 = TensorDesc({256, 128}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND, {128 + 10, 1}, 0, {256, 128 + 10});
+	TensorDesc x1 = TensorDesc({128, 256}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
+	// 设置x2非转置非连续步长，假设每行之间间隔10个元素[512 + 10, 1]，实际内存存储storageShape为[256, 512 + 10]
+	TensorDesc x2 = TensorDesc({256, 512}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND, {512 + 10, 1});
 	TensorDesc x1Scale = TensorDesc({1}, ACL_FLOAT, ACL_FORMAT_ND);
 	TensorDesc x2Scale = TensorDesc({1}, ACL_FLOAT, ACL_FORMAT_ND);
-	TensorDesc output = TensorDesc({32, 128}, ACL_FLOAT16, ACL_FORMAT_ND);
-	TensorDesc gatherOut = TensorDesc({32, 256}, ACL_FLOAT16, ACL_FORMAT_ND);
+	TensorDesc output = TensorDesc({128, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
+	TensorDesc gatherOut = TensorDesc({128, 256}, ACL_FLOAT16, ACL_FORMAT_ND);
 
     auto ut = OP_API_UT(
         aclnnAllGatherMatmulV2,
@@ -337,7 +337,7 @@ TEST_F(AllGatherMatmulV2AclnnTest, TestAllGatherV2X2TransposedNonContiguous)
     // 测试场景：转置的连续x2输入，应返回正常
     TensorDesc x1 = TensorDesc({32, 256}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND);
 	// 设置x2转置非连续步长，实际内存存储storageShape为[128, 256]
-	TensorDesc x2 = TensorDesc({256, 128}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND, {1, 128});
+	TensorDesc x2 = TensorDesc({256, 128}, ACL_FLOAT8_E4M3FN, ACL_FORMAT_ND, {1, 256});
 	TensorDesc x1Scale = TensorDesc({1}, ACL_FLOAT, ACL_FORMAT_ND);
 	TensorDesc x2Scale = TensorDesc({1}, ACL_FLOAT, ACL_FORMAT_ND);
 	TensorDesc output = TensorDesc({32, 128}, ACL_FLOAT16, ACL_FORMAT_ND);
