@@ -79,6 +79,7 @@ static const int64_t D_K_SCALE_INDEX = 13L;
 static const int64_t D_V_SCALE_INDEX = 14L;
 static const int64_t QUERY_ROPE_INDEX = 15L;
 static const int64_t KEY_ROPE_INDEX = 16L;
+static const int64_t SINK_INPUT_INDEX = 17L;
 static const int64_t D_SCALE_DIM_NUM_4 = 4L;
 static const int64_t D_SCALE_DIM_NUM_0 = 0L;
 static const int64_t D_SCALE_DIM_NUM_1 = 1L;
@@ -314,6 +315,7 @@ protected:
         pseType = static_cast<int64_t>(PseType::PSE_OUTER_ADD_MUL_TYPE);
         pseAlibiBaseS1 = 0;
         pseAlibiBaseS2 = 0;
+        tndSoftmaxOut = 0;
         qStartIdx = 0;
         kvStartIdx = 0;
         keepProb = 1.0f;
@@ -328,6 +330,7 @@ protected:
         maxValidS2Len = 0LL;
         opName = nullptr;
         inputLayout = nullptr;
+        softmaxOutLayout = nullptr;
     }
 
     bool IsCapable() override
@@ -385,6 +388,7 @@ protected:
     bool AnalyzeFp8OptionalInput();
     bool AnalyzeRopeOptionalInput();
     bool AnalyzeOptionalInput();
+    bool AnalyzeSinkOptionalInput();
     virtual void CalcS1S2BasicBlock() = 0;
     virtual void CalcDBasicBlock() = 0;
     virtual void CalcDVBasicBlock();
@@ -447,6 +451,7 @@ protected:
     int64_t pseType;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    uint8_t tndSoftmaxOut;
     int64_t qStartIdx;
     int64_t kvStartIdx;
     int64_t accumS1;
@@ -477,6 +482,7 @@ protected:
     const char *templateName = "base";
     const char *opName;
     const char *inputLayout;
+    const char *softmaxOutLayout;
     const int64_t *prefixNData;
 
     bool isSparseValidSizeAligned = false;
@@ -486,6 +492,7 @@ protected:
     bool dropMaskOuter = false;
     bool regbase = false;
     bool hasRope = false;
+    bool hasSink = false;
 
     DTemplateType dTemplateType = DTemplateType::DTEMPLATEBOTTOM;
     DTemplateType dVTemplateType = DTemplateType::DTEMPLATEBOTTOM;

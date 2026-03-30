@@ -207,11 +207,14 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeAttrs()
                        OPS_REPORT_VECTOR_INNER_ERR(opName, "outDtype value is out of range"), return false);
         outDtype = outDtype + 1; // 外部合法是0或1, 内部对应使用1和2,如果没有量化参数, 后面会刷成0, 1表示fp16, 2表示bf16
     }
-    idx++; // 跳过softmax_out_layout属性
+    if (attrs->GetAttrNum() > idx) {
+        softmaxOutLayout = attrs->GetAttrPointer<char>(idx++);
+        tndSoftmaxOut = (strcmp(inputLayout, "TND") == 0 && strcmp(softmaxOutLayout, "same_as_input") == 0) ? 1 : tndSoftmaxOut;
+    }
     OP_LOGD(context_, "attrs: scale_value[%f] keep_prob[%f] pre_tockens[%ld] next_tockens[%ld] head_num[%ld] input_layout[%s]"
-                      "inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld].",
+                      "inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld] softmaxOutLayout[%s].",
               scaleValue, keepProb, preTokens, nextTokens, n1Size, inputLayout, static_cast<int>(implMode), sparseMode, pseType,
-              seed, offset, outDtype);
+              seed, offset, outDtype, softmaxOutLayout);
     return true;
 }
 
@@ -533,6 +536,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::GetShapeAttrsInfo()
     inputParamsRegbase_->set_keepProbUint8(keepProbUint8);
     inputParamsRegbase_->set_seed(seed);
     inputParamsRegbase_->set_offset(offset);
+    inputParamsRegbase_->set_tndSoftmaxOut(tndSoftmaxOut);
 
     OP_LOGD(context_, "input ParamsRegbase: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], keepProb[%f], scaleValue[%f],"
                         "pseType:%ld.", bSize, n2Size, gSize, s1Size, s2Size, dSize, keepProb, scaleValue, pseType);
@@ -860,13 +864,52 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
     return true;
 }
 
+bool FlashAttentionScoreTilingRegbase::AnalyzeSinkOptionalInput()
+{
+    auto sinkShapePtr = context_->GetOptionalInputShape(SINK_INPUT_INDEX);
+    auto sinkInputPtr = context_->GetOptionalInputDesc(SINK_INPUT_INDEX);
+    if (sinkShapePtr != nullptr && sinkInputPtr != nullptr && sinkShapePtr->GetStorageShape().GetDimNum() != 0) {
+        hasSink = true;
+        auto shape = sinkShapePtr->GetStorageShape();
+        int64_t dimNum = shape.GetDimNum();
+        auto sinkDtype = sinkInputPtr->GetDataType();
+        OP_CHECK_IF(sinkDtype != ge::DT_FLOAT,
+            OP_LOGE(opName, "invalid sink dtype[%s], only support float.",
+                ge::TypeUtils::DataTypeToSerialString(sinkDtype).c_str()),
+            return false);
+
+        std::string sinkShape = "";
+        for (int i = 0; i < dimNum; ++i) {
+            sinkShape += std::to_string(shape.GetDim(i));
+            if (i < dimNum - 1) {
+                sinkShape += ", ";
+            }
+        }
+        OP_CHECK_IF(dimNum != 1, OP_LOGE(opName, "invalid sink shape [%s], sink only support [n,].",
+            sinkShape.c_str()),
+            return false);
+
+        int64_t expectedSinkSize = n1Size;
+        auto actualSinkShapeSize = shape.GetShapeSize();
+        OP_CHECK_IF(actualSinkShapeSize != expectedSinkSize, OP_LOGE(context_,
+            "invalid sink shapeSize, expect [%ld], but got [%ld].",
+            expectedSinkSize, actualSinkShapeSize),
+            return false);
+
+        OP_CHECK_IF(!(inputDtype == ge::DT_FLOAT16 || inputDtype == ge::DT_BF16),
+            OP_LOGE(opName, "invalid input dtype, other tensor`s dtype only support float16 and bf16."),
+            return false);
+    }
+    return true;
+}
+
 bool FlashAttentionScoreTilingRegbase::AnalyzeOptionalInput()
 {
     OP_CHECK_IF(!AnalyzePseOptionalInput() || !AnalyzeAttenOptionalInput() || !AnalyzeDropOptionalInput() ||
-               !AnalyzeFp8OptionalInput(),
+               !AnalyzeFp8OptionalInput() || !AnalyzeSinkOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "Analyze Optional Input error."), return false);
-    OP_LOGD(context_, "hasPse: %d, hasAttenMask: %d, hasDropOut: %d, dropMaskouter %d.",
-              hasPse, hasAttenMask, hasDropOut, dropMaskOuter);
+    OP_LOGD(context_, "hasPse: %d, hasAttenMask: %d, hasDropOut: %d, dropMaskOuter %d, hasSink: %d.",
+            hasPse, hasAttenMask, hasDropOut, dropMaskOuter, hasSink);
     return true;
 }
 

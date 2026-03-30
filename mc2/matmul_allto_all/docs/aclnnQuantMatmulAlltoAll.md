@@ -13,7 +13,7 @@
 
 ## 功能说明
 
-- 接口功能：完成量化的Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**，支持K-C量化、mx[量化模式](../../../docs/zh/context/量化介绍.md)。
+- 接口功能：完成量化的Matmul计算、Permute（保证通信后地址连续）和AlltoAll通信的融合，**先计算后通信**，支持K-C量化、mx[量化模式](../../../docs/zh/context/量化介绍.md)。
 - 计算公式：假设x1的shape为(BS, H1)，x2的shape为(H1, H2)，rankSize为NPU卡数。
 
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
@@ -67,7 +67,7 @@ int64_t            commQuantDtype,
 int64_t            groupSize,
 bool               transposeX1,
 bool               transposeX2,
-aclTensor*         output,
+const aclTensor*   output,
 uint64_t*          workspaceSize,
 aclOpExecutor**    executor);
 ```
@@ -111,7 +111,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>融合算子的左矩阵输入，对应公式中的x1。</td>
     <td>该输入作为MatMul计算的左矩阵输入；根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
-    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
+    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8</td>
     <td>ND</td>
     <td>2维，shape为(BS, H1)</td>
     <td>x</td>
@@ -121,7 +121,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>融合算子的右矩阵输入，对应公式中的x2。</td>
     <td>直接作为MatMul计算的右矩阵输入；根据设备型号对数据类型和非连续有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
-    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
+    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8</td>
     <td>ND</td>
     <td>2维，shape为(H1, H2)</td>
     <td>√</td>
@@ -175,6 +175,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <td>-</td>
     <td>-</td>
+    </tr>
     <tr>
     <td>x2OffsetOptional</td>
     <td>输入</td>
@@ -184,10 +185,11 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <td>-</td>
     <td>-</td>
+    </tr>
     <tr>
     <td>alltoAllAxesOptional</td>
     <td>输入</td>
-    <td>AlltoAll和Pemute数据交换的方向。</td>
+    <td>AlltoAll和Permute数据交换的方向。</td>
     <td>支持配置空或者[-1, -2]，传入空时默认按[-1, -2]处理，表示将输入由(BS, H2)转为(BS*rankSize, H2/rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>-</td>
@@ -430,6 +432,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32
     $$
   - 假设输入x和scale各方向满足整除关系，且自动推导的groupSizeM、groupSizeN、groupSizeK满足[1,1,32]，则mx量化场景下groupSize支持以下取值：
+
     | groupSize | 根据计算公式[gsM,gsN,gsK] | 根据自动推导[gsM,gsN,gsK] |
     | :------: | :------: | :------: |
     | 4295032864 | [1,1,32] | - |
@@ -440,6 +443,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     | 4294967296 | [1,0,0] | [1,1,32] |
     | 4294967328 | [1,0,32] | [1,1,32] |
     | 4295032832 | [1,1,0] | [1,1,32] |
+
 * 该算子输入输出的数据类型、数据维度和量化模式根据不同设备型号有不同的限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     * 量化模式：
@@ -448,12 +452,14 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     * 类型约束：
       * 输入输出支持的数据类型组合有：
         * K-C量化：
+
           | x1 | x2 | biasOptional | output |
           | :------: | :------: | :------: | :------: |
           | INT8 | INT8 | FLOAT16 | FLOAT16 |
           | INT8 | INT8 | FLOAT32 | FLOAT16 |
           | INT8 | INT8 | BFLOAT16 | BFLOAT16 |
           | INT8 | INT8 | FLOAT32 | BFLOAT16 |
+
     * 维度约束：
       * H1范围仅支持[1, 65535]。
   - <term>Ascend 950PR/Ascend 950DT</term>：
@@ -463,6 +469,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
       * biasOptional可以为空。
       * 输入输出支持的数据类型组合有：
         * K-C量化：
+
           | x1 | x2 | biasOptional | output | x1QuantDtype | x2QuantDtype | x1ScaleOptional | x2Scale |
           | :------: | :------: | :------: | :------: | :------: | :------: | :------: | :------: |
           | FLOAT8_E4M3FN | FLOAT8_E4M3FN | FLOAT32 | FLOAT16 | 3 | 2 | FLOAT32 | FLOAT32 |
@@ -477,7 +484,9 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | FLOAT16 | 3 | 2 | FLOAT32 | FLOAT32 |
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | BFLOAT16 | 3 | 2 | FLOAT32 | FLOAT32 |
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | FLOAT32 | 3 | 2 | FLOAT32 | FLOAT32 |
+
         * mx量化：
+
           | x1 | x2 | biasOptional | output | x1QuantDtype | x2QuantDtype | x1ScaleOptional | x2Scale |
           | :------: | :------: | :------: | :------: | :------: | :------: | :------: | :------: |
           | FLOAT8_E4M3FN | FLOAT8_E4M3FN | FLOAT32 | FLOAT16 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
@@ -492,6 +501,10 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | FLOAT16 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | BFLOAT16 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
           | FLOAT8_E5M2 | FLOAT8_E5M2 | FLOAT32 | FLOAT32 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
+          | FLOAT4_E2M1 | FLOAT4_E2M1 | FLOAT32 | FLOAT16 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
+          | FLOAT4_E2M1 | FLOAT4_E2M1 | FLOAT32 | BFLOAT16 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
+          | FLOAT4_E2M1 | FLOAT4_E2M1 | FLOAT32 | FLOAT32 | 6 | 6 | FLOAT8_E8M0 | FLOAT8_E8M0 |
+
     * 维度约束：
       * H1范围仅支持[1, 65535]。
       * mx量化场景下，x2必须转置，shape为(H2, H1)，transposeX2为True。
@@ -736,6 +749,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
         return 0;
     }
     ```
+
 - <term>Ascend 950PR/Ascend 950DT</term>：
 
     ```Cpp

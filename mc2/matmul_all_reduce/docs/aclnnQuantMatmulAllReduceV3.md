@@ -75,17 +75,18 @@ aclnnStatus aclnnQuantMatmulAllReduceV3GetWorkspaceSize(
     uint64_t        *workspaceSize,
     aclOpExecutor  **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceV3(
-    void          *workspace,
-    uint64_t       workspaceSize,
-    aclOpExecutor *executor,
-    aclrtStream    stream)
+    void              *workspace,
+    uint64_t           workspaceSize,
+    aclOpExecutor     *executor,
+    const aclrtStream  stream)
 ```
 
 ## aclnnQuantMatmulAllReduceV3GetWorkspaceSize
 
--   **参数说明**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
@@ -271,7 +272,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
 
       - 输入x2的数据格式仅支持ND格式（当前版本仅支持二维输入）。
 
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -310,12 +311,13 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
 
 ## aclnnQuantMatmulAllReduceV3
 
--   **参数说明**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
     <col style="width: 168px">
     <col style="width: 128px">
     <col style="width: 854px">
+    </colgroup>
     <thead>
     <tr>
         <th>参数名</th>
@@ -345,7 +347,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
     </tr>
     </tbody></table>
 
--   **返回值**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
