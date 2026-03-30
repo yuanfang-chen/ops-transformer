@@ -657,10 +657,10 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
     int64_t singleColSize = inuptXDtypeSize_;
     int64_t k = moeInitRoutingTilingData.get_k();
     int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO;
-    // 按照k:1搬入
-    int64_t factor = ubSize/(k*singleRowSize + singleColSize);
+    // 按照1:1搬入
+    int64_t factor = ubSize/(singleRowSize + singleColSize);
     // 空间向下取整
-    int64_t rowSize = (k * singleRowSize * factor)/ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+    int64_t rowSize = singleRowSize * factor/ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
     int64_t basePerLoopMaxRows = rowSize/singleRowSize;
 
     int64_t colSize = singleColSize * factor/ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
