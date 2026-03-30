@@ -589,7 +589,7 @@ void MlaPrologTilingCheck::FillFullQuantParamInfo()
     expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[WEIGHT_DKV_KR_NAME].dtype = ge::DT_INT8;
 
-    if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
+    if (GetCurNpuArch() != NpuArch::DAV_3510 && std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
         if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
             expectedParamInfo_[TOKEN_X_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
             expectedParamInfo_[WEIGHT_DQ_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
@@ -615,7 +615,7 @@ void MlaPrologTilingCheck::FillFullKVQuantParamInfo()
     expectedParamInfo_[QUERY_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_INT8;
-    if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
+    if (GetCurNpuArch() != NpuArch::DAV_3510 && std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
         expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1});
         if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
             expectedParamInfo_[QUERY_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
@@ -640,6 +640,15 @@ void MlaPrologTilingCheck::FillFullKVPertileQuantParamInfo()
     expectedParamInfo_.emplace(K_NOPE_CLIP_ALPHA_NAME, std::vector<uint32_t>{1});
     expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_INT8;
+    if (GetCurNpuArch() != NpuArch::DAV_3510 && std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
+        if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
+            expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+            expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
+        } else if (*(context_.weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
+            expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_HIFLOAT8;
+            expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_HIFLOAT8;
+        }
+    }
     expectedParamInfo_[K_NOPE_CLIP_ALPHA_NAME].dtype = ge::DT_FLOAT;
 }
 
@@ -691,6 +700,26 @@ void MlaPrologTilingCheck::FillMxfp8FullKVPertileParamInfo()
     expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
 }
 
+void MlaPrologTilingCheck::FillFP8FullQuantParamInfo()
+{
+    FillFullQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillFP8FullKVQuantParamInfo()
+{
+    FillFullKVQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillHIF8FullQuantParamInfo()
+{
+    FillFullQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillHIF8FullKVQuantParamInfo()
+{
+    FillFullKVQuantParamInfo();
+}
+
 void MlaPrologTilingCheck::GenActualParamInfo()
 {
     actualParamInfo_.emplace(TOKEN_X_NAME, context_.tokenX);
@@ -726,26 +755,6 @@ void MlaPrologTilingCheck::GenActualParamInfo()
         actualParamInfo_.erase(KR_CACHE_NAME);
         actualParamInfo_.erase(KR_CACHE_OUT_NAME);
     }
-}
-
-void MlaPrologTilingCheck::FillFP8FullQuantParamInfo()
-{
-    FillFullQuantParamInfo();
-}
-
-void MlaPrologTilingCheck::FillFP8FullKVQuantParamInfo()
-{
-    FillFullKVQuantParamInfo();
-}
-
-void MlaPrologTilingCheck::FillHIF8FullQuantParamInfo()
-{
-    FillFullQuantParamInfo();
-}
-
-void MlaPrologTilingCheck::FillHIF8FullKVQuantParamInfo()
-{
-    FillFullKVQuantParamInfo();
 }
 
 ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
