@@ -2140,6 +2140,9 @@ static aclnnStatus CheckQuantGMMWeightNz(DataType x1Dtype, DataType weightDtype,
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str(),
             gmm::dTypeToString(yDtype).c_str());
         return ACLNN_SUCCESS;
+    } else if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+               x1Dtype == DataType::DT_FLOAT8_E4M3FN && weightDtype == DataType::DT_FLOAT8_E4M3FN) {
+        return ACLNN_SUCCESS;
     }
     return ACLNN_ERR_PARAM_INVALID;
 }
@@ -2177,7 +2180,7 @@ static aclnnStatus ParamsWeightNzDtype(gmm::GroupedMatmulParams &params) {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
             "The dtypes of x[%s]-weight[%s] do not match with required dtype."
             "Only supported x-weight: INT8-INT8, BF16-BF16, FP16-FP16, INT8-INT4, INT4-INT4, FP16/BF16-FP4_E2M1, "
-            "FP8_E4M3FN-FP4_E2M1",
+            "FP8_E4M3FN-FP4_E2M1, FP8_E4M3FN-FP8_E4M3FN.",
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str());
     return ACLNN_ERR_PARAM_INVALID;
 }
@@ -2396,9 +2399,8 @@ aclnnStatus CheckCommonParam(const aclTensorList *x , const aclTensorList *weigh
     CHECK_COND(actType < END_ACT_TYPE_ENUM, ACLNN_ERR_PARAM_INVALID,
                "Activation function only support RELU/GELU_TANH/FASTGELU/SILU.");
   }
-
   if (groupListType == gmm::GROUP_LIST_SPARSE_M) {
-    CHECK_COND(npuArch == NpuArch::DAV_2201, ACLNN_ERR_PARAM_INVALID,
+    CHECK_COND(npuArch == NpuArch::DAV_2201 || npuArch == NpuArch::DAV_3510, ACLNN_ERR_PARAM_INVALID,
       "This platform not support groupListType is 2.");
     CHECK_COND(groupType == gmm::SPLIT_M, ACLNN_ERR_PARAM_INVALID,
       "When groupListType is 2 only support groupType 0, but get groupType %ld.", groupType);

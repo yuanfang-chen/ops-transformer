@@ -107,7 +107,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckOpInputSingleParamsT
     bool isMmXNull = (mmXTensorShape == nullptr);
     bool isMmWeightNull = (mmWeightTensorShape == nullptr);
     bool isMmYNull = (mmYShape == nullptr);
-
+    if (!isMmYNull) {
+        auto mmYDimNum = mmYShape->GetStorageShape().GetDimNum();
+        isMmYNull = mmYDimNum == 0;
+    }
     bool isAllSame = (isMmXNull == isMmWeightNull) && (isMmWeightNull == isMmYNull);
     OP_TILING_CHECK(!isAllSame, 
                     OP_LOGE(opName_, "mmXTensor, mmWeightTensor, mmYTensor must exist or not exist at same time."),
@@ -693,8 +696,11 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::SetGmmA2avWorkspaceInfo()
     inferredInfo_.gmmResultLen = mc2tiling::AlignUp(
         localParams_.A * localParams_.N1 * gmmYDtypeSize, alignAddrLen);
     localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo_.gmmResultLen;
-    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
+    // GmmComputeOp workspace 内部布局: groupList (ep * 8B) + ptrTable (4 * 16B = 64B)
+    constexpr uint64_t ptrTableSize = 128;
+    uint64_t gmmComputeWsSize = localParams_.ep * sizeof(int64_t) + ptrTableSize;
+    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = mc2tiling::AlignUp(gmmComputeWsSize, alignAddrLen);
+    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = mc2tiling::AlignUp(gmmComputeWsSize, alignAddrLen);
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo_.gmmResultLen +
         localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
         localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
@@ -707,12 +713,18 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::DoQuantGMMTiling()
     // 设置公共信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
-    // GMM 第一个矩阵块
-    uint64_t gmmX_epSize = 0;
-    for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
-        gmmX_epSize += localTilingData_.taskTilingInfo.sendCnt[i*localParams_.ep];
+    // tokens最多的专家作为MM计算的M
+    uint64_t mMaxSize = 0;
+    uint64_t mSize = 0;
+    for (uint64_t expertIdx = 0; expertIdx < localParams_.ep; expertIdx++) {
+        mSize = 0;
+        for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
+            mSize += localTilingData_.taskTilingInfo.sendCnt[i*localParams_.ep  + expertIdx];
+        }
+        mMaxSize = std::max(mSize, mMaxSize);
+
     }
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, gmmX_epSize));
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, mMaxSize));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
     localTilingData_.gmmBaseTiling = gmmTile.GetGmmQuantTilingAdapterData();
 
