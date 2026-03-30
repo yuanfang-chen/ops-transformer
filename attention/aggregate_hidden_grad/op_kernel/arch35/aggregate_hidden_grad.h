@@ -235,8 +235,7 @@ private:
         int64_t bStart = bTile * bUB_;
         int64_t hOff = hTile * hUB_;
         int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
-        DataCopyPadExtParams<DT> padParams{false, 0, 0, 0};
-        DataCopyPad(gradInGm_[base], giLocal, inParams, padParams);
+        DataCopyPad(gradInGm_[base], giLocal, inParams);
         gradInQ_.FreeTensor(giLocal);
     }
 
@@ -253,9 +252,8 @@ private:
             int64_t base = static_cast<int64_t>(k) * H_ + baseH;
             DataCopyExtParams outParams{static_cast<uint16_t>(1),
                                         static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                        0, 0};
-            DataCopyPadExtParams<DT> padParams{false, 0, 0, 0};
-            DataCopyPad(gradWeightGm_[base], gwSlice, outParams, padParams);
+                                        0, 0, 0};
+            DataCopyPad(gradWeightGm_[base], gwSlice, outParams);
         }
         gradWeightQ_.FreeTensor(gwCast);
     }
