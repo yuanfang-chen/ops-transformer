@@ -89,6 +89,7 @@
 #define MOE_INIT_ROUTING_V3_GATHER_SORTMULTICORE_GATHER 1300000 // 多核Gather->多核排序、非量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_GATHER_SORTMULTICORE_SCATTER 1301000 // 多核Gather->多核排序、非量化、SCATTER索引
 
+#define EMPTY_TENSOR 3000000
 
 using namespace AscendC;
 using namespace MoeInitRoutingV3;
@@ -113,6 +114,18 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
     }
 
     auto t = &tilingData;
+
+    if (TILING_KEY_IS(EMPTY_TENSOR)) {
+        if (GetBlockIdx() != 0) {
+            return;
+        }
+        if (t->expertTokensNumFlag) {
+            GlobalTensor<int64_t> expertTokensCountGm;
+            expertTokensCountGm.SetGlobalBuffer((__gm__ int32_t *)expertTokensCountOrCumsum, t->expertCountElements);
+            InitGlobalMemory(expertTokensCountGm, t->expertCountElements, 0);
+        }
+        return;
+    }
 
     if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_PERFORMANCE)) {
         TPipe fullLoadPipe;
