@@ -172,7 +172,7 @@ aclnnNsaCompressWithCacheGetWorkspaceSize(const aclTensor *input, const aclTenso
     // 检查是否支持格式
     if (!CheckNDFormat(input, weight, slotMapping, blockTableOptional, outputCache)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-        "[NSACompressWithCache] All input tensors must be in ND, NCL, NCHW or NCDHW format");
+            "[NSACompressWithCache] All input tensors must be in ND, NCL, NCHW or NCDHW format");
         return ACLNN_ERR_PARAM_INVALID;
     }
     CHECK_RET(InputDtypeCheck(input, weight, slotMapping, blockTableOptional, outputCache) == ACLNN_SUCCESS,
