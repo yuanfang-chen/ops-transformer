@@ -29,7 +29,6 @@ using AscendC::IsSameType;
 using AscendC::LocalTensor;
 using AscendC::PipeBarrier;
 using AscendC::SetFlag;
-using AscendC::TBuf;
 using AscendC::TPosition;
 using AscendC::WaitFlag;
 using AscendC::BLOCK_CUBE;

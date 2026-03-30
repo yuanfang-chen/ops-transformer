@@ -26,9 +26,6 @@
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
 
-constexpr static uint16_t WEIGHT_F16_UB_NZ_STRIDE = 65;
-constexpr int16_t SHIFT_FOR_BF16 = 1;
-
 struct WqmmConfig {
     bool aTrans;
     bool bTrans;
@@ -110,91 +107,6 @@ struct UbBufferInfo {
 };
 
 template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetNzBufferInfo()
-{
-    return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 112 * GetKBUnit<int8_t>(),  // 112KB
-            .highBitDataUbTotalSize = 128 * GetKBUnit<half>(),          // 128KB
-            .antiQuantScaleUbTotalSize = 4 * GetKBUnit<half>(),         // 4KB
-            .antiQuantScaleAfterCastUbTotalSize = 0,
-            .antiQuantOffsetUbTotalSize = 4 * GetKBUnit<half>(),  // 4KB
-            .weightInputLowBitUbSingleBufferSize = 112 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleUbSingleBufferSize = 4 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleAfterCastUbSingleBufferSize = 0,
-            .antiQuantOffsetUbSingleBufferSize = 4 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .highBitDataUbSingleBufferSize = 128 * GetKBUnit<half>() / QUADRUPLE_BUFFER_NUM,
-            .antiQuantScaleMaskBufferSize = 0};
-}
-
-template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetS8S4NzBufferInfo()
-{
-    return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 96 * GetKBUnit<int8_t>(),  // 96KB
-            .highBitDataUbTotalSize = 128 * GetKBUnit<int8_t>(),       // 128KB
-            .antiQuantScaleUbTotalSize = 12 * GetKBUnit<half>(),       // 12KB
-            .antiQuantScaleAfterCastUbTotalSize = 0,
-            .antiQuantOffsetUbTotalSize = 0,
-            .weightInputLowBitUbSingleBufferSize = 96 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,  // 32KB
-            .antiQuantScaleUbSingleBufferSize = 12 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,       // 4KB
-            .antiQuantScaleAfterCastUbSingleBufferSize = 0,
-            .antiQuantOffsetUbSingleBufferSize = 0,
-            .highBitDataUbSingleBufferSize = 128 * GetKBUnit<int8_t>() / QUADRUPLE_BUFFER_NUM,  // 32KB
-            .antiQuantScaleMaskBufferSize = 32 / sizeof(uint64_t)};                             // 32B (4个uint64)
-}
-
-template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetNdBufferInfo()
-{
-    return {.ubWeightOutputHighBitBufferNum = DOUBLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 174 * GetKBUnit<int8_t>(),  // 174KB
-            .highBitDataUbTotalSize = 66 * GetKBUnit<half>(),           // 66KB
-            .antiQuantScaleUbTotalSize = 4 * GetKBUnit<half>(),         // 4KB
-            .antiQuantScaleAfterCastUbTotalSize = 0,
-            .antiQuantOffsetUbTotalSize = 4 * GetKBUnit<half>(),  // 4KB
-            .weightInputLowBitUbSingleBufferSize = 174 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleUbSingleBufferSize = 4 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleAfterCastUbSingleBufferSize = 0,
-            .antiQuantOffsetUbSingleBufferSize = 4 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .highBitDataUbSingleBufferSize = 66 * GetKBUnit<half>() / DOUBLE_BUFFER_NUM,
-            .antiQuantScaleMaskBufferSize = 0};
-}
-
-template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetMxFp4NdBufferInfo()
-{
-    return {.ubWeightOutputHighBitBufferNum = DOUBLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 128 * GetKBUnit<int8_t>(),     // 128KB
-            .highBitDataUbTotalSize = 66 * GetKBUnit<half>(),              // 66KB
-            .antiQuantScaleUbTotalSize = 8 * GetKBUnit<int8_t>(),          // 8KB
-            .antiQuantScaleAfterCastUbTotalSize = 32 * GetKBUnit<half>(),  // 32KB
-            .antiQuantOffsetUbTotalSize = 0,
-            .weightInputLowBitUbSingleBufferSize = 128 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleUbSingleBufferSize = 8 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleAfterCastUbSingleBufferSize = 32 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .antiQuantOffsetUbSingleBufferSize = 0,
-            .highBitDataUbSingleBufferSize = 66 * GetKBUnit<half>() / DOUBLE_BUFFER_NUM,
-            .antiQuantScaleMaskBufferSize = 0};
-}
-
-template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetMxFp4NzBufferInfo()
-{
-    return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 64 * GetKBUnit<int8_t>(),      // 64KB
-            .highBitDataUbTotalSize = 128 * GetKBUnit<half>(),             // 128KB
-            .antiQuantScaleUbTotalSize = 8 * GetKBUnit<int8_t>(),          // 8KB
-            .antiQuantScaleAfterCastUbTotalSize = 16 * GetKBUnit<half>(),  // 16KB
-            .antiQuantOffsetUbTotalSize = 0,
-            .weightInputLowBitUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleUbSingleBufferSize = 8 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleAfterCastUbSingleBufferSize = 16 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .antiQuantOffsetUbSingleBufferSize = 0,
-            .highBitDataUbSingleBufferSize = 128 * GetKBUnit<half>() / QUADRUPLE_BUFFER_NUM,
-            .antiQuantScaleMaskBufferSize = 0};
-}
-
-template <const VecAntiQuantConfig &vecConfig>
 __aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
 {
     return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
@@ -219,18 +131,6 @@ template <typename xType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig
 __aicore__ constexpr UbBufferInfo GetBufferConfig()
 {
     return GetMxA8W4NzBufferInfo<vecConfig>();
-}
-
-struct VfConfig {
-    uint64_t vfNStandardLen;
-    uint64_t vfKStandardLen;
-};
-
-template <typename xType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr VfConfig GetVfConfig()
-{
-    // mxA8W4场景动态配置，实际不生效
-    return {.vfNStandardLen = 256, .vfKStandardLen = 64};
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 #endif  // GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H

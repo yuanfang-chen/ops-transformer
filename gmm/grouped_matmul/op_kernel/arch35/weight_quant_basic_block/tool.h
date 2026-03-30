@@ -30,12 +30,6 @@ using AscendC::LocalTensor;
 using AscendC::ONE_BLK_SIZE;
 using AscendC::TPosition;
 using AscendC::VECTOR_REG_WIDTH;
-using matmul::MatmulCallBackFunc;
-using matmul::MatmulImpl;
-using matmul::MatmulType;
-using matmul::MatmulTypeWithScale;
-
-#define SHORT_MIX_LOG(format, ...)
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
 enum class QuantType {
@@ -52,9 +46,6 @@ static constexpr int32_t DOUBLE_BUFFER_NUM = 2;
 static constexpr int32_t SINGLE_BUFFER_NUM = 1;
 static constexpr int64_t L1_SIZE = 512;
 static constexpr int64_t L1_SIZE_BYTE = L1_SIZE * 1024;
-static constexpr int64_t L1_HALF_SIZE = L1_SIZE / 2;
-static constexpr int64_t L1_SIZE_WITH_QUANTSCALE = 504;
-static constexpr int64_t L1_SIZE_WITH_QUANTSCALE_BYTE = L1_SIZE_WITH_QUANTSCALE * 1024;
 static constexpr int64_t BIAS_L1_SIZE = 4;
 static constexpr uint64_t A_L1_MAX_SIZE_WITH_BIAS_QUANT = 240UL * 1024UL;
 static constexpr uint64_t MX_BIAS_SINGLE_VECTOR_SIZE = 128;
@@ -77,8 +68,6 @@ static constexpr uint32_t SCALE_FACTOR_B_BIT = 8;
 // 同步定义
 static constexpr uint64_t SYNC_AIV_AIC_FLAG = 8;
 static constexpr uint64_t SYNC_AIC_AIV_FLAG = 9;
-static constexpr uint64_t SYNC_AIC_FIX_AIV_VF_FLAG = 3;
-static constexpr uint64_t SYNC_AIV_MTE3_AIC_FIX_FLAG = 4;
 static constexpr uint64_t SYNC_MODE4 = 4;
 static constexpr uint64_t FLAG_ID_MAX = 16;
 
@@ -103,12 +92,6 @@ __aicore__ inline T CeilDivide(T a, T b)
 {
     ASCENDC_ASSERT(b != 0, { KERNEL_LOG(KERNEL_ERROR, "Division by zero error!"); });
     return (a + b - 1) / b;
-}
-
-template <typename T>
-__aicore__ inline T Min(T a, T b)
-{
-    return a < b ? a : b;
 }
 
 template <typename T>
@@ -147,8 +130,6 @@ __aicore__ inline void DataCopyPad2D(const GlobalTensor<T> &dst, const LocalTens
     params.blockLen = dim0 * sizeof(T);
     params.srcStride = CeilDivide((srcFullDim0 - dim0) * sizeof(T), static_cast<uint64_t>(ONE_BLK_SIZE));
     params.dstStride = (dstFullDim0 - dim0) * sizeof(T);
-    SHORT_MIX_LOG("dim1 %d dim0 %d dstFullDim0 %d blockCount %d blockLen %d srcStride %d dstStride %d", dim1, dim0,
-                  dstFullDim0, params.blockCount, params.blockLen, params.srcStride, params.dstStride);
     DataCopyPad(dst, src, params);
 }
 
@@ -162,10 +143,5 @@ __aicore__ constexpr uint32_t GetKBUnit()
     return 1024 / sizeof(T); // 1kb总共大小为1024
 }
 
-template <TPosition POSITION, CubeFormat FORMAT, typename TYPE, bool ISTRANS = false,
-          LayoutMode LAYOUT = LayoutMode::NONE, bool IBSHARE = false>
-struct MatmulL1GmType : MatmulType<POSITION, FORMAT, TYPE, ISTRANS, LAYOUT, IBSHARE> {
-    constexpr static TPosition srcPos = TPosition::GM;
-};
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 #endif

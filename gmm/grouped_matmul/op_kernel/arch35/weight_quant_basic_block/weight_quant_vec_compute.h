@@ -33,7 +33,6 @@ using AscendC::IsSameType;
 using AscendC::LocalTensor;
 using AscendC::ONE_BLK_SIZE;
 using AscendC::SetFlag;
-using AscendC::TBuf;
 using AscendC::TEventID;
 using AscendC::TPipe;
 using AscendC::VECTOR_REG_WIDTH;
@@ -104,13 +103,8 @@ private:
     uint64_t ubMte2AntiquantYLoopIdx_ = 0;
     // vf中标准计算单元(vfNStandardLen, vfKStandardLen)的计数，用于控制weight反量化后输出的buffer和V&&mte3间同步控制
     uint64_t ubComputeLoopIdx_ = 0;
-    uint64_t ubAntiquantYLoopIdx_ = 0;
-
     TEventID vecEventIdVToMte2_[QUADRUPLE_BUFFER_NUM];
     TEventID vecEventIdMte3ToV_[QUADRUPLE_BUFFER_NUM];
-
-    xType scaleValue_;
-    xType offsetValue_;
 
     GlobalTensor<wType> wGlobal_;
     GlobalTensor<xType> antiQuantOffsetGlobal_;
@@ -118,7 +112,6 @@ private:
     GlobalTensor<float> antiQuantYPerTokenScaleGlobal_;
     GlobalTensor<float> antiQuantYPerChannelScaleGlobal_;
     GlobalTensor<float> antiQuantYBiasGlobal_;
-    GlobalTensor<half> antiQuantYF16Global_;
     GlobalTensor<biasType> biasGlobal_;
 
     LocalTensor<int8_t> ubWeightInputLowBitTotalBuffer_;
@@ -126,42 +119,22 @@ private:
     LocalTensor<antiQuantScaleType> ubAntiQuantScaleTotalBuffer_;
     LocalTensor<xType> ubAntiQuantScaleAfterCastTotalBuffer_;
     LocalTensor<xType> ubAntiQuantOffsetTotalBuffer_;
-    LocalTensor<float> ubAntiQuantYPerTokenScaleTotalBuffer_;
-    LocalTensor<float> ubAntiQuantYPerChannelScaleTotalBuffer_;
-    LocalTensor<float> ubAntiQuantYBiasTotalBuffer_;
     LocalTensor<biasType> ubBiasTotalBuffer_;
     LocalTensor<biasType> ubBiasOutTotalBuffer_;
 
     LocalTensor<uint64_t> ubAntiQuantScaleMaskBuffer_;
 
-    uint64_t antiQuantGroupSize_;
     bool hasBias_;
 
     constexpr static uint32_t C0_SIZE =
         (IsSameType<xType, int8_t>::value || IsSameType<xType, fp8_e4m3fn_t>::value) ? C0_SIZE_B8 : BLOCK_CUBE;
     constexpr static uint64_t VEC_REG_ELEM = VECTOR_REG_WIDTH;
 
-    constexpr static uint64_t UB_AVAILABLE_SIZE = 248 * GetKBUnit<int8_t>();
-
-    constexpr static uint64_t ANTI_QUANT_Y_PER_TOKEN_SCALE_TOTAL_BUFFER_SIZE = 2 * GetKBUnit<float>();
-    constexpr static uint64_t ANTI_QUANT_Y_PER_CHANNEL_SCALE_TOTAL_BUFFER_SIZE = 2 * GetKBUnit<float>();
-    constexpr static uint64_t ANTI_QUANT_Y_BIAS_TOTAL_BUFFER_SIZE = 2 * GetKBUnit<float>();
-
     constexpr static uint64_t UB_ANTI_QUANT_Y_BUFFER_NUM = DOUBLE_BUFFER_NUM;
-
-    constexpr static uint64_t ANTI_QUANT_Y_PER_TOKEN_SCALE_SINGLE_BUFFER_SIZE =
-        ANTI_QUANT_Y_PER_TOKEN_SCALE_TOTAL_BUFFER_SIZE / UB_ANTI_QUANT_Y_BUFFER_NUM;
-    constexpr static uint64_t ANTI_QUANT_Y_PER_CHANNEL_SCALE_SINGLE_BUFFER_SIZE =
-        ANTI_QUANT_Y_PER_CHANNEL_SCALE_TOTAL_BUFFER_SIZE / UB_ANTI_QUANT_Y_BUFFER_NUM;
-    constexpr static uint64_t ANTI_QUANT_Y_BIAS_SINGLE_BUFFER_SIZE =
-        ANTI_QUANT_Y_BIAS_TOTAL_BUFFER_SIZE / UB_ANTI_QUANT_Y_BUFFER_NUM;
 
     TEventID vecEventIdAntiQuantYVToMte2_[UB_ANTI_QUANT_Y_BUFFER_NUM];
 
     constexpr static UbBufferInfo UB_BUFFER_INFO = GetBufferConfig<xType, wqmmConfig, vecConfig>();
-    constexpr static VfConfig VF_CONFIG = GetVfConfig<xType, wqmmConfig, vecConfig>();
-
-    constexpr static uint64_t ANTIQUANT_Y_STANDARD_N_SIZE = VECTOR_REG_WIDTH / sizeof(int32_t);
 };
 
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
