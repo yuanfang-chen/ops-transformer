@@ -62,13 +62,13 @@ bool MatmulAllReduceCheckFormat(const aclTensor* x2)
     return true;
 }
 
-bool MatmulAllReduceCheckValidContiguous(const aclTensor* x2)
+bool MatmulAllReduceCheckValidContiguous(const aclTensor* tensor, const char* tensorName)
 {
-    bool transposeX2 = IsTransposeLastTwoDims(x2);
+    bool isTransposeX2 = IsTransposeLastTwoDims(tensor);
     // x2非连续时仅支持转置场景
-    if (!transposeX2 && !MC2Aclnn::IsTensorContiguous(x2)) {
+    if (!isTransposeX2 && !MC2Aclnn::IsTensorContiguous(tensor)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "The x2 without transpose in MatmulAllReduce must be contiguous, but it is non-contiguous.");
+                "The %s without transpose in MatmulAllReduce must be contiguous, but it is non-contiguous.", tensorName);
         return false;
     }
     return true;
@@ -88,7 +88,7 @@ aclnnStatus MatmulAllReduceCheckParams(
 
     // 【A2】检查x2矩阵非连续合法性
     if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
-        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2, "x2"), ACLNN_ERR_PARAM_INVALID);
     }
 
     // 3. 检查attr是否符合规则
@@ -222,7 +222,7 @@ aclnnStatus QuantMatmulAllReduceCheckParams(
     
     // 【A2】检查x2矩阵非连续合法性
     if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
-        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2, "x2"), ACLNN_ERR_PARAM_INVALID);
     }
 
     // 3. 检查attr是否符合规则
