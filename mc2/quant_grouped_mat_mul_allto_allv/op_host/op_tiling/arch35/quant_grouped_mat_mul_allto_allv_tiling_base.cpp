@@ -575,7 +575,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::CheckParamsAttrEpAndSetLo
     OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "groupSizePtr is null !"), return ge::GRAPH_FAILED);
     localParams_.groupSize = *groupSizePtr;
     OP_TILING_CHECK(localParams_.groupSize != 0,
-                    OP_LOGE(opName_, "not support group quant now, but groupSize is %ld !", localParams_.groupSize),
+                    OP_LOGE(opName_, "Group quant is not supported yet, but groupSize is %ld !", localParams_.groupSize),
                     return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -797,7 +797,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTilingBase::SetHcclTiling()
     const uint32_t alltoAllvReduceType = 0u;
     auto outputDataType = context_->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
     OP_TILING_CHECK(mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
-                    OP_LOGE(opName_, "Unsupported output data type: %s.", Ops::Base::ToString(outputDataType).c_str()),
+                    OP_LOGE(opName_, "Output data type %s is not supported yet.", Ops::Base::ToString(outputDataType).c_str()),
                     return ge::GRAPH_FAILED);
 
     auto alltoAllvDstDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(outputDataType)->second);

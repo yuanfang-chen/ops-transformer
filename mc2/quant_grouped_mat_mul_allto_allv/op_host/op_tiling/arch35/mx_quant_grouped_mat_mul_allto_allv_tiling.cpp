@@ -233,11 +233,11 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
                     OP_LOGE(opName_, "The gmmWeightScaleStorageShape is nullptr!"), return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(localParams_.gmmXQuantMode != QUANT_MX,
-                    OP_LOGE(opName_, "The gmmXQuantMode should be MX mode, but actul mode is %ld !", QUANT_MX,
+                    OP_LOGE(opName_, "The gmmXQuantMode should be MX mode (value=%ld), but got %ld !", QUANT_MX,
                             localParams_.gmmXQuantMode),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_MX,
-                    OP_LOGE(opName_, "The gmmWeightQuantMode should be MX mode, but actul mode is  %ld !",
+                    OP_LOGE(opName_, "The gmmWeightQuantMode should be MX mode (value=%ld), but got  %ld !", QUANT_MX,
                             localParams_.gmmWeightQuantMode),
                     return ge::GRAPH_FAILED);
     ge::graphStatus status = MxCheckShapeDimensions(gmmXScaleStorageShape, DIM_THREE, "gmmXScaleShape", opName_);
@@ -300,12 +300,12 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
                     return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_MX,
-                    OP_LOGE(opName_, "mmXQuantMode only supports MX mode (value=%d), but got %ld !", QUANT_MX,
+                    OP_LOGE(opName_, "mmXQuantMode only supports MX mode (value=%ld), but got %ld !", QUANT_MX,
                             localParams_.mmXQuantMode),
                     return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_MX,
-                    OP_LOGE(opName_, "mmWeightQuantMode only supports MX mode (value=%d), but got %ld !", QUANT_MX,
+                    OP_LOGE(opName_, "mmWeightQuantMode only supports MX mode (value=%ld), but got %ld !", QUANT_MX,
                             localParams_.mmWeightQuantMode),
                     return ge::GRAPH_FAILED);
     ge::graphStatus status = MxCheckShapeDimensions(mmXScaleStorageShape, DIM_THREE, "mmXScaleShape", opName_);
@@ -371,14 +371,14 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLoca
     } else {
         uint64_t expertNum = localParams_.ep * rankDim;
         OP_TILING_CHECK(expertNum > MAX_EXPERT_NUM,
-                        OP_LOGE(opName_, "The expert Num lager than MAX_EXPERT_NUM, expertNum is %lu !", expertNum),
+                        OP_LOGE(opName_, "The expertNum is larger than MAX_EXPERT_NUM, expertNum is %lu !", expertNum),
                         return ge::GRAPH_FAILED);
     }
 
     auto groupSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_GROUP_SIZE_OPTIONAL_INDEX);
     OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "The groupSizePtr is nullptr !"),
                     return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(*groupSizePtr < 0, OP_LOGE(opName_, "The groupSize is less then 0 !"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(*groupSizePtr < 0, OP_LOGE(opName_, "The groupSize is less than 0 !"), return ge::GRAPH_FAILED);
 
     localParams_.groupSize = *groupSizePtr;
     uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
