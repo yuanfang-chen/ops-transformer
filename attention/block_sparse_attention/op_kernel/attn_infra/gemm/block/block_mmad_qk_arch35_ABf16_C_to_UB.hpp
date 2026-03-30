@@ -11,7 +11,8 @@
 /**
  * @brief matmul implementation for single q&k^t base tile
  * This implementation is designed for the following senario:
- * A full q base tile is loaded to L1 from GM at the very beginning, and it remains persistent until each k base tile is dealt
+ * A full q base tile is loaded to L1 from GM at the very beginning,
+ * and it remains persistent until each k base tile is dealt
  * A full q*k^t base tile is loaded to UB from l0C, no workspace transit
  */
 #ifndef GEMM_BLOCK_QK_ARCH35_ABF16_C2UB_HPP
@@ -34,8 +35,7 @@
 namespace NpuArch::Gemm::Block {
 ////////////////////////////////////////////////////////////////////
 
-struct Mm1L1TileHelper
-{
+struct Mm1L1TileHelper {
     uint32_t mm1L1TileM;
     uint32_t mm1L1TileN;
     uint32_t mm1L1TileKLeft;
@@ -54,12 +54,12 @@ struct Mm1L1TileHelper
         uint32_t kr,
         uint32_t pbn,
         uint32_t vbn) :
-    mm1L1TileM(m),
-    mm1L1TileN(n),
-    mm1L1TileKLeft(kl),
-    mm1L1TileKRight(kr),
-    qL1BufNum(pbn),
-    kL1BufNum(vbn) {}
+        mm1L1TileM(m),
+        mm1L1TileN(n),
+        mm1L1TileKLeft(kl),
+        mm1L1TileKRight(kr),
+        qL1BufNum(pbn),
+        kL1BufNum(vbn) {}
 };
 
 template <
@@ -282,7 +282,6 @@ public:
         uint32_t l1BBufId = gatheredKvSTileIdx % l1BBufNum;
         uint32_t l1BEventId = l1BBufId + 1;
 
-        
         auto l1ALayoutTla = tla::MakeLayout<ElementA, LayoutTagL1A>(rowNum, embed);
         auto l1ATensorTla = tla::MakeTensor(l1ATensor[0], l1ALayoutTla, Arch::PositionL1{});
 
@@ -291,9 +290,11 @@ public:
         uint32_t nL0LoopNum = CeilDiv(curBaseTileSize, L0_TILE_N);
         uint32_t kL0LoopNum = CeilDiv(embed, L0_TILE_K);
 
-        // while splitting the base tile S to 2 AIVs, the order of the elements in each column is expected to be preserved,
+        // while splitting the base tile S to 2 AIVs,
+        // the order of the elements in each column is expected to be preserved,
         // which means a column in l0C cannot be chunked and processed by dualMode FixPipe seperately.
-        // therefore, FixPipe won't launch until each portion(chunked only by columns, based on nbuffer strategy) of the base tile is ready on l0C
+        // therefore, FixPipe won't launch until each portion(chunked only by columns, based on nbuffer strategy)
+        // of the base tile is ready on l0C
         for (uint32_t nL0Itr = 0; nL0Itr < nL0LoopNum; nL0Itr++) {
             uint32_t l0TileNAct = (nL0Itr == nL0LoopNum - 1) ? (curBaseTileSize - nL0Itr * L0_TILE_N) : L0_TILE_N;
             uint32_t nLoopCounter = GetCurLoopCounter(gatheredKvSTileIdx, nL0LoopNum, nL0Itr);

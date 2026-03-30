@@ -23,8 +23,7 @@
 using namespace NpuArch;
 
 #if (__CCE_AICORE__ == 220)
-namespace BlockSparse
-{
+namespace BlockSparse {
 template <
     typename InputDtype = half,
     typename SoftmaxDtype = float,
@@ -59,7 +58,7 @@ __global__ __aicore__ void BlockSparseAttentionInfer(
     using LayoutP = layout::RowMajor;
     using ElementO = InputDtype;
     using LayoutO = layout::RowMajor;
-    using ElementLse = float; 
+    using ElementLse = float;
     using LayoutLse = layout::RowMajor;
     using ElementMask = int8_t;
     using LayoutMask = layout::RowMajor;
@@ -90,23 +89,23 @@ __global__ __aicore__ void BlockSparseAttentionInfer(
     // Epilogue policies for sparse attention
     using DispatchPolicyOnlineSoftmax = Epilogue::EpilogueAtlasA2OnlineSoftmax<lseMode, SoftmaxDtype>;
     using MaskType = Gemm::GemmType<ElementMask, LayoutMask>;
-    using EpilogueOnlineSoftmax = Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax, 
-                                                                PType, SType, MaskType>;
+    using EpilogueOnlineSoftmax = Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax,
+        PType, SType, MaskType>;
     using DispatchPolicyRescaleO = Epilogue::EpilogueAtlasA2RescaleO<lseMode, SoftmaxDtype>;
     using OType = Gemm::GemmType<ElementO, LayoutO>;
     using OUpdateType = Gemm::GemmType<ElementUpdate, LayoutUpdate>;
     using LseType = Gemm::GemmType<ElementLse, LayoutLse>;
-    using EpilogueRescaleO = Epilogue::Block::BlockEpilogue<DispatchPolicyRescaleO, 
+    using EpilogueRescaleO = Epilogue::Block::BlockEpilogue<DispatchPolicyRescaleO,
                                                             OType, OTmpType, OUpdateType, LseType>;
 
     // Kernel instantiation
-    using BlockSparseAttentionKernelType = BlockSparseAttentionKernel<BlockMmadQK, BlockMmadPV, 
-                                                                    EpilogueOnlineSoftmax, 
-                                                                    EpilogueRescaleO, 
+    using BlockSparseAttentionKernelType = BlockSparseAttentionKernel<BlockMmadQK, BlockMmadPV,
+                                                                    EpilogueOnlineSoftmax,
+                                                                    EpilogueRescaleO,
                                                                     false,           // PAGED_CACHE_FLAG
                                                                     QueryLayout,     // QUERY_LAYOUT
                                                                     KvCacheLayout>;  // KV_CACHE_LAYOUT
-    BlockSparseAttentionKernelParams params{q, k, v, blockSparseMask, mask, blockTables, actualQseqlen, actualKvseqlen, 
+    BlockSparseAttentionKernelParams params{q, k, v, blockSparseMask, mask, blockTables, actualQseqlen, actualKvseqlen,
                                 o, lse, workspace, tiling};
 
     // Call block sparse attention kernel
