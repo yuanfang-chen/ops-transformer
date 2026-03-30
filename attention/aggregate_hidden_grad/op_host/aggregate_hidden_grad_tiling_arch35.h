@@ -12,6 +12,7 @@
  * \file aggregate_hidden_grad_arch35.h
  * \brief AggregateHiddenGrad tiling implementation
  */
+
 #ifndef AGGREGATE_HIDDEN_GRAD_TILING_ARCH35_H
 #define AGGREGATE_HIDDEN_GRAD_TILING_ARCH35_H
 

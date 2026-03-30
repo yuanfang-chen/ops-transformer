@@ -10,7 +10,7 @@
 
 /*!
  * \file aggregate_hidden_grad.cpp
- * \brief Main tiling entry for AggregateHiddenGrad (dispatch arch35 implementation)
+ * \brief Main tiling entry for AggregateHiddenGrad
  */
 
 #include "log/log.h"

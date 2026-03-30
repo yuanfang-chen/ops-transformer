@@ -10,7 +10,7 @@
 
 /*!
  * \file aggregate_hidden_grad_arch35.cpp
- * \brief AggregateHiddenGrad tiling implementation (arch35 style-aligned)
+ * \brief AggregateHiddenGrad tiling implementation
  */
 
 #include "aggregate_hidden_grad_tiling_arch35.h"

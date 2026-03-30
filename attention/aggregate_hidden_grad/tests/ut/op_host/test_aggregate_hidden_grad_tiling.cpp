@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_fused_causal_conv1d_tiling.cpp
+ * \file test_aggregate_hidden_grad_tiling.cpp
  * \brief Unit tests for AggregateHiddenGrad tiling logic
  */
 
@@ -35,7 +35,7 @@ protected:
 };
 
 
-TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
+TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950)
 {
     optiling::AggregateHiddenGradArch35CompileInfo compileInfo = {64, 261888};
 
@@ -45,18 +45,13 @@ TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
 
     gert::TilingContextPara tilingContextPara("AggregateHiddenGrad",
                                               {
-                                                  // Input 0: x - (batch=4, seq_len=1, dim=512)
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-                                                  // Input 1: weight - (kernel_size=3, dim=512)
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-                                                  // Input 2: convStates - (batch=4, cache_len=3+1-2=2, dim=512)
                                                   {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
 
                                               },
                                               {
-                                                  // Output 0: y - (batch=4, seq_len=1, dim=512)
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-                                                  // Output 1: cacheStates - (batch=4, cache_len=2, dim=512)
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
                                               },
                                               attrs, &compileInfo);

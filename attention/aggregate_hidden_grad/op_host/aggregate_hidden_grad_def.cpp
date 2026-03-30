@@ -10,7 +10,7 @@
 
 /*!
  * \file aggregate_hidden_grad_def.cpp
- * \brief
+ * \brief aggregate_hidden_grad define
  */
 
 #include "register/op_def_registry.h"
