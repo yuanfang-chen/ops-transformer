@@ -1077,8 +1077,8 @@ ge::graphStatus DequantChecker::CheckInputKVTypeForAntiquant(const FiaTilingInfo
         // per-tensor模式，仅当key/value的数类型为INT8时支持
         gert::Shape expectedShape1 = gert::Shape({1});
         auto keyAntiquantScaleShape = keyAntiquantScaleTensor->GetStorageShape();
-        if (inputKvType_ == ge::DT_INT4 || inputKvType_ == ge::DT_INT32) {
- 	        OP_CHECK_IF((keyAntiquantScaleShape == expectedShape1) && inputKvType_ != ge::DT_INT8,
+        if (inputKvType == ge::DT_INT4 || inputKvType == ge::DT_INT32) {
+ 	        OP_CHECK_IF((keyAntiquantScaleShape == expectedShape1) && inputKvType != ge::DT_INT8,
  	                    OP_LOGE(ifaContext_->opName,
                                 "Datatype of key and value(INT4/INT32) is not supported. "
                                 "Datatype of key and value must be INT8 when "
@@ -1086,12 +1086,12 @@ ge::graphStatus DequantChecker::CheckInputKVTypeForAntiquant(const FiaTilingInfo
                                 DataTypeToSerialString(inputKvType).c_str()),
  	                    return ge::GRAPH_FAILED);
  	    } else {
- 	        OP_CHECK_IF((keyAntiquantScaleShape == expectedShape1) && inputKvType_ != ge::DT_INT8,
+ 	        OP_CHECK_IF((keyAntiquantScaleShape == expectedShape1) && inputKvType != ge::DT_INT8,
  	                    OP_LOGE(ifaContext_->opName,
                                 "Datatype of key and value(%s) is not supported. "
                                 "Datatype of key and value must be INT8 when "
                                 "keyAntiquantMode is per-tensor mode and valueAntiquantMode is per-tensor mode.",
- 	                            DataTypeToString(inputKvType_).c_str()),
+ 	                            DataTypeToString(inputKvType).c_str()),
  	                    return ge::GRAPH_FAILED);
  	    }
     }
