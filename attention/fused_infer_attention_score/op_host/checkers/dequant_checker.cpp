@@ -743,7 +743,7 @@ ge::graphStatus DequantChecker::CheckInputDTypeFullquant(const FiaTilingInfo &fi
 {
     if (enableIFAMLAFullQuant_) {  // MLA 全量化 QKV : fp8_e4m3/int8
         OP_CHECK_IF(!(fiaInfo.inputQType == ge::DT_FLOAT8_E4M3FN || fiaInfo.inputQType == ge::DT_INT8 ||
-                      fiaInfo.inputQType == ge::HIFLOAT8),
+                      fiaInfo.inputQType == ge::DT_HIFLOAT8),
                     OP_LOGE(fiaInfo.opName,
                             "In MLA fullquant scenario, query datatype(%s) and key/value datatype(%s), "
                             "should be FLOAT8_E4M3FN 、INT8 or HIFLOAT8.",
