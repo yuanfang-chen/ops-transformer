@@ -94,8 +94,6 @@ REGISTER_TILING_DATA_CLASS(MoeFinalizeRoutingV2Grad_20022, MoeFinalizeRoutingV2G
 struct MoeFinalizeRoutingV2GradCompileInfo {
     int64_t totalCoreNum = 0;
     int64_t totalUbSize = 0;
-    int32_t aivNum = 0;
-    uint64_t ubSize = 0;
 };
 
 constexpr int64_t BUFFER_NUM_WITH_BIAS = 4;    // gradY + expandedX + gradExpandedX + bias

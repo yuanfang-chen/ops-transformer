@@ -105,9 +105,8 @@ END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(MoeFinalizeRoutingV2, MoeFinalizeRoutingV2TilingData)
 
 struct MoeFinalizeRoutingCompileInfoV2 {
-    int32_t totalCoreNum = 0;
-    uint64_t ubSize = 0;
     int32_t aivNum = 0;
+    uint64_t ubSize = 0;
 };
 
 struct ShapeParamsV2 {

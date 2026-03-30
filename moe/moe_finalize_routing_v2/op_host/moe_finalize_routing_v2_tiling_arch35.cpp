@@ -117,8 +117,6 @@ protected:
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetPlatformInfo()
 {
-    auto platformInfo = context_->GetPlatformInfo();
-    OP_CHECK_NULL_WITH_CONTEXT(context_, platformInfo);
     auto compileInfoPtr = reinterpret_cast<const MoeFinalizeRoutingCompileInfoV2*>(context_->GetCompileInfo());
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
 
