@@ -87,8 +87,8 @@ const std::array<const aclTensor *, 2> BlockSparseAttention(
 
     // scaleValue is already float type, no need for cast
     auto ret = INFER_SHAPE(BlockSparseAttention,
-                           OP_INPUT(query, key, value, blockSparseMaskOptional, attenMaskOptional, blockShapeOptionalTensor, 
-                                    actualSeqTensor, actualSeqKvTensor, blockTableOptional),
+                           OP_INPUT(query, key, value, blockSparseMaskOptional, attenMaskOptional,
+                                    blockShapeOptionalTensor, actualSeqTensor, actualSeqKvTensor, blockTableOptional),
                            OP_OUTPUT(attentionOutTensor, softmaxLseTensor),
                            OP_ATTR(qInputLayout, safeKvInputLayout,
                                    static_cast<int64_t>(numKeyValueHeads), static_cast<int64_t>(maskType),
@@ -101,8 +101,9 @@ const std::array<const aclTensor *, 2> BlockSparseAttention(
     }
     
     ADD_TO_LAUNCHER_LIST_AICORE(BlockSparseAttention,
-                                OP_INPUT(query, key, value, blockSparseMaskOptional,
-                                    attenMaskOptional, blockShapeOptionalTensor, actualSeqTensor, actualSeqKvTensor, blockTableOptional),
+                                OP_INPUT(query, key, value, blockSparseMaskOptional, attenMaskOptional,
+                                         blockShapeOptionalTensor, actualSeqTensor, actualSeqKvTensor,
+                                         blockTableOptional),
                                 OP_OUTPUT(attentionOutTensor, softmaxLseTensor),
                                 OP_ATTR(qInputLayout, safeKvInputLayout, static_cast<int64_t>(numKeyValueHeads),
                                         static_cast<int64_t>(maskType), static_cast<float>(scaleValue),

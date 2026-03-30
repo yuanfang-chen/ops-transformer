@@ -14,8 +14,7 @@
 using namespace NpuArch;
 using namespace tla;
 
-namespace BsaKernelArch35
-{
+namespace BsaKernelArch35 {
 
 template <
     class EpilogueMask2Idx,
@@ -404,7 +403,7 @@ public:
         pL1BufNum_ = bsaTilingData->BsaMmPhaseL1TileInfo.pL1BufNum;
         Gemm::Block::Mm1L1TileHelper mm1L1TileHelper(mm1L1TileM_, mm1L1TileN_, mm1L1TileKLeft_, mm1L1TileKRight_,
             qL1BufNum_, kL1BufNum_);
-        mm1L1TileHelper_ = mm1L1TileHelper;        
+        mm1L1TileHelper_ = mm1L1TileHelper;
         Gemm::Block::Mm2L1TileHelper mm2L1TileHelper(mm2L1TileM_, mm2L1TileN_, mm2L1TileKLeft_, mm2L1TileKRight_,
             pL1BufNum_, vL1BufNum_);
         mm2L1TileHelper_ = mm2L1TileHelper;
@@ -449,13 +448,13 @@ public:
         // Value
         AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
         AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
-        //L0A
+        // L0A
         AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
         AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
-        //L0B
+        // L0B
         AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
         AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
-        //L0C
+        // L0C
         AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
         AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
         // cross core sync
