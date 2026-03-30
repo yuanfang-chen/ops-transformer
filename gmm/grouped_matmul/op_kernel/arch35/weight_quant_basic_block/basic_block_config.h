@@ -38,8 +38,6 @@ struct WqmmConfig {
     CubeFormat weightFormat;
 };
 
-static constexpr WqmmConfig S8S4_NZKN_G = {false, false, QuantType::PER_GROUP, false, QuantType::NONE, CubeFormat::NZ};
-static constexpr WqmmConfig A16MXF4_NZKN = {false, false, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
 static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
 
 struct BasicBlockControlParam {
@@ -220,25 +218,7 @@ __aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
 template <typename xType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 __aicore__ constexpr UbBufferInfo GetBufferConfig()
 {
-    if constexpr (wqmmConfig.antiQuantType == QuantType::MX) {
-        if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-            return GetMxFp4NdBufferInfo<vecConfig>();
-        } else if constexpr (IsSameType<xType, fp8_e4m3fn_t>::value) {
-            return GetMxA8W4NzBufferInfo<vecConfig>();
-        } else {
-            return GetMxFp4NzBufferInfo<vecConfig>();
-        }
-    }
-
-    if constexpr (wqmmConfig.weightFormat == CubeFormat::ND) {
-        return GetNdBufferInfo<vecConfig>();
-    } else {
-        if constexpr (IsSameType<xType, int8_t>::value) {
-            return GetS8S4NzBufferInfo<vecConfig>();
-        } else {
-            return GetNzBufferInfo<vecConfig>();
-        }
-    }
+    return GetMxA8W4NzBufferInfo<vecConfig>();
 }
 
 struct VfConfig {
@@ -249,26 +229,8 @@ struct VfConfig {
 template <typename xType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 __aicore__ constexpr VfConfig GetVfConfig()
 {
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ && wqmmConfig.bTrans) {
-        return {.vfNStandardLen = 64, .vfKStandardLen = 256};
-    } else if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ && !wqmmConfig.bTrans) {
-        return {.vfNStandardLen = 256, .vfKStandardLen = 64};
-    } else if constexpr (wqmmConfig.antiQuantType == QuantType::MX) {
-        // mxA8W4场景动态配置，实际不生效
-        if constexpr (IsSameType<xType, fp8_e4m3fn_t>::value) {
-            return {.vfNStandardLen = 256, .vfKStandardLen = 64};
-        } else if constexpr (vecConfig.ubMte2InnerSize > 0) {
-            return {.vfNStandardLen = 32 * GetKBUnit<half>() / vecConfig.ubMte2InnerSize,
-                    .vfKStandardLen = vecConfig.ubMte2InnerSize};
-        }
-    } else {
-        // NZ transB=False
-        if constexpr (IsSameType<xType, int8_t>::value) {
-            return {.vfNStandardLen = 64, .vfKStandardLen = vecConfig.ubMte2InnerSize};
-        } else {
-            return {.vfNStandardLen = 64, .vfKStandardLen = 256};
-        }
-    }
+    // mxA8W4场景动态配置，实际不生效
+    return {.vfNStandardLen = 256, .vfKStandardLen = 64};
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 #endif  // GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H

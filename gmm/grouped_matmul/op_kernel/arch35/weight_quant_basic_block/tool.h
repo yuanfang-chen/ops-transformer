@@ -162,12 +162,6 @@ __aicore__ constexpr uint32_t GetKBUnit()
     return 1024 / sizeof(T); // 1kb总共大小为1024
 }
 
-template <typename xType, QuantType antiQuantType>
-__aicore__ constexpr bool IsMxA8W4()
-{
-    return antiQuantType == QuantType::MX && IsSameType<xType, fp8_e4m3fn_t>::value;
-}
-
 template <TPosition POSITION, CubeFormat FORMAT, typename TYPE, bool ISTRANS = false,
           LayoutMode LAYOUT = LayoutMode::NONE, bool IBSHARE = false>
 struct MatmulL1GmType : MatmulType<POSITION, FORMAT, TYPE, ISTRANS, LAYOUT, IBSHARE> {
