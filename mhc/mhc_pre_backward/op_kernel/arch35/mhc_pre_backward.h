@@ -1356,9 +1356,8 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::VFDoV1ProcessInvRmsGrad(
                 MicroAPI::Mul(hMulReg, h1GradBuf, hMixReg, mask);
                 MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, hMulReg, mask);
                 MicroAPI::Add(sumReg, sumReg, tmpSumReg, mask);
-
-            MicroAPI::Store(invRmsGradDst + bsIdx, sumReg, 1);
             }
+            MicroAPI::Store(invRmsGradDst + bsIdx, sumReg, 1);
         }
     }
 }
