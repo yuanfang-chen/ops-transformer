@@ -35,7 +35,8 @@ bool IsNeedScaleTrans(const aclTensor *mxScaleTensor)
     return transposeFlag;
 }
 
- bool IsTensorContiguous(const aclTensor *tensor) {
+bool IsTensorContiguous(const aclTensor *tensor)
+{
     int dimNum = tensor->GetViewShape().GetDimNum();
     auto strides = tensor->GetViewStrides();
     auto shape = tensor->GetViewShape();
