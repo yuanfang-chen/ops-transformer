@@ -1103,8 +1103,6 @@ __aicore__ inline void MhcPreBackwardKernel<T, P>::ProcessV1(
         const uint32_t xRowSumBroadCastSrc[2] = {dealBSSize, 1};
         BroadCast<float, 2, 1>(buffers.invRmsBuf, invRmsBufLocal, xRowSumBroadCastDst, xRowSumBroadCastSrc,
                                buffers.brcbTmpBuf);
-        BroadCast<float, 2, 1>(
-            buffers.invRmsBuf, invRmsBufLocal, xRowSumBroadCastDst, xRowSumBroadCastSrc, buffers.brcbTmpBuf);
         PipeBarrier<PIPE_V>();
         fp32InQueue_.FreeTensor(invRmsBufLocal);
 
