@@ -29,7 +29,7 @@ namespace ge {
  * @li beta: A tensor. The type supports bfloat16.
  * @li initial_state: A tensor. The type supports bfloat16.
  * @li actual_seq_lengths: A tensor. The type supports int32.
- * @li g: An optional tensor. The type supports float.
+ * @li g: An optional tensor. The type supports float32.
  *
  * @par Attributes:
  * @li scale_value: An optional float attribute. Defaults to 1.0.
