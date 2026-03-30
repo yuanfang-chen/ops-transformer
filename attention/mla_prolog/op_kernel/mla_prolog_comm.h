@@ -150,6 +150,12 @@ class NoneType {};
   using FP8E4M3 = NoneType;
 #endif
 
+#if __CCE_AICORE__ == 310
+  using FP8E8M0 = fp8_e8m0_t;
+#else
+  using FP8E8M0 = NoneType;
+#endif
+
 // mte2 <> mte1
 #define SCALE_EVENT EVENT_ID3
 #define A_EVENT0 EVENT_ID4
