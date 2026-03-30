@@ -33,9 +33,9 @@ extern "C" __global__ __aicore__ void aggregate_hidden_grad(GM_ADDR grad_output,
     }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     REGISTER_TILING_DEFAULT(AggregateHiddenGradTilingDataV35);
-    TPipe pipe;
     GET_TILING_DATA_WITH_STRUCT(AggregateHiddenGradTilingDataV35, td, tiling);
-
+    
+    TPipe pipe;
     if (TILING_KEY_IS(TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16)) {
         AggregateHiddenGradKernel<bfloat16_t> op;
         op.Init(grad_output, input, weight, mask, grad_input, grad_weight, &td, &pipe);
