@@ -53,6 +53,10 @@ ge::graphStatus MaskChecker::CheckSparseMode(const FiaTilingInfo &fiaInfo)
     OP_CHECK_IF(ge::GRAPH_SUCCESS != CheckValueSupport(fiaInfo.sparseMode, sparseModeList),
                 OP_LOGE(fiaInfo.opName, "SparseMode only supports 0/1/2/3/4, but got %u", fiaInfo.sparseMode),
                 return ge::GRAPH_FAILED);
+    OP_CHECK_IF(fiaInfo.s1Size == 1U && fiaInfo.sparseMode != SPARSE_MODE_NO_MASK,
+                OP_LOGE(fiaInfo.opName,
+                "When S of query equal to 1, sparseMode only supports 0(defaultMask) but got %u", fiaInfo.sparseMode),
+                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
