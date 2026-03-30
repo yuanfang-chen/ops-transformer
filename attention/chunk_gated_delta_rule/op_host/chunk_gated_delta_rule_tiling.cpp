@@ -110,8 +110,8 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::GetShapeAttrsInfo()
 
 ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling()
 {
-    int64_t c = 64; // chunk size 取 64
-    int64_t p = P_NUM;  // 一个 chunk 组中，单核最大处理 chunk 数
+    int64_t c = 64;    // chunk size 取 64
+    int64_t p = P_NUM; // 一个 chunk 组中，单核最大处理 chunk 数
     tilingData_.chunkSize = c;
     tilingData_.maxGroupLength = p * tilingData_.aiCoreNum * tilingData_.chunkSize;
     tilingData_.stageOneParaNum = STAGE_ONE_TWO; // stage1 并行数
@@ -123,19 +123,19 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling()
     int64_t dk = tilingData_.dk;
     int64_t s = tilingData_.maxGroupLength;
     int64_t b = tilingData_.b;
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s;                            // gCumExp
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                       // kCumDecay
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;                       // vInner
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                       // qPrime
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;                       // attnInter
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                       // kg
-    tilingData_.interWorkspaceSz += sizeHigh * nv * s * c;                        // qkt
-    tilingData_.interWorkspaceSz += sizeHigh * b * nv * dv * dk;                  // highState
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s;                                   // gCumExp
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                              // kCumDecay
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;                              // vInner
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                              // qPrime
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;                              // attnInter
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                              // kg
+    tilingData_.interWorkspaceSz += sizeHigh * nv * s * c;                               // qkt
+    tilingData_.interWorkspaceSz += sizeHigh * b * nv * dv * dk;                         // highState
     tilingData_.interWorkspaceSz += sizeHigh * c * c * tilingData_.aiCoreNum * MASK_NUM; // mask
 
     // stage1 临时变量空间
-    tilingData_.stageWorkspaceSz = sizeHigh * c * (STAGE_ONE_TWO * STAGE_ONE_THREE + 3 * dk + dv) *
-                                   tilingData_.stageOneParaNum;
+    tilingData_.stageWorkspaceSz =
+        sizeHigh * c * (STAGE_ONE_TWO * STAGE_ONE_THREE + 3 * dk + dv) * tilingData_.stageOneParaNum;
     tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;
 
     PrintTilingData();
@@ -215,14 +215,23 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::PostTiling()
 {
     context_->SetBlockDim(tilingData_.aiCoreNum);
 
+    auto rawTilingData = context_->GetRawTilingData();
+    OP_CHECK_NULL_WITH_CONTEXT(context_, rawTilingData);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, rawTilingData->GetData());
+
     auto tilingDataSize = sizeof(ChunkGatedDeltaRule::ChunkGatedDeltaRuleTilingData);
-    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
+    OP_CHECK_IF(rawTilingData->GetCapacity() < tilingDataSize,
+                OP_LOGE(context_->GetNodeName(), "raw tiling data capacity %zu is smaller than tiling data size %zu",
+                        rawTilingData->GetCapacity(), tilingDataSize),
+                return ge::GRAPH_FAILED);
+
+    errno_t ret = memcpy_s(rawTilingData->GetData(), rawTilingData->GetCapacity(),
                            reinterpret_cast<void *>(&tilingData_), tilingDataSize);
     if (ret != EOK) {
         OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
         return ge::GRAPH_FAILED;
     }
-    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
+    rawTilingData->SetDataSize(tilingDataSize);
 
     size_t *workspaces = context_->GetWorkspaceSizes(1); // set workspace
     OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "workspaces is null"),
