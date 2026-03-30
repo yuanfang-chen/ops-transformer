@@ -17,7 +17,7 @@
 
 #include "kernel_operator.h"
 #include "vf/compute.h"
-
+#include "aggregate_hidden_grad_struct.h"
 namespace AggregateHiddenGradKernelNS {
 using namespace AscendC;
 using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;

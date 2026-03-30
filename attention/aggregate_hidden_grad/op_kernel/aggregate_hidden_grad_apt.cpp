@@ -26,6 +26,7 @@ extern "C" __global__ __aicore__ void aggregate_hidden_grad(
         return;
     }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    REGISTER_TILING_DEFAULT(AggregateHiddenGradTilingDataV35);
     TPipe pipe;
     GET_TILING_DATA_WITH_STRUCT(AggregateHiddenGradTilingDataV35, td, tiling);
 

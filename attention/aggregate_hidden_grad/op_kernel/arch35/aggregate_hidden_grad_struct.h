@@ -12,16 +12,12 @@
 #ifndef OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
 #define OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
 
-#include "kernel_tiling/kernel_tiling.h"
 
-#ifndef __CCE_AICORE__
-#include <cstdint>
-#endif
 
 namespace AggregateHiddenGradArch35Tiling {
 
-#pragma pack(push, 8)
-struct alignas(8) AggregateHiddenGradTilingDataV35 {
+
+struct AggregateHiddenGradTilingDataV35 {
     // global flags and shapes
     int64_t hasMask{0};
     int64_t H{0};
@@ -59,7 +55,7 @@ struct alignas(8) AggregateHiddenGradTilingDataV35 {
     int64_t coreMainRangeStart{0}; // base H offset for the first main-core range
     int64_t alignBytes{32};        // 32B alignment
 };
-#pragma pack(pop)
+
 
 } // namespace AggregateHiddenGradArch35Tiling
 
