@@ -290,7 +290,6 @@ namespace SplitFuse {
 #endif
 
                         for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < kvNBlockSize; kvNIncreIdx++) {
-
                             uint64_t gmOffsetQ = qBOffset + qSOffset + qNStartOffset +
                                 static_cast<uint64_t>(kvNIncreIdx * groupSize * embed);
                             uint64_t gmOffsetK = kBOffset + kNStartOffset +
@@ -659,7 +658,7 @@ namespace SplitFuse {
 
                             uint64_t gmOffsetO = tailOBOffset + oSOffset + oNStartOffset;
                             uint64_t gmOffsetUpdate = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-                            uint64_t gmOffsetOTmp = 
+                            uint64_t gmOffsetOTmp =
                                 static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                                 curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                             uint64_t gmOffsetLse = tailLseBOffset + lseTokenOffset + tailQNStartIdx;
