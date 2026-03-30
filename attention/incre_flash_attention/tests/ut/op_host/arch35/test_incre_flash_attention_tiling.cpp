@@ -87,61 +87,61 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_950_tiling_0)
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "");
 }
 
-TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_950_tiling_1)
-{
-    optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
+// TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_950_tiling_1)
+// {
+//     optiling::PromptFlashAttentionCompileInfo compileInfo = {
+//         64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
-    gert::TilingContextPara tilingContextPara(
-        "IncreFlashAttention",
-        {
-         // 0:q
-        {{{2, 1, 24, 128}, {2, 1, 24, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 1:k: 
-         {{{2, 736, 24, 128}, {2, 736, 24, 128}}, ge::DT_INT8, ge::FORMAT_ND},
-         // 2:v: 
-         {{{2, 736, 24, 128}, {2, 736, 24, 128}}, ge::DT_INT8, ge::FORMAT_ND},
-         // 3:pse_shift
-         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 4:atten_mask
-         {{{}, {}}, ge::DT_BOOL, ge::FORMAT_ND},
-         // 5:actual_seq_lengths
-         {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},
-         // 6:dequant_scale1
-         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-         // 7:quant_scale1
-         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
-         // 8:dequant_scale2
-          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 9:quant_scale2
-         {{{1}, {1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 10:quant_offset2
-          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 11:antiquant_scale
-         {{{1}, {1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         // 12:antiquant_offset
-         {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
-         // 13:block_table
-         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
-         // 14:kv_padding_size
-         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-         },
-        {
-        {{{2, 1, 24, 128}, {2, 1, 24, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-         },
-        {
-        {"num_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(24)},
-         {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.088388f)},
-         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BSND")},
-         {"num_key_value_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(24)},
-         {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
-         },
-                &compileInfo,"Ascend950",64,262144,16384);
-    int64_t expectTilingKey = 2362625;
-    // int64_t expectTilingKey = 4294967295;
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
-}
+//     gert::TilingContextPara tilingContextPara(
+//         "IncreFlashAttention",
+//         {
+//          // 0:q
+//         {{{2, 1, 24, 128}, {2, 1, 24, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 1:k: 
+//          {{{2, 736, 24, 128}, {2, 736, 24, 128}}, ge::DT_INT8, ge::FORMAT_ND},
+//          // 2:v: 
+//          {{{2, 736, 24, 128}, {2, 736, 24, 128}}, ge::DT_INT8, ge::FORMAT_ND},
+//          // 3:pse_shift
+//          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 4:atten_mask
+//          {{{}, {}}, ge::DT_BOOL, ge::FORMAT_ND},
+//          // 5:actual_seq_lengths
+//          {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},
+//          // 6:dequant_scale1
+//          {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+//          // 7:quant_scale1
+//          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+//          // 8:dequant_scale2
+//           {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 9:quant_scale2
+//          {{{1}, {1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 10:quant_offset2
+//           {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 11:antiquant_scale
+//          {{{1}, {1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          // 12:antiquant_offset
+//          {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+//          // 13:block_table
+//          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+//          // 14:kv_padding_size
+//          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+//          },
+//         {
+//         {{{2, 1, 24, 128}, {2, 1, 24, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND}
+//          },
+//         {
+//         {"num_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(24)},
+//          {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.088388f)},
+//          {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BSND")},
+//          {"num_key_value_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(24)},
+//          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+//          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
+//          },
+//                 &compileInfo,"Ascend950",64,262144,16384);
+//     int64_t expectTilingKey = 2362625;
+//     // int64_t expectTilingKey = 4294967295;
+//     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
+// }
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_950_tiling_2)
 {
