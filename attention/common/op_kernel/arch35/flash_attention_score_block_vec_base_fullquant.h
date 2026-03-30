@@ -441,20 +441,11 @@ __aicore__ inline void FABlockVecBaseFullquant<TEMPLATE_BASE_ARGS>::ProcessVec1D
 
     if constexpr (isFp8) {
         // 按照64对齐搬运
-        int64_t subloopoffset = mxfp8s2BaseSize * runInfo.s1RealSizeAlign32 * subLoop;
-        uint16_t elementSize = 32;
-        uint32_t singleProcessSOuterSize = runInfo.s1RealSizeAlign32 >> 1;
-        uint32_t actCopyCount = (singleProcessSOuterSize + elementSize - 1) / elementSize;
-        uint32_t actVec0Align32 = runInfo.s1RealSizeAlign32 >> 1;
-        uint32_t s2RealSizeAlign = (((runInfo.s2RealSize + 63) >> 6) << 6);
-        for (uint32_t i = 0; i < actCopyCount; i++) {
-            uint32_t dstOffset = 32 * mxfp8s2BaseSize * i + subloopoffset;
-            if (constInfo.subBlockIdx == 1) {
-                dstOffset += mxfp8s2BaseSize * actVec0Align32; 
-            }
-            uint32_t srcOffset = i * (65 << 5);
-            DataCopy(mm2AL1Tensor[dstOffset], stage1CastTensor[srcOffset], {4, mxfp8s2BaseSize / 4, mxfp8s2BaseSize / 4 + 2, 0}); // vec0必须分32的倍数
-        }
+        int64_t subloopoffset = mxfp8s2BaseSize * s1BaseSize * subLoop;
+        DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1HalfS1BaseSize * ((mxfp8s2RealSize + 63) >> 6 << 6) + subloopoffset] ,
+            stage1CastTensor, {static_cast<uint16_t>((mxfp8s2RealSize + 63) >> 6), 64, 66, 0});
+        DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1HalfS1BaseSize * ((mxfp8s2RealSize + 63) >> 6 << 6) +
+            ((mxfp8s2RealSize + 63) >> 6 << 6) * 32 + subloopoffset], stage1CastTensor[65 << 5], {static_cast<uint16_t>((mxfp8s2RealSize + 63) >> 6), 64, 66, 0});
     }
 
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
