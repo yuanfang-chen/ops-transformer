@@ -1,0 +1,22 @@
+
+Invalid File Type Total Count: 0
+
+License Not Compatible Total Count: 0
+
+License Header Invalid Total Count: 1
+Name:	License Header Invalid	Content:	CANN-2.0	Line:	0	Project:	ops-transformer_0302	File:	D:/WorkSpace/ops-transformer_0302/mc2/moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_layered.h
+
+Copyright Header Invalid Total Count: 1
+Name:	Copyright Header Invalid	Content:	Copyright (c) 2026 Huawei Technologies Co., Ltd.	Line:	0	Project:	ops-transformer_0302	File:	D:/WorkSpace/ops-transformer_0302/mc2/moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_layered.h
+
+No License File Total Count: 0
+
+No Readme.OpenSource Total Count: 0
+
+No Readme Total Count: 0
+
+Import Invalid Total Count: 0
+
+Redundant License File Total Count: 0
+
+Third Party Software Info Total Count: 0

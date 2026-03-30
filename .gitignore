@@ -41,3 +41,9 @@ third_party/
 # ai
 .agents/
 .opencode/
+
+# pre-commit
+.pre-commit-config.yaml
+oat_check.sh
+oat_reports/
+log/
