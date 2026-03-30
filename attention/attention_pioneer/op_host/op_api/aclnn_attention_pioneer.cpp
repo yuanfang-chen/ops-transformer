@@ -384,7 +384,7 @@ aclnnStatus aclnnAttentionPioneerGetWorkspaceSize(
         return ACLNN_SUCCESS;
     }
     CHECK_RET(ProcessUselessParams(pseShiftOptional, deqScale1Optional, quantScale1Optional,
-        deqScale2Optional,quantScale2Optional, quantOffset2Optional, antiquantScaleOptional,
+        deqScale2Optional, quantScale2Optional, quantOffset2Optional, antiquantScaleOptional,
         antiquantOffsetOptional, queryPaddingSizeOptional,
         kvPaddingSizeOptional, keyAntiquantScaleOptional,
         keyAntiquantOffsetOptional, valueAntiquantScaleOptional,
