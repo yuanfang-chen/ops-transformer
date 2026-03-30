@@ -149,6 +149,9 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
     ${TOP_DIR}/hcomm/include
     ${TOP_DIR}/hccl/include
+    ${TOP_DIR}/hcomm/pkg_inc/hccl
+    ${TOP_DIR}/hcomm/pkg_inc
+    ${TOP_DIR}/hcomm
   )
 else()
   list(APPEND OPAPI_INCLUDE ${OPBASE_INC_DIRS})
