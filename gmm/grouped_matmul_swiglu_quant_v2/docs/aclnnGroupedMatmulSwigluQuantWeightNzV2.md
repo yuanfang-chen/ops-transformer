@@ -309,7 +309,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
       <tr>
         <td>xScale</td>
         <td rowspan="1">输入</td>
-        <td>表示左矩阵的量化因子，公式中的xScale。</td>
+        <td>表示左矩阵的的量化因子，公式中的xScale。</td>
         <td>-</td>
         <td>FLOAT</td>
         <td>ND</td>
@@ -351,35 +351,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2(
           <li>0表示激活矩阵per-token，权重矩阵per-channel。</li>
           <li>1表示激活矩阵per-token，权重矩阵per-group。</li>
         </ul></td>
-        <td>INT64</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>dequantDtype</td>
-        <td rowspan="1">输入</td>
-        <td>表示中间GroupedMatmul的结果数据类型。</td>
-        <td><ul>
-          <li>暂不支持，默认行为28。</li>
-          <li>0表示FLOAT。</li>
-          <li>1表示FLOAT16。</li>
-          <li>27表示BFLOAT16。</li>
-          <li>28表示UNDEFINED。</li>
-        </ul></td>
-        <td>INT64</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>quantMode</td>
-        <td rowspan="1">输入</td>
-        <td>表示量化计算类型，用于确定swiglu结果的量化模式。</td>
-        <td><ul>
-          <li>暂不支持，默认行为0。</li>
-          <li>0表示per-token。</li>
-        </td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>

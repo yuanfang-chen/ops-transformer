@@ -65,9 +65,9 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
     bool               transMmWeight,
     int64_t            groupSize,
     bool               permuteOutFlag,
-    aclTensor*         gmmY,
-    aclTensor*         mmYOptional,
-    aclTensor*         permuteOutOptional,
+    const aclTensor*   gmmY,
+    const aclTensor*   mmYOptional,
+    const aclTensor*   permuteOutOptional,
     uint64_t*          workspaceSize,
     aclOpExecutor**    executor)
 ```

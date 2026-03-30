@@ -20,7 +20,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 
 #ifdef __CCE_KT_TEST__
-#include "kernel_operator.h"
+#include "kernel_log.h"
 #endif
 
 constexpr uint16_t MAX_TENSOR_CNT = 64;

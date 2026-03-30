@@ -166,7 +166,7 @@ CATLASS_DEVICE
 void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
                  __gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenScale layoutPerTokenScale,
                  __gm__ ElementC *ptrC, LayoutC layoutC, __gm__ ElementD *ptrD, LayoutD layoutD,
-                 GemmCoord problemShape, bool isInt4Type = false)
+                 GemmCoord problemShape)
 {
     // Calculate the offset of the current block
     MatrixCoord actualBlockShape = problemShape.GetCoordMN();
@@ -183,12 +183,8 @@ void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
     uint32_t subblockIdx = AscendC::GetSubBlockIdx();
     uint32_t subblockNum = AscendC::GetSubBlockNum();
 
-    // 当 isInt4Type 为 true 时，只有 subblockIdx == 1 的核参与计算，处理所有循环
-    uint32_t loopStart = isInt4Type ? 0 : subblockIdx;
-    uint32_t loopStride = isInt4Type ? 1 : subblockNum;
-
     InitFlag();
-    for (uint32_t loopIdx = loopStart; loopIdx < tileLoops; loopIdx += loopStride) {
+    for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
         auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
         auto actualTileShape = epilogueTileSwizzle.GetActualTileShape(tileCoord);
         auto tileOffset = tileCoord * tileShape;
@@ -273,7 +269,7 @@ void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
 CATLASS_DEVICE
 void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
                  __gm__ ElementC *ptrC, LayoutC layoutC, __gm__ ElementD *ptrD, LayoutD layoutD,
-                 GemmCoord problemShape, bool isInt4Type = false)
+                 GemmCoord problemShape)
 {
     // Calculate the offset of the current block
     MatrixCoord actualBlockShape = problemShape.GetCoordMN();
@@ -289,12 +285,8 @@ void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
     uint32_t subblockIdx = AscendC::GetSubBlockIdx();
     uint32_t subblockNum = AscendC::GetSubBlockNum();
 
-    // 当 isInt4Type 为 true 时，只有 subblockIdx == 1 的核参与计算，处理所有循环
-    uint32_t loopStart = isInt4Type ? 0 : subblockIdx;
-    uint32_t loopStride = isInt4Type ? 1 : subblockNum;
-
     InitFlag();
-    for (uint32_t loopIdx = loopStart; loopIdx < tileLoops; loopIdx += loopStride) {
+    for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
         auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
         auto actualTileShape = epilogueTileSwizzle.GetActualTileShape(tileCoord);
         auto tileOffset = tileCoord * tileShape;
@@ -359,7 +351,7 @@ void operator() (__gm__ ElementScale *ptrScale, LayoutScale layoutScale,
 // perToken
 CATLASS_DEVICE
 void operator() (__gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenScale layoutPerTokenScale,
-                 __gm__ ElementD *ptrD, LayoutD layoutD, GemmCoord problemShape, bool isInt4Type = false)
+                 __gm__ ElementD *ptrD, LayoutD layoutD, GemmCoord problemShape)
 {
     // Calculate the offset of the current block
     MatrixCoord actualBlockShape = problemShape.GetCoordMN();
@@ -374,12 +366,8 @@ void operator() (__gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenSc
     uint32_t subblockIdx = AscendC::GetSubBlockIdx();
     uint32_t subblockNum = AscendC::GetSubBlockNum();
 
-    // 当 isInt4Type 为 true 时，只有 subblockIdx == 1 的核参与计算，处理所有循环
-    uint32_t loopStart = isInt4Type ? 0 : subblockIdx;
-    uint32_t loopStride = isInt4Type ? 1 : subblockNum;
-
     InitFlag();
-    for (uint32_t loopIdx = loopStart; loopIdx < tileLoops; loopIdx += loopStride) {
+    for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
         auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
         auto actualTileShape = epilogueTileSwizzle.GetActualTileShape(tileCoord);
         auto tileOffset = tileCoord * tileShape;

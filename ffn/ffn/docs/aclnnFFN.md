@@ -231,7 +231,7 @@ G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数�
       </td>
       <td>FLOAT32</td>
       <td>ND</td>
-      <td>1维，有专家[E]<br>无专家[1]</td>
+      <td>1维,有专家[E]<br>无专家[1]</td>
       <td>-</td>
     </tr>
     <tr>

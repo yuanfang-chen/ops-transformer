@@ -654,11 +654,7 @@ ge::graphStatus AllGatherQuantBmmTiling::DoAdaptSlidWindowTiling()
     AllGatherQuantBmmHelper mmTile(*this, allGatherMatmulTilingDataFp8_->quantBmmv3TileTiling, false);
 
     GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
-    if (quantMmMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) {
-        MutableTCubeTileTilingData().M = tileMValue_;
-    } else {
-        MutableTCubeTileTilingData().M = tileMValue_ * (args_.rankDim - 1);
-    }
+    MutableTCubeTileTilingData().M = tileMValue_;
     if (MutableRCSTilingDataA5().tailCnt == 0) {
         return ge::GRAPH_SUCCESS;
     }
@@ -666,11 +662,7 @@ ge::graphStatus AllGatherQuantBmmTiling::DoAdaptSlidWindowTiling()
         (tailMValue_ * (args_.rankDim - 1) * (MutableRCSTilingDataA5().tailCnt)) : tailMValue_;
     AllGatherQuantBmmHelper mmTail(*this, allGatherMatmulTilingDataFp8_->quantBmmv3TailTiling, false);
     GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
-    if (quantMmMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) {
-        MutableTCubeTailTilingData().M = tailMValue_;
-    } else {
-        MutableTCubeTailTilingData().M = tailMValue_ * (args_.rankDim - 1);
-    }
+    MutableTCubeTailTilingData().M = tailMValue_;
     return ge::GRAPH_SUCCESS;
 }
 
