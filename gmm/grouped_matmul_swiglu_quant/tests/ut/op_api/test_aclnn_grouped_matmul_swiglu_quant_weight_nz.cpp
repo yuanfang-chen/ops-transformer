@@ -14,7 +14,7 @@
 #include <vector>
 #include <array>
 #include "gtest/gtest.h"
-#include "../../../../op_host/op_api/aclnn_grouped_matmul_swiglu_quant.h"
+#include "../../../../op_api/aclnn_grouped_matmul_swiglu_quant_weight_nz.h"
 #include "op_api_ut_common/tensor_desc.h"
 #include "op_api_ut_common/scalar_desc.h"
 #include "op_api_ut_common/op_api_ut.h"
@@ -23,21 +23,21 @@
 using namespace std;
 using namespace op;
 
-class aclnnGroupedMatmulSwigluQuant_test : public testing::Test
+class aclnnGroupedMatmulSwigluQuantWeightNz_test : public testing::Test
 {
 protected:
     static void SetUpTestCase()
     {
-        cout << "aclnnGroupedMatmulSwigluQuant_test SetUp" << endl;
+        cout << "aclnnGroupedMatmulSwigluQuantWeightNz_test SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        cout << "aclnnGroupedMatmulSwigluQuant_test TearDown" << endl;
+        cout << "aclnnGroupedMatmulSwigluQuantWeightNz_test TearDown" << endl;
     }
 };
 
-TEST_F(aclnnGroupedMatmulSwigluQuant_test, ascend910B2_test_opapi_w8a8_normal_case)
+TEST_F(aclnnGroupedMatmulSwigluQuantWeightNz_test, ascend910B2_test_opapi_w8a8_normal_case)
 {
     int64_t m = 192;
     int64_t k = 2048;
@@ -49,14 +49,14 @@ TEST_F(aclnnGroupedMatmulSwigluQuant_test, ascend910B2_test_opapi_w8a8_normal_ca
 
     TensorDesc x = TensorDesc({m, k}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
     TensorDesc weight =
-        TensorDesc({e, n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ, {}, 0, {e, n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
+        TensorDesc({e, k, n}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ, {}, 0, {e, n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
     TensorDesc weightScale = TensorDesc({e, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
     TensorDesc xScale = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
     TensorDesc groupList = TensorDesc({e}, ACL_INT64, ACL_FORMAT_ND).ValueRange(bs, bs);
     TensorDesc out1 = TensorDesc({m, n}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc out2 = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
+    TensorDesc out2 = TensorDesc({m,}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
 
-    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuant,
+    auto ut = OP_API_UT(aclnnGroupedMatmulSwigluQuantWeightNZ,
                         INPUT(x, weight, nullptr, nullptr, weightScale, xScale, groupList),
                         OUTPUT(out1, out2, nullptr));
     uint64_t workspace_size = 0;
