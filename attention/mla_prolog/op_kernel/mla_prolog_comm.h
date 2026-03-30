@@ -145,15 +145,15 @@ constexpr int FINISH_MM_QN_SPLIT_N = 0X6;
 class NoneType {};
 
 #if __CCE_AICORE__ == 310
-  using FP8E4M3 = fp8_e4m3fn_t;
+    using FP8E4M3 = fp8_e4m3fn_t;
 #else
-  using FP8E4M3 = NoneType;
+    using FP8E4M3 = NoneType;
 #endif
 
 #if __CCE_AICORE__ == 310
-  using FP8E8M0 = fp8_e8m0_t;
+    using FP8E8M0 = fp8_e8m0_t;
 #else
-  using FP8E8M0 = NoneType;
+    using FP8E8M0 = NoneType;
 #endif
 
 // mte2 <> mte1
@@ -226,7 +226,7 @@ constexpr uint32_t L0C_PP_SIZE = 64 * 1024;
   ropeComputType                      float                 float                 float                 float                float                   float                       float                    float                     float                    float                 float                      float                float                float
 */
 
-template <typename X_T, typename W_T, typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,
+template <typename X_T, typename W_T, typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,
           bool ENABLE_GROUP_COMPUTE_OPT, EMPTY_TENSOR_MODE EMPTY_MODE,
           ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE = false, uint32_t CV_RATIO = 2, typename... Args>
 struct MLAPType {
@@ -261,10 +261,10 @@ struct MLAPType {
     static constexpr uint32_t cvRatio = CV_RATIO; // 默认C:V 1:2
 };
 
-// 类模板特化，支持fp8全量化
-template <typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
+// 类模板特化，支持mxfp8/fp8全量化
+template <typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
           EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
-struct MLAPType<FP8E4M3, FP8E4M3, C_T, C_M, ENABLE_DEQUANT_OPT,
+struct MLAPType<FP8E4M3, FP8E4M3, C_T, D_S, C_M, ENABLE_DEQUANT_OPT,
                 ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {
     using mmInputType = FP8E4M3;           // tokenX的类型与weight的类型一致
     using mmQcQrInputType = FP8E4M3;
@@ -283,8 +283,8 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, C_M, ENABLE_DEQUANT_OPT,
     using kvCacheType = C_T;           // kvcache的类型
     using krCacheType = bfloat16_t;        // krcache的类型
     using dequantScaleQNopeType = float;      // dequantScaleQNope的类型
-    using dequantScaleQNormType = AscendC::fp8_e8m0_t;      // dequantScaleQNormType的类型
-    using dequantScaleType = AscendC::fp8_e8m0_t;
+    using dequantScaleQNormType = D_S;      // dequantScaleQNormType的类型
+    using dequantScaleType = D_S;
 
     static constexpr CACHE_MODE cacheMode = C_M;
     static constexpr bool enableDequantOpt = ENABLE_DEQUANT_OPT;
@@ -296,7 +296,7 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, C_M, ENABLE_DEQUANT_OPT,
 };
 
 // 类模板特化，支持hif8全量化
-template <typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
+template <typename C_T, typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
           EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
 struct MLAPType<hifloat8_t, hifloat8_t, C_T, C_M, ENABLE_DEQUANT_OPT,
                 ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {
