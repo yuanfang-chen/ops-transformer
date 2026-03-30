@@ -30,9 +30,8 @@ extern "C" {
 namespace {
 
 aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const aclTensor *input,
-                                            const aclTensor *weight, const aclTensor *mask,
-                                            aclTensor *grad_input, aclTensor *grad_weight,
-                                            uint64_t *workspaceSize, aclOpExecutor **executor)
+                                             const aclTensor *weight, const aclTensor *mask, aclTensor *grad_input,
+                                             aclTensor *grad_weight, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     auto uniqueExecutor = CREATE_EXECUTOR();
 
@@ -42,9 +41,8 @@ aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const
                                    grad_output->GetViewStrides(), grad_output->GetViewOffset());
     CHECK_COND(goFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for grad_output failed.");
 
-    const aclTensor *inFinal =
-        uniqueExecutor->CreateView(input, input->GetViewShape(), input->GetStorageShape(),
-                                   input->GetViewStrides(), input->GetViewOffset());
+    const aclTensor *inFinal = uniqueExecutor->CreateView(input, input->GetViewShape(), input->GetStorageShape(),
+                                                          input->GetViewStrides(), input->GetViewOffset());
     CHECK_COND(inFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for input failed.");
 
     weight = l0op::Contiguous(weight, uniqueExecutor.get());
@@ -65,20 +63,19 @@ aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const
 
 } // namespace
 
-ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(
-    const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight, const aclTensor *mask,
-    aclTensor *grad_input, aclTensor *grad_weight, uint64_t *workspaceSize, aclOpExecutor **executor)
+ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
+                                                               const aclTensor *weight, const aclTensor *mask,
+                                                               aclTensor *grad_input, aclTensor *grad_weight,
+                                                               uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(
-        aclnnAggregateHiddenGrad,
-        DFX_IN(grad_output, input, weight, mask),
-        DFX_OUT(grad_input, grad_weight));
-    return AggregateHiddenGradCommonProcess(grad_output, input, weight, mask, grad_input, grad_weight,
-                                           workspaceSize, executor);
+    L2_DFX_PHASE_1(aclnnAggregateHiddenGrad, DFX_IN(grad_output, input, weight, mask),
+                   DFX_OUT(grad_input, grad_weight));
+    return AggregateHiddenGradCommonProcess(grad_output, input, weight, mask, grad_input, grad_weight, workspaceSize,
+                                            executor);
 }
 
 ACLNN_API aclnnStatus aclnnAggregateHiddenGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                             aclrtStream stream)
+                                               aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnAggregateHiddenGrad);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);

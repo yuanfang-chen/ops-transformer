@@ -40,10 +40,10 @@ constexpr int32_t WEIGHT_INDEX = 2;
 constexpr int32_t MASK_INDEX = 3; // optional
 
 // Constants for validation and tiling
-constexpr int64_t DIM_ALIGN_ELEMENT = 64;    // H split granularity (elements)
-constexpr int64_t ALIGN_BYTES = 32;          // Base alignment requirement
-constexpr int64_t DTYPE_SIZE = 2;            // bf16/fp16 size in bytes
-constexpr int64_t BUFFER_NUM = 2;            // Double buffering recommended
+constexpr int64_t DIM_ALIGN_ELEMENT = 64;             // H split granularity (elements)
+constexpr int64_t ALIGN_BYTES = 32;                   // Base alignment requirement
+constexpr int64_t DTYPE_SIZE = 2;                     // bf16/fp16 size in bytes
+constexpr int64_t BUFFER_NUM = 2;                     // Double buffering recommended
 constexpr int64_t SYSTEM_RESERVED_UB_SIZE = 8 * 1024; // Reserve for system usage
 
 // Shape dim indices
@@ -53,7 +53,9 @@ constexpr int64_t DIM_2 = 2; // H
 
 class AggregateHiddenGradTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit AggregateHiddenGradTiling(gert::TilingContext *context) : TilingBaseClass(context) {}
+    explicit AggregateHiddenGradTiling(gert::TilingContext *context) : TilingBaseClass(context)
+    {
+    }
 
 protected:
     // Capability & info collection
@@ -89,26 +91,26 @@ private:
     ge::graphStatus ComputeIntraCoreUbTiling(); // 核内切分（优先满载B、S，H从64起步）
 
     // Hardware information
-    uint64_t ubSize_ = 0;         // UB size per core (bytes)
-    uint64_t totalCoreNum_ = 0;   // Total AIV cores
+    uint64_t ubSize_ = 0;       // UB size per core (bytes)
+    uint64_t totalCoreNum_ = 0; // Total AIV cores
 
     // Input tensor shape information
-    int64_t S_ = 0;  // seq length
-    int64_t B_ = 0;  // batch size
-    int64_t H_ = 0;  // hidden size
-    int64_t W_ = 0;  // kernel width (must be 3)
+    int64_t S_ = 0; // seq length
+    int64_t B_ = 0; // batch size
+    int64_t H_ = 0; // hidden size
+    int64_t W_ = 0; // kernel width (must be 3)
 
     // Data type information
     ge::DataType dataType_{}; // f16/bf16
     size_t dtypeSize_ = DTYPE_SIZE;
-    int64_t hasMask_ = 0;     // 1 if mask provided
+    int64_t hasMask_ = 0; // 1 if mask provided
 
     // Inter-core tiling parameters (H non-uniform split by 64)
-    int64_t hMainCoreCnt_ = 0;  // big cores count
-    int64_t hTailCoreCnt_ = 0;  // small cores count
-    int64_t hMainSize_ = 0;     // elements per big core (multiple of 64)
-    int64_t hTailSize_ = 0;     // elements per small core (multiple of 64)
-    int64_t usedCoreNum_ = 0;   // total used core number
+    int64_t hMainCoreCnt_ = 0; // big cores count
+    int64_t hTailCoreCnt_ = 0; // small cores count
+    int64_t hMainSize_ = 0;    // elements per big core (multiple of 64)
+    int64_t hTailSize_ = 0;    // elements per small core (multiple of 64)
+    int64_t usedCoreNum_ = 0;  // total used core number
 
     // Intra-core tiling parameters (UB loop for H/B/S)
     int64_t hUB_ = DIM_ALIGN_ELEMENT; // start with 64

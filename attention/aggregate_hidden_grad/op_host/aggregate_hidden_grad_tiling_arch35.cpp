@@ -32,20 +32,18 @@ ge::graphStatus AggregateHiddenGradTiling::GetPlatformInfo()
 {
     auto platformInfo = context_->GetPlatformInfo();
     if (platformInfo == nullptr) {
-        auto compileInfoPtr = reinterpret_cast<const AggregateHiddenGradArch35CompileInfo *>(context_->GetCompileInfo());
+        auto compileInfoPtr =
+            reinterpret_cast<const AggregateHiddenGradArch35CompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
         totalCoreNum_ = compileInfoPtr->coreNum;
         ubSize_ = compileInfoPtr->ubSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
         totalCoreNum_ = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
-        OP_CHECK_IF(totalCoreNum_ == 0UL,
-                    OP_LOGE(context_->GetNodeName(), "coreNum is 0"),
-                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(totalCoreNum_ == 0UL, OP_LOGE(context_->GetNodeName(), "coreNum is 0"), return ge::GRAPH_FAILED);
         uint64_t ubSize = 0;
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-        OP_CHECK_IF(ubSize == static_cast<uint64_t>(0),
-                    OP_LOGE(context_->GetNodeName(), "ubSize is 0"),
+        OP_CHECK_IF(ubSize == static_cast<uint64_t>(0), OP_LOGE(context_->GetNodeName(), "ubSize is 0"),
                     return ge::GRAPH_FAILED);
         ubSize_ = static_cast<uint64_t>(ubSize);
     }
@@ -68,9 +66,11 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateGradOutputShape()
     H_ = static_cast<int64_t>(origin.GetDim(DIM_2));
 
     // 约束范围（来自需求文档）：S∈[1, 32K], B∈[1, 8], H∈[384, 24576]
-    OP_CHECK_IF(S_ <= 0 || S_ > (1 << 15), OP_LOGE(context_->GetNodeName(), "invalid S=%ld", S_), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(S_ <= 0 || S_ > (1 << 15), OP_LOGE(context_->GetNodeName(), "invalid S=%ld", S_),
+                return ge::GRAPH_FAILED);
     OP_CHECK_IF(B_ <= 0 || B_ > 8, OP_LOGE(context_->GetNodeName(), "invalid B=%ld", B_), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(H_ < 384 || H_ > (192 * 128), OP_LOGE(context_->GetNodeName(), "invalid H=%ld", H_), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(H_ < 384 || H_ > (192 * 128), OP_LOGE(context_->GetNodeName(), "invalid H=%ld", H_),
+                return ge::GRAPH_FAILED);
 
     // H 必须按 64 对齐以便 H 方向切分
     OP_CHECK_IF((H_ % DIM_ALIGN_ELEMENT) != 0,
@@ -92,11 +92,9 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateInputShape()
                 OP_LOGE(context_->GetNodeName(), "input dim num must be 3, but got %lu", inOrigin.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(goShape.GetDim(DIM_0) != inOrigin.GetDim(DIM_0)
-                    || goShape.GetDim(DIM_1) != inOrigin.GetDim(DIM_1)
-                    || goShape.GetDim(DIM_2) != inOrigin.GetDim(DIM_2),
-                OP_LOGE(context_->GetNodeName(), "input shape mismatch with grad_output"),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(goShape.GetDim(DIM_0) != inOrigin.GetDim(DIM_0) || goShape.GetDim(DIM_1) != inOrigin.GetDim(DIM_1) ||
+                    goShape.GetDim(DIM_2) != inOrigin.GetDim(DIM_2),
+                OP_LOGE(context_->GetNodeName(), "input shape mismatch with grad_output"), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -114,12 +112,10 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateWeightShape()
     W_ = static_cast<int64_t>(wOrigin.GetDim(DIM_0));
     auto wH = static_cast<int64_t>(wOrigin.GetDim(DIM_1));
 
-    OP_CHECK_IF(W_ != 3,
-                OP_LOGE(context_->GetNodeName(), "weight[0]=W must be 3, but got %ld", W_),
+    OP_CHECK_IF(W_ != 3, OP_LOGE(context_->GetNodeName(), "weight[0]=W must be 3, but got %ld", W_),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(wH != H_,
-                OP_LOGE(context_->GetNodeName(), "weight dim1 %ld must match H %ld", wH, H_),
+    OP_CHECK_IF(wH != H_, OP_LOGE(context_->GetNodeName(), "weight dim1 %ld must match H %ld", wH, H_),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -187,10 +183,10 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateMaskType()
         return ge::GRAPH_SUCCESS;
     }
     auto t = desc->GetDataType();
-    OP_CHECK_IF(t != ge::DataType::DT_UINT8,
-                OP_LOGE(context_->GetNodeName(), "mask dtype must be UINT8, but got %s",
-                        Ops::Base::ToString(t).c_str()),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(
+        t != ge::DataType::DT_UINT8,
+        OP_LOGE(context_->GetNodeName(), "mask dtype must be UINT8, but got %s", Ops::Base::ToString(t).c_str()),
+        return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -198,31 +194,23 @@ ge::graphStatus AggregateHiddenGradTiling::CheckInputParams()
 {
     // Shapes
     OP_CHECK_IF(ValidateGradOutputShape() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "grad_output shape validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "grad_output shape validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateInputShape() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "input shape validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "input shape validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateWeightShape() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "weight shape validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "weight shape validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateMaskShape() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "mask shape validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "mask shape validation failed"), return ge::GRAPH_FAILED);
 
     // Types
     OP_CHECK_IF(ValidateGradOutputType() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "grad_output type validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "grad_output type validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateInputType() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "input type validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "input type validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateWeightType() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "weight type validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "weight type validation failed"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(ValidateMaskType() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "mask type validation failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "mask type validation failed"), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -243,7 +231,8 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeInterCoreSplit()
 {
     // 仅沿 H 方向按 64 切分，非均匀：前 remainder 个核心分到 (base+1)*64，其余 base*64
     int64_t tiles = H_ / DIM_ALIGN_ELEMENT;
-    OP_CHECK_IF(tiles <= 0, OP_LOGE(context_->GetNodeName(), "H(%ld) < %ld", H_, DIM_ALIGN_ELEMENT), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(tiles <= 0, OP_LOGE(context_->GetNodeName(), "H(%ld) < %ld", H_, DIM_ALIGN_ELEMENT),
+                return ge::GRAPH_FAILED);
 
     int64_t maxCores = static_cast<int64_t>(totalCoreNum_);
     usedCoreNum_ = std::min<int64_t>(tiles, std::max<int64_t>(1, maxCores));
@@ -269,8 +258,7 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
 {
     // UB 预留系统空间
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - SYSTEM_RESERVED_UB_SIZE;
-    OP_CHECK_IF(availableUbSize <= 0,
-                OP_LOGE(context_->GetNodeName(), "available UB size <= 0, ubSize=%lu", ubSize_),
+    OP_CHECK_IF(availableUbSize <= 0, OP_LOGE(context_->GetNodeName(), "available UB size <= 0, ubSize=%lu", ubSize_),
                 return ge::GRAPH_FAILED);
 
     // 初始设定，从 hUB=64 开始，尽量满载 B、S
@@ -287,7 +275,7 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
         int64_t go = hUB_ * bTry * sTry * static_cast<int64_t>(dtypeSize_);
         int64_t in = go;
         int64_t gi = go;
-        int64_t w  = hUB_ * W_ * static_cast<int64_t>(dtypeSize_);
+        int64_t w = hUB_ * W_ * static_cast<int64_t>(dtypeSize_);
         int64_t gw = w;
         int64_t mk = (hasMask_ != 0) ? (bTry * sTry) : 0; // uint8
         int64_t tmp = 3 * hUB_ * static_cast<int64_t>(dtypeSize_);
@@ -330,16 +318,17 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
 ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
 {
     OP_CHECK_IF(ComputeInterCoreSplit() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(ComputeIntraCoreUbTiling() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "ComputeIntraCoreUbTiling failed"),
-                return ge::GRAPH_FAILED);
+                OP_LOGE(context_->GetNodeName(), "ComputeIntraCoreUbTiling failed"), return ge::GRAPH_FAILED);
 
     // 填充 tilingData_
     tilingData_.hasMask = hasMask_;
-    tilingData_.H = H_; tilingData_.S = S_; tilingData_.B = B_; tilingData_.W = W_;
+    tilingData_.H = H_;
+    tilingData_.S = S_;
+    tilingData_.B = B_;
+    tilingData_.W = W_;
     tilingData_.dtypeSize = static_cast<int64_t>(dtypeSize_);
 
     tilingData_.hMainCoreCnt = hMainCoreCnt_;
@@ -425,7 +414,6 @@ void AggregateHiddenGradTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "hLoopCnt=%ld bLoopCnt=%ld sLoopCnt=%ld", hLoopCnt_, bLoopCnt_, sLoopCnt_);
     OP_LOGI(context_->GetNodeName(), "hUBTail=%ld bUBTail=%ld sUBTail=%ld", hUBTail_, bUBTail_, sUBTail_);
 }
-
 
 
 } // namespace optiling

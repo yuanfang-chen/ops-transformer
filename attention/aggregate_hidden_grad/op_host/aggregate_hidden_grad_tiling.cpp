@@ -29,18 +29,14 @@ static ge::graphStatus TilingAggregateHiddenGrad(gert::TilingContext *context)
 
 static ge::graphStatus TilingPrepareForAggregateHiddenGrad(gert::TilingParseContext *context)
 {
-    OP_CHECK_IF(context == nullptr,
-                OP_LOGE("AggregateHiddenGrad", "context is null"),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context == nullptr, OP_LOGE("AggregateHiddenGrad", "context is null"), return ge::GRAPH_FAILED);
 
     auto platformInfo = context->GetPlatformInfo();
-    OP_CHECK_IF(platformInfo == nullptr,
-                OP_LOGE(context->GetNodeName(), "platformInfo is null"),
+    OP_CHECK_IF(platformInfo == nullptr, OP_LOGE(context->GetNodeName(), "platformInfo is null"),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
-
 
 
 // Register main tiling entry

@@ -49,8 +49,8 @@ constexpr uint32_t B32_REP_SIZE = REGSIZE / sizeof(float); // 64 floats per vect
 // - gi has same layout as go
 
 template <typename T>
-__simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T *giAddr,
-                               uint32_t bLen, uint32_t sEff, uint32_t sLen, uint32_t dimLen)
+__simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T *giAddr, uint32_t bLen, uint32_t sEff,
+                               uint32_t sLen, uint32_t dimLen)
 {
     MicroAPI::MaskReg fullMask = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
     uint32_t dimLoopNum = dimLen / B32_REP_SIZE;
@@ -107,9 +107,9 @@ __simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T
 // Assumption: dimLen % 64 == 0, so no tail handling.
 
 template <typename T>
-__simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr,
-                                   __ubuf__ float *acc0Addr, __ubuf__ float *acc1Addr, __ubuf__ float *acc2Addr,
-                                   uint32_t bLen, uint32_t sEff, uint32_t sLen, uint32_t dimLen)
+__simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr, __ubuf__ float *acc0Addr,
+                                   __ubuf__ float *acc1Addr, __ubuf__ float *acc2Addr, uint32_t bLen, uint32_t sEff,
+                                   uint32_t sLen, uint32_t dimLen)
 {
     MicroAPI::MaskReg fullMask = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
     uint32_t dimLoopNum = dimLen / B32_REP_SIZE;
@@ -161,25 +161,25 @@ __simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr,
 
 // Wrapper helpers from LocalTensor to VF
 
-template<typename T>
-__aicore__ inline void DoGradInput(LocalTensor<T> &goUb, LocalTensor<T> &wUb, LocalTensor<T> &giUb,
-                                   uint32_t bLen, uint32_t sEff, uint32_t sLen, uint32_t dimLen)
+template <typename T>
+__aicore__ inline void DoGradInput(LocalTensor<T> &goUb, LocalTensor<T> &wUb, LocalTensor<T> &giUb, uint32_t bLen,
+                                   uint32_t sEff, uint32_t sLen, uint32_t dimLen)
 {
     __ubuf__ T *goAddr = (__ubuf__ T *)goUb.GetPhyAddr();
-    __ubuf__ T *wAddr  = (__ubuf__ T *)wUb.GetPhyAddr();
+    __ubuf__ T *wAddr = (__ubuf__ T *)wUb.GetPhyAddr();
     __ubuf__ T *giAddr = (__ubuf__ T *)giUb.GetPhyAddr();
     GradInputW3VF<T>(goAddr, wAddr, giAddr, bLen, sEff, sLen, dimLen);
 }
 
 // Accumulate into fp32 accumulators in UB
 
-template<typename T>
-__aicore__ inline void DoGradWeightAcc(LocalTensor<T> &goUb, LocalTensor<T> &inUb,
-                                       LocalTensor<float> &acc0Ub, LocalTensor<float> &acc1Ub, LocalTensor<float> &acc2Ub,
-                                       uint32_t bLen, uint32_t sEff, uint32_t sLen, uint32_t dimLen)
+template <typename T>
+__aicore__ inline void DoGradWeightAcc(LocalTensor<T> &goUb, LocalTensor<T> &inUb, LocalTensor<float> &acc0Ub,
+                                       LocalTensor<float> &acc1Ub, LocalTensor<float> &acc2Ub, uint32_t bLen,
+                                       uint32_t sEff, uint32_t sLen, uint32_t dimLen)
 {
-    __ubuf__ T *goAddr   = (__ubuf__ T *)goUb.GetPhyAddr();
-    __ubuf__ T *inAddr   = (__ubuf__ T *)inUb.GetPhyAddr();
+    __ubuf__ T *goAddr = (__ubuf__ T *)goUb.GetPhyAddr();
+    __ubuf__ T *inAddr = (__ubuf__ T *)inUb.GetPhyAddr();
     __ubuf__ float *a0Addr = (__ubuf__ float *)acc0Ub.GetPhyAddr();
     __ubuf__ float *a1Addr = (__ubuf__ float *)acc1Ub.GetPhyAddr();
     __ubuf__ float *a2Addr = (__ubuf__ float *)acc2Ub.GetPhyAddr();

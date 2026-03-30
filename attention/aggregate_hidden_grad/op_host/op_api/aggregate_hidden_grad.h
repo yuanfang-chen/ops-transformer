@@ -25,8 +25,7 @@ namespace l0op {
 //  grad_input:  [S, B, H]
 //  grad_weight: [W, H]
 bool AggregateHiddenGrad(const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight,
-                         const aclTensor *mask, aclTensor *grad_input, aclTensor *grad_weight,
-                         aclOpExecutor *executor);
+                         const aclTensor *mask, aclTensor *grad_input, aclTensor *grad_weight, aclOpExecutor *executor);
 } // namespace l0op
 
 #endif // OP_API_INC_LEVEL0_AGGREGATE_HIDDEN_GRAD_L0OP_H_

@@ -14,13 +14,12 @@
 #include "arch35/aggregate_hidden_grad_struct.h"
 
 using namespace AscendC;
-using AggregateHiddenGradKernelNS::AggregateHiddenGradKernel;
 using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
+using AggregateHiddenGradKernelNS::AggregateHiddenGradKernel;
 
-extern "C" __global__ __aicore__ void aggregate_hidden_grad(
-    GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight, GM_ADDR mask,
-    GM_ADDR grad_input, GM_ADDR grad_weight,
-    GM_ADDR workspace, GM_ADDR tiling)
+extern "C" __global__ __aicore__ void aggregate_hidden_grad(GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight,
+                                                            GM_ADDR mask, GM_ADDR grad_input, GM_ADDR grad_weight,
+                                                            GM_ADDR workspace, GM_ADDR tiling)
 {
     if (g_coreType == AIC) {
         return;
@@ -35,14 +34,13 @@ extern "C" __global__ __aicore__ void aggregate_hidden_grad(
         op.Init(grad_output, input, weight, mask, grad_input, grad_weight, &td, &pipe);
         op.Process();
     }
-    
+
     else {
         AggregateHiddenGradKernel<bfloat16_t> op;
         op.Init(grad_output, input, weight, mask, grad_input, grad_weight, &td, &pipe);
         op.Process();
     }
-   
+
 
     // Unsupported dtype key path
-
 }

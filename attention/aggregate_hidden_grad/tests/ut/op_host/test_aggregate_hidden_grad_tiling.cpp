@@ -37,35 +37,33 @@ protected:
 
 TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950_tiling_bf_b4_s1_d512)
 {
-    optiling::AggregateHiddenGradArch35CompileInfo compileInfo = {
-        64, 261888};
+    optiling::AggregateHiddenGradArch35CompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
 
     };
 
-    gert::TilingContextPara tilingContextPara(
-        "AggregateHiddenGrad",
-        {
-            // Input 0: x - (batch=4, seq_len=1, dim=512)
-            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_size=3, dim=512)
-            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 2: convStates - (batch=4, cache_len=3+1-2=2, dim=512)
-            {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+    gert::TilingContextPara tilingContextPara("AggregateHiddenGrad",
+                                              {
+                                                  // Input 0: x - (batch=4, seq_len=1, dim=512)
+                                                  {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+                                                  // Input 1: weight - (kernel_size=3, dim=512)
+                                                  {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+                                                  // Input 2: convStates - (batch=4, cache_len=3+1-2=2, dim=512)
+                                                  {{{3, 512}, {3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
 
-        },
-        {
-            // Output 0: y - (batch=4, seq_len=1, dim=512)
-            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (batch=4, cache_len=2, dim=512)
-            {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-        },
-        attrs,
-        &compileInfo);
+                                              },
+                                              {
+                                                  // Output 0: y - (batch=4, seq_len=1, dim=512)
+                                                  {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+                                                  // Output 1: cacheStates - (batch=4, cache_len=2, dim=512)
+                                                  {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
+                                              },
+                                              attrs, &compileInfo);
 
     int64_t expectTilingKey = 0;
-    std::string expectTilingData = "16 4 4 4 0 128 128 4 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 512 1024 512 -1 0 1 0 ";
+    std::string expectTilingData =
+        "16 4 4 4 0 128 128 4 0 1 1 1 1 1 1 128 128 1 1 1 1 128 128 4 1 0 512 3 2 512 1024 512 -1 0 1 0 ";
 
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);

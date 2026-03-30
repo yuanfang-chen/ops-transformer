@@ -13,7 +13,6 @@
 #define OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
 
 
-
 namespace AggregateHiddenGradArch35Tiling {
 
 
@@ -23,7 +22,7 @@ struct AggregateHiddenGradTilingDataV35 {
     int64_t H{0};
     int64_t S{0};
     int64_t B{0};
-    int64_t W{0}; // must be 3
+    int64_t W{0};         // must be 3
     int64_t dtypeSize{0}; // bytes per element of DT
 
     // inter-core split on H

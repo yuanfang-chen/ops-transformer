@@ -21,15 +21,16 @@ extern "C" {
 /**
  * @brief AggregateHiddenGrad 第一段接口：生成执行器，并返回 workspace 大小。
  */
-ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(
-    const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight, const aclTensor *mask,
-    aclTensor *grad_input, aclTensor *grad_weight, uint64_t *workspaceSize, aclOpExecutor **executor);
+ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
+                                                               const aclTensor *weight, const aclTensor *mask,
+                                                               aclTensor *grad_input, aclTensor *grad_weight,
+                                                               uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief AggregateHiddenGrad 第二段接口：执行计算。
  */
 ACLNN_API aclnnStatus aclnnAggregateHiddenGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                             aclrtStream stream);
+                                               aclrtStream stream);
 
 #ifdef __cplusplus
 }

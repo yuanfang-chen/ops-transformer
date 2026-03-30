@@ -22,7 +22,7 @@ namespace AggregateHiddenGradKernelNS {
 using namespace AscendC;
 using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
 
-template<typename DT>
+template <typename DT>
 class AggregateHiddenGradKernel {
 public:
     static constexpr int kW = 3;
@@ -30,19 +30,28 @@ public:
     static constexpr int kAlignBytes = 32;
     static constexpr int kMinHTile = 64;
 
-    __aicore__ inline AggregateHiddenGradKernel() {}
+    __aicore__ inline AggregateHiddenGradKernel()
+    {
+    }
 
-    __aicore__ inline void Init(GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight, GM_ADDR mask,
-                                GM_ADDR grad_input, GM_ADDR grad_weight,
-                                const AggregateHiddenGradTilingDataV35 *td, TPipe *pipe)
+    __aicore__ inline void Init(GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight, GM_ADDR mask, GM_ADDR grad_input,
+                                GM_ADDR grad_weight, const AggregateHiddenGradTilingDataV35 *td, TPipe *pipe)
     {
         pipe_ = pipe;
         td_ = td;
         // cache tiling fields
-        H_ = td_->H; S_ = td_->S; B_ = td_->B; W_ = td_->W; dtypeSize_ = td_->dtypeSize;
-        hUB_ = td_->hUB; bUB_ = td_->bUB; sUB_ = td_->sUB;
-        hMainCoreCnt_ = td_->hMainCoreCnt; hTailCoreCnt_ = td_->hTailCoreCnt;
-        hMainSize_ = td_->hMainSize; hTailSize_ = td_->hTailSize;
+        H_ = td_->H;
+        S_ = td_->S;
+        B_ = td_->B;
+        W_ = td_->W;
+        dtypeSize_ = td_->dtypeSize;
+        hUB_ = td_->hUB;
+        bUB_ = td_->bUB;
+        sUB_ = td_->sUB;
+        hMainCoreCnt_ = td_->hMainCoreCnt;
+        hTailCoreCnt_ = td_->hTailCoreCnt;
+        hMainSize_ = td_->hMainSize;
+        hTailSize_ = td_->hTailSize;
 
         // compute this core's H start/len
 
@@ -58,19 +67,19 @@ public:
         }
 
         // bind GM tensors (assume contiguous ND layout)
-        gradOutGm_.SetGlobalBuffer((__gm__ DT*)grad_output, S_ * B_ * H_);
-        inputGm_.SetGlobalBuffer((__gm__ DT*)input, S_ * B_ * H_);
-        weightGm_.SetGlobalBuffer((__gm__ DT*)weight, W_ * H_);
-        gradInGm_.SetGlobalBuffer((__gm__ DT*)grad_input, S_ * B_ * H_);
-        gradWeightGm_.SetGlobalBuffer((__gm__ DT*)grad_weight, W_ * H_);
+        gradOutGm_.SetGlobalBuffer((__gm__ DT *)grad_output, S_ * B_ * H_);
+        inputGm_.SetGlobalBuffer((__gm__ DT *)input, S_ * B_ * H_);
+        weightGm_.SetGlobalBuffer((__gm__ DT *)weight, W_ * H_);
+        gradInGm_.SetGlobalBuffer((__gm__ DT *)grad_input, S_ * B_ * H_);
+        gradWeightGm_.SetGlobalBuffer((__gm__ DT *)grad_weight, W_ * H_);
         if (td_->hasMask) {
-            maskGm_.SetGlobalBuffer((__gm__ uint8_t*)mask, B_ * S_);
+            maskGm_.SetGlobalBuffer((__gm__ uint8_t *)mask, B_ * S_);
         }
 
         // init queues and tmp buffers
         pipe_->InitBuffer(gradOutQ_, kBufferNum, static_cast<uint32_t>(hUB_ * bUB_ * sUB_ * sizeof(DT)));
-        pipe_->InitBuffer(inputQ_,   kBufferNum, static_cast<uint32_t>(hUB_ * bUB_ * sUB_ * sizeof(DT)));
-        pipe_->InitBuffer(weightQ_,  kBufferNum, static_cast<uint32_t>(hUB_ * kW * sizeof(DT)));
+        pipe_->InitBuffer(inputQ_, kBufferNum, static_cast<uint32_t>(hUB_ * bUB_ * sUB_ * sizeof(DT)));
+        pipe_->InitBuffer(weightQ_, kBufferNum, static_cast<uint32_t>(hUB_ * kW * sizeof(DT)));
         if (td_->hasMask) {
             pipe_->InitBuffer(maskQ_, kBufferNum, static_cast<uint32_t>(bUB_ * sUB_));
         }
@@ -80,8 +89,10 @@ public:
         // tmp buffer holds fp32 accumulators for grad_weight: 3 * hUB_
         pipe_->InitBuffer(tmpBuf_, static_cast<uint32_t>(kW * hUB_ * sizeof(float)));
         uint32_t off = 0;
-        gwAccF32_[0] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(hUB_), off); off += static_cast<uint32_t>(hUB_ * sizeof(float));
-        gwAccF32_[1] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(hUB_), off); off += static_cast<uint32_t>(hUB_ * sizeof(float));
+        gwAccF32_[0] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(hUB_), off);
+        off += static_cast<uint32_t>(hUB_ * sizeof(float));
+        gwAccF32_[1] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(hUB_), off);
+        off += static_cast<uint32_t>(hUB_ * sizeof(float));
         gwAccF32_[2] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(hUB_), off);
     }
 
@@ -120,15 +131,13 @@ public:
     }
 
 private:
-    __aicore__ inline void CopyInGradOutput(int64_t bTile, int64_t sTile, int64_t hTile,
-                                            int64_t bLen, int64_t sLen, int64_t hLenThis)
+    __aicore__ inline void CopyInGradOutput(int64_t bTile, int64_t sTile, int64_t hTile, int64_t bLen, int64_t sLen,
+                                            int64_t hLenThis)
     {
         LocalTensor<DT> goLocal = gradOutQ_.AllocTensor<DT>();
         // Copy a [sLen, bLen, hLenThis] block along contiguous H
-        DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen),
-                                   static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)),
-                                   0, 0};
+        DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
+                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
         int64_t sStart = sTile * sUB_;
         int64_t bStart = bTile * bUB_;
         int64_t hOff = hTile * hUB_;
@@ -138,14 +147,12 @@ private:
         gradOutQ_.EnQue<DT>(goLocal);
     }
 
-    __aicore__ inline void CopyInInput(int64_t bTile, int64_t sTile, int64_t hTile,
-                                       int64_t bLen, int64_t sLen, int64_t hLenThis)
+    __aicore__ inline void CopyInInput(int64_t bTile, int64_t sTile, int64_t hTile, int64_t bLen, int64_t sLen,
+                                       int64_t hLenThis)
     {
         LocalTensor<DT> inLocal = inputQ_.AllocTensor<DT>();
-        DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen),
-                                   static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)),
-                                   0, 0};
+        DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
+                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
         int64_t sStart = sTile * sUB_;
         int64_t bStart = bTile * bUB_;
         int64_t hOff = hTile * hUB_;
@@ -158,10 +165,8 @@ private:
     __aicore__ inline void CopyInWeight(int64_t hTile, int64_t hLenThis)
     {
         LocalTensor<DT> wLocal = weightQ_.AllocTensor<DT>();
-        DataCopyExtParams inParams{static_cast<uint16_t>(kW),
-                                   static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)),
-                                   0, 0};
+        DataCopyExtParams inParams{static_cast<uint16_t>(kW), static_cast<uint32_t>(hLenThis * sizeof(DT)),
+                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
         int64_t hOff = hTile * hUB_;
         int64_t base = (hStart_ + hOff);
         DataCopyPadExtParams<DT> padParams{false, 0, 0, 0};
@@ -173,10 +178,8 @@ private:
     {
         LocalTensor<uint8_t> mLocal = maskQ_.AllocTensor<uint8_t>();
         // Copy mask block [bLen x sLen] with S contiguous in GM
-        DataCopyExtParams inParams{static_cast<uint16_t>(bLen),
-                                   static_cast<uint32_t>(sLen),
-                                   static_cast<uint32_t>(S_ - sLen),
-                                   0, 0};
+        DataCopyExtParams inParams{static_cast<uint16_t>(bLen), static_cast<uint32_t>(sLen),
+                                   static_cast<uint32_t>(S_ - sLen), 0, 0};
         int64_t sStart = sTile * sUB_;
         int64_t bStart = bTile * bUB_;
         int64_t base = bStart * S_ + sStart;
@@ -185,9 +188,8 @@ private:
         maskQ_.EnQue<uint8_t>(mLocal);
     }
 
-    __aicore__ inline void Compute(int64_t bTile, int64_t sTile, int64_t hTile,
-                                   int64_t bLen, int64_t sEff, int64_t sLen, int64_t hLenThis,
-                                   LocalTensor<DT> &wLocal)
+    __aicore__ inline void Compute(int64_t bTile, int64_t sTile, int64_t hTile, int64_t bLen, int64_t sEff,
+                                   int64_t sLen, int64_t hLenThis, LocalTensor<DT> &wLocal)
     {
         LocalTensor<DT> goLocal = gradOutQ_.DeQue<DT>();
         LocalTensor<DT> inLocal = inputQ_.DeQue<DT>();
@@ -209,28 +211,26 @@ private:
         }
 
         // Compute grad_input using VF (reuse weight already loaded for this h-tile)
-        AggHiddenGradVF::DoGradInput<DT>(goLocal, wLocal, giLocal,
-                                         static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff), static_cast<uint32_t>(sLen),
+        AggHiddenGradVF::DoGradInput<DT>(goLocal, wLocal, giLocal, static_cast<uint32_t>(bLen),
+                                         static_cast<uint32_t>(sEff), static_cast<uint32_t>(sLen),
                                          static_cast<uint32_t>(hLenThis));
 
         // Accumulate grad_weight in fp32 using VF Acc variant
         AggHiddenGradVF::DoGradWeightAcc<DT>(goLocal, inLocal, gwAccF32_[0], gwAccF32_[1], gwAccF32_[2],
-                                             static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff), static_cast<uint32_t>(sLen),
-                                             static_cast<uint32_t>(hLenThis));
+                                             static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff),
+                                             static_cast<uint32_t>(sLen), static_cast<uint32_t>(hLenThis));
 
         gradOutQ_.FreeTensor(goLocal);
         inputQ_.FreeTensor(inLocal);
         gradInQ_.EnQue<DT>(giLocal);
     }
 
-    __aicore__ inline void CopyOutGradInput(int64_t bTile, int64_t sTile, int64_t hTile,
-                                            int64_t bLen, int64_t sEff, int64_t sLen, int64_t hLenThis)
+    __aicore__ inline void CopyOutGradInput(int64_t bTile, int64_t sTile, int64_t hTile, int64_t bLen, int64_t sEff,
+                                            int64_t sLen, int64_t hLenThis)
     {
         LocalTensor<DT> giLocal = gradInQ_.DeQue<DT>();
-        DataCopyExtParams inParams{static_cast<uint16_t>(sEff * bLen),
-                                   static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)),
-                                   0, 0};
+        DataCopyExtParams inParams{static_cast<uint16_t>(sEff * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
+                                   static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
         int64_t sStart = sTile * sUB_;
         int64_t bStart = bTile * bUB_;
         int64_t hOff = hTile * hUB_;
@@ -250,9 +250,8 @@ private:
             LocalTensor<DT> gwSlice = gwCast[static_cast<uint32_t>(k * hUB_)];
             Cast<DT, float>(gwSlice, gwAccF32_[k], RoundMode::CAST_RINT, static_cast<uint32_t>(hLenThis));
             int64_t base = static_cast<int64_t>(k) * H_ + baseH;
-            DataCopyExtParams outParams{static_cast<uint16_t>(1),
-                                        static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                        0, 0, 0};
+            DataCopyExtParams outParams{static_cast<uint16_t>(1), static_cast<uint32_t>(hLenThis * sizeof(DT)), 0, 0,
+                                        0};
             DataCopyPad(gradWeightGm_[base], gwSlice, outParams);
         }
         gradWeightQ_.FreeTensor(gwCast);
