@@ -1,12 +1,12 @@
 /**
-* This program is free software, you can redistribute it and/or modify.
-* Copyright (c) 2026 Huawei Technologies Co., Ltd.
-* This file is a part of the CANN Open Software.
-* Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
-* Please refer to the License for details. You may not use this file except in compliance with the License.
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
-* See LICENSE in the root of the software repository for the full text of the License.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #ifndef EPILOGUE_BLOCK_BLOCK_EPILOGUE_RESCALE_O_ARCH35_REG_HIGH_PREC
 #define EPILOGUE_BLOCK_BLOCK_EPILOGUE_RESCALE_O_ARCH35_REG_HIGH_PREC
@@ -116,8 +116,9 @@ public:
 
         __ubuf__ ElementOTmp *goUb = (__ubuf__ ElementOTmp *) goUbTensor32.GetPhyAddr();
         __ubuf__ ElementOTmp *loUb = (__ubuf__ ElementOTmp *) loUbTensor[ubOTmpBufId].GetPhyAddr();
-        __ubuf__ ElementOTmp *glUb =( __ubuf__ ElementOTmp *) glUbTensor32.GetPhyAddr();
-        __ubuf__ ElementOTmp *dmUb = (__ubuf__ ElementOTmp *) dmUbTensor32[curTileMod * DM_UB_GLOBAL_ELEM_NUM].GetPhyAddr();
+        __ubuf__ ElementOTmp *glUb = ( __ubuf__ ElementOTmp *) glUbTensor32.GetPhyAddr();
+        __ubuf__ ElementOTmp *dmUb =
+            (__ubuf__ ElementOTmp *) dmUbTensor32[curTileMod * DM_UB_GLOBAL_ELEM_NUM].GetPhyAddr();
         
         WaitCrossCoreSync<4, PIPE_V>(mm2ToReFlag);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
@@ -192,7 +193,8 @@ public:
             LoadAlign<T, LoadDist::DIST_NORM>(loVreg, loUb + i * colStride + colFullLoop * vlElemNum);
             Mul(mulVreg, goPreVreg, dmVreg, pregTail);
             Add(goCurVreg, mulVreg, loVreg, pregTail);
-            StoreAlign<T, StoreDist::DIST_NORM_B32>(goUb + i * colStride + colFullLoop * vlElemNum, goCurVreg, pregTail);
+            StoreAlign<T, StoreDist::DIST_NORM_B32>(
+                goUb + i * colStride + colFullLoop * vlElemNum, goCurVreg, pregTail);
         }
     }
 
@@ -255,7 +257,6 @@ public:
             StoreAlign<T, StoreDist::DIST_NORM_B32>(goUb + i * colStride + colFullLoop * vlElemNum, divVreg, pregTail);
         }
     }
-
 
     template <class TensorDst>
     __aicore__ inline
