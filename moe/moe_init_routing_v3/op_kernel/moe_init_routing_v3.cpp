@@ -120,7 +120,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
             return;
         }
         if (t->expertTokensNumFlag) {
-            GlobalTensor<int64_t> expertTokensCountGm;
+            GlobalTensor<int32_t> expertTokensCountGm;
             expertTokensCountGm.SetGlobalBuffer((__gm__ int32_t *)expertTokensCountOrCumsum, t->expertCountElements);
             InitGlobalMemory(expertTokensCountGm, t->expertCountElements, 0);
         }
