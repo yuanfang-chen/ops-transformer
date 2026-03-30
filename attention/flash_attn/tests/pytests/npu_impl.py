@@ -66,10 +66,11 @@ def flash_attn_npu(q, k, v, q_rope, k_rope, atten_mask, pse, **kwargs):
         q1, k1, v1,
         cu_seqlens_q = sum(actual_seq_qlen),
         cu_seqlens_kv = sum(actual_seq_kvlen),
-        seqused_q = actual_seq_qlen
-        seqused_kv = actual_seq_kvlen
+        seqused_q = actual_seq_qlen,
+        seqused_kv = actual_seq_kvlen,
         softmax_scale = scale,
-        layout_q = input_layout
+        mask_mode = sparse_mode,
+        layout_q = input_layout,
         layout_kv = input_layout
         )
     torch.npu.synchronize()

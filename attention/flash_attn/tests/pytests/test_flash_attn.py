@@ -6,7 +6,6 @@ import torch_npu
 import torch.nn.functional as f
 import math
 import numpy as np
-from self_attention_cpu import *
 from cpu_impl import tforward
 from test_utils import generate_qkv, generate_pse, generate_npu_mask, trans_bnsd_to_layout, get_seqlen_list
 from npu_impl import flash_attn_npu
@@ -62,12 +61,18 @@ def call_flash_attn(test_name, **kwargs):
     d_rope = kwargs.get("DRope", 0)
     input_layout = kwargs.get("input_layout")
     scale = kwargs.get("scale", 1 / (d ** 0.5))
-    pse_type = kwargs.get("pse_type", 1)
+    pse_type = int(kwargs.get("pse_type") if (kwargs.get("pse_type") != '') else 0)
     pse_layout = kwargs.get("pse_layout", "none").lower()
-    keep_prob = kwargs.get("keep_prob", 1)
     q_start_idx = kwargs.get("q_start_idx", 0)
     kv_start_idx = kwargs.get("kv_start_idx", 0)
     dtype = kwargs.get("Dtype", torch.bfloat16)
+    if dtype == 'fp16':
+        pttype = torch.float16
+        input_dtype = torch.float16
+    if dtype == 'bf16':
+        pttype = torch.bfloat16
+        input_dtype = torch.bfloat16
+
     sparse_mode = kwargs.get("sparse_mode", None)
     pre_tokens = kwargs.get("pre_tokens", 2147483647)
     next_tokens = kwargs.get("next_tokens", 2147483647)
@@ -90,8 +95,8 @@ def call_flash_attn(test_name, **kwargs):
         if pse_layout in ["bnhs", "1nhs"]:
             pse_s1 = max(1024, pse_s1)
 
-    pse_cpu, pse_npu = generate_pse(pse_b, n1, pse_s1, pse_s2, pse_type, pse_layout, dtype, q_start_idx, kv_start_idx)
-    q, k, v, q_rope, k_rope, qf, kf = generate_qkv(b, n1, n2, sq, skv, d, d_v, d_rope, input_layout, dtype)
+    pse_cpu, pse_npu = generate_pse(pse_b, n1, pse_s1, pse_s2, pse_type, pse_layout, pttype, q_start_idx, kv_start_idx)
+    q, k, v, q_rope, k_rope, qf, kf = generate_qkv(b, n1, n2, sq, skv, d, d_v, d_rope, input_layout, input_dtype)
     out, x_max, x_sum = tforward(qf, kf, v, pse_cpu, **kwargs)
 
     atten_mask = generate_npu_mask(b, sq, skv, sparse_mode, pre_tokens, next_tokens, prefix)
@@ -125,11 +130,12 @@ def get_col_index(table, col_name):
 
 if __name__ =="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--case_id', type=str, defalut='all', help='case name')
-    parser.add_argument('--device_id', type=int, defalut='0', help='device_id')
-    parser.add_argument('--case_file', type=str, defalut='FlashAttn', help='case file')
-    parser.add_argument('--version', type=str, defalut='950', help='device version')
-    parser.add_argument('--sheet', type=str, defalut='Sheet1', help='sheet name')
+    parser.add_argument('--case_id', type=str, default='all', help='case name')
+    parser.add_argument('--device_id', type=int, default='0', help='device_id')
+    parser.add_argument('--case_file', type=str, default='FlashAttn', help='case file')
+    parser.add_argument('--version', type=str, default='950', help='device version')
+    parser.add_argument('--case_level', type=str, default='all',help='running specified level')
+    parser.add_argument('--sheet', type=str, default='Sheet1', help='sheet name')
     args = parser.parse_args()
     case_name = args.case_id
     device_id = args.device_id
@@ -168,7 +174,7 @@ if __name__ =="__main__":
     Atten_mask_dtype_col = get_col_index(table, 'Atten_mask_Dtype')
     Paddding_mask_col = get_col_index(table, 'Padding_Mask')
     Pse_shape_col = get_col_index(table, 'PSE')
-    Pse_mode_col = get_col_index(table, 'pse_mode')
+    Pse_mode_col = get_col_index(table, 'PSE_mode')
     Pse_type_col = get_col_index(table, 'pse_type')
     pre_tokens_col = get_col_index(table, 'pre_tokens')
     next_tokens_col = get_col_index(table, 'next_tokens')
@@ -181,29 +187,28 @@ if __name__ =="__main__":
         case = {}
         case['Testcase_Name'] = table.cell(row=i, column=Testcase_Name_Col).value
         test_name = case['Testcase_Name']
-        case['Enable'] = table.cell(row=i, column=Enable_Col).value
         case['Level'] = table.cell(row=i, column=case_level_Col).value
         case['B'] = int(table.cell(row=i, column=B_col).value)
         case['N1'] = int(table.cell(row=i, column=N1_col).value)
-        case['N2'] = int(table.cell(row=i, column=N2_col).value)
+        case['N2'] = int(table.cell(row=i, column=N2_col).value) if table.cell(row=i, column=N2_col).value is not None else case['N1']
         case['S1'] = int(table.cell(row=i, column=S1_col).value)
-        case['S2'] = int(table.cell(row=i, column=S2_col).value)
+        case['S2'] = int(table.cell(row=i, column=S2_col).value) if table.cell(row=i, column=S2_col).value is not None else case['S1']
         case['seqlens_list_q'] = eval(table.cell(i, seqlens_list_col).value) if table.cell(i, seqlens_list_col).value is not None else None
         case['seqlens_list_kv'] = case['seqlens_list_q'] if table.cell(i, seqlens_list_col).value is None else eval(table.cell(i, seqlens_list_col).value)
         case['D'] = int(table.cell(row=i, column=D_col).value)
-        case['DV'] = int(table.cell(row=i, column=DV_col).value)
-        case['DRope'] = 0 if table.cell(row=i, column=DR_col).value is not None else int(table.cell(row=i, column=DR_col).value)
+        case['DV'] = int(table.cell(row=i, column=D_col).value) if table.cell(row=i, column=DV_col).value is None else int(table.cell(row=i, column=DV_col).value)
+        case['DRope'] = int(table.cell(row=i, column=DR_col).value) if table.cell(row=i, column=DR_col).value is not None else 0
         case['Dtype'] = table.cell(row=i, column=Dtype_col).value
-        case['out_dtype'] =0 if table.cell(row=i, column=outDtype_col).value is None else table.cell(row=i, column=outDtype_col).value
+        case['out_dtype'] = 0 if table.cell(row=i, column=outDtype_col).value is None else table.cell(row=i, column=outDtype_col).value
         case['sparse_mode'] = int(table.cell(row=i, column=Sparse_col).value)
-        case['prefix'] = eval(table.cell(row=i, column=prefix_col).value) if prefix_col is None and table.cell(row=i, column=prefix_col).value is None else None
+        case['prefix'] = eval(table.cell(row=i, column=prefix_col).value) if prefix_col is not None and table.cell(row=i, column=prefix_col).value is None else None
         case['input_layout'] = table.cell(row=i, column=Input_layout_col).value
         case['Atten_mask_Shape'] = table.cell(row=i, column=Atten_mask_shape_col).value
         case['Atten_mask_Dtype'] = table.cell(row=i, column=Atten_mask_dtype_col).value
         case['Padding_Mask'] = table.cell(row=i, column=Paddding_mask_col).value
         case['pse_layout'] = table.cell(row=i, column=Pse_shape_col).value
         case['pse_mode'] = int(table.cell(row=i, column=Pse_mode_col).value) if table.cell(row=i, column=Pse_mode_col).value is not None else 1
-        case['pse_type'] = ' ' if table.cell(row=i, column=Pse_type_col).value is not None else table.cell(row=i, column=Pse_type_col).value
+        case['pse_type'] = '' if table.cell(row=i, column=Pse_type_col).value is None else table.cell(row=i, column=Pse_type_col).value
         case['pre_tokens'] = int(table.cell(row=i, column=pre_tokens_col).value) if table.cell(row=i, column=pre_tokens_col).value is not None else 65536
         case['next_tokens'] = int(table.cell(row=i, column=next_tokens_col).value) if table.cell(row=i, column=next_tokens_col).value is not None else 65536
         case['keep_prob'] = int(table.cell(row=i, column=keep_prob_col).value) if table.cell(row=i, column=keep_prob_col).value is not None else 1
@@ -212,7 +217,9 @@ if __name__ =="__main__":
         case['seed'] = int(table.cell(row=i, column=seed_col).value) if table.cell(row=i, column=seed_col).value is not None else 0
         case['offset'] = int(table.cell(row=i, column=offset_col).value) if table.cell(row=i, column=offset_col).value is not None else 0
 
-        call_flash_attn(test_name, **case)
+        enable = table.cell(row=i, column=Enable_Col).value
+        if (enable.lower() =='enable' and case_name =='all' and case_level == 'all') or case["Testcase_Name"] == case_name or (case["Level"].lower() == case_level.lower() and enable.lower() == 'enable'):
+            call_flash_attn(test_name, **case)
 
 
 
