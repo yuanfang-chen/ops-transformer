@@ -1919,7 +1919,9 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         }
         const uint32_t avg_m = tuningConfig != 0L ? static_cast<uint32_t>(tuningConfig) : calc_m;
         const bool isPerchannel = quantGroupNum == 1U;
-        const bool isMSD = tuningConfig == 0L || avg_m == 0U || n / avg_m > 4U || withOffset == true;
+        auto biasPtr = context->GetDynamicInputTensor(BIAS_INDEX, 0);
+        const bool isMSD = (tuningConfig == 0L || avg_m == 0U || n / avg_m > 4U || withOffset == true) &&
+                    !(biasPtr == nullptr || biasPtr->GetStorageShape().GetShapeSize() == 0);
         if (!isMSD) {
             constexpr uint32_t A8W4_BASE_M = 128;
             constexpr uint32_t A8W4_BASE_K = 64;
