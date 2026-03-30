@@ -30,7 +30,7 @@ class MoeInitRoutingV2GradTiling : public testing::Test {
 };
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_01) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{480, 8}, {480, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
@@ -52,7 +52,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_01) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_02) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{16, 5120}, {16, 5120}}, ge::DT_FLOAT16, ge::FORMAT_ND},
@@ -74,7 +74,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_02) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_03) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{16, 5120}, {16, 5120}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -96,7 +96,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_03) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_04) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_FLOAT, ge::FORMAT_ND},
@@ -118,7 +118,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_04) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_05) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
@@ -140,7 +140,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_05) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_06) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -162,7 +162,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_06) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_07) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{10,8,512},{10,8,512}}, ge::DT_FLOAT, ge::FORMAT_ND},
@@ -184,7 +184,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_07) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_08) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{10,8,512},{10,8,512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
@@ -206,7 +206,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_08) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_09) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{10,8,512},{10,8,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -228,7 +228,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_09) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_10) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{10,8,512},{10,8,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -247,7 +247,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_10) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_11) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -266,7 +266,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_11) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_12) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512,1024,1024},{40,512,1024,1024}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -285,7 +285,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_12) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_13) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{10,512},{10,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -304,7 +304,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_13) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_14) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{196608,8},{196608,8}}, ge::DT_FLOAT, ge::FORMAT_ND},
@@ -323,7 +323,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_14) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_15) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -342,7 +342,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_15) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_16) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_BF16, ge::FORMAT_ND},
@@ -361,7 +361,7 @@ TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_16) {
 }
 
 TEST_F(MoeInitRoutingV2GradTiling, moe_init_routing_v2_grad_tiling_17) {
-    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {};
+    optiling::MoeInitRoutingV2GradCompileInfo compileInfo = {40, 65536};
     gert::TilingContextPara tilingContextPara("MoeInitRoutingV2Grad",
                                             {
                                               {{{40,512},{40,512}}, ge::DT_BF16, ge::FORMAT_ND},

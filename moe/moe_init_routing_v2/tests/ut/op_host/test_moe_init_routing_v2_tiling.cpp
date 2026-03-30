@@ -17,7 +17,10 @@
 
 using namespace std;
 
-struct MoeInitRoutingV2CompileInfo {};
+struct MoeInitRoutingV2CompileInfo {
+  int32_t aivNum = 0;
+  uint64_t ubSize = 0;
+};
 
 class MoeInitRoutingV2Tiling : public testing::Test {
  protected:

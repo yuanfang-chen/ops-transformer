@@ -39,8 +39,8 @@ ge::graphStatus MoeFinalizeRoutingV2GradTiling::GetPlatformInfo()
     
     auto compileInfoPtr = reinterpret_cast<const MoeFinalizeRoutingV2GradCompileInfo*>(context_->GetCompileInfo());
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
-    aicoreParams_.numBlocks = compileInfoPtr->aivNum;
-    aicoreParams_.ubSize = compileInfoPtr->ubSize;
+    aicoreParams_.numBlocks = compileInfoPtr->totalCoreNum;
+    aicoreParams_.ubSize = compileInfoPtr->totalUbSize;
 
      OP_CHECK_IF(
         (aicoreParams_.numBlocks <= 0), OP_LOGE(nodeName_, "get aiv core num failed."),
