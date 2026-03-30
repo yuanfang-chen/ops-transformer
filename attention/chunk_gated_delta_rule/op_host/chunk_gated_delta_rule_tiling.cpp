@@ -54,6 +54,11 @@ constexpr uint32_t MATMUL_BASE_M = 128;
 constexpr uint32_t MATMUL_BASE_K = 128;
 constexpr uint32_t MATMUL_BASE_N = 128;
 
+constexpr uint32_t STAGE_ONE_TWO = 2;
+constexpr uint32_t STAGE_ONE_THREE = 2;
+constexpr uint32_t MASK_NUM = 4;
+constexpr int64_t P_NUM = 2;
+
 // 初始化编译信息，读取平台资源，并缓存核数到 tilingData_
 void ChunkGatedDeltaRuleTiling::InitCompileInfo()
 {
@@ -106,10 +111,10 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::GetShapeAttrsInfo()
 ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling()
 {
     int64_t c = 64; // chunk size 取 64
-    int64_t p = 2;  // 一个 chunk 组中，单核最大处理 chunk 数
+    int64_t p = P_NUM;  // 一个 chunk 组中，单核最大处理 chunk 数
     tilingData_.chunkSize = c;
     tilingData_.maxGroupLength = p * tilingData_.aiCoreNum * tilingData_.chunkSize;
-    tilingData_.stageOneParaNum = 2; // stage1 并行数
+    tilingData_.stageOneParaNum = STAGE_ONE_TWO; // stage1 并行数
 
     tilingData_.interWorkspaceSz = 0;
     int64_t sizeHigh = ge::GetSizeByDataType(ge::DT_FLOAT);
@@ -126,10 +131,11 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling()
     tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;                       // kg
     tilingData_.interWorkspaceSz += sizeHigh * nv * s * c;                        // qkt
     tilingData_.interWorkspaceSz += sizeHigh * b * nv * dv * dk;                  // highState
-    tilingData_.interWorkspaceSz += sizeHigh * c * c * tilingData_.aiCoreNum * 4; // mask
+    tilingData_.interWorkspaceSz += sizeHigh * c * c * tilingData_.aiCoreNum * MASK_NUM; // mask
 
     // stage1 临时变量空间
-    tilingData_.stageWorkspaceSz = sizeHigh * c * (2 * c + 3 * dk + dv) * tilingData_.stageOneParaNum;
+    tilingData_.stageWorkspaceSz = sizeHigh * c * (STAGE_ONE_TWO * STAGE_ONE_THREE + 3 * dk + dv) *
+                                   tilingData_.stageOneParaNum;
     tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;
 
     PrintTilingData();
