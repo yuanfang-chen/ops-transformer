@@ -15,6 +15,24 @@
 #include "tiling_context_faker.h"
 #include "infer_shape_context_faker.h"
 
+struct HostUtParamBase {
+    std::string case_name;
+    ge::graphStatus expectResult;
+    std::vector<uint32_t> inputInstance;
+    std::vector<uint32_t> outputInstance;
+
+    HostUtParamBase(const csv_map& csvMap)
+    {
+        this->case_name = ReadMap(csvMap, "case_name");
+        this->expectResult = Str2StatusGE(ReadMap(csvMap, "expectResult"));
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& os, const HostUtParamBase& param)
+{
+    return os << param.case_name;
+}
+
 const gert::TilingContextPara::TensorDescription TD_DEFAULT = {{}, ge::DT_UNDEFINED, ge::FORMAT_NULL};
 const gert::InfershapeContextPara::TensorDescription ID_DEFAULT = {{}, ge::DT_UNDEFINED, ge::FORMAT_NULL};
 
