@@ -251,7 +251,8 @@ static bool CheckQuantMode(int64_t xQuantMode, int64_t weightQuantMode, const ac
     // 按量化模式分支校验
     switch (xMode) {
         case QuantModeType::NO_QUANT:
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant template does not support NO_QUANT mode.");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Current quant template does not support %s/%s in NO_QUANT mode.",
+                    xName, weightName);
             return false;
         case QuantModeType::PERTENSOR_QUANT:
             return CheckRequiredScaleTensor(xScaleOptional, weightScaleOptional, xName, weightName, "PerTensor");
