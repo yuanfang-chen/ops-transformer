@@ -152,7 +152,7 @@ TEST_F(L2AllGatherMatmulTest, TestAllGatherFirstApiX2NonContiguousWithoutTranspo
     TensorDesc x1Desc = TensorDesc({16, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
 
     // 设置x2非转置非连续步长，假设每行之间间隔10个元素[64 + 10, 1]，实际内存存储storageShape为[512, 64 + 10]
-    TensorDesc x2Desc = TensorDesc({512, 64}, ACL_FLOAT16, ACL_FORMAT_ND, {64 + 10, 1}, 0, {512, 64 + 10});
+    TensorDesc x2Desc = TensorDesc({512, 64}, ACL_FLOAT16, ACL_FORMAT_ND, {64 + 10, 1});
     TensorDesc outDesc = TensorDesc({16, 64}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc gatherOutDesc = TensorDesc({16, 512}, ACL_FLOAT16, ACL_FORMAT_ND);
 

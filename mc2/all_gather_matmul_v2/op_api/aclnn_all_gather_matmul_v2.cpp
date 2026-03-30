@@ -510,9 +510,9 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const 
     // 【A2】校验非连续入参合法性
     if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
       OP_API_CHECK(!transposeX2 && !MC2Aclnn::IsTensorContiguous(x2), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x2 without transpose in aclnnAllGatherMatmul must be contiguous, but it is non-contiguous.");
-        return ACLNN_ERR_PARAM_INVALID;
-      });
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "The x2 without transpose in aclnnAllGatherMatmul must be contiguous, but it is non-contiguous.");
+        return ACLNN_ERR_PARAM_INVALID;});
     }
     aclnnStatus ret = aclnnInnerAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, quantScale, group,
                                                                 transposeX1, transposeX2, gatherIndex, commTurn,
