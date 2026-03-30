@@ -21,7 +21,7 @@ ge::graphStatus GetMlaPrologV3ShapeDim(const gert::InferShapeContext *context, M
     auto weightDqShape = context->GetRequiredInputShape(WEIGHT_DQ_INDEX);  // (He, Hcq)
     OP_CHECK_NULL_WITH_CONTEXT(context, weightDqShape);
     shapeParam.Hcq = weightDqShape->GetDim(DIM_INDEX_1);
-    return GRAPH_SUCCESS;
+    return GRAPH_SUCCESS; 
 }
 
 ge::graphStatus SetMlaPrologV3ShapeDim(const MlaPrologProtoShapeParam &shapeParam, gert::InferShapeContext *context)
