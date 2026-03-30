@@ -218,8 +218,7 @@ __aicore__ inline void MoeV2GatherOutSimt<T>::Init(GM_ADDR inputX, GM_ADDR expan
                                                this->blockIdx * this->gatherOutTilingData->perCoreRows, 0);
     this->perLoopCols = this->gatherOutTilingData->perLoopCols;
     this->lastLoopCols = this->gatherOutTilingData->lastLoopCols;
-    pipe->InitBuffer(inputActivationsCopyInQueue, this->gatherOutTilingData->bufferNum,
-                    AlignBytes(this->perLoopCols, sizeof(T)));
+    pipe->InitBuffer(inputActivationsCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopCols, sizeof(T)));
     pipe->InitBuffer(expandedRowIdxIndexCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopRows, sizeof(int32_t)));
 }
 
