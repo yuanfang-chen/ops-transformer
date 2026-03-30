@@ -274,8 +274,8 @@ namespace BlockSparse {
             maxKvBlockNum = blockSparseAttentionTilingData->maxKvBlockNum;
             uint32_t maxKvBlockNumPad = CeilDiv(maxKvBlockNum, 32) * 32;
             maxQBlockNum = blockSparseAttentionTilingData->maxQBlockNum;
-            avgRowPerSubCore = blockSparseAttentionTilingData->BsaMask2IdxTileInfo.avgRowPerSubCore;
-            preActivateSubCoreNum = blockSparseAttentionTilingData->BsaMask2IdxTileInfo.preActiveSubCoreNum;
+            avgRowPerSubCore = blockSparseAttentionTilingData->avgRowNumPerSubCore;
+            preActivateSubCoreNum = blockSparseAttentionTilingData->preActivateSubCoreNum;
             
             uint32_t qBlockX = blockSparseAttentionTilingData->blockShapeX;
             uint32_t qBlockY = blockSparseAttentionTilingData->blockShapeY;
@@ -379,7 +379,6 @@ namespace BlockSparse {
             coreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum();
             uint32_t bn = AscendC::GetSubBlockNum();
 #endif
-
             // Calculate strides based on layout (compile-time optimization)
             // For TND: [T, N, D], stride = N * D
             // For BNSD: [B, N, S, D], strideB = N * S * D, strideN = S * D, strideS = D

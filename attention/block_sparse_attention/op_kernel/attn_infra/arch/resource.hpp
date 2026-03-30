@@ -18,15 +18,19 @@ namespace NpuArch::Arch
 {
 
 template<class ArchTag>
-struct Resource {
+struct Resource
+{};
+
+template<>
+struct Resource<Arch::AtlasA5> {
 public:
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::A1> l1Buf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::A2> l0ABuf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::B2> l0BBuf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::C2> btBuf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::CO1> l0CBuf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::VECCALC> ubBuf;
-    LocalTensorBuffer<ArchTag, AscendC::TPosition::C2PIPE2GM> fpBuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::A1> l1Buf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::A2> l0ABuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::B2> l0BBuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::C2> btBuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::CO1> l0CBuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::VECCALC> ubBuf;
+    LocalTensorBuffer<Arch::AtlasA5, AscendC::TPosition::C2PIPE2GM> fpBuf;
 
     __aicore__ inline
     Resource()
@@ -38,6 +42,25 @@ public:
     ~Resource()
     {
         AscendC::InitSocState();
+    }
+};
+
+template<>
+struct Resource<Arch::AtlasA2> {
+public:
+    AscendC::TPipe pipe;
+
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::A1> l1Buf;
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::A2> l0ABuf;
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::B2> l0BBuf;
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C2> btBuf;
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::CO1> l0CBuf;
+    LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::VECCALC> ubBuf;
+
+    __aicore__ inline
+    Resource()
+    {
+        pipe.Destroy();
     }
 };
 

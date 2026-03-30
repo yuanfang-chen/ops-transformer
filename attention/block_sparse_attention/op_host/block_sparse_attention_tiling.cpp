@@ -442,6 +442,10 @@ ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
 ge::graphStatus BSATiling::ParseAttenMask(gert::TilingContext *bsaContext)
 {
     const auto *attenMaskTensor = bsaContext->GetOptionalInputTensor(ATTEN_MASK_INDEX);
+    if (attenMaskTensor != nullptr) { 
+        OP_LOGE(bsaContext->GetNodeName(), "AttenMask is NOT YET supported."); 
+        return ge::GRAPH_FAILED; 
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -669,8 +673,8 @@ ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *bsaContext)
     workSpaceSize_ = libapiSize_ + mm1OutSize_ + smOnlineOutSize_ + mm2OutSize_ + updateSize_ + selectNumIdxSize_ + selectIdxSize_ + syncSize_;
     bsaContext->GetWorkspaceSizes(1)[0] = workSpaceSize_;
     uint32_t totalTaskNumMask = batch_ * numHeads_ * maxQBlockNum_;
-    avgRowPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
-    preActiveSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowPerSubCore_);
+    avgRowNumPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
+    preActivateSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowNumPerSubCore_);
     
     return ge::GRAPH_SUCCESS;
 }
@@ -738,6 +742,8 @@ ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *bsaContext)
     tilingData_->set_totalQBlocks(totalQBlocks_);
     tilingData_->set_maxKvBlockNum(maxKvBlockNum_);
     tilingData_->set_maxQBlockNum(maxQBlockNum_);
+    tilingData_->set_avgRowNumPerSubCore(avgRowNumPerSubCore_);
+    tilingData_->set_preActivateSubCoreNum(preActivateSubCoreNum_);
     
     tilingData_->set_kvCacheLayout(static_cast<uint32_t>(kvCacheLayout_));
     tilingData_->set_queryLayout(static_cast<uint32_t>(qInputLayout_));
