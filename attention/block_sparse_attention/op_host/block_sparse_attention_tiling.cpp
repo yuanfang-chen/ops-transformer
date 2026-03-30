@@ -442,9 +442,9 @@ ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
 ge::graphStatus BSATiling::ParseAttenMask(gert::TilingContext *bsaContext)
 {
     const auto *attenMaskTensor = bsaContext->GetOptionalInputTensor(ATTEN_MASK_INDEX);
-    if (attenMaskTensor != nullptr) { 
-        OP_LOGE(bsaContext->GetNodeName(), "AttenMask is NOT YET supported."); 
-        return ge::GRAPH_FAILED; 
+    if (attenMaskTensor != nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "AttenMask is NOT YET supported.");
+        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
