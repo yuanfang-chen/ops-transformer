@@ -1,4 +1,4 @@
-# AlltoAllvQuantGroupedMatMul
+# aclnnAlltoAllvQuantGroupedMatMul
 
 ## 产品支持情况
 
@@ -18,16 +18,21 @@
 - **计算公式**：
 假设通信域中的总卡数为epWorldSize，每张卡上通信后路由专家个数为e，每张卡分组矩阵乘只负责本卡专家的计算。对于每张卡的计算公式如下：
   - 本卡共享专家分组矩阵乘计算
+
     ```
     mm_y=(mm_x × mm_x_scale) @ (mm_weight × mm_weight_scale)
     ```
+
   - Alltoallv通信和permute
+
     ```
     permute_out=Alltoallv(gmm_x)
     ```
+
   - 本卡路由专家按专家维度分组矩阵乘计算
+
     ```
-    gmm_y=(permute_out × hmm_x_scale) @ (gmm_weight × gmm_weight_scale)
+    gmm_y=(permute_out × gmm_x_scale) @ (gmm_weight × gmm_weight_scale)
     ```
 
 ## 函数原型
@@ -111,7 +116,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>与gmmX保持一致</td>
     <td>ND</td>
     <td>支持3维，shape为(e, H1, N1)。</td>
-    <td>x</td>
+    <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
     <td>gmmXScale</td>
@@ -129,7 +134,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
-    <td>x</td>
+    <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
     <td>sendCountsTensorOptional</td>
@@ -165,7 +170,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>与mmX保持一致</td>
     <td>ND</td>
     <td>支持2维，shape为(H2, N2)。</td>
-    <td>x</td>
+    <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
     <td>mmXScaleOptional</td>
@@ -183,14 +188,14 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>FLOAT32</td>
     <td>ND</td>
     <td>pertensor量化场景支持1维，shape为(1)。</td>
-    <td>x</td>
+    <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
     <td>gmmXQuantMode</td>
     <td>输入</td>
     <td>gmmX的量化模式，当前版本仅支持1。</td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -199,7 +204,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>gmmWeight的量化模式，当前版本仅支持1。</td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -208,7 +213,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>mmX的量化模式，当前版本仅支持1。</td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -217,7 +222,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>mmWeight的量化模式，当前版本仅支持1。</td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -226,16 +231,16 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>专家并行的通信域名，字符串长度要求(0, 128)。</td>
     <td>STRING</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
-    <td>ep通信域大小：Ascend 950PR/Ascend 950DT支持2、4、8、16、32、64。</td>
+    <td>ep通信域大小：<term>Ascend 950PR/Ascend 950DT</term>支持2、4、8、16、32、64、128、256。</td>
     <td>INT64</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -244,7 +249,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>表示发送给其他卡的token数，数据类型支持INT64，长度为e * epWorldSize，最大为256。输入类型需为list。</td>
     <td>aclIntArray*（元素类型INT64）</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -253,7 +258,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>表示接收其他卡的token数，数据类型支持INT64，长度为e * epWorldSize，最大为256。输入类型需为list。</td>
     <td>aclIntArray*（元素类型INT64）</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -262,7 +267,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>GroupedMatMul的右矩阵是否需要转置，true表示需要转置，false表示不转置。</td>
     <td>BOOL</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -271,7 +276,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>共享专家MatMul的右矩阵是否需要转置，true表示需要转置，false表示不转置。</td>
     <td>BOOL</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -279,8 +284,8 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>groupSize</td>
     <td>输入</td>
     <td>当前版本不支持，传nullptr。</td>
-    <td>BOOL</td>
-    <td>ND</td>
+    <td>INT64</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
@@ -289,14 +294,14 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输入</td>
     <td>permuteOutOptional是否需要输出，true表明需要输出，false表明不需要输出。</td>
     <td>BOOL</td>
-    <td>ND</td>
+    <td>-</td>
     <td>-</td>
     <td>-</td>
     </tr>
     <tr>
     <td>gmmY</td>
     <td>输出</td>
-    <td>路由专家计算的输出，数据类型与输入gmmX保持一致。</td>
+    <td>路由专家计算的输出。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>支持2维，shape为(A, N1)。</td>
@@ -305,7 +310,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <tr>
     <td>mmYOptional</td>
     <td>输出</td>
-    <td>共享专家计算的输出，数据类型与mmXOptional保持一致，仅当传入mmXOptional与mmWeightOptional才输出。</td>
+    <td>共享专家计算的输出，数据类型与gmmY保持一致，仅当传入mmXOptional与mmWeightOptional才输出。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>支持2维，shape为(BS, N2)。</td>
@@ -325,14 +330,18 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>输出</td>
     <td>返回需要在Device侧申请的workspace大小。</td>
     <td>UINT64</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
     <td>aclOpExecutor*</td>
-    <td>ND</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     </tbody></table>
 
@@ -348,7 +357,9 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
 
 - **返回值**
     
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../docs/zh/context/aclnn返回码.md)。
+
+    第一阶段接口完成入参校验，出现以下场景报错：
 
     <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
     <col style="width: 250px">
@@ -414,7 +425,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
@@ -437,7 +448,6 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
   - 当前版本仅支持pertensor量化。
 
 ## 调用说明
-
 
 | 调用方式   | 样例代码           | 说明                                         |
 | ---------------- | --------------------------- | --------------------------------------------------- |
