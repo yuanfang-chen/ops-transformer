@@ -107,7 +107,7 @@ __aicore__ inline void CopyGm2Ub(const LocalTensor<T> &dstTensor, const GlobalTe
 }
 
 template <typename T>
-__aicore__ inline void CopyUb2Gm(const LocalTensor<T> &dstTensor, const GlobalTensor<T> &srcTensor, uint32_t count)
+__aicore__ inline void CopyUb2Gm(const GlobalTensor<T> &dstTensor, const LocalTensor<T> &srcTensor, uint32_t count)
 {
     DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>((count) * sizeof(T)), 0, 0, 0};
     DataCopyPad(dstTensor, srcTensor, dataCopyParams);
