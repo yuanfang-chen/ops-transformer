@@ -15,9 +15,9 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_host/aggregate_hidden_grad_tiling_arch35.h"
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
+#include "../../../op_host/aggregate_hidden_grad_tiling_arch35.h"
 
 using namespace std;
 

@@ -12,12 +12,14 @@
  * \file aggregate_hidden_grad.h
  * \brief Arch35 AICore kernel for aggregate_hidden_grad (W=3)
  */
+
 #ifndef AGGREGATE_HIDDEN_GRAD_H
 #define AGGREGATE_HIDDEN_GRAD_H
 
 #include "kernel_operator.h"
 #include "vf/compute.h"
 #include "aggregate_hidden_grad_struct.h"
+
 namespace AggregateHiddenGradKernelNS {
 using namespace AscendC;
 using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;

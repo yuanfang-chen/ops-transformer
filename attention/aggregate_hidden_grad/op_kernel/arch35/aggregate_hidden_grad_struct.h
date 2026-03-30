@@ -9,8 +9,8 @@
  */
 
 /*!\n * \file aggregate_hidden_grad_struct.h\n * \brief Tiling data struct for aggregate_hidden_grad on arch35\n */
-#ifndef OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
-#define OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
+#ifndef AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
+#define AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
 
 
 namespace AggregateHiddenGradArch35Tiling {
