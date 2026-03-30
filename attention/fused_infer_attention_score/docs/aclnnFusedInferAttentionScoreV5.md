@@ -1449,10 +1449,10 @@ FusedInferAttentionScore算子约束分为4个档位，按约束复杂程度递�
     - 入参 key 和 value 应满足以下条件：
       - 入参的数据类型应满足以下条件：
         - per-channel(per-tensor) 模式，其支持的数据类型为 INT8、INT4(INT32)、HIFLOAT8、FLOAT8_E4M3FN
-        - per-token 模式，其支持的数据类型为 INT8、INT4(INT32)
+        - per-token 模式，其支持的数据类型为 INT8、INT4(INT32)、FLOAT8_E4M3FN
         - per-tensor 叠加 per-head 模式，其支持的数据类型为 INT8
         - per-token 叠加 per-head 模式，其支持的数据类型为 INT8、INT4(INT32)
-        - per-token 模式使用 page attenion 管理 scale/offset，其支持的数据类型为 INT8
+        - per-token 模式使用 page attenion 管理 scale/offset，其支持的数据类型为 INT8、FLOAT8_E4M3FN
         - key 支持 per-channel 叠加 value 支持 per-token，其支持的数据类型为 INT8、INT4(INT32)
         - per-token-group，其支持的数据类型为 FLOAT4_E2M1
   - 全量化场景
