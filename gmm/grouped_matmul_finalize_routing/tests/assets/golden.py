@@ -27,7 +27,7 @@ def grouped_matmul_finalize_routing_golden(x, w, scale = None, bias = None, pert
                                            tuning_config: List[int] = [0], **kwargs):
     x1, x2_all = x, w
     x1_dtype = x1.dtype.name
-    x2_dtype = x2.dtype.name
+    x2_dtype = w.dtype.name
     output_dtypes = kwargs['output_dtypes']
     out_dtype = output_dtypes[0]
     trans_b = transpose_w
