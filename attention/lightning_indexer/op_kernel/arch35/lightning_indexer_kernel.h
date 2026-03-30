@@ -165,8 +165,15 @@ __aicore__ inline void LIPreload<LIT>::InitTilingData(const LITilingData *__rest
     constInfo.headDim = HEAD_DIM;
 
     constInfo.mBaseSize = S1_BASE_SIZE * constInfo.gSize;
+    // FP16/BF16 每元素2字节(FP8为1字节), L0A硬件容量64KB
+    // L0A约束: L0_BUF_NUM(2) * mBaseSize * D_BASIC_BLOCK_L0(128) * sizeof(Q_T)(2) <= 64KB
+    // → mBaseSize <= 128
+    constexpr uint32_t L0A_M_LIMIT = 128;
+    if (constInfo.mBaseSize > L0A_M_LIMIT) {
+        constInfo.mBaseSize = L0A_M_LIMIT;
+    }
     constInfo.s2BaseSize = S2_BASE_SIZE;
-    constInfo.s1BaseSize = S1_BASE_SIZE;
+    constInfo.s1BaseSize = constInfo.mBaseSize / constInfo.gSize;
 }
 
 template <typename LIT>
