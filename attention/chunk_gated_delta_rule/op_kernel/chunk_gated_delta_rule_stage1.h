@@ -211,7 +211,7 @@ public:
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
             InitLocalBuffers();
-            InitGatherBuffer()
+            InitGatherBuffer();
         }
         SetGlobalTensors(initParams);
     }
