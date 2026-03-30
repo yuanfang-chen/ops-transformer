@@ -288,7 +288,7 @@ static aclnnStatus CheckParams(
     
     // 【A2】检查x2矩阵非连续合法性
     if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
-        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2), ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(MatmulAllReduceCheckValidContiguous(x2, "x2"), ACLNN_ERR_PARAM_INVALID);
     }
 
     // 3. 检查attr是否符合规则
