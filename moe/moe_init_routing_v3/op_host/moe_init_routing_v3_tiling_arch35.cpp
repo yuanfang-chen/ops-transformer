@@ -1302,7 +1302,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     int64_t perCoreIndicesElements = Ops::Base::CeilDiv(totalLength_, aivCoreNum_);
     if (perCoreIndicesElements <= 0) {
         gatherOutTiling->needCoreNum = 0;
-        return ge::GRAPH_SUCCESS;
+        return;
     }
     int64_t needCoreNum = Ops::Base::CeilDiv(totalLength_, perCoreIndicesElements);
     int64_t lastCoreIndicesElements = totalLength_ - (needCoreNum - 1) * perCoreIndicesElements;
@@ -1364,7 +1364,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
     int64_t perCoreIndicesElements = Ops::Base::CeilDiv(totalLength_, aivCoreNum_);
     if (perCoreIndicesElements <= 0) {
         gatherOutTiling->needCoreNum = 0;
-        return ge::GRAPH_SUCCESS;
+        return;
     }
     int64_t needCoreNum = Ops::Base::CeilDiv(totalLength_, perCoreIndicesElements);
     int64_t lastCoreIndicesElements = totalLength_ - (needCoreNum - 1) * perCoreIndicesElements;
@@ -1379,7 +1379,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
     if (perLoopMaxIndicesElements <= 0) {
         OP_LOGE(context_, "UB space insufficient for MX quantization. availUbSize=%ld, cols=%ld", availUbSize_,
                 tilingDataPtr_->cols);
-        return ge::GRAPH_FAILED;
+        return;
     }
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopCols);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopCols;
