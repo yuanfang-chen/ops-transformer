@@ -61,8 +61,9 @@ aclnnStatus aclnnMoeTokenUnpermuteGetWorkspaceSize(
     }
     CHECK_RET(paddedMode == false, ACLNN_ERR_PARAM_INVALID);
     aclnnStatus ret = aclnnInnerMoeFinalizeRoutingV2GetWorkspaceSize(
-        permutedTokens, sortedIndices, nullptr, nullptr, nullptr, probsOptional, nullptr, READ_INDEX_BY_ROW, out,
-        workspaceSize, executor);
+        permutedTokens, sortedIndices, nullptr, nullptr, nullptr, probsOptional, nullptr, nullptr, nullptr, nullptr,
+        nullptr, READ_INDEX_BY_ROW, nullptr, nullptr,  nullptr, out, workspaceSize, executor);
+
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(
             ACLNN_ERR_INNER,
