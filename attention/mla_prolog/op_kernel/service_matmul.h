@@ -400,7 +400,7 @@ __aicore__ inline void MatmulL0(MMBufParams &bufParam, const LocalTensor<T> &aL1
     WaitFlag<HardEvent::M_MTE1>(L0B_EVENT0 + (bufParam.bL0BufIter & 1u));
 
     LocalTensor<T> bL0 = bL0Tensor[(bufParam.bL0BufIter & 1u) * (L0B_PP_SIZE / sizeof(T))];
-    if constexpr (std::is_same<T, int8_t>::value || std::is_same<T, hifloat8_t>::value ||
+    if constexpr (std::is_same<T, int8_t>::value || std::is_same<T, HIF8>::value ||
         (std::is_same<T, FP8E4M3>::value && std::is_same<S, float>::value)) {
         LoadDataL1ToL0B(bL0, bL1, bscaleL1, mmadParams.k, mmadParams.n, kL1StepSize);
     } else if constexpr (std::is_same<T, FP8E4M3>::value && std::is_same<S, fp8_e8m0_t>::value) {

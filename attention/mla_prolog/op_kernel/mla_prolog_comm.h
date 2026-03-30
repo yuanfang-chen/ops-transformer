@@ -156,6 +156,12 @@ class NoneType {};
     using FP8E8M0 = NoneType;
 #endif
 
+#if __CCE_AICORE__ == 310
+    using HIF8 = hifloat8_t;
+#else
+    using HIF8 = NoneType;
+#endif
+
 // mte2 <> mte1
 #define SCALE_EVENT EVENT_ID3
 #define A_EVENT0 EVENT_ID4
@@ -181,7 +187,7 @@ constexpr uint32_t L0C_PP_SIZE = 64 * 1024;
 
 
 /*
-                                     非量化             半量化(kv非量化)       半量化(kv量化)       int8全量化(kv非量化)    int8全量化(kv量化)      半量化(kv per-tile量化)   int8全量化(kv per-tile量化)  Mxfp8量化(kv非量化)      Mxfp8量化(kv量化)      Mxfp8量化(kv per-tile量化)    fp8全量化(kv非量化)     fp8全量化(kv量化)     fp8全量化(kv非量化)    fp8全量化(kv量化)         
+                                     非量化             半量化(kv非量化)       半量化(kv量化)       int8全量化(kv非量化)    int8全量化(kv量化)      半量化(kv per-tile量化)   int8全量化(kv per-tile量化)  Mxfp8量化(kv非量化)      Mxfp8量化(kv量化)      Mxfp8量化(kv per-tile量化)    fp8全量化(kv非量化)     fp8全量化(kv量化)     hif8全量化(kv非量化)    hif8全量化(kv量化)         
   cacheMode                    PA_BSND/PA_BLK_BSND    PA_BSND/PA_BLK_BSND  PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND      PA_BSND/BSND/TND            PA_BSND/BSND/TND        PA_BSND/PA_BLK_BSND     PA_BSND/PA_BLK_BSND         PA_BSND/BSND/TND        PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND
                                 /PA_NZ/PA_BLK_NZ       /PA_NZ/PA_BLK_NZ     /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ                                                             /PA_NZ/PA_BLK_NZ        /PA_NZ/PA_BLK_NZ                                   /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ
                                   /BSND/TND             /BSND/TND             /BSND/TND            /BSND/TND             /BSND/TND                                                                     /BSND/TND                 /BSND/TND                                       /BSND/TND              /BSND/TND             /BSND/TND              /BSND/TND
@@ -298,10 +304,10 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, D_S, C_M, ENABLE_DEQUANT_OPT,
 // 类模板特化，支持hif8全量化
 template <typename C_T, typename C_T, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
           EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
-struct MLAPType<hifloat8_t, hifloat8_t, C_T, C_M, ENABLE_DEQUANT_OPT,
+struct MLAPType<HIF8, HIF8, C_T, C_M, ENABLE_DEQUANT_OPT,
                 ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {
-    using mmInputType = hifloat8_t;           // tokenX的类型与weight的类型一致
-    using mmQcQrInputType = hifloat8_t;
+    using mmInputType = HIF8;           // tokenX的类型与weight的类型一致
+    using mmQcQrInputType = HIF8;
     using mmQnInputType = bfloat16_t;         // matmul计算Qn的输入类型
     using mmCqOutputType = float; // matmul计算Cq的输出类型
     using mmCkvKrOutputType = float; // matmul计算CkvKr的输出类型
@@ -309,7 +315,7 @@ struct MLAPType<hifloat8_t, hifloat8_t, C_T, C_M, ENABLE_DEQUANT_OPT,
     using mmQnOutputType = bfloat16_t;        // matmul计算Qn的输出类型
     using rmsNormGammaType = bfloat16_t;      // gamma的输入类型
     using rmsNormComputType = float;
-    using rmsNormCqOutputType = hifloat8_t;
+    using rmsNormCqOutputType = HIF8;
     using rmsNormCkvOutputType = C_T;
     using ropeSinCosType = bfloat16_t;        // sin cos的输入类型
     using ropeComputType = float;
