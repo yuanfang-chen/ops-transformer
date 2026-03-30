@@ -209,9 +209,9 @@ private:
 
     // 各阶段TilingData计算函数
     MultipleParams GetMultipleParams();
-    PerLoopParams GetPerLoopParams(MultipleParams& multipleParams, int64_t perCoreIndicesElements);
-    void Tiling4GatherOutCompute();
-    void Tiling4GatherOutMxQuant();
+    PerLoopParams GetPerLoopParams(MultipleParams &multipleParams, int64_t perCoreIndicesElements);
+    ge::graphStatus Tiling4GatherOutCompute();
+    ge::graphStatus Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
     void Tiling4VMSMiddleCompute();
     void Tiling4VBSCompute();
@@ -1245,9 +1245,10 @@ MultipleParams MoeInitRoutingV3Arch35TilingClass::GetMultipleParams()
     return params;
 }
 
-PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams& multipleParams,
-    int64_t perCoreIndicesElements)
+PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams &multipleParams,
+                                                                  int64_t perCoreIndicesElements)
 {
+    PerLoopParams perLoopParams;
     perLoopParams.perLoopCols = tilingDataPtr_->cols;
     if (quantMode_ == QUANT_MODE_HIF8_PERTENSOR) {
         perLoopParams.perLoopMaxIndicesElements =
@@ -1259,8 +1260,8 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple) /
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
-        perLoopParams.perLoopMaxIndicesElements = std::min(perLoopParams.perLoopMaxIndicesElements,
-                                                            perCoreIndicesElements);
+        perLoopParams.perLoopMaxIndicesElements =
+            std::min(perLoopParams.perLoopMaxIndicesElements, perCoreIndicesElements);
     } else {
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
@@ -1273,11 +1274,27 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
                  UB_BLOCK_SIZE * NUM_TWO) /
                 multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
         }
+        perLoopParams.perLoopMaxIndicesElements =
+            std::min(perLoopParams.perLoopMaxIndicesElements, perCoreIndicesElements);
+
+        int64_t rowIdxQueueSize = AlignBytes(perLoopParams.perLoopMaxIndicesElements, sizeof(int32_t));
+        int64_t xQueueSize = AlignBytes(perLoopParams.perLoopCols, inputXDtypeSize_);
+        int64_t scaleQueueSize = AlignBytes(1, sizeof(float));
+
+        int64_t baseMemory = rowIdxQueueSize * NUM_TWO + xQueueSize * NUM_TWO + scaleQueueSize * NUM_TWO;
+
+        int64_t remainingSpace = availUbSize_ - baseMemory;
+        int64_t maxAdditionalRows = remainingSpace / xQueueSize;
+        if (maxAdditionalRows > 0) {
+            perLoopParams.xCopyInQueueBufferNum = std::min(maxAdditionalRows + NUM_TWO, MAX_QUEUE_BUFFER_NUM);
+        } else {
+            perLoopParams.xCopyInQueueBufferNum = NUM_TWO;
+        }
     }
     return perLoopParams;
 }
 
-void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
+ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()");
 
@@ -1292,7 +1309,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
 
     MultipleParams multipleParams = GetMultipleParams();
     PerLoopParams perLoopParams = GetPerLoopParams(multipleParams, perCoreIndicesElements);
-    
+
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopParams.perLoopCols);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopParams.perLoopCols;
     gatherOutTiling->needCoreNum = needCoreNum;
@@ -1303,7 +1320,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     gatherOutTiling->lastLoopCols = lastLoopCols;
     gatherOutTiling->xCopyInQueueBufferNum = perLoopParams.xCopyInQueueBufferNum;
 
-    int64_t perCorePerLoopIndicesElements = perLoopParams.perLoopMaxIndicesElements;
+    int64_t perCorePerLoopIndicesElements = std::min(perLoopParams.perLoopMaxIndicesElements, perCoreIndicesElements);
     int64_t perCoreIndicesLoops = Ops::Base::CeilDiv(perCoreIndicesElements, perCorePerLoopIndicesElements);
     int64_t perCoreLastLoopIndicesElements =
         perCoreIndicesElements - (perCoreIndicesLoops - 1) * perCorePerLoopIndicesElements;
@@ -1311,7 +1328,7 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     gatherOutTiling->perCorePerLoopIndicesElements = perCorePerLoopIndicesElements;
     gatherOutTiling->perCoreLastLoopIndicesElements = perCoreLastLoopIndicesElements;
 
-    int64_t lastCorePerLoopIndicesElements = std::min(perCorePerLoopIndicesElements, lastCoreIndicesElements);
+    int64_t lastCorePerLoopIndicesElements = std::min(perLoopParams.perLoopMaxIndicesElements, lastCoreIndicesElements);
     int64_t lastCoreIndicesLoops = Ops::Base::CeilDiv(lastCoreIndicesElements, lastCorePerLoopIndicesElements);
     int64_t lastCoreLastLoopIndicesElements =
         lastCoreIndicesElements - (lastCoreIndicesLoops - 1) * lastCorePerLoopIndicesElements;
