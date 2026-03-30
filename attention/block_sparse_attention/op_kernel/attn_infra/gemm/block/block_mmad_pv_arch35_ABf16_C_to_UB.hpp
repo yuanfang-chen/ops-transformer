@@ -35,8 +35,7 @@
 namespace NpuArch::Gemm::Block {
 ////////////////////////////////////////////////////////////////////
 
-struct Mm2L1TileHelper
-{
+struct Mm2L1TileHelper {
     uint32_t mm2L1TileM;
     uint32_t mm2L1TileN;
     uint32_t mm2L1TileKLeft;
@@ -55,12 +54,12 @@ struct Mm2L1TileHelper
         uint32_t kr,
         uint32_t pbn,
         uint32_t vbn) :
-    mm2L1TileM(m),
-    mm2L1TileN(n),
-    mm2L1TileKLeft(kl),
-    mm2L1TileKRight(kr),
-    pL1BufNum(pbn),
-    vL1BufNum(vbn) {}
+        mm2L1TileM(m),
+        mm2L1TileN(n),
+        mm2L1TileKLeft(kl),
+        mm2L1TileKRight(kr),
+        pL1BufNum(pbn),
+        vL1BufNum(vbn) {}
 };
 
 template <
@@ -277,9 +276,11 @@ public:
         uint32_t mL0LoopNum = CeilDiv(rowNum, L0_TILE_M);
         uint32_t nL0LoopNum = CeilDiv(embed, L0_TILE_N);
         uint32_t kL0LoopNum = CeilDiv(curBaseTileSize, L0_TILE_K);
-        // while splitting the base tile OTmp to 2 AIVs, the order of the elements in each column is expected to be preserved,
+        // while splitting the base tile OTmp to 2 AIVs,
+        // the order of the elements in each column is expected to be preserved,
         // which means a column in l0C cannot be chunked and processed by dualMode FixPipe seperately.
-        // therefore, FixPipe won't launch until each portion(chunked only by columns, based on nbuffer strategy) of the base tile is ready on l0C
+        // therefore, FixPipe won't launch until each portion(chunked only by columns, based on nbuffer strategy)
+        // of the base tile is ready on l0C
         for (uint32_t nL0Itr = 0; nL0Itr < nL0LoopNum; nL0Itr++) {
             uint32_t l0TileNAct = (nL0Itr == nL0LoopNum - 1) ? (embed - nL0Itr * L0_TILE_N) : L0_TILE_N;
             uint32_t nLoopCounter = GetCurLoopCounter(gatheredKvSTileIdx, nL0LoopNum, nL0Itr);
@@ -350,9 +351,7 @@ public:
                         l0TileKAct,
                         initMmad);
                     AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0AEventId);
-                    
                     AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventId);
-                    
                 }
             }
             // fixpipe

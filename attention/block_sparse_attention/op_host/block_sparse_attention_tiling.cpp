@@ -164,8 +164,10 @@ ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *bsaContext)
 
 ge::graphStatus BSATiling::GetInputLayout(gert::TilingContext *bsaContext)
 {
-    auto attrLayoutQ = bsaContext->GetAttrs()->GetAttrPointer<char>(Q_INPUT_LAYOUT_INDEX);
-    auto attrLayoutKv = bsaContext->GetAttrs()->GetAttrPointer<char>(KV_INPUT_LAYOUT_INDEX);
+    auto attrs = bsaContext->GetAttrs();
+    OP_CHECK_NULL_WITH_CONTEXT(bsaContext, attrs);
+    auto attrLayoutQ = attrs->GetAttrPointer<char>(Q_INPUT_LAYOUT_INDEX);
+    auto attrLayoutKv = attrs->GetAttrPointer<char>(KV_INPUT_LAYOUT_INDEX);
     if (attrLayoutQ == nullptr || attrLayoutKv == nullptr) {
         OP_LOGE(bsaContext->GetNodeName(), "qInputLayout, kvInputLayout must be provided.");
         return ge::GRAPH_FAILED;
@@ -192,9 +194,15 @@ ge::graphStatus BSATiling::GetInputLayout(gert::TilingContext *bsaContext)
 
 ge::graphStatus BSATiling::CheckQKVDtype(gert::TilingContext *bsaContext)
 {
-    dataType_ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
-    auto kDataType = bsaContext->GetInputDesc(KEY_INDEX)->GetDataType();
-    auto vDataType = bsaContext->GetInputDesc(VALUE_INDEX)->GetDataType();
+    auto qInputDesc = bsaContext->GetInputDesc(QUERY_INDEX);
+    auto kInputDesc = bsaContext->GetInputDesc(KEY_INDEX);
+    auto vInputDesc = bsaContext->GetInputDesc(VALUE_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(bsaContext, qInputDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(bsaContext, kInputDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(bsaContext, vInputDesc);
+    dataType_ = qInputDesc->GetDataType();
+    auto kDataType = kInputDesc->GetDataType();
+    auto vDataType = vInputDesc->GetDataType();
     if (dataType_ != ge::DT_FLOAT16 && dataType_ != ge::DT_BF16) {
         OP_LOGE(bsaContext->GetNodeName(), "The supported dtype of query/key/value is float16 or bfloat16.");
         return ge::GRAPH_FAILED;
@@ -442,9 +450,9 @@ ge::graphStatus BSATiling::ParseSparsePattern(gert::TilingContext *bsaContext)
 ge::graphStatus BSATiling::ParseAttenMask(gert::TilingContext *bsaContext)
 {
     const auto *attenMaskTensor = bsaContext->GetOptionalInputTensor(ATTEN_MASK_INDEX);
-    if (attenMaskTensor != nullptr) { 
-        OP_LOGE(bsaContext->GetNodeName(), "AttenMask is NOT YET supported."); 
-        return ge::GRAPH_FAILED; 
+    if (attenMaskTensor != nullptr) {
+        OP_LOGE(bsaContext->GetNodeName(), "AttenMask is NOT YET supported.");
+        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -473,25 +481,27 @@ ge::graphStatus BSATiling::ParseOptionalTensors(gert::TilingContext *bsaContext)
 
 ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
 {
-    if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX) == nullptr) {
+    auto attrs = bsaContext->GetAttrs();
+    OP_CHECK_NULL_WITH_CONTEXT(bsaContext, attrs);
+    if (attrs->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX) == nullptr) {
         OP_LOGE(bsaContext->GetNodeName(), "numKeyValueHeads is null");
         return ge::GRAPH_FAILED;
     }
-    kvHeads_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
+    kvHeads_ = *attrs->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX);
     
-    if (bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
+    if (attrs->GetAttrPointer<float>(SCALE_VALUE_INDEX) == nullptr) {
         scaleValue_ = 1.0f / std::sqrt(static_cast<float>(embeddingSize_));
     } else {
-        scaleValue_ = *bsaContext->GetAttrs()->GetAttrPointer<float>(SCALE_VALUE_INDEX);
+        scaleValue_ = *attrs->GetAttrPointer<float>(SCALE_VALUE_INDEX);
     }
     
-    if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(MASK_TYPE_INDEX) != nullptr) {
-        maskType_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(MASK_TYPE_INDEX);
+    if (attrs->GetAttrPointer<uint32_t>(MASK_TYPE_INDEX) != nullptr) {
+        maskType_ = *attrs->GetAttrPointer<uint32_t>(MASK_TYPE_INDEX);
     }
     
     // 获取innerPrecise参数
-    if (bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX) != nullptr) {
-        innerPrecise_ = *bsaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
+    if (attrs->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX) != nullptr) {
+        innerPrecise_ = *attrs->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
     }
     if (socVer_ == SOC_VER_950_CODE) {
         if (innerPrecise_ != BsaInnerCalcPrec::LOW_HIGH_MIXED) {
@@ -500,7 +510,9 @@ ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
             return ge::GRAPH_FAILED;
         }
     } else {
-        auto dtypeQ = bsaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
+        auto qInputDesc = bsaContext->GetInputDesc(QUERY_INDEX);
+        OP_CHECK_NULL_WITH_CONTEXT(bsaContext, qInputDesc);
+        auto dtypeQ = qInputDesc->GetDataType();
         if (innerPrecise_ != BsaInnerCalcPrec::ALL_HIGH && innerPrecise_ != BsaInnerCalcPrec::ALL_LOW) {
             OP_LOGE(bsaContext->GetNodeName(), "On chip 910 & 910_93, only innerPrec = 0 or 1 is supported, "
                 "but got %u.", innerPrecise_);
@@ -512,20 +524,20 @@ ge::graphStatus BSATiling::ParseAttrs(gert::TilingContext *bsaContext)
         }
     }
     // reserved yet non-configurable attrs
-    int64_t blockSize = *bsaContext->GetAttrs()->GetAttrPointer<int64_t>(BLOCK_SIZE_INDEX);
+    int64_t blockSize = *attrs->GetAttrPointer<int64_t>(BLOCK_SIZE_INDEX);
     if (blockSize != 0) {
         OP_LOGE(bsaContext->GetNodeName(), "Since paged cache is not yet supported, "
                 "blocksize must be 0, but got %ld.", blockSize);
         return ge::GRAPH_FAILED;
     }
-    int64_t preTokens = *bsaContext->GetAttrs()->GetAttrPointer<int64_t>(PRE_TOKENS_INDEX);
-    int64_t nextTokens = *bsaContext->GetAttrs()->GetAttrPointer<int64_t>(NEXT_TOKENS_INDEX);
+    int64_t preTokens = *attrs->GetAttrPointer<int64_t>(PRE_TOKENS_INDEX);
+    int64_t nextTokens = *attrs->GetAttrPointer<int64_t>(NEXT_TOKENS_INDEX);
     if (preTokens != INF_WINDOW_SIZE_PRE_NEXT || nextTokens != INF_WINDOW_SIZE_PRE_NEXT) {
         OP_LOGE(bsaContext->GetNodeName(), "Since windowed atten mask is not yet supported, "
                 "preTokens & nextTokens must be 2147483647, but got %ld, %ld.", preTokens, nextTokens);
         return ge::GRAPH_FAILED;
     }
-    auto softmaxLsePtr = bsaContext->GetAttrs()->GetAttrPointer<int64_t>(SOFTMAX_LSE_FLAG_INDEX);
+    auto softmaxLsePtr = attrs->GetAttrPointer<int64_t>(SOFTMAX_LSE_FLAG_INDEX);
     if (softmaxLsePtr == nullptr) {
         OP_LOGE(bsaContext->GetNodeName(), "Attr softmaxLseFlag is nullptr.");
         return ge::GRAPH_FAILED;
