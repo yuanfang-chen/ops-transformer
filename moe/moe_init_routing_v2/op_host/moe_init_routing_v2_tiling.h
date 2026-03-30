@@ -61,6 +61,7 @@ TILING_DATA_FIELD_DEF(int64_t, lastCoreLoops);
 TILING_DATA_FIELD_DEF(int64_t, perLoopCols);
 TILING_DATA_FIELD_DEF(int64_t, lastLoopCols);
 TILING_DATA_FIELD_DEF(int64_t, colLoops);
+TILING_DATA_FIELD_DEF(int64_t, bufferNum);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(MoeV2GatherOutComputeTilingDataOp, MoeV2GatherOutComputeTilingData)
 
@@ -123,6 +124,7 @@ protected:
     ge::graphStatus CheckTokenCount(int64_t num, const char *tag);
     virtual ge::graphStatus CheckOutShape(bool isRegbase);
     virtual void Tiling4GatherOutCompute();
+    void SetBufferNum4GatherOut();
     void Tiling4SrcToDstCompute();
     virtual void Tiling4SrcToDstCapacityCompute();
     void Tiling4SortOutCompute();
