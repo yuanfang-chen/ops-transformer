@@ -276,7 +276,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionPioneerMla<CubeBlockType, VecB
 {
     uint32_t bEndPrev = bN2EndPrev / constInfo.n2Size;
     uint32_t actualSeqQPrev = GetBalanceActualSeqLengths(actualSeqLengthsQGm, bEndPrev);
-    uint32_t s1GPrevBaseNum = (actualSeqQPrev * constInfo.gSize + constInfo.s1BaseSize - 1) / constInfo.s1BaseSize;
+    uint32_t s1GPrevBaseNum = actualSeqQPrev;
     constInfo.bN2Start = bN2EndPrev;
     constInfo.gS1Start = s1GEndPrev;
     
