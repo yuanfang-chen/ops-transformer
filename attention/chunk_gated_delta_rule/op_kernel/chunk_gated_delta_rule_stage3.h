@@ -71,7 +71,7 @@ public:
         if ASCEND_IS_AIC {
             return;
         }
-        coreId_ /= 2;
+        coreId_ /= AIC_AIV_1_1;
         if (GetSubBlockIdx() == 1) {
             return;
         }

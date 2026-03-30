@@ -77,24 +77,18 @@ protected:
     ge::graphStatus CheckContext();
     ge::graphStatus AnalyzeDtype();
     ge::graphStatus AnalyzeShapes();
-    ge::graphStatus CheckInputShapeConstraints(const gert::Shape &queryShape, const gert::Shape &keyShape,
-                                               const gert::Shape &valueShape, const gert::Shape &betaShape,
-                                               const gert::Shape &stateShape, const gert::Shape &actualSeqLengthsShape,
-                                               const gert::Shape *gShape);
-    ge::graphStatus CheckOutputShapeConstraints(const gert::Shape &valueShape, const gert::Shape &stateShape,
-                                                const gert::Shape &outShape, const gert::Shape &finalStateShape);
     ge::graphStatus CheckDerivedDimConstraints();
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
     ge::graphStatus AnalyzeFormat();
     ge::graphStatus DoMatmulTiling();
-
-    bool CheckShapeNotEmpty(const gert::Shape &shape, const std::string &shapeName);
-    bool CheckDimEqual(const gert::Shape &a, const int64_t dimA, const gert::Shape &b, const int64_t dimB,
-                       const std::string &nameA, const std::string &nameB, const std::string &dimDesc);
+    ge::graphStatus CheckExpectedShapes(const gert::Shape &queryShape, const gert::Shape &keyShape,
+                                        const gert::Shape &valueShape, const gert::Shape &betaShape,
+                                        const gert::Shape &stateShape, const gert::Shape &actualSeqLengthsShape,
+                                        const gert::Shape &outShape, const gert::Shape &finalStateShape,
+                                        const gert::Shape *gShape);
     bool CheckDim(const gert::Shape &shape, const size_t dim, const std::string &dimDesc);
-    bool CheckFormat(const gert::CompileTimeTensorDesc *desc, const ge::Format expectFormat0,
-                     const ge::Format expectFormat1, const std::string &name);
+    bool CheckFormat(const gert::CompileTimeTensorDesc *desc, const std::string &name);
 
     ChunkGatedDeltaRuleCompileInfo compileInfo_;
     ChunkGatedDeltaRule::ChunkGatedDeltaRuleTilingData tilingData_;

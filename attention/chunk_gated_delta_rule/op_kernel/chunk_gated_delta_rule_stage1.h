@@ -113,9 +113,6 @@ public:
 
     __aicore__ inline void InitLocalBuffers()
     {
-        if ASCEND_IS_AIC {
-            return;
-        }
         uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
         pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));
         pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen * sizeof(float));
@@ -169,13 +166,18 @@ public:
         buffOffset += chunkSize_ * sizeof(uint32_t);
 
         gatherOffsetBf16_ = tmpBuff_.GetWithOffset<uint32_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
-        buffOffset += halfChunkSize_ * sizeof(uint32_t);
+    }
 
+    __aicore__ inline void InitGatherBuffer()
+    {
         for (uint32_t i = 0; i < chunkSize_; ++i) {
             gatherOffsetFp32_.SetValue(i, i * BLOCK_SIZE);
         }
         for (uint32_t i = 0; i < halfChunkSize_; ++i) {
             gatherOffsetBf16_.SetValue(i, i * BLOCK_SIZE);
+        }
+        for (uint32_t i = 0; i < INVERSE_SHAPE; ++i) {
+            colBuffer_.SetValue<uint32_t>(i, (i * chunkSize_) * sizeof(float));
         }
         int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
         SetFlag<HardEvent::S_V>(eventID);
@@ -208,9 +210,10 @@ public:
         coreIdx_ = GetBlockIdx();
         if ASCEND_IS_AIV{
             coreIdx_ /= TASK_RATIO;
+            InitLocalBuffers();
+            InitGatherBuffer();
         }
         SetGlobalTensors(initParams);
-        InitLocalBuffers();
     }
 
     __aicore__ inline void Process()
@@ -469,10 +472,6 @@ private:
         inverseLocal_.SetValue(offset, static_cast<float>(1.0));
         
         uint32_t srcShape[2] = {1, inverseVecLen};
-        uint32_t offsetIdx = 0;
-        for (uint32_t j = 0; j < inverseVecLen; ++j) {
-            colBuffer_.SetValue<uint32_t>(offsetIdx++, (j * chunkSize_) * sizeof(float));
-        }
         int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
         SetFlag<HardEvent::S_V>(eventID);
         WaitFlag<HardEvent::S_V>(eventID);

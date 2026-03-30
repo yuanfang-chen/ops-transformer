@@ -32,117 +32,109 @@ extern "C" {
 #endif
 
 namespace {
-    struct ChunkGatedDeltaRuleParams {
-        // 必选输入
-        const aclTensor *query {nullptr};
-        const aclTensor *key {nullptr};
-        const aclTensor *value {nullptr};
-        const aclTensor *beta {nullptr};
-        const aclTensor *initialState {nullptr};
-        const aclTensor *actualSeqLengths {nullptr};
-        // 可选输入
-        const aclTensor *g {nullptr};
-        // 常量输入
-        float scale {1.0f};
-        // 输出
-        const aclTensor *out {nullptr};
-        const aclTensor *finalState {nullptr};
-    };
+struct ChunkGatedDeltaRuleParams {
+    // 必选输入
+    const aclTensor *query{nullptr};
+    const aclTensor *key{nullptr};
+    const aclTensor *value{nullptr};
+    const aclTensor *beta{nullptr};
+    const aclTensor *initialState{nullptr};
+    const aclTensor *actualSeqLengths{nullptr};
+    // 可选输入
+    const aclTensor *g{nullptr};
+    // 常量输入
+    float scale{1.0f};
+    // 输出
+    const aclTensor *out{nullptr};
+    const aclTensor *finalState{nullptr};
+};
 
-    // 校验相关：支持的数据类型
-    static const std::initializer_list<op::DataType> QKV_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
-    static const std::initializer_list<op::DataType> STATE_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
-    static const std::initializer_list<op::DataType> BETA_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
-    static const std::initializer_list<op::DataType> SEQ_LENS_TYPE_SUPPORT_LIST = {op::DataType::DT_INT32};
-    static const std::initializer_list<op::DataType> G_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
-    static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
+// 校验相关：支持的数据类型
+static const std::initializer_list<op::DataType> QKV_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> STATE_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> BETA_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> SEQ_LENS_TYPE_SUPPORT_LIST = {op::DataType::DT_INT32};
+static const std::initializer_list<op::DataType> G_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 
-    // 校验函数：做指针非空校验，gOptional 为可选输入，不做非空校验
-    static inline bool CheckNotNull(const ChunkGatedDeltaRuleParams &params)
-    {
-        OP_CHECK_NULL(params.query, return false);
-        OP_CHECK_NULL(params.key, return false);
-        OP_CHECK_NULL(params.value, return false);
-        OP_CHECK_NULL(params.initialState, return false);
-        OP_CHECK_NULL(params.beta, return false);
-        OP_CHECK_NULL(params.actualSeqLengths, return false);
-        OP_CHECK_NULL(params.out, return false);
-        OP_CHECK_NULL(params.finalState, return false);
+// 校验函数：做指针非空校验，gOptional 为可选输入，不做非空校验
+static inline bool CheckNotNull(const ChunkGatedDeltaRuleParams &params)
+{
+    OP_CHECK_NULL(params.query, return false);
+    OP_CHECK_NULL(params.key, return false);
+    OP_CHECK_NULL(params.value, return false);
+    OP_CHECK_NULL(params.initialState, return false);
+    OP_CHECK_NULL(params.beta, return false);
+    OP_CHECK_NULL(params.actualSeqLengths, return false);
+    OP_CHECK_NULL(params.out, return false);
+    OP_CHECK_NULL(params.finalState, return false);
 
-        return true;
-    }
-
-    // 校验函数：做 dtype 校验
-    static inline bool CheckDtypeValid(const ChunkGatedDeltaRuleParams &params)
-    {
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.query, QKV_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.key, QKV_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.value, QKV_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.initialState, STATE_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.beta, BETA_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.actualSeqLengths, SEQ_LENS_TYPE_SUPPORT_LIST, return false);
-
-        // gOptional 仅在非空时校验 dtype
-        if (params.g != nullptr) {
-            OP_CHECK_DTYPE_NOT_SUPPORT(params.g, G_TYPE_SUPPORT_LIST, return false);
-        }
-
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.out, OUT_TYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(params.finalState, STATE_TYPE_SUPPORT_LIST, return false);
-
-        return true;
-    }
-
-    // 校验函数：这里校验 dtype，shape/rank 约束由 tiling 侧保证
-    static aclnnStatus CheckParams(ChunkGatedDeltaRuleParams &params)
-    {
-        CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
-        OP_LOGD("ChunkGatedDeltaRule check params success.");
-
-        return ACLNN_SUCCESS;
-    }
-
-    // 预处理：同步 view 的原始 shape
-    static aclnnStatus PreProcess(ChunkGatedDeltaRuleParams &params)
-    {
-        params.query->SetOriginalShape(params.query->GetViewShape());
-        params.key->SetOriginalShape(params.key->GetViewShape());
-        params.value->SetOriginalShape(params.value->GetViewShape());
-        params.beta->SetOriginalShape(params.beta->GetViewShape());
-        params.initialState->SetOriginalShape(params.initialState->GetViewShape());
-        params.actualSeqLengths->SetOriginalShape(params.actualSeqLengths->GetViewShape());
-        if (params.g != nullptr) {
-            params.g->SetOriginalShape(params.g->GetViewShape());
-        }
-
-        return ACLNN_SUCCESS;
-    }
+    return true;
 }
 
-aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
-    const aclTensor *query,
-    const aclTensor *key,
-    const aclTensor *value,
-    const aclTensor *beta,
-    const aclTensor *initialState,
-    const aclTensor *actualSeqLengths,
-    const aclTensor *gOptional,
-    float scaleValue,
-    const aclTensor *out,
-    const aclTensor *finalState,
-    uint64_t *workspaceSize,
-    aclOpExecutor **executor)
+// 校验函数：做 dtype 校验
+static inline bool CheckDtypeValid(const ChunkGatedDeltaRuleParams &params)
+{
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.query, QKV_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.key, QKV_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.value, QKV_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.initialState, STATE_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.beta, BETA_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.actualSeqLengths, SEQ_LENS_TYPE_SUPPORT_LIST, return false);
+
+    // gOptional 仅在非空时校验 dtype
+    if (params.g != nullptr) {
+        OP_CHECK_DTYPE_NOT_SUPPORT(params.g, G_TYPE_SUPPORT_LIST, return false);
+    }
+
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.out, OUT_TYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.finalState, STATE_TYPE_SUPPORT_LIST, return false);
+
+    return true;
+}
+
+// 校验函数：这里校验 dtype，shape/rank 约束由 tiling 侧保证
+static aclnnStatus CheckParams(ChunkGatedDeltaRuleParams &params)
+{
+    CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
+    OP_LOGD("ChunkGatedDeltaRule check params success.");
+
+    return ACLNN_SUCCESS;
+}
+
+// 预处理：同步 view 的原始 shape
+static aclnnStatus PreProcess(ChunkGatedDeltaRuleParams &params)
+{
+    params.query->SetOriginalShape(params.query->GetViewShape());
+    params.key->SetOriginalShape(params.key->GetViewShape());
+    params.value->SetOriginalShape(params.value->GetViewShape());
+    params.beta->SetOriginalShape(params.beta->GetViewShape());
+    params.initialState->SetOriginalShape(params.initialState->GetViewShape());
+    params.actualSeqLengths->SetOriginalShape(params.actualSeqLengths->GetViewShape());
+    if (params.g != nullptr) {
+        params.g->SetOriginalShape(params.g->GetViewShape());
+    }
+
+    return ACLNN_SUCCESS;
+}
+} // namespace
+
+aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(const aclTensor *query, const aclTensor *key,
+                                                     const aclTensor *value, const aclTensor *beta,
+                                                     const aclTensor *initialState, const aclTensor *actualSeqLengths,
+                                                     const aclTensor *gOptional, float scaleValue, const aclTensor *out,
+                                                     const aclTensor *finalState, uint64_t *workspaceSize,
+                                                     aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(aclnnChunkGatedDeltaRule,
-        DFX_IN(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
-        DFX_OUT(out, finalState));
+                   DFX_IN(query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue),
+                   DFX_OUT(out, finalState));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
-    ChunkGatedDeltaRuleParams params {
-        query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue, out, finalState
-    };
+    ChunkGatedDeltaRuleParams params{query,     key,        value, beta,      initialState, actualSeqLengths,
+                                     gOptional, scaleValue, out,   finalState};
     CHECK_RET(CheckNotNull(params), ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckParams(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
@@ -171,31 +163,36 @@ aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     auto finalState_ = l0op::Contiguous(finalState, uniqueExecutor.get());
 
     // 调用 L0 接口，得到两个输出
-    auto outRet = l0op::ChunkGatedDeltaRule(
-        query_, key_, value_, beta_, initialState_, actualSeqLengths_, gOptional, scaleValue, uniqueExecutor.get());
-    if (outRet[0] == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
-    if (outRet[1] == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
+    auto outRet = l0op::ChunkGatedDeltaRule(query_, key_, value_, beta_, initialState_, actualSeqLengths_, gOptional,
+                                            scaleValue, uniqueExecutor.get());
+    if (outRet[0] == nullptr) {
+        return ACLNN_ERR_INNER_NULLPTR;
+    }
+    if (outRet[1] == nullptr) {
+        return ACLNN_ERR_INNER_NULLPTR;
+    }
 
     auto outRet0 = outRet[0];
     auto outRet1 = outRet[1];
     // 将 L0 输出回写到用户输出 tensor
     auto ViewCopyOut = l0op::ViewCopy(outRet0, out_, uniqueExecutor.get());
     auto ViewCopyFinalState = l0op::ViewCopy(outRet1, finalState_, uniqueExecutor.get());
-    if (ViewCopyOut == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
-    if (ViewCopyFinalState == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
+    if (ViewCopyOut == nullptr) {
+        return ACLNN_ERR_INNER_NULLPTR;
+    }
+    if (ViewCopyFinalState == nullptr) {
+        return ACLNN_ERR_INNER_NULLPTR;
+    }
 
     // 获取计算所需 workspace 大小
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
-    
+
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnChunkGatedDeltaRule(
-    void *workspace,
-    uint64_t workspaceSize,
-    aclOpExecutor *executor,
-    aclrtStream stream)
+aclnnStatus aclnnChunkGatedDeltaRule(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                     aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnChunkGatedDeltaRule);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
