@@ -283,7 +283,6 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
     </tr>
     </tbody></table>
 
-
 ## aclnnGroupedMatMulAlltoAllv
 
 - **参数说明**
