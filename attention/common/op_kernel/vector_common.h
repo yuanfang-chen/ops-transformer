@@ -1253,7 +1253,7 @@ __aicore__ inline void InvalidMaskRows(uint32_t softmaxOutOffset, uint32_t dealR
     SoftMaxShapeInfo softmaxShapeInfo{
     static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(columnCount),
     static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(columnCount)};
-
+    sdasddsad
     AscendC::PipeBarrier<PIPE_V>();
     if constexpr (SOFTMAX_WITH_BRC) {
         AdjustSoftMaxRes<OUT_T, SOFTMAX_T>(bmm2ResUb, softmaxMaxUb[softmaxOutOffset], softmaxMinSaclar,
