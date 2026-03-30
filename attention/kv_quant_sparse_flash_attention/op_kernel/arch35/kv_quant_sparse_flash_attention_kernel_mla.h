@@ -229,12 +229,12 @@ template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void 
     }
     if (!setStart) {
         constInfo.bN2Start = lastValidBIdx;
-        constInfo.gS1Start = lastValidactBatchS1-1;
+        constInfo.gS1Start = lastValidactBatchS1 - 1;
     }
     if (accumBaseNum < targetBaseNum) {
 		// 更新最后一个核的End分核信息
         constInfo.bN2End = lastValidBIdx;
-        constInfo.gS1End = lastValidactBatchS1-1;
+        constInfo.gS1End = lastValidactBatchS1 - 1;
         constInfo.s2End = 0;
         if (aicIdx != 0) {
             GetAxisStartIdx(constInfo.bN2Start, constInfo.gS1Start, 0);

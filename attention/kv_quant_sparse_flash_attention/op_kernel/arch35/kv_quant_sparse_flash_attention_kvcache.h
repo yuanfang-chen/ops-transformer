@@ -266,4 +266,4 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr& runParam, RunInfo &
     runInfo.kvLoopEndIdx = runParam.kvLoopEndIdx;
 }
 
-#endif  // KV_QUANT_SPARSE_ATTN_SHAREDKV_KVCACHE_H
+#endif  // KV_QUANT_SPARSE_FLASH_ATTENTION_KVCACHE_H
