@@ -12,6 +12,7 @@
  * \file compute.h
  * \brief MicroAPI VF helpers for aggregate_hidden_grad (W=3)
  */
+
 #ifndef AGGREGATE_HIDDEN_GRAD_VF_COMPUTE_H
 #define AGGREGATE_HIDDEN_GRAD_VF_COMPUTE_H
 

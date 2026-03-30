@@ -8,13 +8,15 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!\n * \file aggregate_hidden_grad_struct.h\n * \brief Tiling data struct for aggregate_hidden_grad on arch35\n */
-#ifndef AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
-#define AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
+/*!
+ * \file aggregate_hidden_grad_struct.h
+ * \brief Tiling data struct for aggregate_hidden_grad on arch35
+ */
 
+#ifndef AGGREGATE_HIDDEN_GRAD_STRUCT_H
+#define AGGREGATE_HIDDEN_GRAD_STRUCT_H
 
 namespace AggregateHiddenGradArch35Tiling {
-
 
 struct AggregateHiddenGradTilingDataV35 {
     // global flags and shapes
