@@ -263,7 +263,8 @@ ge::graphStatus PostQuantChecker::CheckMultiParaShape(const FiaTilingInfo &fiaIn
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PostQuantChecker::CheckAntiquantNotSupport(const FiaTilingInfo &fiaInfo){
+ge::graphStatus PostQuantChecker::CheckAntiquantNotSupport(const FiaTilingInfo &fiaInfo)
+{
     int64_t keyAntiquantMode = 0;
     int64_t valueAntiquantMode = 0;
     if (fiaInfo.opParamInfo.keyAntiquantMode != nullptr) {
@@ -272,15 +273,15 @@ ge::graphStatus PostQuantChecker::CheckAntiquantNotSupport(const FiaTilingInfo &
     if (fiaInfo.opParamInfo.valueAntiquantMode != nullptr) {
         valueAntiquantMode = *fiaInfo.opParamInfo.valueAntiquantMode;
     }
-    if (keyAntiquantMode == PER_TOKEN_MODE && valueAntiquantMode == PER_TOKEN_MODE){
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN && 
+    if (keyAntiquantMode == PER_TOKEN_MODE && valueAntiquantMode == PER_TOKEN_MODE) {
+        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN &&
                     (fiaInfo.outputType != ge::DT_BF16 && fiaInfo.outputType != ge::DT_FLOAT16)),
                     OP_LOGE(fiaInfo.opName, "When keyAntiquantMode and valueAntiquantMode is 1, "
                             "if data type of key/value is FLOAT8_E4M3FN, post quant is not supported."),
                     return ge::GRAPH_FAILED);
     }
-    if (keyAntiquantMode == PER_TOKEN_PA_MODE && valueAntiquantMode == PER_TOKEN_PA_MODE){
-        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN && 
+    if (keyAntiquantMode == PER_TOKEN_PA_MODE && valueAntiquantMode == PER_TOKEN_PA_MODE) {
+        OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN &&
                     (fiaInfo.outputType != ge::DT_BF16 && fiaInfo.outputType != ge::DT_FLOAT16)),
                     OP_LOGE(fiaInfo.opName, "When keyAntiquantMode and valueAntiquantMode is 4, "
                             "if data type of key/value is FLOAT8_E4M3FN, post quant is not supported."),
