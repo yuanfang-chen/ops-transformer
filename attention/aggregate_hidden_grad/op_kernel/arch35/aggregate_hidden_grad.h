@@ -312,13 +312,13 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t b
                                                                        int64_t hLenThis)
 {
     LocalTensor<DT> giLocal = gradInQ_.DeQue<DT>();
-    DataCopyExtParams inParams{static_cast<uint16_t>(sEff * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                               static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
+    DataCopyExtParams outParams{static_cast<uint16_t>(sEff * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
+                                0, static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0};
     int64_t sStart = sTile * sUB_;
     int64_t bStart = bTile * bUB_;
     int64_t hOff = hTile * hUB_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
-    DataCopyPad(gradInGm_[base], giLocal, inParams);
+    DataCopyPad(gradInGm_[base], giLocal, outParams);
     gradInQ_.FreeTensor(giLocal);
 }
 
