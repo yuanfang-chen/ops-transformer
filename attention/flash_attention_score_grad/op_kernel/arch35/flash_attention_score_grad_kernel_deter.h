@@ -1001,7 +1001,6 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
 
                     // CopyInMaxSum
                     this->vecBlock.CopyMaxSum(this->constInfo, runInfos[taskId & 1], taskId); // copy in max and sum double buffer
-                    
                 }
                 if (taskId > 0) {
                     mm1ResTensor =
