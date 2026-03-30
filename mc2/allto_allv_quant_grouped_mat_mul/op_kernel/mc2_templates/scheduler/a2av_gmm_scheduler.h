@@ -50,20 +50,17 @@ public:
         tilingData_ = &tilingData;
         e_ = tilingData_->taskTilingInfo.e;
         isMxSceneFlag_ = isMxScene;
+        gmmxScaleGm_ = gmmxScaleGM;
         const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
         uint64_t hcclCcTilingOffset = offsetof(TilingDataType, hcclA2avTilingInfo) +
                                       offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
         commOutGm_ = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm_);
 
-        // 增加scale的通信初始化,fp8通信数据类型长度是相同的，因此可以复用
         if (isMxSceneFlag_) {
             uint64_t commOutLen =
                 Align((tilingData_->taskTilingInfo.A) * (tilingData_->taskTilingInfo.H1), TENSOR_LIST_SIZE);
-            // permuteOut为true,则将permuteout存放到对应的位置，scale的地址可以从workspaceGM开始
             gmmxScaleCommOutGm_ = tilingData_->isPermuteOut ? workspaceGM : workspaceGM + commOutLen;
-            gmmxScaleGm_ = gmmxScaleGM; // 保存参数到成员变量
-            // commOp中已经初始化了上下文，这里只更新地址
             commOp.InitScaleBuffer(gmmxScaleGm_, gmmxScaleCommOutGm_);
         }
         if (IsNeedMM) {
@@ -82,7 +79,6 @@ public:
             localComputeOp.Process(0);
             SyncAll<false>();
         }
-        // mx场景下先启动全量scale通信
         if (isMxSceneFlag_) {
             commOp.LaunchScaleBeforeCompute(0, e_);
         }
