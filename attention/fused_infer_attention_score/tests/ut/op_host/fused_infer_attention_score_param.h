@@ -16,12 +16,7 @@
 
 namespace FusedInferAttentionScoreUT {
 
-struct FusedInferAttentionHostUtParamBase {
-    std::string case_name;
-    ge::graphStatus expectResult;
-    std::vector<uint32_t> inputInstance;
-    std::vector<uint32_t> outputInstance;
-
+struct FusedInferAttentionHostUtParamBase : public HostUtParamBase {
     int64_t num_heads;
     float scale;
     int64_t pre_tokens;
@@ -39,11 +34,9 @@ struct FusedInferAttentionHostUtParamBase {
     int64_t pse_type;
     int64_t out_dtype;
 
-    FusedInferAttentionHostUtParamBase(const csv_map& csvMap)
+    FusedInferAttentionHostUtParamBase(const csv_map& csvMap):
+        HostUtParamBase(csvMap)
     {
-        this->case_name = ReadMap(csvMap, "case_name");
-        this->expectResult = Str2StatusGE(ReadMap(csvMap, "expectResult"));
-
         this->num_heads = std::stoll(ReadMap(csvMap, "num_heads"));
         this->scale = std::stof(ReadMap(csvMap, "scale"));
         this->pre_tokens = std::stoll(ReadMap(csvMap, "pre_tokens"));
@@ -62,11 +55,6 @@ struct FusedInferAttentionHostUtParamBase {
         this->out_dtype = std::stoll(ReadMap(csvMap, "out_dtype"));
     }
 };
-
-inline std::ostream& operator<<(std::ostream& os, const FusedInferAttentionHostUtParamBase& param)
-{
-    return os << param.case_name;
-}
 
 struct FusedInferAttentionTilingUtParam: public FusedInferAttentionHostUtParamBase {
     gert::TilingContextPara::TensorDescription query = TD_DEFAULT;
@@ -366,6 +354,91 @@ struct FusedInferAttentionInferShapeUtParam: public FusedInferAttentionHostUtPar
                 GetShapeArr(ReadMap(csvMap, "softmax_lse_shape"))
             };
         }
+    }
+};
+
+struct FusedInferAttentionInferDTypeUtParam: public FusedInferAttentionHostUtParamBase {
+    ge::DataType query = ID_DEFAULT;
+    ge::DataType key = ID_DEFAULT;
+    ge::DataType value = ID_DEFAULT;
+    ge::DataType pse_shift = ID_DEFAULT;
+    ge::DataType atten_mask = ID_DEFAULT;
+    ge::DataType actual_seq_lengths = ID_DEFAULT;
+    ge::DataType actual_seq_lengths_kv = ID_DEFAULT;
+    ge::DataType dequant_scale1 = ID_DEFAULT;
+    ge::DataType quant_scale1 = ID_DEFAULT;
+    ge::DataType dequant_scale2 = ID_DEFAULT;
+    ge::DataType quant_scale2 = ID_DEFAULT;
+    ge::DataType quant_offset2 = ID_DEFAULT;
+    ge::DataType antiquant_scale = ID_DEFAULT;
+    ge::DataType antiquant_offset = ID_DEFAULT;
+    ge::DataType block_table = ID_DEFAULT;
+    ge::DataType query_padding_size = ID_DEFAULT;
+    ge::DataType kv_padding_size = ID_DEFAULT;
+    ge::DataType key_antiquant_scale = ID_DEFAULT;
+    ge::DataType key_antiquant_offset = ID_DEFAULT;
+    ge::DataType value_antiquant_scale = ID_DEFAULT;
+    ge::DataType value_antiquant_offset = ID_DEFAULT;
+    ge::DataType key_shared_prefix = ID_DEFAULT;
+    ge::DataType value_shared_prefix = ID_DEFAULT;
+    ge::DataType actual_shared_prefix_len = ID_DEFAULT;
+    ge::DataType query_rope = ID_DEFAULT;
+    ge::DataType key_rope = ID_DEFAULT;
+    ge::DataType key_rope_antiquant_scale = ID_DEFAULT;
+    ge::DataType dequant_scale_query = ID_DEFAULT;
+    ge::DataType learnable_sink = ID_DEFAULT;
+    ge::DataType q_start_idx = ID_DEFAULT;
+    ge::DataType kv_start_idx = ID_DEFAULT;
+
+    ge::DataType attention_out = ID_DEFAULT;
+    ge::DataType softmax_lse = ID_DEFAULT;
+
+    FusedInferAttentionInferShapeUtParam(const csv_map& csvMap):
+        FusedInferAttentionHostUtParamBase(csvMap)
+    {
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "query_dtype", this->query));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_dtype", "key_format", this->key));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "value_dtype", this->value));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "pse_shift_dtype", this->pse_shift));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "atten_mask_dtype", this->atten_mask));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "actual_seq_lengths_dtype",
+            this->actual_seq_lengths));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "actual_seq_lengths_kv_dtype",
+            this->actual_seq_lengths_kv));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "dequant_scale1_dtype", this->dequant_scale1));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "quant_scale1_dtype", this->quant_scale1));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "dequant_scale2_dtype", this->dequant_scale2));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "quant_scale2_dtype", this->quant_scale2));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "quant_offset2_dtype", this->quant_offset2));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "antiquant_scale_dtype", this->antiquant_scale));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "antiquant_offset_dtype", this->antiquant_offset));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "block_table_dtype", this->block_table));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "query_padding_size_dtype", this->query_padding_size));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "kv_padding_size_dtype", this->kv_padding_size));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_antiquant_scale_dtype", this->key_antiquant_scale));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_antiquant_offset_dtype",
+            this->key_antiquant_offset));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "value_antiquant_scale_dtype",
+            this->value_antiquant_scale));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "value_antiquant_offset_dtype",
+            this->value_antiquant_offset));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "value_antiquant_offset_dtype",
+            this->value_antiquant_offset));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_shared_prefix_dtype", this->key_shared_prefix));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "value_shared_prefix_dtype", this->value_shared_prefix));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "actual_shared_prefix_len_dtype",
+            this->actual_shared_prefix_len));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "query_rope_dtype", this->query_rope));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_rope_dtype", this->key_rope));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "key_rope_antiquant_scale_dtype",
+            this->key_rope_antiquant_scale));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "dequant_scale_query_dtype", this->dequant_scale_query));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "learnable_sink_dtype", this->learnable_sink));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "q_start_idx_dtype", this->q_start_idx));
+        this->inputInstance.emplace_back(GetDataTypeGE(csvMap, "kv_start_idx_dtype", this->kv_start_idx));
+
+        this->outputInstance.emplace_back(GetDataTypeGE(csvMap, "attention_out_dtype", this->attention_out));
+        this->outputInstance.emplace_back(GetDataTypeGE(csvMap, "softmax_lse_dtype", this->softmax_lse));
     }
 };
 

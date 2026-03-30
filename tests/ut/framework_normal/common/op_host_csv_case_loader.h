@@ -178,4 +178,22 @@ inline int GetDataTypeGE(const csv_map& csvMap, const std::string& dtypeKey, ge:
     return 1;
 }
 
+struct HostUtParamBase {
+    std::string case_name;
+    ge::graphStatus expectResult;
+    std::vector<uint32_t> inputInstance;
+    std::vector<uint32_t> outputInstance;
+
+    HostUtParamBase(const csv_map& csvMap)
+    {
+        this->case_name = ReadMap(csvMap, "case_name");
+        this->expectResult = Str2StatusGE(ReadMap(csvMap, "expectResult"));
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& os, const HostUtParamBase& param)
+{
+    return os << param.case_name;
+}
+
 #endif // OP_HOST_CSV_CASE_LOADER_H
