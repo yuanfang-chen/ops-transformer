@@ -35,7 +35,7 @@ public:
             .FormatList({ge::FORMAT_ND});
         this->Input("mask")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_UINT8, ge::DT_UINT8})
+            .DataType({ge::DT_BOOL, ge::DT_BOOL})
             .FormatList({ge::FORMAT_ND});
 
         this->Output("grad_input")

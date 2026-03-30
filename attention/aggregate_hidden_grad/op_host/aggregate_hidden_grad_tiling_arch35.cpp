@@ -368,9 +368,9 @@ uint64_t AggregateHiddenGradTiling::GetTilingKey() const
 {
     // 可按 dtype 区分，当前返回 0
     if (dataType_ == ge::DataType::DT_BF16) {
-        return TILING_KEY_BF16;
+        return TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16;
     } else if (dataType_ == ge::DataType::DT_FLOAT16) {
-        return TILING_KEY_FP16;
+        return TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16;
     }
     
 }

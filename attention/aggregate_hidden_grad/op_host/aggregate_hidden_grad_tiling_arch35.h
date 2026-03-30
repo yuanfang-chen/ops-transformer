@@ -33,8 +33,8 @@ struct AggregateHiddenGradArch35CompileInfo {
     uint64_t ubSize = 0;
 };
 
-constexpr uint64_t TILING_KEY_BF16 = 10000;
-constexpr uint64_t TILING_KEY_FP16 = 10001;
+constexpr uint64_t TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16 = 10000;
+constexpr uint64_t TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16 = 10001;
 
 // Input tensor indices
 constexpr int32_t GRAD_OUTPUT_INDEX = 0;
