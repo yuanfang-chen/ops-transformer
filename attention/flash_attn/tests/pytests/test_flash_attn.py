@@ -192,25 +192,25 @@ if __name__ =="__main__":
         case['seqlens_list_kv'] = case['seqlens_list_q'] if table.cell(i, seqlens_list_col).value is None else eval(table.cell(i, seqlens_list_col).value)
         case['D'] = int(table.cell(row=i, column=D_col).value)
         case['DV'] = int(table.cell(row=i, column=DV_col).value)
-        case['DRope'] = table.cell(row=i, column=DR_col).value
+        case['DRope'] = 0 if table.cell(row=i, column=DR_col).value is not None else int(table.cell(row=i, column=DR_col).value)
         case['Dtype'] = table.cell(row=i, column=Dtype_col).value
-        case['out_dtype'] = table.cell(row=i, column=outDtype_col).value
+        case['out_dtype'] =0 if table.cell(row=i, column=outDtype_col).value is None else table.cell(row=i, column=outDtype_col).value
         case['sparse_mode'] = int(table.cell(row=i, column=Sparse_col).value)
-        case['prefix'] = table.cell(row=i, column=prefix_col).value
+        case['prefix'] = eval(table.cell(row=i, column=prefix_col).value) if prefix_col is None and table.cell(row=i, column=prefix_col).value is None else None
         case['input_layout'] = table.cell(row=i, column=Input_layout_col).value
         case['Atten_mask_Shape'] = table.cell(row=i, column=Atten_mask_shape_col).value
         case['Atten_mask_Dtype'] = table.cell(row=i, column=Atten_mask_dtype_col).value
         case['Padding_Mask'] = table.cell(row=i, column=Paddding_mask_col).value
         case['pse_layout'] = table.cell(row=i, column=Pse_shape_col).value
-        case['pse_mode'] = table.cell(row=i, column=Pse_mode_col).value
-        case['pse_type'] = table.cell(row=i, column=Pse_type_col).value
-        case['pre_tokens'] = int(table.cell(row=i, column=pre_tokens_col).value)
-        case['next_tokens'] = int(table.cell(row=i, column=next_tokens_col).value)
-        case['keep_prob'] = int(table.cell(row=i, column=keep_prob_col).value)
-        case['q_start_idx'] = int(table.cell(row=i, column=q_start_idx_col).value)
-        case['kv_start_idx'] = table.cell(row=i, column=kv_start_idx_col).value
-        case['seed'] = table.cell(row=i, column=seed_col).value
-        case['offset'] = int(table.cell(row=i, column=offset_col).value)
+        case['pse_mode'] = int(table.cell(row=i, column=Pse_mode_col).value) if table.cell(row=i, column=Pse_mode_col).value is not None else 1
+        case['pse_type'] = ' ' if table.cell(row=i, column=Pse_type_col).value is not None else table.cell(row=i, column=Pse_type_col).value
+        case['pre_tokens'] = int(table.cell(row=i, column=pre_tokens_col).value) if table.cell(row=i, column=pre_tokens_col).value is not None else 65536
+        case['next_tokens'] = int(table.cell(row=i, column=next_tokens_col).value) if table.cell(row=i, column=next_tokens_col).value is not None else 65536
+        case['keep_prob'] = int(table.cell(row=i, column=keep_prob_col).value) if table.cell(row=i, column=keep_prob_col).value is not None else 1
+        case['q_start_idx'] = int(table.cell(row=i, column=q_start_idx_col).value) if table.cell(row=i, column=q_start_idx_col).value is not None else 0
+        case['kv_start_idx'] = int(table.cell(row=i, column=kv_start_idx_col).value) if table.cell(row=i, column=kv_start_idx_col).value is not None else 0
+        case['seed'] = int(table.cell(row=i, column=seed_col).value) if table.cell(row=i, column=seed_col).value is not None else 0
+        case['offset'] = int(table.cell(row=i, column=offset_col).value) if table.cell(row=i, column=offset_col).value is not None else 0
 
         call_flash_attn(test_name, **case)
 
