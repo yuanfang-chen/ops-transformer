@@ -44,9 +44,9 @@ static const string GetLibPath()
         return nullptr;
     }
 #if defined(__x86_64__)
-    std::string hcclPathPostfix = "/x86_64-linux/lib64/libhccl_fwk.so";
+    std::string hcclPathPostfix = "/x86_64-linux/lib64/libhccl.so";
 #elif defined(__aarch64__)
-    std::string hcclPathPostfix = "/aarch64-linux/lib64/libhccl_fwk.so";
+    std::string hcclPathPostfix = "/aarch64-linux/lib64/libhccl.so";
 #else
     return nullptr;
 #endif

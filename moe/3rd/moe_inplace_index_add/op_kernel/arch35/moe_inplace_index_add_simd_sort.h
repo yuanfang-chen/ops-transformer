@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License")
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file moe_inplace_index_add_simd_sort.h
@@ -22,10 +22,9 @@ constexpr int64_t INDICES_SORT_THRESHOLD = 128;
 namespace MoeInplaceIndexAdd {
 using namespace AscendC;
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-class MoeInplaceIndexAddSimdSort : MoeInplaceIndexAddBase<VAR_T, IDX_T, CAST_MODE> {
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+class MoeInplaceIndexAddSimdSort : MoeInplaceIndexAddBase<VAR_T, IDX_T> {
 public:
-    using CAST_T = typename MoeInplaceIndexAddBase<VAR_T, IDX_T, CAST_MODE>::CAST_T;
     __aicore__ inline MoeInplaceIndexAddSimdSort(const MoeInplaceIndexAddSimdSortTilingData& tilingData, TPipe& pipe)
         : tilingData_(tilingData), pipe_(pipe){};
     __aicore__ inline void Init(GM_ADDR var, GM_ADDR indices, GM_ADDR updates, GM_ADDR alpha, GM_ADDR workspace);
@@ -65,8 +64,8 @@ private:
     float maxScore_ = static_cast<float>(0);
 };
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::Init(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::Init(
     GM_ADDR var, GM_ADDR indices, GM_ADDR updates, GM_ADDR alpha, GM_ADDR workspace)
 {
     var_.SetGlobalBuffer((__gm__ VAR_T*)(var));
@@ -92,8 +91,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     }
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::HandleAlpha(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::HandleAlpha(
     LocalTensor<VAR_T> updatesLocal, VAR_T alphaValue, int64_t dataCount)
 {
     if (tilingData_.isWithAlpha) {
@@ -108,8 +107,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     return;
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::CopyIndiceIn(int64_t rowIdx, int64_t rowLen)
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::CopyIndiceIn(int64_t rowIdx, int64_t rowLen)
 {
     LocalTensor<IDX_T> indicesLocal = indicesQue_.AllocTensor<IDX_T>();
     LocalTensor<float> dstLocal = maxScoreBuf_.Get<float>();
@@ -131,8 +130,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     indicesQue_.EnQue(indicesLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ProcessPreSmallIndices(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ProcessPreSmallIndices(
     int64_t preOfset, int64_t colIdx, int64_t preLen, int64_t colLen)
 {
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
@@ -174,8 +173,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     indicesQue_.FreeTensor(indicesLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ComputeSumAndCopyOutSlitPre(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ComputeSumAndCopyOutSlitPre(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
@@ -217,8 +216,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     this->updateSumIdxQue_.template EnQue(updateSumIdxLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::CopyInAndCopyOutSlitPre(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::CopyInAndCopyOutSlitPre(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
@@ -255,8 +254,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     indicesQue_.EnQue(indicesLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ProcessPre()
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ProcessPre()
 {
     pipe_.InitBuffer(indicesQue_, DOUBLE_BUFFER, (tilingData_.ubIndexFactor) * sizeof(IDX_T));
     pipe_.InitBuffer(updatesQue_, DOUBLE_BUFFER, tilingData_.ubIndexFactor * tilingData_.afterAxisFactor * sizeof(VAR_T));
@@ -292,14 +291,7 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
         CopyIndiceIn(rowIdx, rowDataLen);
         if (maxScore_ > SORT_HIST_THRESHOLD) {
             LocalTensor<IDX_T> indicesLocal = indicesQue_.DeQue<IDX_T>();
-            if constexpr (CAST_MODE == CAST_0){
-                this->SortIndices(indicesLocal, rowDataLen);
-            } else {
-                LocalTensor<CAST_T> indicesCastLocal = this->indicesCastQue_.template AllocTensor<CAST_T>();
-                this->IndicesSortCast(indicesLocal, indicesCastLocal, rowDataLen);
-                this->SortIndices(indicesCastLocal, rowDataLen);
-                this->indicesCastQue_.template FreeTensor(indicesCastLocal);
-            }
+            this->SortIndices(indicesLocal, rowDataLen);
             indicesQue_.FreeTensor(indicesLocal);
             for (int64_t colIdx = 0; colIdx < colLoopNum; colIdx++) {
                 int64_t colDataLen = (colIdx == colLoopNum - 1) ? colTailDataLen : colMainDataLen;
@@ -322,8 +314,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     }
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ComputeSumAndCopyOutSlitAfter(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ComputeSumAndCopyOutSlitAfter(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
@@ -369,8 +361,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     this->updateSumIdxQue_.template EnQue(updateSumIdxLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::CopyInAndCopyOutSlitAfter(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::CopyInAndCopyOutSlitAfter(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<IDX_T> indicesLocal = indicesQue_.DeQue<IDX_T>();
@@ -406,8 +398,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     indicesQue_.EnQue(indicesLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ProcessAfter()
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ProcessAfter()
 {
     pipe_.InitBuffer(indicesQue_, DOUBLE_BUFFER, (tilingData_.ubIndexFactor) * sizeof(IDX_T));
     pipe_.InitBuffer(updatesQue_, DOUBLE_BUFFER, tilingData_.ubIndexFactor * tilingData_.afterAxisFactor * sizeof(VAR_T));
@@ -428,14 +420,7 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
         CopyIndiceIn(rowIdx, rowDataLen);
         if (maxScore_ > SORT_HIST_THRESHOLD) {
             LocalTensor<IDX_T> indicesLocal = indicesQue_.DeQue<IDX_T>();
-            if constexpr (CAST_MODE == CAST_0){
-                this->SortIndices(indicesLocal, rowDataLen);
-            } else {
-                LocalTensor<CAST_T> indicesCastLocal = this->indicesCastQue_.template AllocTensor<CAST_T>();
-                this->IndicesSortCast(indicesLocal, indicesCastLocal, rowDataLen);
-                this->SortIndices(indicesCastLocal, rowDataLen);
-                this->indicesCastQue_.template FreeTensor(indicesCastLocal);
-            }
+            this->SortIndices(indicesLocal, rowDataLen);
             indicesQue_.FreeTensor(indicesLocal);
             for (int64_t colIdx = 0; colIdx < colLoopNum; colIdx++) {
                 int64_t colDataLen = (colIdx == colLoopNum - 1) ? colTailDataLen : colMainDataLen;
@@ -458,8 +443,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     }
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ComputeSumAndCopyOutSlitIndices(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ComputeSumAndCopyOutSlitIndices(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<VAR_T> updatesLocal = updatesQue_.AllocTensor<VAR_T>();
@@ -471,7 +456,7 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
                                     static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
     DataCopyPadExtParams<VAR_T> padParams = {false, static_cast<uint8_t>(0), static_cast<uint8_t>(0), static_cast<VAR_T>(0)};
     int64_t colLenAlignSize = Ops::Base::CeilAlign(colLen * sizeof(VAR_T), UB_AGLIN_VALUE) / sizeof(VAR_T);
-    int64_t indicesOfset = tilingData_.eachCoreIndexCount * GetBlockIdx() + rowIdx * tilingData_.ubIndexFactor;
+    int64_t indicesOfset = rowIdx * tilingData_.ubIndexFactor;
     event_t eventIdMte2ToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_S));
     SetFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
     WaitFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
@@ -504,8 +489,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     this->updateSumIdxQue_.template EnQue(updateSumIdxLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::CopyInAndCopyOutSlitIndices(
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::CopyInAndCopyOutSlitIndices(
     int64_t rowIdx, int64_t colIdx, int64_t rowLen, int64_t colLen)
 {
     LocalTensor<IDX_T> indicesLocal = indicesQue_.DeQue<IDX_T>();
@@ -541,8 +526,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     indicesQue_.EnQue(indicesLocal);
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::ProcessIndices()
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::ProcessIndices()
 {
     pipe_.InitBuffer(indicesQue_, DOUBLE_BUFFER, (tilingData_.ubIndexFactor) * sizeof(IDX_T));
     pipe_.InitBuffer(updatesQue_, DOUBLE_BUFFER, tilingData_.ubIndexFactor * tilingData_.afterAxisFactor * sizeof(VAR_T));
@@ -563,14 +548,7 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
         CopyIndiceIn(rowIdx, rowDataLen);
         if (maxScore_ > SORT_HIST_THRESHOLD && rowDataLen > INDICES_SORT_THRESHOLD) {
             LocalTensor<IDX_T> indicesLocal = indicesQue_.DeQue<IDX_T>();
-            if constexpr (CAST_MODE == CAST_0){
-                this->SortIndices(indicesLocal, rowDataLen);
-            } else {
-                LocalTensor<CAST_T> indicesCastLocal = this->indicesCastQue_.template AllocTensor<CAST_T>();
-                this->IndicesSortCast(indicesLocal, indicesCastLocal, rowDataLen);
-                this->SortIndices(indicesCastLocal, rowDataLen);
-                this->indicesCastQue_.template FreeTensor(indicesCastLocal);
-            }
+            this->SortIndices(indicesLocal, rowDataLen);
             indicesQue_.FreeTensor(indicesLocal);
             for (int64_t colIdx = 0; colIdx < colLoopNum; colIdx++) {
                 int64_t colDataLen = (colIdx == colLoopNum - 1) ? colTailDataLen : colMainDataLen;
@@ -593,8 +571,8 @@ __aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, C
     }
 }
 
-template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS, uint32_t CAST_MODE>
-__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS, CAST_MODE>::Process()
+template <typename VAR_T, typename IDX_T, bool IS_CONTIGUOUS>
+__aicore__ inline void MoeInplaceIndexAddSimdSort<VAR_T, IDX_T, IS_CONTIGUOUS>::Process()
 {
     if (GetBlockIdx() >= tilingData_.usedCoreNumBefore) {
         return;

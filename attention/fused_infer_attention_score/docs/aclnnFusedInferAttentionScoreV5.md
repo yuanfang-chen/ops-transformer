@@ -1349,7 +1349,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td rowspan="2">per-token</td>
-                <td rowspan="2">支持kv_dtype为INT8、INT4(INT32)、FLOAT8_E4M3FN</td>
+                <td rowspan="2">支持kv_dtype为INT8、INT4(INT32)</td>
                 <td>Q_S>1</td>
                 <td rowspan="2">1</td>
                 <td> shape为(1, B, S)，( B, S)。数据类型固定为FLOAT32</td>
@@ -1361,33 +1361,27 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <tr>
                 <td>per-tensor叠加per-head</td>
                 <td>支持kv_dtype为INT8</td>
-                <td>Q_S=1</td>
+                <td>-</td>
                 <td>2</td>
                 <td>shape为(N),数据类型和query数据类型相同</td>
             </tr>
-            <tr>
-                <td>per-token叠加per-head</td>
-                <td>支持kv_dtype为INT8、INT4(INT32)</td>
-                <td>Q_S=1</td>
-                <td>3</td>
-                <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
+            <td>per-token叠加per-head</td>
+            <td>支持kv_dtype为INT8、INT4(INT32)</td>
+            <td>-</td>
+            <td>3</td>
+            <td>shape为(B, N, S)，数据类型固定为FLOAT32</td>
             </tr>
-            <tr>
-                <td rowspan="2">per-token模式使用page attention管理scale/offset</td>
-                <td rowspan="2">支持kv_dtype为INT8、FLOAT8_E4M3FN</td>
-                <td>Q_S>1</td>
-                <td rowspan="2">4</td>
-                <td rowspan="2">shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
+            <td>per-token模式使用page attention管理scale/offset</td>
+            <td>支持kv_dtype为INT8</td>
+            <td>-</td>
+            <td>4</td>
+            <td>shape为(blocknum, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
-            <tr>
-                <td>Q_S=1</td>
-            </tr>
-            <tr>
-                <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
-                <td>支持kv_dtype为INT8</td>
-                <td>Q_S=1</td>
-                <td>5</td>
-                <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
+            <td>per-token叠加per-head模式并使用page attention管理scale/offset</td>
+            <td>支持kv_dtype为INT8</td>
+            <td>-</td>
+            <td>5</td>
+            <td>shape为(blocknum, N, blocksize)，数据类型固定为FLOAT32</td>
             </tr>
             <tr>
                 <td rowspan="2"> key支持per-channel叠加value支持per-token</td>
@@ -1413,9 +1407,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td colspan="8">
                     <ul>
                         <li>INT4(INT32)、FLOAT4_E2M1伪量化场景不支持后量化</li>
-                        <li>FLOAT8_E4M3伪量化场景下，当keyAntiquantMode和valueAntiquantMode为1或4时不支持后量化</li>
                         <li>INT8伪量化场景下，当keyAntiquantMode=0且valueAntiquantMode=1时，query和output仅支持FP16</li>
-                        <li>INT8/INT4(INT32)伪量化场景下，当keyAntiquantMode和valueAntiquantMode为2/3/4/5时，Q_S仅支持1</li>
                     </ul>
                 <td>
             <tr>
@@ -1448,8 +1440,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                             MLA场景blocksize需要16对齐且最大不超过1024；
                             GQA场景且query、key、value的headdim=64/128时，blocksize需要16对齐且最大不超过1024；
                             GQA场景且query、key、value的headdim≠64/128，Q_S>1时，blocksize需要128对齐且最大不超过512；
-                            GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512；
-                            在MLA全量化场景下，blocksize需等于128。</li>
+                            GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，blockSize需要传入非0值, 且blocksize最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，Q_S=1时：</li>
                             key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；</br>
@@ -1921,12 +1912,12 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <tr>
             <td rowspan="2">MLA</td>
             <td>queryRope</td>
-            <td>dtype与query一致，shape中b、n、s与query一致，d为64</td>
+            <td>dtype与query一致,shape中b、n、s与query一致，d为64</td>
             <td>-</td>
         </tr>
         <tr>
             <td>keyRope</td>
-            <td>dtype与key一致，shape中b、n、s与key一致，d为64</td>
+            <td>dtype与key一致,shape中b、n、s与key一致，d为64</td>
             <td>kv为tensorlist时，keyRope的shape中b需要与tensorlist长度保持一致，n、s需要与tensorlist中每个tensor的n、s相等，d为64</td>
         </tr>
         <tr>

@@ -19,7 +19,7 @@
 #include <iostream>
 #include <fstream>
 #include <tikicpulib.h>
-#include "kernel_operator.h"
+#include "context.h"
 #include "tests/utils/log.h"
 #include "tests/utils/platform.h"
 
