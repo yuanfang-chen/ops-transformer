@@ -1569,6 +1569,7 @@ FusedInferAttentionScore算子约束分为4个档位，按约束复杂程度递�
     - PostQuant 场景下，当存在 prefix 时，仅支持输出 attenOut 的数据类型为 INT8
   - 伪量化
     - PostQuant 场景下，输出 attenOut 的数据类型仅支持与输入 Key、Value 数据类型相同
+    - 当 keyAntiquantMode 和 valueAntiquantMode 为 per-token 或 per-token 使用 page attention 管理 scale/offset，query 数据类型为 FP16/BF16 且 key/value 数据类型为FLOAT8_E4M3FN 时，不支持叠加后量化
 
 #### Paged Attention参数组
 
