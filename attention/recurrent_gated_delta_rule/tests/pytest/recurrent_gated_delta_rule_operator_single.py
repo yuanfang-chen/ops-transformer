@@ -10,12 +10,6 @@
 import test
 import torch
 import torch_npu
-import numpy as np
-import math, copy
-import torch
-import torch_npu
-import torchair
-import torch.nn as nn
 
 from recurrent_gated_delta_rule_golden import run_recurrent_gated_delta_rule_eager, cpu_recurrent_gated_delta_rule
 

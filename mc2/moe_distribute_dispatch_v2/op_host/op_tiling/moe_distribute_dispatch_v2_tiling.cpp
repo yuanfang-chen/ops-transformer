@@ -390,7 +390,8 @@ static ge::graphStatus CheckQuantModeAndScales(const gert::TilingContext *contex
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) 
         && ((xDesc->GetDataType() == ge::DT_HIFLOAT8) || (xDesc->GetDataType() == ge::DT_FLOAT8_E5M2) 
-        || (xDesc->GetDataType() == ge::DT_FLOAT8_E4M3FN)),
+        || (xDesc->GetDataType() == ge::DT_FLOAT8_E4M3FN) || (xDesc->GetDataType() == ge::DT_FLOAT4_E2M1)
+        || (xDesc->GetDataType() == ge::DT_FLOAT4_E1M2)),
         OP_LOGE(nodeName, "The scales should not be nullptr when quantMode is %u and X datatype is %s.",
         quantMode, Ops::Base::ToString(xDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) 
@@ -427,6 +428,10 @@ static bool CheckTensorDataTypeNonQuant(const gert::TilingContext *context,
         OP_TILING_CHECK((xDesc->GetDataType() == ge::DT_HIFLOAT8) && 
             (scalesDesc->GetDataType() != ge::DT_FLOAT),
             OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
+            Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
+        OP_TILING_CHECK(((xDesc->GetDataType() == ge::DT_FLOAT4_E2M1) ||
+            (xDesc->GetDataType() == ge::DT_FLOAT4_E1M2)) && (scalesDesc->GetDataType() != ge::DT_FLOAT8_E8M0),
+            OP_LOGE(nodeName, "scales datatype is invalid, datatype should be e8m0, but is %s.",
             Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
         OP_TILING_CHECK((scalesDesc->GetDataType() != ge::DT_FLOAT) && 
             (scalesDesc->GetDataType() != ge::DT_FLOAT8_E8M0),
@@ -1119,6 +1124,14 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     OP_TILING_CHECK((xDim1 < hMin) || (xDim1 > hMax), OP_LOGE(nodeName,
         "xShape dims1(H) should be in [%ld, %ld], but got %ld.", hMin, hMax, xDim1), return ge::GRAPH_FAILED);
     tilingData.moeDistributeDispatchV2Info.h = static_cast<uint32_t>(xDim1);
+
+    auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+    if ((expandXDesc->GetDataType() == ge::DT_FLOAT4_E2M1) || (expandXDesc->GetDataType() == ge::DT_FLOAT4_E1M2)) {
+        OP_TILING_CHECK(xDim1 % EVEN_ALIGN,
+            OP_LOGE(nodeName,
+            "When expandx data type is FLOAT_E2M1/FLOAT_E1M2, the last axis should be even, please check."),
+            return ge::GRAPH_FAILED);
+    }
 
     // 校验expert_id的维度并设k
     int64_t moeExpertNum = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.moeExpertNum);
@@ -2049,9 +2062,8 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         // 每个token发往k个专家时额外需带上专家索引、topk权重、量化系数、到达标志位共4个信息，这些信息对齐到32字节
         const uint64_t extraTokenInfoSize = 4 * ((info.k + 7) / 8 * 8) * sizeof(uint32_t);
         const uint64_t perTokenSize = info.h * sizeofDtypeX + extraTokenInfoSize;
-        uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
-        maxRecvTokenNum = (maxRecvTokenNum + BUFFER_ALIGN - 1) / BUFFER_ALIGN * BUFFER_ALIGN;
-        minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
+        uint64_t maxRecvTokenSize = (maxBs * perTokenSize + BUFFER_ALIGN - 1) / BUFFER_ALIGN * BUFFER_ALIGN;
+        minHcclBuffSize = maxRecvTokenSize * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM) + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
             OP_LOGE(nodeName,
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * Align512(maxBs "

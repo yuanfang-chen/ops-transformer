@@ -11,7 +11,6 @@ import torch
 import torch_npu
 import torchair
 import numpy as np
-import torch.nn as nn
 from torch_npu.testing.testcase import TestCase, run_tests
 import logging
 import datetime
@@ -325,8 +324,8 @@ def run_recurrent_gated_delta_rule_eager(B, mtp, nk, nv, dk, dv, actual_seq_leng
         return
     for i in range(B):
         act_seq = actual_seq_lengths[i]
-        if act_seq < 0 or act_seq > mtp:
-            print(f"Error: actual_seq_lengths[{i}] is {act_seq}, it should >= 0 and <= mtp({mtp})")
+        if act_seq <= 0 or act_seq > mtp:
+            print(f"Error: actual_seq_lengths[{i}] is {act_seq}, it should > 0 and <= mtp({mtp})")
             return
         if has_num_accepted_tokens == True:
             accepted_token = num_accepted_tokens[i]
@@ -354,9 +353,6 @@ def run_recurrent_gated_delta_rule_eager(B, mtp, nk, nv, dk, dv, actual_seq_leng
     act_seq_len = torch.tensor(actual_seq_lengths, dtype=torch.int32)
     ssm_state_indices = torch.tensor(ssm_state_indices, dtype=torch.int32)
 
-    # 可加入归一化使数据更合理
-    # query = torch.nn.functional.normalize(query, p=2, dim=-1)
-    # key = torch.nn.functional.normalize(key, p=2, dim=-1)
     # ======================== gen input data finish =============================
 
     # ======================== execute cpu start =================================
@@ -442,14 +438,12 @@ if __name__ == "__main__":
             args.nv,
             args.dk,
             args.dv,
-            args.seqused,
             args.actual_seq_lengths,
             args.ssm_state_indices,
             args.has_gamma,
             args.has_gamma_k,
             args.has_num_accepted_tokens,
             args.scale_value,
-            args.num_accepted_tokens,
             args.block_num,
             data_type,
             args.query_datarange,

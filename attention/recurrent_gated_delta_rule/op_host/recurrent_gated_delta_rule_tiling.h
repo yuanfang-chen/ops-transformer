@@ -12,8 +12,8 @@
  * \file recurrent_gated_delta_rule_tiling.h
  * \brief
  */
-#ifndef __OP_HOST_RECURRENT_GETED_DELTA_RULE_TILING_H__
-#define __OP_HOST_RECURRENT_GETED_DELTA_RULE_TILING_H__
+#ifndef RECURRENT_GATED_DELTA_RULE_TILING_H
+#define RECURRENT_GATED_DELTA_RULE_TILING_H
 #include <tiling/tiling_api.h>
 #include "register/tilingdata_base.h"
 #include "tiling_base/tiling_base.h"
@@ -76,6 +76,7 @@ protected:
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
     ge::graphStatus AnalyzeFormat();
+    ge::graphStatus CheckOptionalInputContext(const size_t optionalIndex, const std::string &optionalName);
 
     bool CheckDim(const gert::Shape shape, const size_t dim, const std::string &dimDesc);
     bool CheckFormat(ge::Format format, const std::string &Desc);
