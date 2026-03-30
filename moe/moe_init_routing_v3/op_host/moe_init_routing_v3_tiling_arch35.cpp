@@ -210,8 +210,8 @@ private:
     // 各阶段TilingData计算函数
     MultipleParams GetMultipleParams();
     PerLoopParams GetPerLoopParams(MultipleParams &multipleParams, int64_t perCoreIndicesElements);
-    ge::graphStatus Tiling4GatherOutCompute();
-    ge::graphStatus Tiling4GatherOutMxQuant();
+    void Tiling4GatherOutCompute();
+    void Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
     void Tiling4VMSMiddleCompute();
     void Tiling4VBSCompute();
@@ -403,9 +403,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::DoOpTiling()
     Tiling4SortOutCompute();
     Tiling4ExpertTokensCountCompute();
     if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN) {
-        MIRV3_CHECK_GE_RET(Tiling4GatherOutMxQuant());
+        Tiling4GatherOutMxQuant();
     } else {
-        MIRV3_CHECK_GE_RET(Tiling4GatherOutCompute());
+        Tiling4GatherOutCompute();
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1294,7 +1294,7 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
     return perLoopParams;
 }
 
-ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
+void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()");
 
@@ -1338,7 +1338,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     gatherOutTiling->activeNum = tilingDataPtr_->activeNum;
 
     LogGatherOutTilingData();
-    return ge::GRAPH_SUCCESS;
+    return;
 }
 
 int64_t MoeInitRoutingV3Arch35TilingClass::CalcMaxRowIdxPerLoopMxQuant(int64_t perLoopCols)
@@ -1356,7 +1356,7 @@ int64_t MoeInitRoutingV3Arch35TilingClass::CalcMaxRowIdxPerLoopMxQuant(int64_t p
     return (availUbSize_ - (xInSize + scaleSize + xOutSize)) / static_cast<int64_t>(sizeof(int32_t));
 }
 
-ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
+void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()");
 
@@ -1414,7 +1414,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutMxQuant()
     gatherOutTiling->activeNum = tilingDataPtr_->activeNum;
 
     LogGatherOutTilingData();
-    return ge::GRAPH_SUCCESS;
+    return;
 }
 
 REGISTER_OPS_TILING_TEMPLATE(MoeInitRoutingV3, MoeInitRoutingV3Arch35TilingClass,
