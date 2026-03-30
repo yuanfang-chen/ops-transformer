@@ -24,6 +24,38 @@ using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingDa
 using WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlock;
 static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
+
+__aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
+    GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR antiquantScale, GM_ADDR antiquantOffset,
+    GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR tiling, AscendC::TPipe *tPipe)
+{
+    GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, gmmWeightQuantParam, gmmBaseParams_, tiling);
+    GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, mmTilingData, mmTilingData_, tiling);
+
+    GROUPED_MATMUL::GMMWeightQuantResplitController<DTYPE_X, DTYPE_WEIGHT, DTYPE_ANTIQUANT_SCALE, DTYPE_SCALE,
+                                                    DTYPE_PER_TOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
+                                                    WeightQuantMatmulBasicBlock, MXA8W4_NZNK,
+                                                    VEC_ANTIQUANT_CONFIG_DYNAMIC>
+        op;
+    op.Init(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
+            &mmTilingData_, tiling, tPipe);
+    op.Process();
+}
+
+template <int8_t W_TYPE, int8_t OFFSET_OR_BIAS_EXIT, int8_t C_QUANT_TYPE, int8_t W_QUANT_TYPE, int8_t WQ_B_TRANS,
+          int8_t WQ_A_TRANS, int8_t TEMPLATE_CUSTOM_SC, int8_t ALGORITHM_SUB_CATEGORY, int8_t ALGORITHM_CATEGORY>
+__aicore__ inline constexpr bool IsMxA8W4VectorAntiQuantResplit()
+{
+    return W_TYPE == WQGMM_FRACTAL_NZ &&
+           OFFSET_OR_BIAS_EXIT == WQGMM_ANTIQUANT_OFFSET_NOT_EXIST_BIAS_NOT_EXIST &&
+           C_QUANT_TYPE == WQGMM_NONE &&
+           W_QUANT_TYPE == WQGMM_MX &&
+           WQ_B_TRANS == WQGMM_TRANS &&
+           WQ_A_TRANS == WQGMM_NO_TRANS &&
+           TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_DYNAMIC_BUF_NUM_4 &&
+           ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT &&
+           ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT;
+}
 #endif
 
 using namespace AscendC;
@@ -45,20 +77,11 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
     REGISTER_TILING_DEFAULT(GMMWeightQuantTilingData);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     #if ORIG_DTYPE_X == DT_FLOAT8_E4M3FN
-        if constexpr (W_TYPE == WQGMM_FRACTAL_NZ && OFFSET_OR_BIAS_EXIT == WQGMM_ANTIQUANT_OFFSET_NOT_EXIST_BIAS_NOT_EXIST
-            && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_MX && WQ_B_TRANS == WQGMM_TRANS
-            && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_DYNAMIC_BUF_NUM_4
-            && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
-            GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, gmmWeightQuantParam, gmmBaseParams_, tiling);
-            GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, mmTilingData, mmTilingData_, tiling);
-            GMMWeightQuantResplitController<DTYPE_X, DTYPE_WEIGHT, DTYPE_ANTIQUANT_SCALE, DTYPE_SCALE,
-                                            DTYPE_PER_TOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
-                                            WeightQuantMatmulBasicBlock, MXA8W4_NZNK,
-                                            VEC_ANTIQUANT_CONFIG_DYNAMIC>
-                op;
-            op.Init(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y,
-                    &gmmBaseParams_, &mmTilingData_, tiling, &tPipe);
-            op.Process();
+        if constexpr (IsMxA8W4VectorAntiQuantResplit<W_TYPE, OFFSET_OR_BIAS_EXIT, C_QUANT_TYPE, W_QUANT_TYPE,
+                                                     WQ_B_TRANS, WQ_A_TRANS, TEMPLATE_CUSTOM_SC,
+                                                     ALGORITHM_SUB_CATEGORY, ALGORITHM_CATEGORY>()) {
+            LaunchMxA8W4VectorAntiQuantResplit(x, weight, bias, scale, antiquantScale, antiquantOffset, groupList,
+                                               perTokenScale, y, tiling, &tPipe);
         }
     #endif
 #endif

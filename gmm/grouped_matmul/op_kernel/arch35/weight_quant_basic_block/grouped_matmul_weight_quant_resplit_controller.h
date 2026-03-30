@@ -46,6 +46,9 @@ public:
 
 private:
     __aicore__ inline void InitOffsetParam(BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM]);
+    __aicore__ inline void RunBlockRange(BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM],
+                                         BasicBlockControlParam &ctrlParam, uint64_t basicBlockCount,
+                                         uint64_t basicBlockSize);
     __aicore__ inline void SplitNByMultiCore(BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM],
                                              BasicBlockControlParam &ctrlParam, uint64_t basicBlockCount,
                                              uint64_t basicBlockSize);
@@ -150,20 +153,11 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
             ctrlParam.basicBlockLimit = startBasicBlockId;
             for (ctrlParam.mOffset = 0; ctrlParam.mOffset < ctrlParam.mSize; ctrlParam.mOffset += ctrlParam.mL1Size) {
                 ctrlParam.nOffset = 0;
-                // 主块
-                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->mainBlockCount,
-                                  gmmBaseTiling_->mainBlockSize);
-                ctrlParam.basicBlockLimit += gmmBaseTiling_->mainBlockCount;
-
-                // 第一段尾块
-                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->firstTailBlockCount,
-                                  gmmBaseTiling_->firstTailBlockSize);
-                ctrlParam.basicBlockLimit += gmmBaseTiling_->firstTailBlockCount;
-
-                // 第二段尾块
-                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->secondTailBlockCount,
-                                  gmmBaseTiling_->secondTailBlockSize);
-                ctrlParam.basicBlockLimit += gmmBaseTiling_->secondTailBlockCount;
+                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->mainBlockCount, gmmBaseTiling_->mainBlockSize);
+                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->firstTailBlockCount,
+                              gmmBaseTiling_->firstTailBlockSize);
+                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->secondTailBlockCount,
+                              gmmBaseTiling_->secondTailBlockSize);
             }
             startBasicBlockId = ctrlParam.basicBlockLimit % gmmBaseTiling_->coreNum;
         }
@@ -183,19 +177,31 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
                                                        biasType, yType, BasicBlock, wqmmConfig, vecConfig>::InitOffsetParam(
     BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM])
 {
-    offsetParam[0].kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
-    offsetParam[0].kaL1Size = offsetParam[0].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
+    const uint64_t kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
+    const uint64_t kAlign = CeilAlign(gmmBaseTiling_->kSize, static_cast<uint64_t>(BLOCK_CUBE));
+    const uint64_t nAlign = CeilAlign(gmmBaseTiling_->nSize, static_cast<uint64_t>(BLOCK_CUBE));
+    offsetParam[0].kbL1Size = kbL1Size;
+    offsetParam[0].kaL1Size = kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
     offsetParam[0].kSize = gmmBaseTiling_->kSize;
     offsetParam[0].nSize = gmmBaseTiling_->nSize;
-    offsetParam[0].kAlign = CeilAlign(gmmBaseTiling_->kSize, static_cast<uint64_t>(BLOCK_CUBE));
-    offsetParam[1].kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
-    offsetParam[1].kaL1Size = offsetParam[0].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
-    offsetParam[1].kSize = offsetParam[0].kSize;
-    offsetParam[1].nSize = offsetParam[0].nSize;
-    offsetParam[1].kAlign = offsetParam[0].kAlign;
+    offsetParam[0].kAlign = kAlign;
+    offsetParam[0].nAlign = nAlign;
+    offsetParam[1] = offsetParam[0];
+}
 
-    offsetParam[0].nAlign = CeilAlign(gmmBaseTiling_->nSize, static_cast<uint64_t>(BLOCK_CUBE));
-    offsetParam[1].nAlign = offsetParam[0].nAlign;
+template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
+          typename biasType, typename yType,
+          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
+                    const VecAntiQuantConfig &>
+          class BasicBlock,
+          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
+__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
+                                                       biasType, yType, BasicBlock, wqmmConfig, vecConfig>::RunBlockRange(
+    BasicBlockOffsetParam offsetParam[BASIC_BLOCK_PROCESS_NUM], BasicBlockControlParam &ctrlParam,
+    uint64_t basicBlockCount, uint64_t basicBlockSize)
+{
+    SplitNByMultiCore(offsetParam, ctrlParam, basicBlockCount, basicBlockSize);
+    ctrlParam.basicBlockLimit += basicBlockCount;
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,

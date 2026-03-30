@@ -134,7 +134,7 @@ private:
 
     TEventID vecEventIdAntiQuantYVToMte2_[UB_ANTI_QUANT_Y_BUFFER_NUM];
 
-    constexpr static UbBufferInfo UB_BUFFER_INFO = GetBufferConfig<xType, wqmmConfig, vecConfig>();
+    constexpr static UbBufferInfo UB_BUFFER_INFO = GetMxA8W4NzBufferInfo(vecConfig);
 };
 
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM

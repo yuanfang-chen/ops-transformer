@@ -23,12 +23,10 @@
 #include "kernel_operator_intf.h"
 #endif
 #include "tool.h"
-#include "weight_quant_basic_block_base.h"
 #include "weight_quant_cube_compute.h"
 #include "weight_quant_vec_compute.h"
 
 using AscendC::GetSubBlockIdx;
-using AscendC::IsSameType;
 using AscendC::LocalTensor;
 using AscendC::TPipe;
 using AscendC::TPosition;
@@ -37,7 +35,7 @@ namespace WeightQuantBatchMatmulV2::Arch35 {
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-class WeightQuantMatmulBasicBlock : public WeightQuantMatmulBasicBlockBaseClass {
+class WeightQuantMatmulBasicBlock {
 public:
     __aicore__ inline WeightQuantMatmulBasicBlock(){};
     __aicore__ inline void Init(bool hasBias, uint64_t aPrefetchSize,

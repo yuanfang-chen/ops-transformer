@@ -106,8 +106,7 @@ struct UbBufferInfo {
     uint32_t antiQuantScaleMaskBufferSize;
 };
 
-template <const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
+__aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo(const VecAntiQuantConfig &vecConfig)
 {
     return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
             .weightInputLowbitUbTotalSize = 64 * GetKBUnit<int8_t>(), // 64KB
@@ -125,12 +124,6 @@ __aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
             .antiQuantOffsetUbSingleBufferSize = 0,
             .highBitDataUbSingleBufferSize = 128 * GetKBUnit<int8_t>() / QUADRUPLE_BUFFER_NUM,
             .antiQuantScaleMaskBufferSize = 0};
-}
-
-template <typename xType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ constexpr UbBufferInfo GetBufferConfig()
-{
-    return GetMxA8W4NzBufferInfo<vecConfig>();
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 #endif  // GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
