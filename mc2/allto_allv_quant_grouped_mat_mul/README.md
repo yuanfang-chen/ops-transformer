@@ -113,7 +113,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>gmmWeight</td>
     <td>输入</td>
     <td>GroupedMatMul计算的右矩阵。</td>
-    <td>与gmmX保持一致</td>
+    <td>HIFLOAT8</td>
     <td>ND</td>
     <td>支持3维，shape为(e, H1, N1)。</td>
     <td>√（仅适用转置场景）</td>
@@ -167,7 +167,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <td>mmWeightOptional</td>
     <td>输入</td>
     <td>可选输入，共享专家MatMul计算中的右矩阵，需与mmXOptional同时传入或同为nullptr。</td>
-    <td>与mmX保持一致</td>
+    <td>与gmmWeight保持一致</td>
     <td>ND</td>
     <td>支持2维，shape为(H2, N2)。</td>
     <td>√（仅适用转置场景）</td>
@@ -283,7 +283,7 @@ aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(
     <tr>
     <td>groupSize</td>
     <td>输入</td>
-    <td>当前版本不支持，传nullptr。</td>
+    <td>pertensor量化场景仅支持传入0。</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
