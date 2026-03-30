@@ -71,7 +71,7 @@ public:
                                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe,
                                 isA2avGmmFlag);
         }
-        computeScaleGm_ = (isMxSceneFlag_) ? gmmxScaleCommOutGm_ : gmmxScaleGm_;
+        computeScaleGm_ = (isMxSceneFlag_) ? gmmxScaleCommOutGm_ : gmmxScaleGM; // 需要赋值为全局变量
         computeOp.Init(commOutGm_, gmmweightGM, computeScaleGm_, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
                        &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe, isA2avGmmFlag);
     }
