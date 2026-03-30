@@ -39,8 +39,10 @@ constexpr int64_t READ_INDEX_BY_ROW = 2;
 extern aclnnStatus aclnnInnerMoeFinalizeRoutingV2GetWorkspaceSize(
     const aclTensor* expandedX, const aclTensor* expandedRowIdx, const aclTensor* x1Optional,
     const aclTensor* x2Optional, const aclTensor* biasOptional, const aclTensor* scalesOptional,
-    const aclTensor* expertIdxOptional, int64_t dropPadMode, const aclTensor* out, uint64_t* workspaceSize,
-    aclOpExecutor** executor);
+    const aclTensor* expertIdxOptional, const aclTensor* xOptional, const aclTensor* a1Optional,
+    const aclTensor* a2Optional, const aclTensor* vOptional, int64_t dropPadMode, const aclIntArray* zeroExpertRange,
+    const aclIntArray* copyExpertRange, const aclIntArray* constantExpertRange, const aclTensor* out,
+    uint64_t* workspaceSize, aclOpExecutor** executor);
 extern aclnnStatus aclnnInnerMoeFinalizeRoutingV2(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
 extern aclnnStatus aclnnInnerMoeTokenUnpermuteGetWorkspaceSize(
