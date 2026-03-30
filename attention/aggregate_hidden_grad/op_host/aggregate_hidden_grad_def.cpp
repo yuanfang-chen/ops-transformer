@@ -25,9 +25,18 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
-        this->Input("input").ParamType(REQUIRED).DataType({ge::DT_FLOAT16, ge::DT_BF16}).FormatList({ge::FORMAT_ND});
-        this->Input("weight").ParamType(REQUIRED).DataType({ge::DT_FLOAT16, ge::DT_BF16}).FormatList({ge::FORMAT_ND});
-        this->Input("mask").ParamType(REQUIRED).DataType({ge::DT_UINT8, ge::DT_UINT8}).FormatList({ge::FORMAT_ND});
+        this->Input("input")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+        this->Input("weight")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+        this->Input("mask")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_UINT8, ge::DT_UINT8})
+            .FormatList({ge::FORMAT_ND});
 
         this->Output("grad_input")
             .ParamType(REQUIRED)
