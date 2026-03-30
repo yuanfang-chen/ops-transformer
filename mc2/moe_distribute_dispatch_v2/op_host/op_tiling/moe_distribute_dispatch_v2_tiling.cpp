@@ -1446,7 +1446,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistri
 }
 
 static ge::graphStatus CheckAndCalWinSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
-    const char *nodeName, const bool isSetFullMeshV2, uint32_t localMoeExpertNum, bool isLayered)
+    const char *nodeName, const bool isSetFullMeshV2, uint32_t localMoeExpertNum, bool isLayered, DispatchV2Config &config)
 {
     CheckWinSizeData winSizeData;
     winSizeData.localMoeExpertNum = localMoeExpertNum;
@@ -1461,6 +1461,7 @@ static ge::graphStatus CheckAndCalWinSize(const gert::TilingContext *context, Mo
     winSizeData.tpWorldSize = static_cast<uint64_t>(tilingData.moeDistributeDispatchV2Info.tpWorldSize);
     winSizeData.isSetFullMeshV2 = isSetFullMeshV2;
     winSizeData.isLayered = isLayered;
+    winSizeData.isMc2Context = config.isMc2Context;
     OP_TILING_CHECK(CheckWinSize(context, nodeName, winSizeData) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Get WinSize failed."), return ge::GRAPH_FAILED);
     tilingData.moeDistributeDispatchV2Info.totalWinSizeEp = winSizeData.totalWinSizeEp;
@@ -1697,16 +1698,9 @@ ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext 
     }
 
     // 校验win区大小
-    if (!config.isMc2Context) {
-        OP_TILING_CHECK(CheckAndCalWinSize(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum, isLayered) != ge::GRAPH_SUCCESS,
-            OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
-    } else {
-        auto attrs = context->GetAttrs();
-        auto cclBuffSizePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(config.attrCclBufferSizeIndex));
-        OP_TILING_CHECK(cclBuffSizePtr == nullptr || *cclBuffSizePtr < 0 ,
-            OP_LOGE(nodeName, "cclBuffSizePtr is invalid."), return ge::GRAPH_FAILED);
-        tilingData->moeDistributeDispatchV2Info.totalWinSizeEp = *cclBuffSizePtr;
-    }
+    OP_TILING_CHECK(CheckAndCalWinSize(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum, isLayered, config) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
+
     OP_TILING_CHECK(SetWorkSpace(context, nodeName) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
@@ -2055,9 +2049,8 @@ static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingCon
         // 每个token发往k个专家时额外需带上专家索引、topk权重、量化系数、到达标志位共4个信息，这些信息对齐到32字节
         const uint64_t extraTokenInfoSize = 4 * ((info.k + 7) / 8 * 8) * sizeof(uint32_t);
         const uint64_t perTokenSize = info.h * sizeofDtypeX + extraTokenInfoSize;
-        uint64_t maxRecvTokenNum = maxBs * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM);
-        maxRecvTokenNum = (maxRecvTokenNum + BUFFER_ALIGN - 1) / BUFFER_ALIGN * BUFFER_ALIGN;
-        minHcclBuffSize = maxRecvTokenNum * perTokenSize + flagBuffSize;
+        uint64_t maxRecvTokenSize = (maxBs * perTokenSize + BUFFER_ALIGN - 1) / BUFFER_ALIGN * BUFFER_ALIGN;
+        minHcclBuffSize = maxRecvTokenSize * (info.moeExpertNum + epWorldSize / RANK_NUM_PER_NODE_A2 * BUFFER_NUM) + flagBuffSize;
         if (minHcclBuffSize > hcclBuffSize) {
             OP_LOGE(nodeName,
                     "HCCL_BUFFSIZE is too small, min required HCCL_BUFFSIZE ((moeExpertNum + epWorldSize / 4) * Align512(maxBs "
