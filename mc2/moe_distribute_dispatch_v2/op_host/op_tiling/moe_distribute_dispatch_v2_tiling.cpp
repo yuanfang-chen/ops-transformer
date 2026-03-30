@@ -429,7 +429,7 @@ static bool CheckTensorDataTypeNonQuant(const gert::TilingContext *context,
             (scalesDesc->GetDataType() != ge::DT_FLOAT),
             OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
             Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
-        OP_TILING_CHECK(((xDesc->GetDataType() == ge::DT_FLOAT4_E2M1) || 
+        OP_TILING_CHECK(((xDesc->GetDataType() == ge::DT_FLOAT4_E2M1) ||
             (xDesc->GetDataType() == ge::DT_FLOAT4_E1M2)) && (scalesDesc->GetDataType() != ge::DT_FLOAT8_E8M0),
             OP_LOGE(nodeName, "scales datatype is invalid, datatype should be e8m0, but is %s.",
             Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
