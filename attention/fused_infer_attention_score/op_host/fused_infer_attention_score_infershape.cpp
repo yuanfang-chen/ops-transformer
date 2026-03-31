@@ -19,7 +19,7 @@
 
 using namespace ge;
 
-namespace ops {
+namespace ops { 
 static constexpr uint32_t FIA_LAYOUT_DIM0 = 0;
 static constexpr uint32_t FIA_LAYOUT_DIM1 = 1;
 static constexpr uint32_t FIA_LAYOUT_DIM2 = 2;
