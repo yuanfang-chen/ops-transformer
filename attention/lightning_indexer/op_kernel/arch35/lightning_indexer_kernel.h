@@ -62,9 +62,11 @@ public:
     __aicore__ inline void Process();
 
     // =================================类型定义区=================================
+    static constexpr bool DT_W_FLAG = LIT::weightsTypeFlag;
     using Q_T = typename LIT::queryType;
     using K_T = typename LIT::keyType;
     using OUT_T = typename LIT::outputType;
+    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>::type>::weightsType;
     static constexpr bool PAGE_ATTENTION = LIT::pageAttention;
     static constexpr LI_LAYOUT Q_LAYOUT_T = LIT::layout;
     static constexpr LI_LAYOUT K_LAYOUT_T = LIT::keyLayout;
@@ -98,7 +100,7 @@ protected:
     // ================================Global Buffer区=================================
     GlobalTensor<Q_T> queryGm;
     GlobalTensor<K_T> keyGm;
-    GlobalTensor<Q_T> weightsGm;
+    GlobalTensor<W_T> weightsGm;
 
     GlobalTensor<int32_t> indiceOutGm;
     GlobalTensor<int32_t> blockTableGm;
@@ -415,7 +417,7 @@ __aicore__ inline void LIPreload<LIT>::Init(__gm__ uint8_t *query, __gm__ uint8_
     if ASCEND_IS_AIV {
         vectorService.InitParams(constInfo, tiling);
         indiceOutGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
-        weightsGm.SetGlobalBuffer((__gm__ Q_T *)weights);
+        weightsGm.SetGlobalBuffer((__gm__ W_T *)weights);
         blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
         vectorService.InitVecInputTensor(weightsGm, indiceOutGm, blockTableGm);
         vectorService.InitVecWorkspaceTensor(scoreGm);

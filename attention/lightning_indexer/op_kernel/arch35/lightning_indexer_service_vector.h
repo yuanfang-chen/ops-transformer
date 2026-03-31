@@ -27,6 +27,18 @@
 namespace LIKernel {
 using namespace LICommon;
 constexpr uint32_t TRUNK_LEN_16K = 16384;
+
+template<typename Q_T, typename W_T = void>
+struct LightningIndexerTypeTraits
+{
+    using weightsType = Q_T;   // 默认：weightsType绑定Q_T
+};
+
+template<typename Q_T>
+struct LightningIndexerTypeTraits<Q_T, float>
+{
+    using weightsType = float;  // W_T=float时，强制weightsType为float
+};
 template <typename LIT>
 class LIVector {
 public:
@@ -34,7 +46,10 @@ public:
     static constexpr LI_LAYOUT Q_LAYOUT_T = LIT::layout;
     static constexpr LI_LAYOUT K_LAYOUT_T = LIT::keyLayout;
     static constexpr bool PAGE_ATTENTION = LIT::pageAttention;
+    static constexpr bool DT_W_FLAG = LIT::weightsTypeFlag;
     using Q_T = typename LIT::queryType;
+    using K_T = typename LIT::keyType;
+    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>::type>::weightsType;
 
     __aicore__ inline LIVector(){};
     __aicore__ inline void ProcessVec1(const LICommon::RunInfo &info);
@@ -43,7 +58,7 @@ public:
     __aicore__ inline void InitParams(const struct LICommon::ConstInfo &constInfo,
                                       const LITilingData *__restrict tilingData);
     __aicore__ inline void InitVecWorkspaceTensor(GlobalTensor<uint16_t> scoreGm);
-    __aicore__ inline void InitVecInputTensor(GlobalTensor<Q_T> weightsGm, GlobalTensor<int32_t> indiceOutGm,
+    __aicore__ inline void InitVecInputTensor(GlobalTensor<W_T> weightsGm, GlobalTensor<int32_t> indiceOutGm,
                                               GlobalTensor<int32_t> blockTableGm);
     __aicore__ inline void CleanInvalidOutput(int64_t invalidS1offset);
     __aicore__ inline void AllocEventID();
@@ -51,7 +66,7 @@ public:
 
 protected:
     GlobalTensor<uint16_t> scoreGm;
-    GlobalTensor<Q_T> weightsGm;
+    GlobalTensor<W_T> weightsGm;
     GlobalTensor<int32_t> indiceOutGm;
     GlobalTensor<int32_t> blockTableGm;
     // =================================常量区=================================
@@ -79,7 +94,7 @@ private:
     LocalTensor<float> resMm1UB_;
     // tmp buff for weight
     TBuf<TPosition::VECCALC> weightBuf_;
-    LocalTensor<Q_T> weightUB_;
+    LocalTensor<W_T> weightUB_;
     // tmp buff for weight cast float
     TBuf<TPosition::VECCALC> weightFloatBuf_;
     LocalTensor<float> weightFloatUB_;
@@ -130,8 +145,8 @@ __aicore__ inline void LIVector<LIT>::InitBuffers(TPipe *pipe)
 {
     pipe->InitBuffer(resMm1Buf_, 2 * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_ * sizeof(float));
     resMm1UB_ = resMm1Buf_.Get<float>();//qk
-    pipe->InitBuffer(weightBuf_, 4 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(Q_T));
-    weightUB_ = weightBuf_.Get<Q_T>();//weight
+    pipe->InitBuffer(weightBuf_, 4 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(W_T));
+    weightUB_ = weightBuf_.Get<W_T>();//weight
     pipe->InitBuffer(weightFloatBuf_, 4 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(float));
     weightFloatUB_ = weightFloatBuf_.Get<float>();//weight float
 
@@ -182,7 +197,7 @@ __aicore__ inline void LIVector<LIT>::InitParams(const struct LICommon::ConstInf
 }
 
 template <typename LIT>
-__aicore__ inline void LIVector<LIT>::InitVecInputTensor(GlobalTensor<Q_T> weightsGm,
+__aicore__ inline void LIVector<LIT>::InitVecInputTensor(GlobalTensor<W_T> weightsGm,
                                                            GlobalTensor<int32_t> indiceOutGm,
                                                            GlobalTensor<int32_t> blockTableGm)
 {
@@ -261,13 +276,13 @@ __aicore__ inline void LIVector<LIT>::ProcessVec1(const LICommon::RunInfo &info)
     WaitFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + pingpong);
     //weightsGm --> weightUB_
     int64_t weightGmOffset = info.tensorWeightsOffset + curAivS1Idx * kHeadNum_ * gSize_;
-    DataCopyPadExtParams<Q_T> padWeightsParams{false, 0, 0, 0};
+    DataCopyPadExtParams<W_T> padWeightsParams{false, 0, 0, 0};
     DataCopyExtParams wDataCopyExtParams;
     wDataCopyExtParams.blockCount = curAivS1ProcNum;
-    wDataCopyExtParams.blockLen = gSize_ * sizeof(Q_T);
+    wDataCopyExtParams.blockLen = gSize_ * sizeof(W_T);
     wDataCopyExtParams.srcStride = 0;
     wDataCopyExtParams.dstStride = 0;
-    DataCopyPad(weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(Q_T))],
+    DataCopyPad(weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(W_T))],
                 weightsGm[weightGmOffset], wDataCopyExtParams, padWeightsParams);
 
     SetFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + pingpong);
@@ -279,12 +294,16 @@ __aicore__ inline void LIVector<LIT>::ProcessVec1(const LICommon::RunInfo &info)
 
     static_assert(std::is_same_v<uint16_t, uint16_t>);
     auto outBase = vec1OutUB_[pingpong * (UB_BANK_STRIDE / sizeof(uint16_t))];
-    auto weightBase = weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(Q_T))];
+    auto weightBase = weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(W_T))];
+    auto weightFloatBase = weightFloatUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
+    if constexpr (std::is_same<W_T, float>::value) {
+        weightFloatBase = weightBase;
+    }
     auto qkBase = resMm1UB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
     auto qkVLstride = (UB_BANK_DEPTH_STRIDE / sizeof(float)) / 2 * constInfo_.mBaseSize;
     vector1::BatchMulWeightAndReduceSum(outBase, UB_BANK_DEPTH_STRIDE / sizeof(uint16_t),
                                         qkBase, qkVLstride, (uint32_t)(gSize_ * UB_BANK_DEPTH_STRIDE / sizeof(float)),
-                                        weightBase, LICommon::Align((uint64_t)gSize_, (uint64_t)16), weightFloatUB_,
+                                        weightBase, LICommon::Align((uint64_t)gSize_, (uint64_t)16), weightFloatBase,
                                         gSize_, curAivS1ProcNum);
     SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + pingpong);
     SetFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + pingpong);
