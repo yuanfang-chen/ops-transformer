@@ -12,7 +12,7 @@
 #include "opdev/common_types.h"
 #include "opdev/platform.h"
 #include "aclnn_incre_flash_attention_v3.h"
-#include "aclnnInner_incre_flash_attention.h" //该文件是自动生成，在build/autogen/inner路径下
+#include "aclnnInner_incre_flash_attention.h" // 该文件是自动生成，在build/autogen/inner路径下
 
 #ifdef __cplusplus
 extern "C" {
