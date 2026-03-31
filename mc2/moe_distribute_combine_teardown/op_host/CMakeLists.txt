@@ -8,19 +8,14 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-if (BUILD_OPEN_PROJECT)  # custom
-    target_sources(op_host_aclnnInner PRIVATE
-        moe_distribute_combine_teardown_def.cpp
-    )
-    add_modules_sources(
-        OP_API_INDEPENDENT ON 
-        OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api 
-        OP_MC2_ENABLE ON 
-        OPTYPE moe_distribute_combine_teardown moe_distribute_combine_teardown ACLNNTYPE aclnn aclnn_inner)
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
-    set(MC2_OPT ON PARENT_SCOPE)
-    set(moe_distribute_combine_teardown_depends mc2/common mc2/3rd mc2/moe_distribute_combine_setup PARENT_SCOPE)
-else() # 回黄host
-    add_mc2_modules_sources(OPTYPE moe_distribute_combine_teardown moe_distribute_combine_teardown ACLNNTYPE aclnn aclnn_inner)
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
-endif()
+target_sources(op_host_aclnnInner PRIVATE
+    moe_distribute_combine_teardown_def.cpp
+)
+add_modules_sources(
+    OP_API_INDEPENDENT ON 
+    OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api 
+    OP_MC2_ENABLE ON 
+    OPTYPE moe_distribute_combine_teardown moe_distribute_combine_teardown ACLNNTYPE aclnn aclnn_inner)
+set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
+set(MC2_OPT ON PARENT_SCOPE)
+set(moe_distribute_combine_teardown_depends mc2/common mc2/3rd mc2/moe_distribute_combine_setup PARENT_SCOPE)

@@ -8,37 +8,31 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-if (BUILD_OPEN_PROJECT)  # custom
-    target_sources(op_host_aclnnInner PRIVATE
-        matmul_allto_all_def.cpp
+target_sources(op_host_aclnnInner PRIVATE
+    matmul_allto_all_def.cpp
+)
+add_modules_sources(
+    OP_API_INDEPENDENT ON 
+    OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api 
+    OP_MC2_ENABLE ON 
+    OPTYPE matmul_allto_all matmul_allto_all ACLNNTYPE aclnn aclnn_inner)
+set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
+set(MC2_OPT ON PARENT_SCOPE)
+set(matmul_allto_all_depends mc2/common mc2/3rd PARENT_SCOPE)
+set(matmul_allto_all_apt_depends mc2/common mc2/3rd PARENT_SCOPE)
+set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    add_ops_compile_options(
+        OP_NAME MatmulAlltoAll
+        COMPUTE_UNIT Ascend950PR_9599
+        OPTIONS --cce-auto-sync=off
+                -mllvm -cce-aicore-dcci-before-kernel-end=false
+                -DENABLE_CV_COMM_VIA_SSBUF=true
     )
-    add_modules_sources(
-        OP_API_INDEPENDENT ON 
-        OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api 
-        OP_MC2_ENABLE ON 
-        OPTYPE matmul_allto_all matmul_allto_all ACLNNTYPE aclnn aclnn_inner)
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
-    set(MC2_OPT ON PARENT_SCOPE)
-    set(matmul_allto_all_depends mc2/common mc2/3rd PARENT_SCOPE)
-    set(matmul_allto_all_apt_depends mc2/common mc2/3rd PARENT_SCOPE)
-    set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
-        add_ops_compile_options(
-            OP_NAME MatmulAlltoAll
-            COMPUTE_UNIT Ascend950PR_9599
-            OPTIONS --cce-auto-sync=off
-                    -mllvm -cce-aicore-dcci-before-kernel-end=false
-                    -DENABLE_CV_COMM_VIA_SSBUF=true
+elseif("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+            add_ops_compile_options(
+                OP_NAME MatmulAlltoAll
+                OPTIONS --cce-auto-sync=off
+                        -DAICORE_EXCEPTION_RESTART
         )
-    elseif("${CONDITION_UNIT}" STREQUAL "ascend910_93")
- 	         add_ops_compile_options(
- 	             OP_NAME MatmulAlltoAll
- 	             OPTIONS --cce-auto-sync=off
- 	                     -DAICORE_EXCEPTION_RESTART
- 	     )
-    endif()
-
-else() # 回黄host
-    add_mc2_modules_sources(OPTYPE matmul_allto_all matmul_allto_all ACLNNTYPE aclnn aclnn_inner)
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
 endif()
