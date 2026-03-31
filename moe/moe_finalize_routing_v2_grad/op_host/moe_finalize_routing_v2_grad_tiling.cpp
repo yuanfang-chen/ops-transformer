@@ -567,7 +567,24 @@ ge::graphStatus Tiling4MoeFinalizeRoutingV2Grad(gert::TilingContext* context)
 
 static ge::graphStatus TilingPrepare4MoeFinalizeRoutingV2Grad(gert::TilingParseContext* context)
 {
-    (void)context;
+    OP_LOGD(context, "TilingPrepareForMoeFinalizeRountingV2Grad enter.");
+    
+    auto compileInfo = context->GetCompiledInfo<MoeFinalizeRoutingV2GradCompileInfo>();
+    OP_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
+    auto platformInfo = context->GetPlatformInfo();
+    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    compileInfo->totalCoreNum = ascendcPlatform.GetCoreNumAiv();
+    OP_CHECK_IF(
+        (compileInfo->totalCoreNum <= 0),
+        OP_LOGE(context, "TilingPrepareForMoeFinalizeRountingV2Grad fail to get core num."), return ge::GRAPH_FAILED);
+
+    uint64_t ubSize;
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
+    compileInfo->totalUbSize = static_cast<int64_t>(ubSize);
+    OP_CHECK_IF(
+        (compileInfo->totalUbSize <= 0),
+        OP_LOGE(context, "TilingPrepareForMoeFinalizeRountingV2Grad fail to get ub size."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 

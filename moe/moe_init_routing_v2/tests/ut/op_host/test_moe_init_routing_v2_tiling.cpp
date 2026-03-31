@@ -38,7 +38,7 @@ gert::TilingContextPara RunMoeInitRoutingV2Case(int64_t N, int64_t H, int64_t K,
                                       int64_t dropPadMode, int64_t countFlag, bool tokenFlag, int64_t quantMode,
                                       int64_t dqFlag, ge::DataType optionalDt, int64_t optionalDtypePosi)
 {
-    MoeInitRoutingV2CompileInfo compileInfo;
+    MoeInitRoutingV2CompileInfo compileInfo = {40, 65536};
     // 根据 optionalDtypePosi 确定数据类型
     ge::DataType dtScale = optionalDtypePosi == 0 ? optionalDt : ge::DT_FLOAT;
     ge::DataType dtOffset = optionalDtypePosi == 1 ? optionalDt : ge::DT_FLOAT;

@@ -724,7 +724,24 @@ ASCENDC_EXTERN_C ge::graphStatus TilingForMoeInitRoutingV2(gert::TilingContext *
 
 ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForMoeInitRoutingV2(gert::TilingParseContext *context)
 {
-    OP_LOGD(context->GetNodeName(), "TilingPrepareForMoeInitRoutingV2.");
+    OP_LOGD(context, "TilingPrepareForMoeInitRountingV2 enter.");
+    
+    auto compileInfo = context->GetCompiledInfo<MoeInitRoutingV2CompileInfo>();
+    OP_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
+    auto platformInfo = context->GetPlatformInfo();
+    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    compileInfo->aivNum = ascendcPlatform.GetCoreNumAiv();
+    OP_CHECK_IF(
+        (compileInfo->aivNum <= 0),
+        OP_LOGE(context, "TilingPrepareForMoeInitRountingV2 fail to get core num."), return ge::GRAPH_FAILED);
+
+    uint64_t ubSize;
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
+    compileInfo->ubSize = static_cast<int64_t>(ubSize);
+    OP_CHECK_IF(
+        (compileInfo->ubSize <= 0),
+        OP_LOGE(context, "TilingPrepareForMoeInitRountingV2 fail to get ub size."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
