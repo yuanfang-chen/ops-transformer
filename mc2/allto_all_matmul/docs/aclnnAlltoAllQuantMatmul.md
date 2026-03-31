@@ -699,7 +699,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         std::vector<op::fp16_t> biasHostData(biasShapeSize, 1);
         std::vector<float> x2ScaleHostData(x2ScaleShapeSize, 1);
         std::vector<op::fp16_t> outHostData(outShapeSize, 0);
-        std::vector<op::fp16_t> allToAllOutHostData(allToAllOutShapeSize, 0.0f);
+        std::vector<op::fp16_t> allToAllOutHostData(allToAllOutShapeSize, 0);
 
         // 创建 tensor
         ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT16, &x1);
