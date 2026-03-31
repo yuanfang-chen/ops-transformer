@@ -176,22 +176,52 @@ ge::graphStatus MaskedCausalConv1dTilingArch35::CalcLoopParams(
 // ---- SearchBestCoreSplit ----
 // Greedy H > B > S 3D inter-core search.
 // H granularity: H_REG=64 elements per tile.
+// 关键约束：hcc * bcc * scc <= coreNum_（硬件核数）
 ge::graphStatus MaskedCausalConv1dTilingArch35::SearchBestCoreSplit()
 {
+    // H 可拆分的最大份数（每个 tile 处理 H_REG=64 个 H 元素）
     uint64_t hMax = H_ / H_REG;
+
+    // 关键修正 1：hcc 起始值不能超过硬件核数
+    // 当 H 特别大时，hMax 可能远超 coreNum_，从 hMax 开始搜索毫无意义
+    uint64_t hccStart = std::min(hMax, coreNum_);
+
     uint64_t bestTotal = 0;
     uint64_t bestH = 1, bestB = 1, bestS = 1;
 
-    for (uint64_t hcc = hMax; hcc >= 1; --hcc) {
-        for (uint64_t bcc = B_; bcc >= 1; --bcc) {
-            uint64_t scc = coreNum_ / (hcc * bcc);
+    for (uint64_t hcc = hccStart; hcc >= 1; --hcc) {
+        // 在 hcc 确定后，B×S 方向最多可分配的核数
+        uint64_t maxBSByH = coreNum_ / hcc;
+        if (maxBSByH == 0) {
+            // hcc 太大，剩余核数不足分配 1 个 B×S 组合，跳过
+            continue;
+        }
+
+        // B 方向搜索上限：不能超过 maxBSByH，也不能超过 B_
+        uint64_t bccStart = std::min(B_, maxBSByH);
+
+        for (uint64_t bcc = bccStart; bcc >= 1; --bcc) {
+            // 在 hcc, bcc 确定后，S 方向最多可分配的核数
+            uint64_t maxSByHB = maxBSByH / bcc;
+            if (maxSByHB == 0) continue;
+
+            // scc 取三者最小值：
+            //   1. S_：S 维度实际大小
+            //   2. maxSByHB：核数约束下的上限
+            //   3. coreNum_ / (hcc * bcc)：核数约束（冗余但安全）
+            uint64_t scc = std::min({S_, maxSByHB, coreNum_ / (hcc * bcc)});
             if (scc == 0) scc = 1;
-            if (scc > S_) scc = S_;
+
             uint64_t total = hcc * bcc * scc;
+
+            // 关键检查：total 不能超过硬件核数（应该已经由上面约束保证，这里再确认）
+            if (total > coreNum_) continue;
+
             if (total > bestTotal) {
                 bestTotal = total;
                 bestH = hcc;  bestB = bcc;  bestS = scc;
             }
+            // 满核时提前退出
             if (bestTotal == coreNum_) goto done;
         }
         if (bestTotal == coreNum_) break;
