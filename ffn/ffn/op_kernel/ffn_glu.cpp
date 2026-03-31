@@ -314,3 +314,58 @@ __aicore__ inline void FFNGlu<T>::MM2Split()
 } // namespace FFN
 
 #endif // ASCENDC_FFN_GLU_CPP
+
+
+
+D:\code\ops-nn\index\where
+请参照上述where 目录下的文件夹和文件信息，创建一个新的名为SpatialTransformer算子的目录结构及文件
+SpatialTransformer 算子的kernel aicpu实现源码在
+D:\code\cann\canndev\ops\built-in\aicpu\impl\kernels\normalized\image\spatial_transformer.cc
+proto文件在
+D:\code\cann\canndev\ops\built-in\op_proto\inc\image_ops.h中
+test下的ut文件在
+D:\code\cann\canndev\ops\built-in\tests\ut\aicpu_test\testcase\spatial_transformer\src\spatial_transformer_utest.cpp
+
+
+根据D:\code\cann\canndev\ops\built-in\aicpu\op_info_cfg\aicpu_kernel\aicpu_kernel.ini中where 到D:\code\ops-nn\index\where\op_kernel_aicpu\where.json中信息的映射规则，
+根据ini文件中SpatialTransformer信息，在D:\code\ops-nn\index\spatial_transformer\op_kernel_aicpu\ 目录下生成spatial_transformer.json文件
+
+
+根据/mnt/d/code/ops-nn/index/where/examples/test_geir_where.cpp中的代码实现，在/mnt/d/code/ops-nn/index/spatial_transformer下新增examples目录，并
+生成test_geir_spatial_transformer.cpp源文件，SpatialTransformer的算子原型在/mnt/d/code/ops-nn/index/spatial_transformer/op_graph目录下
+
+ bash build.sh --pkg --ops=crop_and_resize
+
+
+/mnt/d/code/ops-cv
+
+apt-get install dos2unix
+
+
+source /home/runtime/ascend-toolkit/latest/bin/setenv.bash
+
+cd /mnt/d/code/ops-nn
+source /home/runtime/ascend-toolkit/latest/bin/setenv.bash
+nohup bash build.sh --pkg --ops=where > build.log 2>&1
+
+tensorflow==2.20.0
+
+问题一：
+op_kenrel 下面的漏指定规则生成json文件
+问题二：
+op_kenel 下面Cmake中CMAKE_CURRENT_SOURCE_DIR 变量错误
+问题三：
+aicpu_xx.cc  未改为aicpu_xx.cpp
+问题四：
+aicpu_xx.cc 中包含的头文件 未改为aicpu_xx_aicpu.h
+问题五：
+aicpu_xx_aicpu.cpp文件中KERNEL_LOG_ERROR未找到定义  ---原先实现未包含log.h
+问题六：
+aicpu_xx_aicpu.cpp 文件中原先未包含kernel_util.h 文件 ---强行模仿了标杆文件中的头文件，删减了之前有的部分文件
+问题七：
+搬运过来到头文件中的类成员变量被改动----，原先int64_t 被改成int32_t 很隐蔽很危险，初始化的动作也给干掉了
+问题八：
+tests 目录下op_kernel_aicpu 算子kernel 源文件中，部分实现未迁移过来
+问题九：
+test kernel下面的头文件aicpu_read_file.h文件不再使用
+
