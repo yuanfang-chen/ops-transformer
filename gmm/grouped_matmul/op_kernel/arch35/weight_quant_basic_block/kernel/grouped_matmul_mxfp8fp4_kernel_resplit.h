@@ -72,11 +72,9 @@ private:
     __gm__ xType *xGm_;
     __gm__ wType *weightGm_;
     __gm__ antiQuantScaleType *antiquantScaleGm_;
-    __gm__ xType *antiquantOffsetGm_;
     __gm__ biasType *biasGm_;
     __gm__ yType *yGm_;
     __gm__ perTokenScaleType *perTokenScaleGm_;
-    __gm__ scaleType *scaleGm_;
     GlobalTensor<int64_t> groupListGm_;
     AicBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
         aicBasicBlock_;
@@ -116,7 +114,6 @@ __aicore__ inline GMMWeightQuantResplitController<xType, wType, antiQuantScaleTy
     xGm_ = GetTensorAddr<xType>(0, x);
     weightGm_ = GetTensorAddr<wType>(0, weight);
     antiquantScaleGm_ = GetTensorAddr<antiQuantScaleType>(0, antiquantScale);
-    antiquantOffsetGm_ = GetTensorAddr<xType>(0, antiquantOffset);
     biasGm_ = GetTensorAddr<biasType>(0, bias);
     scaleGm_ = GetTensorAddr<scaleType>(0, scale);
     perTokenScaleGm_ = reinterpret_cast<__gm__ perTokenScaleType *>(perTokenScale);
@@ -151,35 +148,41 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
 
     // 缓存大小128B，对应4bit为256个元素
     bool isCacheLineUnaligned = offsetParam.kSize % 256 != 0;
+    uint64_t scaleKSize = Cgmct::Gemm::CeilDiv(kSize, 64) * 2;
 
     BasicBlockControlParam ctrlParam;
     for (uint32_t groupIdx = 0, startBasicBlockId = 0; groupIdx < gmmBaseTiling_->groupNum; ++groupIdx) {
         ctrlParam.mSize = GetSplitValueFromGroupList(groupIdx);
         if (ctrlParam.mSize > 0 && offsetParam.nSize > 0) {
+            auto tensorAGm = AscendC::Te::MakeTensor(AscendC::Te::MakeGMemPtr(xGm_), AscendC::Te::MakeNDLayout(mSize, kSize));
+            auto tensorYGm = AscendC::Te::MakeTensor(AscendC::Te::MakeGMemPtr(yGm_), AscendC::Te::MakeNDLayout(mSize, nSize));
+            auto tensorScaleAGm = AscendC::Te::MakeTensor(AscendC::Te::MakeGMemPtr(perTokenScaleGm_), AscendC::Te::MakeScaleANDLayout<fp8_e8m0_t>{}(mSize, scaleKSize));
+            auto tensorScaleBGm = AscendC::Te::MakeTensor(AscendC::Te::MakeGMemPtr(antiquantScaleGm_), AscendC::Te::MakeScaleBDNLayout<fp8_e8m0_t>{}(scaleKSize, nSize));
+
             uint64_t mBlkNum = CeilDivide(ctrlParam.mSize, static_cast<uint64_t>(mmTiling_->baseM));
             ctrlParam.mL1Size = CeilDivide(ctrlParam.mSize, mBlkNum);
-            if ASCEND_IS_AIC {
-                aicBasicBlock_.UpdateGlobalAddr(ctrlParam.mSize, offsetParam.kSize, offsetParam.nSize, xGm_, weightGm_,
-                                                antiquantScaleGm_, antiquantOffsetGm_, scaleGm_, perTokenScaleGm_,
-                                                biasGm_, yGm_, mmTiling_->isBias,
-                                                ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned);
-                PrefetchA(ctrlParam.mSize, offsetParam.kSize);
-            } else {
-                aivBasicBlock_.UpdateGlobalAddr(ctrlParam.mSize, offsetParam.kSize, offsetParam.nSize, xGm_, weightGm_,
-                                                antiquantScaleGm_, antiquantOffsetGm_, scaleGm_, perTokenScaleGm_,
-                                                biasGm_, yGm_, mmTiling_->isBias,
-                                                ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned);
-            }
+
+            bool weightL2Cacheable = ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned;
             ctrlParam.curBasicBlockId =
                 cubeBlockIdx >= startBasicBlockId ? cubeBlockIdx : cubeBlockIdx + gmmBaseTiling_->coreNum;
             ctrlParam.basicBlockLimit = startBasicBlockId;
             for (ctrlParam.mOffset = 0; ctrlParam.mOffset < ctrlParam.mSize; ctrlParam.mOffset += ctrlParam.mL1Size) {
                 ctrlParam.nOffset = 0;
-                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->mainBlockCount, gmmBaseTiling_->mainBlockSize);
-                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->firstTailBlockCount,
+
+                offsetParam.mSize = ctrlParam.mSize;
+                offsetParam.mL1Size = ctrlParam.mOffset + ctrlParam.mL1Size > ctrlParam.mSize ? ctrlParam.mSize - ctrlParam.mOffset :
+                                                                                            ctrlParam.mL1Size;
+                auto tensorBlockAGm = tensorAGm(AscendC::Te::MakeCoord(mOffset, 0), AscendC::Te::MakeShape(mL1Size, kSize));
+                auto tensorBlockScaleAGm = tensorScaleAGm(AscendC::Te::MakeCoord(mOffset, 0), AscendC::Te::MakeShape(mL1Size, scaleKSize));
+
+                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->mainBlockCount, gmmBaseTiling_->mainBlockSize);
+                ctrlParam.basicBlockLimit += gmmBaseTiling_->mainBlockCount;
+                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->firstTailBlockCount,
                               gmmBaseTiling_->firstTailBlockSize);
-                RunBlockRange(offsetParam, ctrlParam, gmmBaseTiling_->secondTailBlockCount,
+                ctrlParam.basicBlockLimit += gmmBaseTiling_->firstTailBlockCount;
+                SplitNByMultiCore(offsetParam, ctrlParam, gmmBaseTiling_->secondTailBlockCount,
                               gmmBaseTiling_->secondTailBlockSize);
+                ctrlParam.basicBlockLimit += gmmBaseTiling_->secondTailBlockCount;
             }
             startBasicBlockId = ctrlParam.basicBlockLimit % gmmBaseTiling_->coreNum;
         }
@@ -207,13 +210,10 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
                                                        vecConfig>::InitOffsetParam(BasicBlockOffsetParam &offsetParam)
 {
     const uint64_t kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
-    const uint64_t kAlign = CeilAlign(gmmBaseTiling_->kSize, static_cast<uint64_t>(BLOCK_CUBE));
     const uint64_t nAlign = CeilAlign(gmmBaseTiling_->nSize, static_cast<uint64_t>(BLOCK_CUBE));
     offsetParam.kbL1Size = kbL1Size;
-    offsetParam.kaL1Size = kbL1Size;
     offsetParam.kSize = gmmBaseTiling_->kSize;
     offsetParam.nSize = gmmBaseTiling_->nSize;
-    offsetParam.kAlign = kAlign;
     offsetParam.nAlign = nAlign;
 }
 
@@ -228,59 +228,26 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
           const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                        biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::RunBlockRange(
-    BasicBlockOffsetParam &offsetParam, BasicBlockControlParam &ctrlParam, uint64_t basicBlockCount,
-    uint64_t basicBlockSize)
-{
-    SplitNByMultiCore(offsetParam, ctrlParam, basicBlockCount, basicBlockSize);
-    ctrlParam.basicBlockLimit += basicBlockCount;
-}
-
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::SplitNByMultiCore(
+                                                       vecConfig>::SplitNByMultiCore(const TensorA &tensorBlockAGm, const TensorScaleA &tensorBlockScaleAGm, const TensorScaleB &tensorScaleBGm, const TensorY &tensorYGm,
     BasicBlockOffsetParam &offsetParam, BasicBlockControlParam &ctrlParam, uint64_t basicBlockCount,
     uint64_t basicBlockSize)
 {
     for (; ctrlParam.curBasicBlockId < ctrlParam.basicBlockLimit + basicBlockCount;
-         ctrlParam.curBasicBlockId += gmmBaseTiling_->coreNum) {
-        offsetParam.mSize = ctrlParam.mSize;
-        offsetParam.mOffset = ctrlParam.mOffset;
-        offsetParam.mL1Size = ctrlParam.mOffset + ctrlParam.mL1Size > ctrlParam.mSize ? ctrlParam.mSize - ctrlParam.mOffset :
-                                                                                       ctrlParam.mL1Size;
+         ctrlParam.curBasicBlockId += gmmBaseTiling_->coreNum) {        
         offsetParam.nOffset =
             ctrlParam.nOffset +
             ((ctrlParam.curBasicBlockId - ctrlParam.basicBlockLimit) % basicBlockCount) * basicBlockSize;
         offsetParam.nL1Size =
             offsetParam.nOffset + basicBlockSize > gmmBaseTiling_->nSize ? gmmBaseTiling_->nSize - offsetParam.nOffset :
                                                                          basicBlockSize;
-        offsetParam.yGmAddr = reinterpret_cast<GM_ADDR>(yGm_);
 
-        offsetParam.kbL1Size =
-            (offsetParam.mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
-                offsetParam.nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
-                MX_A8W4_L1_K_CONFIG_512 :
-                MX_A8W4_L1_K_CONFIG_256;
-        if (offsetParam.mL1Size < offsetParam.nL1Size) {
-            uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>();
-            uint64_t mL1Align = CeilAlign(offsetParam.mL1Size, BLOCK_CUBE);
-            offsetParam.kaL1Size = aL1Size / (mL1Align * offsetParam.kbL1Size) * offsetParam.kbL1Size;
-        } else {
-            offsetParam.kaL1Size = offsetParam.kbL1Size;
-        }
+        auto tensorBlockYGm = tensorYGm(AscendC::Te::MakeCoord(mOffset, nOffset), AscendC::Te::MakeShape(mL1Size, nL1Size));
+        auto tensorBlockScaleBGm = tensorScaleBGm(AscendC::Te::MakeCoord(0, nOffset), AscendC::Te::MakeShape(scaleKSize, nL1Size));
+
         if ASCEND_IS_AIC {
-            aicBasicBlock_.ComputeBasicBlock(offsetParam);
+            aicBasicBlock_(tensorBlockAGm, tensorBlockYGm, tensorBlockScaleAGm, tensorBLockScaleBGm, offsetParam);
         } else {
-            aivBasicBlock_.ComputeBasicBlock(offsetParam);
+            aivBasicBlock_(offsetParam);
         }
     }
     ctrlParam.nOffset += basicBlockSize * basicBlockCount;
@@ -304,12 +271,7 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
     // 4bit，地址偏移单位为8bit
     weightGm_ += (nSize * kSize) >> 1;
     antiquantScaleGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
-    antiquantOffsetGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
-
-    scaleGm_ += nSize;
-
     perTokenScaleGm_ += mSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
-
     biasGm_ += nSize;
     yGm_ += mSize * nSize;
 }

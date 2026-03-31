@@ -43,14 +43,13 @@ public:
                                             __gm__ xType *antiquantOffset, __gm__ scaleType *scale,
                                             __gm__ perTokenScaleType *perTokenScale, __gm__ biasType *bias,
                                             __gm__ yType *y, const bool hasBias, const bool weightL2Cacheable);
-    __aicore__ inline void ComputeBasicBlock(const BasicBlockOffsetParam &offsetParam);
+    __aicore__ inline void operator()(const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
 
 protected:
     __aicore__ inline void SetAivToAic();
     __aicore__ inline void WaitAicToAiv();
-    __aicore__ inline void ComputeBasicBlockAivNdKnNzNk(const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void mxBiasSetParamAndGmtoUb(const BasicBlockOffsetParam &offsetParam,
                                                    L1ConsumeConfig &l1ConsumeConfig, UbConsumeConfig &ubConsumeConfig,
                                                    const uint64_t kMte2Offset, const uint64_t mte2RealK);
@@ -146,9 +145,24 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::ComputeBasicBlockAivNdKnNzNk(
+                                                      biasType, yType, wqmmConfig, vecConfig>::operator()(
     const BasicBlockOffsetParam &offsetParam)
 {
+    // TODO 
+    // 更新kaL1,依赖mL1,nL1
+    offsetParam.kbL1Size =
+    (offsetParam.mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
+        offsetParam.nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
+        MX_A8W4_L1_K_CONFIG_512 :
+        MX_A8W4_L1_K_CONFIG_256;
+    if (offsetParam.mL1Size < offsetParam.nL1Size) {
+        uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>();
+        uint64_t mL1Align = CeilAlign(offsetParam.mL1Size, BLOCK_CUBE);
+        offsetParam.kaL1Size = aL1Size / (mL1Align * offsetParam.kbL1Size) * offsetParam.kbL1Size;
+    } else {
+        offsetParam.kaL1Size = offsetParam.kbL1Size;
+    }
+
     uint64_t kMte2BaseSize = offsetParam.kbL1Size >> 1;
 
     UbConsumeConfig ubConsumeConfig;
@@ -182,15 +196,6 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
         SetAivToAic();
         vectorCompute_.SetVToMTE2();
     }
-}
-
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::ComputeBasicBlock(
-    const BasicBlockOffsetParam &offsetParam)
-{
-    ComputeBasicBlockAivNdKnNzNk(offsetParam);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,

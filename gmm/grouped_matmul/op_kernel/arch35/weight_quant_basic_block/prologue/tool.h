@@ -49,7 +49,6 @@ static constexpr int64_t L1_SIZE_BYTE = L1_SIZE * 1024;
 static constexpr int64_t BIAS_L1_SIZE = 4;
 static constexpr uint64_t A_L1_MAX_SIZE_WITH_BIAS_QUANT = 240UL * 1024UL;
 static constexpr uint64_t MX_BIAS_SINGLE_VECTOR_SIZE = 128;
-static constexpr uint64_t MX_SCALE_K_L1_SIZE = 4096;
 
 // 控制参数定义
 static constexpr uint64_t SCALE_COPY_GROUP_SIZE = 2;

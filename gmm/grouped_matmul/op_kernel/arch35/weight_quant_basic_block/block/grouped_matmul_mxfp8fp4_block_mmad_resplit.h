@@ -42,9 +42,19 @@ public:
                                             __gm__ xType *antiquantOffset, __gm__ scaleType *scale,
                                             __gm__ perTokenScaleType *perTokenScale, __gm__ biasType *bias,
                                             __gm__ yType *y, const bool hasBias, const bool weightL2Cacheable);
-    __aicore__ inline void ComputeBasicBlock(const BasicBlockOffsetParam &offsetParam);
+    template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
+    __aicore__ inline void operator()(const TensorA &tensorA, const TensorC &tensorC,
+                                      const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB,
+                                      const BasicBlockOffsetParam &offsetParam);
+    __aicore__ inline void operator()(const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
+
+    // 动态kaL1, kbL1
+    struct Params {
+        uint64_t kaL1Size;
+        uint64_t kbL1Size;
+    };
 
 protected:
     __aicore__ inline void WaitAivToAic();
@@ -61,6 +71,8 @@ protected:
     uint64_t weightL1DbOffset_;
     uint64_t biasL1DbOffset_;
     bool hasBias_;
+
+    constexpr static uint64_t MX_SCALE_K_L1_SIZE = 4096;
 };
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -86,9 +98,7 @@ __aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleTyp
         l1StartSize += MX_BIAS_L1_SIZE;
     }
 
-    if ASCEND_IS_AIC {
-        cubeCompute_.MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1Offset);
-    }
+    cubeCompute_.MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1Offset);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -102,42 +112,48 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
 {
     (void)weight;
     (void)antiquantOffset;
+    (void)scale;
     (void)weightL2Cacheable;
-    cubeCompute_.UpdateGlobalAddr(mSize, kSize, nSize, x, y, bias, antiquantScale, scale, perTokenScale, hasBias);
+    cubeCompute_.UpdateGlobalAddr(mSize, kSize, nSize, x, y, bias, antiquantScale, perTokenScale, hasBias);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::ComputeBasicBlockAic(
-    const BasicBlockOffsetParam &offsetParam)
+template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
+__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType,
+                                                      perTokenScaleType, biasType, yType, wqmmConfig,
+                                                      vecConfig>::operator()(const TensorA &tensorA,
+                                                                             const TensorC &tensorC,
+                                                                             const TensorScaleA &tensorScaleA,
+                                                                             const TensorScaleB &tensorScaleB,
+                                                                             const Params &params)
 {
-    for (uint64_t kbGmOffset = 0; kbGmOffset < offsetParam.kSize; kbGmOffset += offsetParam.kbL1Size, cvLoopIdx_++) {
-        uint64_t kbL1RealSize = (kbGmOffset + offsetParam.kbL1Size) >= offsetParam.kSize ?
-                                    offsetParam.kSize - kbGmOffset :
-                                    offsetParam.kbL1Size;
+    uint64_t kSize = GetEleFromLayout<decltype(tensorA.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorA.Layout());
+    uint64_t mL1Size = GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::ROW, 1>(tensorC.Layout());
+    uint64_t nL1Size = GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorC.Layout());
+    for (uint64_t kbGmOffset = 0; kbGmOffset < kSize; kbGmOffset += params.kbL1Size, cvLoopIdx_++) {
+        uint64_t kbL1RealSize = (kbGmOffset + params.kbL1Size) >= kSize ? kSize - kbGmOffset : params.kbL1Size;
+
         cubeCompute_.WaitScaleMTE1ToMTE2(kbGmOffset);
-        cubeCompute_.CopyMxScaleGmToL1(offsetParam, kbGmOffset);
-        cubeCompute_.WaitMTE1ToMTE2(kbGmOffset, offsetParam);
-        cubeCompute_.CopyAAndBiasGmToL1(offsetParam, kbGmOffset, cvLoopIdx_);
+        if (kbGmOffset % MX_SCALE_K_L1_SIZE == 0) { // k 4096 scale_k 128
+            uint64_t offsetScaleK = kbGmOffset / MX_GROUP_SIZE;
+            uint64_t tileSizeScaleK = MX_SCALE_K_L1_SIZE / MX_GROUP_SIZE; // 128
+            uint64_t scaleK = kSize / MX_GROUPSIZE;
+            cubeCompute_.CopyMxScaleGmToL1(tensorScaleA, tensorScaleB, mL1Size, offsetScaleK, tileSizeScaleK, scaleK, nL1Size);
+        }
+        cubeCompute_.WaitMTE1ToMTE2(kbGmOffset, kaL1Size);
+
+        if (kbGmOffset % params.kaL1Size == 0) {
+            cubeCompute_.CopyAGmToL1(tensorA, mL1Size, kSize, params.kaL1Size, kbGmOffset);
+        }
         WaitAivToAic();
-        cubeCompute_.LaunchMatmul((cvLoopIdx_ & 1) * weightL1DbOffset_, kbGmOffset, kbL1RealSize, cvLoopIdx_,
-                                  offsetParam);
-        cubeCompute_.SetMTE1ToMTE2(kbGmOffset, offsetParam);
-        cubeCompute_.SetScaleMTE1ToMTE2(kbGmOffset, offsetParam);
+        cubeCompute_.LaunchMatmul((cvLoopIdx_ & 1) * weightL1DbOffset_, kbGmOffset, kbL1RealSize, cvLoopIdx_);
+        cubeCompute_.SetMTE1ToMTE2(kbGmOffset, kSize, params.kaL1Size, params.kbL1Size);
+        cubeCompute_.SetScaleMTE1ToMTE2(kbGmOffset, kSize, params.kbL1Size);
         SetAicToAiv();
     }
-    cubeCompute_.GetTensorC(offsetParam);
+    cubeCompute_.GetTensorC(tensorC);
     cubeCompute_.ClearAFullLoadFlag();
-}
-
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::ComputeBasicBlock(
-    const BasicBlockOffsetParam &offsetParam)
-{
-    ComputeBasicBlockAic(offsetParam);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,

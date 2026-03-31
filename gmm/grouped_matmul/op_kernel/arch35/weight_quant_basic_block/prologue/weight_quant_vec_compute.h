@@ -57,9 +57,7 @@ public:
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(){};
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(bool hasBias);
 
-    __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ wType *weight, __gm__ antiQuantScaleType *antiQuantScale,
-                                            __gm__ xType *antiQuantOffset, __gm__ float *perTokenScale,
-                                            __gm__ float *perChannelScale, __gm__ biasType *bias,
+    __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ wType *weight, __gm__ biasType *bias,
                                             const bool weightL2Cacheable);
     __aicore__ inline void WaitVToMTE2();
     __aicore__ inline void SetVToMTE2();
@@ -126,9 +124,8 @@ private:
 };
 
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize,
-    __gm__ wType *weight, __gm__ antiQuantScaleType *antiQuantScale, __gm__ xType *antiQuantOffset,
-    __gm__ float *perTokenScale, __gm__ float *perChannelScale, __gm__ biasType *bias, const bool weightL2Cacheable)
+__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlobalAddr(
+    __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable)
 {
     wGlobal_.SetGlobalBuffer(weight);
 
