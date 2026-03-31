@@ -23,7 +23,6 @@
 #include "mla_prolog_tiling_check.h"
 #include "mla_prolog_tiling.h"
 using namespace ge;
-using namespace AscendC;
 namespace optiling {
 
 const std::unordered_map<ge::DataType, uint32_t> DTYPE_TO_SIZE {
@@ -140,32 +139,40 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3Mxfp8() const
                 return QUANT_MODE::PARTIAL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_CHANNEL)) {
                 return QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_CHANNEL;
+        } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                return QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_TILE;
         } else {
-            OP_LOGE(context_->opName, "When weightQuantMode == 1, kvQuantMode must be within {0, 2}, actually is %d.", *(context_->kvQuantMode));
+            OP_LOGE(context_->opName, "When weightQuantMode == 1, kvQuantMode must be within {0, 2, 3}, actually is %d.", *(context_->kvQuantMode));
         }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::FULL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TENSOR)) {
                 return QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR;
+        } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                return QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TILE;
         } else {
-            OP_LOGE(context_->opName, "When weightQuantMode == 2, kvQuantMode must be within {0, 1}, actually is %d.", *(context_->kvQuantMode)); 
+            OP_LOGE(context_->opName, "When weightQuantMode == 2, kvQuantMode must be within {0, 1, 3}, actually is %d.", *(context_->kvQuantMode)); 
         }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::FP8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::FP8_FULL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TENSOR)) {
                 return QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR;
+        } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                return QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TILE;
         } else {
-            OP_LOGE(context_->opName, "When weightQuantMode == 4, kvQuantMode must be within {0, 1}, actually is %d.", *(context_->kvQuantMode)); 
+            OP_LOGE(context_->opName, "When weightQuantMode == 4, kvQuantMode must be within {0, 1, 3}, actually is %d.", *(context_->kvQuantMode)); 
         }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::HIF8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::HIF8_FULL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TENSOR)) {
                 return QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR;
+        } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
+                return QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TILE;
         } else {
-            OP_LOGE(context_->opName, "When weightQuantMode == 5, kvQuantMode must be within {0, 1}, actually is %d.", *(context_->kvQuantMode)); 
+            OP_LOGE(context_->opName, "When weightQuantMode == 5, kvQuantMode must be within {0, 1, 3}, actually is %d.", *(context_->kvQuantMode)); 
         }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
@@ -468,9 +475,9 @@ ge::graphStatus MlaPrologTiling::ProcessBaseInputs()
         aivNum_ = 32U;
         aicNum_ = 16U;
     } else if ((context_->weightUqQr.desc->GetDataType() == ge::DT_INT8 &&
-                baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) ||
-                context_->weightUqQr.desc->GetDataType() == ge::DT_FLOAT8_E4M3FN ||
-                context_->weightUqQr.desc->GetDataType() == ge::DT_HIFLOAT8) {
+        baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) ||
+        context_->weightUqQr.desc->GetDataType() == ge::DT_FLOAT8_E4M3FN ||
+        context_->weightUqQr.desc->GetDataType() == ge::DT_HIFLOAT8) {
         // 场景1：INT8全量化且N大于等于8；场景2：MXFP8全量化场景
         // 通过切N处理MM3，MM4之后的操作例如Rope，DynamicQuant等会有性能收益
         enableDequantOpt_ = true;
@@ -551,7 +558,9 @@ ge::graphStatus MlaPrologTiling::CalcWorkSpace()
         scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_NO_QUANT ||
         scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
         scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_NO_QUANT ||
-        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
+        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TILE ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TILE) {
         workspaceSize_ += static_cast<size_t>(stepBatchSize_) * static_cast<size_t>(baseShapeInfo_.hcqSize) *
                           static_cast<size_t>(NUM_BYTES_INT32);
         workspaceSize_ += static_cast<size_t>(stepBatchSize_) * static_cast<size_t>(baseShapeInfo_.hcqSize) *

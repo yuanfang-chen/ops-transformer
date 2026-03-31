@@ -59,6 +59,13 @@ __aicore__ inline void RmsNormNormal(const LocalTensor<O>& outputLocal, const Gl
         DataCopyPad(xFp32Local, inputGm, copyParams, padParams);
         SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
         WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
+        Rectangle rectangleParams {
+            (uint32_t)rmsNormParams.row,
+            (uint32_t)rmsNormParams.col,
+            (uint32_t)rmsNormParams.col // columnStride
+        };
+        Dequant(xFp32Local, xFp32Local, dequantScaleWDqLocal, dequantScaleXLocal, rectangleParams);
+        AscendC::PipeBarrier<PIPE_V>();
     } else if constexpr (std::is_same<T, int32_t>::value) {
         LocalTensor<T> xInt32Local = shareTmpUb.ReinterpretCast<T>();
         DataCopyPad(xInt32Local, inputGm, copyParams, padParams);
@@ -132,7 +139,7 @@ __aicore__ inline void RmsNormDynamicQuant(const LocalTensor<O>& outputLocal, co
     RmsNormNormal<T, GammaType, C, C>(xFp32Local, inputGm, gammaLocal, dequantScaleWDqLocal, dequantScaleXLocal, shareTmpUb[rmsNormParams.col * sizeof(C)], rmsNormParams);
     AscendC::PipeBarrier<PIPE_V>();
 #if __CCE_AICORE__ == 310
-    if constexpr (std::is_same<O, fp8_e4m3fn_t>::value) {
+    if constexpr (std::is_same<O, fp8_e4m3fn_t>::value && std::is_same<U, fp8_e8m0_t>::value) {
         LocalTensor<bfloat16_t> xBf16Local = xFp32Local[cnt].template ReinterpretCast<bfloat16_t>();
         Cast(xBf16Local, xFp32Local, RoundMode::CAST_ROUND, cnt);
         AscendC::PipeBarrier<PIPE_V>();
