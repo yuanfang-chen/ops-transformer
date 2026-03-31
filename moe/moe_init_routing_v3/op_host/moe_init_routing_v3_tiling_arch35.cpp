@@ -89,6 +89,7 @@ const static int64_t QUANT_MODE_MXFP8_E4M3FN = 3LL;
 const static int64_t QUANT_MODE_HIF8_CAST = 6LL;
 const static int64_t QUANT_MODE_HIF8_PERTENSOR = 7LL;
 const static int64_t QUANT_MODE_HIF8_PERTOKEN = 8LL;
+const static int64_t EXPERT_TOKENS_TYPE_CUMSUM = 0LL;
 const static int64_t EXPERT_TOKENS_TYPE_COUNT = 1LL;
 const static int64_t EXPERT_TOKENS_TYPE_KEY_VALUE = 2LL;
 const static int64_t DROP_PAD_MODE_DROPLESS = 0LL;
@@ -123,8 +124,7 @@ struct MultipleParams {
     int64_t rowMultiple = 0;
 };
 
-struct PerLoopParams
-{
+struct PerLoopParams {
     int64_t xCopyInQueueBufferNum = 2;
     int64_t perLoopCols = 0;
     int64_t perLoopMaxIndicesElements = 0;
@@ -560,14 +560,17 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckSetAttrs()
     // activeNum 暂不使用，在取得n和k后进行校验activeNum==n*k
     // expertCapacity 暂不使用，也不校验
     // expertTokensNumType：expertNum的约束依赖expertTokensNumType，先校验expertTokensNumType
-    OP_CHECK_IF((expertTokensNumType_ != EXPERT_TOKENS_TYPE_COUNT) &&
+    OP_CHECK_IF((expertTokensNumType_ != EXPERT_TOKENS_TYPE_CUMSUM) &&
+                    (expertTokensNumType_ != EXPERT_TOKENS_TYPE_COUNT) &&
                     (expertTokensNumType_ != EXPERT_TOKENS_TYPE_KEY_VALUE),
-                OP_LOGE(context_, "Attr expert_tokens_num_type currently supports: %ld or %ld, but got %ld.",
-                        EXPERT_TOKENS_TYPE_COUNT, EXPERT_TOKENS_TYPE_KEY_VALUE, expertTokensNumType_),
+                OP_LOGE(context_, "Attr expert_tokens_num_type currently supports: %ld, %ld or %ld, but got %ld.",
+                        EXPERT_TOKENS_TYPE_CUMSUM, EXPERT_TOKENS_TYPE_COUNT, EXPERT_TOKENS_TYPE_KEY_VALUE,
+                        expertTokensNumType_),
                 return ge::GRAPH_FAILED);
     tilingDataPtr_->expertTokensNumType = expertTokensNumType_;
     // expertNum
-    int64_t maxExpertNum = (expertTokensNumType_ == EXPERT_TOKENS_TYPE_COUNT) ? EXPERT_IDX_MAX : KV_MODE_EXPERT_IDX_MAX;
+    int64_t maxExpertNum =
+        (expertTokensNumType_ == EXPERT_TOKENS_TYPE_KEY_VALUE) ? KV_MODE_EXPERT_IDX_MAX : EXPERT_IDX_MAX;
     OP_CHECK_IF(
         expertNum_ <= 0 || expertNum_ > maxExpertNum,
         OP_LOGE(context_, "Attr expert_num should be in range [1, %ld], current is %ld.", maxExpertNum, expertNum_),
@@ -643,10 +646,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     // dtype
     using ge::DataType;
     using std::unordered_set;
-    static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {
-        DataType::DT_FLOAT, DataType::DT_FLOAT16, DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
-    static const unordered_set<DataType> STATIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
-                                                                          DataType::DT_BF16};
+    static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
+                                                                     DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
     static const unordered_set<DataType> DYNAMIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                            DataType::DT_BF16, DataType::DT_INT8};
     static const std::unordered_set<DataType> MX_OR_HIF8_QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
@@ -869,7 +870,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpertTokensCountO
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::CheckOutputExpertTokensCountOrCumsum()");
 
     int64_t expectedRank{-1}, expectedDim0{-1}, expectedDim1{-1};
-    if (expertTokensNumType_ == EXPERT_TOKENS_TYPE_COUNT) {
+    if (expertTokensNumType_ == EXPERT_TOKENS_TYPE_CUMSUM || expertTokensNumType_ == EXPERT_TOKENS_TYPE_COUNT) {
         expectedRank = RANK_ONE;
         expectedDim0 = expertEnd_ - expertStart_;
     } else if (expertTokensNumType_ == EXPERT_TOKENS_TYPE_KEY_VALUE) {
@@ -1265,9 +1266,8 @@ PerLoopParams MoeInitRoutingV3Arch35TilingClass::GetPerLoopParams(MultipleParams
     } else {
         perLoopParams.perLoopMaxIndicesElements =
             (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
-             UB_BLOCK_SIZE * NUM_TWO) /
-            multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
-        while (perLoopParams.perLoopMaxIndicesElements <= 0 && perLoopParams.perLoopCols > 1) {
+            UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+        while (perLoopParams.perLoopMaxIndicesElements <= 0) {
             perLoopParams.perLoopCols = Ops::Base::CeilDiv(perLoopParams.perLoopCols, NUM_TWO);
             perLoopParams.perLoopMaxIndicesElements =
                 (availUbSize_ - Align(perLoopParams.perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
