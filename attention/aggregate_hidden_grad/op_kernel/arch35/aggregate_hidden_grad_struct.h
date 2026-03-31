@@ -19,42 +19,44 @@
 namespace AggregateHiddenGradArch35Tiling {
 
 struct AggregateHiddenGradTilingDataV35 {
-    // global flags and shapes
-    int64_t hasMask{0};
-    int64_t H{0};
-    int64_t S{0};
-    int64_t B{0};
-    int64_t W{0};         // must be 3
-    int64_t dtypeSize{0}; // bytes per element of DT
+    // 核间切分参数
+    int64_t hMainCoreCnt{0};           // h维度主核核数
+    int64_t hTailCoreCnt{0};           // h维度尾核核数
+    int64_t hMainSize{0};              // h维度主核处理的大小
+    int64_t hTailSize{0};              // h维度尾核处理的大小
 
-    // inter-core split on H
-    int64_t hMainCoreCnt{0};
-    int64_t hTailCoreCnt{0};
-    int64_t hMainSize{0}; // per-core H size for main cores
-    int64_t hTailSize{0}; // per-core H size for tail cores
+    // 主核循环参数
+    int64_t hloopCnt{0};               // 主核UB内h维度循环次数
+    int64_t bLoopCnt{0};               // 主核UB内b维度循环次数
+    int64_t sLoopCnt{0};               // 主核UB内s维度循环次数
 
-    // intra-core UB tiling sizes
-    int64_t hUB{0};
-    int64_t bUB{0};
-    int64_t sUB{0};
+    // 主核UB切块参数
+    int64_t ubMainFactorH{0};          // 主核UB内h维度主块大小
+    int64_t ubTailFactorH{0};          // 主核UB内h维度尾块大小
+    int64_t ubMainFactorB{0};          // 主核UB内b维度主块大小
+    int64_t ubTailFactorB{0};          // 主核UB内b维度尾块大小
+    int64_t ubMainFactorS{0};          // 主核UB内s维度主块大小
+    int64_t ubTailFactorS{0};          // 主核UB内s维度尾块大小
 
-    // loop counts for main block
-    int64_t hLoopCnt{0};
-    int64_t bLoopCnt{0};
-    int64_t sLoopCnt{0};
+    // 尾核循环参数
+    int64_t tailHloopCnt{0};           // 尾核UB内h维度循环次数
+    int64_t tailBLoopCnt{0};           // 尾核UB内b维度循环次数
+    int64_t tailSLoopCnt{0};           // 尾核UB内s维度循环次数
 
-    // tail sizes and loop counts for the last tile in each dim
-    int64_t hUBTail{0};
-    int64_t bUBTail{0};
-    int64_t sUBTail{0};
+    // 尾核UB切块参数
+    int64_t tailCoreUbMainFactorH{0};  // 尾核UB内h维度主块大小
+    int64_t tailCoreUbTailFactorH{0};  // 尾核UB内h维度尾块大小
+    int64_t tailCoreUbMainFactorB{0};  // 尾核UB内b维度主块大小
+    int64_t tailCoreUbTailFactorB{0};  // 尾核UB内b维度尾块大小
+    int64_t tailCoreUbMainFactorS{0};  // 尾核UB内s维度主块大小
+    int64_t tailCoreUbTailFactorS{0};  // 尾核UB内s维度尾块大小
 
-    int64_t hLoopCntTail{0};
-    int64_t bLoopCntTail{0};
-    int64_t sLoopCntTail{0};
-
-    // misc
-    int64_t coreMainRangeStart{0}; // base H offset for the first main-core range
-    int64_t alignBytes{32};        // 32B alignment
+    // 全局参数
+    int64_t hasMask{0};                // 1，有mask；0，无mask
+    int64_t S{0};                      // S维度大小
+    int64_t B{0};                      // B维度大小
+    int64_t H{0};                      // H维度大小
+    int64_t W{0};                      // W维度大小
 };
 
 

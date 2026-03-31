@@ -129,6 +129,26 @@ private:
     int64_t bUBTail_ = 0;
     int64_t sUBTail_ = 0;
 
+    // 新增：主核UB切块参数
+    int64_t ubMainFactorH_ = 0;
+    int64_t ubTailFactorH_ = 0;
+    int64_t ubMainFactorB_ = 0;
+    int64_t ubTailFactorB_ = 0;
+    int64_t ubMainFactorS_ = 0;
+    int64_t ubTailFactorS_ = 0;
+
+    // 新增：尾核参数
+    int64_t tailHloopCnt_ = 0;
+    int64_t tailBLoopCnt_ = 0;
+    int64_t tailSLoopCnt_ = 0;
+
+    int64_t tailCoreUbMainFactorH_ = 0;
+    int64_t tailCoreUbTailFactorH_ = 0;
+    int64_t tailCoreUbMainFactorB_ = 0;
+    int64_t tailCoreUbTailFactorB_ = 0;
+    int64_t tailCoreUbMainFactorS_ = 0;
+    int64_t tailCoreUbTailFactorS_ = 0;
+
     // TilingData object
     AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35 tilingData_{};
 };

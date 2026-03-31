@@ -229,7 +229,8 @@ ge::graphStatus AggregateHiddenGradTiling::GetShapeAttrsInfo()
 
 ge::graphStatus AggregateHiddenGradTiling::ComputeInterCoreSplit()
 {
-    // 仅沿 H 方向按 64 切分，非均匀：前 remainder 个核心分到 (base+1)*64，其余 base*64
+    // 仅沿 H 方向按 64 切分
+    // 根据文档：主核处理的H会比尾核多64(hMainSize = hTailSize + 64)
     int64_t tiles = H_ / DIM_ALIGN_ELEMENT;
     OP_CHECK_IF(tiles <= 0, OP_LOGE(context_->GetNodeName(), "H(%ld) < %ld", H_, DIM_ALIGN_ELEMENT),
                 return ge::GRAPH_FAILED);
@@ -237,18 +238,23 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeInterCoreSplit()
     int64_t maxCores = static_cast<int64_t>(totalCoreNum_);
     usedCoreNum_ = std::min<int64_t>(tiles, std::max<int64_t>(1, maxCores));
 
-    int64_t baseTiles = tiles / usedCoreNum_;
-    int64_t remTiles = tiles % usedCoreNum_;
-
-    if (remTiles == 0) {
+    if (H_ % usedCoreNum_ == 0) {
+        // H能均分，则认为没有尾核
         hMainCoreCnt_ = usedCoreNum_;
         hTailCoreCnt_ = 0;
-        hMainSize_ = hTailSize_ = baseTiles * DIM_ALIGN_ELEMENT;
+        hMainSize_ = H_ / usedCoreNum_;
+        hTailSize_ = hMainSize_;  // 文档要求：hTailSize仍等于hMainSize
     } else {
-        hMainCoreCnt_ = remTiles;
-        hTailCoreCnt_ = usedCoreNum_ - remTiles;
-        hMainSize_ = (baseTiles + 1) * DIM_ALIGN_ELEMENT;
+        // 计算主核和尾核的分配
+        int64_t baseTiles = H_ / (usedCoreNum_ * DIM_ALIGN_ELEMENT);
         hTailSize_ = baseTiles * DIM_ALIGN_ELEMENT;
+        hMainSize_ = hTailSize_ + DIM_ALIGN_ELEMENT;  // 主核比尾核多64
+
+        // 计算需要多少主核
+        int64_t totalWithMain = hMainSize_ * usedCoreNum_;
+        int64_t excess = totalWithMain - H_;
+        hTailCoreCnt_ = excess / DIM_ALIGN_ELEMENT;
+        hMainCoreCnt_ = usedCoreNum_ - hTailCoreCnt_;
     }
 
     return ge::GRAPH_SUCCESS;
@@ -261,56 +267,112 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
     OP_CHECK_IF(availableUbSize <= 0, OP_LOGE(context_->GetNodeName(), "available UB size <= 0, ubSize=%lu", ubSize_),
                 return ge::GRAPH_FAILED);
 
-    // 初始设定，从 hUB=64 开始，尽量满载 B、S
-    hUB_ = DIM_ALIGN_ELEMENT;
+    // 根据文档：保证H不小于64元素情况下，多载BS
+    // UB先按H=64(128B)，全载核内BS
+    int64_t minH = DIM_ALIGN_ELEMENT;  // 64
+    int64_t perCoreH = (hMainCoreCnt_ > 0) ? hMainSize_ : hTailSize_;
+
+    // Buffer占用估算函数
+    auto calculateBufferSize = [&](int64_t h, int64_t b, int64_t s) -> int64_t {
+        // 根据文档第4节Buffer设计
+        int64_t gradOutputSize = h * b * s * static_cast<int64_t>(dtypeSize_);
+        int64_t inputSize = h * b * s * static_cast<int64_t>(dtypeSize_);
+        int64_t weightSize = h * W_ * static_cast<int64_t>(dtypeSize_);
+        int64_t maskSize = (hasMask_ != 0) ? ((b * s + 7) / 8) : 0;            // BOOL类型，8bit对齐
+        int64_t gradInputSize = h * b * s * static_cast<int64_t>(dtypeSize_);
+        int64_t gradWeightSize = h * W_ * static_cast<int64_t>(dtypeSize_);
+
+        // 所有Buffer都是double buffer，所以乘2
+        int64_t totalSize = 2 * (gradOutputSize + inputSize + weightSize + maskSize +
+                                 gradInputSize + gradWeightSize);
+        return totalSize;
+    };
+
+    // 首先尝试H=64，全载BS
+    hUB_ = minH;
     bUB_ = B_;
     sUB_ = S_;
 
-    auto fits = [&](int64_t bTry, int64_t sTry) -> bool {
-        // 估算各管道占用（与 kernel 设计一致）：
-        // gradOut/input/gradIn: hUB * b * s * dtype
-        // weight/gradWeight:    hUB * W * dtype
-        // mask:                 b * s (uint8)
-        // tmp:                  3 * hUB * dtype（用于中间计算）
-        int64_t go = hUB_ * bTry * sTry * static_cast<int64_t>(dtypeSize_);
-        int64_t in = go;
-        int64_t gi = go;
-        int64_t w = hUB_ * W_ * static_cast<int64_t>(dtypeSize_);
-        int64_t gw = w;
-        int64_t mk = (hasMask_ != 0) ? (bTry * sTry) : 0; // uint8
-        int64_t tmp = 3 * hUB_ * static_cast<int64_t>(dtypeSize_);
+    if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {
+        // 能够全载，则尝试增加H（保证H*DTypeSize为128B的倍数）
+        int64_t h_increment = 128 / static_cast<int64_t>(dtypeSize_);  // FP16/BF16: 64
+        int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (2 * B_ * S_ * dtypeSize_ + 2 * W_ * dtypeSize_)));
 
-        // 逻辑份额（double buffer 等效份额计数），保守估计
-        int64_t shares = (hasMask_ != 0) ? 8 : 7; // +mask
-        int64_t perShare = availableUbSize / std::max<int64_t>(shares, 1);
-
-        // 各项不超过 perShare
-        bool ok = (go <= perShare) && (w <= perShare) && (mk <= perShare) && (tmp <= perShare);
-        return ok;
-    };
-
-    if (!fits(bUB_, sUB_)) {
-        // 先压缩 B
-        bUB_ = 1;
-        // 再逐级二分压缩 S
-        while (sUB_ > 1 && !fits(bUB_, sUB_)) {
-            sUB_ = (sUB_ + 1) / 2;
+        while (hUB_ + h_increment <= maxH) {
+            if (calculateBufferSize(hUB_ + h_increment, bUB_, sUB_) <= availableUbSize) {
+                hUB_ += h_increment;
+            } else {
+                break;
+            }
         }
-        // 最小保证 1
-        if (!fits(bUB_, sUB_)) {
-            sUB_ = 1;
+    } else {
+        // 不能全载，先压缩B
+        bUB_ = 1;
+        if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
+            // B=1仍不能全载，再压缩S
+            while (sUB_ > 1) {
+                sUB_ = (sUB_ + 1) / 2;  // 二分压缩
+                if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {
+                    break;
+                }
+            }
+            // 最小保证S=1
+            if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
+                sUB_ = 1;
+            }
         }
     }
 
-    // 计算循环次数与尾块大小（以主核尺寸为基准）
-    int64_t hSizeForUb = (hMainCoreCnt_ > 0) ? hMainSize_ : hTailSize_;
-    hLoopCnt_ = (hSizeForUb + hUB_ - 1) / hUB_;
+    // 计算主核的循环次数和尾块大小
+    hLoopCnt_ = (perCoreH + hUB_ - 1) / hUB_;
     bLoopCnt_ = (B_ + bUB_ - 1) / bUB_;
     sLoopCnt_ = (S_ + sUB_ - 1) / sUB_;
 
-    hUBTail_ = (hLoopCnt_ == 1) ? hUB_ : (hSizeForUb - (hLoopCnt_ - 1) * hUB_);
-    bUBTail_ = (bLoopCnt_ == 1) ? bUB_ : (B_ - (bLoopCnt_ - 1) * bUB_);
-    sUBTail_ = (sLoopCnt_ == 1) ? sUB_ : (S_ - (sLoopCnt_ - 1) * sUB_);
+    // 计算主核的主块和尾块大小
+    ubMainFactorH_ = hUB_;
+    ubTailFactorH_ = (hLoopCnt_ == 1) ? hUB_ : (perCoreH % hUB_ == 0 ? hUB_ : perCoreH % hUB_);
+
+    ubMainFactorB_ = bUB_;
+    ubTailFactorB_ = (bLoopCnt_ == 1) ? bUB_ : (B_ % bUB_ == 0 ? bUB_ : B_ % bUB_);
+
+    ubMainFactorS_ = sUB_;
+    ubTailFactorS_ = (sLoopCnt_ == 1) ? sUB_ : (S_ % sUB_ == 0 ? sUB_ : S_ % sUB_);
+
+    // 计算尾核的参数（如果有尾核）
+    if (hTailCoreCnt_ > 0 && hTailSize_ > 0) {
+        // 尾核可能需要不同的H循环次数
+        int64_t tailCoreH = hTailSize_;
+        tailHloopCnt_ = (tailCoreH + hUB_ - 1) / hUB_;
+        tailBLoopCnt_ = bLoopCnt_;  // B和S的循环次数保持一致
+        tailSLoopCnt_ = sLoopCnt_;
+
+        tailCoreUbMainFactorH_ = hUB_;
+        tailCoreUbTailFactorH_ = (tailHloopCnt_ == 1) ? hUB_ :
+                                 (tailCoreH % hUB_ == 0 ? hUB_ : tailCoreH % hUB_);
+
+        tailCoreUbMainFactorB_ = ubMainFactorB_;
+        tailCoreUbTailFactorB_ = ubTailFactorB_;
+
+        tailCoreUbMainFactorS_ = ubMainFactorS_;
+        tailCoreUbTailFactorS_ = ubTailFactorS_;
+    } else {
+        // 没有尾核，或尾核参数与主核相同
+        tailHloopCnt_ = hLoopCnt_;
+        tailBLoopCnt_ = bLoopCnt_;
+        tailSLoopCnt_ = sLoopCnt_;
+
+        tailCoreUbMainFactorH_ = ubMainFactorH_;
+        tailCoreUbTailFactorH_ = ubTailFactorH_;
+        tailCoreUbMainFactorB_ = ubMainFactorB_;
+        tailCoreUbTailFactorB_ = ubTailFactorB_;
+        tailCoreUbMainFactorS_ = ubMainFactorS_;
+        tailCoreUbTailFactorS_ = ubTailFactorS_;
+    }
+
+    // 保留原有的兼容性变量（用于日志输出）
+    hUBTail_ = ubTailFactorH_;
+    bUBTail_ = ubTailFactorB_;
+    sUBTail_ = ubTailFactorS_;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -323,38 +385,45 @@ ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
     OP_CHECK_IF(ComputeIntraCoreUbTiling() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "ComputeIntraCoreUbTiling failed"), return ge::GRAPH_FAILED);
 
-    // 填充 tilingData_
-    tilingData_.hasMask = hasMask_;
-    tilingData_.H = H_;
-    tilingData_.S = S_;
-    tilingData_.B = B_;
-    tilingData_.W = W_;
-    tilingData_.dtypeSize = static_cast<int64_t>(dtypeSize_);
-
+    // 填充 tilingData_ - 按照文档3.3节的结构体定义
+    // 核间切分参数
     tilingData_.hMainCoreCnt = hMainCoreCnt_;
     tilingData_.hTailCoreCnt = hTailCoreCnt_;
     tilingData_.hMainSize = hMainSize_;
     tilingData_.hTailSize = hTailSize_;
 
-    tilingData_.hUB = hUB_;
-    tilingData_.bUB = bUB_;
-    tilingData_.sUB = sUB_;
-
-    tilingData_.hLoopCnt = hLoopCnt_;
+    // 主核循环参数
+    tilingData_.hloopCnt = hLoopCnt_;
     tilingData_.bLoopCnt = bLoopCnt_;
     tilingData_.sLoopCnt = sLoopCnt_;
 
-    // 目前 tail 循环数按 0 输出（内核可据尾块大小自行判断）
-    tilingData_.hLoopCntTail = 0;
-    tilingData_.bLoopCntTail = 0;
-    tilingData_.sLoopCntTail = 0;
+    // 主核UB切块参数
+    tilingData_.ubMainFactorH = ubMainFactorH_;
+    tilingData_.ubTailFactorH = ubTailFactorH_;
+    tilingData_.ubMainFactorB = ubMainFactorB_;
+    tilingData_.ubTailFactorB = ubTailFactorB_;
+    tilingData_.ubMainFactorS = ubMainFactorS_;
+    tilingData_.ubTailFactorS = ubTailFactorS_;
 
-    tilingData_.hUBTail = hUBTail_;
-    tilingData_.bUBTail = bUBTail_;
-    tilingData_.sUBTail = sUBTail_;
+    // 尾核循环参数
+    tilingData_.tailHloopCnt = tailHloopCnt_;
+    tilingData_.tailBLoopCnt = tailBLoopCnt_;
+    tilingData_.tailSLoopCnt = tailSLoopCnt_;
 
-    tilingData_.coreMainRangeStart = 0;
-    tilingData_.alignBytes = ALIGN_BYTES;
+    // 尾核UB切块参数
+    tilingData_.tailCoreUbMainFactorH = tailCoreUbMainFactorH_;
+    tilingData_.tailCoreUbTailFactorH = tailCoreUbTailFactorH_;
+    tilingData_.tailCoreUbMainFactorB = tailCoreUbMainFactorB_;
+    tilingData_.tailCoreUbTailFactorB = tailCoreUbTailFactorB_;
+    tilingData_.tailCoreUbMainFactorS = tailCoreUbMainFactorS_;
+    tilingData_.tailCoreUbTailFactorS = tailCoreUbTailFactorS_;
+
+    // 全局参数
+    tilingData_.hasMask = hasMask_;
+    tilingData_.S = S_;
+    tilingData_.B = B_;
+    tilingData_.H = H_;
+    tilingData_.W = W_;
 
     return ge::GRAPH_SUCCESS;
 }
