@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NPU 占用看板</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="page-header">
+    <h1>NPU 机器占用时间段看板</h1>
+    <p>支持机器录入、24小时占用查看、时间段预约。</p>
+    <div class="user-toolbar">
+      <span id="current-user-label">当前用户：-</span>
+      <span id="backend-status-label">后端状态：未连接</span>
+      <button id="switch-user-btn" type="button" class="ghost-btn">切换用户</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card">
+      <h2>1) 机器信息录入</h2>
+      <p class="sub-text">机器配置独立在弹窗中维护，主界面只保留入口。</p>
+      <button id="open-machine-modal" type="button">进入机器录入窗口</button>
+    </section>
+
+    <section class="card">
+      <h2>2) 24小时占用情况</h2>
+      <div class="toolbar">
+        <label>
+          查看日期
+          <input id="view-date" type="date">
+        </label>
+        <label>
+          当前机器
+          <select id="machine-select"></select>
+        </label>
+      </div>
+      <div id="timeline" class="timeline"></div>
+      <p class="legend">
+        <span class="dot free"></span> 空闲
+        <span class="dot busy"></span> 已占用
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>3) 用户选择时间段占用</h2>
+      <form id="booking-form" class="form-grid">
+        <label>
+          占用机器
+          <select name="bookingMachineId" id="booking-machine-select"></select>
+        </label>
+        <label>
+          开始小时
+          <select name="startHour" id="start-hour"></select>
+        </label>
+        <label>
+          结束小时
+          <select name="endHour" id="end-hour"></select>
+        </label>
+        <label class="full">
+          占用目的
+          <input name="purpose" required placeholder="例如：训练实验A/B测试">
+        </label>
+        <button type="submit">提交占用</button>
+      </form>
+      <div id="booking-hint" class="hint"></div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    数据由 Supabase 云端存储，可跨浏览器共享。
+  </footer>
+
+  <div id="machine-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="machine-modal-title">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="machine-modal-title">机器信息录入窗口</h3>
+        <button id="close-machine-modal" class="ghost-btn" type="button">关闭</button>
+      </div>
+      <form id="machine-form" class="form-grid">
+        <label>
+          机器名称
+          <input name="name" required placeholder="例如：NPU-01">
+        </label>
+        <label>
+          型号
+          <input name="model" required placeholder="例如：Ascend 910B">
+        </label>
+        <label>
+          位置
+          <input name="location" required placeholder="例如：机房A-3排">
+        </label>
+        <label class="full">
+          备注
+          <input name="remark" placeholder="例如：8卡，驱动版本...">
+        </label>
+        <button type="submit">新增机器</button>
+      </form>
+      <ul id="machine-list" class="machine-list"></ul>
+    </div>
+  </div>
+
+  <div id="user-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+    <div class="modal-panel user-modal-panel">
+      <div class="modal-header">
+        <h3 id="user-modal-title">请输入你的用户名</h3>
+      </div>
+      <form id="user-form" class="form-grid">
+        <label class="full">
+          用户名
+          <input id="user-name-input" name="userName" required placeholder="例如：zhangsan">
+        </label>
+        <button type="submit">进入系统</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
