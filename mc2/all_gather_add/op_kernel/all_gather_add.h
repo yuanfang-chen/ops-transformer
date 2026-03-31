@@ -48,7 +48,7 @@ private:
     __aicore__ inline int64_t GetRoundLocalOffset(int64_t roundIdx) const;
     __aicore__ inline HcclHandle LaunchAllGather();
     __aicore__ inline void AddRound(int64_t roundIdx, int64_t roundElemCount);
-    __aicore__ inline void AddPairedSegments(int64_t roundGlobalOffset, int64_t elemCount);
+    __aicore__ inline void AddSingleSegment(int64_t globalOffset, int64_t elemCount);
 
 private:
     TPipe* pipe_ {nullptr};
@@ -133,22 +133,21 @@ __aicore__ inline HcclHandle AllGatherAdd<T>::LaunchAllGather()
 }
 
 template <typename T>
-__aicore__ inline void AllGatherAdd<T>::AddPairedSegments(int64_t roundGlobalOffset, int64_t elemCount)
+__aicore__ inline void AllGatherAdd<T>::AddSingleSegment(int64_t globalOffset, int64_t elemCount)
 {
     const uint32_t blockLen = static_cast<uint32_t>(elemCount * sizeof(T));
-    const uint32_t gmStrideBytes = static_cast<uint32_t>((inputElementsPerRank_ - elemCount) * sizeof(T));
-    DataCopyExtParams copyInParams = {static_cast<uint16_t>(rankCount_), blockLen, gmStrideBytes, 0U, 0U};
-    DataCopyExtParams copyOutParams = {static_cast<uint16_t>(rankCount_), blockLen, 0U, gmStrideBytes, 0U};
+    DataCopyExtParams copyInParams = {1U, blockLen, 0U, 0U, 0U};
+    DataCopyExtParams copyOutParams = {1U, blockLen, 0U, 0U, 0U};
     DataCopyPadExtParams<T> padParams = {false, 0U, 0U, static_cast<T>(0)};
 
     LocalTensor<T> gatheredLocal = gatheredBuf_.Get<T>();
     LocalTensor<T> bLocal = bBuf_.Get<T>();
     LocalTensor<T> cLocal = cBuf_.Get<T>();
 
-    DataCopyPad(gatheredLocal, outputGMAGathered_[roundGlobalOffset], copyInParams, padParams);
-    DataCopyPad(bLocal, inputGMB_[roundGlobalOffset], copyInParams, padParams);
-    Add(cLocal, gatheredLocal, bLocal, elemCount * rankCount_);
-    DataCopyPad(outputGMC_[roundGlobalOffset], cLocal, copyOutParams);
+    DataCopyPad(gatheredLocal, outputGMAGathered_[globalOffset], copyInParams, padParams);
+    DataCopyPad(bLocal, inputGMB_[globalOffset], copyInParams, padParams);
+    Add(cLocal, gatheredLocal, bLocal, elemCount);
+    DataCopyPad(outputGMC_[globalOffset], cLocal, copyOutParams);
 }
 
 template <typename T>
@@ -167,8 +166,11 @@ __aicore__ inline void AllGatherAdd<T>::AddRound(int64_t roundIdx, int64_t round
     for (int64_t processed = 0; processed < workElemCount; processed += tileElementsPerCoreCalc_) {
         const int64_t remainElem = workElemCount - processed;
         const int64_t currentTileElem = remainElem < tileElementsPerCoreCalc_ ? remainElem : tileElementsPerCoreCalc_;
-        const int64_t roundGlobalOffset = roundLocalOffset + workBegin + processed;
-        AddPairedSegments(roundGlobalOffset, currentTileElem);
+        const int64_t rankLocalOffset = roundLocalOffset + workBegin + processed;
+        for (int64_t rankIdx = 0; rankIdx < rankCount_; ++rankIdx) {
+            const int64_t globalOffset = rankIdx * inputElementsPerRank_ + rankLocalOffset;
+            AddSingleSegment(globalOffset, currentTileElem);
+        }
     }
 }
 
