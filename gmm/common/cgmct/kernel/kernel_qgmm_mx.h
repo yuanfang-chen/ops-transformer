@@ -131,6 +131,8 @@ public:
     }
 
 private:
+    // First-phase init: group list / problem shape and first-group M/N/K preload (before Init continues).
+    __aicore__ inline void InitPreloadFirstGroup(const Params &params);
     __aicore__ inline void SetMNK(uint32_t groupIdx);
     __aicore__ inline void BaseMBalance(BlockSchedulerOp &bs, int64_t m, int64_t baseM);
     __aicore__ inline void ProcessSingleGroup(const Params &params, BlockSchedulerOp &bs, uint32_t groupIdx);
@@ -171,8 +173,26 @@ private:
 };
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::InitPreloadFirstGroup(const Params &params)
+{
+    preOffset_ = 0;
+    groupType_ = params.gmmParams.groupType;
+    groupListType_ = params.gmmParams.groupListType;
+    groupListPtr_ = params.mmadParams.groupListGmAddr;
+    Get<MNK_M>(problemShape_) = params.gmmParams.m;
+    Get<MNK_N>(problemShape_) = params.gmmParams.n;
+    Get<MNK_K>(problemShape_) = params.gmmParams.k;
+    if (groupListPtr_ != nullptr) {
+        groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupListPtr_);
+    }
+    // Preload the first group's M/N/K so GetValue can overlap with later scalar setup work.
+    SetMNK(0);
+}
+
+QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Params &params)
 {
+    InitPreloadFirstGroup(params);
     Init(params);
     BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
     if constexpr (formatB == CubeFormat::NZ) {
@@ -188,11 +208,12 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Pa
             groupIdx = static_cast<uint32_t>(groupListGlobal_.GetValue(loopIdx * SPARSE_GROUP_LIST_ITEM_STRIDE));
         }
         UpdateOffset(loopIdx, groupIdx);
-        // Update the group-specific M/N/K values.
-        SetMNK(loopIdx);
         if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_K>(problemShape_) <= 0) {
             if (groupListType_ == GROUP_LIST_TYPE_SPARSE && Get<MNK_M>(problemShape_) <= 0) {
                 break;
+            }
+            if (loopIdx < groupNum_ - 1) { // preload the next group's M/N/K
+                SetMNK(loopIdx + 1);
             }
             continue;
         }
@@ -210,6 +231,9 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Pa
         }
         UpdateMMGlobalAddr();
         ProcessSingleGroup(params, bs, groupIdx);
+        if (loopIdx < groupNum_ - 1) { // preload the next group's M/N/K
+            SetMNK(loopIdx + 1);
+        }
     }
 }
 
@@ -226,16 +250,13 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
 
     groupNum_ = params.gmmParams.groupNum;
     curBaseM_ = params.gmmParams.baseM;
-    groupType_ = params.gmmParams.groupType;
-    groupListType_ = params.gmmParams.groupListType;
+    // groupType_ = params.gmmParams.groupType;
+    // groupListType_ = params.gmmParams.groupListType;
     isBias_ = params.gmmParams.isBias == 1;
-    Get<MNK_M>(problemShape_) = params.gmmParams.m;
-    Get<MNK_N>(problemShape_) = params.gmmParams.n;
-    Get<MNK_K>(problemShape_) = params.gmmParams.k;
 
-    if (groupListPtr_ != nullptr) {
-        groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupListPtr_);
-    }
+    // if (groupListPtr_ != nullptr) {
+    //     groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupListPtr_);
+    // }
     TupleShape l0Shape{static_cast<int64_t>(params.gmmParams.baseM), static_cast<int64_t>(params.gmmParams.baseN),
                        static_cast<int64_t>(params.gmmParams.baseK)};
     L1Params l1Params{static_cast<uint64_t>(params.gmmParams.kAL1), static_cast<uint64_t>(params.gmmParams.kBL1),
