@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
  * \file chunk_gated_delta_rule_stage1.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE1_H_
-#define __CHUNK_GATED_DELTA_RULE_STAGE1_H_
+#ifndef CHUNK_GATED_DELTA_RULE_STAGE1_H
+#define CHUNK_GATED_DELTA_RULE_STAGE1_H
 
-#include "kernel_operator.h"
-#include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "chunk_gated_delta_rule_utils.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 
 namespace ChunkGatedDeltaRule {
@@ -34,6 +33,16 @@ constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
 constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint32_t ALIGN_SIZE = 16;
 constexpr uint32_t MAX_PARALLEL_NUM = 6;
+
+// Matmul 形状参数结构体
+struct MatmulShapeParams {
+    uint64_t m;    // 原始 M 维度
+    uint64_t n;    // 原始 N 维度
+    uint64_t k;    // 原始 K 维度
+    uint64_t sm;   // 单次计算 M 维度
+    uint64_t sn;   // 单次计算 N 维度
+    uint64_t sk;   // 单次计算 K 维度
+};
 
 struct GDRStageOneInitParams {
     // input
@@ -56,17 +65,9 @@ struct GDRStageOneInitParams {
     bool gOptional;
 };
 
-// Matmul 形状参数结构体
-struct MatmulShapeParams {
-    uint64_t m;
-    uint64_t n;
-    uint64_t k;
-    bool isTransposeB;
-};
-
-class GDRStageOne {
+class Stage1 {
 public:
-    __aicore__ inline GDRStageOne(StageOneMT &mmFp32) : mmFp32(mmFp32) {}
+    __aicore__ inline Stage1(StageOneMT &mmFp32) : mmFp32(mmFp32) {}
     __aicore__ inline void SetGlobalTensors(const GDRStageOneInitParams &initParams) {
         queryGm_ = initParams.query;
         keyGm_ = initParams.key;
@@ -113,10 +114,10 @@ public:
     __aicore__ inline void InitLocalBuffers()
     {
         maxLen_ = AscendC::Std::max(AscendC::Std::max(dvAligned_ / 2, dkAligned_ / 2), chunkSize_);
-        pipe_->InitBuffer(fp32InQueue_, 1, chunkSize_ * maxLen_ * sizeof(float));
-        pipe_->InitBuffer(fp32OutQueue_, 1, chunkSize_ * maxLen_ * sizeof(float));
+        pipe_->InitBuffer(fp32InQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen_ * sizeof(float));
+        pipe_->InitBuffer(fp32OutQueue_, BUFFER_NUM_ONE, chunkSize_ * maxLen_ * sizeof(float));
         if (gOptional_) {
-            pipe_->InitBuffer(gOutQueue_, 1, chunkSize_ * sizeof(float));
+            pipe_->InitBuffer(gOutQueue_, BUFFER_NUM_ONE, chunkSize_ * sizeof(float));
         }
 
         pipe_->InitBuffer(tmpBuff_, UB_REST_BYTES);
@@ -181,8 +182,9 @@ public:
         for (uint32_t i = 0; i < INVERSE_SHAPE; ++i) {
             colBuffer_.SetValue<uint32_t>(i, (i * chunkSize_) * sizeof(float));
         }
-        SetFlag<HardEvent::S_V>(S_V_EVENT);
-        WaitFlag<HardEvent::S_V>(S_V_EVENT);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+        SetFlag<HardEvent::S_V>(eventID);
+        WaitFlag<HardEvent::S_V>(eventID);
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
@@ -751,12 +753,14 @@ private:
         uint64_t rightDown = leftDown + INVERSE_SHAPE;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
         InverseAICProcess(attnWsGm_[leftDown], attnWsGm_[offset], attnWsGm_[leftDown]);
-        SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
-        WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+        SetFlag<HardEvent::FIX_MTE2>(eventID);
+        WaitFlag<HardEvent::FIX_MTE2>(eventID);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
         InverseAICProcess(attnWsGm_[rightDown], attnWsGm_[leftDown], attnWsGm_[leftDown]);
-        SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
-        WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
+        eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::FIX_MTE2));
+        SetFlag<HardEvent::FIX_MTE2>(eventID);
+        WaitFlag<HardEvent::FIX_MTE2>(eventID);
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
@@ -812,13 +816,12 @@ private:
     uint64_t nIdBatch_[MAX_PARALLEL_NUM];
     uint64_t bgOffsetBatch_[MAX_PARALLEL_NUM];
 
-    // in
+    // chunk GM pointers
     GlobalTensor<bfloat16_t> queryGm_;
     GlobalTensor<bfloat16_t> keyGm_;
     GlobalTensor<bfloat16_t> valueGm_;
     GlobalTensor<bfloat16_t> betaGm_;
     GlobalTensor<float> gGm_;
-    // out
     GlobalTensor<float> outGCumExpGm_;
     GlobalTensor<float> outKCumdecayGm_;
     GlobalTensor<float> outVInnerGm_;
@@ -826,7 +829,6 @@ private:
     GlobalTensor<float> outKgBaseGm_;
     GlobalTensor<float> outKgGm_;
     GlobalTensor<float> outQkGm_;
-    // ws
     GlobalTensor<float> vBetaWsGm_;
     GlobalTensor<float> kkWsGm_;
     GlobalTensor<float> attnWsGm_;
@@ -841,6 +843,7 @@ private:
     TQue<QuePosition::VECOUT, 1> gOutQueue_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;
+
     // UB tensors
     LocalTensor<bfloat16_t> betaUbBfloat16_;
     LocalTensor<float> betaUbFloat_;
@@ -877,4 +880,4 @@ private:
     LocalTensor<float> fp32OutLocal_;
 };
 } // namespace ChunkGatedDeltaRule
-#endif
+#endif // CHUNK_GATED_DELTA_RULE_STAGE1_H
