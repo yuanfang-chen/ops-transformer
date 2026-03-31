@@ -387,7 +387,8 @@ __aicore__ inline void DynamicQuant(const LocalTensor<float> &outputLocal,
           col 列数
           stride 一行的真实长度
  */
-__aicore__ inline void QuantPerChannel(const LocalTensor<int8_t> &outLocal, const LocalTensor<float> &inputLocal, const LocalTensor<float> &quantScaleLocal,
+ template<typename T, typename C, typename O>
+__aicore__ inline void QuantPerChannel(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal, const LocalTensor<C> &quantScaleLocal,
                                        const LocalTensor<uint8_t> &shareTmpUb, const Rectangle& rectangleParams)
 {
 #if __CCE_AICORE__ == 310
@@ -411,12 +412,17 @@ __aicore__ inline void QuantPerChannel(const LocalTensor<int8_t> &outLocal, cons
           col 列数
           stride 一行的真实长度
  */
-__aicore__ inline void QuantPerTensor(const LocalTensor<int8_t> &outLocal, const LocalTensor<float> &inputLocal, const LocalTensor<float> &quantScaleLocal,
+ template<typename T, typename C, typename O>
+__aicore__ inline void QuantPerTensor(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal, const LocalTensor<C> &quantScaleLocal,
                                    const LocalTensor<uint8_t> &shareTmpUb, const Rectangle& rectangleParams)
 {
+#if __CCE_AICORE__ == 310
+    QuantPerTensorVF(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col);
+#else
     RowMuls(inputLocal, inputLocal, quantScaleLocal, rectangleParams);
     AscendC::PipeBarrier<PIPE_V>();
     CastFP32ToINT8(outLocal, inputLocal, shareTmpUb, rectangleParams.row * rectangleParams.col);
+#endif
 }
 
 /**
