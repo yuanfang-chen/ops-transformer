@@ -99,6 +99,11 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeAttrs()
     inputParams_.groupType = SPLIT_M;
     sharedInputWeight_ = *shareInputWeightPtr;
     OP_CHECK_IF(!CheckOptionalAttr(), OP_LOGE(context_->GetNodeName(), "Check Optional Attrs Failed."), return false);
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog AnalyzeAttrs: transA=%d transB=%d groupListType=%lu outputBs=%lu sharedInputOffset=%lu "
+            "sharedInputWeight=%.6f",
+            static_cast<int>(inputParams_.transA), static_cast<int>(inputParams_.transB), inputParams_.groupListType,
+            outputBs_, sharedInputOffset_, sharedInputWeight_);
     return true;
 }
 
@@ -399,6 +404,15 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 OP_LOGE(context_->GetNodeName(), "SetQuantModeForGMMFinalizeRouting failed."), return false);
     OP_CHECK_IF(!CheckCoreNum(),
                 OP_LOGE(inputParams_.opName, "CheckCoreNum failed."), return false);  
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog AnalyzeInputs: groupNum=%lu m=%lu n=%lu k=%lu rowIndex=%lu sharedInputLen=%lu "
+            "aDtype=%s bDtype=%s scaleDtype=%s perTokenScaleDtype=%s bFormat=%d",
+            inputParams_.groupNum, inputParams_.mSize, inputParams_.nSize, inputParams_.kSize, rowIndex_,
+            sharedInputLen_, ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str(),
+            static_cast<int>(inputParams_.bFormat));
     return true;
 }
 
@@ -445,6 +459,17 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
     tilingData_.gmmFinalizeRoutingDataParams.biasDtype = static_cast<uint32_t>(inputParams_.biasDtype);
     tilingData_.gmmFinalizeRoutingDataParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmFinalizeRoutingDataParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias ? 1 : 0);
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog DoOpTiling: groupNum=%u batch=%u groupListType=%u sharedInputOffset=%u sharedInputLen=%u "
+            "residualScale=%.6f aQuantMode=%u bQuantMode=%u hasBias=%u",
+            tilingData_.gmmFinalizeRoutingDataParams.groupNum, tilingData_.gmmFinalizeRoutingDataParams.batch,
+            static_cast<uint32_t>(tilingData_.gmmFinalizeRoutingDataParams.groupListType),
+            tilingData_.gmmFinalizeRoutingDataParams.sharedInputOffset,
+            tilingData_.gmmFinalizeRoutingDataParams.sharedInputLen,
+            tilingData_.gmmFinalizeRoutingDataParams.residualScale,
+            tilingData_.gmmFinalizeRoutingDataParams.aQuantMode,
+            tilingData_.gmmFinalizeRoutingDataParams.bQuantMode,
+            static_cast<uint32_t>(tilingData_.gmmFinalizeRoutingDataParams.hasBias));
 
     PrintQuantParams();
     return ge::GRAPH_SUCCESS;
@@ -452,7 +477,11 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
 
 uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    auto tilingKey = GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transA), static_cast<uint64_t>(inputParams_.transB));
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog GetTilingKey: transA=%d transB=%d tilingKey=%lu",
+            static_cast<int>(inputParams_.transA), static_cast<int>(inputParams_.transB), tilingKey);
+    return tilingKey;
 }
 
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
@@ -495,6 +524,12 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoLibApiTiling()
         }
     }
     PrintMatmulParams();
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog DoLibApiTiling: baseM=%u baseN=%u baseK=%u singleCoreM=%u singleCoreN=%u singleCoreK=%u "
+            "usedCoreNum=%u dbL0C=%u iterateOrder=%u",
+            tilingData_.matmulTiling.baseM, tilingData_.matmulTiling.baseN, tilingData_.matmulTiling.baseK,
+            tilingData_.matmulTiling.singleCoreM, tilingData_.matmulTiling.singleCoreN, tilingData_.matmulTiling.singleCoreK,
+            tilingData_.matmulTiling.usedCoreNum, tilingData_.matmulTiling.dbL0C, tilingData_.matmulTiling.iterateOrder);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -514,6 +549,20 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::PostTiling()
         return ge::GRAPH_FAILED;
     }
     context_->GetRawTilingData()->SetDataSize(tilingDataSize);
+    size_t *workspaces = context_->GetWorkspaceSizes(1);
+    if (workspaces != nullptr) {
+        OP_LOGI(context_->GetNodeName(), "zzzlog PostTiling workspace[0]=%zu", workspaces[0]);
+    } else {
+        OP_LOGI(context_->GetNodeName(), "zzzlog PostTiling workspace is nullptr");
+    }
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog PostTiling: blockDim=%u scheduleMode=1 tilingDataSize=%zu tilingKey=%lu groupNum=%u batch=%u "
+            "sharedInputOffset=%u sharedInputLen=%u hasBias=%u",
+            aicoreParams_.aicNum, tilingDataSize, GetTilingKey(),
+            tilingData_.gmmFinalizeRoutingDataParams.groupNum, tilingData_.gmmFinalizeRoutingDataParams.batch,
+            tilingData_.gmmFinalizeRoutingDataParams.sharedInputOffset,
+            tilingData_.gmmFinalizeRoutingDataParams.sharedInputLen,
+            static_cast<uint32_t>(tilingData_.gmmFinalizeRoutingDataParams.hasBias));
 
     return ge::GRAPH_SUCCESS;
 }

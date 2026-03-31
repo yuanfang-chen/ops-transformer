@@ -213,6 +213,11 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::ParseInputAndAttr()
     }
 
     groupNum_ = context_->GetInputShape(1)->GetStorageShape()[0];
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog GMMFR parse done: m=%lu, n=%lu, k=%lu, groupNum=%u, batch=%u, hasBias=%u, hasPertokenScale=%u,"
+            " withOffset=%u, sharedInputLen=%u, sharedInputOffset=%u, tuningConfig=%ld, deterministic=%d",
+            m_, n_, k_, groupNum_, batch_, hasBias_, hasPertokenScale_, withOffset_, sharedInputLen_,
+            sharedInputOffset_, tuningConfig_, context_->GetDeterministic());
     return ge::GRAPH_SUCCESS;
 }
 
@@ -501,6 +506,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::DoOpTiling()
     if (ParseInputAndAttr() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    OP_LOGI(context_->GetNodeName(), "zzzlog GMMFR DoOpTiling start, xDtype=%d, wDtype=%d",
+            static_cast<int>(inputXDesc->GetDataType()), static_cast<int>(inputWDesc->GetDataType()));
 
     if (inputXDesc->GetDataType() == ge::DT_INT8 && inputWDesc->GetDataType() == ge::DT_INT4) {
         W4A8TilingProcess();
@@ -516,6 +523,9 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::DoOpTiling()
         FillTilingDataL1Opt();
     }
     PrintTilingData();
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog GMMFR DoOpTiling done: tilingKey=%lu, workspaceSize=%zu, useL1OptKernel=%d, deterministicFlag=%u",
+            tilingKey_, workspaceSize_, useL1OptKernel_, deterministicFlag_);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -539,6 +549,9 @@ ge::graphStatus GroupedMatmulFinalizeRoutingBaseTiling::PostTiling()
     OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "workspaces is null"),
         return ge::GRAPH_FAILED);
     workspaces[0] = workspaceSize_;
+    OP_LOGI(context_->GetNodeName(),
+            "zzzlog GMMFR PostTiling: blockDim=%u, scheduleMode=1, workspace[0]=%zu, tilingDataSize=%zu, tilingKey=%lu",
+            tilingData_.get_coreNum(), workspaces[0], tilingData_.GetDataSize(), tilingKey_);
     if (failFlag_) {
         return ge::GRAPH_FAILED;
     }
