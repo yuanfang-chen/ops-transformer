@@ -96,7 +96,8 @@ ge::graphStatus LIInfoParser::GetNpuInfo()
 
     socVersion_ = ascendcPlatform.GetSocVersion();
     if ((socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
-        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93)) {
+        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93) &&
+        (socVersion_ != platform_ascendc::SocVersion::ASCEND950)) {
         OP_LOGE(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
         return GRAPH_FAILED;
     }
@@ -397,6 +398,14 @@ ge::graphStatus LIInfoParser::GetGSize()
         return ge::GRAPH_FAILED;
     }
     gSize_ = n1Size_ / n2Size_;
+
+    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+        OP_CHECK_IF(gSize_ != G_SIZE_LIMIT_16_950 && gSize_ != G_SIZE_LIMIT_950 &&
+                    gSize_ != G_SIZE_LIMIT_32_950 && gSize_ != QUERY_HEAD_NUM_LIMIT,
+                   OP_LOGE(opName_, "N1 is %u, N2 is %u, on ascend950 N1 divided by N2 must equal 16, 24, 32 or 64.",
+                           n1Size_, n2Size_),
+                   return ge::GRAPH_FAILED);
+    }
 
     return ge::GRAPH_SUCCESS;
 }
