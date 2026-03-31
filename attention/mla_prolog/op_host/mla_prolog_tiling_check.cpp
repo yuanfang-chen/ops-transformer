@@ -188,8 +188,10 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
             static_cast<uint32_t>(QUANT_MODE::NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::PARTIAL_QUANT_KV_NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_CHANNEL),
+            static_cast<uint32_t>(QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_TILE),
             static_cast<uint32_t>(QUANT_MODE::FULL_QUANT_KV_NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR),
+            static_cast<uint32_t>(QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TILE),
             static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR),
             static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE),
@@ -197,6 +199,8 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
             static_cast<uint32_t>(QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR),
             static_cast<uint32_t>(QUANT_MODE::HIF8_FULL_QUANT_KV_NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR),
+            static_cast<uint32_t>(QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TILE),
+            static_cast<uint32_t>(QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TILE)
         };
         OP_CHECK_IF(supportedQuantModes.find(static_cast<uint32_t>(scenarioInfo_.quantMode_)) == supportedQuantModes.end(),
             OP_LOGE(context_.opName, "QUANT_MODE allows only %s, got %u.",
@@ -511,6 +515,12 @@ void MlaPrologTilingCheck::FillScenarioParamInfo()
         case QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR:
             FillHIF8FullKVQuantParamInfo();
             break;
+        case QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TILE:
+            FillFP8FullKVPertileQuantParamInfo();
+            break;
+        case QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TILE:
+            FillHIF8FullKVPertileQuantParamInfo();
+            break;
         default:
             break;
     }
@@ -720,6 +730,20 @@ void MlaPrologTilingCheck::FillHIF8FullKVQuantParamInfo()
     FillFullKVQuantParamInfo();
 }
 
+void MlaPrologTilingCheck::FillFP8FullKVPertileQuantParamInfo()
+{
+    FillFullKVPertileQuantParamInfo();
+    expectedParamInfo_.erase(K_NOPE_CLIP_ALPHA_NAME);
+    expectedParamInfo_[K_NOPE_CLIP_ALPHA_NAME].isValid = false;
+}
+
+void MlaPrologTilingCheck::FillHIF8FullKVPertileQuantParamInfo()
+{
+    FillFullKVPertileQuantParamInfo();
+    expectedParamInfo_.erase(K_NOPE_CLIP_ALPHA_NAME);
+    expectedParamInfo_[K_NOPE_CLIP_ALPHA_NAME].isValid = false;
+}
+
 void MlaPrologTilingCheck::GenActualParamInfo()
 {
     actualParamInfo_.emplace(TOKEN_X_NAME, context_.tokenX);
@@ -864,7 +888,9 @@ ge::graphStatus MlaPrologTilingCheck::CheckScenarParam()
     ge::graphStatus isCorrect {ge::GRAPH_SUCCESS};
     if (scenarioInfo_.quantMode_ == QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_TILE ||
         scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TILE ||
-        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE) {
+        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TILE ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TILE) {
         if (*(context_.ckvkrRepoMode) != static_cast<int>(CKVKR_REPO_MODE::COMBINE)) {
             OP_LOGE(context_.opName, "The ckvkrRepoMode expected %d, but got %d.",
                 static_cast<int>(CKVKR_REPO_MODE::COMBINE), *(context_.ckvkrRepoMode));

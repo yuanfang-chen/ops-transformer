@@ -185,8 +185,9 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor dequantScaleQNormOut!");
         return ge::GRAPH_FAILED;
     }
-    // weightQuantMode == 2:全量化场景, weightQuantMode == 3:mxfp8全量化场景, kvCacheQuantMode == 1:KV_PER_TENSOR量化场景
-    dequantScaleQNopeHolder.CheckTensorConditionalNotNull((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8 || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8) && kvCacheQuantMode == KV_CACHE_QUANT_MODE_PER_TENSOR);
+    // weightQuantMode == 2,4,5:全量化场景(int8,fp8,hif8), weightQuantMode == 3:mxfp8全量化场景, kvCacheQuantMode == 1:KV_PER_TENSOR量化场景
+    dequantScaleQNopeHolder.CheckTensorConditionalNotNull((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT ||
+        weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8 || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8) && kvCacheQuantMode == KV_CACHE_QUANT_MODE_PER_TENSOR);
     bool queryNormFlag = queryNormHolder.IsTensorNotNull();
     // weightQuantMode != 0:量化场景
     dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != WEIGHT_QUANT_MODE_NO_QUANT && queryNormFlag);
