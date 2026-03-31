@@ -23,7 +23,63 @@
 namespace AggregateHiddenGradKernelNS {
 using namespace AscendC;
 using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
+namespace {
+    using namespace AscendC;
+    #define _USE_DBG_PRINT 1
+    template<typename T>
+    __aicore__ inline void DisplayTensor(const LocalTensor<T>& tsr, const uint32_t count, const uint32_t type, const __gm__ char* note) {
+        printf("Current block: %d , display %d elements", GetBlockIdx(), count);
+        printf("%s:\n", (note ? note : "(null)"));  // 打印备注信息
+        const uint32_t elementsPerRow = 16;         // 每16个元素
 
+        for (uint32_t i = 0; i < count; ++i) {
+            // 根据类型打印元素（整数或浮点数）
+            if (type == 0) {
+                // 关键修改：%2u 表示占2个字符宽度，不足时左侧补空格
+                printf("[%u]: %d ", i, tsr.GetValue(i));  // 整数格式
+            } else {
+                // 关键修改：%2u 实现索引对齐
+                printf("[%u]: %f ", i, tsr.GetValue(i));  // 浮点数格式
+            }
+
+            // 每行满16个元素后换行（最后一行不足16个也会在结束时换行）
+            if ((i + 1) % elementsPerRow == 0) {
+                printf("");
+            }
+        }
+        // 如果总元素数不是16的倍数，最后一行末尾补充换行
+        if (count % elementsPerRow != 0) {
+            printf("\n");
+        }
+    }
+
+    template<typename T>
+    __aicore__ inline void DisplayTensor(const GlobalTensor<T>& tsr, const uint32_t count, const uint32_t type, const __gm__ char* note) {
+        printf("Current block: %d , display %d elements", GetBlockIdx(), count);
+        printf("%s:\n", (note ? note : "(null)"));  // 打印备注信息
+        const uint32_t elementsPerRow = 16;         // 每16个元素
+
+        for (uint32_t i = 0; i < count; ++i) {
+            // 根据类型打印元素（整数或浮点数）
+            if (type == 0) {
+                // 关键修改：%2u 表示占2个字符宽度，不足时左侧补空格
+                printf("[%u]: %d ", i, tsr.GetValue(i));  // 整数格式
+            } else {
+                // 关键修改：%2u 实现索引对齐
+                printf("[%u]: %f ", i, tsr.GetValue(i));  // 浮点数格式
+            }
+
+            // 每行满16个元素后换行（最后一行不足16个也会在结束时换行）
+            if ((i + 1) % elementsPerRow == 0) {
+                printf("");
+            }
+        }
+        // 如果总元素数不是16的倍数，最后一行末尾补充换行
+        if (count % elementsPerRow != 0) {
+            printf("\n");
+        }
+    }
+}
 template <typename DT>
 class AggregateHiddenGradKernel {
 public:
@@ -61,8 +117,47 @@ private:
                                             int64_t bLen, int64_t sEff, int64_t sLen, int64_t hLenThis);
     __aicore__ inline void CopyOutGradWeight(int64_t hTile, int64_t hLenThis);
 
+    template <HardEvent event>
+    __aicore__ inline void SetWaitFlag(HardEvent evt)
+    {
+        event_t eventId = static_cast<event_t>(GetTPipePtr()->FetchEventID(evt));
+        SetFlag<event>(eventId);
+        WaitFlag<event>(eventId);
+    }
+
+    __aicore__ inline void printTiling(){
+        printf("kernel tiling...");
+        printf("hMainCoreCnt=%ld", hMainCoreCnt_);
+        printf("hTailCoreCnt=%ld", hTailCoreCnt_);
+        printf("hMainSize=%ld", hMainSize_);
+        printf("hTailSize=%ld", hTailSize_);
+        printf("hloopCnt=%ld", hloopCnt_);
+        printf("bLoopCnt=%ld", bLoopCnt_);
+        printf("sLoopCnt=%ld", sLoopCnt_);
+        printf("ubMainFactorH=%ld", ubMainFactorH_);
+        printf("ubTailFactorH=%ld", ubTailFactorH_);
+        printf("ubMainFactorB=%ld", ubMainFactorB_);
+        printf("ubTailFactorB=%ld", ubTailFactorB_);
+        printf("ubMainFactorS=%ld", ubMainFactorS_);
+        printf("ubTailFactorS=%ld", ubTailFactorS_);
+        printf("tailHloopCnt=%ld", tailHloopCnt_);
+        printf("tailBLoopCnt=%ld", tailBLoopCnt_);
+        printf("tailSLoopCnt=%ld", tailSLoopCnt_);
+        printf("tailCoreUbMainFactorH=%ld", tailCoreUbMainFactorH_);
+        printf("tailCoreUbTailFactorH=%ld", tailCoreUbTailFactorH_);
+        printf("tailCoreUbMainFactorB=%ld", tailCoreUbMainFactorB_);
+        printf("tailCoreUbTailFactorB=%ld", tailCoreUbTailFactorB_);
+        printf("tailCoreUbMainFactorS=%ld", tailCoreUbMainFactorS_);
+        printf("tailCoreUbTailFactorS=%ld", tailCoreUbTailFactorS_);
+        printf("hasMask=%ld", hasMask_);
+        printf("S=%ld", S_);
+        printf("B=%ld", B_);
+        printf("H=%ld", H_);
+        printf("W=%ld", W_);
+    }
+
 private:
-    // resources
+
     TPipe *pipe_;
     const AggregateHiddenGradTilingDataV35 *td_;
     TQue<QuePosition::VECIN, kBufferNum> gradOutQ_;
@@ -80,11 +175,44 @@ private:
     GlobalTensor<DT> gradWeightGm_;
     GlobalTensor<bool> maskGm_;
 
-    // cached tiling values
-    int64_t H_{0}, S_{0}, B_{0}, W_{0}, dtypeSize_{0};
-    int64_t hUB_{0}, bUB_{0}, sUB_{0};
-    int64_t hMainCoreCnt_{0}, hTailCoreCnt_{0}, hMainSize_{0}, hTailSize_{0};
-    int64_t hStart_{0}, hLen_{0};
+    // tiling values
+    int64_t hMainCoreCnt_{0};           // h维度主核核数
+    int64_t hTailCoreCnt_{0};           // h维度尾核核数
+    int64_t hMainSize_{0};              // h维度主核处理的大小
+    int64_t hTailSize_{0};              // h维度尾核处理的大小
+
+    // 主核循环参数
+    int64_t hloopCnt_{0};               // 主核UB内h维度循环次数
+    int64_t bLoopCnt_{0};               // 主核UB内b维度循环次数
+    int64_t sLoopCnt_{0};               // 主核UB内s维度循环次数
+
+    // 主核UB切块参数
+    int64_t ubMainFactorH_{0};          // 主核UB内h维度主块大小
+    int64_t ubTailFactorH_{0};          // 主核UB内h维度尾块大小
+    int64_t ubMainFactorB_{0};          // 主核UB内b维度主块大小
+    int64_t ubTailFactorB_{0};          // 主核UB内b维度尾块大小
+    int64_t ubMainFactorS_{0};          // 主核UB内s维度主块大小
+    int64_t ubTailFactorS_{0};          // 主核UB内s维度尾块大小
+
+    // 尾核循环参数
+    int64_t tailHloopCnt_{0};           // 尾核UB内h维度循环次数
+    int64_t tailBLoopCnt_{0};           // 尾核UB内b维度循环次数
+    int64_t tailSLoopCnt_{0};           // 尾核UB内s维度循环次数
+
+    // 尾核UB切块参数
+    int64_t tailCoreUbMainFactorH_{0};  // 尾核UB内h维度主块大小
+    int64_t tailCoreUbTailFactorH_{0};  // 尾核UB内h维度尾块大小
+    int64_t tailCoreUbMainFactorB_{0};  // 尾核UB内b维度主块大小
+    int64_t tailCoreUbTailFactorB_{0};  // 尾核UB内b维度尾块大小
+    int64_t tailCoreUbMainFactorS_{0};  // 尾核UB内s维度主块大小
+    int64_t tailCoreUbTailFactorS_{0};  // 尾核UB内s维度尾块大小
+
+    // 全局参数
+    int64_t hasMask_{0};                // 1，有mask；0，无mask
+    int64_t S_{0};                      // S维度大小
+    int64_t B_{0};                      // B维度大小
+    int64_t H_{0};                      // H维度大小
+    int64_t W_{0};                      // W维度大小
 
     // fp32 accumulators for grad_weight
     LocalTensor<float> gwAccF32_[kW];
@@ -106,19 +234,37 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
 {
     pipe_ = pipe;
     td_ = td;
+
     // cache tiling fields
-    H_ = td_->H;
-    S_ = td_->S;
-    B_ = td_->B;
-    W_ = td_->W;
-    dtypeSize_ = td_->dtypeSize;
-    hUB_ = td_->hUB;
-    bUB_ = td_->bUB;
-    sUB_ = td_->sUB;
-    hMainCoreCnt_ = td_->hMainCoreCnt;
-    hTailCoreCnt_ = td_->hTailCoreCnt;
-    hMainSize_ = td_->hMainSize;
-    hTailSize_ = td_->hTailSize;
+    hMainCoreCnt_ = td->hMainCoreCnt;           // h维度主核核数
+    hTailCoreCnt_ = td->hTailCoreCnt;           // h维度尾核核数
+    hMainSize_ = td->hMainSize;              // h维度主核处理的大小
+    hTailSize_ = td->hTailSize;              // h维度尾核处理的大小
+    hloopCnt_ = td->hloopCnt;               // 主核UB内h维度循环次数
+    bLoopCnt_ = td->bLoopCnt;               // 主核UB内b维度循环次数
+    sLoopCnt_ = td->sLoopCnt;               // 主核UB内s维度循环次数
+    ubMainFactorH_ = td->ubMainFactorH;          // 主核UB内h维度主块大小
+    ubTailFactorH_ = td->ubTailFactorH;          // 主核UB内h维度尾块大小
+    ubMainFactorB_ = td->ubMainFactorB;          // 主核UB内b维度主块大小
+    ubTailFactorB_ = td->ubTailFactorB;          // 主核UB内b维度尾块大小
+    ubMainFactorS_ = td->ubMainFactorS;          // 主核UB内s维度主块大小
+    ubTailFactorS_ = td->ubTailFactorS;          // 主核UB内s维度尾块大小
+    tailHloopCnt_ = td->tailHloopCnt;           // 尾核UB内h维度循环次数
+    tailBLoopCnt_ = td->tailBLoopCnt;           // 尾核UB内b维度循环次数
+    tailSLoopCnt_ = td->tailSLoopCnt;           // 尾核UB内s维度循环次数
+    tailCoreUbMainFactorH_ = td->tailCoreUbMainFactorH;  // 尾核UB内h维度主块大小
+    tailCoreUbTailFactorH_ = td->tailCoreUbTailFactorH;  // 尾核UB内h维度尾块大小
+    tailCoreUbMainFactorB_ = td->tailCoreUbMainFactorB;  // 尾核UB内b维度主块大小
+    tailCoreUbTailFactorB_ = td->tailCoreUbTailFactorB;  // 尾核UB内b维度尾块大小
+    tailCoreUbMainFactorS_ = td->tailCoreUbMainFactorS;  // 尾核UB内s维度主块大小
+    tailCoreUbTailFactorS_ = td->tailCoreUbTailFactorS;  // 尾核UB内s维度尾块大小
+    hasMask_ = td->hasMask;                // 1，有mask；0，无mask
+    S_ = td->S;                      // S维度大小
+    B_ = td->B;                      // B维度大小
+    H_ = td->H;                      // H维度大小
+    W_ = td->W;                      // W维度大小
+
+    printTiling();
 
     // compute this core's H start/len
     uint64_t blkIdx = GetBlockIdx();
@@ -131,13 +277,18 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
         hLen_ = hTailSize_;
     }
 
+    // printf("hStart=%ld", hStart_);
+    // printf("hLen=%ld", hLen_);
+
     // bind GM tensors (assume contiguous ND layout)
     gradOutGm_.SetGlobalBuffer((__gm__ DT *)grad_output, S_ * B_ * H_);
+    // DisplayTensor(gradOutGm_[0], S_ * B_ * H_, 1, "gradOutGm_");
     inputGm_.SetGlobalBuffer((__gm__ DT *)input, S_ * B_ * H_);
     weightGm_.SetGlobalBuffer((__gm__ DT *)weight, W_ * H_);
+    // DisplayTensor(weightGm_[0],W_ * H_, 1, "weightGm_");
     gradInGm_.SetGlobalBuffer((__gm__ DT *)grad_input, S_ * B_ * H_);
     gradWeightGm_.SetGlobalBuffer((__gm__ DT *)grad_weight, W_ * H_);
-    if (td_->hasMask) {
+    if (hasMask_) {
         maskGm_.SetGlobalBuffer((__gm__ bool *)mask, B_ * S_);
     }
 
@@ -145,7 +296,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
     pipe_->InitBuffer(gradOutQ_, kBufferNum, static_cast<uint32_t>(hUB_ * bUB_ * sUB_ * sizeof(DT)));
     pipe_->InitBuffer(inputQ_, kBufferNum, static_cast<uint32_t>(hUB_ * bUB_ * sUB_ * sizeof(DT)));
     pipe_->InitBuffer(weightQ_, kBufferNum, static_cast<uint32_t>(hUB_ * kW * sizeof(DT)));
-    if (td_->hasMask) {
+    if (hasMask_) {
         uint32_t maskBytes = static_cast<uint32_t>(bUB_ * sUB_);
         uint32_t maskBufSize = (maskBytes + (kAlignBytes - 1)) / kAlignBytes * kAlignBytes;
         pipe_->InitBuffer(maskQ_, kBufferNum, maskBufSize);
@@ -167,8 +318,15 @@ template <typename DT>
 __aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
 {
     // Accumulate grad_weight in fp32 across all (b,s) tiles per h-tile, then cast+store once per h-tile
-    for (int64_t hTile = 0; hTile < td_->hLoopCnt; ++hTile) {
-        int64_t hLenThis = (hTile == td_->hLoopCnt - 1 && td_->hUBTail > 0) ? td_->hUBTail : hUB_;
+    bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
+    int64_t hLoopCntCur = isTailCore ? hLoopCntTail_ : hLoopCnt_;
+    int64_t bLoopCntCur = isTailCore ? bLoopCntTail_ : bLoopCnt_;
+    int64_t sLoopCntCur = isTailCore ? sLoopCntTail_ : sLoopCnt_;
+    for (int64_t hTile = 0; hTile < hLoopCntCur; ++hTile) {
+        int64_t hLenThis = 0;
+
+        hLenThis = (hTile == hLoopCntCur - 1 && hUBTail_ > 0) ? hUBTail_ : hUB_;
+
         // zero fp32 accumulators for this h-tile
         Duplicate(gwAccF32_[0], 0.0f, static_cast<uint32_t>(hLenThis));
         Duplicate(gwAccF32_[1], 0.0f, static_cast<uint32_t>(hLenThis));
@@ -176,19 +334,23 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
 
         // Load weight once per h-tile
         CopyInWeight(hTile, hLenThis);
+        SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
         LocalTensor<DT> wLocal = weightQ_.DeQue<DT>();
 
-        for (int64_t bTile = 0; bTile < td_->bLoopCnt; ++bTile) {
-            int64_t bLen = (bTile == td_->bLoopCnt - 1 && td_->bUBTail > 0) ? td_->bUBTail : bUB_;
-            for (int64_t sTile = 0; sTile < td_->sLoopCnt; ++sTile) {
-                int64_t sLen = (sTile == td_->sLoopCnt - 1 && td_->sUBTail > 0) ? td_->sUBTail : sUB_;
-                int64_t sEff = (sTile == td_->sLoopCnt - 1) ? sLen : (sLen - 2);
+        for (int64_t bTile = 0; bTile < 1; ++bTile) {
+            int64_t bLen = (bTile == bLoopCntCur - 1 && bUBTail_ > 0 && isTailCore) ? bUBTail_ : bUB_;
+            for (int64_t sTile = 0; sTile < sLoopCntCur; ++sTile) {
+                int64_t sLen = (sTile == sLoopCntCur - 1 && sUBTail_ > 0) ? sUBTail_ : sUB_;
+                int64_t sEff = (sTile == sLoopCntCur - 1) ? sLen : (sLen - 2);
+                printf("bTile=%ld, bLen=%ld, sTile=%ld, sLen=%ld, sEff=%ld", bTile, bLen, sTile, sLen, sEff);
                 CopyInGradOutput(bTile, sTile, hTile, bLen, sLen, hLenThis);
                 CopyInInput(bTile, sTile, hTile, bLen, sLen, hLenThis);
-                if (td_->hasMask) {
-                    CopyInMask(bTile, sTile, bLen, sLen);
-                    ComputeGradOutputMask(bLen, sLen, hLenThis);
-                }
+                SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
+                // if (hasMask_) {
+                //     CopyInMask(bTile, sTile, bLen, sLen);
+                //      SetWaitFlag;
+                //     ComputeGradOutputMask(bLen, sLen, hLenThis);
+                // }
                 Compute(bTile, sTile, hTile, bLen, sEff, sLen, hLenThis, wLocal);
                 CopyOutGradInput(bTile, sTile, hTile, bLen, sEff, sLen, hLenThis);
             }
@@ -197,6 +359,38 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
         weightQ_.FreeTensor(wLocal);
         CopyOutGradWeight(hTile, hLenThis);
     }
+}
+template <typename DT>
+__aicore__ inline void AggregateHiddenGradKernel<DT>::Compute(int64_t bTile, int64_t sTile, int64_t hTile,
+                                                              int64_t bLen, int64_t sEff, int64_t sLen,
+                                                              int64_t hLenThis, LocalTensor<DT> &wLocal)
+{
+    LocalTensor<DT> goLocal = gradOutQ_.DeQue<DT>();
+    LocalTensor<DT> inLocal = inputQ_.DeQue<DT>();
+    LocalTensor<DT> giLocal = gradInQ_.AllocTensor<DT>();
+
+    // DisplayTensor(goLocal[0], sLen * bLen * hLenThis, 1, "goLocal");
+    // DisplayTensor(wLocal[0], 3 * hLenThis, 1, "wLocal");
+    // Compute grad_input using VF (reuse weight already loaded for this h-tile)
+    // sEff accounts for 2-row overlap between adjacent s-tiles
+    AggHiddenGradVF::DoGradInput<DT>(goLocal, wLocal, giLocal, static_cast<uint32_t>(bLen),
+                                     static_cast<uint32_t>(sEff), static_cast<uint32_t>(sLen),
+                                     static_cast<uint32_t>(hLenThis));
+    // if (GetBlockIdx() == 0)           {
+    //     DisplayTensor(giLocal[0], sLen * bLen * hLenThis, 1, "giLocal");
+    // }
+    // DisplayTensor(goLocal, sLen * bLen * hLenThis, 1, "goLocal");
+    DisplayTensor(inLocal, sLen * bLen * hLenThis, 1, "inLocal");
+    // Accumulate grad_weight in fp32 using VF Acc variant
+    // DisplayTensor(gwAccF32_[2], hLenThis, 1, "gwAccF32_[2]");
+    // AggHiddenGradVF::DoGradWeightAcc<DT>(goLocal, inLocal, gwAccF32_[0], gwAccF32_[1], gwAccF32_[2],
+    //                                      static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff),
+    //                                      static_cast<uint32_t>(sLen), static_cast<uint32_t>(hLenThis));
+    // DisplayTensor(gwAccF32_[2], hLenThis, 1, "gwAccF32_[2]");
+    pipe_barrier(PIPE_ALL);
+    gradOutQ_.FreeTensor(goLocal);
+    inputQ_.FreeTensor(inLocal);
+    gradInQ_.EnQue<DT>(giLocal);
 }
 
 template <typename DT>
@@ -226,7 +420,10 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInGradOutput(int64_t b
     // Copy a [sLen, bLen, hLenThis] block along contiguous H
     DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
                                static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
-    int64_t sStart = sTile * sUB_;
+    bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
+    int64_t sLoopCntCur = isTailCore ? sLoopCntTail_ : sLoopCnt_;
+    int64_t sStride = sUB_ - 2;
+    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * bUB_;
     int64_t hOff = hTile * hUB_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
@@ -242,7 +439,10 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInInput(int64_t bTile,
     LocalTensor<DT> inLocal = inputQ_.AllocTensor<DT>();
     DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
                                static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
-    int64_t sStart = sTile * sUB_;
+    bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
+    int64_t sLoopCntCur = isTailCore ? sLoopCntTail_ : sLoopCnt_;
+    int64_t sStride = sUB_ - 2;
+    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * bUB_;
     int64_t hOff = hTile * hUB_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
@@ -280,31 +480,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInMask(int64_t bTile, 
     maskQ_.EnQue<bool>(mLocal);
 }
 
-template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::Compute(int64_t bTile, int64_t sTile, int64_t hTile,
-                                                              int64_t bLen, int64_t sEff, int64_t sLen,
-                                                              int64_t hLenThis, LocalTensor<DT> &wLocal)
-{
-    LocalTensor<DT> goLocal = gradOutQ_.DeQue<DT>();
-    LocalTensor<DT> inLocal = inputQ_.DeQue<DT>();
-    LocalTensor<DT> giLocal = gradInQ_.AllocTensor<DT>();
 
-    // masked in Process
-
-    // Compute grad_input using VF (reuse weight already loaded for this h-tile)
-    AggHiddenGradVF::DoGradInput<DT>(goLocal, wLocal, giLocal, static_cast<uint32_t>(bLen),
-                                     static_cast<uint32_t>(sEff), static_cast<uint32_t>(sLen),
-                                     static_cast<uint32_t>(hLenThis));
-
-    // Accumulate grad_weight in fp32 using VF Acc variant
-    AggHiddenGradVF::DoGradWeightAcc<DT>(goLocal, inLocal, gwAccF32_[0], gwAccF32_[1], gwAccF32_[2],
-                                         static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff),
-                                         static_cast<uint32_t>(sLen), static_cast<uint32_t>(hLenThis));
-
-    gradOutQ_.FreeTensor(goLocal);
-    inputQ_.FreeTensor(inLocal);
-    gradInQ_.EnQue<DT>(giLocal);
-}
 
 template <typename DT>
 __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t bTile, int64_t sTile, int64_t hTile,
@@ -313,12 +489,16 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t b
 {
     LocalTensor<DT> giLocal = gradInQ_.DeQue<DT>();
     DataCopyExtParams outParams{static_cast<uint16_t>(sEff * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
-                                0, static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0};
-    int64_t sStart = sTile * sUB_;
+                               0, static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0};
+    bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
+    int64_t sLoopCntCur = isTailCore ? sLoopCntTail_ : sLoopCnt_;
+    int64_t sStride = sUB_ - 2;
+    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * bUB_;
     int64_t hOff = hTile * hUB_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
     DataCopyPad(gradInGm_[base], giLocal, outParams);
+    pipe_barrier(PIPE_ALL);
     gradInQ_.FreeTensor(giLocal);
 }
 
