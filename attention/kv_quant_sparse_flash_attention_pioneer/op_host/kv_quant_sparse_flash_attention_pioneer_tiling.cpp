@@ -1218,13 +1218,23 @@ ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquantPa() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantSparseBlockSize() const
+{
+    OP_CHECK_IF(sparseBlockSize_ != 1,
+        OP_LOGE(opName_, "sparse block size must be 1, but got %u", sparseBlockSize_),
+        return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus QSFAPTilingCheck::CheckFeatureMlaAntiquant() const
 {
     if (ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantAttr() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantShape() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantDtype() ||
-        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantPa()) {
+        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantPa() ||
+        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantSparseBlockSize()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;

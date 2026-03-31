@@ -1216,13 +1216,30 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantPa() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantSparseBlockSize() const
+{
+    if (isA5_) {
+        OP_CHECK_IF(sparseBlockSize_ != 1,
+            OP_LOGE(opName_, "sparse block size must be 1, but got %u", sparseBlockSize_),
+            return ge::GRAPH_FAILED);
+    } else {
+        std::vector<uint32_t> sparseBlockSizeSupportList = {1, 2, 4, 8, 16};
+        OP_CHECK_IF(std::find(sparseBlockSizeSupportList.begin(), sparseBlockSizeSupportList.end(), gSize_) == sparseBlockSizeSupportList.end(),
+            OP_LOGE(opName_, "sparse block size should be in 1, 2, 4, 8, 16, but got %u", sparseBlockSize_),
+            return ge::GRAPH_FAILED);
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquant() const
 {
     if (ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantAttr() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantShape() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantDtype() ||
-        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantPa()) {
+        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantPa() ||
+        ge::GRAPH_SUCCESS != CheckFeatureMlaAntiquantSparseBlockSize()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;

@@ -62,7 +62,7 @@ torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_
 
 - **value\_sink**（`Tensor`）：可选参数，表示添加在压缩`value`的序列维度上的额外参数。layout为[1, KV\_N, D]，其中D只包含nope，数据类型与`query`一致，支持`bfloat16`和`float16`。
 
-- **sparse\_block\_size**（`int`）：可选参数，代表sparse阶段的block大小，在计算importance score时使用，数据类型支持`int64`，支持范围为[1, 16]，且为2的幂次方。
+- **sparse\_block\_size**（`int`）：可选参数，代表sparse阶段的block大小，在计算importance score时使用，数据类型支持`int64`，仅支持1。
 
 - **layout\_query**（`str`）：可选参数，用于标识输入`query`的数据排布格式，默认值"BSND"，支持传入BSND和TND。
 
