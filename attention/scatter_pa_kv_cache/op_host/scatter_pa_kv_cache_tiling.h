@@ -93,12 +93,15 @@ protected:
     ge::graphStatus TemplateNormal();
     ge::graphStatus TemplateRope();
     ge::graphStatus TemplateAlibi();
+    ge::graphStatus TemplateOmni();
+    ge::graphStatus TemplateNZ();
     ge::graphStatus GetIndexDtype();
     ge::graphStatus GetInputDtype();
     ge::graphStatus CheckDimValid();
     ge::graphStatus CheckNormal();
     ge::graphStatus CheckRope();
     ge::graphStatus CheckAlibi();
+    ge::graphStatus GetTemplateType(int64_t inputKeyDimNum);
     void SetInputPos();
     void GetCommonTilingInfo();
     ge::graphStatus CheckSlotMappingShape(int64_t requiredDimNum);
