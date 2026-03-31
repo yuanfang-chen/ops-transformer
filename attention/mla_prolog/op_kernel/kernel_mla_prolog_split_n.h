@@ -1393,7 +1393,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
                                 dequantScaleXLocal,  shareTmpUb,
                                 rmsNormParams, enableSmoothScalesCq_);
         } else {
-            RmsNormNormal<mmCqOutputType, rmsNormGammaType, rmsNormComputType, rmsNormCqOutputType>(
+            RmsNormNormal<mmCqOutputType, rmsNormGammaType, rmsNormComputType, rmsNormCqOutputType, dequantScaleType>(
                 outputLocal, mmCqResGm_[rmsNormCqOffset], rmsnormGammaCqLocal_, dequantScaleWDqLocal_,
                 dequantScaleXLocal, shareTmpUb, rmsNormParams);
         }
@@ -1529,7 +1529,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
         LocalTensor<float> inputLocal = rmsNormShareTmpUb.ReinterpretCast<float>();
         LocalTensor<uint8_t> sharedBuf = inputLocal[vectorRow_ *
             baseParams_->headSizeCkv].template ReinterpretCast<uint8_t>();
-        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, float>(
+        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, float, dequantScaleType>(
             inputLocal, mmCkvKrResGm_[rmsNormAndScatterCkvParams.offset], rmsnormGammaCkvLocal_, dequantScaleWDkvKrLocal_,
             dequantScaleXLocal, sharedBuf, rmsNormParams);
         
@@ -1567,7 +1567,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
         LocalTensor<float> inputLocal = rmsNormShareTmpUb.ReinterpretCast<float>();
         LocalTensor<uint8_t> sharedBuf = inputLocal[vectorRow_ *
             baseParams_->headSizeCkv].template ReinterpretCast<uint8_t>();
-        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, float>(
+        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, float, dequantScaleType>(
             inputLocal, mmCkvKrResGm_[rmsNormAndScatterCkvParams.offset], rmsnormGammaCkvLocal_, dequantScaleWDkvKrLocal_,
             dequantScaleXLocal, sharedBuf, rmsNormParams);
         
@@ -1594,7 +1594,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
             AscendC::PipeBarrier<PIPE_V>();
         }
     } else {
-        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, rmsNormCkvOutputType>(
+        RmsNormNormal<mmCkvKrOutputType, rmsNormGammaType, rmsNormComputType, rmsNormCkvOutputType, dequantScaleType>(
             outputLocal, mmCkvKrResGm_[rmsNormAndScatterCkvParams.offset], rmsnormGammaCkvLocal_, dequantScaleWDkvKrLocal_,
             dequantScaleXLocal, rmsNormShareTmpUb, rmsNormParams);
     }
