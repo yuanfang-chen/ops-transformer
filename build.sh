@@ -28,6 +28,7 @@ ASAN="true"
 UBSAN="false"
 COV="false"
 CLANG="false"
+NINJA="false"
 VERBOSE="false"
 OOM="false"
 THREAD_NUM=$(grep -c ^processor /proc/cpuinfo)
@@ -297,6 +298,7 @@ function help_info() {
     echo "    -h Print usage"
     echo "    -j[n] Compile thread nums, default is 8, eg: -j8"
     echo "    -v Cmake compile verbose"
+    echo "    --ninja Use Ninja as CMake generator instead of Make"
     echo "    -O[n] Compile optimization options, support [O0 O1 O2 O3], eg:-O3"
     echo "    -u Compile all ut"
     echo $dotted_line
@@ -358,6 +360,11 @@ function set_env()
         log "Error: bisheng compilation tool not found, Please check whether the cann package or environment variables are set."
         exit 1
     fi
+}
+
+function build_clean()
+{
+    cmake --build . --target clean
 }
 
 function clean()
@@ -814,7 +821,7 @@ package_static() {
         mv "$new_dir_path" "$static_files_dir"
         return 1
     fi
-    make clean
+    build_clean
 }
 
 function process_soc_input(){
@@ -1232,6 +1239,10 @@ while [[ $# -gt 0 ]]; do
         CLANG="true"
         shift
         ;;
+    --ninja)
+        NINJA="true"
+        shift
+        ;;
     --tiling-key|--tiling_key)	 
         TILING_KEY="$2" 
         shift 2 
@@ -1542,6 +1553,14 @@ if [ -n "${CMAKE_BUILD_MODE}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DCMAKE_BUILD_MODE=${CMAKE_BUILD_MODE}"
 fi
 CUSTOM_OPTION="${CUSTOM_OPTION} -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH}"
+
+if [ "${NINJA}" == "true" ];then
+    if ! command -v ninja &> /dev/null; then
+        log "Error: ninja not found. Please install ninja-build."
+        exit 1
+    fi
+    CUSTOM_OPTION="${CUSTOM_OPTION} -G Ninja"
+fi
 
 if [ -n "${BISHENG_FLAGS}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DBISHENG_FLAGS=${BISHENG_FLAGS}"
@@ -1862,7 +1881,7 @@ elif [[ "$ENABLE_STATIC" == "TRUE" ]]; then
                 package_static ${soc}
             fi
         fi
-        make clean
+        build_clean
     done
 elif [[ "$ENABLE_OPKERNEL" == "TRUE" ]]; then
     set_compute_unit_option
@@ -1891,7 +1910,7 @@ elif [[ "$ENABLE_BUILD_PKG" == "TRUE" ]]; then      # --pkg 新命令新使用
         soc=$(echo "${soc}" | xargs)  # 去除前后空格
         soc_options=" -DASCEND_COMPUTE_UNIT=${soc}"
         if [[ -n "${soc}" ]]; then  # 检查非空
-            build_pkg_for_single_soc ${soc_options} && make clean
+            build_pkg_for_single_soc ${soc_options} && build_clean
         fi
     done
 else
