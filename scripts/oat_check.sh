@@ -2,16 +2,6 @@
 #
 # OAT Pre-commit Check Script (for pre-commit framework)
 # This script is called by pre-commit framework automatically
-#
-# -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
-# CANN Open Software License Agreement Version 2.0 (the "License").
-# Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
-# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
-# See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
 
 set -e
 
@@ -92,44 +82,44 @@ if ! command -v java >/dev/null 2>&1; then
     # Linux: 使用 apt
     if [ "$OS_TYPE" = "linux" ]; then
         if command -v apt-get >/dev/null 2>&1; then
-            echo "[OAT] 使用 apt 安装 OpenJDK 11..."
+            echo "[OAT] 使用 apt 安装 OpenJDK 17..."
             echo "[OAT] 可能需要输入管理员密码"
             echo ""
             
             sudo apt-get update -qq >/dev/null 2>&1
-            sudo apt-get install -y openjdk-11-jre >/dev/null 2>&1
+            sudo apt-get install -y openjdk-17-jre >/dev/null 2>&1
             
             if [ $? -eq 0 ]; then
                 JAVA_INSTALLED=true
-                echo "[OAT] [OK] OpenJDK 11 安装成功"
+                echo "[OAT] [OK] OpenJDK 17 安装成功"
             else
                 echo "[OAT] [ERROR] 自动安装失败"
             fi
         elif command -v yum >/dev/null 2>&1; then
-            echo "[OAT] 使用 yum 安装 OpenJDK 11..."
-            sudo yum install -y java-11-openjdk >/dev/null 2>&1
+            echo "[OAT] 使用 yum 安装 OpenJDK 17..."
+            sudo yum install -y java-17-openjdk >/dev/null 2>&1
             
             if [ $? -eq 0 ]; then
                 JAVA_INSTALLED=true
-                echo "[OAT] [OK] OpenJDK 11 安装成功"
+                echo "[OAT] [OK] OpenJDK 17 安装成功"
             fi
         fi
     
     # macOS: 使用 Homebrew
     elif [ "$OS_TYPE" = "macos" ]; then
         if command -v brew >/dev/null 2>&1; then
-            echo "[OAT] 使用 Homebrew 安装 OpenJDK 11..."
+            echo "[OAT] 使用 Homebrew 安装 OpenJDK 17..."
             echo "[OAT] 这可能需要几分钟..."
             echo ""
             
-            brew install openjdk@11 >/dev/null 2>&1
+            brew install openjdk@17 >/dev/null 2>&1
             
             if [ $? -eq 0 ]; then
                 JAVA_INSTALLED=true
-                echo "[OAT] [OK] OpenJDK 11 安装成功"
+                echo "[OAT] [OK] OpenJDK 17 安装成功"
                 
                 # Add to PATH for current session
-                export PATH="/usr/local/opt/openjdk@11/bin:$PATH"
+                export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
             else
                 echo "[OAT] [ERROR] 自动安装失败"
             fi
@@ -144,7 +134,7 @@ if ! command -v java >/dev/null 2>&1; then
         echo "[OAT] 请手动下载并安装："
         echo ""
         echo "  1. 访问: https://adoptium.net/"
-        echo "  2. 下载: Eclipse Temurin JRE 11 (x64)"
+        echo "  2. 下载: Eclipse Temurin JRE 17 (x64)"
         echo "  3. 安装后重启 Git Bash"
         echo "  4. 验证: java -version"
         echo ""
@@ -178,8 +168,8 @@ if ! command -v java >/dev/null 2>&1; then
         echo "[OAT] 自动安装失败，跳过 OAT 检查"
         echo ""
         echo "手动安装方法:"
-        echo "  Linux:   sudo apt install openjdk-11-jre"
-        echo "  macOS:   brew install openjdk@11"
+        echo "  Linux:   sudo apt install openjdk-17-jre"
+        echo "  macOS:   brew install openjdk@17"
         echo "  Windows: https://adoptium.net/"
         echo ""
         echo "[OAT] 继续提交（未进行合规性检查）..."
