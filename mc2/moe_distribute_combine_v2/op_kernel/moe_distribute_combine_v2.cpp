@@ -85,7 +85,6 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
                 scales, sharedExpertX, XOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
-    AscendC::SetCtrlSpr<FLOAT_OVERFLOW_MODE_CTRL, FLOAT_OVERFLOW_MODE_CTRL>(oriOverflowMode);
 #else
     if constexpr ((ArchTag == TILINGKEY_TPL_A2) && 
                 (LayeredMode == TILINGKEY_TPL_MTE) && (QuantMode == TILINGKEY_NO_QUANT)) {
