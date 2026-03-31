@@ -26,7 +26,7 @@ using WeightQuantBatchMatmulV2::Arch35::QuantType;
 using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAic;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAiv;
-static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
+static constexpr WqmmConfig MXA8W4_NZNK = {false, true, CubeFormat::NZ};
 static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(

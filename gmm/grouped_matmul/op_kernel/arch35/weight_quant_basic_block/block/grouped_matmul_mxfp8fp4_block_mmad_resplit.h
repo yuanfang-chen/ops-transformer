@@ -32,7 +32,6 @@
 using AscendC::Dn2NzParams;
 using AscendC::GetBlockIdx;
 using AscendC::HardEvent;
-using AscendC::LocalTensor;
 using AscendC::PipeBarrier;
 using AscendC::SetFlag;
 using AscendC::TPosition;
@@ -60,7 +59,6 @@ public:
     __aicore__ inline void operator()(const TensorA &tensorA, const TensorC &tensorC,
                                       const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB,
                                       uint64_t kaL1Size, uint64_t kbL1Size);
-    __aicore__ inline void operator()(const BasicBlockOffsetParam &offsetParam);
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
 
@@ -110,12 +108,8 @@ private:
     __aicore__ inline void CopyAGmToL1SingleBuffer(const BasicBlockOffsetParam &param, int64_t kaGmOffset,
                                                    int64_t kbL1RealSize, int64_t biasRealN,
                                                    const TensorA &tensorA);
-    __aicore__ inline void ConfigScaleDn2NzParams(uint64_t rowNum, uint64_t scaleKGmSize, uint64_t scaleKL1Stride,
-                                                  uint64_t scaleKL1RealSize, Dn2NzParams &dn2NzParams);
 
     uint64_t cvLoopIdx_ = 0;
-    LocalTensor<xType> weightL1_;
-    LocalTensor<biasType> biasL1_;
     uint64_t weightL1DbOffset_;
 
     int8_t aL1DbNum_;
@@ -390,22 +384,6 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyMxScaleGmToL1(const TensorS
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::ConfigScaleDn2NzParams(uint64_t rowNum, uint64_t scaleKGmSize,
-                                                                        uint64_t scaleKL1Stride,
-                                                                        uint64_t scaleKL1RealSize,
-                                                                        Dn2NzParams &dn2NzParams)
-{
-    dn2NzParams.dnNum = 1;
-    dn2NzParams.dValue = rowNum;
-    dn2NzParams.nValue = CeilDivide(scaleKL1RealSize, SCALE_COPY_GROUP_SIZE);
-    dn2NzParams.srcDnMatrixStride = SCALE_COPY_DEFAULT_STRIDE;
-    dn2NzParams.srcDValue = CeilDivide(scaleKGmSize, SCALE_COPY_GROUP_SIZE);
-    dn2NzParams.dstNzC0Stride = CeilDivide(MX_SCALE_K_L1_SIZE, MX_GROUPSIZE * SCALE_COPY_GROUP_SIZE);
-    dn2NzParams.dstNzNStride = SCALE_COPY_DEFAULT_N_STRIDE;
-    dn2NzParams.dstNzMatrixStride = SCALE_COPY_DEFAULT_STRIDE;
-}
-
-WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::EndSync()
 {
     for (uint64_t i = 0; i < L0_BUF_NUM; i++) {
@@ -455,6 +433,7 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::PrefetchA(uint64_t aPrefetchSiz
 #ifdef __XBL_PRINT__
     AscendC::printf("[ERROR] need prefetchA 3");
 #endif
+    // TODO 支持
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
@@ -534,15 +513,12 @@ __aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleTyp
 {
     isBias_ = hasBias;
     biasL1DbOffset_ = 0;
-    weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, L1_SIZE_BYTE / sizeof(xType));
-
     static constexpr uint64_t MXA8W4_WEIGHT_SIZE = 256 * 256;
     static constexpr uint64_t MX_BIAS_L1_SIZE = BIAS_L1_SIZE * GetKBUnit<biasType>() * sizeof(biasType);
     weightL1DbOffset_ = L1_SIZE * GetKBUnit<xType>() - MXA8W4_WEIGHT_SIZE;
     uint64_t l1RemainSize = L1_SIZE_BYTE - MXA8W4_WEIGHT_SIZE * DOUBLE_BUFFER_NUM;
     uint64_t l1StartSize = MXA8W4_WEIGHT_SIZE;
     uint64_t biasL1Offset = l1StartSize;
-    biasL1_ = LocalTensor<biasType>(TPosition::TSCM, l1StartSize, l1RemainSize / sizeof(biasType));
     if (isBias_) {
         biasL1DbOffset_ = (l1RemainSize - MX_BIAS_L1_SIZE) / sizeof(biasType);
         l1RemainSize -= DOUBLE_BUFFER_NUM * MX_BIAS_L1_SIZE;

@@ -29,9 +29,6 @@ namespace WeightQuantBatchMatmulV2::Arch35 {
 struct WqmmConfig {
     bool aTrans;
     bool bTrans;
-    QuantType antiQuantType;
-    bool hasAntiQuantOffset;
-    QuantType quantType;
     CubeFormat weightFormat;
 };
 

@@ -447,27 +447,9 @@ __aicore__ inline uint64_t WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuan
     uint64_t antiQuantNOffset, uint64_t antiQuantKOffset, uint64_t nRealLen, uint64_t kRealLen,
     const L1ConsumeConfig &l1ConsumeConfig)
 {
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-        uint64_t l1RealExternalLenAlign =
-            CeilAlign(l1ConsumeConfig.l1RealExternalLen, static_cast<uint64_t>(BLOCK_CUBE));
-        if constexpr (!wqmmConfig.bTrans) {
-            return l1RealExternalLenAlign * antiQuantNOffset +
-                   (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) * static_cast<uint64_t>(BLOCK_CUBE);
-        } else {
-            return l1RealExternalLenAlign * antiQuantKOffset +
-                   (antiQuantNOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) * static_cast<uint64_t>(BLOCK_CUBE);
-        }
-    } else {
-        if constexpr (!wqmmConfig.bTrans) {
-            uint64_t kRealLenAlign = CeilAlign(kRealLen, static_cast<uint64_t>(BLOCK_CUBE));
-            return kRealLenAlign * (antiQuantNOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
-                   antiQuantKOffset * static_cast<uint64_t>(C0_SIZE);
-        } else {
-            uint64_t nRealLenAlign = CeilAlign(nRealLen, static_cast<uint64_t>(BLOCK_CUBE));
-            return nRealLenAlign * (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
-                   antiQuantNOffset * static_cast<uint64_t>(C0_SIZE);
-        }
-    }
+    uint64_t nRealLenAlign = CeilAlign(nRealLen, static_cast<uint64_t>(BLOCK_CUBE));
+    return nRealLenAlign * (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
+            antiQuantNOffset * static_cast<uint64_t>(C0_SIZE);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -521,14 +503,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     const LocalTensor<xType> &weightHighBitL1)
 {
     DataCopyParams params;
-    if constexpr (!wqmmConfig.bTrans) {
-        params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(BLOCK_CUBE)) *
-                            CeilAlign(antiQuantRealN, static_cast<uint64_t>(C0_SIZE)) / VEC_REG_ELEM;
-    } else {
-        params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(C0_SIZE)) *
-                            CeilAlign(antiQuantRealN, static_cast<uint64_t>(BLOCK_CUBE)) / VEC_REG_ELEM;
-    }
-
+    params.blockCount = CeilAlign(antiQuantRealK, static_cast<uint64_t>(C0_SIZE)) *
+                        CeilAlign(antiQuantRealN, static_cast<uint64_t>(BLOCK_CUBE)) / VEC_REG_ELEM;
     params.blockLen = VEC_REG_ELEM / ONE_BLK_SIZE;
     params.srcStride = (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1) * params.blockLen;
     params.dstStride = 0;

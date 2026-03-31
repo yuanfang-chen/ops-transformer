@@ -32,14 +32,6 @@ using AscendC::TPosition;
 using AscendC::VECTOR_REG_WIDTH;
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
-enum class QuantType {
-    NONE = 0,
-    PER_TENSOR = 1,
-    PER_CHANNEL = 2,
-    PER_GROUP = 3,
-    MX = 4,
-};
-
 // buffer相关定义
 static constexpr int32_t QUADRUPLE_BUFFER_NUM = 4;
 static constexpr int32_t DOUBLE_BUFFER_NUM = 2;
