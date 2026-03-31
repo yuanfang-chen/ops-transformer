@@ -1332,6 +1332,7 @@ void FiaInfoParser::GenerateInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.platformInfo = platformInfo_;
     fiaInfo.opParamInfo = opParamInfo_;
     fiaInfo.socVersion = socVersion_;
+    fiaInfo.npuArch = npuArch_;
     GenerateAxisInfo(fiaInfo);
     GenerateDtypeInfo(fiaInfo);
     fiaInfo.kvStorageMode = kvStorageMode_;
