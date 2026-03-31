@@ -12,7 +12,6 @@
  * \file test_quant_lightning_indexer.cpp
  * \brief
  */
-//testci
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -216,7 +215,7 @@ int ExecuteQuantLightningIndexer(TensorResources& resources, aclrtStream stream,
 
 int PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
   auto size = GetShapeSize(shape);
-  std::vector<aclFloat16> resultData(size, 0);
+  std::vector<int32_t> resultData(size, 0);
   auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
                          *deviceAddr, size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
   if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -287,7 +286,7 @@ int main() {
     TensorResources resources = {};
     void* workspaceAddr = nullptr;
     uint64_t workspaceSize = 0;
-    std::vector<int64_t> sparseIndicesShape = {1, 2, 1, 16};
+    std::vector<int32_t> sparseIndicesShape = {1, 2, 1, 2048};
     int ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream

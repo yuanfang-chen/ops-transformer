@@ -12,7 +12,6 @@
  * \file test_kv_quant_sparse_flash_attention_pioneer.cpp
  * \brief
  */
-//testci
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -90,37 +89,47 @@ struct TensorResources {
     void* keyDeviceAddr = nullptr;
     void* valueDeviceAddr = nullptr;
     void* sparseIndicesDeviceAddr = nullptr;
+    void* keyDequantScaleDeviceAddr = nullptr;
+    void* valueDequantScaleDeviceAddr = nullptr;
     void* attentionOutDeviceAddr = nullptr;
 
     aclTensor* queryTensor = nullptr;
     aclTensor* keyTensor = nullptr;
     aclTensor* valueTensor = nullptr;
     aclTensor* sparseIndicesTensor = nullptr;
+    aclTensor* keyDequantScaleTensor = nullptr;
+    aclTensor* valueDequantScaleTensor = nullptr;
     aclTensor* attentionOutTensor = nullptr;
 
 };
 
 int InitializeTensors(TensorResources& resources) {
-    std::vector<int64_t> queryShape = {1, 1, 4, 512};
-    std::vector<int64_t> keyShape = {1, 1, 4, 512};
-    std::vector<int64_t> valueShape = {1, 1, 4, 512};
+    std::vector<int64_t> queryShape = {1, 1, 4, 576};
+    std::vector<int64_t> keyShape = {1, 1, 4, 656};
+    std::vector<int64_t> valueShape = {1, 1, 4, 656};
     std::vector<int64_t> sparseIndicesShape = {1, 1, 4, 2048};
+    std::vector<int64_t> keyDequantScaleShape = {1, 1, 4};
+    std::vector<int64_t> valueDequantScaleShape = {1, 1, 4};
     std::vector<int64_t> attentionOutShape = {1, 1, 4, 512};
 
     int64_t queryShapeSize = GetShapeSize(queryShape);
     int64_t keyShapeSize = GetShapeSize(keyShape);
     int64_t valueShapeSize = GetShapeSize(valueShape);
     int64_t sparseIndicesShapeSize = GetShapeSize(sparseIndicesShape);
+    int64_t keyDequantScaleShapeSize = GetShapeSize(keyDequantScaleShape);
+    int64_t valueDequantScaleShapeSize = GetShapeSize(valueDequantScaleShape);
     int64_t attentionOutShapeSize = GetShapeSize(attentionOutShape);
 
     std::vector<float> queryHostData(queryShapeSize, 1);
     std::vector<float> keyHostData(keyShapeSize, 1);
     std::vector<float> valueHostData(valueShapeSize, 1);
     std::vector<int32_t> sparseIndicesHostData(sparseIndicesShapeSize, 1);
-    std::vector<int32_t> attentionOutHostData(attentionOutShapeSize, 1);
+    std::vector<int32_t> keyDequantScaleHostData(keyDequantScaleShapeSize, 1);
+    std::vector<int32_t> valueDequantScaleHostData(valueDequantScaleShapeSize, 1);
+    std::vector<float> attentionOutHostData(attentionOutShapeSize, 1);
 
     int ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr,
-                              aclDataType::ACL_FLOAT8_E4M3FN, &resources.queryTensor);
+                              aclDataType::ACL_FLOAT16, &resources.queryTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -132,7 +141,7 @@ int InitializeTensors(TensorResources& resources) {
     }
 
     ret = CreateAclTensor(valueHostData, valueShape, &resources.valueDeviceAddr,
-                          aclDataType::ACL_BF16, &resources.valueTensor);
+                          aclDataType::ACL_FLOAT8_E4M3FN, &resources.valueTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -143,8 +152,20 @@ int InitializeTensors(TensorResources& resources) {
       return ret;
     }
 
+    ret = CreateAclTensor(keyDequantScaleHostData, keyDequantScaleShape, &resources.keyDequantScaleDeviceAddr,
+                          aclDataType::ACL_FLOAT, &resources.keyDequantScaleTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      return ret;
+    }
+
+    ret = CreateAclTensor(valueDequantScaleHostData, valueDequantScaleShape, &resources.valueDequantScaleDeviceAddr,
+                          aclDataType::ACL_FLOAT, &resources.valueDequantScaleTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      return ret;
+    }
+
     ret = CreateAclTensor(attentionOutHostData, attentionOutShape, &resources.attentionOutDeviceAddr,
-                          aclDataType::ACL_INT32, &resources.attentionOutTensor);
+                          aclDataType::ACL_FLOAT16, &resources.attentionOutTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -159,7 +180,7 @@ int ExecuteKvQuantSparseFlashAttentionPioneer(TensorResources& resources, aclrtS
     int64_t sparseMode = 3;
     int64_t preTokens = 9223372036854775807;
     int64_t nextTokens = 9223372036854775807;
-    double scaleValue = 1/24;
+    double scaleValue = 1.0/24.0;
     int64_t sparseBlockSize = 1;
     int64_t attentionMode = 2;
     int64_t quantScaleRepoMode = 1;
@@ -237,6 +258,12 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
     if (resources.sparseIndicesTensor) {
       aclDestroyTensor(resources.sparseIndicesTensor);
     }
+    if (resources.keyDequantScaleTensor) {
+      aclDestroyTensor(resources.keyDequantScaleTensor);
+    }
+    if (resources.valueDequantScaleTensor) {
+      aclDestroyTensor(resources.valueDequantScaleTensor);
+    }
     if (resources.attentionOutTensor) {
       aclDestroyTensor(resources.attentionOutTensor);
     }
@@ -252,6 +279,12 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
     }
     if (resources.sparseIndicesDeviceAddr) {
       aclrtFree(resources.sparseIndicesDeviceAddr);
+    }
+    if (resources.keyDequantScaleDeviceAddr) {
+      aclrtFree(resources.keyDequantScaleDeviceAddr);
+    }
+    if (resources.valueDequantScaleDeviceAddr) {
+      aclrtFree(resources.valueDequantScaleDeviceAddr);
     }
     if (resources.attentionOutDeviceAddr) {
       aclrtFree(resources.attentionOutDeviceAddr);

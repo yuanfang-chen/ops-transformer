@@ -127,8 +127,8 @@ aclnnStatus aclnnQuantLightningIndexer(
       <td>
           <ul>
                 <li>layout_key为PA_BSND时，shape为(block_num, block_size, N2, D)。</li>
-                <li>layout_kv为BSND时，shape为(B, S2, N2, D)。</li>
-                <li>layout_kv为TND时，shape为(T2, N2, D)。</li>
+                <li>layout_key为BSND时，shape为(B, S2, N2, D)。</li>
+                <li>layout_key为TND时，shape为(T2, N2, D)。</li>
           </ul>
       </td>
       <td>✓</td>
@@ -185,7 +185,7 @@ aclnnStatus aclnnQuantLightningIndexer(
           </ul>
       </td>
       <td>ND</td>
-      <td>layout_key为PA_BSND时，shape为(block_num, block_size, N2, D)。</td>
+      <td>layout_key为PA_BSND时，shape为(block_num, block_size, N2)。</td>
       <td>✓</td>
     </tr>
     <tr>
@@ -292,7 +292,7 @@ aclnnStatus aclnnQuantLightningIndexer(
       <td>输入</td>
       <td>topK阶段需要保留的block数量。</td>
       <td>支持[1, 2048]</td>
-      <td>INT32</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -307,7 +307,7 @@ aclnnStatus aclnnQuantLightningIndexer(
                 <li>sparse_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。</li>
           </ul>
       </td>
-      <td>INT32</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -443,9 +443,9 @@ aclnnStatus aclnnQuantLightningIndexer(
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  ## 约束说明
+## 约束说明
 
-- 参数query中的N支持小于等于64/32/24/16，key、value的N支持1。
+- 参数query中的N支持小于等于64/32/24/16，key的N支持1。
 - headdim支持128。
 - block_size取值为16的倍数，最大支持1024。
 - 参数query、key的数据类型应保持一致。
@@ -470,7 +470,6 @@ aclnnStatus aclnnQuantLightningIndexer(
  * \file test_quant_lightning_indexer.cpp
  * \brief
  */
-//testci
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -674,7 +673,7 @@ int ExecuteQuantLightningIndexer(TensorResources& resources, aclrtStream stream,
 
 int PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
   auto size = GetShapeSize(shape);
-  std::vector<aclFloat16> resultData(size, 0);
+  std::vector<int32_t> resultData(size, 0);
   auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
                          *deviceAddr, size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
   if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -745,7 +744,7 @@ int main() {
     TensorResources resources = {};
     void* workspaceAddr = nullptr;
     uint64_t workspaceSize = 0;
-    std::vector<int64_t> sparseIndicesShape = {1, 2, 1, 16};
+    std::vector<int32_t> sparseIndicesShape = {1, 2, 1, 2048};
     int ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream

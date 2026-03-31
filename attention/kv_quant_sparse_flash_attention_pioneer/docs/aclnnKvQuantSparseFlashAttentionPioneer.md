@@ -10,7 +10,7 @@
 
 ## 功能说明
 
-- API功能：QuantLightningIndexer是推理场景下，SparseFlashAttention（SFA）前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8，获取最大收益。引入param sink后，param sink加入到KV的首个基本快中进行Attention计算：
+- API功能：kvQuantSparseFlashAttentionPioneer在sparseFlashAttention的基础上支持了Per-Token-Head-Tile-128量化输入。引入param sink后，param sink加入到KV的首个基本快中进行Attention计算。
 
 - 计算公式：
     $$
@@ -38,6 +38,7 @@
     $$
 
     其中$\tilde{K},\tilde{V}$为基于某种选择算法（如`LightningIndexer`）得到的重要性较高的Key和Value，一般具有稀疏或分块稀疏的特征，$d_k$为$Q,\tilde{K}$每一个头的维度，$\text{Dequant}(\cdot,\cdot)$为反量化函数。
+    
 本次公布的`kv_quant_sparse_flash_attention_pioneer`是面向Sparse Attention的全新算子，针对离散访存进行了指令缩减及搬运聚合的细致优化。
 
 ## 函数原型
@@ -120,7 +121,7 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
       <td>
           <ul>
                 <li>layout_query为BSND时shape为[B,S1,Q_N,D]。</li>
-                <li>layout_query为TND时，shape为[Q_T,Q_N,D]，其中Q_N支持1/2/4/8/16/32/64/128。</li>
+                <li>layout_query为TND时，shape为[Q_T,Q_N,D]，其中Q_N支持64/48/32/8/6/4/3/2。</li>
           </ul>
       </td>
       <td>x</td>
@@ -214,7 +215,7 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
       <td>
           <ul>
                 <li>不支持空tensor。</li>
-                <li>PageAttention场景下，block_table必须为二维，第一维长度为B，第二维长度不小于所有batch中最大的s2对应的block数量，即s2_max / block_size向上取整）</li>
+                <li>PageAttention场景下，block_table必须为二维，第一维长度为B，第二维长度不小于所有batch中最大的s2对应的block数量，即s2_max / block_size向上取整。</li>
           </ul>
       </td>
       <td>INT32</td>
@@ -279,9 +280,9 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
     <tr>
       <td>scaleValue</td>
       <td>输入</td>
-      <td>用于标识输入`query`的量化模式。</td>
-      <td>支持Per-Token-Head量化模式。</td>
-      <td>INT64</td>
+      <td>代表缩放系数。</td>
+      <td>作为query和key矩阵乘后Muls的scalar值。</td>
+      <td>float</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -356,7 +357,7 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
                 <li>sparse_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。</li>
           </ul>
       </td>
-      <td>INT32</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -532,7 +533,7 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  ## 约束说明
+## 约束说明
 
 - 参数query中的N值为64/48/32/8/6/4/3/2，key、value的N支持1。
 - 参数query中的D值为576，即nope+rope=512+64。
@@ -560,7 +561,6 @@ aclnnStatus aclnnKvQuantSparseFlashAttentionPioneer(
  * \file test_kv_quant_sparse_flash_attention_pioneer.cpp
  * \brief
  */
-//testci
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -638,37 +638,47 @@ struct TensorResources {
     void* keyDeviceAddr = nullptr;
     void* valueDeviceAddr = nullptr;
     void* sparseIndicesDeviceAddr = nullptr;
+    void* keyDequantScaleDeviceAddr = nullptr;
+    void* valueDequantScaleDeviceAddr = nullptr;
     void* attentionOutDeviceAddr = nullptr;
 
     aclTensor* queryTensor = nullptr;
     aclTensor* keyTensor = nullptr;
     aclTensor* valueTensor = nullptr;
     aclTensor* sparseIndicesTensor = nullptr;
+    aclTensor* keyDequantScaleTensor = nullptr;
+    aclTensor* valueDequantScaleTensor = nullptr;
     aclTensor* attentionOutTensor = nullptr;
 
 };
 
 int InitializeTensors(TensorResources& resources) {
-    std::vector<int64_t> queryShape = {1, 2, 1, 512};
-    std::vector<int64_t> keyShape = {1, 2, 1, 512};
-    std::vector<int64_t> valueShape = {1, 2, 1, 512};
-    std::vector<int64_t> sparseIndicesShape = {1, 2, 1, 2048};
-    std::vector<int64_t> attentionOutShape = {1, 2, 1, 512};
+    std::vector<int64_t> queryShape = {1, 1, 4, 576};
+    std::vector<int64_t> keyShape = {1, 1, 4, 656};
+    std::vector<int64_t> valueShape = {1, 1, 4, 656};
+    std::vector<int64_t> sparseIndicesShape = {1, 1, 4, 2048};
+    std::vector<int64_t> keyDequantScaleShape = {1, 1, 4};
+    std::vector<int64_t> valueDequantScaleShape = {1, 1, 4};
+    std::vector<int64_t> attentionOutShape = {1, 1, 4, 512};
 
     int64_t queryShapeSize = GetShapeSize(queryShape);
     int64_t keyShapeSize = GetShapeSize(keyShape);
     int64_t valueShapeSize = GetShapeSize(valueShape);
     int64_t sparseIndicesShapeSize = GetShapeSize(sparseIndicesShape);
+    int64_t keyDequantScaleShapeSize = GetShapeSize(keyDequantScaleShape);
+    int64_t valueDequantScaleShapeSize = GetShapeSize(valueDequantScaleShape);
     int64_t attentionOutShapeSize = GetShapeSize(attentionOutShape);
 
     std::vector<float> queryHostData(queryShapeSize, 1);
     std::vector<float> keyHostData(keyShapeSize, 1);
     std::vector<float> valueHostData(valueShapeSize, 1);
     std::vector<int32_t> sparseIndicesHostData(sparseIndicesShapeSize, 1);
-    std::vector<int32_t> attentionOutHostData(attentionOutShapeSize, 1);
+    std::vector<int32_t> keyDequantScaleHostData(keyDequantScaleShapeSize, 1);
+    std::vector<int32_t> valueDequantScaleHostData(valueDequantScaleShapeSize, 1);
+    std::vector<float> attentionOutHostData(attentionOutShapeSize, 1);
 
     int ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr,
-                              aclDataType::ACL_FLOAT8_E4M3FN, &resources.queryTensor);
+                              aclDataType::ACL_FLOAT16, &resources.queryTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -680,7 +690,7 @@ int InitializeTensors(TensorResources& resources) {
     }
 
     ret = CreateAclTensor(valueHostData, valueShape, &resources.valueDeviceAddr,
-                          aclDataType::ACL_BF16, &resources.valueTensor);
+                          aclDataType::ACL_FLOAT8_E4M3FN, &resources.valueTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -691,8 +701,20 @@ int InitializeTensors(TensorResources& resources) {
       return ret;
     }
 
+    ret = CreateAclTensor(keyDequantScaleHostData, keyDequantScaleShape, &resources.keyDequantScaleDeviceAddr,
+                          aclDataType::ACL_FLOAT, &resources.keyDequantScaleTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      return ret;
+    }
+
+    ret = CreateAclTensor(valueDequantScaleHostData, valueDequantScaleShape, &resources.valueDequantScaleDeviceAddr,
+                          aclDataType::ACL_FLOAT, &resources.valueDequantScaleTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+      return ret;
+    }
+
     ret = CreateAclTensor(attentionOutHostData, attentionOutShape, &resources.attentionOutDeviceAddr,
-                          aclDataType::ACL_INT32, &resources.attentionOutTensor);
+                          aclDataType::ACL_FLOAT16, &resources.attentionOutTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
     }
@@ -707,7 +729,7 @@ int ExecuteKvQuantSparseFlashAttentionPioneer(TensorResources& resources, aclrtS
     int64_t sparseMode = 3;
     int64_t preTokens = 9223372036854775807;
     int64_t nextTokens = 9223372036854775807;
-    double scaleValue = 1/24;
+    double scaleValue = 1.0/24.0;
     int64_t sparseBlockSize = 1;
     int64_t attentionMode = 2;
     int64_t quantScaleRepoMode = 1;
@@ -785,6 +807,12 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
     if (resources.sparseIndicesTensor) {
       aclDestroyTensor(resources.sparseIndicesTensor);
     }
+    if (resources.keyDequantScaleTensor) {
+      aclDestroyTensor(resources.keyDequantScaleTensor);
+    }
+    if (resources.valueDequantScaleTensor) {
+      aclDestroyTensor(resources.valueDequantScaleTensor);
+    }
     if (resources.attentionOutTensor) {
       aclDestroyTensor(resources.attentionOutTensor);
     }
@@ -800,6 +828,12 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
     }
     if (resources.sparseIndicesDeviceAddr) {
       aclrtFree(resources.sparseIndicesDeviceAddr);
+    }
+    if (resources.keyDequantScaleDeviceAddr) {
+      aclrtFree(resources.keyDequantScaleDeviceAddr);
+    }
+    if (resources.valueDequantScaleDeviceAddr) {
+      aclrtFree(resources.valueDequantScaleDeviceAddr);
     }
     if (resources.attentionOutDeviceAddr) {
       aclrtFree(resources.attentionOutDeviceAddr);
@@ -823,7 +857,7 @@ int main() {
     TensorResources resources = {};
     void* workspaceAddr = nullptr;
     uint64_t workspaceSize = 0;
-    std::vector<int64_t> attentionOutShape = {1, 2, 1, 16};
+    std::vector<int64_t> attentionOutShape = {1, 1, 4, 512};
     int ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream
