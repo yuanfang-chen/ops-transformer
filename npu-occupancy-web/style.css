@@ -1,0 +1,161 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f6f8fb;
+  color: #1f2937;
+}
+
+.page-header, .page-footer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+h1, h2, p {
+  margin: 8px 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+input, select, button {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #cfd6e1;
+  font-size: 14px;
+}
+
+button {
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.machine-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.machine-list li {
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #fafcff;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timeline {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(24, minmax(36px, 1fr));
+  gap: 6px;
+}
+
+.slot {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 2px;
+  text-align: center;
+  font-size: 12px;
+  background: #f9fafb;
+  min-height: 52px;
+}
+
+.slot.free {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.slot.busy {
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.slot .hour {
+  font-weight: 700;
+}
+
+.slot .owner {
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend {
+  font-size: 13px;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 0 4px 0 10px;
+}
+
+.dot.free {
+  background: #16a34a;
+}
+
+.dot.busy {
+  background: #dc2626;
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #374151;
+}
+
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

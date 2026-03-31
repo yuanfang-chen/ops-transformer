@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NPU 占用看板</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="page-header">
+    <h1>NPU 机器占用时间段看板</h1>
+    <p>支持机器录入、24小时占用查看、时间段预约。</p>
+  </header>
+
+  <main class="layout">
+    <section class="card">
+      <h2>1) 机器信息录入</h2>
+      <form id="machine-form" class="form-grid">
+        <label>
+          机器名称
+          <input name="name" required placeholder="例如：NPU-01">
+        </label>
+        <label>
+          型号
+          <input name="model" required placeholder="例如：Ascend 910B">
+        </label>
+        <label>
+          位置
+          <input name="location" required placeholder="例如：机房A-3排">
+        </label>
+        <label class="full">
+          备注
+          <input name="remark" placeholder="例如：8卡，驱动版本...">
+        </label>
+        <button type="submit">新增机器</button>
+      </form>
+      <ul id="machine-list" class="machine-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>2) 24小时占用情况</h2>
+      <div class="toolbar">
+        <label>
+          查看日期
+          <input id="view-date" type="date">
+        </label>
+        <label>
+          当前机器
+          <select id="machine-select"></select>
+        </label>
+      </div>
+      <div id="timeline" class="timeline"></div>
+      <p class="legend">
+        <span class="dot free"></span> 空闲
+        <span class="dot busy"></span> 已占用
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>3) 用户选择时间段占用</h2>
+      <form id="booking-form" class="form-grid">
+        <label>
+          用户姓名
+          <input name="userName" required placeholder="请输入姓名">
+        </label>
+        <label>
+          联系方式
+          <input name="contact" required placeholder="邮箱/电话">
+        </label>
+        <label>
+          开始小时
+          <select name="startHour" id="start-hour"></select>
+        </label>
+        <label>
+          结束小时
+          <select name="endHour" id="end-hour"></select>
+        </label>
+        <label class="full">
+          占用目的
+          <input name="purpose" required placeholder="例如：训练实验A/B测试">
+        </label>
+        <button type="submit">提交占用</button>
+      </form>
+      <div id="booking-hint" class="hint"></div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    数据保存在浏览器本地（localStorage），适合 GitHub Pages 直接部署。
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
