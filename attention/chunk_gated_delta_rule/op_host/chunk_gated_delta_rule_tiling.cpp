@@ -210,6 +210,14 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 };
 
+// 设置算子在 NPU 上执行时的调度模式
+ge::graphStatus ChunkGatedDeltaRuleTiling::SetScheduleConfig()
+{
+    constexpr uint32_t batchMode = 1U;
+    auto ret = context_->SetScheduleMode(batchMode);
+    return (ret == ge::GRAPH_SUCCESS) ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
+}
+
 // 写回 tilingData 和 workspace 信息
 ge::graphStatus ChunkGatedDeltaRuleTiling::PostTiling()
 {
@@ -237,6 +245,9 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::PostTiling()
     OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "workspaces is null"),
                 return ge::GRAPH_FAILED);
     workspaces[0] = workspaceSize_;
+
+    OP_CHECK_IF(SetScheduleConfig() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "SetScheduleMode failed"),
+                return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
