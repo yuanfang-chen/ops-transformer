@@ -474,6 +474,7 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_tilingKey(tilingKey);
     context->SetTilingKey(tilingKey);
     context->SetBlockDim(blockDim_);
+    context->SetScheduleMode(1);
 
     tilingData_->set_sOutSize(sOutSize_);
     tilingData_->set_dPOutSize(dPOutSize_);
