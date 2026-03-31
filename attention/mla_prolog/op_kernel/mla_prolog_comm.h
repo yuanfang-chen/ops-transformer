@@ -189,7 +189,7 @@ constexpr uint32_t L0C_PP_SIZE = 64 * 1024;
 
 
 /*
-                                     非量化             半量化(kv非量化)       半量化(kv量化)       int8全量化(kv非量化)    int8全量化(kv量化)      半量化(kv per-tile量化)   int8全量化(kv per-tile量化)  Mxfp8量化(kv非量化)      Mxfp8量化(kv量化)      Mxfp8量化(kv per-tile量化)    fp8全量化(kv非量化)     fp8全量化(kv量化)     hif8全量化(kv非量化)    hif8全量化(kv量化)         
+                                     非量化             半量化(kv非量化)       半量化(kv量化)       int8全量化(kv非量化)    int8全量化(kv量化)  半量化(kv per-tile量化)   int8全量化(kv per-tile量化)  Mxfp8量化(kv非量化)      Mxfp8量化(kv量化)      Mxfp8量化(kv per-tile量化)   fp8全量化(kv非量化)    fp8全量化(kv量化)    hif8全量化(kv非量化)   hif8全量化(kv量化)         
   cacheMode                    PA_BSND/PA_BLK_BSND    PA_BSND/PA_BLK_BSND  PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND      PA_BSND/BSND/TND            PA_BSND/BSND/TND        PA_BSND/PA_BLK_BSND     PA_BSND/PA_BLK_BSND         PA_BSND/BSND/TND        PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND   PA_BSND/PA_BLK_BSND
                                 /PA_NZ/PA_BLK_NZ       /PA_NZ/PA_BLK_NZ     /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ                                                             /PA_NZ/PA_BLK_NZ        /PA_NZ/PA_BLK_NZ                                   /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ      /PA_NZ/PA_BLK_NZ
                                   /BSND/TND             /BSND/TND             /BSND/TND            /BSND/TND             /BSND/TND                                                                     /BSND/TND                 /BSND/TND                                       /BSND/TND              /BSND/TND             /BSND/TND              /BSND/TND
@@ -271,7 +271,7 @@ struct MLAPType {
 
 // 类模板特化，支持mxfp8/fp8全量化
 #if __CCE_AICORE__ == 310
-template <typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
+template <typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT, bool ENABLE_GROUP_COMPUTE_OPT,
           EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
 struct MLAPType<FP8E4M3, FP8E4M3, C_T, D_S, C_M, ENABLE_DEQUANT_OPT,
                 ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {
@@ -305,7 +305,7 @@ struct MLAPType<FP8E4M3, FP8E4M3, C_T, D_S, C_M, ENABLE_DEQUANT_OPT,
 };
 
 // 类模板特化，支持hif8全量化
-template <typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT,bool ENABLE_GROUP_COMPUTE_OPT,
+template <typename C_T, typename D_S, CACHE_MODE C_M, bool ENABLE_DEQUANT_OPT, bool ENABLE_GROUP_COMPUTE_OPT,
           EMPTY_TENSOR_MODE EMPTY_MODE, ACTUAL_SEQ_MODE SEQ_MODE, bool IS_PERTILE, uint32_t CV_RATIO, typename... Args>
 struct MLAPType<HIF8, HIF8, C_T, D_S, C_M, ENABLE_DEQUANT_OPT,
                 ENABLE_GROUP_COMPUTE_OPT, EMPTY_MODE, SEQ_MODE, IS_PERTILE, CV_RATIO, Args...> {

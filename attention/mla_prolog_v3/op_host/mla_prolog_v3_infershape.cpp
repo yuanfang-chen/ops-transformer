@@ -148,10 +148,13 @@ ge::graphStatus InferDataTypeMlaPrologV3(gert::InferDataTypeContext *context)
         context->SetOutputDataType(KR_CACHE_OUT_INDEX, context->GetRequiredInputDataType(KR_CACHE_INDEX_V3));
 
         // full quant
-        bool isQuantQuery = ((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8 ||
-            weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8) && kvQuantMode == KV_QUANT_MODE_PER_TENSOR);
+        bool isQuantQuery = ((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT ||
+            weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_FP8 ||
+            weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT_HIF8)
+            && kvQuantMode == KV_QUANT_MODE_PER_TENSOR);
 
-        context->SetOutputDataType(QUERY_INDEX, isQuantQuery ? context->GetRequiredInputDataType(TOKEN_X_INDEX) : ge::DT_BF16);
+        context->SetOutputDataType(QUERY_INDEX,
+            isQuantQuery ? context->GetRequiredInputDataType(TOKEN_X_INDEX) : ge::DT_BF16);
         context->SetOutputDataType(DEQUANT_SCALE_Q_NOPE_INDEX, ge::DT_FLOAT);
 
         if (weightQuantMode == WEIGHT_QUANT_MODE_NO_QUANT) {

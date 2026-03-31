@@ -49,9 +49,9 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
             MicroAPI::Cast<float, T, CAST_TRAITB162F32>(vregFloat, vregSrc, pregAll);
         }
         MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregFloat, vregFloat, vregQuantScale, pregAll);
-        if constexpr(std::is_same<U, hifloat8_t>::value){
+        if constexpr (std::is_same<U, hifloat8_t>::value) {
             MicroAPI::Cast<U, float, CAST_TRAITF322HIF8>(vregRes, vregFloat, pregAll);
-        } else if constexpr(std::is_same<U, int8_t>::value){
+        } else if constexpr (std::is_same<U, int8_t>::value) {
             MicroAPI::Cast<half, float, castTraitF32ToHalf>(yHalf, vregFloat, pregAll);
             MicroAPI::Cast<U, half, CAST_TRAIT>(vregRes, yHalf, pregAll);
         } else {

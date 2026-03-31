@@ -94,12 +94,16 @@ bool MlaPrologTilingCheck::CheckAttrsRange() const
         if (GetCurNpuArch() == NpuArch::DAV_3510) {
             const std::set<uint32_t> supportedWeightQuantMode {0U, 1U, 2U, 3U, 4U, 5U};
             OP_CHECK_IF(supportedWeightQuantMode.find(*context_.weightQuantMode) == supportedWeightQuantMode.end(),
-                OP_LOGE(context_.opName, "WeightQuantMode must be within {0, 1, 2, 3, 4, 5}, actually is %d.", *context_.weightQuantMode),
+                OP_LOGE(context_.opName,
+                    "WeightQuantMode must be within {0, 1, 2, 3, 4, 5}, actually is %d.",
+                    *context_.weightQuantMode),
                     return false);
         } else {
             const std::set<uint32_t> supportedWeightQuantMode {0U, 1U, 2U};
             OP_CHECK_IF(supportedWeightQuantMode.find(*context_.weightQuantMode) == supportedWeightQuantMode.end(),
-                OP_LOGE(context_.opName, "WeightQuantMode must be within {0, 1, 2}, actually is %d.", *context_.weightQuantMode),
+                OP_LOGE(context_.opName,
+                    "WeightQuantMode must be within {0, 1, 2}, actually is %d.",
+                    *context_.weightQuantMode),
                     return false);
         }
 
@@ -980,7 +984,9 @@ ge::graphStatus MlaPrologTilingCheck::CheckSingleRequiredParam() const
 bool MlaPrologTilingCheck::CheckTokenX() const
 {
     if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(context_.tokenX, TOKEN_X_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {2, 3});
+        return IsSingleParamValid(context_.tokenX, TOKEN_X_NAME,
+            {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8},
+            {ge::FORMAT_ND, ge::FORMAT_NCHW}, {2, 3});
     } else {
         return IsSingleParamValid(context_.tokenX, TOKEN_X_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {2, 3});
     }
@@ -989,18 +995,26 @@ bool MlaPrologTilingCheck::CheckTokenX() const
 bool MlaPrologTilingCheck::CheckWDq() const
 {
     if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(context_.weightDq, WEIGHT_DQ_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightDq, WEIGHT_DQ_NAME,
+            {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     } else {
-        return IsSingleParamValid(context_.weightDq, WEIGHT_DQ_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightDq, WEIGHT_DQ_NAME,
+            {ge::DT_BF16, ge::DT_INT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     }
 }
 
 bool MlaPrologTilingCheck::CheckWUqQr() const
 {
     if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(context_.weightUqQr, WEIGHT_UQ_QR_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightUqQr, WEIGHT_UQ_QR_NAME,
+            {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     } else {
-        return IsSingleParamValid(context_.weightUqQr, WEIGHT_UQ_QR_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightUqQr, WEIGHT_UQ_QR_NAME,
+            {ge::DT_BF16, ge::DT_INT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     }
 }
 
@@ -1016,15 +1030,20 @@ bool MlaPrologTilingCheck::CheckWUk() const
 bool MlaPrologTilingCheck::CheckWDkvKr() const
 {
     if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(context_.weightDkvKr, WEIGHT_DKV_KR_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightDkvKr, WEIGHT_DKV_KR_NAME,
+            {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     } else {
-        return IsSingleParamValid(context_.weightDkvKr, WEIGHT_DKV_KR_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_FRACTAL_NZ}, {2, 4});
+        return IsSingleParamValid(context_.weightDkvKr, WEIGHT_DKV_KR_NAME,
+            {ge::DT_BF16, ge::DT_INT8},
+            {ge::FORMAT_FRACTAL_NZ}, {2, 4});
     }
 }
 
 bool MlaPrologTilingCheck::CheckRmsnormGammaCq() const
 {
-    return IsSingleParamValid(context_.rmsnormGammaCq, RMSNORM_GAMMA_CQ_NAME, {ge::DT_BF16}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1});
+    return IsSingleParamValid(context_.rmsnormGammaCq, RMSNORM_GAMMA_CQ_NAME,
+        {ge::DT_BF16}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1});
 }
 
 bool MlaPrologTilingCheck::CheckRmsnormGammaCkv() const
@@ -1054,7 +1073,9 @@ bool MlaPrologTilingCheck::CheckKvCache() const
         if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0){
             return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
         } else {
-            return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
+            return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME,
+                {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_HIFLOAT8},
+                {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
         }
     } else {
         if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0){
