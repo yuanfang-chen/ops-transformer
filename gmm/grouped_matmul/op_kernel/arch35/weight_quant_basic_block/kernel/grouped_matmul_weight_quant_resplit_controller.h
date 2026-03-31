@@ -140,11 +140,8 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
     BasicBlockOffsetParam offsetParam;
     InitOffsetParam(offsetParam);
 
-    bool isCacheLineUnaligned = offsetParam.kSize % 128 != 0;
-    if constexpr (IsSameType<wType, int4b_t>::value || IsSameType<wType, fp4x2_e2m1_t>::value ||
-                  IsSameType<wType, fp4x2_e1m2_t>::value) {
-        isCacheLineUnaligned = offsetParam.kSize % 256 != 0;
-    }
+    // 缓存大小128B，对应4bit为256个元素
+    bool isCacheLineUnaligned = offsetParam.kSize % 256 != 0;
 
     BasicBlockControlParam ctrlParam;
     for (uint32_t groupIdx = 0, startBasicBlockId = 0; groupIdx < gmmBaseTiling_->groupNum; ++groupIdx) {
@@ -295,12 +292,8 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
                                                                                 uint64_t nSize)
 {
     xGm_ += mSize * kSize;
-    if constexpr (IsSameType<wType, int4b_t>::value || IsSameType<wType, fp4x2_e2m1_t>::value ||
-                  IsSameType<wType, fp4x2_e1m2_t>::value) {
-        weightGm_ += (nSize * kSize) >> 1;
-    } else {
-        weightGm_ += nSize * kSize;
-    }
+    // 4bit，地址偏移单位为8bit
+    weightGm_ += (nSize * kSize) >> 1;
     antiquantScaleGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
     antiquantOffsetGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
 

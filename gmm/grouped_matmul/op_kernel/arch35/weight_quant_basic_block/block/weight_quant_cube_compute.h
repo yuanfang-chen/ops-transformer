@@ -26,7 +26,6 @@ using AscendC::Dn2NzParams;
 using AscendC::GetBlockIdx;
 using AscendC::GlobalTensor;
 using AscendC::HardEvent;
-using AscendC::IsSameType;
 using AscendC::LocalTensor;
 using AscendC::PipeBarrier;
 using AscendC::SetFlag;
