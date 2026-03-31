@@ -2101,6 +2101,13 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           } else {
             workspaces[0] += static_cast<size_t>((cvParallNum * aicNum * singleN * singleM * static_cast<uint32_t>(sizeof(int32_t)) * EIGHT));
           }
+          //begin
+          tilingDataA8W4.gmmBaseParams.set_preProcessWorkspaceOffset(workspaces[0]);
+          workspaces[0] += m * k;
+          workspaces[0] += SYS_WORKSPACE_SIZE;  // default size
+          tilingDataA8W4.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
+          context->GetRawTilingData()->SetDataSize(tilingDataA8W4.GetDataSize());
+          //end
           return ge::GRAPH_SUCCESS;
         }
       }
