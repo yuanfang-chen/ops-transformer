@@ -331,6 +331,11 @@
     * 不支持`expandScalesOptional`。
     * 不支持`commAlg`。
 
+- <term>Ascend 950PR/Ascend 950DT</term>：
+    * 不支持`expandScalesOptional`。
+    * 不支持`commAlg`。
+    * 仅支持EP域，无TP域，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，且`tpRecvCounts`输出为无效内容。
+
 ## 约束说明
 
 - `MoeDistributeDispatchV2`与`CombineV2`系列算子必须配套使用，具体参考调用示例。
