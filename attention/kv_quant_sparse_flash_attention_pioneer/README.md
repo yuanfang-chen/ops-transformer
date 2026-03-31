@@ -108,48 +108,53 @@ torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_
     import torch_npu
     import numpy as np
     import random
-    import math
-    # 生成随机数据，并发送到npu
-    query_type = torch.bfloat16
-    scale_value = 0.041666666666666664
-    sparse_block_size = 1
-    sparse_block_count = 2048
-    b = 1
-    s1 = 1
-    s2 = 8192
-    n1 = 128
-    n2 = 1
-    dn = 512
-    dr = 64
-    tile_size = 128
-    block_size = 256
-    layout_query = 'BSND'
+
+    device = torch.device("npu")
+
+    b, s1, s2, n1, n2 = 2, 1, 512, 64, 1
+    dn, dr, tile_size = 512, 64, 128
+    sparse_block_count, block_size = 2048, 256
     s2_act = 4096
 
-    query = torch.tensor(np.random.uniform(-10, 10, (b, s1, n1, dn))).to(query_type)
-    key = torch.tensor(np.random.uniform(-5, 10, (b * (s2 // block_size), block_size, n2, dn))).to(torch.int8)
-    value = key.clone().npu()
-    idxs = random.sample(range(s2_act - s1 + 1), sparse_block_count)
-    sparse_indices = torch.tensor([idxs for _ in range(b * s1 * n2)]).reshape(b, s1, n2, sparse_block_count). \
-        to(torch.int32).npu()
-    query_rope = torch.tensor(np.random.uniform(-10, 10, (b, s1, n1, dr))).to(query_type)
-    key_rope = torch.tensor(np.random.uniform(-10, 10, (b * (s2 // block_size), block_size, n2, dr))).to(query_type)
-    act_seq_q = torch.tensor([s1] * b).to(torch.int32).npu()
-    act_seq_kv = torch.tensor([s2_act] * b).to(torch.int32).npu()
-    antiquant_scale = torch.tensor(np.random.uniform(-100, 100, (b * (s2 // block_size), block_size, n2,
-        dn // tile_size))).to(torch.float32)
-    key = torch.cat((key, key_rope.view(torch.int8), antiquant_scale.view(torch.int8)), axis=3).npu()
-    query = torch.cat((query, query_rope), axis=3).npu()
-    block_table = torch.tensor([range(b * s2 // block_size)], dtype=torch.int32).reshape(b, -1).npu()
+    query_type = torch.bfloat16
+    key_dtype = torch_npu.hifloat8
+    value_dtype = torch_npu.hifloat8
 
-    # 调用qsfap算子
-    out = torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
-        scale_value=scale_value, sparse_block_size=sparse_block_size,
-        actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
-        key_sink=None, value_sink=None,
-        layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,
-        attention_mode=2, quant_scale_repo_mode=1, tile_size=tile_size, key_quant_mode=2,
-        value_quant_mode=2, rope_head_dim=64)
+    query_base = torch.tensor(np.random.uniform(-10, 100, (b, s1, n1, dn)), dtype=query_type, device=device)
+    key_base = torch.tensor(np.random.uniform(-5, 100, (b * (s2 // block_size), block_size, n2, dn)), dtype=torch.uint8, device=device)
+    value_base = torch.tensor(np.random.uniform(-5, 100, (b * (s2 // block_size), block_size, n2, dn)), dtype=torch.uint8, device=device)
+    query_rope = torch.tensor(np.random.uniform(-10, 100, (b, s1, n1, dr)), dtype=query_type, device=device)
+    key_rope = torch.tensor(np.random.uniform(-10, 10, (b * (s2 // block_size), block_size, n2, dr)), dtype=query_type, device=device)
+    antiquant_scale = torch.tensor(np.random.uniform(-100, 100, (b * (s2 // block_size), block_size, n2, dn // tile_size)), dtype=torch.float32, device=device)
+
+    idxs = random.sample(range(s2_act - s1 + 1), sparse_block_count)
+    sparse_indices = torch.tensor([idxs for _ in range(b * s1 * n2)], dtype=torch.int32, device=device).reshape(b, s1, n2, sparse_block_count)
+
+    act_seq_q = torch.full((b,), s1, dtype=torch.int32, device=device)
+    act_seq_kv = torch.full((b,), s2_act, dtype=torch.int32, device=device)
+    block_table = torch.arange(b * s2 // block_size, dtype=torch.int32, device=device).reshape(b, -1)
+
+    key = torch.cat((key_base, key_rope.view(torch.uint8), antiquant_scale.view(torch.uint8)), dim=3)
+    finally_d = dn + 2 * dr + 4 * (dn // tile_size)
+    key = torch.as_strided(key, size=(b * (s2 // block_size), block_size, n2, finally_d), stride=(n2 * finally_d * block_size, n2 * finally_d, finally_d, 1))
+
+    query = torch.cat((query_base, query_rope), dim=3)
+    value = value_base
+    key_dequant_scale = antiquant_scale
+    value_dequant_scale = antiquant_scale
+
+    output = torch_npu._npu_kv_quant_sparse_flash_attention_pioneer(query=query, key=key, value=value,
+                            sparse_indices=sparse_indices,
+                            scale_value=0.041666666666666664, sparse_block_size=1,
+                            key_quant_mode=2, value_quant_mode=2,
+                            key_dequant_scale=key_dequant_scale, value_dequant_scale=value_dequant_scale,
+                            block_table=block_table, actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
+                            key_sink=None, value_sink=None, layout_query="BSND", layout_kv="PA_BSND",
+                            sparse_mode=3, attention_mode=2, quant_scale_repo_mode=1,
+                            tile_size=tile_size, rope_head_dim=64,
+                            key_dtype=key_dtype, value_dtype=value_dtype,
+                            pre_tokens=9223372036854775807, next_tokens=9223372036854775807
+    )
 
     # 执行上述代码的输出out类似如下
     tensor([[[[ 0.0000,  -72.0000,  0.0000,  ...,  0.0000, 0.0000, 189.0000],
@@ -162,105 +167,124 @@ torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_
             device='npu:0', dtype=torch.bfloat16)
     ```
 
-- 图模式调用
+- AclGraph模式调用
 
     ```python
     import torch
     import torch_npu
     import numpy as np
-    import math
     import random
     import torchair as tng
-
+    import torch.nn as nn
     from torchair.configs.compiler_config import CompilerConfig
-    import torch._dynamo
-    TORCHDYNAMO_VERBOSE=1
-    TORCH_LOGS="+dynamo"
 
-    # 支持入图的打印宏
-    import logging
-    from torchair.core.utils import logger
-    logger.setLevel(logging.DEBUG)
-    config = CompilerConfig()
-    config.debug.graph_dump.type = "pbtxt"
-    npu_backend = tng.get_npu_backend(compiler_config=config)
-    from torch.library import Library, impl
-
-    # 数据生成
+    b, s1, s2, n1, n2 = 2, 1, 512, 64, 1
+    pre_tokens = 9223372036854775807
+    next_tokens = 9223372036854775807
     query_type = torch.bfloat16
     scale_value = 0.041666666666666664
     sparse_block_size = 1
-    sparse_block_count = 2048
-    b = 1
-    s1 = 1
-    s2 = 8192
-    n1 = 128
-    n2 = 1
     dn = 512
     dr = 64
     tile_size = 128
+    sparse_block_count = 2048
     block_size = 256
+    layout_query = 'BSND'
+    layout_kv = 'PA_BSND'
     s2_act = 4096
 
-    query = torch.tensor(np.random.uniform(-10, 10, (b, s1, n1, dn))).to(query_type)
-    key = torch.tensor(np.random.uniform(-5, 10, (b * (s2 // block_size), block_size, n2, dn))).to(torch.int8)
-    value = key.clone().npu()
+    key_dtype = torch_npu.hifloat8
+    value_dtype = torch_npu.hifloat8
+
+    query_base = torch.tensor(np.random.uniform(-10, 100, (b, s1, n1, dn))).to(query_type).npu()
+    key_base = torch.tensor(np.random.uniform(-5, 100, (b * (s2 // block_size), block_size, n2, dn))).to(torch.uint8).npu()
+    value_base = torch.tensor(np.random.uniform(-5, 100, (b * (s2 // block_size), block_size, n2, dn))).to(torch.uint8).npu()
+
+    query_rope = torch.tensor(np.random.uniform(-10, 100, (b, s1, n1, dr))).to(query_type).npu()
+    key_rope = torch.tensor(np.random.uniform(-10, 10, (b * (s2 // block_size), block_size, n2, dr))).to(query_type).npu()
+
     idxs = random.sample(range(s2_act - s1 + 1), sparse_block_count)
-    sparse_indices = torch.tensor([idxs for _ in range(b * s1 * n2)]).reshape(b, s1, n2, sparse_block_count). \
-        to(torch.int32).npu()
-    query_rope = torch.tensor(np.random.uniform(-10, 10, (b, s1, n1, dr))).to(query_type)
-    key_rope = torch.tensor(np.random.uniform(-10, 10, (b * (s2 // block_size), block_size, n2, dr))).to(query_type)
+    sparse_indices = torch.tensor([idxs for _ in range(b * s1 * n2)]).reshape(b, s1, n2, sparse_block_count).to(torch.int32).npu()
+
     act_seq_q = torch.tensor([s1] * b).to(torch.int32).npu()
     act_seq_kv = torch.tensor([s2_act] * b).to(torch.int32).npu()
-    antiquant_scale = torch.tensor(np.random.uniform(-100, 100, (b * (s2 // block_size), block_size, n2,
-        dn // tile_size))).to(torch.float32)
-    key = torch.cat((key, key_rope.view(torch.int8), antiquant_scale.view(torch.int8)), axis=3).npu()
-    query = torch.cat((query, query_rope), axis=3).npu()
+
+    antiquant_scale = torch.tensor(np.random.uniform(-100, 100, (b * (s2 // block_size), block_size, n2, dn // tile_size))).to(torch.float32).npu()
+
+    key = torch.cat((key_base, key_rope.view(torch.uint8), antiquant_scale.view(torch.uint8)), axis=3)
+
+    finally_d = dn + 2 * dr + 4 * (dn // tile_size)
+    key = torch.as_strided(
+        key,
+        size=[b * (s2 // block_size), block_size, n2, finally_d],
+        stride=[n2 * finally_d * block_size, n2 * finally_d, finally_d, 1]
+    )
+
+    query = torch.cat((query_base, query_rope), axis=3)
+    value = value_base
+
     block_table = torch.tensor([range(b * s2 // block_size)], dtype=torch.int32).reshape(b, -1).npu()
 
-    class Model(torch.nn.Module):
+    key_dequant_scale = antiquant_scale
+    value_dequant_scale = antiquant_scale
+
+    class Network(nn.Module):
         def __init__(self):
-            super().__init__()
-        def forward(self):
-            return torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
-                scale_value=scale_value, sparse_block_size=sparse_block_size,
-                actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
-                layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,
-                attention_mode=2, quant_scale_repo_mode=1, tile_size=tile_size, key_quant_mode=2,
-                value_quant_mode=2, rope_head_dim=64)
-    def MetaInfershape():
-        with torch.no_grad():
-            model = Model()
-            model = torch.compile(model, backend=npu_backend, dynamic=False, fullgraph=True)
-            graph_output = model()
-        single_op = torch_npu.npu_kv_quant_sparse_flash_attention_pioneer(query, key, value, sparse_indices, 
-                scale_value=scale_value, sparse_block_size=sparse_block_size,
-                actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv,
-                key_sink=None, value_sink=None,
-                layout_query='BSND', layout_kv='PA_BSND', sparse_mode=3, block_table=block_table,
-                attention_mode=2, quant_scale_repo_mode=1, tile_size=tile_size, key_quant_mode=2,
-                value_quant_mode=2, rope_head_dim=64)
-        print("single op output:", single_op[0], single_op[0].shape)
-        print("graph output:", graph_output[0], graph_output[0].shape)
-    if __name__ == "__main__":
-        MetaInfershape()
+            super(Network, self).__init__()
+
+        def forward(self, query, key, value, sparse_indices, scale_value, sparse_block_size,
+                    key_quant_mode, value_quant_mode, block_table=None,
+                    actual_seq_lengths_query=None, actual_seq_lengths_kv=None,
+                    key_sink=None, value_sink=None,
+                    key_dequant_scale=None, value_dequant_scale=None,
+                    layout_query='BSND', layout_kv='BSND',
+                    sparse_mode=3, attention_mode=0,
+                    quant_scale_repo_mode=0, tile_size=128,
+                    rope_head_dim=0, key_dtype=None, value_dtype=None,
+                    pre_tokens=9223372036854775807, next_tokens=9223372036854775807):
+
+            return torch_npu._npu_kv_quant_sparse_flash_attention_pioneer(
+                query, key, value, sparse_indices, scale_value,
+                key_quant_mode, value_quant_mode,
+                sparse_block_size=sparse_block_size,
+                key_dequant_scale=key_dequant_scale,
+                value_dequant_scale=value_dequant_scale,
+                block_table=block_table,
+                actual_seq_lengths_query=actual_seq_lengths_query,
+                actual_seq_lengths_kv=actual_seq_lengths_kv,
+                key_sink=key_sink, value_sink=value_sink,
+                layout_query=layout_query, layout_kv=layout_kv,
+                sparse_mode=sparse_mode, attention_mode=attention_mode,
+                quant_scale_repo_mode=quant_scale_repo_mode,
+                tile_size=tile_size, rope_head_dim=rope_head_dim,
+                key_dtype=key_dtype, value_dtype=value_dtype,
+                pre_tokens=pre_tokens, next_tokens=next_tokens
+            )
+
+
+    torch._dynamo.reset()
+    npu_mode = Network().npu()
+    config = CompilerConfig()
+    config.mode = "reduce-overhead"
+    npu_backend = tng.get_npu_backend(compiler_config=config)
+    npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=False)
+
+    output = npu_mode(query, key, value, sparse_indices, scale_value, sparse_block_size,
+        key_quant_mode=2, value_quant_mode=2, key_dequant_scale=key_dequant_scale, value_dequant_scale=value_dequant_scale,
+        actual_seq_lengths_query=act_seq_q, actual_seq_lengths_kv=act_seq_kv, key_sink=None, value_sink=None,
+        layout_query=layout_query, layout_kv=layout_kv, block_table=block_table, sparse_mode=3,
+        attention_mode=2, quant_scale_repo_mode=1, tile_size=tile_size, rope_head_dim=64,
+        key_dtype=key_dtype, value_dtype=value_dtype, pre_tokens=pre_tokens, next_tokens=next_tokens
+    )
+
 
     # 执行上述代码的输出类似如下
-    single op output: tensor([[[[  0.0000,  -72.0000,  0.0000,  ...,  0.0000, 0.0000, 189.0000],
+    tensor([[[[  0.0000,  -72.0000,  0.0000,  ...,  0.0000, 0.0000, 189.0000],
             [ -390.0000,  780.0000, -390.0000,  ...,  168.0000,  84.0000, -504.0000],
             [ 386.0000,  290.0000,  -386.0000,  ...,  -10.6250,  0.0000, 10.6250],
             ...,
             [ -768.0000,  384.0000, -868.0000,  ...,  322.0000,  -215.0000, 430.0000],
             [ 440.0000,  146.0000, 97.5000,  ...,  -253.0000, -760.0000, 84.5000],
             [ -256.0000,  256.0000, 596.0000,  ...,  92.0000,  -736.0000, 0.0000]]]],
-            device='npu:0', dtype=torch.bfloat16) torch.Size([1, 1, 128, 512])
-
-    graph output: tensor([[[[  0.0000,  -72.0000,  0.0000,  ...,  0.0000, 0.0000, 189.0000],
-            [ -390.0000,  780.0000, -390.0000,  ...,  168.0000,  84.0000, -504.0000],
-            [ 386.0000,  290.0000,  -386.0000,  ...,  -10.6250,  0.0000, 10.6250],
-            ...,
-            [ -768.0000,  384.0000, -868.0000,  ...,  322.0000,  -215.0000, 430.0000],
-            [ 440.0000,  146.0000, 97.5000,  ...,  -253.0000, -760.0000, 84.5000],
-            [ -256.0000,  256.0000, 596.0000,  ...,  92.0000,  -736.0000, 0.0000]]]],
-            device='npu:0', dtype=torch.bfloat16) torch.Size([1, 1, 128, 512])
+            device='npu:0', dtype=torch.bfloat16)
     ```
