@@ -88,31 +88,31 @@ ascend_ops/
 
 ### 硬件要求
 
-| 组件 | 最低配置 | 推荐配置 |
-|------|---------|---------|
-| **昇腾 AI 处理器** | Ascend 910B | Ascend 910B |
+| 组件 | 支持配置 |
+|------|---------|
+| **昇腾设备** | 910B/910C |
 
 ### 软件依赖
 
-| 软件 | 版本要求 | 说明 |
-|------|---------|------|
-| **Python** | 3.8 - 3.10 | 推荐 3.9 |
-| **CANN** | 9.0.0+ | 推荐 9.0.0 |
-| **PyTorch** | 2.0+ | 需匹配 CANN 版本 |
-| **torch-npu** | 2.0+ | 昇腾 PyTorch 扩展 |
-| **CMake** | 3.16+ | 构建工具 |
+| 软件 | 版本要求 |
+|------|---------|
+| **Python** | 3.10及以上 |
+| **CANN** | 9.0.0以上|
+| **PyTorch** | 2.7及以上 
+| **torch-npu** | 2.7及以上 
+| **CMake** | 3.16+ |
 
 ---
-
 ## 📦 安装部署
 
-### 1️⃣ 安装 CANN 环境
+### 1️⃣ 安装环境
+请单击[CANN包下载链接](https://ascend.devcloud.huaweicloud.com/artifactory/cann-run-mirror/software/master/)，选择最新时间版本，并根据产品型号和环境架构下载对应包，更多指导参考[《CANN软件安装指南》](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta2/softwareinst/instg/instg_0001.html?Mode=PmIns&InstallType=netyum&OS=openEuler)。
 
 ```bash
-# 确保 CANN 已安装并配置环境变量
-source cann包环境
-#默认安装环境
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
+# 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
+source /usr/local/Ascend/cann/set_env.sh
+# 指定路径安装
+source ${install_path}/cann/set_env.sh
 
 # 验证 CANN 环境
 python -c "import torch; import torch_npu; print(torch.__version__, torch_npu.__version__)"
@@ -130,7 +130,7 @@ cd ops-transformer/experimental/ascend_ops
 ```bash
 # 安装到当前 Python 环境
 python -m build --wheel -n  
-pip3 install dist/[xxx].whl --force-reinstall --no-deps
+pip3 install dist/*.whl --force-reinstall --no-deps
 ```
 
 ### 4️⃣ 验证安装
@@ -267,9 +267,9 @@ python test_aclgraph_sk.py
 
 | 参数名 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `query` | Tensor | ✅ | Query 张量 |
-| `key` | Tensor | ✅ | Key Cache 张量，INT8 量化 |
-| `value` | Tensor | ✅ | Value Cache 张量，INT8 量化 |
+| `query` | Tensor | ✅ | Query 张量; 仅支持1~16, D仅支持128|
+| `key` | Tensor | ✅ | Key Cache 张量; dtype INT8, shape : [blockNum, kvN, D/32, blockSize, 32]，D仅支持128|
+| `value` | Tensor | ✅ | Value Cache 张量; dtype INT8, shape : [blockNum, kvN, D/32, blockSize, 32]，D仅支持128 |
 | `block_table` | Tensor | ✅ | KV Cache 块表 |
 | `actual_seq_kvlen` | Tensor | ✅ | 实际 KV 序列长度 |
 | `num_query_heads` | int | ✅ | Query 头数 |
@@ -277,13 +277,13 @@ python test_aclgraph_sk.py
 | `softmax_scale` | float | ✅ | Softmax 缩放因子 |
 | `block_size` | int | ✅ | KV Cache 块大小 |
 | `input_layout` | str | ✅ | 输入布局格式（BNSD/BSH/BSND） |
-| `sparse_mode` | int | ❌ | 稀疏模式，默认 0 |
-| `inner_precise` | int | ❌ | 内部精度，默认 1 |
-| `dequant_scale_key` | Tensor | ✅ | Key 反量化缩放因子 |
-| `dequant_scale_value` | Tensor | ✅ | Value 反量化缩放因子 |
-| `key_quant_mode` | int | ❌ | Key 量化模式，默认 0 |
-| `value_quant_mode` | int | ❌ | Value 量化模式，默认 0 |
-| `atten_mask` | Tensor | ❌ | 注意力掩码 |
+| `sparse_mode` | int | ❌ | 稀疏模式，QS=1时，仅支持配置0，QS>1时，仅支持配置3 |
+| `inner_precise` | int | ❌ | 仅支持配置1 |
+| `dequant_scale_key` | Tensor | ✅ | Key 反量化缩放因子; perchannel量化时：BSH时：[H]、BNSD时： [kvN,1,D]、BSND时：[kvN,D]，D仅支持128，dtype: bf16, pertoken量化时：[B,S]，dtype: fp32 |
+| `dequant_scale_value` | Tensor | ✅ | Value 反量化缩放因子; perchannel量化时：BSH时：[H]、BNSD时： [kvN,1,D]、BSND时：[kvN,D]，D仅支持128，dtype: bf16, pertoken量化时：[B,S]，dtype: fp32|
+| `key_quant_mode` | int | ❌ | Key 量化模式，perchannel量化时：配置0, pertoken量化时：配置1|
+| `value_quant_mode` | int | ❌ | Value 量化模式，perchannel量化时：配置0, pertoken量化时：配置1 |
+| `atten_mask` | Tensor | ❌ | 注意力掩码; QS=1时，仅支持传入null，QS>1时，仅支持[2048,2048]，右上全1（不包含对角线）|
 | `metadata` | Tensor | ❌ | 分核信息，由npu_fused_infer_attention_score_metadata输出 |
 
 **返回值**:
