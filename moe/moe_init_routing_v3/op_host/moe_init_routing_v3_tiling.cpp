@@ -946,7 +946,6 @@ ge::graphStatus MoeInitRountingV3TilingBase::PostTiling()
     } else {
         context_->SetBlockDim(aivNum);
     }
-    context_->SetBlockDim(aivNum);
     size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = workspaceSize_;
     moeInitRoutingV3TilingData.SaveToBuffer(context_->GetRawTilingData()->GetData(),
