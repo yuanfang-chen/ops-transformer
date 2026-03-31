@@ -36,9 +36,9 @@ torch_npu.npu_kv_quant_sparse_flash_attention(query, key, value, sparse_indices,
 
 - **query**（`Tensor`）：必选参数，表示attention结构的Q输入，不支持非连续，数据格式支持$ND$，数据类型支持`bfloat16`和`float16`，query由相同dtype的q_nope和q_rope按D维度拼接得到。`layout_query`为BSND时shape为[B,S1,Q\_N,D]，当`layout_query`为TND时shape为[Q\_T,Q\_N,D]，其中Atlas A3 推理系列产品数据Q\_N支持1/2/4/8/16/32/64/128，Atlas A5 推理系列产品数据Q\_N支持1/2/4/8/16/32/48/64。
 
-- **key**（`Tensor`）：必选参数，表示attention结构的K输入，不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Atlas A5 推理系列产品数据类型支持`fp8_e4m3fn`和`hifloat8`，`int8`/`fp8_e4m3fn`/`hifloat8`的k_nope、query相同dtype的k_rope和`float32`的量化参数按D维度拼接得到，layout\_kv为PA\_BSND时shape为[block\_num, block\_size, KV\_N, D]，其中block\_num为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, KV\_N, D]，`layout_kv`为TND时shape为[KV\_T, KV\_N, D]，其中KV\_N只支持1。
+- **key**（`Tensor`）：必选参数，表示attention结构的K输入，不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Atlas A5 推理系列产品数据类型支持`float8_e4m3`和`hifloat8`，`int8`/`float8_e4m3`/`hifloat8`的k_nope、query相同dtype的k_rope和`float32`的量化参数按D维度拼接得到，layout\_kv为PA\_BSND时shape为[block\_num, block\_size, KV\_N, D]，其中block\_num为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, KV\_N, D]，`layout_kv`为TND时shape为[KV\_T, KV\_N, D]，其中KV\_N只支持1。
 
-- **value**（`Tensor`）：必选参数，表示attention结构的V输入，不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Atlas A5 推理系列产品数据类型支持`fp8_e4m3fn`和`hifloat8`。value的N仅支持1。
+- **value**（`Tensor`）：必选参数，表示attention结构的V输入，不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Atlas A5 推理系列产品数据类型支持`float8_e4m3`和`hifloat8`。value的N仅支持1。
 
 - **sparse\_indices**（`Tensor`）：必选参数，代表离散取kvCache的索引，不支持非连续，数据格式支持$ND$，数据类型支持`int32`，当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, sparse\_size]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, sparse\_size]，其中sparse\_size为一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足sparse\_size大于0。
 
