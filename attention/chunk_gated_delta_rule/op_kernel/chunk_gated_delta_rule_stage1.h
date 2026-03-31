@@ -46,8 +46,8 @@ struct MatmulShapeParams {
 
 struct GDRStageOneInitParams {
     // input
-    GlobalTensor<bfloat16_t> query;     // (T, Nk, Dk) 
-    GlobalTensor<bfloat16_t> key;       // (T, Nk, Dk) 
+    GlobalTensor<bfloat16_t> query;     // (T, Nk, Dk)
+    GlobalTensor<bfloat16_t> key;       // (T, Nk, Dk)
     GlobalTensor<bfloat16_t> value;     // (T, Nv, Dv)
     GlobalTensor<bfloat16_t> beta;      // (T, Nv)
     GlobalTensor<float> g;              // (T, Nv)
@@ -394,7 +394,7 @@ private:
                           gCumExpUbFloat_[i * chunkSize_], queryContinousGm_[wsOffset_]);
         }
     }
-    __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm, 
+    __aicore__ inline void QKPreProcess(const GlobalTensor<bfloat16_t>& srcGm, const GlobalTensor<float>& dstGm,
                                         const GlobalTensor<float>& outKgGm, uint32_t subValidRows, bool kgFlag = false)
     {
         // copyIn
@@ -499,7 +499,7 @@ private:
             DataCopyInFp32(curVecLen, stageOneMask_[GetBlockIdx() * ccOffset_ + subOffset_ * chunkSize_]);
             kkLocal_ = fp32InQueue_.DeQue<float>();
             Mul(attnUbFloat_, attnUbFloat_, kkLocal_, curVecLen);
-            fp32InQueue_.FreeTensor(kkLocal_);  
+            fp32InQueue_.FreeTensor(kkLocal_);
         }
         PipeBarrier<PIPE_V>();
 
@@ -592,7 +592,7 @@ private:
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
             uint32_t gEndShape[2] = {1, 1};
             uint32_t gBroadShape[2] = {halfChunkSize_, 1};
-            Broadcast<float, BROADCAST_AXIS, 0>(gEndBroadUbFloat_, gCumExpUbFloat[chunkSize_ - 1], 
+            Broadcast<float, BROADCAST_AXIS, 0>(gEndBroadUbFloat_, gCumExpUbFloat[chunkSize_ - 1],
                                                 gBroadShape, gEndShape);
             PipeBarrier<PIPE_V>();
             Div(gEndBroadUbFloat_, gEndBroadUbFloat_, gCumExpUbFloat[subOffset_], halfChunkSize_);
@@ -651,7 +651,7 @@ private:
             PipeBarrier<PIPE_V>();
             uint32_t gCumExpShape[2] = {halfChunkSize_, 1};
             uint32_t qShape[2] = {halfChunkSize_, dkAligned_};
-            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat[subOffset_], 
+            Broadcast<float, BROADCAST_AXIS, 1>(gCumExpBroadUbFloat_, gCumExpUbFloat[subOffset_],
                                                 qShape, gCumExpShape);
             PipeBarrier<PIPE_V>();
             // query * scale * g_cum_exp[:, None]       # (C, Dk)
@@ -746,7 +746,7 @@ private:
     {
         fp32OutLocal_ = fp32OutQueue_.DeQue<float>();
         uint32_t srcStride = (colsAligned - cols) * sizeof(float) / BLOCK_SIZE;
-        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows), 
+        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows),
                                     static_cast<uint32_t>(cols * sizeof(float)),
                                     static_cast<uint32_t>(srcStride), 0, 0};
         DataCopyPad(y, fp32OutLocal_, yGMParams);
