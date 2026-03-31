@@ -282,6 +282,7 @@ struct QSFATilingInfo {
     bool actualSeqLenFlag = false;
     bool isSameSeqAllKVTensor = true;
     bool isSameActualseq = true;
+    bool hasSinkFlag = false;
     uint32_t actualLenDimsKV = 0;
     std::vector<int64_t> kvListSeqLens {};
 
@@ -462,9 +463,9 @@ private:
     ge::graphStatus CheckActualSeqLensDType();
     ge::graphStatus CheckActualSeqLensShape();
     ge::graphStatus CheckMultiParaConsistency();
-    ge::graphStatus CheckKeySink();
-    ge::graphStatus CheckKeySinkDType();
-    ge::graphStatus CheckKeySinkShape();
+    ge::graphStatus CheckSink();
+    ge::graphStatus CheckSinkDType();
+    ge::graphStatus CheckSinkShape();
 
     ge::graphStatus CheckFeatureMlaAntiquantShape() const;
     ge::graphStatus CheckFeatureMlaAntiquantLayout() const;
