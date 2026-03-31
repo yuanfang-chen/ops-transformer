@@ -1184,10 +1184,9 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsBelow(Loca
         int32_t s1BottomTok = params.actS1Size + params.preTokensPerBatch;
         uint32_t s1 = params.gS1Idx / params.gSize;
         uint32_t gIdx = params.gS1Idx % params.gSize;
+        uint8_t s1Stride = params.dealRowCount / params.gSize;
 
-        uint8_t s1Stride = params.dealRowCount / params.gSize;	 
- 
-        for (uint32_t i = 0; i < params.dealRowCount;) {	 
+        for (uint32_t i = 0; i < params.dealRowCount;) {
             while (s1 + s1Stride > s1BottomTok && s1 < s1BottomTok) {
                 if (s1 == s1BottomTok) {
                     break;
