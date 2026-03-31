@@ -104,7 +104,7 @@
 
 3. 流水图仿真。
 
-   通过[CANN Simulator](./cann_sim.md)仿真工具，执行仿真命令，生成仿真数据。CANN Simulator作为面向算子开发场景的仿真工具，让用户不依赖NPU设备，可用于定位算子执行瓶颈，优化指令排布等，提供比上板更详细的指令级流水分析。
+   通过[CANN Simulator](./cann_sim.md)仿真工具，执行仿真命令，生成仿真数据。CANN Simulator作为面向算子开发场景的仿真工具，针对无NPU卡的用户，可用于定位算子执行瓶颈，优化指令排布等，提供比上板更详细的指令级流水分析。
 
       ```
       cannsim record ./test_aclnn_add_example -s Ascend950 --gen-report
