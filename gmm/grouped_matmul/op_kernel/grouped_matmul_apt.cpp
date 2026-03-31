@@ -18,9 +18,9 @@
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
 #if defined(V310_GMM_ANTI_QUANT)
 #include "arch35/weight_quant_basic_block/block/basic_block_config.h"
-#include "arch35/weight_quant_basic_block/kernel/grouped_matmul_weight_quant_resplit_controller.h"
-#include "arch35/weight_quant_basic_block/block/weight_quant_basic_block_aic.h"
-#include "arch35/weight_quant_basic_block/prologue/weight_quant_basic_block_aiv.h"
+#include "arch35/weight_quant_basic_block/kernel/grouped_matmul_mxfp8fp4_kernel_resplit.h"
+#include "arch35/weight_quant_basic_block/block/grouped_matmul_mxfp8fp4_block_mmad_resplit.h"
+#include "arch35/weight_quant_basic_block/prologue/grouped_matmul_mxfp8fp4_prologue_mx_cast_w.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
 using WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAic;

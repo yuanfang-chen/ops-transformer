@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file weight_quant_basic_block_aic.h
+ * \file grouped_matmul_mxfp8fp4_block_mmad_resplit.h
  * \brief
  */
-#ifndef GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_AIC_H
-#define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_AIC_H
+#ifndef GROUPED_MATMUL_MXFP8FP4_BLOCK_MMAD_RESPLIT_H
+#define GROUPED_MATMUL_MXFP8FP4_BLOCK_MMAD_RESPLIT_H
 
 #include "basic_block_config.h"
 #if ASC_DEVKIT_MAJOR >= 9
@@ -184,4 +184,4 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 
-#endif  // GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_AIC_H
+#endif  // GROUPED_MATMUL_MXFP8FP4_BLOCK_MMAD_RESPLIT_H

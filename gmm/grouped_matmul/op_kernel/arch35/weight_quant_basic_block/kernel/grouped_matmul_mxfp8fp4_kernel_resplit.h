@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file grouped_matmul_weight_quant_resplit_controller.h
+ * \file grouped_matmul_mxfp8fp4_kernel_resplit.h
  * \brief
  */
-#ifndef GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
-#define GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
+#ifndef GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
+#define GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
 
 #include "../../grouped_matmul_tiling_data_apt.h"
 #include "include/experimental/tensor_api/tensor.h"
@@ -28,6 +28,16 @@ using WeightQuantBatchMatmulV2::Arch35::GetKBUnit;
 using GMMWeightQuantParam = GroupedMatmulTilingData::GMMWeightQuantParam;
 
 namespace GROUPED_MATMUL {
+
+struct BasicBlockControlParam {
+    uint64_t mSize;
+    uint64_t mL1Size;
+    uint64_t curBasicBlockId;
+    uint64_t basicBlockLimit;
+    uint64_t mOffset;
+    uint64_t nOffset;
+};
+
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType,
           template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
@@ -363,4 +373,4 @@ __aicore__ inline uint64_t GMMWeightQuantResplitController<xType, wType, antiQua
 }
 }  // namespace GROUPED_MATMUL
 
-#endif  // GROUPED_MATMUL_WEIGHT_QUANT_RESPLIT_CONTROLLER_H
+#endif  // GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
