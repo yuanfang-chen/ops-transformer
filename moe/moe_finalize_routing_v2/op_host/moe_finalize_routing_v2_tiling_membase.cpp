@@ -75,10 +75,12 @@ protected:
 
     bool IsCapable() override
     {
-        if (Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
-            return false;
-        }
-        return true;
+        OP_LOGD(context_->GetNodeName(), "MoeFinalizeRoutingV2Membase::IsCapable() false.");
+        return false;
+        // if (Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
+        //     return false;
+        // }
+        // return true;
     }
 
     ShapeParamsV2 params;
