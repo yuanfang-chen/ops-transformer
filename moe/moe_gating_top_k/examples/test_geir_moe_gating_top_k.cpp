@@ -27,6 +27,7 @@
 #include "ge_ir_build.h"
 
 #include "experiment_ops.h"
+#include "fusion_ops.h"
 #include "nn_other.h"
 
 #define FAILED -1
