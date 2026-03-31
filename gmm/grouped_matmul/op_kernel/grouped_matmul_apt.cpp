@@ -28,8 +28,8 @@ using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAiv;
 static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
-    GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR antiquantScale, GM_ADDR antiquantOffset,
-    GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR tiling)
+    GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR antiquantScale, GM_ADDR groupList, GM_ADDR perTokenScale,
+    GM_ADDR y, GM_ADDR tiling)
 {
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, gmmWeightQuantParam, gmmBaseParams_, tiling);
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, mmTilingData, mmTilingData_, tiling);
@@ -39,8 +39,8 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
                                                     WeightQuantMatmulBasicBlockAic, WeightQuantMatmulBasicBlockAiv,
                                                     MXA8W4_NZNK,
                                                     VEC_ANTIQUANT_CONFIG_DYNAMIC>
-        op(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
-           &mmTilingData_, tiling);
+        op(x, weight, antiquantScale, bias, groupList, perTokenScale, y, &gmmBaseParams_,
+           &mmTilingData_);
     op();
 }
 
@@ -81,8 +81,7 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
         if constexpr (IsMxA8W4VectorAntiQuantResplit<W_TYPE, OFFSET_OR_BIAS_EXIT, C_QUANT_TYPE, W_QUANT_TYPE,
                                                      WQ_B_TRANS, WQ_A_TRANS, TEMPLATE_CUSTOM_SC,
                                                      ALGORITHM_SUB_CATEGORY, ALGORITHM_CATEGORY>()) {
-            LaunchMxA8W4VectorAntiQuantResplit(x, weight, bias, scale, antiquantScale, antiquantOffset, groupList,
-                                               perTokenScale, y, tiling);
+            LaunchMxA8W4VectorAntiQuantResplit(x, weight, bias, antiquantScale, groupList, perTokenScale, y, tiling);
         }
     #endif
 #endif

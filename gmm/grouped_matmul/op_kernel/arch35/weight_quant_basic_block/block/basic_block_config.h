@@ -40,6 +40,7 @@ static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, Qu
 // kernel/block共用
 struct BasicBlockOffsetParam {
     uint64_t mL1Size;
+    uint64_t kaL1Size;
     uint64_t kbL1Size;
     uint64_t nL1Size;
 

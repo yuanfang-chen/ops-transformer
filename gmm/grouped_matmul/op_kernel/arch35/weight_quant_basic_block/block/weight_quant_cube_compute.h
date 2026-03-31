@@ -48,9 +48,6 @@ WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 class WeightQuantBatchMatmulV2CubeCompute {
 public:
     __aicore__ inline WeightQuantBatchMatmulV2CubeCompute(){};
-    __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ xType *x, __gm__ yType *y, __gm__ biasType *bias,
-                                            __gm__ antiQuantScaleType *antiquantScale,
-                                            __gm__ perTokenScaleType *perTokenScale, const bool isBias);
     template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
     __aicore__ inline void UpdateGlobalTensor(const TensorA &tensorA, const TensorC &tensorC,
                                               const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB,
@@ -111,6 +108,7 @@ private:
     uint64_t quantScaleValue_;
     static constexpr uint32_t KB_UNIT = GetKBUnit<xType>();
     static constexpr uint64_t MX_SCALE_L1_SIZE = 32 * GetKBUnit<xType>() * sizeof(xType); // scaleA/B单块分配空间
+    static constexpr uint64_t MX_SCALE_K_L1_SIZE = 4096;
     static constexpr uint64_t BIAS_TABLE_OFFSET_B32 = 2 * 256;
     static constexpr uint64_t MX_GROUP_SIZE = 32;
 
@@ -136,7 +134,7 @@ private:
 
     uint64_t l0LoopIdx_ = 0;
 
-    __gm__ uint8_t *aPrefetchAddr_;
+    __gm__ uint8_t *aPrefetchAddr_ = nullptr;
 
     // TODO 如何简化
     decltype(AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(reinterpret_cast<__gm__ xType*>(0)), MakeLayoutA{}(16UL, 16UL))) gmA_;
@@ -213,7 +211,9 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::LaunchMatmul(uint64_t bL1Offset
         auto layoutAL0 = MakeLayoutAL0{}(param.mL1Size, realL0k);
         auto tensorAL0 = AscendC::Te::MakeTensor(AscendC::Te::MakeL0AmemPtr<xType>(loopId * L0_BUF_OFFSET_B8), layoutAL0);
         // PS 考虑kaL1Size >= kbL1Size的场景
-        auto tensorBlockAL1 = tensorA(AscendC::Te::MakeCoord(0, (l1KOffset+kbOffset)%param.kaL1Size), AscendC::Te::MakeShape(param.mL1Size, realL0k));
+        auto tensorBlockAL1 = tensorAL1_(
+            AscendC::Te::MakeCoord(0, (l1KOffset + kbOffset) % param.kaL1Size),
+            AscendC::Te::MakeShape(param.mL1Size, realL0k));
         // PS 同旧的差异是外部地址偏移好，旧方法是通过startposition处理
         // AscendC::printf("(k1,m1,m0,k0) (%d,%d,%d,%d) offset %d startposition %d", Cgmct::Gemm::CeilDiv(realL0k, 32), Cgmct::Gemm::CeilDiv(param.mL1Size, 16), 16, 32, Cgmct::Gemm::CeilDiv((l1KOffset+kbOffset)%param.kaL1Size, 32)*32*Cgmct::Gemm::CeilDiv(param.mL1Size, 16)*16, Cgmct::Gemm::CeilDiv((l1KOffset+kbOffset)%param.kaL1Size, 32));
         AscendC::Te::Copy(CopyL12L0, tensorAL0, tensorBlockAL1);
@@ -292,9 +292,9 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::LaunchMatmul(uint64_t bL1Offset
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::WaitMTE1ToMTE2(uint64_t kaGmOffset,
-                                                                const uint64_t kaL1Size)
+                                                                const BasicBlockOffsetParam &offsetParam)
 {
-    if (aL1DbNum_ > SINGLE_BUFFER_NUM && kaGmOffset % kaL1Size == 0) {
+    if (aL1DbNum_ > SINGLE_BUFFER_NUM && kaGmOffset % offsetParam.kaL1Size == 0) {
         WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[aL1BufIdx_ & 1]);
     }
 }
@@ -308,27 +308,31 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::WaitScaleMTE1ToMTE2(uint64_t kb
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetScaleMTE1ToMTE2(uint64_t kbGmOffset, uint64_t kSize, uint64_t kbL1Size)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetScaleMTE1ToMTE2(uint64_t kbGmOffset,
+                                                                    const BasicBlockOffsetParam &offsetParam)
 {
-    if ((kbGmOffset + kbL1Size) % MX_SCALE_K_L1_SIZE == 0 ||
-        kbGmOffset + kbL1Size >= kSize) {
+    if ((kbGmOffset + offsetParam.kbL1Size) % MX_SCALE_K_L1_SIZE == 0 ||
+        kbGmOffset + offsetParam.kbL1Size >= offsetParam.kSize) {
         SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[mxScaleBufIdx_ & 1]);
         mxScaleBufIdx_++;
     }
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetMTE1ToMTE2(uint64_t kaGmOffset, uint64_t kSize, uint64_t kaL1Size, uint64_t kbL1Size)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetMTE1ToMTE2(uint64_t kaGmOffset,
+                                                               const BasicBlockOffsetParam &offsetParam)
 {
-    if (aL1DbNum_ > SINGLE_BUFFER_NUM && ((kaGmOffset + kbL1Size) % kaL1Size == 0 ||
-                                          kaGmOffset + kbL1Size >= kSize)) {
+    if (aL1DbNum_ > SINGLE_BUFFER_NUM && ((kaGmOffset + offsetParam.kbL1Size) % offsetParam.kaL1Size == 0 ||
+                                          kaGmOffset + offsetParam.kbL1Size >= offsetParam.kSize)) {
         SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[aL1BufIdx_ & 1]);
         aL1BufIdx_++;
     }
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAGmToL1SingleBuffer(const TensorA &tensorAGm, uint64_t mL1Size, uint64_t kSize)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAGmToL1SingleBuffer(const BasicBlockOffsetParam &param,
+                                                                         int64_t kaGmOffset, int64_t kbL1RealSize,
+                                                                         int64_t biasRealN)
 {
     AscendC::Nd2NzParams nd2nzParams;
     uint64_t maxSpace = CheckMaxSpace(param);
@@ -349,60 +353,63 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAGmToL1SingleBuffer(const T
         // DataCopy(aL1_[((aL1BufIdx_ + 1) & 1) * aL1DbOffset_], xGlobal_[aGmOffset + nd2nzParams.dValue], nd2nzParams);
     } else {
         auto copyGM2L1 = AscendC::Te::MakeCopy(AscendC::Te::CopyGM2L1{});
-        auto layoutAL1 = MakeLayoutAL1{}(mL1Size, kSize);
+        auto layoutAL1 = MakeLayoutAL1{}(param.mL1Size, param.kSize);
         tensorAL1_ = AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr<xType>(0), layoutAL1);
-        AscendC::Te::Copy(copyGM2L1, tensorAL1_, tensorAGm);
+        auto gmBlockA = gmA_(AscendC::Te::MakeCoord(param.mOffset, kaGmOffset),
+                             AscendC::Te::MakeShape(param.mL1Size, param.kSize));
+        AscendC::Te::Copy(copyGM2L1, tensorAL1_, gmBlockA);
     }
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAGmToL1(const TensorA &tensorAGm, uint64_t mL1Size, uint64_t kSize, uint64_t kaL1Size,
-                                                                    int64_t kaGmOffset)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAAndBiasGmToL1(const BasicBlockOffsetParam &param,
+                                                                    int64_t kaGmOffset, uint64_t cvLoopIdx)
 {
-    int64_t kaL1RealSize = (kaGmOffset + kaL1Size) >= kSize ? kSize - kaGmOffset : kaL1Size;
+    if (kaGmOffset % param.kaL1Size != 0) {
+        return;
+    }
+    int64_t kaL1RealSize = (kaGmOffset + param.kaL1Size) >= param.kSize ? param.kSize - kaGmOffset : param.kaL1Size;
     auto copyGM2L1 = AscendC::Te::MakeCopy(AscendC::Te::CopyGM2L1{});
     if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
-        auto layoutAL1 = MakeLayoutAL1{}(mL1Size, kaL1RealSize);
-        auto gmBlockA =
-            tensorAGm(AscendC::Te::MakeCoord(0, kaGmOffset),
-                AscendC::Te::MakeShape(mL1Size, kaL1RealSize));
-        tensorAL1_ = AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr<xType>(aL1Offset_ + (aL1BufIdx_ & 1) * aL1DbOffset_), layoutAL1);
+        auto layoutAL1 = MakeLayoutAL1{}(param.mL1Size, kaL1RealSize);
+        auto gmBlockA = gmA_(AscendC::Te::MakeCoord(param.mOffset, kaGmOffset),
+                             AscendC::Te::MakeShape(param.mL1Size, kaL1RealSize));
+        tensorAL1_ = AscendC::Te::MakeTensor(
+            AscendC::Te::MakeL1memPtr<xType>(aL1Offset_ + (aL1BufIdx_ & 1) * aL1DbOffset_), layoutAL1);
         AscendC::Te::Copy(copyGM2L1, tensorAL1_, gmBlockA);
     } else if (aL1DbNum_ == SINGLE_BUFFER_NUM && kaGmOffset == 0) {
-        CopyAGmToL1SingleBuffer(tensorAGm, mL1Size, kSize);
+        CopyAGmToL1SingleBuffer(param, kaGmOffset, kaL1RealSize, param.nL1Size);
     }
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyMxScaleGmToL1(const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB, uint64_t mL1Size, uint64_t offsetScaleK,
-                                                                   uint64_t tileSizeScaleK, uint64_t scaleK, uint64_t nL1Size)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyMxScaleGmToL1(const BasicBlockOffsetParam &param,
+                                                                   uint64_t kbL1Offset)
 {
+    if (kbL1Offset % MX_SCALE_K_L1_SIZE != 0) {
+        return;
+    }
     uint64_t scaleKGmSize = param.kSize / MX_GROUPSIZE;
     // 当前scaleFactor为1，暂不考虑scaleFactor相关计算
-    uint64_t scaleKL1RealSize = (offsetScaleK + tileSizeScaleK) > scaleK ?
-                                    scaleK - offsetScaleK :
-                                    tileSizeScaleK;
+    uint64_t scaleKL1StandardLen = MX_SCALE_K_L1_SIZE / MX_GROUPSIZE;
+    uint64_t scaleKL1RealSize = (kbL1Offset + MX_SCALE_K_L1_SIZE) > param.kSize ?
+                                    (param.kSize - kbL1Offset) / MX_GROUPSIZE :
+                                    scaleKL1StandardLen;
     // L1上的K需要填完整的K（scaleKL1_），不能是尾块，GM上的填实际大小（可能是尾块）
     auto CopyScaleGM2L1 = AscendC::Te::MakeCopy(Cgmct::Gemm::Tile::CopyScaleGM2L1{});
-    auto layoutScaleAL1 = MakeLayoutScaleAL1{}(mL1Size, scaleKL1RealSize);
+    auto layoutScaleAL1 = MakeLayoutScaleAL1{}(param.mL1Size, scaleKL1RealSize);
     // PS 旧方式固定dst stride（dstNzC0Stride）为64
     tensorScaleAL1_ = AscendC::Te::MakeTensor(
         AscendC::Te::MakeL1memPtr<fp8_e8m0_t>(mxScaleAL1Offset_ + (mxScaleBufIdx_ & 1) * mxScaleAL1DbOffset_), layoutScaleAL1);
-    auto gmBlockScaleA = tensorScaleA(
-        AscendC::Te::MakeCoord(0, offsetScaleK),
-        AscendC::Te::MakeShape(
-            mL1Size,
-            scaleKL1RealSize));
+    auto gmBlockScaleA = gmScaleA_(AscendC::Te::MakeCoord(param.mOffset, kbL1Offset / MX_GROUP_SIZE),
+                                   AscendC::Te::MakeShape(param.mL1Size, scaleKL1RealSize));
     AscendC::Te::Copy(CopyScaleGM2L1, tensorScaleAL1_, gmBlockScaleA);
 
-    auto layoutScaleBL1 = MakeLayoutScaleBL1{}(scaleKL1RealSize, nL1Size);
+    auto layoutScaleBL1 = MakeLayoutScaleBL1{}(scaleKL1RealSize, param.nL1Size);
     tensorScaleBL1_ = AscendC::Te::MakeTensor(
         AscendC::Te::MakeL1memPtr<fp8_e8m0_t>(mxScaleBL1Offset_ + (mxScaleBufIdx_ & 1) * mxScaleBL1DbOffset_), layoutScaleBL1);
-    auto gmBlockScaleB = gmScaleB_(
-        AscendC::Te::MakeCoord(offsetScaleK, 0),
-        AscendC::Te::MakeShape(
-            scaleKL1RealSize,
-            nL1Size));
+    auto gmBlockScaleB = gmScaleB_(AscendC::Te::MakeCoord(kbL1Offset / MX_GROUP_SIZE, param.nOffset),
+                                   AscendC::Te::MakeShape(scaleKL1RealSize, param.nL1Size));
     AscendC::Te::Copy(CopyScaleGM2L1, tensorScaleBL1_, gmBlockScaleB);
 }
 
@@ -464,23 +471,6 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::InitSync()
 }
 
 
-
-WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize,
-    __gm__ xType *x, __gm__ yType *y, __gm__ biasType *bias, __gm__ antiQuantScaleType *antiquantScale, __gm__ perTokenScaleType *perTokenScale, const bool isBias)
-{
-    (void)bias;
-    isBias_ = isBias;
-    aPrefetchAddr_ = reinterpret_cast<__gm__ uint8_t *>(x);
-    auto layoutA = MakeLayoutA{}(mSize, kSize);
-    gmA_ = AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(x), layoutA);
-    auto layoutC = MakeLayoutC{}(mSize, nSize);
-    gmC_ = AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(y), layoutC);
-    auto layoutScaleA = MakeLayoutScaleA{}(mSize, Cgmct::Gemm::CeilDiv(kSize, 64) * 2);
-    gmScaleA_ = AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(perTokenScale), layoutScaleA);
-    auto layoutScaleB = MakeLayoutScaleB{}(Cgmct::Gemm::CeilDiv(kSize, 64) * 2, nSize);
-    gmScaleB_ = AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(antiquantScale), layoutScaleB);
-}
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
@@ -582,15 +572,16 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::MxA8W4Init(uint64_t aPrefetchSi
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const TensorC &tensorC)
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const BasicBlockOffsetParam &param)
 {
     constexpr uint64_t FP32_64_AS_UINT64 = 0x42800000;
-    uint64_t mL1Size = GetEleFromLayout<decltype(tensorA.Layout()), AttrInfo::SHAPE, AttrInfo::ROW, 1>(tensorA.Layout());
-    uint64_t nL1Size = GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorC.Layout());
-    auto layoutL0C = AscendC::Te::MakeL0CLayout(mL1Size, nL1Size);
+    auto layoutL0C = AscendC::Te::MakeL0CLayout(param.mL1Size, param.nL1Size);
     auto tensorL0C = AscendC::Te::MakeTensor(AscendC::Te::MakeL0CmemPtr<float>(0), layoutL0C);
     auto CopyL0C2GM = AscendC::Te::MakeCopy(AscendC::Te::CopyL0C2GM{});
-    AscendC::Te::Copy(CopyL0C2GM, tensorC, tensorL0C, FP32_64_AS_UINT64, AscendC::Te::FixpipeParams{/*unitflag*/3});
+    auto tensorBlockGmC = gmC_(AscendC::Te::MakeCoord(param.mOffset, param.nOffset),
+                               AscendC::Te::MakeShape(param.mL1Size, param.nL1Size));
+    AscendC::Te::Copy(CopyL0C2GM, tensorBlockGmC, tensorL0C, FP32_64_AS_UINT64,
+                      AscendC::Te::FixpipeParams{/*unitflag*/3});
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 

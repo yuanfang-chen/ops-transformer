@@ -57,8 +57,7 @@ public:
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(){};
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(bool hasBias);
 
-    __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ wType *weight, __gm__ biasType *bias,
-                                            const bool weightL2Cacheable);
+    __aicore__ inline void SetGlobalBuffer(__gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable);
     __aicore__ inline void WaitVToMTE2();
     __aicore__ inline void SetVToMTE2();
     __aicore__ inline void CopyGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
@@ -124,7 +123,7 @@ private:
 };
 
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlobalAddr(
+__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::SetGlobalBuffer(
     __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable)
 {
     wGlobal_.SetGlobalBuffer(weight);
