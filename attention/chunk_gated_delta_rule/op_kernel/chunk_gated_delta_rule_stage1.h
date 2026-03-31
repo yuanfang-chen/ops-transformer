@@ -292,14 +292,14 @@ private:
         // key @ key.transpose(-1,-2)
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(keyContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], kkWsGm_[i * ccOffset_],
-                       {chunkSize_, chunkSize_, dk_, true});
+                       {chunkSize_, chunkSize_, dk_, chunkSize_, chunkSize_, dk_}, true);
         }
         AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8); // 同步1
 
         // query @ key.transpose(-1,-2)   stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
-            AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_],
-                       outQkGm_[chunkRowBase_[i] * chunkSize_], {validLenBatch_[i], validLenBatch_[i], dk_, true});
+            AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_[chunkRowBase_[i] * chunkSize_],
+                       {validLen_, validLen_, dk_, validLen_, validLen_, dk_}, true);
         }
         AscendC::CrossCoreWaitFlag(0x7); // 同步2
 
@@ -312,14 +312,14 @@ private:
         // attn @ k_cumdecay
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(attnWsGm_[i * ccOffset_], gBKWsGm_[i * ckOffset_], outKCumdecayGm_[chunkRowBase_[i] * dk_],
-                        {chunkSize_, dk_, chunkSize_, false});
+                        {chunkSize_, dk_, chunkSize_, chunkSize_, dk_, chunkSize_});
         }
         AscendC::CrossCoreWaitFlag(0x5); // 同步4
 
         // attn @ v_beta    stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(attnWsGm_[i * ccOffset_], vBetaWsGm_[i * cvOffset_], outVInnerGm_[chunkRowBase_[i] * dv_],
-                        {chunkSize_, dv_, chunkSize_, false});
+                        {chunkSize_, dv_, chunkSize_, chunkSize_, dv_, chunkSize_});
         }
     }
 
@@ -470,23 +470,6 @@ private:
         PipeBarrier<PIPE_V>();
     }
 
-    __aicore__ inline void BetaCopyInWithStride(const GlobalTensor<bfloat16_t> src, LocalTensor<float> betaUbFloat, uint32_t subValidRows)
-    {
-        uint64_t betaBeginOffset = subOffset_ * nv_;
-        DataCopyInBf16WithStride(subValidRows, 1, src[betaBeginOffset], nv_);
-        betaLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
-        if (subValidRows < halfChunkSize_) {
-            Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
-            PipeBarrier<PIPE_V>();
-        }
-        Gather(betaUbBfloat16_, betaLocal_, gatherOffsetBf16_, static_cast<uint32_t>(0), subValidRows);
-        PipeBarrier<PIPE_V>();
-
-        Cast(betaUbFloat, betaUbBfloat16_, AscendC::RoundMode::CAST_NONE, halfChunkSize_);
-        PipeBarrier<PIPE_V>();
-        fp32InQueue_.FreeTensor(betaLocal_);
-    }
-
     __aicore__ inline void KKBetaCompute(const GlobalTensor<float> src, LocalTensor<float> betaUbFloat)
     {
         // copy value
@@ -529,6 +512,7 @@ private:
 
     __aicore__ inline void InverseAIV(uint64_t offset, uint32_t inverseVecLen)
     {
+        PipeBarrier<PIPE_V>();
         uint64_t inverseBufferOffset = 0;
         auto row = inverseUbFloat_[inverseBufferOffset];
         inverseBufferOffset += inverseVecLen * inverseVecLen;
@@ -543,6 +527,9 @@ private:
         inverseLocal_.SetValue(offset, static_cast<float>(1.0));
         
         uint32_t srcShape[2] = {1, inverseVecLen};
+        int32_t eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+        SetFlag<HardEvent::S_V>(eventID);
+        WaitFlag<HardEvent::S_V>(eventID);
         for (int i = 1; i < inverseVecLen; ++i) {
             uint32_t curI = i - 1;
             uint32_t validRows = inverseVecLen - i;
@@ -557,8 +544,9 @@ private:
             PipeBarrier<PIPE_V>();
             ei.SetValue(i - 1, static_cast<float>(0.0));
             ei.SetValue(i, static_cast<float>(1.0));
-            SetFlag<HardEvent::S_V>(S_V_EVENT);
-            WaitFlag<HardEvent::S_V>(S_V_EVENT);
+            eventID = static_cast<int32_t>(pipe_->FetchEventID(HardEvent::S_V));
+            SetFlag<HardEvent::S_V>(eventID);
+            WaitFlag<HardEvent::S_V>(eventID);
             // xi = (I - SUM) / Lii = I - SUM
             Sub(inverseLocal_[offset + i * chunkSize_], ei, yLocal[i * inverseVecLen], inverseVecLen);
             PipeBarrier<PIPE_V>();
@@ -688,6 +676,23 @@ private:
         fp32InQueue_.EnQue<float>(fp32InLocal_);
     }
 
+    __aicore__ inline void BetaCopyInWithStride(const GlobalTensor<bfloat16_t> src, LocalTensor<float> betaUbFloat, uint32_t subValidRows)
+    {
+        uint64_t betaBeginOffset = subOffset_ * nv_;
+        DataCopyInBf16WithStride(subValidRows, 1, src[betaBeginOffset], nv_);
+        betaLocal_ = fp32InQueue_.DeQue<bfloat16_t>();
+        if (subValidRows < halfChunkSize_) {
+            Duplicate(betaUbBfloat16_, bfloat16_t(0.0f), halfChunkSize_);
+            PipeBarrier<PIPE_V>();
+        }
+        Gather(betaUbBfloat16_, betaLocal_, gatherOffsetBf16_, static_cast<uint32_t>(0), subValidRows);
+        PipeBarrier<PIPE_V>();
+
+        Cast(betaUbFloat, betaUbBfloat16_, AscendC::RoundMode::CAST_NONE, halfChunkSize_);
+        PipeBarrier<PIPE_V>();
+        fp32InQueue_.FreeTensor(betaLocal_);
+    }
+
     __aicore__ inline void GCopyInWithStride(const GlobalTensor<float> src, uint32_t validLen)
     {
         DataCopyInFp32WithStride(validLen, 1, src, nv_);
@@ -764,12 +769,12 @@ private:
     }
 
     __aicore__ inline void AICProcess(GlobalTensor<float> x, GlobalTensor<float> y, GlobalTensor<float> z,
-                                      const MatmulShapeParams &shape)
+                                      const MatmulShapeParams &shape, bool transB = false)
     {
         mmFp32.SetOrgShape(shape.m, shape.n, shape.k);
-        mmFp32.SetSingleShape(shape.m, shape.n, shape.k);
+        mmFp32.SetSingleShape(shape.sm, shape.sn, shape.sk);
         mmFp32.SetTensorA(x);
-        mmFp32.SetTensorB(y, shape.isTransposeB);
+        mmFp32.SetTensorB(y, transB);
         mmFp32.IterateAll(z);
         mmFp32.End();
     }
