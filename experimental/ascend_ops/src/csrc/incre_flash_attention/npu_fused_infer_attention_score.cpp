@@ -278,7 +278,13 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
         output, softmax_lse);
 
     IFATiling ifaTiling;
-    ifaTiling.DoSubOpTiling(ifaContext);
+    if (ifaTiling.DoSubOpTiling(ifaContext) == custom::graphStatus::GRAPH_FAILED) {
+        throw std::runtime_error(
+            "Tiling operation failed. Please check the logs for more details. "
+            "To enable stdout logging, set: [export ASCEND_SLOG_PRINT_TO_STDOUT=1]"
+        );
+
+    }
     // stream
     int devidx = query.device().index();
     c10_npu::NPUStream stream = c10_npu::getCurrentNPUStream(devidx);
