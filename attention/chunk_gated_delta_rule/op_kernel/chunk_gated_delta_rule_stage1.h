@@ -188,7 +188,7 @@ public:
         WaitFlag<HardEvent::S_V>(eventID);
     }
 
-    __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, 
+    __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe,
                                 const ChunkGatedDeltaRuleTilingData *tilingData)
     {
         pipe_ = pipe;
@@ -228,7 +228,8 @@ public:
         uint32_t tailChunkNum = totalChunk / coreNum_;   // tail核处理的块数
         uint32_t formerChunkNum = tailChunkNum + 1;      // former核处理的块数
         uint32_t formerCoreNum = totalChunk % coreNum_;  // former核数量
-        uint32_t start, end;
+        uint32_t start;
+        uint32_t end;
         if (coreIdx_ < formerCoreNum) {
             start = coreIdx_ * formerChunkNum;
             end = start + formerChunkNum;
