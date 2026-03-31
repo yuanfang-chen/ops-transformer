@@ -1106,7 +1106,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
             return ge::GRAPH_FAILED);
     } else {
         std::vector<uint32_t> sparseBlockSizeSupportList = {1, 2, 4, 8, 16};
-        OP_CHECK_IF(std::find(sparseBlockSizeSupportList.begin(), sparseBlockSizeSupportList.end(), gSize_) == sparseBlockSizeSupportList.end(),
+        OP_CHECK_IF(std::find(sparseBlockSizeSupportList.begin(), sparseBlockSizeSupportList.end(), sparseBlockSize_) == sparseBlockSizeSupportList.end(),
             OP_LOGE(opName_, "sparse block size should be in 1, 2, 4, 8, 16, but got %u", sparseBlockSize_),
             return ge::GRAPH_FAILED);
     }
