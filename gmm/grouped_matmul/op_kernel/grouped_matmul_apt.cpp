@@ -22,10 +22,12 @@ using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingDa
 #include "arch35/weight_quant_basic_block/block/grouped_matmul_mxfp8fp4_block_mmad_resplit.h"
 #include "arch35/weight_quant_basic_block/prologue/grouped_matmul_mxfp8fp4_prologue_mx_cast_w.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
-using WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK;
+using WeightQuantBatchMatmulV2::Arch35::QuantType;
+using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAic;
 using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAiv;
-static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
+static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
+static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR antiquantScale, GM_ADDR groupList, GM_ADDR perTokenScale,

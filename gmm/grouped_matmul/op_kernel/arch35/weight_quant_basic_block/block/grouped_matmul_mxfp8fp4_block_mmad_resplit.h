@@ -22,16 +22,35 @@
 #include "kernel_operator.h"
 #include "kernel_operator_intf.h"
 #endif
+#include "include/experimental/tensor_api/tensor.h"
 #include "../prologue/tool.h"
-#include "weight_quant_cube_compute.h"
+#include "../tile/tile_mmad_mx.h"
+#include "../tile/copy_scale_gm_to_l1.h"
+#include "../tile/copy_scale_l1_to_l0a.h"
+#include "../tile/copy_scale_l1_to_l0b.h"
 
+using AscendC::Dn2NzParams;
+using AscendC::GetBlockIdx;
+using AscendC::HardEvent;
 using AscendC::LocalTensor;
+using AscendC::PipeBarrier;
+using AscendC::SetFlag;
 using AscendC::TPosition;
+using AscendC::WaitFlag;
+using AscendC::BLOCK_CUBE;
+using AscendC::TEventID;
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
+#define WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM                                                                                 \
+    template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType, \
+              typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
+
+#define WQBMM_CUBE_COMPUTE_CLASS                                                                        \
+    WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,    \
+                                   biasType, yType, wqmmConfig, vecConfig>
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 class WeightQuantMatmulBasicBlockAic {
 public:
     __aicore__ inline WeightQuantMatmulBasicBlockAic() = delete;
@@ -49,19 +68,463 @@ protected:
     __aicore__ inline void WaitAivToAic();
     __aicore__ inline void SetAicToAiv();
 
-    WeightQuantBatchMatmulV2CubeCompute<xType, biasType, antiQuantScaleType, perTokenScaleType, yType, wqmmConfig,
-                                        void> cubeCompute_;
+private:
+    __aicore__ inline void MxA8W4Init(uint64_t aPrefetchSize, uint64_t l1RemainSize, uint64_t l1StartSize,
+                                      uint64_t mxBiasL1DbOffset, const TCubeTiling *__restrict matmulTiling,
+                                      uint64_t biasL1Offset);
+    template <typename TensorB>
+    __aicore__ inline void LaunchMatmul(const TensorB &tensorBL1, int64_t kbOffset, uint64_t kbL1RealSize,
+                                        uint64_t cvLoopIdx, const BasicBlockOffsetParam &param);
+    __aicore__ inline void WaitMTE1ToMTE2(uint64_t kaGmOffset, const BasicBlockOffsetParam &offsetParam);
+    __aicore__ inline void SetMTE1ToMTE2(uint64_t kaGmOffset, const BasicBlockOffsetParam &offsetParam);
+    __aicore__ inline void WaitScaleMTE1ToMTE2(uint64_t kbGmOffset);
+    __aicore__ inline void SetScaleMTE1ToMTE2(uint64_t kbGmOffset, const BasicBlockOffsetParam &offsetParam);
+    template <typename TensorA>
+    __aicore__ inline void CopyAAndBiasGmToL1(const TensorA &tensorA, const BasicBlockOffsetParam &param,
+                                              int64_t kaGmOffset, uint64_t cvLoopIdx);
+    template <typename TensorScaleA, typename TensorScaleB>
+    __aicore__ inline void CopyMxScaleGmToL1(const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB,
+                                             const BasicBlockOffsetParam &param, uint64_t kbL1Offset);
+    template <typename TensorC>
+    __aicore__ inline void GetTensorC(const TensorC &tensorC, const BasicBlockOffsetParam &param);
+    __aicore__ inline void EndSync();
+    __aicore__ inline void ClearAFullLoadFlag();
+    using MakeLayoutBias = typename AscendC::Te::NDLayoutFormat<biasType>;
+
+    using MakeLayoutAL1 = AscendC::Te::NzLayoutFormat<xType>;
+    using MakeLayoutScaleAL1 = typename AscendC::Te::ZzLayoutFormat<fp8_e8m0_t>;
+    using MakeLayoutScaleBL1 = typename AscendC::Te::NnLayoutFormat<fp8_e8m0_t>;
+
+    using MakeLayoutAL0 = AscendC::Te::NzLayoutFormat<xType>;
+    using MakeLayoutBL0 = AscendC::Te::ZnLayoutFormat<xType>;
+    using MakeLayoutScaleAL0 = typename AscendC::Te::ZzLayoutFormat<fp8_e8m0_t>;
+    using MakeLayoutScaleBL0 = typename AscendC::Te::NnLayoutFormat<fp8_e8m0_t>;
+    using MakeLayoutBt = typename AscendC::Te::NDLayoutFormat<biasType>;
+    static constexpr uint64_t L0_BUF_NUM = 2;
+    static constexpr uint64_t MXFP_DIVISOR_SIZE = 64;
+
+    __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t aGmSize, uint64_t aL1Offset);
+    __aicore__ inline void InitSync();
+    __aicore__ inline uint64_t CheckMaxSpace(const BasicBlockOffsetParam &param);
+    template <typename TensorA>
+    __aicore__ inline void CopyAGmToL1SingleBuffer(const BasicBlockOffsetParam &param, int64_t kaGmOffset,
+                                                   int64_t kbL1RealSize, int64_t biasRealN,
+                                                   const TensorA &tensorA);
+    __aicore__ inline void ConfigScaleDn2NzParams(uint64_t rowNum, uint64_t scaleKGmSize, uint64_t scaleKL1Stride,
+                                                  uint64_t scaleKL1RealSize, Dn2NzParams &dn2NzParams);
 
     uint64_t cvLoopIdx_ = 0;
-
     LocalTensor<xType> weightL1_;
     LocalTensor<biasType> biasL1_;
     uint64_t weightL1DbOffset_;
-    uint64_t biasL1DbOffset_;
-    bool hasBias_;
 
-    constexpr static uint64_t MX_SCALE_K_L1_SIZE = 4096;
+    int8_t aL1DbNum_;
+    bool isBias_;
+    static constexpr uint32_t KB_UNIT = GetKBUnit<xType>();
+    static constexpr uint64_t MX_SCALE_L1_SIZE = 32 * GetKBUnit<xType>() * sizeof(xType);
+    static constexpr uint64_t MX_SCALE_K_L1_SIZE = 4096;
+    static constexpr uint64_t BIAS_TABLE_OFFSET_B32 = 2 * 256;
+    static constexpr uint64_t MX_GROUP_SIZE = 32;
+
+    uint64_t aL1Count_;
+    uint64_t aL1MaxHalfCount_;
+    uint64_t mxScaleBufIdx_ = 0;
+    uint64_t aL1BufIdx_ = 0;
+
+    AscendC::TEventID cubeEventIdsMxScaleMte1ToMte2_[DOUBLE_BUFFER_NUM];
+    AscendC::TEventID cubeEventIdsMte1ToMte2_[DOUBLE_BUFFER_NUM];
+    AscendC::TEventID cubeEventIdMte2ToMte1_;
+    AscendC::TEventID cubeEventIdMte1ToMte2_;
+
+    uint64_t aL1Offset_;
+    uint64_t biasL1Offset_;
+    uint64_t mxScaleAL1Offset_;
+    uint64_t mxScaleBL1Offset_;
+
+    uint64_t aL1DbOffset_;
+    uint64_t biasL1DbOffset_;
+    uint64_t mxScaleAL1DbOffset_;
+    uint64_t mxScaleBL1DbOffset_;
+
+    uint64_t l0LoopIdx_ = 0;
+
+    __gm__ uint8_t *aPrefetchAddr_ = nullptr;
+
+    decltype(AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr(reinterpret_cast<__cbuf__ xType*>(0)), MakeLayoutAL1{}(16UL, 16UL))) tensorAL1_;
+    decltype(AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr(reinterpret_cast<__cbuf__ fp8_e8m0_t*>(0)), MakeLayoutScaleAL1{}(16UL, 16UL))) tensorScaleAL1_;
+    decltype(AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr(reinterpret_cast<__cbuf__ fp8_e8m0_t*>(0)), MakeLayoutScaleBL1{}(16UL, 16UL))) tensorScaleBL1_;
 };
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline uint64_t WQBMM_CUBE_COMPUTE_CLASS::CheckMaxSpace(const BasicBlockOffsetParam &param)
+{
+    uint64_t maxSpace = aL1MaxHalfCount_ * param.kbL1Size * CeilAlign(param.mL1Size, static_cast<uint64_t>(BLOCK_CUBE));
+    if (param.kbL1Size > 0 && param.kSize % param.kbL1Size == 0 && !wqmmConfig.aTrans && maxSpace <= aL1DbOffset_) {
+        return maxSpace;
+    }
+    return 0;
+}
+
+static constexpr uint64_t L0_BUF_OFFSET_B8 = 32 * 1024;
+static constexpr uint16_t UNIT_FLAG_ENABLE = 2;
+static constexpr uint16_t UNIT_FLAG_ENABLE_AUTO_CLOSE = 3;
+static constexpr TEventID eventIdMToMte1_ = 3;
+static constexpr TEventID eventIdMte1ToM_ = 3;
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+template <typename TensorB>
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::LaunchMatmul(const TensorB &tensorBL1, int64_t kbOffset,
+                                                              uint64_t kbL1RealSize, uint64_t cvLoopIdx,
+                                                              const BasicBlockOffsetParam &param)
+{
+    SetFlag<HardEvent::MTE2_MTE1>(cubeEventIdMte2ToMte1_);
+    WaitFlag<HardEvent::MTE2_MTE1>(cubeEventIdMte2ToMte1_);
+    uint64_t aL1Offset = 0;
+    if (aL1DbNum_ == SINGLE_BUFFER_NUM) {
+        uint64_t maxSpace = CheckMaxSpace(param);
+        if (maxSpace > 0) {
+            aL1Offset = (aL1BufIdx_ & 1) * aL1DbOffset_ +
+                        CeilAlign(param.mL1Size, static_cast<uint64_t>(BLOCK_CUBE)) *
+                            (static_cast<uint64_t>(kbOffset) / (param.kbL1Size * 2) * param.kbL1Size);
+        } else {
+            aL1Offset = CeilAlign(param.mL1Size, static_cast<uint64_t>(BLOCK_CUBE)) * kbOffset;
+        }
+    } else {
+        aL1Offset = (aL1BufIdx_ & 1) * aL1DbOffset_;
+    }
+    bool isLastGmK = kbOffset + kbL1RealSize >= param.kSize;
+    bool isFirstGmK = kbOffset == 0;
+    uint64_t l0KSize = (param.mL1Size <= 128 && param.nL1Size <= 128) ? 256 : 128;
+    for (uint64_t l1KOffset = 0; l1KOffset < kbL1RealSize; l1KOffset += l0KSize) {
+        bool isLastL1K = l1KOffset + l0KSize >= kbL1RealSize;
+        uint64_t realL0k = isLastL1K ? kbL1RealSize - l1KOffset : l0KSize;
+        uint64_t loopId = l0LoopIdx_ % L0_BUF_NUM;
+        WaitFlag<HardEvent::M_MTE1>(eventIdMToMte1_ + loopId);
+
+        auto CopyL12L0 = AscendC::Te::MakeCopy(AscendC::Te::CopyL12L0{});
+        auto layoutAL0 = MakeLayoutAL0{}(param.mL1Size, realL0k);
+        auto tensorAL0 = AscendC::Te::MakeTensor(AscendC::Te::MakeL0AmemPtr<xType>(loopId * L0_BUF_OFFSET_B8), layoutAL0);
+        auto tensorBlockAL1 = tensorAL1_(
+            AscendC::Te::MakeCoord(0, (l1KOffset + kbOffset) % param.kaL1Size),
+            AscendC::Te::MakeShape(param.mL1Size, realL0k));
+        AscendC::Te::Copy(CopyL12L0, tensorAL0, tensorBlockAL1);
+
+        auto layoutScaleAL0 = MakeLayoutScaleAL0{}(
+            param.mL1Size, Cgmct::Gemm::CeilDiv(realL0k, MXFP_DIVISOR_SIZE) * 2);
+        auto tensorScaleAL0 =
+            AscendC::Te::MakeTensor(AscendC::Te::MakeL0AmemPtr<fp8_e8m0_t>(loopId * L0_BUF_OFFSET_B8), layoutScaleAL0);
+        auto CopyL12L0MxScaleA3510 = AscendC::Te::MakeCopy(Cgmct::Gemm::Tile::CopyL12L0MxScaleA3510{});
+        AscendC::Te::Copy(
+            CopyL12L0MxScaleA3510, tensorScaleAL0, tensorScaleAL1_,
+            AscendC::Te::MakeCoord(0, ((l1KOffset + kbOffset) % MX_SCALE_K_L1_SIZE) / MX_GROUP_SIZE));
+
+        auto layoutBL0 = MakeLayoutBL0{}(realL0k, param.nL1Size);
+        auto tensorBL0 = AscendC::Te::MakeTensor(AscendC::Te::MakeL0BmemPtr<xType>(loopId * L0_BUF_OFFSET_B8), layoutBL0);
+        auto tensorBlockBL1 = tensorBL1(
+            AscendC::Te::MakeCoord(l1KOffset, 0), AscendC::Te::MakeShape(realL0k, param.nL1Size));
+        AscendC::Te::Copy(CopyL12L0, tensorBL0, tensorBlockBL1);
+
+        auto layoutScaleBL0 = MakeLayoutScaleBL0{}(
+            Cgmct::Gemm::CeilDiv(realL0k, MXFP_DIVISOR_SIZE) * 2, param.nL1Size);
+        auto tensorScaleBL0 =
+            AscendC::Te::MakeTensor(AscendC::Te::MakeL0BmemPtr<fp8_e8m0_t>(loopId * L0_BUF_OFFSET_B8), layoutScaleBL0);
+        auto CopyL12L0MxScaleB3510 = AscendC::Te::MakeCopy(Cgmct::Gemm::Tile::CopyL12L0MxScaleB3510{});
+        AscendC::Te::Copy(
+            CopyL12L0MxScaleB3510, tensorScaleBL0, tensorScaleBL1_,
+            AscendC::Te::MakeCoord(((l1KOffset + kbOffset) % MX_SCALE_K_L1_SIZE) / MX_GROUP_SIZE, 0));
+
+        if (isBias_ && isFirstGmK && l1KOffset == 0) {
+            auto CopyL12BT = AscendC::Te::MakeCopy(AscendC::Te::CopyL12BT{});
+            auto layoutBt = MakeLayoutBt{}(1L, Cgmct::Gemm::Align(param.nL1Size, AscendC::BLOCK_CUBE));
+            auto tensorBt = AscendC::Te::MakeTensor(
+                AscendC::Te::MakeBiasmemPtr<float>(loopId * BIAS_TABLE_OFFSET_B32 * sizeof(float)), layoutBt);
+            auto layoutBiasL1 = MakeLayoutBias{}(1L, Cgmct::Gemm::Align(param.nL1Size, AscendC::BLOCK_CUBE));
+            auto tensorBiasL1 = AscendC::Te::MakeTensor(
+                AscendC::Te::MakeL1memPtr<biasType>(biasL1Offset_ + (cvLoopIdx & 1) * biasL1DbOffset_ * sizeof(biasType)), layoutBiasL1);
+            AscendC::Te::Copy(CopyL12BT, tensorBt, tensorBiasL1);
+        }
+
+        bool isFirstK = isFirstGmK && l1KOffset == 0;
+        SetFlag<HardEvent::MTE1_M>(eventIdMte1ToM_);
+        WaitFlag<HardEvent::MTE1_M>(eventIdMte1ToM_);
+        uint8_t mmadUnitFlag = (isLastGmK && isLastL1K) ? UNIT_FLAG_ENABLE_AUTO_CLOSE : UNIT_FLAG_ENABLE;
+
+        auto layoutL0C = AscendC::Te::MakeL0CLayout(param.mL1Size, param.nL1Size);
+        auto tensorL0C = AscendC::Te::MakeTensor(AscendC::Te::MakeL0CmemPtr<float>(0), layoutL0C);
+        if (isBias_ && isFirstK) {
+            auto layoutBt =
+                MakeLayoutBt{}(1L, Cgmct::Gemm::Align(param.nL1Size, AscendC::BLOCK_CUBE));
+            auto tensorBt = AscendC::Te::MakeTensor(
+                AscendC::Te::MakeBiasmemPtr<float>(loopId * BIAS_TABLE_OFFSET_B32 * sizeof(float)), layoutBt);
+            AscendC::Te::Mad(
+                        AscendC::Te::MmadAtom<AscendC::Te::MmadTraits<Cgmct::Gemm::Tile::MmadMxWithBias>>{}.with(
+                            static_cast<uint16_t>(param.mL1Size),
+                            static_cast<uint16_t>(realL0k),
+                            static_cast<uint16_t>(param.nL1Size), mmadUnitFlag, true, false),
+                        tensorL0C, tensorAL0, tensorBL0, tensorBt);
+        } else {
+            AscendC::Te::Mad(
+                        AscendC::Te::MmadAtom<AscendC::Te::MmadTraits<Cgmct::Gemm::Tile::MmadMx>>{}.with(
+                            static_cast<uint16_t>(param.mL1Size),
+                            static_cast<uint16_t>(realL0k),
+                            static_cast<uint16_t>(param.nL1Size), mmadUnitFlag, false, isFirstK),
+                        tensorL0C, tensorAL0, tensorBL0);
+        }
+
+        SetFlag<HardEvent::M_MTE1>(eventIdMToMte1_ + loopId);
+        l0LoopIdx_++;
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::WaitMTE1ToMTE2(uint64_t kaGmOffset,
+                                                                const BasicBlockOffsetParam &offsetParam)
+{
+    if (aL1DbNum_ > SINGLE_BUFFER_NUM && kaGmOffset % offsetParam.kaL1Size == 0) {
+        WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[aL1BufIdx_ & 1]);
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::WaitScaleMTE1ToMTE2(uint64_t kbGmOffset)
+{
+    if (kbGmOffset % MX_SCALE_K_L1_SIZE == 0) {
+        WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[mxScaleBufIdx_ & 1]);
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetScaleMTE1ToMTE2(uint64_t kbGmOffset,
+                                                                    const BasicBlockOffsetParam &offsetParam)
+{
+    if ((kbGmOffset + offsetParam.kbL1Size) % MX_SCALE_K_L1_SIZE == 0 ||
+        kbGmOffset + offsetParam.kbL1Size >= offsetParam.kSize) {
+        SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[mxScaleBufIdx_ & 1]);
+        mxScaleBufIdx_++;
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::SetMTE1ToMTE2(uint64_t kaGmOffset,
+                                                               const BasicBlockOffsetParam &offsetParam)
+{
+    if (aL1DbNum_ > SINGLE_BUFFER_NUM && ((kaGmOffset + offsetParam.kbL1Size) % offsetParam.kaL1Size == 0 ||
+                                          kaGmOffset + offsetParam.kbL1Size >= offsetParam.kSize)) {
+        SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[aL1BufIdx_ & 1]);
+        aL1BufIdx_++;
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+template <typename TensorA>
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAGmToL1SingleBuffer(const BasicBlockOffsetParam &param,
+                                                                         int64_t kaGmOffset, int64_t kbL1RealSize,
+                                                                         int64_t biasRealN, const TensorA &tensorA)
+{
+    AscendC::Nd2NzParams nd2nzParams;
+    uint64_t maxSpace = CheckMaxSpace(param);
+    if (maxSpace > 0) {
+        // TODO 不支持
+    } else {
+        auto copyGM2L1 = AscendC::Te::MakeCopy(AscendC::Te::CopyGM2L1{});
+        auto layoutAL1 = MakeLayoutAL1{}(param.mL1Size, param.kSize);
+        tensorAL1_ = AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr<xType>(0), layoutAL1);
+        auto gmBlockA =
+            tensorA(AscendC::Te::MakeCoord(0, kaGmOffset), AscendC::Te::MakeShape(param.mL1Size, param.kSize));
+        AscendC::Te::Copy(copyGM2L1, tensorAL1_, gmBlockA);
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+template <typename TensorA>
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyAAndBiasGmToL1(const TensorA &tensorA,
+                                                                    const BasicBlockOffsetParam &param,
+                                                                    int64_t kaGmOffset, uint64_t cvLoopIdx)
+{
+    if (kaGmOffset % param.kaL1Size != 0) {
+        return;
+    }
+    int64_t kaL1RealSize = (kaGmOffset + param.kaL1Size) >= param.kSize ? param.kSize - kaGmOffset : param.kaL1Size;
+    auto copyGM2L1 = AscendC::Te::MakeCopy(AscendC::Te::CopyGM2L1{});
+    if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
+        auto layoutAL1 = MakeLayoutAL1{}(param.mL1Size, kaL1RealSize);
+        auto gmBlockA =
+            tensorA(AscendC::Te::MakeCoord(0, kaGmOffset), AscendC::Te::MakeShape(param.mL1Size, kaL1RealSize));
+        tensorAL1_ = AscendC::Te::MakeTensor(
+            AscendC::Te::MakeL1memPtr<xType>(aL1Offset_ + (aL1BufIdx_ & 1) * aL1DbOffset_), layoutAL1);
+        AscendC::Te::Copy(copyGM2L1, tensorAL1_, gmBlockA);
+    } else if (aL1DbNum_ == SINGLE_BUFFER_NUM && kaGmOffset == 0) {
+        CopyAGmToL1SingleBuffer(param, kaGmOffset, kaL1RealSize, param.nL1Size, tensorA);
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+template <typename TensorScaleA, typename TensorScaleB>
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CopyMxScaleGmToL1(const TensorScaleA &tensorScaleA,
+                                                                   const TensorScaleB &tensorScaleB,
+                                                                   const BasicBlockOffsetParam &param,
+                                                                   uint64_t kbL1Offset)
+{
+    if (kbL1Offset % MX_SCALE_K_L1_SIZE != 0) {
+        return;
+    }
+    uint64_t scaleKGmSize = param.kSize / MX_GROUPSIZE;
+    uint64_t scaleKL1StandardLen = MX_SCALE_K_L1_SIZE / MX_GROUPSIZE;
+    uint64_t scaleKL1RealSize = (kbL1Offset + MX_SCALE_K_L1_SIZE) > param.kSize ?
+                                    (param.kSize - kbL1Offset) / MX_GROUPSIZE :
+                                    scaleKL1StandardLen;
+    auto CopyScaleGM2L1 = AscendC::Te::MakeCopy(Cgmct::Gemm::Tile::CopyScaleGM2L1{});
+    auto layoutScaleAL1 = MakeLayoutScaleAL1{}(param.mL1Size, scaleKL1RealSize);
+    tensorScaleAL1_ = AscendC::Te::MakeTensor(
+        AscendC::Te::MakeL1memPtr<fp8_e8m0_t>(mxScaleAL1Offset_ + (mxScaleBufIdx_ & 1) * mxScaleAL1DbOffset_), layoutScaleAL1);
+    auto gmBlockScaleA = tensorScaleA(AscendC::Te::MakeCoord(0, kbL1Offset / MX_GROUP_SIZE),
+                                      AscendC::Te::MakeShape(param.mL1Size, scaleKL1RealSize));
+    AscendC::Te::Copy(CopyScaleGM2L1, tensorScaleAL1_, gmBlockScaleA);
+
+    auto layoutScaleBL1 = MakeLayoutScaleBL1{}(scaleKL1RealSize, param.nL1Size);
+    tensorScaleBL1_ = AscendC::Te::MakeTensor(
+        AscendC::Te::MakeL1memPtr<fp8_e8m0_t>(mxScaleBL1Offset_ + (mxScaleBufIdx_ & 1) * mxScaleBL1DbOffset_), layoutScaleBL1);
+    auto gmBlockScaleB = tensorScaleB(AscendC::Te::MakeCoord(kbL1Offset / MX_GROUP_SIZE, 0),
+                                      AscendC::Te::MakeShape(scaleKL1RealSize, param.nL1Size));
+    AscendC::Te::Copy(CopyScaleGM2L1, tensorScaleBL1_, gmBlockScaleB);
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::ConfigScaleDn2NzParams(uint64_t rowNum, uint64_t scaleKGmSize,
+                                                                        uint64_t scaleKL1Stride,
+                                                                        uint64_t scaleKL1RealSize,
+                                                                        Dn2NzParams &dn2NzParams)
+{
+    dn2NzParams.dnNum = 1;
+    dn2NzParams.dValue = rowNum;
+    dn2NzParams.nValue = CeilDivide(scaleKL1RealSize, SCALE_COPY_GROUP_SIZE);
+    dn2NzParams.srcDnMatrixStride = SCALE_COPY_DEFAULT_STRIDE;
+    dn2NzParams.srcDValue = CeilDivide(scaleKGmSize, SCALE_COPY_GROUP_SIZE);
+    dn2NzParams.dstNzC0Stride = CeilDivide(MX_SCALE_K_L1_SIZE, MX_GROUPSIZE * SCALE_COPY_GROUP_SIZE);
+    dn2NzParams.dstNzNStride = SCALE_COPY_DEFAULT_N_STRIDE;
+    dn2NzParams.dstNzMatrixStride = SCALE_COPY_DEFAULT_STRIDE;
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::EndSync()
+{
+    for (uint64_t i = 0; i < L0_BUF_NUM; i++) {
+        WaitFlag<HardEvent::M_MTE1>(eventIdMToMte1_ + i);
+    }
+
+    for (uint64_t i = 0; i < DOUBLE_BUFFER_NUM; i++) {
+        WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
+        if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
+            WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
+        }
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::ClearAFullLoadFlag()
+{
+    if (aL1DbNum_ == SINGLE_BUFFER_NUM) {
+        SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[0]);
+        WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[0]);
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::InitSync()
+{
+    for (uint64_t i = 0; i < DOUBLE_BUFFER_NUM; i++) {
+        cubeEventIdsMte1ToMte2_[i] = i;
+        cubeEventIdsMxScaleMte1ToMte2_[i] = DOUBLE_BUFFER_NUM + i;
+        SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
+        if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
+            SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
+        }
+    }
+    cubeEventIdMte1ToMte2_ = 2 * DOUBLE_BUFFER_NUM;
+    cubeEventIdMte2ToMte1_ = 0;
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit,
+                                                           uint64_t perloadBufferOffset)
+{
+    uint64_t xOffset = GetBlockIdx() * aPrefetchSize;
+    if (aPrefetchSize == 0 || xOffset >= xSizeLimit) {
+        return;
+    }
+#ifdef __XBL_PRINT__
+    AscendC::printf("[ERROR] need prefetchA 3");
+#endif
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit)
+{
+    uint64_t xOffset = GetBlockIdx() * aPrefetchSize;
+    if (aPrefetchSize == 0 || xOffset >= xSizeLimit) {
+        return;
+    }
+    SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdMte1ToMte2_);
+    WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdMte1ToMte2_);
+
+    uint64_t blockLen = xOffset + aPrefetchSize > xSizeLimit ? xSizeLimit - xOffset : aPrefetchSize;
+#ifdef __XBL_PRINT__
+    AscendC::printf("[INFO] prefetchA 2 base_addr %p offset %d size %d", aPrefetchAddr_, xOffset, blockLen);
+#endif
+    auto aPrefetchGm = AscendC::Te::MakeTensor(
+        AscendC::Te::MakeGMmemPtr(reinterpret_cast<__gm__ uint8_t*>(aPrefetchAddr_ + xOffset)),
+        AscendC::Te::MakeNDLayout<uint8_t>(1UL, blockLen));
+    auto aPrefetchL1 = AscendC::Te::MakeTensor(
+        AscendC::Te::MakeL1memPtr(reinterpret_cast<__cbuf__ uint8_t*>(aL1Offset_)),
+        AscendC::Te::MakeNDLayout<uint8_t>(1UL, blockLen));
+    auto copyGM2L1 = AscendC::Te::MakeCopy(AscendC::Te::CopyGM2L1{});
+    AscendC::Te::Copy(copyGM2L1, aPrefetchL1, aPrefetchGm);
+    PipeBarrier<PIPE_MTE2>();
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::MxA8W4Init(uint64_t aPrefetchSize, uint64_t l1RemainSize,
+                                                            uint64_t l1StartSize, uint64_t mxBiasL1DbOffset,
+                                                            const TCubeTiling *__restrict matmulTiling,
+                                                            uint64_t biasL1Offset)
+{
+    biasL1Offset_ = biasL1Offset;
+    biasL1DbOffset_ = mxBiasL1DbOffset;
+    aL1Count_ = 0;
+    aL1MaxHalfCount_ = 0;
+    aL1DbNum_ = DOUBLE_BUFFER_NUM;
+
+    mxScaleAL1Offset_ = l1StartSize;
+    mxScaleAL1DbOffset_ = l1RemainSize - MX_SCALE_L1_SIZE;
+    l1RemainSize -= DOUBLE_BUFFER_NUM * MX_SCALE_L1_SIZE;
+    l1StartSize += MX_SCALE_L1_SIZE;
+
+    mxScaleBL1Offset_ = l1StartSize;
+    mxScaleBL1DbOffset_ = l1RemainSize - MX_SCALE_L1_SIZE;
+    l1RemainSize -= DOUBLE_BUFFER_NUM * MX_SCALE_L1_SIZE;
+    l1StartSize += MX_SCALE_L1_SIZE;
+
+    aL1Offset_ = l1StartSize;
+    aL1DbOffset_ = l1RemainSize >> 1;
+
+    PrefetchA(aPrefetchSize, matmulTiling->M * matmulTiling->Ka, aL1Offset_);
+    for (uint64_t i = 0; i < L0_BUF_NUM; i++) {
+        SetFlag<HardEvent::M_MTE1>(eventIdMToMte1_ + i);
+    }
+    InitSync();
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+template <typename TensorC>
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const TensorC &tensorC,
+                                                            const BasicBlockOffsetParam &param)
+{
+    constexpr uint64_t FP32_64_AS_UINT64 = 0x42800000;
+    auto layoutL0C = AscendC::Te::MakeL0CLayout(param.mL1Size, param.nL1Size);
+    auto tensorL0C = AscendC::Te::MakeTensor(AscendC::Te::MakeL0CmemPtr<float>(0), layoutL0C);
+    auto CopyL0C2GM = AscendC::Te::MakeCopy(AscendC::Te::CopyL0C2GM{});
+    AscendC::Te::Copy(CopyL0C2GM, tensorC, tensorL0C, FP32_64_AS_UINT64, AscendC::Te::FixpipeParams{/*unitflag*/3});
+}
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
@@ -69,7 +532,7 @@ __aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleTyp
                                                  biasType, yType, wqmmConfig, vecConfig>::WeightQuantMatmulBasicBlockAic(
     bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
-    hasBias_ = hasBias;
+    isBias_ = hasBias;
     biasL1DbOffset_ = 0;
     weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, L1_SIZE_BYTE / sizeof(xType));
 
@@ -80,13 +543,13 @@ __aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleTyp
     uint64_t l1StartSize = MXA8W4_WEIGHT_SIZE;
     uint64_t biasL1Offset = l1StartSize;
     biasL1_ = LocalTensor<biasType>(TPosition::TSCM, l1StartSize, l1RemainSize / sizeof(biasType));
-    if (hasBias_) {
+    if (isBias_) {
         biasL1DbOffset_ = (l1RemainSize - MX_BIAS_L1_SIZE) / sizeof(biasType);
         l1RemainSize -= DOUBLE_BUFFER_NUM * MX_BIAS_L1_SIZE;
         l1StartSize += MX_BIAS_L1_SIZE;
     }
 
-    cubeCompute_.MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1Offset);
+    MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1Offset);
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -110,33 +573,25 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
     blockParam.nSize = blockParam.nL1Size;
     blockParam.kaL1Size = kaL1Size;
     blockParam.kbL1Size = kbL1Size;
-    cubeCompute_.UpdateGlobalTensor(tensorA, tensorC, tensorScaleA, tensorScaleB, hasBias_);
     for (uint64_t kbGmOffset = 0; kbGmOffset < blockParam.kSize; kbGmOffset += blockParam.kbL1Size, cvLoopIdx_++) {
         uint64_t kbL1RealSize = (kbGmOffset + blockParam.kbL1Size) >= blockParam.kSize ?
                                     blockParam.kSize - kbGmOffset :
                                     blockParam.kbL1Size;
-        cubeCompute_.WaitScaleMTE1ToMTE2(kbGmOffset);
-        cubeCompute_.CopyMxScaleGmToL1(blockParam, kbGmOffset);
-        cubeCompute_.WaitMTE1ToMTE2(kbGmOffset, blockParam);
-        cubeCompute_.CopyAAndBiasGmToL1(blockParam, kbGmOffset, cvLoopIdx_);
+        WaitScaleMTE1ToMTE2(kbGmOffset);
+        CopyMxScaleGmToL1(tensorScaleA, tensorScaleB, blockParam, kbGmOffset);
+        WaitMTE1ToMTE2(kbGmOffset, blockParam);
+        CopyAAndBiasGmToL1(tensorA, blockParam, kbGmOffset, cvLoopIdx_);
         WaitAivToAic();
-        cubeCompute_.LaunchMatmul((cvLoopIdx_ & 1) * weightL1DbOffset_, kbGmOffset, kbL1RealSize, cvLoopIdx_,
-                                  blockParam);
-        cubeCompute_.SetMTE1ToMTE2(kbGmOffset, blockParam);
-        cubeCompute_.SetScaleMTE1ToMTE2(kbGmOffset, blockParam);
+        auto tensorWeightL1 = AscendC::Te::MakeTensor(
+            AscendC::Te::MakeL1memPtr<xType>((cvLoopIdx_ & 1) * weightL1DbOffset_),
+            AscendC::Te::ZnLayoutFormat<xType>{}(kbL1RealSize, blockParam.nL1Size));
+        LaunchMatmul(tensorWeightL1, kbGmOffset, kbL1RealSize, cvLoopIdx_, blockParam);
+        SetMTE1ToMTE2(kbGmOffset, blockParam);
+        SetScaleMTE1ToMTE2(kbGmOffset, blockParam);
         SetAicToAiv();
     }
-    cubeCompute_.GetTensorC(blockParam);
-    cubeCompute_.ClearAFullLoadFlag();
-}
-
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::PrefetchA(
-    uint64_t aPrefetchSize, uint64_t xSizeLimit)
-{
-    cubeCompute_.PrefetchA(aPrefetchSize, xSizeLimit);
+    GetTensorC(tensorC, blockParam);
+    ClearAFullLoadFlag();
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -144,7 +599,7 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
 __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::End()
 {
-    cubeCompute_.EndSync();
+    EndSync();
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,

@@ -35,8 +35,6 @@ struct WqmmConfig {
     CubeFormat weightFormat;
 };
 
-static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
-
 // kernel/block共用
 struct BasicBlockOffsetParam {
     uint64_t mL1Size;
@@ -57,63 +55,6 @@ struct BasicBlockOffsetParam {
 
 struct VecAntiQuantConfig {
     uint64_t ubMte2BufferNum = 2;
-    uint64_t ubMte2InnerSize = 512;
 };
-
-struct UbConsumeConfig {
-    uint64_t ubVfBufferNum;
-    uint64_t l1RequireVfComputeRealK;
-    uint64_t l1RequireVfComputeRealN;
-    uint64_t kWeightLowBitUbOffset;
-    uint64_t nWeightLowBitUbOffset;
-    uint64_t ubMxBiasNsize;
-    bool calcMxBias = false;
-    bool isBiasSingleVector = false;
-};
-
-struct L1ConsumeConfig {
-    uint64_t l1SplitTwoVecExternalOffset;
-    uint64_t l1RealExternalLen;
-    uint64_t l1MxBiasSplitNOffset;
-};
-
-struct UbBufferInfo {
-    uint64_t ubWeightOutputHighBitBufferNum;
-    uint64_t weightInputLowbitUbTotalSize;
-    uint64_t highBitDataUbTotalSize;
-    uint64_t biasUbTotalSize;
-    uint64_t biasReducedUbTotalSize;
-    uint64_t antiQuantScaleUbTotalSize;
-    uint64_t antiQuantScaleAfterCastUbTotalSize;
-    uint64_t antiQuantOffsetUbTotalSize;
-    uint64_t weightInputLowBitUbSingleBufferSize;
-    uint64_t antiQuantScaleUbSingleBufferSize;
-    uint64_t antiQuantScaleAfterCastUbSingleBufferSize;
-    uint64_t biasUbSingleBufferSize;
-    uint64_t biasReducedSingleBufferSize;
-    uint64_t antiQuantOffsetUbSingleBufferSize;
-    uint64_t highBitDataUbSingleBufferSize;
-    uint32_t antiQuantScaleMaskBufferSize;
-};
-
-__aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo(const VecAntiQuantConfig &vecConfig)
-{
-    return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
-            .weightInputLowbitUbTotalSize = 64 * GetKBUnit<int8_t>(), // 64KB
-            .highBitDataUbTotalSize = 128 * GetKBUnit<int8_t>(),      // 128KB
-            .biasUbTotalSize = 2 * GetKBUnit<half>(),                 // 2KB
-            .biasReducedUbTotalSize = 2 * GetKBUnit<half>(),          // 2KB
-            .antiQuantScaleUbTotalSize = 0,
-            .antiQuantScaleAfterCastUbTotalSize = 0,
-            .antiQuantOffsetUbTotalSize = 0,
-            .weightInputLowBitUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .antiQuantScaleUbSingleBufferSize = 0,
-            .antiQuantScaleAfterCastUbSingleBufferSize = 0,
-            .biasUbSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .biasReducedSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .antiQuantOffsetUbSingleBufferSize = 0,
-            .highBitDataUbSingleBufferSize = 128 * GetKBUnit<int8_t>() / QUADRUPLE_BUFFER_NUM,
-            .antiQuantScaleMaskBufferSize = 0};
-}
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 #endif  // GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
