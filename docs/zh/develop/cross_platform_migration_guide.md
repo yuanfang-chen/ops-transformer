@@ -101,7 +101,7 @@
     <td>可用ND2NZ/DN2NZ在MTE2阶段完成格式转换，减少中间buffer和格式转换开销；需关注步长、对齐与NZ形状映射</td>
   </tr>
   <tr>
-    <td>支持Cube->Vector高效内部 数据通路:L1<->UB、L0C->UB、FIXP->UB</td>
+    <td>支持Cube->Vector高效内部 数据通路:L1&lt;-&gt;UB、L0C-&gt;UB、FIXP-&gt;UB</td>
     <td>可在UB侧做中间累加/激活/融合（如切K累加、后处理），减少GM往返；对应同步与管线切分需调整</td>
   </tr>
   <tr>
