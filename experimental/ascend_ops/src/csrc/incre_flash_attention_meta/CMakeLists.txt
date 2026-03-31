@@ -23,8 +23,11 @@ add_library(incre_flash_attention_meta_kernel_objects STATIC
 
 target_include_directories(incre_flash_attention_meta_kernel_objects PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    $ENV{ASCEND_HOME_PATH}/include
-    $ENV{ASCEND_HOME_PATH}/x86_64-linux/asc/include/aicpu_api
+    ${ASCEND_HOME}/${SYSTEM_PREFIX}/include
+    ${ASCEND_HOME}/${SYSTEM_PREFIX}/pkg_inc
+    ${ASCEND_HOME}/${SYSTEM_PREFIX}/pkg_inc/base
+    ${ASCEND_HOME}/${SYSTEM_PREFIX}/asc/include/aicpu_api
+    ${ASCEND_HOME}/${SYSTEM_PREFIX}/pkg_inc/aicpu_common/context/utils
 )
 
 target_link_libraries(incre_flash_attention_meta_kernel_objects PRIVATE pthread)
