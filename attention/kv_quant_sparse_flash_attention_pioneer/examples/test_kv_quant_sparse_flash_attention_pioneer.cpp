@@ -101,11 +101,11 @@ struct TensorResources {
 };
 
 int InitializeTensors(TensorResources& resources) {
-    std::vector<int64_t> queryShape = {1, 2, 1, 512};
-    std::vector<int64_t> keyShape = {1, 2, 1, 512};
-    std::vector<int64_t> valueShape = {1, 2, 1, 512};
-    std::vector<int64_t> sparseIndicesShape = {1, 2, 1, 2048};
-    std::vector<int64_t> attentionOutShape = {1, 2, 1, 512};
+    std::vector<int64_t> queryShape = {1, 1, 4, 512};
+    std::vector<int64_t> keyShape = {1, 1, 4, 512};
+    std::vector<int64_t> valueShape = {1, 1, 4, 512};
+    std::vector<int64_t> sparseIndicesShape = {1, 1, 4, 2048};
+    std::vector<int64_t> attentionOutShape = {1, 1, 4, 512};
 
     int64_t queryShapeSize = GetShapeSize(queryShape);
     int64_t keyShapeSize = GetShapeSize(keyShape);
@@ -275,7 +275,7 @@ int main() {
     TensorResources resources = {};
     void* workspaceAddr = nullptr;
     uint64_t workspaceSize = 0;
-    std::vector<int64_t> attentionOutShape = {1, 2, 1, 16};
+    std::vector<int64_t> attentionOutShape = {1, 1, 4, 512};
     int ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream
