@@ -12,6 +12,7 @@
 
 import os
 import stat
+from packaging import version
 
 
 REPLAY_BATCH = 'batch'
@@ -26,8 +27,33 @@ SOC_MAP_EXT = {'ascend310p': 'Ascend310P3', 'ascend310b': 'Ascend310B1',
                'ascend910_93': 'Ascend910_9391', 'ascend610lite': 'Ascend610Lite',
                'ascend950': 'Ascend950PR_9599', 'kirinx90': 'KirinX90',
                'kirin9030': 'Kirin9030'}
-BIN_CMD = 'asc_opc $1 --main_func={fun} --input_param={param} --soc_version={soc} \
---output=$2 --impl_mode={impl} --simplified_key_mode=0 --op_mode=dynamic\n'
+
+def get_version_from_file(filename):
+    try:
+        with open(filename, 'r') as file:
+            for line in file:
+                if line.startswith('Version='):
+                    return line.strip().split('=')[1]
+        return None
+    except FileNotFoundError:
+        print(f"error: file {filename} not exists")
+        return None
+    except Exception as e:
+        print(f"failed to read version file: {e}")
+        return None
+def check_asc_devkit_version(min_version="9.0.0"):
+    current_ver = get_version_from_file('version.info')
+    if version.parse(current_ver) >= version.parse(min_version):
+        return True
+    else:
+        print(f"version is not match: {current_ver} < {min_version}")
+        return False
+if check_asc_devkit_version("9.0.0"):
+    BIN_CMD = 'asc_opc $1 --main_func={fun} --input_param={param} --soc_version={soc} \
+    --output=$2 --impl_mode={impl} --simplified_key_mode=0 --op_mode=dynamic\n'
+else:
+    BIN_CMD = 'opc $1 --main_func={fun} --input_param={param} --soc_version={soc} \
+    --output=$2 --impl_mode={impl} --simplified_key_mode=0 --op_mode=dynamic\n'
 SET_PLOG_LEVEL_ERROR = "export ASCEND_GLOBAL_LOG_LEVEL=3\n"
 SET_PLOG_STDOUT = "export ASCEND_SLOG_PRINT_TO_STDOUT=1\n"
 SRC_ENV = '''
@@ -54,7 +80,6 @@ fi
 '''
 ATTR_DEF_VAL = {'str' : '', 'int': 0, 'float': 0.0, 'bool': False, 'list_bool': [],
                 'list_int': [], 'list_float': [], 'list_list_int': [[]]}
-
 
 def conv_soc_ver(ver: str):
     return SOC_MAP_EXT.get(ver)
