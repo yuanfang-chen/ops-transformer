@@ -61,6 +61,7 @@ bool MatmulAllReduceCheckFormat(const aclTensor* x2)
     return true;
 }
 
+
 aclnnStatus MatmulAllReduceCheckParams(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* x3, const aclTensor* bias, const char* reduceOp,
     int64_t streamMode, const aclTensor* output)
