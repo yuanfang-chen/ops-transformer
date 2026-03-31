@@ -450,10 +450,7 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::EndSync()
         if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
             WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
         }
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
     }
-    GetTPipePtr()->ReleaseEventID<HardEvent::MTE2_MTE1>(cubeEventIdMte2ToMte1_);
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM

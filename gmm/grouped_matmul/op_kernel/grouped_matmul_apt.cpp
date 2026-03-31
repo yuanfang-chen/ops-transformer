@@ -36,10 +36,9 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
                                                     DTYPE_PER_TOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
                                                     WeightQuantMatmulBasicBlock, MXA8W4_NZNK,
                                                     VEC_ANTIQUANT_CONFIG_DYNAMIC>
-        op;
-    op.Init(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
-            &mmTilingData_, tiling, tPipe);
-    op.Process();
+        op(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
+           &mmTilingData_, tiling, tPipe);
+    op();
 }
 
 template <int8_t W_TYPE, int8_t OFFSET_OR_BIAS_EXIT, int8_t C_QUANT_TYPE, int8_t W_QUANT_TYPE, int8_t WQ_B_TRANS,

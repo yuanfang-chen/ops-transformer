@@ -38,7 +38,6 @@ struct WqmmConfig {
 static constexpr WqmmConfig MXA8W4_NZNK = {false, true, QuantType::MX, false, QuantType::NONE, CubeFormat::NZ};
 
 struct BasicBlockControlParam {
-    uint64_t processId;
     uint64_t mSize;
     uint64_t mL1Size;
     uint64_t curBasicBlockId;

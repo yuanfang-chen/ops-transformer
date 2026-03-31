@@ -57,12 +57,12 @@ GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 class BasicBlockLibVectorAntiQuantCompute {
 public:
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(){};
+    __aicore__ inline BasicBlockLibVectorAntiQuantCompute(TPipe *tPipe, bool hasBias);
 
     __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ wType *weight, __gm__ antiQuantScaleType *antiQuantScale,
                                             __gm__ xType *antiQuantOffset, __gm__ float *perTokenScale,
                                             __gm__ float *perChannelScale, __gm__ biasType *bias,
                                             const bool weightL2Cacheable);
-    __aicore__ inline void Init(TPipe *tPipe, bool hasBias);
     __aicore__ inline void WaitVToMTE2();
     __aicore__ inline void SetVToMTE2();
     __aicore__ inline void CopyGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
@@ -165,17 +165,19 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlo
  * 初始化buffer和同步所需的EventID
  */
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Init(TPipe *tPipe, bool hasBias)
+__aicore__ inline GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::BasicBlockLibVectorAntiQuantCompute(
+    TPipe *tPipe, bool hasBias)
 {
+    (void)tPipe;
     hasBias_ = hasBias;
     InitMx();
 
     for (uint16_t i = 0; i < vecConfig.ubMte2BufferNum; ++i) {
-        vecEventIdVToMte2_[i] = GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>();
+        vecEventIdVToMte2_[i] = i;
     }
 
     for (uint16_t i = 0; i < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; ++i) {
-        vecEventIdMte3ToV_[i] = GetTPipePtr()->AllocEventID<HardEvent::MTE3_V>();
+        vecEventIdMte3ToV_[i] = i;
     }
 }
 

@@ -52,7 +52,6 @@ static constexpr uint64_t MX_BIAS_SINGLE_VECTOR_SIZE = 128;
 static constexpr uint64_t MX_SCALE_K_L1_SIZE = 4096;
 
 // 控制参数定义
-static constexpr int32_t BASIC_BLOCK_PROCESS_NUM = 2;
 static constexpr uint64_t SCALE_COPY_GROUP_SIZE = 2;
 static constexpr int32_t SCALE_COPY_DEFAULT_STRIDE = 0;
 static constexpr int32_t SCALE_COPY_DEFAULT_N_STRIDE = 1;
