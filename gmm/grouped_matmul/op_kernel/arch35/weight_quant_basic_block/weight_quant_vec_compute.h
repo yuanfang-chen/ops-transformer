@@ -29,12 +29,10 @@ using AscendC::CacheMode;
 using AscendC::DataCopyParams;
 using AscendC::GlobalTensor;
 using AscendC::HardEvent;
-using AscendC::IsSameType;
 using AscendC::LocalTensor;
 using AscendC::ONE_BLK_SIZE;
 using AscendC::SetFlag;
 using AscendC::TEventID;
-using AscendC::TPipe;
 using AscendC::VECTOR_REG_WIDTH;
 using AscendC::WaitFlag;
 namespace MicroAPI = AscendC::MicroAPI;
@@ -57,7 +55,7 @@ GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 class BasicBlockLibVectorAntiQuantCompute {
 public:
     __aicore__ inline BasicBlockLibVectorAntiQuantCompute(){};
-    __aicore__ inline BasicBlockLibVectorAntiQuantCompute(TPipe *tPipe, bool hasBias);
+    __aicore__ inline BasicBlockLibVectorAntiQuantCompute(bool hasBias);
 
     __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ wType *weight, __gm__ antiQuantScaleType *antiQuantScale,
                                             __gm__ xType *antiQuantOffset, __gm__ float *perTokenScale,
@@ -78,8 +76,6 @@ private:
     __aicore__ inline void InitMx();
     __aicore__ inline void CopyAntiQuantParamsGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
                                                      uint64_t ubMte2KOffset, const BasicBlockOffsetParam &offsetParam);
-    __aicore__ inline void WeightAntiQuantProcess(uint64_t nRealLen, uint64_t kRealLen, uint64_t antiQuantNOffset,
-                                                  uint64_t antiQuantKOffset, const UbConsumeConfig &ubConsumeConfig);
     __aicore__ inline void AntiQuantProcess(uint64_t vfExternalRealLen, uint64_t vfInnerRealLen,
                                             uint64_t nWeightLowBitUbOffset, uint64_t kWeightLowBitUbOffset,
                                             const UbConsumeConfig &ubConsumeConfig);
@@ -103,15 +99,10 @@ private:
     uint64_t ubMte2AntiquantYLoopIdx_ = 0;
     // vf中标准计算单元(vfNStandardLen, vfKStandardLen)的计数，用于控制weight反量化后输出的buffer和V&&mte3间同步控制
     uint64_t ubComputeLoopIdx_ = 0;
-    TEventID vecEventIdVToMte2_[QUADRUPLE_BUFFER_NUM];
-    TEventID vecEventIdMte3ToV_[QUADRUPLE_BUFFER_NUM];
+    constexpr static TEventID vecEventIdVToMte2_[QUADRUPLE_BUFFER_NUM] = {0, 1, 2, 3};
+    constexpr static TEventID vecEventIdMte3ToV_[QUADRUPLE_BUFFER_NUM] = {0, 1, 2, 3};
 
     GlobalTensor<wType> wGlobal_;
-    GlobalTensor<xType> antiQuantOffsetGlobal_;
-    GlobalTensor<antiQuantScaleType> antiQuantScaleGlobal_;
-    GlobalTensor<float> antiQuantYPerTokenScaleGlobal_;
-    GlobalTensor<float> antiQuantYPerChannelScaleGlobal_;
-    GlobalTensor<float> antiQuantYBiasGlobal_;
     GlobalTensor<biasType> biasGlobal_;
 
     LocalTensor<int8_t> ubWeightInputLowBitTotalBuffer_;
@@ -122,12 +113,9 @@ private:
     LocalTensor<biasType> ubBiasTotalBuffer_;
     LocalTensor<biasType> ubBiasOutTotalBuffer_;
 
-    LocalTensor<uint64_t> ubAntiQuantScaleMaskBuffer_;
-
     bool hasBias_;
 
-    constexpr static uint32_t C0_SIZE =
-        (IsSameType<xType, int8_t>::value || IsSameType<xType, fp8_e4m3fn_t>::value) ? C0_SIZE_B8 : BLOCK_CUBE;
+    constexpr static uint32_t C0_SIZE = C0_SIZE_B8;
     constexpr static uint64_t VEC_REG_ELEM = VECTOR_REG_WIDTH;
 
     constexpr static uint64_t UB_ANTI_QUANT_Y_BUFFER_NUM = DOUBLE_BUFFER_NUM;
@@ -143,15 +131,6 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlo
     __gm__ float *perTokenScale, __gm__ float *perChannelScale, __gm__ biasType *bias, const bool weightL2Cacheable)
 {
     wGlobal_.SetGlobalBuffer(weight);
-    antiQuantScaleGlobal_.SetGlobalBuffer(antiQuantScale);
-
-    if constexpr (IsSameType<xType, int8_t>::value) {
-        antiQuantYPerTokenScaleGlobal_.SetGlobalBuffer(perTokenScale);
-        antiQuantYPerChannelScaleGlobal_.SetGlobalBuffer(perChannelScale);
-        antiQuantYBiasGlobal_.SetGlobalBuffer(bias);
-    } else {
-        antiQuantOffsetGlobal_.SetGlobalBuffer(antiQuantOffset);
-    }
 
     if (!weightL2Cacheable) {
         wGlobal_.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
@@ -165,20 +144,10 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::UpdateGlo
  * 初始化buffer和同步所需的EventID
  */
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::BasicBlockLibVectorAntiQuantCompute(
-    TPipe *tPipe, bool hasBias)
+__aicore__ inline GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::BasicBlockLibVectorAntiQuantCompute(bool hasBias)
 {
-    (void)tPipe;
     hasBias_ = hasBias;
     InitMx();
-
-    for (uint16_t i = 0; i < vecConfig.ubMte2BufferNum; ++i) {
-        vecEventIdVToMte2_[i] = i;
-    }
-
-    for (uint16_t i = 0; i < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; ++i) {
-        vecEventIdMte3ToV_[i] = i;
-    }
 }
 
 /*
@@ -187,38 +156,22 @@ __aicore__ inline GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::BasicBlockLibV
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::InitMx()
 {
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-        ubWeightInputLowBitTotalBuffer_ = LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize);  // 64KB*2 = 128KB
-        ubHighBitTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 128 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.highBitDataUbTotalSize);  // 33KB*2 = 66KB
-        ubAntiQuantScaleTotalBuffer_ = LocalTensor<antiQuantScaleType>(TPosition::LCM, 194 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.antiQuantScaleUbTotalSize);  // 8KB
-        ubAntiQuantScaleAfterCastTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 202 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.antiQuantScaleAfterCastUbTotalSize);  // 32KB
-    } else if constexpr (IsSameType<xType, fp8_e4m3fn_t>::value) {
-        // MxA8W4
-        ubWeightInputLowBitTotalBuffer_ = LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize); // 16KB * 4 = 64KB
-        ubHighBitTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 64 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.highBitDataUbTotalSize);  // 32KB * 4 = 128KB
-        if (hasBias_) {
-            ubBiasTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, 192 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.biasUbTotalSize);  // 2KB
-            ubBiasOutTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, 194 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.biasReducedUbTotalSize); // 2KB
-        }
-    } else {
-        ubWeightInputLowBitTotalBuffer_ = LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize);  // 16KB * 4 = 64KB
-        ubHighBitTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 64 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.highBitDataUbTotalSize);  // 128KB
-        ubAntiQuantScaleTotalBuffer_ = LocalTensor<antiQuantScaleType>(TPosition::LCM, 192 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.antiQuantScaleUbTotalSize);  // 8KB
-        ubAntiQuantScaleAfterCastTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 200 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.antiQuantScaleAfterCastUbTotalSize);  // 16KB
+    ubWeightInputLowBitTotalBuffer_ = LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize); // 16KB * 4 = 64KB
+    ubHighBitTotalBuffer_ = LocalTensor<xType>(TPosition::LCM, 64 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.highBitDataUbTotalSize);  // 32KB * 4 = 128KB
+    if (hasBias_) {
+        ubBiasTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, 192 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.biasUbTotalSize);  // 2KB
+        ubBiasOutTotalBuffer_ = LocalTensor<biasType>(TPosition::LCM, 194 * GetKBUnit<int8_t>(), UB_BUFFER_INFO.biasReducedUbTotalSize); // 2KB
     }
 }
 
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WaitVToMTE2()
 {
-    // 用临时变量接一下，优化编译的作用
-    TEventID vecEventIdVToMte2[QUADRUPLE_BUFFER_NUM] = {vecEventIdVToMte2_[0], vecEventIdVToMte2_[1],
-                                                        vecEventIdVToMte2_[2], vecEventIdVToMte2_[3]};
     if (likely(ubMte2LoopIdx_ > vecConfig.ubMte2BufferNum - 1)) {
         if constexpr (vecConfig.ubMte2BufferNum == 2 || vecConfig.ubMte2BufferNum == 4) {
-            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2[ubMte2LoopIdx_ & (vecConfig.ubMte2BufferNum - 1)]);
+            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ & (vecConfig.ubMte2BufferNum - 1)]);
         } else {
-            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2[ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum]);
+            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum]);
         }
     }
 }
@@ -226,13 +179,10 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WaitVToMT
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::SetVToMTE2()
 {
-    // 用临时变量接一下，优化编译的作用
-    TEventID vecEventIdVToMte2[QUADRUPLE_BUFFER_NUM] = {vecEventIdVToMte2_[0], vecEventIdVToMte2_[1],
-                                                        vecEventIdVToMte2_[2], vecEventIdVToMte2_[3]};
     if constexpr (vecConfig.ubMte2BufferNum == 2 || vecConfig.ubMte2BufferNum == 4) {
-        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2[(ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)]);
+        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)]);
     } else {
-        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2[(ubMte2LoopIdx_ - 1) % vecConfig.ubMte2BufferNum]);
+        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) % vecConfig.ubMte2BufferNum]);
     }
 }
 
@@ -257,9 +207,8 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyGmToU
                     CeilAlign(ubMte2NSize, static_cast<uint64_t>(BLOCK_CUBE)) * C0_SIZE,
                     offsetParam.nAlign * C0_SIZE);
 
-    event_t eventIdMTE2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID<HardEvent::MTE2_V>());
-    SetFlag<HardEvent::MTE2_V>(eventIdMTE2ToV);
-    WaitFlag<HardEvent::MTE2_V>(eventIdMTE2ToV);
+    SetFlag<HardEvent::MTE2_V>(0);
+    WaitFlag<HardEvent::MTE2_V>(0);
     ubMte2LoopIdx_++;
 }
 
@@ -271,9 +220,8 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyMxBia
         DataCopyPad2D(
             ubBiasTotalBuffer_[(ubMte2LoopIdx_ % QUADRUPLE_BUFFER_NUM) * UB_BUFFER_INFO.biasUbSingleBufferSize],
             biasGlobal_[ubMte2MxBiasNOffset], 1, ubMte2MxBiasNSize, ubMte2MxBiasNSize, ubMte2MxBiasNSize);
-        event_t eventIdBiasMTE2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID<HardEvent::MTE2_V>());
-        SetFlag<HardEvent::MTE2_V>(eventIdBiasMTE2ToV);
-        WaitFlag<HardEvent::MTE2_V>(eventIdBiasMTE2ToV);
+        SetFlag<HardEvent::MTE2_V>(1);
+        WaitFlag<HardEvent::MTE2_V>(1);
     }
 }
 
@@ -282,19 +230,9 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAnt
     const UbConsumeConfig &ubConsumeConfig, const LocalTensor<xType> &weightHighBitL1,
     const L1ConsumeConfig &l1ConsumeConfig, const LocalTensor<biasType> &biasL1)
 {
-    TEventID vecEventIdMte3ToV[QUADRUPLE_BUFFER_NUM];
-
-    // 用临时变量接一下，优化编译的作用
-    vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
-    vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
-    if constexpr (wqmmConfig.weightFormat == CubeFormat::NZ) {
-        vecEventIdMte3ToV[2] = vecEventIdMte3ToV_[2];
-        vecEventIdMte3ToV[3] = vecEventIdMte3ToV_[3];
-    }
-
     if (likely(ubComputeLoopIdx_ > UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)) {
         WaitFlag<HardEvent::MTE3_V>(
-            vecEventIdMte3ToV[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
+            vecEventIdMte3ToV_[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
     }
 
     AntiQuantProcessNzMxA8W4(ubConsumeConfig);
@@ -302,9 +240,8 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAnt
     uint64_t weightHighBitL1Offset = ComputeWeightHighBitL1Offset(
         0, 0, ubConsumeConfig.l1RequireVfComputeRealN, ubConsumeConfig.l1RequireVfComputeRealK, l1ConsumeConfig);
 
-    event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID<HardEvent::V_MTE3>());
-    SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
-    WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
+    SetFlag<HardEvent::V_MTE3>(0);
+    WaitFlag<HardEvent::V_MTE3>(0);
 
     if (likely(ubConsumeConfig.l1RequireVfComputeRealK > 0)) {
         CopyWeightHighBitForAligned(weightHighBitL1Offset, ubConsumeConfig.l1RequireVfComputeRealN,
@@ -317,7 +254,7 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAnt
                  ubConsumeConfig.ubMxBiasNsize);
     }
     SetFlag<HardEvent::MTE3_V>(
-        vecEventIdMte3ToV[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
+        vecEventIdMte3ToV_[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
     ubComputeLoopIdx_++;
 }
 
@@ -346,21 +283,6 @@ __aicore__ inline uint64_t GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::Compu
             return nRealLenAlign * (antiQuantKOffset + l1ConsumeConfig.l1SplitTwoVecExternalOffset) +
                    antiQuantNOffset * static_cast<uint64_t>(C0_SIZE);
         }
-    }
-}
-
-GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAntiQuantProcess(
-    uint64_t nRealLen, uint64_t kRealLen, uint64_t antiQuantNOffset, uint64_t antiQuantKOffset,
-    const UbConsumeConfig &ubConsumeConfig)
-{
-     if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ && !wqmmConfig.bTrans) {
-        AntiQuantProcess(kRealLen, nRealLen, ubConsumeConfig.nWeightLowBitUbOffset + antiQuantNOffset,
-                         ubConsumeConfig.kWeightLowBitUbOffset + antiQuantKOffset, ubConsumeConfig);
-    } else if constexpr ((wqmmConfig.weightFormat != CubeFormat::NZ && wqmmConfig.bTrans) ||
-                         (wqmmConfig.weightFormat == CubeFormat::NZ && !wqmmConfig.bTrans)) {
-        AntiQuantProcess(nRealLen, kRealLen, ubConsumeConfig.nWeightLowBitUbOffset + antiQuantNOffset,
-                         ubConsumeConfig.kWeightLowBitUbOffset + antiQuantKOffset, ubConsumeConfig);
     }
 }
 
@@ -428,9 +350,7 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyWeigh
                             CeilAlign(antiQuantRealN, static_cast<uint64_t>(BLOCK_CUBE)) / VEC_REG_ELEM;
     }
 
-    params.blockLen = (IsSameType<xType, int8_t>::value || IsSameType<xType, fp8_e4m3fn_t>::value)
-                          ? VEC_REG_ELEM / ONE_BLK_SIZE
-                          : VEC_REG_ELEM / BLOCK_CUBE;
+    params.blockLen = VEC_REG_ELEM / ONE_BLK_SIZE;
     params.srcStride = (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1) * params.blockLen;
     params.dstStride = 0;  // dst地址连续
     DataCopy(
@@ -468,38 +388,12 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyWeigh
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::End()
 {
-    TEventID vecEventIdVToMte2[QUADRUPLE_BUFFER_NUM] = {vecEventIdVToMte2_[0], vecEventIdVToMte2_[1],
-                                                        vecEventIdVToMte2_[2], vecEventIdVToMte2_[3]};
-    TEventID vecEventIdMte3ToV[QUADRUPLE_BUFFER_NUM] = {vecEventIdMte3ToV_[0], vecEventIdMte3ToV_[1],
-                                                        vecEventIdMte3ToV_[2], vecEventIdMte3ToV_[3]};
-    TEventID vecEventIdAntiQuantYVToMte2[UB_ANTI_QUANT_Y_BUFFER_NUM] = {vecEventIdAntiQuantYVToMte2_[0],
-                                                                        vecEventIdAntiQuantYVToMte2_[1]};
-
     for (uint16_t idx = 0; idx < ubComputeLoopIdx_ && idx < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; idx++) {
-        WaitFlag<HardEvent::MTE3_V>(vecEventIdMte3ToV[idx]);
+        WaitFlag<HardEvent::MTE3_V>(vecEventIdMte3ToV_[idx]);
     }
 
     for (uint16_t idx = 0; idx < ubMte2LoopIdx_ && idx < vecConfig.ubMte2BufferNum; idx++) {
-        WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2[idx]);
-    }
-
-    if constexpr (IsSameType<xType, int8_t>::value) {
-        for (uint16_t idx = 0; idx < ubMte2AntiquantYLoopIdx_ && idx < UB_ANTI_QUANT_Y_BUFFER_NUM; idx++) {
-            WaitFlag<HardEvent::V_MTE2>(vecEventIdAntiQuantYVToMte2[idx]);
-        }
-    }
-
-    for (uint16_t idx = 0; idx < vecConfig.ubMte2BufferNum; idx++) {
-        GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(vecEventIdVToMte2[idx]);
-    }
-
-    for (uint16_t idx = 0; idx < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; idx++) {
-        GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_V>(vecEventIdMte3ToV[idx]);
-    }
-    if constexpr (IsSameType<xType, int8_t>::value) {
-        for (uint16_t idx = 0; idx < UB_ANTI_QUANT_Y_BUFFER_NUM; idx++) {
-            GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(vecEventIdAntiQuantYVToMte2[idx]);
-        }
+        WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[idx]);
     }
 }
 } // namespace WeightQuantBatchMatmulV2::Arch35

@@ -36,13 +36,12 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
           const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 class GMMWeightQuantResplitController {
 public:
-    __aicore__ inline GMMWeightQuantResplitController(){};
+    __aicore__ inline GMMWeightQuantResplitController() = delete;
     __aicore__ inline GMMWeightQuantResplitController(GM_ADDR x, GM_ADDR weight, GM_ADDR scale, GM_ADDR antiquantScale,
                                                       GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList,
                                                       GM_ADDR perTokenScale, GM_ADDR y,
                                                       const GMMWeightQuantParam *__restrict baseTiling,
-                                                      const TCubeTiling *__restrict mmTiling, GM_ADDR tiling,
-                                                      TPipe *tPipe);
+                                                      const TCubeTiling *__restrict mmTiling, GM_ADDR tiling);
     __aicore__ inline void operator()();
 
 private:
@@ -91,8 +90,8 @@ __aicore__ inline GMMWeightQuantResplitController<xType, wType, antiQuantScaleTy
                                     GM_ADDR antiquantOffset, GM_ADDR bias, GM_ADDR groupList,
                                     GM_ADDR perTokenScale, GM_ADDR y,
                                     const GMMWeightQuantParam *__restrict baseTiling,
-                                    const TCubeTiling *__restrict mmTiling, GM_ADDR tiling, TPipe *tPipe)
-    : basicBlock_(baseTiling->hasBias, 0, mmTiling, tPipe)
+                                    const TCubeTiling *__restrict mmTiling, GM_ADDR tiling)
+    : basicBlock_(baseTiling->hasBias, 0, mmTiling)
 {
     (void)tiling;
     gmmBaseTiling_ = baseTiling;

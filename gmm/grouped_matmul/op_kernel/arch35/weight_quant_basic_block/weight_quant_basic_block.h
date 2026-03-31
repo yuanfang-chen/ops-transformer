@@ -28,7 +28,6 @@
 
 using AscendC::GetSubBlockIdx;
 using AscendC::LocalTensor;
-using AscendC::TPipe;
 using AscendC::TPosition;
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
@@ -37,9 +36,9 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 class WeightQuantMatmulBasicBlock {
 public:
-    __aicore__ inline WeightQuantMatmulBasicBlock(){};
+    __aicore__ inline WeightQuantMatmulBasicBlock() = delete;
     __aicore__ inline WeightQuantMatmulBasicBlock(bool hasBias, uint64_t aPrefetchSize,
-                                                  const TCubeTiling *__restrict matmulTiling, TPipe *tPipe);
+                                                  const TCubeTiling *__restrict matmulTiling);
     __aicore__ inline void UpdateGlobalAddr(uint64_t mSize, uint64_t kSize, uint64_t nSize, __gm__ xType *x, __gm__ wType *weight,
                                             __gm__ antiQuantScaleType *antiquantScale, __gm__ xType *antiquantOffset,
                                             __gm__ scaleType *scale, __gm__ perTokenScaleType *perTokenScale,
@@ -79,7 +78,7 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 __aicore__ inline WeightQuantMatmulBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                               biasType, yType, wqmmConfig, vecConfig>::WeightQuantMatmulBasicBlock(
-    bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling, TPipe *tPipe)
+    bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
     hasBias_ = hasBias;
     biasL1DbOffset_ = 0;
@@ -102,7 +101,7 @@ __aicore__ inline WeightQuantMatmulBasicBlock<xType, wType, antiQuantScaleType, 
         cubeCompute_.MxA8W4Init(aPrefetchSize, l1RemainSize, l1StartSize, biasL1DbOffset_, matmulTiling, biasL1Offset);
     } else {
         vectorCompute_ = BasicBlockLibVectorAntiQuantCompute<xType, wType, antiQuantScaleType, biasType, yType,
-                                                             wqmmConfig, vecConfig>(tPipe, hasBias_);
+                                                             wqmmConfig, vecConfig>(hasBias_);
     }
 }
 

@@ -27,7 +27,7 @@ static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR antiquantScale, GM_ADDR antiquantOffset,
-    GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR tiling, AscendC::TPipe *tPipe)
+    GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR tiling)
 {
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, gmmWeightQuantParam, gmmBaseParams_, tiling);
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, mmTilingData, mmTilingData_, tiling);
@@ -37,7 +37,7 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
                                                     WeightQuantMatmulBasicBlock, MXA8W4_NZNK,
                                                     VEC_ANTIQUANT_CONFIG_DYNAMIC>
         op(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
-           &mmTilingData_, tiling, tPipe);
+           &mmTilingData_, tiling);
     op();
 }
 
@@ -69,7 +69,6 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
                                                      GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y,
                                                      GM_ADDR workspace, GM_ADDR tiling)
 {
-    TPipe tPipe;
     AscendCUtils::SetOverflow(1);
 #ifndef __CCE_KT_TEST__
 #if defined(V310_GMM_ANTI_QUANT)
@@ -80,7 +79,7 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
                                                      WQ_B_TRANS, WQ_A_TRANS, TEMPLATE_CUSTOM_SC,
                                                      ALGORITHM_SUB_CATEGORY, ALGORITHM_CATEGORY>()) {
             LaunchMxA8W4VectorAntiQuantResplit(x, weight, bias, scale, antiquantScale, antiquantOffset, groupList,
-                                               perTokenScale, y, tiling, &tPipe);
+                                               perTokenScale, y, tiling);
         }
     #endif
 #endif

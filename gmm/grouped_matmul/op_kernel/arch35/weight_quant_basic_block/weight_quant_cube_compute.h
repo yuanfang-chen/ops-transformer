@@ -114,6 +114,7 @@ private:
     AscendC::TEventID cubeEventIdsMxScaleMte1ToMte2_[DOUBLE_BUFFER_NUM];
     AscendC::TEventID cubeEventIdsMte1ToMte2_[DOUBLE_BUFFER_NUM];
     AscendC::TEventID cubeEventIdMte2ToMte1_;
+    AscendC::TEventID cubeEventIdMte1ToMte2_;
 
     uint64_t aL1Offset_;
     uint64_t biasL1Offset_;
@@ -189,14 +190,6 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::LaunchMatmul(uint64_t bL1Offset
     } else {
         aL1Offset = (aL1BufIdx_ & 1) * aL1DbOffset_;
     }
-    // auto coordScaleKL1 = Cgmct::Gemm::CeilDiv(static_cast<uint64_t>(kbOffset), MXFP_DIVISOR_SIZE) * 2;
-    // auto tensorBlockScaleAL1 = tensorScaleAL1_(
-    //     AscendC::Te::MakeCoord(0, coordScaleKL1),
-    //     AscendC::Te::MakeShape(param.mL1Size, Cgmct::Gemm::CeilDiv(kbL1RealSize, MXFP_DIVISOR_SIZE) * 2));
-    // auto tensorBlockScaleBL1 = tensorScaleBL1_(
-    //     AscendC::Te::MakeCoord(coordScaleKL1, 0),
-    //     AscendC::Te::MakeShape(Cgmct::Gemm::CeilDiv(kbL1RealSize, MXFP_DIVISOR_SIZE) * 2, param.nL1Size));
-    // AscendC::printf("====== mL1 %d nL1 %d ========", param.mL1Size, param.nL1Size);
     auto layoutBL1 = MakeLayoutBL1{}(kbL1RealSize, param.nL1Size);
     tensorBL1_ = AscendC::Te::MakeTensor(AscendC::Te::MakeL1memPtr<xType>(bL1Offset), layoutBL1);
     bool isLastGmK = kbOffset + kbL1RealSize >= param.kSize;
@@ -466,14 +459,15 @@ WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::InitSync()
 {
     for (uint64_t i = 0; i < DOUBLE_BUFFER_NUM; i++) {
-        cubeEventIdsMte1ToMte2_[i] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
-        cubeEventIdsMxScaleMte1ToMte2_[i] = GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>();
+        cubeEventIdsMte1ToMte2_[i] = i;
+        cubeEventIdsMxScaleMte1ToMte2_[i] = DOUBLE_BUFFER_NUM + i;
         SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMxScaleMte1ToMte2_[i]);
         if (aL1DbNum_ > SINGLE_BUFFER_NUM) {
             SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdsMte1ToMte2_[i]);
         }
     }
-    cubeEventIdMte2ToMte1_ = GetTPipePtr()->AllocEventID<HardEvent::MTE2_MTE1>();
+    cubeEventIdMte1ToMte2_ = 2 * DOUBLE_BUFFER_NUM;
+    cubeEventIdMte2ToMte1_ = 0;
 }
 
 
@@ -529,9 +523,8 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::PrefetchA(uint64_t aPrefetchSiz
     if (aPrefetchSize == 0 || xOffset >= xSizeLimit) {
         return;
     }
-    event_t eventIdMTE1ToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID<HardEvent::MTE1_MTE2>());
-    SetFlag<HardEvent::MTE1_MTE2>(eventIdMTE1ToMTE2);
-    WaitFlag<HardEvent::MTE1_MTE2>(eventIdMTE1ToMTE2);
+    SetFlag<HardEvent::MTE1_MTE2>(cubeEventIdMte1ToMte2_);
+    WaitFlag<HardEvent::MTE1_MTE2>(cubeEventIdMte1ToMte2_);
 
     // 不支持直接搬运fp8，转成uint8搬
     uint64_t blockLen = xOffset + aPrefetchSize > xSizeLimit ? xSizeLimit - xOffset : aPrefetchSize;
