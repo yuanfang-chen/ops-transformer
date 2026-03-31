@@ -300,7 +300,7 @@ private:
         // query @ key.transpose(-1,-2)   stage1 out
         for (uint32_t i = 0; i < curParaNum; ++i) {
             AICProcess(queryContinousGm_[i * ckOffset_], keyContinousGm_[i * ckOffset_], outQkGm_[chunkRowBase_[i] * chunkSize_],
-                       {validLen_, validLen_, dk_, validLen_, validLen_, dk_}, true);
+                       {validLenBatch_[i], validLenBatch_[i], dk_, validLenBatch_[i], validLenBatch_[i], dk_}, true);
         }
         AscendC::CrossCoreWaitFlag(0x7); // 同步2
 
