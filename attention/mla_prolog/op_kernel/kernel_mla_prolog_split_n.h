@@ -192,7 +192,7 @@ private:
     uint32_t curVecTokenMax_;
     bool enableSmoothScalesCq_;
     static constexpr uint32_t cvMode = MLAPT::cvRatio; // 编译态，默认cv1:2
-    static constexpr bool isFp8E8m0 = std::is_same<dequantScaleType, FP8E8M0>::value
+    static constexpr bool isFp8E8m0 = std::is_same<dequantScaleType, FP8E8M0>::value;
     uint32_t cvRatio_ = 2U; // 默认cv 1:2
 
     struct DequantTool {
