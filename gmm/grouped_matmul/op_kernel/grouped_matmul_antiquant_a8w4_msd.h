@@ -289,7 +289,7 @@ __aicore__ inline void GMMA8W4MSDCompute<mmType>::MMCompute(uint32_t groupIdx, M
         uint64_t weightOffset;
         if constexpr (mmType::BT::format == CubeFormat::NZ) {
             weightOffset = static_cast<uint64_t>(groupIdx) * tiling->n * tiling->k + tailN * tiling->k;
-        } else {cc
+        } else {
             weightOffset = static_cast<uint64_t>(groupIdx) * tiling->n * tiling->k + tailN;
         }
         if (cubeCount >= tiling->parallNum) {

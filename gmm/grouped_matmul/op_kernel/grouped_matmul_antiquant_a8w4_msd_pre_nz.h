@@ -32,8 +32,8 @@ constexpr uint32_t DATA_BLOCK_SIZE_32 = 32U;
 constexpr uint32_t WITH_OFFSET = 1U;
 constexpr uint32_t A8W4PRE_VECTOR_BASE_M = 16;     //单位为字节数
 constexpr uint32_t A8W4PRE_VECTOR_BASE_K = 512;    //单位为元素个数
-constexpr int32_t MASK = 128
-constexpr half ONE_SIXTEEN = 0.0625
+constexpr int32_t MASK = 128;
+constexpr half ONE_SIXTEEN = 0.0625;
 
 class GMMA8W4PreProcessNZ {
 public:

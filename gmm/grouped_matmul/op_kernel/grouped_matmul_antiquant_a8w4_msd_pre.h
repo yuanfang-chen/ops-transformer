@@ -17,13 +17,14 @@
 #define ASCENDC_GROUPED_MATMUL_ANTIQUANT_A8W4_MSD_PRE_H
 
 #include "kernel_operator.h"
+
 #ifdef GMM_ANTI_QUANT_A8W4_MSD
 namespace GROUPED_MATMUL{
 using namespace AscendC;
 #define BUFFER_NUM_A8W4_PRE 1
-constexpr int TWO = 2;
-constexpr int EIGHT = 8;
-constexpr size_t LEN_128 = 128;     // 16bit operator
+constexpr int TWO_LOCAL = 2;
+constexpr int EIGHT_LOCAL = 8;
+constexpr size_t LEN_128_LOCAL = 128;     // 16bit operator
 constexpr int DATA_BLOCK_SIZE_32 = 32;
 constexpr uint32_t WITH_OFFSET = 1;
 
@@ -180,9 +181,9 @@ __aicore__ inline void GMMA8W4PreProcess::Process()
         WaitFlag<HardEvent::V_MTE3>(EVENT_ID0);
         DataCopy(yGm[startAddr], xHighI4Tensor.ReinterpretCast<int8_t>(), vK / 2);  // 2: size int8 -> int4
         SetFlag<HardEvent::MTE3_V>(EVENT_ID1);
-        And(xLowHalfTensor.ReinterpretCast<int16_t>(), xTensor.ReinterpretCast<int16_t>(), xLowI16Tensor, LEN_128, LEN_VK, {1,1,1,8,8,0});
+        And(xLowHalfTensor.ReinterpretCast<int16_t>(), xTensor.ReinterpretCast<int16_t>(), xLowI16Tensor, LEN_128_LOCAL, LEN_VK, {1,1,1,8,8,0});
         if (LAST_LEN_VK > 0) {
-            And(xLowHalfTensor[LEN_VK * LEN_128].ReinterpretCast<int16_t>(), xTensor[LEN_VK * LEN_128 * TWO].ReinterpretCast<int16_t>(), xLowI16Tensor, LAST_LEN_VK, 1, {1,1,1,8,8,0});
+            And(xLowHalfTensor[LEN_VK * LEN_128_LOCAL].ReinterpretCast<int16_t>(), xTensor[LEN_VK * LEN_128_LOCAL * TWO_LOCAL].ReinterpretCast<int16_t>(), xLowI16Tensor, LAST_LEN_VK, 1, {1,1,1,8,8,0});
         }
         PipeBarrier<PIPE_V>();
         SetFlag<HardEvent::V_MTE2>(EVENT_ID0);
@@ -195,7 +196,7 @@ __aicore__ inline void GMMA8W4PreProcess::Process()
         Cast(xLowI4Tensor, xHighHalfTensor.ReinterpretCast<half>(), AscendC::RoundMode::CAST_NONE, vK);
         SetFlag<HardEvent::V_MTE3>(EVENT_ID1);
         WaitFlag<HardEvent::V_MTE3>(EVENT_ID1);
-        DataCopy(yGm[startAddr + vK / TWO], xLowI4Tensor.ReinterpretCast<int8_t>(), vK / TWO);
+        DataCopy(yGm[startAddr + vK / TWO_LOCAL], xLowI4Tensor.ReinterpretCast<int8_t>(), vK / TWO_LOCAL);
         SetFlag<HardEvent::MTE3_V>(EVENT_ID0);
     }
     WaitFlag<HardEvent::V_MTE2>(EVENT_ID0);
