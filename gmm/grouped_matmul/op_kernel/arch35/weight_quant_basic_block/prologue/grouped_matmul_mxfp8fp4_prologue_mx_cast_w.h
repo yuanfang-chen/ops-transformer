@@ -222,9 +222,7 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
 __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::SetAivToAic()
 {
-#ifndef __CCE_KT_TEST__
     CrossCoreSetFlag<SYNC_MODE4, PIPE_MTE3>(SYNC_AIC_AIV_FLAG);
-#endif
 }
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
@@ -232,9 +230,7 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
 __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::WaitAicToAiv()
 {
-#ifndef __CCE_KT_TEST__
     CrossCoreWaitFlag<SYNC_MODE4, PIPE_MTE3>(SYNC_AIV_AIC_FLAG);
-#endif
 }
 }  // namespace WeightQuantBatchMatmulV2::Arch35
 

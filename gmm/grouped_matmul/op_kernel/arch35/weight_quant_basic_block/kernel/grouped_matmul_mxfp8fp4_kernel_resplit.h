@@ -19,7 +19,6 @@
 #include "include/experimental/tensor_api/tensor.h"
 
 using WeightQuantBatchMatmulV2::Arch35::A_L1_MAX_SIZE_WITH_BIAS_QUANT;
-using WeightQuantBatchMatmulV2::Arch35::BasicBlockControlParam;
 using WeightQuantBatchMatmulV2::Arch35::BasicBlockOffsetParam;
 using WeightQuantBatchMatmulV2::Arch35::CeilDivide;
 using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
