@@ -68,7 +68,8 @@ struct GDRStageOneInitParams {
 class Stage1 {
 public:
     __aicore__ inline Stage1(StageOneMT &mmFp32) : mmFp32(mmFp32) {}
-    __aicore__ inline void SetGlobalTensors(const GDRStageOneInitParams &initParams) {
+    __aicore__ inline void SetGlobalTensors(const GDRStageOneInitParams &initParams)
+    {
         queryGm_ = initParams.query;
         keyGm_ = initParams.key;
         valueGm_ = initParams.value;
@@ -551,7 +552,6 @@ private:
             Sub(inverseLocal_[offset + i * chunkSize_], ei, yLocal[i * inverseVecLen], inverseVecLen);
             PipeBarrier<PIPE_V>();
         }
-
     }
 
     __aicore__ inline void GBKCompute(const GlobalTensor<float> gBKWsGm, const GlobalTensor<float> outKgGm,
