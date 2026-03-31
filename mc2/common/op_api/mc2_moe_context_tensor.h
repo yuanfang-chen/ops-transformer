@@ -108,12 +108,14 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
         OP_LOGE(ACLNN_ERR_INNER, "The Net Link Is nullptr.");
         return ACLNN_ERR_INNER;
     }
+    OP_LOGD("Get HCCL Rank Links  Success  Links Num is: %d", netLinkNum);
     uint32_t linksIndex = 0;
     while (linksIndex < netLinkNum) { // 遍历组网支持的协议
         if (linksList[linksIndex].linkAttr.linkProtocol == protocol) { // 如果与目标协议相同返回对应的link
             links = &linksList[linksIndex];
             break;
         }
+        OP_LOGD("Read Link From Link List  : %d", linksList[linksIndex].linkAttr.linkProtocol);
         linksIndex++;
     }
     if (linksIndex == netLinkNum) { // 遍历完没有找到匹配的协议
