@@ -270,6 +270,8 @@ public:
     uint64_t l2CacheSize = 0;
     std::vector<gert::StorageShape *> kCache = {};
     std::vector<gert::StorageShape *> vCache = {};
+    std::vector<int32_t> qSize = {};
+    std::vector<int32_t> kvSize = {};
 
     // empty Tensor
     bool emptyTensorFlag = false;
