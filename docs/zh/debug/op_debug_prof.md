@@ -104,7 +104,7 @@
 
 3. 采集仿真流水图。
    
-   3.1 执行仿真命令，生成仿真数据
+   3.1 通过[CANN Simulator](./cann_sim.md)仿真工具，执行仿真命令，生成仿真数据
 
       ```
       cannsim record ./test_aclnn_add_example -s Ascend950 --gen-report
@@ -114,8 +114,8 @@
 
       ```
       trace_core0.json
-      ``` 
+      ```
 
    3.2 在Chrome浏览器中输入“chrome://tracing”地址，并将生成的指令流水图文件（trace_core0.json）拖到空白处打开，具体参数介绍参考CANN Simulator中[“仿真结果解析”](./cann_sim.md#仿真结果解析)章节。
 
-   3.3 约束条件：当前CANN Simulator仅支持Ascend 950PR。针对Atlas A2/A3系列产品，可以借助[msprof](https://www.hiascend.com/document/redirect/CannCommunityToolMsprof)工具查看，具体参考资料[msprof模型调优工具](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/T&ITools/Profiling/atlasprofiling_16_0110.html#ZH-CN_TOPIC_0000002504160251)。
+   3.3 约束条件：当前CANN Simulator仿真工具仅支持Ascend 950PR。针对Atlas A2/A3系列产品，可以借助[msprof](https://www.hiascend.com/document/redirect/CannCommunityToolMsprof)工具查看，具体参考资料[msprof模型调优工具](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/T&ITools/Profiling/atlasprofiling_16_0110.html#ZH-CN_TOPIC_0000002504160251)。
