@@ -72,11 +72,12 @@
 
 本章以`AddExample`自定义算子为例，主要介绍算子调优中常用的算子上板性能采集和流水图仿真两种方式。通过采集算子上板运行时各项流水指标分析算子Bound场景，了解仿真流水图便于优化算子内部流水。
 
-1. 上板性能采集。
+### 1、上板性能采集。
+* **前提条件**
 
    完成算子开发和编译后，假设采用aclnn接口方式调用，生成的算子可执行文件（test_aclnn_add_example）所在目录为本项目`examples/add_example/examples/build/bin/`。
 
-2. 性能数据采集。
+* **采集性能数据**
 
    当需要采集算子上板运行各项流水指标时可以进入算子可执行文件所在目录，执行如下命令：
 
@@ -102,7 +103,7 @@
 
    算子各项流水详细指标可关注`OPPROF_*`下`ArithmeticUtilization`文件，包含了当前各项流水的占比，具体介绍参见[msProf](https://www.hiascend.com/document/redirect/CannCommunityToolMsprof)中”性能数据文件 > msprof op > ArithmeticUtilization（cube及vector类型指令耗时和占比）“章节。
 
-3. 流水图仿真。
+### 2、采集仿真流水图
 
    通过[CANN Simulator](./cann_sim.md)仿真工具，执行仿真命令，生成仿真数据。CANN Simulator作为面向算子开发场景的仿真工具，针对无NPU卡的用户，可用于定位算子执行瓶颈，优化指令排布等，提供比上板更详细的指令级流水分析。
 
