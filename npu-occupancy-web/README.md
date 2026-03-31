@@ -1,13 +1,14 @@
 # NPU Occupancy Web
 
-一个可直接部署到 GitHub Pages 的静态网页，用于管理 NPU 机器的 24 小时占用时间段。
+一个可部署到 GitHub Pages 的静态网页，用于管理 NPU 机器的 24 小时占用时间段。
 
 ## 功能
 
 1. 机器信息录入（名称、型号、位置、备注）
 2. 24 小时占用看板（按机器、按日期查看）
-3. 用户预约时间段（输入姓名、联系方式、占用目的）
+3. 用户预约时间段（输入占用目的，用户名首次进入时输入）
 4. 冲突校验（时间段重叠会提示）
+5. 管理员（用户名 `xukenan`）可取消任意用户已占用小时
 
 ## 本地运行
 
@@ -28,6 +29,31 @@
 1. 把本目录内容复制到仓库 `docs/`。
 2. GitHub Pages 目录选择 `/docs`。
 
-## 数据说明
+## 云端数据（Supabase）
 
-网页数据保存在浏览器 `localStorage`，仅当前浏览器可见，不会自动同步到服务器。
+本项目已改为 Supabase 云端存储，可跨浏览器/跨设备共享数据。
+
+### 1) 创建 Supabase 项目
+
+在 [Supabase](https://supabase.com/) 创建项目。
+
+### 2) 建表
+
+打开 SQL Editor，执行 `supabase.sql` 文件内容。
+
+### 3) 填写配置
+
+编辑 `config.js`：
+
+```js
+window.NPU_APP_CONFIG = {
+  supabaseUrl: "https://<your-project>.supabase.co",
+  supabaseAnonKey: "<your-anon-key>"
+};
+```
+
+这两个值在 Supabase 的 `Project Settings -> API`。
+
+### 4) 部署
+
+按上文 GitHub Pages 方式部署即可。部署后页面顶部会显示后端连接状态。
