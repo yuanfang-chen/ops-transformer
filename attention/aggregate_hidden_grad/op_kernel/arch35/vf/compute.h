@@ -119,9 +119,9 @@ __simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr, __ubu
     for (uint32_t dl = 0; dl < dimLoopNum; ++dl) {
         MicroAPI::RegTensor<float> acc0, acc1, acc2, mulB32, goB32, goN1B32, goN2B32, inB32;
         // Load existing accumulators
-        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_UNPACK_B32>(acc0, acc0Addr + dimOff);
-        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_UNPACK_B32>(acc1, acc1Addr + dimOff);
-        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_UNPACK_B32>(acc2, acc2Addr + dimOff);
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_NORM>(acc0, acc0Addr + dimOff);
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_NORM>(acc1, acc1Addr + dimOff);
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_NORM>(acc2, acc2Addr + dimOff);
 
         for (uint32_t b = 0; b < bLen; ++b) {
             for (uint32_t s = 0; s < sEff; ++s) {
@@ -153,9 +153,9 @@ __simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr, __ubu
             }
         }
         // Store back updated accumulators
-        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_PACK_B32>(acc0Addr + dimOff, acc0, fullMask);
-        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_PACK_B32>(acc1Addr + dimOff, acc1, fullMask);
-        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_PACK_B32>(acc2Addr + dimOff, acc2, fullMask);
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_NORM_B32>(acc0Addr + dimOff, acc0, fullMask);
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_NORM_B32>(acc1Addr + dimOff, acc1, fullMask);
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_NORM_B32>(acc2Addr + dimOff, acc2, fullMask);
         dimOff += B32_REP_SIZE;
     }
 }
