@@ -639,7 +639,7 @@ void MlaPrologTilingCheck::FillFullKVQuantParamInfo()
             expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_HIFLOAT8;
             expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_HIFLOAT8;
         }
-    } 
+    }
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
         expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1});
     } else {
