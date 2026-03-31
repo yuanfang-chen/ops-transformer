@@ -2,7 +2,7 @@
 
 ## 概述
 
-BlockSparseAttention是一个基于CATLASS模板库实现的高性能稀疏注意力算子,支持灵活的块级稀疏模式。
+BlockSparseAttention是一个基于CATLASS模板库实现的高性能稀疏注意力算子，支持灵活的块级稀疏模式。
 
 ## 功能特性
 
@@ -119,6 +119,7 @@ if (ret == ACLNN_SUCCESS) {
     aclrtFree(workspace);
 }
 ```
+
 ## 稀疏模式说明
 
 ### BlockSparseMask稀疏pattern
