@@ -145,5 +145,8 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
             op.Process();
         }
     }
+    #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
+        AscendC::SetCtrlSpr<FLOAT_OVERFLOW_MODE_CTRL, FLOAT_OVERFLOW_MODE_CTRL>(oriOverflowMode);
+    #endif
 #endif
 }
