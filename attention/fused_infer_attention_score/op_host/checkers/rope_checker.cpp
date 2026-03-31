@@ -351,6 +351,10 @@ ge::graphStatus RopeChecker::CheckFeatureAntiQuant(const FiaTilingInfo &fiaInfo)
 // MLA D=512时 N:1/2/4/8/16/32/64/128 全量化 S1：1-16
 ge::graphStatus RopeChecker::CheckAxisSupport(const FiaTilingInfo &fiaInfo)
 {
+    if (fiaInfo.isMaxWorkspace) {
+        return ge::GRAPH_SUCCESS;
+    }
+    
     if (fiaInfo.mlaMode != MlaMode::ROPE_SPLIT_D512) {
         return ge::GRAPH_SUCCESS;
     }

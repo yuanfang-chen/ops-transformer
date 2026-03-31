@@ -912,6 +912,10 @@ ge::graphStatus DequantChecker::CheckN2SizeFullquant(const FiaTilingInfo &fiaInf
 // check QS size
 ge::graphStatus DequantChecker::CheckQSSizeFullquant(const FiaTilingInfo &fiaInfo)
 {
+    if (fiaInfo.isMaxWorkspace) {
+        return ge::GRAPH_SUCCESS;
+    }
+    
     if (enableIFAMLAFullQuant_) {
         OP_CHECK_IF((fiaInfo.s1Size > NUM_16 || fiaInfo.s1Size < NUM1),
             OP_LOGE(fiaInfo.opName,
