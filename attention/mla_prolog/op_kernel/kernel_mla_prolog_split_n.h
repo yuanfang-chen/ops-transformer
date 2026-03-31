@@ -334,7 +334,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::Init(
     krCacheGm_.SetGlobalBuffer((__gm__ krCacheType *)krCache);
     qrOutGm_.SetGlobalBuffer((__gm__ ropeOutputType *)queryRopeOut);
     if constexpr (((std::is_same<mmInputType, int8_t>::value && std::is_same<kvCacheType, int8_t>::value) ||
-        (std::is_same<mmInputType, FP8E4M3>::value && std::is_same<kvCacheType, FP8E4M3>::value) || 
+        (std::is_same<mmInputType, FP8E4M3>::value && std::is_same<kvCacheType, FP8E4M3>::value) ||
         (std::is_same<mmInputType, HIF8>::value && std::is_same<kvCacheType, HIF8>::value)) && !isPertile) {
         dequantScaleQNopeGm_.SetGlobalBuffer((__gm__ dequantScaleQNopeType *)dequantScaleQNopeOut);
         queryOutGm_.SetGlobalBuffer((__gm__ queryOutputType *)queryOut);
@@ -343,7 +343,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::Init(
     }
     if (baseParams_->queryNormFlag == 1U) {
         rmsNormCqResGm_.SetGlobalBuffer((__gm__ mmQcQrInputType *)queryNormOut);
-        if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, FP8E4M3>::value || 
+        if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, FP8E4M3>::value ||
             std::is_same<mmQcQrInputType, HIF8>::value) {
             dequantScaleQNormGm_.SetGlobalBuffer((__gm__ dequantScaleQNormType *)dequantScaleQNormOut);
         }
@@ -560,10 +560,12 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::VectorBufferInit() {
         usedBytes += quantScaleCkrSize;
     }
 
-    if constexpr (std::is_same<rmsNormCkvOutputType, int8_t>::value || std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
+    if constexpr (std::is_same<rmsNormCkvOutputType, int8_t>::value ||
+        std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
         std::is_same<rmsNormCkvOutputType, HIF8>::value) {
         uint64_t quantScaleCkvSize = 0;
-        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value || (std::is_same<mmCkvKrOutputType, float>::value &&
+        if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value ||
+            (std::is_same<mmCkvKrOutputType, float>::value &&
             !isFp8E8m0)) {
             quantScaleCkvSize = ALIGN_BLOCK_SIZE;
             pipe_->InitBuffer(quantScaleCkvBuffer_, quantScaleCkvSize);
@@ -899,7 +901,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AivProcess(AivOffset &aivOffs
     WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
 
     // 聚合全部scale结果
-    if constexpr ((MLAPT::enableDequantOpt || MLAPT::enableGroupComputeOpt) && (std::is_same<rmsNormCqOutputType, int8_t>::value ||
+    if constexpr ((MLAPT::enableDequantOpt || MLAPT::enableGroupComputeOpt) &&
+        (std::is_same<rmsNormCqOutputType, int8_t>::value ||
         (std::is_same<rmsNormCqOutputType, FP8E4M3>::value && !isFp8E8m0) ||
         std::is_same<rmsNormCqOutputType, HIF8>::value)) {
         DataCopy(dequantTool_.deQuantScaleCqLocal_, dequantTool_.deQuantScaleCqGm_, ALIGN_BLOCK_SIZE / sizeof(float) * baseParams_->stepBatchSize);
@@ -920,7 +923,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AivProcess(AivOffset &aivOffs
         if constexpr (MLAPT::enableDequantOpt) {
             DequantAndRopeSplitNSyncMMQcQr(aivOffset.mmQnPreDequantOffset, aivOffset.mmQnPreDequantResOffset,
                 aivOffset.ropeQrOffset, aivOffset.ropeQrResOffset);
-        } else if constexpr (std::is_same<mmQcQrInputType, int8_t>::value || std::is_same<mmQcQrInputType, HIF8>::value ||
+        } else if constexpr (std::is_same<mmQcQrInputType, int8_t>::value ||
+            std::is_same<mmQcQrInputType, HIF8>::value ||
             (std::is_same<mmQcQrInputType, FP8E4M3>::value && !isFp8E8m0)) {
             CrossCoreWaitFlag(FINISH_MM_QCQR);
             WaitAllCore<SYNC_MODE_ALL_VEC, PIPE_MTE3>(FINISH_VEC_ALL);
@@ -1322,7 +1326,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::CopyGlobalParams() {
     }
 
     // quantScaleCkv
-    if constexpr ((std::is_same<rmsNormCkvOutputType, int8_t>::value || std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
+    if constexpr ((std::is_same<rmsNormCkvOutputType, int8_t>::value ||
+        std::is_same<rmsNormCkvOutputType, FP8E4M3>::value ||
         std::is_same<rmsNormCkvOutputType, HIF8>::value) && !isPertile) {
         if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value ||
             (std::is_same<mmCkvKrOutputType, float>::value && !isFp8E8m0)) {
@@ -1372,7 +1377,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
         WaitFlag<HardEvent::V_MTE2>(EVENT_ID1); // wait for vector operations to finish
 
         // dequantScaleXGm_  [BS , 1] 每个每个token对应一个系数，此处扩展为一个DataBlock
-        if constexpr (std::is_same<mmCqOutputType, int32_t>::value || (std::is_same<mmCqOutputType, float>::value && !isFp8E8m0)) {
+        if constexpr (std::is_same<mmCqOutputType, int32_t>::value ||
+            (std::is_same<mmCqOutputType, float>::value && !isFp8E8m0)) {
             DataCopyPad(dequantScaleXLocal, dequantScaleXGm_[tokenIndex], {1, sizeof(float), 0, 0}, {false, 0, 0, 0});
         }
 
@@ -1385,7 +1391,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
             baseParams_->qcQrScale,         // scale          
             baseParams_->isQcQrScaleEnable, // isScaleEnable
         };
-        if constexpr (std::is_same<rmsNormCqOutputType, int8_t>::value || std::is_same<rmsNormCqOutputType, FP8E4M3>::value || 
+        if constexpr (std::is_same<rmsNormCqOutputType, int8_t>::value ||
+            std::is_same<rmsNormCqOutputType, FP8E4M3>::value ||
             std::is_same<rmsNormCqOutputType, HIF8>::value) {
             RmsNormDynamicQuant<mmCqOutputType, rmsNormGammaType, float, rmsNormComputType, rmsNormCqOutputType, dequantScaleType>(
                                 outputLocal, dequantScaleQcQr[scaleOffset],
@@ -1522,7 +1529,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
         baseParams_->isKcScaleEnable, // isScaleEnable
     };
 
-    if constexpr (std::is_same<rmsNormCkvOutputType, int8_t>::value || 
+    if constexpr (std::is_same<rmsNormCkvOutputType, int8_t>::value ||
         (std::is_same<rmsNormCkvOutputType, FP8E4M3>::value && !isFp8E8m0) ||
         std::is_same<rmsNormCkvOutputType, HIF8>::value) {
         // row = vectorRow_ = 1     col = baseParams_->headSizeCkv
@@ -1550,7 +1557,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
             } else {
                 QuantPerTile8Bit(outputLocal, inputLocal, perTileQuantParams);
             }
-        } else if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value || std::is_same<mmCkvKrOutputType, float>::value) {
+        } else if constexpr (std::is_same<mmCkvKrOutputType, int32_t>::value ||
+            std::is_same<mmCkvKrOutputType, float>::value) {
             Rectangle rectangleParams {
                 (uint32_t)vectorRow_,    // row
                 (uint32_t)baseParams_->headSizeCkv,// col
@@ -1678,8 +1686,9 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeAndScatterKr(
     if constexpr ((std::is_same<mmCkvKrOutputType, int32_t>::value || (std::is_same<mmCkvKrOutputType, float>::value &&
         !isFp8E8m0)) && std::is_same<krCacheType, bfloat16_t>::value) {
         LocalTensor<uint8_t> sharedBuf = ropeShareTmpUb.ReinterpretCast<uint8_t>()[baseParams_->dimHeadRope * sizeof(ropeSinCosType)];
-        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType, true>( // input为int32_t需在rope中做反量化，intput为float根据模板参数判断是否做反量化
-            outputKrLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset], cosLocal, sinLocal, 
+        // input为int32_t需在rope中做反量化, intput为float根据模板参数判断是否做反量化
+        RotaryPosEmbPerTensor<mmCkvKrOutputType, ropeComputType, krCacheType, true>(
+            outputKrLocal, mmCkvKrResGm_[ropeAndScatterKrParams.offset], cosLocal, sinLocal,
             sharedBuf, ropeParams,
             dequantScaleWDkvKrLocal_[baseParams_->headSizeCkv], dequantScaleXLocal);
     } else if constexpr (std::is_same<krCacheType, int8_t>::value) {
@@ -1763,7 +1772,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormRopeScatterCkvKr(int64
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         
-        if constexpr (std::is_same<mmCqOutputType, int32_t>::value || (std::is_same<mmCqOutputType, float>::value && !isFp8E8m0)) {
+        if constexpr (std::is_same<mmCqOutputType, int32_t>::value ||
+            (std::is_same<mmCqOutputType, float>::value && !isFp8E8m0)) {
             DataCopyPad(dequantScaleXLocal, dequantScaleXGm_[tokenIndex], {1, sizeof(float), 0, 0}, {false, 0, 0, 0});
         }
 

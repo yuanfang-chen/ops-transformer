@@ -388,8 +388,9 @@ __aicore__ inline void DynamicQuant(const LocalTensor<float> &outputLocal,
           stride 一行的真实长度
  */
 template<typename T, typename C, typename O>
-__aicore__ inline void QuantPerChannel(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal, const LocalTensor<C> &quantScaleLocal,
-                                       const LocalTensor<uint8_t> &shareTmpUb, const Rectangle& rectangleParams)
+__aicore__ inline void QuantPerChannel(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal,
+            const LocalTensor<C> &quantScaleLocal, const LocalTensor<uint8_t> &shareTmpUb,
+            const Rectangle& rectangleParams)
 {
 #if __CCE_AICORE__ == 310
     QuantPerChannelVf(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col, rectangleParams.stride);
@@ -413,8 +414,9 @@ __aicore__ inline void QuantPerChannel(const LocalTensor<O> &outLocal, const Loc
           stride 一行的真实长度
  */
 template<typename T, typename C, typename O>
-__aicore__ inline void QuantPerTensor(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal, const LocalTensor<C> &quantScaleLocal,
-                                   const LocalTensor<uint8_t> &shareTmpUb, const Rectangle& rectangleParams)
+__aicore__ inline void QuantPerTensor(const LocalTensor<O> &outLocal, const LocalTensor<T> &inputLocal,
+        const LocalTensor<C> &quantScaleLocal, const LocalTensor<uint8_t> &shareTmpUb,
+        const Rectangle& rectangleParams)
 {
 #if __CCE_AICORE__ == 310
     QuantPerTensorVF(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col);

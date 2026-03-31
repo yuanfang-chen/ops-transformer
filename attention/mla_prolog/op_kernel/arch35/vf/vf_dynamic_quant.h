@@ -113,7 +113,7 @@ __simd_vf__ void ComputeVFImpl(__ubuf__ T* xAddr, __ubuf__ O* yAddr, __ubuf__ fl
         AscendC::MicroAPI::Div(xNorm, xFp32, xScaleDup, validMask2);
         if constexpr (std::is_same<O, fp8_e4m3fn_t>::value) {
             AscendC::MicroAPI::Cast<O, float, castTraitPack2>(yOutput, xNorm, validMask2);
-        } else if constexpr(std::is_same<O, hifloat8_t>::value){
+        } else if constexpr (std::is_same<O, hifloat8_t>::value) {
             AscendC::MicroAPI::Cast<O, float, castTraitF32ToHif8>(yOutput, xNorm, validMask2);
         } else {
             AscendC::MicroAPI::Cast<half, float, castTraitF32ToHalf>(yHalf, xNorm, validMask2);
@@ -133,7 +133,7 @@ __aicore__ inline void ComputeVF(__ubuf__ T* xAddr, __ubuf__ O* yAddr, __ubuf__ 
     uint32_t rowCount = col;
     uint16_t vfLoop = (rowCount + VL - 1) / VL;
 
-    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>::value ? FP8_E4M3FN_MAX_VALUE : 
+    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>::value ? FP8_E4M3FN_MAX_VALUE :
         std::is_same<O, hifloat8_t>::value ? HIFLOAT8_MAX_VALUE: INT8_MAX_VALUE;
     const float alphaValue = static_cast<float>(1.0) / maxValue;
     ComputeVFImpl<T, C, O>(xAddr, yAddr, scaleAddr, rowIndex, rowCount, dtypeSize, VL, vfLoop, alphaValue);
@@ -425,7 +425,7 @@ __aicore__ inline void QuantPerTileVF(const LocalTensor<O>& outputLocal, const L
     uint32_t dtypeSize = sizeof(float);
     uint16_t VL = AscendC::VECTOR_REG_WIDTH / dtypeSize;
     uint16_t vfLoop = (tileSize + VL - 1) / VL;
-    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>:: value ? FP8_E4M3FN_MAX_VALUE :
+    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>::value ? FP8_E4M3FN_MAX_VALUE :
         std::is_same<O, hifloat8_t>::value ? HIFLOAT8_MAX_VALUE : INT8_MAX_VALUE;
     const float alphaValue = static_cast<float>(1.0) / maxValue;
     uint32_t loopCount = cnt / tileSize;
