@@ -12,7 +12,11 @@
  * \file moe_distribute_combine_v3.cpp
  * \brief
  */
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
 #include "../moe_distribute_combine_v2/moe_distribute_combine_v2.h"
@@ -78,5 +82,5 @@ __global__ __aicore__ void moe_distribute_combine_v3(GM_ADDR mc2Context, GM_ADDR
         elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
     }
 #endif
-} 
+}
 }

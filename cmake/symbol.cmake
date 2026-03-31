@@ -21,7 +21,9 @@ function(gen_ophost_symbol)
     $<$<TARGET_EXISTS:${OPHOST_NAME}_tiling_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_tiling_obj>>
     $<$<TARGET_EXISTS:${OPHOST_NAME}_aicpu_objs>:$<TARGET_OBJECTS:${OPHOST_NAME}_aicpu_objs>>
     $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
-    $<$<TARGET_EXISTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opmaster_ct_gentask_obj>>
+    $<$<TARGET_EXISTS:opbase_util_objs>:$<TARGET_OBJECTS:opbase_util_objs>>
+    $<$<TARGET_EXISTS:opbase_infer_objs>:$<TARGET_OBJECTS:opbase_infer_objs>>
+    $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
   )
 
   target_link_libraries(
@@ -30,7 +32,6 @@ function(gen_ophost_symbol)
             c_sec
             -Wl,--no-as-needed
             register
-            $<$<TARGET_EXISTS:opsbase>:opsbase>
             -Wl,--as-needed
             -Wl,--whole-archive
             rt2_registry_static
@@ -52,19 +53,21 @@ function(gen_ophost_symbol)
 endfunction()
 
 function(gen_es_transformer_lib_builtin)
-  merge_graph_headers(TARGET merge_temp_ops_proto ALL OUT_DIR ${ASCEND_GRAPH_CONF_DST})
   add_library(
     proto_temp_transformer SHARED
+  )
+  add_dependencies(proto_temp_transformer merge_ops_proto)
+  target_sources(
+    proto_temp_transformer
+    PRIVATE
     ${ASCEND_GRAPH_CONF_DST}/ops_proto_transformer.cpp
   )
-  add_dependencies(proto_temp_transformer merge_temp_ops_proto)
   target_link_libraries(
     proto_temp_transformer
     PRIVATE $<BUILD_INTERFACE:intf_pub_cxx17>
             c_sec
             -Wl,--no-as-needed
             register
-            $<$<TARGET_EXISTS:opsbase>:opsbase>
             -Wl,--as-needed
   )
   target_link_directories(proto_temp_transformer
@@ -85,13 +88,17 @@ endfunction()
 
 # graph_plugin shared
 function(gen_opgraph_symbol)
+  merge_graph_headers(TARGET merge_ops_proto ALL OUT_DIR ${ASCEND_GRAPH_CONF_DST})
+
   gen_es_transformer_lib_builtin()
 
   add_library(
     ${OPGRAPH_NAME} SHARED
     $<$<TARGET_EXISTS:${GRAPH_PLUGIN_NAME}_obj>:$<TARGET_OBJECTS:${GRAPH_PLUGIN_NAME}_obj>>
+    $<$<TARGET_EXISTS:${OPGRAPH_NAME}_gentask_obj>:$<TARGET_OBJECTS:${OPGRAPH_NAME}_gentask_obj>>
+    $<$<TARGET_EXISTS:opbase_util_objs>:$<TARGET_OBJECTS:opbase_util_objs>>
+    $<$<TARGET_EXISTS:opbase_infer_objs>:$<TARGET_OBJECTS:opbase_infer_objs>>
   )
-  merge_graph_headers(TARGET merge_ops_proto ALL OUT_DIR ${ASCEND_GRAPH_CONF_DST})
   add_dependencies(${OPGRAPH_NAME} merge_ops_proto)
   target_sources(
     ${OPGRAPH_NAME}
@@ -104,7 +111,6 @@ function(gen_opgraph_symbol)
             c_sec
             -Wl,--no-as-needed
             register
-            $<$<TARGET_EXISTS:opsbase>:opsbase>
             -Wl,--as-needed
             -Wl,--whole-archive
             rt2_registry_static
@@ -155,6 +161,7 @@ function(gen_opapi_symbol)
     ops_aclnn
     -Wl,--no-whole-archive
     nnopbase
+    -Wl,-Bsymbolic
     profapi
     ge_common_base
     ascend_dump
@@ -187,6 +194,8 @@ function(gen_cust_optiling_symbol)
   add_library(cust_opmaster SHARED
     $<$<TARGET_EXISTS:${OPHOST_NAME}_tiling_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_tiling_obj>
     $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>>
+    $<$<TARGET_EXISTS:opbase_util_objs>:$<TARGET_OBJECTS:opbase_util_objs>>
+    $<$<TARGET_EXISTS:opbase_tiling_objs>:$<TARGET_OBJECTS:opbase_tiling_objs>>
   )
   target_link_libraries(cust_opmaster
     PRIVATE
@@ -226,13 +235,14 @@ function(gen_cust_proto_symbol)
   add_library(cust_proto SHARED
     $<$<TARGET_EXISTS:${OPHOST_NAME}_infer_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_infer_obj>>
     $<$<TARGET_EXISTS:${GRAPH_PLUGIN_NAME}_obj>:$<TARGET_OBJECTS:${GRAPH_PLUGIN_NAME}_obj>>
+    $<$<TARGET_EXISTS:opbase_util_objs>:$<TARGET_OBJECTS:opbase_util_objs>>
+    $<$<TARGET_EXISTS:opbase_infer_objs>:$<TARGET_OBJECTS:opbase_infer_objs>>
   )
   target_link_libraries(cust_proto
     PRIVATE
     c_sec
     -Wl,--no-as-needed
     register
-    $<$<TARGET_EXISTS:opsbase>:opsbase>
     -Wl,--as-needed
     -Wl,--whole-archive
     rt2_registry_static
@@ -343,7 +353,6 @@ function(gen_onnx_plugin_symbol)
             c_sec
             -Wl,--no-as-needed
             register
-            $<$<TARGET_EXISTS:opsbase>:opsbase>
             -Wl,--as-needed
             -Wl,--whole-archive
             rt2_registry_static

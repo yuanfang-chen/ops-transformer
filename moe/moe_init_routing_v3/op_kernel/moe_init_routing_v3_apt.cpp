@@ -96,7 +96,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         return;
     }
 
-#if (__NPU_ARCH__ == 3101)
+#if (__NPU_ARCH__ == 3510)
     int64_t oriOverflowMode = GetCtrlSpr<OVERFLOW_MODE_CTRL, OVERFLOW_MODE_CTRL>();
 #endif
 
@@ -196,7 +196,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP8QUANT_SCATTER)) {
         // MXFP8量化。由于MXFP8模板用到的指令不支持DTYPE_X为int8_t等类型，因此需要constexpr-if来规避编译
         if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) && 
-            (IsSameType<DTYPE_EXPANDED_X, fp8_e4m3fn_t>::value || IsSameType<DTYPE_X, fp8_e5m2_t>::value)) {
+            (IsSameType<DTYPE_EXPANDED_X, fp8_e4m3fn_t>::value || IsSameType<DTYPE_EXPANDED_X, fp8_e5m2_t>::value)) {
             TPipe gatherPipe;
             MoeGatherOutMxfp8Quant<DTYPE_X, DTYPE_EXPANDED_X> gatherMxfp8QuantOp;
             gatherMxfp8QuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
@@ -219,7 +219,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_SCATTER)) {
         // HIF8 PERTENSOR量化
-        if constexpr (IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) {
+        if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) && IsSameType<DTYPE_EXPANDED_X, hifloat8_t>::value) {
             TPipe gatherPipe;
             MoeGatherOutHif8PertensorQuant<DTYPE_X> gatherHif8PerTensorQuantOp;
             gatherHif8PerTensorQuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, t, &gatherPipe);
@@ -231,7 +231,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_SCATTER)) {
         // HIF8 PERTOKENR量化
-        if constexpr (IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) {
+        if constexpr ((IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value) && IsSameType<DTYPE_EXPANDED_X, hifloat8_t>::value) {
             TPipe gatherPipe;
             MoeGatherOutHif8PertokenQuant<DTYPE_X> gatherHif8PerTokenQuantOp;
             gatherHif8PerTokenQuantOp.Init(x, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
@@ -240,7 +240,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         }
     }
 
-#if (__NPU_ARCH__ == 3101)
+#if (__NPU_ARCH__ == 3510)
     SetCtrlSpr<OVERFLOW_MODE_CTRL, OVERFLOW_MODE_CTRL>(oriOverflowMode);
 #endif
 }

@@ -17,6 +17,7 @@
 namespace ops {
 static const std::vector<ge::DataType> kDtype = {
     ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+<<<<<<< HEAD
     ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
     ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
     ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
@@ -43,6 +44,42 @@ static const std::vector<ge::DataType> indexDtype = {
     ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
     ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
     ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
+=======
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN,
+};
+static const std::vector<ge::DataType> vDtype = {
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,
+    ge::DT_FLOAT16, ge::DT_BF16,  ge::DT_FLOAT,  ge::DT_INT8,     ge::DT_UINT8,       ge::DT_INT16,
+    ge::DT_UINT16,  ge::DT_INT32, ge::DT_UINT32, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN,
+    ge::DT_FLOAT16, ge::DT_BF16,
+};
+static const std::vector<ge::DataType> indexDtype = {
+    ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
+    ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
+    ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
+    ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
+    ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
+    ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
+    ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
+>>>>>>> origin/master
     ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
 };
 static const std::vector<ge::Format> cacheFormat = {
@@ -51,7 +88,12 @@ static const std::vector<ge::Format> cacheFormat = {
     ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,
     ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,
     ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,
+<<<<<<< HEAD
     ge::FORMAT_ND,         ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ,
+=======
+    ge::FORMAT_ND,         ge::FORMAT_ND,         ge::FORMAT_ND,
+    ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ,
+>>>>>>> origin/master
     ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ,
     ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ,
     ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ, ge::FORMAT_FRACTAL_NZ,
@@ -66,7 +108,11 @@ static const std::vector<ge::Format> format = {
     ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
     ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
     ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+<<<<<<< HEAD
     ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+=======
+    ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+>>>>>>> origin/master
 };
 
 class GatherPaKvCache : public OpDef {

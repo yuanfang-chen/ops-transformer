@@ -236,9 +236,13 @@ void QSFAMlaTiling::GenTilingKey()
 {
     uint32_t layoutQuery = static_cast<uint32_t>(sfaaInfo_->qLayout);
     uint32_t layoutKV = static_cast<uint32_t>(sfaaInfo_->kvLayout);
+    uint32_t pageAttention = 0U;
+    if (sfaaInfo_->kvLayout == QSFALayout::PA_BSND) {
+        pageAttention = 1U;
+    }
 
-    tilingKey_ = GET_TPL_TILING_KEY(0U, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
-
+    tilingKey_ = GET_TPL_TILING_KEY(0U, pageAttention, layoutQuery, layoutKV, perfMode_ == QSFAPerfMode::V_TEMPLATE_MODE);
+    
     OP_LOGI(sfaaInfo_->opName, "QSFA tilingKey_: %lu.", tilingKey_);
 }
 
@@ -336,6 +340,7 @@ void QSFAMlaTiling::FillTilingBaseParamsMla()
     tilingData_.baseParams.set_sparseMode(sfaaInfo_->sparseMode);
     tilingData_.baseParams.set_sparseBlockSize(sfaaInfo_->sparseBlockSize);
     tilingData_.baseParams.set_sparseBlockCount(sfaaInfo_->sparseBlockCount);
+    tilingData_.baseParams.set_dSizeVInput(sfaaInfo_->dSizeVInput);
 }
 
 // for flash decode
@@ -1676,6 +1681,12 @@ ge::graphStatus QSFAInfoParser::GetValueHeadDim()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus QSFAInfoParser::GetDSizeKV()
+{
+    dSizeKV_ = GetAxisNum(keyShape_, QSFAAxis::D, kvLayout_);
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus QSFAInfoParser::GetQueryAndOutLayout()
 {
     // 获取query和attentionOut的Layout基准值
@@ -1800,6 +1811,7 @@ void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
     sfaaInfo.topkLayout = topkLayout_;
     sfaaInfo.kvLayout = kvLayout_;
     sfaaInfo.outLayout = outLayout_;
+    sfaaInfo.dSizeVInput = dSizeKV_;
 }
 
 ge::graphStatus QSFAInfoParser::Parse(QSFATilingInfo &sfaaInfo)
@@ -1836,6 +1848,7 @@ ge::graphStatus QSFAInfoParser::Parse(QSFATilingInfo &sfaaInfo)
         ge::GRAPH_SUCCESS != GetKHeadDim() ||
         ge::GRAPH_SUCCESS != GetS2Size() ||
         ge::GRAPH_SUCCESS != GetValueHeadDim() ||
+        ge::GRAPH_SUCCESS != GetDSizeKV() ||
         ge::GRAPH_SUCCESS != GetSparseBlockCount()) {
         return ge::GRAPH_FAILED;
     }

@@ -27,6 +27,21 @@ static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_
     {ge::DT_FLOAT16, {ge::DT_FLOAT16}},
     {ge::DT_BF16, {ge::DT_BF16, ge::DT_FLOAT}}};
 
+bool GroupedWeightQuantBatchMatmulTiling::CheckCoreNum(const gert::TilingContext *context) const
+{
+    OP_CHECK_IF(coreNum_ <= 0 || aivNum_ <= 0,
+        OP_LOGE(context->GetNodeName(), "Invalid aicNum[%u] or aivNum[%u], expect greater than 0", coreNum_, aivNum_),
+        return false);
+    
+    OP_CHECK_IF(coreNum_ * AIC_AIV_CORE_RATIO != aivNum_,
+                OP_LOGE(context->GetNodeName(),
+                        "Invalid cube/vector core ratio. Expected cube:vector = 1:2, "
+                        "but got cube=%u, vector=%u",
+                        coreNum_, aivNum_),
+                return false);
+    return true;
+}
+
 bool GroupedWeightQuantBatchMatmulTiling::SetTiling(gert::TilingContext *context)
 {
     OP_CHECK_IF(!AnalyzeAttr(context), OP_LOGE(context->GetNodeName(), "Invalid attr param"),
@@ -65,7 +80,7 @@ bool GroupedWeightQuantBatchMatmulTiling:: SetShapeList(const gert::TilingContex
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context) const
 {
     OP_CHECK_IF(
         numX_ >= GroupedMatmul::MAX_TENSOR_CONT,
@@ -443,6 +458,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context->GetNodeName(), "compileInfoPtr is nullptr."), return false);
     coreNum_ = compileInfoPtr->aicNum;
+    aivNum_ = compileInfoPtr->aivNum;
 
     auto attr = context->GetAttrs();
     OP_CHECK_IF(attr == nullptr, OP_LOGE(context->GetNodeName(), "attr is nullptr."), return false);
@@ -465,8 +481,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!AnalyzeInput(context), OP_LOGE(context->GetNodeName(), "Invalid Input param"), return false);
 
     // 参数校验
-    OP_CHECK_IF(coreNum_ <= 0, OP_LOGE(context->GetNodeName(), "Invalid coreNum[%u], expect greater than 0", coreNum_),
-                return false);
+    OP_CHECK_IF(!CheckCoreNum(context), OP_LOGE(context->GetNodeName(), "Invalid core number ratio"), return false);
     OP_CHECK_IF(!CheckUnsupportDataFlow(context),
                 OP_LOGE(context->GetNodeName(), "Input data contains unsupported dtype or format."), return false);
     OP_CHECK_IF(!CheckTransposeStatus(context), OP_LOGE(context->GetNodeName(), "CheckTransposeStatus failed."),
@@ -869,7 +884,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTransposeStatus(const gert::Tilin
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context) const
 {
     // all M or N be zero, get true
     bool zeroM = true;
@@ -1045,10 +1060,11 @@ bool GroupedWeightQuantBatchMatmulTiling::SetAntiquantGroupSize(const gert::Tili
                     return false);
         // GMM伪量化场景支持K=groupSize
         groupSize_ = groupNum > 0 ? kSize_ / static_cast<uint64_t>(groupNum) : 0;
-    } else if (antiquantScaleDimNum == 4) {
-        // 2:antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
-        int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 2) * 2 :
-                                     antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) * 2;
+    } else if (antiquantScaleDimNum == ANTIQUANT_SCALE_DIM_NUM) {
+        // antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
+        int64_t groupNum = transB_ ?
+                               antiquantScaleShape.GetDim(antiquantScaleDimNum - PENULTIMATE_DIM) * MX_GROUP_FACTOR :
+                               antiquantScaleShape.GetDim(antiquantScaleDimNum - ANTEPENULTIMATE_DIM) * MX_GROUP_FACTOR;
         OP_CHECK_IF(groupNum <= 0 || kSize_ % groupNum > 0,
                     OP_LOGE(context->GetNodeName(),
                             "Invalid groupNum[%ld], expect greater than 0 and divisible by kSize[%lu]", groupNum,
