@@ -112,7 +112,7 @@ extern "C" __global__ __aicore__ void block_sparse_attention(__gm__ uint8_t* que
                 actualSeqLengths, actualSeqLengthsKv, blockSparseMask, user, tiling);
     #elif TILING_KEY_VAR == QBF16_KVBF16_QTND_KVTND_NOCACHE_SMBF16_REF32_NOMASK_KEY
         BsaInferIntfRegular<
-            bfloat16_t, bfloat16_t, float, BsaKernelArch35::Format::BNSD, BsaKernelArch35::Format::BNSD>(
+            bfloat16_t, bfloat16_t, float, BsaKernelArch35::Format::TND, BsaKernelArch35::Format::TND>(
                 query, key, value, mask, blockTable, attentionOut,
                 actualSeqLengths, actualSeqLengthsKv, blockSparseMask, user, tiling);
     #elif TILING_KEY_VAR == QBF16_KVBF16_QBNSD_KVBNSD_NOCACHE_SMBF16_REF32_NOMASK_KEY
