@@ -17,12 +17,14 @@
 #include "arch35/grouped_matmul_tiling_data_apt.h"
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
 #if defined(V310_GMM_ANTI_QUANT)
-#include "arch35/weight_quant_basic_block/basic_block_config.h"
-#include "arch35/weight_quant_basic_block/grouped_matmul_weight_quant_resplit_controller.h"
-#include "arch35/weight_quant_basic_block/weight_quant_basic_block.h"
+#include "arch35/weight_quant_basic_block/block/basic_block_config.h"
+#include "arch35/weight_quant_basic_block/kernel/grouped_matmul_weight_quant_resplit_controller.h"
+#include "arch35/weight_quant_basic_block/block/weight_quant_basic_block_aic.h"
+#include "arch35/weight_quant_basic_block/prologue/weight_quant_basic_block_aiv.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
 using WeightQuantBatchMatmulV2::Arch35::MXA8W4_NZNK;
-using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlock;
+using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAic;
+using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAiv;
 static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4, 0};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
@@ -34,7 +36,8 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
 
     GROUPED_MATMUL::GMMWeightQuantResplitController<DTYPE_X, DTYPE_WEIGHT, DTYPE_ANTIQUANT_SCALE, DTYPE_SCALE,
                                                     DTYPE_PER_TOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
-                                                    WeightQuantMatmulBasicBlock, MXA8W4_NZNK,
+                                                    WeightQuantMatmulBasicBlockAic, WeightQuantMatmulBasicBlockAiv,
+                                                    MXA8W4_NZNK,
                                                     VEC_ANTIQUANT_CONFIG_DYNAMIC>
         op(x, weight, scale, antiquantScale, antiquantOffset, bias, groupList, perTokenScale, y, &gmmBaseParams_,
            &mmTilingData_, tiling);

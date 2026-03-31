@@ -15,11 +15,12 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_CUBE_COMPUTE_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_CUBE_COMPUTE_H
 
+#include "basic_block_config.h"
 #include "include/experimental/tensor_api/tensor.h"
-#include "tile/tile_mmad_mx.h"
-#include "tile/copy_scale_gm_to_l1.h"
-#include "tile/copy_scale_l1_to_l0a.h"
-#include "tile/copy_scale_l1_to_l0b.h"
+#include "../tile/tile_mmad_mx.h"
+#include "../tile/copy_scale_gm_to_l1.h"
+#include "../tile/copy_scale_l1_to_l0a.h"
+#include "../tile/copy_scale_l1_to_l0b.h"
 
 using AscendC::Dn2NzParams;
 using AscendC::GetBlockIdx;
