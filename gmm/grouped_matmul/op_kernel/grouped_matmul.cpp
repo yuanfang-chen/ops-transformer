@@ -12,6 +12,8 @@
  * \file grouped_matmul.cpp
  * \brief
  */
+#define GMM_ANTI_QUANT_A8W4_MSD
+
 #include "grouped_matmul_utils.h"
 #include "grouped_matmul_antiquant.h"
 #include "grouped_matmul_vector.h"
@@ -23,6 +25,7 @@
 
 #include "grouped_matmul_antiquant_a16w8_msd.h"
 #include "grouped_matmul_antiquant_a8w4_msd_pre.h"
+#include "grouped_matmul_antiquant_a8w4_msd_pre_nz.h"
 #include "grouped_matmul_antiquant_a8w4_msd.h"
 #include "grouped_matmul_antiquant_a8w4_pre.h"
 #include "grouped_matmul_antiquant_a8w4.h"
@@ -253,14 +256,26 @@ namespace {
     do {                                                                                                           \
         GET_TILING_DATA_MEMBER(GMMTilingData, gmmBaseParams, gmmBaseParams_, tiling);                              \
         if ASCEND_IS_AIV {                                                                                         \
-            GMMA8W4PreProcess op1;                                                                                 \
-            op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                              \
-            op1.Process();                                                                                         \
+            if (gmmBaseParams_.isA8W4MSDPreNZ == 1) {                                                              \
+                GMMA8W4PreProcess op1;                                                                             \
+                op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                          \
+                op1.Process();                                                                                     \
+            }                                                                                                      \
+            else{                                                                                                  \
+                GMMA8W4PreProcessNZ op1;                                                                           \
+                op1.Init(x, x, groupList, user1, gmmBaseParams_, &tPipe);                                          \
+                op1.Process();                                                                                     \
+            }                                                                                                      \
             tPipe.Reset();                                                                                         \
             tPipe.Destroy();                                                                                       \
             tPipe.Init();                                                                                          \
         }                                                                                                          \
-        using aT = MatmulType<TPosition::GM, CubeFormat::ND, DTYPE_X_DEV_A8W4MSD, false>;                          \
+        if (gmmBaseParams_.isA8W4MSDPreNZ == 1) {                                                                  \
+            MatmulType<TPosition::GM, CubeFormat::NZ, DTYPE_X_DEV_A8W4MSD, false>;                                 \
+        }                                                                                                          \
+        else {                                                                                                     \
+            MatmulType<TPosition::GM, CubeFormat::ND, DTYPE_X_DEV_A8W4MSD, false>;                                 \
+        }                           \
         using bT = MatmulType<TPosition::GM, wFormat, DTYPE_WEIGHT_DEV_A8W4MSD, false>;                            \
         using biasT = MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;                                   \
         using cT = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;                                         \
@@ -347,7 +362,7 @@ namespace {
     do {                                                                              \
         GET_TILING_DATA_MEMBER(GMMTilingData, gmmBaseParams, gmmBaseParams_, tiling); \
         computeClass<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, GROUP_LIST_TYPE> op;          \
-        op.Init(x, weight, antiquantScale, bias, groupList, y, &gmmBaseParams_);        \
+        op.Init(x, weight, antiquantScale, bias, groupList, y, &gmmBaseParams_);      \
         op.Process(workspace, &tPipe);                                                                 \
     } while (0)
 
