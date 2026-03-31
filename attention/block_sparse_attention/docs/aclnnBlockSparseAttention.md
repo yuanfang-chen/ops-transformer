@@ -341,7 +341,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>输入</td>
       <td>Host侧的int64_t，是否使能softmaxLse输出的标志位。</td>
       <td>
-        当前只支持传0或1
+        当前只支持传0或1。其中，950PR/950DT硬件仅支持配置为0，A2/A3系列产品支持配置为0或1
         <ul>
           <li>0：表示不输出softmaxLse。</li>
           <li>1：表示输出softmaxLse，相比不输出softmaxLse可能存在性能损失。</li>
@@ -502,6 +502,7 @@ aclnnStatus aclnnBlockSparseAttention(
 - actualSeqLengthsOptional与actualSeqLengthsKvOptional当前必须同时配置或同时不配置，仅配置其中之一的行为将被算子拦截。
 - blockTableOptional当前只支持传入nullptr，表示不开启PagedAttention特性。
 - innerPrecise必须为0或1或4，其中，950PR/950DT硬件仅支持配置为4，A2/A3系列产品仅支持配置为0或1。
+- softmaxLseFlag仅支持配置0或1，分别表示不开启/开启softmaxLse输出。当前，950PR/950DT硬件仅支持配置为0，A2/A3系列产品支持配置为0或1
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
 - 输入query的headNum为N1，输入key和value的headNum为N2，则N1 >= N2 && N1 % N2 == 0。
 - maskType当前只支持输入0，表示不加mask。
