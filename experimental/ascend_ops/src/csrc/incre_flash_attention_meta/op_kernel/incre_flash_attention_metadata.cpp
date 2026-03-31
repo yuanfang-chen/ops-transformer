@@ -19,6 +19,15 @@
 #include "aicpu_api.h"
 #include "ifa_meta_public_define.h"
 
+#define CHECK_RETURN_FALSE(cond, fmt, ...)      \
+  do {                                          \
+    if (cond) {                                 \
+      AscendC::printf(fmt "\n", ##__VA_ARGS__); \
+      return false;                             \
+    }                                           \
+  } while (0)
+
+
 template <typename T> 
 inline auto Align(T num, T rnd) -> T
 {
@@ -511,9 +520,41 @@ bool SplitCore::GenMetaData(aicpu::kernels::IncreFlashAttentionMetadataArgs *arg
     return true;
 }
 
+bool CheckInput(aicpu::kernels::IncreFlashAttentionMetadataArgs* arg_ptr)
+{
+    CHECK_RETURN_FALSE(arg_ptr->batchSize < 0, "batchSize(%ld) can't be less than 0 !!", arg_ptr->batchSize);
+    CHECK_RETURN_FALSE(arg_ptr->querySeqSize < 0, "querySeqSize(%ld)  can't be less than 0 !!", arg_ptr->querySeqSize);
+    CHECK_RETURN_FALSE(arg_ptr->queryHeadNum < 0, "queryHeadNum(%ld) can't be less than 0 !!", arg_ptr->queryHeadNum);
+    CHECK_RETURN_FALSE(arg_ptr->keyHeadNum < 0, "keyHeadNum(%ld)  can't be less than 0 !!", arg_ptr->keyHeadNum);
+    CHECK_RETURN_FALSE(arg_ptr->headDim < 0, "headDim(%ld)  can't be less than 0 !!", arg_ptr->headDim);
+    CHECK_RETURN_FALSE(arg_ptr->blockSize < 0, "blockSize(%ld)  can't be less than 0 !!", arg_ptr->blockSize);
+    CHECK_RETURN_FALSE(arg_ptr->maxBlockNumPerBatch < 0, "maxBlockNumPerBatch(%ld)  can't be less than 0 !!", 
+        arg_ptr->maxBlockNumPerBatch);
+
+    bool layoutCheck = arg_ptr->layoutQuery != aicpu::kernels::Layout::BSND && 
+                        arg_ptr->layoutQuery != aicpu::kernels::Layout::BSH && 
+                        arg_ptr->layoutQuery != aicpu::kernels::Layout::BNSD;
+    CHECK_RETURN_FALSE(layoutCheck, "layoutQuery can only be BSND/BNSD/BSH !!");
+
+    CHECK_RETURN_FALSE((arg_ptr->actSeqKvLenDim != 1U && arg_ptr->actSeqKvLenDim < arg_ptr->batchSize),
+        "actSeqKvLen length(%ld) should be either 1 or no less than batchSize(%ld)",
+        arg_ptr->actSeqKvLenDim, arg_ptr->batchSize);
+
+    for (auto i = 0; i < arg_ptr->actSeqKvLenDim; ++i) {
+        CHECK_RETURN_FALSE(arg_ptr->actSeqKvLen[i] < 0, 
+            "actSeqKvLen element can't be less than 0, but got %ld at index %d!!", arg_ptr->actSeqKvLen[i], i);
+    }
+
+    return true;
+}
+
 extern "C" __global__ __aicpu__ uint32_t IncreFlashAttentionMetadataKernel(void *args)
 {
     aicpu::kernels::IncreFlashAttentionMetadataArgs* arg_ptr = (aicpu::kernels::IncreFlashAttentionMetadataArgs *)args;
+    if (!CheckInput(arg_ptr)) {
+        return 1;
+    }
+
     SplitCore balancer {};
     balancer.Compute(arg_ptr);
     return 0;
