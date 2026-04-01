@@ -163,39 +163,6 @@ public:
     __aicore__ inline
     SimpltSoftmax()
     {
-        // vecCoreIdx = GetBlockIdx();
-        // cBlockIdx = vecCoreIdx;
-        // __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
-        // usedVecCoreNums = tilingData->usedVecCoreNum;
-
-        // if (cBlockIdx >= usedVecCoreNums) {
-        //     return;
-        // }
-
-        // maxQSeqlen = tilingData -> maxQSeqlen;
-        // maxKvSeqlen = tilingData -> maxKvSeqlen;
-        // n1 = tilingData -> numHeads; // q_n
-        // col = params.actualCol;
-        // align32Col = (col + BLOCK_FP32_NUM - 1) / BLOCK_FP32_NUM * BLOCK_FP32_NUM; // fp32 对齐后的列数
-        // align16Col = (col + BLOCK_16_NUM - 1) / BLOCK_16_NUM * BLOCK_16_NUM;
-        // alignCol = (align32Col % BLOCK_16_NUM != 0) ? align16Col : align32Col;
-        // curCoreBatch = params.curCoreBatch;
-        // curCoreN1Idx = params.curCoreN1Idx;
-        // curT1Idx = params.curT1Idx;
-        // curCoreS1Idx = params.curCoreS1Idx;
-        // actualQSeqlen = params.actualQSeqlen;
-        // actualKvSeqlen = params.actualKvSeqlen;
-        // scaleValue = tilingData->scaleValue;
-
-        // uint64_t s2 = ((__gm__ uint64_t *)actualKvSeqlen)[curCoreBatch];
-        // uint64_t ubSize = tilingData->ubSize;
-        // uint64_t ubSizeEeachStage = ubSize  / STAGES / BLOCK_BYTE_SIZE * BLOCK_BYTE_SIZE; // 32字节对齐
-
-        // row = params.actualRow;
-        // if (row <= 0) {
-        //     return;
-        // }
-
         if constexpr(INPUT_LAYOUT == TND) {
             transpseStride = (n1 * 1 - 1) * sizeof(float);
         } else if constexpr(INPUT_LAYOUT == BNSD){
@@ -247,7 +214,6 @@ public:
     __aicore__ inline
     void operator()<AscendC::AIC>(Params const &params)
     {
-
     }
 
     __aicore__ inline
@@ -255,7 +221,8 @@ public:
     {
         vecCoreIdx = GetBlockIdx();
         cBlockIdx = vecCoreIdx;
-        __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
+        __gm__ BlockSparseAttentionGradTilingData *tilingData =
+            reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
         usedVecCoreNums = tilingData->usedVecCoreNum;
 
         if (cBlockIdx >= usedVecCoreNums) {
@@ -286,12 +253,11 @@ public:
         // 初始化 GM
         sGm.SetGlobalBuffer((__gm__ float *)params.s);
         softmaxLseGm.SetGlobalBuffer((__gm__ float *)params.softmaxLse);
-        dpGm.SetGlobalBuffer((__gm__ float *)params.dp );
+        dpGm.SetGlobalBuffer((__gm__ float *)params.dp);
         pWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.pWorkspace);
         softGradworkspaceGm.SetGlobalBuffer((__gm__ float *)params.softGradworkspace);
         dsWorkspaceGm.SetGlobalBuffer((__gm__ InputDType *)params.dsWorkspace);
     }
-
 
     template <>
     __aicore__ inline
@@ -303,7 +269,6 @@ public:
             return;
         }
         
-
         // col <= 128
         // 计算单loop的计算量及loop次数
         uint64_t eleBaseBuffNum = p32BaseBufLen / STAGES / sizeof(float); // 基本buffer块的元素数量
