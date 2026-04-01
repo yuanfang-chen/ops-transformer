@@ -46,14 +46,18 @@ namespace WeightQuantBatchMatmulV2::Arch35 {
               typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 
 #define WQBMM_CUBE_COMPUTE_CLASS                                                                        \
-    WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,    \
+    GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,    \
                                    biasType, yType, wqmmConfig, vecConfig>
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-class WeightQuantMatmulBasicBlockAic {
+class GroupedMatmulMxFp8Fp4BlockMmadResplit {
 public:
-    __aicore__ inline WeightQuantMatmulBasicBlockAic() = delete;
-    __aicore__ inline WeightQuantMatmulBasicBlockAic(bool hasBias, uint64_t aPrefetchSize,
+    using XType = xType;
+    using WeightType = wType;
+    using YType = yType;
+
+    __aicore__ inline GroupedMatmulMxFp8Fp4BlockMmadResplit() = delete;
+    __aicore__ inline GroupedMatmulMxFp8Fp4BlockMmadResplit(bool hasBias, uint64_t aPrefetchSize,
                                                      const TCubeTiling *__restrict matmulTiling);
     template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
     __aicore__ inline void operator()(const TensorA &tensorA, const TensorC &tensorC,
@@ -507,8 +511,8 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const TensorC &tenso
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                 biasType, yType, wqmmConfig, vecConfig>::WeightQuantMatmulBasicBlockAic(
+__aicore__ inline GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
+                                                 biasType, yType, wqmmConfig, vecConfig>::GroupedMatmulMxFp8Fp4BlockMmadResplit(
     bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
     isBias_ = hasBias;
@@ -531,7 +535,7 @@ __aicore__ inline WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleTyp
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType,
+__aicore__ inline void GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType,
                                                       perTokenScaleType, biasType, yType, wqmmConfig,
                                                       vecConfig>::operator()(const TensorA &tensorA,
                                                                              const TensorC &tensorC,
@@ -572,7 +576,7 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
+__aicore__ inline void GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::End()
 {
     EndSync();
@@ -580,7 +584,7 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
+__aicore__ inline void GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::WaitAivToAic()
 {
     CrossCoreWaitFlag<SYNC_MODE4, PIPE_MTE1>(SYNC_AIC_AIV_FLAG + FLAG_ID_MAX);
@@ -589,7 +593,7 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantSca
 
 template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAic<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
+__aicore__ inline void GroupedMatmulMxFp8Fp4BlockMmadResplit<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
                                                       biasType, yType, wqmmConfig, vecConfig>::SetAicToAiv()
 {
     CrossCoreSetFlag<SYNC_MODE4, PIPE_MTE1>(SYNC_AIV_AIC_FLAG + FLAG_ID_MAX);

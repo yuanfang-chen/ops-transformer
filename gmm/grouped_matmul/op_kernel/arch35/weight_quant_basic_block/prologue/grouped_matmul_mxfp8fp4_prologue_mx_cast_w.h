@@ -91,6 +91,14 @@ template <typename xType, typename wType, typename antiQuantScaleType, typename 
           typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
 class WeightQuantMatmulBasicBlockAiv {
 public:
+    using XDataType = xType;
+    using WeightDataType = wType;
+    using AntiQuantScaleDataType = antiQuantScaleType;
+    using ScaleDataType = scaleType;
+    using PerTokenScaleDataType = perTokenScaleType;
+    using BiasDataType = biasType;
+    using YDataType = yType;
+
     __aicore__ inline WeightQuantMatmulBasicBlockAiv() = delete;
     __aicore__ inline WeightQuantMatmulBasicBlockAiv(bool hasBias, uint64_t aPrefetchSize,
                                                      const TCubeTiling *__restrict matmulTiling);

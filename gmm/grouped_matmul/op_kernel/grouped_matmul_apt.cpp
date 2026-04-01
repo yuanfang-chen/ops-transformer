@@ -17,17 +17,12 @@
 #include "arch35/grouped_matmul_tiling_data_apt.h"
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
 #if defined(V310_GMM_ANTI_QUANT)
-#include "arch35/weight_quant_basic_block/block/basic_block_config.h"
+#include "arch35/weight_quant_basic_block/policy/dispatch_policy.h"
+#include "arch35/weight_quant_basic_block/block/block_mmad.h"
+#include "arch35/weight_quant_basic_block/prologue/block_prologue.h"
+#include "arch35/weight_quant_basic_block/kernel/kernel.h"
 #include "arch35/weight_quant_basic_block/kernel/grouped_matmul_mxfp8fp4_kernel_resplit.h"
-#include "arch35/weight_quant_basic_block/block/grouped_matmul_mxfp8fp4_block_mmad_resplit.h"
-#include "arch35/weight_quant_basic_block/prologue/grouped_matmul_mxfp8fp4_prologue_mx_cast_w.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
-using WeightQuantBatchMatmulV2::Arch35::QuantType;
-using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
-using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAic;
-using WeightQuantBatchMatmulV2::Arch35::WeightQuantMatmulBasicBlockAiv;
-static constexpr WqmmConfig MXA8W4_NZNK = {false, true, CubeFormat::NZ};
-static constexpr VecAntiQuantConfig VEC_ANTIQUANT_CONFIG_DYNAMIC = {4};
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR antiquantScale, GM_ADDR groupList, GM_ADDR perTokenScale,
@@ -35,15 +30,35 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
 {
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, gmmWeightQuantParam, gmmBaseParams_, tiling);
     GET_TILING_DATA_MEMBER(GMMWeightQuantTilingData, mmTilingData, mmTilingData_, tiling);
+    
+    using XType = DTYPE_X;
+    using WeightType = DTYPE_WEIGHT;
+    using AntiQuantScaleType = DTYPE_ANTIQUANT_SCALE;
+    using ScaleType = DTYPE_SCALE;
+    using PerTokenScaleType = DTYPE_PER_TOKEN_SCALE;
+    using BiasType = DTYPE_BIAS;
+    using YType = DTYPE_Y;
 
-    GROUPED_MATMUL::GMMWeightQuantResplitController<DTYPE_X, DTYPE_WEIGHT, DTYPE_ANTIQUANT_SCALE, DTYPE_SCALE,
-                                                    DTYPE_PER_TOKEN_SCALE, DTYPE_BIAS, DTYPE_Y,
-                                                    WeightQuantMatmulBasicBlockAic, WeightQuantMatmulBasicBlockAiv,
-                                                    MXA8W4_NZNK,
-                                                    VEC_ANTIQUANT_CONFIG_DYNAMIC>
-        op(x, weight, antiquantScale, bias, groupList, perTokenScale, y, &gmmBaseParams_,
-           &mmTilingData_);
-    op();
+    using DispatchPolicy = GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit;
+    using L1TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
+    using L0TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
+    using LayoutA = void;
+    using LayoutB = void;
+    using LayoutC = void;
+    using ProblemShape = Cgmct::Gemm::MatmulShape;
+    using BlockScheduler = void;
+    using BlockMmad = Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, XType, LayoutA, WeightType, LayoutB,
+                                       YType, LayoutC>;
+    using BlockEpilogue = void;
+    using BlockPrologue =
+        Block::BlockPrologue<DispatchPolicy, XType, WeightType, AntiQuantScaleType, ScaleType, PerTokenScaleType,
+                             BiasType, YType>;
+    using KernelImpl =
+        Kernel::GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue>;
+
+    KernelImpl kernelImpl(
+        x, weight, antiquantScale, bias, groupList, perTokenScale, y, &gmmBaseParams_, &mmTilingData_);
+    kernelImpl();
 }
 
 template <int8_t W_TYPE, int8_t OFFSET_OR_BIAS_EXIT, int8_t C_QUANT_TYPE, int8_t W_QUANT_TYPE, int8_t WQ_B_TRANS,

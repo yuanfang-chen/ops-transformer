@@ -17,6 +17,7 @@
 
 #include "../../grouped_matmul_tiling_data_apt.h"
 #include "include/experimental/tensor_api/tensor.h"
+#include "kernel.h"
 
 using WeightQuantBatchMatmulV2::Arch35::A_L1_MAX_SIZE_WITH_BIAS_QUANT;
 using WeightQuantBatchMatmulV2::Arch35::CeilDivide;
@@ -25,24 +26,25 @@ using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
 using WeightQuantBatchMatmulV2::Arch35::GetKBUnit;
 using GMMWeightQuantParam = GroupedMatmulTilingData::GMMWeightQuantParam;
 
-namespace GROUPED_MATMUL {
+namespace Kernel {
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-class GMMWeightQuantResplitController {
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+class GroupedMatmul {
 public:
-    __aicore__ inline GMMWeightQuantResplitController() = delete;
-    __aicore__ inline GMMWeightQuantResplitController(GM_ADDR x, GM_ADDR weight, GM_ADDR antiquantScale, GM_ADDR bias,
-                                                      GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y,
-                                                      const GMMWeightQuantParam *__restrict baseTiling,
-                                                      const TCubeTiling *__restrict mmTiling);
+    using XType = typename BlockMmad::XType;
+    using WeightType = typename BlockMmad::WeightType;
+    using AntiQuantScaleType = typename BlockPrologue::AntiQuantScaleDataType;
+    using ScaleType = typename BlockPrologue::ScaleDataType;
+    using PerTokenScaleType = typename BlockPrologue::PerTokenScaleDataType;
+    using BiasType = typename BlockPrologue::BiasDataType;
+    using YType = typename BlockMmad::YType;
+
+    __aicore__ inline GroupedMatmul() = delete;
+    __aicore__ inline GroupedMatmul(GM_ADDR x, GM_ADDR weight, GM_ADDR antiquantScale, GM_ADDR bias, GM_ADDR groupList,
+                                    GM_ADDR perTokenScale, GM_ADDR y,
+                                    const GMMWeightQuantParam *__restrict baseTiling,
+                                    const TCubeTiling *__restrict mmTiling);
     __aicore__ inline void operator()();
 
 private:
@@ -62,17 +64,15 @@ private:
     const GMMWeightQuantParam *gmmBaseTiling_;
     const TCubeTiling *mmTiling_;
 
-    __gm__ xType *xGm_;
-    __gm__ wType *weightGm_;
-    __gm__ antiQuantScaleType *antiquantScaleGm_;
-    __gm__ biasType *biasGm_ = nullptr;
-    __gm__ yType *yGm_;
-    __gm__ perTokenScaleType *perTokenScaleGm_;
+    __gm__ XType *xGm_;
+    __gm__ WeightType *weightGm_;
+    __gm__ AntiQuantScaleType *antiquantScaleGm_;
+    __gm__ BiasType *biasGm_ = nullptr;
+    __gm__ YType *yGm_;
+    __gm__ PerTokenScaleType *perTokenScaleGm_;
     GlobalTensor<int64_t> groupListGm_;
-    AicBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
-        aicBasicBlock_;
-    AivBasicBlock<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType, biasType, yType, wqmmConfig, vecConfig>
-        aivBasicBlock_;
+    BlockMmad blockMmad_;
+    BlockPrologue blockPrologue_;
 
     uint64_t preOffset_ = 0;
     static constexpr uint64_t MX_A8W4_L1_K_CONFIG_256 = 256;
@@ -83,34 +83,25 @@ private:
     uint64_t mxA8W4L1KDynamicConfigMThreshold_;
 };
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                  biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                  vecConfig>::GMMWeightQuantResplitController(
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::GroupedMatmul(
     GM_ADDR x, GM_ADDR weight, GM_ADDR antiquantScale, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
     GM_ADDR y, const GMMWeightQuantParam *__restrict baseTiling,
     const TCubeTiling *__restrict mmTiling)
-    : aicBasicBlock_(baseTiling->hasBias, 0, mmTiling), aivBasicBlock_(baseTiling->hasBias, 0, mmTiling)
+    : blockMmad_(baseTiling->hasBias, 0, mmTiling), blockPrologue_(baseTiling->hasBias, 0, mmTiling)
 {
     gmmBaseTiling_ = baseTiling;
     mmTiling_ = mmTiling;
 
-    xGm_ = GetTensorAddr<xType>(0, x);
-    weightGm_ = GetTensorAddr<wType>(0, weight);
-    antiquantScaleGm_ = GetTensorAddr<antiQuantScaleType>(0, antiquantScale);
+    xGm_ = GROUPED_MATMUL::GetTensorAddr<XType>(0, x);
+    weightGm_ = GROUPED_MATMUL::GetTensorAddr<WeightType>(0, weight);
+    antiquantScaleGm_ = GROUPED_MATMUL::GetTensorAddr<AntiQuantScaleType>(0, antiquantScale);
     if (gmmBaseTiling_->hasBias) {
-        biasGm_ = GetTensorAddr<biasType>(0, bias);
+        biasGm_ = GROUPED_MATMUL::GetTensorAddr<BiasType>(0, bias);
     }
-    perTokenScaleGm_ = reinterpret_cast<__gm__ perTokenScaleType *>(perTokenScale);
-    yGm_ = GetTensorAddr<yType>(0, y);
+    perTokenScaleGm_ = reinterpret_cast<__gm__ PerTokenScaleType *>(perTokenScale);
+    yGm_ = GROUPED_MATMUL::GetTensorAddr<YType>(0, y);
     if (groupList != nullptr) {
         groupListGm_.SetGlobalBuffer((__gm__ int64_t *)groupList);
     }
@@ -118,21 +109,12 @@ __aicore__ inline GMMWeightQuantResplitController<xType, wType, antiQuantScaleTy
                                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::operator()()
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::operator()()
 {
-    using LayoutA = typename AscendC::Te::NDLayoutFormat<xType>;
-    using LayoutC = typename AscendC::Te::NDLayoutFormat<yType>;
+    using LayoutA = typename AscendC::Te::NDLayoutFormat<XType>;
+    using LayoutC = typename AscendC::Te::NDLayoutFormat<YType>;
     using LayoutScaleA = typename AscendC::Te::ScaleANDLayoutFormat<fp8_e8m0_t>;
     using LayoutScaleB = typename AscendC::Te::ScaleBDNLayoutFormat<fp8_e8m0_t>;
 
@@ -143,7 +125,7 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
 
     const uint64_t kSize = gmmBaseTiling_->kSize;
     const uint64_t nSize = gmmBaseTiling_->nSize;
-    const uint64_t nAlign = CeilAlign(nSize, static_cast<uint64_t>(BLOCK_CUBE));
+    const uint64_t nAlign = AscendC::CeilAlign(nSize, static_cast<uint64_t>(BLOCK_CUBE));
     const bool isCacheLineUnaligned = kSize % 256 != 0;
     const uint64_t scaleKSize = CeilDivide(kSize, static_cast<uint64_t>(64)) * 2;
     for (uint32_t groupIdx = 0, startBasicBlockId = 0; groupIdx < gmmBaseTiling_->groupNum; ++groupIdx) {
@@ -193,26 +175,16 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
     }
 
     if ASCEND_IS_AIC {
-        aicBasicBlock_.End();
+        blockMmad_.End();
     } else {
-        aivBasicBlock_.End();
+        blockPrologue_.End();
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::CalcDynamicKBlock(uint64_t mL1Size, uint64_t nL1Size,
-                                                                                     uint64_t &kaL1Size,
-                                                                                     uint64_t &kbL1Size) const
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::CalcDynamicKBlock(
+    uint64_t mL1Size, uint64_t nL1Size, uint64_t &kaL1Size, uint64_t &kbL1Size) const
 {
     kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
     kbL1Size = (mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
@@ -220,39 +192,22 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
                    MX_A8W4_L1_K_CONFIG_512 :
                    MX_A8W4_L1_K_CONFIG_256;
     if (mL1Size < nL1Size) {
-        uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>();
-        uint64_t mL1Align = CeilAlign(mL1Size, static_cast<uint64_t>(BLOCK_CUBE));
+        uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<XType>() : 128 * GetKBUnit<XType>();
+        uint64_t mL1Align = AscendC::CeilAlign(mL1Size, static_cast<uint64_t>(BLOCK_CUBE));
         kaL1Size = aL1Size / (mL1Align * kbL1Size) * kbL1Size;
     } else {
         kaL1Size = kbL1Size;
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
 template <typename TensorA, typename TensorY, typename TensorScaleA, typename TensorScaleB>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::RunBlockRange(const TensorA &tensorBlockAGm,
-                                                                                 const TensorY &tensorYGm,
-                                                                                 const TensorScaleA &tensorBlockScaleAGm,
-                                                                                 const TensorScaleB &tensorScaleBGm,
-                                                                                 uint64_t mOffset, uint64_t mL1Size,
-                                                                                 uint64_t kSize, uint64_t scaleKSize,
-                                                                                 uint64_t nAlign,
-                                                                                 bool weightL2Cacheable,
-                                                                                 uint64_t blockCount,
-                                                                                 uint64_t blockSize,
-                                                                                 uint64_t nBaseOffset,
-                                                                                 uint64_t basicBlockLimit,
-                                                                                 uint64_t &curBasicBlockId)
+__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::RunBlockRange(
+    const TensorA &tensorBlockAGm, const TensorY &tensorYGm, const TensorScaleA &tensorBlockScaleAGm,
+    const TensorScaleB &tensorScaleBGm, uint64_t mOffset, uint64_t mL1Size, uint64_t kSize, uint64_t scaleKSize,
+    uint64_t nAlign, bool weightL2Cacheable, uint64_t blockCount, uint64_t blockSize, uint64_t nBaseOffset,
+    uint64_t basicBlockLimit, uint64_t &curBasicBlockId)
 {
     if (blockCount == 0) {
         return;
@@ -269,27 +224,18 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
         auto tensorBlockScaleBGm = tensorScaleBGm(AscendC::Te::MakeCoord(0, nOffset),
                                                   AscendC::Te::MakeShape(scaleKSize, nL1Size));
         if ASCEND_IS_AIC {
-            aicBasicBlock_(tensorBlockAGm, tensorBlockYGm, tensorBlockScaleAGm, tensorBlockScaleBGm, kaL1Size,
+            blockMmad_(tensorBlockAGm, tensorBlockYGm, tensorBlockScaleAGm, tensorBlockScaleBGm, kaL1Size,
                            kbL1Size);
         } else {
-            aivBasicBlock_(weightGm_, biasGm_, weightL2Cacheable, kSize, nL1Size, nOffset, kbL1Size, nAlign);
+            blockPrologue_(weightGm_, biasGm_, weightL2Cacheable, kSize, nL1Size, nOffset, kbL1Size, nAlign);
         }
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::UpdateGmAddr(uint64_t mSize, uint64_t kSize,
-                                                                                uint64_t nSize)
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::UpdateGmAddr(
+    uint64_t mSize, uint64_t kSize, uint64_t nSize)
 {
     xGm_ += mSize * kSize;
     // 4bit，地址偏移单位为8bit
@@ -302,18 +248,10 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
     yGm_ += mSize * nSize;
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                       biasType, yType, AicBasicBlock, AivBasicBlock, wqmmConfig,
-                                                       vecConfig>::PrefetchA(uint64_t mSize, uint64_t kSize)
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::PrefetchA(
+    uint64_t mSize, uint64_t kSize)
 {
     if ASCEND_IS_AIV {
         return;
@@ -323,27 +261,18 @@ __aicore__ inline void GMMWeightQuantResplitController<xType, wType, antiQuantSc
             gmmBaseTiling_->cubeNumBlocksN) {
         return;
     }
-    uint64_t aSize = mSize * kSize * sizeof(xType);
+    uint64_t aSize = mSize * kSize * sizeof(XType);
     if (mSize <= 512 && aSize <= static_cast<uint64_t>(gmmBaseTiling_->cubeNumBlocksN) * A_L1_MAX_SIZE_WITH_BIAS_QUANT &&
         (gmmBaseTiling_->coreNum % gmmBaseTiling_->cubeNumBlocksN == 0)) {
         uint64_t aPrefetchSize =
-            CeilAlign(CeilDivide(mSize * kSize, static_cast<uint64_t>(gmmBaseTiling_->cubeNumBlocksN)), 64UL);
-        aicBasicBlock_.PrefetchA(aPrefetchSize, mSize * kSize);
+            AscendC::CeilAlign(CeilDivide(mSize * kSize, static_cast<uint64_t>(gmmBaseTiling_->cubeNumBlocksN)), 64UL);
+        blockMmad_.PrefetchA(aPrefetchSize, mSize * kSize);
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AicBasicBlock,
-          template <typename, typename, typename, typename, typename, typename, typename, const WqmmConfig &,
-                    const VecAntiQuantConfig &>
-          class AivBasicBlock,
-          const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline uint64_t GMMWeightQuantResplitController<xType, wType, antiQuantScaleType, scaleType,
-                                                           perTokenScaleType, biasType, yType, AicBasicBlock,
-                                                           AivBasicBlock, wqmmConfig, vecConfig>::GetSplitValueFromGroupList(
+template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
+          class Enable>
+__aicore__ inline uint64_t GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::GetSplitValueFromGroupList(
     uint64_t groupIdx)
 {
     uint64_t splitValue = 0;
@@ -358,6 +287,6 @@ __aicore__ inline uint64_t GMMWeightQuantResplitController<xType, wType, antiQua
     }
     return splitValue;
 }
-}  // namespace GROUPED_MATMUL
+} // namespace Kernel
 
 #endif  // GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
