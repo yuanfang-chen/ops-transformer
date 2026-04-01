@@ -2342,7 +2342,9 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::DoOpTiling(gert::TilingConte
 
     OP_CHECK_IF(GetWorkspace(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Get workspace fail."),
                 return ge::GRAPH_FAILED);
-
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+    context->SetScheduleMode(BATCH_MODE_SCHEDULE);
     OP_CHECK_IF(SetTilingData(context, fiaInfo) != ge::GRAPH_SUCCESS, OP_LOGE(fiaInfo.opName, "Set tiling data fail."),
                 return ge::GRAPH_FAILED);
 
