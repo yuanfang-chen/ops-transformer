@@ -114,10 +114,18 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
     
     if (fiaInfo.s1Size * fiaInfo.gSize < 64) {
         bool isTransposeLayout = CheckTransposeLayout(fiaInfo);
+<<<<<<< HEAD
         pfaMergeFlag_ = !(fiaInfo.attenMaskFlag || fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
                            fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION || fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
                            fiaInfo.isOutQuantEnable || fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
                            fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
+=======
+        pfaMergeFlag_ = !(fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
+            fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 || fiaInfo.isOutQuantEnable ||
+            fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
+            fiaInfo.kvStorageMode == KvStorageMode::TENSOR_LIST ||
+            fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
+>>>>>>> f16ac991fc391026f1e61f21bd7578f64fab631c
     }
     bool actualSeqLenUnequal = false;
     if (actualSeqLenQFlag_ && !fiaInfo.antiQuantFlag) {
