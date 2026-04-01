@@ -218,13 +218,7 @@ public:
 
         uint64_t singleCoreLoop = normalCoreLoopTimes;
         uint64_t singleCoreLastLoopNBurstNum = normalCoreLastLoopNBurstNum; // 普通单核最后一次loop处理多少个D
-        // if (cBlockIdx == usedCoreNums - 1) {
-        //     singleCoreLoop = tailCoreLoopTimes;
-        //     singleCoreLastLoopNBurstNum = tailCoreLastLoopNBurstNum;
-        // }
 
-        // uint64_t startIdx = cBlockIdx * normalCoreSize; // input start idx
-        // uint64_t startIdx = startIdx;
         uint64_t nBurst = singleLoopNBurstNum; // single loop nums
         uint64_t curS = s1; // tnd 格式需修改
         uint32_t ping = 0;
