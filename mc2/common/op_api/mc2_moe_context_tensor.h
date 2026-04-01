@@ -115,7 +115,6 @@ static aclnnStatus GetHcclCommLink(const HcclComm& hcclHandle, const uint32_t ne
             links = &linksList[linksIndex];
             break;
         }
-        OP_LOGD("Read Link From Link List  : %d", linksList[linksIndex].linkAttr.linkProtocol);
         linksIndex++;
     }
     if (linksIndex == netLinkNum) { // 遍历完没有找到匹配的协议
