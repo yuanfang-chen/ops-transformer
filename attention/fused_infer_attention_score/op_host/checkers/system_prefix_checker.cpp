@@ -287,7 +287,7 @@ ge::graphStatus SystemPrefixChecker::CheckUnSupportFeature(const FiaTilingInfo &
     bool enablePFARope = fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128;
     bool enablePFAMLA = fiaInfo.mlaMode == MlaMode::ROPE_COMBINE_D128;
     // 不支持page attention场景
-    OP_CHECK_IF((fiaInfo.pageAttentionFlag),
+    OP_CHECK_IF((fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION),
         OP_LOGE(fiaInfo.opName,
             "prefix is not supported when page attention is enabled."),
         return ge::GRAPH_FAILED);
@@ -512,7 +512,7 @@ ge::graphStatus SystemPrefixChecker::CheckParaExistence(const FiaTilingInfo &fia
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SystemPrefixChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+ge::graphStatus SystemPrefixChecker::CheckCrossFeature(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckUnSupportFeature(fiaInfo)) {
         return ge::GRAPH_FAILED;
@@ -527,7 +527,7 @@ ge::graphStatus SystemPrefixChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SystemPrefixChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+ge::graphStatus SystemPrefixChecker::CheckMultiParaConsistency(const FiaTilingInfo &fiaInfo)
 {
     return ge::GRAPH_SUCCESS;
 }
