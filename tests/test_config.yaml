@@ -1349,7 +1349,6 @@ mc2:
       src:
         - mc2/moe_distribute_combine_v2
         - mc2/common
-        - mc2/moe_distribute_combine_v3
       exclude:
         - mc2/moe_distribute_combine_v2/docs
         - mc2/moe_distribute_combine_v2/README.md
@@ -1363,6 +1362,26 @@ mc2:
         - moe_distribute_combine_v2
         - moe_distribute_combine_v3
         - moe_distribute_dispatch_v2
+    
+    moe_distribute_combine_v3:
+      module: True
+      src:
+        - mc2/moe_distribute_combine_v3
+        - mc2/common
+      exclude:
+        - mc2/moe_distribute_combine_v3/docs
+        - mc2/moe_distribute_combine_v3/README.md
+      ut_cov_exclude:
+        - mc2/moe_distribute_combine_v3/op_api
+        - mc2/moe_distribute_combine_v3/op_graph
+        - mc2/moe_distribute_combine_v3/op_kernel
+      test:
+        examples: false
+      options:
+        - moe_distribute_combine_v3
+        - moe_distribute_combine_v2
+        - moe_distribute_dispatch_v2
+        - moe_distribute_dispatch_v3
 
     moe_distribute_dispatch:
       module: True
@@ -1387,7 +1406,6 @@ mc2:
       src:
         - mc2/moe_distribute_dispatch_v2
         - mc2/common
-        - mc2/moe_distribute_dispatch_v3
       exclude:
         - mc2/moe_distribute_dispatch_v2/docs
         - mc2/moe_distribute_dispatch_v2/README.md
@@ -1401,6 +1419,24 @@ mc2:
         - moe_distribute_dispatch_v2
         - moe_distribute_combine_v2
         - moe_distribute_dispatch_v3
+
+  moe_distribute_dispatch_v3:
+      module: True
+      src:
+        - mc2/moe_distribute_dispatch_v3
+        - mc2/common
+      exclude:
+        - mc2/moe_distribute_dispatch_v3/docs
+        - mc2/moe_distribute_dispatch_v3/README.md
+      ut_cov_exclude:
+        - mc2/moe_distribute_dispatch_v3/op_api
+        - mc2/moe_distribute_dispatch_v3/op_graph
+        - mc2/moe_distribute_dispatch_v3/op_kernel
+      test:
+        examples: false
+      options:
+        - moe_distribute_dispatch_v3
+        - moe_distribute_dispatch_v2
 
     moe_update_expert:
       module: True
