@@ -518,7 +518,7 @@ ge::graphStatus DequantChecker::CheckFeatureMLAFullquant(const FiaTilingInfo &fi
     const uint32_t keyDim = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
     OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8 &&
         !(fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION && keyDim == DIM_NUM_5),
-                OP_LOGE(fiaInfo.opName, 
+                OP_LOGE(fiaInfo.opName,
                     "In MLA fullquant scenario, "
                     "key/value layout must be PA_NZ when input datatype is INT8."),
                 return ge::GRAPH_FAILED);

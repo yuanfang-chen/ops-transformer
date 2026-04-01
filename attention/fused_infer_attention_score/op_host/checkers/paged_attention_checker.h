@@ -41,7 +41,6 @@ private:
     ge::graphStatus CheckBlockTableShapeSize(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckBlockSize(const FiaTilingInfo &fiaInfo);
 
-
     ge::graphStatus CheckBlockTableExistence(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckFeatureSupport(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckSeqLengthKVExistence(const FiaTilingInfo &fiaInfo);

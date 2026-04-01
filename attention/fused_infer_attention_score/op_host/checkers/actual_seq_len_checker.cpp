@@ -185,7 +185,7 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
     if (qLayout == FiaLayout::TND || qLayout == FiaLayout::NTD) {
         // key/value的layout为TND或NTD时，非page attention场景时，其值应递增，且为非负数
         for (int64_t bIdx = 0; bIdx < batchSize; bIdx++) {
-            if ( actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
+            if (actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
                 return ge::GRAPH_SUCCESS;
             }
             int64_t curSeqLengthData = actualSeqLengthsKvTensor->GetData<int64_t>()[bIdx];
@@ -210,7 +210,7 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
         int64_t sOfKeyValue = static_cast<int64_t>(fiaInfo.s2Size);
         int64_t actualSeqLengthsSize = std::min(static_cast<int64_t>(actualSeqLengthsKvDimNum), batchSize);
         for (int64_t i = 0; i < actualSeqLengthsSize; i++) {
-            if ( actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
+            if (actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
                 return ge::GRAPH_SUCCESS;
             }
             int64_t curSeqLengthData = actualSeqLengthsKvTensor->GetData<int64_t>()[i];

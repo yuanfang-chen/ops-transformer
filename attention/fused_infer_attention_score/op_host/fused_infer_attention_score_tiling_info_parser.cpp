@@ -440,7 +440,6 @@ void FiaInfoParser::GetPreNextToken()
         preToken_ = SPARSE_MODE_INT_MAX;
         nextToken_ = SPARSE_MODE_INT_MAX;
     }
-
 }
 
 ge::graphStatus FiaInfoParser::GetKvCache()

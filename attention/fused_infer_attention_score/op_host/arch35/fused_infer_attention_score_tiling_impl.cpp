@@ -95,7 +95,7 @@ void FusedInferAttentionScoreTilingImpl::SetIsIFA(const FiaTilingInfo &fiaInfo)
     bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
             layoutStr == "NTD" || layoutStr == "NTD_TND";
     if (fiaInfo.s1Size == 1 && !fiaInfo.enableAlibiPse && !isTransposeLayout &&
-        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT ) {
+        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT) {
         isIFAFlag_ =true;
         return;
     }
@@ -114,9 +114,11 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
     
     if (fiaInfo.s1Size * fiaInfo.gSize < 64) {
         bool isTransposeLayout = CheckTransposeLayout(fiaInfo);
-        pfaMergeFlag_ = !(fiaInfo.attenMaskFlag || fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
-                           fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION || fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
+        pfaMergeFlag_ = !(fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
+                           fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION ||
+                           fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
                            fiaInfo.isOutQuantEnable || fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
+                           fiaInfo.kvStorageMode == KvStorageMode::TENSORLIST ||
                            fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
     }
     bool actualSeqLenUnequal = false;
@@ -422,7 +424,7 @@ int64_t FusedInferAttentionScoreTilingImpl::GetCutBlockNums(int64_t blockSeqLeng
     int64_t innerCutBlockLeftDownNums = (-blockToken - blockSeqLength) / smallSize - tolerance;
     blockNums += SumOfArithmeticSeries(innerCutBlockLeftDownNums, tolerance);
     return blockNums;
-} 
+}
 
 int64_t FusedInferAttentionScoreTilingImpl::GetCalcBlockNumsOneHead(const FiaTilingInfo &fiaInfo,
                                                                     int64_t actualSeqLength, int64_t actualSeqLengthKV,
@@ -795,7 +797,7 @@ void FusedInferAttentionScoreTilingImpl::GetAntiQuantPreNextTokensLeftUp(const F
 }
 
 void FusedInferAttentionScoreTilingImpl::FixAntiQuantParamWithRowInvalid(const FiaTilingInfo &fiaInfo,
-                                                                         int64_t &actualSeqLength, 
+                                                                         int64_t &actualSeqLength,
                                                                          int64_t actualSeqLengthKV,
                                                                          int64_t &preTokensLeftUp,
                                                                          int64_t &nextTokensLeftUp)
@@ -970,7 +972,7 @@ int64_t FusedInferAttentionScoreTilingImpl::GetAntiQuantCalcBlockNumsOneHead(
         // prefix部分单独计算
         int64_t blockSharedPrefix = sInnerLoopTimesPrefix * static_cast<int64_t>(sInnerFactor_);
         toCalcBlockNums += sInnerLoopTimesPrefix * outerBlockNums;
-        toCalcBlockNums -=  GetCutBlockNums(blockSharedPrefix, blockSeqLength, 
+        toCalcBlockNums -=  GetCutBlockNums(blockSharedPrefix, blockSeqLength,
                                                      static_cast<int64_t>(sInnerFactor_),
                                                      static_cast<int64_t>(sOuterFactor_), nextTokensLeftUp);
         toCalcBlockNums -= GetCutBlockNums(
@@ -1046,9 +1048,11 @@ bool FusedInferAttentionScoreTilingImpl::CheckEnableDN(const FiaTilingInfo &fiaI
     constexpr uint32_t dLimitDN = DSIZE_128;
     constexpr uint32_t sOuterLimitDN = SOUTER_64;
     bool res = !fiaInfo.attenMaskFlag && !fiaInfo.pseShiftFlag && !fiaInfo.enableAlibiPse &&
-               fiaInfo.kvStorageMode != KvStorageMode::PAGE_ATTENTION && fiaInfo.ropeMode == RopeMode::NO_ROPE && fiaInfo.qkHeadDim <= dLimitDN &&
+               fiaInfo.kvStorageMode != KvStorageMode::PAGE_ATTENTION &&
+               fiaInfo.ropeMode == RopeMode::NO_ROPE && fiaInfo.qkHeadDim <= dLimitDN &&
                fiaInfo.vHeadDim <= dLimitDN && !fiaInfo.sysPrefixFlag &&
-               (fiaInfo.quantMode == FiaQuantMode::NO_QUANT || fiaInfo.fullQuantMode == FiaFullQuantMode::PER_BLOCK_FULL_QUANT ) && sOuterFactor_ * CV_RATIO > sOuterLimitDN;
+               (fiaInfo.quantMode == FiaQuantMode::NO_QUANT || fiaInfo.fullQuantMode == FiaFullQuantMode::PER_BLOCK_FULL_QUANT) &&
+                sOuterFactor_ * CV_RATIO > sOuterLimitDN;
     return res;
 }
 
