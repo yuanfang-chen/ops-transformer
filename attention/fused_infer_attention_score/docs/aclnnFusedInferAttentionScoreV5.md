@@ -1289,7 +1289,6 @@ FusedInferAttentionScore算子约束分为4个档位，按约束复杂程度递�
     - 入参 pseType 应满足以下条件：
       - pseType 必须为0, 2 或者 3
       - pseType 为 1 不支持 FA 推理场景，仅支持 FA 训练场景
-      - pseType 为 0 且 Q_S=1 时，P_S1 仅支持 1
     - 入参 pseShift 应满足以下条件：
       - tensor 的数据类型应满足以下条件：
         - pseType 为 2 或者 3 时，tensor 的数据类型必须为 FLOAT32
@@ -1330,6 +1329,7 @@ FusedInferAttentionScore算子约束分为4个档位，按约束复杂程度递�
       - 不支持 pse，不能传入 pseShift
     - D 不等长场景下，入参 pseShift 应满足以下条件：
       - 不支持 pse，不能传入 pseShift
+    - 伪量化场景下，当 pseType 为 0 且 Q_S 为 1 时，pseShift 的第三维必须为 1
 
 #### Attention Mask参数组
 
