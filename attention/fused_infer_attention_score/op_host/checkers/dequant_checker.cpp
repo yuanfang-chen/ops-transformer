@@ -2108,21 +2108,21 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenGroupMode(const FiaTi
     // per-token-group模式
     // shape支持[1, B, N, >=KV_S, D/32]
     if (keyAntiquantScaleTensorDimNum == DIM_NUM_5) {
-        OP_CHECK_IF(keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1 ||
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) != numKeyValueHeads ||
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3) < fiaInfo.s2Size ||
-                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4) != headDim / 32,
-                    OP_LOGE(fiaInfo.opName,
-                            "The shape of keyAntiquantScale([%u, %u, %u, %u, %u]) is not supported."
-                            "The shape of keyAntiquantScale must be "
-                            "[1, B(%llu), N(%llu), >=S(%llu)] or [B(%llu), >=S(%llu)] when keyAntiquantMode is per-token mode.",
-                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0),
-                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1), 
-                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
-                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
-                            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4),
-                            batchSize, numKeyValueHeads, seqLength, batchSize, seqLength),
+        // shape应为[1, B, N, >=KV_S, D/32]
+        OP_CHECK_IF(
+            keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0) != 1 ||
+                keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1) != batchSize ||
+                keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2) != numKeyValueHeads ||
+                keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3) < fiaInfo.s2Size ||
+                keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4) != headDim / 32,
+            OP_LOGE(fiaInfo.opName,
+                    "The shape of keyAntiquantScale([%u, %u, %u, %u, %u]) is not supported."
+                    "The shape of keyAntiquantScale must be "
+                    "[1, B(%llu), N(%llu), >=S(%llu), D/32(%llu)] when keyAntiquantMode is per-token-group mode.",
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_0), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_1),
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2), keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
+                    keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4), batchSize, numKeyValueHeads, seqLength, batchSize,
+                    seqLength, headDim / 32),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
