@@ -425,7 +425,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInGradOutput(int64_t b
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
     int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
-    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
+    int64_t sStart = sTile * sStride;
     int64_t bStart = bTile * ubMainFactorB_;
     int64_t hOff = hTile * ubMainFactorH_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
@@ -444,7 +444,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInInput(int64_t bTile,
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
     int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
-    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
+    int64_t sStart = sTile * sStride;
     int64_t bStart = bTile * ubMainFactorB_;
     int64_t hOff = hTile * ubMainFactorH_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
@@ -495,7 +495,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t b
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
     int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
-    int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
+    int64_t sStart = sTile * sStride;
     int64_t bStart = bTile * ubMainFactorB_;
     int64_t hOff = hTile * ubMainFactorH_;
     int64_t base = ((sStart * B_ + bStart) * H_) + (hStart_ + hOff);
