@@ -67,12 +67,10 @@ struct PrologueMxCastWOffsetParam {
 };
 
 #define WQBMM_PROLOGUE_TEMPLATE_PARAM                                                                                   \
-    template <class XType, class WeightType, class AntiQuantScaleType, class ScaleType, class PerTokenScaleType,       \
-              class BiasType, class YType>
+    template <class XType, class WeightType, class BiasType>
 
 #define WQBMM_PROLOGUE_CLASS                                                                                            \
-    BlockPrologue<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, XType, WeightType, AntiQuantScaleType, ScaleType,  \
-                  PerTokenScaleType, BiasType, YType>
+    BlockPrologue<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, XType, WeightType, BiasType>
 
 struct UbConsumeConfig {
     uint64_t l1RequireVfComputeRealK;
@@ -119,19 +117,11 @@ public:
     using DispatchPolicy = GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit;
     using xType = XType;
     using wType = WeightType;
-    using antiQuantScaleType = AntiQuantScaleType;
-    using scaleType = ScaleType;
-    using perTokenScaleType = PerTokenScaleType;
     using biasType = BiasType;
-    using yType = YType;
 
     using XDataType = xType;
     using WeightDataType = wType;
-    using AntiQuantScaleDataType = antiQuantScaleType;
-    using ScaleDataType = scaleType;
-    using PerTokenScaleDataType = perTokenScaleType;
     using BiasDataType = biasType;
-    using YDataType = yType;
     static constexpr bool kATrans = false;
     static constexpr bool kBTrans = true;
     static constexpr CubeFormat kWeightFormat = CubeFormat::NZ;

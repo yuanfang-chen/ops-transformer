@@ -55,8 +55,7 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
                                        YType, LayoutC>;
     using BlockEpilogue = void;
     using BlockPrologue =
-        Block::BlockPrologue<DispatchPolicy, XType, WeightType, AntiQuantScaleType, ScaleType, PerTokenScaleType,
-                             BiasType, YType>;
+        Block::BlockPrologue<DispatchPolicy, XType, WeightType, BiasType>;
     using KernelImpl =
         Kernel::GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue>;
 
