@@ -1,0 +1,7 @@
+socVersion,caseName,enable,prefix,coreNum,m,k,n,groupNum,transposeX,transposeWeight,groupType,splitItem,weightFormat,xDtype,weightDtype,biasDtype,yDtype,hasBias,result,blockDim,tilingKey,tilingData
+Ascend950,split_m_sss,true,split_m_sss,,256,1024,512,2,false,false,0,3,ND,FLOAT16,FLOAT16,FLOAT,FLOAT16,false,true,32,0,2 32 1 1 1 0 0 0 1 1 0 0 32 256 512 1024 1024 256 256 1024 256 256 64 8 8 1 1 0 0 0 0 0 0 0 0 0 0 0 4 4 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Ascend950,split_k_sss,true,split_k_sss,,256,1024,512,2,false,false,2,3,ND,FLOAT16,FLOAT16,FLOAT,FLOAT16,false,true,32,0,2 32 1 1 1 2 0 0 1 1 0 0 32 1024 512 1024 1024 1024 256 1024 128 256 64 8 8 1 1 0 0 0 0 0 0 0 0 0 0 0 4 4 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Ascend950,nosplit_mmm,true,nosplit_mmm,,256,1024,512,2,false,false,-1,0,ND,FLOAT16,FLOAT16,FLOAT,FLOAT16,false,true,32,0,1 32 1 1 0 -1 0 0 1 1 0 0 32 256 512 1024 1024 256 64 1024 64 64 256 8 8 1 1 0 0 0 0 0 0 0 0 0 0 0 4 4 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Ascend950,nosplit_mmm_weightNZ,true,nosplit_mmm_weightNZ,,256,1024,512,2,false,false,-1,0,NZ,FLOAT16,FLOAT16,FLOAT,FLOAT16,false,true,32,0,1 32 1 1 0 -1 0 0 1 1 0 0 32 256 512 1024 1024 256 64 1024 64 64 256 8 8 1 1 0 0 0 0 0 0 0 0 0 0 0 4 4 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Ascend950,split_m_sss_weightNZ,true,split_m_sss_weightNZ,,256,1024,512,2,false,false,0,3,NZ,FLOAT16,FLOAT16,FLOAT,FLOAT16,false,true,32,0,2 32 1 1 1 0 0 0 1 1 0 0 32 256 512 1024 1024 256 256 1024 256 256 64 8 8 1 1 0 0 0 0 0 0 0 0 0 0 0 4 4 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
