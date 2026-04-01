@@ -1052,7 +1052,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     if ASCEND_IS_AIV {
         GM2IPC();
         WaitIPC();
-        stepCoreNum = IPC_REDUCE_USED_CORE_NUM;
+        stepCoreNum = aivNum_ - serverNum_;
         if (coreIdx_ < stepCoreNum){
             SumToWindow();
         }
