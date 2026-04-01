@@ -141,7 +141,7 @@ ge::graphStatus LearnableSinkChecker::CheckParaExistence(const FiaTilingInfo &fi
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
+ge::graphStatus LearnableSinkChecker::CheckCrossFeature(const FiaTilingInfo &fiaInfo)
 {
     if (ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckAxisSupport(fiaInfo)) {
@@ -151,7 +151,7 @@ ge::graphStatus LearnableSinkChecker::CheckFeature(const FiaTilingInfo &fiaInfo)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus LearnableSinkChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+ge::graphStatus LearnableSinkChecker::CheckMultiParaConsistency(const FiaTilingInfo &fiaInfo)
 {
     return ge::GRAPH_SUCCESS;
 }
