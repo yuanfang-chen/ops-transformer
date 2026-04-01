@@ -1178,12 +1178,11 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
   auto w0Desc = context->GetDynamicInputDesc(WEIGHT_INDEX, 0);
   OP_CHECK_NULL_WITH_CONTEXT(context, w0Desc);
   weightDtype_ = w0Desc->GetDataType();
-  if (xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT4) {
+  if (isA8W4FakeA8W8_) {
     const uint64_t n = context->GetDynamicInputTensor(SCALE_INDEX, 0)->GetStorageShape().GetDim(2);
     const uint64_t k = context->GetDynamicInputTensor(X_INDEX, 0)->GetStorageShape().GetDim(1);
     const uint64_t groupNum = context->GetDynamicInputTensor(WEIGHT_INDEX, 0)->GetStorageShape().GetDim(0);
     const uint64_t quantGroupNum = context->GetDynamicInputTensor(SCALE_INDEX, 0)->GetStorageShape().GetDim(1);
-    isA8W4FakeA8W8_ = true;
     A8W4noMsdSpace_ = groupNum * k * n * sizeof(int8_t) + groupNum * n * sizeof(float);
     tilingData.gmmBaseParams.set_groupNum(groupNum);
     tilingData.gmmBaseParams.set_n(n);
@@ -2014,6 +2013,7 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
             workspaces[0] = SYS_WORKSPACE_SIZE;  // default size
             workspaces[0] += static_cast<size_t>(groupNum * k * n * static_cast<uint32_t>(sizeof(int8_t)) + (cvParallNum * aicNum * singleN * singleM * static_cast<uint32_t>(sizeof(int32_t)) * EIGHT));
             if (isPerchannel) {
+              isA8W4FakeA8W8_ = true;
               return ge::GRAPH_PARAM_INVALID; // continue A8W8
             } else {
               return ge::GRAPH_SUCCESS;
