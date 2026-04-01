@@ -46,6 +46,10 @@ aclnnStatus aclnnMoeTokenPermuteGetWorkspaceSize(
     const aclTensor* permuteTokensOut, const aclTensor* sortedIndicesOut, uint64_t* workspaceSize,
     aclOpExecutor** executor)
 {
+    L2_DFX_PHASE_1(aclnnMoeTokenPermute,
+                DFX_IN(tokens, indices, numOutTokens, paddedMode),
+                DFX_OUT(permuteTokensOut, sortedIndicesOut));
+                
     static bool useMoeInitRoutingV2 = Ops::Transformer::AclnnUtil::IsRegbase();
     if (!useMoeInitRoutingV2) {
         return aclnnInnerMoeTokenPermuteGetWorkspaceSize(

@@ -50,6 +50,10 @@ aclnnStatus aclnnMoeTokenUnpermuteGetWorkspaceSize(
     const aclTensor* permutedTokens, const aclTensor* sortedIndices, const aclTensor* probsOptional, bool paddedMode,
     const aclIntArray* restoreShapeOptional, aclTensor* out, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
+    L2_DFX_PHASE_1(clnnMoeTokenUnpermute,
+                DFX_IN(permutedTokens, sortedIndices, probsOptional, paddedMode, restoreShapeOptional),
+                DFX_OUT(out));
+
     static bool useMoeFinalizeRoutingV2 = Ops::Transformer::AclnnUtil::IsRegbase();
     if (!useMoeFinalizeRoutingV2) {
         return aclnnInnerMoeTokenUnpermuteGetWorkspaceSize(
