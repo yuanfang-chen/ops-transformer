@@ -429,7 +429,8 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
         - `groupType`支持m轴分组，仅非量化支持不分组。
         - `quantGroupSize`暂不支持。
         - `actType`支持0、1、2、4、5。综合约束请参见<a href="#约束说明">约束说明</a>。
-        - 输入参数`x`、`weight`，输出参数`out`在非量化场景支持最多1024个tensor，在伪量化和全量化场景支持最多128个tensor。
+        - 输入参数`x`、`weight`，输出参数`out`在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor；全量化场景仅支持单tensor。
+        - `out`仅支持FLOAT16、BFLOAT16、FLOAT32。
 
   - **返回值：**
 
