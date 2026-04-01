@@ -345,6 +345,10 @@ ge::graphStatus ActualSeqLenChecker::CheckFeatureIFAMLA(const FiaTilingInfo &fia
 // general
 int64_t ActualSeqLenChecker::GetActualSeqLengthsQData(const FiaTilingInfo &fiaInfo, uint32_t bIdx)
 {
+    // tiling下沉场景，则放弃后续校验
+    if (fiaInfo.isMaxWorkspace) {
+        return ge::GRAPH_SUCCESS;
+    }
     // 获取bIdx对应batch的query的seqLength
     FiaLayout qLayout = fiaInfo.qLayout;
     int64_t actualSeqLengthsQData = 0;
@@ -360,7 +364,9 @@ int64_t ActualSeqLenChecker::GetActualSeqLengthsQData(const FiaTilingInfo &fiaIn
     } else {
         // 非累加形式
         if (actualSeqLengthsQTensor != nullptr) {
-            actualSeqLengthsQData = actualSeqLengthsQTensor->GetData<int64_t>()[bIdx];
+            int64_t actSeqLenDims = actualSeqLengthsQTensor->GetShapeSize();
+            actualSeqLengthsQData = actSeqLenDims > 1 ? actualSeqLengthsQTensor->GetData<int64_t>()[bIdx] :
+                actualSeqLengthsQTensor->GetData<int64_t>()[0];
         } else {
             actualSeqLengthsQData = fiaInfo.s1Size;
         }
@@ -370,8 +376,11 @@ int64_t ActualSeqLenChecker::GetActualSeqLengthsQData(const FiaTilingInfo &fiaIn
 
 int64_t ActualSeqLenChecker::GetActualSeqLengthsKvData(const FiaTilingInfo &fiaInfo, uint32_t bIdx)
 {
+    // tiling下沉场景，则放弃后续校验
+    if (fiaInfo.isMaxWorkspace) {
+        return ge::GRAPH_SUCCESS;
+    }
     // 获取bIdx对应batch的key和value的seqLength
-    FiaLayout kvLayout = fiaInfo.kvLayout;
     int64_t actualSeqLengthsKvData = 0;
     auto &actualSeqLengthsKvTensor = fiaInfo.opParamInfo.actualSeqLengths.tensor;
     if (fiaInfo.isAccumKVSeq) {
@@ -385,7 +394,9 @@ int64_t ActualSeqLenChecker::GetActualSeqLengthsKvData(const FiaTilingInfo &fiaI
     } else {
         // 非累加形式
         if (actualSeqLengthsKvTensor != nullptr) {
-            actualSeqLengthsKvData = actualSeqLengthsKvTensor->GetData<int64_t>()[bIdx];
+            int64_t actSeqLenKVDims = actualSeqLengthsKvTensor->GetShapeSize();
+            actualSeqLengthsKvData = actSeqLenKVDims > 1 ? actualSeqLengthsKvTensor->GetData<int64_t>()[bIdx] :
+                actualSeqLengthsKvTensor->GetData<int64_t>()[0];
         } else {
             actualSeqLengthsKvData = fiaInfo.s2Size;
         }
