@@ -103,14 +103,6 @@ void FusedInferAttentionScoreTilingImpl::SetIsIFA(const FiaTilingInfo &fiaInfo)
 
 void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo)
 {
-    std::string layoutStr(fiaInfo.opParamInfo.layOut);
-    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
-            layoutStr == "NTD" || layoutStr == "NTD_TND";
-    if (fiaInfo.s1Size == 1 && !fiaInfo.enableAlibiPse && !isTransposeLayout &&
-        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT ) {
-        gsMergeFlag_ =true;
-        return;
-    }
     if (fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D512 && fiaInfo.s1Size <= 16) {
         gsMergeFlag_ = true;
         return;
@@ -149,7 +141,7 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
         if (fiaInfo.s1Size == 1 && !fiaInfo.enableAlibiPse) {
             gsMergeFlag_ = true;
         } else {
-            if (fiaInfo.gSize * fiaInfo.gSize <= 0 || fiaInfo.gSize * fiaInfo.s1Size > NUM_32) {
+            if (fiaInfo.gSize * fiaInfo.s1Size <= 0 || fiaInfo.gSize * fiaInfo.s1Size > NUM_32) {
                 gsMergeFlag_ = false;
                 return;
             }
