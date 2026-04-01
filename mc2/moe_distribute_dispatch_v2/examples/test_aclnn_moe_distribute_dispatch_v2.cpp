@@ -375,7 +375,7 @@ int launchOneThreadDispatchV2AndCombineV2_A2(Args &args)
     int64_t H = 7168;
     int64_t K = 8;
     int64_t expertShardType = 0;
-    int64_t sharedExpertNum = 1;
+    int64_t sharedExpertNum = 0;
     int64_t sharedExpertRankNum = 0;
     int64_t moeExpertNum = 256;
     int64_t quantMode = 0;
