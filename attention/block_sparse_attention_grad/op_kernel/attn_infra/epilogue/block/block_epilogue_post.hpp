@@ -335,7 +335,6 @@ public:
     __aicore__ inline
     void ProcessOut(uint64_t conputeS, int32_t qkvFlag)
     {
-        // uint64_t ubBaseSizeNum = ubBasePreBufferSize / sizeof(float); // 一块buffer处理的元素数量
         uint64_t ubBaseSizeNum = ubBasePreBufferSize / sizeof(OutputDtype_); // 一块buffer处理的元素数量
         uint64_t singleLoopSCount = ubBaseSizeNum / d;
         uint64_t loopTimes = static_cast<uint64_t>(CeilDiv(conputeS, singleLoopSCount));
