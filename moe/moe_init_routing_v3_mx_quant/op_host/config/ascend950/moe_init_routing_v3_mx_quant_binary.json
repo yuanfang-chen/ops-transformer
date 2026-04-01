@@ -1,0 +1,741 @@
+{
+  "op_type": "MoeInitRoutingV3MxQuant",
+  "op_list": [
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e4m3fn_d0p0",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e4m3fn",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 0},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e4m3fn_d0p1",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e4m3fn",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 0},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e4m3fn_d1p0",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e4m3fn",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 0},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e4m3fn_d1p1",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e4m3fn",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 0},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e5m2_d0p0",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e5m2",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 1},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e5m2_d0p1",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e5m2",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 1},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e5m2_d1p0",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e5m2",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 1},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    },
+    {
+      "bin_filename": "MoeInitRoutingV3MxQuant_bf16_e5m2_d1p1",
+      "inputs": [
+        {
+          "name": "x",
+          "index": 0,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_idx",
+          "index": 1,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "scale",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "offset",
+          "index": 3,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "y",
+          "index": 0,
+          "dtype": "float8_e5m2",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "mxscale",
+          "index": 1,
+          "dtype": "float8_e8m0",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_row_idx",
+          "index": 2,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [-2]
+        },
+        {
+          "name": "expert_tokens_count_or_cumsum",
+          "index": 3,
+          "dtype": "int32",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        },
+        {
+          "name": "expanded_scale",
+          "index": 4,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "optional",
+          "shape": [-2]
+        }
+      ],
+      "attrs": [
+        {"name": "active_num", "dtype": "int", "value": -1},
+        {"name": "expert_capacity", "dtype": "int", "value": -1},
+        {"name": "expert_num", "dtype": "int", "value": -1},
+        {"name": "drop_pad_mode", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_count_or_cumsum_flag", "dtype": "int", "value": 0},
+        {"name": "expert_tokens_before_capacity_flag", "dtype": "bool", "value": false},
+        {"name": "axis", "dtype": "int", "value": -1},
+        {"name": "round_mode", "dtype": "string", "value": "rint"},
+        {"name": "dst_type", "dtype": "int", "value": 1},
+        {"name": "blocksize", "dtype": "int", "value": 32},
+        {"name": "scale_alg", "dtype": "int", "value": 0}
+      ]
+    }
+  ]
+}
