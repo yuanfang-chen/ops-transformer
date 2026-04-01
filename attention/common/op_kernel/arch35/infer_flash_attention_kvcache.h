@@ -26,8 +26,6 @@
 #define NUM_128 128
 using namespace matmul;
 
-static constexpr bool isMla = hasRope && (dTemplateType == DTemplateType::Aligned576);
-
 TEMPLATE_INTF
 __aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer,
     hasRope>& constInfo, int64_t& actualS1Size)
@@ -36,7 +34,7 @@ __aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, 
         runParam.queryLeftPaddingSize = 0;
     } else {
         int64_t qLeftPaddingSize = 0;
-        if constexpr (isMla) {
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
             qLeftPaddingSize = constInfo.s1Size - actualS1Size / constInfo.gSize - constInfo.queryRightPaddingSize;
         } else {
             qLeftPaddingSize = constInfo.s1Size - actualS1Size - constInfo.queryRightPaddingSize;
@@ -89,7 +87,7 @@ __aicore__ inline int64_t CalculateActualS1Size(RunParamStr<isInfer>& runParam,
 {
     if (constInfo.isActualLenDimsNull) {
         int64_t actualMSize = constInfo.s1Size;
-        if constexpr (isMla) { // IFA MLA
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
             actualMSize = constInfo.gS1;
             runParam.actualSeqLengthOfMlaPerBatch = constInfo.s1Size;
         }
@@ -97,7 +95,7 @@ __aicore__ inline int64_t CalculateActualS1Size(RunParamStr<isInfer>& runParam,
     }
     
     int64_t actualMSize = 0;
-    if constexpr (isMla) {
+    if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
             runParam.actualSeqLengthOfMlaPerBatch = 
                 (constInfo.actualSeqLenSize == actualSeqMin) ?
@@ -162,7 +160,7 @@ __aicore__ inline void AdjustActualS1Size(RunParamStr<isInfer>& runParam,
                 runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
                 runParam.actualS1Size;
         } else {
-            if constexpr ((isMla) &&
+            if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
                 layout != LayOutTypeEnum::LAYOUT_BNSD) {
                 runParam.actualS1Size = (runParam.actualS1Size >
                     runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch) ?
@@ -405,7 +403,7 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const C
 {
     constexpr int32_t s1BaseSize = static_cast<int32_t>(s1TemplateType);
     int32_t s1LoopTimes;
-    if constexpr (isMla) {
+    if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
         s1LoopTimes = CeilDiv(runParam.actualS1Size, s1BaseSize);
     } else {
         if (constInfo.isGqa) {
@@ -433,7 +431,7 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
     if (runParam.actualS1Size == 0) {
         runParam.s1RealSize = 0;
     } else {
-        if constexpr (isMla) {
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
             runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
         } else {
             if (constInfo.isGqa) {
@@ -484,7 +482,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
         seqOffset = bIdx * constInfo.s1Size;
     }
     if ASCEND_IS_AIC {
-        if constexpr (isMla) { // IFA MLA
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
             runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
                 runParam.cubeSOuterOffset * constInfo.dSize; // IFA MLA场景, BSH与BNSD一致
             runParam.qRopeNBGOffset = runParam.qRopeBOffset + runParam.n2oIdx * constInfo.gDR * actualSeqLen +
@@ -525,7 +523,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
         }
     } else {
         int64_t attentionOutSeqOffset = seqOffset * constInfo.n2GDv;
-        if constexpr (isMla) { // IFA MLA
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
             runParam.attentionOutOffset = attentionOutSeqOffset + runParam.n2oIdx * constInfo.gDv * actualSeqLen +
                 runParam.sOuterOffset * constInfo.dSizeV;
             runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
@@ -595,7 +593,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
         }
 
         int64_t softmaxLseSeqOffset = seqOffset * constInfo.n2G;
-        if constexpr (isMla) { // IFA MLA
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
             if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
                 int64_t nsOffset = runParam.n2oIdx * constInfo.gS1 + runParam.sOuterOffset;
                 int64_t sOffset = nsOffset / constInfo.gSize;
@@ -668,7 +666,7 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
     }
 
     int64_t sInnerFirstToken = 0;
-    if constexpr ((isMla) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+    if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
         sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
             0, runParam.actualS2Size);
         runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
@@ -874,7 +872,7 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr<isInfer>& runParam, 
     runInfo.s2InCurrentBatch = runParam.s2InCurrentBatch;
     runInfo.queryLeftPaddingSize = runParam.queryLeftPaddingSize;
     runInfo.kvLeftPaddingSize = runParam.kvLeftPaddingSize;
-    if constexpr (isMla) { // IFA MLA
+    if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
         runInfo.nextTokensOfMlaPerBatch = runParam.nextTokensOfMlaPerBatch;
         runInfo.preTokensOfMlaPerBatch = runParam.preTokensOfMlaPerBatch;
         runInfo.actualSeqLengthOfMlaPerBatch = runParam.actualSeqLengthOfMlaPerBatch;
