@@ -129,7 +129,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
  * @brief aclnnFlashAttentionScoreGradV4的第二段接口，用于执行计算。
 */
 aclnnStatus aclnnFlashAttentionScoreGradV4(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                                    const aclrtStream stream);
+                                           aclrtStream stream);
 /**
  * @brief aclnnFlashAttentionUnpaddingScoreGradV2的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_train
@@ -277,7 +277,7 @@ aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
  * @brief aclnnQuantFlashAttentionScoreGrad的第二段接口，用于执行计算
  */
 aclnnStatus aclnnQuantFlashAttentionScoreGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                                    const aclrtStream stream);
+                                              aclrtStream stream);
 
 #ifdef __cplusplus
 }
