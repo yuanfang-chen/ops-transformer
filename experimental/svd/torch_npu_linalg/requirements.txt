@@ -1,0 +1,10 @@
+numpy
+build
+decorator
+scipy
+attrs
+psutil
+expecttest
+wheel
+protobuf
+pytest
