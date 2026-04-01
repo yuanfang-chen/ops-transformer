@@ -460,10 +460,6 @@ namespace BSA {
             // pre
             VecPre(params);
             PipeBarrier<PIPE_ALL>();
-            
-            // softmaxgrad
-            // VecSoftMaxGrad(params);
-            // PipeBarrier<PIPE_ALL>();
 
             // simply softmax
             VecOp(params);
@@ -585,12 +581,6 @@ namespace BSA {
 
                             AscendC::WaitEvent(CUBE2VEC);
 
-                            // if (vecCoreIdx % 2 == 0) {
-                            //     SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
-                            //                         actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
-                            //     EpilogueFAGOp sStmOp(sfmParams);
-                            //     sStmOp();
-                            // }
                             if (vecCoreIdx % 2 == 0) {
                                 SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tiling,
                                                     actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
@@ -612,25 +602,6 @@ namespace BSA {
                 }
             }
         }
-
-        // __aicore__ inline
-        // void VecSoftMaxGrad(Params const &params)
-        // {
-        //     __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
-
-        //     uint64_t sOutSize = tilingData->sOutSize;
-        //     uint64_t dPOutSize = tilingData->dPOutSize;
-        //     uint64_t dQOutSize = tilingData->dQOutSize;
-        //     uint64_t dKOutSize = tilingData->dKOutSize;
-        //     uint64_t dVOutSize = tilingData->dVOutSize;
-
-        //     GM_ADDR gDqWrkGm = params.workspace + sOutSize + dPOutSize;
-
-        //     GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
-        //     SfmgParams SfmgParams(params.dout, params.out, params.actualQseqlen, sftmgGm, params.tiling);
-        //     EpilogueFAGSfmg vecSftmg(SfmgParams);
-        //     vecSftmg();
-        // }
 
         __aicore__ inline
         void VecPost(Params const &params)
