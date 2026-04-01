@@ -140,15 +140,11 @@ public:
         uint64_t qPostSize = tilingData->dqSize / d;
         uint64_t kvPostSize = tilingData->dkvSize / d;
 
-        // uint64_t qPostBaseNum = (ubBaseSize / sizeof(OutputDtype_)); // 1个基本快的元素数量
-        // uint64_t qPostSNum = qPostBaseNum / d; /// 1个基本块可以处理的行数也就是s数
         uint64_t qPostBlockTotal = qPostSize; // 把d前面合洲，总共的行数
         uint64_t qPostBlockEeachCore = qPostBlockTotal / usedCoreNum; // 每个核处理的行数
         uint64_t qPostBlockNumEeachCore = qPostBlockEeachCore * d; // 每个核处理的元素数量
         uint64_t qPostTailNum = qPostBlockTotal % usedCoreNum; // 剩余的行数，给尾核处理
 
-        // uint64_t kvPostBaseNum = qPostBaseNum;
-        // uint64_t kvPostSNum = kvPostBaseNum / d; /// 1个基本块可以处理的行数也就是s数
         uint64_t kvPostBlockTotal = kvPostSize; // 把d前面合洲，总共的行数
         uint64_t kvPostBlockEeachCore = kvPostBlockTotal / usedCoreNum; // 每个核处理的行数
         uint64_t kvPostBlockNumEeachCore = kvPostBlockEeachCore * d; // 每个核处理的元素数量
