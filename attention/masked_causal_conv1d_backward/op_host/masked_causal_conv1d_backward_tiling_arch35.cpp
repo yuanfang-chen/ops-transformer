@@ -275,7 +275,7 @@ ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeIntraCoreUbTiling()
     // Buffer占用估算函数
     auto calculateBufferSize = [&](int64_t h, int64_t b, int64_t s) -> int64_t {
         // 根据文档第4节Buffer设计
-        int64_t gradOutputSize = h * b * s * static_cast<int64_t>(dtypeSize_);
+        int64_t gradOutputSize = h * b * (s+2) * static_cast<int64_t>(dtypeSize_);
         int64_t inputSize = h * b * s * static_cast<int64_t>(dtypeSize_);
         int64_t weightSize = h * W_ * static_cast<int64_t>(dtypeSize_);
         int64_t maskSize = (hasMask_ != 0) ? ((b * s + 7) / 8) : 0;            // BOOL类型，8bit对齐
@@ -292,35 +292,42 @@ ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeIntraCoreUbTiling()
     hUB_ = minH;
     bUB_ = B_;
     sUB_ = S_;
-
-    if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {
+    if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {  //H=64能全载BS，看H能否增加
         // 能够全载，则尝试增加H（保证H*DTypeSize为128B的倍数）
         int64_t h_increment = 128 / static_cast<int64_t>(dtypeSize_);  // FP16/BF16: 64
-        int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (2 * B_ * S_ * dtypeSize_ + 2 * W_ * dtypeSize_)));
+        // int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (2 * B_ * S_ * dtypeSize_ + 2 * W_ * dtypeSize_)));
 
-        while (hUB_ + h_increment <= maxH) {
-            if (calculateBufferSize(hUB_ + h_increment, bUB_, sUB_) <= availableUbSize) {
-                hUB_ += h_increment;
-            } else {
-                break;
-            }
-        }
+        // while (hUB_ + h_increment <= maxH) {
+        //     if (calculateBufferSize(hUB_ + h_increment, bUB_, sUB_) <= availableUbSize) {
+        //         hUB_ += h_increment;
+        //     } else {
+        //         break;
+        //     }
+        // }
+        int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (6*B_*S_*dtypeSize_ + 4*B_*dtypeSize_ + 4*W_*dtypeSize_)))
+        hUB_ = maxH / minH * minH;
     } else {
         // 不能全载，先压缩B
         bUB_ = 1;
-        if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
-            // B=1仍不能全载，再压缩S
-            while (sUB_ > 1) {
-                sUB_ = (sUB_ + 1) / 2;  // 二分压缩
-                if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {
-                    break;
-                }
-            }
-            // 最小保证S=1
-            if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
-                sUB_ = 1;
-            }
+        if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) { //B=1时能全载S，看B能否增加
+            int64_t maxB = std::min(B_, (int64_t)((availableUbSize - 4*hUB_*W_*dtypeSize_)/ (6*hUB_*S_*dtypeSize_ + 4*hUB_*dtypeSize_)))
+            bUB_ = maxB;
+        } else {  //即便B=1也不能全载，切S
+            sUB_ = (int64_t)((availableUbSize - 4*hUB_*W_*dtypeSize_ - 4*hUB_*bUB_*dtypeSize_)/ (6*hUB_*bUB_*dtypeSize_));
         }
+        // if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
+        //     // B=1仍不能全载，再压缩S
+        //     while (sUB_ > 1) {
+        //         sUB_ = (sUB_ + 1) / 2;  // 二分压缩
+        //         if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) {
+        //             break;
+        //         }
+        //     }
+        //     // 最小保证S=1
+        //     if (calculateBufferSize(hUB_, bUB_, sUB_) > availableUbSize) {
+        //         sUB_ = 1;
+        //     }
+        // }
     }
 
     // 计算主核的循环次数和尾块大小
@@ -376,6 +383,7 @@ ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeIntraCoreUbTiling()
 
     return ge::GRAPH_SUCCESS;
 }
+
 
 ge::graphStatus MaskedCausalConv1dBackwardTiling::DoOpTiling()
 {
