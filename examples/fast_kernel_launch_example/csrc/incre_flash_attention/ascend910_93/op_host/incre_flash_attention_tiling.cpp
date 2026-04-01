@@ -251,11 +251,6 @@ custom::graphStatus IFATiling::PreCheck()
         return custom::graphStatus::GRAPH_FAILED
     );
     OP_CHECK_IF(
-        ifaContext_->kvStartIdx.hasValue,
-        OP_LOGE(ifaContext_->opName, "this FA demo does not support kvStartIdx"), 
-        return custom::graphStatus::GRAPH_FAILED
-    );
-    OP_CHECK_IF(
         ifaContext_->blockSize != 128 && ifaContext_->blockSize != 512,
         OP_LOGE(ifaContext_->opName, "this FA demo only support blockSize = 128/512"), 
         return custom::graphStatus::GRAPH_FAILED
