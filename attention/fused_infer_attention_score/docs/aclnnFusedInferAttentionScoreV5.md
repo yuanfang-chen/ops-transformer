@@ -1330,6 +1330,7 @@ FusedInferAttentionScore算子约束分为4个档位，按约束复杂程度递�
       - 不支持 pse，不能传入 pseShift
     - D 不等长场景下，入参 pseShift 应满足以下条件：
       - 不支持 pse，不能传入 pseShift
+    - 伪量化场景下，当 pseType 为 0 且 Q_S 为 1 时，pseShift 的第三维仅支持 1
 
 #### Attention Mask参数组
 
