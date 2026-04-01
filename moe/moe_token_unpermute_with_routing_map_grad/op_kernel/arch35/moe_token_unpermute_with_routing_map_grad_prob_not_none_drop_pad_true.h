@@ -71,7 +71,9 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradProbNotNoneDropPadTrue
                 ? (initProbNumPerCore + 1) * this->coreIndex
                 : (initProbNumPerCore + 1) * initFormerCoreNum
                     + (this->coreIndex - initFormerCoreNum) * initProbNumPerCore;
-            InitOutput<ProbsT>(this->probGradGm[initAddr], initNum, ProbsT(0));
+            GlobalTensor<ProbsT> probGradInitGm;
+            probGradInitGm.SetGlobalBuffer((__gm__ ProbsT*)probs_grad + initAddr);
+            Fill(probGradInitGm, initNum, static_cast<ProbsT>(0));
         }
         SyncAll();
     }
