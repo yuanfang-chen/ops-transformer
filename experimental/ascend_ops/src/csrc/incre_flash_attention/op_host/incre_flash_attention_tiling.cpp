@@ -256,8 +256,8 @@ custom::graphStatus IFATiling::PreCheck()
         return custom::graphStatus::GRAPH_FAILED
     );
     OP_CHECK_IF(
-        ifaContext_->blockSize != 128,
-        OP_LOGE(ifaContext_->opName, "this FA demo only support blockSize = 128"), 
+        ifaContext_->blockSize != 128 && ifaContext_->blockSize != 512,
+        OP_LOGE(ifaContext_->opName, "this FA demo only support blockSize = 128/512"), 
         return custom::graphStatus::GRAPH_FAILED
     );
     OP_CHECK_IF(
@@ -286,6 +286,7 @@ custom::graphStatus IFATiling::PreCheck()
         OP_LOGE(ifaContext_->opName, "blockTable must be provided"), 
         return custom::graphStatus::GRAPH_FAILED
     );
+    return custom::graphStatus::GRAPH_SUCCESS;    
 }
 custom::graphStatus IFATiling::PreProcess()
 {
