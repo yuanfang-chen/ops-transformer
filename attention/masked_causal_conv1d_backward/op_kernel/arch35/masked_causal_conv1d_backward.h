@@ -9,20 +9,20 @@
  */
 
 /*!
- * \file aggregate_hidden_grad.h
- * \brief Arch35 AICore kernel for aggregate_hidden_grad (W=3)
+ * \file masked_causal_conv1d_backward.h
+ * \brief Arch35 AICore kernel for masked_causal_conv1d_backward (W=3)
  */
 
-#ifndef AGGREGATE_HIDDEN_GRAD_H
-#define AGGREGATE_HIDDEN_GRAD_H
+#ifndef MASK_EDCAUSAL_CONV1D_BACKWARD_H
+#define MASK_EDCAUSAL_CONV1D_BACKWARD_H
 
 #include "kernel_operator.h"
 #include "vf/compute.h"
-#include "aggregate_hidden_grad_struct.h"
+#include "masked_causal_conv1d_backward_struct.h"
 
-namespace AggregateHiddenGradKernelNS {
+namespace MaskedCausalConv1dBackwardKernelNS {
 using namespace AscendC;
-using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
+using MaskedCausalConv1dBackwardArch35Tiling::MaskedCausalConv1dBackwardTilingDataV35;
 namespace {
     using namespace AscendC;
     #define _USE_DBG_PRINT 1
@@ -81,7 +81,7 @@ namespace {
     }
 }
 template <typename DT>
-class AggregateHiddenGradKernel {
+class MaskedCausalConv1dBackwardKernel {
 public:
     static constexpr int kW = 3;
     static constexpr int kBufferNum = 2;
@@ -89,7 +89,7 @@ public:
     static constexpr int kMinHTile = 64;
 
     // Declarations
-    __aicore__ inline AggregateHiddenGradKernel();
+    __aicore__ inline MaskedCausalConv1dBackwardKernel();
 
     __aicore__ inline void Init(GM_ADDR grad_output,
                                 GM_ADDR input,
@@ -97,7 +97,7 @@ public:
                                 GM_ADDR mask,
                                 GM_ADDR grad_input,
                                 GM_ADDR grad_weight,
-                                const AggregateHiddenGradTilingDataV35 *td,
+                                const MaskedCausalConv1dBackwardTilingDataV35 *td,
                                 TPipe *pipe);
 
     __aicore__ inline void Process();
@@ -159,7 +159,7 @@ private:
 private:
 
     TPipe *pipe_;
-    const AggregateHiddenGradTilingDataV35 *td_;
+    const MaskedCausalConv1dBackwardTilingDataV35 *td_;
     TQue<QuePosition::VECIN, kBufferNum> gradOutQ_;
     TQue<QuePosition::VECIN, kBufferNum> inputQ_;
     TQue<QuePosition::VECIN, kBufferNum> weightQ_;
@@ -222,16 +222,16 @@ private:
 
 
 template <typename DT>
-__aicore__ inline AggregateHiddenGradKernel<DT>::AggregateHiddenGradKernel() {}
+__aicore__ inline MaskedCausalConv1dBackwardKernel<DT>::MaskedCausalConv1dBackwardKernel() {}
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Init(GM_ADDR grad_output,
                                                            GM_ADDR input,
                                                            GM_ADDR weight,
                                                            GM_ADDR mask,
                                                            GM_ADDR grad_input,
                                                            GM_ADDR grad_weight,
-                                                           const AggregateHiddenGradTilingDataV35 *td,
+                                                           const MaskedCausalConv1dBackwardTilingDataV35 *td,
                                                            TPipe *pipe)
 {
     pipe_ = pipe;
@@ -317,7 +317,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Process()
 {
     // Accumulate grad_weight in fp32 across all (b,s) tiles per h-tile, then cast+store once per h-tile
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
@@ -363,7 +363,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
     }
 }
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::Compute(int64_t bTile, int64_t sTile, int64_t hTile,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Compute(int64_t bTile, int64_t sTile, int64_t hTile,
                                                               int64_t bLen, int64_t sEff, int64_t sLen,
                                                               int64_t hLenThis, LocalTensor<DT> &wLocal)
 {
@@ -396,7 +396,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Compute(int64_t bTile, int
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::ComputeGradOutputMask(int64_t bLen, int64_t sLen, int64_t hLenThis)
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::ComputeGradOutputMask(int64_t bLen, int64_t sLen, int64_t hLenThis)
 {
     LocalTensor<bool> mLocal = maskQ_.DeQue<bool>();
     LocalTensor<DT> goLocal = gradOutQ_.DeQue<DT>();
@@ -415,7 +415,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::ComputeGradOutputMask(int6
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInGradOutput(int64_t bTile, int64_t sTile, int64_t hTile,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyInGradOutput(int64_t bTile, int64_t sTile, int64_t hTile,
                                                                        int64_t bLen, int64_t sLen, int64_t hLenThis)
 {
     LocalTensor<DT> goLocal = gradOutQ_.AllocTensor<DT>();
@@ -435,7 +435,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInGradOutput(int64_t b
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInInput(int64_t bTile, int64_t sTile, int64_t hTile,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyInInput(int64_t bTile, int64_t sTile, int64_t hTile,
                                                                   int64_t bLen, int64_t sLen, int64_t hLenThis)
 {
     LocalTensor<DT> inLocal = inputQ_.AllocTensor<DT>();
@@ -454,7 +454,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInInput(int64_t bTile,
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInWeight(int64_t hTile, int64_t hLenThis)
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyInWeight(int64_t hTile, int64_t hLenThis)
 {
     LocalTensor<DT> wLocal = weightQ_.AllocTensor<DT>();
     DataCopyExtParams inParams{static_cast<uint16_t>(kW), static_cast<uint32_t>(hLenThis * sizeof(DT)),
@@ -467,7 +467,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInWeight(int64_t hTile
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInMask(int64_t bTile, int64_t sTile,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyInMask(int64_t bTile, int64_t sTile,
                                                                  int64_t bLen, int64_t sLen)
 {
     LocalTensor<bool> mLocal = maskQ_.AllocTensor<bool>();
@@ -485,7 +485,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInMask(int64_t bTile, 
 
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t bTile, int64_t sTile, int64_t hTile,
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyOutGradInput(int64_t bTile, int64_t sTile, int64_t hTile,
                                                                        int64_t bLen, int64_t sEff, int64_t sLen,
                                                                        int64_t hLenThis)
 {
@@ -505,7 +505,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t b
 }
 
 template <typename DT>
-__aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradWeight(int64_t hTile, int64_t hLenThis)
+__aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::CopyOutGradWeight(int64_t hTile, int64_t hLenThis)
 {
     // Cast fp32 accumulators to DT and write to GM: layout [W,H]
     int64_t hOff = hTile * ubMainFactorH_;
@@ -522,6 +522,6 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradWeight(int64_t 
     gradWeightQ_.FreeTensor(gwCast);
 }
 
-} // namespace AggregateHiddenGradKernelNS
+} // namespace MaskedCausalConv1dBackwardKernelNS
 
-#endif // AGGREGATE_HIDDEN_GRAD_H
+#endif // MASK_EDCAUSAL_CONV1D_BACKWARD_H

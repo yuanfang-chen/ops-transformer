@@ -9,7 +9,7 @@
  */
 
 #include <tuple>
-#include "aggregate_hidden_grad.h"
+#include "masked_causal_conv1d_backward.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_def.h"
 #include "opdev/op_dfx.h"
@@ -20,17 +20,17 @@
 using namespace op;
 
 namespace l0op {
-OP_TYPE_REGISTER(AggregateHiddenGrad);
+OP_TYPE_REGISTER(MaskedCausalConv1dBackward);
 
-bool AggregateHiddenGrad(const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight,
+bool MaskedCausalConv1dBackward(const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight,
                          const aclTensor *mask, aclTensor *grad_input, aclTensor *grad_weight, aclOpExecutor *executor)
 {
-    L0_DFX(AggregateHiddenGrad, grad_output, input, weight, mask, grad_input, grad_weight);
+    L0_DFX(MaskedCausalConv1dBackward, grad_output, input, weight, mask, grad_input, grad_weight);
 
-    auto ret = ADD_TO_LAUNCHER_LIST_AICORE(AggregateHiddenGrad, OP_INPUT(grad_output, input, weight, mask),
+    auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MaskedCausalConv1dBackward, OP_INPUT(grad_output, input, weight, mask),
                                            OP_OUTPUT(grad_input, grad_weight), OP_ATTR());
     if (ret != ACLNN_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "AggregateHiddenGrad ADD_TO_LAUNCHER_LIST_AICORE failed.");
+        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MaskedCausalConv1dBackward ADD_TO_LAUNCHER_LIST_AICORE failed.");
         return false;
     }
     return true;

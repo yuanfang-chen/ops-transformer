@@ -9,31 +9,31 @@
  */
 
 /*!
- * \file aggregate_hidden_grad_arch35.cpp
- * \brief AggregateHiddenGrad tiling implementation
+ * \file masked_causal_conv1d_backward_arch35.cpp
+ * \brief MaskedCausalConv1dBackward tiling implementation
  */
 
-#include "aggregate_hidden_grad_tiling_arch35.h"
+#include "masked_causal_conv1d_backward_tiling_arch35.h"
 #include <algorithm>
 #include "securec.h"
 
 namespace optiling {
 
 
-using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
+using MaskedCausalConv1dBackwardArch35Tiling::MaskedCausalConv1dBackwardTilingDataV35;
 
-bool AggregateHiddenGradTiling::IsCapable()
+bool MaskedCausalConv1dBackwardTiling::IsCapable()
 {
     // 详细校验在 CheckInputParams 中完成，这里返回 true
     return true;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::GetPlatformInfo()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::GetPlatformInfo()
 {
     auto platformInfo = context_->GetPlatformInfo();
     if (platformInfo == nullptr) {
         auto compileInfoPtr =
-            reinterpret_cast<const AggregateHiddenGradArch35CompileInfo *>(context_->GetCompileInfo());
+            reinterpret_cast<const MaskedCausalConv1dBackwardArch35CompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_, "compile info is null"), return ge::GRAPH_FAILED);
         totalCoreNum_ = compileInfoPtr->coreNum;
         ubSize_ = compileInfoPtr->ubSize;
@@ -51,7 +51,7 @@ ge::graphStatus AggregateHiddenGradTiling::GetPlatformInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateGradOutputShape()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateGradOutputShape()
 {
     auto shape = context_->GetInputShape(GRAD_OUTPUT_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, shape);
@@ -80,7 +80,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateGradOutputShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateInputShape()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateInputShape()
 {
     auto goShape = context_->GetInputShape(GRAD_OUTPUT_INDEX)->GetOriginShape();
 
@@ -99,7 +99,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateInputShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateWeightShape()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateWeightShape()
 {
     auto wShape = context_->GetInputShape(WEIGHT_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, wShape);
@@ -121,7 +121,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateWeightShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateMaskShape()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateMaskShape()
 {
     auto maskShape = context_->GetOptionalInputShape(MASK_INDEX);
     if (maskShape == nullptr) {
@@ -145,7 +145,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateMaskShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateGradOutputType()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateGradOutputType()
 {
     dataType_ = context_->GetInputDesc(GRAD_OUTPUT_INDEX)->GetDataType();
     OP_CHECK_IF(dataType_ != ge::DataType::DT_FLOAT16 && dataType_ != ge::DataType::DT_BF16,
@@ -156,7 +156,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateGradOutputType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateInputType()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateInputType()
 {
     auto t = context_->GetInputDesc(INPUT_INDEX)->GetDataType();
     OP_CHECK_IF(t != dataType_,
@@ -166,7 +166,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateInputType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateWeightType()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateWeightType()
 {
     auto t = context_->GetInputDesc(WEIGHT_INDEX)->GetDataType();
     OP_CHECK_IF(t != dataType_,
@@ -176,7 +176,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateWeightType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ValidateMaskType()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ValidateMaskType()
 {
     auto desc = context_->GetOptionalInputDesc(MASK_INDEX);
     if (desc == nullptr) {
@@ -190,7 +190,7 @@ ge::graphStatus AggregateHiddenGradTiling::ValidateMaskType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::CheckInputParams()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::CheckInputParams()
 {
     // Shapes
     OP_CHECK_IF(ValidateGradOutputShape() != ge::GRAPH_SUCCESS,
@@ -215,19 +215,19 @@ ge::graphStatus AggregateHiddenGradTiling::CheckInputParams()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::GetShapeAttrsInfo()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::GetShapeAttrsInfo()
 {
-    OP_CHECK_IF(context_ == nullptr, OP_LOGE("AggregateHiddenGrad", "context is null"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_ == nullptr, OP_LOGE("MaskedCausalConv1dBackward", "context is null"), return ge::GRAPH_FAILED);
 
     // 收集形状和类型，并做完整校验
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "AggregateHiddenGrad CheckInputParams FAILED."),
+                OP_LOGE(context_->GetNodeName(), "MaskedCausalConv1dBackward CheckInputParams FAILED."),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ComputeInterCoreSplit()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeInterCoreSplit()
 {
     // 仅沿 H 方向按 64 切分
     // 根据文档：主核处理的H会比尾核多64(hMainSize = hTailSize + 64)
@@ -260,7 +260,7 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeInterCoreSplit()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeIntraCoreUbTiling()
 {
     // UB 预留系统空间
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - SYSTEM_RESERVED_UB_SIZE;
@@ -342,12 +342,12 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
     if (hTailCoreCnt_ > 0 && hTailSize_ > 0) {
         // 尾核可能需要不同的H循环次数
         int64_t tailCoreH = hTailSize_;
-        tailHloopCnt_ = (tailCoreH + hUB_ - 1) / hUB_;
+        tailHLoopCnt_ = (tailCoreH + hUB_ - 1) / hUB_;
         tailBLoopCnt_ = bLoopCnt_;  // B和S的循环次数保持一致
         tailSLoopCnt_ = sLoopCnt_;
 
         tailCoreUbMainFactorH_ = hUB_;
-        tailCoreUbTailFactorH_ = (tailHloopCnt_ == 1) ? hUB_ :
+        tailCoreUbTailFactorH_ = (tailHLoopCnt_ == 1) ? hUB_ :
                                  (tailCoreH % hUB_ == 0 ? hUB_ : tailCoreH % hUB_);
 
         tailCoreUbMainFactorB_ = ubMainFactorB_;
@@ -357,7 +357,7 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
         tailCoreUbTailFactorS_ = ubTailFactorS_;
     } else {
         // 没有尾核，或尾核参数与主核相同
-        tailHloopCnt_ = hLoopCnt_;
+        tailHLoopCnt_ = hLoopCnt_;
         tailBLoopCnt_ = bLoopCnt_;
         tailSLoopCnt_ = sLoopCnt_;
 
@@ -377,7 +377,7 @@ ge::graphStatus AggregateHiddenGradTiling::ComputeIntraCoreUbTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::DoOpTiling()
 {
     OP_CHECK_IF(ComputeInterCoreSplit() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "ComputeInterCoreSplit failed"), return ge::GRAPH_FAILED);
@@ -393,7 +393,7 @@ ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
     tilingData_.hTailSize = hTailSize_;
 
     // 主核循环参数
-    tilingData_.hloopCnt = hLoopCnt_;
+    tilingData_.hLoopCnt = hLoopCnt_;
     tilingData_.bLoopCnt = bLoopCnt_;
     tilingData_.sLoopCnt = sLoopCnt_;
 
@@ -406,7 +406,7 @@ ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
     tilingData_.ubTailFactorS = ubTailFactorS_;
 
     // 尾核循环参数
-    tilingData_.tailHloopCnt = tailHloopCnt_;
+    tilingData_.tailHLoopCnt = tailHLoopCnt_;
     tilingData_.tailBLoopCnt = tailBLoopCnt_;
     tilingData_.tailSLoopCnt = tailSLoopCnt_;
 
@@ -428,23 +428,23 @@ ge::graphStatus AggregateHiddenGradTiling::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::DoLibApiTiling()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::DoLibApiTiling()
 {
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t AggregateHiddenGradTiling::GetTilingKey() const
+uint64_t MaskedCausalConv1dBackwardTiling::GetTilingKey() const
 {
     // 可按 dtype 区分，当前返回 0
     if (dataType_ == ge::DataType::DT_BF16) {
-        return TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16;
+        return TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_BF16;
     } else if (dataType_ == ge::DataType::DT_FLOAT16) {
-        return TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16;
+        return TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_FP16;
     }
     
 }
 
-ge::graphStatus AggregateHiddenGradTiling::GetWorkspaceSize()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::GetWorkspaceSize()
 {
     auto platformInfo = context_->GetPlatformInfo();
     uint32_t sysWorkspaceSize = 0;
@@ -457,14 +457,14 @@ ge::graphStatus AggregateHiddenGradTiling::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AggregateHiddenGradTiling::PostTiling()
+ge::graphStatus MaskedCausalConv1dBackwardTiling::PostTiling()
 {
     // 设置核数
     context_->SetBlockDim(static_cast<uint32_t>(usedCoreNum_));
 
     // 保存 tiling 数据
     auto *raw = context_->GetRawTilingData();
-    auto tilingDataSize = sizeof(AggregateHiddenGradTilingDataV35);
+    auto tilingDataSize = sizeof(MaskedCausalConv1dBackwardTilingDataV35);
     errno_t ret = memcpy_s(raw->GetData(), raw->GetCapacity(), reinterpret_cast<void *>(&tilingData_), tilingDataSize);
     if (ret != EOK) {
         OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
@@ -476,9 +476,9 @@ ge::graphStatus AggregateHiddenGradTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void AggregateHiddenGradTiling::DumpTilingInfo()
+void MaskedCausalConv1dBackwardTiling::DumpTilingInfo()
 {
-    OP_LOGI(context_->GetNodeName(), "=== AggregateHiddenGrad DumpTilingInfo ===");
+    OP_LOGI(context_->GetNodeName(), "=== MaskedCausalConv1dBackward DumpTilingInfo ===");
     OP_LOGI(context_->GetNodeName(), "S=%ld B=%ld H=%ld W=%ld", S_, B_, H_, W_);
     OP_LOGI(context_->GetNodeName(), "hasMask=%ld dtypeSize=%zu", hasMask_, dtypeSize_);
     OP_LOGI(context_->GetNodeName(), "totalCoreNum=%lu usedCoreNum=%ld", totalCoreNum_, usedCoreNum_);

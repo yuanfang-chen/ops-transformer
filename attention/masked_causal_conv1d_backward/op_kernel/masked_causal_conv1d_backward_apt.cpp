@@ -9,22 +9,22 @@
  */
 
 /*!
-* \file aggregate_hidden_grad_apt.cpp
-* \brief AICore entry for aggregate_hidden_grad
+* \file masked_causal_conv1d_backward_apt.cpp
+* \brief AICore entry for masked_causal_conv1d_backward
 */
 
 #include "kernel_operator.h"
-#include "arch35/aggregate_hidden_grad.h"
-#include "arch35/aggregate_hidden_grad_struct.h"
+#include "arch35/masked_causal_conv1d_backward.h"
+#include "arch35/masked_causal_conv1d_backward_struct.h"
 
-#define TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16 10000
-#define TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16 10001
+#define TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_BF16 10000
+#define TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_FP16 10001
 
 using namespace AscendC;
-using AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35;
-using AggregateHiddenGradKernelNS::AggregateHiddenGradKernel;
+using MaskedCausalConv1dBackwardArch35Tiling::MaskedCausalConv1dBackwardTilingDataV35;
+using MaskedCausalConv1dBackwardKernelNS::MaskedCausalConv1dBackwardKernel;
 
-extern "C" __global__ __aicore__ void aggregate_hidden_grad(GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight,
+extern "C" __global__ __aicore__ void masked_causal_conv1d_backward(GM_ADDR grad_output, GM_ADDR input, GM_ADDR weight,
                                                             GM_ADDR mask, GM_ADDR grad_input, GM_ADDR grad_weight,
                                                             GM_ADDR workspace, GM_ADDR tiling)
 {
@@ -32,17 +32,17 @@ extern "C" __global__ __aicore__ void aggregate_hidden_grad(GM_ADDR grad_output,
         return;
     }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
-    REGISTER_TILING_DEFAULT(AggregateHiddenGradTilingDataV35);
-    GET_TILING_DATA_WITH_STRUCT(AggregateHiddenGradTilingDataV35, td, tiling);
+    REGISTER_TILING_DEFAULT(MaskedCausalConv1dBackwardTilingDataV35);
+    GET_TILING_DATA_WITH_STRUCT(MaskedCausalConv1dBackwardTilingDataV35, td, tiling);
     
     TPipe pipe;
-    if (TILING_KEY_IS(TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16)) {
-        AggregateHiddenGradKernel<bfloat16_t> op;
+    if (TILING_KEY_IS(TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_BF16)) {
+        MaskedCausalConv1dBackwardKernel<bfloat16_t> op;
         op.Init(grad_output, input, weight, mask, grad_input, grad_weight, &td, &pipe);
         op.Process();
     }
-    else if(TILING_KEY_IS(TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16)) {
-        AggregateHiddenGradKernel<half> op;
+    else if(TILING_KEY_IS(TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_FP16)) {
+        MaskedCausalConv1dBackwardKernel<half> op;
         op.Init(grad_output, input, weight, mask, grad_input, grad_weight, &td, &pipe);
         op.Process();
     }

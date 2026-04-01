@@ -1,9 +1,9 @@
 {
-    "op_type": "AggregateHiddenGrad",
+    "op_type": "MaskedCausalConv1dBackward",
     "optional_input_mode": "gen_placeholder",
     "op_list": [
         {
-            "bin_filename": "AggregateHiddenGrad_fp16",
+            "bin_filename": "MaskedCausalConv1dBackward_fp16",
             "inputs": [
                 {
                     "name": "grad_output",
@@ -70,7 +70,7 @@
             ]
         },
         {
-            "bin_filename": "AggregateHiddenGrad_bf16",
+            "bin_filename": "MaskedCausalConv1dBackward_bf16",
             "inputs": [
                 {
                     "name": "grad_output",

@@ -18,8 +18,8 @@
 #include "opdev/op_log.h"
 #include "aclnn_kernels/cast.h"
 #include "opdev/common_types.h"
-#include "aggregate_hidden_grad.h"
-#include "aclnn_aggregate_hidden_grad.h"
+#include "masked_causal_conv1d_backward.h"
+#include "aclnn_masked_causal_conv1d_backward.h"
 
 using namespace op;
 
@@ -29,7 +29,7 @@ extern "C" {
 
 namespace {
 
-aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const aclTensor *input,
+aclnnStatus MaskedCausalConv1dBackwardCommonProcess(const aclTensor *grad_output, const aclTensor *input,
                                              const aclTensor *weight, const aclTensor *mask, aclTensor *grad_input,
                                              aclTensor *grad_weight, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
@@ -53,7 +53,7 @@ aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const
         CHECK_COND(mask != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous mask failed.");
     }
 
-    bool ok = l0op::AggregateHiddenGrad(goFinal, inFinal, weight, mask, grad_input, grad_weight, uniqueExecutor.get());
+    bool ok = l0op::MaskedCausalConv1dBackward(goFinal, inFinal, weight, mask, grad_input, grad_weight, uniqueExecutor.get());
     CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
@@ -63,21 +63,21 @@ aclnnStatus AggregateHiddenGradCommonProcess(const aclTensor *grad_output, const
 
 } // namespace
 
-ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
+ACLNN_API aclnnStatus aclnnMaskedCausalConv1dBackwardGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
                                                                const aclTensor *weight, const aclTensor *mask,
                                                                aclTensor *grad_input, aclTensor *grad_weight,
                                                                uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(aclnnAggregateHiddenGrad, DFX_IN(grad_output, input, weight, mask),
+    L2_DFX_PHASE_1(aclnnMaskedCausalConv1dBackward, DFX_IN(grad_output, input, weight, mask),
                    DFX_OUT(grad_input, grad_weight));
-    return AggregateHiddenGradCommonProcess(grad_output, input, weight, mask, grad_input, grad_weight, workspaceSize,
+    return MaskedCausalConv1dBackwardCommonProcess(grad_output, input, weight, mask, grad_input, grad_weight, workspaceSize,
                                             executor);
 }
 
-ACLNN_API aclnnStatus aclnnAggregateHiddenGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+ACLNN_API aclnnStatus aclnnMaskedCausalConv1dBackward(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                aclrtStream stream)
 {
-    L2_DFX_PHASE_2(aclnnAggregateHiddenGrad);
+    L2_DFX_PHASE_2(aclnnMaskedCausalConv1dBackward);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 

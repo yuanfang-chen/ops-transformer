@@ -9,16 +9,16 @@
  */
 
 /*!
- * \file aggregate_hidden_grad_struct.h
- * \brief Tiling data struct for aggregate_hidden_grad on arch35
+ * \file masked_causal_conv1d_backward_struct.h
+ * \brief Tiling data struct for masked_causal_conv1d_backward on arch35
  */
 
-#ifndef AGGREGATE_HIDDEN_GRAD_STRUCT_H
-#define AGGREGATE_HIDDEN_GRAD_STRUCT_H
+#ifndef MASK_EDCAUSAL_CONV1D_BACKWARD_STRUCT_H
+#define MASK_EDCAUSAL_CONV1D_BACKWARD_STRUCT_H
 
-namespace AggregateHiddenGradArch35Tiling {
+namespace MaskedCausalConv1dBackwardArch35Tiling {
 
-struct AggregateHiddenGradTilingDataV35 {
+struct MaskedCausalConv1dBackwardTilingDataV35 {
     // 核间切分参数
     int64_t hMainCoreCnt{0};           // h维度主核核数
     int64_t hTailCoreCnt{0};           // h维度尾核核数
@@ -26,7 +26,7 @@ struct AggregateHiddenGradTilingDataV35 {
     int64_t hTailSize{0};              // h维度尾核处理的大小
 
     // 主核循环参数
-    int64_t hloopCnt{0};               // 主核UB内h维度循环次数
+    int64_t hLoopCnt{0};               // 主核UB内h维度循环次数
     int64_t bLoopCnt{0};               // 主核UB内b维度循环次数
     int64_t sLoopCnt{0};               // 主核UB内s维度循环次数
 
@@ -39,7 +39,7 @@ struct AggregateHiddenGradTilingDataV35 {
     int64_t ubTailFactorS{0};          // 主核UB内s维度尾块大小
 
     // 尾核循环参数
-    int64_t tailHloopCnt{0};           // 尾核UB内h维度循环次数
+    int64_t tailHLoopCnt{0};           // 尾核UB内h维度循环次数
     int64_t tailBLoopCnt{0};           // 尾核UB内b维度循环次数
     int64_t tailSLoopCnt{0};           // 尾核UB内s维度循环次数
 
@@ -60,6 +60,6 @@ struct AggregateHiddenGradTilingDataV35 {
 };
 
 
-} // namespace AggregateHiddenGradArch35Tiling
+} // namespace MaskedCausalConv1dBackwardArch35Tiling
 
-#endif // OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_KERNEL_ARCH35_STRUCT_H
+#endif // OPS_TRANSFORMER_ATTENTION_MASK_EDCAUSAL_CONV1D_BACKWARD_OP_KERNEL_ARCH35_STRUCT_H

@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_INC_ACLNN_AGGREGATE_HIDDEN_GRAD_H_
-#define OP_API_INC_ACLNN_AGGREGATE_HIDDEN_GRAD_H_
+#ifndef OP_API_INC_ACLNN_MASK_EDCAUSAL_CONV1D_BACKWARD_H_
+#define OP_API_INC_ACLNN_MASK_EDCAUSAL_CONV1D_BACKWARD_H_
 
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
@@ -19,17 +19,17 @@ extern "C" {
 #endif
 
 /**
- * @brief AggregateHiddenGrad 第一段接口：生成执行器，并返回 workspace 大小。
+ * @brief MaskedCausalConv1dBackward 第一段接口：生成执行器，并返回 workspace 大小。
  */
-ACLNN_API aclnnStatus aclnnAggregateHiddenGradGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
+ACLNN_API aclnnStatus aclnnMaskedCausalConv1dBackwardGetWorkspaceSize(const aclTensor *grad_output, const aclTensor *input,
                                                                const aclTensor *weight, const aclTensor *mask,
                                                                aclTensor *grad_input, aclTensor *grad_weight,
                                                                uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
- * @brief AggregateHiddenGrad 第二段接口：执行计算。
+ * @brief MaskedCausalConv1dBackward 第二段接口：执行计算。
  */
-ACLNN_API aclnnStatus aclnnAggregateHiddenGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+ACLNN_API aclnnStatus aclnnMaskedCausalConv1dBackward(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                aclrtStream stream);
 
 #ifdef __cplusplus

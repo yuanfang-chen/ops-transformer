@@ -8,14 +8,14 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_INC_LEVEL0_AGGREGATE_HIDDEN_GRAD_L0OP_H_
-#define OP_API_INC_LEVEL0_AGGREGATE_HIDDEN_GRAD_L0OP_H_
+#ifndef OP_API_INC_LEVEL0_MASK_EDCAUSAL_CONV1D_BACKWARD_L0OP_H_
+#define OP_API_INC_LEVEL0_MASK_EDCAUSAL_CONV1D_BACKWARD_L0OP_H_
 
 #include <tuple>
 #include "opdev/op_executor.h"
 
 namespace l0op {
-// Level-0 API for AggregateHiddenGrad (AICORE path)
+// Level-0 API for MaskedCausalConv1dBackward (AICORE path)
 // Inputs:
 //  grad_output: [S, B, H], FLOAT16/BFLOAT16
 //  input:       [S, B, H], FLOAT16/BFLOAT16
@@ -24,8 +24,8 @@ namespace l0op {
 // Outputs:
 //  grad_input:  [S, B, H]
 //  grad_weight: [W, H]
-bool AggregateHiddenGrad(const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight,
+bool MaskedCausalConv1dBackward(const aclTensor *grad_output, const aclTensor *input, const aclTensor *weight,
                          const aclTensor *mask, aclTensor *grad_input, aclTensor *grad_weight, aclOpExecutor *executor);
 } // namespace l0op
 
-#endif // OP_API_INC_LEVEL0_AGGREGATE_HIDDEN_GRAD_L0OP_H_
+#endif // OP_API_INC_LEVEL0_MASK_EDCAUSAL_CONV1D_BACKWARD_L0OP_H_

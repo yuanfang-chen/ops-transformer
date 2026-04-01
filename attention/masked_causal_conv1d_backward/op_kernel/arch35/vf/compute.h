@@ -10,11 +10,11 @@
 
 /*!
  * \file compute.h
- * \brief MicroAPI VF helpers for aggregate_hidden_grad (W=3)
+ * \brief MicroAPI VF helpers for masked_causal_conv1d_backward (W=3)
  */
 
-#ifndef AGGREGATE_HIDDEN_GRAD_VF_COMPUTE_H
-#define AGGREGATE_HIDDEN_GRAD_VF_COMPUTE_H
+#ifndef MASK_EDCAUSAL_CONV1D_BACKWARD_VF_COMPUTE_H
+#define MASK_EDCAUSAL_CONV1D_BACKWARD_VF_COMPUTE_H
 
 #include "kernel_operator.h"
 
@@ -189,4 +189,4 @@ __aicore__ inline void DoGradWeightAcc(LocalTensor<T> &goUb, LocalTensor<T> &inU
 
 } // namespace AggHiddenGradVF
 
-#endif // AGGREGATE_HIDDEN_GRAD_VF_COMPUTE_H
+#endif // MASK_EDCAUSAL_CONV1D_BACKWARD_VF_COMPUTE_H

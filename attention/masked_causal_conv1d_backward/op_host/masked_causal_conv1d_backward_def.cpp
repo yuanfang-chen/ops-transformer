@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file aggregate_hidden_grad_def.cpp
- * \brief aggregate_hidden_grad define
+ * \file masked_causal_conv1d_backward_def.cpp
+ * \brief masked_causal_conv1d_backward define
  */
 
 #include "register/op_def_registry.h"
 
 namespace ops {
 
-class AggregateHiddenGrad : public OpDef {
+class MaskedCausalConv1dBackward : public OpDef {
 public:
-    explicit AggregateHiddenGrad(const char *name) : OpDef(name)
+    explicit MaskedCausalConv1dBackward(const char *name) : OpDef(name)
     {
         this->Input("grad_output")
             .ParamType(REQUIRED)
@@ -54,10 +54,10 @@ public:
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true)
-            .ExtendCfgInfo("opFile.value", "aggregate_hidden_grad_apt");
+            .ExtendCfgInfo("opFile.value", "masked_causal_conv1d_backward_apt");
         this->AICore().AddConfig("ascend950", config_950);
     }
 };
 
-OP_ADD(AggregateHiddenGrad);
+OP_ADD(MaskedCausalConv1dBackward);
 } // namespace ops

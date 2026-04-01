@@ -9,27 +9,27 @@
  */
 
 /*!
- * \file aggregate_hidden_grad.cpp
- * \brief Main tiling entry for AggregateHiddenGrad
+ * \file masked_causal_conv1d_backward.cpp
+ * \brief Main tiling entry for MaskedCausalConv1dBackward
  */
 
 #include "log/log.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "aggregate_hidden_grad_tiling_arch35.h"
+#include "masked_causal_conv1d_backward_tiling_arch35.h"
 
 namespace optiling {
 
-static ge::graphStatus TilingAggregateHiddenGrad(gert::TilingContext *context)
+static ge::graphStatus TilingMaskedCausalConv1dBackward(gert::TilingContext *context)
 {
-    AggregateHiddenGradTiling tiling(context);
+    MaskedCausalConv1dBackwardTiling tiling(context);
     return tiling.DoTiling();
 }
 
-static ge::graphStatus TilingPrepareForAggregateHiddenGrad(gert::TilingParseContext *context)
+static ge::graphStatus TilingPrepareForMaskedCausalConv1dBackward(gert::TilingParseContext *context)
 {
-    OP_CHECK_IF(context == nullptr, OP_LOGE("AggregateHiddenGrad", "context is null"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context == nullptr, OP_LOGE("MaskedCausalConv1dBackward", "context is null"), return ge::GRAPH_FAILED);
 
     auto platformInfo = context->GetPlatformInfo();
     OP_CHECK_IF(platformInfo == nullptr, OP_LOGE(context->GetNodeName(), "platformInfo is null"),
@@ -40,8 +40,8 @@ static ge::graphStatus TilingPrepareForAggregateHiddenGrad(gert::TilingParseCont
 
 
 // Register main tiling entry
-IMPL_OP_OPTILING(AggregateHiddenGrad)
-    .Tiling(TilingAggregateHiddenGrad)
-    .TilingParse<AggregateHiddenGradArch35CompileInfo>(TilingPrepareForAggregateHiddenGrad);
+IMPL_OP_OPTILING(MaskedCausalConv1dBackward)
+    .Tiling(TilingMaskedCausalConv1dBackward)
+    .TilingParse<MaskedCausalConv1dBackwardArch35CompileInfo>(TilingPrepareForMaskedCausalConv1dBackward);
 
 } // namespace optiling

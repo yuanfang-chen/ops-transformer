@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file aggregate_hidden_grad_arch35.h
- * \brief AggregateHiddenGrad tiling implementation
+ * \file masked_causal_conv1d_backward_arch35.h
+ * \brief MaskedCausalConv1dBackward tiling implementation
  */
 
-#ifndef AGGREGATE_HIDDEN_GRAD_TILING_ARCH35_H
-#define AGGREGATE_HIDDEN_GRAD_TILING_ARCH35_H
+#ifndef MASK_EDCAUSAL_CONV1D_BACKWARD_TILING_ARCH35_H
+#define MASK_EDCAUSAL_CONV1D_BACKWARD_TILING_ARCH35_H
 
 #include "log/log.h"
 #include "platform/platform_info.h"
@@ -24,18 +24,18 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "util/platform_util.h"
 #include "util/shape_util.h"
-#include "../op_kernel/arch35/aggregate_hidden_grad_struct.h"
+#include "../op_kernel/arch35/masked_causal_conv1d_backward_struct.h"
 
 namespace optiling {
 
 // CompileInfo structure for platform information (arch35)
-struct AggregateHiddenGradArch35CompileInfo {
+struct MaskedCausalConv1dBackwardArch35CompileInfo {
     uint64_t coreNum = 0;
     uint64_t ubSize = 0;
 };
 
-constexpr uint64_t TILING_KEY_AGGREGATE_HIDDEN_GRAD_BF16 = 10000;
-constexpr uint64_t TILING_KEY_AGGREGATE_HIDDEN_GRAD_FP16 = 10001;
+constexpr uint64_t TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_BF16 = 10000;
+constexpr uint64_t TILING_KEY_MASK_EDCAUSAL_CONV1D_BACKWARD_FP16 = 10001;
 
 // Input tensor indices
 constexpr int32_t GRAD_OUTPUT_INDEX = 0;
@@ -55,9 +55,9 @@ constexpr int64_t DIM_0 = 0; // S or W
 constexpr int64_t DIM_1 = 1; // B or H
 constexpr int64_t DIM_2 = 2; // H
 
-class AggregateHiddenGradTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class MaskedCausalConv1dBackwardTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit AggregateHiddenGradTiling(gert::TilingContext *context) : TilingBaseClass(context)
+    explicit MaskedCausalConv1dBackwardTiling(gert::TilingContext *context) : TilingBaseClass(context)
     {
     }
 
@@ -138,7 +138,7 @@ private:
     int64_t ubTailFactorS_ = 0;
 
     // 新增：尾核参数
-    int64_t tailHloopCnt_ = 0;
+    int64_t tailHLoopCnt_ = 0;
     int64_t tailBLoopCnt_ = 0;
     int64_t tailSLoopCnt_ = 0;
 
@@ -150,9 +150,9 @@ private:
     int64_t tailCoreUbTailFactorS_ = 0;
 
     // TilingData object
-    AggregateHiddenGradArch35Tiling::AggregateHiddenGradTilingDataV35 tilingData_{};
+    MaskedCausalConv1dBackwardArch35Tiling::MaskedCausalConv1dBackwardTilingDataV35 tilingData_{};
 };
 
 } // namespace optiling
 
-#endif // OPS_TRANSFORMER_ATTENTION_AGGREGATE_HIDDEN_GRAD_OP_HOST_H
+#endif // OPS_TRANSFORMER_ATTENTION_MASK_EDCAUSAL_CONV1D_BACKWARD_OP_HOST_H

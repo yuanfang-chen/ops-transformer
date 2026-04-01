@@ -9,41 +9,41 @@
  */
 
 /*!
- * \file test_aggregate_hidden_grad_tiling.cpp
- * \brief Unit tests for AggregateHiddenGrad tiling logic
+ * \file test_masked_causal_conv1d_backward_tiling.cpp
+ * \brief Unit tests for MaskedCausalConv1dBackward tiling logic
  */
 
 #include <iostream>
 #include <gtest/gtest.h>
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
-#include "../../../op_host/aggregate_hidden_grad_tiling_arch35.h"
+#include "../../../op_host/masked_causal_conv1d_backward_tiling_arch35.h"
 
 using namespace std;
 
-class AggregateHiddenGradTiling : public testing::Test {
+class MaskedCausalConv1dBackwardTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AggregateHiddenGradTiling SetUp" << std::endl;
+        std::cout << "MaskedCausalConv1dBackwardTiling SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AggregateHiddenGradTiling TearDown" << std::endl;
+        std::cout << "MaskedCausalConv1dBackwardTiling TearDown" << std::endl;
     }
 };
 
 
-TEST_F(AggregateHiddenGradTiling, AggregateHiddenGrad_950)
+TEST_F(MaskedCausalConv1dBackwardTiling, MaskedCausalConv1dBackward_950)
 {
-    optiling::AggregateHiddenGradArch35CompileInfo compileInfo = {64, 261888};
+    optiling::MaskedCausalConv1dBackwardArch35CompileInfo compileInfo = {64, 261888};
 
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
 
     };
 
-    gert::TilingContextPara tilingContextPara("AggregateHiddenGrad",
+    gert::TilingContextPara tilingContextPara("MaskedCausalConv1dBackward",
                                               {
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
                                                   {{{4, 1, 512}, {4, 1, 512}}, ge::DT_BF16, ge::FORMAT_ND},
