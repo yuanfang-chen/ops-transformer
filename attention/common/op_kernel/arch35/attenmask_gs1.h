@@ -172,7 +172,7 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     dataCopyParams.blockLen = info.s2dealNum;
     dataCopyParams.srcStride = info.attenMaskS1Stride - info.s2dealNum;
     dataCopyParams.dstStride = info.attenMaskDstStride;
-    DataCopyPadExtParams<T> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 1U};      // TODO，后续确认影响
+    DataCopyPadExtParams<T> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 1U};
 
     DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
 }
@@ -309,9 +309,9 @@ template <typename T>
 __aicore__ inline void AttentionmaskCopyGS1(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
     if (info.layout == LAYOUT_Q::GS) {
-        AttentionmaskCopyInForGsLayout(attenMaskUb, srcGmAddr, info, false);
+        AttentionmaskCopyInForGsLayout(attenMaskUb, srcGmAddr, info, isPre);
     } else if (info.layout == LAYOUT_Q::SG) {
-        AttentionmaskCopyInForSgLayout(attenMaskUb, srcGmAddr, info, false);
+        AttentionmaskCopyInForSgLayout(attenMaskUb, srcGmAddr, info, isPre);
     }
 }
 #endif
