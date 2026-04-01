@@ -47,6 +47,8 @@ protected:
 
     ge::graphStatus PostTiling() override;
 
+    CutResult GetTilingResult() override;
+
     Mc2Tiling::RCSTiling &MutableRCSTilingData()
     {
         return allGatherMatmulTilingDataV2_->param;
