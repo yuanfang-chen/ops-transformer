@@ -74,7 +74,7 @@ OAT Compliance Check.....................................................Passed
 # 运行所有检查
 pre-commit run
 
-# 运行特定检查
+# 运行特定类型检查
 pre-commit run clang-format
 pre-commit run oat-check
 
