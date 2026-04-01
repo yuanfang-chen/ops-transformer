@@ -1412,9 +1412,7 @@ ge::graphStatus FiaInfoParser::Parse(FiaTilingInfo &fiaInfo)
     GetInOutDataType();
     GetKvStorageMode();
     GetQuantMode();
-    if (ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag()) {
-        return ge::GRAPH_FAILED;
-    }
+    
     if (ge::GRAPH_SUCCESS != GetAntiQuantInfo()) {
         return ge::GRAPH_FAILED;
     }
@@ -1446,6 +1444,9 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
         return ge::GRAPH_FAILED;
     }
     GetUpdateInfo();
+    if (ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag()) {
+        return ge::GRAPH_FAILED;
+    }
     if (ge::GRAPH_SUCCESS != GetBatchSize() || ge::GRAPH_SUCCESS != GetS1Size()) {
         return ge::GRAPH_FAILED;
     }
