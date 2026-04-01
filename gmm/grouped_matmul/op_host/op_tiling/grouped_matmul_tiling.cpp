@@ -586,8 +586,9 @@ void GMMTiling::DivideUbAndSetWorkspaceAntiquant(size_t* workspaces, const uint3
 
 int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
   uint64_t quantGroupNum = tilingData.gmmBaseParams.get_quantGroupNum();
+  bool isDtypeSupport = (isA16W16_ || isA8W8_ || (isA4W4_ && quantGroupNum == 1));
   // A8W8模式以及A4W4 Perchannel模式支持动态分块
-  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8_ || (isA4W4_ && quantGroupNum == 1)) ) {
+  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !isDtypeSupport) {
     return baseN_;
   }
   int32_t mDim = CeilDiv(tuningConfig_ , baseM_);
@@ -873,7 +874,7 @@ ge::graphStatus GMMTiling::RunFusionKernelTiling(gert::TilingContext* context) {
   if (aicNum == 0U) {  // invaild value
     return ge::GRAPH_FAILED;
   }
-  usedCoreNum_ = aicNum;
+  usedCoreNum_ = CalUsedCoreNum(aicNum);
 
   OP_CHECK_IF(CalMMTiling(context, compileInfoPtr) != ge::GRAPH_SUCCESS,
              OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "GMM CalMMTiling failed"), return ge::GRAPH_FAILED);
@@ -1191,6 +1192,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
     tilingData.gmmBaseParams.set_quantGroupNum(quantGroupNum);
   }
   isA8W8_ = (xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT8);
+  isA8W4_ = (xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT4);
   isA4W4_ = xDType_ == ge::DT_INT4 && weightDtype_ == ge::DT_INT4;
   isA16W16_ = (xDType_ == ge::DT_FLOAT16 && weightDtype_ == ge::DT_FLOAT16) || (xDType_ == ge::DT_BF16 && weightDtype_ == ge::DT_BF16);
   auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
@@ -1498,6 +1500,20 @@ void GMMTiling::SetMMPreTiling() {
   }
   tilingData.gmmBaseParams.set_isPreTiling(ispreTiling);
   return;
+}
+
+// 计算最多分多少个基本块，如果基本块个数小于cube核数，则减少启动核数。
+uint32_t GMMTiling::CalUsedCoreNum(const uint32_t aicNum) {
+  uint32_t usedCoreNum = aicNum;
+  if(isA8W4_) {
+    return usedCoreNum;
+  }
+  uint32_t nDim = CeilDiv(maxN_, baseN_);
+  uint32_t mDim = groupNum_ + ((maxM_ - groupNum_) / baseM_);
+  if(mDim * nDim < aicNum) {
+    usedCoreNum = mDim * nDim;
+  }
+  return usedCoreNum;
 }
 
 ge::graphStatus GMMTiling::CalMMTiling(const gert::TilingContext* context, const GMMCompileInfo* compileInfoPtr) {
