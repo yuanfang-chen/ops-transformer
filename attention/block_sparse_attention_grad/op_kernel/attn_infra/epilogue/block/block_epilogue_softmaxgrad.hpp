@@ -197,7 +197,6 @@ public:
     __aicore__ inline
     void operator()<AscendC::AIC>(uint64_t startIdx, uint64_t singleCoreCount)
     {
-
     }
 
     /*
@@ -214,7 +213,7 @@ public:
             return;
         }
 
-        normalCoreLoopTimes = CeilDiv(singleCoreRowCount, singleLoopNBurstNum); // loop次数 
+        normalCoreLoopTimes = CeilDiv(singleCoreRowCount, singleLoopNBurstNum); // loop次数
         normalCoreLastLoopNBurstNum = singleCoreRowCount - (normalCoreLoopTimes - 1) * singleLoopNBurstNum; // 尾循环处理行数
 
         uint64_t singleCoreLoop = normalCoreLoopTimes;
