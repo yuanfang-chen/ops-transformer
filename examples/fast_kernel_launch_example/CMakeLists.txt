@@ -28,6 +28,12 @@ set(NPU_ARCH "ascend910b" CACHE STRING "NPU architecture")
 # set EXTENSION_MODULE_NAME to `ascend_ops`
 set(EXTENSION_MODULE_NAME "ascend_ops" CACHE STRING "Extension module name")
 
+if(DEFINED ENV{ASCEND_HOME_PATH})
+    set(ASCEND_HOME "$ENV{ASCEND_HOME_PATH}" CACHE PATH "Ascend installation path" FORCE)
+else()
+    set(ASCEND_HOME "/usr/local/Ascend/latest" CACHE PATH "Ascend installation path")
+endif()
+
 # include directories
 set(INCLUDE_DIRECTORIES
     ${Python3_INCLUDE_DIRS}
@@ -36,6 +42,8 @@ set(INCLUDE_DIRECTORIES
     ${ASCEND_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../..
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common/inc
+    ${ASCEND_HOME}/pkg_inc/op_common
+    ${ASCEND_HOME}/pkg_inc/base
 )
 
 # link directories
