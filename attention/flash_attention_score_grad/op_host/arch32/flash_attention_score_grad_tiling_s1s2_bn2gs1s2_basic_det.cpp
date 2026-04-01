@@ -444,7 +444,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::GetWorkspaceSize()
     constexpr size_t matmulSize = 16 * 128 * 128;
 
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    size_t workspaceOffset = WORKSPACE_RSV_BYTE;
+    size_t workspaceOffset = 0;
 
     // matmal3 q
     tilingData->basicDetTensorTilingData.set_dqWorkSpaceOffset(workspaceOffset);
