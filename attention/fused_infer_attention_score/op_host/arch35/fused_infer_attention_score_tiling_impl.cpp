@@ -111,6 +111,7 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
         pfaMergeFlag_ = !(fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
             fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 || fiaInfo.isOutQuantEnable ||
             fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
+            fiaInfo.kvStorageMode == KvStorageMode::TENSOR_LIST ||
             fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
     }
 
