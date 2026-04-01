@@ -40,7 +40,8 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
     GET_TILING_DATA(tilingData, tiling);
     GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
-
+    
+    AscendC::printf("Hello World\n");
     // mode: rotate_half
     if (TILING_KEY_IS(1011)) {
         RotateHalf<float> rotateHalfOp;
