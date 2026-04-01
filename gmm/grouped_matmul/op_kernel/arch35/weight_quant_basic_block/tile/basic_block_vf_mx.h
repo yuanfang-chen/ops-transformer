@@ -15,7 +15,7 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 
-#include "../block/basic_block_config.h"
+#include "../prologue/tool.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
 #else

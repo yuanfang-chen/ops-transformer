@@ -15,7 +15,6 @@
 #ifndef GROUPED_MATMUL_MXFP8FP4_PROLOGUE_MX_CAST_W_H
 #define GROUPED_MATMUL_MXFP8FP4_PROLOGUE_MX_CAST_W_H
 
-#include "../block/basic_block_config.h"
 #include "../tile/basic_block_vf_mx.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
@@ -46,7 +45,34 @@ using AscendC::MicroAPI::MaskReg;
 using AscendC::MicroAPI::RegTensor;
 using AscendC::MicroAPI::TypeGet;
 
-namespace WeightQuantBatchMatmulV2::Arch35 {
+using WeightQuantBatchMatmulV2::Arch35::GetKBUnit;
+using WeightQuantBatchMatmulV2::Arch35::QUADRUPLE_BUFFER_NUM;
+using WeightQuantBatchMatmulV2::Arch35::C0_SIZE_B8;
+using WeightQuantBatchMatmulV2::Arch35::AntiQuantMxA8W4NzNkVf;
+using WeightQuantBatchMatmulV2::Arch35::CeilAlign;
+using WeightQuantBatchMatmulV2::Arch35::CeilDivide;
+using WeightQuantBatchMatmulV2::Arch35::DataCopyPad2D;
+using WeightQuantBatchMatmulV2::Arch35::MxA8W4NzParams;
+using WeightQuantBatchMatmulV2::Arch35::MX_BIAS_SINGLE_VECTOR_SIZE;
+using WeightQuantBatchMatmulV2::Arch35::VEC_MAX_ELEM_B16;
+
+namespace Block {
+
+struct PrologueMxCastWOffsetParam {
+    uint64_t kSize;
+    uint64_t kbL1Size;
+    uint64_t nL1Size;
+    uint64_t nOffset;
+    uint64_t nAlign;
+};
+
+#define WQBMM_PROLOGUE_TEMPLATE_PARAM                                                                                   \
+    template <class XType, class WeightType, class AntiQuantScaleType, class ScaleType, class PerTokenScaleType,       \
+              class BiasType, class YType>
+
+#define WQBMM_PROLOGUE_CLASS                                                                                            \
+    BlockPrologue<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, XType, WeightType, AntiQuantScaleType, ScaleType,  \
+                  PerTokenScaleType, BiasType, YType>
 
 struct UbConsumeConfig {
     uint64_t l1RequireVfComputeRealK;
@@ -75,22 +101,30 @@ struct UbBufferInfo {
     uint64_t biasReducedSingleBufferSize;
 };
 
-__aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo(const VecAntiQuantConfig &vecConfig)
+__aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo(uint64_t ubMte2BufferNum)
 {
     return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
             .weightInputLowbitUbTotalSize = 64 * GetKBUnit<int8_t>(),
             .highBitDataUbTotalSize = 128 * GetKBUnit<int8_t>(),
             .biasUbTotalSize = 2 * GetKBUnit<half>(),
             .biasReducedUbTotalSize = 2 * GetKBUnit<half>(),
-            .weightInputLowBitUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
-            .biasUbSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
-            .biasReducedSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum};
+            .weightInputLowBitUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / ubMte2BufferNum,
+            .biasUbSingleBufferSize = 2 * GetKBUnit<half>() / ubMte2BufferNum,
+            .biasReducedSingleBufferSize = 2 * GetKBUnit<half>() / ubMte2BufferNum};
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-class WeightQuantMatmulBasicBlockAiv {
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+class WQBMM_PROLOGUE_CLASS {
 public:
+    using DispatchPolicy = GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit;
+    using xType = XType;
+    using wType = WeightType;
+    using antiQuantScaleType = AntiQuantScaleType;
+    using scaleType = ScaleType;
+    using perTokenScaleType = PerTokenScaleType;
+    using biasType = BiasType;
+    using yType = YType;
+
     using XDataType = xType;
     using WeightDataType = wType;
     using AntiQuantScaleDataType = antiQuantScaleType;
@@ -98,10 +132,17 @@ public:
     using PerTokenScaleDataType = perTokenScaleType;
     using BiasDataType = biasType;
     using YDataType = yType;
+    static constexpr bool kATrans = false;
+    static constexpr bool kBTrans = true;
+    static constexpr CubeFormat kWeightFormat = CubeFormat::NZ;
+    static constexpr uint64_t kUbMte2BufferNum = GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit::ubMte2BufferNum;
 
-    __aicore__ inline WeightQuantMatmulBasicBlockAiv() = delete;
-    __aicore__ inline WeightQuantMatmulBasicBlockAiv(bool hasBias, uint64_t aPrefetchSize,
-                                                     const TCubeTiling *__restrict matmulTiling);
+    static_assert(!kATrans, "KernelMixDynamicKL1NTailResplit requires non-transposed input A");
+    static_assert(kBTrans, "KernelMixDynamicKL1NTailResplit requires transposed weight B");
+    static_assert(kWeightFormat == CubeFormat::NZ, "KernelMixDynamicKL1NTailResplit requires NZ weight format");
+
+    __aicore__ inline BlockPrologue() = delete;
+    __aicore__ inline BlockPrologue(bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling);
     __aicore__ inline void operator()(__gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable,
                                       uint64_t kSize, uint64_t nL1Size, uint64_t nOffset, uint64_t kbL1Size,
                                       uint64_t nAlign);
@@ -111,8 +152,8 @@ public:
 protected:
     __aicore__ inline void SetAivToAic();
     __aicore__ inline void WaitAicToAiv();
-    __aicore__ inline void ComputeBasicBlockAivNdKnNzNk(const BasicBlockOffsetParam &offsetParam);
-    __aicore__ inline void mxBiasSetParamAndGmtoUb(const BasicBlockOffsetParam &offsetParam,
+    __aicore__ inline void ComputeBasicBlockAivNdKnNzNk(const PrologueMxCastWOffsetParam &offsetParam);
+    __aicore__ inline void mxBiasSetParamAndGmtoUb(const PrologueMxCastWOffsetParam &offsetParam,
                                                    L1ConsumeConfig &l1ConsumeConfig, UbConsumeConfig &ubConsumeConfig,
                                                    const uint64_t kMte2Offset, const uint64_t mte2RealK);
     __aicore__ inline void InitVectorCompute();
@@ -121,7 +162,7 @@ protected:
     __aicore__ inline void WaitVectorToMTE2();
     __aicore__ inline void SetVectorToMTE2();
     __aicore__ inline void CopyWeightGmToUb(uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset,
-                                            uint64_t ubMte2KOffset, const BasicBlockOffsetParam &offsetParam);
+                                            uint64_t ubMte2KOffset, const PrologueMxCastWOffsetParam &offsetParam);
     __aicore__ inline void CopyMxBiasGmToUb(uint64_t ubMte2MxBiasNSize, uint64_t ubMte2MxBiasNOffset);
     __aicore__ inline void WeightAntiQuantComputeNzNk(const UbConsumeConfig &ubConsumeConfig,
                                                       const LocalTensor<xType> &weightHighBitL1,
@@ -157,13 +198,11 @@ protected:
     constexpr static TEventID vecEventIdMte3ToV_[QUADRUPLE_BUFFER_NUM] = {0, 1, 2, 3};
     constexpr static uint32_t C0_SIZE = C0_SIZE_B8;
     constexpr static uint64_t VEC_REG_ELEM = VECTOR_REG_WIDTH;
-    constexpr static UbBufferInfo UB_BUFFER_INFO = GetMxA8W4NzBufferInfo(vecConfig);
+    constexpr static UbBufferInfo UB_BUFFER_INFO = GetMxA8W4NzBufferInfo(kUbMte2BufferNum);
 };
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                 biasType, yType, wqmmConfig, vecConfig>::WeightQuantMatmulBasicBlockAiv(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline WQBMM_PROLOGUE_CLASS::BlockPrologue(
     bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
     (void)aPrefetchSize;
@@ -187,11 +226,9 @@ __aicore__ inline WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleTyp
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::mxBiasSetParamAndGmtoUb(
-    const BasicBlockOffsetParam &offsetParam, L1ConsumeConfig &l1ConsumeConfig, UbConsumeConfig &ubConsumeConfig,
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::mxBiasSetParamAndGmtoUb(
+    const PrologueMxCastWOffsetParam &offsetParam, L1ConsumeConfig &l1ConsumeConfig, UbConsumeConfig &ubConsumeConfig,
     const uint64_t kMte2Offset, const uint64_t mte2RealK)
 {
     uint64_t ubMte2MxBiasNSize = 0;
@@ -216,11 +253,9 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::ComputeBasicBlockAivNdKnNzNk(
-    const BasicBlockOffsetParam &offsetParam)
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::ComputeBasicBlockAivNdKnNzNk(
+    const PrologueMxCastWOffsetParam &offsetParam)
 {
     uint64_t kMte2BaseSize = offsetParam.kbL1Size >> 1;
 
@@ -257,15 +292,13 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::operator()(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::operator()(
     __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable, uint64_t kSize, uint64_t nL1Size,
     uint64_t nOffset, uint64_t kbL1Size, uint64_t nAlign)
 {
     SetVectorGlobalBuffer(weight, bias, weightL2Cacheable);
-    BasicBlockOffsetParam offsetParam = {};
+    PrologueMxCastWOffsetParam offsetParam = {};
     offsetParam.kSize = kSize;
     offsetParam.nL1Size = nL1Size;
     offsetParam.nOffset = nOffset;
@@ -274,20 +307,16 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     ComputeBasicBlockAivNdKnNzNk(offsetParam);
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::PrefetchA(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::PrefetchA(
     uint64_t aPrefetchSize, uint64_t xSizeLimit)
 {
     (void)aPrefetchSize;
     (void)xSizeLimit;
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::End()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::End()
 {
     if (cvLoopIdx_ > 0) {
         WaitAicToAiv();
@@ -298,26 +327,20 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     FinalizeVectorCompute();
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::SetAivToAic()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::SetAivToAic()
 {
     CrossCoreSetFlag<SYNC_MODE4, PIPE_MTE3>(SYNC_AIC_AIV_FLAG);
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::WaitAicToAiv()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::WaitAicToAiv()
 {
     CrossCoreWaitFlag<SYNC_MODE4, PIPE_MTE3>(SYNC_AIV_AIC_FLAG);
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::InitVectorCompute()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::InitVectorCompute()
 {
     ubWeightInputLowBitTotalBuffer_ =
         LocalTensor<int8_t>(TPosition::LCM, 0, UB_BUFFER_INFO.weightInputLowbitUbTotalSize);
@@ -331,10 +354,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::SetVectorGlobalBuffer(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::SetVectorGlobalBuffer(
     __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable)
 {
     wGlobal_.SetGlobalBuffer(weight);
@@ -346,45 +367,39 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::WaitVectorToMTE2()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::WaitVectorToMTE2()
 {
-    if (likely(ubMte2LoopIdx_ > vecConfig.ubMte2BufferNum - 1)) {
-        if constexpr (vecConfig.ubMte2BufferNum == 2 || vecConfig.ubMte2BufferNum == 4) {
-            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ & (vecConfig.ubMte2BufferNum - 1)]);
+    if (likely(ubMte2LoopIdx_ > kUbMte2BufferNum - 1)) {
+        if constexpr (kUbMte2BufferNum == 2 || kUbMte2BufferNum == 4) {
+            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ & (kUbMte2BufferNum - 1)]);
         } else {
-            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum]);
+            WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[ubMte2LoopIdx_ % kUbMte2BufferNum]);
         }
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::SetVectorToMTE2()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::SetVectorToMTE2()
 {
-    if constexpr (vecConfig.ubMte2BufferNum == 2 || vecConfig.ubMte2BufferNum == 4) {
-        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)]);
+    if constexpr (kUbMte2BufferNum == 2 || kUbMte2BufferNum == 4) {
+        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) & (kUbMte2BufferNum - 1)]);
     } else {
-        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) % vecConfig.ubMte2BufferNum]);
+        SetFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[(ubMte2LoopIdx_ - 1) % kUbMte2BufferNum]);
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::CopyWeightGmToUb(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::CopyWeightGmToUb(
     uint64_t ubMte2NSize, uint64_t ubMte2KSize, uint64_t ubMte2NOffset, uint64_t ubMte2KOffset,
-    const BasicBlockOffsetParam &offsetParam)
+    const PrologueMxCastWOffsetParam &offsetParam)
 {
     if (ubMte2NSize == 0 || ubMte2KSize == 0) {
         ubMte2LoopIdx_++;
         return;
     }
 
-    DataCopyPad2D(ubWeightInputLowBitTotalBuffer_[(ubMte2LoopIdx_ % vecConfig.ubMte2BufferNum) *
+    DataCopyPad2D(ubWeightInputLowBitTotalBuffer_[(ubMte2LoopIdx_ % kUbMte2BufferNum) *
                                                   UB_BUFFER_INFO.weightInputLowBitUbSingleBufferSize]
                       .template ReinterpretCast<wType>(),
                   wGlobal_[ubMte2KOffset * offsetParam.nAlign + ubMte2NOffset * static_cast<uint64_t>(C0_SIZE)],
@@ -398,10 +413,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     ubMte2LoopIdx_++;
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::CopyMxBiasGmToUb(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::CopyMxBiasGmToUb(
     uint64_t ubMte2MxBiasNSize, uint64_t ubMte2MxBiasNOffset)
 {
     if (hasBias_) {
@@ -412,10 +425,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::WeightAntiQuantComputeNzNk(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::WeightAntiQuantComputeNzNk(
     const UbConsumeConfig &ubConsumeConfig, const LocalTensor<xType> &weightHighBitL1,
     const L1ConsumeConfig &l1ConsumeConfig, const LocalTensor<biasType> &biasL1)
 {
@@ -438,7 +449,7 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
     if (ubConsumeConfig.calcMxBias) {
         DataCopy(biasL1[l1ConsumeConfig.l1MxBiasSplitNOffset],
-                 ubBiasOutTotalBuffer_[((ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)) *
+                 ubBiasOutTotalBuffer_[((ubMte2LoopIdx_ - 1) & (kUbMte2BufferNum - 1)) *
                                        UB_BUFFER_INFO.biasReducedSingleBufferSize],
                  ubConsumeConfig.ubMxBiasNsize);
     }
@@ -447,11 +458,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     ubComputeLoopIdx_++;
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline uint64_t WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType,
-                                                          perTokenScaleType, biasType, yType, wqmmConfig,
-                                                          vecConfig>::ComputeWeightHighBitL1Offset(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline uint64_t WQBMM_PROLOGUE_CLASS::ComputeWeightHighBitL1Offset(
     uint64_t antiQuantNOffset, uint64_t antiQuantKOffset, uint64_t nRealLen, uint64_t kRealLen,
     const L1ConsumeConfig &l1ConsumeConfig)
 {
@@ -460,14 +468,12 @@ __aicore__ inline uint64_t WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuan
             antiQuantNOffset * static_cast<uint64_t>(C0_SIZE);
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::AntiQuantProcessNzMxA8W4(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::AntiQuantProcessNzMxA8W4(
     const UbConsumeConfig &ubConsumeConfig)
 {
     MxA8W4NzParams<xType, wType, biasType> mxA8W4NzParams;
-    uint64_t ubMte2BufferIdx = (ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1);
+    uint64_t ubMte2BufferIdx = (ubMte2LoopIdx_ - 1) & (kUbMte2BufferNum - 1);
     mxA8W4NzParams.nRealSizeAlign =
         CeilAlign(ubConsumeConfig.l1RequireVfComputeRealN, static_cast<uint64_t>(BLOCK_CUBE));
     mxA8W4NzParams.weightLowBitPhyAddr =
@@ -503,10 +509,8 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
     }
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::CopyWeightHighBitForAligned(
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::CopyWeightHighBitForAligned(
     uint64_t weightHighBitL1Offset, uint64_t antiQuantRealN, uint64_t antiQuantRealK,
     const LocalTensor<xType> &weightHighBitL1)
 {
@@ -522,19 +526,20 @@ __aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantSca
         params);
 }
 
-template <typename xType, typename wType, typename antiQuantScaleType, typename scaleType, typename perTokenScaleType,
-          typename biasType, typename yType, const WqmmConfig &wqmmConfig, const VecAntiQuantConfig &vecConfig>
-__aicore__ inline void WeightQuantMatmulBasicBlockAiv<xType, wType, antiQuantScaleType, scaleType, perTokenScaleType,
-                                                      biasType, yType, wqmmConfig, vecConfig>::FinalizeVectorCompute()
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_PROLOGUE_CLASS::FinalizeVectorCompute()
 {
     for (uint16_t idx = 0; idx < ubComputeLoopIdx_ && idx < UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum; idx++) {
         WaitFlag<HardEvent::MTE3_V>(vecEventIdMte3ToV_[idx]);
     }
 
-    for (uint16_t idx = 0; idx < ubMte2LoopIdx_ && idx < vecConfig.ubMte2BufferNum; idx++) {
+    for (uint16_t idx = 0; idx < ubMte2LoopIdx_ && idx < kUbMte2BufferNum; idx++) {
         WaitFlag<HardEvent::V_MTE2>(vecEventIdVToMte2_[idx]);
     }
 }
-}  // namespace WeightQuantBatchMatmulV2::Arch35
+
+#undef WQBMM_PROLOGUE_CLASS
+#undef WQBMM_PROLOGUE_TEMPLATE_PARAM
+} // namespace Block
 
 #endif  // GROUPED_MATMUL_MXFP8FP4_PROLOGUE_MX_CAST_W_H

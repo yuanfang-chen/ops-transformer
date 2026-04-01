@@ -21,7 +21,6 @@ using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingDa
 #include "arch35/weight_quant_basic_block/block/block_mmad.h"
 #include "arch35/weight_quant_basic_block/prologue/block_prologue.h"
 #include "arch35/weight_quant_basic_block/kernel/kernel.h"
-#include "arch35/weight_quant_basic_block/kernel/grouped_matmul_mxfp8fp4_kernel_resplit.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
 
 __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
@@ -40,12 +39,17 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     using YType = DTYPE_Y;
 
     using DispatchPolicy = GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit;
-    using L1TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
-    using L0TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
-    using LayoutA = void;
-    using LayoutB = void;
-    using LayoutC = void;
-    using ProblemShape = Cgmct::Gemm::MatmulShape;
+    using L1TileShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL, 0UL));
+    using L0TileShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL));
+    using LayoutA = typename AscendC::Te::NDLayoutFormat<XType>;
+    // (n, k) (k1,n1,n0,k0)
+    constexpr static auto _1 = AscendC::Std::Int<1>{};
+    constexpr static auto _16 = AscendC::Std::Int<32>{};
+    constexpr static auto _32 = AscendC::Std::Int<32>{};
+    constexpr static auto _512 = AscendC::Std::Int<512>{};
+    using LayoutB = decltype(AscendC::Te::MakeLayout(AscendC::Te::MakeShape(AscendC::Te::MakeShape(1UL, _32), AscendC::Te::MakeShape(1UL, _16))), AscendC::Te::MakeStride(AscendC::Te::MakeStride(_1, 16UL), AscendC::Te::MakeStride(_32, _512)));
+    using LayoutC = typename AscendC::Te::NDLayoutFormat<XType>;
+    using ProblemShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL));
     using BlockScheduler = void;
     using BlockMmad = Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, XType, LayoutA, WeightType, LayoutB,
                                        YType, LayoutC>;

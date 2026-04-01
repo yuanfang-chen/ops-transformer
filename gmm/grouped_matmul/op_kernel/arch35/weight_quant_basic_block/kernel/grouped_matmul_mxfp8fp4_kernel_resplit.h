@@ -16,29 +16,39 @@
 #define GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
 
 #include "../../grouped_matmul_tiling_data_apt.h"
+#include "../block/block_mmad.h"
+#include "../prologue/block_prologue.h"
 #include "include/experimental/tensor_api/tensor.h"
-#include "kernel.h"
 
 using WeightQuantBatchMatmulV2::Arch35::A_L1_MAX_SIZE_WITH_BIAS_QUANT;
 using WeightQuantBatchMatmulV2::Arch35::CeilDivide;
-using WeightQuantBatchMatmulV2::Arch35::VecAntiQuantConfig;
-using WeightQuantBatchMatmulV2::Arch35::WqmmConfig;
 using WeightQuantBatchMatmulV2::Arch35::GetKBUnit;
 using GMMWeightQuantParam = GroupedMatmulTilingData::GMMWeightQuantParam;
 
 namespace Kernel {
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-class GroupedMatmul {
+#define GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM                                                                    \
+    template <class ProblemShape, class L1TileShape, class L0TileShape, class XType, class LayoutA, class WeightType, \
+              class LayoutB, class YType, class LayoutC, class BlockEpilogue, class BlockScheduler,                    \
+              class AntiQuantScaleType, class ScaleType, class PerTokenScaleType, class BiasType, class Enable>
+
+#define GROUPED_MATMUL_RESPLIT_KERNEL_CLASS                                                                             \
+    GroupedMatmul<                                                                                                      \
+        ProblemShape,                                                                                                   \
+        Block::BlockMmad<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, L1TileShape, L0TileShape, XType, LayoutA,   \
+                         WeightType, LayoutB, YType, LayoutC>,                                                          \
+        BlockEpilogue, BlockScheduler,                                                                                  \
+        Block::BlockPrologue<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, XType, WeightType, AntiQuantScaleType,  \
+                             ScaleType, PerTokenScaleType, BiasType, YType>,                                           \
+        Enable>
+
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+class GROUPED_MATMUL_RESPLIT_KERNEL_CLASS {
 public:
-    using XType = typename BlockMmad::XType;
-    using WeightType = typename BlockMmad::WeightType;
-    using AntiQuantScaleType = typename BlockPrologue::AntiQuantScaleDataType;
-    using ScaleType = typename BlockPrologue::ScaleDataType;
-    using PerTokenScaleType = typename BlockPrologue::PerTokenScaleDataType;
-    using BiasType = typename BlockPrologue::BiasDataType;
-    using YType = typename BlockMmad::YType;
+    using BlockMmad = Block::BlockMmad<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, L1TileShape, L0TileShape,
+                                       XType, LayoutA, WeightType, LayoutB, YType, LayoutC>;
+    using BlockPrologue = Block::BlockPrologue<GROUPED_MATMUL::KernelMixDynamicKL1NTailResplit, XType, WeightType,
+                                               AntiQuantScaleType, ScaleType, PerTokenScaleType, BiasType, YType>;
 
     __aicore__ inline GroupedMatmul() = delete;
     __aicore__ inline GroupedMatmul(GM_ADDR x, GM_ADDR weight, GM_ADDR antiquantScale, GM_ADDR bias, GM_ADDR groupList,
@@ -83,9 +93,8 @@ private:
     uint64_t mxA8W4L1KDynamicConfigMThreshold_;
 };
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::GroupedMatmul(
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::GroupedMatmul(
     GM_ADDR x, GM_ADDR weight, GM_ADDR antiquantScale, GM_ADDR bias, GM_ADDR groupList, GM_ADDR perTokenScale,
     GM_ADDR y, const GMMWeightQuantParam *__restrict baseTiling,
     const TCubeTiling *__restrict mmTiling)
@@ -109,14 +118,13 @@ __aicore__ inline GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockSch
                                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::operator()()
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline void GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::operator()()
 {
-    using LayoutA = typename AscendC::Te::NDLayoutFormat<XType>;
-    using LayoutC = typename AscendC::Te::NDLayoutFormat<YType>;
-    using LayoutScaleA = typename AscendC::Te::ScaleANDLayoutFormat<fp8_e8m0_t>;
-    using LayoutScaleB = typename AscendC::Te::ScaleBDNLayoutFormat<fp8_e8m0_t>;
+    using TensorLayoutA = typename AscendC::Te::NDLayoutFormat<XType>;
+    using TensorLayoutC = typename AscendC::Te::NDLayoutFormat<YType>;
+    using TensorLayoutScaleA = typename AscendC::Te::ScaleANDLayoutFormat<fp8_e8m0_t>;
+    using TensorLayoutScaleB = typename AscendC::Te::ScaleBDNLayoutFormat<fp8_e8m0_t>;
 
     uint32_t cubeBlockIdx = GetBlockIdx();
     if ASCEND_IS_AIV {
@@ -132,13 +140,13 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
         uint64_t mSize = GetSplitValueFromGroupList(groupIdx);
         if (mSize > 0 && nSize > 0) {
             auto tensorAGm =
-                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(xGm_), LayoutA{}(mSize, kSize));
+                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(xGm_), TensorLayoutA{}(mSize, kSize));
             auto tensorYGm =
-                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(yGm_), LayoutC{}(mSize, nSize));
+                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(yGm_), TensorLayoutC{}(mSize, nSize));
             auto tensorScaleAGm =
-                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(perTokenScaleGm_), LayoutScaleA{}(mSize, scaleKSize));
+                AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(perTokenScaleGm_), TensorLayoutScaleA{}(mSize, scaleKSize));
             auto tensorScaleBGm = AscendC::Te::MakeTensor(AscendC::Te::MakeGMmemPtr(antiquantScaleGm_),
-                                                          LayoutScaleB{}(scaleKSize, nSize));
+                                                          TensorLayoutScaleB{}(scaleKSize, nSize));
 
             uint64_t mBlkNum = CeilDivide(mSize, static_cast<uint64_t>(mmTiling_->baseM));
             uint64_t mL1Step = CeilDivide(mSize, mBlkNum);
@@ -181,9 +189,8 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
     }
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::CalcDynamicKBlock(
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline void GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::CalcDynamicKBlock(
     uint64_t mL1Size, uint64_t nL1Size, uint64_t &kaL1Size, uint64_t &kbL1Size) const
 {
     kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
@@ -200,10 +207,9 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
     }
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
 template <typename TensorA, typename TensorY, typename TensorScaleA, typename TensorScaleB>
-__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::RunBlockRange(
+__aicore__ inline void GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::RunBlockRange(
     const TensorA &tensorBlockAGm, const TensorY &tensorYGm, const TensorScaleA &tensorBlockScaleAGm,
     const TensorScaleB &tensorScaleBGm, uint64_t mOffset, uint64_t mL1Size, uint64_t kSize, uint64_t scaleKSize,
     uint64_t nAlign, bool weightL2Cacheable, uint64_t blockCount, uint64_t blockSize, uint64_t nBaseOffset,
@@ -232,9 +238,8 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
     }
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::UpdateGmAddr(
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline void GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::UpdateGmAddr(
     uint64_t mSize, uint64_t kSize, uint64_t nSize)
 {
     xGm_ += mSize * kSize;
@@ -248,9 +253,8 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
     yGm_ += mSize * nSize;
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::PrefetchA(
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline void GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::PrefetchA(
     uint64_t mSize, uint64_t kSize)
 {
     if ASCEND_IS_AIV {
@@ -270,9 +274,8 @@ __aicore__ inline void GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, Blo
     }
 }
 
-template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler, class BlockPrologue,
-          class Enable>
-__aicore__ inline uint64_t GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue, Enable>::GetSplitValueFromGroupList(
+GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
+__aicore__ inline uint64_t GROUPED_MATMUL_RESPLIT_KERNEL_CLASS::GetSplitValueFromGroupList(
     uint64_t groupIdx)
 {
     uint64_t splitValue = 0;
@@ -287,6 +290,9 @@ __aicore__ inline uint64_t GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue,
     }
     return splitValue;
 }
+
+#undef GROUPED_MATMUL_RESPLIT_KERNEL_CLASS
+#undef GROUPED_MATMUL_RESPLIT_KERNEL_TEMPLATE_PARAM
 } // namespace Kernel
 
 #endif  // GROUPED_MATMUL_MXFP8FP4_KERNEL_RESPLIT_H
