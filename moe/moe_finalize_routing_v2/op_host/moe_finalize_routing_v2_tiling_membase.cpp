@@ -75,7 +75,9 @@ protected:
 
     bool IsCapable() override
     {
+        OP_LOGD(context_->GetNodeName(), "MoeFinalizeRoutingV2Membase::IsCapable()");
         if (Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
+            OP_LOGD(context_->GetNodeName(), "MoeFinalizeRoutingV2Membase::IsCapable() false.");
             return false;
         }
         return true;
@@ -191,7 +193,7 @@ ge::graphStatus MoeFinalizeRoutingV2Membase::DoGetShapeAttrsInfo()
 
     OP_CHECK_IF(
         dropPadMode_ < DROP_MODE_VALUE_0 || dropPadMode_ > DROP_MODE_VALUE_3,
-        OP_LOGE(context_->GetNodeName(), "the value of drop_pad_mode should be [0,3]."),
+        OP_LOGE(context_->GetNodeName(), "the value of drop_pad_mode should be [0,3]. drop_pad_mod=%ld", dropPadMode_),
         return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(
