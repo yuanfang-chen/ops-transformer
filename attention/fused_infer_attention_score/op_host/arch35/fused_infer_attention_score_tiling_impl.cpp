@@ -95,7 +95,7 @@ void FusedInferAttentionScoreTilingImpl::SetIsIFA(const FiaTilingInfo &fiaInfo)
     bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
             layoutStr == "NTD" || layoutStr == "NTD_TND";
     if (fiaInfo.s1Size == 1 && !fiaInfo.enableAlibiPse && !isTransposeLayout &&
-        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT ) {
+        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT) {
         isIFAFlag_ =true;
         return;
     }
@@ -114,18 +114,11 @@ void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo
     
     if (fiaInfo.s1Size * fiaInfo.gSize < 64) {
         bool isTransposeLayout = CheckTransposeLayout(fiaInfo);
-<<<<<<< HEAD
-        pfaMergeFlag_ = !(fiaInfo.attenMaskFlag || fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
-                           fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION || fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 ||
-                           fiaInfo.isOutQuantEnable || fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
-                           fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
-=======
         pfaMergeFlag_ = !(fiaInfo.pseShiftFlag || fiaInfo.enableAlibiPse ||
             fiaInfo.mlaMode == MlaMode::ROPE_SPLIT_D128 || fiaInfo.isOutQuantEnable ||
             fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag ||
             fiaInfo.kvStorageMode == KvStorageMode::TENSOR_LIST ||
             fiaInfo.quantMode == FiaQuantMode::FULL_QUANT || isTransposeLayout);
->>>>>>> f16ac991fc391026f1e61f21bd7578f64fab631c
     }
     bool actualSeqLenUnequal = false;
     if (actualSeqLenQFlag_ && !fiaInfo.antiQuantFlag) {
@@ -430,7 +423,7 @@ int64_t FusedInferAttentionScoreTilingImpl::GetCutBlockNums(int64_t blockSeqLeng
     int64_t innerCutBlockLeftDownNums = (-blockToken - blockSeqLength) / smallSize - tolerance;
     blockNums += SumOfArithmeticSeries(innerCutBlockLeftDownNums, tolerance);
     return blockNums;
-} 
+}
 
 int64_t FusedInferAttentionScoreTilingImpl::GetCalcBlockNumsOneHead(const FiaTilingInfo &fiaInfo,
                                                                     int64_t actualSeqLength, int64_t actualSeqLengthKV,
@@ -803,7 +796,7 @@ void FusedInferAttentionScoreTilingImpl::GetAntiQuantPreNextTokensLeftUp(const F
 }
 
 void FusedInferAttentionScoreTilingImpl::FixAntiQuantParamWithRowInvalid(const FiaTilingInfo &fiaInfo,
-                                                                         int64_t &actualSeqLength, 
+                                                                         int64_t &actualSeqLength,
                                                                          int64_t actualSeqLengthKV,
                                                                          int64_t &preTokensLeftUp,
                                                                          int64_t &nextTokensLeftUp)
@@ -978,7 +971,7 @@ int64_t FusedInferAttentionScoreTilingImpl::GetAntiQuantCalcBlockNumsOneHead(
         // prefix部分单独计算
         int64_t blockSharedPrefix = sInnerLoopTimesPrefix * static_cast<int64_t>(sInnerFactor_);
         toCalcBlockNums += sInnerLoopTimesPrefix * outerBlockNums;
-        toCalcBlockNums -=  GetCutBlockNums(blockSharedPrefix, blockSeqLength, 
+        toCalcBlockNums -=  GetCutBlockNums(blockSharedPrefix, blockSeqLength,
                                                      static_cast<int64_t>(sInnerFactor_),
                                                      static_cast<int64_t>(sOuterFactor_), nextTokensLeftUp);
         toCalcBlockNums -= GetCutBlockNums(

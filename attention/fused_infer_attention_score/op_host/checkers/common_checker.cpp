@@ -155,22 +155,22 @@ ge::graphStatus CommonChecker::CheckPAKeyValue(const FiaTilingInfo &fiaInfo)
         }
     }
 
-    OP_CHECK_IF((keyDimNum == 5) && ((keyBlockNum != valueBlockNum) || (keyHeadNum != valueHeadNum) || 
+    OP_CHECK_IF((keyDimNum == 5) && ((keyBlockNum != valueBlockNum) || (keyHeadNum != valueHeadNum) ||
         ((keyD1 != valueD1) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128)) || (keyBlockSize != valueBlockSize) ||
-        ((keyD0 != valueD0) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128))), 
+        ((keyD0 != valueD0) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128))),
         OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName,
             "The dim num of key and value are inconsistent when PA enable. key shape [%ld, %ld, %ld, %ld, %ld],"
             " value shape [%ld, %ld, %ld, %ld, %ld].",
             keyBlockNum, keyHeadNum, keyD1, keyBlockSize, keyD0, valueBlockNum, valueHeadNum, valueD1, valueBlockSize, valueD0),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF((keyDimNum == 4) && ((keyBlockNum != valueBlockNum) || (keyHeadNum != valueHeadNum) || 
-        (keyBlockSize != valueBlockSize) || ((keyHeadDim != valueHeadDim) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128))), 
+    OP_CHECK_IF((keyDimNum == 4) && ((keyBlockNum != valueBlockNum) || (keyHeadNum != valueHeadNum) ||
+        (keyBlockSize != valueBlockSize) || ((keyHeadDim != valueHeadDim) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128))),
         OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName,
             "the dim num of key and value are inconsistent when PA enable. key shape [%ld,%ld,%ld,%ld],"
             " value shape [%ld,%ld,%ld,%ld].",
             keyBlockNum, keyHeadNum, keyBlockSize, keyHeadDim, valueBlockNum, valueHeadNum, valueBlockSize, valueHeadDim),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF((keyDimNum == 3) && ((keyBlockNum != valueBlockNum) || (keyBlockSize != valueBlockSize) || 
+    OP_CHECK_IF((keyDimNum == 3) && ((keyBlockNum != valueBlockNum) || (keyBlockSize != valueBlockSize) ||
         ((keyH != valueH) && (fiaInfo.mlaMode != MlaMode::ROPE_COMBINE_D128))), OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName,
             "the dim num of key and value are inconsistent when PA enable. key shape [%ld,%ld,%ld], value shape [%ld,%ld,%ld].",
             keyBlockNum, keyBlockSize, keyH, valueBlockNum, valueBlockSize, valueH),
@@ -228,7 +228,7 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
         if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
             keyRopeS = fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(1);
             OP_CHECK_IF(fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0) != fiaInfo.kCache.size(),
-                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!", 
+                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!",
                 fiaInfo.kCache.size(), fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0)),
                 return false);
         }
@@ -246,13 +246,13 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
                 return false;
             }
             if (fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1) != fiaInfo.vCache[tmpIdx]->GetStorageShape().GetDim(1)) { // k_s != v_s
-                OP_LOGE(fiaInfo.opName, "S for Key(%ld) and Value(%ld) does NOT equal!", 
+                OP_LOGE(fiaInfo.opName, "S for Key(%ld) and Value(%ld) does NOT equal!",
                     fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1), fiaInfo.vCache[tmpIdx]->GetStorageShape().GetDim(1));
                 return false;
             }
             if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
                 if (fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1) != keyRopeS) { // k_s != krope_s
-                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!", 
+                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!",
                         fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1), keyRopeS);
                     return false;
                 }
@@ -269,7 +269,7 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
         if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
             keyRopeS = fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(2);
             OP_CHECK_IF(fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0) != fiaInfo.kCache.size(),
-                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!", 
+                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!",
                 fiaInfo.kCache.size(), fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0)),
                 return false);
         }
@@ -305,7 +305,7 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
             }
             if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
                 if (fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(2) != keyRopeS) { // k_s != krope_s
-                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!", 
+                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!",
                         fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(2), keyRopeS);
                     return false;
                 }
@@ -321,7 +321,7 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
         if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
             keyRopeS = fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(1);
             OP_CHECK_IF(fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0) != fiaInfo.kCache.size(),
-                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!", 
+                OPS_REPORT_VECTOR_INNER_ERR(fiaInfo.opName, "Batch of Key(%ld) do NOT equal to Batch of KeyRope(%ld) under tensorlist mode!",
                 fiaInfo.kCache.size(), fiaInfo.opParamInfo.keyRope.tensor->GetStorageShape().GetDim(0)),
                 return false);
         }
@@ -356,7 +356,7 @@ bool CommonChecker::CheckNormalTensorList(const FiaTilingInfo &fiaInfo)
             }
             if (fiaInfo.opParamInfo.keyRope.tensor != nullptr) {
                 if (fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1) != keyRopeS) { // k_s != krope_s
-                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!", 
+                    OP_LOGE(fiaInfo.opName, "S for Key(%ld) and keyRope(%ld) does NOT equal but they should!",
                         fiaInfo.kCache[tmpIdx]->GetStorageShape().GetDim(1), keyRopeS);
                     return false;
                 }
