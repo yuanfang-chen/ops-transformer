@@ -66,23 +66,9 @@ protected:
 
     uint64_t GetTilingKey() const override
     {
-        uint8_t layout = static_cast<uint8_t>(tilingKeyLayout);
-        uint16_t s1Type = static_cast<uint16_t>(s1BasicBlock);
-        uint16_t s2Type = static_cast<uint16_t>(s2BasicBlock);
-        uint16_t dType = static_cast<uint16_t>(dTemplateType);
-        uint16_t dvType = static_cast<uint16_t>(dVTemplateType);
-        uint8_t atten = static_cast<uint8_t>(hasAttenMask ? 1 : 0);
-        uint8_t paFlag = static_cast<uint8_t>(isPA ? 1 : 0);
-        uint8_t lseFlag = static_cast<uint8_t>(returnSoftmaxLse != 0 ? 1 : 0);
-        uint8_t impl = static_cast<uint8_t>(implMode);
 
-        if (dType == static_cast<uint16_t>(dVType)) {
-            return GET_TPL_TILING_KEY(0, impl, layout, s1Type, s2Type, dType,
-                                      static_cast<uint16_t>(FADTemplateType::NONALIGNED),
-                                      atten, paFlag, lseFlag, 1);
-        }
-        return GET_TPL_TILING_KEY(0, impl, layout, s1Type, s2Type, dType, dvType,
-                                  atten, paFlag, lseFlag, 1);
+         return GET_TPL_TILING_KEY(0, 0, 0, 128, 128, 64, 0,
+                                  0, 0, 0, 1);
     }
 
     ge::graphStatus PostTiling() override

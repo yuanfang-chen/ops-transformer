@@ -72,11 +72,15 @@ static const size_t FA_ATTR_SOFTMAX_MODE_INDEX    = 0UL;
 static const size_t FA_ATTR_MASK_MODE_INDEX       = 1UL;
 static const size_t FA_ATTR_WIN_LEFT_INDEX        = 2UL;
 static const size_t FA_ATTR_WIN_RIGHT_INDEX       = 3UL;
-static const size_t FA_ATTR_LAYOUT_Q_INDEX        = 4UL;
-static const size_t FA_ATTR_LAYOUT_KV_INDEX       = 5UL;
-static const size_t FA_ATTR_LAYOUT_OUT_INDEX      = 6UL;
-static const size_t FA_ATTR_RETURN_SOFTMAX_LSE    = 7UL;
-static const size_t FA_ATTR_DETERMINISTIC         = 8UL;
+
+static const size_t FA_ATTR_MAX_SEQLEN_Q_INDEX    = 4UL;
+static const size_t FA_ATTR_MAX_SEQLEN_KV_INDEX   = 5UL;
+
+static const size_t FA_ATTR_LAYOUT_Q_INDEX        = 6UL;
+static const size_t FA_ATTR_LAYOUT_KV_INDEX       = 7UL;
+static const size_t FA_ATTR_LAYOUT_OUT_INDEX      = 8UL;
+static const size_t FA_ATTR_RETURN_SOFTMAX_LSE    = 9UL;
+static const size_t FA_ATTR_DETERMINISTIC         = 10UL;
 
 // layout枚举（与flash_attn_score对齐）
 enum class FALayoutType : uint8_t {
@@ -88,7 +92,7 @@ enum class FALayoutType : uint8_t {
 
 // KV layout枚举（含PA场景）
 enum class FAKVLayoutType : uint8_t {
-    BSND   = 0,
+    BNSD   = 0,
     TND    = 1,
     PA_ND  = 2,
     PA_Nz  = 3,
@@ -213,7 +217,7 @@ protected:
 
     // layout
     FALayoutType   tilingKeyLayout    = FALayoutType::NONE;
-    FAKVLayoutType tilingKeyKVLayout  = FAKVLayoutType::BSND;
+    FAKVLayoutType tilingKeyKVLayout  = FAKVLayoutType::BNSD;
     FAImplMode     implMode           = FAImplMode::HIGH_PRECISION;
     const char    *inputLayoutQ       = nullptr;
     const char    *inputLayoutKv      = nullptr;
@@ -273,8 +277,9 @@ protected:
     // TilingData
     FlashAttentionScoreSimplifiedTilingData *tilingData =
         context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
-    InputParamsRegbase      *inputParamsRegbase_   = &tilingData->inputParamsRegbase;
-    MultiCoreParamsRegbase  *multiCoreParamsRegbase_ = &tilingData->multiCoreParamsRegbase;
+    InputParamsRegbase *inputParamsRegbase_ = &tilingData->inputParamsRegbase;
+    MultiCoreParamsRegbase *multiCoreParamsRegbase_ = &tilingData->multiCoreParamsRegbase;
+    DropmaskParamsRegbase *dropmaskParamsRegbase_ = &tilingData->dropmaskParamsRegbase;
 };
 
 } // namespace FA
