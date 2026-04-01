@@ -92,7 +92,7 @@ ge::graphStatus BSAGradTiling::GetNpuInfo(gert::TilingContext *context)
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     aivNum_ = ascendcPlatform.GetCoreNumAiv();
-    aicNum_ = static_cast<uint32_t>(1);
+    aicNum_ = ascendcPlatform.GetCoreNumAic();
     return ge::GRAPH_SUCCESS;
 }
 
