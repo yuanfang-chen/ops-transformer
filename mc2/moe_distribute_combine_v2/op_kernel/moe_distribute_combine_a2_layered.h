@@ -74,7 +74,6 @@ public:
     constexpr static bool DynamicQuant = std::is_same<ExpandXTransType, int8_t>::value;
     constexpr static uint32_t TBUF_SIZE = 185U * 1024U;
     constexpr static uint32_t TBUF_TEMP_OFFSET = 0U;
-    constexpr static uint32_t IPC_REDUCE_USED_CORE_NUM = 32U; // 拉起远端IPC和机内reduce需要的核数
     constexpr static uint32_t WEIGHT_VALUE_NUM = 16U; // token(h * sizeof(bf/fp16)) + scale(32B) = (h + 16) * 2B
     constexpr static uint64_t GM2IPC_SYNC_FLAG = 12345ULL;
     constexpr static uint64_t RDMA_TOKEN_ARRIVED_FLAG = 123ULL;
@@ -1052,7 +1051,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     if ASCEND_IS_AIV {
         GM2IPC();
         WaitIPC();
-        stepCoreNum = IPC_REDUCE_USED_CORE_NUM;
+        stepCoreNum = aivNum_ - serverNum_;
         if (coreIdx_ < stepCoreNum){
             SumToWindow();
         }
