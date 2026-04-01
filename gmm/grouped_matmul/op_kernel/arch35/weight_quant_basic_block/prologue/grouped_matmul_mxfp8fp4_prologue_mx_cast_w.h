@@ -134,12 +134,13 @@ public:
     __aicore__ inline BlockPrologue() = delete;
     __aicore__ inline BlockPrologue(bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling);
     __aicore__ inline void operator()(__gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable,
-                                      uint64_t kSize, uint64_t nL1Size, uint64_t nOffset, uint64_t kbL1Size,
+                                      uint64_t mL1Size, uint64_t kSize, uint64_t nL1Size, uint64_t nOffset,
                                       uint64_t nAlign);
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
 
 protected:
+    __aicore__ inline uint64_t CalcDynamicKBlock(uint64_t mL1Size, uint64_t nL1Size) const;
     __aicore__ inline void SetAivToAic();
     __aicore__ inline void WaitAicToAiv();
     __aicore__ inline void ComputeBasicBlockAivNdKnNzNk(const PrologueMxCastWOffsetParam &offsetParam);
@@ -189,6 +190,12 @@ protected:
     constexpr static uint32_t C0_SIZE = C0_SIZE_B8;
     constexpr static uint64_t VEC_REG_ELEM = VECTOR_REG_WIDTH;
     constexpr static UbBufferInfo UB_BUFFER_INFO = GetMxA8W4NzBufferInfo(kUbMte2BufferNum);
+    static constexpr uint64_t MX_A8W4_L1_K_CONFIG_256 = 256;
+    static constexpr uint64_t MX_A8W4_L1_K_CONFIG_512 = 512;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD = 128;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256 = 256;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 = 240;
+    uint64_t mxA8W4L1KDynamicConfigMThreshold_;
 };
 
 WQBMM_PROLOGUE_TEMPLATE_PARAM
@@ -198,6 +205,8 @@ __aicore__ inline WQBMM_PROLOGUE_CLASS::BlockPrologue(
     (void)aPrefetchSize;
     (void)matmulTiling;
     hasBias_ = hasBias;
+    mxA8W4L1KDynamicConfigMThreshold_ = hasBias_ ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
+                                                    MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
     biasL1DbOffset_ = 0;
     weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, L1_SIZE_BYTE / sizeof(xType));
 
@@ -214,6 +223,15 @@ __aicore__ inline WQBMM_PROLOGUE_CLASS::BlockPrologue(
     if ASCEND_IS_AIV {
         InitVectorCompute();
     }
+}
+
+WQBMM_PROLOGUE_TEMPLATE_PARAM
+__aicore__ inline uint64_t WQBMM_PROLOGUE_CLASS::CalcDynamicKBlock(uint64_t mL1Size, uint64_t nL1Size) const
+{
+    return (mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
+            nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
+               MX_A8W4_L1_K_CONFIG_512 :
+               MX_A8W4_L1_K_CONFIG_256;
 }
 
 WQBMM_PROLOGUE_TEMPLATE_PARAM
@@ -284,15 +302,15 @@ __aicore__ inline void WQBMM_PROLOGUE_CLASS::ComputeBasicBlockAivNdKnNzNk(
 
 WQBMM_PROLOGUE_TEMPLATE_PARAM
 __aicore__ inline void WQBMM_PROLOGUE_CLASS::operator()(
-    __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable, uint64_t kSize, uint64_t nL1Size,
-    uint64_t nOffset, uint64_t kbL1Size, uint64_t nAlign)
+    __gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable, uint64_t mL1Size, uint64_t kSize,
+    uint64_t nL1Size, uint64_t nOffset, uint64_t nAlign)
 {
     SetVectorGlobalBuffer(weight, bias, weightL2Cacheable);
     PrologueMxCastWOffsetParam offsetParam = {};
     offsetParam.kSize = kSize;
     offsetParam.nL1Size = nL1Size;
     offsetParam.nOffset = nOffset;
-    offsetParam.kbL1Size = kbL1Size;
+    offsetParam.kbL1Size = CalcDynamicKBlock(mL1Size, nL1Size);
     offsetParam.nAlign = nAlign;
     ComputeBasicBlockAivNdKnNzNk(offsetParam);
 }

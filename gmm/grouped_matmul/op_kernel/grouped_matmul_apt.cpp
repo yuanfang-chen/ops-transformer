@@ -19,6 +19,7 @@ using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingDa
 #if defined(V310_GMM_ANTI_QUANT)
 #include "arch35/weight_quant_basic_block/policy/dispatch_policy.h"
 #include "arch35/weight_quant_basic_block/block/block_mmad.h"
+#include "arch35/weight_quant_basic_block/block/grouped_matmul_scheduler_n_resplit.h"
 #include "arch35/weight_quant_basic_block/prologue/block_prologue.h"
 #include "arch35/weight_quant_basic_block/kernel/kernel.h"
 #include "arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
@@ -50,25 +51,24 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     using LayoutB = decltype(AscendC::Te::MakeLayout(AscendC::Te::MakeShape(AscendC::Te::MakeShape(1UL, _32), AscendC::Te::MakeShape(1UL, _16))), AscendC::Te::MakeStride(AscendC::Te::MakeStride(_1, 16UL), AscendC::Te::MakeStride(_32, _512)));
     using LayoutC = typename AscendC::Te::NDLayoutFormat<XType>;
     using ProblemShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL));
-    using BlockScheduler = void;
+    using BlockScheduler = Block::GroupedMatmulSchedulerNResplit;
     using BlockMmad = Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, XType, LayoutA, WeightType, LayoutB,
                                        YType, LayoutC>;
     using BlockEpilogue = void;
-    using BlockPrologue =
-        Block::BlockPrologue<DispatchPolicy, WeightType, LayoutB, XType, BiasType>;
+    using BlockPrologue = Block::BlockPrologue<DispatchPolicy, XType, WeightType, BiasType>;
     using KernelImpl =
         Kernel::GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue>;
 
-    using MmadParams = typename BlockMmad::Params;
-    using PrologueParams = typename BlockMmad::Params;
-    using KernelParams = typename Kernel::Params;
-
-    KernelParams params = {
-        {0UL, gmmBaseParams_.kSize, gmmBaseParams_.nSize},
-        MmadParams{},
-        PrologueParams{}
-    };
-
+    typename KernelImpl::Params params = {
+        x,
+        weight,
+        antiquantScale,
+        bias,
+        groupList,
+        perTokenScale,
+        y,
+        &gmmBaseParams_,
+        &mmTilingData_};
     KernelImpl kernelImpl;
     kernelImpl(params);
 }

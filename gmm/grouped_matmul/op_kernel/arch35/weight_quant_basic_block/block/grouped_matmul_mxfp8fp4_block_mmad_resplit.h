@@ -94,27 +94,17 @@ public:
     __aicore__ inline BlockMmad(bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling);
     template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
     __aicore__ inline void operator()(const TensorA &tensorA, const TensorC &tensorC,
-                                      const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB,
-                                      uint64_t kaL1Size, uint64_t kbL1Size);
+                                      const TensorScaleA &tensorScaleA, const TensorScaleB &tensorScaleB);
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
-
-    struct Params {
-        const GM_ADDR Atype* ptrA;
-        const GM_ADDR CType* ptrC;
-        const GM_ADDR perTokenScaleType* ptrScaleA;
-        const GM_ADDR antiQuantScaleType* ptrScaleB;
-        
-        bool hasBias;
-        uint64_t baseK;
-        uint64_t kbL1Size;
-    };
 
 protected:
     __aicore__ inline void WaitAivToAic();
     __aicore__ inline void SetAicToAiv();
 
 private:
+    __aicore__ inline void CalcDynamicKBlock(uint64_t mL1Size, uint64_t nL1Size, uint64_t &kaL1Size,
+                                             uint64_t &kbL1Size) const;
     template <typename TensorB>
     __aicore__ inline void LaunchMatmul(const TensorB &tensorBL1, int64_t kbOffset, uint64_t kbL1RealSize,
                                         uint64_t cvLoopIdx, const BlockMmadOffsetParam &param);
@@ -164,6 +154,11 @@ private:
     static constexpr uint64_t MX_SCALE_K_L1_SIZE = 4096;
     static constexpr uint64_t BIAS_TABLE_OFFSET_B32 = 2 * 256;
     static constexpr uint64_t MX_GROUP_SIZE = 32;
+    static constexpr uint64_t MX_A8W4_L1_K_CONFIG_256 = 256;
+    static constexpr uint64_t MX_A8W4_L1_K_CONFIG_512 = 512;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD = 128;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256 = 256;
+    static constexpr uint64_t MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 = 240;
 
     uint64_t aL1Count_;
     uint64_t aL1MaxHalfCount_;
@@ -186,6 +181,7 @@ private:
     uint64_t mxScaleBL1DbOffset_;
 
     uint64_t l0LoopIdx_ = 0;
+    uint64_t mxA8W4L1KDynamicConfigMThreshold_;
 
     __gm__ uint8_t *aPrefetchAddr_ = nullptr;
 
@@ -523,10 +519,12 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const TensorC &tenso
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline WQBMM_CUBE_COMPUTE_CLASS::BlockMmad(const Params& params,
+__aicore__ inline WQBMM_CUBE_COMPUTE_CLASS::BlockMmad(
     bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
     isBias_ = hasBias;
+    mxA8W4L1KDynamicConfigMThreshold_ = isBias_ ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
+                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
     biasL1DbOffset_ = 0;
     static constexpr uint64_t MXA8W4_WEIGHT_SIZE = 256 * 256;
     static constexpr uint64_t MX_BIAS_L1_SIZE = BIAS_L1_SIZE * GetKBUnit<biasType>() * sizeof(biasType);
@@ -569,13 +567,12 @@ WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CalcDynamicKBlock(
     uint64_t mL1Size, uint64_t nL1Size, uint64_t &kaL1Size, uint64_t &kbL1Size) const
 {
-    kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
     kbL1Size = (mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
                 nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
                    MX_A8W4_L1_K_CONFIG_512 :
                    MX_A8W4_L1_K_CONFIG_256;
     if (mL1Size < nL1Size) {
-        uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<XType>() : 128 * GetKBUnit<XType>();
+        uint64_t aL1Size = isBias_ ? 124 * GetKBUnit<xType>() : 128 * GetKBUnit<xType>();
         uint64_t mL1Align = AscendC::CeilAlign(mL1Size, static_cast<uint64_t>(BLOCK_CUBE));
         kaL1Size = aL1Size / (mL1Align * kbL1Size) * kbL1Size;
     } else {
@@ -589,16 +586,12 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::operator()(const TensorA &tenso
                                                             const TensorScaleA &tensorScaleA,
                                                             const TensorScaleB &tensorScaleB)
 {
-    uint64_t kaL1Size;
-    uint64_t kbL1Size;
-    CalcDynamicKBlock(mL1Size, nL1Size, kaL1Size, kbL1Size);
     BlockMmadOffsetParam blockParam = {};
     blockParam.mL1Size = GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::ROW, 1>(tensorC.Layout());
     blockParam.kSize = GetEleFromLayout<decltype(tensorA.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorA.Layout());
     blockParam.nL1Size =
         GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorC.Layout());
-    blockParam.kaL1Size = kaL1Size;
-    blockParam.kbL1Size = kbL1Size;
+    CalcDynamicKBlock(blockParam.mL1Size, blockParam.nL1Size, blockParam.kaL1Size, blockParam.kbL1Size);
     for (uint64_t kbGmOffset = 0; kbGmOffset < blockParam.kSize; kbGmOffset += blockParam.kbL1Size, cvLoopIdx_++) {
         uint64_t kbL1RealSize = (kbGmOffset + blockParam.kbL1Size) >= blockParam.kSize ?
                                     blockParam.kSize - kbGmOffset :
