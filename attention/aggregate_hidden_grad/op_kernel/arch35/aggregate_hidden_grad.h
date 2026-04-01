@@ -127,33 +127,33 @@ private:
 
     __aicore__ inline void printTiling(){
         printf("kernel tiling...");
-        printf("hMainCoreCnt=%ld", hMainCoreCnt_);
-        printf("hTailCoreCnt=%ld", hTailCoreCnt_);
-        printf("hMainSize=%ld", hMainSize_);
-        printf("hTailSize=%ld", hTailSize_);
-        printf("hLoopCnt=%ld", hLoopCnt_);
-        printf("bLoopCnt=%ld", bLoopCnt_);
-        printf("sLoopCnt=%ld", sLoopCnt_);
-        printf("ubMainFactorH=%ld", ubMainFactorH_);
-        printf("ubTailFactorH=%ld", ubTailFactorH_);
-        printf("ubMainFactorB=%ld", ubMainFactorB_);
-        printf("ubTailFactorB=%ld", ubTailFactorB_);
-        printf("ubMainFactorS=%ld", ubMainFactorS_);
-        printf("ubTailFactorS=%ld", ubTailFactorS_);
-        printf("tailHLoopCnt=%ld", tailHLoopCnt_);
-        printf("tailBLoopCnt=%ld", tailBLoopCnt_);
-        printf("tailSLoopCnt=%ld", tailSLoopCnt_);
-        printf("tailCoreUbMainFactorH=%ld", tailCoreUbMainFactorH_);
-        printf("tailCoreUbTailFactorH=%ld", tailCoreUbTailFactorH_);
-        printf("tailCoreUbMainFactorB=%ld", tailCoreUbMainFactorB_);
-        printf("tailCoreUbTailFactorB=%ld", tailCoreUbTailFactorB_);
-        printf("tailCoreUbMainFactorS=%ld", tailCoreUbMainFactorS_);
-        printf("tailCoreUbTailFactorS=%ld", tailCoreUbTailFactorS_);
-        printf("hasMask=%ld", hasMask_);
-        printf("S=%ld", S_);
-        printf("B=%ld", B_);
-        printf("H=%ld", H_);
-        printf("W=%ld", W_);
+        printf("hMainCoreCnt_=%ld", hMainCoreCnt_);
+        printf("hTailCoreCnt_=%ld", hTailCoreCnt_);
+        printf("hMainSize_=%ld", hMainSize_);
+        printf("hTailSize_=%ld", hTailSize_);
+        printf("hLoopCnt_=%ld", hLoopCnt_);
+        printf("bLoopCnt_=%ld", bLoopCnt_);
+        printf("sLoopCnt_=%ld", sLoopCnt_);
+        printf("ubMainFactorH_=%ld", ubMainFactorH_);
+        printf("ubTailFactorH_=%ld", ubTailFactorH_);
+        printf("ubMainFactorB_=%ld", ubMainFactorB_);
+        printf("ubTailFactorB_=%ld", ubTailFactorB_);
+        printf("ubMainFactorS_=%ld", ubMainFactorS_);
+        printf("ubTailFactorS_=%ld", ubTailFactorS_);
+        printf("tailHLoopCnt_=%ld", tailHLoopCnt_);
+        printf("tailBLoopCnt_=%ld", tailBLoopCnt_);
+        printf("tailSLoopCnt_=%ld", tailSLoopCnt_);
+        printf("tailCoreUbMainFactorH_=%ld", tailCoreUbMainFactorH_);
+        printf("tailCoreUbTailFactorH_=%ld", tailCoreUbTailFactorH_);
+        printf("tailCoreUbMainFactorB_=%ld", tailCoreUbMainFactorB_);
+        printf("tailCoreUbTailFactorB_=%ld", tailCoreUbTailFactorB_);
+        printf("tailCoreUbMainFactorS_=%ld", tailCoreUbMainFactorS_);
+        printf("tailCoreUbTailFactorS_=%ld", tailCoreUbTailFactorS_);
+        printf("hasMask_=%ld", hasMask_);
+        printf("S_=%ld", S_);
+        printf("B_=%ld", B_);
+        printf("H_=%ld", H_);
+        printf("W_=%ld", W_);
     }
 
 private:
