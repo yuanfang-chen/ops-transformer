@@ -55,7 +55,7 @@ constexpr uint32_t MATMUL_BASE_K = 128;
 constexpr uint32_t MATMUL_BASE_N = 128;
 
 constexpr uint32_t STAGE_ONE_TWO = 2;
-constexpr uint32_t STAGE_ONE_THREE = 2;
+constexpr uint32_t STAGE_ONE_THREE = 3;
 constexpr uint32_t MASK_NUM = 4;
 constexpr int64_t P_NUM = 2;
 
@@ -135,7 +135,7 @@ ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling()
 
     // stage1 临时变量空间
     tilingData_.stageWorkspaceSz =
-        sizeHigh * c * (STAGE_ONE_TWO * STAGE_ONE_THREE + 3 * dk + dv) * tilingData_.stageOneParaNum;
+        sizeHigh * c * (STAGE_ONE_TWO * c + STAGE_ONE_THREE * dk + dv) * tilingData_.stageOneParaNum;
     tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;
 
     PrintTilingData();
