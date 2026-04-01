@@ -140,7 +140,7 @@ private:
         printf("ubTailFactorB=%ld", ubTailFactorB_);
         printf("ubMainFactorS=%ld", ubMainFactorS_);
         printf("ubTailFactorS=%ld", ubTailFactorS_);
-        printf("tailHloopCnt=%ld", tailHloopCnt_);
+        printf("tailHLoopCnt=%ld", tailHLoopCnt_);
         printf("tailBLoopCnt=%ld", tailBLoopCnt_);
         printf("tailSLoopCnt=%ld", tailSLoopCnt_);
         printf("tailCoreUbMainFactorH=%ld", tailCoreUbMainFactorH_);
@@ -195,7 +195,7 @@ private:
     int64_t ubTailFactorS_{0};          // 主核UB内s维度尾块大小
 
     // 尾核循环参数
-    int64_t tailHloopCnt_{0};           // 尾核UB内h维度循环次数
+    int64_t tailHLoopCnt_{0};           // 尾核UB内h维度循环次数
     int64_t tailBLoopCnt_{0};           // 尾核UB内b维度循环次数
     int64_t tailSLoopCnt_{0};           // 尾核UB内s维度循环次数
 
@@ -251,7 +251,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Init(GM_ADDR grad_output,
     ubTailFactorB_ = td->ubTailFactorB;          // 主核UB内b维度尾块大小
     ubMainFactorS_ = td->ubMainFactorS;          // 主核UB内s维度主块大小
     ubTailFactorS_ = td->ubTailFactorS;          // 主核UB内s维度尾块大小
-    tailHloopCnt_ = td->tailHloopCnt;           // 尾核UB内h维度循环次数
+    tailHLoopCnt_ = td->tailHLoopCnt;           // 尾核UB内h维度循环次数
     tailBLoopCnt_ = td->tailBLoopCnt;           // 尾核UB内b维度循环次数
     tailSLoopCnt_ = td->tailSLoopCnt;           // 尾核UB内s维度循环次数
     tailCoreUbMainFactorH_ = td->tailCoreUbMainFactorH;  // 尾核UB内h维度主块大小
@@ -321,9 +321,9 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::Process()
 {
     // Accumulate grad_weight in fp32 across all (b,s) tiles per h-tile, then cast+store once per h-tile
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
-    int64_t hLoopCntCur = isTailCore ? tailHloopCnt_ : hLoopCnt_;
-    int64_t bLoopCntCur = isTailCore ? tailBloopCnt_ : bLoopCnt_;
-    int64_t sLoopCntCur = isTailCore ? tailSloopCnt_ : sLoopCnt_;
+    int64_t hLoopCntCur = isTailCore ? tailHLoopCnt_ : hLoopCnt_;
+    int64_t bLoopCntCur = isTailCore ? tailBLoopCnt_ : bLoopCnt_;
+    int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     for (int64_t hTile = 0; hTile < hLoopCntCur; ++hTile) {
         int64_t hLenThis = 0;
 
@@ -423,7 +423,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInGradOutput(int64_t b
     DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
                                static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
-    int64_t sLoopCntCur = isTailCore ? tailSloopCnt_ : sLoopCnt_;
+    int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
     int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * ubMainFactorB_;
@@ -442,7 +442,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyInInput(int64_t bTile,
     DataCopyExtParams inParams{static_cast<uint16_t>(sLen * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
                                static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0, 0};
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
-    int64_t sLoopCntCur = isTailCore ? tailSloopCnt_ : sLoopCnt_;
+    int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
     int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * ubMainFactorB_;
@@ -493,7 +493,7 @@ __aicore__ inline void AggregateHiddenGradKernel<DT>::CopyOutGradInput(int64_t b
     DataCopyExtParams outParams{static_cast<uint16_t>(sEff * bLen), static_cast<uint32_t>(hLenThis * sizeof(DT)),
                                0, static_cast<uint32_t>((H_ - hLenThis) * sizeof(DT)), 0};
     bool isTailCore = (GetBlockIdx() >= static_cast<uint64_t>(hMainCoreCnt_));
-    int64_t sLoopCntCur = isTailCore ? tailSloopCnt_ : sLoopCnt_;
+    int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     int64_t sStride = ubMainFactorS_ - 2;
     int64_t sStart = (sTile == sLoopCntCur - 1) ? (S_ - sLen) : (sTile * sStride);
     int64_t bStart = bTile * ubMainFactorB_;
