@@ -10,7 +10,7 @@ from cpu_impl import tforward
 from test_utils import generate_qkv, generate_pse, generate_npu_mask, trans_bnsd_to_layout, get_seqlen_list
 from npu_impl import flash_attn_npu
 
-from npu_ops_transformer.ops import npu_flash_attn_meta
+# from npu_ops_transformer.ops import npu_flash_attn_meta
 
 def check_result(expect, result, test_name):
     print(f"开始比对{test_name}的精度.")
@@ -100,7 +100,7 @@ def call_flash_attn(test_name, **kwargs):
     out, x_max, x_sum = tforward(qf, kf, v, pse_cpu, **kwargs)
 
     atten_mask = generate_npu_mask(b, sq, skv, sparse_mode, pre_tokens, next_tokens, prefix)
-    npu_out, npu_max, npu_sum = flash_attn_npu(q, k, v, q_rope, k_rope, atten_mask, pse_npu, **kwargs)
+    npu_out = flash_attn_npu(q, k, v, q_rope, k_rope, atten_mask, pse_npu, **kwargs)
 
     out = trans_bnsd_to_layout(out, input_layout)
     check_result(out.float(), npu_out.float(), "out")

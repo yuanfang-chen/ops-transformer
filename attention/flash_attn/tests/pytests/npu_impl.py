@@ -16,7 +16,7 @@ import numpy as np
 import random
 from einops import rearrange
 import npu_ops_transformer
-from npu_ops_transformer import npu_flash_attn
+from npu_ops_transformer.ops import npu_flash_attn
 from test_utils import trans_bnsd_to_layout
 
 device_id = 0
@@ -64,14 +64,15 @@ def flash_attn_npu(q, k, v, q_rope, k_rope, atten_mask, pse, **kwargs):
 
     out, _ = npu_flash_attn(
         q1, k1, v1,
-        cu_seqlens_q = sum(actual_seq_qlen),
-        cu_seqlens_kv = sum(actual_seq_kvlen),
+        cu_seqlens_q = sum(actual_seq_qlen) if actual_seq_qlen is not None else None,
+        cu_seqlens_kv = sum(actual_seq_kvlen) if actual_seq_kvlen is not None else None,
         seqused_q = actual_seq_qlen,
         seqused_kv = actual_seq_kvlen,
         softmax_scale = scale,
         mask_mode = sparse_mode,
         layout_q = input_layout,
-        layout_kv = input_layout
+        layout_kv = input_layout,
+        layout_out = input_layout
         )
     torch.npu.synchronize()
 
