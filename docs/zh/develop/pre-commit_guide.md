@@ -39,7 +39,7 @@ sudo apt install clang-format openjdk-17-jre maven
 brew install clang-format openjdk@17 maven
 ```
 
-### 3. 安装 Git Hooks
+### 3. 项目路径下安装 Git Hooks
 
 ```bash
 cd /path/to/ops-transformer
@@ -120,18 +120,16 @@ OAT 检查脚本，首次运行时会自动：
 
 ## 常见问题
 
-### Q1: 首次提交时 OAT 编译很慢
+### Q1: 首次提交时 OAT 检查很慢
 
 **原因**: 首次运行需要克隆并编译 OAT 工具。
 
 **解决**: 这是正常现象，后续提交会使用缓存的 JAR，速度会很快。
 
-### Q2: 检测到许可证头错误
-
-**解决**: 确保文件头部包含正确的 CANN License，参考上方标准格式。
 
 ## 相关文档
 
 - [pre-commit 官方文档](https://pre-commit.com/)
 - [clang-format 配置](https://clang.llvm.org/docs/ClangFormatStyleOptions.html)
 - [OAT 工具](https://gitcode.com/openharmony-sig/tools_oat)
+- [代码仓集成pre-commit指导](https://gitcode.com/cann/infrastructure/blob/main/docs/SC/pre-commit/pre-commit%E9%85%8D%E7%BD%AE%E6%8C%87%E5%AF%BC%E4%B9%A6.md)
