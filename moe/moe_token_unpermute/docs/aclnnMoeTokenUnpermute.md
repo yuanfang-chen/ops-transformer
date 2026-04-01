@@ -320,7 +320,7 @@ void PrintOutResult(std::vector<int64_t> &shape, void **deviceAddr) {
   CHECK_RET(
       ret == ACL_SUCCESS,
       LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret);
-      return );
+      return ret);
   for (int64_t i = 0; i < size; i++) {
     LOG_PRINT("mean result[%ld] is: %f\n", i, resultData[i]);
   }
