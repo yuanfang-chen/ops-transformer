@@ -306,7 +306,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     </tbody></table>
 
-  x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
+  x1QuantMode、x2QuantMode、commQuantMode的枚举值与[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
   * 0: 不量化
   * 1: pertensor
   * 2: perchannel
@@ -712,7 +712,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
             args[rankId].hcclComm = comms[rankId];
             args[rankId].stream = stream[rankId];
             args[rankId].context = context[rankId];
-            threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAlltoAll, std::ref(args  [rankId])));
+            threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAlltoAll, std::ref(args[rankId])));
         }
         for (uint32_t rankId = 0; rankId < ndev; rankId++) {
             threads[rankId]->join();
@@ -944,7 +944,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
             args[rankId].hcclComm = comms[rankId];
             args[rankId].stream = stream[rankId];
             args[rankId].context = context[rankId];
-            threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAlltoAll, std::ref(args  [rankId])));
+            threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAlltoAll, std::ref(args[rankId])));
         }
         for (uint32_t rankId = 0; rankId < ndev; rankId++) {
             threads[rankId]->join();
