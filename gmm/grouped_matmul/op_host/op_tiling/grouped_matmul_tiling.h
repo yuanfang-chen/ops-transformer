@@ -122,6 +122,7 @@ protected:
     bool IsFixedAxisMoveCondition();
     bool IsIntDataType();
     ge::graphStatus CalMMTiling(const gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
+    uint32_t CalUsedCoreNum(const uint32_t aicNum);
     ge::graphStatus GMMSetMMTiling(const gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
     ge::graphStatus GMMGetAttrs(const gert::TilingContext *context);
     ge::graphStatus GMMSetUbDivideBlk();
@@ -222,6 +223,7 @@ private:
     ge::DataType scaleDtype_ = ge::DT_UNDEFINED;
     ge::DataType perTokenScaleDtype_ = ge::DT_UNDEFINED;
     ge::DataType yDtype_ = ge::DT_UNDEFINED;
+    bool isA8W4_ = false;
     bool isA8W8_ = false;
     // in quant case, it indicates pertoken flag; in antiquant case, it represents pergroup size
     uint32_t perTokenOrPerGroupSize_ = 0;
