@@ -76,7 +76,7 @@ public:
     using pseShiftW8InType = typename AscendC::Conditional<isInfer, half, OUTPUT_T>::type;
     using pseShiftType = typename AscendC::Conditional<isW8In, pseShiftW8InType, INPUT_T>::type;
     static constexpr int64_t FP8_QUANT_KV_BLOCK_SIZE = 256;
-    static constexpr T BOOL_ATTEN_MASK_SCALAR_VALUE = -1000000000000.0; // 用于mask为bool类型
+    static constexpr T BOOL_ATTEN_MASK_SCALAR_VALUE = -inf; // 用于mask为bool类型
  	uint32_t negativeIntScalar = *((uint32_t *)&BOOL_ATTEN_MASK_SCALAR_VALUE);
 
     /*HIFLOAT8场景 K_BLOCK_SIZE = 256 V_BLOCK_SIZE = 512*/
@@ -801,15 +801,17 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
             attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
         } else if constexpr (isGqaNoQuant) {
-            if (constInfo.isPfaGS1Merge) {
+            if (constInfo.isGqa) {
                 MaskInfo maskInfo;
                 maskInfo.gs1StartIdx = (constInfo.subBlockIdx == 0) ? 0 : runInfo.firstHalfS1RealSize;
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_TND ||
                                 layout == LayOutTypeEnum::LAYOUT_BSH ||
                                 layout == LayOutTypeEnum::LAYOUT_SBH) {
                     maskInfo.gs1StartIdx += runInfo.s1oIdx * constInfo.gSize + runInfo.goIdx;
+                    maskInfo.layout = LAYOUT_Q::SG;
                 } else {
                     maskInfo.gs1StartIdx += runInfo.goIdx * runInfo.actualS1Size + runInfo.s1oIdx;
+                    maskInfo.layout = LAYOUT_Q::GS;
                 }
                 maskInfo.gs1dealNum = runInfo.halfS1RealSize;
                 maskInfo.s1Size = runInfo.actualS1Size;
@@ -821,13 +823,8 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.nextToken = runInfo.nextTokensPerBatch;
                 maskInfo.batchIdx = runInfo.boIdx;
                 maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;
-                maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
-                maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
-                if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
-                    maskInfo.layout = LAYOUT_Q::SG;
-                } else {
-                    maskInfo.layout = LAYOUT_Q::GS;
-                }
+                maskInfo.attenMaskS1Stride = attenMaskInfoPtr->attenMaskS2Size;
+                maskInfo.attenMaskDstStride = s2BaseSize > Align(maskInfo.s2dealNum, 32U) ? (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32 : 0;
                 maskInfo.attenMaskType = MaskDataType::MASK_BOOL;
                 uint8_t sparseMode = (attenMaskInfoPtr->compressMode == 0) ?            // sparseMode与compressMode定义不同
                     attenMaskInfoPtr->compressMode : attenMaskInfoPtr->compressMode + 1;
@@ -837,11 +834,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.s2LeftPaddingSize = runInfo.kvLeftPaddingSize;
 
                 attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
-                if (maskInfo.layout == LAYOUT_Q::SG) {
-                    AttentionmaskCopyInForSgLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
-                } else if (maskInfo.layout == LAYOUT_Q::GS) {
-                    AttentionmaskCopyInForGsLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
-                }
+                AttentionmaskCopyGS1(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
             } else {
                 AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
                     this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
