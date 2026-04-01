@@ -99,6 +99,17 @@ public:
     __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
     __aicore__ inline void End();
 
+    struct Params {
+        const GM_ADDR Atype* ptrA;
+        const GM_ADDR CType* ptrC;
+        const GM_ADDR perTokenScaleType* ptrScaleA;
+        const GM_ADDR antiQuantScaleType* ptrScaleB;
+        
+        bool hasBias;
+        uint64_t baseK;
+        uint64_t kbL1Size;
+    };
+
 protected:
     __aicore__ inline void WaitAivToAic();
     __aicore__ inline void SetAicToAiv();
@@ -512,7 +523,7 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::GetTensorC(const TensorC &tenso
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
-__aicore__ inline WQBMM_CUBE_COMPUTE_CLASS::BlockMmad(
+__aicore__ inline WQBMM_CUBE_COMPUTE_CLASS::BlockMmad(const Params& params,
     bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
 {
     isBias_ = hasBias;
@@ -555,12 +566,32 @@ __aicore__ inline WQBMM_CUBE_COMPUTE_CLASS::BlockMmad(
 }
 
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::CalcDynamicKBlock(
+    uint64_t mL1Size, uint64_t nL1Size, uint64_t &kaL1Size, uint64_t &kbL1Size) const
+{
+    kbL1Size = mmTiling_->baseK * mmTiling_->stepKb;
+    kbL1Size = (mL1Size <= mxA8W4L1KDynamicConfigMThreshold_ &&
+                nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
+                   MX_A8W4_L1_K_CONFIG_512 :
+                   MX_A8W4_L1_K_CONFIG_256;
+    if (mL1Size < nL1Size) {
+        uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * GetKBUnit<XType>() : 128 * GetKBUnit<XType>();
+        uint64_t mL1Align = AscendC::CeilAlign(mL1Size, static_cast<uint64_t>(BLOCK_CUBE));
+        kaL1Size = aL1Size / (mL1Align * kbL1Size) * kbL1Size;
+    } else {
+        kaL1Size = kbL1Size;
+    }
+}
+
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
 template <typename TensorA, typename TensorC, typename TensorScaleA, typename TensorScaleB>
 __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::operator()(const TensorA &tensorA, const TensorC &tensorC,
                                                             const TensorScaleA &tensorScaleA,
-                                                            const TensorScaleB &tensorScaleB, uint64_t kaL1Size,
-                                                            uint64_t kbL1Size)
+                                                            const TensorScaleB &tensorScaleB)
 {
+    uint64_t kaL1Size;
+    uint64_t kbL1Size;
+    CalcDynamicKBlock(mL1Size, nL1Size, kaL1Size, kbL1Size);
     BlockMmadOffsetParam blockParam = {};
     blockParam.mL1Size = GetEleFromLayout<decltype(tensorC.Layout()), AttrInfo::SHAPE, AttrInfo::ROW, 1>(tensorC.Layout());
     blockParam.kSize = GetEleFromLayout<decltype(tensorA.Layout()), AttrInfo::SHAPE, AttrInfo::COLUMN, 1>(tensorA.Layout());

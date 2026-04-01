@@ -55,13 +55,22 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
                                        YType, LayoutC>;
     using BlockEpilogue = void;
     using BlockPrologue =
-        Block::BlockPrologue<DispatchPolicy, XType, WeightType, BiasType>;
+        Block::BlockPrologue<DispatchPolicy, WeightType, LayoutB, XType, BiasType>;
     using KernelImpl =
         Kernel::GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue>;
 
-    KernelImpl kernelImpl(
-        x, weight, antiquantScale, bias, groupList, perTokenScale, y, &gmmBaseParams_, &mmTilingData_);
-    kernelImpl();
+    using MmadParams = typename BlockMmad::Params;
+    using PrologueParams = typename BlockMmad::Params;
+    using KernelParams = typename Kernel::Params;
+
+    KernelParams params = {
+        {0UL, gmmBaseParams_.kSize, gmmBaseParams_.nSize},
+        MmadParams{},
+        PrologueParams{}
+    };
+
+    KernelImpl kernelImpl;
+    kernelImpl(params);
 }
 
 template <int8_t W_TYPE, int8_t OFFSET_OR_BIAS_EXIT, int8_t C_QUANT_TYPE, int8_t W_QUANT_TYPE, int8_t WQ_B_TRANS,
