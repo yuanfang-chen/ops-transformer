@@ -1134,8 +1134,8 @@ ge::graphStatus DequantChecker::CheckInputKVTypeForAntiquant(const FiaTilingInfo
         }
     }
     if (keyAntiquantMode == PER_TOKEN_MODE && valueAntiquantMode == PER_TOKEN_MODE) {
-        // per-token模式，支持key/value的数据类型为INT8、INT4(INT32)、FLAOT8_E4M3FN
-        OP_CHECK_IF((inputKvType != ge::DT_INT8 && inputKvType != ge::DT_INT4 && inputKvType != ge::DT_FLAOT8_E4M3FN),
+        // per-token模式，支持key/value的数据类型为INT8、INT4(INT32)、FLOAT8_E4M3FN
+        OP_CHECK_IF((inputKvType != ge::DT_INT8 && inputKvType != ge::DT_INT4 && inputKvType != ge::DT_FLOAT8_E4M3FN),
                     OP_LOGE(fiaInfo.opName,
                             "Datatype of key and value(%s) is not supported. "
                             "Datatype of key and value must be INT8, INT4(INT32) or FLOAT8_E4M3FN when "
@@ -2216,7 +2216,7 @@ ge::graphStatus DequantChecker::CheckSinglePara(const FiaTilingInfo &fiaInfo)
             enablePerblockQuant_ = true;
         }
 
-        if (ge::GRAPH_SUCCESS != CheckDequantScaleDTypeFullquant(fiaInfo) ||
+        if (ge::GRAPH_SUCCESS != CheckDequantScaleDtypeFullquant(fiaInfo) ||
             ge::GRAPH_SUCCESS != CheckDequantModeFullquant(fiaInfo) ||
             ge::GRAPH_SUCCESS != CheckDequantScaleShapeFullquant(fiaInfo)) {
             return ge::GRAPH_FAILED;

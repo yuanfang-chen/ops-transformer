@@ -435,6 +435,7 @@ ge::graphStatus MaskChecker::CheckCrossFeature(const FiaTilingInfo &fiaInfo)
             if (ge::GRAPH_SUCCESS != CheckFeatureSparseMode(fiaInfo)) {
                 return ge::GRAPH_FAILED;
             }
+        }
     } else if (enableAntiQuant_) {
         if (ge::GRAPH_SUCCESS != CheckAntiquantSparseMode(fiaInfo)) {
             return ge::GRAPH_FAILED;
