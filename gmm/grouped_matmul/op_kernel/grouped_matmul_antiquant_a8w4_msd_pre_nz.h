@@ -98,12 +98,16 @@ __aicore__ inline void GMMA8W4PreProcessNZ::Init(GM_ADDR x, GM_ADDR y, GM_ADDR g
 
     groupListGm.SetGlobalBuffer((__gm__ int64_t *)groupList);
     xGm.SetGlobalBuffer(GetTensorAddr<int8_t>(0, x));
-    xOutInt4.SetGlobalBuffer((__gm__ int4b_t*)((__gm__ int8_t*)y + tilingData.preProcessWorkspaceOffset));
-    dbgxOutInt4.SetGlobalBuffer(((__gm__ int8_t*)y + tilingData.preProcessWorkspaceOffset));
-    groupNum = static_cast<uint32_t>(tilingData.groupNum);
-    withOffset = tilingData.withOffset;
+
     m = tilingData.m;
     k = tilingData.k;
+    size_t WorkspaceOffset = m * k;
+    
+    xOutInt4.SetGlobalBuffer((__gm__ int4b_t*)((__gm__ int8_t*)y + WorkspaceOffset));
+    // dbgxOutInt4.SetGlobalBuffer(((__gm__ int8_t*)y + tilingData.preProcessWorkspaceOffset));
+    groupNum = static_cast<uint32_t>(tilingData.groupNum);
+    withOffset = tilingData.withOffset;
+
 
     pipe->InitBuffer(vecInQueueX, BUFFER_NUM_TWO, vectorBaseSize * sizeof(int8_t)); // 16K
     pipe->InitBuffer(vecOutQueue, BUFFER_NUM_TWO, vectorBaseSize * sizeof(int8_t)); // 16K
