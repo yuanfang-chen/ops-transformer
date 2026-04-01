@@ -28,8 +28,8 @@ using namespace optiling::Mc2GroupedMatmul;
 
 // namespace Mc2GroupedMatmul {
 
-const std::vector<uint32_t> MX_QUANT_GMM_X_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, };
-const std::vector<uint32_t> MX_QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, };
+const std::vector<uint32_t> MX_QUANT_GMM_X_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT4_E2M1, };
+const std::vector<uint32_t> MX_QUANT_GMM_WEIGHT_DTYPE_LIST = {ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT4_E2M1, };
 const std::vector<uint32_t> MX_QUANT_GMM_X_SCALE_DTYPE_LIST = {ge::DT_FLOAT8_E8M0, };
 const std::vector<uint32_t> MX_QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST = {ge::DT_FLOAT8_E8M0, };
 const std::vector<uint32_t> MX_QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16, };
@@ -69,11 +69,23 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsGmm()
     localParams_.gmmXDtype = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     localParams_.gmmWeightDtype = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType();
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_X_DTYPE_LIST, localParams_.gmmXDtype),
-        OP_LOGE(opName_, "The Input gmmX Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ), but gmmX is %s.",
+        OP_LOGE(opName_, "The Input gmmX Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ge::DT_FLOAT4_E2M1, ), but gmmX is %s.",
         Ops::Base::ToString(localParams_.gmmXDtype).c_str()), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_WEIGHT_DTYPE_LIST, localParams_.gmmWeightDtype),
-        OP_LOGE(opName_, "The Input gmmWeight Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ), but gmmWeight is %s.",
+        OP_LOGE(opName_, "The Input gmmWeight Dtype should be in (DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, ge::DT_FLOAT4_E2M1, ), but gmmWeight is %s.",
         Ops::Base::ToString(localParams_.gmmWeightDtype).c_str()), return ge::GRAPH_FAILED);
+    //====================新增：设置 isMxfp4_标志==============
+    if (localParams_.gmmXDtype == ge::DT_FLOAT4_E2M1 || localParams_.gmmWeightDtype == ge::DT_FLOAT4_E2M1) {
+        isMxfp4_ = true;
+        // MXFP4 场景下，x和weight的dtype必须一致
+        OP_TILING_CHECK(localParams_.gmmXDtype != localParams_.gmmWeightDtype,
+                        OP_LOGE(opName_, "In MXFP4 mode, the dtype of gmmX and gmmWeight should both be DT_FLOAT4_E2M1, but gmmX dtypeis %s, gmmWeight dtype is %s.",
+                                Ops::Base::ToString(localParams_.gmmXDtype).c_str(),
+                                Ops::Base::ToString(localParams_.gmmWeightDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+        OP_LOGD(opName_, "MXFP4 mode enabled: gmmXDtype=%s", Ops::Base::ToString(localParams_.gmmXDtype).c_str())
+    }
+
     localParams_.yDtype = context_->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
     OP_TILING_CHECK(!IsContains(MX_QUANT_GMM_Y_DTYPE_LIST, localParams_.yDtype),
         OP_LOGE(opName_, "The Output y Dtype should be in (DT_FLOAT16, DT_BF16, ), but y Dtype is %s.",
@@ -389,6 +401,18 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantGmmScaleShapes(
     uint64_t gmmWeightScaleDim3 = gmmWeightScaleShape->GetStorageShape().GetDim(DIM_THREE);
 
     uint64_t gmmxDivH1 = (localParams_.H1 + MX_SCALE_GROUP - 1) / MX_SCALE_GROUP;
+    //====================新增：MXFP4特有约束校验=========================
+    // if (isMxfp4_) {
+    //     // MXFP 场景中，K需要为偶数
+    //     OP_TILING_CHECK((localParams_.H1 % 2 != 0),
+    //         OP_LOGE(opName_,
+    //             "In MXFP4 scenario, K=%lu and ceil(K/32)=%lu must both be even.",
+    //             localParams_.H1, h1Div32),
+    //             return ge::GRAPH_FAILED);
+    //         OP_LOGD(opName_, "MXFP4 constraint check passed: K=%lu.",
+    //             localParams_.H1);
+    // }
+
     OP_TILING_CHECK((localParams_.A != gmmXScaleDim0) || (gmmxDivH1 != gmmXScaleDim1) || (gmmXScaleDim2 != EVEN_ALIGN),
         OP_LOGE(opName_, "In the Non-Transposed Scenario, Wrong shape of gmmXScale! "
             "gmmXScaleDim0 should be equal to gmmXDim0(%lu), "
@@ -472,6 +496,38 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxQuantMmScaleShapes()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckMxfp4SpecificConstraints(){
+    if (!isMxfp4_) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if(!localParams_.isGmmWeightTrans) {
+        // non-transposed: weight shape is(e,K,N)
+        OP_TILING_CHECK(localParams_.N1 % 2 != 0,
+            OP_LOGE(opName_, "In mxfp4 non-transposed weight scenario, N1 must be even, but N1=%lu",
+                localParams_.N1), return ge::GRAPH_FAILED);
+    }
+    // K must be even
+    uint64_t h1 = localParams_.H1;
+    OP_TILING_CHECK(h1 % 2 != 0,
+        OP_LOGE(opName_, "In mxfp4 scenario, the H1 of gmm_x requires to be even, but H1= %lu.",h1),
+        return ge::GRAPH_FAILED);
+    // 如果有共享专家MM,也需要校验H2
+    if (localParams_.hasSharedMm) {
+        if (!localParams_.ismmWeightTrans) {
+            // non-transposed: weight shape is(K,N)
+            OP_TILING_CHECK(localParams_.N2 % 2 != 0,
+                            OP_LOGE(opName_, "In mxfp4 non-transposed weight scenario, N2 must be even, but N2=%lu",
+                                    localParams_.N2),
+                            return ge::GRAPH_FAILED);
+        }
+        uint64_t h2 = localParams_.H2;
+        OP_TILING_CHECK(h2 % 2 != 0, OP_LOGE(opName_, "In mxfp4 scenario, the H2 of mm_x requires to be even, but H2= %lu.", h2),
+                        return ge::GRAPH_FAILED);
+    }
+    OP_LOGD(opName_, "MXFP4 specific constraints check passed.");
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo()
 {
     auto status = CheckOpInputSingleParamsTensor();
@@ -490,6 +546,9 @@ ge::graphStatus MxQuantGroupedMatmulAllToAllvTiling::CheckAndSetInputOutputInfo(
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     status = CheckMxQuantMmScaleShapes();
+    if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
+
+    status = CheckMxfp4SpecificConstraints();
     if (status != ge::GRAPH_SUCCESS) {return ge::GRAPH_FAILED;}
 
     return ge::GRAPH_SUCCESS;
