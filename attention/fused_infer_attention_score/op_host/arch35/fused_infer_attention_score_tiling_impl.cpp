@@ -89,6 +89,18 @@ bool FusedInferAttentionScoreTilingImpl::CheckTransposeLayout(const FiaTilingInf
     return false;
 }
 
+void FusedInferAttentionScoreTilingImpl::SetIsIFA(const FiaTilingInfo &fiaInfo)
+{
+    std::string layoutStr(fiaInfo.opParamInfo.layOut);
+    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
+            layoutStr == "NTD" || layoutStr == "NTD_TND";
+    if (fiaInfo.s1Size == 1 && !fiaInfo.enableAlibiPse && !isTransposeLayout &&
+        fiaInfo.fullQuantMode != FiaFullQuantMode::PER_BLOCK_FULL_QUANT ) {
+        isIFAFlag_ =true;
+        return;
+    }
+}
+
 void FusedInferAttentionScoreTilingImpl::SetGSMerge(const FiaTilingInfo &fiaInfo)
 {
     std::string layoutStr(fiaInfo.opParamInfo.layOut);
@@ -391,14 +403,14 @@ int64_t FusedInferAttentionScoreTilingImpl::GetCutBlockNums(int64_t blockSeqLeng
     int64_t blockNums = 0;
     int64_t blockToken = token > 0 ? ((token + sInner - 1) / sInner * sInner) : (token / sInner * sInner);
     int64_t outDivIn = sOuter > sInner ? sOuter / sInner : 1;
-    int64_t InDivOut = sInner > sOuter ? sInner / sOuter : 1;
+    int64_t inDivOut = sInner > sOuter ? sInner / sOuter : 1;
     int64_t tolerance = 0;
     int64_t smallSize = 0;
     if (outDivIn >= static_cast<int64_t>(NUM1)) {
         tolerance = outDivIn;
         smallSize = sInner;
     } else {
-        tolerance = InDivOut;
+        tolerance = inDivOut;
         smallSize = sOuter;
     }
 
@@ -790,9 +802,11 @@ void FusedInferAttentionScoreTilingImpl::GetAntiQuantPreNextTokensLeftUp(const F
     }
 }
 
-void FusedInferAttentionScoreTilingImpl::FixAntiQuantParamWithRowInvalid(const FiaTilingInfo &fiaInfo, int64_t &actualSeqLength, 
-                                                                int64_t actualSeqLengthKV, int64_t &preTokensLeftUp,
-                                                                int64_t &nextTokensLeftUp)
+void FusedInferAttentionScoreTilingImpl::FixAntiQuantParamWithRowInvalid(const FiaTilingInfo &fiaInfo,
+                                                                         int64_t &actualSeqLength, 
+                                                                         int64_t actualSeqLengthKV,
+                                                                         int64_t &preTokensLeftUp,
+                                                                         int64_t &nextTokensLeftUp)
 {
     // 若出现行无效，需要重新计算nexttokens，pretokens，actualseqlen，以便正确计算分核核数
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
@@ -838,8 +852,9 @@ void FusedInferAttentionScoreTilingImpl::ComputeDequantSplitNBSeq(const FiaTilin
             GetAntiQuantPreNextTokensLeftUp(fiaInfo, actualSeqLengthsTmp,
                                    actualSeqLengthsKVTmp + fiaInfo.systemPrefixLen, preTokensLeftUp,
                                    nextTokensLeftUp);
-            FixAntiQuantParamWithRowInvalid(fiaInfo, actualSeqLengthsTmp, actualSeqLengthsKVTmp + fiaInfo.systemPrefixLen,
-                                   preTokensLeftUp, nextTokensLeftUp);
+            FixAntiQuantParamWithRowInvalid(fiaInfo, actualSeqLengthsTmp,
+                                            actualSeqLengthsKVTmp + fiaInfo.systemPrefixLen,
+                                            preTokensLeftUp, nextTokensLeftUp);
             int64_t outerBlockNums = sOuterLoopTimes[bIdx];
             int64_t innerBlockNums = sInnerLoopTimes[bIdx];
             for (uint32_t sOuterIndex = 0; sOuterIndex < outerBlockNums; sOuterIndex++) {
@@ -1080,7 +1095,7 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::SplitPolicy(gert::TilingCont
             SplitOutSeq(fiaInfo);
         } else {
             SplitNBSeq(fiaInfo);
-            if (CheckFlashDecode(fiaInfo)) {
+            if (isIFAFlag_ && !pfaMergeFlag_ && CheckFlashDecode(fiaInfo)) {
                 flashDecodeFlag_ = true;
                 OP_LOGI(fiaInfo.opName, "FlashDecode is enable.");
                 SplitS2(fiaInfo);
@@ -1890,8 +1905,8 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::ComputeTilingData(const FiaT
     if (fiaInfo.attenMaskFlag) {
         uint64_t maskBatch = 1;
         uint64_t maskDimNum = fiaInfo.opParamInfo.attenMask.tensor->GetStorageShape().GetDimNum();
-        uint64_t maskS1Size = 2048;
-        uint64_t maskS2Size = 2048;
+        uint64_t maskS1Size = NUM_2048;
+        uint64_t maskS2Size = NUM_2048;
         if (maskDimNum != 2 || fiaInfo.s1Size == 1) {
             maskBatch = fiaInfo.opParamInfo.attenMask.tensor->GetStorageShape().GetDim(0);
         }

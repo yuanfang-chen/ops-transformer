@@ -37,7 +37,7 @@ private:
     // 公共校验函数
     ge::graphStatus CheckSingleDtype(const FiaTilingInfo &fiaInfo);
     ge::graphStatus CheckExistenceShapeAndDesc(const FiaTilingInfo &fiaInfo);
-    ge::graphStatus CheckFeatureDimAndShape(const FiaTilingInfo &fiaInfo)
+    ge::graphStatus CheckFeatureDimAndShape(const FiaTilingInfo &fiaInfo);
 
 private:
 };

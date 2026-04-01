@@ -180,11 +180,11 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
         return ge::GRAPH_SUCCESS;
     }
     uint32_t actualSeqLengthsKvDimNum = actualSeqLengthsKvTensor->GetShapeSize();
-    uint32_t batchSize = fiaInfo.bSize;
+    int64_t batchSize = fiaInfo.bSize;
     FiaLayout qLayout = fiaInfo.qLayout;
     if (qLayout == FiaLayout::TND || qLayout == FiaLayout::NTD) {
         // key/value的layout为TND或NTD时，非page attention场景时，其值应递增，且为非负数
-        for (uint32_t bIdx = 0; bIdx < batchSize; bIdx++) {
+        for (int64_t bIdx = 0; bIdx < batchSize; bIdx++) {
             if ( actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
                 return ge::GRAPH_SUCCESS;
             }
@@ -192,7 +192,7 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
             // 非page attention场景时，其值应为递增
             if (bIdx != 0) {
                 int64_t lastSeqLengthData = actualSeqLengthsKvTensor->GetData<int64_t>()[bIdx - 1];
-                OP_CHECK_IF((!fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION && curSeqLengthData < lastSeqLengthData),
+                OP_CHECK_IF((fiaInfo.kvStorageMode != KvStorageMode::PAGE_ATTENTION && curSeqLengthData < lastSeqLengthData),
                     OP_LOGE(fiaInfo.opName,
                             "actualSeqLengthsKv[%ld](%ld) < actualSeqLengthsKv[%ld](%ld). "
                             "actualSeqLengthsKv must be increasing when the layout of key/value is "
@@ -208,8 +208,8 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
     } else {
         // key/value的layout为非TND/NTD，其值应不大于KV_S，且为非负数
         int64_t sOfKeyValue = static_cast<int64_t>(fiaInfo.s2Size);
-        uint32_t actualSeqLengthsSize = std::min(static_cast<int64_t>(actualSeqLengthsKvDimNum), batchSize);
-        for (uint32_t i = 0; i < actualSeqLengthsSize; i++) {
+        int64_t actualSeqLengthsSize = std::min(static_cast<int64_t>(actualSeqLengthsKvDimNum), batchSize);
+        for (int64_t i = 0; i < actualSeqLengthsSize; i++) {
             if ( actualSeqLengthsKvTensor->GetData<int64_t>() == nullptr) {
                 return ge::GRAPH_SUCCESS;
             }
@@ -403,9 +403,9 @@ int64_t ActualSeqLenChecker::GetActualSeqLengthsQData(const FiaTilingInfo &fiaIn
     } else {
         // 非累加形式
         if (actualSeqLengthsQTensor != nullptr) {
-            int64_t actSeqLenDims = actualSeqLengthsQTensor.GetShapeSize();
+            int64_t actSeqLenDims = actualSeqLengthsQTensor->GetShapeSize();
             actualSeqLengthsQData = actSeqLenDims > 1 ? actualSeqLengthsQTensor->GetData<int64_t>()[bIdx] :
-                                    actualSeqLengthsQTensor->GetData<int64_t>()[0]
+                                    actualSeqLengthsQTensor->GetData<int64_t>()[0];
         } else {
             actualSeqLengthsQData = fiaInfo.s1Size;
         }
@@ -433,7 +433,7 @@ int64_t ActualSeqLenChecker::GetActualSeqLengthsKvData(const FiaTilingInfo &fiaI
     } else {
         // 非累加形式
         if (actualSeqLengthsKvTensor != nullptr) {
-            int64_t actSeqLenKVDims = actualSeqLengthsQTensor.GetShapeSize();
+            int64_t actSeqLenKVDims = actualSeqLengthsKvTensor->GetShapeSize();
             actualSeqLengthsKvData = actSeqLenKVDims > 1 ? actualSeqLengthsKvTensor->GetData<int64_t>()[bIdx]:
                                      actualSeqLengthsKvTensor->GetData<int64_t>()[0];
         } else {

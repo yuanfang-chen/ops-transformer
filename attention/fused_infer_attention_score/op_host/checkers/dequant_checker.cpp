@@ -518,7 +518,9 @@ ge::graphStatus DequantChecker::CheckFeatureMLAFullquant(const FiaTilingInfo &fi
     const uint32_t keyDim = fiaInfo.opParamInfo.key.shape->GetStorageShape().GetDimNum();
     OP_CHECK_IF(fiaInfo.inputQType == ge::DT_INT8 &&
         !(fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION && keyDim == DIM_NUM_5),
-                OP_LOGE(fiaInfo.opName, "In MLA fullquant scenario, key/value layout must be PA_NZ when input datatype is INT8."),
+                OP_LOGE(fiaInfo.opName, 
+                    "In MLA fullquant scenario, "
+                    "key/value layout must be PA_NZ when input datatype is INT8."),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -541,11 +543,13 @@ ge::graphStatus DequantChecker::CheckDequantScaleKVMLAFullquant(const FiaTilingI
         return ge::GRAPH_SUCCESS;
     }
     // kv: [1]
-    OP_CHECK_IF((fiaInfo.opParamInfo.keyAntiquantScale.tensor->GetStorageShape().GetDimNum() != NUM1 ||
+    OP_CHECK_IF((fiaInfo.opParamInfo.keyAntiquantScale.tensor != nullptr) &&
+                (fiaInfo.opParamInfo.keyAntiquantScale.tensor->GetStorageShape().GetDimNum() != NUM1 ||
                  fiaInfo.opParamInfo.keyAntiquantScale.tensor->GetShapeSize() != NUM1),
                 OP_LOGE(fiaInfo.opName, "In MLA fullquant scenario, the shape of keyAntiquantScale must be [1]."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF((fiaInfo.opParamInfo.valueAntiquantScale.tensor->GetStorageShape().GetDimNum() != NUM1 ||
+    OP_CHECK_IF((fiaInfo.opParamInfo.valueAntiquantScale.tensor != nullptr) &&
+                (fiaInfo.opParamInfo.valueAntiquantScale.tensor->GetStorageShape().GetDimNum() != NUM1 ||
                  fiaInfo.opParamInfo.valueAntiquantScale.tensor->GetShapeSize() != NUM1),
                 OP_LOGE(fiaInfo.opName, "In MLA fullquant scenario, the shape of valueAntiquantScale must be [1]."),
                 return ge::GRAPH_FAILED);
@@ -601,6 +605,7 @@ ge::graphStatus DequantChecker::CheckDequantScaleQueryMLAFullquant(const FiaTili
                         return ge::GRAPH_FAILED);
         }
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus DequantChecker::CheckDequantScaleShapePertensor(const FiaTilingInfo &fiaInfo)
@@ -1130,7 +1135,7 @@ ge::graphStatus DequantChecker::CheckInputKVTypeForAntiquant(const FiaTilingInfo
     }
     if (keyAntiquantMode == PER_TOKEN_MODE && valueAntiquantMode == PER_TOKEN_MODE) {
         // per-token模式，支持key/value的数据类型为INT8、INT4(INT32)、FLAOT8_E4M3FN
-        OP_CHECK_IF((inputKvType != ge::DT_INT8 && inputKvType != ge::DT_INT4),
+        OP_CHECK_IF((inputKvType != ge::DT_INT8 && inputKvType != ge::DT_INT4 && inputKvType != ge::DT_FLAOT8_E4M3FN),
                     OP_LOGE(fiaInfo.opName,
                             "Datatype of key and value(%s) is not supported. "
                             "Datatype of key and value must be INT8, INT4(INT32) or FLOAT8_E4M3FN when "

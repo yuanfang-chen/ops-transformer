@@ -40,7 +40,7 @@ ge::graphStatus PagedAttentionChecker::CheckBlockTableDtype(const FiaTilingInfo 
     const gert::CompileTimeTensorDesc *blockTableDesc = fiaInfo.opParamInfo.blockTable.desc;
     OP_CHECK_IF(blockTableDesc->GetDataType() != ge::DT_INT32,
         OP_LOGE(fiaInfo.opName,
-                "When page attention enable, block table datatype only support INT32."),
+                "When page attention enable, blockTable datatype only support INT32."),
             return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -77,7 +77,7 @@ ge::graphStatus PagedAttentionChecker::CheckBlockSize(const FiaTilingInfo &fiaIn
                 "When page attention enable, blockSize should not be null."),
             return ge::GRAPH_FAILED);
     
-    OP_CHECK_IF(fiaInfo.opParamInfo.blockSize < 0,
+    OP_CHECK_IF(fiaInfo.blockSize <= 0,
         OP_LOGE(fiaInfo.opName,
                 "When page attention enable, blockSize(%d) should be > 0.",
                 fiaInfo.blockSize),
@@ -494,20 +494,18 @@ ge::graphStatus PagedAttentionChecker::CheckKVLayout(const FiaTilingInfo &fiaInf
 ge::graphStatus PagedAttentionChecker::CheckFeatureQueryS(const FiaTilingInfo &fiaInfo)
 {
     // When antiquantMode is 0 or 1 and data type of key/value is int8 scenario, page attention is not supported.
-    if (fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag) {
-        if (fiaInfo.s1Size > 1) {
-            int64_t keyAntiquantMode = 0;
-            if (fiaInfo.opParamInfo.keyAntiquantMode != nullptr) {
-                keyAntiquantMode = *fiaInfo.opParamInfo.keyAntiquantMode;
-            }
-            OP_CHECK_IF(
-                (keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
-                    fiaInfo.inputKvType == ge::DT_INT8,
-                OP_LOGE(fiaInfo.opName,
-                    "In keyAntiquantMode/valueAntiquantMode split mode and data type of key/value is int8 scenario, if "
-                    "keyAntiquantMode/valueAntiquantMode is 0 or 1, page attention is not supported!"),
-                    return ge::GRAPH_FAILED);
+    if (fiaInfo.s1Size > 1) {
+        int64_t keyAntiquantMode = 0;
+        if (fiaInfo.opParamInfo.keyAntiquantMode != nullptr) {
+            keyAntiquantMode = *fiaInfo.opParamInfo.keyAntiquantMode;
         }
+        OP_CHECK_IF(
+            (keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
+                fiaInfo.inputKvType == ge::DT_INT8,
+            OP_LOGE(fiaInfo.opName,
+                "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario, if "
+                "keyAntiquantMode/valueAntiquantMode is 0 or 1, page attention is not supported!"),
+                return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -549,7 +547,7 @@ ge::graphStatus PagedAttentionChecker::CheckCrossFeature(const FiaTilingInfo &fi
         ge::GRAPH_SUCCESS != CheckBlockTableShape(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckMaskShape(fiaInfo) ||
         ge::GRAPH_SUCCESS != CheckFeatureSupport(fiaInfo) ||
-        ge::GRAPH_SUCCESS != CheckQDtypeSupport(fiaInfo) ||) {
+        ge::GRAPH_SUCCESS != CheckQDtypeSupport(fiaInfo)) {
             return ge::GRAPH_FAILED;
     }
     if (enableAntiQuant_) {

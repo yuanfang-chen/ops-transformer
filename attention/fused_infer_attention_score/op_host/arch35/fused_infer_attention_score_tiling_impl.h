@@ -110,6 +110,7 @@ protected:
                            uint32_t sInnerSize, double coreWeightTarget, uint32_t &curCore);
     void SplitNBSeq(const FiaTilingInfo &fiaInfo);
     void InitImplParam(const FiaTilingInfo &fiaInfo);
+    void SetIsIFA(const FiaTilingInfo &fiaInfo);
     void SetGSMerge(const FiaTilingInfo &fiaInfo);
     bool CheckEnableDN(const FiaTilingInfo &fiaInfo);
     bool CheckQKVActualSeqLengthsRight(const FiaTilingInfo &fiaInfo);
@@ -166,6 +167,7 @@ protected:
     std::vector<int64_t> actualSeqLengthsKV_ = {};
     bool fromPFA_ = false;
     bool isPFAFlag_ = false;
+    bool isIFAFlag_ = false;
     bool needInit_ = false;
     bool enableS1OutSplit = false;
 };

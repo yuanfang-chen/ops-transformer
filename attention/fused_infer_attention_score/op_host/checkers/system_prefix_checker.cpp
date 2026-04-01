@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include <map>
 #include <numeric>
 #include <graph/utils/type_utils.h>
 #include "log/log.h"
@@ -23,9 +22,7 @@
 #include "system_prefix_checker.h"
 
 namespace optiling {
-using std::map;
 using std::string;
-using std::pair;
 using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
@@ -290,6 +287,11 @@ ge::graphStatus SystemPrefixChecker::CheckUnSupportFeature(const FiaTilingInfo &
     OP_CHECK_IF((fiaInfo.kvStorageMode == KvStorageMode::PAGE_ATTENTION),
         OP_LOGE(fiaInfo.opName,
             "prefix is not supported when page attention is enabled."),
+        return ge::GRAPH_FAILED);
+    // 不支持tensorlist
+    OP_CHECK_IF((fiaInfo.kvStorageMode == KvStorageMode::TENSOR_LIST),
+        OP_LOGE(fiaInfo.opName,
+            "prefix is not supported when tensorlist is enabled."),
         return ge::GRAPH_FAILED);
     // 不支持左padding场景
     OP_CHECK_IF((fiaInfo.qPaddingSizeFlag || fiaInfo.kvPaddingSizeFlag),

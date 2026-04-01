@@ -79,6 +79,19 @@ ge::graphStatus PostQuantChecker::CheckFeatureAttenOut(const FiaTilingInfo &fiaI
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus PostQuantChecker::CheckFeatureQueryDType(const FiaTilingInfo &fiaInfo)
+{
+    // Post-quantization scale dtype must be FP32. BF16 is allowed only if the query is BF16
+    if (fiaInfo.isOutQuantEnable) {
+        const ge::DataType quantScale2Type = fiaInfo.opParamInfo.quantScale2.tensor->GetDataType();
+        OP_CHECK_IF(fiaInfo.inputQType != ge::DT_BF16 && quantScale2Type != ge::DT_FLOAT,
+                    OP_LOGE(fiaInfo.opName,
+                            "When query is not bf16, the post quant scale dtype only supports float32!"),
+                    return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus PostQuantChecker::CheckFeatureLayout(const FiaTilingInfo &fiaInfo)
 {
     // For post quant per-tensor, quant scale/offset only support [1].
@@ -121,19 +134,6 @@ ge::graphStatus PostQuantChecker::CheckFeatureLayout(const FiaTilingInfo &fiaInf
                             return ge::GRAPH_FAILED);
             }
         }
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus PostQuantChecker::CheckFeatureQueryDType(const FiaTilingInfo &fiaInfo)
-{
-    // Post-quantization scale dtype must be FP32. BF16 is allowed only if the query is BF16
-    if (fiaInfo.isOutQuantEnable) {
-        const ge::DataType quantScale2Type = fiaInfo.opParamInfo.quantScale2.tensor->GetDataType();
-        OP_CHECK_IF(fiaInfo.inputQType != ge::DT_BF16 && quantScale2Type != ge::DT_FLOAT,
-                    OP_LOGE(fiaInfo.opName,
-                            "When query is not bf16, the post quant scale dtype only supports float32!"),
-                    return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -182,8 +182,8 @@ ge::graphStatus PostQuantChecker::CheckFeatureRowValid(const FiaTilingInfo &fiaI
 
             const gert::Tensor *tempData = fiaInfo.opParamInfo.actualSeqLengthsQ.tensor;
             const gert::Tensor *tempDataKV = fiaInfo.opParamInfo.actualSeqLengths.tensor;
-            const int64_t *preTokens = fiaInfo.opParamInfo.preToken == nullptr ? 0 : *fiaInfo.opParamInfo.preToken;
-            const int64_t *nextTokens = fiaInfo.opParamInfo.nextToken == nullptr ? 0 : *fiaInfo.opParamInfo.nextToken;
+            const int64_t preTokens = fiaInfo.opParamInfo.preToken == nullptr ? 0 : *fiaInfo.opParamInfo.preToken;
+            const int64_t nextTokens = fiaInfo.opParamInfo.nextToken == nullptr ? 0 : *fiaInfo.opParamInfo.nextToken;
             uint32_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
             uint32_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
             for (uint32_t i = 0; i < fiaInfo.bSize; i++) {
@@ -253,7 +253,7 @@ ge::graphStatus PostQuantChecker::CheckAntiquantNotSupport(const FiaTilingInfo &
     }
     if (keyAntiquantMode == PER_TOKEN_MODE && valueAntiquantMode == PER_TOKEN_MODE) {
         OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN &&
-                    fiaInfo.outputKvType != ge::DT_BF16 && fiaInfo.outputKvType != ge::DT_FLOAT16),
+                    (fiaInfo.outputType != ge::DT_BF16 && fiaInfo.outputType != ge::DT_FLOAT16)),
                     OP_LOGE(fiaInfo.opName,
                             "When keyAntiquantMode and valueAntiquantMode is 1"
                             "if data type of key/value is FLOAT8_E4M3FN, post quant is not supported."),
@@ -262,13 +262,13 @@ ge::graphStatus PostQuantChecker::CheckAntiquantNotSupport(const FiaTilingInfo &
 
     if (keyAntiquantMode == PER_TOKEN_PA_MODE && valueAntiquantMode == PER_TOKEN_PA_MODE) {
         OP_CHECK_IF((fiaInfo.inputKvType == ge::DT_FLOAT8_E4M3FN &&
-                    fiaInfo.outputKvType != ge::DT_BF16 && fiaInfo.outputKvType != ge::DT_FLOAT16),
+                    (fiaInfo.outputType != ge::DT_BF16 && fiaInfo.outputType != ge::DT_FLOAT16)),
                     OP_LOGE(fiaInfo.opName,
                             "When keyAntiquantMode and valueAntiquantMode is 4"
                             "if data type of key/value is FLOAT8_E4M3FN, post quant is not supported."),
                     return ge::GRAPH_FAILED);
     }
-    
+    return ge::GRAPH_SUCCESS;
 }
 
 // CheckCheckMultiPara
@@ -330,7 +330,8 @@ ge::graphStatus PostQuantChecker::CheckCrossFeature(const FiaTilingInfo &fiaInfo
             }
         }
     } else if (enableAntiQuant_) {
-        if (ge::GRAPH_SUCCESS != CheckFeatureOutputEqual(fiaInfo) || ge::GRAPH_SUCCESS != CheckAntiquantNotSupport(fiaInfo)) {
+        if (ge::GRAPH_SUCCESS != CheckFeatureOutputEqual(fiaInfo) ||
+            ge::GRAPH_SUCCESS != CheckAntiquantNotSupport(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
     }

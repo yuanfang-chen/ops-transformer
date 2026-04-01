@@ -125,7 +125,7 @@ ge::graphStatus SoftmaxLSEChecker::CheckCrossFeature(const FiaTilingInfo &fiaInf
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SoftmaxLSEChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
+ge::graphStatus SoftmaxLSEChecker::CheckMultiParaConsistency(const FiaTilingInfo &fiaInfo)
 {
     return ge::GRAPH_SUCCESS;
 }

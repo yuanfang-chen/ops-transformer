@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include <map>
 #include <numeric>
 #include <graph/utils/type_utils.h>
 #include "log/log.h"
@@ -23,9 +22,7 @@
 #include "left_padding_checker.h"
 
 namespace optiling {
-using std::map;
 using std::string;
-using std::pair;
 using namespace ge;
 using namespace AscendC;
 using namespace arch35FIA;
@@ -77,13 +74,13 @@ ge::graphStatus LeftPaddingChecker::CheckExistenceDesc(const FiaTilingInfo &fiaI
 {
     if (fiaInfo.qPaddingSizeFlag) {
         OP_CHECK_IF(fiaInfo.opParamInfo.queryPaddingSize.desc == nullptr,
-                    OP_LOGE(fiaInfo.opName, "The descriptor for the tensor's query_padding_size is nullptr!"),
+                    OP_LOGE(fiaInfo.opName, "The descriptor for the tensor's query padding size is nullptr!"),
                     return ge::GRAPH_FAILED);
     }
 
     if (fiaInfo.kvPaddingSizeFlag) {
         OP_CHECK_IF(fiaInfo.opParamInfo.kvPaddingSize.desc == nullptr,
-                    OP_LOGE(fiaInfo.opName, "The descriptor for the tensor's kv_padding_size is nullptr!"),
+                    OP_LOGE(fiaInfo.opName, "The descriptor for the tensor's kv padding size is nullptr!"),
                     return ge::GRAPH_FAILED);
     }
 
@@ -178,7 +175,7 @@ ge::graphStatus LeftPaddingChecker::CheckFeatureQueryS(const FiaTilingInfo &fiaI
                 (keyAntiquantMode == PER_CHANNEL_MODE || keyAntiquantMode == PER_TOKEN_MODE) &&
                     fiaInfo.inputKvType == ge::DT_INT8,
                 OP_LOGE(fiaInfo.opName,
-                    "In keyAntiquantMode/valueAntiquantMode split mode and data type of key/value is int8 scenario, if "
+                    "In keyAntiquant/valueAntiquant split mode and data type of key/value is int8 scenario, if "
                     "keyAntiquantMode/valueAntiquantMode is 0 or 1, leftpadding is not supported!"),
                     return ge::GRAPH_FAILED);
         }

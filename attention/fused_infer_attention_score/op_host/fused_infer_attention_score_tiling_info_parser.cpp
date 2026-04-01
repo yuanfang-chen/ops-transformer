@@ -130,8 +130,10 @@ ge::graphStatus FiaInfoParser::GetEmptyTensorFlag()
 
 ge::graphStatus FiaInfoParser::GetMaxWorkspaceFlag()
 {
-    if ((opParamInfo_.actualSeqLengths.tensor && !opParamInfo_.actualSeqLengths.tensor->GetData<int64_t>()) ||
-        (opParamInfo_.actualSeqLengthsQ.tensor && !opParamInfo_.actualSeqLengthsQ.tensor->GetData<int64_t>())) {
+    if ((opParamInfo_.actualSeqLengths.tensor != nullptr &&
+        opParamInfo_.actualSeqLengths.tensor->GetData<int64_t>() == nullptr) ||
+        (opParamInfo_.actualSeqLengthsQ.tensor != nullptr &&
+        opParamInfo_.actualSeqLengthsQ.tensor->GetData<int64_t>() == nullptr)) {
         isMaxWorkspace_ = true;
         OP_LOGI(opName_, "FIA tiling sink");
     } else {
@@ -435,7 +437,7 @@ void FiaInfoParser::GetPreNextToken()
         nextToken_ = SPARSE_MODE_INT_MAX;
     }
 
-    if ((quantMode_ == FiaQuantMode::ANTI_QUANT && s1Size_ == 1)) {
+    if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
         preToken_ = SPARSE_MODE_INT_MAX;
         nextToken_ = SPARSE_MODE_INT_MAX;
     }
@@ -1086,7 +1088,7 @@ void FiaInfoParser::GetPaddingSizeFlag()
             needInit_ = true;
         }
     }
-    if ((quantMode_ == FiaQuantMode::ANTI_QUANT && s1Size_ == 1)) {
+    if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
         qPaddingSizeFlag_ = false;
     }
 }
@@ -1217,11 +1219,11 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
                 }
             }
         }
+    }
 
-        if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
-            if (qLayout_ != FiaLayout::TND) {
-                actualLenQDims_ = 0;
-            }
+    if ((quantMode_ == FiaQuantMode::ANTI_QUANT) && (s1Size_ == 1)) {
+        if (qLayout_ != FiaLayout::TND) {
+            actualLenQDims_ = 0;
         }
     }
     return ge::GRAPH_SUCCESS;
