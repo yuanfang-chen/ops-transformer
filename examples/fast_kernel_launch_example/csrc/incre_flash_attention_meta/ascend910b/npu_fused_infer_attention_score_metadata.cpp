@@ -83,12 +83,12 @@ at::Tensor npu_fused_infer_attention_score_metadata_npu(
 }
 
 // step4, 为NPU设备注册前向实现
-TORCH_LIBRARY_IMPL(custom, PrivateUse1, m) {
+TORCH_LIBRARY_IMPL(ascend_ops, PrivateUse1, m) {
     m.impl("npu_fused_infer_attention_score_metadata", &custom::npu_fused_infer_attention_score_metadata_npu);
 }
 
 
 // step5, 为META设备注册前向实现
-TORCH_LIBRARY_IMPL(custom, Meta, m) {
+TORCH_LIBRARY_IMPL(ascend_ops, Meta, m) {
     m.impl("npu_fused_infer_attention_score_metadata", &custom::npu_fused_infer_attention_score_metadata_meta);
 }
