@@ -156,6 +156,30 @@ private:
         printf("W_=%ld", W_);
     }
 
+    __aicore__ inline void printBuffer(){
+        uint64_t gradOutQSize = kBufferNum * (ubMainFactorH_ * ubMainFactorB_ * ubMainFactorS_ * sizeof(DT));
+        uint64_t inputQSize = kBufferNum * (ubMainFactorH_ * ubMainFactorB_ * ubMainFactorS_ * sizeof(DT));
+        uint64_t weightQSize = kBufferNum * (ubMainFactorH_ * kW * sizeof(DT));
+        uint64_t gradInQSize = kBufferNum * (ubMainFactorH_ * ubMainFactorB_ * ubMainFactorS_ * sizeof(DT));
+        uint64_t gradWeightQSize = kBufferNum * (ubMainFactorH_ * kW * sizeof(DT));
+        uint64_t tmpBufSize = kW * ubMainFactorH_ * sizeof(float);
+        uint64_t maskQSize = 0; 
+        if (hasMask_) {
+            uint32_t maskBytes = static_cast<uint32_t>(ubMainFactorB_ * ubMainFactorS_);
+            uint32_t maskBufSize = (maskBytes + (kAlignBytes - 1)) / kAlignBytes * kAlignBytes;
+            maskQSize = kBufferNum * maskBufSize;
+        }
+        printf("gradOutQSize=%ld", gradOutQSize);
+        printf("inputQSize=%ld", inputQSize);
+        printf("weightQSize=%ld", weightQSize);
+        printf("gradInQSize=%ld", gradInQSize);
+        printf("gradWeightQSize=%ld", gradWeightQSize);
+        printf("tmpBufSize=%ld", tmpBufSize);
+        printf("maskQSize=%ld", maskQSize);
+        printf("allSize=%ld", gradOutQSize + inputQSize + weightQSize + gradInQSize + gradWeightQSize + tmpBufSize + maskQSize);
+        printf("available UB size: 245760 Byte, 240KB"); 
+    }
+
 private:
 
     TPipe *pipe_;
@@ -266,7 +290,6 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Init(GM_ADDR grad_o
     H_ = td->H;                      // H维度大小
     W_ = td->W;                      // W维度大小
 
-    printTiling();
 
     // compute this core's H start/len
     uint64_t blkIdx = GetBlockIdx();
@@ -314,6 +337,9 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Init(GM_ADDR grad_o
     gwAccF32_[1] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(ubMainFactorH_), off);
     off += static_cast<uint32_t>(ubMainFactorH_ * sizeof(float));
     gwAccF32_[2] = tmpBuf_.GetWithOffset<float>(static_cast<uint32_t>(ubMainFactorH_), off);
+
+    printTiling();
+    // printBuffer();
 }
 
 template <typename DT>
@@ -325,9 +351,9 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Process()
     int64_t bLoopCntCur = isTailCore ? tailBLoopCnt_ : bLoopCnt_;
     int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     for (int64_t hTile = 0; hTile < hLoopCntCur; ++hTile) {
-        int64_t hLenThis = 0;
 
-        hLenThis = (hTile == hLoopCntCur - 1 && ubTailFactorH_ > 0) ? ubTailFactorH_ : ubMainFactorH_;
+
+        int64_t hLenThis = (hTile == hLoopCntCur - 1 && ubTailFactorH_ > 0) ? ubTailFactorH_ : ubMainFactorH_;
 
         // zero fp32 accumulators for this h-tile
         Duplicate(gwAccF32_[0], 0.0f, static_cast<uint32_t>(hLenThis));
@@ -339,7 +365,7 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Process()
         SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
         LocalTensor<DT> wLocal = weightQ_.DeQue<DT>();
 
-        for (int64_t bTile = 0; bTile < 1; ++bTile) {
+        for (int64_t bTile = 0; bTile < bLoopCntCur; ++bTile) {
             int64_t bLen = (bTile == bLoopCntCur - 1 && ubTailFactorB_ > 0 && isTailCore) ? ubTailFactorB_ : ubMainFactorB_;
             for (int64_t sTile = 0; sTile < sLoopCntCur; ++sTile) {
                 int64_t sLen = (sTile == sLoopCntCur - 1 && ubTailFactorS_ > 0) ? ubTailFactorS_ : ubMainFactorS_;

@@ -68,8 +68,8 @@ __simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T
         MicroAPI::Cast<float, T, castTraitB162B32>(w1B32, w1B16, fullMask);
         MicroAPI::Cast<float, T, castTraitB162B32>(w2B32, w2B16, fullMask);
 
-        for (uint32_t b = 0; b < bLen; ++b) {
-            for (uint32_t s = 0; s < sEff; ++s) {
+        for (uint32_t s = 0; s < sEff; ++s) {
+            for (uint32_t b = 0; b < bLen; ++b) {
                 uint32_t row = b * sLen + s;
                 __ubuf__ T *goRow = goAddr + row * dimLen + dimOff;
                 __ubuf__ T *giRow = giAddr + row * dimLen + dimOff;
@@ -83,14 +83,14 @@ __simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T
                 MicroAPI::Mul(accB32, goB32, w2B32, fullMask);
                 // + go[i+1] * w1
                 if (s + 1 < sLen) {
-                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN1B16, goRow + dimLen);
+                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN1B16, goRow + bLen * dimLen);
                     MicroAPI::Cast<float, T, castTraitB162B32>(goN1B32, goN1B16, fullMask);
                     MicroAPI::Mul(mulB32, goN1B32, w1B32, fullMask);
                     MicroAPI::Add(accB32, accB32, mulB32, fullMask);
                 }
                 // + go[i+2] * w0
                 if (s + 2 < sLen) {
-                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN2B16, goRow + 2 * dimLen);
+                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN2B16, goRow + 2 * bLen * dimLen);
                     MicroAPI::Cast<float, T, castTraitB162B32>(goN2B32, goN2B16, fullMask);
                     MicroAPI::Mul(mulB32, goN2B32, w0B32, fullMask);
                     MicroAPI::Add(accB32, accB32, mulB32, fullMask);

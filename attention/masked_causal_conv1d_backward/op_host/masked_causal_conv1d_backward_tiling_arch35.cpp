@@ -304,13 +304,13 @@ ge::graphStatus MaskedCausalConv1dBackwardTiling::ComputeIntraCoreUbTiling()
         //         break;
         //     }
         // }
-        int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (6*B_*S_*dtypeSize_ + 4*B_*dtypeSize_ + 4*W_*dtypeSize_)))
+        int64_t maxH = std::min(perCoreH, (int64_t)(availableUbSize / (6*B_*S_*dtypeSize_ + 4*B_*dtypeSize_ + 4*W_*dtypeSize_)));
         hUB_ = maxH / minH * minH;
     } else {
         // 不能全载，先压缩B
         bUB_ = 1;
         if (calculateBufferSize(hUB_, bUB_, sUB_) <= availableUbSize) { //B=1时能全载S，看B能否增加
-            int64_t maxB = std::min(B_, (int64_t)((availableUbSize - 4*hUB_*W_*dtypeSize_)/ (6*hUB_*S_*dtypeSize_ + 4*hUB_*dtypeSize_)))
+            int64_t maxB = std::min(B_, (int64_t)((availableUbSize - 4*hUB_*W_*dtypeSize_)/ (6*hUB_*S_*dtypeSize_ + 4*hUB_*dtypeSize_)));
             bUB_ = maxB;
         } else {  //即便B=1也不能全载，切S
             sUB_ = (int64_t)((availableUbSize - 4*hUB_*W_*dtypeSize_ - 4*hUB_*bUB_*dtypeSize_)/ (6*hUB_*bUB_*dtypeSize_));
