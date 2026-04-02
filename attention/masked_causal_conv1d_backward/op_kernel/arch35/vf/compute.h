@@ -123,9 +123,9 @@ __simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr, __ubu
         MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_NORM>(acc1, acc1Addr + dimOff);
         MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_NORM>(acc2, acc2Addr + dimOff);
 
-        for (uint32_t b = 0; b < bLen; ++b) {
-            for (uint32_t s = 0; s < sEff; ++s) {
-                uint32_t row = b * sLen + s;
+        for (uint32_t s = 0; s < sEff; ++s) {
+            for (uint32_t b = 0; b < bLen; ++b) {
+                uint32_t row = s * bLen + b;
                 __ubuf__ T *goRow = goAddr + row * dimLen + dimOff;
                 __ubuf__ T *inRow = inAddr + row * dimLen + dimOff;
                 MicroAPI::RegTensor<T> goB16, inB16, goN1B16, goN2B16;
@@ -138,14 +138,14 @@ __simd_vf__ void GradWeightW3VFAcc(__ubuf__ T *goAddr, __ubuf__ T *inAddr, __ubu
                 MicroAPI::Add(acc2, acc2, mulB32, fullMask);
                 // acc1 += go[i+1] * in (guard using sLen so last S block safely handles boundary)
                 if (s + 1 < sLen) {
-                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN1B16, goRow + dimLen);
+                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN1B16, goRow + bLen * dimLen);
                     MicroAPI::Cast<float, T, castTraitB162B32>(goN1B32, goN1B16, fullMask);
                     MicroAPI::Mul(mulB32, goN1B32, inB32, fullMask);
                     MicroAPI::Add(acc1, acc1, mulB32, fullMask);
                 }
                 // acc0 += go[i+2] * in
                 if (s + 2 < sLen) {
-                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN2B16, goRow + 2 * dimLen);
+                    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(goN2B16, goRow + 2 * bLen * dimLen);
                     MicroAPI::Cast<float, T, castTraitB162B32>(goN2B32, goN2B16, fullMask);
                     MicroAPI::Mul(mulB32, goN2B32, inB32, fullMask);
                     MicroAPI::Add(acc0, acc0, mulB32, fullMask);
