@@ -1357,9 +1357,10 @@ mc2:
         - mc2/moe_distribute_combine_v2/op_graph
         - mc2/moe_distribute_combine_v2/op_kernel
       test:
-        examples: False
+        examples: false
       options:
         - moe_distribute_combine_v2
+        - moe_distribute_combine_v3
         - moe_distribute_dispatch_v2
 
     moe_distribute_combine_v3:
@@ -1415,10 +1416,11 @@ mc2:
         - mc2/moe_distribute_dispatch_v2/op_graph
         - mc2/moe_distribute_dispatch_v2/op_kernel
       test:
-        examples: False
+        examples: false
       options:
         - moe_distribute_dispatch_v2
         - moe_distribute_combine_v2
+        - moe_distribute_dispatch_v3
 
     moe_distribute_dispatch_v3:
       module: True
