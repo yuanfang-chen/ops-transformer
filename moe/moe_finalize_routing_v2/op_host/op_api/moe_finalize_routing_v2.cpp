@@ -25,17 +25,18 @@ namespace l0op {
 OP_TYPE_REGISTER(MoeFinalizeRoutingV2);
 
 const aclTensor* MoeFinalizeRoutingV2(
-        const aclTensor* expanded_x, const aclTensor* expanded_row_idx, const aclTensor* x1,
-        const aclTensor* x2, const aclTensor* bias, const aclTensor* scales,
-        const aclTensor* expert_idx, int64_t drop_pad_mode, const aclTensor* out, aclOpExecutor *executor) {
+    const aclTensor* expanded_x, const aclTensor* expanded_row_idx, const aclTensor* x1,
+    const aclTensor* x2, const aclTensor* bias, const aclTensor* scales,
+    const aclTensor* expert_idx, int64_t drop_pad_mode, const aclTensor* out, aclOpExecutor *executor) 
+{
     L0_DFX(MoeFinalizeRoutingV2, expanded_x, expanded_row_idx, x1, x2, bias, scales, expert_idx, drop_pad_mode, out);
 
     auto y = executor->AllocTensor(out->GetViewShape(), out->GetDataType(), Format::FORMAT_ND);
 
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MoeFinalizeRoutingV2,
-                              OP_INPUT(expanded_x, expanded_row_idx, x1, x2, bias, scales, expert_idx),
-                              OP_OUTPUT(y),
-                              OP_ATTR(drop_pad_mode));
+        OP_INPUT(expanded_x, expanded_row_idx, x1, x2, bias, scales, expert_idx),
+        OP_OUTPUT(y),
+        OP_ATTR(drop_pad_mode));
     if (ret != ACL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MoeFinalizeRoutingV2AiCore ADD_TO_LAUNCHER_LIST_AICORE failed.");
         return nullptr;

@@ -25,17 +25,18 @@ namespace l0op {
 OP_TYPE_REGISTER(MoeInitRoutingV2Grad);
 
 const aclTensor* MoeInitRoutingV2Grad(
-        const aclTensor* grad_expanded_x, const aclTensor* expanded_row_idx,
-        int64_t top_k, int64_t drop_pad_mode, int64_t active_num,
-        const aclTensor* out, aclOpExecutor *executor) {
+    const aclTensor* grad_expanded_x, const aclTensor* expanded_row_idx,
+    int64_t top_k, int64_t drop_pad_mode, int64_t active_num,
+    const aclTensor* out, aclOpExecutor *executor) 
+{
     L0_DFX(MoeInitRoutingV2Grad, grad_expanded_x, expanded_row_idx, top_k, drop_pad_mode, active_num, out);
 
     auto grad_x = executor->AllocTensor(out->GetViewShape(), out->GetDataType(), op::Format::FORMAT_ND);
 
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MoeInitRoutingV2Grad,
-                               OP_INPUT(grad_expanded_x, expanded_row_idx),
-                               OP_OUTPUT(grad_x),
-                               OP_ATTR(top_k, drop_pad_mode, active_num));
+        OP_INPUT(grad_expanded_x, expanded_row_idx),
+        OP_OUTPUT(grad_x),
+        OP_ATTR(top_k, drop_pad_mode, active_num));
     if (ret != ACL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MoeInitRoutingV2GradAiCore ADD_TO_LAUNCHER_LIST_AICORE failed.");
         return nullptr;

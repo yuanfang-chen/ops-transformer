@@ -32,9 +32,9 @@ ACLNN_API aclnnStatus aclnnMoeFinalizeRoutingV2GetWorkspaceSize(
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     L2_DFX_PHASE_1(aclnnMoeFinalizeRoutingV2,
-                    DFX_IN(expandedX, expandedRowIdx, x1Optional, x2Optional, biasOptional,
-                            scalesOptional, expertIdxOptional, dropPadMode),
-                    DFX_OUT(out));
+        DFX_IN(expandedX, expandedRowIdx, x1Optional, x2Optional, biasOptional,
+                        scalesOptional, expertIdxOptional, dropPadMode),
+        DFX_OUT(out));
 
     // 参数检查
     OP_CHECK_NULL(expandedX, return ACLNN_ERR_PARAM_NULLPTR);

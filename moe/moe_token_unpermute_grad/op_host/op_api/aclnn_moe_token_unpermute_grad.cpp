@@ -90,15 +90,16 @@ aclnnStatus aclnnMoeTokenUnpermuteGradGetWorkspaceSize(
 
     // 调用l0接口进行计算
     auto result = l0op::MoeFinalizeRoutingV2Grad(unpermutedTokensGradContiguous, sortedIndicesContiguous,
-                                                  permuteTokensContiguous, probsContiguous, nullptr, nullptr,
-                                                  0, activeNum, 0, 0, permutedTokensGradOut,
-                                                  probsGradOut, uniqueExecutor.get());
+        permuteTokensContiguous, probsContiguous, nullptr, nullptr,
+        0, activeNum, 0, 0, permutedTokensGradOut,
+        probsGradOut, uniqueExecutor.get());
     auto [gradExpandedXOut_, gradScalesOut_] = result;
     bool hasNullptr = (gradExpandedXOut_ == nullptr) || (gradScalesOut_ == nullptr);
     CHECK_RET(hasNullptr != true, ACLNN_ERR_INNER_NULLPTR);
 
     // copyout结果，如果出参是非连续Tensor，需要把计算完的连续Tensor转非连续
-    auto viewCopyGradExpandedXOutResult = l0op::ViewCopy(gradExpandedXOut_, permutedTokensGradOut, uniqueExecutor.get());
+    auto viewCopyGradExpandedXOutResult = l0op::ViewCopy(gradExpandedXOut_, 
+        permutedTokensGradOut, uniqueExecutor.get());
     CHECK_RET(viewCopyGradExpandedXOutResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto viewCopyGradScalesOutResult = l0op::ViewCopy(gradScalesOut_, probsGradOut, uniqueExecutor.get());
     CHECK_RET(viewCopyGradScalesOutResult != nullptr, ACLNN_ERR_INNER_NULLPTR);

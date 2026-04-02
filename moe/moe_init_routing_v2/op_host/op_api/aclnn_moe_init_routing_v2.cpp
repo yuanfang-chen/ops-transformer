@@ -39,10 +39,10 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
     uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     L2_DFX_PHASE_1(aclnnMoeInitRoutingV2,
-                    DFX_IN(x, expertIdx, activeNumOptional, expertCapacityOptional,
+        DFX_IN(x, expertIdx, activeNumOptional, expertCapacityOptional,
                             expertNumOptional, dropPadModeOptional, expertTokensCountOrCumsumFlagOptional,
                             expertTokensBeforeCapacityFlagOptional),
-                    DFX_OUT(expandedXOut, expandedRowIdxOut, expertTokensCountOrCumsumOutOptional,
+        DFX_OUT(expandedXOut, expandedRowIdxOut, expertTokensCountOrCumsumOutOptional,
                             expertTokensBeforeCapacityOutOptional));
 
     // 参数检查
@@ -62,8 +62,8 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
     CHECK_RET(expertIdxContiguous != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 调用l0接口进行计算，传入输出参数
-    auto result = l0op::MoeInitRoutingV2(xContiguous, expertIdxContiguous,
-                                         activeNumOptional, expertCapacityOptional, expertNumOptional, dropPadModeOptional,
+    auto result = l0op::MoeInitRoutingV2(xContiguous, expertIdxContiguous, activeNumOptional,
+                                         expertCapacityOptional, expertNumOptional, dropPadModeOptional,
                                          expertTokensCountOrCumsumFlagOptional, expertTokensBeforeCapacityFlagOptional,
                                          expandedXOut, expandedRowIdxOut, expertTokensCountOrCumsumOutOptional,
                                          expertTokensBeforeCapacityOutOptional, uniqueExecutor.get());
@@ -79,12 +79,14 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
 
     // 处理可选输出
     if (expertTokensCountOrCumsumOutOptional != nullptr && expertTokensCountOrCumsumOut_ != nullptr) {
-        auto viewCopyExpertTokensCountOrCumsumOutResult = l0op::ViewCopy(expertTokensCountOrCumsumOut_, expertTokensCountOrCumsumOutOptional, uniqueExecutor.get());
+        auto viewCopyExpertTokensCountOrCumsumOutResult = l0op::ViewCopy(expertTokensCountOrCumsumOut_, 
+            expertTokensCountOrCumsumOutOptional, uniqueExecutor.get());
         CHECK_RET(viewCopyExpertTokensCountOrCumsumOutResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
 
     if (expertTokensBeforeCapacityOutOptional != nullptr && expertTokensBeforeCapacityOut_ != nullptr) {
-        auto viewCopyExpertTokensBeforeCapacityOutResult = l0op::ViewCopy(expertTokensBeforeCapacityOut_, expertTokensBeforeCapacityOutOptional, uniqueExecutor.get());
+        auto viewCopyExpertTokensBeforeCapacityOutResult = l0op::ViewCopy(expertTokensBeforeCapacityOut_, 
+            expertTokensBeforeCapacityOutOptional, uniqueExecutor.get());
         CHECK_RET(viewCopyExpertTokensBeforeCapacityOutResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
 
@@ -95,7 +97,7 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
 }
 
 ACLNN_API aclnnStatus aclnnMoeInitRoutingV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                               aclrtStream stream)
+                                            aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnMoeInitRoutingV2);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);

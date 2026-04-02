@@ -1,7 +1,6 @@
-
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under terms and conditions of
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
@@ -31,8 +30,8 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GradGetWorkspaceSize(
     int64_t activeNum, const aclTensor* out, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     L2_DFX_PHASE_1(aclnnMoeInitRoutingV2Grad,
-                    DFX_IN(gradExpandedX, expandedRowIdx, topK, dropPadMode, activeNum),
-                    DFX_OUT(out));
+        DFX_IN(gradExpandedX, expandedRowIdx, topK, dropPadMode, activeNum),
+        DFX_OUT(out));
 
     // 参数检查
     OP_CHECK_NULL(gradExpandedX, return ACLNN_ERR_PARAM_NULLPTR);
@@ -51,8 +50,8 @@ ACLNN_API aclnnStatus aclnnMoeInitRoutingV2GradGetWorkspaceSize(
 
     // 调用l0接口进行计算，传入out参数
     auto out_ = l0op::MoeInitRoutingV2Grad(gradExpandedXContiguous, expandedRowIdxContiguous,
-                                                 topK, dropPadMode, activeNum,
-                                                 out, uniqueExecutor.get());
+        topK, dropPadMode, activeNum,
+        out, uniqueExecutor.get());
     CHECK_RET(out_ != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // copyout结果，如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续

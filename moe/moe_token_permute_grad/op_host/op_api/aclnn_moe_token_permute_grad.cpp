@@ -77,8 +77,8 @@ aclnnStatus aclnnMoeTokenPermuteGradGetWorkspaceSize(
 
     // 调用l0接口进行计算
     auto out_ = l0op::MoeInitRoutingV2Grad(permutedOutputGradContiguous, sortedIndicesContiguous,
-                                                  numTopk, 0, activeNum,
-                                                  out, uniqueExecutor.get());
+        numTopk, 0, activeNum,
+        out, uniqueExecutor.get());
     CHECK_RET(out_ != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // copyout结果，如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续
