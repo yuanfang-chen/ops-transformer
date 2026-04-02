@@ -70,7 +70,7 @@ __simd_vf__ void GradInputW3VF(__ubuf__ T *goAddr, __ubuf__ T *wAddr, __ubuf__ T
 
         for (uint32_t s = 0; s < sEff; ++s) {
             for (uint32_t b = 0; b < bLen; ++b) {
-                uint32_t row = b * sLen + s;
+                uint32_t row = s * bLen + b;
                 __ubuf__ T *goRow = goAddr + row * dimLen + dimOff;
                 __ubuf__ T *giRow = giAddr + row * dimLen + dimOff;
 
