@@ -232,7 +232,6 @@ public:
     int64_t m = 0;
     int64_t k = 0;
     int64_t n = 0;
-    // 相当于grouplist，实际上直接均分，那么groupListType参数也不需要
     int64_t groupNum = 0;
     bool transposeX = false;
     bool transposeWeight = false;
