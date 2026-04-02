@@ -603,7 +603,7 @@ vector<SwigluOpApiCase> LoadCases(const string &csvFilePath)
         c.out2Shape = Trim(cols[i++]);
         c.out2Dtype = Trim(cols[i++]);
         c.out2Format = Trim(cols[i++]);
-        if (c.socVersion == "Ascend950") {
+        if (c.socVersion == "Ascend950" || c.socVersion == "Ascend910B") {
             cases.emplace_back(c);
         }
     }
