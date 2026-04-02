@@ -2153,7 +2153,7 @@ ge::graphStatus DequantChecker::CheckKScaleShapeForPerTokenGroupMode(const FiaTi
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_2),
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_3),
                             keyAntiquantScaleTensorShape.GetDim(DIM_NUM_4),
-                            batchSize, numKeyValueHeads, seqLength, batchSize, seqLength, headDim / 32),
+                            batchSize, numKeyValueHeads, seqLength, headDim / 32),
             return ge::GRAPH_FAILED);
         return ge::GRAPH_SUCCESS;
     }
