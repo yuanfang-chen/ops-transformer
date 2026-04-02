@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file dispatch_ffn_combine_tiling.h
+ * \file mega_moe_tiling.h
  * \brief
  */
 
-#ifndef DISPATCH_FFN_COMBINE_TILING_H
-#define DISPATCH_FFN_COMBINE_TILING_H
+#ifndef MEGA_MOE_TILING_H
+#define MEGA_MOE_TILING_H
 
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
-struct DispatchFFNCombineInfo {
+struct MegaMoeInfo {
     uint32_t epWorldSize;
     uint32_t epRankId;
     uint32_t moeExpertNum;
@@ -35,10 +35,10 @@ struct DispatchFFNCombineInfo {
     uint64_t cclBufferSize;
 };
 
-struct DispatchFFNCombineTilingData {
+struct MegaMoeTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
-    DispatchFFNCombineInfo dispatchFFNCombineInfo;
+    MegaMoeInfo dispatchFFNCombineInfo;
 };
 
 #endif

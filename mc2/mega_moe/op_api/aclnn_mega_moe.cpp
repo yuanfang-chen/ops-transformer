@@ -25,7 +25,7 @@ using namespace op;
 extern "C" {
 #endif
 
-extern aclnnStatus aclnnInnerDispatchFFNCombineGetWorkspaceSize(
+extern aclnnStatus aclnnInnerMegaMoeGetWorkspaceSize(
     const aclTensor* context, const aclTensor* x, const aclTensor* expertIds,
     const aclTensor* expertScales, int64_t epWorldSize, int64_t epRankId,
     int64_t moeExpertNum, int64_t cclBufferSize, int64_t maxRecvTokenNum,
@@ -33,10 +33,10 @@ extern aclnnStatus aclnnInnerDispatchFFNCombineGetWorkspaceSize(
     int64_t combineQuantMode, const char* commAlg, int64_t globalBs,
     aclTensor* y, uint64_t* workspaceSize, aclOpExecutor** executor);
 
-extern aclnnStatus aclnnInnerDispatchFFNCombine(void* workspace, uint64_t workspaceSize,
+extern aclnnStatus aclnnInnerMegaMoe(void* workspace, uint64_t workspaceSize,
                                      aclOpExecutor* executor, aclrtStream stream);
 
-aclnnStatus aclnnDispatchFFNCombineGetWorkspaceSize(
+aclnnStatus aclnnMegaMoeGetWorkspaceSize(
     const aclTensor* context, const aclTensor* x, const aclTensor* expertIds,
     const aclTensor* expertScales, int64_t epWorldSize, int64_t epRankId,
     int64_t moeExpertNum, int64_t cclBufferSize, int64_t maxRecvTokenNum,
@@ -44,7 +44,7 @@ aclnnStatus aclnnDispatchFFNCombineGetWorkspaceSize(
     int64_t combineQuantMode, const char* commAlg, int64_t globalBs,
     aclTensor* y, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    OP_LOGD("aclnn_dispatch_ffn_combine WorkspaceSize start");
+    OP_LOGD("aclnn_mega_moe WorkspaceSize start");
 
     OP_CHECK_NULL(context, return ACLNN_ERR_PARAM_NULLPTR);
     OP_CHECK_NULL(x, return ACLNN_ERR_PARAM_NULLPTR);
@@ -52,7 +52,7 @@ aclnnStatus aclnnDispatchFFNCombineGetWorkspaceSize(
     OP_CHECK_NULL(expertScales, return ACLNN_ERR_PARAM_NULLPTR);
     OP_CHECK_NULL(y, return ACLNN_ERR_PARAM_NULLPTR);
 
-    aclnnStatus getWorkspaceSizesRes = aclnnInnerDispatchFFNCombineGetWorkspaceSize(
+    aclnnStatus getWorkspaceSizesRes = aclnnInnerMegaMoeGetWorkspaceSize(
         context, x, expertIds, expertScales, epWorldSize, epRankId, moeExpertNum,
         cclBufferSize, maxRecvTokenNum, sharedExpertNum, dispatchQuantMode,
         dispatchQuantOutType, combineQuantMode, commAlg, globalBs,
@@ -61,10 +61,10 @@ aclnnStatus aclnnDispatchFFNCombineGetWorkspaceSize(
     return getWorkspaceSizesRes;
 }
 
-aclnnStatus aclnnDispatchFFNCombine(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
+aclnnStatus aclnnMegaMoe(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
-    OP_LOGD("aclnn_dispatch_ffn_combine start");
-    return aclnnInnerDispatchFFNCombine(workspace, workspaceSize, executor, stream);
+    OP_LOGD("aclnn_mega_moe start");
+    return aclnnInnerMegaMoe(workspace, workspaceSize, executor, stream);
 }
 #ifdef __cplusplus
 }

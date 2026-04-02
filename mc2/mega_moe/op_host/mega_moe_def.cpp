@@ -9,16 +9,16 @@
  */
 
 /*!
- * \file dispatch_ffn_combine_def.cpp
+ * \file mega_moe_def.cpp
  * \brief
  */
 
 #include "register/op_def_registry.h"
 
 namespace ops {
-class DispatchFFNCombine : public OpDef {
+class MegaMoe : public OpDef {
 public:
-  explicit DispatchFFNCombine(const char* name) : OpDef(name) {
+  explicit MegaMoe(const char* name) : OpDef(name) {
     this->Input("context")
         .ParamType(REQUIRED)
         .DataTypeList({ge::DT_INT32})
@@ -103,6 +103,6 @@ public:
   }
 };
 
-OP_ADD(DispatchFFNCombine);
+OP_ADD(MegaMoe);
 
 } // namespace ops
