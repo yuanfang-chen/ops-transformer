@@ -50,25 +50,20 @@ __aicore__ inline void LaunchMxA8W4VectorAntiQuantResplit(
     constexpr static auto _512 = AscendC::Std::Int<512>{};
     using LayoutB = decltype(AscendC::Te::MakeLayout(AscendC::Te::MakeShape(AscendC::Te::MakeShape(1UL, _32), AscendC::Te::MakeShape(1UL, _16))), AscendC::Te::MakeStride(AscendC::Te::MakeStride(_1, 16UL), AscendC::Te::MakeStride(_32, _512)));
     using LayoutC = typename AscendC::Te::NDLayoutFormat<XType>;
-    using ProblemShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL));
+    using ProblemShape = decltype(AscendC::Te::MakeShape(0UL, 0UL, 0UL, 0UL));
     using BlockScheduler = Block::GroupedMatmulSchedulerNResplit;
-    using BlockMmad = Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, XType, LayoutA, WeightType, LayoutB,
-                                       YType, LayoutC>;
+    using BlockMmad = Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, XType, LayoutA, WeightType, LayoutB, YType, LayoutC>;
     using BlockEpilogue = void;
     using BlockPrologue = Block::BlockPrologue<DispatchPolicy, XType, WeightType, BiasType>;
     using KernelImpl =
         Kernel::GroupedMatmul<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler, BlockPrologue>;
 
+    typename BlockMmad::Params mmadParams{reinterpret_cast<__gm__ XType *>(x), reinterpret_cast<__gm__ float8_e8m0_t *>(perTokenScale), reinterpret_cast<__gm__ float8_e8m0_t *>(antiquantScale), reinterpret_cast<__gm__ YType *>(y), gmmBaseParams_.kSize, gmmBaseParams_.hasBias};
+    typename BlockScheduler::Params schedulerParams{gmmBaseParams_.mainBlockCount, gmmBaseParams_.mainBlockSize, gmmBaseParams_.firstTailBlockCount, gmmBaseParams_.firstTailBlockSize, gmmBaseParams_.secondTailBlockCount, gmmBaseParams_.secondTailBlockSize, gmmBaseParams_.coreNum, gmmBaseParams_.cubeNumBlocksN, mmTilingData_.baseM, gmmBaseParams_.nSize};
+    typename BlockPrologue::Params prologueParams{reinterpret_cast<__gm__ WeightType *>(weight), reinterpret_cast<__gm__ BiasType *>(bias), gmmBaseParams_.hasBias};
     typename KernelImpl::Params params = {
-        x,
-        weight,
-        antiquantScale,
-        bias,
-        groupList,
-        perTokenScale,
-        y,
-        &gmmBaseParams_,
-        &mmTilingData_};
+        {0UL, gmmBaseParams_.kSize, gmmBaseParams_.nSize, gmmBaseParams_.groupNum},
+        mmadParams, schedulerParams, prologueParams, gmmBaseParams_.groupNum, gmmBaseParams_.groupType, gmmBaseParams_.groupListType, groupList};
     KernelImpl kernelImpl;
     kernelImpl(params);
 }

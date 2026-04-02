@@ -119,9 +119,6 @@ public:
     using wType = WeightType;
     using biasType = BiasType;
 
-    using XDataType = xType;
-    using WeightDataType = wType;
-    using BiasDataType = biasType;
     static constexpr bool kATrans = false;
     static constexpr bool kBTrans = true;
     static constexpr CubeFormat kWeightFormat = CubeFormat::NZ;
@@ -131,13 +128,18 @@ public:
     static_assert(kBTrans, "KernelMixDynamicKL1NTailResplit requires transposed weight B");
     static_assert(kWeightFormat == CubeFormat::NZ, "KernelMixDynamicKL1NTailResplit requires NZ weight format");
 
+    struct Params {
+        __gm__ wType *ptrB;
+        __gm__ biasType *ptrBias;
+        uint8_t hasBias;
+    };
+
     __aicore__ inline BlockPrologue() = delete;
-    __aicore__ inline BlockPrologue(bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling);
+    __aicore__ inline BlockPrologue(const Params& params);
     __aicore__ inline void operator()(__gm__ wType *weight, __gm__ biasType *bias, const bool weightL2Cacheable,
                                       uint64_t mL1Size, uint64_t kSize, uint64_t nL1Size, uint64_t nOffset,
                                       uint64_t nAlign);
-    __aicore__ inline void PrefetchA(uint64_t aPrefetchSize, uint64_t xSizeLimit);
-    __aicore__ inline void End();
+    __aicore__ inline ~BlockPrologue();
 
 protected:
     __aicore__ inline uint64_t CalcDynamicKBlock(uint64_t mL1Size, uint64_t nL1Size) const;
@@ -199,14 +201,11 @@ protected:
 };
 
 WQBMM_PROLOGUE_TEMPLATE_PARAM
-__aicore__ inline WQBMM_PROLOGUE_CLASS::BlockPrologue(
-    bool hasBias, uint64_t aPrefetchSize, const TCubeTiling *__restrict matmulTiling)
+__aicore__ inline WQBMM_PROLOGUE_CLASS::BlockPrologue(const Params& params)
 {
-    (void)aPrefetchSize;
-    (void)matmulTiling;
-    hasBias_ = hasBias;
+    hasBias_ = params.hasBias;
     mxA8W4L1KDynamicConfigMThreshold_ = hasBias_ ? MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_240 :
-                                                    MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
+                                                   MX_A8W4_L1_K_DYNAMIC_CONFIG_M_THRESHOLD_256;
     biasL1DbOffset_ = 0;
     weightL1_ = LocalTensor<xType>(TPosition::TSCM, 0, L1_SIZE_BYTE / sizeof(xType));
 
@@ -316,15 +315,7 @@ __aicore__ inline void WQBMM_PROLOGUE_CLASS::operator()(
 }
 
 WQBMM_PROLOGUE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_PROLOGUE_CLASS::PrefetchA(
-    uint64_t aPrefetchSize, uint64_t xSizeLimit)
-{
-    (void)aPrefetchSize;
-    (void)xSizeLimit;
-}
-
-WQBMM_PROLOGUE_TEMPLATE_PARAM
-__aicore__ inline void WQBMM_PROLOGUE_CLASS::End()
+__aicore__ inline WQBMM_PROLOGUE_CLASS::~BlockPrologue()
 {
     if (cvLoopIdx_ > 0) {
         WaitAicToAiv();
