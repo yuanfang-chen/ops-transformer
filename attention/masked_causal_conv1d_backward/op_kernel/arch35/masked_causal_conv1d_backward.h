@@ -351,8 +351,6 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Process()
     int64_t bLoopCntCur = isTailCore ? tailBLoopCnt_ : bLoopCnt_;
     int64_t sLoopCntCur = isTailCore ? tailSLoopCnt_ : sLoopCnt_;
     for (int64_t hTile = 0; hTile < hLoopCntCur; ++hTile) {
-
-
         int64_t hLenThis = (hTile == hLoopCntCur - 1 && ubTailFactorH_ > 0) ? ubTailFactorH_ : ubMainFactorH_;
 
         // zero fp32 accumulators for this h-tile
@@ -408,12 +406,12 @@ __aicore__ inline void MaskedCausalConv1dBackwardKernel<DT>::Compute(int64_t bTi
     //     DisplayTensor(giLocal[0], sLen * bLen * hLenThis, 1, "giLocal");
     // }
     // DisplayTensor(goLocal, sLen * bLen * hLenThis, 1, "goLocal");
-    DisplayTensor(inLocal, sLen * bLen * hLenThis, 1, "inLocal");
+    // DisplayTensor(inLocal, sLen * bLen * hLenThis, 1, "inLocal");
     // Accumulate grad_weight in fp32 using VF Acc variant
     // DisplayTensor(gwAccF32_[2], hLenThis, 1, "gwAccF32_[2]");
-    // AggHiddenGradVF::DoGradWeightAcc<DT>(goLocal, inLocal, gwAccF32_[0], gwAccF32_[1], gwAccF32_[2],
-    //                                      static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff),
-    //                                      static_cast<uint32_t>(sLen), static_cast<uint32_t>(hLenThis));
+    AggHiddenGradVF::DoGradWeightAcc<DT>(goLocal, inLocal, gwAccF32_[0], gwAccF32_[1], gwAccF32_[2],
+                                         static_cast<uint32_t>(bLen), static_cast<uint32_t>(sEff),
+                                         static_cast<uint32_t>(sLen), static_cast<uint32_t>(hLenThis));
     // DisplayTensor(gwAccF32_[2], hLenThis, 1, "gwAccF32_[2]");
     pipe_barrier(PIPE_ALL);
     gradOutQ_.FreeTensor(goLocal);
