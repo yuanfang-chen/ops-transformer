@@ -450,10 +450,16 @@ private:
             DataCopy(tmpOut, gCumExpUbFloat, chunkSize_);
             gOutQueue_.EnQue<float>(tmpOut);
             tmpOut = gOutQueue_.DeQue<float>();
-            DataCopyExtParams params{static_cast<uint16_t>(1),
-                                    static_cast<uint32_t>(validLen * sizeof(float)), 0, 0, 0};
-            DataCopyPad(dst, tmpOut, params);
+            auto bf16Out = fp32OutQueue_.AllocTensor<bfloat16_t>();
+            Cast(bf16Out, tmpOut, RoundMode::CAST_RINT, chunkSize_);
+            PipeBarrier<PIPE_V>();
             gOutQueue_.FreeTensor(tmpOut);
+            fp32OutQueue_.EnQue(bf16Out);
+            bf16Out = fp32OutQueue_.DeQue<bfloat16_t>();
+            DataCopyExtParams params{static_cast<uint16_t>(1),
+                                    static_cast<uint32_t>(validLen * sizeof(bfloat16_t)), 0, 0, 0};
+            DataCopyPad(dst, bf16Out, params);
+            fp32OutQueue_.FreeTensor(bf16Out);
         }
         PipeBarrier<PIPE_V>();
     }
@@ -484,8 +490,11 @@ private:
         // copy value
         uint32_t kkLength = chunkSize_ * halfChunkSize_;
         uint64_t kkBeginOffset = subOffset_ * chunkSize_;
-        DataCopyInFp32(kkLength, src[kkBeginOffset]);
-        kkLocal_ = fp32InQueue_.DeQue<float>();
+        DataCopyInBf16(kkLength, src[kkBeginOffset]);
+        auto bf16Local = fp32InQueue_.DeQue<bfloat16_t>();
+        Cast(kkLocal_, bf16Local, RoundMode::CAST_NONE, kkLength);
+        PipeBarrier<PIPE_V>();
+        fp32InQueue_.FreeTensor(bf16Local);
 
         uint32_t betaShape[2] = {halfChunkSize_, 1};
         uint32_t kkShape[2] = {halfChunkSize_, chunkSize_};
@@ -586,13 +595,16 @@ private:
         if (dk_ % BLOCK_BF16_NUM != 0) {
             dstStride = (dk_ % BLOCK_BF16_NUM) > BLOCK_FLOAT_NUM ? 0 : 1;
         }
-        DataCopyInFp32WithStride(halfChunkSize_, dk_, keyContinousGm, dk_, dstStride); // GM上相邻行的间距(元素数)
-        kUbFloatCon = fp32InQueue_.DeQue<float>();
+        DataCopyInBf16WithStride(halfChunkSize_, dk_, keyContinousGm, dk_);
+        auto bf16Key = fp32InQueue_.DeQue<bfloat16_t>();
+        Cast(kUbFloatCon, bf16Key, RoundMode::CAST_NONE, halfChunkSize_ * dkAligned_);
+        PipeBarrier<PIPE_V>();
+        fp32InQueue_.FreeTensor(bf16Key);
         // compute
         Mul(gBKLocal_, gBKLocal_, kUbFloatCon, halfChunkSize_ * dkAligned_);
         fp32OutQueue_.EnQue<float>(gBKLocal_);
         uint64_t gBKBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, gBKWsGm[gBKBeginOffset]);
+        DataCopyOutBf16(halfChunkSize_, dk_, dkAligned_, gBKWsGm[gBKBeginOffset]);
         PipeBarrier<PIPE_V>();
         if (gOptional_) {
             // kg = k * (g_cum_exp[-1, None] / g_cum_exp)[..., None]
@@ -610,7 +622,7 @@ private:
             PipeBarrier<PIPE_V>();
             fp32OutQueue_.EnQue<float>(kgLocal_);
             uint64_t kgBeginOffset = subOffset_ * dk_;
-            DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, outKgGm[kgBeginOffset]);  // stage1 out
+            DataCopyOutBf16(halfChunkSize_, dk_, dkAligned_, outKgGm[kgBeginOffset]);  // stage1 out
         }
         fp32InQueue_.FreeTensor(kUbFloatCon);
     }
@@ -638,7 +650,7 @@ private:
         Mul(vBetaLocal_, valueUbFloat, vBetaLocal_, halfChunkSize_ * dvAligned_);
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(vBetaLocal_);
-        DataCopyOutFp32(halfChunkSize_, dv_, dvAligned_, vBetaWsGm[subOffset_ * dv_]);
+        DataCopyOutBf16(halfChunkSize_, dv_, dvAligned_, vBetaWsGm[subOffset_ * dv_]);
     }
 
     __aicore__ inline void QPrimeCompute(const GlobalTensor<float> outQPrimeGm, LocalTensor<float> qUbFloatCon,
@@ -650,8 +662,11 @@ private:
         if (dk_ % BLOCK_BF16_NUM != 0) {
             dstStride = (dk_ % BLOCK_BF16_NUM) > BLOCK_FLOAT_NUM ? 0 : 1;
         }
-        DataCopyInFp32WithStride(halfChunkSize_, dk_, queryContinousGm, dk_, dstStride); // GM上相邻行的间距(元素数)
-        qUbFloatCon = fp32InQueue_.DeQue<float>();
+        DataCopyInBf16WithStride(halfChunkSize_, dk_, queryContinousGm, dk_);
+        auto bf16Query = fp32InQueue_.DeQue<bfloat16_t>();
+        Cast(qUbFloatCon, bf16Query, RoundMode::CAST_NONE, halfChunkSize_ * dkAligned_);
+        PipeBarrier<PIPE_V>();
+        fp32InQueue_.FreeTensor(bf16Query);
         // query * scale
         if (gOptional_) {
             Muls(qUbFloat_, qUbFloatCon, scale_, halfChunkSize_ * dkAligned_);
@@ -668,9 +683,8 @@ private:
         }
         PipeBarrier<PIPE_V>();
         fp32OutQueue_.EnQue<float>(qPrimeLocal_);
-        fp32InQueue_.FreeTensor(qUbFloatCon);
         uint64_t qgBeginOffset = subOffset_ * dk_;
-        DataCopyOutFp32(halfChunkSize_, dk_, dkAligned_, outQPrimeGm[qgBeginOffset]);  // stage1 out
+        DataCopyOutBf16(halfChunkSize_, dk_, dkAligned_, outQPrimeGm[qgBeginOffset]);  // stage1 out
         PipeBarrier<PIPE_V>();
     }
 
@@ -681,6 +695,16 @@ private:
         fp32InLocal_ = fp32InQueue_.AllocTensor<float>();
         DataCopyPad(fp32InLocal_, y, kkParams, padParams);
         fp32InQueue_.EnQue<float>(fp32InLocal_);
+    }
+
+    __aicore__ inline void DataCopyInBf16(uint64_t len, GlobalTensor<bfloat16_t> y)
+    {
+        DataCopyPadExtParams<bfloat16_t> padParams;
+        DataCopyExtParams kkParams{static_cast<uint16_t>(1),
+                                static_cast<uint32_t>(len * sizeof(bfloat16_t)), 0, 0, 0};
+        bf16InLocal_ = fp32InQueue_.AllocTensor<bfloat16_t>();
+        DataCopyPad(bf16InLocal_, y, kkParams, padParams);
+        fp32InQueue_.EnQue<bfloat16_t>(bf16InLocal_);
     }
 
     __aicore__ inline void BetaCopyInWithStride(const GlobalTensor<bfloat16_t> src, LocalTensor<float> betaUbFloat,
@@ -748,16 +772,22 @@ private:
         fp32InQueue_.EnQue<bfloat16_t>(bf16InLocal_);
     }
 
-    __aicore__ inline void DataCopyOutFp32(uint32_t rows, uint32_t cols,
-                                           uint32_t colsAligned, GlobalTensor<bfloat16_t> y)
+    __aicore__ inline void DataCopyOutBf16(uint32_t rows, uint32_t cols,
+                                        uint32_t colsAligned, GlobalTensor<bfloat16_t> y)
     {
         fp32OutLocal_ = fp32OutQueue_.DeQue<float>();
-        uint32_t srcStride = (colsAligned - cols) * sizeof(float) / BLOCK_SIZE;
-        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows),
-                                    static_cast<uint32_t>(cols * sizeof(float)),
-                                    static_cast<uint32_t>(srcStride), 0, 0};
-        DataCopyPad(y, fp32OutLocal_, yGMParams);
+        auto bf16Local = fp32OutQueue_.AllocTensor<bfloat16_t>();
+        Cast(bf16Local, fp32OutLocal_, RoundMode::CAST_RINT, rows * colsAligned);
+        PipeBarrier<PIPE_V>();
         fp32OutQueue_.FreeTensor(fp32OutLocal_);
+        fp32OutQueue_.EnQue(bf16Local);
+        bf16Local = fp32OutQueue_.DeQue<bfloat16_t>();
+        uint32_t srcStride = (colsAligned - cols) * sizeof(bfloat16_t) / BLOCK_SIZE;
+        DataCopyExtParams yGMParams{static_cast<uint16_t>(rows),
+                                    static_cast<uint32_t>(cols * sizeof(bfloat16_t)),
+                                    static_cast<uint32_t>(srcStride), 0, 0};
+        DataCopyPad(y, bf16Local, yGMParams);
+        fp32OutQueue_.FreeTensor(bf16Local);
     }
 
     __aicore__ inline void AttnInverseMMCompute(uint64_t offset)
