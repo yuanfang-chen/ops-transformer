@@ -12,14 +12,22 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        // AI
+        "Anthropic.claude-code",
         "streetsidesoftware.code-spell-checker",
+
+        // Python
         "ms-python.python",
+        "charliermarsh.ruff",
+
+        // C++
         "llvm-vs-code-extensions.vscode-clangd",
         "ms-vscode.cmake-tools",
-        "Anthropic.claude-code",
-        "charliermarsh.ruff",
         "ms-vscode.cpptools"
-      ]
+      ],
+      "settings": {
+        "terminal.integrated.scrollback": 50000
+      }
     }
   },
   "features": {

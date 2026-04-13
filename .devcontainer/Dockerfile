@@ -162,6 +162,7 @@ RUN apt-get update \
         libnuma-dev \
         gawk \
         ninja-build \
+        less \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/tmp/* \
