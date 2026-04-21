@@ -33,12 +33,14 @@
     }
   },
   "features": {
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    // "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "overrideCommand": true,
   "remoteUser": "root",
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:/root/.local/bin",
+    // "PATH": "${containerEnv:PATH}:/root/.local/bin",
+    "GH_TOKEN": "${localEnv:GH_TOKEN}",
     "SSH_AUTH_SOCK": "/ssh-agent",
     "CLAUDE_CONFIG_DIR": "/root/.claude",
     "CCACHE_DIR": "/root/.cache/ccache",
