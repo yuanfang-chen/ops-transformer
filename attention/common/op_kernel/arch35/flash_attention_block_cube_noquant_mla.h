@@ -221,7 +221,7 @@ __aicore__ inline void FABlockCubeNoquantMla<TEMPLATE_ARGS>::IterateBmm1(Buffer<
     // mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用
     WaitFlag<HardEvent::MTE1_MTE2>(mm1B.GetEventID<HardEvent::MTE1_MTE2>());
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;

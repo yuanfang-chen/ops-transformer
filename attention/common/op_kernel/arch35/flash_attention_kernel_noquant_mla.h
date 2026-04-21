@@ -374,6 +374,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     constInfo.blockSize = inputParamsRegbase.blockSize;
     constInfo.paLayoutType = inputParamsRegbase.paLayoutType;
     constInfo.paBlockNumSum = inputParamsRegbase.paBlockNumSum;
+    constInfo.isPaRT = isPa && (inputParamsRegbase.blockSize > 0);
 
     // service vector2
     constInfo.transposeLayout = inputParamsRegbase.transposeLayout;
