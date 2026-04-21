@@ -199,8 +199,10 @@ RUN \
     echo "source ${CANN_NNAL_ENV_FILE}" >> /etc/profile && \
     echo "source ${CANN_NNAL_ENV_FILE}" >> ~/.bashrc
 
-# claude code like this
-RUN mkdir -p /root/.local/bin
+# Install claude code
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
+ENV DISABLE_AUTOUPDATER=1
 
 ENTRYPOINT ["/bin/bash", "-c", "\
     source /usr/local/Ascend/ascend-toolkit/set_env.sh && \
