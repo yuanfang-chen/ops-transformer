@@ -483,7 +483,7 @@ __aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm2(mm2Re
         mm2A.WaitCrossCore();
         mm2B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
         LocalTensor<INPUT_T> mm2BTensor = mm2B.GetTensor<INPUT_T>();
-        if constexpr (isPa) {
+        if (constInfo.isPaRT) {
             Position startPos;
             startPos.bIdx = runInfo.boIdx;
             startPos.n2Idx = runInfo.n2oIdx;
@@ -972,7 +972,7 @@ __aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1Nd(
     mm1B = l1KBuffers.Get();
     mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -1107,7 +1107,7 @@ __aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1Dn(
     mm1A = l1KBuffers.Get();
     mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;

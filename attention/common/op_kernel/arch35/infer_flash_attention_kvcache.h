@@ -135,9 +135,9 @@ __aicore__ inline int64_t CalculateActualS2Size(RunParamStr<isInfer>& runParam,
             runParam.s2InCurrentBatch;
     } else {
         if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-            actualS2Size = (isPa && constInfo.actualSeqLenKVSize == actualSeqKVMin) ? 
+            actualS2Size = (constInfo.isPaRT && constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
                 actualSeqKvlenAddr[0] : actualSeqKvlenAddr[bIdx];
-            if ((bIdx > 0) && (!isPa)) {
+            if ((bIdx > 0) && (!constInfo.isPaRT)) {
                 actualS2Size -= actualSeqKvlenAddr[bIdx - 1];
             }
         } else {
@@ -278,7 +278,7 @@ __aicore__ inline void GetKeyCoreOffsetParam(RunParamStr<isInfer>& runParam,
         runParam.keyCoreOffset = keyInnerOffsetSize + runParam.n2oIdx * constInfo.dSize;
 
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        if constexpr (!isPa) {
+        if (!constInfo.isPaRT) {
             keyInnerOffsetSize = (bIdx == 0) ? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2D;
         } else {
             keyInnerOffsetSize = bIdx * constInfo.n2S2D;
@@ -313,7 +313,7 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
         }
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        if constexpr (!isPa) {
+        if (!constInfo.isPaRT) {
             valueInnerOffsetSize = (bIdx == 0) ? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2Dv;
         } else {
             valueInnerOffsetSize = bIdx * constInfo.n2S2Dv;
@@ -321,7 +321,7 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
         uint64_t actualSeqKVLen = 0;
-        if constexpr (isPa) {
+        if (constInfo.isPaRT) {
             actualSeqKVLen = constInfo.s2Size;
             valueInnerOffsetSize = bIdx * constInfo.s2Dv;
         } else {
@@ -368,7 +368,7 @@ __aicore__ inline void GetKeyRopeCoreOffsetParam(RunParamStr<isInfer>& runParam,
         kRopeInnerOffsetSize = bIdx * constInfo.n2S2DR + runParam.kvLeftPaddingSize * constInfo.n2DR;
         runParam.kRopeNBGOffset = kRopeInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeRope;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        if constexpr (!isPa) {
+        if (!constInfo.isPaRT) {
             kRopeInnerOffsetSize = (bIdx == 0)? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2DR;
         } else {
             kRopeInnerOffsetSize = bIdx * constInfo.n2S2DR;
