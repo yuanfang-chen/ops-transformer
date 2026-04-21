@@ -6,6 +6,7 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/ops-transformer,type=bind,consistency=cached",
   "workspaceFolder": "/workspace/ops-transformer",
   "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly",
     "source=claude-config-${devcontainerId},target=/root/.claude,type=volume",
     "source=ccache-${devcontainerId},target=/root/.cache/ccache,type=volume"
   ],
