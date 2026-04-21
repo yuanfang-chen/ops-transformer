@@ -198,7 +198,10 @@ RUN \
     echo "source ${CANN_BISHENG_ENV_FILE}" >> ~/.bashrc && \
     echo "source ${CANN_NNAL_ENV_FILE}" >> /etc/profile && \
     echo "source ${CANN_NNAL_ENV_FILE}" >> ~/.bashrc
-    
+
+# claude code like this
+RUN mkdir -p /root/.local/bin
+
 ENTRYPOINT ["/bin/bash", "-c", "\
     source /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     source /usr/local/Ascend/cann-9.0.0-beta.2/share/info/ascendnpu-ir/bin/set_env.sh && \
