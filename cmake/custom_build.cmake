@@ -917,6 +917,26 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
         OPTIONAL
     )
 
+    # Ninja-compat: give es_packages/lib64/libes_transformer_cust.so a real
+    # producing rule. CANN's generate_es_package.cmake copies the .so into
+    # es_packages/lib64/ inside a custom_command whose only declared OUTPUT is
+    # install.flag, so ninja doesn't know that path is produced and errors
+    # with "missing and no known rule to make it" when cust_proto links
+    # against the IMPORTED es_transformer_cust (whose IMPORTED_LOCATION is
+    # exactly that path). Stage the so ourselves with a proper OUTPUT.
+    set(_es_staged_lib "${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer_cust.so")
+    add_custom_command(
+        OUTPUT "${_es_staged_lib}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/es_packages/lib64"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:es_transformer_cust_so>
+                "${_es_staged_lib}"
+        DEPENDS es_transformer_cust_so
+        COMMENT "Staging libes_transformer_cust.so for ninja dependency resolution"
+        VERBATIM
+    )
+    add_custom_target(stage_es_transformer_cust_lib DEPENDS "${_es_staged_lib}")
+
     # building es referring cust proto target. When autogen es from AscendC is supported, these can be removed
     # when fusion pass files adapted, reference can be changed to graph plugin obj
     if(TARGET ${GRAPH_PLUGIN_NAME}_obj)
@@ -928,6 +948,7 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
             message(STATUS "custom Graph Plugin Source to add es to obj")
             add_dependencies(${GRAPH_PLUGIN_NAME}_obj
                 build_es_transformer_cust
+                stage_es_transformer_cust_lib
             )
             target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
                 PRIVATE es_transformer_cust
@@ -938,6 +959,7 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
         message(STATUS "custom cust proto to es")
         add_dependencies(cust_proto
             build_es_transformer_cust
+            stage_es_transformer_cust_lib
         )
         target_link_libraries(cust_proto
             PRIVATE es_transformer_cust
