@@ -131,3 +131,4 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 ## Building and testing
 - always use ninja to build
 - the testing machine is ssh server "gcnpu" which has Ascend 910b4 NPU and AArch64 CPU, use "/workspace/claude" on "gcnpu" as your scatch space
+- always ignore SSH "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED"
