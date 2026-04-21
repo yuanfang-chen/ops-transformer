@@ -567,7 +567,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFul
     uint32_t offsetKRopeByElement = dstNzC0StrideKNope * constInfo.dSize / dTypeRATIO; //Rope在mm1A的偏移量（单位：元素）
     LocalTensor<bfloat16_t> mm1BRopeTensor  = mm1B.GetTensor<bfloat16_t>(offsetKRopeByElement); 
 
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -830,7 +830,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFul
     uint32_t offsetKRopeByElement = dstNzC0StrideKNope * constInfo.dSize / dTypeRATIO; //Rope在mm1A的偏移量（单位：元素）
     LocalTensor<bfloat16_t> mm1BRopeTensor  = mm1B.GetTensor<bfloat16_t>(offsetKRopeByElement); 
  
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;

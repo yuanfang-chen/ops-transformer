@@ -366,7 +366,10 @@ struct RunInfo<false> {
     float postQuantOffsetValue; \
     /* runtime mask flag — allows hasAtten template param to be fixed to true \
        while skipping mask GM loads when no mask tensor is actually present */ \
-    bool hasAttenMaskRT
+    bool hasAttenMaskRT; \
+    /* runtime PA flag — allows isPa template param to be fixed to true while \
+       selecting non-PA offset math / skipping block-table loads at runtime */ \
+    bool isPaRT
 
 #define CV_SHARED_PARAMS \
     /* base params */ \

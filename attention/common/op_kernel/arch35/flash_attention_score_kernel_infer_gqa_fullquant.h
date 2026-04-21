@@ -70,6 +70,9 @@ FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::InitUni
         this->constInfo.blockSize = this->sharedParams.blockSize;
         this->constInfo.paLayoutType = this->sharedParams.paLayoutType;
         this->constInfo.paBlockNumSum = this->sharedParams.paBlockNumSum;
+        this->constInfo.isPaRT = (this->sharedParams.blockSize > 0);
+    } else {
+        this->constInfo.isPaRT = false;
     }
 
     this->constInfo.transposeLayout = this->sharedParams.transposeLayout;

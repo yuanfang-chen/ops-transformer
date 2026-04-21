@@ -380,6 +380,9 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
         this->constInfo.blockSize = inputParamsRegbase.blockSize;
         this->constInfo.paLayoutType = inputParamsRegbase.paLayoutType;
         this->constInfo.paBlockNumSum = inputParamsRegbase.paBlockNumSum;
+        this->constInfo.isPaRT = (inputParamsRegbase.blockSize > 0);
+    } else {
+        this->constInfo.isPaRT = false;
     }
 
     this->constInfo.transposeLayout = inputParamsRegbase.transposeLayout;

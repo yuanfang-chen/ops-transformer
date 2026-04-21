@@ -568,7 +568,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
         mm2B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
         LocalTensor<INPUT_T> mm2BTensor = mm2B.GetTensor<INPUT_T>();
         uint64_t gmNOffset = n * baseN;
-        if constexpr (isPa) {
+        if (constInfo.isPaRT) {
             Position startPos;
             startPos.bIdx = runInfo.boIdx;
             startPos.n2Idx = runInfo.n2oIdx;
@@ -693,7 +693,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             mm2A.WaitCrossCore();
             mm2B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
             LocalTensor<INPUT_T> mm2BTensor = mm2B.GetTensor<INPUT_T>();
-            if constexpr (isPa) {
+            if (constInfo.isPaRT) {
                 Position startPos;
                 startPos.bIdx = runInfo.boIdx;
                 startPos.n2Idx = runInfo.n2oIdx;
@@ -945,7 +945,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     mm1B = l1KBuffers.Get();
     mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -1117,7 +1117,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
     mm1A = l1KBuffers.Get();
     mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用
     LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -1484,7 +1484,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     mm1B = l1KBuffers.Get();
     mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -1656,7 +1656,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
         mm1B = l1KBuffers.Get();
         mm1B.Wait<HardEvent::MTE1_MTE2>();
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-        if constexpr (isPa) {
+        if (constInfo.isPaRT) {
             Position startPos;
             startPos.bIdx = runInfo.boIdx;
             startPos.n2Idx = runInfo.n2oIdx;
@@ -1782,7 +1782,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     mm1A = l1KBuffers.Get();
     mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
@@ -1894,7 +1894,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1MLAFullQuant(
     uint32_t offsetKRopeByElement = dstNzC0StrideKNope * constInfo.dSize / dTypeRATIO; //Rope在mm1A的偏移量（单位：元素）
     LocalTensor<bfloat16_t> mm1BRopeTensor  = mm1B.GetTensor<bfloat16_t>(offsetKRopeByElement); 
 
-    if constexpr (isPa) {
+    if (constInfo.isPaRT) {
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;

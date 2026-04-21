@@ -1350,7 +1350,10 @@ ge::graphStatus FusedInferAttentionScoreTilingImpl::UpdateTilingKeyInfo(const Fi
         // The kernel uses runtime flags (compressMode, attenMaskFlag) to skip mask operations when no mask exists.
         tilingKeyInfo_.hasAttenMask = true;
         UpdateTilingKeyHasRope(fiaInfo);
-        tilingKeyInfo_.isPa = fiaInfo.pageAttentionFlag;
+        // IsPa is type-erased: always true in tiling key to reduce template instantiations.
+        // The kernel uses constInfo.isPaRT (derived from sharedParams.blockSize) to select
+        // PA vs non-PA offset math and skip block-table GM reads at runtime.
+        tilingKeyInfo_.isPa = true;
         tilingKeyInfo_.emptyTensor = fiaInfo.emptyTensorFlag;
         UpdateTilingKeyMaskMode(fiaInfo);
         UpdateTilingKeyMatmulMode(fiaInfo);
