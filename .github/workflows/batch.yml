@@ -59,6 +59,16 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: ensure build deps
+        run: |
+          if ! command -v gawk >/dev/null; then
+            echo "installing gawk..."
+            SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
+            $SUDO apt-get update
+            $SUDO apt-get install -y --no-install-recommends gawk
+          fi
+          gawk --version | head -1
+
       - name: iterate (op × soc)
         run: |
           set -u
@@ -86,6 +96,9 @@ jobs:
 
       - name: upload logs
         if: always()
+        continue-on-error: true
+        env:
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
         uses: actions/upload-artifact@v4
         with:
           name: batch-logs-${{ github.run_attempt }}

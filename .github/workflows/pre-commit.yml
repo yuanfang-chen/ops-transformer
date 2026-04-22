@@ -60,6 +60,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: ensure build deps
+        # The runner image is missing gawk, which build.sh needs. Guard with
+        # `command -v` so this is a no-op on re-runs after the first install.
+        run: |
+          if ! command -v gawk >/dev/null; then
+            echo "installing gawk..."
+            SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
+            $SUDO apt-get update
+            $SUDO apt-get install -y --no-install-recommends gawk
+          fi
+          gawk --version | head -1
+
       - name: show environment
         run: |
           uname -a
@@ -74,6 +86,12 @@ jobs:
 
       - name: upload logs
         if: always()
+        # Runner is behind a TLS-intercepting proxy; point Node at the system
+        # CA bundle (which typically has the proxy root). Best-effort — if the
+        # upload still fails, logs remain on the runner at build/precommit/.
+        continue-on-error: true
+        env:
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
         uses: actions/upload-artifact@v4
         with:
           name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
