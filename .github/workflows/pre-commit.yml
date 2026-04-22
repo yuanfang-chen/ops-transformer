@@ -1,0 +1,82 @@
+name: pre-commit
+
+# Iteration loop on the self-hosted yf2 runner (Ascend 910B4, aarch64, CANN 9.0.0.beta2).
+# On push / PR this runs the compile + UT gates for the default op so every branch
+# push on yf2 gets validated. Use workflow_dispatch to override op / soc / gates for
+# one-off runs.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      op:
+        description: Operator name (see <family>/<op> or experimental/<class>/<op>)
+        required: false
+        default: fused_infer_attention_score
+        type: string
+      soc:
+        description: SoC target
+        required: false
+        default: ascend910b
+        type: choice
+        options:
+          - ascend910b
+          - ascend950
+      gates:
+        description: "Gates to run (subset of: compile,ut,pytest,st). Empty = all."
+        required: false
+        default: compile,ut
+        type: string
+      strict:
+        description: Treat SKIPs as failures
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # `bash -l` so /etc/profile sources the CANN set_env.sh that the devcontainer
+    # Dockerfile appends. Every step gets ASCEND_HOME_PATH, LD_LIBRARY_PATH, etc.
+    shell: bash -el {0}
+
+jobs:
+  pre-commit:
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 240
+    env:
+      OP: ${{ inputs.op || 'fused_infer_attention_score' }}
+      SOC: ${{ inputs.soc || 'ascend910b' }}
+      GATES: ${{ inputs.gates || 'compile,ut' }}
+      STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
+      JOBS: '64'
+      FORCE_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: show environment
+        run: |
+          uname -a
+          echo "cores: $(nproc)"
+          echo "op=${OP}  soc=${SOC}  gates=${GATES}  strict=${STRICT_FLAG:-(off)}"
+          echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"
+          python3 --version
+          ccache --version | head -1 || true
+
+      - name: pre-commit check
+        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only="${GATES}" ${STRICT_FLAG}
+
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14

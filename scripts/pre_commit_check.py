@@ -77,7 +77,7 @@ TARGETS = ("ascend910b", "ascend950")
 GATES = ("compile", "ut", "pytest", "st")
 DEFAULT_OP = "fused_infer_attention_score"
 
-USE_COLOR = sys.stdout.isatty()
+USE_COLOR = sys.stdout.isatty() or os.environ.get("FORCE_COLOR", "").lower() in ("1", "true", "yes")
 
 
 def _c(code: str, text: str) -> str:

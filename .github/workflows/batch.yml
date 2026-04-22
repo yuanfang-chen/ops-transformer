@@ -1,0 +1,94 @@
+name: batch
+
+# Manual batch iteration: run pre_commit_check.py across a cartesian product of
+# ops and SoCs in a single job. Kept as a bash loop (rather than a job matrix)
+# because yf2 is a single self-hosted runner — parallel jobs would just queue.
+# Gates default to compile,ut; override via the `gates` input for heavier runs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ops:
+        description: Space-separated op names
+        required: true
+        default: fused_infer_attention_score
+        type: string
+      socs:
+        description: Space-separated SoCs (ascend910b / ascend950)
+        required: true
+        default: ascend910b
+        type: string
+      gates:
+        description: "Gates to run (subset of: compile,ut,pytest,st). Empty = all."
+        required: false
+        default: compile,ut
+        type: string
+      strict:
+        description: Treat SKIPs as failures
+        required: false
+        default: false
+        type: boolean
+      fail_fast:
+        description: Stop at first failing (op, soc); if off, run all and report
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  batch:
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 480
+    env:
+      OPS: ${{ inputs.ops }}
+      SOCS: ${{ inputs.socs }}
+      GATES: ${{ inputs.gates }}
+      STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
+      FAIL_FAST: ${{ inputs.fail_fast }}
+      JOBS: '64'
+      FORCE_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: iterate (op × soc)
+        run: |
+          set -u
+          failed=()
+          passed=()
+          for soc in ${SOCS}; do
+            for op in ${OPS}; do
+              echo "::group::${op} on ${soc}"
+              if scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
+                passed+=("${op}/${soc}")
+                echo "::endgroup::"
+              else
+                failed+=("${op}/${soc}")
+                echo "::endgroup::"
+                if [ "${FAIL_FAST}" = "true" ]; then
+                  break 2
+                fi
+              fi
+            done
+          done
+          echo
+          echo "passed (${#passed[@]}): ${passed[*]:-(none)}"
+          echo "failed (${#failed[@]}): ${failed[*]:-(none)}"
+          [ ${#failed[@]} -eq 0 ]
+
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-logs-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14
