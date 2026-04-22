@@ -73,17 +73,41 @@ jobs:
           gawk --version | head -1
           ninja --version
 
+      - name: normalize gates
+        # Empty GATES means "all"; expand to the full set so the per-gate
+        # `if: contains(...)` checks below are exact-token matches.
+        run: |
+          g="${GATES}"
+          [ -z "$g" ] && g=compile,ut,pytest,st
+          echo "GATES_NORM=$g" >> "$GITHUB_ENV"
+
       - name: show environment
         run: |
           uname -a
           echo "cores: $(nproc)"
-          echo "op=${OP}  soc=${SOC}  gates=${GATES}  strict=${STRICT_FLAG:-(off)}"
+          echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"
           echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"
           python3 --version
           ccache --version | head -1 || true
 
-      - name: pre-commit check
-        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only="${GATES}" ${STRICT_FLAG}
+      # One step per gate so each gate's log is readable via the GH API the
+      # moment that gate finishes — the old single-step design kept every
+      # gate's output hidden until the whole script exited.
+      - name: compile
+        if: contains(format(',{0},', env.GATES_NORM), ',compile,')
+        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+
+      - name: ut
+        if: contains(format(',{0},', env.GATES_NORM), ',ut,')
+        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+
+      - name: pytest
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+
+      - name: st
+        if: contains(format(',{0},', env.GATES_NORM), ',st,')
+        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
 
       - name: upload logs
         if: always()
