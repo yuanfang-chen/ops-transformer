@@ -61,16 +61,17 @@ jobs:
           fetch-depth: 1
 
       - name: ensure build deps
-        # The runner image is missing gawk, which build.sh needs. Guard with
-        # `command -v` so this is a no-op on re-runs after the first install.
+        # Mirrors the devcontainer Dockerfile's apt list. apt-get is a no-op
+        # when packages are already present, so this is cheap on re-runs.
         run: |
-          if ! command -v gawk >/dev/null; then
-            echo "installing gawk..."
-            SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
-            $SUDO apt-get update
-            $SUDO apt-get install -y --no-install-recommends gawk
-          fi
+          set -eu
+          SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
+          $SUDO apt-get update -qq
+          $SUDO apt-get install -y --no-install-recommends \
+            gawk ninja-build cmake build-essential \
+            libnuma-dev libsqlite3-dev jq
           gawk --version | head -1
+          ninja --version
 
       - name: show environment
         run: |
