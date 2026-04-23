@@ -33,8 +33,13 @@ on:
         type: boolean
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Shared across batch.yml, pre-commit.yml, and test-drive.yml because all
+  # three mutate the same container workspace via test_runner. Queue serially
+  # rather than risk a `git reset --hard` from one run yanking the tree out
+  # from under another. Never cancel mid-run — a long batch should not be
+  # killed by a quick pre-commit dispatch.
+  group: runner-singleton
+  cancel-in-progress: false
 
 defaults:
   run:
