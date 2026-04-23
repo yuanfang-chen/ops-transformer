@@ -1,0 +1,73 @@
+name: remote-exec
+
+# Ad-hoc command runner against cann_container on host A2. Dispatched
+# manually with a `script` input (multi-line bash). The script runs inside
+# the container via test_runner; stdout, stderr, and exit code are captured
+# to files and uploaded as an artifact, so callers can parse results without
+# scraping the step log.
+#
+# Intended for one-off debugging or maintenance (clean a stale dir, inspect
+# a path, run a tool the real workflows don't yet wrap). NOT a substitute
+# for pre-commit.yml / batch.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: Bash script to run inside the container. Multi-line OK.
+        required: true
+        type: string
+
+concurrency:
+  # Same singleton group as the other workflows — only one run at a time on
+  # the shared container so we don't race anyone else's git reset --hard.
+  group: runner-singleton
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  remote-exec:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    env:
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+      SCRIPT: ${{ inputs.script }}
+    steps:
+      - name: run script via test_runner
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/remote-exec
+
+          # Echo the script for log readability before encoding.
+          echo "::group::script"
+          printf '%s\n' "${SCRIPT}"
+          echo "::endgroup::"
+
+          # Encode the script as base64 and decode inside the container's
+          # bash. test_runner's printf-%q escaping eats one layer of $ and
+          # ", so a complex `bash -c` arg gets corrupted. The encoded form
+          # is plain ASCII and survives every quoting layer untouched.
+          encoded=$(printf '%s' "${SCRIPT}" | base64 -w0)
+          rc=0
+          test_runner bash -c "echo ${encoded} | base64 -d | bash" \
+            > >(tee build/remote-exec/stdout) \
+            2> >(tee build/remote-exec/stderr >&2) \
+            || rc=$?
+          printf '%s' "${rc}" > build/remote-exec/exit
+          echo "::notice title=remote-exec exit::${rc}"
+          # Don't fail the step on non-zero exit — caller inspects the
+          # exit file in the artifact. Keeping the step green guarantees
+          # the artifact upload runs and the result is retrievable.
+
+      - name: upload artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-exec-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/remote-exec/
+          if-no-files-found: ignore
+          retention-days: 7
