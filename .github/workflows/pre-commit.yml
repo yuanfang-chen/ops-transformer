@@ -55,6 +55,11 @@ jobs:
       STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
       JOBS: '64'
       FORCE_COLOR: '1'
+      # Point Node-based actions (checkout, upload-artifact, etc.) at the
+      # system CA bundle so they trust the corporate TLS-intercepting proxy.
+      # Does NOT affect the runner agent's own step-log uploads — those go
+      # through .NET and use the OS trust store directly.
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
       - uses: actions/checkout@v4
         with:
@@ -111,12 +116,9 @@ jobs:
 
       - name: upload logs
         if: always()
-        # Runner is behind a TLS-intercepting proxy; point Node at the system
-        # CA bundle (which typically has the proxy root). Best-effort — if the
-        # upload still fails, logs remain on the runner at build/precommit/.
+        # Best-effort — if the upload still fails (e.g. proxy CA not in the
+        # OS trust store), logs remain on the runner at build/precommit/.
         continue-on-error: true
-        env:
-          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
         uses: actions/upload-artifact@v4
         with:
           name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
