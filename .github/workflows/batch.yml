@@ -122,10 +122,12 @@ jobs:
 
       - name: print log tails
         # Embed each gate's log tail into the live job log via collapsible
-        # ::group:: blocks. Makes failures readable in the GH web UI as soon
-        # as fetch-back completes, without waiting for the (sometimes-slow)
-        # artifact upload step. Also gives a usable signal when upload-artifact
-        # times out and the artifact is lost.
+        # ::group:: blocks. The gate step's own stdout already streams the
+        # full session live (stdbuf -oL on the remote side), so this is
+        # belt-and-suspenders — it captures whatever pre_commit_check.py
+        # wrote to the .log file but didn't echo to stdout, and gives a
+        # single canonical place to find each gate's failure reason in the
+        # job log. No artifact upload — everything we need is in the live log.
         if: always()
         continue-on-error: true
         run: |
@@ -137,22 +139,6 @@ jobs:
           fi
           for log in "${logs[@]}"; do
             echo "::group::tail of $(basename "$log")"
-            tail -300 "$log" || true
+            tail -500 "$log" || true
             echo "::endgroup::"
           done
-
-      - name: upload logs
-        # 5-min cap so a slow Azure-via-proxy upload doesn't hold the job
-        # hostage. The print-log-tails step above already surfaces failure
-        # reasons inline, so losing the artifact is recoverable.
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 5
-        env:
-          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
-        uses: actions/upload-artifact@v4
-        with:
-          name: batch-logs-${{ github.run_attempt }}
-          path: build/precommit/
-          if-no-files-found: ignore
-          retention-days: 14
