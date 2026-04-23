@@ -129,6 +129,5 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 - FIAS has 5 aclnn API versions (`aclnn_fused_infer_attention_score{,_v2,_v3,_v4,_v5}.{h,cpp}`) sharing `aclnn_fused_infer_attention_score_inner.cpp`. V5 is current; V1 is deprecated (removal Dec 2026). Prefer V5 for new work; keep the inner impl shared.
 
 ## Building and testing
-- always use ninja to build
-- the testing machine is ssh server "gcnpu" which has Ascend 910b4 NPU and AArch64 CPU, use "/workspace/claude" on "gcnpu" as your scatch space
-- always ignore SSH "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED"
+- don't use ninja to build
+

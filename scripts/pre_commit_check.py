@@ -162,7 +162,7 @@ def run_build(
     *build_args: str,
 ) -> None:
     cmd = [
-        "bash", "build.sh", "--ninja",
+        "bash", "build.sh",
         f"--build-dir={repo / build_dirname}",
         f"-j{jobs}",
         *build_args,
