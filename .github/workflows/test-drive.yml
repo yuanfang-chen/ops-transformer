@@ -60,11 +60,15 @@ jobs:
 
       - name: env var forwarding
         # Confirms `test_runner env VAR=val …` propagates a var into the
-        # remote shell — same shape pre-commit.yml / batch.yml use to pass
-        # JOBS and FORCE_COLOR into pre_commit_check.py.
+        # remote process's environment — same shape pre-commit.yml / batch.yml
+        # use to pass JOBS and FORCE_COLOR into pre_commit_check.py. Uses
+        # `printenv VAR` (reads getenv directly) instead of a shell expansion
+        # like `bash -c 'echo "$VAR"'`, because test_runner's %q-based escaping
+        # doesn't preserve a literal $ across the two dquote layers; the real
+        # workflows only invoke binaries downstream of env, not shells.
         run: |
           source ~/test_runner.bash
-          got=$(test_runner env CI_TEST_VAR=hello_world bash -c 'echo "$CI_TEST_VAR"' | tr -d '\r\n')
+          got=$(test_runner env CI_TEST_VAR=hello_world printenv CI_TEST_VAR | tr -d '\r\n')
           echo "got: [${got}]"
           if [ "$got" != "hello_world" ]; then
             echo "env forwarding broken"
