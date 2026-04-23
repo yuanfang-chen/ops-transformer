@@ -3,8 +3,10 @@
   "build": {
     "dockerfile": "./Dockerfile"
   },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/ops-transformer,type=bind,consistency=cached",
-  "workspaceFolder": "/workspace/ops-transformer",
+  //"workspaceMount": "source=${localWorkspaceFolder},target=/workspace/ops-transformer,type=bind,consistency=cached",
+  //"workspaceFolder": "/workspace/ops-transformer",
+  "workspaceMount": "source=${localEnv:HOME}/code,target=${localEnv:HOME}/code,type=bind,consistency=cached",
+  "workspaceFolder": "${localEnv:HOME}/code/worktrees/${localWorkspaceFolderBasename}",
   "mounts": [
     "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind",
     "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind",
