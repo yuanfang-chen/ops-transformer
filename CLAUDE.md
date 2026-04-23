@@ -129,5 +129,19 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 - FIAS has 5 aclnn API versions (`aclnn_fused_infer_attention_score{,_v2,_v3,_v4,_v5}.{h,cpp}`) sharing `aclnn_fused_infer_attention_score_inner.cpp`. V5 is current; V1 is deprecated (removal Dec 2026). Prefer V5 for new work; keep the inner impl shared.
 
 ## Building and testing
-- don't use ninja to build
+- Don't use ninja to build.
+- Builds run on a real runner: a docker container `cann_container` on remote
+  SSH host `A2`, with workspace `/workspace/Src/ops-transformer`. Reach it
+  via the `test_runner` bash function — `test_runner <cmd>` execs `<cmd>`
+  inside the container; bare `test_runner` opens an interactive shell. The
+  command form does not allocate a PTY, so binary pipes (`test_runner tar
+  -cf - …`) work as-is. The function is in `~/.bashrc` on your local box
+  and in `~/test_runner.bash` on the GH Actions self-hosted gateway.
+- CI workflows (`pre-commit.yml`, `batch.yml`, `test-drive.yml`) treat the
+  gateway as a thin orchestrator: source `~/test_runner.bash`, sync the
+  container to `GITHUB_SHA`, run gates via `test_runner`, fetch logs back
+  via `test_runner tar`, upload as artifact. They skip `actions/checkout`
+  (the gateway's gnutls TLS to github.com is flaky) and serialize through
+  a shared `runner-singleton` concurrency group so they don't race the
+  container.
 
