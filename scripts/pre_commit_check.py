@@ -143,10 +143,13 @@ def tee_run(label: str, log_path: Path, cwd: Path, argv: Sequence[str]) -> None:
         bufsize=0,
     ) as proc:
         assert proc.stdout is not None
-        for chunk in iter(lambda: proc.stdout.read(4096), b""):
-            sys.stdout.buffer.write(chunk)
+        # Line-iterate so each line of child output is flushed to our stdout
+        # as soon as it's produced — keeps CI log views streaming instead of
+        # appearing in 4 KB bursts.
+        for line in iter(proc.stdout.readline, b""):
+            sys.stdout.buffer.write(line)
             sys.stdout.buffer.flush()
-            log.write(chunk)
+            log.write(line)
         rc = proc.wait()
     if rc != 0:
         die(f"{label} (exit={rc}, see {log_path})")

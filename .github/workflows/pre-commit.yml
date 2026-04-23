@@ -96,30 +96,62 @@ jobs:
       # One step per gate so each gate's log is readable via the GH API the
       # moment that gate finishes — the old single-step design kept every
       # gate's output hidden until the whole script exited.
+      #
+      # Each gate runs under `stdbuf -oL -eL` so the LD_PRELOAD it installs
+      # propagates to every descendant (bash → cmake → ninja → compilers),
+      # forcing line-buffered stdio instead of libc's default 4 KB block
+      # buffering on pipes. Without this, output arrives in bursts and the
+      # GH live log appears stalled mid-compile.
       - name: compile
         if: contains(format(',{0},', env.GATES_NORM), ',compile,')
-        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
 
       - name: ut
         if: contains(format(',{0},', env.GATES_NORM), ',ut,')
-        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
 
       - name: pytest
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
-        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
       - name: st
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
-        run: scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
+        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
 
-      - name: upload logs
+      - name: publish logs to gist
+        # Uploads build/precommit/*.log to a fresh gist using the runner's
+        # on-disk gh auth (~/.config/gh/hosts.yml). Bypasses the Azure blob
+        # path that the TLS-intercepting proxy breaks, so we get readable
+        # logs even when GH Actions' own step-log upload drops chunks.
         if: always()
-        # Best-effort — if the upload still fails (e.g. proxy CA not in the
-        # OS trust store), logs remain on the runner at build/precommit/.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
-          path: build/precommit/
-          if-no-files-found: ignore
-          retention-days: 14
+        run: |
+          set -eu
+          # Actions auto-injects GITHUB_TOKEN into every step; it does NOT
+          # have gist:write and would 403. Clear it so gh falls back to the
+          # runner's on-disk auth, which does have gist scope.
+          unset GITHUB_TOKEN GH_TOKEN
+          shopt -s nullglob
+          logs=(build/precommit/*.log)
+          if [ ${#logs[@]} -eq 0 ]; then
+            echo "no gate logs under build/precommit/ — nothing to upload"
+            exit 0
+          fi
+          # Strip ANSI colour codes so the gist renders cleanly.
+          sanitized=()
+          for f in "${logs[@]}"; do
+            out="${f%.log}.txt"
+            sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$f" > "$out"
+            sanitized+=("$out")
+          done
+          title="${{ github.workflow }} ${OP}/${SOC} run ${{ github.run_id }}"
+          url=$(gh gist create --desc "$title" "${sanitized[@]}")
+          echo "gist: $url"
+          echo "::notice title=Logs gist::$url"
+          {
+            echo "### Logs"
+            echo "- [$title]($url)"
+            for f in "${sanitized[@]}"; do
+              echo "  - $(basename "$f") — $(wc -l < "$f") lines"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
