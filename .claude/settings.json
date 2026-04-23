@@ -55,6 +55,10 @@
       "Bash(git fetch:*)",
       "Bash(git reset:*)",
       "Bash(git clean -n:*)",
+      "Bash(git config --get:*)",
+      "Bash(git config --list)",
+      "Bash(git config user.name:*)",
+      "Bash(git config user.email:*)",
 
       "Bash(mkdir:*)",
       "Bash(cp:*)",
