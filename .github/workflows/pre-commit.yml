@@ -44,7 +44,7 @@ defaults:
 
 jobs:
   pre-commit:
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 240
     env:
       OP: ${{ inputs.op || 'fused_infer_attention_score' }}
@@ -59,22 +59,10 @@ jobs:
       # through .NET and use the OS trust store directly.
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: ensure build deps
-        # Mirrors the devcontainer Dockerfile's apt list. apt-get is a no-op
-        # when packages are already present, so this is cheap on re-runs.
-        run: |
-          set -eu
-          SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
-          $SUDO apt-get update -qq
-          $SUDO apt-get install -y --no-install-recommends \
-            gawk ninja-build cmake build-essential \
-            libnuma-dev libsqlite3-dev jq
-          gawk --version | head -1
-          ninja --version
+      # No actions/checkout — all work runs on the container via test_runner
+      # (scripts live at /workspace/Src/ops-transformer inside the container).
+      # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
+      # the gateway's flaky gnutls TLS handshake against github.com.
 
       - name: normalize gates
         # Empty GATES means "all"; expand to the full set so the per-gate
@@ -84,74 +72,84 @@ jobs:
           [ -z "$g" ] && g=compile,ut,pytest,st
           echo "GATES_NORM=$g" >> "$GITHUB_ENV"
 
-      - name: show environment
+      - name: sync real runner to test SHA
+        # The container's workspace (/workspace/Src/ops-transformer) is an
+        # independent git clone, not a bind-mount of the gateway's checkout.
+        # Fetch the exact commit under CI from origin (GitHub) and hard-reset
+        # to it so gates run against the PR's code, not whatever stale state
+        # the container happens to be in. Untracked files (build/, ccache)
+        # are preserved so incremental builds stay warm.
         run: |
-          uname -a
-          echo "cores: $(nproc)"
+          source ~/test_runner.bash
+          test_runner git fetch --force --prune origin "${GITHUB_REF}"
+          test_runner git reset --hard "${GITHUB_SHA}"
+          test_runner git log -1 --oneline
+
+      - name: show environment
+        # The gateway runner only orchestrates; the real build/test box is a
+        # docker container reached via the `test_runner` bash function, which
+        # lives in ~/test_runner.bash on the gateway.
+        run: |
+          source ~/test_runner.bash
           echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"
-          echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"
-          python3 --version
-          ccache --version | head -1 || true
+          echo "--- gateway ---"
+          uname -a
+          echo "--- real runner ---"
+          test_runner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
 
       # One step per gate so each gate's log is readable via the GH API the
       # moment that gate finishes — the old single-step design kept every
       # gate's output hidden until the whole script exited.
       #
-      # Each gate runs under `stdbuf -oL -eL` so the LD_PRELOAD it installs
-      # propagates to every descendant (bash → cmake → ninja → compilers),
-      # forcing line-buffered stdio instead of libc's default 4 KB block
-      # buffering on pipes. Without this, output arrives in bursts and the
-      # GH live log appears stalled mid-compile.
+      # Each gate runs under `stdbuf -oL -eL` (on the real runner, inside the
+      # test_runner call) so the LD_PRELOAD it installs propagates to every
+      # descendant (bash → cmake → make → compilers), forcing line-buffered
+      # stdio instead of libc's default 4 KB block buffering on pipes. Without
+      # this, output arrives in bursts and the GH live log appears stalled
+      # mid-compile.
       - name: compile
         if: contains(format(',{0},', env.GATES_NORM), ',compile,')
-        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+        run: |
+          source ~/test_runner.bash
+          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
 
       - name: ut
         if: contains(format(',{0},', env.GATES_NORM), ',ut,')
-        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+        run: |
+          source ~/test_runner.bash
+          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
 
       - name: pytest
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
-        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+        run: |
+          source ~/test_runner.bash
+          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
       - name: st
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
-        run: stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
+        run: |
+          source ~/test_runner.bash
+          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
 
-      - name: publish logs to gist
-        # Uploads build/precommit/*.log to a fresh gist using the runner's
-        # on-disk gh auth (~/.config/gh/hosts.yml). Bypasses the Azure blob
-        # path that the TLS-intercepting proxy breaks, so we get readable
-        # logs even when GH Actions' own step-log upload drops chunks.
+      - name: fetch logs from real runner
+        # Gates write logs under build/precommit on the container; pull them
+        # back via test_runner. The command form of test_runner no longer
+        # allocates a PTY, so binary tar output passes through cleanly.
         if: always()
         continue-on-error: true
         run: |
-          set -eu
-          # Actions auto-injects GITHUB_TOKEN into every step; it does NOT
-          # have gist:write and would 403. Clear it so gh falls back to the
-          # runner's on-disk auth, which does have gist scope.
-          unset GITHUB_TOKEN GH_TOKEN
-          shopt -s nullglob
-          logs=(build/precommit/*.log)
-          if [ ${#logs[@]} -eq 0 ]; then
-            echo "no gate logs under build/precommit/ — nothing to upload"
-            exit 0
-          fi
-          # Strip ANSI colour codes so the gist renders cleanly.
-          sanitized=()
-          for f in "${logs[@]}"; do
-            out="${f%.log}.txt"
-            sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$f" > "$out"
-            sanitized+=("$out")
-          done
-          title="${{ github.workflow }} ${OP}/${SOC} run ${{ github.run_id }}"
-          url=$(gh gist create --desc "$title" "${sanitized[@]}")
-          echo "gist: $url"
-          echo "::notice title=Logs gist::$url"
-          {
-            echo "### Logs"
-            echo "- [$title]($url)"
-            for f in "${sanitized[@]}"; do
-              echo "  - $(basename "$f") — $(wc -l < "$f") lines"
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
+          source ~/test_runner.bash
+          mkdir -p build/precommit
+          test_runner tar -C build/precommit -cf - . 2>/dev/null \
+            | tar -C build/precommit -xf - || true
+          ls -la build/precommit/ || true
+
+      - name: upload logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14

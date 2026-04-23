@@ -55,30 +55,37 @@ jobs:
       JOBS: '64'
       FORCE_COLOR: '1'
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      # No actions/checkout — all work runs on the container via test_runner
+      # (scripts live at /workspace/Src/ops-transformer inside the container).
+      # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
+      # the gateway's flaky gnutls TLS handshake against github.com.
 
-      - name: ensure build deps
+      - name: sync real runner to test SHA
+        # The container's workspace (/workspace/Src/ops-transformer) is an
+        # independent git clone, not a bind-mount of the gateway's checkout.
+        # Fetch the exact commit under CI from origin (GitHub) and hard-reset
+        # to it so gates run against the PR's code, not whatever stale state
+        # the container happens to be in. Untracked files (build/, ccache)
+        # are preserved so incremental builds stay warm.
         run: |
-          set -eu
-          SUDO=$([ "$(id -u)" = "0" ] || echo sudo)
-          $SUDO apt-get update -qq
-          $SUDO apt-get install -y --no-install-recommends \
-            gawk ninja-build cmake build-essential \
-            libnuma-dev libsqlite3-dev jq
-          gawk --version | head -1
-          ninja --version
+          source ~/test_runner.bash
+          test_runner git fetch --force --prune origin "${GITHUB_REF}"
+          test_runner git reset --hard "${GITHUB_SHA}"
+          test_runner git log -1 --oneline
 
       - name: iterate (op × soc)
+        # The gateway runner only orchestrates; builds run on the real runner
+        # (docker container on a remote ssh host) via the `test_runner` bash
+        # function, which lives in ~/test_runner.bash on the gateway.
         run: |
+          source ~/test_runner.bash
           set -u
           failed=()
           passed=()
           for soc in ${SOCS}; do
             for op in ${OPS}; do
               echo "::group::${op} on ${soc}"
-              if scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
+              if test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
                 passed+=("${op}/${soc}")
                 echo "::endgroup::"
               else
@@ -94,6 +101,19 @@ jobs:
           echo "passed (${#passed[@]}): ${passed[*]:-(none)}"
           echo "failed (${#failed[@]}): ${failed[*]:-(none)}"
           [ ${#failed[@]} -eq 0 ]
+
+      - name: fetch logs from real runner
+        # Gates write logs under build/precommit on the container; pull them
+        # back via test_runner. The command form of test_runner no longer
+        # allocates a PTY, so binary tar output passes through cleanly.
+        if: always()
+        continue-on-error: true
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/precommit
+          test_runner tar -C build/precommit -cf - . 2>/dev/null \
+            | tar -C build/precommit -xf - || true
+          ls -la build/precommit/ || true
 
       - name: upload logs
         if: always()
