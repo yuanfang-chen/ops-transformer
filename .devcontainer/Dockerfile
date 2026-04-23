@@ -1,5 +1,6 @@
 # Stage 1: Install Python
-FROM ubuntu:22.04 AS python-installer
+#FROM ubuntu:22.04 AS python-installer
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04 AS python-installer
 
 # Python Environment variables
 ENV PATH=/usr/local/python3.11.15/bin:${PATH}
@@ -98,7 +99,8 @@ RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     rm -f ~/Ascend-cann-nnal.run
     
 # Stage 3: Copy results from previous stages
-FROM ubuntu:22.04 AS official-ubuntu
+#FROM ubuntu:22.04 AS official-ubuntu
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04 AS official-ubuntu
 
 # Python Environment variables
 ENV PATH=/usr/local/python3.11.15/bin:${PATH}
