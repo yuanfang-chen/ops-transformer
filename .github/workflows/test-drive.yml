@@ -1,0 +1,132 @@
+name: test-drive runner
+
+# Smoke-tests the gateway → real-runner plumbing used by pre-commit.yml and
+# batch.yml. Run this after changes to `test_runner` on the gateway, to the
+# container's git remote / credentials, or to the fetch-back logic. Manual
+# dispatch only — each step is a self-contained check and the job fails as
+# soon as any one check fails.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  test-drive:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 10
+    env:
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: gateway preflight
+        # Confirm the gateway has the pieces the real workflows rely on:
+        #   - test_runner function in ~/.bashrc
+        #   - sshpass + ~/.huawei_pw (used by the direct-ssh fetch-back path)
+        run: |
+          source ~/.bashrc
+          echo "--- gateway: id ---"
+          id
+          echo "--- gateway: test_runner defined? ---"
+          if declare -f test_runner > /dev/null; then
+            echo "OK"
+          else
+            echo "MISSING — check ~/.bashrc on the gateway runner"
+            exit 1
+          fi
+          echo "--- gateway: sshpass + pw file ---"
+          command -v sshpass
+          if [ -r ~/.huawei_pw ]; then
+            echo "~/.huawei_pw: readable"
+          else
+            echo "~/.huawei_pw: missing or unreadable"
+            exit 1
+          fi
+
+      - name: test_runner round-trip
+        # Trivial call — if this hangs, ssh/docker auth is broken.
+        run: |
+          source ~/.bashrc
+          test_runner bash -lc 'echo "container hostname: $(hostname)"; uname -a; pwd; id'
+
+      - name: env var forwarding
+        # Confirms `test_runner env VAR=val …` propagates a var into the
+        # remote shell — same shape pre-commit.yml / batch.yml use to pass
+        # JOBS and FORCE_COLOR into pre_commit_check.py.
+        run: |
+          source ~/.bashrc
+          got=$(test_runner env CI_TEST_VAR=hello_world bash -c 'echo "$CI_TEST_VAR"' | tr -d '\r\n')
+          echo "got: [${got}]"
+          if [ "$got" != "hello_world" ]; then
+            echo "env forwarding broken"
+            exit 1
+          fi
+
+      - name: container workspace is a git clone of this repo
+        run: |
+          source ~/.bashrc
+          echo "--- toplevel ---"
+          test_runner git -C /workspace/Src/ops-transformer rev-parse --show-toplevel
+          echo "--- remotes ---"
+          test_runner git -C /workspace/Src/ops-transformer remote -v
+
+      - name: sync container to dispatched SHA
+        # Exercises the same fetch + reset that the real workflows do before
+        # running gates. Verifies container HEAD lands on GITHUB_SHA after.
+        run: |
+          source ~/.bashrc
+          test_runner git fetch --force --prune origin "${GITHUB_REF}"
+          test_runner git reset --hard "${GITHUB_SHA}"
+          got=$(test_runner git rev-parse HEAD | tr -d '\r\n')
+          echo "container HEAD: [${got}]"
+          echo "dispatched SHA: [${GITHUB_SHA}]"
+          if [ "$got" != "${GITHUB_SHA}" ]; then
+            echo "sync failed — container HEAD does not match dispatched SHA"
+            exit 1
+          fi
+
+      - name: fetch-back via direct sshpass (binary integrity)
+        # Writes a 64 KiB random fixture inside the container, pulls the
+        # build/precommit/ tree back over the no-PTY sshpass path the real
+        # workflows use for logs, and verifies sha256 survives the transfer.
+        run: |
+          source ~/.bashrc
+          # Fixture on the container side.
+          test_runner bash -c 'mkdir -p build/precommit && dd if=/dev/urandom of=build/precommit/fixture.bin bs=1024 count=64 status=none && sha256sum build/precommit/fixture.bin > build/precommit/fixture.sha256'
+          expected=$(test_runner cat build/precommit/fixture.sha256 | awk '{print $1}' | tr -d '\r\n')
+          echo "expected sha256: [${expected}]"
+
+          # Pull via direct ssh (no -t) + docker exec (no -it) so the tar
+          # stream is not mangled by PTY newline cooking.
+          rm -rf build/precommit && mkdir -p build/precommit
+          sshpass -f ~/.huawei_pw ssh -o StrictHostKeyChecking=no A2 \
+            'docker exec -w /workspace/Src/ops-transformer cann_container tar -C build/precommit -cf - . 2>/dev/null' \
+            | tar -C build/precommit -xf -
+
+          echo "--- local build/precommit/ after fetch ---"
+          ls -la build/precommit/
+          got=$(sha256sum build/precommit/fixture.bin | awk '{print $1}')
+          echo "got sha256:      [${got}]"
+          if [ "$got" != "$expected" ]; then
+            echo "fetch-back corrupted binary — transfer is NOT clean"
+            exit 1
+          fi
+
+      - name: cleanup fixture on container
+        if: always()
+        continue-on-error: true
+        run: |
+          source ~/.bashrc
+          test_runner rm -f build/precommit/fixture.bin build/precommit/fixture.sha256
+
+      - name: summary
+        run: echo "All runner preflight checks passed."
