@@ -33,7 +33,7 @@ jobs:
         #   - test_runner function in ~/.bashrc
         #   - sshpass + ~/.huawei_pw (used by the direct-ssh fetch-back path)
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           echo "--- gateway: id ---"
           id
           echo "--- gateway: test_runner defined? ---"
@@ -55,7 +55,7 @@ jobs:
       - name: test_runner round-trip
         # Trivial call — if this hangs, ssh/docker auth is broken.
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           test_runner bash -lc 'echo "container hostname: $(hostname)"; uname -a; pwd; id'
 
       - name: env var forwarding
@@ -63,7 +63,7 @@ jobs:
         # remote shell — same shape pre-commit.yml / batch.yml use to pass
         # JOBS and FORCE_COLOR into pre_commit_check.py.
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           got=$(test_runner env CI_TEST_VAR=hello_world bash -c 'echo "$CI_TEST_VAR"' | tr -d '\r\n')
           echo "got: [${got}]"
           if [ "$got" != "hello_world" ]; then
@@ -73,7 +73,7 @@ jobs:
 
       - name: container workspace is a git clone of this repo
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           echo "--- toplevel ---"
           test_runner git -C /workspace/Src/ops-transformer rev-parse --show-toplevel
           echo "--- remotes ---"
@@ -83,7 +83,7 @@ jobs:
         # Exercises the same fetch + reset that the real workflows do before
         # running gates. Verifies container HEAD lands on GITHUB_SHA after.
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           test_runner git fetch --force --prune origin "${GITHUB_REF}"
           test_runner git reset --hard "${GITHUB_SHA}"
           got=$(test_runner git rev-parse HEAD | tr -d '\r\n')
@@ -99,7 +99,7 @@ jobs:
         # build/precommit/ tree back over the no-PTY sshpass path the real
         # workflows use for logs, and verifies sha256 survives the transfer.
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           # Fixture on the container side.
           test_runner bash -c 'mkdir -p build/precommit && dd if=/dev/urandom of=build/precommit/fixture.bin bs=1024 count=64 status=none && sha256sum build/precommit/fixture.bin > build/precommit/fixture.sha256'
           expected=$(test_runner cat build/precommit/fixture.sha256 | awk '{print $1}' | tr -d '\r\n')
@@ -125,7 +125,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          source ~/.bashrc
+          source ~/test_runner.bash
           test_runner rm -f build/precommit/fixture.bin build/precommit/fixture.sha256
 
       - name: summary
