@@ -24,9 +24,10 @@ jobs:
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      # No actions/checkout — every step operates either on ~/$HOME of the
+      # gateway (test_runner.bash, ~/.huawei_pw) or on the container's
+      # workspace via test_runner. Skipping checkout avoids the gateway's
+      # flaky gnutls TLS handshake against github.com.
 
       - name: gateway preflight
         # Confirm the gateway has the pieces the real workflows rely on:
