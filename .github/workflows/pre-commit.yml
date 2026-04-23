@@ -1,13 +1,11 @@
 name: pre-commit
 
 # Iteration loop on the self-hosted yf2 runner (Ascend 910B4, aarch64, CANN 9.0.0.beta2).
-# On push / PR this runs the compile + UT gates for the default op so every branch
-# push on yf2 gets validated. Use workflow_dispatch to override op / soc / gates for
-# one-off runs.
+# Manual only: trigger via `gh workflow run pre-commit.yml --ref <branch>` with the
+# inputs below. Push / PR triggers were removed intentionally — the runner is a
+# single self-hosted box and we don't want every branch push to queue on it.
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
     inputs:
       op:
