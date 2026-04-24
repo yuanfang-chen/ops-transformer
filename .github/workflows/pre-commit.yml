@@ -82,19 +82,26 @@ jobs:
         # /etc/ssl/certs/ (so OpenSSL-linked tools trust them) but are NOT
         # in /etc/ssl/certs/ca-certificates.crt — the bundle that GnuTLS
         # (git's TLS backend) actually reads. Rebuild the bundle the first
-        # time we see a container without Huawei in it, and explicitly pin
-        # git at the bundle so the dependency is visible. Idempotent: the
-        # grep check short-circuits on subsequent runs.
+        # time we see a container without Huawei in it, pin git at the
+        # bundle, and force HTTP/1.1 (the corp proxy mishandles HTTP/2
+        # ALPN for some hosts — manifests as curl exit 35 / intermittent
+        # handshake failures). Idempotent: the grep check short-circuits
+        # on subsequent runs for the bundle install; the http.version
+        # pin is cheap to re-apply so we always set it.
         run: |
           source ~/test_runner.bash
           if test_runner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
-            echo "container TLS trust already includes Huawei CA — skipping"
+            echo "container TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into container bundle"
             test_runner update-ca-certificates --fresh
             test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
-            echo "done"
           fi
+          test_runner git config --system http.version HTTP/1.1
+          test_runner git config --system http.postBuffer 524288000
+          test_runner git config --system http.lowSpeedLimit 1000
+          test_runner git config --system http.lowSpeedTime 30
+          echo "done"
 
       - name: sync real runner to test SHA
         # The container's workspace (/workspace/Src/ops-transformer) is an
@@ -104,20 +111,25 @@ jobs:
         # the container happens to be in. Untracked files (build/, ccache)
         # are preserved so incremental builds stay warm.
         #
-        # Retry the fetch because the corporate TLS-intercepting proxy flakes
-        # on github.com HTTPS intermittently (gnutls_handshake() failed). A
-        # couple of retries with backoff is almost always enough.
+        # Retry the fetch because the corporate TLS-intercepting proxy still
+        # flakes ~30% of handshakes even with the CA installed (cluster-level
+        # backend issues, outside our control). 5 attempts with exponential
+        # + jitter backoff spreads retries across different proxy instances.
+        # Probability of 5 consecutive failures at 30% each ≈ 0.24%.
         run: |
           source ~/test_runner.bash
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             if test_runner git fetch --force --prune origin "${GITHUB_REF}"; then
               break
             fi
-            if [ "$attempt" = "3" ]; then
-              echo "git fetch failed after 3 attempts"
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
               exit 1
             fi
-            delay=$((10 * attempt))
+            # Exponential base (5, 10, 20, 40s) + up to 100% jitter
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
             echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
@@ -228,3 +240,20 @@ jobs:
             tail -500 "$log" || true
             echo "::endgroup::"
           done
+
+      - name: upload logs (experiment — reintroducing to test Azure-path reliability)
+        # Temporarily re-enabling upload-artifact to measure whether the
+        # Azure blob proxy flakiness we saw earlier has settled. Live log
+        # streaming above remains the primary channel; this is archival.
+        # `timeout-minutes: 5` caps any stall so the job doesn't hostage
+        # on a slow upload; `continue-on-error: true` keeps the job green
+        # even if the upload times out.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/upload-artifact@v4
+        with:
+          name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14
