@@ -72,9 +72,24 @@ jobs:
         # to it so gates run against the PR's code, not whatever stale state
         # the container happens to be in. Untracked files (build/, ccache)
         # are preserved so incremental builds stay warm.
+        #
+        # Retry the fetch because the corporate TLS-intercepting proxy flakes
+        # on github.com HTTPS intermittently (gnutls_handshake() failed). A
+        # couple of retries with backoff is almost always enough.
         run: |
           source ~/test_runner.bash
-          test_runner git fetch --force --prune origin "${GITHUB_REF}"
+          for attempt in 1 2 3; do
+            if test_runner git fetch --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "git fetch failed after 3 attempts"
+              exit 1
+            fi
+            delay=$((10 * attempt))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
           test_runner git reset --hard "${GITHUB_SHA}"
           test_runner git log -1 --oneline
 
