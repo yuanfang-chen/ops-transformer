@@ -1248,6 +1248,14 @@ while [[ $# -gt 0 ]]; do
         OPTARG=$1
         BUILD_DIR=${OPTARG#*=}
         BUILD_OUT_DIR=${BUILD_DIR}_out
+        # BUILD_PATH is exported to children (notably the UT binary,
+        # which reads getenv("BUILD_PATH") to locate libophost_transformer_ut.so).
+        # Keep it in sync with --build-dir; otherwise the UT loads the stale
+        # default-build .so (or none at all), AddSoToRegistry silently
+        # succeeds on the missing/wrong file, and GetOpImpl returns null
+        # on every op — which surfaces as a SEGV in tiling_case_executor.cpp
+        # at the first test.
+        export BUILD_PATH="${BUILD_DIR}"
         shift
         ;;
     --tiling-key|--tiling_key)	 
