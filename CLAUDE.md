@@ -140,8 +140,28 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 - CI workflows (`pre-commit.yml`, `batch.yml`, `test-drive.yml`) treat the
   gateway as a thin orchestrator: source `~/test_runner.bash`, sync the
   container to `GITHUB_SHA`, run gates via `test_runner`, fetch logs back
-  via `test_runner tar`, upload as artifact. They skip `actions/checkout`
-  (the gateway's gnutls TLS to github.com is flaky) and serialize through
-  a shared `runner-singleton` concurrency group so they don't race the
-  container.
+  via `test_runner tar`, and stream gate tails into the live job log.
+  They do NOT use `actions/checkout` or `actions/upload-artifact` (both
+  touch paths the corporate TLS-intercepting proxy flakes on — Azure
+  blob for upload, github.com for checkout). They serialize through a
+  shared `runner-singleton` concurrency group so they don't race the
+  container's shared state.
+- Each workflow starts with a `prepare container TLS trust` step. The
+  container ships Huawei CAs as hash symlinks in `/etc/ssl/certs/` but
+  doesn't include them in `/etc/ssl/certs/ca-certificates.crt` — the
+  bundle git's GnuTLS reads. First run on a freshly rebuilt container
+  calls `update-ca-certificates --fresh` and pins git at the bundle via
+  `http.sslCAInfo`. Subsequent runs short-circuit via an openssl-decoded
+  bundle scan.
+- Ad-hoc container commands: `gh workflow run remote-exec.yml -f
+  script="<multi-line bash>"`. The script runs inside `cann_container`
+  via `test_runner`; stdout/stderr/exit captured to
+  `build/remote-exec/` and uploaded as artifact (only workflow that
+  still uses upload-artifact, because interactive debugging needs the
+  file). Useful for probing state, clearing stale build dirs, running
+  one-off maintenance.
+- `build.sh --build-dir=<path>` must keep `BUILD_PATH` in sync (the UT
+  binary reads `getenv("BUILD_PATH")` to locate its .so). The argument
+  parser does this automatically as of the `BUILD_PATH` fix — if you
+  add new build-dir overrides, preserve the sync.
 
