@@ -133,6 +133,29 @@ jobs:
           source ~/test_runner.bash
           test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
 
+      - name: prepare python env for ut
+        # op_kernel UT build runs scripts/util/gen_tiling_head_file.py, which
+        # imports tbe → tvm → numpy. The container's Python is minimal, so
+        # install the root requirements.txt (pyyaml, numpy, decorator, sympy,
+        # scipy, attrs, protobuf, psutil) before the UT gate runs. Idempotent
+        # — pip is a no-op when everything is already satisfied. Retry on
+        # flakes, same pattern as the git fetch step.
+        if: contains(format(',{0},', env.GATES_NORM), ',ut,')
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3; do
+            if test_runner pip3 install -r requirements.txt; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "pip3 install failed after 3 attempts"
+              exit 1
+            fi
+            delay=$((10 * attempt))
+            echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+
       - name: ut
         if: contains(format(',{0},', env.GATES_NORM), ',ut,')
         run: |
