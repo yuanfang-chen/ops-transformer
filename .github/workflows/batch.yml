@@ -65,6 +65,25 @@ jobs:
       # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
       # the gateway's flaky gnutls TLS handshake against github.com.
 
+      - name: prepare container TLS trust
+        # The container's Huawei CAs are dropped as hash symlinks in
+        # /etc/ssl/certs/ (so OpenSSL-linked tools trust them) but are NOT
+        # in /etc/ssl/certs/ca-certificates.crt — the bundle that GnuTLS
+        # (git's TLS backend) actually reads. Rebuild the bundle the first
+        # time we see a container without Huawei in it, and explicitly pin
+        # git at the bundle so the dependency is visible. Idempotent: the
+        # grep check short-circuits on subsequent runs.
+        run: |
+          source ~/test_runner.bash
+          if test_runner grep -q 'Huawei Web Secure' /etc/ssl/certs/ca-certificates.crt; then
+            echo "container TLS trust already includes Huawei CA — skipping"
+          else
+            echo "installing Huawei CA into container bundle"
+            test_runner update-ca-certificates --fresh
+            test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            echo "done"
+          fi
+
       - name: sync real runner to test SHA
         # The container's workspace (/workspace/Src/ops-transformer) is an
         # independent git clone, not a bind-mount of the gateway's checkout.

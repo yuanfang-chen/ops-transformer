@@ -89,6 +89,21 @@ jobs:
           echo "--- remotes ---"
           test_runner git -C /workspace/Src/ops-transformer remote -v
 
+      - name: prepare container TLS trust
+        # Huawei CAs exist on disk as hash symlinks but not in the bundle
+        # GnuTLS (git) reads. Rebuild the bundle + pin git at it, once per
+        # fresh container. Idempotent on subsequent runs.
+        run: |
+          source ~/test_runner.bash
+          if test_runner grep -q 'Huawei Web Secure' /etc/ssl/certs/ca-certificates.crt; then
+            echo "container TLS trust already includes Huawei CA — skipping"
+          else
+            echo "installing Huawei CA into container bundle"
+            test_runner update-ca-certificates --fresh
+            test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            echo "done"
+          fi
+
       - name: sync container to dispatched SHA
         # Exercises the same fetch + reset that the real workflows do before
         # running gates. Verifies container HEAD lands on GITHUB_SHA after.
