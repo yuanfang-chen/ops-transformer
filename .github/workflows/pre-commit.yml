@@ -31,6 +31,11 @@ on:
         required: false
         default: false
         type: boolean
+      jobs:
+        description: Parallel jobs (-jN) for the build
+        required: false
+        default: '64'
+        type: string
 
 concurrency:
   # Shared across batch.yml, pre-commit.yml, and test-drive.yml because all
@@ -56,7 +61,7 @@ jobs:
       SOC: ${{ inputs.soc || 'ascend910b' }}
       GATES: ${{ inputs.gates || 'compile,ut' }}
       STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
-      JOBS: '64'
+      JOBS: ${{ inputs.jobs || '64' }}
       FORCE_COLOR: '1'
       # Point Node-based actions (checkout, upload-artifact, etc.) at the
       # system CA bundle so they trust the corporate TLS-intercepting proxy.
