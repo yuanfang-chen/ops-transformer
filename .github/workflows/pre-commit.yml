@@ -240,13 +240,13 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: upload logs (experiment — reintroducing to test Azure-path reliability)
-        # Temporarily re-enabling upload-artifact to measure whether the
-        # Azure blob proxy flakiness we saw earlier has settled. Live log
-        # streaming above remains the primary channel; this is archival.
-        # `timeout-minutes: 5` caps any stall so the job doesn't hostage
-        # on a slow upload; `continue-on-error: true` keeps the job green
-        # even if the upload times out.
+      - name: upload logs
+        # Archival of gate .log files. Live log streaming (the `print log
+        # tails` step above) is the primary debug channel; this step is
+        # for retaining the full logs beyond the GH workflow log retention
+        # window. `timeout-minutes: 5` caps any stall through the corp
+        # proxy to Azure blob; `continue-on-error: true` keeps the job
+        # green if the upload fails — we still have the inline tails.
         if: always()
         continue-on-error: true
         timeout-minutes: 5

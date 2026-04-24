@@ -179,3 +179,23 @@ jobs:
             tail -500 "$log" || true
             echo "::endgroup::"
           done
+
+      - name: upload logs
+        # Archival of per-(op, soc) .log files from the sweep. Live log
+        # streaming (the `print log tails` step above) is the primary
+        # debug channel; this step persists the full logs beyond the GH
+        # workflow log retention window. `timeout-minutes: 5` caps any
+        # stall through the corp proxy to Azure blob;
+        # `continue-on-error: true` keeps the job green if the upload
+        # fails — we still have the inline tails.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-logs-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14
