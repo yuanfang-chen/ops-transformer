@@ -102,7 +102,6 @@ jobs:
             test_runner update-ca-certificates --fresh
             test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          test_runner git config --system http.version HTTP/1.1
           test_runner git config --system http.postBuffer 524288000
           test_runner git config --system http.lowSpeedLimit 1000
           test_runner git config --system http.lowSpeedTime 30
