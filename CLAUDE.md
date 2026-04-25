@@ -130,22 +130,29 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 
 ## Building and testing
 - Don't use ninja to build.
-- Builds run on a real runner: a docker container `cann_container` on remote
-  SSH host `A2`, with workspace `/workspace/Src/ops-transformer`. Reach it
-  via the `test_runner` bash function — `test_runner <cmd>` execs `<cmd>`
-  inside the container; bare `test_runner` opens an interactive shell. The
-  command form does not allocate a PTY, so binary pipes (`test_runner tar
-  -cf - …`) work as-is. The function is in `~/.bashrc` on your local box
-  and in `~/test_runner.bash` on the GH Actions self-hosted gateway.
-- CI workflows (`pre-commit.yml`, `batch.yml`, `test-drive.yml`) treat the
-  gateway as a thin orchestrator: source `~/test_runner.bash`, sync the
-  container to `GITHUB_SHA`, run gates via `test_runner`, fetch logs back
-  via `test_runner tar`, and stream gate tails into the live job log.
-  They do NOT use `actions/checkout` or `actions/upload-artifact` (both
-  touch paths the corporate TLS-intercepting proxy flakes on — Azure
-  blob for upload, github.com for checkout). They serialize through a
-  shared `runner-singleton` concurrency group so they don't race the
-  container's shared state.
+- Builds run on a real runner: a docker container `cann_container` on a
+  remote SSH host, with workspace `/workspace/Src/ops-transformer`. Reach
+  it via the `test_runner` bash function — `test_runner <cmd>` execs
+  `<cmd>` inside the container; bare `test_runner` opens an interactive
+  shell. The command form does not allocate a PTY, so binary pipes
+  (`test_runner tar -cf - …`) work as-is. The function is in `~/.bashrc`
+  on your local box and in `~/test_runner.bash` on each self-hosted
+  GH Actions gateway runner.
+- Two self-hosted gateway runners with per-host labels: **`a2`** (host
+  `A2` → 910b-targeted CANN container) and **`a5`** (host `A5` →
+  950-targeted container). Workflows route by SoC: `ascend910b` → `a2`,
+  `ascend950` → `a5`. Each runner's `~/test_runner.bash` points at its
+  own ssh host, so the two are fully independent.
+- CI workflows (`pre-commit.yml`, `batch.yml`, `test-drive.yml`) treat
+  the gateway as a thin orchestrator: source `~/test_runner.bash`, sync
+  the container to `GITHUB_SHA`, run gates via `test_runner`, fetch logs
+  back via `test_runner tar`, and stream gate tails into the live job
+  log. `actions/checkout` is intentionally skipped (the gateway's gnutls
+  TLS to github.com is flaky); `actions/upload-artifact` is enabled for
+  archival once gateway TLS trust is configured. They use per-runner
+  concurrency groups (`runner-singleton-a2` / `runner-singleton-a5`) so
+  a2 work doesn't queue behind a5 work and vice versa, but each runner
+  serializes its own jobs to avoid racing on its container's git tree.
 - Each workflow starts with a `prepare container TLS trust` step. The
   container ships Huawei CAs as hash symlinks in `/etc/ssl/certs/` but
   doesn't include them in `/etc/ssl/certs/ca-certificates.crt` — the

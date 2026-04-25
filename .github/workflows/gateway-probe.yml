@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: runner-singleton
+  group: runner-singleton-a2
   cancel-in-progress: false
 
 defaults:
@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   probe:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, a2]
     timeout-minutes: 10
     steps:
       - name: probe gateway TLS trust

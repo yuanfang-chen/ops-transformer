@@ -35,12 +35,11 @@ on:
         type: boolean
 
 concurrency:
-  # Shared across batch.yml, pre-commit.yml, and test-drive.yml because all
-  # three mutate the same container workspace via test_runner. Queue serially
-  # rather than risk a `git reset --hard` from one run yanking the tree out
-  # from under another. Never cancel mid-run — a long batch should not be
-  # killed by a quick pre-commit dispatch.
-  group: runner-singleton
+  # Per-runner singleton: keys off the FIRST soc in inputs.socs. If a batch
+  # dispatch lists both SoCs (e.g. "ascend910b ascend950"), it lands on one
+  # runner — true cross-runner parallelism would need a matrix restructure.
+  # See README/follow-up.
+  group: runner-singleton-${{ (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
   cancel-in-progress: false
 
 defaults:
@@ -49,7 +48,15 @@ defaults:
 
 jobs:
   batch:
-    runs-on: [self-hosted, Linux, ARM64]
+    # Pick runner by FIRST soc in inputs.socs: a2 for ascend910b (default),
+    # a5 for ascend950. Multi-soc dispatches all run on the same runner;
+    # if you want each soc on its own runner, dispatch batch separately
+    # for each soc, or restructure with a matrix on soc.
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
     timeout-minutes: 480
     env:
       OPS: ${{ inputs.ops }}

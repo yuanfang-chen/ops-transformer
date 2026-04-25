@@ -19,9 +19,8 @@ on:
         type: string
 
 concurrency:
-  # Same singleton group as the other workflows — only one run at a time on
-  # the shared container so we don't race anyone else's git reset --hard.
-  group: runner-singleton
+  # remote-exec targets the a2 runner's container. Per-runner singleton.
+  group: runner-singleton-a2
   cancel-in-progress: false
 
 defaults:
@@ -30,7 +29,7 @@ defaults:
 
 jobs:
   remote-exec:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, a2]
     timeout-minutes: 30
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt

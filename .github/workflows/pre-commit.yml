@@ -38,12 +38,11 @@ on:
         type: string
 
 concurrency:
-  # Shared across batch.yml, pre-commit.yml, and test-drive.yml because all
-  # three mutate the same container workspace via test_runner. Queue serially
-  # rather than risk a `git reset --hard` from one run yanking the tree out
-  # from under another. Never cancel mid-run — a long batch should not be
-  # killed by a quick pre-commit dispatch.
-  group: runner-singleton
+  # Per-runner singleton so a2 work doesn't queue behind a5 work and vice versa.
+  # Each runner backs an independent container with its own git tree, so cross-
+  # runner work is isolated. Within a runner: one run at a time so we don't
+  # race the shared git tree on a `git reset --hard`.
+  group: runner-singleton-${{ (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
   cancel-in-progress: false
 
 defaults:
@@ -54,7 +53,13 @@ defaults:
 
 jobs:
   pre-commit:
-    runs-on: [self-hosted, Linux, X64]
+    # Pick runner by SoC: a2 for ascend910b (DESKTOP-759G31D, default),
+    # a5 for ascend950. Each runner backs its own SSH-reachable container.
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
     timeout-minutes: 240
     env:
       OP: ${{ inputs.op || 'fused_infer_attention_score' }}

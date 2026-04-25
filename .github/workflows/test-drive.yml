@@ -10,12 +10,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Shared across batch.yml, pre-commit.yml, and test-drive.yml because all
-  # three mutate the same container workspace via test_runner. Queue serially
-  # rather than risk a `git reset --hard` from one run yanking the tree out
-  # from under another. Never cancel mid-run — a long batch should not be
-  # killed by a quick pre-commit dispatch.
-  group: runner-singleton
+  # test-drive is a smoke test for the a2 runner's plumbing specifically.
+  # Per-runner singleton so it doesn't queue behind a5 work.
+  group: runner-singleton-a2
   cancel-in-progress: false
 
 defaults:
@@ -24,7 +21,7 @@ defaults:
 
 jobs:
   test-drive:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, a2]
     timeout-minutes: 10
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
