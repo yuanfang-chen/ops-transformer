@@ -238,11 +238,55 @@ jobs:
           source ~/test_runner.bash
           "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
 
-      - name: pytest
+      - name: prepare python env for pytest
+        # The pytest gate's prereq probe checks `import torch; import torch_npu`
+        # in the container's python3. Install both via the NJU pip mirror
+        # (PyPI is corp-blocked; mirror is fast + inside the firewall).
+        # Retry pattern mirrors the other env-prep steps. Idempotent on
+        # subsequent runs once the wheels are cached.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+          for attempt in 1 2 3; do
+            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple torch torch_npu; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "pip3 install torch/torch_npu failed after 3 attempts"
+              exit 1
+            fi
+            delay=$((10 * attempt))
+            echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          # Verify both modules import — surfaces version mismatch / install
+          # corruption immediately rather than at pytest collection time.
+          "${RUNNER_FN}" python3 -c 'import torch, torch_npu; print("torch:", torch.__version__, " torch_npu:", torch_npu.__version__)'
+
+      - name: install run pkg before pytest
+        # Pytest goes through the aclnn API at runtime, which loads
+        # libops_transformer_aclnn.so from the installed run package's
+        # opp/vendors/custom_transformer/op_api/lib. The .run was produced
+        # by the compile gate; install it here so the freshly-built op
+        # registers under ${ASCEND_HOME_PATH}/opp/vendors/custom_transformer.
+        # `--quiet --install` overwrites in place; cheap on a no-op rebuild.
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" bash -c 'set -e; pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1); [ -n "$pkg" ] || { echo "no .run pkg under build_out/ — was the compile gate run?"; exit 1; }; chmod +x "$pkg"; "$pkg" --quiet --install'
+
+      - name: pytest
+        # LD_LIBRARY_PATH must include the just-installed op-api lib dir for
+        # torch_npu's aclnn loader to find libops_transformer_aclnn.so. Use
+        # bash -lc so the container's profile sources CANN setenv (sets
+        # ASCEND_HOME_PATH and a base LD_LIBRARY_PATH); then prepend our
+        # vendor dir. Workflow env vars (JOBS, FORCE_COLOR, SOC, OP,
+        # STRICT_FLAG) cross the test_runner boundary via env=val pairs.
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" SOC="${SOC}" OP="${OP}" STRICT_FLAG="${STRICT_FLAG}" \
+            bash -lc 'export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/op_api/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" && exec stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}'
 
       - name: st
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
