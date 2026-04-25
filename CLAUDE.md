@@ -164,4 +164,12 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   binary reads `getenv("BUILD_PATH")` to locate its .so). The argument
   parser does this automatically as of the `BUILD_PATH` fix — if you
   add new build-dir overrides, preserve the sync.
+- `fused_infer_attention_score` compile is capped at `-j64`. CANN's
+  `asc_op_compile_base` shares a single `binary/<soc>/gen/kernel_meta_*`
+  scratch dir across template variants; FIAS has ~80 tiling-key
+  specializations and at higher parallelism one variant's
+  `clear_debug_dir` wipes another's in-flight `.o` files mid-link.
+  `scripts/pre_commit_check.py` clamps `JOBS` via `OP_JOB_CAPS`; if you
+  invoke `bash build.sh -jN` directly for FIAS, keep `N ≤ 64`. See
+  issue #4.
 

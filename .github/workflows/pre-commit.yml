@@ -32,7 +32,11 @@ on:
         default: false
         type: boolean
       jobs:
-        description: Parallel jobs (-jN) for the build
+        description: |
+          Parallel jobs (-jN) for the build. Per-op caps in
+          scripts/pre_commit_check.py may clamp this lower for
+          known-racy ops (e.g. fused_infer_attention_score is
+          capped at 64; see issue #4).
         required: false
         default: '64'
         type: string

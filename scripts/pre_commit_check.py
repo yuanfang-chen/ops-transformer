@@ -77,6 +77,16 @@ TARGETS = ("ascend910b", "ascend950")
 GATES = ("compile", "ut", "pytest", "st")
 DEFAULT_OP = "fused_infer_attention_score"
 
+# Per-op JOBS ceiling for kernel-compile gates. CANN's asc_op_compile_base
+# shares a single binary/<soc>/gen/kernel_meta_* scratch dir across the
+# template-specialization fan-out; at high parallelism (e.g. FIAS's ~80
+# tiling-key variants × -j > 64) one variant's clear_debug_dir wipes another's
+# in-flight .o files mid-link. Clamp here so callers can keep using
+# JOBS=$(nproc) without tripping the race. See issue #4.
+OP_JOB_CAPS: dict[str, int] = {
+    "fused_infer_attention_score": 64,
+}
+
 USE_COLOR = sys.stdout.isatty() or os.environ.get("FORCE_COLOR", "").lower() in ("1", "true", "yes")
 
 
@@ -294,6 +304,12 @@ def main(argv: list[str] | None = None) -> int:
     op = args.op
 
     jobs = int(os.environ.get("JOBS", "16"))
+    cap = OP_JOB_CAPS.get(op)
+    if cap is not None and jobs > cap:
+        print(ylw(f"[INFO] capping -j{jobs} -> -j{cap} for op '{op}' "
+                  f"(asc_op_compile_base kernel_meta race; see issue #4)"),
+              flush=True)
+        jobs = cap
     python_bin = os.environ.get("PYTHON_BIN", "python3")
     st_cmd_tmpl = os.environ.get("ST_CMD", "")
 
