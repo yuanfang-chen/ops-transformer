@@ -87,12 +87,16 @@ jobs:
           fi
 
       - name: container workspace is a git clone of this repo
+        # Don't hardcode the workspace path — it varies per runner (each
+        # `<label>runner` function `docker exec -w …` cd's into its own
+        # path). Run git in the runner's default cwd and rely on
+        # `--show-toplevel` to confirm we're inside a git tree.
         run: |
           source ~/test_runner.bash
           echo "--- toplevel ---"
-          "${RUNNER_FN}" git -C /workspace/Src/ops-transformer rev-parse --show-toplevel
+          "${RUNNER_FN}" git rev-parse --show-toplevel
           echo "--- remotes ---"
-          "${RUNNER_FN}" git -C /workspace/Src/ops-transformer remote -v
+          "${RUNNER_FN}" git remote -v
 
       - name: prepare container TLS trust
         # Bundle install is idempotent. Git config bits (HTTP/1.1 pin,
@@ -114,10 +118,24 @@ jobs:
 
       - name: sync container to dispatched SHA
         # Exercises the same fetch + reset that the real workflows do before
-        # running gates. Verifies container HEAD lands on GITHUB_SHA after.
+        # running gates. Same 5-try exponential+jitter retry on git fetch
+        # because the corp proxy flakes intermittently — see pre-commit.yml.
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"
+          for attempt in 1 2 3 4 5; do
+            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
           "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
           got=$("${RUNNER_FN}" git rev-parse HEAD | tr -d '\r\n')
           echo "container HEAD: [${got}]"
