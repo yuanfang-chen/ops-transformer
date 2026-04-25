@@ -1,11 +1,13 @@
 name: pre-commit
 
-# Iteration loop on the self-hosted gateway runners. Each runner is
-# registered with some label (any free-form string the operator picked,
-# e.g. `a2`, `a5`) and exposes a matching reach function in
-# `~/test_runner.bash` named `<label>runner` by convention (e.g. `a2runner`).
-# Workflows pick the runner from the `runner` input if set, otherwise
-# from the SoC → runner mapping table below.
+# Iteration loop on a self-hosted gateway. Topology: one gateway machine,
+# multiple GH Actions runner agents registered on it, each agent labeled
+# differently (e.g. `a2`, `a5`) so the workflow can pick which one. Each
+# label corresponds to a function in the gateway's `~/test_runner.bash`
+# named `<label>runner` by convention (e.g. `a2runner`); each function
+# reaches its own real-runner docker container. Workflows pick the agent
+# from the `runner` input if set, otherwise from the SoC → runner mapping
+# table below.
 #
 #   SoC → runner-label mapping (single source of truth — when adding a new
 #   NPU server class, update this table AND every ternary expression in
@@ -108,7 +110,7 @@ jobs:
     steps:
       # No actions/checkout — all work runs on the container via the runner
       # reach function (a2runner or a5runner depending on inputs.soc; both
-      # defined in ~/test_runner.bash on each gateway). Scripts live at
+      # defined in the gateway's ~/test_runner.bash). Scripts live at
       # /workspace/Src/ops-transformer inside the container. Nothing here
       # references $GITHUB_WORKSPACE. Skipping checkout dodges the gateway's
       # flaky gnutls TLS handshake against github.com.
@@ -180,9 +182,9 @@ jobs:
           "${RUNNER_FN}" git log -1 --oneline
 
       - name: show environment
-        # The gateway runner only orchestrates; the real build/test box is a
+        # The gateway only orchestrates; the real build/test box is a
         # docker container reached via $RUNNER_FN (a2runner / a5runner).
-        # Both are defined in ~/test_runner.bash on each gateway.
+        # Both are defined in the gateway's ~/test_runner.bash.
         run: |
           source ~/test_runner.bash
           echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"

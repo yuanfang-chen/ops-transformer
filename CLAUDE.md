@@ -130,22 +130,22 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 
 ## Building and testing
 - Don't use ninja to build.
-- Builds run on a real runner: a docker container `cann_container` on a
-  remote SSH host, with workspace `/workspace/Src/ops-transformer`.
-  Reach functions are defined in `~/test_runner.bash` on each gateway,
-  one per container the gateway can reach. **Convention**: the function
-  name is `<label>runner`, where `<label>` is whatever the gateway
-  runner has been registered with (any free-form string). Current ones:
-  `a2runner` (label `a2` → 910b container), `a5runner` (label `a5` →
-  950 container). Each function execs `<cmd>` inside its container;
-  bare invocation opens an interactive shell. The command form (with
-  args) does not allocate a PTY, so binary pipes (`a2runner tar -cf - …`)
+- **Topology**: a single self-hosted gateway machine hosts multiple GH
+  Actions **runner agents**, each agent registered with a distinct
+  label (any free-form string the operator picked, e.g. `a2`, `a5`).
+  Each label maps to a **real runner**: a docker container
+  `cann_container` on its own remote SSH host, with workspace
+  `/workspace/Src/ops-transformer`. The gateway's `~/test_runner.bash`
+  defines one reach function per container, named `<label>runner` by
+  convention (current: `a2runner` → 910b container, `a5runner` → 950
+  container). Each function execs `<cmd>` inside its container; bare
+  invocation opens an interactive shell. The command form (with args)
+  does not allocate a PTY, so binary pipes (`a2runner tar -cf - …`)
   work as-is.
-- Self-hosted gateway runners use per-host labels chosen by the operator
-  (current ones: `a2`, `a5`). Each label can be assigned to multiple
-  runners — GH Actions auto-distributes jobs to whichever is free.
-  Adding capacity = register more runners with the same label, no
-  workflow changes.
+- The label-to-agent relationship is many-to-many: GH Actions
+  auto-distributes jobs to whichever agent with the matching label is
+  free. **Adding capacity** = register more agents on the gateway with
+  the same label, no workflow changes.
 - **SoC → runner mapping** (single source of truth at the top of
   `pre-commit.yml`):
   - `ascend910b` → `a2`
@@ -157,19 +157,20 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
     `startsWith(inputs.socs, …)` because `socs` is space-separated).
 - Every dispatchable workflow accepts a **`runner`** input that overrides
   the SoC mapping. Empty (default) → derive from soc. Non-empty → use
-  directly. This is the escape hatch for testing on a new gateway
-  before the SoC mapping is updated.
+  directly. This is the escape hatch for testing on a newly-added
+  runner agent before its SoC is in the mapping.
 - CI workflows treat the gateway as a thin orchestrator: source
   `~/test_runner.bash`, sync the container to `GITHUB_SHA`, run gates
   via the `$RUNNER_FN` variable (resolves to `a2runner`/`a5runner`/etc.
-  based on the runner label), fetch logs back via `$RUNNER_FN tar`,
-  stream gate tails into the live job log. `actions/checkout` is
-  intentionally skipped (the gateway's gnutls TLS to github.com is
-  flaky); `actions/upload-artifact` is enabled for archival once
-  gateway TLS trust is configured. They use per-runner concurrency
-  groups (`runner-singleton-${runner-label}`) so work on different
-  gateways doesn't queue behind each other, but each gateway serializes
-  its own jobs to avoid racing on its container's git tree.
+  based on the chosen runner label), fetch logs back via
+  `$RUNNER_FN tar`, stream gate tails into the live job log.
+  `actions/checkout` is intentionally skipped (the gateway's gnutls TLS
+  to github.com is flaky); `actions/upload-artifact` is enabled for
+  archival once the gateway's TLS trust is configured. They use
+  per-runner-agent concurrency groups (`runner-singleton-${label}`):
+  jobs targeting different real-runner containers don't queue against
+  each other, but jobs targeting the same container serialize so they
+  don't race on its git tree.
 - Each workflow starts with a `prepare container TLS trust` step. The
   container ships Huawei CAs as hash symlinks in `/etc/ssl/certs/` but
   doesn't include them in `/etc/ssl/certs/ca-certificates.crt` — the

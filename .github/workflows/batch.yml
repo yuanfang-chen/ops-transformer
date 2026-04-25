@@ -135,9 +135,9 @@ jobs:
           "${RUNNER_FN}" git log -1 --oneline
 
       - name: iterate (op × soc)
-        # The gateway runner only orchestrates; builds run on the real runner
+        # The gateway only orchestrates; builds run on the real runner
         # (docker container on a remote ssh host) via $RUNNER_FN
-        # (a2runner / a5runner), defined in ~/test_runner.bash on each gateway.
+        # (a2runner / a5runner), defined in the gateway's ~/test_runner.bash.
         run: |
           source ~/test_runner.bash
           set -u

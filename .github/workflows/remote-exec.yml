@@ -24,8 +24,9 @@ on:
         type: string
 
 concurrency:
-  # Per-runner singleton so it doesn't queue behind other workflows on the
-  # same gateway, but doesn't block runs on other gateways either.
+  # Per-runner-agent singleton: serialize against other workflows targeting
+  # the same agent (and therefore the same real-runner container), but
+  # don't block agents with other labels on the same gateway.
   group: runner-singleton-${{ inputs.runner }}
   cancel-in-progress: false
 
