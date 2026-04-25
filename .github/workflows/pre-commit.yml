@@ -1,9 +1,10 @@
 name: pre-commit
 
-# Iteration loop on the self-hosted yf2 runner (Ascend 910B4, aarch64, CANN 9.0.0.beta2).
-# Manual only: trigger via `gh workflow run pre-commit.yml --ref <branch>` with the
-# inputs below. Push / PR triggers were removed intentionally — the runner is a
-# single self-hosted box and we don't want every branch push to queue on it.
+# Iteration loop on the self-hosted gateway runners (a2 → 910b container,
+# a5 → 950 container; runner is picked by `soc` input). Manual only:
+# trigger via `gh workflow run pre-commit.yml --ref <branch>` with the
+# inputs below. Push / PR triggers were removed intentionally — runner
+# capacity is finite and we don't want every branch push to queue.
 
 on:
   workflow_dispatch:
@@ -234,7 +235,8 @@ jobs:
         # belt-and-suspenders — it captures whatever pre_commit_check.py
         # wrote to the .log file but didn't echo to stdout, and gives a
         # single canonical place to find the failure reason in the job log.
-        # No artifact upload — everything we need is in the live log.
+        # The `upload logs` step below archives the full files; the inline
+        # tail here is just for fast scanning in the GH UI.
         if: always()
         continue-on-error: true
         run: |
