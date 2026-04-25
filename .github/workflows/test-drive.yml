@@ -118,14 +118,22 @@ jobs:
 
       - name: sync container to dispatched SHA
         # Exercises the same fetch + reset that the real workflows do before
-        # running gates. Same 5-try exponential+jitter retry on git fetch
-        # because the corp proxy flakes intermittently — see pre-commit.yml.
+        # running gates. 5-try exponential+jitter retry on git fetch because
+        # the corp proxy flakes intermittently — see pre-commit.yml.
+        # Each fetch is wrapped in a 90s `timeout` so a hung connection
+        # can't burn the whole job — quick fail → retry. `--progress` and
+        # `set -x` stream useful detail to the live job log while running.
         run: |
+          set -x
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+            echo "[$(date +%T)] attempt $attempt: starting git fetch (90s timeout)"
+            if timeout 90 "${RUNNER_FN}" git fetch --progress --force --prune origin "${GITHUB_REF}"; then
+              echo "[$(date +%T)] attempt $attempt: fetch OK"
               break
             fi
+            rc=$?
+            echo "[$(date +%T)] attempt $attempt: fetch failed (rc=$rc — 124 = timeout, anything else = git error)"
             if [ "$attempt" = "5" ]; then
               echo "git fetch failed after 5 attempts"
               exit 1
@@ -133,7 +141,7 @@ jobs:
             base=$((5 * (2 ** (attempt - 1))))
             jitter=$((RANDOM % base))
             delay=$((base + jitter))
-            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            echo "[$(date +%T)] sleeping ${delay}s before retry"
             sleep "$delay"
           done
           "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
@@ -145,23 +153,25 @@ jobs:
             exit 1
           fi
 
-      - name: fetch-back via direct sshpass (binary integrity)
+      - name: fetch-back binary integrity
         # Writes a 64 KiB random fixture inside the container, pulls the
-        # build/precommit/ tree back over the no-PTY sshpass path the real
-        # workflows use for logs, and verifies sha256 survives the transfer.
+        # build/precommit/ tree back via `${RUNNER_FN} tar` (same path the
+        # real workflows use for logs — no PTY in the command form, so
+        # binary stays clean), and verifies sha256 survives the transfer.
+        # Wrapped in `timeout 60` so a stalled tar can't hang the job.
         run: |
+          set -x
           source ~/test_runner.bash
           # Fixture on the container side.
           "${RUNNER_FN}" bash -c 'mkdir -p build/precommit && dd if=/dev/urandom of=build/precommit/fixture.bin bs=1024 count=64 status=none && sha256sum build/precommit/fixture.bin > build/precommit/fixture.sha256'
           expected=$("${RUNNER_FN}" cat build/precommit/fixture.sha256 | awk '{print $1}' | tr -d '\r\n')
           echo "expected sha256: [${expected}]"
 
-          # Pull via direct ssh (no -t) + docker exec (no -it) so the tar
-          # stream is not mangled by PTY newline cooking.
           rm -rf build/precommit && mkdir -p build/precommit
-          sshpass -f ~/.huawei_pw ssh -o StrictHostKeyChecking=no A2 \
-            'docker exec -w /workspace/Src/ops-transformer cann_container tar -C build/precommit -cf - . 2>/dev/null' \
-            | tar -C build/precommit -xf -
+          if ! timeout 60 bash -c 'source ~/test_runner.bash && "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null | tar -C build/precommit -xf -'; then
+            echo "fetch-back tar pipeline failed or timed out"
+            exit 1
+          fi
 
           echo "--- local build/precommit/ after fetch ---"
           ls -la build/precommit/
