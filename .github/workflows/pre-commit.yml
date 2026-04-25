@@ -314,8 +314,6 @@ jobs:
         # belt-and-suspenders — it captures whatever pre_commit_check.py
         # wrote to the .log file but didn't echo to stdout, and gives a
         # single canonical place to find the failure reason in the job log.
-        # The `upload logs` step below archives the full files; the inline
-        # tail here is just for fast scanning in the GH UI.
         if: always()
         continue-on-error: true
         run: |
@@ -331,19 +329,10 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: upload logs
-        # Archival of gate .log files. Live log streaming (the `print log
-        # tails` step above) is the primary debug channel; this step is
-        # for retaining the full logs beyond the GH workflow log retention
-        # window. `timeout-minutes: 5` caps any stall through the corp
-        # proxy to Azure blob; `continue-on-error: true` keeps the job
-        # green if the upload fails — we still have the inline tails.
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 5
-        uses: actions/upload-artifact@v4
-        with:
-          name: precommit-logs-${{ env.OP }}-${{ env.SOC }}-${{ github.run_attempt }}
-          path: build/precommit/
-          if-no-files-found: ignore
-          retention-days: 14
+      # `actions/upload-artifact@v4` step temporarily removed: the .NET
+      # runner agent's TLS to api.github.com (where it pulls the action
+      # tarball) is flaking hard against the corp proxy and dropping it
+      # blocks the whole job at "Set up job". The inline `print log tails`
+      # step above gives us enough debug signal for now. Restore the
+      # upload step when the runner-cache for actions/upload-artifact@v4
+      # is populated again.
