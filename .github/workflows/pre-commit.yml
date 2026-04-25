@@ -244,6 +244,10 @@ jobs:
         # (PyPI is corp-blocked; mirror is fast + inside the firewall).
         # Retry pattern mirrors the other env-prep steps. Idempotent on
         # subsequent runs once the wheels are cached.
+        #
+        # The runner functions don't source CANN setenv, so set the runtime
+        # env vars inline for any subsequent torch_npu / aclnn calls. CANN
+        # paths follow the standard layout from `${ASCEND_HOME_PATH}/bin/setenv.bash`.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
@@ -259,12 +263,12 @@ jobs:
             echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          # Verify both modules import — surfaces version mismatch / install
-          # corruption immediately rather than at pytest collection time.
-          # Use a no-string-literal check to dodge the printf-%q quoting
-          # mangle in test_runner (literal quotes get eaten across the
-          # ssh layer).
-          "${RUNNER_FN}" python3 -c 'import torch, torch_npu'
+          # Verify both modules import — needs CANN runtime libs on
+          # LD_LIBRARY_PATH so torch_npu's libmetadef.so dlopen resolves
+          # `ge::AscendString` symbols at process start.
+          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
 
       - name: install run pkg before pytest
         # Pytest goes through the aclnn API at runtime, which loads
@@ -276,20 +280,25 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" bash -c 'set -e; pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1); [ -n "$pkg" ] || { echo "no .run pkg under build_out/ — was the compile gate run?"; exit 1; }; chmod +x "$pkg"; "$pkg" --quiet --install'
+          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" \
+            bash -c 'set -e; pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1); [ -n "$pkg" ] || { echo "no .run pkg under build_out/ — was the compile gate run?"; exit 1; }; chmod +x "$pkg"; "$pkg" --quiet --install'
 
       - name: pytest
-        # LD_LIBRARY_PATH must include the just-installed op-api lib dir for
-        # torch_npu's aclnn loader to find libops_transformer_aclnn.so. Use
-        # bash -lc so the container's profile sources CANN setenv (sets
-        # ASCEND_HOME_PATH and a base LD_LIBRARY_PATH); then prepend our
-        # vendor dir. Workflow env vars (JOBS, FORCE_COLOR, SOC, OP,
-        # STRICT_FLAG) cross the test_runner boundary via env=val pairs.
+        # CANN runtime libs required at process start (see torch_npu dlopen
+        # comment in the prep step above). Plus the just-installed op-api
+        # lib dir, so aclnn finds libops_transformer_aclnn.so. Workflow env
+        # vars (JOBS, FORCE_COLOR, SOC, OP, STRICT_FLAG) cross the
+        # test_runner boundary via env=val pairs.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" SOC="${SOC}" OP="${OP}" STRICT_FLAG="${STRICT_FLAG}" \
-            bash -lc 'export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/op_api/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" && exec stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}'
+          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:${CANN}/opp/vendors/custom_transformer/op_api/lib"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" \
+            JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
+            stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
       - name: st
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
