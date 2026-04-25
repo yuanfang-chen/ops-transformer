@@ -56,6 +56,14 @@ jobs:
           git config --global --get http.sslCAInfo 2>/dev/null || echo "global: (unset)"
 
           echo
+          echo "=== ~/test_runner.bash contents (proxy password masked) ==="
+          if [ -f ~/test_runner.bash ]; then
+            sed -E 's#://[^@[:space:]]*:[^@[:space:]]*@#://***:***@#g' ~/test_runner.bash
+          else
+            echo "(no ~/test_runner.bash on this gateway)"
+          fi
+
+          echo
           echo "=== runner agent .env contents (masked) ==="
           shopt -s nullglob
           for f in ~/actions-runner/.env /home/*/actions-runner/.env \
