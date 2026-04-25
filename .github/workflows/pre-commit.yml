@@ -261,7 +261,10 @@ jobs:
           done
           # Verify both modules import — surfaces version mismatch / install
           # corruption immediately rather than at pytest collection time.
-          "${RUNNER_FN}" python3 -c 'import torch, torch_npu; print("torch:", torch.__version__, " torch_npu:", torch_npu.__version__)'
+          # Use a no-string-literal check to dodge the printf-%q quoting
+          # mangle in test_runner (literal quotes get eaten across the
+          # ssh layer).
+          "${RUNNER_FN}" python3 -c 'import torch, torch_npu'
 
       - name: install run pkg before pytest
         # Pytest goes through the aclnn API at runtime, which loads
