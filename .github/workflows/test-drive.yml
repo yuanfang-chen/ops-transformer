@@ -1,7 +1,7 @@
 name: test-drive runner
 
 # Smoke-tests the gateway → real-runner plumbing used by pre-commit.yml and
-# batch.yml. Run this after changes to `test_runner` on the gateway, to the
+# batch.yml. Run this after changes to a2runner / a5runner on the gateway, to the
 # container's git remote / credentials, or to the fetch-back logic. Manual
 # dispatch only — each step is a self-contained check and the job fails as
 # soon as any one check fails.
@@ -28,19 +28,19 @@ jobs:
     steps:
       # No actions/checkout — every step operates either on ~/$HOME of the
       # gateway (test_runner.bash, ~/.huawei_pw) or on the container's
-      # workspace via test_runner. Skipping checkout avoids the gateway's
+      # workspace via a2runner. Skipping checkout avoids the gateway's
       # flaky gnutls TLS handshake against github.com.
 
       - name: gateway preflight
         # Confirm the gateway has the pieces the real workflows rely on:
-        #   - test_runner function in ~/.bashrc
+        #   - a2runner function in ~/test_runner.bash
         #   - sshpass + ~/.huawei_pw (used by the direct-ssh fetch-back path)
         run: |
           source ~/test_runner.bash
           echo "--- gateway: id ---"
           id
-          echo "--- gateway: test_runner defined? ---"
-          if declare -f test_runner > /dev/null; then
+          echo "--- gateway: a2runner defined? ---"
+          if declare -f a2runner > /dev/null; then
             echo "OK"
           else
             echo "MISSING — check ~/.bashrc on the gateway runner"
@@ -55,23 +55,23 @@ jobs:
             exit 1
           fi
 
-      - name: test_runner round-trip
+      - name: a2runner round-trip
         # Trivial call — if this hangs, ssh/docker auth is broken.
         run: |
           source ~/test_runner.bash
-          test_runner bash -lc 'echo "container hostname: $(hostname)"; uname -a; pwd; id'
+          a2runner bash -lc 'echo "container hostname: $(hostname)"; uname -a; pwd; id'
 
       - name: env var forwarding
-        # Confirms `test_runner env VAR=val …` propagates a var into the
+        # Confirms `a2runner env VAR=val …` propagates a var into the
         # remote process's environment — same shape pre-commit.yml / batch.yml
         # use to pass JOBS and FORCE_COLOR into pre_commit_check.py. Uses
         # `printenv VAR` (reads getenv directly) instead of a shell expansion
-        # like `bash -c 'echo "$VAR"'`, because test_runner's %q-based escaping
+        # like `bash -c 'echo "$VAR"'`, because a2runner's %q-based escaping
         # doesn't preserve a literal $ across the two dquote layers; the real
         # workflows only invoke binaries downstream of env, not shells.
         run: |
           source ~/test_runner.bash
-          got=$(test_runner env CI_TEST_VAR=hello_world printenv CI_TEST_VAR | tr -d '\r\n')
+          got=$(a2runner env CI_TEST_VAR=hello_world printenv CI_TEST_VAR | tr -d '\r\n')
           echo "got: [${got}]"
           if [ "$got" != "hello_world" ]; then
             echo "env forwarding broken"
@@ -82,9 +82,9 @@ jobs:
         run: |
           source ~/test_runner.bash
           echo "--- toplevel ---"
-          test_runner git -C /workspace/Src/ops-transformer rev-parse --show-toplevel
+          a2runner git -C /workspace/Src/ops-transformer rev-parse --show-toplevel
           echo "--- remotes ---"
-          test_runner git -C /workspace/Src/ops-transformer remote -v
+          a2runner git -C /workspace/Src/ops-transformer remote -v
 
       - name: prepare container TLS trust
         # Bundle install is idempotent. Git config bits (HTTP/1.1 pin,
@@ -92,16 +92,16 @@ jobs:
         # and we always set them. See pre-commit.yml for full rationale.
         run: |
           source ~/test_runner.bash
-          if test_runner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+          if a2runner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
             echo "container TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into container bundle"
-            test_runner update-ca-certificates --fresh
-            test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            a2runner update-ca-certificates --fresh
+            a2runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          test_runner git config --system http.postBuffer 524288000
-          test_runner git config --system http.lowSpeedLimit 1000
-          test_runner git config --system http.lowSpeedTime 30
+          a2runner git config --system http.postBuffer 524288000
+          a2runner git config --system http.lowSpeedLimit 1000
+          a2runner git config --system http.lowSpeedTime 30
           echo "done"
 
       - name: sync container to dispatched SHA
@@ -109,9 +109,9 @@ jobs:
         # running gates. Verifies container HEAD lands on GITHUB_SHA after.
         run: |
           source ~/test_runner.bash
-          test_runner git fetch --force --prune origin "${GITHUB_REF}"
-          test_runner git reset --hard "${GITHUB_SHA}"
-          got=$(test_runner git rev-parse HEAD | tr -d '\r\n')
+          a2runner git fetch --force --prune origin "${GITHUB_REF}"
+          a2runner git reset --hard "${GITHUB_SHA}"
+          got=$(a2runner git rev-parse HEAD | tr -d '\r\n')
           echo "container HEAD: [${got}]"
           echo "dispatched SHA: [${GITHUB_SHA}]"
           if [ "$got" != "${GITHUB_SHA}" ]; then
@@ -126,8 +126,8 @@ jobs:
         run: |
           source ~/test_runner.bash
           # Fixture on the container side.
-          test_runner bash -c 'mkdir -p build/precommit && dd if=/dev/urandom of=build/precommit/fixture.bin bs=1024 count=64 status=none && sha256sum build/precommit/fixture.bin > build/precommit/fixture.sha256'
-          expected=$(test_runner cat build/precommit/fixture.sha256 | awk '{print $1}' | tr -d '\r\n')
+          a2runner bash -c 'mkdir -p build/precommit && dd if=/dev/urandom of=build/precommit/fixture.bin bs=1024 count=64 status=none && sha256sum build/precommit/fixture.bin > build/precommit/fixture.sha256'
+          expected=$(a2runner cat build/precommit/fixture.sha256 | awk '{print $1}' | tr -d '\r\n')
           echo "expected sha256: [${expected}]"
 
           # Pull via direct ssh (no -t) + docker exec (no -it) so the tar
@@ -151,7 +151,7 @@ jobs:
         continue-on-error: true
         run: |
           source ~/test_runner.bash
-          test_runner rm -f build/precommit/fixture.bin build/precommit/fixture.sha256
+          a2runner rm -f build/precommit/fixture.bin build/precommit/fixture.sha256
 
       - name: summary
         run: echo "All runner preflight checks passed."

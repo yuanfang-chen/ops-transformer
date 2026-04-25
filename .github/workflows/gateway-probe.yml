@@ -1,6 +1,6 @@
 name: gateway-probe
 
-# One-off diagnostic. Runs ON THE GATEWAY directly (no test_runner), so it
+# One-off diagnostic. Runs ON THE GATEWAY directly (no a2runner/a5runner), so it
 # exercises the gateway's own TLS trust — git (GnuTLS), curl (OpenSSL),
 # plus the runner agent's .env. Use after installing the Huawei CA on the
 # gateway to confirm `actions/checkout` and `actions/upload-artifact` will

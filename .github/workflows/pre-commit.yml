@@ -69,16 +69,23 @@ jobs:
       STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
       JOBS: ${{ inputs.jobs || '64' }}
       FORCE_COLOR: '1'
+      # Per-runner reach function: a2runner reaches the 910b container,
+      # a5runner reaches the 950 container. Both are defined in the shared
+      # ~/test_runner.bash on each gateway, so steps source that one file
+      # and call the right one via $RUNNER_FN.
+      RUNNER_FN: ${{ (inputs.soc == 'ascend950' && 'a5runner') || 'a2runner' }}
       # Point Node-based actions (checkout, upload-artifact, etc.) at the
       # system CA bundle so they trust the corporate TLS-intercepting proxy.
       # Does NOT affect the runner agent's own step-log uploads — those go
       # through .NET and use the OS trust store directly.
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
-      # No actions/checkout — all work runs on the container via test_runner
-      # (scripts live at /workspace/Src/ops-transformer inside the container).
-      # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
-      # the gateway's flaky gnutls TLS handshake against github.com.
+      # No actions/checkout — all work runs on the container via the runner
+      # reach function (a2runner or a5runner depending on inputs.soc; both
+      # defined in ~/test_runner.bash on each gateway). Scripts live at
+      # /workspace/Src/ops-transformer inside the container. Nothing here
+      # references $GITHUB_WORKSPACE. Skipping checkout dodges the gateway's
+      # flaky gnutls TLS handshake against github.com.
 
       - name: normalize gates
         # Empty GATES means "all"; expand to the full set so the per-gate
@@ -101,16 +108,16 @@ jobs:
         # re-applied (cheap).
         run: |
           source ~/test_runner.bash
-          if test_runner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
             echo "container TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into container bundle"
-            test_runner update-ca-certificates --fresh
-            test_runner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            "${RUNNER_FN}" update-ca-certificates --fresh
+            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          test_runner git config --system http.postBuffer 524288000
-          test_runner git config --system http.lowSpeedLimit 1000
-          test_runner git config --system http.lowSpeedTime 30
+          "${RUNNER_FN}" git config --system http.postBuffer 524288000
+          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
+          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
           echo "done"
 
       - name: sync real runner to test SHA
@@ -129,7 +136,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            if test_runner git fetch --force --prune origin "${GITHUB_REF}"; then
+            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
               break
             fi
             if [ "$attempt" = "5" ]; then
@@ -143,27 +150,27 @@ jobs:
             echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          test_runner git reset --hard "${GITHUB_SHA}"
-          test_runner git log -1 --oneline
+          "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
+          "${RUNNER_FN}" git log -1 --oneline
 
       - name: show environment
         # The gateway runner only orchestrates; the real build/test box is a
-        # docker container reached via the `test_runner` bash function, which
-        # lives in ~/test_runner.bash on the gateway.
+        # docker container reached via $RUNNER_FN (a2runner / a5runner).
+        # Both are defined in ~/test_runner.bash on each gateway.
         run: |
           source ~/test_runner.bash
           echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"
           echo "--- gateway ---"
           uname -a
           echo "--- real runner ---"
-          test_runner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
+          "${RUNNER_FN}" bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
 
       # One step per gate so each gate's log is readable via the GH API the
       # moment that gate finishes — the old single-step design kept every
       # gate's output hidden until the whole script exited.
       #
-      # Each gate runs under `stdbuf -oL -eL` (on the real runner, inside the
-      # test_runner call) so the LD_PRELOAD it installs propagates to every
+      # Each gate runs under `stdbuf -oL -eL` (on the real runner, inside
+      # the $RUNNER_FN call) so the LD_PRELOAD it installs propagates to every
       # descendant (bash → cmake → make → compilers), forcing line-buffered
       # stdio instead of libc's default 4 KB block buffering on pipes. Without
       # this, output arrives in bursts and the GH live log appears stalled
@@ -172,7 +179,7 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',compile,')
         run: |
           source ~/test_runner.bash
-          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
 
       - name: prepare python env for ut
         # op_kernel UT build runs scripts/util/gen_tiling_head_file.py, which
@@ -185,7 +192,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3; do
-            if test_runner pip3 install -r requirements.txt; then
+            if "${RUNNER_FN}" pip3 install -r requirements.txt; then
               break
             fi
             if [ "$attempt" = "3" ]; then
@@ -201,30 +208,30 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',ut,')
         run: |
           source ~/test_runner.bash
-          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
 
       - name: pytest
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
       - name: st
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
         run: |
           source ~/test_runner.bash
-          test_runner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
 
       - name: fetch logs from real runner
         # Gates write logs under build/precommit on the container; pull them
-        # back via test_runner. The command form of test_runner no longer
-        # allocates a PTY, so binary tar output passes through cleanly.
+        # back via $RUNNER_FN. The command form (with args) doesn't allocate
+        # a PTY, so binary tar output passes through cleanly.
         if: always()
         continue-on-error: true
         run: |
           source ~/test_runner.bash
           mkdir -p build/precommit
-          test_runner tar -C build/precommit -cf - . 2>/dev/null \
+          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
             | tar -C build/precommit -xf - || true
           ls -la build/precommit/ || true
 

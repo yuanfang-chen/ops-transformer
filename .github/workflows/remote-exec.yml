@@ -2,7 +2,7 @@ name: remote-exec
 
 # Ad-hoc command runner against cann_container on host A2. Dispatched
 # manually with a `script` input (multi-line bash). The script runs inside
-# the container via test_runner; stdout, stderr, and exit code are captured
+# the container via a2runner; stdout, stderr, and exit code are captured
 # to files and uploaded as an artifact, so callers can parse results without
 # scraping the step log.
 #
@@ -35,7 +35,7 @@ jobs:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
       SCRIPT: ${{ inputs.script }}
     steps:
-      - name: run script via test_runner
+      - name: run script via a2runner
         run: |
           source ~/test_runner.bash
           mkdir -p build/remote-exec
@@ -46,12 +46,12 @@ jobs:
           echo "::endgroup::"
 
           # Encode the script as base64 and decode inside the container's
-          # bash. test_runner's printf-%q escaping eats one layer of $ and
+          # bash. a2runner's printf-%q escaping eats one layer of $ and
           # ", so a complex `bash -c` arg gets corrupted. The encoded form
           # is plain ASCII and survives every quoting layer untouched.
           encoded=$(printf '%s' "${SCRIPT}" | base64 -w0)
           rc=0
-          test_runner bash -c "echo ${encoded} | base64 -d | bash" \
+          a2runner bash -c "echo ${encoded} | base64 -d | bash" \
             > >(tee build/remote-exec/stdout) \
             2> >(tee build/remote-exec/stderr >&2) \
             || rc=$?
