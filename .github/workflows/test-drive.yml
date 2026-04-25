@@ -120,20 +120,20 @@ jobs:
         # Exercises the same fetch + reset that the real workflows do before
         # running gates. 5-try exponential+jitter retry on git fetch because
         # the corp proxy flakes intermittently — see pre-commit.yml.
-        # Each fetch is wrapped in a 90s `timeout` so a hung connection
-        # can't burn the whole job — quick fail → retry. `--progress` and
+        # Connection-level timeouts are the runner function's responsibility
+        # (configure ssh `-o ConnectTimeout=… -o ServerAliveInterval=…
+        # -o ServerAliveCountMax=…` inside the function). `--progress` and
         # `set -x` stream useful detail to the live job log while running.
         run: |
           set -x
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            echo "[$(date +%T)] attempt $attempt: starting git fetch (90s timeout)"
-            if timeout 90 "${RUNNER_FN}" git fetch --progress --force --prune origin "${GITHUB_REF}"; then
+            echo "[$(date +%T)] attempt $attempt: starting git fetch"
+            if "${RUNNER_FN}" git fetch --progress --force --prune origin "${GITHUB_REF}"; then
               echo "[$(date +%T)] attempt $attempt: fetch OK"
               break
             fi
-            rc=$?
-            echo "[$(date +%T)] attempt $attempt: fetch failed (rc=$rc — 124 = timeout, anything else = git error)"
+            echo "[$(date +%T)] attempt $attempt: fetch failed"
             if [ "$attempt" = "5" ]; then
               echo "git fetch failed after 5 attempts"
               exit 1
@@ -158,7 +158,7 @@ jobs:
         # build/precommit/ tree back via `${RUNNER_FN} tar` (same path the
         # real workflows use for logs — no PTY in the command form, so
         # binary stays clean), and verifies sha256 survives the transfer.
-        # Wrapped in `timeout 60` so a stalled tar can't hang the job.
+        # Connection-level timeouts are the runner function's responsibility.
         run: |
           set -x
           source ~/test_runner.bash
@@ -168,10 +168,8 @@ jobs:
           echo "expected sha256: [${expected}]"
 
           rm -rf build/precommit && mkdir -p build/precommit
-          if ! timeout 60 bash -c 'source ~/test_runner.bash && "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null | tar -C build/precommit -xf -'; then
-            echo "fetch-back tar pipeline failed or timed out"
-            exit 1
-          fi
+          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
+            | tar -C build/precommit -xf -
 
           echo "--- local build/precommit/ after fetch ---"
           ls -la build/precommit/
