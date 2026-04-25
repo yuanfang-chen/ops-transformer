@@ -42,9 +42,9 @@ on:
         type: boolean
       runner:
         description: |
-          Override runner label (e.g. 'a2', 'a5', 'a6'). Empty → derive
-          from the first soc in `socs` per the SoC mapping at the top of
-          pre-commit.yml.
+          Override runner label (any value a gateway has been registered
+          with). Empty → derive from the first soc in `socs` per the SoC
+          mapping at the top of pre-commit.yml.
         required: false
         default: ''
         type: string

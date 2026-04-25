@@ -1,9 +1,11 @@
 name: pre-commit
 
-# Iteration loop on the self-hosted gateway runners. Each runner has a
-# label `aN` (e.g. a2, a5, …) and exposes a function `aNrunner` defined
-# in ~/test_runner.bash. Workflows pick the runner from the `runner` input
-# if set, otherwise from the SoC → runner mapping table below.
+# Iteration loop on the self-hosted gateway runners. Each runner is
+# registered with some label (any free-form string the operator picked,
+# e.g. `a2`, `a5`) and exposes a matching reach function in
+# `~/test_runner.bash` named `<label>runner` by convention (e.g. `a2runner`).
+# Workflows pick the runner from the `runner` input if set, otherwise
+# from the SoC → runner mapping table below.
 #
 #   SoC → runner-label mapping (single source of truth — when adding a new
 #   NPU server class, update this table AND every ternary expression in
@@ -52,10 +54,10 @@ on:
         type: string
       runner:
         description: |
-          Override runner label (e.g. 'a2', 'a5', 'a6'). Empty → derive
-          from soc per the mapping at the top of this file. Use this to
-          target a brand-new NPU server class before its soc is added to
-          the choice list above.
+          Override runner label (any value a gateway has been registered
+          with). Empty → derive from soc per the mapping at the top of
+          this file. Use this to target a runner before its soc is added
+          to the choice list above.
         required: false
         default: ''
         type: string
@@ -95,8 +97,8 @@ jobs:
       JOBS: ${{ inputs.jobs || '64' }}
       FORCE_COLOR: '1'
       # Reach-function name: ${runner-label}runner by convention. Each
-      # gateway's ~/test_runner.bash defines all functions for the classes
-      # it can reach (today: a2runner + a5runner; tomorrow: a6runner, …).
+      # gateway's ~/test_runner.bash defines one function per container
+      # it can reach, named `<runner-label>runner`.
       RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2') }}
       # Point Node-based actions (checkout, upload-artifact, etc.) at the
       # system CA bundle so they trust the corporate TLS-intercepting proxy.

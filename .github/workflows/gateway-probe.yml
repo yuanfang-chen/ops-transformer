@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: Runner label to probe (e.g. a2, a5, future a6)
+        description: Runner label to probe. Default a2.
         required: false
         default: a2
         type: string

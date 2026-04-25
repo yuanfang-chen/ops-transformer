@@ -1,17 +1,17 @@
 name: test-drive runner
 
 # Smoke-tests the gateway → real-runner plumbing used by pre-commit.yml and
-# batch.yml. Run after changes to any aNrunner function on a gateway, to the
-# container's git remote / credentials, or to the fetch-back logic. Manual
-# dispatch only — each step is a self-contained check and the job fails as
-# soon as any one check fails. Pick which runner to test via the `runner`
-# input (default a2).
+# batch.yml. Run after changes to any `<runner-label>runner` function on a
+# gateway, to the container's git remote / credentials, or to the fetch-back
+# logic. Manual dispatch only — each step is a self-contained check and the
+# job fails as soon as any one check fails. Pick which runner to test via
+# the `runner` input (default a2).
 
 on:
   workflow_dispatch:
     inputs:
       runner:
-        description: Runner label to smoke-test (e.g. a2, a5, future a6)
+        description: Runner label to smoke-test. Default a2.
         required: false
         default: a2
         type: string

@@ -18,7 +18,7 @@ on:
         required: true
         type: string
       runner:
-        description: Runner label (e.g. a2, a5, future a6). Default a2.
+        description: Runner label to dispatch to. Default a2.
         required: false
         default: a2
         type: string

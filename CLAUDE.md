@@ -133,16 +133,19 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 - Builds run on a real runner: a docker container `cann_container` on a
   remote SSH host, with workspace `/workspace/Src/ops-transformer`.
   Reach functions are defined in `~/test_runner.bash` on each gateway,
-  one per NPU server class — `a2runner`, `a5runner`, future `a6runner`
-  etc. — all following the **convention** that runner label `aN` paired
-  with function name `aNrunner`. Each function execs `<cmd>` inside its
-  associated container; bare invocation opens an interactive shell. The
-  command form (with args) does not allocate a PTY, so binary pipes
-  (`a2runner tar -cf - …`) work as-is.
-- Self-hosted gateway runners use per-host labels (`a2`, `a5`, …). Each
-  label can be assigned to multiple runners — GH Actions auto-distributes
-  jobs to whichever is free. Adding capacity = register more runners with
-  the same label, no workflow changes.
+  one per container the gateway can reach. **Convention**: the function
+  name is `<label>runner`, where `<label>` is whatever the gateway
+  runner has been registered with (any free-form string). Current ones:
+  `a2runner` (label `a2` → 910b container), `a5runner` (label `a5` →
+  950 container). Each function execs `<cmd>` inside its container;
+  bare invocation opens an interactive shell. The command form (with
+  args) does not allocate a PTY, so binary pipes (`a2runner tar -cf - …`)
+  work as-is.
+- Self-hosted gateway runners use per-host labels chosen by the operator
+  (current ones: `a2`, `a5`). Each label can be assigned to multiple
+  runners — GH Actions auto-distributes jobs to whichever is free.
+  Adding capacity = register more runners with the same label, no
+  workflow changes.
 - **SoC → runner mapping** (single source of truth at the top of
   `pre-commit.yml`):
   - `ascend910b` → `a2`
@@ -153,9 +156,9 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
     `runs-on`, and `env.RUNNER_FN`. Same pattern in `batch.yml` (uses
     `startsWith(inputs.socs, …)` because `socs` is space-separated).
 - Every dispatchable workflow accepts a **`runner`** input that overrides
-  the SoC mapping. Empty (default) → derive from soc. Non-empty (e.g.
-  `'a6'`) → use directly. This is the escape hatch for testing on a new
-  NPU server class before the SoC mapping is updated.
+  the SoC mapping. Empty (default) → derive from soc. Non-empty → use
+  directly. This is the escape hatch for testing on a new gateway
+  before the SoC mapping is updated.
 - CI workflows treat the gateway as a thin orchestrator: source
   `~/test_runner.bash`, sync the container to `GITHUB_SHA`, run gates
   via the `$RUNNER_FN` variable (resolves to `a2runner`/`a5runner`/etc.
@@ -175,13 +178,13 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   `http.sslCAInfo`. Subsequent runs short-circuit via an openssl-decoded
   bundle scan.
 - Ad-hoc container commands: `gh workflow run remote-exec.yml -f
-  runner=a2 -f script="<multi-line bash>"` (or `runner=a5`, etc.). The
-  script runs inside the chosen runner's container via the matching
-  `aNrunner`; stdout/stderr/exit captured to `build/remote-exec/` and
-  uploaded as artifact. Useful for probing state, clearing stale build
-  dirs, running one-off maintenance.
+  runner=a2 -f script="<multi-line bash>"` (or any other runner label).
+  The script runs inside the chosen runner's container via the matching
+  `<label>runner`; stdout/stderr/exit captured to `build/remote-exec/`
+  and uploaded as artifact. Useful for probing state, clearing stale
+  build dirs, running one-off maintenance.
 - Smoke-testing a runner's plumbing: `gh workflow run test-drive.yml -f
-  runner=<aN>`. Runs gateway preflight, runner round-trip, env
+  runner=<label>`. Runs gateway preflight, runner round-trip, env
   forwarding, git clone state, sync, and binary-clean fetch-back —
   same checks regardless of which gateway is targeted.
 - `build.sh --build-dir=<path>` must keep `BUILD_PATH` in sync (the UT
