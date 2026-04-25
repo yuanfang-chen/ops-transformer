@@ -131,28 +131,42 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 ## Building and testing
 - Don't use ninja to build.
 - Builds run on a real runner: a docker container `cann_container` on a
-  remote SSH host, with workspace `/workspace/Src/ops-transformer`. Two
-  reach functions are defined in `~/test_runner.bash` on each gateway:
-  - `a2runner <cmd>` — execs `<cmd>` inside the 910b container (bare
-    invocation opens an interactive shell)
-  - `a5runner <cmd>` — same shape, targets the 950 container
-  The command form (with args) does not allocate a PTY, so binary pipes
+  remote SSH host, with workspace `/workspace/Src/ops-transformer`.
+  Reach functions are defined in `~/test_runner.bash` on each gateway,
+  one per NPU server class — `a2runner`, `a5runner`, future `a6runner`
+  etc. — all following the **convention** that runner label `aN` paired
+  with function name `aNrunner`. Each function execs `<cmd>` inside its
+  associated container; bare invocation opens an interactive shell. The
+  command form (with args) does not allocate a PTY, so binary pipes
   (`a2runner tar -cf - …`) work as-is.
-- Two self-hosted gateway runners with per-host labels: **`a2`** (host
-  `A2` → 910b CANN container) and **`a5`** (host `A5` → 950 container).
-  Workflows route by SoC: `ascend910b` → `a2`, `ascend950` → `a5`.
-- CI workflows (`pre-commit.yml`, `batch.yml`, `test-drive.yml`) treat
-  the gateway as a thin orchestrator: source `~/test_runner.bash`, sync
-  the container to `GITHUB_SHA`, run gates via the `$RUNNER_FN` variable
-  (resolves to `a2runner` or `a5runner` based on `inputs.soc`), fetch
-  logs back via `$RUNNER_FN tar`, and stream gate tails into the live
-  job log. `actions/checkout` is intentionally skipped (the gateway's
-  gnutls TLS to github.com is flaky); `actions/upload-artifact` is
-  enabled for archival once gateway TLS trust is configured. They use
-  per-runner concurrency groups (`runner-singleton-a2` /
-  `runner-singleton-a5`) so a2 work doesn't queue behind a5 work and
-  vice versa, but each runner serializes its own jobs to avoid racing
-  on its container's git tree.
+- Self-hosted gateway runners use per-host labels (`a2`, `a5`, …). Each
+  label can be assigned to multiple runners — GH Actions auto-distributes
+  jobs to whichever is free. Adding capacity = register more runners with
+  the same label, no workflow changes.
+- **SoC → runner mapping** (single source of truth at the top of
+  `pre-commit.yml`):
+  - `ascend910b` → `a2`
+  - `ascend950`  → `a5`
+  - When a new NPU server class is added (e.g. `ascend970` → `a6`), update
+    the table comment AND every `${{ inputs.runner != '' && inputs.runner
+    || (inputs.soc == ...) || ... }}` ternary in `concurrency.group`,
+    `runs-on`, and `env.RUNNER_FN`. Same pattern in `batch.yml` (uses
+    `startsWith(inputs.socs, …)` because `socs` is space-separated).
+- Every dispatchable workflow accepts a **`runner`** input that overrides
+  the SoC mapping. Empty (default) → derive from soc. Non-empty (e.g.
+  `'a6'`) → use directly. This is the escape hatch for testing on a new
+  NPU server class before the SoC mapping is updated.
+- CI workflows treat the gateway as a thin orchestrator: source
+  `~/test_runner.bash`, sync the container to `GITHUB_SHA`, run gates
+  via the `$RUNNER_FN` variable (resolves to `a2runner`/`a5runner`/etc.
+  based on the runner label), fetch logs back via `$RUNNER_FN tar`,
+  stream gate tails into the live job log. `actions/checkout` is
+  intentionally skipped (the gateway's gnutls TLS to github.com is
+  flaky); `actions/upload-artifact` is enabled for archival once
+  gateway TLS trust is configured. They use per-runner concurrency
+  groups (`runner-singleton-${runner-label}`) so work on different
+  gateways doesn't queue behind each other, but each gateway serializes
+  its own jobs to avoid racing on its container's git tree.
 - Each workflow starts with a `prepare container TLS trust` step. The
   container ships Huawei CAs as hash symlinks in `/etc/ssl/certs/` but
   doesn't include them in `/etc/ssl/certs/ca-certificates.crt` — the
@@ -161,12 +175,15 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   `http.sslCAInfo`. Subsequent runs short-circuit via an openssl-decoded
   bundle scan.
 - Ad-hoc container commands: `gh workflow run remote-exec.yml -f
-  script="<multi-line bash>"`. The script runs inside the a2 container
-  via `a2runner`; stdout/stderr/exit captured to `build/remote-exec/`
-  and uploaded as artifact. Useful for probing state, clearing stale
-  build dirs, running one-off maintenance. Targets a2 only — for ad-hoc
-  commands on the a5 container, use a future `remote-exec-a5` variant
-  or just dispatch a no-op pre-commit with `soc=ascend950`.
+  runner=a2 -f script="<multi-line bash>"` (or `runner=a5`, etc.). The
+  script runs inside the chosen runner's container via the matching
+  `aNrunner`; stdout/stderr/exit captured to `build/remote-exec/` and
+  uploaded as artifact. Useful for probing state, clearing stale build
+  dirs, running one-off maintenance.
+- Smoke-testing a runner's plumbing: `gh workflow run test-drive.yml -f
+  runner=<aN>`. Runs gateway preflight, runner round-trip, env
+  forwarding, git clone state, sync, and binary-clean fetch-back —
+  same checks regardless of which gateway is targeted.
 - `build.sh --build-dir=<path>` must keep `BUILD_PATH` in sync (the UT
   binary reads `getenv("BUILD_PATH")` to locate its .so). The argument
   parser does this automatically as of the `BUILD_PATH` fix — if you

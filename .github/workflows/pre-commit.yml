@@ -1,10 +1,23 @@
 name: pre-commit
 
-# Iteration loop on the self-hosted gateway runners (a2 → 910b container,
-# a5 → 950 container; runner is picked by `soc` input). Manual only:
-# trigger via `gh workflow run pre-commit.yml --ref <branch>` with the
-# inputs below. Push / PR triggers were removed intentionally — runner
-# capacity is finite and we don't want every branch push to queue.
+# Iteration loop on the self-hosted gateway runners. Each runner has a
+# label `aN` (e.g. a2, a5, …) and exposes a function `aNrunner` defined
+# in ~/test_runner.bash. Workflows pick the runner from the `runner` input
+# if set, otherwise from the SoC → runner mapping table below.
+#
+#   SoC → runner-label mapping (single source of truth — when adding a new
+#   NPU server class, update this table AND every ternary expression in
+#   `concurrency.group`, `runs-on`, and `env.RUNNER_FN` below):
+#
+#     ascend910b → a2
+#     ascend950  → a5
+#     <future>   → <new label>
+#
+# Adding capacity (more instances of the same NPU class) needs no workflow
+# change: register N runners with the same label and GH auto-distributes.
+#
+# Manual dispatch only — push / PR triggers were removed intentionally
+# since runner capacity is finite.
 
 on:
   workflow_dispatch:
@@ -37,13 +50,25 @@ on:
         required: false
         default: '64'
         type: string
+      runner:
+        description: |
+          Override runner label (e.g. 'a2', 'a5', 'a6'). Empty → derive
+          from soc per the mapping at the top of this file. Use this to
+          target a brand-new NPU server class before its soc is added to
+          the choice list above.
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   # Per-runner singleton so a2 work doesn't queue behind a5 work and vice versa.
   # Each runner backs an independent container with its own git tree, so cross-
   # runner work is isolated. Within a runner: one run at a time so we don't
   # race the shared git tree on a `git reset --hard`.
-  group: runner-singleton-${{ (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
+  #
+  # The runner-resolution expression (`inputs.runner != '' && … || soc-map`)
+  # is repeated in `runs-on` and `env.RUNNER_FN` below — keep them in sync.
+  group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
   cancel-in-progress: false
 
 defaults:
@@ -54,13 +79,13 @@ defaults:
 
 jobs:
   pre-commit:
-    # Pick runner by SoC: a2 for ascend910b (DESKTOP-759G31D, default),
-    # a5 for ascend950. Each runner backs its own SSH-reachable container.
+    # Pick runner: explicit `inputs.runner` if set, else SoC-derived per
+    # the mapping at the top of this file.
     runs-on:
       - self-hosted
       - Linux
       - X64
-      - ${{ (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
+      - ${{ inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
     timeout-minutes: 240
     env:
       OP: ${{ inputs.op || 'fused_infer_attention_score' }}
@@ -69,11 +94,10 @@ jobs:
       STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
       JOBS: ${{ inputs.jobs || '64' }}
       FORCE_COLOR: '1'
-      # Per-runner reach function: a2runner reaches the 910b container,
-      # a5runner reaches the 950 container. Both are defined in the shared
-      # ~/test_runner.bash on each gateway, so steps source that one file
-      # and call the right one via $RUNNER_FN.
-      RUNNER_FN: ${{ (inputs.soc == 'ascend950' && 'a5runner') || 'a2runner' }}
+      # Reach-function name: ${runner-label}runner by convention. Each
+      # gateway's ~/test_runner.bash defines all functions for the classes
+      # it can reach (today: a2runner + a5runner; tomorrow: a6runner, …).
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2') }}
       # Point Node-based actions (checkout, upload-artifact, etc.) at the
       # system CA bundle so they trust the corporate TLS-intercepting proxy.
       # Does NOT affect the runner agent's own step-log uploads — those go

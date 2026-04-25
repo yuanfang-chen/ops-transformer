@@ -2,8 +2,15 @@ name: batch
 
 # Manual batch iteration: run pre_commit_check.py across a cartesian product of
 # ops and SoCs in a single job. Kept as a bash loop (rather than a job matrix)
-# because yf2 is a single self-hosted runner — parallel jobs would just queue.
+# because matrix-on-soc would need separate runner labels per matrix entry,
+# and we want one job to walk one runner's container in order.
 # Gates default to compile,ut; override via the `gates` input for heavier runs.
+#
+# Runner selection: the `runner` input wins if set, else the first soc in
+# `socs` is mapped per the table at the top of pre-commit.yml. If you
+# dispatch with `socs="ascend910b ascend950"`, the whole job lands on the
+# runner picked from the FIRST soc — cross-runner parallelism would need
+# separate dispatches.
 
 on:
   workflow_dispatch:
@@ -33,13 +40,19 @@ on:
         required: false
         default: false
         type: boolean
+      runner:
+        description: |
+          Override runner label (e.g. 'a2', 'a5', 'a6'). Empty → derive
+          from the first soc in `socs` per the SoC mapping at the top of
+          pre-commit.yml.
+        required: false
+        default: ''
+        type: string
 
 concurrency:
-  # Per-runner singleton: keys off the FIRST soc in inputs.socs. If a batch
-  # dispatch lists both SoCs (e.g. "ascend910b ascend950"), it lands on one
-  # runner — true cross-runner parallelism would need a matrix restructure.
-  # See README/follow-up.
-  group: runner-singleton-${{ (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
+  # Per-runner singleton. Resolution expression repeated in `runs-on` and
+  # `env.RUNNER_FN` — keep them in sync.
+  group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
   cancel-in-progress: false
 
 defaults:
@@ -48,15 +61,12 @@ defaults:
 
 jobs:
   batch:
-    # Pick runner by FIRST soc in inputs.socs: a2 for ascend910b (default),
-    # a5 for ascend950. Multi-soc dispatches all run on the same runner;
-    # if you want each soc on its own runner, dispatch batch separately
-    # for each soc, or restructure with a matrix on soc.
+    # Pick runner: explicit `inputs.runner` if set, else SoC-derived.
     runs-on:
       - self-hosted
       - Linux
       - X64
-      - ${{ (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
+      - ${{ inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
     timeout-minutes: 480
     env:
       OPS: ${{ inputs.ops }}
@@ -66,11 +76,8 @@ jobs:
       FAIL_FAST: ${{ inputs.fail_fast }}
       JOBS: '64'
       FORCE_COLOR: '1'
-      # Per-runner reach function: a2runner reaches the 910b container,
-      # a5runner reaches the 950 container. Both are defined in the shared
-      # ~/test_runner.bash on each gateway, so steps source that one file
-      # and call the right one via $RUNNER_FN.
-      RUNNER_FN: ${{ (startsWith(inputs.socs, 'ascend950') && 'a5runner') || 'a2runner' }}
+      # Reach-function name: ${runner-label}runner by convention.
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2') }}
     steps:
       # No actions/checkout — all work runs on the container via $RUNNER_FN
       # (scripts live at /workspace/Src/ops-transformer inside the container).

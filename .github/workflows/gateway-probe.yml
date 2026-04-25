@@ -8,9 +8,15 @@ name: gateway-probe
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label to probe (e.g. a2, a5, future a6)
+        required: false
+        default: a2
+        type: string
 
 concurrency:
-  group: runner-singleton-a2
+  group: runner-singleton-${{ inputs.runner }}
   cancel-in-progress: false
 
 defaults:
@@ -19,7 +25,7 @@ defaults:
 
 jobs:
   probe:
-    runs-on: [self-hosted, Linux, X64, a2]
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
     timeout-minutes: 10
     steps:
       - name: probe gateway TLS trust

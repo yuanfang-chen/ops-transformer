@@ -1,10 +1,10 @@
 name: remote-exec
 
-# Ad-hoc command runner against cann_container on host A2. Dispatched
-# manually with a `script` input (multi-line bash). The script runs inside
-# the container via a2runner; stdout, stderr, and exit code are captured
-# to files and uploaded as an artifact, so callers can parse results without
-# scraping the step log.
+# Ad-hoc command runner against the cann_container reachable from a chosen
+# gateway. Dispatched manually with a `script` input (multi-line bash). The
+# script runs inside the container via the runner's reach function; stdout,
+# stderr, and exit code are captured to files and uploaded as an artifact,
+# so callers can parse results without scraping the step log.
 #
 # Intended for one-off debugging or maintenance (clean a stale dir, inspect
 # a path, run a tool the real workflows don't yet wrap). NOT a substitute
@@ -17,10 +17,16 @@ on:
         description: Bash script to run inside the container. Multi-line OK.
         required: true
         type: string
+      runner:
+        description: Runner label (e.g. a2, a5, future a6). Default a2.
+        required: false
+        default: a2
+        type: string
 
 concurrency:
-  # remote-exec targets the a2 runner's container. Per-runner singleton.
-  group: runner-singleton-a2
+  # Per-runner singleton so it doesn't queue behind other workflows on the
+  # same gateway, but doesn't block runs on other gateways either.
+  group: runner-singleton-${{ inputs.runner }}
   cancel-in-progress: false
 
 defaults:
@@ -29,13 +35,15 @@ defaults:
 
 jobs:
   remote-exec:
-    runs-on: [self-hosted, Linux, X64, a2]
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
     timeout-minutes: 30
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
       SCRIPT: ${{ inputs.script }}
+      # Reach-function name follows the convention: <runner-label>runner
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner) }}
     steps:
-      - name: run script via a2runner
+      - name: run script via $RUNNER_FN
         run: |
           source ~/test_runner.bash
           mkdir -p build/remote-exec
@@ -46,12 +54,13 @@ jobs:
           echo "::endgroup::"
 
           # Encode the script as base64 and decode inside the container's
-          # bash. a2runner's printf-%q escaping eats one layer of $ and
-          # ", so a complex `bash -c` arg gets corrupted. The encoded form
-          # is plain ASCII and survives every quoting layer untouched.
+          # bash. The runner function's printf-%q escaping eats one layer
+          # of $ and ", so a complex `bash -c` arg gets corrupted. The
+          # encoded form is plain ASCII and survives every quoting layer
+          # untouched.
           encoded=$(printf '%s' "${SCRIPT}" | base64 -w0)
           rc=0
-          a2runner bash -c "echo ${encoded} | base64 -d | bash" \
+          "${RUNNER_FN}" bash -c "echo ${encoded} | base64 -d | bash" \
             > >(tee build/remote-exec/stdout) \
             2> >(tee build/remote-exec/stderr >&2) \
             || rc=$?
