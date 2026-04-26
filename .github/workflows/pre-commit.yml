@@ -279,13 +279,25 @@ jobs:
         # `--quiet` accepts the EULA and runs the embedded install script
         # (the makeself wrapper has no plain `--install` flag — passing it
         # makes the package print --help and exit non-zero).
+        #
+        # Find the .run path with a tiny single-quoted script (no inner
+        # quotes — survives the test_runner ssh-side `"..."` parse, where
+        # embedded `"` would terminate the outer quoting and expand
+        # `$pkg`/`$(...)` on A2 instead of in the container). Then pass
+        # the resolved path back to ${RUNNER_FN} as plain argv.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
           CANN=/usr/local/Ascend/cann-9.0.0-beta.2
           CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64"
-          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" \
-            bash -c 'set -e; pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1); [ -n "$pkg" ] || { echo "no .run pkg under build_out/ — was the compile gate run?"; exit 1; }; chmod +x "$pkg"; "$pkg" --quiet'
+          pkg=$("${RUNNER_FN}" bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
+          if [ -z "$pkg" ]; then
+            echo "no .run pkg under build_out/ — was the compile gate run?"
+            exit 1
+          fi
+          echo "installing $pkg"
+          "${RUNNER_FN}" chmod +x "$pkg"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" "$pkg" --quiet
 
       - name: pytest
         # CANN runtime libs required at process start (see torch_npu dlopen
