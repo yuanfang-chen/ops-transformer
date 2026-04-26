@@ -135,13 +135,14 @@ int main(int argc, char **argv) {
     auto kList = aclCreateTensorList(kArr, 1);
     auto vList = aclCreateTensorList(vArr, 1);
 
-    // PSE: a per-head fp32 scalar tensor with pseType=2, mirroring the in-tree
-    // example exactly. Removing PSE entirely (pseShift=nullptr, pseType=0)
-    // would change the kernel's dispatch path, which we don't want as a
-    // first-cut benchmark — that's a separate sweep.
-    std::vector<int64_t> pseShape = {cfg.num_q_heads};
+    // PSE: disabled. pseType=0 (PSE_OUTER_MUL_ADD) + pseShift=nullptr is the
+    // "no PSE" path — host-side checker (pse_checker.cpp:64-69) returns
+    // early when pseShift.tensor is nullptr regardless of pseType. Simpler
+    // dispatch, fewer interaction risks with GQA + decode shape than the
+    // example's pseType=2 alibi path. Add PSE back as a separate config
+    // once the no-PSE baseline works.
     void *pseDev = nullptr;
-    aclTensor *pseT = AllocTensor(pseShape, ACL_FLOAT, &pseDev);
+    aclTensor *pseT = nullptr;
 
     // 3. Scalar params. Values mirror examples/arch35/test_aclnn_fused_infer_attention_score_v5.cpp:177-192.
     int64_t numHeads = cfg.num_q_heads;
@@ -160,13 +161,13 @@ int main(int argc, char **argv) {
     int64_t keyAntiquantMode = 0;
     int64_t valueAntiquantMode = 0;
     int64_t queryQuantMode = 0;
-    int64_t pseType = 2;
+    int64_t pseType = 0;  // 0=outer (no-op when pseShift=nullptr), 2=alibi, 3=alibi-sqrt
 
     // 4. First aclnn call: tiling + workspace size. Run once, reuse executor.
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor = nullptr;
     auto ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
-        qT, kList, vList, pseT,
+        qT, kList, vList, /*pseShift*/ pseT,
         /*attenMask*/ nullptr, /*actSeqLen*/ nullptr, /*actSeqLenKv*/ nullptr,
         /*deqScale1*/ nullptr, /*quantScale1*/ nullptr,
         /*deqScale2*/ nullptr, /*quantScale2*/ nullptr, /*quantOffset2*/ nullptr,
@@ -248,14 +249,14 @@ int main(int argc, char **argv) {
     aclDestroyTensor(kT);
     aclDestroyTensor(vT);
     aclDestroyTensor(oT);
-    aclDestroyTensor(pseT);
+    if (pseT != nullptr) aclDestroyTensor(pseT);
     (void)kList;
     (void)vList;
     aclrtFree(qDev);
     aclrtFree(kDev);
     aclrtFree(vDev);
     aclrtFree(oDev);
-    aclrtFree(pseDev);
+    if (pseDev != nullptr) aclrtFree(pseDev);
     if (workspaceSize > 0U) aclrtFree(wsAddr);
     CHECK_ACL(aclrtDestroyStream(stream));
     CHECK_ACL(aclrtResetDevice(0));
