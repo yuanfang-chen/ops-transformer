@@ -252,7 +252,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3; do
-            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple torch torch_npu pytest; then
+            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple --trusted-host mirror.nju.edu.cn torch torch_npu pytest; then
               break
             fi
             if [ "$attempt" = "3" ]; then
