@@ -12,12 +12,15 @@
 # Build and run the FIAS NPU kernel-time benchmark.
 #
 # Prereqs:
-#   - CANN toolkit installed; set_env.sh sourced (so $ASCEND_HOME_PATH is set).
-#   - Custom run package built and installed: from the repo root,
+#   - CANN toolkit installed somewhere — this script auto-discovers it via
+#     /usr/local/Ascend/ascend-toolkit/set_env.sh or $HOME/Ascend/ascend-toolkit/set_env.sh.
+#     If neither exists, set ASCEND_HOME_PATH manually before invoking.
+#   - Custom run package installed: from the repo root,
 #       bash build.sh --pkg --ops=fused_infer_attention_score --soc=ascend950
-#       ./build_out/cann-ops-transformer-*.run --install-path=$(realpath $ASCEND_HOME_PATH/../)
-#   - Run package's set_env.bash sourced (this script does that automatically
-#     via $CUSTOM_PATH/vendors/custom_transformer/bin/set_env.bash if present).
+#       ./build_out/cann-ops-transformer-*.run --install-path=$(realpath ${ASCEND_HOME_PATH}/../)
+#     The vendor's set_env.bash ends up under either:
+#       ${ASCEND_OPP_PATH}/vendors/<vendor>_transformer/bin/set_env.bash   (CANN-opp install)
+#       ${ASCEND_HOME_PATH}/../vendors/<vendor>_transformer/bin/set_env.bash (top-level install)
 #
 # Usage: bash run.sh [--vendor=NAME]   # default vendor: custom
 
@@ -32,30 +35,51 @@ for arg in "$@"; do
     esac
 done
 
+# 1. CANN env. Source set_env.sh if not already sourced.
 if [ -z "${ASCEND_HOME_PATH:-}" ]; then
-    echo "ASCEND_HOME_PATH not set. Source CANN's set_env.sh first." >&2
+    for cand in /usr/local/Ascend/ascend-toolkit/set_env.sh \
+                "${HOME:-/root}/Ascend/ascend-toolkit/set_env.sh"; do
+        if [ -f "$cand" ]; then
+            # shellcheck disable=SC1090
+            source "$cand"
+            break
+        fi
+    done
+fi
+if [ -z "${ASCEND_HOME_PATH:-}" ]; then
+    echo "ASCEND_HOME_PATH still unset after probing standard locations." >&2
+    echo "Set it manually or source CANN's set_env.sh." >&2
     exit 1
 fi
 
-# Source the installed run package's vendor env (mirrors
-# experimental/attention/fused_infer_attention_score/run.sh:47). The set_env.bash
-# adds the vendor's op_api/lib to LD_LIBRARY_PATH and exposes ASCEND_CUSTOM_OPP_PATH.
-CUSTOM_PATH=$(realpath "${ASCEND_HOME_PATH}/../")
-VENDOR_ENV="${CUSTOM_PATH}/vendors/${VENDOR}_transformer/bin/set_env.bash"
-if [ -f "$VENDOR_ENV" ]; then
-    # shellcheck disable=SC1090
-    source "$VENDOR_ENV"
-else
-    echo "vendor set_env.bash not found at $VENDOR_ENV — did you install the run package?" >&2
+# 2. Vendor env. Two possible install layouts — try both.
+VENDOR_ENV=""
+for cand in "${ASCEND_OPP_PATH:-${ASCEND_HOME_PATH}/opp}/vendors/${VENDOR}_transformer/bin/set_env.bash" \
+            "$(realpath "${ASCEND_HOME_PATH}/../")/vendors/${VENDOR}_transformer/bin/set_env.bash"; do
+    if [ -f "$cand" ]; then
+        VENDOR_ENV="$cand"
+        break
+    fi
+done
+if [ -z "$VENDOR_ENV" ]; then
+    echo "vendor set_env.bash not found for vendor='${VENDOR}'." >&2
+    echo "Searched:" >&2
+    echo "  ${ASCEND_OPP_PATH:-${ASCEND_HOME_PATH}/opp}/vendors/${VENDOR}_transformer/bin/set_env.bash" >&2
+    echo "  $(realpath "${ASCEND_HOME_PATH}/../")/vendors/${VENDOR}_transformer/bin/set_env.bash" >&2
+    echo "Did you install the run package?" >&2
     exit 1
 fi
+# shellcheck disable=SC1090
+source "$VENDOR_ENV"
 
+# 3. Resolve include/lib paths the same way build.sh does
+#    (build.sh:582-588: prefer ASCEND_CUSTOM_OPP_PATH if set, else fall back
+#     to ${ASCEND_OPP_PATH}/vendors/...).
 ARCH_INFO=$(uname -m)
 INCLUDE_PATH="${ASCEND_HOME_PATH}/include"
 ACLNNOP_INCLUDE_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 EAGER_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
-# Resolve vendor lib/include paths the same way build.sh:582-588 does.
 if [ -n "${ASCEND_CUSTOM_OPP_PATH:-}" ]; then
     CUST_VENDORS_PATH=$(dirname "${ASCEND_CUSTOM_OPP_PATH%%:*}")
     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${VENDOR}_transformer/op_api/lib"
@@ -69,9 +93,13 @@ BIN="${CURRENT_DIR}/fias_perf"
 
 echo "== Building fias_perf =="
 echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH}"
+echo "ASCEND_OPP_PATH=${ASCEND_OPP_PATH:-(unset)}"
+echo "ASCEND_CUSTOM_OPP_PATH=${ASCEND_CUSTOM_OPP_PATH:-(unset)}"
+echo "CUST_INCLUDE_PATH=${CUST_INCLUDE_PATH}"
 echo "CUST_LIBRARY_PATH=${CUST_LIBRARY_PATH}"
 
-# Compile flags mirror build.sh's --run_example PKG_MODE=cust path (build.sh:589-596).
+# 4. Compile flags mirror build.sh's --run_example PKG_MODE=cust path
+#    (build.sh:589-596).
 g++ "${CURRENT_DIR}/fias_perf.cpp" \
     -O2 -std=c++17 \
     -I "${CUST_INCLUDE_PATH}" -I "${INCLUDE_PATH}" -I "${ACLNNOP_INCLUDE_PATH}" \
