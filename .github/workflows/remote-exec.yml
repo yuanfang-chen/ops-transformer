@@ -37,7 +37,7 @@ defaults:
 jobs:
   remote-exec:
     runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
       SCRIPT: ${{ inputs.script }}
