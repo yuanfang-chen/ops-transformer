@@ -133,15 +133,23 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
 - **Topology**: a single self-hosted gateway machine hosts multiple GH
   Actions **runner agents**, each agent registered with a distinct
   label (any free-form string the operator picked, e.g. `a2`, `a5`).
-  Each label maps to a **real runner**: a docker container
-  `cann_container` on its own remote SSH host, with workspace
-  `/workspace/Src/ops-transformer`. The gateway's `~/test_runner.bash`
-  defines one reach function per container, named `<label>runner` by
-  convention (current: `a2runner` → 910b container, `a5runner` → 950
-  container). Each function execs `<cmd>` inside its container; bare
-  invocation opens an interactive shell. The command form (with args)
-  does not allocate a PTY, so binary pipes (`a2runner tar -cf - …`)
-  work as-is.
+  Each label maps to a **real runner** reached via a function
+  `<label>runner` defined in the gateway's `~/test_runner.bash`. The
+  command form does not allocate a PTY, so binary pipes
+  (`a2runner tar -cf - …`) work as-is; bare invocation opens an
+  interactive shell. **Two real-runner shapes are in use** and they
+  differ in CANN install layout, python version, and TLS trust —
+  workflows that depend on runtime details must accommodate both:
+  - **a2 (910b)**: a docker container `cann_container` on a remote
+    SSH host, workspace `/workspace/Src/ops-transformer`. CANN flat
+    at `${ASCEND_HOME_PATH}/lib64/`. python3 is 3.11.
+  - **a5 (950)**: a **bare host** reached directly via SSH — no
+    docker. Workspace `/home/s00624178/.cyf/ops-transformer`; the
+    reach function sources `~/.cyf/.bashrc` and `cd`s into the
+    workspace before running the command. CANN under
+    `${ASCEND_HOME_PATH}/x86_64-linux/lib64/` with the top-level
+    `lib64` as a symlink. python3 is 3.8. `ASCEND_HOME_PATH` is
+    unset by default.
 - The label-to-agent relationship is many-to-many: GH Actions
   auto-distributes jobs to whichever agent with the matching label is
   free. **Adding capacity** = register more agents on the gateway with
@@ -168,9 +176,9 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   to github.com is flaky); `actions/upload-artifact` is enabled for
   archival once the gateway's TLS trust is configured. They use
   per-runner-agent concurrency groups (`runner-singleton-${label}`):
-  jobs targeting different real-runner containers don't queue against
-  each other, but jobs targeting the same container serialize so they
-  don't race on its git tree.
+  jobs targeting different real runners don't queue against each
+  other, but jobs targeting the same runner serialize so they don't
+  race on its git tree.
 - Each workflow starts with a `prepare container TLS trust` step. The
   container ships Huawei CAs as hash symlinks in `/etc/ssl/certs/` but
   doesn't include them in `/etc/ssl/certs/ca-certificates.crt` — the
@@ -178,9 +186,37 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   calls `update-ca-certificates --fresh` and pins git at the bundle via
   `http.sslCAInfo`. Subsequent runs short-circuit via an openssl-decoded
   bundle scan.
-- Ad-hoc container commands: `gh workflow run remote-exec.yml -f
-  runner=a2 -f script="<multi-line bash>"` (or any other runner label).
-  The script runs inside the chosen runner's container via the matching
+- **`${RUNNER_FN}` quoting gotcha**: the reach function wraps via
+  `ssh <host> "… bash -c \"$cmd\""`, and the SSH-host shell parses the
+  outer `"…"` once before the target shell runs. Any literal `"` inside
+  a script passed as `bash -c '<script>'` terminates that outer string
+  and exposes `$var`/`$(...)` to the SSH-host shell instead of the
+  target. Either keep inner scripts single-quote-only (no `"`), split
+  logic across multiple `${RUNNER_FN}` calls so each is plain argv
+  (the pattern used by `pre-commit.yml`'s install / pytest steps), or
+  base64-encode the script (the pattern used by `remote-exec.yml`).
+- **CANN path discovery for pytest**: because the install layout
+  differs across runners (see Topology bullet), `pre-commit.yml`'s
+  `prepare python env for pytest` step finds `${ASCEND_HOME_PATH}` by
+  searching for `opp/` (the only directory always at the top level on
+  both layouts) and persists `CANN` + `CANN_LD` via `$GITHUB_ENV` for
+  the install and pytest steps. Anchoring on a lib (e.g. `libhccl.so`)
+  lands inside the arch subdir on a5 and breaks `ASCEND_OPP_PATH`.
+  `LD_LIBRARY_PATH` must put `${CANN}/lib64` ahead of `${CANN}/devlib`
+  — the container's baked-in default reverses this and loads stub
+  libraries that fail with `_ZN2ge12AscendStringC1EPKc undefined`.
+- **NPU runtime currently broken on both runners** (as of 2026-04):
+  `aclInit` fails with `chipType=0 / rtGetDevMsg unsupported` because
+  the userspace driver libs in `/usr/local/Ascend/driver/lib64/` don't
+  match the loaded kernel module — `npu-smi` itself errors with
+  `undefined symbol: drvSetDeviceInfo`. The pytest gate's plumbing is
+  fully wired and validated end-to-end (pip install, `.run --quiet`
+  install, test discovery, NPU-free code paths), but `set_device(0)`
+  fails until the host operator refreshes the driver libs. This is
+  host-side infra; don't re-debug it from the workflow side.
+- Ad-hoc commands on a real runner: `gh workflow run remote-exec.yml
+  -f runner=a2 -f script="<multi-line bash>"` (or any other runner
+  label). The script runs on the chosen runner via the matching
   `<label>runner`; stdout/stderr/exit captured to `build/remote-exec/`
   and uploaded as artifact. Useful for probing state, clearing stale
   build dirs, running one-off maintenance.
