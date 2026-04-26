@@ -267,7 +267,7 @@ jobs:
           # LD_LIBRARY_PATH so torch_npu's libmetadef.so dlopen resolves
           # `ge::AscendString` symbols at process start.
           CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64"
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
           "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
 
       - name: install run pkg before pytest
@@ -289,7 +289,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64"
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
           pkg=$("${RUNNER_FN}" bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
           if [ -z "$pkg" ]; then
             echo "no .run pkg under build_out/ — was the compile gate run?"
@@ -309,7 +309,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:${CANN}/opp/vendors/custom_transformer/op_api/lib"
+          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:${CANN}/opp/vendors/custom_transformer/op_api/lib"
           "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" \
             JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
